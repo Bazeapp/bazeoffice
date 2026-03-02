@@ -9,6 +9,8 @@ type TableName =
   | "processi_matching"
   | "lookup_values"
 
+type UpdateTableName = "famiglie" | "lavoratori" | "processi_matching"
+
 type QuerySort = {
   field: string
   ascending?: boolean
@@ -93,4 +95,44 @@ export async function fetchLookupValues() {
     { is_active: true }
   )
   return normalizeTableResponse(response)
+}
+
+type UpdateProcessoStatoSalesResponse = {
+  id: string
+  stato_sales: string
+}
+
+type UpdateRecordResponse = {
+  table: UpdateTableName
+  id: string
+  row: TableRow
+}
+
+export async function updateRecord(
+  table: UpdateTableName,
+  id: string,
+  patch: Record<string, unknown>
+) {
+  return invokeEdgeFunction<UpdateRecordResponse>("update-record", {
+    table,
+    id,
+    patch,
+  })
+}
+
+export async function updateProcessoMatchingStatoSales(
+  processId: string,
+  statoSales: string
+) {
+  const response = await updateRecord("processi_matching", processId, {
+    stato_sales: statoSales,
+  })
+
+  return {
+    id: processId,
+    stato_sales:
+      (typeof response.row.stato_sales === "string"
+        ? response.row.stato_sales
+        : statoSales) as UpdateProcessoStatoSalesResponse["stato_sales"],
+  }
 }

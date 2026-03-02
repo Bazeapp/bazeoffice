@@ -1,6 +1,5 @@
-import * as React from "react"
+import * as React from "react";
 import {
-  Building2Icon,
   ChevronsUpDownIcon,
   CircleHelpIcon,
   FolderTreeIcon,
@@ -10,15 +9,15 @@ import {
   SearchIcon,
   UserCircle2Icon,
   WalletIcon,
-} from "lucide-react"
-import type { User } from "@supabase/supabase-js"
+} from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "@/components/ui/accordion";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +25,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -42,16 +41,25 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarSeparator,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
-type AnagraficheSidebarTab = "famiglie" | "processi" | "lavoratori"
+type AnagraficheSidebarTab = "famiglie" | "processi" | "lavoratori";
+type MainSection =
+  | "anagrafiche"
+  | "crm_pipeline_famiglie"
+  | "crm_assegnazione";
 
 type SidebarCategory = {
-  name: string
-  href: string
-  icon: LucideIcon
-  children?: { name: string; href: string; anagraficheTab?: AnagraficheSidebarTab }[]
-}
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  children?: Array<{
+    name: string;
+    href: string;
+    anagraficheTab?: AnagraficheSidebarTab;
+    mainSection?: MainSection;
+  }>;
+};
 
 const sidebarCategories: SidebarCategory[] = [
   {
@@ -59,9 +67,24 @@ const sidebarCategories: SidebarCategory[] = [
     href: "#",
     icon: FolderTreeIcon,
     children: [
-      { name: "Lavoratori", href: "#", anagraficheTab: "lavoratori" },
-      { name: "Famiglie", href: "#", anagraficheTab: "famiglie" },
-      { name: "Processi", href: "#", anagraficheTab: "processi" },
+      {
+        name: "Lavoratori",
+        href: "#",
+        anagraficheTab: "lavoratori",
+        mainSection: "anagrafiche",
+      },
+      {
+        name: "Famiglie",
+        href: "#",
+        anagraficheTab: "famiglie",
+        mainSection: "anagrafiche",
+      },
+      {
+        name: "Processi",
+        href: "#",
+        anagraficheTab: "processi",
+        mainSection: "anagrafiche",
+      },
     ],
   },
   {
@@ -69,8 +92,12 @@ const sidebarCategories: SidebarCategory[] = [
     href: "#",
     icon: FolderTreeIcon,
     children: [
-      { name: "Pipeline Famiglie", href: "#" },
-      { name: "Assegnazione", href: "#" },
+      {
+        name: "Pipeline Famiglie",
+        href: "#",
+        mainSection: "crm_pipeline_famiglie",
+      },
+      { name: "Assegnazione", href: "#", mainSection: "crm_assegnazione" },
     ],
   },
   {
@@ -90,39 +117,46 @@ const sidebarCategories: SidebarCategory[] = [
   },
   { name: "Payroll", href: "#", icon: WalletIcon },
   { name: "Customer Support", href: "#", icon: CircleHelpIcon },
-]
+];
 
 type AppSidebarProps = {
-  user: User
-  onLogout: () => Promise<void>
-  activeAnagraficheTab?: AnagraficheSidebarTab
-  onOpenAnagraficheTab?: (tab: AnagraficheSidebarTab) => void
-}
+  user: User;
+  onLogout: () => Promise<void>;
+  activeMainSection?: MainSection;
+  activeAnagraficheTab?: AnagraficheSidebarTab;
+  onOpenAnagraficheTab?: (tab: AnagraficheSidebarTab) => void;
+  onOpenCrmPipelineFamiglie?: () => void;
+  onOpenCrmAssegnazione?: () => void;
+};
 
 function getUserDisplayName(user: User) {
-  const metadataFullName = user.user_metadata?.full_name
+  const metadataFullName = user.user_metadata?.full_name;
   if (typeof metadataFullName === "string" && metadataFullName.trim()) {
-    return metadataFullName
+    return metadataFullName;
   }
-  return user.email ?? user.id
+  return user.email ?? user.id;
 }
 
 export function AppSidebar({
   user,
   onLogout,
+  activeMainSection,
   activeAnagraficheTab,
   onOpenAnagraficheTab,
+  onOpenCrmPipelineFamiglie,
+  onOpenCrmAssegnazione,
 }: AppSidebarProps) {
-  const [isLoggingOut, setIsLoggingOut] = React.useState(false)
-  const userDisplayName = getUserDisplayName(user)
-  const userEmail = user.email ?? user.id
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const userDisplayName = getUserDisplayName(user);
+  const userEmail = user.email ?? user.id;
+  const logoSrc = `${import.meta.env.BASE_URL}baze.png`;
 
   async function handleLogout() {
-    setIsLoggingOut(true)
+    setIsLoggingOut(true);
     try {
-      await onLogout()
+      await onLogout();
     } finally {
-      setIsLoggingOut(false)
+      setIsLoggingOut(false);
     }
   }
 
@@ -133,7 +167,11 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild isActive>
               <a href="#">
-                <Building2Icon />
+                <img
+                  src={logoSrc}
+                  alt="Baze logo"
+                  className="size-5 rounded-sm object-contain"
+                />
                 <span>BazeOffice</span>
               </a>
             </SidebarMenuButton>
@@ -141,7 +179,7 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarSeparator />
+      <SidebarSeparator className="max-w-48" />
 
       <SidebarContent>
         <SidebarGroup>
@@ -152,7 +190,10 @@ export function AppSidebar({
                 <SidebarMenuItem key={category.name}>
                   {category.children && category.children.length > 0 ? (
                     <Accordion type="single" collapsible>
-                      <AccordionItem value={category.name} className="border-none">
+                      <AccordionItem
+                        value={category.name}
+                        className="border-none"
+                      >
                         <AccordionTrigger className="hover:no-underline py-0">
                           <span className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex h-8 w-full items-center gap-2 rounded-md px-2 text-sm">
                             <category.icon className="size-4 shrink-0" />
@@ -163,33 +204,60 @@ export function AppSidebar({
                           <SidebarMenuSub className="pb-0">
                             {category.children.map((child) => {
                               const isAnagraficheChild =
-                                category.name === "Anagrafiche" &&
-                                typeof child.anagraficheTab === "string"
+                                child.mainSection === "anagrafiche" &&
+                                typeof child.anagraficheTab === "string";
+                              const isCrmPipelineChild =
+                                child.mainSection === "crm_pipeline_famiglie";
+                              const isCrmAssegnazioneChild =
+                                child.mainSection === "crm_assegnazione";
 
                               return (
                                 <SidebarMenuSubItem key={child.name}>
                                   <SidebarMenuSubButton
                                     asChild
                                     isActive={
-                                      Boolean(isAnagraficheChild) &&
-                                      child.anagraficheTab === activeAnagraficheTab
+                                      (Boolean(isAnagraficheChild) &&
+                                        activeMainSection === "anagrafiche" &&
+                                        child.anagraficheTab ===
+                                          activeAnagraficheTab) ||
+                                      (isCrmPipelineChild &&
+                                        activeMainSection ===
+                                          "crm_pipeline_famiglie") ||
+                                      (isCrmAssegnazioneChild &&
+                                        activeMainSection === "crm_assegnazione")
                                     }
                                   >
                                     <a
                                       href={child.href}
                                       onClick={(event) => {
-                                        if (!isAnagraficheChild || !child.anagraficheTab) {
-                                          return
+                                        if (
+                                          isAnagraficheChild &&
+                                          child.anagraficheTab
+                                        ) {
+                                          event.preventDefault();
+                                          onOpenAnagraficheTab?.(
+                                            child.anagraficheTab,
+                                          );
+                                          return;
                                         }
-                                        event.preventDefault()
-                                        onOpenAnagraficheTab?.(child.anagraficheTab)
+
+                                        if (isCrmPipelineChild) {
+                                          event.preventDefault();
+                                          onOpenCrmPipelineFamiglie?.();
+                                          return;
+                                        }
+
+                                        if (isCrmAssegnazioneChild) {
+                                          event.preventDefault();
+                                          onOpenCrmAssegnazione?.();
+                                        }
                                       }}
                                     >
                                       <span>{child.name}</span>
                                     </a>
                                   </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
-                              )
+                              );
                             })}
                           </SidebarMenuSub>
                         </AccordionContent>
@@ -240,8 +308,8 @@ export function AppSidebar({
                   variant="destructive"
                   disabled={isLoggingOut}
                   onSelect={(event) => {
-                    event.preventDefault()
-                    void handleLogout()
+                    event.preventDefault();
+                    void handleLogout();
                   }}
                 >
                   <LogOutIcon />
@@ -253,5 +321,5 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

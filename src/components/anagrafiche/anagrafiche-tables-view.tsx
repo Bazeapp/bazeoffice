@@ -382,15 +382,6 @@ export function AnagraficheTablesView({
 
   return (
     <section className="w-full min-w-0 space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Anagrafiche</h1>
-          <p className="text-muted-foreground text-sm">
-            Vista tabellare completa con tutte le colonne disponibili.
-          </p>
-        </div>
-      </div>
-
       {loading ? (
         <div className="text-muted-foreground rounded-lg border p-4 text-sm">
           Caricamento dati da Supabase...

@@ -1,53 +1,66 @@
-import type { SortingState, Table } from "@tanstack/react-table"
-import { BookmarkIcon, PlusIcon, SaveIcon, Trash2Icon, XIcon } from "lucide-react"
-import * as React from "react"
+import type { SortingState, Table } from "@tanstack/react-table";
+import {
+  BookmarkIcon,
+  PlusIcon,
+  SaveIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react";
+import * as React from "react";
 
-import { DataTableFilterBuilder } from "@/components/data-table/data-table-filter-builder"
+import { DataTableFilterBuilder } from "@/components/data-table/data-table-filter-builder";
 import {
   countConditions,
   type FilterField,
   type FilterGroup,
-} from "@/components/data-table/data-table-filters"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+} from "@/components/data-table/data-table-filters";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
 type GroupOption = {
-  label: string
-  value: string
-}
+  label: string;
+  value: string;
+};
 
 type DataTableToolbarProps<TData> = {
-  table: Table<TData>
-  searchValue: string
-  onSearchValueChange: (value: string) => void
-  filters: FilterGroup
-  onFiltersChange: (value: FilterGroup) => void
-  filterFields: FilterField[]
-  searchPlaceholder?: string
-  groupOptions?: GroupOption[]
+  table: Table<TData>;
+  searchValue: string;
+  onSearchValueChange: (value: string) => void;
+  filters: FilterGroup;
+  onFiltersChange: (value: FilterGroup) => void;
+  filterFields: FilterField[];
+  searchPlaceholder?: string;
+  groupOptions?: GroupOption[];
   savedViews?: Array<{
-    id: string
-    name: string
-    updatedAt: string
-  }>
-  activeViewId?: string | null
-  onSaveCurrentView?: (name: string) => void
-  onApplySavedView?: (id: string) => void
-  onDeleteSavedView?: (id: string) => void
-}
+    id: string;
+    name: string;
+    updatedAt: string;
+  }>;
+  activeViewId?: string | null;
+  onSaveCurrentView?: (name: string) => void;
+  onApplySavedView?: (id: string) => void;
+  onDeleteSavedView?: (id: string) => void;
+};
 
-function getColumnLabel(column: { id: string; columnDef: { header?: unknown } }) {
-  const header = column.columnDef.header
-  return typeof header === "string" ? header : column.id
+function getColumnLabel(column: {
+  id: string;
+  columnDef: { header?: unknown };
+}) {
+  const header = column.columnDef.header;
+  return typeof header === "string" ? header : column.id;
 }
 
 export function DataTableToolbar<TData>({
@@ -65,75 +78,82 @@ export function DataTableToolbar<TData>({
   onApplySavedView,
   onDeleteSavedView,
 }: DataTableToolbarProps<TData>) {
-  const [viewName, setViewName] = React.useState("")
+  const [viewName, setViewName] = React.useState("");
   const sortableColumns = table
     .getAllLeafColumns()
-    .filter((column) => column.getCanSort())
-  const resolvedGroupOptions = groupOptions
+    .filter((column) => column.getCanSort());
+  const resolvedGroupOptions = groupOptions;
 
-  const sorting = table.getState().sorting
-  const grouping = table.getState().grouping
-  const activeConditionCount = countConditions(filters)
-  const canAddSort = sorting.length < sortableColumns.length
-  const canAddGroup = grouping.length < resolvedGroupOptions.length
+  const sorting = table.getState().sorting;
+  const grouping = table.getState().grouping;
+  const activeConditionCount = countConditions(filters);
+  const canAddSort = sorting.length < sortableColumns.length;
+  const canAddGroup = grouping.length < resolvedGroupOptions.length;
 
   const sortedSavedViews = React.useMemo(() => {
     return [...savedViews].sort(
       (a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    )
-  }, [savedViews])
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+  }, [savedViews]);
 
   function upsertSort(index: number, partial: { id?: string; desc?: boolean }) {
-    const next: SortingState = [...sorting]
-    const current = next[index]
-    if (!current) return
-    const nextId = partial.id ?? current.id
+    const next: SortingState = [...sorting];
+    const current = next[index];
+    if (!current) return;
+    const nextId = partial.id ?? current.id;
     const isDuplicate = next.some(
-      (item, currentIndex) => currentIndex !== index && item.id === nextId
-    )
-    if (isDuplicate) return
+      (item, currentIndex) => currentIndex !== index && item.id === nextId,
+    );
+    if (isDuplicate) return;
     next[index] = {
       id: nextId,
       desc: partial.desc ?? current.desc,
-    }
-    table.setSorting(next)
+    };
+    table.setSorting(next);
   }
 
   function addSort() {
-    const used = new Set(sorting.map((item) => item.id))
-    const firstColumn = sortableColumns.find((column) => !used.has(column.id))?.id
-    if (!firstColumn) return
-    table.setSorting([...sorting, { id: firstColumn, desc: false }])
+    const used = new Set(sorting.map((item) => item.id));
+    const firstColumn = sortableColumns.find(
+      (column) => !used.has(column.id),
+    )?.id;
+    if (!firstColumn) return;
+    table.setSorting([...sorting, { id: firstColumn, desc: false }]);
   }
 
   function removeSort(index: number) {
-    table.setSorting(sorting.filter((_, currentIndex) => currentIndex !== index))
+    table.setSorting(
+      sorting.filter((_, currentIndex) => currentIndex !== index),
+    );
   }
 
   function addGroup() {
-    const used = new Set(grouping)
+    const used = new Set(grouping);
     const firstGroup = resolvedGroupOptions.find(
-      (option) => !used.has(option.value)
-    )?.value
-    if (!firstGroup) return
-    table.setGrouping([...grouping, firstGroup])
+      (option) => !used.has(option.value),
+    )?.value;
+    if (!firstGroup) return;
+    table.setGrouping([...grouping, firstGroup]);
   }
 
   function updateGroup(index: number, value: string) {
     const isDuplicate = grouping.some(
-      (currentValue, currentIndex) => currentIndex !== index && currentValue === value
-    )
-    if (isDuplicate) return
+      (currentValue, currentIndex) =>
+        currentIndex !== index && currentValue === value,
+    );
+    if (isDuplicate) return;
 
-    const next = [...grouping]
-    if (!next[index]) return
-    next[index] = value
-    table.setGrouping(next)
+    const next = [...grouping];
+    if (!next[index]) return;
+    next[index] = value;
+    table.setGrouping(next);
   }
 
   function removeGroup(index: number) {
-    table.setGrouping(grouping.filter((_, currentIndex) => currentIndex !== index))
+    table.setGrouping(
+      grouping.filter((_, currentIndex) => currentIndex !== index),
+    );
   }
 
   return (
@@ -176,8 +196,8 @@ export function DataTableToolbar<TData>({
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      onSaveCurrentView?.(viewName)
-                      setViewName("")
+                      onSaveCurrentView?.(viewName);
+                      setViewName("");
                     }}
                   >
                     <SaveIcon />
@@ -203,7 +223,9 @@ export function DataTableToolbar<TData>({
                         >
                           <span
                             className={
-                              activeViewId === view.id ? "font-medium" : undefined
+                              activeViewId === view.id
+                                ? "font-medium"
+                                : undefined
                             }
                           >
                             {view.name}
@@ -234,7 +256,10 @@ export function DataTableToolbar<TData>({
             </PopoverContent>
           </Popover>
 
-          <Separator orientation="vertical" className="mx-1 hidden h-6 md:block" />
+          <Separator
+            orientation="vertical"
+            className="mx-1 hidden h-6 md:block"
+          />
 
           <Popover>
             <PopoverTrigger asChild>
@@ -256,34 +281,39 @@ export function DataTableToolbar<TData>({
                   </p>
                 ) : (
                   sorting.map((item, index) => (
-                    <div key={`${item.id}-${index}`} className="flex items-center gap-2">
+                    <div
+                      key={`${item.id}-${index}`}
+                      className="flex items-center gap-2"
+                    >
                       {(() => {
                         const usedByOthers = new Set(
                           sorting
                             .filter((_, currentIndex) => currentIndex !== index)
-                            .map((entry) => entry.id)
-                        )
+                            .map((entry) => entry.id),
+                        );
                         const allowedColumns = sortableColumns.filter(
-                          (column) => !usedByOthers.has(column.id)
-                        )
+                          (column) => !usedByOthers.has(column.id),
+                        );
 
                         return (
-                      <Select
-                        value={item.id}
-                        onValueChange={(value) => upsertSort(index, { id: value })}
-                      >
-                        <SelectTrigger className="h-10 flex-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {allowedColumns.map((column) => (
-                            <SelectItem key={column.id} value={column.id}>
-                              {getColumnLabel(column)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                        )
+                          <Select
+                            value={item.id}
+                            onValueChange={(value) =>
+                              upsertSort(index, { id: value })
+                            }
+                          >
+                            <SelectTrigger className="h-10 flex-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {allowedColumns.map((column) => (
+                                <SelectItem key={column.id} value={column.id}>
+                                  {getColumnLabel(column)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
                       })()}
 
                       <Select
@@ -312,7 +342,12 @@ export function DataTableToolbar<TData>({
                   ))
                 )}
 
-                <Button variant="ghost" size="sm" onClick={addSort} disabled={!canAddSort}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={addSort}
+                  disabled={!canAddSort}
+                >
                   <PlusIcon />
                   Add another sort
                 </Button>
@@ -340,32 +375,42 @@ export function DataTableToolbar<TData>({
                   </p>
                 ) : (
                   grouping.map((value, index) => (
-                    <div key={`${value}-${index}`} className="flex items-center gap-2">
+                    <div
+                      key={`${value}-${index}`}
+                      className="flex items-center gap-2"
+                    >
                       {(() => {
                         const usedByOthers = new Set(
-                          grouping.filter((_, currentIndex) => currentIndex !== index)
-                        )
+                          grouping.filter(
+                            (_, currentIndex) => currentIndex !== index,
+                          ),
+                        );
                         const allowedGroups = resolvedGroupOptions.filter(
-                          (option) => !usedByOthers.has(option.value)
-                        )
+                          (option) => !usedByOthers.has(option.value),
+                        );
 
                         return (
-                      <Select
-                        value={value}
-                        onValueChange={(nextValue) => updateGroup(index, nextValue)}
-                      >
-                        <SelectTrigger className="h-10 flex-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {allowedGroups.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                        )
+                          <Select
+                            value={value}
+                            onValueChange={(nextValue) =>
+                              updateGroup(index, nextValue)
+                            }
+                          >
+                            <SelectTrigger className="h-10 flex-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {allowedGroups.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
                       })()}
 
                       <Button
@@ -379,7 +424,12 @@ export function DataTableToolbar<TData>({
                   ))
                 )}
 
-                <Button variant="ghost" size="sm" onClick={addGroup} disabled={!canAddGroup}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={addGroup}
+                  disabled={!canAddGroup}
+                >
                   <PlusIcon />
                   Add another group
                 </Button>
@@ -417,5 +467,5 @@ export function DataTableToolbar<TData>({
         </div>
       </div>
     </div>
-  )
+  );
 }
