@@ -1,9 +1,6 @@
 import type { ReactNode } from "react"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
-
-export const CRM_DETAIL_CARD_TITLE_CLASS = "text-lg font-semibold"
+import { DetailSectionCard } from "@/components/shared/detail-section-card"
 
 type CrmDetailCardProps = {
   title: string
@@ -19,11 +16,13 @@ export function CrmDetailCard({
   contentClassName,
 }: CrmDetailCardProps) {
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className={CRM_DETAIL_CARD_TITLE_CLASS}>{title}</CardTitle>
-      </CardHeader>
-      {children ? <CardContent className={cn(contentClassName)}>{children}</CardContent> : null}
-    </Card>
+    <DetailSectionCard
+      title={title}
+      titleOnBorder
+      className={className}
+      contentClassName={contentClassName}
+    >
+      {children}
+    </DetailSectionCard>
   )
 }

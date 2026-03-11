@@ -14,7 +14,8 @@ import { useCrmAssegnazione } from "@/hooks/use-crm-assegnazione"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+import { SideCardsPanel } from "@/components/shared/side-cards-panel"
 import {
   Select,
   SelectContent,
@@ -234,7 +235,7 @@ function AssegnazioneSearchCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer border-l-4 py-2 transition-shadow hover:shadow-md",
+        "cursor-pointer bg-white border border-border/70 border-l-4 py-2 transition-shadow hover:shadow-md",
         getAssigneeAccentClass(assigneeId)
       )}
     >
@@ -405,9 +406,18 @@ export function CrmAssegnazioneView() {
       ) : null}
 
       <div className="h-[calc(100vh-7.5rem)] grid grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <Card
+        <SideCardsPanel
+          title="Da assegnare"
+          icon={CalendarDaysIcon}
+          subtitle={
+            loading
+              ? "Caricamento..."
+              : `${unassignedCards.length} ricerche senza giorno assegnato`
+          }
+          headerClassName="px-5"
+          contentClassName="space-y-2 py-3 px-5"
           className={cn(
-            "flex h-full flex-col overflow-hidden",
+            "h-full",
             dropTarget === "UNASSIGNED" && "ring-primary/40 ring-2"
           )}
           onDragOver={(event) => {
@@ -431,70 +441,57 @@ export function CrmAssegnazioneView() {
             handleDrop(null, droppedProcessId)
           }}
         >
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CalendarDaysIcon className="size-4" />
-              Da assegnare
-            </CardTitle>
-            <p className="text-muted-foreground text-sm">
-              {loading
-                ? "Caricamento..."
-                : `${unassignedCards.length} ricerche senza giorno assegnato`}
-            </p>
-          </CardHeader>
-          <CardContent className="flex-1 space-y-2 overflow-y-auto py-2">
-            {loading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="bg-muted h-20 animate-pulse rounded-lg border"
-                  />
-                ))}
-              </div>
-            ) : unassignedCards.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                Nessuna ricerca in stato da assegnare.
-              </p>
-            ) : (
-              unassignedCards.map((card) => (
+          {loading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, index) => (
                 <div
-                  key={card.id}
-                  draggable
-                  onClick={() => handleOpenCardDetails(card)}
-                  onDragStart={(event) => {
-                    event.dataTransfer.setData("text/plain", card.id)
-                    event.dataTransfer.effectAllowed = "move"
-                    suppressCardClickRef.current = true
-                    setDraggingProcessId(card.id)
+                  key={index}
+                  className="bg-muted h-20 animate-pulse rounded-lg border"
+                />
+              ))}
+            </div>
+          ) : unassignedCards.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Nessuna ricerca in stato da assegnare.
+            </p>
+          ) : (
+            unassignedCards.map((card) => (
+              <div
+                key={card.id}
+                draggable
+                onClick={() => handleOpenCardDetails(card)}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData("text/plain", card.id)
+                  event.dataTransfer.effectAllowed = "move"
+                  suppressCardClickRef.current = true
+                  setDraggingProcessId(card.id)
+                }}
+                onDragEnd={() => {
+                  setDraggingProcessId(null)
+                  setDropTarget(null)
+                  setTimeout(() => {
+                    suppressCardClickRef.current = false
+                  }, 150)
+                }}
+                className={cn(
+                  "cursor-grab transition-opacity active:cursor-grabbing",
+                  draggingProcessId === card.id && "opacity-40"
+                )}
+              >
+                <AssegnazioneSearchCard
+                  data={card}
+                  assigneeId={getCardAssigneeId(card.id)}
+                  onAssigneeChange={(nextAssigneeId) => {
+                    setAssigneesByProcessId((current) => ({
+                      ...current,
+                      [card.id]: nextAssigneeId,
+                    }))
                   }}
-                  onDragEnd={() => {
-                    setDraggingProcessId(null)
-                    setDropTarget(null)
-                    setTimeout(() => {
-                      suppressCardClickRef.current = false
-                    }, 150)
-                  }}
-                  className={cn(
-                    "cursor-grab transition-opacity active:cursor-grabbing",
-                    draggingProcessId === card.id && "opacity-40"
-                  )}
-                >
-                  <AssegnazioneSearchCard
-                    data={card}
-                    assigneeId={getCardAssigneeId(card.id)}
-                    onAssigneeChange={(nextAssigneeId) => {
-                      setAssigneesByProcessId((current) => ({
-                        ...current,
-                        [card.id]: nextAssigneeId,
-                      }))
-                    }}
-                  />
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                />
+              </div>
+            ))
+          )}
+        </SideCardsPanel>
 
         <div className="flex h-full flex-col gap-2 p-0">
           {weeks.map((week) => (

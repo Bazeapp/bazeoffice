@@ -1,8 +1,16 @@
 import type { SortingState, Table } from "@tanstack/react-table";
 import {
+  AtSignIcon,
+  ArrowUpDownIcon,
   BookmarkIcon,
+  CalendarIcon,
+  CheckIcon,
+  CircleDotIcon,
+  HashIcon,
+  ListFilterIcon,
   PlusIcon,
   SaveIcon,
+  TypeIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react";
@@ -53,6 +61,10 @@ type DataTableToolbarProps<TData> = {
   onSaveCurrentView?: (name: string) => void;
   onApplySavedView?: (id: string) => void;
   onDeleteSavedView?: (id: string) => void;
+  enableGrouping?: boolean;
+  compactControls?: boolean;
+  onApplyFilters?: () => void;
+  hasPendingFilters?: boolean;
 };
 
 function getColumnLabel(column: {
@@ -61,6 +73,36 @@ function getColumnLabel(column: {
 }) {
   const header = column.columnDef.header;
   return typeof header === "string" ? header : column.id;
+}
+
+function getFieldTypeIcon(
+  fieldType:
+    | "text"
+    | "number"
+    | "date"
+    | "boolean"
+    | "enum"
+    | "multi_enum"
+    | "id"
+    | undefined,
+) {
+  switch (fieldType) {
+    case "id":
+      return AtSignIcon;
+    case "number":
+      return HashIcon;
+    case "date":
+      return CalendarIcon;
+    case "boolean":
+      return CheckIcon;
+    case "enum":
+      return CircleDotIcon;
+    case "multi_enum":
+      return ListFilterIcon;
+    case "text":
+    default:
+      return TypeIcon;
+  }
 }
 
 export function DataTableToolbar<TData>({
@@ -77,6 +119,10 @@ export function DataTableToolbar<TData>({
   onSaveCurrentView,
   onApplySavedView,
   onDeleteSavedView,
+  enableGrouping = true,
+  compactControls = false,
+  onApplyFilters,
+  hasPendingFilters = false,
 }: DataTableToolbarProps<TData>) {
   const [viewName, setViewName] = React.useState("");
   const sortableColumns = table
@@ -96,6 +142,10 @@ export function DataTableToolbar<TData>({
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
   }, [savedViews]);
+  const filterFieldByValue = React.useMemo(
+    () => new Map(filterFields.map((field) => [field.value, field])),
+    [filterFields],
+  );
 
   function upsertSort(index: number, partial: { id?: string; desc?: boolean }) {
     const next: SortingState = [...sorting];
@@ -158,20 +208,44 @@ export function DataTableToolbar<TData>({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div
+        className={
+          compactControls
+            ? "flex flex-col gap-2"
+            : "flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
+        }
+      >
         <Input
-          className="w-full md:max-w-sm"
+          className={compactControls ? "w-full" : "w-full md:max-w-sm"}
           placeholder={searchPlaceholder}
           value={searchValue}
           onChange={(event) => onSearchValueChange(event.target.value)}
         />
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div
+          className={
+            compactControls
+              ? "flex items-center gap-2 overflow-x-auto"
+              : "flex flex-wrap items-center gap-2"
+          }
+        >
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline">
+              <Button
+                variant="outline"
+                size={compactControls ? "icon-sm" : "default"}
+                className={compactControls ? "relative" : undefined}
+                title="Preferiti"
+                aria-label={`Preferiti (${savedViews.length})`}
+              >
                 <BookmarkIcon />
-                Preferiti ({savedViews.length})
+                {compactControls ? (
+                  <span className="bg-muted text-muted-foreground absolute -top-1 -right-1 rounded-full px-1 text-[10px] leading-4">
+                    {savedViews.length}
+                  </span>
+                ) : (
+                  <>Preferiti ({savedViews.length})</>
+                )}
               </Button>
             </PopoverTrigger>
             <PopoverContent
@@ -256,14 +330,26 @@ export function DataTableToolbar<TData>({
             </PopoverContent>
           </Popover>
 
-          <Separator
-            orientation="vertical"
-            className="mx-1 hidden h-6 md:block"
-          />
+          <Separator orientation="vertical" className="mx-1 hidden h-6 md:block" />
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline">Sort by ({sorting.length})</Button>
+              <Button
+                variant="outline"
+                size={compactControls ? "icon-sm" : "default"}
+                className={compactControls ? "relative" : undefined}
+                title="Sort by"
+                aria-label={`Sort by (${sorting.length})`}
+              >
+                {compactControls ? <ArrowUpDownIcon /> : null}
+                {compactControls ? (
+                  <span className="bg-muted text-muted-foreground absolute -top-1 -right-1 rounded-full px-1 text-[10px] leading-4">
+                    {sorting.length}
+                  </span>
+                ) : (
+                  <>Sort by ({sorting.length})</>
+                )}
+              </Button>
             </PopoverTrigger>
             <PopoverContent
               align="end"
@@ -308,7 +394,16 @@ export function DataTableToolbar<TData>({
                             <SelectContent>
                               {allowedColumns.map((column) => (
                                 <SelectItem key={column.id} value={column.id}>
-                                  {getColumnLabel(column)}
+                                  <span className="flex items-center gap-2">
+                                    {(() => {
+                                      const field = filterFieldByValue.get(column.id);
+                                      const Icon = getFieldTypeIcon(field?.type);
+                                      return (
+                                        <Icon className="text-muted-foreground size-3.5 shrink-0" />
+                                      );
+                                    })()}
+                                    <span>{getColumnLabel(column)}</span>
+                                  </span>
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -355,92 +450,116 @@ export function DataTableToolbar<TData>({
             </PopoverContent>
           </Popover>
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline">Group by ({grouping.length})</Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              side="bottom"
-              sideOffset={8}
-              className="w-[min(92vw,560px)] p-0"
-            >
-              <div className="border-b px-4 py-3">
-                <div className="text-sm font-medium">Group by</div>
-              </div>
-              <div className="space-y-3 px-4 py-3">
-                {grouping.length === 0 ? (
-                  <p className="text-muted-foreground text-xs">
-                    Nessun raggruppamento attivo.
-                  </p>
-                ) : (
-                  grouping.map((value, index) => (
-                    <div
-                      key={`${value}-${index}`}
-                      className="flex items-center gap-2"
-                    >
-                      {(() => {
-                        const usedByOthers = new Set(
-                          grouping.filter(
-                            (_, currentIndex) => currentIndex !== index,
-                          ),
-                        );
-                        const allowedGroups = resolvedGroupOptions.filter(
-                          (option) => !usedByOthers.has(option.value),
-                        );
-
-                        return (
-                          <Select
-                            value={value}
-                            onValueChange={(nextValue) =>
-                              updateGroup(index, nextValue)
-                            }
-                          >
-                            <SelectTrigger className="h-10 flex-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {allowedGroups.map((option) => (
-                                <SelectItem
-                                  key={option.value}
-                                  value={option.value}
-                                >
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        );
-                      })()}
-
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => removeGroup(index)}
+          {enableGrouping ? (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline">Group by ({grouping.length})</Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                side="bottom"
+                sideOffset={8}
+                className="w-[min(92vw,560px)] p-0"
+              >
+                <div className="border-b px-4 py-3">
+                  <div className="text-sm font-medium">Group by</div>
+                </div>
+                <div className="space-y-3 px-4 py-3">
+                  {grouping.length === 0 ? (
+                    <p className="text-muted-foreground text-xs">
+                      Nessun raggruppamento attivo.
+                    </p>
+                  ) : (
+                    grouping.map((value, index) => (
+                      <div
+                        key={`${value}-${index}`}
+                        className="flex items-center gap-2"
                       >
-                        <XIcon />
-                      </Button>
-                    </div>
-                  ))
-                )}
+                        {(() => {
+                          const usedByOthers = new Set(
+                            grouping.filter(
+                              (_, currentIndex) => currentIndex !== index,
+                            ),
+                          );
+                          const allowedGroups = resolvedGroupOptions.filter(
+                            (option) => !usedByOthers.has(option.value),
+                          );
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={addGroup}
-                  disabled={!canAddGroup}
-                >
-                  <PlusIcon />
-                  Add another group
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+                          return (
+                            <Select
+                              value={value}
+                              onValueChange={(nextValue) =>
+                                updateGroup(index, nextValue)
+                              }
+                            >
+                              <SelectTrigger className="h-10 flex-1">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {allowedGroups.map((option) => (
+                                  <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    <span className="flex items-center gap-2">
+                                      {(() => {
+                                        const field = filterFieldByValue.get(option.value);
+                                        const Icon = getFieldTypeIcon(field?.type);
+                                        return (
+                                          <Icon className="text-muted-foreground size-3.5 shrink-0" />
+                                        );
+                                      })()}
+                                      <span>{option.label}</span>
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          );
+                        })()}
+
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => removeGroup(index)}
+                        >
+                          <XIcon />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={addGroup}
+                    disabled={!canAddGroup}
+                  >
+                    <PlusIcon />
+                    Add another group
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          ) : null}
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline">
-                Filtri avanzati ({activeConditionCount})
+              <Button
+                variant="outline"
+                size={compactControls ? "icon-sm" : "default"}
+                className={compactControls ? "relative" : undefined}
+                title="Filtri avanzati"
+                aria-label={`Filtri avanzati (${activeConditionCount})`}
+              >
+                {compactControls ? <ListFilterIcon /> : null}
+                {compactControls ? (
+                  <span className="bg-muted text-muted-foreground absolute -top-1 -right-1 rounded-full px-1 text-[10px] leading-4">
+                    {activeConditionCount}
+                  </span>
+                ) : (
+                  <>Filtri avanzati ({activeConditionCount})</>
+                )}
               </Button>
             </PopoverTrigger>
             <PopoverContent
@@ -462,6 +581,18 @@ export function DataTableToolbar<TData>({
                   onChange={onFiltersChange}
                 />
               </div>
+              {onApplyFilters ? (
+                <div className="border-t px-4 py-3">
+                  <Button
+                    variant={hasPendingFilters ? "default" : "outline"}
+                    size="sm"
+                    onClick={onApplyFilters}
+                    disabled={!hasPendingFilters}
+                  >
+                    Applica filtri
+                  </Button>
+                </div>
+              ) : null}
             </PopoverContent>
           </Popover>
         </div>

@@ -5,6 +5,7 @@ import { AnagraficheTablesView } from "@/components/anagrafiche/anagrafiche-tabl
 import { CrmAssegnazioneView } from "@/components/crm/crm-assegnazione-view"
 import { CrmPipelineFamiglieView } from "@/components/crm/crm-pipeline-famiglie-view"
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { LavoratoriCercaView } from "@/components/lavoratori/lavoratori-cerca-view"
 import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
@@ -22,6 +23,7 @@ type MainSection =
   | "anagrafiche"
   | "crm_pipeline_famiglie"
   | "crm_assegnazione"
+  | "lavoratori_cerca"
 
 type RouteState = {
   mainSection: MainSection
@@ -66,6 +68,13 @@ function resolveRouteStateFromPath(pathname: string): RouteState {
     }
   }
 
+  if (slug === "cerca-lavoratori") {
+    return {
+      mainSection: "lavoratori_cerca",
+      anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+    }
+  }
+
   if (slug === "famiglie" || slug === "processi" || slug === "lavoratori") {
     return {
       mainSection: "anagrafiche",
@@ -81,6 +90,7 @@ function buildPathForRoute(route: RouteState) {
   const slug = (() => {
     if (route.mainSection === "crm_pipeline_famiglie") return "pipeline"
     if (route.mainSection === "crm_assegnazione") return "assegnazione"
+    if (route.mainSection === "lavoratori_cerca") return "cerca-lavoratori"
     return route.anagraficheTab
   })()
   return `${basePrefix}/${slug}`
@@ -163,6 +173,14 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     })
   }, [activeAnagraficheTab])
 
+  const handleOpenLavoratoriCerca = React.useCallback(() => {
+    setActiveMainSection("lavoratori_cerca")
+    syncBrowserUrl({
+      mainSection: "lavoratori_cerca",
+      anagraficheTab: activeAnagraficheTab,
+    })
+  }, [activeAnagraficheTab])
+
   return (
     <SidebarProvider>
       <AppSidebar
@@ -173,6 +191,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onOpenAnagraficheTab={handleOpenAnagraficheTab}
         onOpenCrmPipelineFamiglie={handleOpenCrmPipelineFamiglie}
         onOpenCrmAssegnazione={handleOpenCrmAssegnazione}
+        onOpenLavoratoriCerca={handleOpenLavoratoriCerca}
       />
       <SidebarInset>
         <header className="flex h-14 items-start gap-2 border-b px-4 pt-2">
@@ -192,6 +211,13 @@ export function AppShell({ user, onLogout }: AppShellProps) {
                 Assegna le ricerche da pianificare nei giorni del calendario.
               </p>
             </div>
+          ) : activeMainSection === "lavoratori_cerca" ? (
+            <div className="space-y-0.5">
+              <h1 className="text-base leading-none font-semibold">Cerca Lavoratori</h1>
+              <p className="text-muted-foreground text-xs leading-none">
+                Seleziona un lavoratore dalla lista e apri la sua scheda.
+              </p>
+            </div>
           ) : (
             <div className="space-y-0.5">
               <h1 className="text-base leading-none font-semibold">Anagrafiche</h1>
@@ -207,6 +233,8 @@ export function AppShell({ user, onLogout }: AppShellProps) {
             <CrmPipelineFamiglieView />
           ) : activeMainSection === "crm_assegnazione" ? (
             <CrmAssegnazioneView />
+          ) : activeMainSection === "lavoratori_cerca" ? (
+            <LavoratoriCercaView />
           ) : (
             <AnagraficheTablesView
               activeTab={activeAnagraficheTab}

@@ -9,9 +9,7 @@ import {
   getGroupedRowModel,
   getSortedRowModel,
   type ColumnDef,
-  type GroupingState,
   type PaginationState,
-  type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import * as React from "react";
@@ -19,11 +17,13 @@ import { ExpandIcon, PanelRightOpenIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import {
-  createEmptyGroup,
   evaluateGroup,
-  type FilterGroup,
   type FilterField,
 } from "@/components/data-table/data-table-filters";
+import {
+  type TableQueryState as SharedTableQueryState,
+  useTableQueryState,
+} from "@/hooks/use-table-query-state";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { Button } from "@/components/ui/button";
 import {
@@ -76,7 +76,13 @@ type DataTableProps<TData, TValue> = {
   totalRows?: number;
   paginationState?: PaginationState;
   onPaginationStateChange?: (next: PaginationState) => void;
+  serverQueryMode?: boolean;
+  onServerQueryChange?: (query: DataTableQueryState) => void;
+  initialServerQuery?: Partial<DataTableQueryState>;
+  serverQueryDebounceMs?: number;
 };
+
+export type DataTableQueryState = SharedTableQueryState;
 
 type CellPreviewState = {
   rowId: string;
@@ -92,17 +98,6 @@ type CellCoordinate = {
 type TableSelection = {
   anchor: CellCoordinate;
   focus: CellCoordinate;
-};
-
-type SavedTableView = {
-  id: string;
-  name: string;
-  searchValue: string;
-  filters: FilterGroup;
-  sorting: SortingState;
-  grouping: GroupingState;
-  createdAt: string;
-  updatedAt: string;
 };
 
 function formatPreviewValue(value: unknown) {
@@ -173,29 +168,6 @@ function formatPanelValue(value: unknown) {
   }
 }
 
-function cloneSerializable<T>(value: T): T {
-  if (typeof structuredClone === "function") {
-    return structuredClone(value);
-  }
-
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function isValidSavedTableView(value: unknown): value is SavedTableView {
-  if (!value || typeof value !== "object") return false;
-
-  const candidate = value as Partial<SavedTableView>;
-  return (
-    typeof candidate.id === "string" &&
-    typeof candidate.name === "string" &&
-    typeof candidate.searchValue === "string" &&
-    Array.isArray(candidate.sorting) &&
-    Array.isArray(candidate.grouping) &&
-    typeof candidate.createdAt === "string" &&
-    typeof candidate.updatedAt === "string" &&
-    Boolean(candidate.filters && typeof candidate.filters === "object")
-  );
-}
 
 export function DataTable<TData, TValue>({
   columns,
@@ -209,21 +181,41 @@ export function DataTable<TData, TValue>({
   totalRows = 0,
   paginationState,
   onPaginationStateChange,
+  serverQueryMode = false,
+  onServerQueryChange,
+  initialServerQuery,
+  serverQueryDebounceMs = 700,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [searchValue, setSearchValue] = React.useState("");
-  const [grouping, setGrouping] = React.useState<GroupingState>([]);
+  const {
+    debouncedQuery,
+    searchValue,
+    setSearchValue,
+    filters,
+    setFilters,
+    hasPendingFilters,
+    applyFilters,
+    sorting,
+    setSorting,
+    grouping,
+    setGrouping,
+    savedViews,
+    activeViewId,
+    saveView,
+    applyView,
+    deleteView,
+  } = useTableQueryState({
+    initialQuery: initialServerQuery,
+    viewsStorageKey,
+    debounceMs: serverQueryDebounceMs,
+  });
   const [expanded, setExpanded] = React.useState<ExpandedState>(true);
   const [internalPagination, setInternalPagination] =
     React.useState<PaginationState>({
       pageIndex: 0,
       pageSize,
     });
-  const [filters, setFilters] = React.useState(() => createEmptyGroup("and"));
   const [cellPreview, setCellPreview] = React.useState<CellPreviewState>(null);
   const [selection, setSelection] = React.useState<TableSelection | null>(null);
-  const [savedViews, setSavedViews] = React.useState<SavedTableView[]>([]);
-  const [activeViewId, setActiveViewId] = React.useState<string | null>(null);
   const [recordPanelOpen, setRecordPanelOpen] = React.useState(false);
   const [recordPanelData, setRecordPanelData] = React.useState<Record<
     string,
@@ -232,8 +224,6 @@ export function DataTable<TData, TValue>({
   const [recordPanelTitle, setRecordPanelTitle] =
     React.useState("Dettaglio record");
   const tableWrapperRef = React.useRef<HTMLDivElement | null>(null);
-  const didLoadSavedViewsRef = React.useRef(false);
-  const applyingSavedViewRef = React.useRef(false);
   const pagination = paginationState ?? internalPagination;
 
   const handlePaginationChange = React.useCallback(
@@ -241,6 +231,12 @@ export function DataTable<TData, TValue>({
       if (paginationState) {
         const next =
           typeof updater === "function" ? updater(paginationState) : updater;
+        if (
+          next.pageIndex === paginationState.pageIndex &&
+          next.pageSize === paginationState.pageSize
+        ) {
+          return;
+        }
         onPaginationStateChange?.(next);
         return;
       }
@@ -267,71 +263,28 @@ export function DataTable<TData, TValue>({
     setInternalPagination(paginationState);
   }, [paginationState]);
 
-  React.useEffect(() => {
-    didLoadSavedViewsRef.current = false;
-
-    if (!viewsStorageKey || typeof window === "undefined") {
-      setSavedViews([]);
-      setActiveViewId(null);
-      didLoadSavedViewsRef.current = true;
-      return;
-    }
-
-    try {
-      const raw = window.localStorage.getItem(viewsStorageKey);
-      if (!raw) {
-        setSavedViews([]);
-        setActiveViewId(null);
-        didLoadSavedViewsRef.current = true;
-        return;
-      }
-
-      const parsed = JSON.parse(raw) as unknown;
-      const loaded = Array.isArray(parsed)
-        ? parsed.filter((item): item is SavedTableView =>
-            isValidSavedTableView(item),
-          )
-        : [];
-
-      setSavedViews(loaded);
-      setActiveViewId((previous) =>
-        loaded.some((view) => view.id === previous) ? previous : null,
-      );
-    } catch {
-      setSavedViews([]);
-      setActiveViewId(null);
-    } finally {
-      didLoadSavedViewsRef.current = true;
-    }
-  }, [viewsStorageKey]);
-
-  React.useEffect(() => {
-    if (!viewsStorageKey || typeof window === "undefined") return;
-    if (!didLoadSavedViewsRef.current) return;
-
-    window.localStorage.setItem(viewsStorageKey, JSON.stringify(savedViews));
-  }, [savedViews, viewsStorageKey]);
-
   const filteredData = React.useMemo(() => {
-    const query = searchValue.trim().toLowerCase();
+    if (serverQueryMode) return data;
+
+    const searchToken = searchValue.trim().toLowerCase();
 
     return data.filter((row) => {
       const record = row as Record<string, unknown>;
-      const matchesComplexFilters = evaluateGroup(record, filters);
+      const matchesComplexFilters = evaluateGroup(record, filters, filterFields);
 
       if (!matchesComplexFilters) return false;
-      if (!query) return true;
+      if (!searchToken) return true;
 
       return Object.values(record).some((value) =>
         String(value ?? "")
           .toLowerCase()
-          .includes(query),
+          .includes(searchToken),
       );
     });
-  }, [data, filters, searchValue]);
+  }, [data, filterFields, filters, searchValue, serverQueryMode]);
 
   React.useEffect(() => {
-    if (manualPagination) return;
+    if (manualPagination || serverQueryMode) return;
 
     handlePaginationChange((previous) => {
       const maxPageIndex = Math.max(
@@ -341,7 +294,15 @@ export function DataTable<TData, TValue>({
       if (previous.pageIndex <= maxPageIndex) return previous;
       return { ...previous, pageIndex: maxPageIndex };
     });
-  }, [filteredData.length, handlePaginationChange, manualPagination]);
+  }, [filteredData.length, handlePaginationChange, manualPagination, serverQueryMode]);
+
+  React.useEffect(() => {
+    if (!serverQueryMode) return;
+    handlePaginationChange((previous) =>
+      previous.pageIndex === 0 ? previous : { ...previous, pageIndex: 0 },
+    );
+    onServerQueryChange?.(debouncedQuery);
+  }, [debouncedQuery, handlePaginationChange, onServerQueryChange, serverQueryMode]);
 
   const manualPageCount = Math.max(
     Math.ceil(totalRows / pagination.pageSize),
@@ -353,6 +314,8 @@ export function DataTable<TData, TValue>({
     columns,
     groupedColumnMode: "remove",
     manualPagination,
+    manualSorting: serverQueryMode,
+    manualGrouping: serverQueryMode,
     pageCount: manualPagination ? manualPageCount : undefined,
     state: {
       sorting,
@@ -365,8 +328,8 @@ export function DataTable<TData, TValue>({
     onExpandedChange: setExpanded,
     onPaginationChange: handlePaginationChange,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getGroupedRowModel: getGroupedRowModel(),
+    getSortedRowModel: serverQueryMode ? undefined : getSortedRowModel(),
+    getGroupedRowModel: serverQueryMode ? undefined : getGroupedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     ...(manualPagination
       ? {}
@@ -396,9 +359,7 @@ export function DataTable<TData, TValue>({
       .getRowModel()
       .rows.filter(
         (row) =>
-          !Boolean(
-            (row as unknown as { groupingColumnId?: string }).groupingColumnId,
-          ),
+          !(row as unknown as { groupingColumnId?: string }).groupingColumnId,
       );
   }, [table]);
   const rowIndexById = React.useMemo(() => {
@@ -606,101 +567,33 @@ export function DataTable<TData, TValue>({
     setRecordPanelOpen(true);
   }
 
-  React.useEffect(() => {
-    if (!activeViewId) return;
-    if (applyingSavedViewRef.current) {
-      applyingSavedViewRef.current = false;
-      return;
-    }
-
-    setActiveViewId(null);
-  }, [filters, grouping, searchValue, sorting]);
-
-  function getDefaultViewName() {
-    let index = savedViews.length + 1;
-    while (
-      savedViews.some((view) => view.name.toLowerCase() === `vista ${index}`)
-    ) {
-      index += 1;
-    }
-    return `Vista ${index}`;
-  }
-
   function saveCurrentView(name: string) {
     if (!viewsStorageKey) {
       toast.error("Salvataggio disabilitato per questa tabella");
       return;
     }
-
-    const normalizedName = name.trim() || getDefaultViewName();
-    const existing = savedViews.find(
-      (view) => view.name.toLowerCase() === normalizedName.toLowerCase(),
-    );
-    const now = new Date().toISOString();
-
-    if (existing) {
-      setSavedViews((previous) =>
-        previous.map((view) =>
-          view.id === existing.id
-            ? {
-                ...view,
-                name: normalizedName,
-                searchValue,
-                filters: cloneSerializable(filters),
-                sorting: cloneSerializable(sorting),
-                grouping: cloneSerializable(grouping),
-                updatedAt: now,
-              }
-            : view,
-        ),
-      );
-      setActiveViewId(existing.id);
-      toast.success(`Vista aggiornata: ${normalizedName}`);
+    const result = saveView(name);
+    if (!result) return;
+    if (result.mode === "updated") {
+      toast.success(`Vista aggiornata: ${result.view.name}`);
       return;
     }
-
-    const nextView: SavedTableView = {
-      id:
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: normalizedName,
-      searchValue,
-      filters: cloneSerializable(filters),
-      sorting: cloneSerializable(sorting),
-      grouping: cloneSerializable(grouping),
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    setSavedViews((previous) => [...previous, nextView]);
-    setActiveViewId(nextView.id);
-    toast.success(`Vista salvata: ${normalizedName}`);
+    toast.success(`Vista salvata: ${result.view.name}`);
   }
 
   function applySavedView(id: string) {
-    const view = savedViews.find((candidate) => candidate.id === id);
+    const view = applyView(id);
     if (!view) {
       toast.error("Vista non trovata");
       return;
     }
-
-    applyingSavedViewRef.current = true;
-    setSearchValue(view.searchValue);
-    setFilters(cloneSerializable(view.filters));
-    setSorting(cloneSerializable(view.sorting));
-    setGrouping(cloneSerializable(view.grouping));
-    setActiveViewId(view.id);
     handlePaginationChange((previous) => ({ ...previous, pageIndex: 0 }));
     toast.success(`Vista applicata: ${view.name}`);
   }
 
   function deleteSavedView(id: string) {
-    const target = savedViews.find((view) => view.id === id);
+    const target = deleteView(id);
     if (!target) return;
-
-    setSavedViews((previous) => previous.filter((view) => view.id !== id));
-    setActiveViewId((previous) => (previous === id ? null : previous));
     toast.success(`Vista eliminata: ${target.name}`);
   }
 
@@ -879,6 +772,8 @@ export function DataTable<TData, TValue>({
         onSaveCurrentView={saveCurrentView}
         onApplySavedView={applySavedView}
         onDeleteSavedView={deleteSavedView}
+        onApplyFilters={serverQueryMode ? applyFilters : undefined}
+        hasPendingFilters={serverQueryMode ? hasPendingFilters : false}
       />
 
       <div className="w-full rounded-lg border">

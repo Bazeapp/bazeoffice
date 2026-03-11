@@ -1,14 +1,38 @@
-import { GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import {
+  AtSignIcon,
+  CalendarIcon,
+  CheckIcon,
+  CircleDotIcon,
+  GripVerticalIcon,
+  HashIcon,
+  ListFilterIcon,
+  PlusIcon,
+  Trash2Icon,
+  TypeIcon,
+} from "lucide-react"
 
 import {
   createEmptyCondition,
   createEmptyGroup,
-  filterOperators,
+  getOperatorsForField,
   type FilterField,
+  type FilterFieldType,
   type FilterGroup,
   type FilterNode,
 } from "@/components/data-table/data-table-filters"
 import { Button } from "@/components/ui/button"
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -27,6 +51,26 @@ type DataTableFilterBuilderProps = {
   onRemove?: () => void
   depth?: number
   rootGroup?: FilterGroup
+}
+
+function getFieldTypeIcon(fieldType: FilterFieldType | undefined) {
+  switch (fieldType) {
+    case "id":
+      return AtSignIcon
+    case "number":
+      return HashIcon
+    case "date":
+      return CalendarIcon
+    case "boolean":
+      return CheckIcon
+    case "enum":
+      return CircleDotIcon
+    case "multi_enum":
+      return ListFilterIcon
+    case "text":
+    default:
+      return TypeIcon
+  }
 }
 
 function updateNode(
@@ -59,21 +103,22 @@ function removeNode(group: FilterGroup, nodeId: string): FilterGroup {
 function addConditionToGroup(
   group: FilterGroup,
   groupId: string,
-  defaultField: string
+  field: FilterField | undefined
 ): FilterGroup {
   if (group.id === groupId) {
+    const defaultField = field?.value ?? "id"
+    const defaultType = field?.type ?? "text"
+
     return {
       ...group,
-      nodes: [...group.nodes, createEmptyCondition(defaultField)],
+      nodes: [...group.nodes, createEmptyCondition(defaultField, defaultType)],
     }
   }
 
   return {
     ...group,
     nodes: group.nodes.map((node) => {
-      if (node.kind === "group") {
-        return addConditionToGroup(node, groupId, defaultField)
-      }
+      if (node.kind === "group") return addConditionToGroup(node, groupId, field)
       return node
     }),
   }
@@ -103,6 +148,154 @@ function collectConditionFields(group: FilterGroup): string[] {
   })
 }
 
+type ValueControlProps = {
+  node: Extract<FilterNode, { kind: "condition" }>
+  field: FilterField | undefined
+  fieldType: FilterFieldType
+  needsSecondValue: boolean
+  onValueChange: (value: string) => void
+  onValueToChange: (valueTo: string) => void
+}
+
+function splitFilterList(value: string) {
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+function ValueControl({
+  node,
+  field,
+  fieldType,
+  needsSecondValue,
+  onValueChange,
+  onValueToChange,
+}: ValueControlProps) {
+  const anchor = useComboboxAnchor()
+  const valueOptions = field?.options ?? []
+  const valueLabelByValue = new Map(valueOptions.map((option) => [option.value, option.label]))
+  const useSingleSelect =
+    (fieldType === "enum" ||
+      (fieldType === "multi_enum" &&
+        ["is", "is_not", "has", "not_has"].includes(node.operator))) &&
+    valueOptions.length > 0
+  const useMultiEnumLookupSelect =
+    fieldType === "multi_enum" &&
+    ["has_any", "has_all", "not_has_any"].includes(node.operator) &&
+    valueOptions.length > 0
+
+  if (fieldType === "boolean") {
+    return (
+      <Select value={node.value || undefined} onValueChange={onValueChange}>
+        <SelectTrigger
+          className="h-9 rounded-none border-0 border-r text-sm md:max-w-[260px]"
+          size="sm"
+        >
+          <SelectValue placeholder="Valore" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="true">Sì</SelectItem>
+          <SelectItem value="false">No</SelectItem>
+        </SelectContent>
+      </Select>
+    )
+  }
+
+  if (useSingleSelect) {
+    return (
+      <Select value={node.value || undefined} onValueChange={onValueChange}>
+        <SelectTrigger
+          className="h-9 rounded-none border-0 border-r text-sm md:max-w-[260px]"
+          size="sm"
+        >
+          <SelectValue placeholder="Valore" />
+        </SelectTrigger>
+        <SelectContent>
+          {valueOptions.map((option) => (
+            <SelectItem key={`${node.id}-${option.value}`} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )
+  }
+
+  if (useMultiEnumLookupSelect) {
+    const selectedValues = splitFilterList(node.value)
+
+    return (
+      <Combobox
+        multiple
+        autoHighlight
+        items={valueOptions.map((option) => option.value)}
+        value={selectedValues}
+        onValueChange={(nextValues) => {
+          onValueChange((nextValues as string[]).join(","))
+        }}
+      >
+        <ComboboxChips
+          ref={anchor}
+          className="h-9 min-h-9 rounded-none border-0 border-r px-2 md:max-w-[320px]"
+        >
+          <ComboboxValue>
+            {(values) => (
+              <>
+                {values.map((value: string) => (
+                  <ComboboxChip key={value}>{valueLabelByValue.get(value) ?? value}</ComboboxChip>
+                ))}
+                <ComboboxChipsInput />
+              </>
+            )}
+          </ComboboxValue>
+        </ComboboxChips>
+        <ComboboxContent anchor={anchor} className="max-h-80">
+          <ComboboxEmpty>Nessun valore trovato.</ComboboxEmpty>
+          <ComboboxList className="max-h-72 overflow-y-auto">
+            {(item) => (
+              <ComboboxItem key={item} value={item}>
+                {valueLabelByValue.get(item) ?? item}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    )
+  }
+
+  const inputType =
+    fieldType === "number" ? "number" : fieldType === "date" ? "date" : "text"
+  const placeholder =
+    fieldType === "multi_enum" &&
+    ["has_any", "has_all", "not_has_any"].includes(node.operator)
+      ? "Valori separati da virgola"
+      : "Valore"
+
+  return (
+    <>
+      <Input
+        type={inputType}
+        inputMode={fieldType === "number" ? "decimal" : undefined}
+        className="h-9 rounded-none border-0 border-r text-sm md:max-w-[220px]"
+        value={node.value}
+        onChange={(event) => onValueChange(event.target.value)}
+        placeholder={placeholder}
+      />
+      {needsSecondValue ? (
+        <Input
+          type={inputType}
+          inputMode={fieldType === "number" ? "decimal" : undefined}
+          className="h-9 rounded-none border-0 border-r text-sm md:max-w-[220px]"
+          value={node.valueTo ?? ""}
+          onChange={(event) => onValueToChange(event.target.value)}
+          placeholder="E"
+        />
+      ) : null}
+    </>
+  )
+}
+
 export function DataTableFilterBuilder({
   fields,
   group,
@@ -116,7 +309,9 @@ export function DataTableFilterBuilder({
   const firstField = fields[0]?.value ?? "id"
   const logicLabel = group.logic === "and" ? "and" : "or"
   const usedFields = new Set(collectConditionFields(effectiveRootGroup))
-  const availableForNewCondition = fields.find((field) => !usedFields.has(field.value))
+  const availableForNewCondition = fields.find(
+    (field) => !usedFields.has(field.value)
+  )
 
   return (
     <div
@@ -177,11 +372,7 @@ export function DataTableFilterBuilder({
                     depth={depth + 1}
                     rootGroup={effectiveRootGroup}
                     onChange={(updatedChild) => {
-                      onChange(
-                        updateNode(group, node.id, () => {
-                          return updatedChild
-                        })
-                      )
+                      onChange(updateNode(group, node.id, () => updatedChild))
                     }}
                     onRemove={() => onChange(removeNode(group, node.id))}
                   />
@@ -190,11 +381,14 @@ export function DataTableFilterBuilder({
             )
           }
 
-          const operatorMeta = filterOperators.find(
-            (item) => item.value === node.operator
-          )
           const selectedField = fields.find((field) => field.value === node.field)
-          const valueOptions = selectedField?.options ?? []
+          const selectedFieldType = selectedField?.type ?? "text"
+          const operators = getOperatorsForField(selectedFieldType)
+          const fallbackOperators =
+            operators.length > 0 ? operators : getOperatorsForField("text")
+          const resolvedOperatorMeta =
+            fallbackOperators.find((item) => item.value === node.operator) ??
+            fallbackOperators[0]
 
           return (
             <div key={node.id} className="flex items-start gap-2">
@@ -214,41 +408,57 @@ export function DataTableFilterBuilder({
                     )
 
                     return (
-                  <Select
-                    value={node.field}
-                    onValueChange={(value) => {
-                      onChange(
-                        updateNode(group, node.id, (current) => ({
-                          ...(current as typeof node),
-                          field: value,
-                        }))
-                      )
-                    }}
-                  >
-                    <SelectTrigger
-                      className="h-9 rounded-none border-0 border-r md:w-[190px]"
-                      size="sm"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allowedFields.map((field) => (
-                        <SelectItem key={field.value} value={field.value}>
-                          {field.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                      <Select
+                        value={node.field}
+                        onValueChange={(value) => {
+                          const nextField = fields.find((field) => field.value === value)
+                          const nextFieldType = nextField?.type ?? "text"
+                          const nextOperator =
+                            getOperatorsForField(nextFieldType)[0]?.value ?? "is"
+
+                          onChange(
+                            updateNode(group, node.id, (current) => ({
+                              ...(current as typeof node),
+                              field: value,
+                              operator: nextOperator,
+                              value: "",
+                              valueTo: "",
+                            }))
+                          )
+                        }}
+                      >
+                        <SelectTrigger
+                          className="h-9 rounded-none border-0 border-r md:w-[190px]"
+                          size="sm"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allowedFields.map((field) => (
+                            <SelectItem key={field.value} value={field.value}>
+                              <span className="flex items-center gap-2">
+                                {(() => {
+                                  const Icon = getFieldTypeIcon(field.type)
+                                  return <Icon className="text-muted-foreground size-3.5 shrink-0" />
+                                })()}
+                                <span>{field.label}</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )
                   })()}
 
                   <Select
-                    value={node.operator}
+                    value={resolvedOperatorMeta.value}
                     onValueChange={(value) => {
                       onChange(
                         updateNode(group, node.id, (current) => ({
                           ...(current as typeof node),
                           operator: value as typeof node.operator,
+                          value: "",
+                          valueTo: "",
                         }))
                       )
                     }}
@@ -260,7 +470,7 @@ export function DataTableFilterBuilder({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {filterOperators.map((operator) => (
+                      {fallbackOperators.map((operator) => (
                         <SelectItem key={operator.value} value={operator.value}>
                           {operator.label}
                         </SelectItem>
@@ -268,49 +478,29 @@ export function DataTableFilterBuilder({
                     </SelectContent>
                   </Select>
 
-                  {operatorMeta?.needsValue ? (
-                    valueOptions.length > 0 ? (
-                      <Select
-                        value={node.value || undefined}
-                        onValueChange={(value) => {
-                          onChange(
-                            updateNode(group, node.id, (current) => ({
-                              ...(current as typeof node),
-                              value,
-                            }))
-                          )
-                        }}
-                      >
-                        <SelectTrigger
-                          className="h-9 rounded-none border-0 border-r text-sm md:max-w-[260px]"
-                          size="sm"
-                        >
-                          <SelectValue placeholder="Valore" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {valueOptions.map((option) => (
-                            <SelectItem key={`${node.id}-${option.value}`} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input
-                        className="h-9 rounded-none border-0 border-r text-sm md:max-w-[220px]"
-                        value={node.value}
-                        onChange={(event) => {
-                          const nextValue = event.target.value
-                          onChange(
-                            updateNode(group, node.id, (current) => ({
-                              ...(current as typeof node),
-                              value: nextValue,
-                            }))
-                          )
-                        }}
-                        placeholder="Valore"
-                      />
-                    )
+                  {resolvedOperatorMeta.needsValue ? (
+                    <ValueControl
+                      node={node}
+                      field={selectedField}
+                      fieldType={selectedFieldType}
+                      needsSecondValue={resolvedOperatorMeta.needsSecondValue === true}
+                      onValueChange={(value) => {
+                        onChange(
+                          updateNode(group, node.id, (current) => ({
+                            ...(current as typeof node),
+                            value,
+                          }))
+                        )
+                      }}
+                      onValueToChange={(valueTo) => {
+                        onChange(
+                          updateNode(group, node.id, (current) => ({
+                            ...(current as typeof node),
+                            valueTo,
+                          }))
+                        )
+                      }}
+                    />
                   ) : (
                     <div className="text-muted-foreground flex h-9 flex-1 items-center border-r px-3 text-xs">
                       Nessun valore richiesto
@@ -346,7 +536,10 @@ export function DataTableFilterBuilder({
               addConditionToGroup(
                 group,
                 group.id,
-                availableForNewCondition?.value ?? firstField
+                fields.find(
+                  (field) =>
+                    field.value === (availableForNewCondition?.value ?? firstField)
+                )
               )
             )
           }

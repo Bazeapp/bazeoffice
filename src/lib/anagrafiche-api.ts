@@ -1,20 +1,94 @@
 import { invokeEdgeFunction } from "@/lib/supabase-edge"
 import type { LookupValueRecord } from "@/types"
+import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
+import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
+import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
 
 type TableRow = Record<string, unknown>
+
+export type TableFilterFieldType =
+  | "text"
+  | "number"
+  | "date"
+  | "boolean"
+  | "enum"
+  | "multi_enum"
+  | "id"
+
+export type TableColumnMeta = {
+  name: string
+  dataType: string
+  udtName: string | null
+  filterType: TableFilterFieldType
+}
 
 type TableName =
   | "famiglie"
   | "lavoratori"
+  | "documenti_lavoratori"
+  | "esperienze_lavoratori"
+  | "referenze_lavoratori"
   | "processi_matching"
   | "lookup_values"
 
-type UpdateTableName = "famiglie" | "lavoratori" | "processi_matching"
+type UpdateTableName =
+  | "famiglie"
+  | "lavoratori"
+  | "documenti_lavoratori"
+  | "esperienze_lavoratori"
+  | "referenze_lavoratori"
+  | "processi_matching"
+
+type CreateTableName =
+  | "famiglie"
+  | "lavoratori"
+  | "documenti_lavoratori"
+  | "esperienze_lavoratori"
+  | "referenze_lavoratori"
+  | "processi_matching"
 
 type QuerySort = {
   field: string
   ascending?: boolean
 }
+
+export type QueryFilterOperator =
+  | "is"
+  | "is_not"
+  | "has"
+  | "not_has"
+  | "starts_with"
+  | "ends_with"
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "between"
+  | "is_true"
+  | "is_false"
+  | "has_any"
+  | "has_all"
+  | "not_has_any"
+  | "is_empty"
+  | "is_not_empty"
+
+export type QueryFilterCondition = {
+  kind: "condition"
+  id: string
+  field: string
+  operator: QueryFilterOperator
+  value: string
+  valueTo?: string
+}
+
+export type QueryFilterGroup = {
+  kind: "group"
+  id: string
+  logic: "and" | "or"
+  nodes: QueryFilterNode[]
+}
+
+export type QueryFilterNode = QueryFilterCondition | QueryFilterGroup
 
 type TableQueryRequest = {
   table: TableName
@@ -22,12 +96,20 @@ type TableQueryRequest = {
   limit?: number
   offset?: number
   orderBy?: QuerySort[]
+  includeSchema?: boolean
+  search?: string
+  searchFields?: string[]
+  filters?: QueryFilterGroup
 }
 
 type TablePageQuery = {
   limit: number
   offset: number
   orderBy?: QuerySort[]
+  includeSchema?: boolean
+  search?: string
+  searchFields?: string[]
+  filters?: QueryFilterGroup
 }
 
 type TableQueryResponse<TRecord> =
@@ -36,27 +118,73 @@ type TableQueryResponse<TRecord> =
       rows?: TRecord[]
       total?: number
       count?: number
+      columns?: TableColumnMeta[]
     }
   | TRecord[]
 
 function normalizeTableResponse<TRecord>(
   response: TableQueryResponse<TRecord>
-): { rows: TRecord[]; total: number } {
+): { rows: TRecord[]; total: number; columns: TableColumnMeta[] } {
   if (Array.isArray(response)) {
-    return { rows: response, total: response.length }
+    return { rows: response, total: response.length, columns: [] }
   }
 
   const rows = response.data ?? response.rows ?? []
   const total = response.total ?? response.count ?? rows.length
-  return { rows, total }
+  return { rows, total, columns: response.columns ?? [] }
+}
+
+const TABLE_QUERY_CACHE_TTL_MS = 1500
+const LOOKUP_VALUES_CACHE_TTL_MS = 5 * 60 * 1000
+
+type TableResponse<TRecord> = {
+  rows: TRecord[]
+  total: number
+  columns: TableColumnMeta[]
+}
+
+const tableQueryCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<TableResponse<TableRow>>
+  }
+>()
+
+let lookupValuesCache:
+  | {
+      expiresAt: number
+      promise: Promise<TableResponse<LookupValueRecord>>
+    }
+  | null = null
+
+function makeTableQueryCacheKey(payload: TableQueryRequest) {
+  return JSON.stringify(payload)
 }
 
 async function queryTable<TRecord>(payload: TableQueryRequest) {
-  const response = await invokeEdgeFunction<TableQueryResponse<TRecord>>(
-    "table-query",
-    payload
+  const cacheKey = makeTableQueryCacheKey(payload)
+  const now = Date.now()
+  const cached = tableQueryCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return (await cached.promise) as TableResponse<TRecord>
+  }
+
+  const promise = invokeEdgeFunction<TableQueryResponse<TRecord>>("table-query", payload).then(
+    normalizeTableResponse
   )
-  return normalizeTableResponse(response)
+
+  tableQueryCache.set(cacheKey, {
+    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
+    promise: promise as Promise<TableResponse<TableRow>>,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    tableQueryCache.delete(cacheKey)
+    throw error
+  }
 }
 
 export async function fetchFamiglie(query: TablePageQuery) {
@@ -66,6 +194,10 @@ export async function fetchFamiglie(query: TablePageQuery) {
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
   })
 }
 
@@ -76,6 +208,84 @@ export async function fetchLavoratori(query: TablePageQuery) {
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
+export async function fetchEsperienzeLavoratoriByWorker(lavoratoreId: string) {
+  return queryTable<EsperienzaLavoratoreRecord>({
+    table: "esperienze_lavoratori",
+    select: ["*"],
+    orderBy: [
+      { field: "stato_esperienza_attiva", ascending: false },
+      { field: "data_inizio", ascending: false },
+      { field: "aggiornato_il", ascending: false },
+    ],
+    filters: {
+      kind: "group",
+      id: "esperienze-lavoratore-root",
+      logic: "and",
+      nodes: [
+        {
+          kind: "condition",
+          id: "esperienze-lavoratore-id",
+          field: "lavoratore_id",
+          operator: "is",
+          value: lavoratoreId,
+        },
+      ],
+    },
+  })
+}
+
+export async function fetchDocumentiLavoratoriByWorker(lavoratoreId: string) {
+  return queryTable<DocumentoLavoratoreRecord>({
+    table: "documenti_lavoratori",
+    select: ["*"],
+    orderBy: [{ field: "aggiornato_il", ascending: false }],
+    filters: {
+      kind: "group",
+      id: "documenti-lavoratore-root",
+      logic: "and",
+      nodes: [
+        {
+          kind: "condition",
+          id: "documenti-lavoratore-id",
+          field: "lavoratore_id",
+          operator: "is",
+          value: lavoratoreId,
+        },
+      ],
+    },
+  })
+}
+
+export async function fetchReferenzeLavoratoriByWorker(lavoratoreId: string) {
+  return queryTable<ReferenzaLavoratoreRecord>({
+    table: "referenze_lavoratori",
+    select: ["*"],
+    orderBy: [
+      { field: "referenza_verificata", ascending: true },
+      { field: "data_inzio", ascending: false },
+      { field: "aggiornato_il", ascending: false },
+    ],
+    filters: {
+      kind: "group",
+      id: "referenze-lavoratore-root",
+      logic: "and",
+      nodes: [
+        {
+          kind: "condition",
+          id: "referenze-lavoratore-id",
+          field: "lavoratore_id",
+          operator: "is",
+          value: lavoratoreId,
+        },
+      ],
+    },
   })
 }
 
@@ -86,15 +296,35 @@ export async function fetchProcessiMatching(query: TablePageQuery) {
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
   })
 }
 
 export async function fetchLookupValues() {
-  const response = await invokeEdgeFunction<TableQueryResponse<LookupValueRecord>>(
+  const now = Date.now()
+  if (lookupValuesCache && lookupValuesCache.expiresAt > now) {
+    return lookupValuesCache.promise
+  }
+
+  const promise = invokeEdgeFunction<TableQueryResponse<LookupValueRecord>>(
     "lookup-values",
     { is_active: true }
-  )
-  return normalizeTableResponse(response)
+  ).then(normalizeTableResponse)
+
+  lookupValuesCache = {
+    expiresAt: now + LOOKUP_VALUES_CACHE_TTL_MS,
+    promise,
+  }
+
+  try {
+    return await promise
+  } catch (error) {
+    lookupValuesCache = null
+    throw error
+  }
 }
 
 type UpdateProcessoStatoSalesResponse = {
@@ -108,6 +338,11 @@ type UpdateRecordResponse = {
   row: TableRow
 }
 
+type CreateRecordResponse = {
+  table: CreateTableName
+  row: TableRow
+}
+
 export async function updateRecord(
   table: UpdateTableName,
   id: string,
@@ -117,6 +352,16 @@ export async function updateRecord(
     table,
     id,
     patch,
+  })
+}
+
+export async function createRecord(
+  table: CreateTableName,
+  values: Record<string, unknown>
+) {
+  return invokeEdgeFunction<CreateRecordResponse>("create-record", {
+    table,
+    values,
   })
 }
 

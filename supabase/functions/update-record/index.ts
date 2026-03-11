@@ -6,7 +6,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-type SupportedTable = "famiglie" | "lavoratori" | "processi_matching";
+type SupportedTable =
+  | "famiglie"
+  | "lavoratori"
+  | "documenti_lavoratori"
+  | "esperienze_lavoratori"
+  | "referenze_lavoratori"
+  | "processi_matching";
 
 type UpdateRecordPayload = {
   table?: SupportedTable;
@@ -17,18 +23,27 @@ type UpdateRecordPayload = {
 const SUPPORTED_TABLES = new Set<SupportedTable>([
   "famiglie",
   "lavoratori",
+  "documenti_lavoratori",
+  "esperienze_lavoratori",
+  "referenze_lavoratori",
   "processi_matching",
 ]);
 
 const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
   famiglie: new Set(["id", "creato_il"]),
   lavoratori: new Set(["id", "creato_il"]),
+  documenti_lavoratori: new Set(["id", "creato_il"]),
+  esperienze_lavoratori: new Set(["id", "creato_il"]),
+  referenze_lavoratori: new Set(["id", "creato_il"]),
   processi_matching: new Set(["id", "creato_il"]),
 };
 
 const AUTO_UPDATED_AT_FIELD: Record<SupportedTable, string> = {
   famiglie: "aggiornato_il",
   lavoratori: "aggiornato_il",
+  documenti_lavoratori: "aggiornato_il",
+  esperienze_lavoratori: "aggiornato_il",
+  referenze_lavoratori: "aggiornato_il",
   processi_matching: "aggiornato_il",
 };
 
@@ -120,9 +135,12 @@ Deno.serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
+  const currentRecordSelect =
+    table === "processi_matching" ? "id, stato_sales" : "id";
+
   const { data: currentRecord, error: currentRecordError } = await supabase
     .from(table)
-    .select("id, stato_sales")
+    .select(currentRecordSelect)
     .eq("id", id)
     .maybeSingle();
 

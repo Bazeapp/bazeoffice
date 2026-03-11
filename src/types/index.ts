@@ -1,4 +1,7 @@
 export * from "./entities/famiglie"
+export * from "./entities/documento-lavoratore"
+export * from "./entities/esperienza-lavoratore"
 export * from "./entities/lavoratore"
 export * from "./entities/processi-matching"
 export * from "./entities/lookup-values"
+export * from "./entities/referenza-lavoratore"

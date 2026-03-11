@@ -12,4 +12,35 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined
+
+          if (
+            id.includes("/react/") ||
+            id.includes("/react-dom/") ||
+            id.includes("radix-ui") ||
+            id.includes("@base-ui/react") ||
+            id.includes("lucide-react") ||
+            id.includes("embla-carousel-react") ||
+            id.includes("sonner")
+          ) {
+            return "framework"
+          }
+
+          if (id.includes("@supabase/supabase-js")) {
+            return "supabase-vendor"
+          }
+
+          if (id.includes("@tanstack/react-table")) {
+            return "table-vendor"
+          }
+          
+          return undefined
+        },
+      },
+    },
+  },
 })

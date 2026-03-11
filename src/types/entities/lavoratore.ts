@@ -11,6 +11,7 @@ export type LavoratoreRecord = {
   baze_score: number | null
   bio_personale: string | null
   candidature_mandate: number | null
+  cap: string | null
   cap_link_id: string | null
   check_accetta_babysitting_multipli_bambini: string | null
   check_accetta_babysitting_neonati: string | null

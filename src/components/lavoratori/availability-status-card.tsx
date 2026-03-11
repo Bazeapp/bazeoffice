@@ -1,0 +1,129 @@
+import { CalendarDaysIcon, PencilIcon } from "lucide-react"
+
+import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { FieldTitle } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+type LookupOption = {
+  label: string
+  value: string
+}
+
+type AvailabilityStatusDraft = {
+  disponibilita: string
+  data_ritorno_disponibilita: string
+}
+
+type AvailabilityStatusCardProps = {
+  isEditing: boolean
+  isUpdating: boolean
+  disponibilitaOptions: LookupOption[]
+  draft: AvailabilityStatusDraft
+  selectedDisponibilita: string
+  selectedDisponibilitaBadgeClassName: string
+  selectedDataRitorno: string
+  onToggleEdit: () => void
+  onDisponibilitaChange: (value: string) => void
+  onDataRitornoChange: (value: string) => void
+  onDataRitornoBlur: () => void
+}
+
+export function AvailabilityStatusCard({
+  isEditing,
+  isUpdating,
+  disponibilitaOptions,
+  draft,
+  selectedDisponibilita,
+  selectedDisponibilitaBadgeClassName,
+  selectedDataRitorno,
+  onToggleEdit,
+  onDisponibilitaChange,
+  onDataRitornoChange,
+  onDataRitornoBlur,
+}: AvailabilityStatusCardProps) {
+  return (
+    <DetailSectionCard
+      title="Disponibilita"
+      titleIcon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
+      titleAction={
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={
+            isEditing
+              ? "Termina modifica stato disponibilita"
+              : "Modifica stato disponibilita"
+          }
+          title={
+            isEditing
+              ? "Termina modifica stato disponibilita"
+              : "Modifica stato disponibilita"
+          }
+          onClick={onToggleEdit}
+        >
+          <PencilIcon />
+        </Button>
+      }
+      titleOnBorder
+      contentClassName="space-y-4"
+    >
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-1">
+          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            Stato disponibilita
+          </FieldTitle>
+          {isEditing ? (
+            <div className="max-w-xs">
+              <Select
+                value={draft.disponibilita || undefined}
+                onValueChange={onDisponibilitaChange}
+                disabled={isUpdating}
+              >
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Seleziona stato" />
+                </SelectTrigger>
+                <SelectContent>
+                  {disponibilitaOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.label}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : selectedDisponibilita ? (
+            <Badge variant="outline" className={selectedDisponibilitaBadgeClassName}>
+              {selectedDisponibilita}
+            </Badge>
+          ) : (
+            <span className="text-muted-foreground text-sm">-</span>
+          )}
+        </div>
+
+        <div className="space-y-1">
+          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            Ritorno disponibilita
+          </FieldTitle>
+          {isEditing ? (
+            <div className="max-w-xs">
+              <Input
+                type="date"
+                value={draft.data_ritorno_disponibilita}
+                onChange={(event) => onDataRitornoChange(event.target.value)}
+                onBlur={onDataRitornoBlur}
+                disabled={isUpdating}
+                className="h-9 text-sm"
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-foreground">{selectedDataRitorno || "-"}</p>
+          )}
+        </div>
+      </div>
+    </DetailSectionCard>
+  )
+}

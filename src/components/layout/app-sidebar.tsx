@@ -47,7 +47,8 @@ type AnagraficheSidebarTab = "famiglie" | "processi" | "lavoratori";
 type MainSection =
   | "anagrafiche"
   | "crm_pipeline_famiglie"
-  | "crm_assegnazione";
+  | "crm_assegnazione"
+  | "lavoratori_cerca";
 
 type SidebarCategory = {
   name: string;
@@ -111,6 +112,7 @@ const sidebarCategories: SidebarCategory[] = [
     href: "#",
     icon: FolderTreeIcon,
     children: [
+      { name: "Cerca Lavoratori", href: "#", mainSection: "lavoratori_cerca" },
       { name: "Gate 1", href: "#" },
       { name: "Gate 2", href: "#" },
     ],
@@ -127,6 +129,7 @@ type AppSidebarProps = {
   onOpenAnagraficheTab?: (tab: AnagraficheSidebarTab) => void;
   onOpenCrmPipelineFamiglie?: () => void;
   onOpenCrmAssegnazione?: () => void;
+  onOpenLavoratoriCerca?: () => void;
 };
 
 function getUserDisplayName(user: User) {
@@ -145,6 +148,7 @@ export function AppSidebar({
   onOpenAnagraficheTab,
   onOpenCrmPipelineFamiglie,
   onOpenCrmAssegnazione,
+  onOpenLavoratoriCerca,
 }: AppSidebarProps) {
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const userDisplayName = getUserDisplayName(user);
@@ -210,6 +214,8 @@ export function AppSidebar({
                                 child.mainSection === "crm_pipeline_famiglie";
                               const isCrmAssegnazioneChild =
                                 child.mainSection === "crm_assegnazione";
+                              const isLavoratoriCercaChild =
+                                child.mainSection === "lavoratori_cerca";
 
                               return (
                                 <SidebarMenuSubItem key={child.name}>
@@ -224,7 +230,11 @@ export function AppSidebar({
                                         activeMainSection ===
                                           "crm_pipeline_famiglie") ||
                                       (isCrmAssegnazioneChild &&
-                                        activeMainSection === "crm_assegnazione")
+                                        activeMainSection ===
+                                          "crm_assegnazione") ||
+                                      (isLavoratoriCercaChild &&
+                                        activeMainSection ===
+                                          "lavoratori_cerca")
                                     }
                                   >
                                     <a
@@ -250,6 +260,12 @@ export function AppSidebar({
                                         if (isCrmAssegnazioneChild) {
                                           event.preventDefault();
                                           onOpenCrmAssegnazione?.();
+                                          return;
+                                        }
+
+                                        if (isLavoratoriCercaChild) {
+                                          event.preventDefault();
+                                          onOpenLavoratoriCerca?.();
                                         }
                                       }}
                                     >

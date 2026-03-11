@@ -270,12 +270,14 @@ export function OnboardingCard({
     setTipoIncontro(toInputValue(card?.tipoIncontroFamigliaLavoratore));
   }, [card?.id, card?.deadlineMobile, card?.tipoIncontroFamigliaLavoratore]);
 
+  const cardId = card?.id;
+
   const patchProcess = React.useCallback(
     async (patch: Record<string, unknown>) => {
-      if (!card?.id) return;
-      await onPatchProcess?.(card.id, patch);
+      if (!cardId) return;
+      await onPatchProcess?.(cardId, patch);
     },
-    [card?.id, onPatchProcess],
+    [cardId, onPatchProcess],
   );
 
   const copyToClipboard = React.useCallback(async (value: string, label: string) => {

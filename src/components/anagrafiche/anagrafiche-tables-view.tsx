@@ -1,13 +1,17 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import * as React from "react"
+import type { SortingState } from "@tanstack/react-table"
 
-import { DataTable } from "@/components/data-table/data-table"
+import { DataTable, type DataTableQueryState } from "@/components/data-table/data-table"
+import { createEmptyGroup, type FilterFieldType } from "@/components/data-table/data-table-filters"
+import type { TableColumnMeta } from "@/lib/anagrafiche-api"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   type AnagraficheTab,
   type AnagraficaRow,
   type LookupColorMap,
+  type LookupOptionsMap,
   useAnagraficheData,
 } from "@/hooks/use-anagrafiche-data"
 
@@ -17,7 +21,22 @@ type PaginationState = {
   pageSize: number
 }
 
+type TableQueryState = {
+  searchValue: string
+  filters: DataTableQueryState["filters"]
+  sorting: SortingState
+  grouping: DataTableQueryState["grouping"]
+}
+
 const DEFAULT_PAGE_SIZE = 50
+function makeDefaultQueryState(): TableQueryState {
+  return {
+    searchValue: "",
+    filters: createEmptyGroup("and"),
+    sorting: [],
+    grouping: [],
+  }
+}
 const UPPERCASE_TOKENS = new Set([
   "id",
   "url",
@@ -215,48 +234,84 @@ function getOrderedKeys(rows: AnagraficaRow[]) {
   return keys
 }
 
-function toFieldOptions(rows: AnagraficaRow[]) {
+function resolveFieldTypeFromSchema(
+  key: string,
+  columnsByName: Map<string, TableColumnMeta>
+): FilterFieldType {
+  return columnsByName.get(key)?.filterType ?? "text"
+}
+
+function toFieldOptions(
+  rows: AnagraficaRow[],
+  columns: TableColumnMeta[],
+  entityTable: "famiglie" | "processi_matching" | "lavoratori",
+  lookupOptions: LookupOptionsMap
+) {
   const keys = getOrderedKeys(rows)
+  const columnsByName = new Map(columns.map((column) => [column.name, column]))
 
   return keys.map((key) => {
-    const uniqueValues = new Set<string>()
+    const uniqueScalarValues = new Set<string>()
+    const uniqueArrayValues = new Set<string>()
 
     for (const row of rows) {
       const value = row[key]
       if (value === null || value === undefined) continue
 
-      let normalized = ""
-      if (typeof value === "string") {
-        normalized = value.trim()
-      } else if (typeof value === "number" || typeof value === "boolean") {
-        normalized = String(value)
-      } else if (Array.isArray(value)) {
-        normalized = value
-          .map((item) => (item === null || item === undefined ? "" : String(item)))
-          .filter(Boolean)
-          .join(", ")
-      } else {
-        try {
-          normalized = JSON.stringify(value)
-        } catch {
-          normalized = String(value)
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (item === null || item === undefined) continue
+          const normalized = String(item).trim()
+          if (!normalized) continue
+          uniqueArrayValues.add(normalized)
+          if (uniqueArrayValues.size >= 50) break
         }
+        continue
       }
 
-      if (!normalized) continue
-      uniqueValues.add(normalized)
-      if (uniqueValues.size >= 50) break
+      if (typeof value === "boolean") {
+        uniqueScalarValues.add(String(value))
+        continue
+      }
+
+      if (typeof value === "number") {
+        uniqueScalarValues.add(String(value))
+        continue
+      }
+
+      if (typeof value === "string") {
+        const normalized = value.trim()
+        if (!normalized) continue
+
+        uniqueScalarValues.add(normalized)
+        continue
+      }
     }
+
+    const type = resolveFieldTypeFromSchema(key, columnsByName)
+
+    const lookupDomain = `${entityTable}.${key}`
+    const lookupDomainOptions = lookupOptions[lookupDomain] ?? []
+    const optionsSource = type === "multi_enum" ? uniqueArrayValues : uniqueScalarValues
+    const fallbackOptions = Array.from(optionsSource)
+      .sort((a, b) => a.localeCompare(b))
+      .slice(0, 50)
+      .map((option) => ({
+        label: option,
+        value: option,
+      }))
+    const options =
+      type === "number" || type === "date" || type === "boolean"
+        ? []
+        : lookupDomainOptions.length > 0
+          ? lookupDomainOptions
+          : fallbackOptions
 
     return {
       label: toReadableColumnLabel(key),
       value: key,
-      options: Array.from(uniqueValues)
-        .sort((a, b) => a.localeCompare(b))
-        .map((option) => ({
-          label: option,
-          value: option,
-        })),
+      type,
+      options,
     }
   })
 }
@@ -314,7 +369,13 @@ export function AnagraficheTablesView({
     processi: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE },
     lavoratori: { pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE },
   })
+  const [queryByTab, setQueryByTab] = React.useState<Record<TabValue, TableQueryState>>({
+    famiglie: makeDefaultQueryState(),
+    processi: makeDefaultQueryState(),
+    lavoratori: makeDefaultQueryState(),
+  })
   const activePagination = paginationByTab[activeTab]
+  const activeQuery = queryByTab[activeTab]
   const { 
     workers,
     families,
@@ -322,13 +383,21 @@ export function AnagraficheTablesView({
     workersTotal,
     familiesTotal,
     processesTotal,
+    workersColumns,
+    familiesColumns,
+    processesColumns,
     lookupColors,
+    lookupOptions,
     loading,
     error,
   } = useAnagraficheData({
     activeTab,
     pageIndex: activePagination.pageIndex,
     pageSize: activePagination.pageSize,
+    searchValue: activeQuery.searchValue,
+    filters: activeQuery.filters,
+    sorting: activeQuery.sorting,
+    grouping: activeQuery.grouping,
   })
 
   const tableConfig = React.useMemo(() => {
@@ -337,7 +406,12 @@ export function AnagraficheTablesView({
         key: "processi",
         columns: buildColumns(processes, "processi_matching", lookupColors),
         data: processes,
-        fields: toFieldOptions(processes),
+        fields: toFieldOptions(
+          processes,
+          processesColumns,
+          "processi_matching",
+          lookupOptions
+        ),
         searchPlaceholder: "Cerca in processi...",
         totalRows: processesTotal,
       }
@@ -348,7 +422,7 @@ export function AnagraficheTablesView({
         key: "lavoratori",
         columns: buildColumns(workers, "lavoratori", lookupColors),
         data: workers,
-        fields: toFieldOptions(workers),
+        fields: toFieldOptions(workers, workersColumns, "lavoratori", lookupOptions),
         searchPlaceholder: "Cerca in lavoratori...",
         totalRows: workersTotal,
       }
@@ -358,7 +432,7 @@ export function AnagraficheTablesView({
       key: "famiglie",
       columns: buildColumns(families, "famiglie", lookupColors),
       data: families,
-      fields: toFieldOptions(families),
+      fields: toFieldOptions(families, familiesColumns, "famiglie", lookupOptions),
       searchPlaceholder: "Cerca in famiglie...",
       totalRows: familiesTotal,
     }
@@ -366,19 +440,67 @@ export function AnagraficheTablesView({
     activeTab,
     families,
     familiesTotal,
+    familiesColumns,
     lookupColors,
+    lookupOptions,
     processes,
+    processesColumns,
     processesTotal,
     workers,
+    workersColumns,
     workersTotal,
   ])
 
-  function handleTabPaginationChange(next: PaginationState) {
-    setPaginationByTab((previous) => ({
-      ...previous,
-      [activeTab]: next,
-    }))
-  }
+  const handleTabPaginationChange = React.useCallback(
+    (next: PaginationState) => {
+      setPaginationByTab((previous) => {
+        const current = previous[activeTab]
+        if (current.pageIndex === next.pageIndex && current.pageSize === next.pageSize) {
+          return previous
+        }
+
+        return {
+          ...previous,
+          [activeTab]: next,
+        }
+      })
+    },
+    [activeTab]
+  )
+
+  const handleServerQueryChange = React.useCallback(
+    (next: DataTableQueryState) => {
+      setQueryByTab((previous) => {
+        const current = previous[activeTab]
+        const currentSignature = JSON.stringify(current)
+        const nextSignature = JSON.stringify({
+          searchValue: next.searchValue,
+          filters: next.filters,
+          sorting: next.sorting,
+          grouping: next.grouping,
+        })
+        if (currentSignature === nextSignature) return previous
+
+        const isSame =
+          current.searchValue === next.searchValue &&
+          current.filters === next.filters &&
+          current.sorting === next.sorting &&
+          current.grouping === next.grouping
+        if (isSame) return previous
+
+        return {
+          ...previous,
+          [activeTab]: {
+            searchValue: next.searchValue,
+            filters: next.filters,
+            sorting: next.sorting,
+            grouping: next.grouping,
+          },
+        }
+      })
+    },
+    [activeTab]
+  )
 
   return (
     <section className="w-full min-w-0 space-y-4">
@@ -419,6 +541,10 @@ export function AnagraficheTablesView({
             totalRows={tableConfig.totalRows}
             paginationState={activePagination}
             onPaginationStateChange={handleTabPaginationChange}
+            serverQueryMode
+            serverQueryDebounceMs={700}
+            onServerQueryChange={handleServerQueryChange}
+            initialServerQuery={activeQuery}
           />
         </TabsContent>
       </Tabs>
