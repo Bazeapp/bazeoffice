@@ -61,6 +61,7 @@ type WorkerAddressDraft = {
 
 type WorkerAvailabilityDraft = {
   vincoli_orari_disponibilita: string
+  disponibilita_nel_giorno: string[]
   matrix: AvailabilityMatrixDraft
 }
 
@@ -136,6 +137,7 @@ type UseSelectedWorkerEditorParams = {
   setError: React.Dispatch<React.SetStateAction<string | null>>
   applyUpdatedWorkerRow: (row: LavoratoreRecord) => void
   applyUpdatedWorkerExperience: (row: EsperienzaLavoratoreRecord) => void
+  appendCreatedWorkerExperience: (row: EsperienzaLavoratoreRecord) => void
   applyUpdatedWorkerReference: (row: ReferenzaLavoratoreRecord) => void
   appendCreatedWorkerReference: (row: ReferenzaLavoratoreRecord) => void
 }
@@ -166,6 +168,7 @@ function buildAvailabilityDraft(
 ): WorkerAvailabilityDraft {
   return {
     vincoli_orari_disponibilita: asString(row?.vincoli_orari_disponibilita),
+    disponibilita_nel_giorno: readArrayStrings(row?.disponibilita_nel_giorno),
     matrix: buildAvailabilityMatrixDraft(row, availabilityPayload),
   }
 }
@@ -262,6 +265,7 @@ export function useSelectedWorkerEditor({
   setError,
   applyUpdatedWorkerRow,
   applyUpdatedWorkerExperience,
+  appendCreatedWorkerExperience,
   applyUpdatedWorkerReference,
   appendCreatedWorkerReference,
 }: UseSelectedWorkerEditorParams) {
@@ -649,6 +653,25 @@ export function useSelectedWorkerEditor({
     [applyUpdatedWorkerExperience, setError]
   )
 
+  const createExperienceRecord = React.useCallback(
+    async (values: Partial<EsperienzaLavoratoreRecord>) => {
+      setUpdatingExperience(true)
+      try {
+        const result = await createRecord(
+          "esperienze_lavoratori",
+          values as Record<string, unknown>
+        )
+        appendCreatedWorkerExperience(result.row as EsperienzaLavoratoreRecord)
+      } catch (caughtError) {
+        setError(formatEditorError("Errore creando esperienza", caughtError))
+        throw caughtError
+      } finally {
+        setUpdatingExperience(false)
+      }
+    },
+    [appendCreatedWorkerExperience, setError]
+  )
+
   const patchReferenceRecord = React.useCallback(
     async (referenceId: string, patch: Partial<ReferenzaLavoratoreRecord>) => {
       setUpdatingExperience(true)
@@ -812,6 +835,7 @@ export function useSelectedWorkerEditor({
     handleAvailabilityMatrixChange,
     patchJobSearchField,
     patchExperienceRecord,
+    createExperienceRecord,
     patchReferenceRecord,
     createReferenceRecord,
     commitExperienceField,

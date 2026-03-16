@@ -38,6 +38,7 @@ type JobSearchDraft = {
 
 type JobSearchCardProps = {
   isEditing: boolean
+  showEditAction?: boolean
   isUpdating: boolean
   draft: JobSearchDraft
   tipoLavoroOptions: LookupOption[]
@@ -222,6 +223,7 @@ function ReadOnlySingleBadge({
 
 export function JobSearchCard({
   isEditing,
+  showEditAction = true,
   isUpdating,
   draft,
   tipoLavoroOptions,
@@ -249,7 +251,7 @@ export function JobSearchCard({
     <DetailSectionCard
       title="Ricerca Lavoro"
       titleIcon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
-      titleAction={
+      titleAction={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -260,7 +262,7 @@ export function JobSearchCard({
         >
           <PencilIcon />
         </Button>
-      }
+      ) : undefined}
       titleOnBorder
       contentClassName="space-y-4"
     >

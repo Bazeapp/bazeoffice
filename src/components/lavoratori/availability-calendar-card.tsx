@@ -27,6 +27,7 @@ type AvailabilityReadOnlyRow = {
 type AvailabilityCalendarCardProps = {
   titleMeta: string
   isEditing: boolean
+  showEditAction?: boolean
   isUpdating: boolean
   editDays: AvailabilityEditDay[]
   editBands: AvailabilityEditBand[]
@@ -43,6 +44,7 @@ type AvailabilityCalendarCardProps = {
 export function AvailabilityCalendarCard({
   titleMeta,
   isEditing,
+  showEditAction = true,
   isUpdating,
   editDays,
   editBands,
@@ -66,7 +68,7 @@ export function AvailabilityCalendarCard({
         </span>
       }
       titleIcon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
-      titleAction={
+      titleAction={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -77,7 +79,7 @@ export function AvailabilityCalendarCard({
         >
           <PencilIcon />
         </Button>
-      }
+      ) : undefined}
       titleOnBorder
       contentClassName="space-y-4"
     >

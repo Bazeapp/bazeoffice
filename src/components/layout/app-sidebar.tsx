@@ -48,7 +48,9 @@ type MainSection =
   | "anagrafiche"
   | "crm_pipeline_famiglie"
   | "crm_assegnazione"
-  | "lavoratori_cerca";
+  | "lavoratori_cerca"
+  | "gate_1"
+  | "gate_2";
 
 type SidebarCategory = {
   name: string;
@@ -113,8 +115,8 @@ const sidebarCategories: SidebarCategory[] = [
     icon: FolderTreeIcon,
     children: [
       { name: "Cerca Lavoratori", href: "#", mainSection: "lavoratori_cerca" },
-      { name: "Gate 1", href: "#" },
-      { name: "Gate 2", href: "#" },
+      { name: "Gate 1", href: "#", mainSection: "gate_1" },
+      { name: "Gate 2", href: "#", mainSection: "gate_2" },
     ],
   },
   { name: "Payroll", href: "#", icon: WalletIcon },
@@ -130,6 +132,8 @@ type AppSidebarProps = {
   onOpenCrmPipelineFamiglie?: () => void;
   onOpenCrmAssegnazione?: () => void;
   onOpenLavoratoriCerca?: () => void;
+  onOpenGate1?: () => void;
+  onOpenGate2?: () => void;
 };
 
 function getUserDisplayName(user: User) {
@@ -149,6 +153,8 @@ export function AppSidebar({
   onOpenCrmPipelineFamiglie,
   onOpenCrmAssegnazione,
   onOpenLavoratoriCerca,
+  onOpenGate1,
+  onOpenGate2,
 }: AppSidebarProps) {
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const userDisplayName = getUserDisplayName(user);
@@ -216,6 +222,10 @@ export function AppSidebar({
                                 child.mainSection === "crm_assegnazione";
                               const isLavoratoriCercaChild =
                                 child.mainSection === "lavoratori_cerca";
+                              const isGate1Child =
+                                child.mainSection === "gate_1";
+                              const isGate2Child =
+                                child.mainSection === "gate_2";
 
                               return (
                                 <SidebarMenuSubItem key={child.name}>
@@ -234,7 +244,11 @@ export function AppSidebar({
                                           "crm_assegnazione") ||
                                       (isLavoratoriCercaChild &&
                                         activeMainSection ===
-                                          "lavoratori_cerca")
+                                          "lavoratori_cerca") ||
+                                      (isGate1Child &&
+                                        activeMainSection === "gate_1") ||
+                                      (isGate2Child &&
+                                        activeMainSection === "gate_2")
                                     }
                                   >
                                     <a
@@ -266,6 +280,18 @@ export function AppSidebar({
                                         if (isLavoratoriCercaChild) {
                                           event.preventDefault();
                                           onOpenLavoratoriCerca?.();
+                                          return;
+                                        }
+
+                                        if (isGate1Child) {
+                                          event.preventDefault();
+                                          onOpenGate1?.();
+                                          return;
+                                        }
+
+                                        if (isGate2Child) {
+                                          event.preventDefault();
+                                          onOpenGate2?.();
                                         }
                                       }}
                                     >

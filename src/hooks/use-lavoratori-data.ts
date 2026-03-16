@@ -421,6 +421,13 @@ export function useLavoratoriData() {
     []
   )
 
+  const appendCreatedWorkerExperience = React.useCallback(
+    (nextRow: EsperienzaLavoratoreRecord) => {
+      setSelectedWorkerExperiences((current) => [nextRow, ...current])
+    },
+    []
+  )
+
   const applyUpdatedWorkerReference = React.useCallback(
     (nextRow: ReferenzaLavoratoreRecord) => {
       setSelectedWorkerReferences((current) =>
@@ -490,6 +497,7 @@ export function useLavoratoriData() {
     currentPage,
     applyUpdatedWorkerRow,
     applyUpdatedWorkerExperience,
+    appendCreatedWorkerExperience,
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
     upsertSelectedWorkerDocument,

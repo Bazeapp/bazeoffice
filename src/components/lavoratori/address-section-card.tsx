@@ -34,6 +34,8 @@ type AddressDraft = {
 type AddressSectionCardProps = {
   isEditing: boolean
   isUpdating: boolean
+  showEditAction?: boolean
+  showCap?: boolean
   addressDraft: AddressDraft
   provinciaOptions: LookupOption[]
   mobilityOptions: LookupOption[]
@@ -52,6 +54,8 @@ type AddressSectionCardProps = {
 export function AddressSectionCard({
   isEditing,
   isUpdating,
+  showEditAction = true,
+  showCap = true,
   addressDraft,
   provinciaOptions,
   mobilityOptions,
@@ -70,7 +74,7 @@ export function AddressSectionCard({
     <DetailSectionCard
       title="Indirizzo"
       titleIcon={<MapPinIcon className="text-muted-foreground size-4" />}
-      titleAction={
+      titleAction={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -81,7 +85,7 @@ export function AddressSectionCard({
         >
           <PencilIcon />
         </Button>
-      }
+      ) : undefined}
       titleOnBorder
       contentClassName="space-y-2"
     >
@@ -110,9 +114,11 @@ export function AddressSectionCard({
         )}
       </DetailRow>
 
-      <DetailRow label="CAP">
-        <span className="truncate">{selectedCap || "-"}</span>
-      </DetailRow>
+      {showCap ? (
+        <DetailRow label="CAP">
+          <span className="truncate">{selectedCap || "-"}</span>
+        </DetailRow>
+      ) : null}
 
       <DetailRow label="Indirizzo">
         {isEditing ? (

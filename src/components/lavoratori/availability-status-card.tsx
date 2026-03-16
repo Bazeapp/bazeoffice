@@ -19,6 +19,7 @@ type AvailabilityStatusDraft = {
 
 type AvailabilityStatusCardProps = {
   isEditing: boolean
+  showEditAction?: boolean
   isUpdating: boolean
   disponibilitaOptions: LookupOption[]
   draft: AvailabilityStatusDraft
@@ -33,6 +34,7 @@ type AvailabilityStatusCardProps = {
 
 export function AvailabilityStatusCard({
   isEditing,
+  showEditAction = true,
   isUpdating,
   disponibilitaOptions,
   draft,
@@ -44,11 +46,13 @@ export function AvailabilityStatusCard({
   onDataRitornoChange,
   onDataRitornoBlur,
 }: AvailabilityStatusCardProps) {
+  const isReturnDateEnabled = draft.disponibilita === "Non disponibile"
+
   return (
     <DetailSectionCard
       title="Disponibilita"
       titleIcon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
-      titleAction={
+      titleAction={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -67,7 +71,7 @@ export function AvailabilityStatusCard({
         >
           <PencilIcon />
         </Button>
-      }
+      ) : undefined}
       titleOnBorder
       contentClassName="space-y-4"
     >
@@ -104,7 +108,7 @@ export function AvailabilityStatusCard({
           )}
         </div>
 
-        <div className="space-y-1">
+        <div className={isEditing && !isReturnDateEnabled ? "space-y-1 opacity-50" : "space-y-1"}>
           <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
             Ritorno disponibilita
           </FieldTitle>
@@ -115,7 +119,7 @@ export function AvailabilityStatusCard({
                 value={draft.data_ritorno_disponibilita}
                 onChange={(event) => onDataRitornoChange(event.target.value)}
                 onBlur={onDataRitornoBlur}
-                disabled={isUpdating}
+                disabled={isUpdating || !isReturnDateEnabled}
                 className="h-9 text-sm"
               />
             </div>

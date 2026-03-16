@@ -5,6 +5,8 @@ import { AnagraficheTablesView } from "@/components/anagrafiche/anagrafiche-tabl
 import { CrmAssegnazioneView } from "@/components/crm/crm-assegnazione-view"
 import { CrmPipelineFamiglieView } from "@/components/crm/crm-pipeline-famiglie-view"
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { Gate1View } from "@/components/lavoratori/gate1-view"
+import { Gate2View } from "@/components/lavoratori/gate2-view"
 import { LavoratoriCercaView } from "@/components/lavoratori/lavoratori-cerca-view"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -24,6 +26,8 @@ type MainSection =
   | "crm_pipeline_famiglie"
   | "crm_assegnazione"
   | "lavoratori_cerca"
+  | "gate_1"
+  | "gate_2"
 
 type RouteState = {
   mainSection: MainSection
@@ -75,6 +79,20 @@ function resolveRouteStateFromPath(pathname: string): RouteState {
     }
   }
 
+  if (slug === "gate-1") {
+    return {
+      mainSection: "gate_1",
+      anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+    }
+  }
+
+  if (slug === "gate-2") {
+    return {
+      mainSection: "gate_2",
+      anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+    }
+  }
+
   if (slug === "famiglie" || slug === "processi" || slug === "lavoratori") {
     return {
       mainSection: "anagrafiche",
@@ -91,6 +109,8 @@ function buildPathForRoute(route: RouteState) {
     if (route.mainSection === "crm_pipeline_famiglie") return "pipeline"
     if (route.mainSection === "crm_assegnazione") return "assegnazione"
     if (route.mainSection === "lavoratori_cerca") return "cerca-lavoratori"
+    if (route.mainSection === "gate_1") return "gate-1"
+    if (route.mainSection === "gate_2") return "gate-2"
     return route.anagraficheTab
   })()
   return `${basePrefix}/${slug}`
@@ -181,6 +201,22 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     })
   }, [activeAnagraficheTab])
 
+  const handleOpenGate1 = React.useCallback(() => {
+    setActiveMainSection("gate_1")
+    syncBrowserUrl({
+      mainSection: "gate_1",
+      anagraficheTab: activeAnagraficheTab,
+    })
+  }, [activeAnagraficheTab])
+
+  const handleOpenGate2 = React.useCallback(() => {
+    setActiveMainSection("gate_2")
+    syncBrowserUrl({
+      mainSection: "gate_2",
+      anagraficheTab: activeAnagraficheTab,
+    })
+  }, [activeAnagraficheTab])
+
   return (
     <SidebarProvider>
       <AppSidebar
@@ -192,6 +228,8 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onOpenCrmPipelineFamiglie={handleOpenCrmPipelineFamiglie}
         onOpenCrmAssegnazione={handleOpenCrmAssegnazione}
         onOpenLavoratoriCerca={handleOpenLavoratoriCerca}
+        onOpenGate1={handleOpenGate1}
+        onOpenGate2={handleOpenGate2}
       />
       <SidebarInset>
         <header className="flex h-14 items-start gap-2 border-b px-4 pt-2">
@@ -218,6 +256,20 @@ export function AppShell({ user, onLogout }: AppShellProps) {
                 Seleziona un lavoratore dalla lista e apri la sua scheda.
               </p>
             </div>
+          ) : activeMainSection === "gate_1" ? (
+            <div className="space-y-0.5">
+              <h1 className="text-base leading-none font-semibold">Gate 1</h1>
+              <p className="text-muted-foreground text-xs leading-none">
+                Screening iniziale con verifica idoneita e controllo dati essenziali.
+              </p>
+            </div>
+          ) : activeMainSection === "gate_2" ? (
+            <div className="space-y-0.5">
+              <h1 className="text-base leading-none font-semibold">Gate 2</h1>
+              <p className="text-muted-foreground text-xs leading-none">
+                Revisione dei lavoratori idonei con la stessa scheda operativa del gate 1.
+              </p>
+            </div>
           ) : (
             <div className="space-y-0.5">
               <h1 className="text-base leading-none font-semibold">Anagrafiche</h1>
@@ -235,6 +287,10 @@ export function AppShell({ user, onLogout }: AppShellProps) {
             <CrmAssegnazioneView />
           ) : activeMainSection === "lavoratori_cerca" ? (
             <LavoratoriCercaView />
+          ) : activeMainSection === "gate_1" ? (
+            <Gate1View showStepper />
+          ) : activeMainSection === "gate_2" ? (
+            <Gate2View />
           ) : (
             <AnagraficheTablesView
               activeTab={activeAnagraficheTab}

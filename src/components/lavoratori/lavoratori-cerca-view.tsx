@@ -47,9 +47,7 @@ import {
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
 import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
-import {
-  getWorkerQualificationStatus,
-} from "@/features/lavoratori/lib/status-utils";
+import { getWorkerQualificationStatus } from "@/features/lavoratori/lib/status-utils";
 import { SideCardsPanel } from "@/components/shared/side-cards-panel";
 import {
   Pagination,
@@ -197,6 +195,7 @@ export function LavoratoriCercaView() {
     currentPage,
     applyUpdatedWorkerRow,
     applyUpdatedWorkerExperience,
+    appendCreatedWorkerExperience,
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
     upsertSelectedWorkerDocument,
@@ -255,7 +254,8 @@ export function LavoratoriCercaView() {
   );
   const referenceStatusOptions = React.useMemo(
     () =>
-      lookupOptionsByDomain.get("referenze_lavoratori.referenza_verificata") ?? [],
+      lookupOptionsByDomain.get("referenze_lavoratori.referenza_verificata") ??
+      [],
     [lookupOptionsByDomain],
   );
   const haiReferenzeOptions = React.useMemo(
@@ -263,7 +263,9 @@ export function LavoratoriCercaView() {
     [lookupOptionsByDomain],
   );
   const documentiVerificatiOptions = React.useMemo(() => {
-    return lookupOptionsByDomain.get("lavoratori.stato_verifica_documenti") ?? [];
+    return (
+      lookupOptionsByDomain.get("lavoratori.stato_verifica_documenti") ?? []
+    );
   }, [lookupOptionsByDomain]);
   const documentiInRegolaOptions = React.useMemo(
     () => lookupOptionsByDomain.get("lavoratori.documenti_in_regola") ?? [],
@@ -474,6 +476,7 @@ export function LavoratoriCercaView() {
     handleAvailabilityMatrixChange,
     patchJobSearchField,
     patchExperienceRecord,
+    createExperienceRecord,
     patchReferenceRecord,
     createReferenceRecord,
     commitExperienceField,
@@ -491,6 +494,7 @@ export function LavoratoriCercaView() {
     setError,
     applyUpdatedWorkerRow,
     applyUpdatedWorkerExperience,
+    appendCreatedWorkerExperience,
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
@@ -525,7 +529,8 @@ export function LavoratoriCercaView() {
 
     return tabs;
   }, [selectedWorkerIsNonIdoneo, selectedWorkerIsNonQualificato]);
-  const [activeWorkerSection, setActiveWorkerSection] = React.useState("profilo");
+  const [activeWorkerSection, setActiveWorkerSection] =
+    React.useState("profilo");
 
   const setWorkerSectionRef = React.useCallback(
     (sectionId: string) => (node: HTMLDivElement | null) => {
@@ -717,7 +722,7 @@ export function LavoratoriCercaView() {
                 >
                   <TabsList
                     variant="line"
-                    className="h-auto w-full flex-wrap justify-start gap-x-1 gap-y-2 p-0"
+                    className="h-auto w-full justify-start gap-x-1 p-0 overflow-x-auto overflow-y-hidden whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                   >
                     {workerSectionTabs.map((tab) => {
                       const TabIcon = tab.icon;
@@ -725,7 +730,7 @@ export function LavoratoriCercaView() {
                         <TabsTrigger
                           key={tab.id}
                           value={tab.id}
-                          className="h-10 flex-none rounded-full bg-muted/35 px-3 text-sm shadow-none"
+                          className="h-10 flex-none rounded-full text-muted-foreground/50 px-3 text-sm shadow-none"
                         >
                           <TabIcon className="size-4" />
                           {tab.label}
@@ -736,7 +741,10 @@ export function LavoratoriCercaView() {
                 </Tabs>
               </div>
               <div className="space-y-6 text-sm">
-                <div ref={setWorkerSectionRef("profilo")} className="mb-6 flex items-stretch gap-5">
+                <div
+                  ref={setWorkerSectionRef("profilo")}
+                  className="mb-6 flex items-stretch gap-5"
+                >
                   {(() => {
                     const qualificationStatus =
                       getWorkerQualificationStatus(selectedWorker);
@@ -1322,10 +1330,12 @@ export function LavoratoriCercaView() {
                     }
                     isEditing={isEditingAvailability}
                     isUpdating={updatingAvailability}
-                    editDays={AVAILABILITY_EDIT_DAYS.map(({ field, label }) => ({
-                      field,
-                      label,
-                    }))}
+                    editDays={AVAILABILITY_EDIT_DAYS.map(
+                      ({ field, label }) => ({
+                        field,
+                        label,
+                      }),
+                    )}
                     editBands={AVAILABILITY_EDIT_BANDS.map(
                       ({ field, label }) => ({ field, label }),
                     )}
@@ -1350,7 +1360,9 @@ export function LavoratoriCercaView() {
                       }))
                     }
                     onVincoliBlur={() =>
-                      void commitAvailabilityField("vincoli_orari_disponibilita")
+                      void commitAvailabilityField(
+                        "vincoli_orari_disponibilita",
+                      )
                     }
                   />
                 </div>
@@ -1453,7 +1465,9 @@ export function LavoratoriCercaView() {
 
                 <div ref={setWorkerSectionRef("esperienze")}>
                   <ExperienceReferencesCard
+                    workerId={selectedWorkerId}
                     isEditing={isEditingExperience}
+                    showCreateExperienceAction={isEditingExperience}
                     isUpdating={updatingExperience}
                     draft={experienceDraft}
                     experiences={selectedWorkerExperiences}
@@ -1462,7 +1476,9 @@ export function LavoratoriCercaView() {
                     referencesLoading={loadingSelectedWorkerReferences}
                     lookupColorsByDomain={lookupColorsByDomain}
                     experienceTipoLavoroOptions={experienceTipoLavoroOptions}
-                    experienceTipoRapportoOptions={experienceTipoRapportoOptions}
+                    experienceTipoRapportoOptions={
+                      experienceTipoRapportoOptions
+                    }
                     referenceStatusOptions={referenceStatusOptions}
                     selectedAnniEsperienzaColf={asInputValue(
                       selectedWorkerRow?.anni_esperienza_colf,
@@ -1520,6 +1536,9 @@ export function LavoratoriCercaView() {
                     onExperiencePatch={(experienceId, patch) =>
                       void patchExperienceRecord(experienceId, patch)
                     }
+                    onExperienceCreate={(values) =>
+                      void createExperienceRecord(values)
+                    }
                     onReferencePatch={(referenceId, patch) =>
                       void patchReferenceRecord(referenceId, patch)
                     }
@@ -1574,13 +1593,17 @@ export function LavoratoriCercaView() {
                       allegato_codice_fiscale_retro:
                         selectedWorkerRow?.docs_codice_fiscale_retro ?? null,
                       allegato_documento_identita_fronte:
-                        selectedWorkerRow?.docs_documento_identita_fronte ?? null,
+                        selectedWorkerRow?.docs_documento_identita_fronte ??
+                        null,
                       allegato_documento_identita_retro:
-                        selectedWorkerRow?.docs_documento_identita_retro ?? null,
+                        selectedWorkerRow?.docs_documento_identita_retro ??
+                        null,
                       allegato_permesso_di_soggiorno_fronte:
-                        selectedWorkerRow?.docs_permesso_di_soggiorno_fronte ?? null,
+                        selectedWorkerRow?.docs_permesso_di_soggiorno_fronte ??
+                        null,
                       allegato_permesso_di_soggiorno_retro:
-                        selectedWorkerRow?.docs_permesso_di_soggiorno_retro ?? null,
+                        selectedWorkerRow?.docs_permesso_di_soggiorno_retro ??
+                        null,
                       allegato_ricevuta_rinnovo_permesso:
                         selectedWorkerRow?.docs_ricevuta_rinnovo_permesso_di_soggiorno ??
                         null,
@@ -1639,63 +1662,63 @@ export function LavoratoriCercaView() {
                       <div className="space-y-2">
                         <p className="text-sm font-medium">Motivazione</p>
                         <Combobox
-                        multiple
-                        autoHighlight
-                        items={motivazioniNonIdoneoOptions.map(
-                          (option) => option.value,
-                        )}
-                        value={nonIdoneoReasonValues}
-                        onValueChange={(nextValues) => {
-                          void handleNonIdoneoReasonsChange(
-                            nextValues as string[],
-                          );
-                        }}
-                        disabled={updatingNonIdoneo}
-                      >
-                        <ComboboxChips
-                          ref={nonIdoneoReasonAnchor}
-                          className="w-full"
+                          multiple
+                          autoHighlight
+                          items={motivazioniNonIdoneoOptions.map(
+                            (option) => option.value,
+                          )}
+                          value={nonIdoneoReasonValues}
+                          onValueChange={(nextValues) => {
+                            void handleNonIdoneoReasonsChange(
+                              nextValues as string[],
+                            );
+                          }}
+                          disabled={updatingNonIdoneo}
                         >
-                          <ComboboxValue>
-                            {(values) => (
-                              <React.Fragment>
-                                {values.map((value: string) => (
-                                  <ComboboxChip
-                                    key={value}
-                                    className={getTagClassName(
-                                      getMotivazioneColor(value),
-                                    )}
-                                  >
-                                    {getMotivazioneLabel(value)}
-                                  </ComboboxChip>
-                                ))}
-                                <ComboboxChipsInput />
-                              </React.Fragment>
-                            )}
-                          </ComboboxValue>
-                        </ComboboxChips>
-                        <ComboboxContent
-                          anchor={nonIdoneoReasonAnchor}
-                          className="max-h-80"
-                        >
-                          <ComboboxEmpty>
-                            Nessuna motivazione trovata.
-                          </ComboboxEmpty>
-                          <ComboboxList className="max-h-72 overflow-y-auto">
-                            {(item) => (
-                              <ComboboxItem
-                                key={item}
-                                value={item}
-                                className={getTagClassName(
-                                  getMotivazioneColor(item),
-                                )}
-                              >
-                                {getMotivazioneLabel(item)}
-                              </ComboboxItem>
-                            )}
-                          </ComboboxList>
-                        </ComboboxContent>
-                      </Combobox>
+                          <ComboboxChips
+                            ref={nonIdoneoReasonAnchor}
+                            className="w-full"
+                          >
+                            <ComboboxValue>
+                              {(values) => (
+                                <React.Fragment>
+                                  {values.map((value: string) => (
+                                    <ComboboxChip
+                                      key={value}
+                                      className={getTagClassName(
+                                        getMotivazioneColor(value),
+                                      )}
+                                    >
+                                      {getMotivazioneLabel(value)}
+                                    </ComboboxChip>
+                                  ))}
+                                  <ComboboxChipsInput />
+                                </React.Fragment>
+                              )}
+                            </ComboboxValue>
+                          </ComboboxChips>
+                          <ComboboxContent
+                            anchor={nonIdoneoReasonAnchor}
+                            className="max-h-80"
+                          >
+                            <ComboboxEmpty>
+                              Nessuna motivazione trovata.
+                            </ComboboxEmpty>
+                            <ComboboxList className="max-h-72 overflow-y-auto">
+                              {(item) => (
+                                <ComboboxItem
+                                  key={item}
+                                  value={item}
+                                  className={getTagClassName(
+                                    getMotivazioneColor(item),
+                                  )}
+                                >
+                                  {getMotivazioneLabel(item)}
+                                </ComboboxItem>
+                              )}
+                            </ComboboxList>
+                          </ComboboxContent>
+                        </Combobox>
                       </div>
                     </DetailSectionCard>
                   </div>
@@ -1711,204 +1734,206 @@ export function LavoratoriCercaView() {
                       titleOnBorder
                       contentClassName="space-y-4"
                     >
-                    <div className="space-y-3">
-                      {selectedWorkerNonQualificatoIssues.map((issue) => (
-                        <div key={issue.id} className="space-y-1">
-                          <p className="font-medium">{issue.title}</p>
-                          <div>
-                            {issue.id === "missing-description" ? (
-                              <Input
-                                value={asString(
-                                  selectedWorkerRow?.descrizione_pubblica,
-                                )}
-                                onChange={(event) =>
-                                  void patchSelectedWorkerField(
-                                    "descrizione_pubblica",
-                                    event.target.value || null,
-                                  )
-                                }
-                                disabled={updatingNonQualificato}
-                                placeholder="Inserisci descrizione"
-                              />
-                            ) : null}
-
-                            {issue.id === "missing-photo" ? (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => {}}
-                                disabled={updatingNonQualificato}
-                              >
-                                <UploadIcon className="size-4" />
-                                Carica foto
-                              </Button>
-                            ) : null}
-
-                            {issue.id === "not-milano" ? (
-                              <Select
-                                value={
-                                  asString(selectedWorkerRow?.provincia) ||
-                                  undefined
-                                }
-                                onValueChange={(value) =>
-                                  void patchSelectedWorkerField(
-                                    "provincia",
-                                    value || null,
-                                  )
-                                }
-                                disabled={updatingNonQualificato}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleziona provincia" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {provinciaLookupOptions.map((option) => (
-                                    <SelectItem
-                                      key={option.value}
-                                      value={option.label}
-                                    >
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : null}
-
-                            {issue.id === "documenti" ? (
-                              <Select
-                                value={
-                                  asString(selectedWorkerRow?.documenti_in_regola) ||
-                                  undefined
-                                }
-                                onValueChange={(value) =>
-                                  void patchSelectedWorkerField(
-                                    "documenti_in_regola",
-                                    value || null,
-                                  )
-                                }
-                                disabled={updatingNonQualificato}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleziona stato documenti" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {documentiInRegolaOptions.map((option) => (
-                                    <SelectItem
-                                      key={option.value}
-                                      value={option.label}
-                                    >
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : null}
-
-                            {issue.id === "referenze" ? (
-                              <Select
-                                value={
-                                  asString(selectedWorkerRow?.hai_referenze) ||
-                                  undefined
-                                }
-                                onValueChange={(value) =>
-                                  void patchSelectedWorkerField(
-                                    "hai_referenze",
-                                    value || null,
-                                  )
-                                }
-                                disabled={updatingNonQualificato}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleziona referenze" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {haiReferenzeOptions.map((option) => (
-                                    <SelectItem
-                                      key={option.value}
-                                      value={option.value}
-                                    >
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : null}
-
-                            {issue.id === "age" ? (
-                              <Input
-                                type="date"
-                                value={asString(
-                                  selectedWorkerRow?.data_di_nascita,
-                                )}
-                                onChange={(event) =>
-                                  void patchSelectedWorkerField(
-                                    "data_di_nascita",
-                                    event.target.value || null,
-                                  )
-                                }
-                                disabled={updatingNonQualificato}
-                              />
-                            ) : null}
-
-                            {issue.id === "tipo-lavoro" ? (
-                              <NonQualificatoTipoLavoroField
-                                value={readArrayStrings(
-                                  selectedWorkerRow?.tipo_lavoro_domestico,
-                                )}
-                                options={tipoLavoroDomesticoOptions}
-                                disabled={updatingNonQualificato}
-                                onChange={(values) =>
-                                  void patchSelectedWorkerField(
-                                    "tipo_lavoro_domestico",
-                                    values.length > 0 ? values : null,
-                                  )
-                                }
-                              />
-                            ) : null}
-
-                            {issue.id === "esperienza" ? (
-                              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <div className="space-y-3">
+                        {selectedWorkerNonQualificatoIssues.map((issue) => (
+                          <div key={issue.id} className="space-y-1">
+                            <p className="font-medium">{issue.title}</p>
+                            <div>
+                              {issue.id === "missing-description" ? (
                                 <Input
-                                  type="number"
-                                  inputMode="decimal"
-                                  value={asInputValue(
-                                    selectedWorkerRow?.anni_esperienza_colf,
+                                  value={asString(
+                                    selectedWorkerRow?.descrizione_pubblica,
                                   )}
                                   onChange={(event) =>
                                     void patchSelectedWorkerField(
-                                      "anni_esperienza_colf",
-                                      event.target.value
-                                        ? Number(event.target.value)
-                                        : null,
+                                      "descrizione_pubblica",
+                                      event.target.value || null,
                                     )
                                   }
                                   disabled={updatingNonQualificato}
-                                  placeholder="Anni esperienza colf"
+                                  placeholder="Inserisci descrizione"
                                 />
+                              ) : null}
+
+                              {issue.id === "missing-photo" ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {}}
+                                  disabled={updatingNonQualificato}
+                                >
+                                  <UploadIcon className="size-4" />
+                                  Carica foto
+                                </Button>
+                              ) : null}
+
+                              {issue.id === "not-milano" ? (
+                                <Select
+                                  value={
+                                    asString(selectedWorkerRow?.provincia) ||
+                                    undefined
+                                  }
+                                  onValueChange={(value) =>
+                                    void patchSelectedWorkerField(
+                                      "provincia",
+                                      value || null,
+                                    )
+                                  }
+                                  disabled={updatingNonQualificato}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleziona provincia" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {provinciaLookupOptions.map((option) => (
+                                      <SelectItem
+                                        key={option.value}
+                                        value={option.label}
+                                      >
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : null}
+
+                              {issue.id === "documenti" ? (
+                                <Select
+                                  value={
+                                    asString(
+                                      selectedWorkerRow?.documenti_in_regola,
+                                    ) || undefined
+                                  }
+                                  onValueChange={(value) =>
+                                    void patchSelectedWorkerField(
+                                      "documenti_in_regola",
+                                      value || null,
+                                    )
+                                  }
+                                  disabled={updatingNonQualificato}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleziona stato documenti" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {documentiInRegolaOptions.map((option) => (
+                                      <SelectItem
+                                        key={option.value}
+                                        value={option.label}
+                                      >
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : null}
+
+                              {issue.id === "referenze" ? (
+                                <Select
+                                  value={
+                                    asString(
+                                      selectedWorkerRow?.hai_referenze,
+                                    ) || undefined
+                                  }
+                                  onValueChange={(value) =>
+                                    void patchSelectedWorkerField(
+                                      "hai_referenze",
+                                      value || null,
+                                    )
+                                  }
+                                  disabled={updatingNonQualificato}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleziona referenze" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {haiReferenzeOptions.map((option) => (
+                                      <SelectItem
+                                        key={option.value}
+                                        value={option.value}
+                                      >
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : null}
+
+                              {issue.id === "age" ? (
                                 <Input
-                                  type="number"
-                                  inputMode="decimal"
-                                  value={asInputValue(
-                                    selectedWorkerRow?.anni_esperienza_babysitter,
+                                  type="date"
+                                  value={asString(
+                                    selectedWorkerRow?.data_di_nascita,
                                   )}
                                   onChange={(event) =>
                                     void patchSelectedWorkerField(
-                                      "anni_esperienza_babysitter",
-                                      event.target.value
-                                        ? Number(event.target.value)
-                                        : null,
+                                      "data_di_nascita",
+                                      event.target.value || null,
                                     )
                                   }
                                   disabled={updatingNonQualificato}
-                                  placeholder="Anni esperienza babysitter"
                                 />
-                              </div>
-                            ) : null}
+                              ) : null}
+
+                              {issue.id === "tipo-lavoro" ? (
+                                <NonQualificatoTipoLavoroField
+                                  value={readArrayStrings(
+                                    selectedWorkerRow?.tipo_lavoro_domestico,
+                                  )}
+                                  options={tipoLavoroDomesticoOptions}
+                                  disabled={updatingNonQualificato}
+                                  onChange={(values) =>
+                                    void patchSelectedWorkerField(
+                                      "tipo_lavoro_domestico",
+                                      values.length > 0 ? values : null,
+                                    )
+                                  }
+                                />
+                              ) : null}
+
+                              {issue.id === "esperienza" ? (
+                                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                  <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    value={asInputValue(
+                                      selectedWorkerRow?.anni_esperienza_colf,
+                                    )}
+                                    onChange={(event) =>
+                                      void patchSelectedWorkerField(
+                                        "anni_esperienza_colf",
+                                        event.target.value
+                                          ? Number(event.target.value)
+                                          : null,
+                                      )
+                                    }
+                                    disabled={updatingNonQualificato}
+                                    placeholder="Anni esperienza colf"
+                                  />
+                                  <Input
+                                    type="number"
+                                    inputMode="decimal"
+                                    value={asInputValue(
+                                      selectedWorkerRow?.anni_esperienza_babysitter,
+                                    )}
+                                    onChange={(event) =>
+                                      void patchSelectedWorkerField(
+                                        "anni_esperienza_babysitter",
+                                        event.target.value
+                                          ? Number(event.target.value)
+                                          : null,
+                                      )
+                                    }
+                                    disabled={updatingNonQualificato}
+                                    placeholder="Anni esperienza babysitter"
+                                  />
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </DetailSectionCard>
+                        ))}
+                      </div>
+                    </DetailSectionCard>
                   </div>
                 ) : null}
 
@@ -1919,10 +1944,14 @@ export function LavoratoriCercaView() {
                     contentClassName="flex flex-col items-start gap-2"
                   >
                     {selectedWorker.tipoRuolo ? (
-                      <Badge variant="outline">{selectedWorker.tipoRuolo}</Badge>
+                      <Badge variant="outline">
+                        {selectedWorker.tipoRuolo}
+                      </Badge>
                     ) : null}
                     {selectedWorker.tipoLavoro ? (
-                      <Badge variant="outline">{selectedWorker.tipoLavoro}</Badge>
+                      <Badge variant="outline">
+                        {selectedWorker.tipoLavoro}
+                      </Badge>
                     ) : null}
                   </DetailSectionCard>
                 </div>

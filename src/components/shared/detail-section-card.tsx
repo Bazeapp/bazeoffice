@@ -25,12 +25,12 @@ export function DetailSectionCard({
   return (
     <Card className={cn(titleOnBorder && "relative overflow-visible pt-5", className)}>
       {titleOnBorder ? (
-        <CardTitle className="text-foreground absolute top-0 right-4 left-4 flex -translate-y-1/2 items-center justify-between gap-2 px-2 text-base font-semibold">
+        <CardTitle className="text-foreground pointer-events-none absolute top-0 right-4 left-4 flex -translate-y-1/2 items-center justify-between gap-2 px-2 text-base font-semibold">
           <span className="flex items-center gap-2">
             {titleIcon ? titleIcon : null}
             <span>{title}</span>
           </span>
-          {titleAction ? <span className="shrink-0">{titleAction}</span> : null}
+          {titleAction ? <span className="pointer-events-auto shrink-0">{titleAction}</span> : null}
         </CardTitle>
       ) : (
         <CardHeader>

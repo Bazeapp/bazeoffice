@@ -1,12 +1,17 @@
 import * as React from "react"
 import {
   CalendarDaysIcon,
+  CheckCircle2Icon,
+  ExternalLinkIcon,
   FileBadge2Icon,
+  FileIcon,
   FolderArchiveIcon,
   IdCardIcon,
   LoaderCircleIcon,
+  OctagonAlertIcon,
   PencilIcon,
   PlusIcon,
+  ScanSearchIcon,
   ShieldCheckIcon,
 } from "lucide-react"
 
@@ -48,6 +53,7 @@ type DocumentsDraft = {
 type DocumentsCardProps = {
   workerId: string | null
   isEditing: boolean
+  showEditAction?: boolean
   isUpdating: boolean
   draft: DocumentsDraft
   selectedValues: DocumentsDraft
@@ -295,7 +301,7 @@ function AttachmentSlot({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl p-3">
+    <div className="flex min-w-0 items-center gap-3 rounded-xl border-dashed border bg-muted/10 px-3 py-2.5">
       <input
         ref={inputRef}
         type="file"
@@ -303,80 +309,67 @@ function AttachmentSlot({
         className="hidden"
         onChange={handleInputChange}
       />
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium">{label}</span>
-        {!hasValue ? (
-          <span className="text-muted-foreground text-xs">Non allegato</span>
-        ) : links.length === 0 ? (
-          <Badge variant="outline">Presente</Badge>
-        ) : null}
+      <div className="bg-background flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border">
+        {previewLink ? (
+          <img
+            src={previewLink.url}
+            alt={previewLink.label}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <FileIcon className="text-muted-foreground size-4" />
+        )}
       </div>
-      {previewLink ? (
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => onPreviewOpen(previewLink)}
-            className="group flex h-64 w-full items-center justify-center overflow-hidden rounded-lg bg-background"
-          >
-            <img
-              src={previewLink.url}
-              alt={previewLink.label}
-              className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-              loading="lazy"
-            />
-          </button>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">{label}</span>
+        </div>
+        <p className="text-muted-foreground mt-0.5 truncate text-[11px]">
+          {links[0]?.label ?? (hasValue ? "Documento caricato" : "Nessun file allegato")}
+        </p>
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        {previewLink ? (
           <Button
             type="button"
             variant="outline"
             size="icon-sm"
-            onClick={(event) => {
-              event.stopPropagation()
-              openFilePicker()
-            }}
-            className="absolute right-3 bottom-3 z-10 bg-background/90 shadow-sm backdrop-blur-xs"
-            aria-label="Aggiungi documento"
-            title="Aggiungi documento"
-            disabled={isUploading}
+            onClick={() => onPreviewOpen(previewLink)}
+            aria-label={`Ingrandisci ${label}`}
+            title={`Ingrandisci ${label}`}
           >
-            {isUploading ? (
-              <LoaderCircleIcon className="size-3.5 animate-spin" />
-            ) : (
-              <PlusIcon className="size-3.5" />
-            )}
-          </Button>
-        </div>
-      ) : null}
-      <div className="flex items-start justify-between gap-2">
-        {links.length > 0 && !previewLink ? (
-          <div className="flex flex-wrap gap-2">
-            {links.map((link, index) => (
-              <Button key={`${link.url}-${index}`} type="button" variant="outline" size="sm" asChild>
-                <a href={link.url} target="_blank" rel="noreferrer">
-                  {link.label}
-                </a>
-              </Button>
-            ))}
-          </div>
-        ) : (
-          <div />
-        )}
-        {!previewLink ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={openFilePicker}
-            className="shrink-0"
-            disabled={isUploading}
-          >
-            {isUploading ? (
-              <LoaderCircleIcon className="size-3.5 animate-spin" />
-            ) : (
-              <PlusIcon className="size-3.5" />
-            )}
-            Aggiungi documento
+            <ScanSearchIcon className="size-3.5" />
           </Button>
         ) : null}
+        {links[0] ? (
+          <Button type="button" variant="outline" size="icon-sm" asChild>
+            <a
+              href={links[0].url}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Apri file ${label}`}
+              title={`Apri file ${label}`}
+            >
+              <ExternalLinkIcon className="size-3.5" />
+            </a>
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          onClick={openFilePicker}
+          disabled={isUploading}
+          aria-label={hasValue ? `Sostituisci ${label}` : `Carica ${label}`}
+          title={hasValue ? `Sostituisci ${label}` : `Carica ${label}`}
+        >
+          {isUploading ? (
+            <LoaderCircleIcon className="size-3.5 animate-spin" />
+          ) : (
+            <PlusIcon className="size-3.5" />
+          )}
+        </Button>
       </div>
     </div>
   )
@@ -401,23 +394,31 @@ function AttachmentGroupCard({
     ...slot,
     value: pickAttachmentValue(documents, slot.field, fallbackDocuments),
   }))
+  const isComplete = slotValues.every((slot) => hasAttachmentValue(slot.value))
 
   return (
     <div className="relative">
       <div className="text-foreground absolute top-0 left-3 z-10 inline-flex -translate-y-1/2 items-center gap-2 px-2 text-base font-semibold">
         {group.icon}
         <span>{group.title}</span>
+        {isComplete ? (
+          <CheckCircle2Icon className="size-4 text-green-600" />
+        ) : (
+          <OctagonAlertIcon className="size-4 text-red-500" />
+        )}
       </div>
       <div
         className={cn(
-          "rounded-xl border border-dashed bg-background p-3 pt-5",
+          "rounded-xl border bg-background p-3 pt-5",
           group.slots.length === 1 ? "w-full sm:inline-block sm:w-auto" : "w-full",
         )}
       >
         <div
           className={cn(
             "grid gap-3",
-            group.slots.length > 1 ? "md:grid-cols-2" : "grid-cols-1",
+            group.slots.length > 1
+              ? "grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]"
+              : "grid-cols-1",
           )}
         >
           {slotValues.map((slot) => (
@@ -463,7 +464,7 @@ function AttachmentPlaceholderSlot({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl p-3">
+    <div className="flex min-w-0 items-center gap-3 rounded-xl border-dashed border bg-muted/10 px-3 py-2.5">
       <input
         ref={inputRef}
         type="file"
@@ -471,23 +472,30 @@ function AttachmentPlaceholderSlot({
         className="hidden"
         onChange={handleInputChange}
       />
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium">{label}</span>
+      <div className="bg-background text-muted-foreground flex size-14 shrink-0 items-center justify-center rounded-lg border">
+        <FileIcon className="size-4" />
       </div>
-      <div className="flex h-64 items-center justify-center rounded-lg border border-dashed bg-muted/20">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">{label}</span>
+        </div>
+        <p className="text-muted-foreground mt-0.5 text-[11px]">Nessun file allegato</p>
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          size="icon-sm"
           onClick={() => inputRef.current?.click()}
           disabled={isUploading}
+          aria-label={`Carica ${label}`}
+          title={`Carica ${label}`}
         >
           {isUploading ? (
             <LoaderCircleIcon className="size-3.5 animate-spin" />
           ) : (
             <PlusIcon className="size-3.5" />
           )}
-          Aggiungi documento
         </Button>
       </div>
     </div>
@@ -503,22 +511,31 @@ function AttachmentPlaceholderGroupCard({
   onAdd: (field: keyof DocumentoLavoratoreRecord, file: File) => void
   uploadingField: keyof DocumentoLavoratoreRecord | null
 }) {
+  const isComplete = false
+
   return (
     <div className="relative">
       <div className="text-foreground absolute top-0 left-3 z-10 inline-flex -translate-y-1/2 items-center gap-2 px-2 text-base font-semibold">
         {group.icon}
         <span>{group.title}</span>
+        {isComplete ? (
+          <CheckCircle2Icon className="size-4 text-green-600" />
+        ) : (
+          <OctagonAlertIcon className="size-4 text-red-500" />
+        )}
       </div>
       <div
         className={cn(
-          "rounded-xl border border-dashed bg-background p-3 pt-5",
+          "rounded-xl border bg-background p-3 pt-5",
           group.slots.length === 1 ? "w-full sm:inline-block sm:w-auto" : "w-full"
         )}
       >
         <div
           className={cn(
             "grid gap-3",
-            group.slots.length > 1 ? "md:grid-cols-2" : "grid-cols-1"
+            group.slots.length > 1
+              ? "grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]"
+              : "grid-cols-1"
           )}
         >
           {group.slots.map((slot) => (
@@ -543,6 +560,7 @@ function AttachmentPlaceholderGroupCard({
 export function DocumentsCard({
   workerId,
   isEditing,
+  showEditAction = true,
   isUpdating,
   draft,
   selectedValues,
@@ -647,7 +665,7 @@ export function DocumentsCard({
     <DetailSectionCard
       title="Documenti"
       titleIcon={<FolderArchiveIcon className="text-muted-foreground size-4" />}
-      titleAction={
+      titleAction={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -659,7 +677,7 @@ export function DocumentsCard({
         >
           <PencilIcon className="size-4" />
         </Button>
-      }
+      ) : undefined}
       titleOnBorder
       contentClassName="space-y-5 pt-2"
     >
@@ -734,7 +752,7 @@ export function DocumentsCard({
           {documentsLoading ? (
             <FieldDescription>Caricamento documenti...</FieldDescription>
           ) : !hasAnyDocuments ? (
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(22rem,1fr))] gap-3">
               {ATTACHMENT_GROUPS.map((group) => (
                 <AttachmentPlaceholderGroupCard
                   key={group.title}
@@ -745,7 +763,7 @@ export function DocumentsCard({
               ))}
             </div>
           ) : (
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(22rem,1fr))] gap-3">
               {ATTACHMENT_GROUPS.map((group) => (
                 <AttachmentGroupCard
                   key={group.title}

@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from "react";
 import {
   AlertCircleIcon,
   CalendarRangeIcon,
@@ -12,11 +12,17 @@ import {
   PlusIcon,
   StarIcon,
   UserIcon,
-} from "lucide-react"
+} from "lucide-react";
 
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { DetailSectionCard } from "@/components/shared/detail-section-card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Combobox,
   ComboboxChip,
@@ -28,10 +34,10 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui/combobox"
-import { ExperienceCardTitle } from "@/components/ui/experience-card-title"
-import { ExperienceLevel } from "@/components/ui/experience-level"
-import { Checkbox } from "@/components/ui/checkbox"
+} from "@/components/ui/combobox";
+import { ExperienceCardTitle } from "@/components/ui/experience-card-title";
+import { ExperienceLevel } from "@/components/ui/experience-level";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -39,69 +45,102 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { FieldDescription, FieldTitle } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { formatDateOnly } from "@/features/lavoratori/lib/availability-utils"
-import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/lookup-utils"
+} from "@/components/ui/dialog";
+import { FieldDescription, FieldTitle } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { formatDateOnly } from "@/features/lavoratori/lib/availability-utils";
+import {
+  getTagClassName,
+  resolveLookupColor,
+} from "@/features/lavoratori/lib/lookup-utils";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
-import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore";
+import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore";
 
 type ExperienceDraft = {
-  anni_esperienza_colf: string
-  anni_esperienza_badante: string
-  anni_esperienza_babysitter: string
-  situazione_lavorativa_attuale: string
-}
+  anni_esperienza_colf: string;
+  anni_esperienza_badante: string;
+  anni_esperienza_babysitter: string;
+  situazione_lavorativa_attuale: string;
+};
 
 type LookupOption = {
-  label: string
-  value: string
-}
+  label: string;
+  value: string;
+};
 
 function getReferenceStatusIcon(status: string) {
   switch (status) {
     case "Referenza verificata":
-      return <CheckCircle2Icon className="size-3.5" />
+      return <CheckCircle2Icon className="size-3.5 text-emerald-600" />;
     case "Referenza in attesa di verifica":
-      return <AlertCircleIcon className="size-3.5" />
+      return <AlertCircleIcon className="size-3.5 text-orange-500" />;
     case "Referenza da richiedere":
-      return <HelpCircleIcon className="size-3.5" />
+      return <HelpCircleIcon className="size-3.5 text-yellow-500" />;
     default:
-      return null
+      return null;
   }
 }
 
+function getExperienceReferenceStatus(
+  references: ReferenzaLavoratoreRecord[],
+): string | null {
+  const statuses = references
+    .map((reference) => reference.referenza_verificata ?? "")
+    .filter(Boolean);
+
+  if (statuses.includes("Referenza verificata")) {
+    return "Referenza verificata";
+  }
+
+  if (statuses.includes("Referenza in attesa di verifica")) {
+    return "Referenza in attesa di verifica";
+  }
+
+  if (statuses.includes("Referenza da richiedere")) {
+    return "Referenza da richiedere";
+  }
+
+  return null;
+}
+
 function getExperienceDurationLabel(experience: EsperienzaLavoratoreRecord) {
-  const start = experience.data_inizio ? new Date(experience.data_inizio) : null
+  const start = experience.data_inizio
+    ? new Date(experience.data_inizio)
+    : null;
   const end = experience.stato_esperienza_attiva
     ? new Date()
     : experience.data_fine
       ? new Date(experience.data_fine)
-      : null
+      : null;
 
-  if (!start || Number.isNaN(start.getTime()) || !end || Number.isNaN(end.getTime())) {
-    return "-"
+  if (
+    !start ||
+    Number.isNaN(start.getTime()) ||
+    !end ||
+    Number.isNaN(end.getTime())
+  ) {
+    return "-";
   }
 
   const diffMonths =
-    (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+    (end.getFullYear() - start.getFullYear()) * 12 +
+    (end.getMonth() - start.getMonth());
 
   if (diffMonths < 12) {
-    return "meno di 1 anno"
+    return "meno di 1 anno";
   }
 
-  const years = Math.floor(diffMonths / 12)
-  return years === 1 ? "1 anno" : `${years} anni`
+  const years = Math.floor(diffMonths / 12);
+  return years === 1 ? "1 anno" : `${years} anni`;
 }
 
 function getExperienceHeader({
@@ -112,27 +151,30 @@ function getExperienceHeader({
   stato_esperienza_attiva,
 }: Pick<
   EsperienzaLavoratoreRecord,
-  "tipo_lavoro" | "tipo_rapporto" | "data_inizio" | "data_fine" | "stato_esperienza_attiva"
+  | "tipo_lavoro"
+  | "tipo_rapporto"
+  | "data_inizio"
+  | "data_fine"
+  | "stato_esperienza_attiva"
 >) {
-  const roleValues = Array.isArray(tipo_lavoro) ? tipo_lavoro : []
-  const ruolo = roleValues.length > 0
-    ? roleValues.join(", ")
-    : "Ruolo non indicato"
-  const tipoRapporto = tipo_rapporto || "Rapporto non indicato"
+  const roleValues = Array.isArray(tipo_lavoro) ? tipo_lavoro : [];
+  const ruolo =
+    roleValues.length > 0 ? roleValues.join(", ") : "Ruolo non indicato";
+  const tipoRapporto = tipo_rapporto || "Rapporto non indicato";
   const durata = getExperienceDurationLabel({
     data_inizio,
     data_fine,
     stato_esperienza_attiva,
-  } as EsperienzaLavoratoreRecord)
-  return `${ruolo} | ${tipoRapporto} | ${durata}`
+  } as EsperienzaLavoratoreRecord);
+  return `${ruolo} | ${tipoRapporto} | ${durata}`;
 }
 
 type ExperienceRoleFieldProps = {
-  value: string[]
-  options: LookupOption[]
-  disabled: boolean
-  onChange: (values: string[]) => void
-}
+  value: string[];
+  options: LookupOption[];
+  disabled: boolean;
+  onChange: (values: string[]) => void;
+};
 
 function ExperienceRoleField({
   value,
@@ -140,7 +182,7 @@ function ExperienceRoleField({
   disabled,
   onChange,
 }: ExperienceRoleFieldProps) {
-  const anchor = useComboboxAnchor()
+  const anchor = useComboboxAnchor();
 
   return (
     <Combobox
@@ -174,48 +216,49 @@ function ExperienceRoleField({
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
-  )
+  );
 }
 
 type AddReferenceActionProps = {
-  experience: EsperienzaLavoratoreRecord
-  disabled: boolean
+  experience: EsperienzaLavoratoreRecord;
+  disabled: boolean;
   onReferenceCreate: (
-    values: Partial<ReferenzaLavoratoreRecord>
-  ) => Promise<void> | void
-}
+    values: Partial<ReferenzaLavoratoreRecord>,
+  ) => Promise<void> | void;
+};
 
 function AddReferenceAction({
   experience,
   disabled,
   onReferenceCreate,
 }: AddReferenceActionProps) {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState({
     nome_datore: "",
     cognome_datore: "",
     telefono_datore: "",
-  })
-  const [error, setError] = React.useState<string | null>(null)
+  });
+  const [error, setError] = React.useState<string | null>(null);
 
   const canSubmit = React.useMemo(() => {
     const hasIdentity =
-      draft.nome_datore.trim().length > 0 || draft.cognome_datore.trim().length > 0
-    const hasPhone = draft.telefono_datore.trim().length > 0
-    return hasIdentity && hasPhone
-  }, [draft])
+      draft.nome_datore.trim().length > 0 ||
+      draft.cognome_datore.trim().length > 0;
+    const hasPhone = draft.telefono_datore.trim().length > 0;
+    return hasIdentity && hasPhone;
+  }, [draft]);
 
   const handleCreate = React.useCallback(async () => {
-    const nome = draft.nome_datore.trim()
-    const cognome = draft.cognome_datore.trim()
-    const telefono = draft.telefono_datore.trim()
+    const nome = draft.nome_datore.trim();
+    const cognome = draft.cognome_datore.trim();
+    const telefono = draft.telefono_datore.trim();
 
     if ((!nome && !cognome) || !telefono) {
-      setError("Inserisci il telefono e almeno uno tra nome e cognome.")
-      return
+      setError("Inserisci il telefono e almeno uno tra nome e cognome.");
+      return;
     }
 
-    setError(null)
+    setError(null);
 
     await onReferenceCreate({
       esperienza_lavoratore_id: experience.id,
@@ -225,18 +268,19 @@ function AddReferenceAction({
       cognome_datore: cognome || null,
       telefono_datore: telefono,
       ruolo:
-        Array.isArray(experience.tipo_lavoro) && experience.tipo_lavoro.length > 0
+        Array.isArray(experience.tipo_lavoro) &&
+        experience.tipo_lavoro.length > 0
           ? experience.tipo_lavoro
           : null,
-    })
+    });
 
     setDraft({
       nome_datore: "",
       cognome_datore: "",
       telefono_datore: "",
-    })
-    setOpen(false)
-  }, [draft, experience, onReferenceCreate])
+    });
+    setOpen(false);
+  }, [draft, experience, onReferenceCreate]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -310,12 +354,18 @@ function AddReferenceAction({
             />
           </div>
           {error ? (
-            <FieldDescription className="text-destructive">{error}</FieldDescription>
+            <FieldDescription className="text-destructive">
+              {error}
+            </FieldDescription>
           ) : null}
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+          >
             Annulla
           </Button>
           <Button
@@ -328,15 +378,18 @@ function AddReferenceAction({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 type EditableReferenceCardProps = {
-  reference: ReferenzaLavoratoreRecord
-  referenceStatusOptions: LookupOption[]
-  disabled: boolean
-  onPatch: (referenceId: string, patch: Partial<ReferenzaLavoratoreRecord>) => Promise<void> | void
-}
+  reference: ReferenzaLavoratoreRecord;
+  referenceStatusOptions: LookupOption[];
+  disabled: boolean;
+  onPatch: (
+    referenceId: string,
+    patch: Partial<ReferenzaLavoratoreRecord>,
+  ) => Promise<void> | void;
+};
 
 function EditableReferenceCard({
   reference,
@@ -351,8 +404,9 @@ function EditableReferenceCard({
     telefono_datore: reference.telefono_datore ?? "",
     valutazione: reference.valutazione ?? 0,
     commento_esperienza: reference.commento_esperienza ?? "",
-    referenza_verificata_da_baze: reference.referenza_verificata_da_baze ?? false,
-  }))
+    referenza_verificata_da_baze:
+      reference.referenza_verificata_da_baze ?? false,
+  }));
 
   React.useEffect(() => {
     setDraft({
@@ -362,38 +416,44 @@ function EditableReferenceCard({
       telefono_datore: reference.telefono_datore ?? "",
       valutazione: reference.valutazione ?? 0,
       commento_esperienza: reference.commento_esperienza ?? "",
-      referenza_verificata_da_baze: reference.referenza_verificata_da_baze ?? false,
-    })
-  }, [reference])
+      referenza_verificata_da_baze:
+        reference.referenza_verificata_da_baze ?? false,
+    });
+  }, [reference]);
 
-  const isVerified = draft.referenza_verificata === "Referenza verificata"
+  const isVerified = draft.referenza_verificata === "Referenza verificata";
 
   return (
-    <Card className="shadow-none">
-      <CardContent className="space-y-4 p-4">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] md:items-center">
+    <Card className="gap-0 py-0 shadow-none">
+      <CardContent className="space-y-4 p-4 pt-3 pb-3">
+        <div className="space-y-2">
           <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
             Stato verifica referenza
           </FieldTitle>
-          <Select
-            value={draft.referenza_verificata || undefined}
-            onValueChange={(value) => {
-              setDraft((current) => ({ ...current, referenza_verificata: value }))
-              void onPatch(reference.id, { referenza_verificata: value })
-            }}
-            disabled={disabled}
-          >
-            <SelectTrigger className="h-9 min-w-60 text-sm">
-              <SelectValue placeholder="Seleziona stato" />
-            </SelectTrigger>
-            <SelectContent>
-              {referenceStatusOptions.map((option) => (
-                <SelectItem key={option.value} value={option.label}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="max-w-sm">
+            <Select
+              value={draft.referenza_verificata || undefined}
+              onValueChange={(value) => {
+                setDraft((current) => ({
+                  ...current,
+                  referenza_verificata: value,
+                }));
+                void onPatch(reference.id, { referenza_verificata: value });
+              }}
+              disabled={disabled}
+            >
+              <SelectTrigger className="h-9 w-full text-sm">
+                <SelectValue placeholder="Seleziona stato" />
+              </SelectTrigger>
+              <SelectContent>
+                {referenceStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.label}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -405,12 +465,15 @@ function EditableReferenceCard({
             <Input
               value={draft.nome_datore}
               onChange={(event) =>
-                setDraft((current) => ({ ...current, nome_datore: event.target.value }))
+                setDraft((current) => ({
+                  ...current,
+                  nome_datore: event.target.value,
+                }))
               }
               onBlur={() => {
-                const nextValue = draft.nome_datore.trim()
-                if (nextValue === (reference.nome_datore ?? "")) return
-                void onPatch(reference.id, { nome_datore: nextValue || null })
+                const nextValue = draft.nome_datore.trim();
+                if (nextValue === (reference.nome_datore ?? "")) return;
+                void onPatch(reference.id, { nome_datore: nextValue || null });
               }}
               disabled={disabled}
               className="h-9 text-sm"
@@ -424,12 +487,17 @@ function EditableReferenceCard({
             <Input
               value={draft.cognome_datore}
               onChange={(event) =>
-                setDraft((current) => ({ ...current, cognome_datore: event.target.value }))
+                setDraft((current) => ({
+                  ...current,
+                  cognome_datore: event.target.value,
+                }))
               }
               onBlur={() => {
-                const nextValue = draft.cognome_datore.trim()
-                if (nextValue === (reference.cognome_datore ?? "")) return
-                void onPatch(reference.id, { cognome_datore: nextValue || null })
+                const nextValue = draft.cognome_datore.trim();
+                if (nextValue === (reference.cognome_datore ?? "")) return;
+                void onPatch(reference.id, {
+                  cognome_datore: nextValue || null,
+                });
               }}
               disabled={disabled}
               className="h-9 text-sm"
@@ -443,12 +511,17 @@ function EditableReferenceCard({
             <Input
               value={draft.telefono_datore}
               onChange={(event) =>
-                setDraft((current) => ({ ...current, telefono_datore: event.target.value }))
+                setDraft((current) => ({
+                  ...current,
+                  telefono_datore: event.target.value,
+                }))
               }
               onBlur={() => {
-                const nextValue = draft.telefono_datore.trim()
-                if (nextValue === (reference.telefono_datore ?? "")) return
-                void onPatch(reference.id, { telefono_datore: nextValue || null })
+                const nextValue = draft.telefono_datore.trim();
+                if (nextValue === (reference.telefono_datore ?? "")) return;
+                void onPatch(reference.id, {
+                  telefono_datore: nextValue || null,
+                });
               }}
               disabled={disabled}
               className="h-9 text-sm"
@@ -465,15 +538,18 @@ function EditableReferenceCard({
               </FieldTitle>
               <div className="flex items-center gap-1">
                 {Array.from({ length: 5 }, (_, index) => {
-                  const score = index + 1
-                  const active = draft.valutazione >= score
+                  const score = index + 1;
+                  const active = draft.valutazione >= score;
                   return (
                     <button
                       key={score}
                       type="button"
                       onClick={() => {
-                        setDraft((current) => ({ ...current, valutazione: score }))
-                        void onPatch(reference.id, { valutazione: score })
+                        setDraft((current) => ({
+                          ...current,
+                          valutazione: score,
+                        }));
+                        void onPatch(reference.id, { valutazione: score });
                       }}
                       disabled={disabled}
                       className="disabled:opacity-50"
@@ -486,7 +562,7 @@ function EditableReferenceCard({
                         }
                       />
                     </button>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -499,14 +575,14 @@ function EditableReferenceCard({
                 <Checkbox
                   checked={draft.referenza_verificata_da_baze}
                   onCheckedChange={(checked) => {
-                    const nextValue = checked === true
+                    const nextValue = checked === true;
                     setDraft((current) => ({
                       ...current,
                       referenza_verificata_da_baze: nextValue,
-                    }))
+                    }));
                     void onPatch(reference.id, {
                       referenza_verificata_da_baze: nextValue,
-                    })
+                    });
                   }}
                   disabled={disabled}
                 />
@@ -530,9 +606,12 @@ function EditableReferenceCard({
                   }))
                 }
                 onBlur={() => {
-                  const nextValue = draft.commento_esperienza.trim()
-                  if (nextValue === (reference.commento_esperienza ?? "")) return
-                  void onPatch(reference.id, { commento_esperienza: nextValue || null })
+                  const nextValue = draft.commento_esperienza.trim();
+                  if (nextValue === (reference.commento_esperienza ?? ""))
+                    return;
+                  void onPatch(reference.id, {
+                    commento_esperienza: nextValue || null,
+                  });
                 }}
                 disabled={disabled}
                 className="min-h-24 w-full text-sm"
@@ -542,29 +621,29 @@ function EditableReferenceCard({
         ) : null}
       </CardContent>
     </Card>
-  )
+  );
 }
 
 type EditableExperienceCardProps = {
-  experience: EsperienzaLavoratoreRecord
-  references: ReferenzaLavoratoreRecord[]
-  referencesLoading: boolean
-  disabled: boolean
-  experienceTipoLavoroOptions: LookupOption[]
-  experienceTipoRapportoOptions: LookupOption[]
-  referenceStatusOptions: LookupOption[]
+  experience: EsperienzaLavoratoreRecord;
+  references: ReferenzaLavoratoreRecord[];
+  referencesLoading: boolean;
+  disabled: boolean;
+  experienceTipoLavoroOptions: LookupOption[];
+  experienceTipoRapportoOptions: LookupOption[];
+  referenceStatusOptions: LookupOption[];
   onExperiencePatch: (
     experienceId: string,
-    patch: Partial<EsperienzaLavoratoreRecord>
-  ) => Promise<void> | void
+    patch: Partial<EsperienzaLavoratoreRecord>,
+  ) => Promise<void> | void;
   onReferencePatch: (
     referenceId: string,
-    patch: Partial<ReferenzaLavoratoreRecord>
-  ) => Promise<void> | void
+    patch: Partial<ReferenzaLavoratoreRecord>,
+  ) => Promise<void> | void;
   onReferenceCreate: (
-    values: Partial<ReferenzaLavoratoreRecord>
-  ) => Promise<void> | void
-}
+    values: Partial<ReferenzaLavoratoreRecord>,
+  ) => Promise<void> | void;
+};
 
 function EditableExperienceCard({
   experience,
@@ -585,9 +664,10 @@ function EditableExperienceCard({
     data_fine: experience.data_fine ?? "",
     stato_esperienza_attiva: experience.stato_esperienza_attiva ?? false,
     descrizione: experience.descrizione ?? "",
-    descrizione_contesto_lavorativo: experience.descrizione_contesto_lavorativo ?? "",
+    descrizione_contesto_lavorativo:
+      experience.descrizione_contesto_lavorativo ?? "",
     motivazione_fine_rapporto: experience.motivazione_fine_rapporto ?? "",
-  }))
+  }));
 
   React.useEffect(() => {
     setDraft({
@@ -597,28 +677,16 @@ function EditableExperienceCard({
       data_fine: experience.data_fine ?? "",
       stato_esperienza_attiva: experience.stato_esperienza_attiva ?? false,
       descrizione: experience.descrizione ?? "",
-      descrizione_contesto_lavorativo: experience.descrizione_contesto_lavorativo ?? "",
+      descrizione_contesto_lavorativo:
+        experience.descrizione_contesto_lavorativo ?? "",
       motivazione_fine_rapporto: experience.motivazione_fine_rapporto ?? "",
-    })
-  }, [experience])
-
-  const draftHeader = React.useMemo(
-    () =>
-      getExperienceHeader({
-        tipo_lavoro: draft.tipo_lavoro,
-        tipo_rapporto: draft.tipo_rapporto,
-        data_inizio: draft.data_inizio || null,
-        data_fine: draft.data_fine || null,
-        stato_esperienza_attiva: draft.stato_esperienza_attiva,
-      }),
-    [draft]
-  )
+    });
+  }, [experience]);
 
   return (
-    <Card className="bg-background shadow-none">
-      <CardContent className="space-y-4 p-4">
+    <Card className="bg-background gap-0 py-0 shadow-none">
+      <CardContent className="space-y-4 px-0 pt-1 pb-2">
         <div className="space-y-2">
-          <ExperienceCardTitle>{draftHeader}</ExperienceCardTitle>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
@@ -629,10 +697,10 @@ function EditableExperienceCard({
                 options={experienceTipoLavoroOptions}
                 disabled={disabled}
                 onChange={(values) => {
-                  setDraft((current) => ({ ...current, tipo_lavoro: values }))
+                  setDraft((current) => ({ ...current, tipo_lavoro: values }));
                   void onExperiencePatch(experience.id, {
                     tipo_lavoro: values.length > 0 ? values : null,
-                  })
+                  });
                 }}
               />
             </div>
@@ -643,8 +711,10 @@ function EditableExperienceCard({
               <Select
                 value={draft.tipo_rapporto || undefined}
                 onValueChange={(value) => {
-                  setDraft((current) => ({ ...current, tipo_rapporto: value }))
-                  void onExperiencePatch(experience.id, { tipo_rapporto: value || null })
+                  setDraft((current) => ({ ...current, tipo_rapporto: value }));
+                  void onExperiencePatch(experience.id, {
+                    tipo_rapporto: value || null,
+                  });
                 }}
                 disabled={disabled}
               >
@@ -671,13 +741,17 @@ function EditableExperienceCard({
                 type="date"
                 value={draft.data_inizio}
                 onChange={(event) =>
-                  setDraft((current) => ({ ...current, data_inizio: event.target.value }))
+                  setDraft((current) => ({
+                    ...current,
+                    data_inizio: event.target.value,
+                  }))
                 }
                 onBlur={() => {
-                  if (draft.data_inizio === (experience.data_inizio ?? "")) return
+                  if (draft.data_inizio === (experience.data_inizio ?? ""))
+                    return;
                   void onExperiencePatch(experience.id, {
                     data_inizio: draft.data_inizio || null,
-                  })
+                  });
                 }}
                 disabled={disabled}
                 className="h-9 text-sm"
@@ -691,13 +765,16 @@ function EditableExperienceCard({
                 type="date"
                 value={draft.data_fine}
                 onChange={(event) =>
-                  setDraft((current) => ({ ...current, data_fine: event.target.value }))
+                  setDraft((current) => ({
+                    ...current,
+                    data_fine: event.target.value,
+                  }))
                 }
                 onBlur={() => {
-                  if (draft.data_fine === (experience.data_fine ?? "")) return
+                  if (draft.data_fine === (experience.data_fine ?? "")) return;
                   void onExperiencePatch(experience.id, {
                     data_fine: draft.data_fine || null,
-                  })
+                  });
                 }}
                 disabled={disabled || draft.stato_esperienza_attiva}
                 className="h-9 text-sm"
@@ -711,16 +788,16 @@ function EditableExperienceCard({
                 <Checkbox
                   checked={draft.stato_esperienza_attiva}
                   onCheckedChange={(checked) => {
-                    const nextValue = checked === true
+                    const nextValue = checked === true;
                     setDraft((current) => ({
                       ...current,
                       stato_esperienza_attiva: nextValue,
                       data_fine: nextValue ? "" : current.data_fine,
-                    }))
+                    }));
                     void onExperiencePatch(experience.id, {
                       stato_esperienza_attiva: nextValue,
                       data_fine: nextValue ? null : draft.data_fine || null,
-                    })
+                    });
                   }}
                   disabled={disabled}
                 />
@@ -738,12 +815,17 @@ function EditableExperienceCard({
             <Textarea
               value={draft.descrizione}
               onChange={(event) =>
-                setDraft((current) => ({ ...current, descrizione: event.target.value }))
+                setDraft((current) => ({
+                  ...current,
+                  descrizione: event.target.value,
+                }))
               }
               onBlur={() => {
-                const nextValue = draft.descrizione.trim()
-                if (nextValue === (experience.descrizione ?? "")) return
-                void onExperiencePatch(experience.id, { descrizione: nextValue || null })
+                const nextValue = draft.descrizione.trim();
+                if (nextValue === (experience.descrizione ?? "")) return;
+                void onExperiencePatch(experience.id, {
+                  descrizione: nextValue || null,
+                });
               }}
               disabled={disabled}
               className="min-h-28 w-full text-sm"
@@ -762,11 +844,15 @@ function EditableExperienceCard({
                 }))
               }
               onBlur={() => {
-                const nextValue = draft.descrizione_contesto_lavorativo.trim()
-                if (nextValue === (experience.descrizione_contesto_lavorativo ?? "")) return
+                const nextValue = draft.descrizione_contesto_lavorativo.trim();
+                if (
+                  nextValue ===
+                  (experience.descrizione_contesto_lavorativo ?? "")
+                )
+                  return;
                 void onExperiencePatch(experience.id, {
                   descrizione_contesto_lavorativo: nextValue || null,
-                })
+                });
               }}
               disabled={disabled}
               className="min-h-28 w-full text-sm"
@@ -788,11 +874,12 @@ function EditableExperienceCard({
                 }))
               }
               onBlur={() => {
-                const nextValue = draft.motivazione_fine_rapporto.trim()
-                if (nextValue === (experience.motivazione_fine_rapporto ?? "")) return
+                const nextValue = draft.motivazione_fine_rapporto.trim();
+                if (nextValue === (experience.motivazione_fine_rapporto ?? ""))
+                  return;
                 void onExperiencePatch(experience.id, {
                   motivazione_fine_rapporto: nextValue || null,
-                })
+                });
               }}
               disabled={disabled}
               className="min-h-24 w-full text-sm"
@@ -831,49 +918,64 @@ function EditableExperienceCard({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 type ExperienceReferencesCardProps = {
-  isEditing: boolean
-  isUpdating: boolean
-  draft: ExperienceDraft
-  experiences: EsperienzaLavoratoreRecord[]
-  experiencesLoading: boolean
-  references: ReferenzaLavoratoreRecord[]
-  referencesLoading: boolean
-  lookupColorsByDomain: Map<string, string>
-  experienceTipoLavoroOptions: LookupOption[]
-  experienceTipoRapportoOptions: LookupOption[]
-  referenceStatusOptions: LookupOption[]
-  selectedAnniEsperienzaColf: string
-  selectedAnniEsperienzaBadante: string
-  selectedAnniEsperienzaBabysitter: string
-  selectedSituazioneLavorativaAttuale: string
-  onToggleEdit: () => void
-  onAnniEsperienzaColfChange: (value: string) => void
-  onAnniEsperienzaBadanteChange: (value: string) => void
-  onAnniEsperienzaBabysitterChange: (value: string) => void
-  onSituazioneLavorativaAttualeChange: (value: string) => void
-  onAnniEsperienzaColfBlur: () => void
-  onAnniEsperienzaBadanteBlur: () => void
-  onAnniEsperienzaBabysitterBlur: () => void
-  onSituazioneLavorativaAttualeBlur: () => void
+  workerId?: string | null;
+  isEditing: boolean;
+  showEditAction?: boolean;
+  showCreateExperienceAction?: boolean;
+  title?: string;
+  showSummaryFields?: boolean;
+  showSituationField?: boolean;
+  isUpdating: boolean;
+  draft: ExperienceDraft;
+  experiences: EsperienzaLavoratoreRecord[];
+  experiencesLoading: boolean;
+  references: ReferenzaLavoratoreRecord[];
+  referencesLoading: boolean;
+  lookupColorsByDomain: Map<string, string>;
+  experienceTipoLavoroOptions: LookupOption[];
+  experienceTipoRapportoOptions: LookupOption[];
+  referenceStatusOptions: LookupOption[];
+  selectedAnniEsperienzaColf: string;
+  selectedAnniEsperienzaBadante: string;
+  selectedAnniEsperienzaBabysitter: string;
+  selectedSituazioneLavorativaAttuale: string;
+  onToggleEdit: () => void;
+  onAnniEsperienzaColfChange: (value: string) => void;
+  onAnniEsperienzaBadanteChange: (value: string) => void;
+  onAnniEsperienzaBabysitterChange: (value: string) => void;
+  onSituazioneLavorativaAttualeChange: (value: string) => void;
+  onAnniEsperienzaColfBlur: () => void;
+  onAnniEsperienzaBadanteBlur: () => void;
+  onAnniEsperienzaBabysitterBlur: () => void;
+  onSituazioneLavorativaAttualeBlur: () => void;
   onExperiencePatch: (
     experienceId: string,
-    patch: Partial<EsperienzaLavoratoreRecord>
-  ) => Promise<void> | void
+    patch: Partial<EsperienzaLavoratoreRecord>,
+  ) => Promise<void> | void;
+  onExperienceCreate?: (
+    values: Partial<EsperienzaLavoratoreRecord>,
+  ) => Promise<void> | void;
   onReferencePatch: (
     referenceId: string,
-    patch: Partial<ReferenzaLavoratoreRecord>
-  ) => Promise<void> | void
+    patch: Partial<ReferenzaLavoratoreRecord>,
+  ) => Promise<void> | void;
   onReferenceCreate: (
-    values: Partial<ReferenzaLavoratoreRecord>
-  ) => Promise<void> | void
-}
+    values: Partial<ReferenzaLavoratoreRecord>,
+  ) => Promise<void> | void;
+};
 
 export function ExperienceReferencesCard({
+  workerId = null,
   isEditing,
+  showEditAction = true,
+  showCreateExperienceAction = false,
+  title = "Esperienze e Referenze",
+  showSummaryFields = true,
+  showSituationField = true,
   isUpdating,
   draft,
   experiences,
@@ -898,171 +1000,245 @@ export function ExperienceReferencesCard({
   onAnniEsperienzaBabysitterBlur,
   onSituazioneLavorativaAttualeBlur,
   onExperiencePatch,
+  onExperienceCreate,
   onReferencePatch,
   onReferenceCreate,
 }: ExperienceReferencesCardProps) {
   const referencesByExperienceId = React.useMemo(() => {
-    const grouped = new Map<string, ReferenzaLavoratoreRecord[]>()
+    const grouped = new Map<string, ReferenzaLavoratoreRecord[]>();
     for (const reference of references) {
-      if (!reference.esperienza_lavoratore_id) continue
-      const current = grouped.get(reference.esperienza_lavoratore_id) ?? []
-      current.push(reference)
-      grouped.set(reference.esperienza_lavoratore_id, current)
+      if (!reference.esperienza_lavoratore_id) continue;
+      const current = grouped.get(reference.esperienza_lavoratore_id) ?? [];
+      current.push(reference);
+      grouped.set(reference.esperienza_lavoratore_id, current);
     }
-    return grouped
-  }, [references])
+    return grouped;
+  }, [references]);
 
   return (
     <DetailSectionCard
-      title="Esperienze e Referenze"
+      title={title}
       titleIcon={<FileTextIcon className="text-muted-foreground size-4" />}
       titleAction={
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={isEditing ? "Termina modifica esperienze" : "Modifica esperienze"}
-          title={isEditing ? "Termina modifica esperienze" : "Modifica esperienze"}
-          onClick={onToggleEdit}
-        >
-          <PencilIcon />
-        </Button>
+        showEditAction ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={
+              isEditing ? "Termina modifica esperienze" : "Modifica esperienze"
+            }
+            title={
+              isEditing ? "Termina modifica esperienze" : "Modifica esperienze"
+            }
+            onClick={onToggleEdit}
+          >
+            <PencilIcon />
+          </Button>
+        ) : undefined
       }
       titleOnBorder
       contentClassName="space-y-4"
     >
-      {isEditing ? (
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-1">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
-              Anni Esperienza Colf
-            </FieldTitle>
-            <Input
-              type="number"
-              min="0"
-              step="1"
-              value={draft.anni_esperienza_colf}
-              onChange={(event) => onAnniEsperienzaColfChange(event.target.value)}
-              onBlur={onAnniEsperienzaColfBlur}
-              disabled={isUpdating}
-              className="h-9 text-sm"
-            />
-          </div>
+      {showSummaryFields ? (
+        isEditing ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-1">
+              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+                Anni Esperienza Colf
+              </FieldTitle>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={draft.anni_esperienza_colf}
+                onChange={(event) =>
+                  onAnniEsperienzaColfChange(event.target.value)
+                }
+                onBlur={onAnniEsperienzaColfBlur}
+                disabled={isUpdating}
+                className="h-9 text-sm"
+              />
+            </div>
 
-          <div className="space-y-1">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
-              Anni Esperienza Badante
-            </FieldTitle>
-            <Input
-              type="number"
-              min="0"
-              step="1"
-              value={draft.anni_esperienza_badante}
-              onChange={(event) => onAnniEsperienzaBadanteChange(event.target.value)}
-              onBlur={onAnniEsperienzaBadanteBlur}
-              disabled={isUpdating}
-              className="h-9 text-sm"
-            />
-          </div>
+            <div className="space-y-1">
+              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+                Anni Esperienza Badante
+              </FieldTitle>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={draft.anni_esperienza_badante}
+                onChange={(event) =>
+                  onAnniEsperienzaBadanteChange(event.target.value)
+                }
+                onBlur={onAnniEsperienzaBadanteBlur}
+                disabled={isUpdating}
+                className="h-9 text-sm"
+              />
+            </div>
 
-          <div className="space-y-1">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
-              Anni Esperienza Babysitter
-            </FieldTitle>
-            <Input
-              type="number"
-              min="0"
-              step="1"
-              value={draft.anni_esperienza_babysitter}
-              onChange={(event) => onAnniEsperienzaBabysitterChange(event.target.value)}
-              onBlur={onAnniEsperienzaBabysitterBlur}
-              disabled={isUpdating}
-              className="h-9 text-sm"
-            />
+            <div className="space-y-1">
+              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+                Anni Esperienza Babysitter
+              </FieldTitle>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={draft.anni_esperienza_babysitter}
+                onChange={(event) =>
+                  onAnniEsperienzaBabysitterChange(event.target.value)
+                }
+                onBlur={onAnniEsperienzaBabysitterBlur}
+                disabled={isUpdating}
+                className="h-9 text-sm"
+              />
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-3">
-          <ExperienceLevel
-            label="Anni Esperienza Colf"
-            years={selectedAnniEsperienzaColf}
-          />
-          <ExperienceLevel
-            label="Anni Esperienza Badante"
-            years={selectedAnniEsperienzaBadante}
-          />
-          <ExperienceLevel
-            label="Anni Esperienza Babysitter"
-            years={selectedAnniEsperienzaBabysitter}
-          />
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
-          Situazione lavorativa attuale
-        </FieldTitle>
-        {isEditing ? (
-          <Textarea
-            value={draft.situazione_lavorativa_attuale}
-            onChange={(event) => onSituazioneLavorativaAttualeChange(event.target.value)}
-            onBlur={onSituazioneLavorativaAttualeBlur}
-            disabled={isUpdating}
-            className="min-h-24 w-full text-sm"
-          />
         ) : (
-          <FieldDescription className="text-foreground leading-7 whitespace-pre-wrap">
-            {selectedSituazioneLavorativaAttuale || "-"}
-          </FieldDescription>
-        )}
-      </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <ExperienceLevel
+              label="Anni Esperienza Colf"
+              years={selectedAnniEsperienzaColf}
+            />
+            <ExperienceLevel
+              label="Anni Esperienza Badante"
+              years={selectedAnniEsperienzaBadante}
+            />
+            <ExperienceLevel
+              label="Anni Esperienza Babysitter"
+              years={selectedAnniEsperienzaBabysitter}
+            />
+          </div>
+        )
+      ) : null}
+
+      {showSituationField ? (
+        <div className="space-y-2">
+          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            Situazione lavorativa attuale
+          </FieldTitle>
+          {isEditing ? (
+            <Textarea
+              value={draft.situazione_lavorativa_attuale}
+              onChange={(event) =>
+                onSituazioneLavorativaAttualeChange(event.target.value)
+              }
+              onBlur={onSituazioneLavorativaAttualeBlur}
+              disabled={isUpdating}
+              className="min-h-24 w-full text-sm"
+            />
+          ) : (
+            <FieldDescription className="text-foreground leading-7 whitespace-pre-wrap">
+              {selectedSituazioneLavorativaAttuale || "-"}
+            </FieldDescription>
+          )}
+        </div>
+      ) : null}
 
       <div className="space-y-3">
-        <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
-          Esperienze lavorative
-        </FieldTitle>
+        <div className="flex items-center justify-between gap-3">
+          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            Inserisci una sola esperienza
+          </FieldTitle>
+          {showCreateExperienceAction && isEditing && onExperienceCreate ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="default"
+              aria-label="Aggiungi esperienza"
+              title="Aggiungi esperienza"
+              className="h-10 px-4 text-sm"
+              onClick={() =>
+                void onExperienceCreate({
+                  lavoratore_id: workerId,
+                  tipo_lavoro: null,
+                  tipo_rapporto: null,
+                  data_inizio: null,
+                  data_fine: null,
+                  stato_esperienza_attiva: false,
+                  descrizione: null,
+                  descrizione_contesto_lavorativo: null,
+                  motivazione_fine_rapporto: null,
+                })
+              }
+            >
+              <PlusIcon />
+              Aggiungi nuova esperienza
+            </Button>
+          ) : null}
+        </div>
         {experiencesLoading ? (
           <FieldDescription>Caricamento esperienze...</FieldDescription>
         ) : experiences.length === 0 ? (
           <FieldDescription>Nessuna esperienza collegata.</FieldDescription>
         ) : (
-          <div className="space-y-3">
+          <Accordion
+            type="multiple"
+            className="space-y-3"
+            defaultValue={[]}
+          >
             {experiences.map((experience) => {
               const dateLabel = experience.stato_esperienza_attiva
                 ? `${formatDateOnly(experience.data_inizio) || "-"} - In corso`
                 : `${formatDateOnly(experience.data_inizio) || "-"} - ${
                     formatDateOnly(experience.data_fine) || "-"
-                  }`
-              const experienceReferences = referencesByExperienceId.get(experience.id) ?? []
+                  }`;
+              const experienceReferences =
+                referencesByExperienceId.get(experience.id) ?? [];
+              const referenceStatus = getExperienceReferenceStatus(
+                experienceReferences,
+              );
+              const referenceStatusIcon = referenceStatus
+                ? getReferenceStatusIcon(referenceStatus)
+                : null;
 
-              return isEditing ? (
-                <EditableExperienceCard
+              return (
+                <AccordionItem
                   key={experience.id}
-                  experience={experience}
-                  references={experienceReferences}
-                  referencesLoading={referencesLoading}
-                  disabled={isUpdating}
-                  experienceTipoLavoroOptions={experienceTipoLavoroOptions}
-                  experienceTipoRapportoOptions={experienceTipoRapportoOptions}
-                  referenceStatusOptions={referenceStatusOptions}
-                  onExperiencePatch={onExperiencePatch}
-                  onReferencePatch={onReferencePatch}
-                  onReferenceCreate={onReferenceCreate}
-                />
-              ) : (
-                <Card key={experience.id} className="bg-background shadow-none">
-                  <CardContent className="space-y-4 p-4">
-                    <div className="space-y-2">
-                      <ExperienceCardTitle>
-                        {getExperienceHeader(experience)}
-                      </ExperienceCardTitle>
-                      <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                        <CalendarRangeIcon className="text-muted-foreground size-4" />
-                        <span>{dateLabel}</span>
+                  value={experience.id}
+                  className="bg-background rounded-lg border px-4"
+                >
+                  <AccordionTrigger className="py-4 hover:no-underline">
+                    <div className="flex w-full items-start justify-between gap-3 pr-2">
+                      <div className="space-y-1 text-left">
+                        <div className="flex items-center gap-2">
+                          <ExperienceCardTitle>
+                            {getExperienceHeader(experience)}
+                          </ExperienceCardTitle>
+                          {referenceStatusIcon ? (
+                            <span title={referenceStatus ?? undefined}>
+                              {referenceStatusIcon}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                          <CalendarRangeIcon className="text-muted-foreground size-4" />
+                          <span>{dateLabel}</span>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-0 pb-0">
+                    {isEditing ? (
+                      <EditableExperienceCard
+                        experience={experience}
+                        references={experienceReferences}
+                        referencesLoading={referencesLoading}
+                        disabled={isUpdating}
+                        experienceTipoLavoroOptions={experienceTipoLavoroOptions}
+                        experienceTipoRapportoOptions={experienceTipoRapportoOptions}
+                        referenceStatusOptions={referenceStatusOptions}
+                        onExperiencePatch={onExperiencePatch}
+                        onReferencePatch={onReferencePatch}
+                        onReferenceCreate={onReferenceCreate}
+                      />
+                    ) : (
+                      <Card className="bg-background gap-0 py-0 shadow-none">
+                        <CardContent className="space-y-4 px-0 pt-1 pb-2">
+                          <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
                           Descrizione Mansioni ed Esperienza
@@ -1097,10 +1273,14 @@ export function ExperienceReferencesCard({
                         Referenze
                       </FieldTitle>
                       {referencesLoading ? (
-                        <FieldDescription>Caricamento referenze...</FieldDescription>
+                        <FieldDescription>
+                          Caricamento referenze...
+                        </FieldDescription>
                       ) : experienceReferences.length === 0 ? (
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed p-4">
-                          <FieldDescription>Nessuna referenza collegata.</FieldDescription>
+                          <FieldDescription>
+                            Nessuna referenza collegata.
+                          </FieldDescription>
                           <AddReferenceAction
                             experience={experience}
                             disabled={false}
@@ -1110,21 +1290,22 @@ export function ExperienceReferencesCard({
                       ) : (
                         <div className="space-y-3">
                           {experienceReferences.map((reference) => {
-                            const status = reference.referenza_verificata ?? ""
+                            const status = reference.referenza_verificata ?? "";
                             const statusClassName = getTagClassName(
                               resolveLookupColor(
                                 lookupColorsByDomain,
                                 "referenze_lavoratori.referenza_verificata",
-                                status
-                              )
-                            )
-                            const isVerified = status === "Referenza verificata"
+                                status,
+                              ),
+                            );
+                            const isVerified =
+                              status === "Referenza verificata";
                             const referenceFullName =
                               [reference.nome_datore, reference.cognome_datore]
                                 .filter(Boolean)
                                 .join(" ")
-                                .trim() || "-"
-                            const statusIcon = getReferenceStatusIcon(status)
+                                .trim() || "-";
+                            const statusIcon = getReferenceStatusIcon(status);
 
                             return (
                               <Card key={reference.id} className="shadow-none">
@@ -1132,15 +1313,22 @@ export function ExperienceReferencesCard({
                                   <div className="space-y-4">
                                     <div className="space-y-1">
                                       <div className="flex items-center gap-3">
-                                        <ExperienceCardTitle>{referenceFullName}</ExperienceCardTitle>
-                                        <Badge variant="outline" className={statusClassName}>
+                                        <ExperienceCardTitle>
+                                          {referenceFullName}
+                                        </ExperienceCardTitle>
+                                        <Badge
+                                          variant="outline"
+                                          className={statusClassName}
+                                        >
                                           {statusIcon}
                                           {status || "-"}
                                         </Badge>
                                       </div>
                                       <div className="text-muted-foreground flex items-center gap-2 text-sm leading-6">
                                         <PhoneIcon className="size-3.5 shrink-0" />
-                                        <span>{reference.telefono_datore || "-"}</span>
+                                        <span>
+                                          {reference.telefono_datore || "-"}
+                                        </span>
                                       </div>
                                     </div>
 
@@ -1153,20 +1341,24 @@ export function ExperienceReferencesCard({
                                               Valutazione
                                             </FieldTitle>
                                             <div className="flex items-center gap-1">
-                                              {Array.from({ length: 5 }, (_, index) => {
-                                                const active =
-                                                  (reference.valutazione ?? 0) > index
-                                                return (
-                                                  <StarIcon
-                                                    key={index}
-                                                    className={
-                                                      active
-                                                        ? "fill-primary text-primary size-4"
-                                                        : "text-muted-foreground/35 size-4"
-                                                    }
-                                                  />
-                                                )
-                                              })}
+                                              {Array.from(
+                                                { length: 5 },
+                                                (_, index) => {
+                                                  const active =
+                                                    (reference.valutazione ??
+                                                      0) > index;
+                                                  return (
+                                                    <StarIcon
+                                                      key={index}
+                                                      className={
+                                                        active
+                                                          ? "fill-primary text-primary size-4"
+                                                          : "text-muted-foreground/35 size-4"
+                                                      }
+                                                    />
+                                                  );
+                                                },
+                                              )}
                                             </div>
                                           </div>
                                           <div className="space-y-2">
@@ -1175,7 +1367,10 @@ export function ExperienceReferencesCard({
                                               Disponibile a essere richiamata
                                             </FieldTitle>
                                             <FieldDescription className="text-foreground leading-6 whitespace-pre-wrap">
-                                              {reference.referenza_verificata_da_baze ?? Boolean(reference.telefono_datore)
+                                              {(reference.referenza_verificata_da_baze ??
+                                              Boolean(
+                                                reference.telefono_datore,
+                                              ))
                                                 ? "Si"
                                                 : "No"}
                                             </FieldDescription>
@@ -1188,7 +1383,8 @@ export function ExperienceReferencesCard({
                                             Feedback della referenza
                                           </FieldTitle>
                                           <FieldDescription className="text-foreground leading-7 whitespace-pre-wrap">
-                                            {reference.commento_esperienza || "-"}
+                                            {reference.commento_esperienza ||
+                                              "-"}
                                           </FieldDescription>
                                         </div>
                                       </div>
@@ -1196,18 +1392,21 @@ export function ExperienceReferencesCard({
                                   </div>
                                 </CardContent>
                               </Card>
-                          )
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                        </CardContent>
+                      </Card>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-              )
+                  </AccordionContent>
+                </AccordionItem>
+              );
             })}
-          </div>
+          </Accordion>
         )}
       </div>
     </DetailSectionCard>
-  )
+  );
 }

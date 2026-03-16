@@ -69,6 +69,7 @@ type SkillSectionConfig = {
 
 type SkillsCompetenzeCardProps = {
   isEditing: boolean
+  showEditAction?: boolean
   isUpdating: boolean
   draft: SkillCompetenzeValues
   selectedValues: SkillCompetenzeValues
@@ -623,6 +624,7 @@ function SkillSection({
 
 export function SkillsCompetenzeCard({
   isEditing,
+  showEditAction = true,
   isUpdating,
   draft,
   selectedValues,
@@ -637,7 +639,7 @@ export function SkillsCompetenzeCard({
     <DetailSectionCard
       title="Skill e Competenze"
       titleIcon={<SparklesIcon className="text-muted-foreground size-4" />}
-      titleAction={
+      titleAction={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -648,7 +650,7 @@ export function SkillsCompetenzeCard({
         >
           <PencilIcon />
         </Button>
-      }
+      ) : undefined}
       titleOnBorder
       contentClassName="space-y-5 pt-1"
     >
