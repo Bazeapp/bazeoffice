@@ -1,12 +1,16 @@
+import * as React from "react"
+
 import {
   BriefcaseBusinessIcon,
   CalendarIcon,
   Clock3Icon,
   MailIcon,
+  PencilIcon,
   PhoneIcon,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { CreazioneAnnuncioCard } from "@/components/crm/cards/creazione-annuncio-card"
 import { OnboardingCard } from "@/components/crm/cards/onboarding-card"
 import { StatoLeadCard } from "@/components/crm/cards/stato-lead-card"
@@ -27,6 +31,7 @@ type FamigliaProcessoDetailSidebarProps = {
   onOpenChange: (open: boolean) => void
   card: CrmPipelineCardData | null
   lookupOptionsByField: LookupOptionsByField
+  editMode?: "always" | "toggle"
   onChangeStatoSales?: (processId: string, targetStageId: string) => void | Promise<void>
   onPatchProcess?: (
     processId: string,
@@ -105,9 +110,39 @@ export function FamigliaProcessoDetailSidebar({
   onOpenChange,
   card,
   lookupOptionsByField,
+  editMode = "always",
   onChangeStatoSales,
   onPatchProcess,
 }: FamigliaProcessoDetailSidebarProps) {
+  const [isEditingStatoLead, setIsEditingStatoLead] = React.useState(
+    editMode === "always"
+  )
+  const [isEditingOnboarding, setIsEditingOnboarding] = React.useState(
+    editMode === "always"
+  )
+  const [isEditingAnnuncio, setIsEditingAnnuncio] = React.useState(
+    editMode === "always"
+  )
+
+  React.useEffect(() => {
+    if (editMode === "always") {
+      setIsEditingStatoLead(true)
+      setIsEditingOnboarding(true)
+      setIsEditingAnnuncio(true)
+      return
+    }
+
+    if (!open) {
+      setIsEditingStatoLead(false)
+      setIsEditingOnboarding(false)
+      setIsEditingAnnuncio(false)
+    }
+  }, [editMode, open, card?.id])
+
+  const canEditStatoLead = editMode === "always" ? true : isEditingStatoLead
+  const canEditOnboarding = editMode === "always" ? true : isEditingOnboarding
+  const canEditAnnuncio = editMode === "always" ? true : isEditingAnnuncio
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -160,18 +195,119 @@ export function FamigliaProcessoDetailSidebar({
             ) : null}
           </div>
 
-          <StatoLeadCard
-            card={card}
-            lookupOptionsByField={lookupOptionsByField}
-            onChangeStage={onChangeStatoSales}
-            onPatchProcess={onPatchProcess}
-          />
-          <OnboardingCard
-            card={card}
-            lookupOptionsByField={lookupOptionsByField}
-            onPatchProcess={onPatchProcess}
-          />
-          <CreazioneAnnuncioCard />
+          <div className="space-y-4">
+            <div
+              className={
+                canEditStatoLead
+                  ? "space-y-4"
+                  : "pointer-events-none space-y-4 select-none"
+              }
+            >
+              <StatoLeadCard
+                card={card}
+                lookupOptionsByField={lookupOptionsByField}
+                titleAction={
+                  editMode === "toggle" ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={
+                        canEditStatoLead
+                          ? "Termina modifica stato lead"
+                          : "Modifica stato lead"
+                      }
+                      title={
+                        canEditStatoLead
+                          ? "Termina modifica stato lead"
+                          : "Modifica stato lead"
+                      }
+                      onClick={() =>
+                        setIsEditingStatoLead((current) => !current)
+                      }
+                    >
+                      <PencilIcon />
+                    </Button>
+                  ) : undefined
+                }
+                onChangeStage={canEditStatoLead ? onChangeStatoSales : undefined}
+                onPatchProcess={canEditStatoLead ? onPatchProcess : undefined}
+              />
+            </div>
+
+            <div
+              className={
+                canEditOnboarding
+                  ? "space-y-4"
+                  : "pointer-events-none space-y-4 select-none"
+              }
+            >
+              <OnboardingCard
+                card={card}
+                lookupOptionsByField={lookupOptionsByField}
+                titleAction={
+                  editMode === "toggle" ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={
+                        canEditOnboarding
+                          ? "Termina modifica onboarding"
+                          : "Modifica onboarding"
+                      }
+                      title={
+                        canEditOnboarding
+                          ? "Termina modifica onboarding"
+                          : "Modifica onboarding"
+                      }
+                      onClick={() =>
+                        setIsEditingOnboarding((current) => !current)
+                      }
+                    >
+                      <PencilIcon />
+                    </Button>
+                  ) : undefined
+                }
+                onPatchProcess={canEditOnboarding ? onPatchProcess : undefined}
+              />
+            </div>
+
+            <div
+              className={
+                canEditAnnuncio
+                  ? "space-y-4"
+                  : "pointer-events-none space-y-4 select-none"
+              }
+            >
+              <CreazioneAnnuncioCard
+                titleAction={
+                  editMode === "toggle" ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={
+                        canEditAnnuncio
+                          ? "Termina modifica creazione annuncio"
+                          : "Modifica creazione annuncio"
+                      }
+                      title={
+                        canEditAnnuncio
+                          ? "Termina modifica creazione annuncio"
+                          : "Modifica creazione annuncio"
+                      }
+                      onClick={() =>
+                        setIsEditingAnnuncio((current) => !current)
+                      }
+                    >
+                      <PencilIcon />
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </div>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

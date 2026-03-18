@@ -1,4 +1,5 @@
 import * as React from "react";
+import type { ReactNode } from "react";
 import { CopyIcon } from "lucide-react";
 import { toast } from "sonner";
 import { CrmDetailCard } from "@/components/crm/detail-card";
@@ -44,6 +45,7 @@ import type {
 type OnboardingCardProps = {
   card: CrmPipelineCardData | null;
   lookupOptionsByField?: LookupOptionsByField;
+  titleAction?: ReactNode;
   onPatchProcess?: (
     processId: string,
     patch: Record<string, unknown>,
@@ -181,6 +183,7 @@ function normalizeWeekdayList(values: string[] | null | undefined): string[] {
 export function OnboardingCard({
   card,
   lookupOptionsByField,
+  titleAction,
   onPatchProcess,
 }: OnboardingCardProps) {
   const [orarioDiLavoro, setOrarioDiLavoro] = React.useState(
@@ -325,7 +328,7 @@ export function OnboardingCard({
   }, [lookupOptionsByField]);
 
   return (
-    <CrmDetailCard title="Onboarding">
+    <CrmDetailCard title="Onboarding" titleAction={titleAction}>
       <FieldGroup>
         <p className="text-base font-semibold">Orari e frequenza</p>
         <Field>

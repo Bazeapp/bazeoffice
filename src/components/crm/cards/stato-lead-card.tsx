@@ -31,6 +31,7 @@ import type {
 type StatoLeadCardProps = {
   card: CrmPipelineCardData | null;
   lookupOptionsByField: LookupOptionsByField;
+  titleAction?: ReactNode;
   onChangeStage?: (
     processId: string,
     targetStageId: string,
@@ -312,21 +313,26 @@ function StageRules({ lines }: { lines: string[] }) {
 export function StatoLeadCard({
   card,
   lookupOptionsByField,
+  titleAction,
   onChangeStage,
   onPatchProcess,
 }: StatoLeadCardProps) {
+  const [noteStato, setNoteStato] = React.useState(card?.appuntiChiamataSales ?? "-");
+  const [dataRicontatto, setDataRicontatto] = React.useState(
+    card?.dataPerRicercaFutura ?? "-"
+  );
+
+  React.useEffect(() => {
+    if (!card) return;
+    setNoteStato(card.appuntiChiamataSales);
+    setDataRicontatto(card.dataPerRicercaFutura);
+  }, [card]);
+
   if (!card) {
     return null;
   }
 
   let content: ReactNode = null;
-  const [noteStato, setNoteStato] = React.useState(card.appuntiChiamataSales);
-  const [dataRicontatto, setDataRicontatto] = React.useState(card.dataPerRicercaFutura);
-
-  React.useEffect(() => {
-    setNoteStato(card.appuntiChiamataSales);
-    setDataRicontatto(card.dataPerRicercaFutura);
-  }, [card.appuntiChiamataSales, card.dataPerRicercaFutura, card.id]);
 
   switch (card.stage) {
     case "hot_in_attesa_di_primo_contatto":
@@ -515,7 +521,7 @@ export function StatoLeadCard({
   ].filter((group) => (groupedStageOptions[group] ?? []).length > 0);
 
   return (
-    <CrmDetailCard title="Stato Lead">
+    <CrmDetailCard title="Stato Lead" titleAction={titleAction}>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="stato-lead-stage">Stato</FieldLabel>

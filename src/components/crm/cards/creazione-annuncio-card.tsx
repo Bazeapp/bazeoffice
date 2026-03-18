@@ -1,4 +1,5 @@
 import * as React from "react";
+import type { ReactNode } from "react";
 import {
   ExternalLinkIcon,
   FileTextIcon,
@@ -83,7 +84,7 @@ Mansioni: pulizie, pasti, lavanderia, stiro. Famiglia con 2 adulti, 2 ragazze e 
 Pensi di essere la persona giusta? Candidati qui sotto
 https://go.Bazeapp.com/HBT`;
 
-export function CreazioneAnnuncioCard() {
+export function CreazioneAnnuncioCard({ titleAction }: { titleAction?: ReactNode }) {
   const [isEditingBody, setIsEditingBody] = React.useState(false);
   const [bodyAnnuncio, setBodyAnnuncio] = React.useState(
     createInitialBodyAnnuncio(),
@@ -99,7 +100,7 @@ export function CreazioneAnnuncioCard() {
   }, [isEditingBody]);
 
   return (
-    <CrmDetailCard title="Creazione Annuncio">
+    <CrmDetailCard title="Creazione Annuncio" titleAction={titleAction}>
       <FieldGroup>
         <div className="rounded-lg border p-3">
           <div className="flex items-center gap-2">

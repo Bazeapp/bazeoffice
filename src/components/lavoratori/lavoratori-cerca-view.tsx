@@ -9,10 +9,12 @@ import {
   FlagIcon,
   PencilIcon,
   PhoneIcon,
+  ShieldCheckIcon,
   SirenIcon,
   SkullIcon,
   SparklesIcon,
   StarIcon,
+  BadgeCheckIcon,
   FolderArchiveIcon,
   UploadIcon,
   UsersIcon,
@@ -66,6 +68,7 @@ import {
 } from "@/components/ui/carousel";
 import { DetailSectionCard } from "@/components/shared/detail-section-card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -109,6 +112,66 @@ type WorkerSectionTab = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 };
+
+const HR_OPTIONS = [
+  { id: "giulia", label: "Giulia", avatar: "G" },
+  { id: "elisa", label: "Elisa", avatar: "E" },
+  { id: "francesca", label: "Francesca", avatar: "F" },
+] as const;
+
+type HrId = (typeof HR_OPTIONS)[number]["id"];
+
+function hashString(input: string) {
+  let hash = 0;
+  for (let index = 0; index < input.length; index += 1) {
+    hash = (hash << 5) - hash + input.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getAssigneeIdFromSeed(seed: string): HrId {
+  const index = hashString(seed) % HR_OPTIONS.length;
+  return HR_OPTIONS[index].id;
+}
+
+function getHrById(assigneeId: HrId) {
+  return HR_OPTIONS.find((option) => option.id === assigneeId) ?? HR_OPTIONS[0];
+}
+
+function getAssigneeAvatarBorderClass(assigneeId: HrId) {
+  switch (assigneeId) {
+    case "giulia":
+      return "after:border-emerald-500";
+    case "elisa":
+      return "after:border-sky-500";
+    case "francesca":
+      return "after:border-violet-500";
+    default:
+      return "";
+  }
+}
+
+function getGateAvatarStateClass(isCompleted: boolean, variant: "idoneo" | "certificato") {
+  if (!isCompleted) {
+    return {
+      ringClassName: "ring-2 ring-zinc-300/50",
+      badgeClassName: "bg-zinc-300 text-zinc-900",
+    };
+  }
+
+  if (variant === "certificato") {
+    return {
+      ringClassName: "ring-2 ring-emerald-600/40",
+      badgeClassName: "bg-emerald-600 text-white",
+    };
+  }
+
+  return {
+    ringClassName: "ring-2 ring-emerald-400/40",
+    badgeClassName: "bg-emerald-400 text-emerald-950",
+  };
+}
 
 function NonQualificatoTipoLavoroField({
   value,
@@ -870,7 +933,7 @@ export function LavoratoriCercaView() {
                     );
                   })()}
 
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex flex-1 flex-col">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         {isEditingHeader ? (
@@ -1229,6 +1292,72 @@ export function LavoratoriCercaView() {
                         </span>
                       </p>
                     </div>
+                    {selectedWorkerId ? (
+                      <div className="mt-auto flex justify-end pt-4">
+                        <div className="flex items-center gap-3">
+                          {[
+                            {
+                              label: "Gate 1",
+                              icon: ShieldCheckIcon,
+                              assigneeId: getAssigneeIdFromSeed(
+                                `${selectedWorkerId}:gate-1`,
+                              ),
+                              isCompleted: selectedWorker.isIdoneo,
+                              variant: "idoneo" as const,
+                            },
+                            {
+                              label: "Gate 2",
+                              icon: BadgeCheckIcon,
+                              assigneeId: getAssigneeIdFromSeed(
+                                `${selectedWorkerId}:gate-2`,
+                              ),
+                              isCompleted: selectedWorker.isCertificato,
+                              variant: "certificato" as const,
+                            },
+                          ].map((control, index) => {
+                            const hr = getHrById(control.assigneeId);
+                            const Icon = control.icon;
+                            const stateClasses = getGateAvatarStateClass(
+                              control.isCompleted,
+                              control.variant,
+                            );
+                            return (
+                              <React.Fragment key={control.label}>
+                                {index > 0 ? (
+                                  <div className="bg-border h-8 w-px shrink-0" />
+                                ) : null}
+                                <div
+                                  className="flex items-center gap-2"
+                                  title={`${control.label} assegnato a ${hr.label}`}
+                                >
+                                  <Icon
+                                    strokeWidth={2.5}
+                                    className={`size-3.5 shrink-0 ${
+                                      control.isCompleted
+                                        ? control.variant === "certificato"
+                                          ? "text-emerald-600"
+                                          : "text-emerald-500"
+                                        : "text-zinc-400"
+                                    }`}
+                                  />
+                                  <Avatar
+                                    size="sm"
+                                    className={`${getAssigneeAvatarBorderClass(control.assigneeId)} ${stateClasses.ringClassName}`}
+                                  >
+                                    <AvatarFallback>{hr.avatar}</AvatarFallback>
+                                    <AvatarBadge
+                                      className={stateClasses.badgeClassName}
+                                    >
+                                      <Icon />
+                                    </AvatarBadge>
+                                  </Avatar>
+                                </div>
+                              </React.Fragment>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 

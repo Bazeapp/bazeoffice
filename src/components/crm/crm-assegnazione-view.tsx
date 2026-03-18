@@ -276,48 +276,49 @@ function AssegnazioneSearchCard({
               <span className="truncate">{data.zona}</span>
             </p>
           </div>
-          <Select
-            value={assigneeId}
-            onValueChange={(value) => onAssigneeChange(value as AssigneeValue)}
-          >
-            <SelectTrigger
-              className="h-6 w-6 rounded-full border-0 p-0 shadow-none [&>svg]:hidden"
-              aria-label="Cambia assegnatario"
-              onClick={(event) => event.stopPropagation()}
-              onPointerDown={(event) => event.stopPropagation()}
+          <div className="ml-auto flex w-6 justify-end">
+            <Select
+              value={assigneeId}
+              onValueChange={(value) => onAssigneeChange(value as AssigneeValue)}
             >
-              <SelectValue className="sr-only" />
-              <Avatar
-                size="sm"
-                className={getAssigneeAvatarBorderClass(assigneeId)}
+              <SelectTrigger
+                className="h-6 w-6 min-w-0 max-w-6 rounded-full border-0 p-0 shadow-none [&>svg]:hidden"
+                aria-label="Cambia assegnatario"
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
               >
-                <AvatarFallback>{getAssigneeAvatarFallback(assigneeId)}</AvatarFallback>
-              </Avatar>
-            </SelectTrigger>
-            <SelectContent align="end">
-              <SelectItem value="none">
-                <span className="inline-flex items-center gap-2">
-                  <Avatar size="sm" className={getAssigneeAvatarBorderClass("none")}>
-                    <AvatarFallback>{getAssigneeAvatarFallback("none")}</AvatarFallback>
-                  </Avatar>
-                  <span>Nessuno</span>
-                </span>
-              </SelectItem>
-              {HR_OPTIONS.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
+                <Avatar
+                  size="sm"
+                  className={getAssigneeAvatarBorderClass(assigneeId)}
+                >
+                  <AvatarFallback>{getAssigneeAvatarFallback(assigneeId)}</AvatarFallback>
+                </Avatar>
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="none">
                   <span className="inline-flex items-center gap-2">
-                    <Avatar
-                      size="sm"
-                      className={getAssigneeAvatarBorderClass(option.id)}
-                    >
-                      <AvatarFallback>{option.avatar}</AvatarFallback>
+                    <Avatar size="sm" className={getAssigneeAvatarBorderClass("none")}>
+                      <AvatarFallback>{getAssigneeAvatarFallback("none")}</AvatarFallback>
                     </Avatar>
-                    <span>{option.label}</span>
+                    <span>Nessuno</span>
                   </span>
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                {HR_OPTIONS.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    <span className="inline-flex items-center gap-2">
+                      <Avatar
+                        size="sm"
+                        className={getAssigneeAvatarBorderClass(option.id)}
+                      >
+                        <AvatarFallback>{option.avatar}</AvatarFallback>
+                      </Avatar>
+                      <span>{option.label}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardContent>
     </Card>

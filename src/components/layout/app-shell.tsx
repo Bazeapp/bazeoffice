@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar"
 import { Gate1View } from "@/components/lavoratori/gate1-view"
 import { Gate2View } from "@/components/lavoratori/gate2-view"
 import { LavoratoriCercaView } from "@/components/lavoratori/lavoratori-cerca-view"
+import { RicercaBoardView } from "@/components/ricerca/ricerca-board-view"
 import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
@@ -25,6 +26,7 @@ type MainSection =
   | "anagrafiche"
   | "crm_pipeline_famiglie"
   | "crm_assegnazione"
+  | "ricerca_pipeline"
   | "lavoratori_cerca"
   | "gate_1"
   | "gate_2"
@@ -79,6 +81,13 @@ function resolveRouteStateFromPath(pathname: string): RouteState {
     }
   }
 
+  if (slug === "ricerca") {
+    return {
+      mainSection: "ricerca_pipeline",
+      anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+    }
+  }
+
   if (slug === "gate-1") {
     return {
       mainSection: "gate_1",
@@ -108,6 +117,7 @@ function buildPathForRoute(route: RouteState) {
   const slug = (() => {
     if (route.mainSection === "crm_pipeline_famiglie") return "pipeline"
     if (route.mainSection === "crm_assegnazione") return "assegnazione"
+    if (route.mainSection === "ricerca_pipeline") return "ricerca"
     if (route.mainSection === "lavoratori_cerca") return "cerca-lavoratori"
     if (route.mainSection === "gate_1") return "gate-1"
     if (route.mainSection === "gate_2") return "gate-2"
@@ -201,6 +211,14 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     })
   }, [activeAnagraficheTab])
 
+  const handleOpenRicercaPipeline = React.useCallback(() => {
+    setActiveMainSection("ricerca_pipeline")
+    syncBrowserUrl({
+      mainSection: "ricerca_pipeline",
+      anagraficheTab: activeAnagraficheTab,
+    })
+  }, [activeAnagraficheTab])
+
   const handleOpenGate1 = React.useCallback(() => {
     setActiveMainSection("gate_1")
     syncBrowserUrl({
@@ -227,6 +245,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onOpenAnagraficheTab={handleOpenAnagraficheTab}
         onOpenCrmPipelineFamiglie={handleOpenCrmPipelineFamiglie}
         onOpenCrmAssegnazione={handleOpenCrmAssegnazione}
+        onOpenRicercaPipeline={handleOpenRicercaPipeline}
         onOpenLavoratoriCerca={handleOpenLavoratoriCerca}
         onOpenGate1={handleOpenGate1}
         onOpenGate2={handleOpenGate2}
@@ -247,6 +266,13 @@ export function AppShell({ user, onLogout }: AppShellProps) {
               <h1 className="text-base leading-none font-semibold">Assegnazione</h1>
               <p className="text-muted-foreground text-xs leading-none">
                 Assegna le ricerche da pianificare nei giorni del calendario.
+              </p>
+            </div>
+          ) : activeMainSection === "ricerca_pipeline" ? (
+            <div className="space-y-0.5">
+              <h1 className="text-base leading-none font-semibold">Ricerca</h1>
+              <p className="text-muted-foreground text-xs leading-none">
+                Vista a colonne delle ricerche organizzate per stato RES.
               </p>
             </div>
           ) : activeMainSection === "lavoratori_cerca" ? (
@@ -285,6 +311,8 @@ export function AppShell({ user, onLogout }: AppShellProps) {
             <CrmPipelineFamiglieView />
           ) : activeMainSection === "crm_assegnazione" ? (
             <CrmAssegnazioneView />
+          ) : activeMainSection === "ricerca_pipeline" ? (
+            <RicercaBoardView />
           ) : activeMainSection === "lavoratori_cerca" ? (
             <LavoratoriCercaView />
           ) : activeMainSection === "gate_1" ? (

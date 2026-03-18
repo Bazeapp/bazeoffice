@@ -48,6 +48,7 @@ type MainSection =
   | "anagrafiche"
   | "crm_pipeline_famiglie"
   | "crm_assegnazione"
+  | "ricerca_pipeline"
   | "lavoratori_cerca"
   | "gate_1"
   | "gate_2";
@@ -107,7 +108,9 @@ const sidebarCategories: SidebarCategory[] = [
     name: "Ricerca",
     href: "#",
     icon: SearchIcon,
-    children: [{ name: "Pipeline Lavoratori", href: "#" }],
+    children: [
+      { name: "Ricerche attive", href: "#", mainSection: "ricerca_pipeline" },
+    ],
   },
   {
     name: "Lavoratori",
@@ -131,6 +134,7 @@ type AppSidebarProps = {
   onOpenAnagraficheTab?: (tab: AnagraficheSidebarTab) => void;
   onOpenCrmPipelineFamiglie?: () => void;
   onOpenCrmAssegnazione?: () => void;
+  onOpenRicercaPipeline?: () => void;
   onOpenLavoratoriCerca?: () => void;
   onOpenGate1?: () => void;
   onOpenGate2?: () => void;
@@ -152,6 +156,7 @@ export function AppSidebar({
   onOpenAnagraficheTab,
   onOpenCrmPipelineFamiglie,
   onOpenCrmAssegnazione,
+  onOpenRicercaPipeline,
   onOpenLavoratoriCerca,
   onOpenGate1,
   onOpenGate2,
@@ -220,6 +225,8 @@ export function AppSidebar({
                                 child.mainSection === "crm_pipeline_famiglie";
                               const isCrmAssegnazioneChild =
                                 child.mainSection === "crm_assegnazione";
+                              const isRicercaPipelineChild =
+                                child.mainSection === "ricerca_pipeline";
                               const isLavoratoriCercaChild =
                                 child.mainSection === "lavoratori_cerca";
                               const isGate1Child =
@@ -242,6 +249,9 @@ export function AppSidebar({
                                       (isCrmAssegnazioneChild &&
                                         activeMainSection ===
                                           "crm_assegnazione") ||
+                                      (isRicercaPipelineChild &&
+                                        activeMainSection ===
+                                          "ricerca_pipeline") ||
                                       (isLavoratoriCercaChild &&
                                         activeMainSection ===
                                           "lavoratori_cerca") ||
@@ -274,6 +284,12 @@ export function AppSidebar({
                                         if (isCrmAssegnazioneChild) {
                                           event.preventDefault();
                                           onOpenCrmAssegnazione?.();
+                                          return;
+                                        }
+
+                                        if (isRicercaPipelineChild) {
+                                          event.preventDefault();
+                                          onOpenRicercaPipeline?.();
                                           return;
                                         }
 

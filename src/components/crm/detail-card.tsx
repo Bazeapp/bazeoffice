@@ -4,6 +4,7 @@ import { DetailSectionCard } from "@/components/shared/detail-section-card"
 
 type CrmDetailCardProps = {
   title: string
+  titleAction?: ReactNode
   children?: ReactNode
   className?: string
   contentClassName?: string
@@ -11,6 +12,7 @@ type CrmDetailCardProps = {
 
 export function CrmDetailCard({
   title,
+  titleAction,
   children,
   className,
   contentClassName,
@@ -18,6 +20,7 @@ export function CrmDetailCard({
   return (
     <DetailSectionCard
       title={title}
+      titleAction={titleAction}
       titleOnBorder
       className={className}
       contentClassName={contentClassName}
