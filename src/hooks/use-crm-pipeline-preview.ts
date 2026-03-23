@@ -413,12 +413,12 @@ function emptyBoardData(): FetchBoardDataResult {
 async function fetchBoardData(): Promise<FetchBoardDataResult> {
   const [processesResult, familiesResult, lookupResult] = await Promise.all([
     fetchProcessiMatching({
-      limit: 200,
+      limit: 5000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
     fetchFamiglie({
-      limit: 500,
+      limit: 5000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
