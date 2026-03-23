@@ -25,6 +25,7 @@ type LookupOption = {
 
 type AddressDraft = {
   provincia: string
+  cap: string
   indirizzo_residenza_completo: string
   come_ti_sposti: string[]
 }
