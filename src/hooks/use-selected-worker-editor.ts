@@ -55,6 +55,7 @@ type WorkerHeaderDraft = {
 
 type WorkerAddressDraft = {
   provincia: string
+  cap: string
   indirizzo_residenza_completo: string
   come_ti_sposti: string[]
 }
@@ -157,6 +158,7 @@ function buildHeaderDraft(row: LavoratoreRecord | null): WorkerHeaderDraft {
 function buildAddressDraft(row: LavoratoreRecord | null): WorkerAddressDraft {
   return {
     provincia: asString(row?.provincia),
+    cap: asString(row?.cap),
     indirizzo_residenza_completo: asString(row?.indirizzo_residenza_completo),
     come_ti_sposti: readArrayStrings(row?.come_ti_sposti),
   }
@@ -533,7 +535,7 @@ export function useSelectedWorkerEditor({
   )
 
   const commitAddressField = React.useCallback(
-    async (field: "provincia" | "indirizzo_residenza_completo" | "come_ti_sposti") => {
+    async (field: "provincia" | "cap" | "indirizzo_residenza_completo" | "come_ti_sposti") => {
       if (field === "come_ti_sposti") {
         const currentValue = readArrayStrings(selectedWorkerRow?.come_ti_sposti)
         const nextValue = addressDraft.come_ti_sposti
@@ -543,11 +545,17 @@ export function useSelectedWorkerEditor({
       }
 
       const currentValue = asString(selectedWorkerRow?.[field])
-      const nextValue = addressDraft[field].trim()
+      const rawValue = addressDraft[field].trim()
+      const nextValue =
+        field === "cap" ? rawValue.replace(/\s+/g, "").toUpperCase() : rawValue
+      if (field === "cap" && nextValue && !/^[A-Z0-9]{3,10}$/.test(nextValue)) {
+        setError("Formato CAP non valido (3-10 caratteri alfanumerici).")
+        return
+      }
       if (nextValue === currentValue) return
       await patchSelectedWorkerField(field, nextValue || null)
     },
-    [addressDraft, patchSelectedWorkerField, selectedWorkerRow]
+    [addressDraft, patchSelectedWorkerField, selectedWorkerRow, setError]
   )
 
   const commitAvailabilityField = React.useCallback(

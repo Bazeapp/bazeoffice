@@ -6,21 +6,34 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   Clock3Icon,
+  FilterXIcon,
   MapPinIcon,
+  PencilIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import type { AssegnazioneCardData } from "@/hooks/use-crm-assegnazione";
 import { useCrmAssegnazione } from "@/hooks/use-crm-assegnazione";
+import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { SideCardsPanel } from "@/components/shared/side-cards-panel";
+import { DetailSectionCard } from "@/components/shared/detail-section-card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
   Sheet,
@@ -31,12 +44,24 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
+type AssigneeValue = string | "none";
+const DRAG_POINTER_THRESHOLD = 6;
+
 function formatBadgeLabel(value: string) {
   return value
     .replaceAll("-", " ")
     .replaceAll("/", " / ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function formatRoleBadgeLabel(value: string) {
+  const token = value.trim().toLowerCase().replaceAll("_", " ");
+  if (token.includes("badante") || token.includes("assistenza domestica"))
+    return "Badante";
+  if (token.includes("babysitter") || token.includes("tata")) return "Tata";
+  if (token.includes("colf") || token.includes("pulizie")) return "Colf";
+  return formatBadgeLabel(value);
 }
 
 function getBadgeClassName(color: string | null | undefined) {
@@ -122,15 +147,6 @@ function buildWeekDays(weekStart: Date) {
   });
 }
 
-const HR_OPTIONS = [
-  { id: "giulia", label: "Giulia", avatar: "G" },
-  { id: "elisa", label: "Elisa", avatar: "E" },
-  { id: "francesca", label: "Francesca", avatar: "F" },
-] as const;
-
-type HrId = (typeof HR_OPTIONS)[number]["id"];
-type AssigneeValue = HrId | "none";
-
 function hashString(input: string) {
   let hash = 0;
   for (let index = 0; index < input.length; index += 1) {
@@ -140,140 +156,173 @@ function hashString(input: string) {
   return Math.abs(hash);
 }
 
-function getAssigneeIdFromProcessId(processId: string): HrId {
-  const index = hashString(processId) % HR_OPTIONS.length;
-  return HR_OPTIONS[index].id;
-}
-
-function getHrById(assigneeId: HrId) {
-  return HR_OPTIONS.find((option) => option.id === assigneeId) ?? HR_OPTIONS[0];
-}
-
 function getAssigneeAccentClass(assigneeId: AssigneeValue) {
-  switch (assigneeId) {
-    case "giulia":
-      return "border-l-emerald-500";
-    case "elisa":
-      return "border-l-sky-500";
-    case "francesca":
-      return "border-l-violet-500";
-    case "none":
-      return "border-l-zinc-400";
-    default:
-      return "border-l-border";
-  }
+  if (assigneeId === "none") return "border-l-zinc-400";
+  const variants = [
+    "border-l-emerald-500",
+    "border-l-sky-500",
+    "border-l-violet-500",
+    "border-l-amber-500",
+    "border-l-rose-500",
+    "border-l-cyan-500",
+  ];
+  return (
+    variants[hashString(assigneeId) % variants.length] ?? "border-l-zinc-400"
+  );
 }
 
 function getAssigneeAvatarBorderClass(assigneeId: AssigneeValue) {
-  switch (assigneeId) {
-    case "giulia":
-      return "after:border-emerald-500";
-    case "elisa":
-      return "after:border-sky-500";
-    case "francesca":
-      return "after:border-violet-500";
-    case "none":
-      return "after:border-zinc-400";
-    default:
-      return "";
+  if (assigneeId === "none") return "after:border-zinc-400";
+  const variants = [
+    "after:border-emerald-500",
+    "after:border-sky-500",
+    "after:border-violet-500",
+    "after:border-amber-500",
+    "after:border-rose-500",
+    "after:border-cyan-500",
+  ];
+  return variants[hashString(assigneeId) % variants.length] ?? variants[0];
+}
+
+function toIsoDateInput(displayDate: string) {
+  const normalized = displayDate.trim();
+  const parts = normalized.split("/");
+  if (parts.length !== 3) return "";
+  const day = parts[0]?.padStart(2, "0");
+  const month = parts[1]?.padStart(2, "0");
+  const year = parts[2];
+  if (!day || !month || !year) return "";
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateForView(value: string | null | undefined) {
+  const raw = (value ?? "").trim();
+  if (!raw) return "-";
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return raw;
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return new Intl.DateTimeFormat("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(parsed);
   }
+
+  return raw;
 }
 
-function getAssigneeAvatarFallback(assigneeId: AssigneeValue) {
-  if (assigneeId === "none") return "-";
-  return getHrById(assigneeId).avatar;
+function formatOreGiorniLabel(
+  oreSettimanali: string,
+  giorniSettimanali: string,
+) {
+  const oreToken = oreSettimanali.trim();
+  const giorniToken = giorniSettimanali.trim();
+  if (
+    (oreToken === "" || oreToken === "-") &&
+    (giorniToken === "" || giorniToken === "-")
+  ) {
+    return "-";
+  }
+  const oreLabel = oreToken && oreToken !== "-" ? `${oreToken}h` : "-";
+  const giorniLabel =
+    giorniToken && giorniToken !== "-" ? `${giorniToken}g` : "-";
+  return `${oreLabel} | ${giorniLabel}`;
 }
 
-function AssegnazionePlaceholderSheet({
-  open,
-  onOpenChange,
-  card,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  card: AssegnazioneCardData | null;
-}) {
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-[680px]">
-        <SheetHeader>
-          <SheetTitle>{card?.nomeFamiglia ?? "Dettaglio ricerca"}</SheetTitle>
-          <SheetDescription>
-            Placeholder dettaglio ricerca. Qui collegheremo l&apos;onboarding
-            nel prossimo step.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="space-y-3 px-4 pb-6">
-          <Card>
-            <CardContent className="space-y-2 pt-4 text-sm">
-              <p>
-                <span className="text-muted-foreground">Email:</span>{" "}
-                {card?.email ?? "-"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Telefono:</span>{" "}
-                {card?.telefono ?? "-"}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
+function getStatoResBadgeClassName(statoRes: "da_assegnare" | "fare_ricerca") {
+  return statoRes === "fare_ricerca"
+    ? "border-emerald-200 bg-emerald-100 text-emerald-700"
+    : "border-amber-200 bg-amber-100 text-amber-700";
 }
 
 function AssegnazioneSearchCard({
   data,
   assigneeId,
+  assigneeLabel,
+  assigneeAvatar,
+  assigneeOptions,
   onAssigneeChange,
 }: {
   data: AssegnazioneCardData;
   assigneeId: AssigneeValue;
+  assigneeLabel: string;
+  assigneeAvatar: string;
+  assigneeOptions: Array<{ id: string; label: string }>;
   onAssigneeChange: (assigneeId: AssigneeValue) => void;
 }) {
   return (
     <Card
       className={cn(
-        "cursor-pointer bg-white border border-border/70 border-l-4 py-2 transition-shadow hover:shadow-md",
+        "cursor-pointer border border-border/70 border-l-4 bg-white py-1.5 gap-0 shadow-none transition-shadow hover:shadow-md",
         getAssigneeAccentClass(assigneeId),
       )}
     >
-      <CardContent className="space-y-2 px-3">
-        <p className="truncate text-sm font-semibold">{data.nomeFamiglia}</p>
-        <div className="flex min-h-4 flex-col gap-1.5">
+      <CardContent className="space-y-1 px-3 py-1">
+        <div className="flex min-w-0 items-start justify-between gap-1.5">
+          <div className="truncate text-sm leading-none font-semibold">
+            {data.nomeFamiglia}
+          </div>
+          <Badge
+            variant="outline"
+            className={cn(
+              "h-5 shrink-0 px-2 text-[11px] font-medium",
+              data.tipoRicerca === "sostituzione"
+                ? "border-amber-200 bg-amber-100 text-amber-700"
+                : "border-sky-200 bg-sky-100 text-sky-700",
+            )}
+          >
+            {data.tipoRicerca === "sostituzione" ? "Sostituzione" : "Nuova"}
+          </Badge>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1">
           {data.tipoLavoroBadge ? (
             <Badge
               variant="outline"
-              className={`h-5 px-2 text-[11px] font-medium ${getBadgeClassName(
-                data.tipoLavoroColor,
-              )}`}
+              className={cn(
+                "h-5 px-2 text-[11px] font-medium",
+                getBadgeClassName(data.tipoLavoroColor),
+              )}
             >
               <BriefcaseBusinessIcon data-icon="inline-start" />
-              {formatBadgeLabel(data.tipoLavoroBadge)}
+              {formatRoleBadgeLabel(data.tipoLavoroBadge)}
             </Badge>
           ) : null}
           {data.tipoRapportoBadge ? (
             <Badge
               variant="outline"
-              className={`h-5 px-2 text-[11px] font-medium ${getBadgeClassName(
-                data.tipoRapportoColor,
-              )}`}
+              className={cn(
+                "h-5 px-2 text-[11px] font-medium",
+                getBadgeClassName(data.tipoRapportoColor),
+              )}
             >
               <Clock3Icon data-icon="inline-start" />
               {formatBadgeLabel(data.tipoRapportoBadge)}
             </Badge>
           ) : null}
         </div>
-        <div className="flex items-start justify-between gap-2 border-t pt-2">
-          <div className="text-muted-foreground min-w-0 space-y-1 text-xs">
-            <p className="flex items-center gap-1.5 truncate">
-              <CalendarIcon className="size-3.5 shrink-0" />
-              <span className="truncate">{data.deadline}</span>
-            </p>
-            <p className="flex items-center gap-1.5 truncate">
-              <MapPinIcon className="size-3.5 shrink-0" />
+
+        <div className="flex items-end justify-between gap-1 border-t pt-1">
+          <div className="text-muted-foreground min-w-0 space-y-1 text-[11px]/[1]">
+            <div className="flex items-center gap-1 truncate leading-none">
+              <CalendarIcon className="size-3 shrink-0" />
+              <span>{data.deadlineMobile}</span>
+            </div>
+            <div className="flex items-center gap-1 truncate leading-none">
+              <Clock3Icon className="size-3 shrink-0" />
+              <span>
+                {formatOreGiorniLabel(
+                  data.oreSettimanali,
+                  data.giorniSettimanali,
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 truncate leading-none">
+              <MapPinIcon className="size-3 shrink-0" />
               <span className="truncate">{data.zona}</span>
-            </p>
+            </div>
           </div>
           <div className="ml-auto flex w-6 justify-end">
             <Select
@@ -285,6 +334,7 @@ function AssegnazioneSearchCard({
               <SelectTrigger
                 className="h-6 w-6 min-w-0 max-w-6 rounded-full border-0 p-0 shadow-none [&>svg]:hidden"
                 aria-label="Cambia assegnatario"
+                title={assigneeLabel}
                 onClick={(event) => event.stopPropagation()}
                 onPointerDown={(event) => event.stopPropagation()}
               >
@@ -292,36 +342,14 @@ function AssegnazioneSearchCard({
                   size="sm"
                   className={getAssigneeAvatarBorderClass(assigneeId)}
                 >
-                  <AvatarFallback>
-                    {getAssigneeAvatarFallback(assigneeId)}
-                  </AvatarFallback>
+                  <AvatarFallback>{assigneeAvatar}</AvatarFallback>
                 </Avatar>
               </SelectTrigger>
               <SelectContent align="end">
-                <SelectItem value="none">
-                  <span className="inline-flex items-center gap-2">
-                    <Avatar
-                      size="sm"
-                      className={getAssigneeAvatarBorderClass("none")}
-                    >
-                      <AvatarFallback>
-                        {getAssigneeAvatarFallback("none")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span>Nessuno</span>
-                  </span>
-                </SelectItem>
-                {HR_OPTIONS.map((option) => (
+                <SelectItem value="none">Nessuno</SelectItem>
+                {assigneeOptions.map((option) => (
                   <SelectItem key={option.id} value={option.id}>
-                    <span className="inline-flex items-center gap-2">
-                      <Avatar
-                        size="sm"
-                        className={getAssigneeAvatarBorderClass(option.id)}
-                      >
-                        <AvatarFallback>{option.avatar}</AvatarFallback>
-                      </Avatar>
-                      <span>{option.label}</span>
-                    </span>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -333,8 +361,355 @@ function AssegnazioneSearchCard({
   );
 }
 
+function AssegnazioneDetailSheet({
+  open,
+  onOpenChange,
+  card,
+  operatorOptions,
+  onPatchCard,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  card: AssegnazioneCardData | null;
+  operatorOptions: Array<{ id: string; label: string }>;
+  onPatchCard: (patch: Record<string, unknown>) => Promise<void>;
+}) {
+  const [isEditingScheduling, setIsEditingScheduling] = React.useState(false);
+  const [isSavingScheduling, setIsSavingScheduling] = React.useState(false);
+  const [schedulingDraft, setSchedulingDraft] = React.useState({
+    statoRes: card?.statoRes ?? "da_assegnare",
+    recruiterId: card?.recruiterId ?? "",
+    deadlineMobile: card?.deadlineMobile
+      ? toIsoDateInput(card.deadlineMobile)
+      : "",
+    dataAssegnazione: card?.dataAssegnazione ?? "",
+  });
+  const initializedCardIdRef = React.useRef<string | null>(card?.id ?? null);
+
+  React.useEffect(() => {
+    const currentCardId = card?.id ?? null;
+    if (initializedCardIdRef.current === currentCardId) return;
+    initializedCardIdRef.current = currentCardId;
+
+    setIsEditingScheduling(false);
+    setIsSavingScheduling(false);
+    setSchedulingDraft({
+      statoRes: card?.statoRes ?? "da_assegnare",
+      recruiterId: card?.recruiterId ?? "",
+      deadlineMobile: card?.deadlineMobile
+        ? toIsoDateInput(card.deadlineMobile)
+        : "",
+      dataAssegnazione: card?.dataAssegnazione ?? "",
+    });
+  }, [card]);
+
+  React.useEffect(() => {
+    if (!isEditingScheduling || !card) return;
+
+    const currentDraft = {
+      statoRes: card.statoRes,
+      recruiterId: card.recruiterId ?? "",
+      deadlineMobile: card.deadlineMobile
+        ? toIsoDateInput(card.deadlineMobile)
+        : "",
+      dataAssegnazione: card.dataAssegnazione ?? "",
+    };
+
+    const hasChanges =
+      schedulingDraft.statoRes !== currentDraft.statoRes ||
+      schedulingDraft.recruiterId !== currentDraft.recruiterId ||
+      schedulingDraft.deadlineMobile !== currentDraft.deadlineMobile ||
+      schedulingDraft.dataAssegnazione !== currentDraft.dataAssegnazione;
+
+    if (!hasChanges) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setIsSavingScheduling(true);
+      void onPatchCard({
+        stato_res:
+          schedulingDraft.statoRes === "fare_ricerca"
+            ? "Fare ricerca"
+            : "Da assegnare",
+        recruiter_ricerca_e_selezione_id: schedulingDraft.recruiterId || null,
+        data_assegnazione: schedulingDraft.dataAssegnazione || null,
+        deadline_mobile: schedulingDraft.deadlineMobile || null,
+        data_limite_invio_selezione: schedulingDraft.deadlineMobile || null,
+      })
+        .catch(() => {
+          toast.error("Errore salvataggio stato e assegnazione");
+        })
+        .finally(() => {
+          setIsSavingScheduling(false);
+        });
+    }, 700);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [card, isEditingScheduling, onPatchCard, schedulingDraft]);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="right"
+        className="w-[min(96vw,760px)]! max-w-none! overflow-y-auto sm:max-w-none!"
+      >
+        <SheetHeader>
+          <SheetTitle className="text-xl font-semibold">
+            {card?.nomeFamiglia ?? "Dettaglio ricerca"}
+          </SheetTitle>
+          <SheetDescription>
+            Dettaglio ricerca con modifica inline dei campi principali.
+          </SheetDescription>
+        </SheetHeader>
+
+        {card ? (
+          <div className="space-y-4 px-4 pb-6 text-sm">
+            <DetailSectionCard
+              title="Stato e assegnazione"
+              titleOnBorder
+              titleAction={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={
+                    isEditingScheduling
+                      ? "Termina modifica stato e assegnazione"
+                      : "Modifica stato e assegnazione"
+                  }
+                  title={
+                    isEditingScheduling
+                      ? "Termina modifica stato e assegnazione"
+                      : "Modifica stato e assegnazione"
+                  }
+                  onClick={() => setIsEditingScheduling((current) => !current)}
+                >
+                  <PencilIcon />
+                </Button>
+              }
+              contentClassName="grid grid-cols-1 gap-3"
+            >
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs">Stato</p>
+                {isEditingScheduling ? (
+                  <Select
+                    value={schedulingDraft.statoRes}
+                    onValueChange={(value) =>
+                      setSchedulingDraft((current) => ({
+                        ...current,
+                        statoRes: value as "da_assegnare" | "fare_ricerca",
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Seleziona stato RES" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="da_assegnare">Da assegnare</SelectItem>
+                      <SelectItem value="fare_ricerca">Fare ricerca</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-5 w-fit px-2 text-[11px] font-medium",
+                      getStatoResBadgeClassName(card.statoRes),
+                    )}
+                  >
+                    {card.statoResLabel}
+                  </Badge>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs">Tipologia ricerca</p>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "h-5 w-fit px-2 text-[11px] font-medium",
+                    card.tipoRicerca === "sostituzione"
+                      ? "border-amber-200 bg-amber-100 text-amber-700"
+                      : "border-sky-200 bg-sky-100 text-sky-700",
+                  )}
+                >
+                  {card.tipoRicerca === "sostituzione"
+                    ? "Sostituzione"
+                    : "Nuova"}
+                </Badge>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs">Recruiter</p>
+                {isEditingScheduling ? (
+                  <Select
+                    value={schedulingDraft.recruiterId || "none"}
+                    onValueChange={(value) =>
+                      setSchedulingDraft((current) => ({
+                        ...current,
+                        recruiterId: value === "none" ? "" : value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8">
+                      <SelectValue placeholder="Seleziona recruiter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Non assegnato</SelectItem>
+                      {operatorOptions.map((option) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="font-medium">
+                    {operatorOptions.find(
+                      (item) => item.id === card.recruiterId,
+                    )?.label ?? "Non assegnato"}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs">
+                  Data assegnazione
+                </p>
+                {isEditingScheduling ? (
+                  <Input
+                    type="date"
+                    value={schedulingDraft.dataAssegnazione}
+                    onChange={(event) =>
+                      setSchedulingDraft((current) => ({
+                        ...current,
+                        dataAssegnazione: event.target.value,
+                      }))
+                    }
+                    className="h-8"
+                  />
+                ) : (
+                  <p className="font-medium">
+                    {formatDateForView(card.dataAssegnazione)}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs">Deadline</p>
+                {isEditingScheduling ? (
+                  <Input
+                    type="date"
+                    value={schedulingDraft.deadlineMobile}
+                    onChange={(event) =>
+                      setSchedulingDraft((current) => ({
+                        ...current,
+                        deadlineMobile: event.target.value,
+                      }))
+                    }
+                    className="h-8"
+                  />
+                ) : (
+                  <p className="font-medium">{card.deadlineMobile}</p>
+                )}
+              </div>
+
+              {isEditingScheduling ? (
+                <div>
+                  <p className="text-muted-foreground text-xs">
+                    {isSavingScheduling
+                      ? "Salvataggio..."
+                      : "Salvataggio automatico attivo"}
+                  </p>
+                </div>
+              ) : null}
+            </DetailSectionCard>
+
+            <DetailSectionCard
+              title="Panoramica ricerca"
+              titleOnBorder
+              contentClassName="space-y-2"
+            >
+              <div className="grid grid-cols-1 gap-2.5">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-xs">
+                    Ore settimanali
+                  </p>
+                  <p className="font-medium">{card.oreSettimanali}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-xs">
+                    Giorni settimanali
+                  </p>
+                  <p className="font-medium">{card.giorniSettimanali}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-xs">
+                    Orari e giorni
+                  </p>
+                  <p className="font-medium">
+                    {formatOreGiorniLabel(
+                      card.oreSettimanali,
+                      card.giorniSettimanali,
+                    )}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-xs">
+                    Orario di lavoro
+                  </p>
+                  <p className="font-medium">{card.orarioDiLavoro}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-xs">Luogo</p>
+                  <p className="font-medium">{card.zona}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-xs">Tipo profilo</p>
+                  {card.tipoLavoroBadge ? (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "h-5 w-fit px-2 text-[11px] font-medium",
+                        getBadgeClassName(card.tipoLavoroColor),
+                      )}
+                    >
+                      {formatRoleBadgeLabel(card.tipoLavoroBadge)}
+                    </Badge>
+                  ) : (
+                    <p className="font-medium">-</p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-xs">Tipo lavoro</p>
+                  {card.tipoRapportoBadge ? (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "h-5 w-fit px-2 text-[11px] font-medium",
+                        getBadgeClassName(card.tipoRapportoColor),
+                      )}
+                    >
+                      {formatBadgeLabel(card.tipoRapportoBadge)}
+                    </Badge>
+                  ) : (
+                    <p className="font-medium">-</p>
+                  )}
+                </div>
+              </div>
+            </DetailSectionCard>
+          </div>
+        ) : null}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function CrmAssegnazioneView() {
-  const { loading, error, cards, assignCardToDate } = useCrmAssegnazione();
+  const { loading, error, cards, assignCardToDate, patchCard } =
+    useCrmAssegnazione();
+  const { options: operatorOptions } = useOperatoriOptions();
   const [currentWeekStart, setCurrentWeekStart] = React.useState(() =>
     startOfWeekMonday(new Date()),
   );
@@ -348,7 +723,27 @@ export function CrmAssegnazioneView() {
   const [assigneesByProcessId, setAssigneesByProcessId] = React.useState<
     Record<string, AssigneeValue>
   >({});
-  const suppressCardClickRef = React.useRef(false);
+  const [assigneeFilter, setAssigneeFilter] = React.useState<
+    AssigneeValue | "all"
+  >("all");
+  const [tipoRicercaFilter, setTipoRicercaFilter] = React.useState<
+    "all" | "nuova" | "sostituzione"
+  >("all");
+  const draggedCardIdsRef = React.useRef<Set<string>>(new Set());
+  const cardPointerStateRef = React.useRef<
+    Map<string, { x: number; y: number; exceededThreshold: boolean }>
+  >(new Map());
+
+  React.useEffect(() => {
+    setAssigneesByProcessId((current) => {
+      const next = { ...current };
+      for (const card of cards) {
+        if (next[card.id]) continue;
+        next[card.id] = card.recruiterId ?? "none";
+      }
+      return next;
+    });
+  }, [cards]);
 
   const weeks = React.useMemo(() => {
     return [currentWeekStart].map((start) => ({
@@ -364,28 +759,82 @@ export function CrmAssegnazioneView() {
     [weeks],
   );
 
+  const getCardAssigneeId = React.useCallback(
+    (card: AssegnazioneCardData): AssigneeValue =>
+      assigneesByProcessId[card.id] ?? card.recruiterId ?? "none",
+    [assigneesByProcessId],
+  );
+
+  const filteredCards = React.useMemo(() => {
+    return cards.filter((card) => {
+      const assigneeId = getCardAssigneeId(card);
+      if (assigneeFilter !== "all" && assigneeId !== assigneeFilter)
+        return false;
+      if (
+        tipoRicercaFilter !== "all" &&
+        card.tipoRicerca !== tipoRicercaFilter
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [assigneeFilter, cards, getCardAssigneeId, tipoRicercaFilter]);
+
   const cardsByDate = React.useMemo(() => {
     const map = new Map<string, AssegnazioneCardData[]>();
     for (const day of allDays) {
       map.set(day.key, []);
     }
-    for (const card of cards) {
+    for (const card of filteredCards) {
       if (!card.dataAssegnazione) continue;
       if (!map.has(card.dataAssegnazione)) continue;
       map.get(card.dataAssegnazione)?.push(card);
     }
     return map;
-  }, [allDays, cards]);
+  }, [allDays, filteredCards]);
 
   const unassignedCards = React.useMemo(
-    () => cards.filter((card) => !card.dataAssegnazione),
-    [cards],
+    () => filteredCards.filter((card) => !card.dataAssegnazione),
+    [filteredCards],
   );
+  const unassignedGroupedByTipoRicerca = React.useMemo(() => {
+    const nuove = unassignedCards.filter(
+      (card) => card.tipoRicerca === "nuova",
+    );
+    const sostituzioni = unassignedCards.filter(
+      (card) => card.tipoRicerca === "sostituzione",
+    );
+    return { nuove, sostituzioni };
+  }, [unassignedCards]);
 
-  const getCardAssigneeId = React.useCallback(
-    (processId: string): AssigneeValue =>
-      assigneesByProcessId[processId] ?? getAssigneeIdFromProcessId(processId),
-    [assigneesByProcessId],
+  const assigneeById = React.useMemo(() => {
+    const map = new Map<string, { label: string; avatar: string }>();
+    for (const option of operatorOptions) {
+      map.set(option.id, { label: option.label, avatar: option.avatar });
+    }
+    return map;
+  }, [operatorOptions]);
+
+  const applyAssigneeChange = React.useCallback(
+    async (card: AssegnazioneCardData, nextAssigneeId: AssigneeValue) => {
+      setAssigneesByProcessId((current) => ({
+        ...current,
+        [card.id]: nextAssigneeId,
+      }));
+
+      try {
+        await patchCard(card.id, {
+          recruiter_ricerca_e_selezione_id:
+            nextAssigneeId === "none" ? null : nextAssigneeId,
+        });
+      } catch {
+        setAssigneesByProcessId((current) => ({
+          ...current,
+          [card.id]: card.recruiterId ?? "none",
+        }));
+      }
+    },
+    [patchCard],
   );
 
   const handleDrop = React.useCallback(
@@ -393,19 +842,93 @@ export function CrmAssegnazioneView() {
       const processId = droppedProcessId || draggingProcessId;
       setDropTarget(null);
       setDraggingProcessId(null);
+      cardPointerStateRef.current.clear();
       if (!processId) return;
+
+      if (targetDate) {
+        const matchingCard = cards.find((card) => card.id === processId);
+        const assignee = matchingCard
+          ? getCardAssigneeId(matchingCard)
+          : "none";
+        if (!assignee || assignee === "none") {
+          toast.error(
+            "Per assegnare una ricerca a una data devi prima selezionare il recruiter.",
+          );
+          return;
+        }
+      }
+
       void assignCardToDate(processId, targetDate);
     },
-    [assignCardToDate, draggingProcessId],
+    [assignCardToDate, cards, draggingProcessId, getCardAssigneeId],
   );
 
   const handleOpenCardDetails = React.useCallback(
     (card: AssegnazioneCardData) => {
-      if (suppressCardClickRef.current) return;
+      if (draggedCardIdsRef.current.has(card.id)) {
+        draggedCardIdsRef.current.delete(card.id);
+        return;
+      }
       setSelectedCard(card);
       setIsSheetOpen(true);
     },
     [],
+  );
+
+  const onCardDragStart = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>, processId: string) => {
+      event.dataTransfer.setData("text/plain", processId);
+      event.dataTransfer.effectAllowed = "move";
+      cardPointerStateRef.current.delete(processId);
+      draggedCardIdsRef.current.add(processId);
+      setDraggingProcessId(processId);
+    },
+    [],
+  );
+
+  const onCardDragEnd = React.useCallback(() => {
+    setDraggingProcessId(null);
+    setDropTarget(null);
+    cardPointerStateRef.current.clear();
+  }, []);
+
+  const onCardPointerDown = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>, processId: string) => {
+      if (event.button !== 0) return;
+      cardPointerStateRef.current.set(processId, {
+        x: event.clientX,
+        y: event.clientY,
+        exceededThreshold: false,
+      });
+    },
+    [],
+  );
+
+  const onCardPointerMove = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>, processId: string) => {
+      const pointerState = cardPointerStateRef.current.get(processId);
+      if (!pointerState || pointerState.exceededThreshold) return;
+      const deltaX = Math.abs(event.clientX - pointerState.x);
+      const deltaY = Math.abs(event.clientY - pointerState.y);
+      if (deltaX > DRAG_POINTER_THRESHOLD || deltaY > DRAG_POINTER_THRESHOLD) {
+        pointerState.exceededThreshold = true;
+        draggedCardIdsRef.current.add(processId);
+      }
+    },
+    [],
+  );
+
+  const onCardPointerUp = React.useCallback((processId: string) => {
+    cardPointerStateRef.current.delete(processId);
+  }, []);
+
+  const onCardPointerCancel = React.useCallback((processId: string) => {
+    cardPointerStateRef.current.delete(processId);
+  }, []);
+
+  const selectedCardFromState = React.useMemo(
+    () => cards.find((card) => card.id === selectedCard?.id) ?? selectedCard,
+    [cards, selectedCard],
   );
 
   return (
@@ -416,7 +939,61 @@ export function CrmAssegnazioneView() {
         </div>
       ) : null}
 
-      <div className="h-[calc(100vh-7.5rem)] grid grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={assigneeFilter}
+            onValueChange={(value) =>
+              setAssigneeFilter(value as AssigneeValue | "all")
+            }
+          >
+            <SelectTrigger className="w-55">
+              <SelectValue placeholder="Filtro recruiter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutti i recruiter</SelectItem>
+              <SelectItem value="none">Non assegnato</SelectItem>
+              {operatorOptions.map((operator) => (
+                <SelectItem key={operator.id} value={operator.id}>
+                  {operator.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={tipoRicercaFilter}
+            onValueChange={(value) =>
+              setTipoRicercaFilter(value as "all" | "nuova" | "sostituzione")
+            }
+          >
+            <SelectTrigger className="w-47.5">
+              <SelectValue placeholder="Tipo ricerca" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutte le ricerche</SelectItem>
+              <SelectItem value="nuova">Nuove ricerche</SelectItem>
+              <SelectItem value="sostituzione">Sostituzioni</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {(assigneeFilter !== "all" || tipoRicercaFilter !== "all") && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setAssigneeFilter("all");
+              setTipoRicercaFilter("all");
+            }}
+          >
+            <FilterXIcon className="size-4" />
+            Reset filtri
+          </Button>
+        )}
+      </div>
+
+      <div className="grid h-[calc(100vh-9.5rem)] grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
         <SideCardsPanel
           title="Da assegnare"
           icon={CalendarDaysIcon}
@@ -426,7 +1003,7 @@ export function CrmAssegnazioneView() {
               : `${unassignedCards.length} ricerche senza giorno assegnato`
           }
           headerClassName="px-5"
-          contentClassName="space-y-2 py-3 px-5"
+          contentClassName="space-y-2 px-5 py-3"
           className={cn(
             "h-full",
             dropTarget === "UNASSIGNED" && "ring-primary/40 ring-2",
@@ -455,7 +1032,7 @@ export function CrmAssegnazioneView() {
         >
           {loading ? (
             <div className="space-y-2">
-              {Array.from({ length: 4 }).map((_, index) => (
+              {Array.from({ length: 5 }).map((_, index) => (
                 <div
                   key={index}
                   className="bg-muted h-20 animate-pulse rounded-lg border"
@@ -467,45 +1044,135 @@ export function CrmAssegnazioneView() {
               Nessuna ricerca in stato da assegnare.
             </p>
           ) : (
-            unassignedCards.map((card) => (
-              <div
-                key={card.id}
-                draggable
-                onClick={() => handleOpenCardDetails(card)}
-                onDragStart={(event) => {
-                  event.dataTransfer.setData("text/plain", card.id);
-                  event.dataTransfer.effectAllowed = "move";
-                  suppressCardClickRef.current = true;
-                  setDraggingProcessId(card.id);
-                }}
-                onDragEnd={() => {
-                  setDraggingProcessId(null);
-                  setDropTarget(null);
-                  setTimeout(() => {
-                    suppressCardClickRef.current = false;
-                  }, 150);
-                }}
-                className={cn(
-                  "cursor-grab transition-opacity active:cursor-grabbing",
-                  draggingProcessId === card.id && "opacity-40",
-                )}
+            <Accordion
+              type="multiple"
+              defaultValue={["nuove", "sostituzioni"]}
+              className="gap-2"
+            >
+              <AccordionItem
+                value="nuove"
+                className="not-last:border-0 bg-transparent"
               >
-                <AssegnazioneSearchCard
-                  data={card}
-                  assigneeId={getCardAssigneeId(card.id)}
-                  onAssigneeChange={(nextAssigneeId) => {
-                    setAssigneesByProcessId((current) => ({
-                      ...current,
-                      [card.id]: nextAssigneeId,
-                    }));
-                  }}
-                />
-              </div>
-            ))
+                <AccordionTrigger className="py-2 text-sm font-semibold no-underline hover:no-underline text-sky-700">
+                  <span className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className="h-5 px-2 text-[11px] border-sky-200 bg-sky-100 text-sky-700"
+                    >
+                      Nuove
+                    </Badge>
+                    <span className="text-muted-foreground font-normal">
+                      ({unassignedGroupedByTipoRicerca.nuove.length})
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-2 pt-1">
+                  {unassignedGroupedByTipoRicerca.nuove.map((card) => {
+                    const assigneeId = getCardAssigneeId(card);
+                    const assigneeMeta = assigneeById.get(assigneeId);
+                    return (
+                      <div
+                        key={card.id}
+                        draggable
+                        onClick={() => handleOpenCardDetails(card)}
+                        onDragStart={(event) => onCardDragStart(event, card.id)}
+                        onDragEnd={onCardDragEnd}
+                        onPointerDown={(event) =>
+                          onCardPointerDown(event, card.id)
+                        }
+                        onPointerMove={(event) =>
+                          onCardPointerMove(event, card.id)
+                        }
+                        onPointerUp={() => onCardPointerUp(card.id)}
+                        onPointerCancel={() => onCardPointerCancel(card.id)}
+                        className={cn(
+                          "cursor-grab transition-opacity active:cursor-grabbing",
+                          draggingProcessId === card.id && "opacity-40",
+                        )}
+                      >
+                        <AssegnazioneSearchCard
+                          data={card}
+                          assigneeId={assigneeId}
+                          assigneeLabel={assigneeMeta?.label ?? "Non assegnato"}
+                          assigneeAvatar={assigneeMeta?.avatar ?? "-"}
+                          assigneeOptions={operatorOptions.map((option) => ({
+                            id: option.id,
+                            label: option.label,
+                          }))}
+                          onAssigneeChange={(nextAssigneeId) => {
+                            void applyAssigneeChange(card, nextAssigneeId);
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem
+                value="sostituzioni"
+                className="not-last:border-0 bg-transparent"
+              >
+                <AccordionTrigger className="py-2 text-sm font-semibold no-underline hover:no-underline text-amber-700">
+                  <span className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className="h-5 px-2 text-[11px] border-amber-200 bg-amber-100 text-amber-700"
+                    >
+                      Sostituzioni
+                    </Badge>
+                    <span className="text-muted-foreground font-normal">
+                      ({unassignedGroupedByTipoRicerca.sostituzioni.length})
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="space-y-2 pt-1">
+                  {unassignedGroupedByTipoRicerca.sostituzioni.map((card) => {
+                    const assigneeId = getCardAssigneeId(card);
+                    const assigneeMeta = assigneeById.get(assigneeId);
+                    return (
+                      <div
+                        key={card.id}
+                        draggable
+                        onClick={() => handleOpenCardDetails(card)}
+                        onDragStart={(event) => onCardDragStart(event, card.id)}
+                        onDragEnd={onCardDragEnd}
+                        onPointerDown={(event) =>
+                          onCardPointerDown(event, card.id)
+                        }
+                        onPointerMove={(event) =>
+                          onCardPointerMove(event, card.id)
+                        }
+                        onPointerUp={() => onCardPointerUp(card.id)}
+                        onPointerCancel={() => onCardPointerCancel(card.id)}
+                        className={cn(
+                          "cursor-grab transition-opacity active:cursor-grabbing",
+                          draggingProcessId === card.id && "opacity-40",
+                        )}
+                      >
+                        <AssegnazioneSearchCard
+                          data={card}
+                          assigneeId={assigneeId}
+                          assigneeLabel={assigneeMeta?.label ?? "Non assegnato"}
+                          assigneeAvatar={assigneeMeta?.avatar ?? "-"}
+                          assigneeOptions={operatorOptions.map((option) => ({
+                            id: option.id,
+                            label: option.label,
+                          }))}
+                          onAssigneeChange={(nextAssigneeId) => {
+                            void applyAssigneeChange(card, nextAssigneeId);
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           )}
         </SideCardsPanel>
 
-        <div className="flex h-full flex-col gap-2 p-0">
+        <div className="flex h-full flex-col gap-2">
           {weeks.map((week) => (
             <div
               key={toDateKey(week.start)}
@@ -558,44 +1225,56 @@ export function CrmAssegnazioneView() {
                             Nessuna assegnazione
                           </p>
                         ) : (
-                          dayCards.map((card) => (
-                            <div
-                              key={card.id}
-                              draggable
-                              onClick={() => handleOpenCardDetails(card)}
-                              onDragStart={(event) => {
-                                event.dataTransfer.setData(
-                                  "text/plain",
-                                  card.id,
-                                );
-                                event.dataTransfer.effectAllowed = "move";
-                                suppressCardClickRef.current = true;
-                                setDraggingProcessId(card.id);
-                              }}
-                              onDragEnd={() => {
-                                setDraggingProcessId(null);
-                                setDropTarget(null);
-                                setTimeout(() => {
-                                  suppressCardClickRef.current = false;
-                                }, 150);
-                              }}
-                              className={cn(
-                                "cursor-grab transition-opacity active:cursor-grabbing",
-                                draggingProcessId === card.id && "opacity-40",
-                              )}
-                            >
-                              <AssegnazioneSearchCard
-                                data={card}
-                                assigneeId={getCardAssigneeId(card.id)}
-                                onAssigneeChange={(nextAssigneeId) => {
-                                  setAssigneesByProcessId((current) => ({
-                                    ...current,
-                                    [card.id]: nextAssigneeId,
-                                  }));
-                                }}
-                              />
-                            </div>
-                          ))
+                          dayCards.map((card) => {
+                            const assigneeId = getCardAssigneeId(card);
+                            const assigneeMeta = assigneeById.get(assigneeId);
+                            return (
+                              <div
+                                key={card.id}
+                                draggable
+                                onClick={() => handleOpenCardDetails(card)}
+                                onDragStart={(event) =>
+                                  onCardDragStart(event, card.id)
+                                }
+                                onDragEnd={onCardDragEnd}
+                                onPointerDown={(event) =>
+                                  onCardPointerDown(event, card.id)
+                                }
+                                onPointerMove={(event) =>
+                                  onCardPointerMove(event, card.id)
+                                }
+                                onPointerUp={() => onCardPointerUp(card.id)}
+                                onPointerCancel={() =>
+                                  onCardPointerCancel(card.id)
+                                }
+                                className={cn(
+                                  "cursor-grab transition-opacity active:cursor-grabbing",
+                                  draggingProcessId === card.id && "opacity-40",
+                                )}
+                              >
+                                <AssegnazioneSearchCard
+                                  data={card}
+                                  assigneeId={assigneeId}
+                                  assigneeLabel={
+                                    assigneeMeta?.label ?? "Non assegnato"
+                                  }
+                                  assigneeAvatar={assigneeMeta?.avatar ?? "-"}
+                                  assigneeOptions={operatorOptions.map(
+                                    (option) => ({
+                                      id: option.id,
+                                      label: option.label,
+                                    }),
+                                  )}
+                                  onAssigneeChange={(nextAssigneeId) => {
+                                    void applyAssigneeChange(
+                                      card,
+                                      nextAssigneeId,
+                                    );
+                                  }}
+                                />
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     </div>
@@ -634,10 +1313,19 @@ export function CrmAssegnazioneView() {
           </div>
         </div>
       </div>
-      <AssegnazionePlaceholderSheet
+
+      <AssegnazioneDetailSheet
         open={isSheetOpen}
         onOpenChange={setIsSheetOpen}
-        card={selectedCard}
+        card={selectedCardFromState}
+        operatorOptions={operatorOptions.map((operator) => ({
+          id: operator.id,
+          label: operator.label,
+        }))}
+        onPatchCard={async (patch) => {
+          if (!selectedCardFromState?.id) return;
+          await patchCard(selectedCardFromState.id, patch);
+        }}
       />
     </section>
   );

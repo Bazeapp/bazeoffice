@@ -1,9 +1,10 @@
 import type { ComponentType } from "react"
 import {
   BadgeCheckIcon,
-  BriefcaseBusinessIcon,
+  BabyIcon,
   Clock3Icon,
   CheckCircle2Icon,
+  HomeIcon,
   MapPinIcon,
   MinusCircleIcon,
   PhoneIcon,
@@ -28,6 +29,15 @@ export type LavoratoreListItem = {
   tipoRuoloColor: string | null
   tipoLavoro: string | null
   tipoLavoroColor: string | null
+  ruoliDomestici?: string[]
+  eta?: number | null
+  anniEsperienzaColf?: number | null
+  anniEsperienzaBabysitter?: number | null
+  statoLavoratore: string | null
+  statoLavoratoreColor: string | null
+  disponibilita: string | null
+  disponibilitaColor: string | null
+  isDisponibile: boolean | null
   isQualified: boolean
   isIdoneo: boolean
   isCertificato: boolean
@@ -153,21 +163,93 @@ function getBadgeClassName(color: string | null | undefined) {
   }
 }
 
+function getStatusSoftClassName(
+  workerColor: string | null | undefined,
+  statusLabel: string
+) {
+  if (workerColor) return getBadgeClassName(workerColor)
+
+  switch (statusLabel) {
+    case "Certificato":
+      return "border-emerald-200 bg-emerald-100 text-emerald-700"
+    case "Idoneo":
+      return "border-green-200 bg-green-100 text-green-700"
+    case "Non idoneo":
+      return "border-amber-200 bg-amber-100 text-amber-700"
+    case "Qualificato":
+      return "border-teal-200 bg-teal-100 text-teal-700"
+    default:
+      return "border-zinc-200 bg-zinc-100 text-zinc-700"
+  }
+}
+
+function normalizeToken(value: string) {
+  return value.trim().toLowerCase().replaceAll("_", " ")
+}
+
+function formatYearsLabel(value: number) {
+  if (Number.isInteger(value)) return `${value} anni`
+  return `${value.toFixed(1).replace(".", ",")} anni`
+}
+
+function getExperienceLevel(value: number) {
+  if (!Number.isFinite(value)) {
+    return { activeSegments: 0, segmentClassName: "bg-muted-foreground/30" }
+  }
+  if (value < 2) {
+    return { activeSegments: 1, segmentClassName: "bg-orange-500" }
+  }
+  if (value <= 8) {
+    return { activeSegments: 2, segmentClassName: "bg-green-500" }
+  }
+  return { activeSegments: 3, segmentClassName: "bg-emerald-600" }
+}
+
 export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProps) {
   const qualificationStatus = getWorkerQualificationStatus(worker)
   const StatusIcon = qualificationStatus.icon
+  const ruoliDomestici = Array.isArray(worker.ruoliDomestici) ? worker.ruoliDomestici : []
+  const normalizedRoles = ruoliDomestici.map(normalizeToken)
+  const hasColfRole = normalizedRoles.some((role) => role.includes("colf"))
+  const hasBabysitterRole = normalizedRoles.some((role) => role.includes("babysitter"))
+  const displayRoles =
+    ruoliDomestici.length > 0 ? ruoliDomestici.slice(0, 3) : worker.tipoRuolo ? [worker.tipoRuolo] : []
+
+  const experienceEntries: Array<{
+    label: string
+    years: number
+    icon: "colf" | "babysitter"
+  }> = []
+  if (hasColfRole && typeof worker.anniEsperienzaColf === "number" && worker.anniEsperienzaColf > 0) {
+    experienceEntries.push({
+      label: formatYearsLabel(worker.anniEsperienzaColf),
+      years: worker.anniEsperienzaColf,
+      icon: "colf",
+    })
+  }
+  if (
+    hasBabysitterRole &&
+    typeof worker.anniEsperienzaBabysitter === "number" &&
+    worker.anniEsperienzaBabysitter > 0
+  ) {
+    experienceEntries.push({
+      label: formatYearsLabel(worker.anniEsperienzaBabysitter),
+      years: worker.anniEsperienzaBabysitter,
+      icon: "babysitter",
+    })
+  }
 
   return (
     <Card
       onClick={onClick}
       className={cn(
-        "bg-white border border-border/70 cursor-pointer py-2 shadow-none transition-shadow hover:shadow-md",
+        "bg-white border border-border/70 cursor-pointer py-3 shadow-none transition-shadow hover:shadow-md",
         worker.isBlacklisted && "opacity-55 saturate-0",
         isActive && "ring-primary/35 ring-2"
       )}
     >
-      <CardContent className="space-y-2.5 px-3">
-        <div className="flex items-start gap-3">
+      <CardContent className="space-y-4 px-4">
+        <div className="flex items-start gap-4">
           <Avatar
             className={cn("size-10", qualificationStatus.ringClassName)}
             title={qualificationStatus.label}
@@ -178,44 +260,105 @@ export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProp
               <StatusIcon />
             </AvatarBadge>
           </Avatar>
-          <div className="min-w-0 flex-1 space-y-1">
-            <p className="truncate text-sm leading-none font-semibold">{worker.nomeCompleto}</p>
-            <div className="flex flex-col gap-1">
-              {worker.tipoRuolo ? (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "h-5 w-fit px-2 text-[11px] font-medium",
-                    getBadgeClassName(worker.tipoRuoloColor)
-                  )}
-                >
-                  <BriefcaseBusinessIcon data-icon="inline-start" />
-                  {worker.tipoRuolo}
-                </Badge>
-              ) : null}
-              {worker.tipoLavoro ? (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "h-5 w-fit px-2 text-[11px] font-medium",
-                    getBadgeClassName(worker.tipoLavoroColor)
-                  )}
-                >
-                  <Clock3Icon data-icon="inline-start" />
-                  {worker.tipoLavoro}
-                </Badge>
-              ) : null}
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm leading-none font-semibold">{worker.nomeCompleto}</p>
+                <p className="text-muted-foreground mt-1.5 text-xs leading-none">
+                  {typeof worker.eta === "number" ? `${worker.eta} anni` : "Eta n.d."}
+                </p>
+              </div>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "h-5 shrink-0 px-2 text-[11px] font-medium",
+                  getStatusSoftClassName(worker.statoLavoratoreColor, qualificationStatus.label)
+                )}
+              >
+                {qualificationStatus.label}
+              </Badge>
             </div>
-            <Separator className="my-2" />
-            <div className="space-y-1.5">
-              <p className="text-muted-foreground flex items-center gap-1 text-[11px] leading-none">
+            <div className="flex flex-col gap-2">
+              <div className="space-y-1.5">
+                {displayRoles.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {displayRoles.map((role, index) => (
+                      <Badge
+                        key={`${worker.id}-ruolo-${index}-${role}`}
+                        variant="outline"
+                        className={cn(
+                          "h-5 w-fit px-2 text-[11px] font-medium",
+                          index === 0
+                            ? getBadgeClassName(worker.tipoRuoloColor)
+                            : "border-border bg-muted text-foreground"
+                        )}
+                      >
+                        {role}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-[11px] leading-none">-</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                {worker.tipoLavoro ? (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-5 w-fit px-2 text-[11px] font-medium",
+                      getBadgeClassName(worker.tipoLavoroColor)
+                    )}
+                  >
+                    <Clock3Icon data-icon="inline-start" />
+                    {worker.tipoLavoro}
+                  </Badge>
+                ) : (
+                  <p className="text-muted-foreground text-[11px] leading-none">-</p>
+                )}
+              </div>
+            </div>
+            <Separator className="my-3" />
+            <div className="space-y-2">
+              <p className="text-muted-foreground flex items-center gap-1.5 text-[11px] leading-none">
                 <MapPinIcon className="size-3 shrink-0" />
                 <span className="truncate">{worker.cap ?? "-"}</span>
-              </p>
-              <p className="text-muted-foreground flex items-center gap-1 text-[11px] leading-none">
+                <span className="mx-1">•</span>
                 <PhoneIcon className="size-3 shrink-0" />
                 <span className="truncate">{worker.telefono ?? "-"}</span>
               </p>
+              {experienceEntries.length > 0 ? (
+                <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-[11px] leading-none">
+                  {experienceEntries.map((entry, index) => {
+                    const level = getExperienceLevel(entry.years)
+                    return (
+                    <div
+                      key={`${worker.id}-exp-${entry.label}`}
+                      className="inline-flex items-center gap-1.5"
+                    >
+                      {index > 0 ? <span className="mx-0.5">•</span> : null}
+                      {entry.icon === "colf" ? (
+                        <HomeIcon className="size-3 shrink-0" />
+                      ) : (
+                        <BabyIcon className="size-3 shrink-0" />
+                      )}
+                      <span>{entry.label}</span>
+                      <div className="ml-0.5 inline-flex items-center gap-1">
+                        {Array.from({ length: 3 }).map((_, dotIndex) => (
+                          <span
+                            key={`${worker.id}-exp-dot-${entry.label}-${dotIndex}`}
+                            className={cn(
+                              "size-1.5 rounded-full bg-muted",
+                              dotIndex < level.activeSegments && level.segmentClassName
+                            )}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    )
+                  })}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

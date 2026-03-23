@@ -13,8 +13,6 @@ import {
   type RicercaBoardColumnData,
   useRicercaBoard,
 } from "@/hooks/use-ricerca-board"
-import { FamigliaProcessoDetailSidebar } from "@/components/crm/famiglia-processo-detail-sidebar"
-import { useCrmPipelinePreview } from "@/hooks/use-crm-pipeline-preview"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -98,7 +96,11 @@ type ColumnVisual = {
 }
 
 function normalizeStageToken(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ")
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
 }
 
 function getColumnVisual(columnId: string, columnLabel: string, color: string | null): ColumnVisual {
@@ -463,19 +465,13 @@ function RicercaBoardColumn({
   )
 }
 
-export function RicercaBoardView() {
+type RicercaBoardViewProps = {
+  onOpenDetail: (processId: string) => void
+}
+
+export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   const { loading, error, columns, moveCard } = useRicercaBoard()
-  const {
-    columns: crmColumns,
-    lookupOptionsByField,
-    moveCard: moveCrmCard,
-    updateProcessCard,
-  } = useCrmPipelinePreview()
   const { options: operatorOptions } = useOperatoriOptions()
-  const [selectedCard, setSelectedCard] = React.useState<RicercaBoardCardData | null>(
-    null
-  )
-  const [isDetailOpen, setIsDetailOpen] = React.useState(false)
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [filters, setFilters] = React.useState({
@@ -485,6 +481,36 @@ export function RicercaBoardView() {
   })
   const [selectedOperatorId, setSelectedOperatorId] = React.useState("all")
   const suppressCardClickRef = React.useRef(false)
+  const operatorFilterAllowedStages = React.useMemo(
+    () =>
+      new Set([
+        "fare_ricerca",
+        "selezione_inviata",
+        "selezione_inviata,_in_attesa_di_feedback",
+        "fase_di_colloqui",
+        "in_prova_con_lavoratore",
+      ]),
+    []
+  )
+  const selectableOperatorOptions = React.useMemo(() => {
+    const operatorIdsWithEligibleSearch = new Set<string>()
+
+    for (const column of columns) {
+      const columnStageId = String(column.id || "")
+        .trim()
+        .toLowerCase()
+      if (!operatorFilterAllowedStages.has(columnStageId)) continue
+
+      for (const card of column.cards) {
+        if (!card.operatorId) continue
+        operatorIdsWithEligibleSearch.add(card.operatorId)
+      }
+    }
+
+    return operatorOptions.filter((operator) =>
+      operatorIdsWithEligibleSearch.has(operator.id)
+    )
+  }, [columns, operatorFilterAllowedStages, operatorOptions])
 
   const filteredColumns = React.useMemo(() => {
     const cognomeFilter = filters.cognome.trim().toLowerCase()
@@ -515,21 +541,20 @@ export function RicercaBoardView() {
   }, [columns, filters, selectedOperatorId])
   const selectedOperator = React.useMemo(
     () =>
-      operatorOptions.find((operator) => operator.id === selectedOperatorId) ??
+      selectableOperatorOptions.find((operator) => operator.id === selectedOperatorId) ??
       null,
-    [operatorOptions, selectedOperatorId]
+    [selectableOperatorOptions, selectedOperatorId]
   )
-  const selectedCrmCard = React.useMemo(() => {
-    const selectedProcessId = selectedCard?.id
-    if (!selectedProcessId) return null
+  React.useEffect(() => {
+    if (selectedOperatorId === "all") return
 
-    for (const column of crmColumns) {
-      const match = column.cards.find((card) => card.id === selectedProcessId)
-      if (match) return match
+    const isSelectable = selectableOperatorOptions.some(
+      (operator) => operator.id === selectedOperatorId
+    )
+    if (!isSelectable) {
+      setSelectedOperatorId("all")
     }
-
-    return null
-  }, [crmColumns, selectedCard?.id])
+  }, [selectableOperatorOptions, selectedOperatorId])
   const activeFilterCount = React.useMemo(() => {
     return [
       filters.cognome.trim(),
@@ -662,7 +687,7 @@ export function RicercaBoardView() {
             </SelectTrigger>
             <SelectContent align="start">
               <SelectItem value="all">Tutti gli operatori</SelectItem>
-              {operatorOptions.map((operator) => (
+              {selectableOperatorOptions.map((operator) => (
                 <SelectItem key={operator.id} value={operator.id}>
                   <span className="inline-flex items-center gap-2">
                     <Avatar size="sm" className={operator.avatarBorderClassName}>
@@ -705,28 +730,13 @@ export function RicercaBoardView() {
                     }, 150)
                   }}
                   onCardClick={(card) => {
-                    setSelectedCard(card)
-                    setIsDetailOpen(true)
+                    onOpenDetail(card.id)
                   }}
                   suppressCardClickRef={suppressCardClickRef}
                 />
               ))}
         </div>
       </div>
-
-      <FamigliaProcessoDetailSidebar
-        open={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
-        card={selectedCrmCard}
-        lookupOptionsByField={lookupOptionsByField}
-        editMode="toggle"
-        onChangeStatoSales={async (processId, targetStageId) => {
-          await moveCrmCard(processId, targetStageId)
-        }}
-        onPatchProcess={async (processId, patch) => {
-          await updateProcessCard(processId, patch)
-        }}
-      />
     </section>
   )
 }

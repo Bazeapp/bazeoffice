@@ -9,6 +9,7 @@ import { Gate1View } from "@/components/lavoratori/gate1-view"
 import { Gate2View } from "@/components/lavoratori/gate2-view"
 import { LavoratoriCercaView } from "@/components/lavoratori/lavoratori-cerca-view"
 import { RicercaBoardView } from "@/components/ricerca/ricerca-board-view"
+import { RicercaDetailView } from "@/components/ricerca/ricerca-detail-view"
 import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
@@ -34,11 +35,13 @@ type MainSection =
 type RouteState = {
   mainSection: MainSection
   anagraficheTab: AnagraficheSidebarTab
+  ricercaProcessId: string | null
 }
 
 const DEFAULT_ROUTE: RouteState = {
   mainSection: "anagrafiche",
   anagraficheTab: "famiglie",
+  ricercaProcessId: null,
 }
 
 function getBasePrefix() {
@@ -59,11 +62,15 @@ function toRelativePath(pathname: string) {
 function resolveRouteStateFromPath(pathname: string): RouteState {
   const relativePath = toRelativePath(pathname)
   const slug = relativePath.replace(/^\/+|\/+$/g, "")
+  const parts = slug.split("/").filter(Boolean)
+  const section = parts[0] ?? ""
+  const detailId = parts[1] ? decodeURIComponent(parts[1]) : null
 
   if (slug === "pipeline") {
     return {
       mainSection: "crm_pipeline_famiglie",
       anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+      ricercaProcessId: null,
     }
   }
 
@@ -71,6 +78,7 @@ function resolveRouteStateFromPath(pathname: string): RouteState {
     return {
       mainSection: "crm_assegnazione",
       anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+      ricercaProcessId: null,
     }
   }
 
@@ -78,13 +86,15 @@ function resolveRouteStateFromPath(pathname: string): RouteState {
     return {
       mainSection: "lavoratori_cerca",
       anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+      ricercaProcessId: null,
     }
   }
 
-  if (slug === "ricerca") {
+  if (section === "ricerca") {
     return {
       mainSection: "ricerca_pipeline",
       anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+      ricercaProcessId: detailId,
     }
   }
 
@@ -92,6 +102,7 @@ function resolveRouteStateFromPath(pathname: string): RouteState {
     return {
       mainSection: "gate_1",
       anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+      ricercaProcessId: null,
     }
   }
 
@@ -99,6 +110,7 @@ function resolveRouteStateFromPath(pathname: string): RouteState {
     return {
       mainSection: "gate_2",
       anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+      ricercaProcessId: null,
     }
   }
 
@@ -106,6 +118,7 @@ function resolveRouteStateFromPath(pathname: string): RouteState {
     return {
       mainSection: "anagrafiche",
       anagraficheTab: slug,
+      ricercaProcessId: null,
     }
   }
 
@@ -117,7 +130,11 @@ function buildPathForRoute(route: RouteState) {
   const slug = (() => {
     if (route.mainSection === "crm_pipeline_famiglie") return "pipeline"
     if (route.mainSection === "crm_assegnazione") return "assegnazione"
-    if (route.mainSection === "ricerca_pipeline") return "ricerca"
+    if (route.mainSection === "ricerca_pipeline") {
+      return route.ricercaProcessId
+        ? `ricerca/${encodeURIComponent(route.ricercaProcessId)}`
+        : "ricerca"
+    }
     if (route.mainSection === "lavoratori_cerca") return "cerca-lavoratori"
     if (route.mainSection === "gate_1") return "gate-1"
     if (route.mainSection === "gate_2") return "gate-2"
@@ -151,12 +168,16 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     React.useState<AnagraficheSidebarTab>(initialRoute.anagraficheTab)
   const [activeMainSection, setActiveMainSection] =
     React.useState<MainSection>(initialRoute.mainSection)
+  const [activeRicercaProcessId, setActiveRicercaProcessId] = React.useState<
+    string | null
+  >(initialRoute.ricercaProcessId)
 
   React.useEffect(() => {
     syncBrowserUrl(
       {
         mainSection: activeMainSection,
         anagraficheTab: activeAnagraficheTab,
+        ricercaProcessId: activeRicercaProcessId,
       },
       "replace"
     )
@@ -167,6 +188,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
       const next = resolveRouteStateFromPath(window.location.pathname)
       setActiveMainSection(next.mainSection)
       setActiveAnagraficheTab(next.anagraficheTab)
+      setActiveRicercaProcessId(next.ricercaProcessId)
     }
 
     window.addEventListener("popstate", handlePopState)
@@ -179,9 +201,11 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     (tab: AnagraficheSidebarTab) => {
       setActiveAnagraficheTab(tab)
       setActiveMainSection("anagrafiche")
+      setActiveRicercaProcessId(null)
       syncBrowserUrl({
         mainSection: "anagrafiche",
         anagraficheTab: tab,
+        ricercaProcessId: null,
       })
     },
     []
@@ -189,49 +213,74 @@ export function AppShell({ user, onLogout }: AppShellProps) {
 
   const handleOpenCrmPipelineFamiglie = React.useCallback(() => {
     setActiveMainSection("crm_pipeline_famiglie")
+    setActiveRicercaProcessId(null)
     syncBrowserUrl({
       mainSection: "crm_pipeline_famiglie",
       anagraficheTab: activeAnagraficheTab,
+      ricercaProcessId: null,
     })
   }, [activeAnagraficheTab])
 
   const handleOpenCrmAssegnazione = React.useCallback(() => {
     setActiveMainSection("crm_assegnazione")
+    setActiveRicercaProcessId(null)
     syncBrowserUrl({
       mainSection: "crm_assegnazione",
       anagraficheTab: activeAnagraficheTab,
+      ricercaProcessId: null,
     })
   }, [activeAnagraficheTab])
 
   const handleOpenLavoratoriCerca = React.useCallback(() => {
     setActiveMainSection("lavoratori_cerca")
+    setActiveRicercaProcessId(null)
     syncBrowserUrl({
       mainSection: "lavoratori_cerca",
       anagraficheTab: activeAnagraficheTab,
+      ricercaProcessId: null,
     })
   }, [activeAnagraficheTab])
 
   const handleOpenRicercaPipeline = React.useCallback(() => {
     setActiveMainSection("ricerca_pipeline")
+    setActiveRicercaProcessId(null)
     syncBrowserUrl({
       mainSection: "ricerca_pipeline",
       anagraficheTab: activeAnagraficheTab,
+      ricercaProcessId: null,
     })
   }, [activeAnagraficheTab])
 
+  const handleOpenRicercaDetail = React.useCallback(
+    (processId: string) => {
+      setActiveMainSection("ricerca_pipeline")
+      setActiveRicercaProcessId(processId)
+      syncBrowserUrl({
+        mainSection: "ricerca_pipeline",
+        anagraficheTab: activeAnagraficheTab,
+        ricercaProcessId: processId,
+      })
+    },
+    [activeAnagraficheTab]
+  )
+
   const handleOpenGate1 = React.useCallback(() => {
     setActiveMainSection("gate_1")
+    setActiveRicercaProcessId(null)
     syncBrowserUrl({
       mainSection: "gate_1",
       anagraficheTab: activeAnagraficheTab,
+      ricercaProcessId: null,
     })
   }, [activeAnagraficheTab])
 
   const handleOpenGate2 = React.useCallback(() => {
     setActiveMainSection("gate_2")
+    setActiveRicercaProcessId(null)
     syncBrowserUrl({
       mainSection: "gate_2",
       anagraficheTab: activeAnagraficheTab,
+      ricercaProcessId: null,
     })
   }, [activeAnagraficheTab])
 
@@ -270,9 +319,13 @@ export function AppShell({ user, onLogout }: AppShellProps) {
             </div>
           ) : activeMainSection === "ricerca_pipeline" ? (
             <div className="space-y-0.5">
-              <h1 className="text-base leading-none font-semibold">Ricerca</h1>
+              <h1 className="text-base leading-none font-semibold">
+                {activeRicercaProcessId ? "Dettaglio Ricerca" : "Ricerca"}
+              </h1>
               <p className="text-muted-foreground text-xs leading-none">
-                Vista a colonne delle ricerche organizzate per stato RES.
+                {activeRicercaProcessId
+                  ? "Scheda operativa completa della ricerca selezionata."
+                  : "Vista a colonne delle ricerche organizzate per stato RES."}
               </p>
             </div>
           ) : activeMainSection === "lavoratori_cerca" ? (
@@ -312,7 +365,14 @@ export function AppShell({ user, onLogout }: AppShellProps) {
           ) : activeMainSection === "crm_assegnazione" ? (
             <CrmAssegnazioneView />
           ) : activeMainSection === "ricerca_pipeline" ? (
-            <RicercaBoardView />
+            activeRicercaProcessId ? (
+              <RicercaDetailView
+                processId={activeRicercaProcessId}
+                onBack={handleOpenRicercaPipeline}
+              />
+            ) : (
+              <RicercaBoardView onOpenDetail={handleOpenRicercaDetail} />
+            )
           ) : activeMainSection === "lavoratori_cerca" ? (
             <LavoratoriCercaView />
           ) : activeMainSection === "gate_1" ? (

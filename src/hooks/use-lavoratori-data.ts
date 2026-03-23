@@ -9,7 +9,10 @@ import type { FilterField } from "@/components/data-table/data-table-filters"
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import {
   asLavoratoreRecord,
+  getAgeFromBirthDate,
+  asString,
   asStringArrayFirst,
+  normalizeDomesticRoleLabels,
   toListItem,
   toReadableColumnLabel,
 } from "@/features/lavoratori/lib/base-utils"
@@ -23,6 +26,8 @@ import {
 import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
 import {
+  type QueryFilterCondition,
+  type QueryFilterGroup,
   type TableColumnMeta,
   fetchDocumentiLavoratoriByWorker,
   fetchEsperienzeLavoratoriByWorker,
@@ -39,6 +44,42 @@ import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavor
 const DEFAULT_PAGE_SIZE = 50
 const SERVER_QUERY_DEBOUNCE_MS = 700
 const VIEWS_STORAGE_KEY = "lavoratori.cerca.saved-views"
+
+type UseLavoratoriDataOptions = {
+  forcedWorkerStatus?: string
+}
+
+function buildStatusForcedFilter(
+  baseFilters: QueryFilterGroup | undefined,
+  forcedWorkerStatus: string | undefined
+) {
+  const normalizedStatus = (forcedWorkerStatus ?? "").trim()
+  if (!normalizedStatus) return baseFilters
+
+  const statusCondition: QueryFilterCondition = {
+    kind: "condition",
+    id: "forced-stato-lavoratore",
+    field: "stato_lavoratore",
+    operator: "is",
+    value: normalizedStatus,
+  }
+
+  if (!baseFilters || !Array.isArray(baseFilters.nodes) || baseFilters.nodes.length === 0) {
+    return {
+      kind: "group" as const,
+      id: "forced-stato-lavoratore-group",
+      logic: "and" as const,
+      nodes: [statusCondition],
+    }
+  }
+
+  return {
+    kind: "group" as const,
+    id: "forced-stato-lavoratore-merge",
+    logic: "and" as const,
+    nodes: [baseFilters, statusCondition],
+  }
+}
 
 function buildLookupFilterTypeMap(rows: LookupValueRecord[]) {
   const filterTypeMap = new Map<string, TableColumnMeta["filterType"]>()
@@ -69,11 +110,53 @@ function buildWorkerListItem(
     isBlacklisted: isBlacklistValue(row.check_blacklist),
     statusFlags,
   })
-  const tipoRuolo = asStringArrayFirst(row.tipo_lavoro_domestico) || null
+  const statoLavoratore = asString(row.stato_lavoratore) || null
+  const disponibilita = asString(row.disponibilita) || null
+  const disponibilitaToken = (disponibilita ?? "").toLowerCase().replaceAll("_", " ")
+  const isDisponibile =
+    disponibilitaToken.length === 0
+      ? null
+      : disponibilitaToken.includes("non disponibile") ||
+          disponibilitaToken.includes("non idone")
+        ? false
+        : disponibilitaToken.includes("disponib")
+          ? true
+          : null
+  const ruoliDomesticiRaw = Array.isArray(row.tipo_lavoro_domestico)
+    ? row.tipo_lavoro_domestico
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : []
+  const ruoliDomestici = normalizeDomesticRoleLabels(ruoliDomesticiRaw)
+  const tipoRuolo = ruoliDomestici[0] ?? null
   const tipoLavoro = asStringArrayFirst(row.tipo_rapporto_lavorativo) || null
+  const eta = getAgeFromBirthDate(row.data_di_nascita)
+  const anniEsperienzaColf =
+    typeof row.anni_esperienza_colf === "number" && Number.isFinite(row.anni_esperienza_colf)
+      ? row.anni_esperienza_colf
+      : null
+  const anniEsperienzaBabysitter =
+    typeof row.anni_esperienza_babysitter === "number" &&
+    Number.isFinite(row.anni_esperienza_babysitter)
+      ? row.anni_esperienza_babysitter
+      : null
 
   return {
     ...baseItem,
+    statoLavoratore,
+    statoLavoratoreColor: resolveLookupColor(
+      lookupColorsByDomain,
+      "lavoratori.stato_lavoratore",
+      statoLavoratore
+    ),
+    disponibilita,
+    disponibilitaColor: resolveLookupColor(
+      lookupColorsByDomain,
+      "lavoratori.disponibilita",
+      disponibilita
+    ),
+    isDisponibile,
     tipoRuolo,
     tipoRuoloColor: resolveLookupColor(
       lookupColorsByDomain,
@@ -86,10 +169,15 @@ function buildWorkerListItem(
       "lavoratori.tipo_rapporto_lavorativo",
       tipoLavoro
     ),
+    ruoliDomestici,
+    eta,
+    anniEsperienzaColf,
+    anniEsperienzaBabysitter,
   }
 }
 
-export function useLavoratoriData() {
+export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
+  const { forcedWorkerStatus } = options
   const [workers, setWorkers] = React.useState<LavoratoreListItem[]>([])
   const [workerRows, setWorkerRows] = React.useState<LavoratoreRecord[]>([])
   const [workersTotal, setWorkersTotal] = React.useState(0)
@@ -133,6 +221,8 @@ export function useLavoratoriData() {
     applyFilters,
     sorting,
     setSorting,
+    grouping,
+    setGrouping,
     debouncedQuery,
     savedViews,
     activeViewId,
@@ -184,15 +274,19 @@ export function useLavoratoriData() {
         const sortOrderBy =
           debouncedQuery.sorting.length > 0
             ? debouncedQuery.sorting.map((item) => ({ field: item.id, ascending: !item.desc }))
-            : []
+            : [
+                { field: "stato_lavoratore", ascending: true },
+                { field: "data_ora_ultima_modifica", ascending: false },
+                { field: "creato_il", ascending: false },
+              ]
         const result = await fetchLavoratori({
           limit: pageSize,
           offset: pageIndex * pageSize,
           includeSchema: true,
-          orderBy: sortOrderBy.length > 0 ? sortOrderBy : undefined,
+          orderBy: sortOrderBy,
           search: debouncedQuery.searchValue.trim() || undefined,
           searchFields: ["nome", "cognome", "email", "telefono"],
-          filters: debouncedQuery.filters,
+          filters: buildStatusForcedFilter(debouncedQuery.filters, forcedWorkerStatus),
         })
         if (requestId !== requestIdRef.current) return
 
@@ -228,7 +322,7 @@ export function useLavoratoriData() {
     }
 
     void load()
-  }, [debouncedQuery, lookupColorsByDomain, pageIndex, pageSize])
+  }, [debouncedQuery, forcedWorkerStatus, lookupColorsByDomain, pageIndex, pageSize])
 
   const filterFields = React.useMemo<FilterField[]>(() => {
     return workersColumns.map((column) => {
@@ -262,8 +356,10 @@ export function useLavoratoriData() {
     columns: sortingColumns,
     state: {
       sorting,
+      grouping,
     },
     onSortingChange: setSorting,
+    onGroupingChange: setGrouping,
     manualSorting: true,
     getCoreRowModel: getCoreRowModel(),
   })

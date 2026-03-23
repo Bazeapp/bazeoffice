@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+  AlertTriangleIcon,
   BriefcaseBusinessIcon,
   MailIcon,
   MapPinIcon,
@@ -342,6 +343,10 @@ export function LavoratoriCercaView() {
     () => lookupOptionsByDomain.get("lavoratori.nazionalita") ?? [],
     [lookupOptionsByDomain],
   );
+  const statoLavoratoreLookupOptions = React.useMemo(
+    () => lookupOptionsByDomain.get("lavoratori.stato_lavoratore") ?? [],
+    [lookupOptionsByDomain],
+  );
   const canUseSessoSelect = React.useMemo(() => {
     const filterType = lookupFilterTypeByDomain.get("lavoratori.sesso");
     return (
@@ -349,13 +354,6 @@ export function LavoratoriCercaView() {
       sessoLookupOptions.length > 0
     );
   }, [lookupFilterTypeByDomain, sessoLookupOptions]);
-  const canUseNazionalitaSelect = React.useMemo(() => {
-    const filterType = lookupFilterTypeByDomain.get("lavoratori.nazionalita");
-    return (
-      (filterType === "enum" || filterType === "multi_enum") &&
-      nazionalitaLookupOptions.length > 0
-    );
-  }, [lookupFilterTypeByDomain, nazionalitaLookupOptions]);
   const provinciaLookupOptions = React.useMemo(
     () => lookupOptionsByDomain.get("lavoratori.provincia") ?? [],
     [lookupOptionsByDomain],
@@ -364,6 +362,48 @@ export function LavoratoriCercaView() {
     () => lookupOptionsByDomain.get("lavoratori.disponibilita") ?? [],
     [lookupOptionsByDomain],
   );
+  const selectedStatusValue = React.useMemo(() => {
+    const rawStatus = asString(selectedWorkerRow?.stato_lavoratore);
+    if (!rawStatus) return "";
+    const option = statoLavoratoreLookupOptions.find(
+      (item) => item.value === rawStatus || item.label === rawStatus,
+    );
+    return option?.value ?? rawStatus;
+  }, [selectedWorkerRow, statoLavoratoreLookupOptions]);
+  const selectedDisponibilitaValue = React.useMemo(() => {
+    const rawDisponibilita = asString(selectedWorkerRow?.disponibilita);
+    if (!rawDisponibilita) return "";
+    const option = disponibilitaLookupOptions.find(
+      (item) =>
+        item.value === rawDisponibilita || item.label === rawDisponibilita,
+    );
+    return option?.value ?? rawDisponibilita;
+  }, [disponibilitaLookupOptions, selectedWorkerRow]);
+  const selectedStatusToken = React.useMemo(
+    () => selectedStatusValue.trim().toLowerCase().replaceAll("_", " "),
+    [selectedStatusValue],
+  );
+  const selectedDisponibilitaToken = React.useMemo(
+    () => selectedDisponibilitaValue.trim().toLowerCase().replaceAll("_", " "),
+    [selectedDisponibilitaValue],
+  );
+  const selectedStatusClassName = React.useMemo(() => {
+    if (!selectedStatusValue) return "";
+    if (
+      selectedStatusToken.includes("non qualificato") ||
+      selectedStatusToken.includes("non idoneo")
+    ) {
+      return "border-rose-200 bg-rose-100 text-rose-700";
+    }
+    return "border-emerald-200 bg-emerald-100 text-emerald-700";
+  }, [selectedStatusToken, selectedStatusValue]);
+  const selectedDisponibilitaClassName = React.useMemo(() => {
+    if (!selectedDisponibilitaValue) return "";
+    if (selectedDisponibilitaToken.includes("non disponibile")) {
+      return "border-rose-200 bg-rose-100 text-rose-700";
+    }
+    return "border-emerald-200 bg-emerald-100 text-emerald-700";
+  }, [selectedDisponibilitaToken, selectedDisponibilitaValue]);
   const tipoRapportoLavorativoOptions = React.useMemo(() => {
     const options =
       lookupOptionsByDomain.get("lavoratori.tipo_rapporto_lavorativo") ?? [];
@@ -561,6 +601,78 @@ export function LavoratoriCercaView() {
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
+  const selectedMotivazioneValue = React.useMemo(
+    () => nonIdoneoReasonValues[0] ?? "",
+    [nonIdoneoReasonValues],
+  );
+  const selectedMotivazioneClassName = React.useMemo(() => {
+    if (!selectedMotivazioneValue) return "";
+    return getTagClassName(
+      resolveLookupColor(
+        lookupColorsByDomain,
+        "lavoratori.motivazione_non_idoneo",
+        selectedMotivazioneValue,
+      ),
+    );
+  }, [lookupColorsByDomain, selectedMotivazioneValue]);
+  const selectedWorkerStatusAlert = React.useMemo(() => {
+    if (!selectedWorkerRow) return null;
+
+    if (selectedWorkerIsNonIdoneo) {
+      const reasonValues =
+        nonIdoneoReasonValues.length > 0
+          ? nonIdoneoReasonValues
+          : readArrayStrings(selectedWorkerRow.motivazione_non_idoneo);
+      const reasonLabel = reasonValues
+        .map(getMotivazioneLabel)
+        .filter((value) => value.trim().length > 0)
+        .join(" • ");
+
+      return {
+        statusLabel: "Non idoneo",
+        reasonLabel: reasonLabel || "Nessuna motivazione indicata",
+        tone: "critical" as const,
+      };
+    }
+
+    if (selectedWorkerIsNonQualificato) {
+      const reasonLabel = selectedWorkerNonQualificatoIssues
+        .map((issue) => issue.title)
+        .filter((value) => value.trim().length > 0)
+        .join(" • ");
+
+      return {
+        statusLabel: "Non qualificato",
+        reasonLabel: reasonLabel || "Nessuna motivazione indicata",
+        tone: "muted" as const,
+      };
+    }
+
+    return null;
+  }, [
+    getMotivazioneLabel,
+    nonIdoneoReasonValues,
+    selectedWorkerIsNonIdoneo,
+    selectedWorkerIsNonQualificato,
+    selectedWorkerNonQualificatoIssues,
+    selectedWorkerRow,
+  ]);
+  const selectedWorkerBlacklistAlert = React.useMemo(() => {
+    if (!blacklistChecked) return null;
+
+    const rawValue = asString(selectedWorkerRow?.check_blacklist)
+      .trim()
+      .toLowerCase();
+    const reasonLabel =
+      rawValue && rawValue !== "blacklist"
+        ? rawValue.replaceAll("_", " ")
+        : "Verifica prima di proporlo ai processi attivi.";
+
+    return {
+      statusLabel: "Lavoratore in blacklist",
+      reasonLabel,
+    };
+  }, [blacklistChecked, selectedWorkerRow]);
   const workerSectionTabs = React.useMemo<WorkerSectionTab[]>(() => {
     const tabs: WorkerSectionTab[] = [
       { id: "profilo", label: "Profilo", icon: UsersIcon },
@@ -804,10 +916,39 @@ export function LavoratoriCercaView() {
                 </Tabs>
               </div>
               <div className="space-y-6 text-sm">
-                <div
-                  ref={setWorkerSectionRef("profilo")}
-                  className="mb-6 flex items-stretch gap-5"
-                >
+                <div className="sticky top-14 z-10 -mx-1 space-y-3 border-b bg-background px-1 pb-4">
+                  {selectedWorkerBlacklistAlert ? (
+                    <div className="flex items-start gap-2 rounded-md bg-rose-50/70 px-3 py-2 text-sm text-rose-700">
+                      <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
+                      <div className="space-y-0.5">
+                        <p className="font-semibold">
+                          {selectedWorkerBlacklistAlert.statusLabel}
+                        </p>
+                        <p>{selectedWorkerBlacklistAlert.reasonLabel}</p>
+                      </div>
+                    </div>
+                  ) : null}
+                  {selectedWorkerStatusAlert ? (
+                    <div
+                      className={`flex items-start gap-2 rounded-md px-3 py-2 text-sm ${
+                        selectedWorkerStatusAlert.tone === "critical"
+                          ? "bg-rose-50/70 text-rose-700"
+                          : "bg-zinc-100/70 text-zinc-700"
+                      }`}
+                    >
+                      <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
+                      <div className="space-y-0.5">
+                        <p className="font-semibold">
+                          {selectedWorkerStatusAlert.statusLabel}
+                        </p>
+                        <p>{selectedWorkerStatusAlert.reasonLabel}</p>
+                      </div>
+                    </div>
+                  ) : null}
+                  <div
+                    ref={setWorkerSectionRef("profilo")}
+                    className="mb-2 flex items-stretch gap-5"
+                  >
                   {(() => {
                     const qualificationStatus =
                       getWorkerQualificationStatus(selectedWorker);
@@ -1087,7 +1228,8 @@ export function LavoratoriCercaView() {
                       </Button>
                     </div>
                     <Separator className="my-3" />
-                    <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-6">
+                      <div className="min-w-0 flex-1 space-y-2">
                       <p className="text-muted-foreground flex items-center gap-2">
                         <MailIcon className="size-4 shrink-0" />
                         {isEditingHeader ? (
@@ -1202,54 +1344,41 @@ export function LavoratoriCercaView() {
                       <p className="text-muted-foreground flex items-center gap-2">
                         <FlagIcon className="size-4 shrink-0" />
                         {isEditingHeader ? (
-                          canUseNazionalitaSelect ? (
-                            <div className="w-full max-w-xs">
-                              <Select
-                                value={headerDraft.nazionalita || undefined}
-                                onValueChange={(value) => {
-                                  setHeaderDraft((current) => ({
-                                    ...current,
-                                    nazionalita: value,
-                                  }));
-                                  void patchSelectedWorkerField(
-                                    "nazionalita",
-                                    value || null,
-                                  );
-                                }}
-                                disabled={updatingNonQualificato}
-                              >
-                                <SelectTrigger className="h-7 text-sm">
-                                  <SelectValue placeholder="Seleziona nazionalita" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {nazionalitaLookupOptions.map((option) => (
-                                    <SelectItem
-                                      key={option.value}
-                                      value={option.value}
-                                    >
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          ) : (
-                            <Input
-                              value={headerDraft.nazionalita}
-                              onChange={(event) =>
+                          <div className="w-full max-w-xs">
+                            <Select
+                              value={headerDraft.nazionalita || "none"}
+                              onValueChange={(value) => {
+                                const nextValue = value === "none" ? "" : value;
                                 setHeaderDraft((current) => ({
                                   ...current,
-                                  nazionalita: event.target.value,
-                                }))
+                                  nazionalita: nextValue,
+                                }));
+                                void patchSelectedWorkerField(
+                                  "nazionalita",
+                                  nextValue || null,
+                                );
+                              }}
+                              disabled={
+                                updatingNonQualificato ||
+                                nazionalitaLookupOptions.length === 0
                               }
-                              onBlur={() =>
-                                void commitHeaderField("nazionalita")
-                              }
-                              disabled={updatingNonQualificato}
-                              placeholder="Nazionalita"
-                              className="h-7 w-56 text-sm"
-                            />
-                          )
+                            >
+                              <SelectTrigger className="h-7 text-sm">
+                                <SelectValue placeholder="Seleziona nazionalita" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Non indicata</SelectItem>
+                                {nazionalitaLookupOptions.map((option) => (
+                                  <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         ) : (
                           <span className="truncate">
                             {asString(selectedWorkerRow?.nazionalita) || "-"}
@@ -1291,6 +1420,100 @@ export function LavoratoriCercaView() {
                           ) ?? "-"}
                         </span>
                       </p>
+                      </div>
+                      <div className="ml-auto flex w-fit shrink-0 flex-col items-end gap-2">
+                        <div className="flex w-fit items-start justify-end gap-2">
+                          {selectedWorkerIsNonIdoneo || selectedWorkerIsNonQualificato ? (
+                            <div className="w-[230px] shrink-0">
+                              <Select
+                                value={selectedMotivazioneValue || "none"}
+                                onValueChange={(value) =>
+                                  void handleNonIdoneoReasonsChange(
+                                    value === "none" ? [] : [value],
+                                  )
+                                }
+                                disabled={updatingNonIdoneo}
+                              >
+                                <SelectTrigger
+                                  className={`h-8 text-xs ${selectedMotivazioneClassName}`}
+                                >
+                                  <SelectValue placeholder="Motivazione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Nessuna motivazione</SelectItem>
+                                  {motivazioniNonIdoneoOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          ) : null}
+                          <div className="w-[220px] shrink-0">
+                            <Select
+                              value={selectedStatusValue || "none"}
+                              onValueChange={(value) =>
+                                void patchSelectedWorkerField(
+                                  "stato_lavoratore",
+                                  value === "none" ? null : value,
+                                )
+                              }
+                              disabled={
+                                updatingNonQualificato ||
+                                statoLavoratoreLookupOptions.length === 0
+                              }
+                            >
+                              <SelectTrigger
+                                className={`h-8 text-xs ${selectedStatusClassName}`}
+                              >
+                                <SelectValue placeholder="Stato lavoratore" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Senza stato</SelectItem>
+                                {statoLavoratoreLookupOptions.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="w-[220px] shrink-0">
+                          <Select
+                            value={selectedDisponibilitaValue || "none"}
+                            onValueChange={(value) => {
+                              setAvailabilityStatusDraft((current) => ({
+                                ...current,
+                                disponibilita: value === "none" ? "" : value,
+                              }));
+                              void patchAvailabilityStatusValue(
+                                "disponibilita",
+                                value === "none" ? "" : value,
+                              );
+                            }}
+                            disabled={
+                              updatingAvailabilityStatus ||
+                              disponibilitaLookupOptions.length === 0
+                            }
+                          >
+                            <SelectTrigger
+                              className={`h-8 text-xs ${selectedDisponibilitaClassName}`}
+                            >
+                              <SelectValue placeholder="Disponibilita" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Non indicata</SelectItem>
+                              {disponibilitaLookupOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
                     {selectedWorkerId ? (
                       <div className="mt-auto flex justify-end pt-4">
@@ -1359,6 +1582,7 @@ export function LavoratoriCercaView() {
                       </div>
                     ) : null}
                   </div>
+                  </div>
                 </div>
 
                 <div ref={setWorkerSectionRef("residenza")}>
@@ -1387,6 +1611,13 @@ export function LavoratoriCercaView() {
                       }));
                       void patchSelectedWorkerField("provincia", value || null);
                     }}
+                    onCapChange={(value) =>
+                      setAddressDraft((current) => ({
+                        ...current,
+                        cap: value,
+                      }))
+                    }
+                    onCapBlur={() => void commitAddressField("cap")}
                     onAddressChange={(value) =>
                       setAddressDraft((current) => ({
                         ...current,

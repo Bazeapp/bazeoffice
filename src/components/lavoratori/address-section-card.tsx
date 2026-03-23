@@ -18,8 +18,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-import { DetailRow } from "@/components/lavoratori/detail-row"
-
 type LookupOption = {
   label: string
   value: string
@@ -46,6 +44,8 @@ type AddressSectionCardProps = {
   mobilityAnchor: React.RefObject<HTMLDivElement | null>
   onToggleEdit: () => void
   onProvinciaChange: (value: string) => void
+  onCapChange: (value: string) => void
+  onCapBlur: () => void
   onAddressChange: (value: string) => void
   onAddressBlur: () => void
   onMobilityChange: (values: string[]) => void
@@ -66,6 +66,8 @@ export function AddressSectionCard({
   mobilityAnchor,
   onToggleEdit,
   onProvinciaChange,
+  onCapChange,
+  onCapBlur,
   onAddressChange,
   onAddressBlur,
   onMobilityChange,
@@ -87,18 +89,19 @@ export function AddressSectionCard({
         </Button>
       ) : undefined}
       titleOnBorder
-      contentClassName="space-y-2"
+      contentClassName="space-y-3"
     >
-      <DetailRow label="Provincia">
-        {isEditing ? (
-          <div className="w-full max-w-xs">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[170px_130px_minmax(0,1fr)_minmax(220px,280px)]">
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-xs">Provincia</p>
+          {isEditing ? (
             <Select
               value={addressDraft.provincia || undefined}
               onValueChange={onProvinciaChange}
               disabled={isUpdating}
             >
-              <SelectTrigger className="h-7 text-sm">
-                <SelectValue placeholder="Seleziona provincia" />
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Provincia" />
               </SelectTrigger>
               <SelectContent>
                 {provinciaOptions.map((option) => (
@@ -108,38 +111,54 @@ export function AddressSectionCard({
                 ))}
               </SelectContent>
             </Select>
+          ) : (
+            <p className="truncate text-sm">{selectedProvincia || "-"}</p>
+          )}
+        </div>
+
+        {showCap ? (
+          <div className="space-y-1">
+            <p className="text-muted-foreground text-xs">CAP</p>
+            {isEditing ? (
+              <Input
+                value={addressDraft.cap}
+                onChange={(event) => {
+                  const normalized = event.target.value
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9 ]/g, "")
+                    .slice(0, 10)
+                  onCapChange(normalized)
+                }}
+                onBlur={onCapBlur}
+                disabled={isUpdating}
+                placeholder="CAP"
+                className="h-8 text-sm"
+              />
+            ) : (
+              <p className="truncate text-sm">{selectedCap || "-"}</p>
+            )}
           </div>
-        ) : (
-          <span className="truncate">{selectedProvincia || "-"}</span>
-        )}
-      </DetailRow>
+        ) : null}
 
-      {showCap ? (
-        <DetailRow label="CAP">
-          <span className="truncate">{selectedCap || "-"}</span>
-        </DetailRow>
-      ) : null}
-
-      <DetailRow label="Indirizzo">
-        {isEditing ? (
-          <div className="w-full max-w-md">
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-xs">Indirizzo</p>
+          {isEditing ? (
             <Input
               value={addressDraft.indirizzo_residenza_completo}
               onChange={(event) => onAddressChange(event.target.value)}
               onBlur={onAddressBlur}
               disabled={isUpdating}
               placeholder="Inserisci indirizzo"
-              className="h-7 text-sm"
+              className="h-8 text-sm"
             />
-          </div>
-        ) : (
-          <span className="truncate">{selectedAddress || "-"}</span>
-        )}
-      </DetailRow>
+          ) : (
+            <p className="truncate text-sm">{selectedAddress || "-"}</p>
+          )}
+        </div>
 
-      <DetailRow label="Come si sposta">
-        {isEditing ? (
-          <div className="w-full max-w-md">
+        <div className="space-y-1">
+          <p className="text-muted-foreground text-xs">Mobilita</p>
+          {isEditing ? (
             <Combobox
               multiple
               autoHighlight
@@ -171,19 +190,19 @@ export function AddressSectionCard({
                 </ComboboxList>
               </ComboboxContent>
             </Combobox>
-          </div>
-        ) : selectedMobility.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {selectedMobility.map((value) => (
-              <Badge key={value} variant="outline">
-                {value}
-              </Badge>
-            ))}
-          </div>
-        ) : (
-          <span className="truncate">-</span>
-        )}
-      </DetailRow>
+          ) : selectedMobility.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {selectedMobility.map((value) => (
+                <Badge key={value} variant="outline">
+                  {value}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="truncate text-sm">-</p>
+          )}
+        </div>
+      </div>
     </DetailSectionCard>
   )
 }

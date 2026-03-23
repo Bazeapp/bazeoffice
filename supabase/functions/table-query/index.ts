@@ -9,6 +9,9 @@ const corsHeaders = {
 type SupportedTable =
   | "famiglie"
   | "lavoratori"
+  | "documenti_lavoratori"
+  | "selezioni_lavoratori"
+  | "operatori"
   | "esperienze_lavoratori"
   | "referenze_lavoratori"
   | "processi_matching"
@@ -105,10 +108,151 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
   ],
   lavoratori: [
     "id",
+    "anni_esperienza_babysitter",
+    "anni_esperienza_badante",
+    "anni_esperienza_colf",
+    "check_accetta_babysitting_multipli_bambini",
+    "check_accetta_babysitting_neonati",
+    "check_accetta_case_con_cani",
+    "check_accetta_case_con_cani_grandi",
+    "check_accetta_case_con_gatti",
+    "check_accetta_funzionamento_baze",
+    "check_accetta_lavori_con_trasferta",
+    "check_accetta_multipli_contratti",
+    "check_accetta_paga_9_euro_netti",
+    "check_accetta_salire_scale_o_soffitti_alti",
+    "check_blacklist",
+    "check_lavori_accettabili",
     "nome",
     "cognome",
+    "colloquio_in_presenza",
+    "come_ti_sposti",
+    "compatibilita_babysitting_neonati",
+    "compatibilita_con_animali_in_casa",
+    "compatibilita_con_case_di_grandi_dimensioni",
+    "compatibilita_con_contesti_pacati",
+    "compatibilita_con_cucina_strutturata",
+    "compatibilita_con_elevata_autonomia_richiesta",
+    "compatibilita_con_stiro_esigente",
+    "compatibilita_famiglie_molto_esigenti",
+    "compatibilita_famiglie_numerose",
+    "compatibilita_lavoro_con_datore_presente_in_casa",
+    "conoscenza_dellitaliano",
+    "data_di_nascita",
+    "data_ora_di_creazione",
+    "data_ritorno_disponibilita",
+    "data_scadenza_naspi",
+    "data_ultima_candidatura",
+    "data_ultima_modifica_profilo",
+    "descrizione_pubblica",
+    "descrizione_rivista",
     "disponibilita",
+    "disponibilita_domenica_mattina",
+    "disponibilita_domenica_pomeriggio",
+    "disponibilita_domenica_sera",
+    "disponibilita_giovedi_mattina",
+    "disponibilita_giovedi_pomeriggio",
+    "disponibilita_giovedi_sera",
+    "disponibilita_lunedi_mattina",
+    "disponibilita_lunedi_pomeriggio",
+    "disponibilita_lunedi_sera",
+    "disponibilita_martedi_mattina",
+    "disponibilita_martedi_pomeriggio",
+    "disponibilita_martedi_sera",
+    "disponibilita_mercoledi_mattina",
+    "disponibilita_mercoledi_pomeriggio",
+    "disponibilita_mercoledi_sera",
+    "disponibilita_sabato_mattina",
+    "disponibilita_sabato_pomeriggio",
+    "disponibilita_sabato_sera",
+    "disponibilita_venerdi_mattina",
+    "disponibilita_venerdi_pomeriggio",
+    "disponibilita_venerdi_sera",
+    "documenti_in_regola",
+    "email",
+    "fbclid",
+    "feedback_recruiter",
+    "followup_chiamata_idoneita",
+    "foto",
+    "gclid",
+    "hai_referenze",
+    "iban",
+    "id_stripe_account",
+    "livello_babysitting",
+    "livello_cucina",
+    "livello_dogsitting",
+    "livello_giardinaggio",
+    "livello_inglese",
+    "livello_italiano",
+    "livello_pulizie",
+    "livello_stiro",
+    "motivazione_non_idoneo",
+    "nazionalita",
+    "paga_oraria_richiesta",
+    "provincia",
+    "rating_atteggiamento",
+    "rating_capacita_comunicative",
+    "rating_corporatura",
+    "rating_cura_personale",
+    "rating_precisione_puntualita",
+    "riassunto_profilo_breve",
+    "sesso",
+    "situazione_lavorativa_attuale",
     "stato_lavoratore",
+    "stato_profilo",
+    "stato_selezioni",
+    "stato_verifica_documenti",
+    "telefono",
+    "tipo_lavoro_domestico",
+    "tipo_rapporto_lavorativo",
+    "ultima_modifica",
+    "url_onboarding_stripe",
+    "utm_campaign",
+    "utm_content",
+    "utm_medium",
+    "utm_source",
+    "utm_term",
+    "vincoli_orari_disponibilita",
+    "creato_il",
+    "aggiornato_il",
+  ],
+  documenti_lavoratori: [
+    "id",
+    "lavoratore_id",
+    "tipo_documento",
+    "stato_documento",
+    "status",
+    "data_scadenza",
+    "data_scadenza_permesso_di_soggiorno",
+    "allegato_codice_fiscale_fronte",
+    "allegato_codice_fiscale_retro",
+    "allegato_documento_identita_fronte",
+    "allegato_documento_identita_retro",
+    "allegato_permesso_di_soggiorno_fronte",
+    "allegato_permesso_di_soggiorno_retro",
+    "allegato_ricevuta_rinnovo_permesso",
+    "airtable_id",
+    "airtable_record_id",
+    "creato_il",
+    "aggiornato_il",
+  ],
+  selezioni_lavoratori: [
+    "id",
+    "processo_matching_id",
+    "lavoratore_id",
+    "stato_selezione",
+    "motivo_no_match",
+    "note_selezione",
+    "punteggio",
+    "creato_il",
+    "aggiornato_il",
+  ],
+  operatori: [
+    "id",
+    "nome",
+    "cognome",
+    "email",
+    "telefono",
     "creato_il",
     "aggiornato_il",
   ],
@@ -146,10 +290,84 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
   ],
   processi_matching: [
     "id",
-    "titolo_annuncio",
-    "referente_ricerca_e_selezione_id",
+    "annuncio_webflow",
+    "appunti_chiamata_sales",
+    "channel_grouped",
+    "check_synced_looker_studio",
+    "data_assegnazione",
+    "data_chiusura",
+    "data_limite_invio_selezione",
+    "data_ora_di_creazione",
+    "data_per_ricerca_futura",
+    "data_ultima_modifica",
+    "deadline_mobile",
+    "descrizione_animali_in_casa",
+    "descrizione_casa",
+    "descrizione_lavoratore_ideale",
+    "descrizione_richiesta_ferie",
+    "descrizione_richiesta_giorni_riposo",
+    "descrizione_richiesta_trasferte",
+    "disponibilita_colloqui_in_presenza",
+    "eta_massima",
+    "eta_minima",
+    "famiglia_id",
+    "fbclid",
+    "frequenza_rapporto",
+    "gclid",
+    "indirizzo_prova_cap",
+    "indirizzo_prova_citofono",
+    "indirizzo_prova_civico",
+    "indirizzo_prova_comune",
+    "indirizzo_prova_note",
+    "indirizzo_prova_provincia",
+    "indirizzo_prova_via",
+    "informazioni_extra_riservate",
+    "log_sales",
+    "mansioni_richieste",
+    "mansioni_richieste_transformed_ai",
+    "metratura_casa",
+    "modalita_tariffa",
+    "modello_smartmatching",
+    "momento_disponibilita",
+    "motivazione_lost",
+    "motivazione_oot",
+    "motivo_no_match",
+    "nucleo_famigliare",
+    "numero_giorni_settimanali",
+    "numero_ricerca_attivata",
+    "orario_di_lavoro",
+    "ore_settimanale",
+    "paga_mensile",
+    "paga_oraria",
+    "patente",
+    "preferenza_giorno",
+    "presenza_animali_in_casa",
+    "preventivo_firmato",
     "recruiter_ricerca_e_selezione_id",
+    "referente_ricerca_e_selezione_id",
+    "richiesta_ferie",
+    "richiesta_patente",
+    "richiesta_trasferte",
+    "sales_cold_call_followup",
+    "sales_no_show_followup",
+    "sesso",
+    "source_question",
+    "source_url",
+    "src_embed_maps_annucio",
+    "titolo_annuncio",
     "stato_res",
+    "stato_sales",
+    "testo_annuncio_webflow",
+    "testo_annuncio_whatsapp",
+    "tipo_incontro_famiglia_lavoratore",
+    "tipo_lavoro",
+    "tipo_rapporto",
+    "urgenza",
+    "utm_campaign",
+    "utm_content",
+    "utm_medium",
+    "utm_source",
+    "utm_term",
     "creato_il",
     "aggiornato_il",
   ],
@@ -584,6 +802,76 @@ function applySorting(
   return sorted;
 }
 
+function escapeLikeValue(value: string) {
+  return value.replace(/[%_]/g, (token) => `\\${token}`);
+}
+
+function collectFlatAndConditions(group: FilterGroup | undefined): FilterCondition[] | null {
+  if (!group) return [];
+  if (group.logic !== "and") return null;
+
+  const output: FilterCondition[] = [];
+  for (const node of group.nodes ?? []) {
+    if (node.kind === "condition") {
+      output.push(node);
+      continue;
+    }
+    const nested = collectFlatAndConditions(node);
+    if (!nested) return null;
+    output.push(...nested);
+  }
+
+  return output;
+}
+
+function supportsServerCondition(operator: FilterOperator) {
+  return (
+    operator === "is" ||
+    operator === "is_not" ||
+    operator === "gt" ||
+    operator === "gte" ||
+    operator === "lt" ||
+    operator === "lte" ||
+    operator === "is_true" ||
+    operator === "is_false" ||
+    operator === "starts_with" ||
+    operator === "ends_with"
+  );
+}
+
+function applyServerCondition(
+  query: any,
+  condition: FilterCondition,
+) {
+  const field = condition.field;
+  const value = condition.value;
+
+  switch (condition.operator) {
+    case "is":
+      return query.eq(field, value);
+    case "is_not":
+      return query.neq(field, value);
+    case "gt":
+      return query.gt(field, value);
+    case "gte":
+      return query.gte(field, value);
+    case "lt":
+      return query.lt(field, value);
+    case "lte":
+      return query.lte(field, value);
+    case "is_true":
+      return query.eq(field, true);
+    case "is_false":
+      return query.eq(field, false);
+    case "starts_with":
+      return query.ilike(field, `${escapeLikeValue(value)}%`);
+    case "ends_with":
+      return query.ilike(field, `%${escapeLikeValue(value)}`);
+    default:
+      return null;
+  }
+}
+
 async function fetchAllRows(
   supabase: ReturnType<typeof createClient>,
   table: SupportedTable,
@@ -654,11 +942,10 @@ Deno.serve(async (req) => {
   const requestedFields = payload.select ?? [];
   const wantsAllFields = requestedFields.length === 0 || requestedFields.includes("*");
   const selectFields = wantsAllFields
-    ? ["*"]
-    : sanitizeFields(payload.table, requestedFields);
-  const fallbackSchemaFields = wantsAllFields
     ? ALLOWED_FIELDS[payload.table]
-    : selectFields;
+    : sanitizeFields(payload.table, requestedFields);
+  const fallbackSchemaFields = selectFields;
+  const includeSchema = payload.includeSchema ?? true;
 
   if (!wantsAllFields && selectFields.length === 0) {
     return badRequest("No valid fields in 'select'");
@@ -678,8 +965,57 @@ Deno.serve(async (req) => {
   });
 
   try {
+    const flatConditions = collectFlatAndConditions(filters);
+    const canUseServerQuery =
+      !search &&
+      flatConditions !== null &&
+      flatConditions.every((condition) => supportsServerCondition(condition.operator));
+
+    if (canUseServerQuery) {
+      let serverQuery = supabase
+        .from(payload.table)
+        .select(selectFields.join(","), { count: "exact" });
+
+      for (const condition of flatConditions) {
+        const nextQuery = applyServerCondition(serverQuery, condition);
+        if (!nextQuery) {
+          throw new Error(`Unsupported server condition: ${condition.operator}`);
+        }
+        serverQuery = nextQuery;
+      }
+
+      const safeOrderBy = orderBy.filter(
+        (item) => typeof item.field === "string" && selectFields.includes(item.field)
+      );
+      for (const item of safeOrderBy) {
+        serverQuery = serverQuery.order(item.field, { ascending: item.ascending ?? true });
+      }
+
+      const { data, error, count } = await serverQuery.range(offset, offset + limit - 1);
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      const rows = (data ?? []) as Record<string, unknown>[];
+      const columns = includeSchema ? inferColumnsFromRows(rows, fallbackSchemaFields) : [];
+
+      return new Response(
+        JSON.stringify({
+          rows,
+          total: count ?? rows.length,
+          limit,
+          offset,
+          columns,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const rows = await fetchAllRows(supabase, payload.table, selectFields.join(","));
-    const columns = inferColumnsFromRows(rows, fallbackSchemaFields);
+    const columns = includeSchema ? inferColumnsFromRows(rows, fallbackSchemaFields) : [];
     const fieldTypes = new Map<string, FilterFieldType>(
       columns.map((column) => [column.name, column.filterType]),
     );

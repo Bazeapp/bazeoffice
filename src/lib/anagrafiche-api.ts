@@ -25,6 +25,7 @@ export type TableColumnMeta = {
 type TableName =
   | "famiglie"
   | "lavoratori"
+  | "selezioni_lavoratori"
   | "documenti_lavoratori"
   | "esperienze_lavoratori"
   | "referenze_lavoratori"
@@ -34,6 +35,7 @@ type TableName =
 type UpdateTableName =
   | "famiglie"
   | "lavoratori"
+  | "selezioni_lavoratori"
   | "documenti_lavoratori"
   | "esperienze_lavoratori"
   | "referenze_lavoratori"
@@ -183,7 +185,8 @@ async function queryTable<TRecord>(payload: TableQueryRequest) {
     return await promise
   } catch (error) {
     tableQueryCache.delete(cacheKey)
-    throw error
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`table-query(${payload.table}) failed: ${message}`)
   }
 }
 
@@ -292,6 +295,20 @@ export async function fetchReferenzeLavoratoriByWorker(lavoratoreId: string) {
 export async function fetchProcessiMatching(query: TablePageQuery) {
   return queryTable<TableRow>({
     table: "processi_matching",
+    select: ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
+export async function fetchSelezioniLavoratori(query: TablePageQuery) {
+  return queryTable<TableRow>({
+    table: "selezioni_lavoratori",
     select: ["*"],
     limit: query.limit,
     offset: query.offset,

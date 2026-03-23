@@ -25,6 +25,7 @@ type StageMetadata = {
 const VISIBLE_STAGE_ORDER = [
   "fare ricerca",
   "selezione inviata",
+  "selezione inviata in attesa di feedback",
   "fase di colloqui",
   "in prova con lavoratore",
   "match",
@@ -173,7 +174,9 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
 }
 
 function normalizeStageName(value: string) {
-  return normalizeLookupToken(value).replace(/\s+/g, " ")
+  return normalizeLookupToken(value)
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
 }
 
 function resolveBadgeColor(

@@ -46,6 +46,8 @@ type OnboardingCardProps = {
   card: CrmPipelineCardData | null;
   lookupOptionsByField?: LookupOptionsByField;
   titleAction?: ReactNode;
+  showTitle?: boolean;
+  showTempistiche?: boolean;
   onPatchProcess?: (
     processId: string,
     patch: Record<string, unknown>,
@@ -184,6 +186,8 @@ export function OnboardingCard({
   card,
   lookupOptionsByField,
   titleAction,
+  showTitle = true,
+  showTempistiche = true,
   onPatchProcess,
 }: OnboardingCardProps) {
   const [orarioDiLavoro, setOrarioDiLavoro] = React.useState(
@@ -328,7 +332,7 @@ export function OnboardingCard({
   }, [lookupOptionsByField]);
 
   return (
-    <CrmDetailCard title="Onboarding" titleAction={titleAction}>
+    <CrmDetailCard title={showTitle ? "Onboarding" : ""} titleAction={titleAction}>
       <FieldGroup>
         <p className="text-base font-semibold">Orari e frequenza</p>
         <Field>
@@ -589,97 +593,101 @@ export function OnboardingCard({
             </Field>
         </div>
 
-        <Separator />
+        {showTempistiche ? (
+          <>
+            <Separator />
 
-        <p className="text-base font-semibold">Tempistiche</p>
-        <div className="space-y-4">
-          <Field>
-            <FieldLabel htmlFor="onboarding-deadline">Deadline</FieldLabel>
-            <DatePicker
-              value={deadline}
-              onValueChange={(next) => {
-                setDeadline(next);
-                void patchProcess({ deadline_mobile: next ? toIsoDate(next) : null });
-              }}
-              placeholder="dd/mm/yyyy"
-            />
-          </Field>
+            <p className="text-base font-semibold">Tempistiche</p>
+            <div className="space-y-4">
+              <Field>
+                <FieldLabel htmlFor="onboarding-deadline">Deadline</FieldLabel>
+                <DatePicker
+                  value={deadline}
+                  onValueChange={(next) => {
+                    setDeadline(next);
+                    void patchProcess({ deadline_mobile: next ? toIsoDate(next) : null });
+                  }}
+                  placeholder="dd/mm/yyyy"
+                />
+              </Field>
 
-          <Field>
-            <FieldLabel htmlFor="onboarding-disponibilita-incontro">
-              Inserire 3 disponibilità di giorno e fascia oraria, es. 12/10 dalle 8 alle 12
-            </FieldLabel>
-            <Input
-              id="onboarding-disponibilita-incontro"
-              value={disponibilitaColloqui}
-              onChange={(event) => setDisponibilitaColloqui(event.target.value)}
-              onBlur={() => {
-                void patchProcess({
-                  disponibilita_colloqui_in_presenza:
-                    disponibilitaColloqui || null,
-                });
-              }}
-            />
-          </Field>
+              <Field>
+                <FieldLabel htmlFor="onboarding-disponibilita-incontro">
+                  Inserire 3 disponibilità di giorno e fascia oraria, es. 12/10 dalle 8 alle 12
+                </FieldLabel>
+                <Input
+                  id="onboarding-disponibilita-incontro"
+                  value={disponibilitaColloqui}
+                  onChange={(event) => setDisponibilitaColloqui(event.target.value)}
+                  onBlur={() => {
+                    void patchProcess({
+                      disponibilita_colloqui_in_presenza:
+                        disponibilitaColloqui || null,
+                    });
+                  }}
+                />
+              </Field>
 
-          <Field>
-            <FieldLabel htmlFor="onboarding-tipologia-primo-incontro">
-              Seleziona la tipologia del primo incontro
-            </FieldLabel>
-            <Select
-              value={tipoIncontro}
-              onValueChange={(next) => {
-                setTipoIncontro(next);
-                void patchProcess({
-                  tipo_incontro_famiglia_lavoratore: next || null,
-                });
-              }}
-            >
-              <SelectTrigger id="onboarding-tipologia-primo-incontro" className="w-full">
-                <SelectValue placeholder="Seleziona tipologia" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {tipoIncontroOptions.map((option) => (
-                    <SelectItem key={option.valueKey} value={option.valueKey}>
-                      {option.valueLabel}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
+              <Field>
+                <FieldLabel htmlFor="onboarding-tipologia-primo-incontro">
+                  Seleziona la tipologia del primo incontro
+                </FieldLabel>
+                <Select
+                  value={tipoIncontro}
+                  onValueChange={(next) => {
+                    setTipoIncontro(next);
+                    void patchProcess({
+                      tipo_incontro_famiglia_lavoratore: next || null,
+                    });
+                  }}
+                >
+                  <SelectTrigger id="onboarding-tipologia-primo-incontro" className="w-full">
+                    <SelectValue placeholder="Seleziona tipologia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {tipoIncontroOptions.map((option) => (
+                        <SelectItem key={option.valueKey} value={option.valueKey}>
+                          {option.valueLabel}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
 
-          <Field>
-            <div className="mb-1 flex items-center gap-2">
-              <FieldLabel>Preventivo da inviare</FieldLabel>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => copyToClipboard(preventivoUrl, "Preventivo")}
-                aria-label="Copia link preventivo"
-              >
-                <CopyIcon className="size-4" />
-              </Button>
+              <Field>
+                <div className="mb-1 flex items-center gap-2">
+                  <FieldLabel>Preventivo da inviare</FieldLabel>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copyToClipboard(preventivoUrl, "Preventivo")}
+                    aria-label="Copia link preventivo"
+                  >
+                    <CopyIcon className="size-4" />
+                  </Button>
+                </div>
+                <FieldDescription>
+                  <a
+                    href={preventivoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline underline-offset-2 break-all"
+                  >
+                    {preventivoUrl}
+                  </a>
+                </FieldDescription>
+                <Input
+                  id="onboarding-preventivo-url"
+                  value={preventivoUrl}
+                  onChange={(event) => setPreventivoUrl(event.target.value)}
+                />
+              </Field>
             </div>
-            <FieldDescription>
-              <a
-                href={preventivoUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline underline-offset-2 break-all"
-              >
-                {preventivoUrl}
-              </a>
-            </FieldDescription>
-            <Input
-              id="onboarding-preventivo-url"
-              value={preventivoUrl}
-              onChange={(event) => setPreventivoUrl(event.target.value)}
-            />
-          </Field>
-        </div>
+          </>
+        ) : null}
       </FieldGroup>
     </CrmDetailCard>
   );

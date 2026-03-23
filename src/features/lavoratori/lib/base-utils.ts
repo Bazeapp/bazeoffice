@@ -36,6 +36,25 @@ export function readArrayStrings(value: unknown) {
     .filter(Boolean)
 }
 
+export function normalizeDomesticRoleLabel(value: string) {
+  const token = value.trim().toLowerCase().replaceAll("_", " ")
+  if (!token) return ""
+  if (token.includes("badante") || token.includes("assistenza domestica")) return "Badante"
+  if (token.includes("babysitter") || token.includes("tata")) return "Tata"
+  if (token.includes("colf") || token.includes("pulizie")) return "Colf"
+  return value.trim()
+}
+
+export function normalizeDomesticRoleLabels(values: string[]) {
+  const result: string[] = []
+  for (const value of values) {
+    const normalized = normalizeDomesticRoleLabel(value)
+    if (!normalized) continue
+    if (!result.includes(normalized)) result.push(normalized)
+  }
+  return result
+}
+
 export function parseNumberValue(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return value
   if (typeof value !== "string") return null
@@ -101,7 +120,34 @@ export function getDefaultWorkerAvatar(seed: string) {
 export function getAgeFromBirthDate(value: unknown) {
   const dateValue = asString(value)
   if (!dateValue) return null
-  const birthDate = new Date(dateValue)
+
+  let birthDate: Date | null = null
+  const slashParts = dateValue.split("/")
+  if (slashParts.length === 3) {
+    const day = Number.parseInt((slashParts[0] ?? "").trim(), 10)
+    const month = Number.parseInt((slashParts[1] ?? "").trim(), 10)
+    const year = Number.parseInt((slashParts[2] ?? "").trim(), 10)
+    if (
+      Number.isFinite(day) &&
+      Number.isFinite(month) &&
+      Number.isFinite(year) &&
+      day > 0 &&
+      month > 0 &&
+      month <= 12 &&
+      year > 1900
+    ) {
+      birthDate = new Date(year, month - 1, day)
+    }
+  }
+
+  if (!birthDate) {
+    const parsed = new Date(dateValue)
+    if (!Number.isNaN(parsed.getTime())) {
+      birthDate = parsed
+    }
+  }
+
+  if (!birthDate) return null
   if (Number.isNaN(birthDate.getTime())) return null
   const now = new Date()
   let age = now.getFullYear() - birthDate.getFullYear()
@@ -121,6 +167,8 @@ export function toListItem(
 ): LavoratoreListItem {
   const workerId = asString(row.id)
   const imageUrl = toAvatarUrl(row)
+  const normalizedDomesticRoles = normalizeDomesticRoleLabels(readArrayStrings(row.tipo_lavoro_domestico))
+  const firstDomesticRole = normalizedDomesticRoles[0] ?? null
 
   return {
     id: workerId,
@@ -129,10 +177,16 @@ export function toListItem(
     cap: asString(row.cap) || null,
     telefono: asString(row.telefono) || null,
     isBlacklisted: options.isBlacklisted,
-    tipoRuolo: asStringArrayFirst(row.tipo_lavoro_domestico) || null,
+    tipoRuolo: firstDomesticRole,
     tipoRuoloColor: null,
     tipoLavoro: asStringArrayFirst(row.tipo_rapporto_lavorativo) || null,
     tipoLavoroColor: null,
+    ruoliDomestici: normalizedDomesticRoles,
+    statoLavoratore: asString(row.stato_lavoratore) || null,
+    statoLavoratoreColor: null,
+    disponibilita: asString(row.disponibilita) || null,
+    disponibilitaColor: null,
+    isDisponibile: null,
     isQualified: options.statusFlags.isQualified,
     isIdoneo: options.statusFlags.isIdoneo,
     isCertificato: options.statusFlags.isCertificato,

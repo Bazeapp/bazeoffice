@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+  AlertTriangleIcon,
   BadgeCheckIcon,
   CalendarDaysIcon,
   CheckIcon,
@@ -340,6 +341,7 @@ function GateContactsCard({
 function GatePresentationCard({
   worker,
   workerRow,
+  statusAlert,
   headerDraft,
   descriptionValue,
   livelloItaliano,
@@ -359,6 +361,11 @@ function GatePresentationCard({
 }: {
   worker: LavoratoreListItem;
   workerRow: LavoratoreRecord;
+  statusAlert?: {
+    statusLabel: string;
+    reasonLabel: string;
+    tone: "critical" | "muted";
+  } | null;
   headerDraft: {
     nome: string;
     cognome: string;
@@ -412,6 +419,21 @@ function GatePresentationCard({
       }
     >
       <div className="space-y-4">
+        {statusAlert ? (
+          <div
+            className={`flex items-start gap-2 rounded-md px-3 py-2 text-sm ${
+              statusAlert.tone === "critical"
+                ? "bg-rose-50/70 text-rose-700"
+                : "bg-zinc-100/70 text-zinc-700"
+            }`}
+          >
+            <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
+            <div className="space-y-0.5">
+              <p className="font-semibold">{statusAlert.statusLabel}</p>
+              <p>{statusAlert.reasonLabel}</p>
+            </div>
+          </div>
+        ) : null}
         <WorkerProfileOverview
           worker={worker}
           workerRow={workerRow}
@@ -2615,9 +2637,16 @@ export function Gate1View({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
     upsertSelectedWorkerDocument,
-  } = useLavoratoriData();
+  } = useLavoratoriData({ forcedWorkerStatus: workerStatus });
+  const groupingOptions = React.useMemo(
+    () => filterFields.map((field) => ({ label: field.label, value: field.value })),
+    [filterFields],
+  );
 
   const {
+    selectedWorkerIsNonIdoneo,
+    selectedWorkerNonQualificatoIssues,
+    selectedWorkerIsNonQualificato,
     availabilityPayload,
     disponibilitaBadgeClassName,
     availabilityReadOnlyRows,
@@ -3036,6 +3065,18 @@ export function Gate1View({
     () => lookupOptionsByDomain.get("lavoratori.motivazione_non_idoneo") ?? [],
     [lookupOptionsByDomain],
   );
+  const motivazioniNonIdoneoOptionsByValue = React.useMemo(() => {
+    const optionsMap = new Map<string, { label: string; value: string }>();
+    for (const option of motivazioniNonIdoneoOptions) {
+      optionsMap.set(option.value, option);
+    }
+    return optionsMap;
+  }, [motivazioniNonIdoneoOptions]);
+  const getMotivazioneLabel = React.useCallback(
+    (value: string) =>
+      motivazioniNonIdoneoOptionsByValue.get(value)?.label ?? value,
+    [motivazioniNonIdoneoOptionsByValue],
+  );
   const followupStatusOptions = React.useMemo(
     () =>
       lookupOptionsByDomain.get("lavoratori.followup_chiamata_idoneita") ?? [],
@@ -3160,6 +3201,48 @@ export function Gate1View({
     setIsEditingBazeChecks(false);
   }, [selectedWorkerId]);
 
+  const selectedWorkerStatusAlert = React.useMemo(() => {
+    if (!selectedWorkerRow) return null;
+
+    if (selectedWorkerIsNonIdoneo) {
+      const fallbackReasons = readArrayStrings(selectedWorkerRow.motivazione_non_idoneo);
+      const reasonValues =
+        nonIdoneoReasonValues.length > 0 ? nonIdoneoReasonValues : fallbackReasons;
+      const reasonLabel = reasonValues
+        .map(getMotivazioneLabel)
+        .filter((value) => value.trim().length > 0)
+        .join(" • ");
+
+      return {
+        statusLabel: "Non idoneo",
+        reasonLabel: reasonLabel || "Nessuna motivazione indicata",
+        tone: "critical" as const,
+      };
+    }
+
+    if (selectedWorkerIsNonQualificato) {
+      const reasonLabel = selectedWorkerNonQualificatoIssues
+        .map((issue) => issue.title)
+        .filter((value) => value.trim().length > 0)
+        .join(" • ");
+
+      return {
+        statusLabel: "Non qualificato",
+        reasonLabel: reasonLabel || "Nessuna motivazione indicata",
+        tone: "muted" as const,
+      };
+    }
+
+    return null;
+  }, [
+    getMotivazioneLabel,
+    nonIdoneoReasonValues,
+    selectedWorkerIsNonIdoneo,
+    selectedWorkerIsNonQualificato,
+    selectedWorkerNonQualificatoIssues,
+    selectedWorkerRow,
+  ]);
+
   React.useEffect(() => {
     setGateDraft({
       followupStatus: asString(selectedWorkerRow?.followup_chiamata_idoneita),
@@ -3235,8 +3318,7 @@ export function Gate1View({
             onFiltersChange={setFilters}
             filterFields={filterFields}
             searchPlaceholder="Cerca lavoratori..."
-            groupOptions={[]}
-            enableGrouping={false}
+            groupOptions={groupingOptions}
             compactControls
             savedViews={savedViews.map((view) => ({
               id: view.id,
@@ -3402,6 +3484,7 @@ export function Gate1View({
                     <GatePresentationCard
                       worker={selectedWorker}
                       workerRow={selectedWorkerRow}
+                      statusAlert={selectedWorkerStatusAlert}
                       headerDraft={headerDraft}
                       descriptionValue={gateDraft.descrizionePubblica}
                       livelloItaliano={gateDraft.livelloItaliano}
@@ -3498,6 +3581,13 @@ export function Gate1View({
                           value || null,
                         );
                       }}
+                      onCapChange={(value) =>
+                        setAddressDraft((current) => ({
+                          ...current,
+                          cap: value,
+                        }))
+                      }
+                      onCapBlur={() => void commitAddressField("cap")}
                       onAddressChange={(value) =>
                         setAddressDraft((current) => ({
                           ...current,

@@ -95,7 +95,7 @@ export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
     oreValue === "-" && giorniValue === "-"
       ? "-"
       : `${oreValue === "-" ? "-" : `${oreValue}h`} | ${
-          giorniValue === "-" ? "-" : `${giorniValue}gg`
+          giorniValue === "-" ? "-" : `${giorniValue}g`
         }`;
 
   return (

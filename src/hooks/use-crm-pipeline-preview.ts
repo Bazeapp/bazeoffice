@@ -47,6 +47,10 @@ export type CrmPipelineCardData = {
   tipoLavoroColor: string | null
   tipoRapportoBadge: string | null
   tipoRapportoColor: string | null
+  statoRes: string
+  qualificazioneLead: string
+  motivoNoMatch: string
+  modelloSmartmatching: string
   oreSettimana: string
   giorniSettimana: string
   giornatePreferite: string[]
@@ -188,6 +192,13 @@ function displayValue(value: unknown): string {
   return toStringValue(value) ?? "-"
 }
 
+function extractFirstNumberToken(value: unknown) {
+  const raw = toStringValue(value)
+  if (!raw) return null
+  const match = raw.match(/\d+(?:[.,]\d+)?/)
+  return match?.[0] ?? null
+}
+
 function normalizeLookupToken(value: string | null | undefined) {
   return String(value ?? "").trim().toLowerCase()
 }
@@ -313,6 +324,10 @@ function mapCardData(
   const famigliaId = displayValue(process.famiglia_id)
   const tipoLavoroBadge = getFirstArrayValue(process.tipo_lavoro)
   const tipoRapportoBadge = getFirstArrayValue(process.tipo_rapporto)
+  const giorniSettimanaValue =
+    toStringValue(process.numero_giorni_settimanali) ??
+    extractFirstNumberToken(process.frequenza_rapporto) ??
+    "-"
 
   return {
     id: processId,
@@ -336,8 +351,12 @@ function mapCardData(
       "tipo_rapporto",
       tipoRapportoBadge
     ),
+    statoRes: displayValue(process.stato_res),
+    qualificazioneLead: displayValue(process.qualificazione_lead),
+    motivoNoMatch: displayValue(process.motivo_no_match),
+    modelloSmartmatching: displayValue(process.modello_smartmatching),
     oreSettimana: displayValue(process.ore_settimanale),
-    giorniSettimana: displayValue(process.numero_giorni_settimanali),
+    giorniSettimana: giorniSettimanaValue,
     giornatePreferite: getStringArrayValue(process.preferenza_giorno),
     salesColdCallFollowup: displayValue(process.sales_cold_call_followup),
     salesNoShowFollowup: displayValue(process.sales_no_show_followup),
@@ -572,6 +591,20 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
           }
           if ("orario_di_lavoro" in patch) {
             nextCard.orarioDiLavoro = displayValue(patch.orario_di_lavoro)
+          }
+          if ("stato_res" in patch) {
+            nextCard.statoRes = displayValue(patch.stato_res)
+          }
+          if ("qualificazione_lead" in patch) {
+            nextCard.qualificazioneLead = displayValue(patch.qualificazione_lead)
+          }
+          if ("motivo_no_match" in patch) {
+            nextCard.motivoNoMatch = displayValue(patch.motivo_no_match)
+          }
+          if ("modello_smartmatching" in patch) {
+            nextCard.modelloSmartmatching = displayValue(
+              patch.modello_smartmatching
+            )
           }
           if ("ore_settimanale" in patch) {
             nextCard.oreSettimana = displayValue(patch.ore_settimanale)

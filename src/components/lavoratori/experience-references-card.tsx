@@ -1015,6 +1015,17 @@ export function ExperienceReferencesCard({
     return grouped;
   }, [references]);
 
+  const sortedExperiences = React.useMemo(() => {
+    return [...experiences].sort((left, right) => {
+      const leftActive = left.stato_esperienza_attiva === true ? 1 : 0;
+      const rightActive = right.stato_esperienza_attiva === true ? 1 : 0;
+      if (leftActive !== rightActive) return rightActive - leftActive;
+      const leftDate = left.data_inizio ? new Date(left.data_inizio).getTime() : 0;
+      const rightDate = right.data_inizio ? new Date(right.data_inizio).getTime() : 0;
+      return rightDate - leftDate;
+    });
+  }, [experiences]);
+
   return (
     <DetailSectionCard
       title={title}
@@ -1180,7 +1191,7 @@ export function ExperienceReferencesCard({
             className="space-y-3"
             defaultValue={[]}
           >
-            {experiences.map((experience) => {
+            {sortedExperiences.map((experience) => {
               const dateLabel = experience.stato_esperienza_attiva
                 ? `${formatDateOnly(experience.data_inizio) || "-"} - In corso`
                 : `${formatDateOnly(experience.data_inizio) || "-"} - ${
@@ -1208,6 +1219,14 @@ export function ExperienceReferencesCard({
                           <ExperienceCardTitle>
                             {getExperienceHeader(experience)}
                           </ExperienceCardTitle>
+                          {experience.stato_esperienza_attiva ? (
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-200 bg-emerald-100 text-emerald-700"
+                            >
+                              Attiva
+                            </Badge>
+                          ) : null}
                           {referenceStatusIcon ? (
                             <span title={referenceStatus ?? undefined}>
                               {referenceStatusIcon}

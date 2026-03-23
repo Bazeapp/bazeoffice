@@ -14,24 +14,38 @@ type LookupLabelMap = Record<string, Record<string, string>>
 
 export type AssegnazioneCardData = {
   id: string
+  famigliaId: string
   nomeFamiglia: string
   email: string
   telefono: string
   dataLead: string
-  deadline: string
+  deadlineMobile: string
+  deadlineSales: string
   zona: string
   tipoLavoroBadge: string | null
   tipoLavoroColor: string | null
   tipoRapportoBadge: string | null
   tipoRapportoColor: string | null
   dataAssegnazione: string | null
+  recruiterId: string | null
+  statoRes: "da_assegnare" | "fare_ricerca"
+  statoResLabel: string
+  oreSettimanali: string
+  giorniSettimanali: string
+  orarioDiLavoro: string
+  tipoRicerca: "nuova" | "sostituzione"
+  overview: string
 }
 
 type UseCrmAssegnazioneState = {
   loading: boolean
   error: string | null
   cards: AssegnazioneCardData[]
-  assignCardToDate: (processId: string, date: string | null) => Promise<void>
+  assignCardToDate: (
+    processId: string,
+    date: string | null
+  ) => Promise<void>
+  patchCard: (processId: string, patch: Record<string, unknown>) => Promise<void>
 }
 
 function asRowArray(input: unknown): GenericRow[] {
@@ -137,9 +151,63 @@ function resolveColor(
   return lookupColors[domain]?.[normalizeToken(value)] ?? null
 }
 
+function resolveLabel(
+  lookupLabels: LookupLabelMap,
+  entityTable: string,
+  entityField: string,
+  value: string | null
+) {
+  if (!value) return null
+  const domain = `${entityTable}.${entityField}`
+  return lookupLabels[domain]?.[normalizeToken(value)] ?? value
+}
+
 function isDaAssegnare(value: unknown) {
   const token = normalizeToken(value).replaceAll("_", " ")
   return token === "da assegnare"
+}
+
+function isFareRicerca(value: unknown) {
+  const token = normalizeToken(value).replaceAll("_", " ")
+  return token === "fare ricerca"
+}
+
+function toAssegnazioneStatus(
+  rawStatus: string | null,
+  labelsMap: Record<string, string>,
+  hasAssignedDate: boolean
+): "da_assegnare" | "fare_ricerca" {
+  const normalizedRaw = normalizeToken(rawStatus)
+  const statusLabel = labelsMap[normalizedRaw] ?? rawStatus ?? ""
+  if (isFareRicerca(statusLabel)) return "fare_ricerca"
+  if (isDaAssegnare(statusLabel)) return "da_assegnare"
+  return hasAssignedDate ? "fare_ricerca" : "da_assegnare"
+}
+
+function toReadableStatusLabel(status: "da_assegnare" | "fare_ricerca") {
+  return status === "fare_ricerca" ? "Fare ricerca" : "Da assegnare"
+}
+
+function toAssegnazioneStatusPatch(
+  status: "da_assegnare" | "fare_ricerca"
+) {
+  return status === "fare_ricerca" ? "Fare ricerca" : "Da assegnare"
+}
+
+function toNumberValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value.trim(), 10)
+    return Number.isNaN(parsed) ? null : parsed
+  }
+  return null
+}
+
+function extractFirstNumberToken(value: unknown) {
+  const raw = toStringValue(value)
+  if (!raw) return null
+  const match = raw.match(/\d+(?:[.,]\d+)?/)
+  return match?.[0] ?? null
 }
 
 async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
@@ -175,11 +243,6 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
   const cards: AssegnazioneCardData[] = []
 
   for (const process of processRows) {
-    const statusRaw = toStringValue(process.stato_res)
-    const statusLabel =
-      statoResLabels[normalizeToken(statusRaw)] ?? statusRaw ?? ""
-    if (!isDaAssegnare(statusLabel)) continue
-
     const famigliaId = toStringValue(process.famiglia_id)
     if (!famigliaId) continue
 
@@ -193,32 +256,78 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
       .filter((value): value is string => Boolean(value))
       .join(" ")
 
-    const tipoLavoroBadge = getFirstArrayValue(process.tipo_lavoro)
-    const tipoRapportoBadge = getFirstArrayValue(process.tipo_rapporto)
+    const rawTipoLavoro = getFirstArrayValue(process.tipo_lavoro)
+    const rawTipoRapporto = getFirstArrayValue(process.tipo_rapporto)
+    const tipoLavoroBadge = resolveLabel(
+      lookupLabels,
+      "processi_matching",
+      "tipo_lavoro",
+      rawTipoLavoro
+    )
+    const tipoRapportoBadge = resolveLabel(
+      lookupLabels,
+      "processi_matching",
+      "tipo_rapporto",
+      rawTipoRapporto
+    )
+    const rawDataAssegnazione = toIsoDate(process.data_assegnazione)
+    const statoRes = toAssegnazioneStatus(
+      toStringValue(process.stato_res),
+      statoResLabels,
+      Boolean(rawDataAssegnazione)
+    )
+    const dataAssegnazione =
+      statoRes === "da_assegnare" ? null : rawDataAssegnazione
+    const statoResLabel = toReadableStatusLabel(statoRes)
+    if (statoRes !== "da_assegnare" && statoRes !== "fare_ricerca") continue
+
+    const numeroRicercaAttivata = toNumberValue(process.numero_ricerca_attivata)
+    const tipoRicerca: "nuova" | "sostituzione" =
+      (numeroRicercaAttivata ?? 1) > 1 ? "sostituzione" : "nuova"
 
     cards.push({
       id,
+      famigliaId,
       nomeFamiglia: nomeFamiglia || "-",
       email: toStringValue(family.email) ?? "-",
       telefono: toStringValue(family.telefono) ?? "-",
       dataLead: formatItalianDate(family.creato_il),
-      deadline: formatItalianDate(process.data_limite_invio_selezione),
+      deadlineMobile: formatItalianDate(
+        process.deadline_mobile ?? process.data_limite_invio_selezione
+      ),
+      deadlineSales: formatItalianDate(
+        process.deadline_mobile ?? process.data_limite_invio_selezione
+      ),
       zona: toStringValue(process.luogo_id) ?? "-",
       tipoLavoroBadge,
       tipoLavoroColor: resolveColor(
         lookupColors,
         "processi_matching",
         "tipo_lavoro",
-        tipoLavoroBadge
+        rawTipoLavoro
       ),
       tipoRapportoBadge,
       tipoRapportoColor: resolveColor(
         lookupColors,
         "processi_matching",
         "tipo_rapporto",
-        tipoRapportoBadge
+        rawTipoRapporto
       ),
-      dataAssegnazione: toIsoDate(process.data_assegnazione),
+      dataAssegnazione,
+      recruiterId: toStringValue(process.recruiter_ricerca_e_selezione_id),
+      statoRes,
+      statoResLabel,
+      oreSettimanali: toStringValue(process.ore_settimanale) ?? "-",
+      giorniSettimanali:
+        toStringValue(process.numero_giorni_settimanali) ??
+        extractFirstNumberToken(process.frequenza_rapporto) ??
+        "-",
+      orarioDiLavoro: toStringValue(process.orario_di_lavoro) ?? "-",
+      tipoRicerca,
+      overview:
+        toStringValue(process.mansioni_richieste) ??
+        toStringValue(process.descrizione_lavoratore_ideale) ??
+        "-",
     })
   }
 
@@ -230,29 +339,99 @@ export function useCrmAssegnazione(): UseCrmAssegnazioneState {
   const [error, setError] = React.useState<string | null>(null)
   const [cards, setCards] = React.useState<AssegnazioneCardData[]>([])
 
-  const assignCardToDate = React.useCallback(
-    async (processId: string, date: string | null) => {
+  const patchCard = React.useCallback(
+    async (processId: string, patch: Record<string, unknown>) => {
       const previous = cards
+
       setCards((current) =>
-        current.map((card) =>
-          card.id === processId ? { ...card, dataAssegnazione: date } : card
-        )
+        current.map((card) => {
+          if (card.id !== processId) return card
+
+          const nextCard = { ...card }
+
+          if ("stato_res" in patch) {
+            const nextStatus =
+              isFareRicerca(patch.stato_res) || normalizeToken(patch.stato_res) === "fare_ricerca"
+                ? "fare_ricerca"
+                : "da_assegnare"
+            nextCard.statoRes = nextStatus
+            nextCard.statoResLabel = toReadableStatusLabel(nextStatus)
+            if (nextStatus === "da_assegnare") {
+              nextCard.dataAssegnazione = null
+            }
+          }
+          if ("data_assegnazione" in patch) {
+            nextCard.dataAssegnazione =
+              nextCard.statoRes === "da_assegnare"
+                ? null
+                : toIsoDate(patch.data_assegnazione)
+          }
+          if ("recruiter_ricerca_e_selezione_id" in patch) {
+            nextCard.recruiterId = toStringValue(patch.recruiter_ricerca_e_selezione_id)
+          }
+          if ("deadline_mobile" in patch) {
+            const nextDeadline = patch.deadline_mobile ?? patch.data_limite_invio_selezione
+            nextCard.deadlineMobile = formatItalianDate(nextDeadline)
+            nextCard.deadlineSales = formatItalianDate(nextDeadline)
+          }
+          if ("data_limite_invio_selezione" in patch && !("deadline_mobile" in patch)) {
+            nextCard.deadlineMobile = formatItalianDate(patch.data_limite_invio_selezione)
+            nextCard.deadlineSales = formatItalianDate(patch.data_limite_invio_selezione)
+          }
+          if ("ore_settimanale" in patch) {
+            nextCard.oreSettimanali = toStringValue(patch.ore_settimanale) ?? "-"
+          }
+          if ("numero_giorni_settimanali" in patch) {
+            nextCard.giorniSettimanali =
+              toStringValue(patch.numero_giorni_settimanali) ??
+              extractFirstNumberToken(patch.frequenza_rapporto) ??
+              "-"
+          }
+          if ("frequenza_rapporto" in patch && nextCard.giorniSettimanali === "-") {
+            nextCard.giorniSettimanali =
+              extractFirstNumberToken(patch.frequenza_rapporto) ?? "-"
+          }
+          if ("orario_di_lavoro" in patch) {
+            nextCard.orarioDiLavoro = toStringValue(patch.orario_di_lavoro) ?? "-"
+          }
+          if ("luogo_id" in patch) {
+            nextCard.zona = toStringValue(patch.luogo_id) ?? "-"
+          }
+          if ("mansioni_richieste" in patch) {
+            nextCard.overview = toStringValue(patch.mansioni_richieste) ?? "-"
+          } else if ("descrizione_lavoratore_ideale" in patch) {
+            nextCard.overview =
+              toStringValue(patch.descrizione_lavoratore_ideale) ?? "-"
+          }
+
+          return nextCard
+        })
       )
 
       try {
-        await updateRecord("processi_matching", processId, {
-          data_assegnazione: date,
-        })
+        await updateRecord("processi_matching", processId, patch)
       } catch (caughtError) {
         setCards(previous)
         const message =
           caughtError instanceof Error
             ? caughtError.message
-            : "Errore aggiornando assegnazione ricerca"
+            : "Errore aggiornando ricerca in assegnazione"
         setError(message)
+        throw caughtError
       }
     },
     [cards]
+  )
+
+  const assignCardToDate = React.useCallback(
+    async (processId: string, date: string | null) => {
+      const nextStatus = date ? "fare_ricerca" : "da_assegnare"
+      await patchCard(processId, {
+        data_assegnazione: date,
+        stato_res: toAssegnazioneStatusPatch(nextStatus),
+      })
+    },
+    [patchCard]
   )
 
   React.useEffect(() => {
@@ -292,5 +471,6 @@ export function useCrmAssegnazione(): UseCrmAssegnazioneState {
     error,
     cards,
     assignCardToDate,
+    patchCard,
   }
 }

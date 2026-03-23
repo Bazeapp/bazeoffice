@@ -9,6 +9,7 @@ const corsHeaders = {
 type SupportedTable =
   | "famiglie"
   | "lavoratori"
+  | "selezioni_lavoratori"
   | "documenti_lavoratori"
   | "esperienze_lavoratori"
   | "referenze_lavoratori"
@@ -23,6 +24,7 @@ type UpdateRecordPayload = {
 const SUPPORTED_TABLES = new Set<SupportedTable>([
   "famiglie",
   "lavoratori",
+  "selezioni_lavoratori",
   "documenti_lavoratori",
   "esperienze_lavoratori",
   "referenze_lavoratori",
@@ -32,6 +34,7 @@ const SUPPORTED_TABLES = new Set<SupportedTable>([
 const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
   famiglie: new Set(["id", "creato_il"]),
   lavoratori: new Set(["id", "creato_il"]),
+  selezioni_lavoratori: new Set(["id", "creato_il"]),
   documenti_lavoratori: new Set(["id", "creato_il"]),
   esperienze_lavoratori: new Set(["id", "creato_il"]),
   referenze_lavoratori: new Set(["id", "creato_il"]),
@@ -41,6 +44,7 @@ const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
 const AUTO_UPDATED_AT_FIELD: Record<SupportedTable, string> = {
   famiglie: "aggiornato_il",
   lavoratori: "aggiornato_il",
+  selezioni_lavoratori: "aggiornato_il",
   documenti_lavoratori: "aggiornato_il",
   esperienze_lavoratori: "aggiornato_il",
   referenze_lavoratori: "aggiornato_il",
