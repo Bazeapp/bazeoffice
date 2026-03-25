@@ -929,6 +929,7 @@ type ExperienceReferencesCardProps = {
   title?: string;
   showSummaryFields?: boolean;
   showSituationField?: boolean;
+  showReferencesSection?: boolean;
   isUpdating: boolean;
   draft: ExperienceDraft;
   experiences: EsperienzaLavoratoreRecord[];
@@ -976,6 +977,7 @@ export function ExperienceReferencesCard({
   title = "Esperienze e Referenze",
   showSummaryFields = true,
   showSituationField = true,
+  showReferencesSection = true,
   isUpdating,
   draft,
   experiences,
@@ -1199,12 +1201,13 @@ export function ExperienceReferencesCard({
                   }`;
               const experienceReferences =
                 referencesByExperienceId.get(experience.id) ?? [];
-              const referenceStatus = getExperienceReferenceStatus(
-                experienceReferences,
-              );
-              const referenceStatusIcon = referenceStatus
-                ? getReferenceStatusIcon(referenceStatus)
+              const referenceStatus = showReferencesSection
+                ? getExperienceReferenceStatus(experienceReferences)
                 : null;
+              const referenceStatusIcon =
+                showReferencesSection && referenceStatus
+                  ? getReferenceStatusIcon(referenceStatus)
+                  : null;
 
               return (
                 <AccordionItem
@@ -1287,28 +1290,29 @@ export function ExperienceReferencesCard({
                       </div>
                     ) : null}
 
-                    <div className="space-y-3">
-                      <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
-                        Referenze
-                      </FieldTitle>
-                      {referencesLoading ? (
-                        <FieldDescription>
-                          Caricamento referenze...
-                        </FieldDescription>
-                      ) : experienceReferences.length === 0 ? (
-                        <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed p-4">
+                    {showReferencesSection ? (
+                      <div className="space-y-3">
+                        <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+                          Referenze
+                        </FieldTitle>
+                        {referencesLoading ? (
                           <FieldDescription>
-                            Nessuna referenza collegata.
+                            Caricamento referenze...
                           </FieldDescription>
-                          <AddReferenceAction
-                            experience={experience}
-                            disabled={false}
-                            onReferenceCreate={onReferenceCreate}
-                          />
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {experienceReferences.map((reference) => {
+                        ) : experienceReferences.length === 0 ? (
+                          <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed p-4">
+                            <FieldDescription>
+                              Nessuna referenza collegata.
+                            </FieldDescription>
+                            <AddReferenceAction
+                              experience={experience}
+                              disabled={false}
+                              onReferenceCreate={onReferenceCreate}
+                            />
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {experienceReferences.map((reference) => {
                             const status = reference.referenza_verificata ?? "";
                             const statusClassName = getTagClassName(
                               resolveLookupColor(
@@ -1326,8 +1330,8 @@ export function ExperienceReferencesCard({
                                 .trim() || "-";
                             const statusIcon = getReferenceStatusIcon(status);
 
-                            return (
-                              <Card key={reference.id} className="shadow-none">
+                              return (
+                                <Card key={reference.id} className="shadow-none">
                                 <CardContent className="space-y-4 p-4">
                                   <div className="space-y-4">
                                     <div className="space-y-1">
@@ -1410,12 +1414,13 @@ export function ExperienceReferencesCard({
                                     ) : null}
                                   </div>
                                 </CardContent>
-                              </Card>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
+                                </Card>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                         </CardContent>
                       </Card>
                     )}

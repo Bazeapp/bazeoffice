@@ -2,28 +2,17 @@ import * as React from "react";
 import {
   AlertTriangleIcon,
   BriefcaseBusinessIcon,
-  MailIcon,
+  CalendarDaysIcon,
   MapPinIcon,
   MessageSquareTextIcon,
-  CakeIcon,
-  CalendarDaysIcon,
-  FlagIcon,
-  PencilIcon,
-  PhoneIcon,
-  ShieldCheckIcon,
   SirenIcon,
-  SkullIcon,
   SparklesIcon,
   StarIcon,
-  BadgeCheckIcon,
   FolderArchiveIcon,
   UploadIcon,
   UsersIcon,
-  VenusAndMarsIcon,
-  XIcon,
 } from "lucide-react";
 
-import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import {
   type AvailabilityEditBandField,
   type AvailabilityEditDayField,
@@ -38,41 +27,23 @@ import { AvailabilityStatusCard } from "@/components/lavoratori/availability-sta
 import { DocumentsCard } from "@/components/lavoratori/documents-card";
 import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
 import { JobSearchCard } from "@/components/lavoratori/job-search-card";
+import { LavoratoriCercaListPanel } from "@/components/lavoratori/lavoratori-cerca-list-panel";
+import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
+import { RecruiterFeedbackSheet } from "@/components/lavoratori/recruiter-feedback-sheet";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
 import {
   asInputValue,
   asString,
-  getAgeFromBirthDate,
   readArrayStrings,
 } from "@/features/lavoratori/lib/base-utils";
 import {
   getTagClassName,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
-import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
-import { getWorkerQualificationStatus } from "@/features/lavoratori/lib/status-utils";
-import { SideCardsPanel } from "@/components/shared/side-cards-panel";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 import { DetailSectionCard } from "@/components/shared/detail-section-card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -92,13 +63,6 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@/components/ui/combobox";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type NonQualificatoTipoLavoroFieldProps = {
@@ -113,66 +77,6 @@ type WorkerSectionTab = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 };
-
-const HR_OPTIONS = [
-  { id: "giulia", label: "Giulia", avatar: "G" },
-  { id: "elisa", label: "Elisa", avatar: "E" },
-  { id: "francesca", label: "Francesca", avatar: "F" },
-] as const;
-
-type HrId = (typeof HR_OPTIONS)[number]["id"];
-
-function hashString(input: string) {
-  let hash = 0;
-  for (let index = 0; index < input.length; index += 1) {
-    hash = (hash << 5) - hash + input.charCodeAt(index);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
-function getAssigneeIdFromSeed(seed: string): HrId {
-  const index = hashString(seed) % HR_OPTIONS.length;
-  return HR_OPTIONS[index].id;
-}
-
-function getHrById(assigneeId: HrId) {
-  return HR_OPTIONS.find((option) => option.id === assigneeId) ?? HR_OPTIONS[0];
-}
-
-function getAssigneeAvatarBorderClass(assigneeId: HrId) {
-  switch (assigneeId) {
-    case "giulia":
-      return "after:border-emerald-500";
-    case "elisa":
-      return "after:border-sky-500";
-    case "francesca":
-      return "after:border-violet-500";
-    default:
-      return "";
-  }
-}
-
-function getGateAvatarStateClass(isCompleted: boolean, variant: "idoneo" | "certificato") {
-  if (!isCompleted) {
-    return {
-      ringClassName: "ring-2 ring-zinc-300/50",
-      badgeClassName: "bg-zinc-300 text-zinc-900",
-    };
-  }
-
-  if (variant === "certificato") {
-    return {
-      ringClassName: "ring-2 ring-emerald-600/40",
-      badgeClassName: "bg-emerald-600 text-white",
-    };
-  }
-
-  return {
-    ringClassName: "ring-2 ring-emerald-400/40",
-    badgeClassName: "bg-emerald-400 text-emerald-950",
-  };
-}
 
 function NonQualificatoTipoLavoroField({
   value,
@@ -238,7 +142,6 @@ export function LavoratoriCercaView() {
     error,
     setError,
     lookupOptionsByDomain,
-    lookupFilterTypeByDomain,
     lookupColorsByDomain,
     filterFields,
     table,
@@ -347,13 +250,6 @@ export function LavoratoriCercaView() {
     () => lookupOptionsByDomain.get("lavoratori.stato_lavoratore") ?? [],
     [lookupOptionsByDomain],
   );
-  const canUseSessoSelect = React.useMemo(() => {
-    const filterType = lookupFilterTypeByDomain.get("lavoratori.sesso");
-    return (
-      (filterType === "enum" || filterType === "multi_enum") &&
-      sessoLookupOptions.length > 0
-    );
-  }, [lookupFilterTypeByDomain, sessoLookupOptions]);
   const provinciaLookupOptions = React.useMemo(
     () => lookupOptionsByDomain.get("lavoratori.provincia") ?? [],
     [lookupOptionsByDomain],
@@ -362,48 +258,6 @@ export function LavoratoriCercaView() {
     () => lookupOptionsByDomain.get("lavoratori.disponibilita") ?? [],
     [lookupOptionsByDomain],
   );
-  const selectedStatusValue = React.useMemo(() => {
-    const rawStatus = asString(selectedWorkerRow?.stato_lavoratore);
-    if (!rawStatus) return "";
-    const option = statoLavoratoreLookupOptions.find(
-      (item) => item.value === rawStatus || item.label === rawStatus,
-    );
-    return option?.value ?? rawStatus;
-  }, [selectedWorkerRow, statoLavoratoreLookupOptions]);
-  const selectedDisponibilitaValue = React.useMemo(() => {
-    const rawDisponibilita = asString(selectedWorkerRow?.disponibilita);
-    if (!rawDisponibilita) return "";
-    const option = disponibilitaLookupOptions.find(
-      (item) =>
-        item.value === rawDisponibilita || item.label === rawDisponibilita,
-    );
-    return option?.value ?? rawDisponibilita;
-  }, [disponibilitaLookupOptions, selectedWorkerRow]);
-  const selectedStatusToken = React.useMemo(
-    () => selectedStatusValue.trim().toLowerCase().replaceAll("_", " "),
-    [selectedStatusValue],
-  );
-  const selectedDisponibilitaToken = React.useMemo(
-    () => selectedDisponibilitaValue.trim().toLowerCase().replaceAll("_", " "),
-    [selectedDisponibilitaValue],
-  );
-  const selectedStatusClassName = React.useMemo(() => {
-    if (!selectedStatusValue) return "";
-    if (
-      selectedStatusToken.includes("non qualificato") ||
-      selectedStatusToken.includes("non idoneo")
-    ) {
-      return "border-rose-200 bg-rose-100 text-rose-700";
-    }
-    return "border-emerald-200 bg-emerald-100 text-emerald-700";
-  }, [selectedStatusToken, selectedStatusValue]);
-  const selectedDisponibilitaClassName = React.useMemo(() => {
-    if (!selectedDisponibilitaValue) return "";
-    if (selectedDisponibilitaToken.includes("non disponibile")) {
-      return "border-rose-200 bg-rose-100 text-rose-700";
-    }
-    return "border-emerald-200 bg-emerald-100 text-emerald-700";
-  }, [selectedDisponibilitaToken, selectedDisponibilitaValue]);
   const tipoRapportoLavorativoOptions = React.useMemo(() => {
     const options =
       lookupOptionsByDomain.get("lavoratori.tipo_rapporto_lavorativo") ?? [];
@@ -528,8 +382,6 @@ export function LavoratoriCercaView() {
     blacklistChecked,
     updatingNonIdoneo,
     updatingNonQualificato,
-    isEditingHeader,
-    setIsEditingHeader,
     isEditingAddress,
     setIsEditingAddress,
     isEditingAvailabilityStatus,
@@ -552,8 +404,6 @@ export function LavoratoriCercaView() {
     updatingDocuments,
     selectedPresentationPhotoIndex,
     setSelectedPresentationPhotoIndex,
-    headerDraft,
-    setHeaderDraft,
     addressDraft,
     setAddressDraft,
     availabilityDraft,
@@ -571,7 +421,6 @@ export function LavoratoriCercaView() {
     handleNonIdoneoReasonsChange,
     handleBlacklistChange,
     patchSelectedWorkerField,
-    commitHeaderField,
     commitAddressField,
     commitAvailabilityField,
     commitAvailabilityStatusField,
@@ -768,119 +617,31 @@ export function LavoratoriCercaView() {
           : "grid h-[calc(100vh-7.5rem)] min-h-0 gap-4 grid-cols-1"
       }
     >
-      <div className="flex min-h-0 flex-col gap-2">
-        <SideCardsPanel
-          title="Lavoratori"
-          icon={UsersIcon}
-          subtitle={
-            loading
-              ? "Caricamento..."
-              : `${workers.length} su ${workersTotal} lavoratori`
-          }
-          headerClassName="px-5 pb-1"
-          contentClassName="space-y-3 px-5 pt-0 pb-3"
-          className="h-full gap-2"
-        >
-          <DataTableToolbar
-            table={table}
-            searchValue={searchValue}
-            onSearchValueChange={setSearchValue}
-            filters={filters}
-            onFiltersChange={setFilters}
-            filterFields={filterFields}
-            searchPlaceholder="Cerca lavoratori..."
-            groupOptions={[]}
-            enableGrouping={false}
-            compactControls
-            savedViews={savedViews.map((view) => ({
-              id: view.id,
-              name: view.name,
-              updatedAt: view.updatedAt,
-            }))}
-            activeViewId={activeViewId}
-            onSaveCurrentView={saveCurrentView}
-            onApplySavedView={applySavedView}
-            onDeleteSavedView={deleteSavedView}
-            onApplyFilters={applyFilters}
-            hasPendingFilters={hasPendingFilters}
-          />
-
-          {loading ? (
-            <p className="text-muted-foreground py-3 text-sm">
-              Caricamento lavoratori...
-            </p>
-          ) : error ? (
-            <p className="py-3 text-sm text-red-600">{error}</p>
-          ) : workers.length === 0 ? (
-            <p className="text-muted-foreground py-3 text-sm">
-              Nessun lavoratore trovato.
-            </p>
-          ) : (
-            <div
-              className={
-                selectedWorkerId
-                  ? "space-y-2"
-                  : "grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-              }
-            >
-              {workers.map((worker) => (
-                <LavoratoreCard
-                  key={worker.id}
-                  worker={worker}
-                  isActive={worker.id === selectedWorkerId}
-                  onClick={() =>
-                    setSelectedWorkerId((previous) =>
-                      previous === worker.id ? null : worker.id,
-                    )
-                  }
-                />
-              ))}
-            </div>
-          )}
-        </SideCardsPanel>
-
-        <div className="text-muted-foreground flex items-center justify-between px-1 text-xs">
-          <p>
-            Pagina {currentPage} di {pageCount} ({workersTotal} record)
-          </p>
-          <Pagination className="mx-0 w-auto justify-end">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  text="Prec"
-                  className={
-                    pageIndex <= 0 || loading
-                      ? "pointer-events-none opacity-50"
-                      : undefined
-                  }
-                  onClick={(event) => {
-                    event.preventDefault();
-                    if (pageIndex <= 0 || loading) return;
-                    setPageIndex((previous) => Math.max(previous - 1, 0));
-                  }}
-                />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  text="Succ"
-                  className={
-                    currentPage >= pageCount || loading
-                      ? "pointer-events-none opacity-50"
-                      : undefined
-                  }
-                  onClick={(event) => {
-                    event.preventDefault();
-                    if (currentPage >= pageCount || loading) return;
-                    setPageIndex((previous) => previous + 1);
-                  }}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      </div>
+      <LavoratoriCercaListPanel
+        workers={workers}
+        workersTotal={workersTotal}
+        selectedWorkerId={selectedWorkerId}
+        setSelectedWorkerId={setSelectedWorkerId}
+        loading={loading}
+        error={error}
+        table={table}
+        searchValue={searchValue}
+        setSearchValue={setSearchValue}
+        filters={filters}
+        setFilters={setFilters}
+        filterFields={filterFields}
+        savedViews={savedViews}
+        activeViewId={activeViewId}
+        saveCurrentView={saveCurrentView}
+        applySavedView={applySavedView}
+        deleteSavedView={deleteSavedView}
+        applyFilters={applyFilters}
+        hasPendingFilters={hasPendingFilters}
+        currentPage={currentPage}
+        pageCount={pageCount}
+        pageIndex={pageIndex}
+        setPageIndex={setPageIndex}
+      />
 
       {selectedWorkerId ? (
         <section
@@ -945,643 +706,67 @@ export function LavoratoriCercaView() {
                       </div>
                     </div>
                   ) : null}
-                  <div
-                    ref={setWorkerSectionRef("profilo")}
-                    className="mb-2 flex items-stretch gap-5"
-                  >
-                  {(() => {
-                    const qualificationStatus =
-                      getWorkerQualificationStatus(selectedWorker);
-                    const StatusIcon = qualificationStatus.icon;
-                    return (
-                      <div className="flex w-52 shrink-0 flex-col gap-2 self-stretch">
-                        {isEditingHeader ? (
-                          <div
-                            className={`relative min-h-0 flex-1 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
-                            title={qualificationStatus.label}
-                          >
-                            <Carousel
-                              opts={{ loop: false }}
-                              className="h-full w-full"
-                            >
-                              <CarouselContent className="ml-0 h-full">
-                                {presentationPhotoSlots.map(
-                                  (photoUrl, index) => (
-                                    <CarouselItem
-                                      key={photoUrl}
-                                      className="h-full basis-full pl-0"
-                                    >
-                                      <div className="h-full">
-                                        <Card className="h-full rounded-none border-0 shadow-none">
-                                          <CardContent className="relative flex h-full min-h-80 items-center justify-center p-0">
-                                            <img
-                                              src={photoUrl}
-                                              alt={`Foto profilo ${index + 1}`}
-                                              className="h-full w-full object-cover"
-                                            />
-                                            <Button
-                                              type="button"
-                                              size="icon-sm"
-                                              variant="outline"
-                                              aria-label="Modifica immagine con AI"
-                                              title="Modifica immagine con AI"
-                                              className="absolute top-2 right-2 rounded-full bg-background/90"
-                                              onClick={() => {}}
-                                            >
-                                              <SparklesIcon className="size-4" />
-                                            </Button>
-                                            <Button
-                                              type="button"
-                                              size="icon-sm"
-                                              variant={
-                                                selectedPresentationPhotoIndex ===
-                                                index
-                                                  ? "default"
-                                                  : "secondary"
-                                              }
-                                              aria-label={
-                                                selectedPresentationPhotoIndex ===
-                                                index
-                                                  ? "Foto principale"
-                                                  : "Imposta come foto principale"
-                                              }
-                                              title={
-                                                selectedPresentationPhotoIndex ===
-                                                index
-                                                  ? "Foto principale"
-                                                  : "Imposta come foto principale"
-                                              }
-                                              className="absolute right-2 bottom-2 rounded-full"
-                                              onClick={() =>
-                                                setSelectedPresentationPhotoIndex(
-                                                  index,
-                                                )
-                                              }
-                                            >
-                                              <StarIcon className="size-4" />
-                                            </Button>
-                                            <span
-                                              className={`absolute left-2 bottom-2 inline-flex size-5 items-center justify-center rounded-full ${qualificationStatus.badgeClassName}`}
-                                            >
-                                              <StatusIcon className="size-3.5" />
-                                            </span>
-                                          </CardContent>
-                                        </Card>
-                                      </div>
-                                    </CarouselItem>
-                                  ),
-                                )}
-                              </CarouselContent>
-                              <CarouselPrevious className="left-2" />
-                              <CarouselNext className="right-2" />
-                            </Carousel>
-                          </div>
-                        ) : (
-                          <div
-                            className={`bg-muted relative flex flex-1 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
-                            title={qualificationStatus.label}
-                          >
-                            {selectedWorker.immagineUrl ? (
-                              <img
-                                src={selectedWorker.immagineUrl}
-                                alt={selectedWorker.nomeCompleto}
-                                className="h-full w-full scale-[1.85] object-cover"
-                              />
-                            ) : (
-                              <span className="text-muted-foreground px-2 text-center text-xs">
-                                Nessuna immagine
-                              </span>
-                            )}
-                            <span
-                              className={`absolute right-1 bottom-1 inline-flex size-5 items-center justify-center rounded-full ${qualificationStatus.badgeClassName}`}
-                            >
-                              <StatusIcon className="size-3.5" />
-                            </span>
-                          </div>
-                        )}
-                        {isEditingHeader ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full justify-center"
-                            onClick={() => {}}
-                          >
-                            <UploadIcon className="size-4" />
-                            Carica nuova immagine
-                          </Button>
-                        ) : null}
-                      </div>
-                    );
-                  })()}
-
-                  <div className="min-w-0 flex flex-1 flex-col">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        {isEditingHeader ? (
-                          <div className="flex items-start gap-2">
-                            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-                              <Input
-                                value={headerDraft.nome}
-                                onChange={(event) =>
-                                  setHeaderDraft((current) => ({
-                                    ...current,
-                                    nome: event.target.value,
-                                  }))
-                                }
-                                onBlur={() => void commitHeaderField("nome")}
-                                disabled={updatingNonQualificato}
-                                placeholder="Nome"
-                                className="h-8 w-40 text-sm"
-                              />
-                              <Input
-                                value={headerDraft.cognome}
-                                onChange={(event) =>
-                                  setHeaderDraft((current) => ({
-                                    ...current,
-                                    cognome: event.target.value,
-                                  }))
-                                }
-                                onBlur={() => void commitHeaderField("cognome")}
-                                disabled={updatingNonQualificato}
-                                placeholder="Cognome"
-                                className="h-8 w-40 text-sm"
-                              />
-                            </div>
-                            <div className="flex shrink-0 items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={
-                                  isEditingHeader
-                                    ? "Termina modifica header"
-                                    : "Modifica header"
-                                }
-                                title={
-                                  isEditingHeader
-                                    ? "Termina modifica header"
-                                    : "Modifica header"
-                                }
-                                onClick={() =>
-                                  setIsEditingHeader((current) => !current)
-                                }
-                              >
-                                <PencilIcon />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={
-                                  blacklistChecked
-                                    ? "Rimuovi da blacklist"
-                                    : "Aggiungi a blacklist"
-                                }
-                                title={
-                                  blacklistChecked
-                                    ? "Rimuovi da blacklist"
-                                    : "Aggiungi a blacklist"
-                                }
-                                onClick={() =>
-                                  void handleBlacklistChange(!blacklistChecked)
-                                }
-                                disabled={updatingNonIdoneo}
-                                className={
-                                  blacklistChecked
-                                    ? "text-red-600 hover:text-red-700"
-                                    : undefined
-                                }
-                              >
-                                <SkullIcon />
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="min-w-0">
-                            <div className="flex items-start gap-2">
-                              <p className="truncate text-2xl leading-tight font-semibold">
-                                {selectedWorker.nomeCompleto}
-                              </p>
-                              <div className="flex shrink-0 items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  aria-label={
-                                    isEditingHeader
-                                      ? "Termina modifica header"
-                                      : "Modifica header"
-                                  }
-                                  title={
-                                    isEditingHeader
-                                      ? "Termina modifica header"
-                                      : "Modifica header"
-                                  }
-                                  onClick={() =>
-                                    setIsEditingHeader((current) => !current)
-                                  }
-                                >
-                                  <PencilIcon />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  aria-label={
-                                    blacklistChecked
-                                      ? "Rimuovi da blacklist"
-                                      : "Aggiungi a blacklist"
-                                  }
-                                  title={
-                                    blacklistChecked
-                                      ? "Rimuovi da blacklist"
-                                      : "Aggiungi a blacklist"
-                                  }
-                                  onClick={() =>
-                                    void handleBlacklistChange(
-                                      !blacklistChecked,
-                                    )
-                                  }
-                                  disabled={updatingNonIdoneo}
-                                  className={
-                                    blacklistChecked
-                                      ? "text-red-600 hover:text-red-700"
-                                      : undefined
-                                  }
-                                >
-                                  <SkullIcon />
-                                </Button>
-                              </div>
-                            </div>
-                            <p className="text-muted-foreground line-clamp-4 text-sm leading-5">
-                              {asString(
-                                selectedWorkerRow?.descrizione_pubblica,
-                              ) || "-"}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Chiudi scheda"
-                        title="Chiudi scheda"
-                        onClick={() => setSelectedWorkerId(null)}
-                      >
-                        <XIcon />
-                      </Button>
-                    </div>
-                    <Separator className="my-3" />
-                    <div className="flex items-start justify-between gap-6">
-                      <div className="min-w-0 flex-1 space-y-2">
-                      <p className="text-muted-foreground flex items-center gap-2">
-                        <MailIcon className="size-4 shrink-0" />
-                        {isEditingHeader ? (
-                          <div className="w-full max-w-md">
-                            <Input
-                              type="email"
-                              value={headerDraft.email}
-                              onChange={(event) =>
-                                setHeaderDraft((current) => ({
-                                  ...current,
-                                  email: event.target.value,
-                                }))
-                              }
-                              onBlur={() => void commitHeaderField("email")}
-                              disabled={updatingNonQualificato}
-                              placeholder="Email"
-                              className="h-7 text-sm"
-                            />
-                          </div>
-                        ) : (
-                          <span className="truncate">
-                            {asString(selectedWorkerRow?.email) || "-"}
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-muted-foreground flex items-center gap-2">
-                        <PhoneIcon className="size-4 shrink-0" />
-                        {isEditingHeader ? (
-                          <div className="w-full max-w-xs">
-                            <Input
-                              type="tel"
-                              value={headerDraft.telefono}
-                              onChange={(event) =>
-                                setHeaderDraft((current) => ({
-                                  ...current,
-                                  telefono: event.target.value,
-                                }))
-                              }
-                              onBlur={() => void commitHeaderField("telefono")}
-                              disabled={updatingNonQualificato}
-                              placeholder="Telefono"
-                              className="h-7 text-sm"
-                            />
-                          </div>
-                        ) : (
-                          <span className="truncate">
-                            {asString(selectedWorkerRow?.telefono) || "-"}
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-muted-foreground flex items-center gap-2">
-                        <MapPinIcon className="size-4 shrink-0" />
-                        <span className="truncate">
-                          {asString(selectedWorkerRow?.cap) || "-"}
-                        </span>
-                      </p>
-                      <p className="text-muted-foreground flex items-center gap-2">
-                        <VenusAndMarsIcon className="size-4 shrink-0" />
-                        {isEditingHeader ? (
-                          canUseSessoSelect ? (
-                            <div className="w-full max-w-xs">
-                              <Select
-                                value={headerDraft.sesso || undefined}
-                                onValueChange={(value) => {
-                                  setHeaderDraft((current) => ({
-                                    ...current,
-                                    sesso: value,
-                                  }));
-                                  void patchSelectedWorkerField(
-                                    "sesso",
-                                    value || null,
-                                  );
-                                }}
-                                disabled={updatingNonQualificato}
-                              >
-                                <SelectTrigger className="h-7 text-sm">
-                                  <SelectValue placeholder="Seleziona sesso" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {sessoLookupOptions.map((option) => (
-                                    <SelectItem
-                                      key={option.value}
-                                      value={option.value}
-                                    >
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          ) : (
-                            <Input
-                              value={headerDraft.sesso}
-                              onChange={(event) =>
-                                setHeaderDraft((current) => ({
-                                  ...current,
-                                  sesso: event.target.value,
-                                }))
-                              }
-                              onBlur={() => void commitHeaderField("sesso")}
-                              disabled={updatingNonQualificato}
-                              placeholder="Sesso"
-                              className="h-7 w-48 text-sm"
-                            />
-                          )
-                        ) : (
-                          <span className="truncate">
-                            {asString(selectedWorkerRow?.sesso) || "-"}
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-muted-foreground flex items-center gap-2">
-                        <FlagIcon className="size-4 shrink-0" />
-                        {isEditingHeader ? (
-                          <div className="w-full max-w-xs">
-                            <Select
-                              value={headerDraft.nazionalita || "none"}
-                              onValueChange={(value) => {
-                                const nextValue = value === "none" ? "" : value;
-                                setHeaderDraft((current) => ({
-                                  ...current,
-                                  nazionalita: nextValue,
-                                }));
-                                void patchSelectedWorkerField(
-                                  "nazionalita",
-                                  nextValue || null,
-                                );
-                              }}
-                              disabled={
-                                updatingNonQualificato ||
-                                nazionalitaLookupOptions.length === 0
-                              }
-                            >
-                              <SelectTrigger className="h-7 text-sm">
-                                <SelectValue placeholder="Seleziona nazionalita" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">Non indicata</SelectItem>
-                                {nazionalitaLookupOptions.map((option) => (
-                                  <SelectItem
-                                    key={option.value}
-                                    value={option.value}
-                                  >
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        ) : (
-                          <span className="truncate">
-                            {asString(selectedWorkerRow?.nazionalita) || "-"}
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-muted-foreground flex items-center gap-2">
-                        <CalendarDaysIcon className="size-4 shrink-0" />
-                        {isEditingHeader ? (
-                          <div className="w-full max-w-xs">
-                            <Input
-                              type="date"
-                              value={headerDraft.data_di_nascita}
-                              onChange={(event) =>
-                                setHeaderDraft((current) => ({
-                                  ...current,
-                                  data_di_nascita: event.target.value,
-                                }))
-                              }
-                              onBlur={() =>
-                                void commitHeaderField("data_di_nascita")
-                              }
-                              disabled={updatingNonQualificato}
-                              className="h-7 text-sm"
-                            />
-                          </div>
-                        ) : (
-                          <span className="truncate">
-                            {asString(selectedWorkerRow?.data_di_nascita) ||
-                              "-"}
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-muted-foreground flex items-center gap-2">
-                        <CakeIcon className="size-4 shrink-0" />
-                        <span className="truncate">
-                          {getAgeFromBirthDate(
-                            selectedWorkerRow?.data_di_nascita,
-                          ) ?? "-"}
-                        </span>
-                      </p>
-                      </div>
-                      <div className="ml-auto flex w-fit shrink-0 flex-col items-end gap-2">
-                        <div className="flex w-fit items-start justify-end gap-2">
-                          {selectedWorkerIsNonIdoneo || selectedWorkerIsNonQualificato ? (
-                            <div className="w-[230px] shrink-0">
-                              <Select
-                                value={selectedMotivazioneValue || "none"}
-                                onValueChange={(value) =>
-                                  void handleNonIdoneoReasonsChange(
-                                    value === "none" ? [] : [value],
-                                  )
-                                }
-                                disabled={updatingNonIdoneo}
-                              >
-                                <SelectTrigger
-                                  className={`h-8 text-xs ${selectedMotivazioneClassName}`}
-                                >
-                                  <SelectValue placeholder="Motivazione" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">Nessuna motivazione</SelectItem>
-                                  {motivazioniNonIdoneoOptions.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          ) : null}
-                          <div className="w-[220px] shrink-0">
-                            <Select
-                              value={selectedStatusValue || "none"}
-                              onValueChange={(value) =>
-                                void patchSelectedWorkerField(
-                                  "stato_lavoratore",
-                                  value === "none" ? null : value,
-                                )
-                              }
-                              disabled={
-                                updatingNonQualificato ||
-                                statoLavoratoreLookupOptions.length === 0
-                              }
-                            >
-                              <SelectTrigger
-                                className={`h-8 text-xs ${selectedStatusClassName}`}
-                              >
-                                <SelectValue placeholder="Stato lavoratore" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">Senza stato</SelectItem>
-                                {statoLavoratoreLookupOptions.map((option) => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="w-[220px] shrink-0">
-                          <Select
-                            value={selectedDisponibilitaValue || "none"}
-                            onValueChange={(value) => {
-                              setAvailabilityStatusDraft((current) => ({
-                                ...current,
-                                disponibilita: value === "none" ? "" : value,
-                              }));
-                              void patchAvailabilityStatusValue(
-                                "disponibilita",
-                                value === "none" ? "" : value,
-                              );
-                            }}
-                            disabled={
-                              updatingAvailabilityStatus ||
-                              disponibilitaLookupOptions.length === 0
-                            }
-                          >
-                            <SelectTrigger
-                              className={`h-8 text-xs ${selectedDisponibilitaClassName}`}
-                            >
-                              <SelectValue placeholder="Disponibilita" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Non indicata</SelectItem>
-                              {disponibilitaLookupOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                    {selectedWorkerId ? (
-                      <div className="mt-auto flex justify-end pt-4">
-                        <div className="flex items-center gap-3">
-                          {[
-                            {
-                              label: "Gate 1",
-                              icon: ShieldCheckIcon,
-                              assigneeId: getAssigneeIdFromSeed(
-                                `${selectedWorkerId}:gate-1`,
-                              ),
-                              isCompleted: selectedWorker.isIdoneo,
-                              variant: "idoneo" as const,
-                            },
-                            {
-                              label: "Gate 2",
-                              icon: BadgeCheckIcon,
-                              assigneeId: getAssigneeIdFromSeed(
-                                `${selectedWorkerId}:gate-2`,
-                              ),
-                              isCompleted: selectedWorker.isCertificato,
-                              variant: "certificato" as const,
-                            },
-                          ].map((control, index) => {
-                            const hr = getHrById(control.assigneeId);
-                            const Icon = control.icon;
-                            const stateClasses = getGateAvatarStateClass(
-                              control.isCompleted,
-                              control.variant,
-                            );
-                            return (
-                              <React.Fragment key={control.label}>
-                                {index > 0 ? (
-                                  <div className="bg-border h-8 w-px shrink-0" />
-                                ) : null}
-                                <div
-                                  className="flex items-center gap-2"
-                                  title={`${control.label} assegnato a ${hr.label}`}
-                                >
-                                  <Icon
-                                    strokeWidth={2.5}
-                                    className={`size-3.5 shrink-0 ${
-                                      control.isCompleted
-                                        ? control.variant === "certificato"
-                                          ? "text-emerald-600"
-                                          : "text-emerald-500"
-                                        : "text-zinc-400"
-                                    }`}
-                                  />
-                                  <Avatar
-                                    size="sm"
-                                    className={`${getAssigneeAvatarBorderClass(control.assigneeId)} ${stateClasses.ringClassName}`}
-                                  >
-                                    <AvatarFallback>{hr.avatar}</AvatarFallback>
-                                    <AvatarBadge
-                                      className={stateClasses.badgeClassName}
-                                    >
-                                      <Icon />
-                                    </AvatarBadge>
-                                  </Avatar>
-                                </div>
-                              </React.Fragment>
-                            );
-                          })}
-                        </div>
-                      </div>
+                  <div ref={setWorkerSectionRef("profilo")}>
+                    {selectedWorkerRow ? (
+                      <WorkerProfileHeader
+                        worker={selectedWorker}
+                        workerRow={selectedWorkerRow}
+                        statoLavoratoreOptions={statoLavoratoreLookupOptions}
+                        disponibilitaOptions={disponibilitaLookupOptions}
+                        motivazioniOptions={motivazioniNonIdoneoOptions}
+                        sessoOptions={sessoLookupOptions}
+                        nazionalitaOptions={nazionalitaLookupOptions}
+                        onPatchField={(field, value) =>
+                          patchSelectedWorkerField(field, value)
+                        }
+                        onStatoLavoratoreChange={(value) =>
+                          patchSelectedWorkerField("stato_lavoratore", value)
+                        }
+                        onDisponibilitaChange={(value) => {
+                          setAvailabilityStatusDraft((current) => ({
+                            ...current,
+                            disponibilita: value ?? "",
+                          }));
+                          void patchAvailabilityStatusValue(
+                            "disponibilita",
+                            value ?? "",
+                          );
+                        }}
+                        onMotivazioneChange={(value) =>
+                          void handleNonIdoneoReasonsChange(value ? [value] : [])
+                        }
+                        fieldsDisabled={updatingNonQualificato}
+                        statoLavoratoreDisabled={
+                          updatingNonQualificato ||
+                          statoLavoratoreLookupOptions.length === 0
+                        }
+                        disponibilitaDisabled={
+                          updatingAvailabilityStatus ||
+                          disponibilitaLookupOptions.length === 0
+                        }
+                        motivazioneDisabled={updatingNonIdoneo}
+                        blacklistChecked={blacklistChecked}
+                        onBlacklistToggle={(nextValue) =>
+                          void handleBlacklistChange(nextValue)
+                        }
+                        blacklistDisabled={updatingNonIdoneo}
+                        onClose={() => setSelectedWorkerId(null)}
+                        presentationPhotoSlots={presentationPhotoSlots}
+                        selectedPresentationPhotoIndex={
+                          selectedPresentationPhotoIndex
+                        }
+                        onSelectedPresentationPhotoIndexChange={
+                          setSelectedPresentationPhotoIndex
+                        }
+                        showAiImageEditAction
+                        onAiImageEdit={() => {}}
+                        showUploadPhotoAction
+                        onUploadPhoto={() => {}}
+                        selectedMotivazioneClassName={
+                          selectedMotivazioneClassName
+                        }
+                      />
                     ) : null}
-                  </div>
                   </div>
                 </div>
 
@@ -2343,46 +1528,11 @@ export function LavoratoriCercaView() {
               <MessageSquareTextIcon className="size-5" />
             </Button>
           </div>
-          <Sheet open={feedbackSheetOpen} onOpenChange={setFeedbackSheetOpen}>
-            <SheetContent
-              side="right"
-              className="w-full overflow-y-auto sm:max-w-130"
-            >
-              <SheetHeader>
-                <SheetTitle>Feedback recruiter</SheetTitle>
-                <SheetDescription>
-                  Storico note su questo lavoratore
-                </SheetDescription>
-              </SheetHeader>
-              <div className="space-y-4 p-4 pt-0">
-                {recruiterFeedbackEntries.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">
-                    Nessun feedback disponibile.
-                  </p>
-                ) : (
-                  recruiterFeedbackEntries.map((entry, index) => (
-                    <div
-                      key={`${entry.name}-${entry.date}-${index}`}
-                      className="space-y-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold">{entry.name}</p>
-                        {entry.date ? (
-                          <Badge variant="outline">{entry.date}</Badge>
-                        ) : null}
-                      </div>
-                      {entry.text ? (
-                        <p className="text-sm leading-relaxed">{entry.text}</p>
-                      ) : null}
-                      {index < recruiterFeedbackEntries.length - 1 ? (
-                        <Separator />
-                      ) : null}
-                    </div>
-                  ))
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
+          <RecruiterFeedbackSheet
+            open={feedbackSheetOpen}
+            onOpenChange={setFeedbackSheetOpen}
+            entries={recruiterFeedbackEntries}
+          />
         </section>
       ) : null}
     </div>

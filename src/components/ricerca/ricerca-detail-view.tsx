@@ -467,7 +467,6 @@ export function RicercaDetailView({ processId, onBack }: RicercaDetailViewProps)
             processId={processId}
             card={resolvedCard}
             lookupOptionsByField={lookupOptionsByField}
-            onPatchProcess={updateProcessCard}
           />
         </div>
       )}

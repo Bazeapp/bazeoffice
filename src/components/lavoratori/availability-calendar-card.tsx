@@ -33,6 +33,8 @@ type AvailabilityCalendarCardProps = {
   editBands: AvailabilityEditBand[]
   hourLabels: string[]
   readOnlyRows: AvailabilityReadOnlyRow[]
+  comparisonRows?: AvailabilityReadOnlyRow[]
+  familyRequestsText?: string
   matrix: Record<string, boolean>
   vincoliOrari: string
   onToggleEdit: () => void
@@ -50,6 +52,8 @@ export function AvailabilityCalendarCard({
   editBands,
   hourLabels,
   readOnlyRows,
+  comparisonRows = [],
+  familyRequestsText,
   matrix,
   vincoliOrari,
   onToggleEdit,
@@ -57,6 +61,14 @@ export function AvailabilityCalendarCard({
   onVincoliChange,
   onVincoliBlur,
 }: AvailabilityCalendarCardProps) {
+  const comparisonByDay = React.useMemo(() => {
+    const map = new Map<string, boolean[]>()
+    for (const row of comparisonRows) {
+      map.set(row.day, row.activeByHour)
+    }
+    return map
+  }, [comparisonRows])
+
   return (
     <DetailSectionCard
       title={
@@ -84,6 +96,12 @@ export function AvailabilityCalendarCard({
       contentClassName="space-y-4"
     >
       <div className="space-y-4">
+        {familyRequestsText ? (
+          <DetailRow label="Richieste famiglia" align="start">
+            <span className="whitespace-pre-wrap break-words">{familyRequestsText}</span>
+          </DetailRow>
+        ) : null}
+
         {isEditing ? (
           <div className="overflow-x-auto">
             <div
@@ -165,13 +183,18 @@ export function AvailabilityCalendarCard({
                   </div>
                   {row.activeByHour.map((isActive, index) => (
                     <div key={`${row.day}-${hourLabels[index]}`} className="p-[2px]">
-                      <div
-                        className={
-                          isActive
-                            ? "border-emerald-300 bg-emerald-100 h-4 rounded-[5px] border"
-                            : "border-border/50 bg-muted/25 h-4 rounded-[5px] border"
-                        }
-                      />
+                      {(() => {
+                        const comparisonActive = comparisonByDay.get(row.day)?.[index] === true
+                        const className =
+                          isActive && comparisonActive
+                            ? "h-4 rounded-[5px] border border-emerald-400 bg-emerald-300"
+                            : comparisonActive
+                              ? "h-4 rounded-[5px] border border-rose-300 bg-rose-100"
+                              : isActive
+                                ? "h-4 rounded-[5px] border border-emerald-200 bg-emerald-50"
+                                : "h-4 rounded-[5px] border border-border/50 bg-muted/25"
+                        return <div className={className} />
+                      })()}
                     </div>
                   ))}
                 </div>

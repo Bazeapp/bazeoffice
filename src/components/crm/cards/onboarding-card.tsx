@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/field";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -37,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
@@ -48,6 +50,7 @@ type OnboardingCardProps = {
   titleAction?: ReactNode;
   showTitle?: boolean;
   showTempistiche?: boolean;
+  readOnly?: boolean;
   onPatchProcess?: (
     processId: string,
     patch: Record<string, unknown>,
@@ -182,12 +185,18 @@ function normalizeWeekdayList(values: string[] | null | undefined): string[] {
   ) as string[];
 }
 
+function displayText(value: string | null | undefined) {
+  const normalized = toInputValue(value);
+  return normalized || "-";
+}
+
 export function OnboardingCard({
   card,
   lookupOptionsByField,
   titleAction,
   showTitle = true,
   showTempistiche = true,
+  readOnly = false,
   onPatchProcess,
 }: OnboardingCardProps) {
   const [orarioDiLavoro, setOrarioDiLavoro] = React.useState(
@@ -330,6 +339,248 @@ export function OnboardingCard({
       },
     ] as LookupOption[];
   }, [lookupOptionsByField]);
+
+  const lookupLabel = React.useCallback(
+    (field: string, rawValue: string | null | undefined) => {
+      const token = normalizeLookupToken(rawValue);
+      if (!token || token === "-") return "-";
+      const options = lookupOptionsByField?.[field] ?? [];
+      const match = options.find(
+        (option) =>
+          normalizeLookupToken(option.valueKey) === token ||
+          normalizeLookupToken(option.valueLabel) === token,
+      );
+      return match?.valueLabel ?? displayText(rawValue);
+    },
+    [lookupOptionsByField],
+  );
+
+  if (readOnly) {
+    const weekdayBadges = normalizeWeekdayList(card?.giornatePreferite);
+    const srcMapsValue = displayText(card?.srcEmbedMapsAnnucio);
+    const hasMapsUrl = srcMapsValue !== "-";
+    const tipoIncontroLabel = lookupLabel(
+      "tipo_incontro_famiglia_lavoratore",
+      card?.tipoIncontroFamigliaLavoratore,
+    );
+    const richiestaPatente = card?.richiestaPatente ? "Si" : "No";
+    const richiestaTrasferte = card?.richiestaTrasferte ? "Si" : "No";
+    const richiestaFerie = card?.richiestaFerie ? "Si" : "No";
+
+    return (
+      <CrmDetailCard title={showTitle ? "Onboarding" : ""} titleAction={titleAction}>
+        <FieldGroup>
+          <p className="text-base font-semibold">Orari e frequenza</p>
+          <Field>
+            <FieldLabel>Orario di lavoro</FieldLabel>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              {displayText(card?.orarioDiLavoro)}
+            </div>
+          </Field>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <Field>
+              <FieldLabel>Ore Settimanali</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {displayText(card?.oreSettimana)}
+              </div>
+            </Field>
+            <Field>
+              <FieldLabel>Giorni Settimanali</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {displayText(card?.giorniSettimana)}
+              </div>
+            </Field>
+            <Field>
+              <FieldLabel>Giornate preferite</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {weekdayBadges.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {weekdayBadges.map((day) => (
+                      <Badge
+                        key={day}
+                        variant="outline"
+                        className={cn("h-5 px-2 text-[11px] font-medium", getTagClassName(getWeekdayColor(day)))}
+                      >
+                        {day}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  "-"
+                )}
+              </div>
+            </Field>
+          </div>
+
+          <Separator />
+
+          <p className="text-base font-semibold">Descrizione lavoro</p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Field>
+              <FieldLabel>Nucleo famigliare</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {displayText(card?.nucleoFamigliare)}
+              </div>
+            </Field>
+            <Field>
+              <FieldLabel>Eta lavoratore</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {`${displayText(card?.etaMinima)} - ${displayText(card?.etaMassima)}`}
+              </div>
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel>Descrizione casa</FieldLabel>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              {displayText(card?.descrizioneCasa)}
+            </div>
+          </Field>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Field>
+              <FieldLabel>Metratura casa</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {displayText(card?.metraturaCasa)}
+              </div>
+            </Field>
+            <Field>
+              <FieldLabel>Sesso</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {displayText(card?.sesso)}
+              </div>
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel>Animali in casa</FieldLabel>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              {displayText(card?.descrizioneAnimaliInCasa)}
+            </div>
+          </Field>
+          <Field>
+            <FieldLabel>Mansioni richieste</FieldLabel>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              {displayText(card?.mansioniRichieste)}
+            </div>
+          </Field>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <Field>
+              <FieldLabel>Richiesta patente</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {richiestaPatente}
+              </div>
+            </Field>
+            <Field>
+              <FieldLabel>Richiesta trasferte</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {richiestaTrasferte}
+              </div>
+            </Field>
+            <Field>
+              <FieldLabel>Richiesta ferie</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {richiestaFerie}
+              </div>
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel>Dettaglio patente</FieldLabel>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              {displayText(card?.patenteDettaglio)}
+            </div>
+          </Field>
+          <Field>
+            <FieldLabel>Descrizione trasferte</FieldLabel>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              {displayText(card?.descrizioneRichiestaTrasferte)}
+            </div>
+          </Field>
+          <Field>
+            <FieldLabel>Descrizione ferie</FieldLabel>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              {displayText(card?.descrizioneRichiestaFerie)}
+            </div>
+          </Field>
+          <Field>
+            <FieldLabel>Informazioni extra riservate</FieldLabel>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              {displayText(card?.informazioniExtraRiservate)}
+            </div>
+          </Field>
+
+          <Separator />
+
+          <p className="text-base font-semibold">Luogo di lavoro</p>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Field>
+              <FieldLabel>Provincia</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {displayText(card?.indirizzoProvincia)}
+              </div>
+            </Field>
+            <Field>
+              <FieldLabel>CAP</FieldLabel>
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                {displayText(card?.indirizzoCap)}
+              </div>
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel>Quartiere</FieldLabel>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              {displayText(card?.indirizzoNote)}
+            </div>
+          </Field>
+          <Field>
+            <FieldLabel>Indirizzo completo</FieldLabel>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+              {displayText(card?.indirizzoCompleto)}
+            </div>
+          </Field>
+          <Field>
+            <FieldLabel>SRC Maps</FieldLabel>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm break-all">
+              {hasMapsUrl ? (
+                <a
+                  href={srcMapsValue}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary underline underline-offset-2"
+                >
+                  {srcMapsValue}
+                </a>
+              ) : (
+                "-"
+              )}
+            </div>
+          </Field>
+
+          {showTempistiche ? (
+            <>
+              <Separator />
+              <p className="text-base font-semibold">Tempistiche</p>
+              <Field>
+                <FieldLabel>Deadline</FieldLabel>
+                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                  {displayText(card?.deadlineMobile)}
+                </div>
+              </Field>
+              <Field>
+                <FieldLabel>Disponibilita colloqui</FieldLabel>
+                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                  {displayText(card?.disponibilitaColloquiInPresenza)}
+                </div>
+              </Field>
+              <Field>
+                <FieldLabel>Tipologia primo incontro</FieldLabel>
+                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                  {tipoIncontroLabel}
+                </div>
+              </Field>
+            </>
+          ) : null}
+        </FieldGroup>
+      </CrmDetailCard>
+    );
+  }
 
   return (
     <CrmDetailCard title={showTitle ? "Onboarding" : ""} titleAction={titleAction}>

@@ -77,6 +77,7 @@ export type CrmPipelineCardData = {
   srcEmbedMapsAnnucio: string
   deadlineMobile: string
   disponibilitaColloquiInPresenza: string
+  familyAvailabilityJson: string | null
   tipoIncontroFamigliaLavoratore: string
   richiestaPatente: boolean
   richiestaTrasferte: boolean
@@ -390,6 +391,7 @@ function mapCardData(
     disponibilitaColloquiInPresenza: displayValue(
       process.disponibilita_colloqui_in_presenza
     ),
+    familyAvailabilityJson: toStringValue(process.family_availability_json),
     tipoIncontroFamigliaLavoratore: displayValue(
       process.tipo_incontro_famiglia_lavoratore
     ),
@@ -691,6 +693,9 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
             nextCard.disponibilitaColloquiInPresenza = displayValue(
               patch.disponibilita_colloqui_in_presenza
             )
+          }
+          if ("family_availability_json" in patch) {
+            nextCard.familyAvailabilityJson = toStringValue(patch.family_availability_json)
           }
           if ("tipo_incontro_famiglia_lavoratore" in patch) {
             nextCard.tipoIncontroFamigliaLavoratore = displayValue(

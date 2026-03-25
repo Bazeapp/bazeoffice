@@ -535,7 +535,13 @@ export function useSelectedWorkerEditor({
   )
 
   const commitAddressField = React.useCallback(
-    async (field: "provincia" | "cap" | "indirizzo_residenza_completo" | "come_ti_sposti") => {
+    async (
+      field:
+        | "provincia"
+        | "cap"
+        | "indirizzo_residenza_completo"
+        | "come_ti_sposti"
+    ) => {
       if (field === "come_ti_sposti") {
         const currentValue = readArrayStrings(selectedWorkerRow?.come_ti_sposti)
         const nextValue = addressDraft.come_ti_sposti

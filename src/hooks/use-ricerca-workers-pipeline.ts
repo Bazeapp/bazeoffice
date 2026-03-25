@@ -1,4 +1,5 @@
 import * as React from "react"
+import { toast } from "sonner"
 
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import {
@@ -51,6 +52,7 @@ export type RicercaWorkerSelectionColumn = {
   color: string | null
   dropStatusId?: string
   groupColors?: Record<string, string | null>
+  groupStatusIds?: Record<string, string>
   cards: RicercaWorkerSelectionCard[]
 }
 
@@ -127,6 +129,7 @@ function isArchivioStatus(value: string | null | undefined) {
 
 const DA_COLLOQUIARE_GROUP_KEYS = {
   daColloquiare: "da colloquiare",
+  invitatoColloquio: "invitato a colloquio",
   nonRisponde: "non risponde",
 } as const
 
@@ -134,6 +137,8 @@ function isDaColloquiareStatus(value: string | null | undefined) {
   const token = normalizeStatusToken(value)
   return (
     token === normalizeStatusToken(DA_COLLOQUIARE_GROUP_KEYS.daColloquiare) ||
+    token === normalizeStatusToken(DA_COLLOQUIARE_GROUP_KEYS.invitatoColloquio) ||
+    (token.includes("invitat") && token.includes("colloquio")) ||
     token === normalizeStatusToken(DA_COLLOQUIARE_GROUP_KEYS.nonRisponde)
   )
 }
@@ -164,6 +169,32 @@ function buildGroupColors(columns: RicercaWorkerSelectionColumn[]) {
   }
 
   return groupColors
+}
+
+function buildGroupStatusIds(columns: RicercaWorkerSelectionColumn[]) {
+  const groupStatusIds: Record<string, string> = {}
+
+  for (const column of columns) {
+    const canonicalId = column.id
+    groupStatusIds[normalizeStatusToken(column.id)] = canonicalId
+    groupStatusIds[normalizeStatusToken(column.label)] = canonicalId
+  }
+
+  return groupStatusIds
+}
+
+function resolvePreferredDropStatusId(
+  columns: RicercaWorkerSelectionColumn[],
+  preferredToken: string,
+  fallback: string
+) {
+  const normalizedPreferred = normalizeStatusToken(preferredToken)
+  const preferred = columns.find(
+    (column) =>
+      normalizeStatusToken(column.id) === normalizedPreferred ||
+      normalizeStatusToken(column.label) === normalizedPreferred
+  )
+  return preferred?.id ?? fallback
 }
 
 function readLookupColor(metadata: LookupValueRecord["metadata"]) {
@@ -439,8 +470,13 @@ async function fetchWorkersPipelineData(
       id: "__candidati__",
       label: "Candidati",
       color: "sky",
-      dropStatusId: "Prospetto",
+      dropStatusId: resolvePreferredDropStatusId(
+        candidateColumns,
+        "prospetto",
+        "Prospetto"
+      ),
       groupColors: buildGroupColors(candidateColumns),
+      groupStatusIds: buildGroupStatusIds(candidateColumns),
       cards: candidateColumns.flatMap((column) => column.cards),
     }
 
@@ -465,7 +501,13 @@ async function fetchWorkersPipelineData(
         daColloquiareColumns.find(
           (column) => normalizeStatusToken(column.label) === "da colloquiare"
         )?.color ?? "indigo",
-      dropStatusId: "Da colloquiare",
+      dropStatusId: resolvePreferredDropStatusId(
+        daColloquiareColumns,
+        "da colloquiare",
+        "Da colloquiare"
+      ),
+      groupColors: buildGroupColors(daColloquiareColumns),
+      groupStatusIds: buildGroupStatusIds(daColloquiareColumns),
       cards: daColloquiareColumns.flatMap((column) => column.cards),
     }
 
@@ -487,8 +529,13 @@ async function fetchWorkersPipelineData(
       id: "__archivio__",
       label: "Scartati",
       color: "muted",
-      dropStatusId: "Archivio",
+      dropStatusId: resolvePreferredDropStatusId(
+        archivioColumns,
+        "archivio",
+        "Archivio"
+      ),
       groupColors: buildGroupColors(archivioColumns),
+      groupStatusIds: buildGroupStatusIds(archivioColumns),
       cards: archivioColumns.flatMap((column) => column.cards),
     }
 
@@ -510,8 +557,13 @@ async function fetchWorkersPipelineData(
       id: "__colloqui_match__",
       label: "Colloqui / Match",
       color: "green",
-      dropStatusId: "Colloquio schedulato",
+      dropStatusId: resolvePreferredDropStatusId(
+        colloquiColumns,
+        "colloquio schedulato",
+        "Colloquio schedulato"
+      ),
       groupColors: buildGroupColors(colloquiColumns),
+      groupStatusIds: buildGroupStatusIds(colloquiColumns),
       cards: colloquiColumns.flatMap((column) => column.cards),
     }
 
@@ -571,11 +623,12 @@ export function useRicercaWorkersPipeline(
         })
       } catch (caughtError) {
         setColumns(previous)
-        setError(
+        const message =
           caughtError instanceof Error
             ? caughtError.message
             : "Errore aggiornando stato selezione lavoratore"
-        )
+        setError(message)
+        toast.error(message)
       }
     },
     [columns]
