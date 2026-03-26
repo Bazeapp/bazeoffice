@@ -77,7 +77,7 @@ export type CrmPipelineCardData = {
   srcEmbedMapsAnnucio: string
   deadlineMobile: string
   disponibilitaColloquiInPresenza: string
-  familyAvailabilityJson: string | null
+  familyAvailabilityJson?: string | null
   tipoIncontroFamigliaLavoratore: string
   richiestaPatente: boolean
   richiestaTrasferte: boolean

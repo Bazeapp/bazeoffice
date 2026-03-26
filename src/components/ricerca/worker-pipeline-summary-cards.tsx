@@ -273,7 +273,9 @@ function TravelTimeCard({
   provinceOptions?: LookupOption[];
   updatingProcessAddress?: boolean;
 }) {
-  const travelMinutes = toNumber(selectionRow?.travel_time_tra_cap);
+  const travelMinutes = toNumber(
+    selectionRow?.travel_time_tra_cap as string | number | null | undefined
+  );
   const [isEditing, setIsEditing] = React.useState(false);
   const [addressDraft, setAddressDraft] = React.useState({
     provincia: asString(workerRow.provincia),
@@ -858,7 +860,13 @@ function AvailabilityCard({
       matrix={matrix}
       vincoliOrari={vincoliOrari}
       onToggleEdit={onToggleEdit}
-      onMatrixChange={onMatrixChange}
+      onMatrixChange={(dayField, bandField, checked) =>
+        onMatrixChange(
+          dayField as AvailabilityEditDayField,
+          bandField as AvailabilityEditBandField,
+          checked
+        )
+      }
       onVincoliChange={onVincoliChange}
       onVincoliBlur={onVincoliBlur}
     />
