@@ -1,8 +1,18 @@
 import { invokeEdgeFunction } from "@/lib/supabase-edge"
 import type { LookupValueRecord } from "@/types"
+import type { ChiusuraContrattoRecord } from "@/types/entities/chiusura-contratto"
+import type { ContributoInpsRecord } from "@/types/entities/contributo-inps"
 import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
+import type { MeseCalendarioRecord } from "@/types/entities/mese-calendario"
+import type { MeseLavoratoRecord } from "@/types/entities/mese-lavorato"
+import type { PagamentoRecord } from "@/types/entities/pagamento"
+import type { PresenzaMensileRecord } from "@/types/entities/presenza-mensile"
+import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
+import type { RapportoLavorativoRecord } from "@/types/entities/rapporto-lavorativo"
+import type { TicketRecord } from "@/types/entities/ticket"
+import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-contrattuale"
 
 type TableRow = Record<string, unknown>
 
@@ -24,7 +34,16 @@ export type TableColumnMeta = {
 
 type TableName =
   | "famiglie"
+  | "chiusure_contratti"
+  | "contributi_inps"
   | "lavoratori"
+  | "mesi_calendario"
+  | "mesi_lavorati"
+  | "pagamenti"
+  | "presenze_mensili"
+  | "rapporti_lavorativi"
+  | "ticket"
+  | "variazioni_contrattuali"
   | "selezioni_lavoratori"
   | "documenti_lavoratori"
   | "esperienze_lavoratori"
@@ -34,7 +53,13 @@ type TableName =
 
 type UpdateTableName =
   | "famiglie"
+  | "chiusure_contratti"
+  | "contributi_inps"
   | "lavoratori"
+  | "mesi_lavorati"
+  | "rapporti_lavorativi"
+  | "ticket"
+  | "variazioni_contrattuali"
   | "selezioni_lavoratori"
   | "documenti_lavoratori"
   | "esperienze_lavoratori"
@@ -48,6 +73,7 @@ type CreateTableName =
   | "esperienze_lavoratori"
   | "referenze_lavoratori"
   | "processi_matching"
+  | "ticket"
 
 type QuerySort = {
   field: string
@@ -204,9 +230,135 @@ export async function fetchFamiglie(query: TablePageQuery) {
   })
 }
 
+export async function fetchChiusureContratti(query: TablePageQuery) {
+  return queryTable<ChiusuraContrattoRecord>({
+    table: "chiusure_contratti",
+    select: ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
+export async function fetchContributiInps(query: TablePageQuery) {
+  return queryTable<ContributoInpsRecord>({
+    table: "contributi_inps",
+    select: ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
 export async function fetchLavoratori(query: TablePageQuery) {
   return queryTable<TableRow>({
     table: "lavoratori",
+    select: ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
+export async function fetchMesiCalendario(query: TablePageQuery) {
+  return queryTable<MeseCalendarioRecord>({
+    table: "mesi_calendario",
+    select: ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "data_inizio", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
+export async function fetchMesiLavorati(query: TablePageQuery) {
+  return queryTable<MeseLavoratoRecord>({
+    table: "mesi_lavorati",
+    select: ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
+export async function fetchPagamenti(query: TablePageQuery) {
+  return queryTable<PagamentoRecord>({
+    table: "pagamenti",
+    select: ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
+export async function fetchPresenzeMensili(query: TablePageQuery) {
+  return queryTable<PresenzaMensileRecord>({
+    table: "presenze_mensili",
+    select: ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
+export async function fetchRapportiLavorativi(query: TablePageQuery) {
+  return queryTable<RapportoLavorativoRecord>({
+    table: "rapporti_lavorativi",
+    select: ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
+export async function fetchTickets(query: TablePageQuery) {
+  return queryTable<TicketRecord>({
+    table: "ticket",
+    select: ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "data_apertura", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
+export async function fetchVariazioniContrattuali(query: TablePageQuery) {
+  return queryTable<VariazioneContrattualeRecord>({
+    table: "variazioni_contrattuali",
     select: ["*"],
     limit: query.limit,
     offset: query.offset,
@@ -293,7 +445,7 @@ export async function fetchReferenzeLavoratoriByWorker(lavoratoreId: string) {
 }
 
 export async function fetchProcessiMatching(query: TablePageQuery) {
-  return queryTable<TableRow>({
+  return queryTable<ProcessoMatchingRecord>({
     table: "processi_matching",
     select: ["*"],
     limit: query.limit,

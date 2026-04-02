@@ -3293,8 +3293,8 @@ export function Gate1View({
     <div
       className={
         selectedWorkerId
-          ? "grid h-[calc(100vh-7.5rem)] min-h-0 gap-4 lg:grid-cols-[360px_minmax(0,1fr)]"
-          : "grid h-[calc(100vh-7.5rem)] min-h-0 gap-4 grid-cols-1"
+          ? "grid h-[calc(100vh-6.5rem)] min-h-0 gap-3 lg:grid-cols-[332px_minmax(0,1fr)]"
+          : "grid h-[calc(100vh-6.5rem)] min-h-0 gap-3 grid-cols-1"
       }
     >
       <div className="flex min-h-0 flex-col gap-2">

@@ -151,6 +151,7 @@ export type ProcessoMatchingRecord = {
   source_url: string | null
   src_embed_maps_annucio: string | null
   stato_messaggi_whatsapp_shortlist: string | null
+  stato_assunzione: string | null
   stato_res: string | null
   stato_sales: string | null
   stato_whatsapp_invito_colloquio: string | null

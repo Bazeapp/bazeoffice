@@ -993,7 +993,7 @@ export function CrmAssegnazioneView() {
         )}
       </div>
 
-      <div className="grid h-[calc(100vh-9.5rem)] grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <div className="grid h-[calc(100vh-8.5rem)] grid-cols-1 gap-3 xl:grid-cols-[292px_minmax(0,1fr)]">
         <SideCardsPanel
           title="Da assegnare"
           icon={CalendarDaysIcon}

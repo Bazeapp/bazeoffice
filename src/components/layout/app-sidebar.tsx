@@ -7,10 +7,12 @@ import {
   type LucideIcon,
   SettingsIcon,
   SearchIcon,
+  BriefcaseBusinessIcon,
   UserCircle2Icon,
   WalletIcon,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import { buildPathForRoute, type AnagraficheSidebarTab, type MainSection } from "@/routes/app-routes";
 
 import {
   Accordion,
@@ -43,16 +45,6 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
-type AnagraficheSidebarTab = "famiglie" | "processi" | "lavoratori";
-type MainSection =
-  | "anagrafiche"
-  | "crm_pipeline_famiglie"
-  | "crm_assegnazione"
-  | "ricerca_pipeline"
-  | "lavoratori_cerca"
-  | "gate_1"
-  | "gate_2";
-
 type SidebarCategory = {
   name: string;
   href: string;
@@ -65,65 +57,128 @@ type SidebarCategory = {
   }>;
 };
 
-const sidebarCategories: SidebarCategory[] = [
+type SidebarCategoryGroup = {
+  accentClassName: string;
+  categories: SidebarCategory[];
+};
+
+const sidebarCategoryGroups: SidebarCategoryGroup[] = [
   {
-    name: "Anagrafiche",
-    href: "#",
-    icon: FolderTreeIcon,
-    children: [
+    accentClassName: "bg-zinc-300",
+    categories: [
+      {
+        name: "Anagrafiche",
+        href: "#",
+        icon: FolderTreeIcon,
+        children: [
+          {
+            name: "Lavoratori",
+            href: "#",
+            anagraficheTab: "lavoratori",
+            mainSection: "anagrafiche",
+          },
+          {
+            name: "Famiglie",
+            href: "#",
+            anagraficheTab: "famiglie",
+            mainSection: "anagrafiche",
+          },
+          {
+            name: "Processi",
+            href: "#",
+            anagraficheTab: "processi",
+            mainSection: "anagrafiche",
+          },
+        ],
+      },
+      {
+        name: "Customer Support",
+        href: "#",
+        icon: CircleHelpIcon,
+        children: [
+          { name: "Ticket Customer", href: "#", mainSection: "customer_support_customer_ticket" },
+          { name: "Ticket Payroll", href: "#", mainSection: "customer_support_payroll_ticket" },
+        ],
+      },
+    ],
+  },
+  {
+    accentClassName: "bg-primary",
+    categories: [
+      {
+        name: "CRM famiglie",
+        href: "#",
+        icon: FolderTreeIcon,
+        children: [
+          {
+            name: "Pipeline Famiglie",
+            href: "#",
+            mainSection: "crm_pipeline_famiglie",
+          },
+          { name: "Assegnazione", href: "#", mainSection: "crm_assegnazione" },
+        ],
+      },
+      {
+        name: "Ricerca",
+        href: "#",
+        icon: SearchIcon,
+        children: [
+          { name: "Ricerche attive", href: "#", mainSection: "ricerca_pipeline" },
+        ],
+      },
       {
         name: "Lavoratori",
         href: "#",
-        anagraficheTab: "lavoratori",
-        mainSection: "anagrafiche",
-      },
-      {
-        name: "Famiglie",
-        href: "#",
-        anagraficheTab: "famiglie",
-        mainSection: "anagrafiche",
-      },
-      {
-        name: "Processi",
-        href: "#",
-        anagraficheTab: "processi",
-        mainSection: "anagrafiche",
+        icon: FolderTreeIcon,
+        children: [
+          { name: "Cerca Lavoratori", href: "#", mainSection: "lavoratori_cerca" },
+          { name: "Gate 1", href: "#", mainSection: "gate_1" },
+          { name: "Gate 2", href: "#", mainSection: "gate_2" },
+        ],
       },
     ],
   },
   {
-    name: "CRM famiglie",
-    href: "#",
-    icon: FolderTreeIcon,
-    children: [
+    accentClassName: "bg-amber-400",
+    categories: [
       {
-        name: "Pipeline Famiglie",
+        name: "Gestione contrattuale",
         href: "#",
-        mainSection: "crm_pipeline_famiglie",
+        icon: BriefcaseBusinessIcon,
+        children: [
+          {
+            name: "Rapporti lavorativi",
+            href: "#",
+            mainSection: "gestione_contrattuale_rapporti",
+          },
+          {
+            name: "Assunzioni",
+            href: "#",
+            mainSection: "gestione_contrattuale_assunzioni",
+          },
+          {
+            name: "Chiusure",
+            href: "#",
+            mainSection: "gestione_contrattuale_chiusure",
+          },
+          {
+            name: "Variazioni",
+            href: "#",
+            mainSection: "gestione_contrattuale_variazioni",
+          },
+        ],
       },
-      { name: "Assegnazione", href: "#", mainSection: "crm_assegnazione" },
+      {
+        name: "Payroll",
+        href: "#",
+        icon: WalletIcon,
+        children: [
+          { name: "Cedolini", href: "#", mainSection: "payroll_cedolini" },
+          { name: "Contributi INPS", href: "#", mainSection: "payroll_contributi_inps" },
+        ],
+      },
     ],
   },
-  {
-    name: "Ricerca",
-    href: "#",
-    icon: SearchIcon,
-    children: [
-      { name: "Ricerche attive", href: "#", mainSection: "ricerca_pipeline" },
-    ],
-  },
-  {
-    name: "Lavoratori",
-    href: "#",
-    icon: FolderTreeIcon,
-    children: [
-      { name: "Cerca Lavoratori", href: "#", mainSection: "lavoratori_cerca" },
-      { name: "Gate 1", href: "#", mainSection: "gate_1" },
-      { name: "Gate 2", href: "#", mainSection: "gate_2" },
-    ],
-  },
-  { name: "Payroll", href: "#", icon: WalletIcon },
-  { name: "Customer Support", href: "#", icon: CircleHelpIcon },
 ];
 
 type AppSidebarProps = {
@@ -138,6 +193,14 @@ type AppSidebarProps = {
   onOpenLavoratoriCerca?: () => void;
   onOpenGate1?: () => void;
   onOpenGate2?: () => void;
+  onOpenGestioneContrattualeRapporti?: () => void;
+  onOpenGestioneContrattualeAssunzioni?: () => void;
+  onOpenGestioneContrattualeChiusure?: () => void;
+  onOpenGestioneContrattualeVariazioni?: () => void;
+  onOpenPayrollCedolini?: () => void;
+  onOpenPayrollContributiInps?: () => void;
+  onOpenCustomerSupportCustomerTicket?: () => void;
+  onOpenCustomerSupportPayrollTicket?: () => void;
 };
 
 function getUserDisplayName(user: User) {
@@ -160,6 +223,14 @@ export function AppSidebar({
   onOpenLavoratoriCerca,
   onOpenGate1,
   onOpenGate2,
+  onOpenGestioneContrattualeRapporti,
+  onOpenGestioneContrattualeAssunzioni,
+  onOpenGestioneContrattualeChiusure,
+  onOpenGestioneContrattualeVariazioni,
+  onOpenPayrollCedolini,
+  onOpenPayrollContributiInps,
+  onOpenCustomerSupportCustomerTicket,
+  onOpenCustomerSupportPayrollTicket,
 }: AppSidebarProps) {
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const userDisplayName = getUserDisplayName(user);
@@ -177,15 +248,15 @@ export function AppSidebar({
 
   return (
     <Sidebar>
-      <SidebarHeader className="px-2 py-3">
+      <SidebarHeader className="px-2 py-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild isActive>
+            <SidebarMenuButton asChild isActive>
               <a href="#">
                 <img
                   src={logoSrc}
                   alt="Baze logo"
-                  className="size-5 rounded-sm object-contain"
+                  className="size-[18px] rounded-sm object-contain"
                 />
                 <span>BazeOffice</span>
               </a>
@@ -199,10 +270,15 @@ export function AppSidebar({
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {sidebarCategories.map((category) => (
-                <SidebarMenuItem key={category.name}>
+          <SidebarGroupContent className="space-y-3">
+            {sidebarCategoryGroups.map((group, groupIndex) => (
+              <div key={groupIndex} className="relative pl-3">
+                <div
+                  className={`absolute top-1 bottom-1 left-0 w-0.5 rounded-full ${group.accentClassName}`}
+                />
+                <SidebarMenu>
+                  {group.categories.map((category) => (
+                    <SidebarMenuItem key={category.name}>
                   {category.children && category.children.length > 0 ? (
                     <Accordion type="single" collapsible>
                       <AccordionItem
@@ -210,7 +286,7 @@ export function AppSidebar({
                         className="border-none"
                       >
                         <AccordionTrigger className="hover:no-underline py-0">
-                          <span className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex h-8 w-full items-center gap-2 rounded-md px-2 text-sm">
+                          <span className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex h-7 w-full items-center gap-2 rounded-md px-2 text-[13px]">
                             <category.icon className="size-4 shrink-0" />
                             <span className="truncate">{category.name}</span>
                           </span>
@@ -233,6 +309,26 @@ export function AppSidebar({
                                 child.mainSection === "gate_1";
                               const isGate2Child =
                                 child.mainSection === "gate_2";
+                              const isGestioneContrattualeRapportiChild =
+                                child.mainSection ===
+                                "gestione_contrattuale_rapporti";
+                              const isGestioneContrattualeAssunzioniChild =
+                                child.mainSection ===
+                                "gestione_contrattuale_assunzioni";
+                              const isGestioneContrattualeChiusureChild =
+                                child.mainSection ===
+                                "gestione_contrattuale_chiusure";
+                              const isGestioneContrattualeVariazioniChild =
+                                child.mainSection ===
+                                "gestione_contrattuale_variazioni";
+                              const isPayrollCedoliniChild =
+                                child.mainSection === "payroll_cedolini";
+                              const isPayrollContributiInpsChild =
+                                child.mainSection === "payroll_contributi_inps";
+                              const isCustomerSupportCustomerChild =
+                                child.mainSection === "customer_support_customer_ticket";
+                              const isCustomerSupportPayrollChild =
+                                child.mainSection === "customer_support_payroll_ticket";
 
                               return (
                                 <SidebarMenuSubItem key={child.name}>
@@ -258,11 +354,145 @@ export function AppSidebar({
                                       (isGate1Child &&
                                         activeMainSection === "gate_1") ||
                                       (isGate2Child &&
-                                        activeMainSection === "gate_2")
+                                        activeMainSection === "gate_2") ||
+                                      (isGestioneContrattualeRapportiChild &&
+                                        activeMainSection ===
+                                          "gestione_contrattuale_rapporti") ||
+                                      (isGestioneContrattualeAssunzioniChild &&
+                                        activeMainSection ===
+                                          "gestione_contrattuale_assunzioni") ||
+                                      (isGestioneContrattualeChiusureChild &&
+                                        activeMainSection ===
+                                          "gestione_contrattuale_chiusure") ||
+                                      (isGestioneContrattualeVariazioniChild &&
+                                        activeMainSection ===
+                                          "gestione_contrattuale_variazioni") ||
+                                      (isPayrollCedoliniChild &&
+                                        activeMainSection === "payroll_cedolini") ||
+                                      (isPayrollContributiInpsChild &&
+                                        activeMainSection === "payroll_contributi_inps") ||
+                                      (isCustomerSupportCustomerChild &&
+                                        activeMainSection === "customer_support_customer_ticket") ||
+                                      (isCustomerSupportPayrollChild &&
+                                        activeMainSection === "customer_support_payroll_ticket")
                                     }
                                   >
                                     <a
-                                      href={child.href}
+                                      href={
+                                        isAnagraficheChild &&
+                                        child.anagraficheTab
+                                          ? buildPathForRoute({
+                                              mainSection: "anagrafiche",
+                                              anagraficheTab: child.anagraficheTab,
+                                              ricercaProcessId: null,
+                                            })
+                                          : isCrmPipelineChild
+                                            ? buildPathForRoute({
+                                                mainSection: "crm_pipeline_famiglie",
+                                                anagraficheTab:
+                                                  activeAnagraficheTab ?? "famiglie",
+                                                ricercaProcessId: null,
+                                              })
+                                            : isCrmAssegnazioneChild
+                                              ? buildPathForRoute({
+                                                  mainSection: "crm_assegnazione",
+                                                  anagraficheTab:
+                                                    activeAnagraficheTab ?? "famiglie",
+                                                  ricercaProcessId: null,
+                                                })
+                                              : isRicercaPipelineChild
+                                                ? buildPathForRoute({
+                                                    mainSection: "ricerca_pipeline",
+                                                    anagraficheTab:
+                                                      activeAnagraficheTab ?? "famiglie",
+                                                    ricercaProcessId: null,
+                                                  })
+                                                : isLavoratoriCercaChild
+                                                  ? buildPathForRoute({
+                                                      mainSection: "lavoratori_cerca",
+                                                      anagraficheTab:
+                                                        activeAnagraficheTab ?? "famiglie",
+                                                      ricercaProcessId: null,
+                                                    })
+                                                  : isGate1Child
+                                                    ? buildPathForRoute({
+                                                        mainSection: "gate_1",
+                                                        anagraficheTab:
+                                                          activeAnagraficheTab ?? "famiglie",
+                                                        ricercaProcessId: null,
+                                                      })
+                                                    : isGate2Child
+                                                      ? buildPathForRoute({
+                                                          mainSection: "gate_2",
+                                                          anagraficheTab:
+                                                            activeAnagraficheTab ?? "famiglie",
+                                                          ricercaProcessId: null,
+                                                        })
+                                                      : isGestioneContrattualeRapportiChild
+                                                        ? buildPathForRoute({
+                                                            mainSection:
+                                                              "gestione_contrattuale_rapporti",
+                                                            anagraficheTab:
+                                                              activeAnagraficheTab ?? "famiglie",
+                                                            ricercaProcessId: null,
+                                                          })
+                                                        : isGestioneContrattualeAssunzioniChild
+                                                          ? buildPathForRoute({
+                                                              mainSection:
+                                                                "gestione_contrattuale_assunzioni",
+                                                              anagraficheTab:
+                                                                activeAnagraficheTab ?? "famiglie",
+                                                              ricercaProcessId: null,
+                                                            })
+                                                          : isGestioneContrattualeChiusureChild
+                                                            ? buildPathForRoute({
+                                                                mainSection:
+                                                                  "gestione_contrattuale_chiusure",
+                                                                anagraficheTab:
+                                                                  activeAnagraficheTab ?? "famiglie",
+                                                                ricercaProcessId: null,
+                                                              })
+                                                            : isGestioneContrattualeVariazioniChild
+                                                              ? buildPathForRoute({
+                                                                  mainSection:
+                                                                    "gestione_contrattuale_variazioni",
+                                                                  anagraficheTab:
+                                                                    activeAnagraficheTab ?? "famiglie",
+                                                                  ricercaProcessId: null,
+                                                                })
+                                                              : isPayrollCedoliniChild
+                                                                ? buildPathForRoute({
+                                                                    mainSection: "payroll_cedolini",
+                                                                    anagraficheTab:
+                                                                      activeAnagraficheTab ?? "famiglie",
+                                                                    ricercaProcessId: null,
+                                                                  })
+                                                                : isPayrollContributiInpsChild
+                                                                  ? buildPathForRoute({
+                                                                      mainSection:
+                                                                        "payroll_contributi_inps",
+                                                                      anagraficheTab:
+                                                                        activeAnagraficheTab ?? "famiglie",
+                                                                      ricercaProcessId: null,
+                                                                    })
+                                                                  : isCustomerSupportCustomerChild
+                                                                    ? buildPathForRoute({
+                                                                        mainSection:
+                                                                          "customer_support_customer_ticket",
+                                                                        anagraficheTab:
+                                                                          activeAnagraficheTab ?? "famiglie",
+                                                                        ricercaProcessId: null,
+                                                                      })
+                                                                    : isCustomerSupportPayrollChild
+                                                                      ? buildPathForRoute({
+                                                                          mainSection:
+                                                                            "customer_support_payroll_ticket",
+                                                                          anagraficheTab:
+                                                                            activeAnagraficheTab ?? "famiglie",
+                                                                          ricercaProcessId: null,
+                                                                        })
+                                                      : child.href
+                                      }
                                       onClick={(event) => {
                                         if (
                                           isAnagraficheChild &&
@@ -308,6 +538,54 @@ export function AppSidebar({
                                         if (isGate2Child) {
                                           event.preventDefault();
                                           onOpenGate2?.();
+                                          return;
+                                        }
+
+                                        if (isGestioneContrattualeRapportiChild) {
+                                          event.preventDefault();
+                                          onOpenGestioneContrattualeRapporti?.();
+                                          return;
+                                        }
+
+                                        if (isGestioneContrattualeAssunzioniChild) {
+                                          event.preventDefault();
+                                          onOpenGestioneContrattualeAssunzioni?.();
+                                          return;
+                                        }
+
+                                        if (isGestioneContrattualeChiusureChild) {
+                                          event.preventDefault();
+                                          onOpenGestioneContrattualeChiusure?.();
+                                          return;
+                                        }
+
+                                        if (isGestioneContrattualeVariazioniChild) {
+                                          event.preventDefault();
+                                          onOpenGestioneContrattualeVariazioni?.();
+                                          return;
+                                        }
+
+                                        if (isPayrollCedoliniChild) {
+                                          event.preventDefault();
+                                          onOpenPayrollCedolini?.();
+                                          return;
+                                        }
+
+                                        if (isPayrollContributiInpsChild) {
+                                          event.preventDefault();
+                                          onOpenPayrollContributiInps?.();
+                                          return;
+                                        }
+
+                                        if (isCustomerSupportCustomerChild) {
+                                          event.preventDefault();
+                                          onOpenCustomerSupportCustomerTicket?.();
+                                          return;
+                                        }
+
+                                        if (isCustomerSupportPayrollChild) {
+                                          event.preventDefault();
+                                          onOpenCustomerSupportPayrollTicket?.();
                                         }
                                       }}
                                     >
@@ -329,9 +607,11 @@ export function AppSidebar({
                       </a>
                     </SidebarMenuButton>
                   )}
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </div>
+            ))}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
@@ -341,13 +621,13 @@ export function AppSidebar({
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton size="lg">
+                <SidebarMenuButton>
                   <UserCircle2Icon />
                   <div className="grid flex-1 text-left leading-tight">
-                    <span className="truncate text-sm font-medium">
+                    <span className="truncate text-[13px] font-medium">
                       {userDisplayName}
                     </span>
-                    <span className="text-muted-foreground truncate text-xs">
+                    <span className="text-muted-foreground truncate text-[11px]">
                       {userEmail}
                     </span>
                   </div>

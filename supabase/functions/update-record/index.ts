@@ -8,7 +8,13 @@ const corsHeaders = {
 
 type SupportedTable =
   | "famiglie"
+  | "chiusure_contratti"
+  | "contributi_inps"
   | "lavoratori"
+  | "mesi_lavorati"
+  | "rapporti_lavorativi"
+  | "ticket"
+  | "variazioni_contrattuali"
   | "selezioni_lavoratori"
   | "documenti_lavoratori"
   | "esperienze_lavoratori"
@@ -23,7 +29,13 @@ type UpdateRecordPayload = {
 
 const SUPPORTED_TABLES = new Set<SupportedTable>([
   "famiglie",
+  "chiusure_contratti",
+  "contributi_inps",
   "lavoratori",
+  "mesi_lavorati",
+  "rapporti_lavorativi",
+  "ticket",
+  "variazioni_contrattuali",
   "selezioni_lavoratori",
   "documenti_lavoratori",
   "esperienze_lavoratori",
@@ -33,7 +45,13 @@ const SUPPORTED_TABLES = new Set<SupportedTable>([
 
 const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
   famiglie: new Set(["id", "creato_il"]),
+  chiusure_contratti: new Set(["id", "creato_il"]),
+  contributi_inps: new Set(["id", "creato_il"]),
   lavoratori: new Set(["id", "creato_il"]),
+  mesi_lavorati: new Set(["id", "creato_il"]),
+  rapporti_lavorativi: new Set(["id", "creato_il"]),
+  ticket: new Set(["id", "creato_il"]),
+  variazioni_contrattuali: new Set(["id", "creato_il"]),
   selezioni_lavoratori: new Set(["id", "creato_il"]),
   documenti_lavoratori: new Set(["id", "creato_il"]),
   esperienze_lavoratori: new Set(["id", "creato_il"]),
@@ -43,7 +61,13 @@ const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
 
 const AUTO_UPDATED_AT_FIELD: Record<SupportedTable, string> = {
   famiglie: "aggiornato_il",
+  chiusure_contratti: "aggiornato_il",
+  contributi_inps: "aggiornato_il",
   lavoratori: "aggiornato_il",
+  mesi_lavorati: "aggiornato_il",
+  rapporti_lavorativi: "aggiornato_il",
+  ticket: "aggiornato_il",
+  variazioni_contrattuali: "aggiornato_il",
   selezioni_lavoratori: "aggiornato_il",
   documenti_lavoratori: "aggiornato_il",
   esperienze_lavoratori: "aggiornato_il",

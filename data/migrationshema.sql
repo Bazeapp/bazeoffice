@@ -1236,6 +1236,7 @@ CREATE TABLE IF NOT EXISTS rapporti_lavorativi (
     ricevuta_inps_allegati jsonb,
     richiedere_trustpilot_temp boolean,
     stato_assunzione text,
+    stato_rapporto text,
     stato_riattivazione text,
     stato_servizio text,
     temp_check_errore_email boolean,

@@ -74,7 +74,7 @@ export function ExperienceLevel({ label, years }: ExperienceLevelProps) {
         {label}
       </FieldTitle>
       <div className="flex items-center gap-2">
-        <span className={cn("text-base font-semibold leading-none", tone.value)}>{level.value}</span>
+        <span className={cn("text-sm font-semibold leading-none", tone.value)}>{level.value}</span>
         <div className="flex items-center gap-1">
           {Array.from({ length: 3 }).map((_, index) => (
             <span

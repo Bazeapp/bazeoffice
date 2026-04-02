@@ -8,7 +8,7 @@ export function ExperienceCardTitle({
 }: ExperienceCardTitleProps) {
   return (
     <p
-      className={cn("text-base font-semibold leading-6 tracking-tight", className)}
+      className={cn("text-sm font-semibold leading-5 tracking-tight", className)}
       {...props}
     />
   )

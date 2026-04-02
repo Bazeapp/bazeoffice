@@ -17,7 +17,7 @@ import {
 
 import { FamigliaProcessoDetailSidebar } from "@/components/crm/famiglia-processo-detail-sidebar"
 import { FamigliaProcessoCard } from "@/components/crm/famiglia-processo-card"
-import { Card, CardContent } from "@/components/ui/card"
+import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
 import {
   type CrmPipelineCardData,
   type CrmPipelineColumnData,
@@ -200,29 +200,7 @@ function getStageIcon(stageId: string, iconClassName: string) {
 }
 
 function CrmPipelineSkeletonColumn() {
-  return (
-    <div className="border-border bg-muted/40 w-[300px] shrink-0 rounded-xl border">
-      <div className="space-y-1 border-b px-4 py-3">
-        <div className="bg-muted h-5 w-32 animate-pulse rounded" />
-        <div className="bg-muted h-4 w-16 animate-pulse rounded" />
-      </div>
-      <div className="space-y-3 p-3">
-        {Array.from({ length: 2 }).map((_, index) => (
-          <Card key={index} className="py-2">
-            <CardContent className="space-y-2 px-3">
-              <div className="bg-muted h-4 w-28 animate-pulse rounded" />
-              <div className="bg-muted h-5 w-24 animate-pulse rounded-full" />
-              <div className="space-y-1.5 border-t pt-2">
-                <div className="bg-muted h-3 w-full animate-pulse rounded" />
-                <div className="bg-muted h-3 w-11/12 animate-pulse rounded" />
-                <div className="bg-muted h-3 w-8/12 animate-pulse rounded" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  )
+  return <KanbanColumnSkeleton widthClassName="w-[292px]" showBadgeRow />
 }
 
 type ColumnProps = {
@@ -255,68 +233,47 @@ function Column({
   const visual = getColumnVisual(column.color)
 
   return (
-    <div
-      className={cn(
-        "w-[300px] shrink-0 rounded-xl border transition-all duration-150",
-        isDropTarget && "ring-primary/50 scale-[1.02] ring-2 shadow-md",
-        visual.columnClassName
-      )}
-      onDragEnter={() => onDragEnterColumn(column.id)}
-      onDragOver={(event) => {
-        event.preventDefault()
-        event.dataTransfer.dropEffect = "move"
-        onDragOverColumn(column.id)
-      }}
-      onDragLeave={onDragLeaveColumn}
-      onDrop={(event) => {
-        event.preventDefault()
-        const droppedProcessId = event.dataTransfer.getData("text/plain") || null
-        onDropToColumn(column.id, droppedProcessId)
-      }}
-    >
-      <div className={cn("space-y-1 px-4 py-3", visual.headerClassName)}>
-        <div className="flex items-start gap-2">
-          <span className="pt-0.5">{getStageIcon(column.id, visual.iconClassName)}</span>
-          <h2 className="text-foreground min-h-10 text-lg leading-5 font-semibold line-clamp-2">
-            {column.label}
-          </h2>
+    <KanbanColumnShell
+      columnId={column.id}
+      title={column.label}
+      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "ricerca" : "ricerche"}`}
+      visual={visual}
+      headerIcon={<span className="pt-0.5">{getStageIcon(column.id, visual.iconClassName)}</span>}
+      widthClassName="w-[292px]"
+      isDropTarget={isDropTarget}
+      emptyState={
+        <div className="text-muted-foreground border-border/60 rounded-lg border border-dashed p-3 text-xs">
+          Nessun contatto
         </div>
-        <p className="text-muted-foreground text-sm">
-          {column.cards.length} {column.cards.length === 1 ? "ricerca" : "ricerche"}
-        </p>
-      </div>
-
-      <div className="space-y-3 p-3">
-        {column.cards.length === 0 ? (
-          <div className="text-muted-foreground border-border/60 rounded-lg border border-dashed p-3 text-xs">
-            Nessun contatto
-          </div>
-        ) : (
-          column.cards.map((card) => (
-            <div
-              key={card.id}
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.setData("text/plain", card.id)
-                event.dataTransfer.effectAllowed = "move"
-                onDragStartCard(card.id)
-              }}
-              onDragEnd={onDragEndCard}
-              className={cn(
-                "cursor-grab transition-opacity active:cursor-grabbing",
-                draggingProcessId === card.id && "opacity-40"
-              )}
-              onClick={() => {
-                if (suppressCardClickRef.current) return
-                onCardClick(card)
-              }}
-            >
-              <FamigliaProcessoCard data={card} />
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+      }
+      onDragEnter={onDragEnterColumn}
+      onDragOver={onDragOverColumn}
+      onDragLeave={onDragLeaveColumn}
+      onDrop={onDropToColumn}
+    >
+      {column.cards.map((card) => (
+        <div
+          key={card.id}
+          draggable
+          onDragStart={(event) => {
+            event.dataTransfer.setData("text/plain", card.id)
+            event.dataTransfer.effectAllowed = "move"
+            onDragStartCard(card.id)
+          }}
+          onDragEnd={onDragEndCard}
+          className={cn(
+            "cursor-grab transition-opacity active:cursor-grabbing",
+            draggingProcessId === card.id && "opacity-40"
+          )}
+          onClick={() => {
+            if (suppressCardClickRef.current) return
+            onCardClick(card)
+          }}
+        >
+          <FamigliaProcessoCard data={card} />
+        </div>
+      ))}
+    </KanbanColumnShell>
   )
 }
 

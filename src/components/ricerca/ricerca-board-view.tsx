@@ -2,7 +2,6 @@ import * as React from "react"
 import {
   BriefcaseBusinessIcon,
   CalendarIcon,
-  CircleDotIcon,
   Clock3Icon,
   ListFilterIcon,
   MapPinIcon,
@@ -14,6 +13,7 @@ import {
   useRicercaBoard,
 } from "@/hooks/use-ricerca-board"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
+import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -284,28 +284,7 @@ function getColumnVisual(columnId: string, columnLabel: string, color: string | 
 }
 
 function RicercaBoardSkeletonColumn() {
-  return (
-    <div className="border-border bg-muted/40 w-[300px] shrink-0 rounded-xl border">
-      <div className="space-y-1 border-b px-4 py-3">
-        <div className="bg-muted h-5 w-32 animate-pulse rounded" />
-        <div className="bg-muted h-4 w-16 animate-pulse rounded" />
-      </div>
-      <div className="space-y-3 p-3">
-        {Array.from({ length: 2 }).map((_, index) => (
-          <Card key={index} className="py-2">
-            <CardContent className="space-y-2 px-3">
-              <div className="bg-muted h-4 w-28 animate-pulse rounded" />
-              <div className="bg-muted h-5 w-24 animate-pulse rounded-full" />
-              <div className="space-y-1.5 border-t pt-2">
-                <div className="bg-muted h-3 w-full animate-pulse rounded" />
-                <div className="bg-muted h-3 w-11/12 animate-pulse rounded" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  )
+  return <KanbanColumnSkeleton widthClassName="w-[300px]" showBadgeRow />
 }
 
 function RicercaBoardCard({
@@ -405,63 +384,41 @@ function RicercaBoardColumn({
   const visual = getColumnVisual(column.id, column.label, column.color)
 
   return (
-    <div
-      className={cn(
-        "flex h-full w-[300px] shrink-0 flex-col rounded-xl border transition-all duration-150",
-        isDropTarget && "ring-primary/50 scale-[1.02] ring-2 shadow-md",
-        visual.columnClassName
-      )}
-      onDragEnter={() => onDragEnterColumn(column.id)}
-      onDragOver={(event) => {
-        event.preventDefault()
-        event.dataTransfer.dropEffect = "move"
-        onDragOverColumn(column.id)
-      }}
-      onDragLeave={onDragLeaveColumn}
-      onDrop={(event) => {
-        event.preventDefault()
-        const droppedProcessId = event.dataTransfer.getData("text/plain") || null
-        onDropToColumn(column.id, droppedProcessId)
-      }}
-    >
-      <div className={cn("space-y-1 px-4 py-3", visual.headerClassName)}>
-        <div className="flex items-start gap-2">
-          <CircleDotIcon className={cn("size-4 pt-0.5", visual.iconClassName)} />
-          <h2 className="text-foreground min-h-10 text-lg leading-5 font-semibold line-clamp-2">
-            {column.label}
-          </h2>
+    <KanbanColumnShell
+      columnId={column.id}
+      title={column.label}
+      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "ricerca" : "ricerche"}`}
+      visual={visual}
+      widthClassName="w-[300px]"
+      isDropTarget={isDropTarget}
+      emptyState={
+        <div className="text-muted-foreground rounded-lg border border-dashed border-border/60 p-3 text-xs">
+          Nessuna ricerca
         </div>
-        <p className="text-muted-foreground text-sm">
-          {column.cards.length} {column.cards.length === 1 ? "ricerca" : "ricerche"}
-        </p>
-      </div>
-
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-        {column.cards.length === 0 ? (
-          <div className="text-muted-foreground rounded-lg border border-dashed border-border/60 p-3 text-xs">
-            Nessuna ricerca
-          </div>
-        ) : (
-          column.cards.map((card) => (
-            <RicercaBoardCard
-              key={card.id}
-              data={card}
-              dragging={draggingProcessId === card.id}
-              onDragStart={(event) => {
-                event.dataTransfer.setData("text/plain", card.id)
-                event.dataTransfer.effectAllowed = "move"
-                onDragStartCard(card.id)
-              }}
-              onDragEnd={onDragEndCard}
-              onClick={() => {
-                if (suppressCardClickRef.current) return
-                onCardClick(card)
-              }}
-            />
-          ))
-        )}
-      </div>
-    </div>
+      }
+      onDragEnter={onDragEnterColumn}
+      onDragOver={onDragOverColumn}
+      onDragLeave={onDragLeaveColumn}
+      onDrop={onDropToColumn}
+    >
+      {column.cards.map((card) => (
+        <RicercaBoardCard
+          key={card.id}
+          data={card}
+          dragging={draggingProcessId === card.id}
+          onDragStart={(event) => {
+            event.dataTransfer.setData("text/plain", card.id)
+            event.dataTransfer.effectAllowed = "move"
+            onDragStartCard(card.id)
+          }}
+          onDragEnd={onDragEndCard}
+          onClick={() => {
+            if (suppressCardClickRef.current) return
+            onCardClick(card)
+          }}
+        />
+      ))}
+    </KanbanColumnShell>
   )
 }
 
@@ -589,7 +546,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   )
 
   return (
-    <section className="flex h-[calc(100vh-7.5rem)] min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
+    <section className="flex h-[calc(100vh-6.5rem)] min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento board ricerca: {error}

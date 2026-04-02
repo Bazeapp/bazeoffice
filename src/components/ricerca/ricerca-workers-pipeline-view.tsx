@@ -219,7 +219,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
   return (
     <div
       className={cn(
-        "relative flex h-full w-[320px] shrink-0 flex-col rounded-xl border transition-all duration-150",
+        "relative flex h-full w-[292px] shrink-0 flex-col rounded-xl border transition-all duration-150",
         getLookupPanelClassName(column.color),
         isDropTarget && "ring-primary/50 ring-2 shadow-md",
       )}
@@ -240,7 +240,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
       {groups ? (
         <div
           className={cn(
-            "absolute inset-0 z-20 flex flex-col gap-2 rounded-xl p-2 transition-opacity",
+            "absolute inset-0 z-20 flex flex-col gap-1.5 rounded-xl p-2 transition-opacity",
             showDropZones
               ? "pointer-events-auto opacity-100"
               : "pointer-events-none opacity-0",
@@ -295,20 +295,20 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
         </div>
       ) : null}
 
-      <div className="space-y-1 border-b px-4 py-3">
+      <div className="space-y-1 border-b px-3 py-2.5">
         <div className="flex items-start gap-2">
-          <CircleDotIcon className="text-muted-foreground size-4 pt-0.5" />
-          <h3 className="min-h-10 text-lg leading-5 font-semibold line-clamp-2">
+          <CircleDotIcon className="text-muted-foreground size-3.5 pt-0.5" />
+          <h3 className="min-h-8 text-sm leading-5 font-semibold line-clamp-2">
             {column.label}
           </h3>
         </div>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-[11px]">
           {column.cards.length}{" "}
           {column.cards.length === 1 ? "lavoratore" : "lavoratori"}
         </p>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2.5">
         {column.cards.length === 0 ? (
           <div className="text-muted-foreground rounded-lg border border-dashed border-border/60 p-3 text-xs">
             Nessun lavoratore
@@ -317,7 +317,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
           <Accordion
             type="multiple"
             defaultValue={groups.map((group) => group.key)}
-            className="gap-2"
+            className="gap-1.5"
           >
             {groups.map((group) => {
               const groupStatusId = resolveGroupDropStatusId(column, group);
@@ -337,7 +337,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
                 >
                   <AccordionTrigger
                     className={cn(
-                      "py-2 text-sm font-semibold no-underline hover:no-underline",
+                      "py-1.5 text-sm font-semibold no-underline hover:no-underline",
                       getLookupToneTextClassName(groupColor),
                     )}
                   >
@@ -353,7 +353,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
                       </span>
                     </span>
                   </AccordionTrigger>
-                  <AccordionContent className="space-y-3 pt-1">
+                  <AccordionContent className="space-y-2 pt-1">
                     {groupCards.length === 0 ? (
                       <div className="text-muted-foreground rounded-md border border-dashed border-border/60 p-2 text-xs">
                         Nessun lavoratore

@@ -12,7 +12,8 @@ type SupportedTable =
   | "documenti_lavoratori"
   | "esperienze_lavoratori"
   | "referenze_lavoratori"
-  | "processi_matching";
+  | "processi_matching"
+  | "ticket";
 
 type CreateRecordPayload = {
   table?: SupportedTable;
@@ -26,6 +27,7 @@ const SUPPORTED_TABLES = new Set<SupportedTable>([
   "esperienze_lavoratori",
   "referenze_lavoratori",
   "processi_matching",
+  "ticket",
 ]);
 
 const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
@@ -35,6 +37,7 @@ const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
   esperienze_lavoratori: new Set(["id", "creato_il", "aggiornato_il"]),
   referenze_lavoratori: new Set(["id", "creato_il", "aggiornato_il"]),
   processi_matching: new Set(["id", "creato_il", "aggiornato_il"]),
+  ticket: new Set(["id", "creato_il", "aggiornato_il"]),
 };
 
 function badRequest(message: string) {
