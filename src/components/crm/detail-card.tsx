@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 
 type CrmDetailCardProps = {
   title: string
@@ -18,14 +18,13 @@ export function CrmDetailCard({
   contentClassName,
 }: CrmDetailCardProps) {
   return (
-    <DetailSectionCard
+    <DetailSectionBlock
       title={title}
-      titleAction={titleAction}
-      titleOnBorder
+      action={titleAction}
       className={className}
       contentClassName={contentClassName}
     >
       {children}
-    </DetailSectionCard>
+    </DetailSectionBlock>
   )
 }

@@ -18,7 +18,7 @@ import {
   AttachmentUploadSlot,
   type AttachmentLink,
 } from "@/components/shared/attachment-upload-slot"
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card"
@@ -388,15 +388,14 @@ function ContributoInpsDetailSheet({
               <div className="mx-auto max-w-5xl space-y-5">
                 <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} />
 
-                <DetailSectionCard
+                <DetailSectionBlock
                   title="Contributo INPS"
-                  titleIcon={<CreditCardIcon className="text-muted-foreground size-5" />}
-                  titleOnBorder
+                  icon={<CreditCardIcon className="text-muted-foreground size-5" />}
                   contentClassName="space-y-5"
                 >
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Stato contributo</p>
+                      <p className="ui-type-label">Stato contributo</p>
                       <Select
                         value={stageValue}
                         onValueChange={(nextValue) => void handleStageValueChange(nextValue)}
@@ -414,11 +413,11 @@ function ContributoInpsDetailSheet({
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Trimestre</p>
+                      <p className="ui-type-label">Trimestre</p>
                       <p className="font-medium">{card.trimestreLabel}</p>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Importo contributo INPS</p>
+                      <p className="ui-type-label">Importo contributo INPS</p>
                       <Input
                         type="number"
                         step="0.01"
@@ -428,7 +427,7 @@ function ContributoInpsDetailSheet({
                       />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Valore PagoPA</p>
+                      <p className="ui-type-label">Valore PagoPA</p>
                       <Input
                         type="number"
                         step="0.01"
@@ -438,7 +437,7 @@ function ContributoInpsDetailSheet({
                       />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Data invio famiglia</p>
+                      <p className="ui-type-label">Data invio famiglia</p>
                       <Input
                         type="date"
                         value={dataInvioValue}
@@ -447,26 +446,25 @@ function ContributoInpsDetailSheet({
                       />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Creato il</p>
+                      <p className="ui-type-label">Creato il</p>
                       <p className="font-medium">
                         {formatDateTime(card.record.data_ora_creazione ?? card.record.creato_il)}
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Importo attuale</p>
+                      <p className="ui-type-label">Importo attuale</p>
                       <p className="font-medium">{formatCurrencyAmount(card.record.importo_contributi_inps)}</p>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">PagoPA attuale</p>
+                      <p className="ui-type-label">PagoPA attuale</p>
                       <p className="font-medium">{formatCurrencyAmount(card.record.valore_pagopa)}</p>
                     </div>
                   </div>
-                </DetailSectionCard>
+                </DetailSectionBlock>
 
-                <DetailSectionCard
+                <DetailSectionBlock
                   title="Allegato"
-                  titleIcon={<FileTextIcon className="text-muted-foreground size-5" />}
-                  titleOnBorder
+                  icon={<FileTextIcon className="text-muted-foreground size-5" />}
                   contentClassName="space-y-4"
                 >
                   <AttachmentUploadSlot
@@ -477,7 +475,7 @@ function ContributoInpsDetailSheet({
                     isUploading={isUploadingAttachment}
                   />
                   {uploadError ? <p className="text-sm text-red-600">{uploadError}</p> : null}
-                </DetailSectionCard>
+                </DetailSectionBlock>
               </div>
             </section>
           ) : null}
@@ -659,7 +657,7 @@ export function ContributiInpsView() {
   )
 
   return (
-    <section className="flex h-[calc(100vh-6.5rem)] min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
+    <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[240px] flex-1 sm:max-w-xs">

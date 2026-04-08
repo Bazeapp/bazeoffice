@@ -546,7 +546,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   )
 
   return (
-    <section className="flex h-[calc(100vh-6.5rem)] min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
+    <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento board ricerca: {error}

@@ -127,14 +127,14 @@ export function SupportTicketCreateDialog({
               {(["Customer", "Payroll"] as SupportTicketType[]).map((item) => (
                 <label
                   key={item}
-                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition-colors ${
+                  className={`relative flex min-w-0 cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-xs font-medium transition-colors ${
                     ticketType === item
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border text-muted-foreground hover:border-muted-foreground/40"
                   }`}
                 >
-                  <RadioGroupItem value={item} className="sr-only" />
-                  {item}
+                  <RadioGroupItem value={item} className="sr-only absolute" />
+                  <span className="block w-full text-center">{item}</span>
                 </label>
               ))}
             </RadioGroup>
@@ -197,14 +197,14 @@ export function SupportTicketCreateDialog({
                 return (
                   <label
                     key={item.id}
-                    className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition-colors ${
+                    className={`relative flex min-w-0 cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-xs font-medium transition-colors ${
                       urgenza === item.id
                         ? `${config.colorClassName} border-current`
                         : "border-border text-muted-foreground hover:border-muted-foreground/40"
                     }`}
                   >
-                    <RadioGroupItem value={item.id} className="sr-only" />
-                    {item.label}
+                    <RadioGroupItem value={item.id} className="sr-only absolute" />
+                    <span className="block w-full text-center">{item.label}</span>
                   </label>
                 )
               })}

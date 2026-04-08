@@ -11,7 +11,7 @@ import {
   UtensilsCrossedIcon,
 } from "lucide-react"
 
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock, DetailSectionCard } from "@/components/shared/detail-section-card"
 import {
   SkillsChoiceMatrix,
   type SkillsChoiceMatrixRow,
@@ -636,10 +636,10 @@ export function SkillsCompetenzeCard({
   const values = isEditing ? draft : selectedValues
 
   return (
-    <DetailSectionCard
+    <DetailSectionBlock
       title="Skill e Competenze"
-      titleIcon={<SparklesIcon className="text-muted-foreground size-4" />}
-      titleAction={showEditAction ? (
+      icon={<SparklesIcon className="text-muted-foreground size-4" />}
+      action={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -651,7 +651,6 @@ export function SkillsCompetenzeCard({
           <PencilIcon />
         </Button>
       ) : undefined}
-      titleOnBorder
       contentClassName="space-y-5 pt-1"
     >
       <div className="grid gap-5">
@@ -693,6 +692,6 @@ export function SkillsCompetenzeCard({
           </div>
         </FieldSet>
       </DetailSectionCard>
-    </DetailSectionCard>
+    </DetailSectionBlock>
   )
 }

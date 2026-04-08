@@ -1,6 +1,6 @@
 import { CalendarDaysIcon, PencilIcon } from "lucide-react"
 
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { FieldTitle } from "@/components/ui/field"
@@ -49,10 +49,10 @@ export function AvailabilityStatusCard({
   const isReturnDateEnabled = draft.disponibilita === "Non disponibile"
 
   return (
-    <DetailSectionCard
+    <DetailSectionBlock
       title="Disponibilita"
-      titleIcon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
-      titleAction={showEditAction ? (
+      icon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
+      action={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -72,12 +72,11 @@ export function AvailabilityStatusCard({
           <PencilIcon />
         </Button>
       ) : undefined}
-      titleOnBorder
       contentClassName="space-y-4"
     >
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-1">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Stato disponibilita
           </FieldTitle>
           {isEditing ? (
@@ -87,7 +86,7 @@ export function AvailabilityStatusCard({
                 onValueChange={onDisponibilitaChange}
                 disabled={isUpdating}
               >
-                <SelectTrigger className="h-9 text-sm">
+                <SelectTrigger className="h-9">
                   <SelectValue placeholder="Seleziona stato" />
                 </SelectTrigger>
                 <SelectContent>
@@ -109,7 +108,7 @@ export function AvailabilityStatusCard({
         </div>
 
         <div className={isEditing && !isReturnDateEnabled ? "space-y-1 opacity-50" : "space-y-1"}>
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Ritorno disponibilita
           </FieldTitle>
           {isEditing ? (
@@ -128,6 +127,6 @@ export function AvailabilityStatusCard({
           )}
         </div>
       </div>
-    </DetailSectionCard>
+    </DetailSectionBlock>
   )
 }

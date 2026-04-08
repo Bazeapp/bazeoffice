@@ -14,7 +14,7 @@ import {
   useVariazioniBoard,
 } from "@/hooks/use-variazioni-board";
 import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot";
-import { DetailSectionCard } from "@/components/shared/detail-section-card";
+import { DetailSectionBlock } from "@/components/shared/detail-section-card";
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban";
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card";
 import { Badge } from "@/components/ui/badge";
@@ -123,15 +123,14 @@ function VariazioniDetailSheet({
             <div className="mx-auto max-w-5xl space-y-5">
               <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={card.rapporto} />
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Dettagli variazione"
-                titleIcon={
+                icon={
                   <CalendarDaysIcon className="text-muted-foreground size-5" />
                 }
-                titleAction={
+                action={
                   <PencilIcon className="text-muted-foreground size-4" />
                 }
-                titleOnBorder
                 contentClassName="space-y-5"
               >
                 <div className="flex items-center gap-2 text-sm sm:text-base">
@@ -152,15 +151,14 @@ function VariazioniDetailSheet({
                     {card.variazioneDaApplicare}
                   </span>
                 </div>
-              </DetailSectionCard>
+              </DetailSectionBlock>
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Dati rapporto lavorativo"
-                titleIcon={<PencilIcon className="text-muted-foreground size-5" />}
-                titleAction={
+                icon={<PencilIcon className="text-muted-foreground size-5" />}
+                action={
                   <PencilIcon className="text-muted-foreground size-4" />
                 }
-                titleOnBorder
                 contentClassName="space-y-5"
               >
                 <div className="grid gap-5 text-sm sm:text-base">
@@ -212,14 +210,13 @@ function VariazioniDetailSheet({
                     <span className="font-medium text-foreground" />
                   </p>
                 </div>
-              </DetailSectionCard>
+              </DetailSectionBlock>
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Documenti variazione"
-                titleIcon={
+                icon={
                   <FileTextIcon className="text-muted-foreground size-5" />
                 }
-                titleOnBorder
                 contentClassName="space-y-4"
               >
                 <AttachmentUploadSlot
@@ -236,7 +233,7 @@ function VariazioniDetailSheet({
                   onPreviewOpen={() => {}}
                   isUploading={false}
                 />
-              </DetailSectionCard>
+              </DetailSectionBlock>
             </div>
           </section>
         ) : null}
@@ -412,7 +409,7 @@ export function VariazioniBoardView() {
 
   return (
     <>
-      <section className="flex h-[calc(100vh-6.5rem)] min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
+      <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
         <div className="flex items-center gap-2 px-1">
           <FilePenLineIcon className="text-muted-foreground size-4" />
           <h1 className="text-base font-semibold">Variazioni</h1>

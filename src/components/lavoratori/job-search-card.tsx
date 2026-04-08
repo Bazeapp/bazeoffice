@@ -1,7 +1,7 @@
 import * as React from "react"
 import { BriefcaseBusinessIcon, CheckIcon, PencilIcon, XIcon } from "lucide-react"
 
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -248,10 +248,10 @@ export function JobSearchCard({
   onPaga9Change,
 }: JobSearchCardProps) {
   return (
-    <DetailSectionCard
+    <DetailSectionBlock
       title="Ricerca Lavoro"
-      titleIcon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
-      titleAction={showEditAction ? (
+      icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
+      action={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -263,12 +263,11 @@ export function JobSearchCard({
           <PencilIcon />
         </Button>
       ) : undefined}
-      titleOnBorder
       contentClassName="space-y-4"
     >
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-1">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Lavori che accetta
           </FieldTitle>
           {isEditing ? (
@@ -289,7 +288,7 @@ export function JobSearchCard({
         </div>
 
         <div className="space-y-1">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Frequenza disponibilita
           </FieldTitle>
           {isEditing ? (
@@ -311,7 +310,7 @@ export function JobSearchCard({
       </div>
 
       <div className="space-y-1">
-        <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+        <FieldTitle>
           Numero di giorni lavorativi che accetta per fare un contratto
         </FieldTitle>
         {isEditing ? (
@@ -332,7 +331,7 @@ export function JobSearchCard({
 
       <div className="space-y-4">
         <div className="space-y-1">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Accetta lavori con trasferte?
           </FieldTitle>
           {isEditing ? (
@@ -354,7 +353,7 @@ export function JobSearchCard({
         </div>
 
         <div className="space-y-1">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Accetta di fare piu contratti?
           </FieldTitle>
           {isEditing ? (
@@ -376,7 +375,7 @@ export function JobSearchCard({
         </div>
 
         <div className="space-y-1">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Accetta la paga di 9€ netti l'ora in regola?
           </FieldTitle>
           {isEditing ? (
@@ -397,6 +396,6 @@ export function JobSearchCard({
           )}
         </div>
       </div>
-    </DetailSectionCard>
+    </DetailSectionBlock>
   )
 }

@@ -235,7 +235,7 @@ export function AssunzioniBoardView() {
   const [selectedCard, setSelectedCard] = React.useState<AssunzioniBoardCardData | null>(null)
 
   return (
-    <section className="flex h-[calc(100vh-6.5rem)] min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
+    <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
       <div className="flex items-center gap-2 px-1">
         <FilePlus2Icon className="text-muted-foreground size-4" />
         <h1 className="text-base font-semibold">Assunzioni</h1>

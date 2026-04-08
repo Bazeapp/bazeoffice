@@ -554,7 +554,7 @@ export function WorkerProfileHeader({
                       onValueChange={(value) => void handleLookupFieldChange("sesso", value)}
                       disabled={fieldsDisabled}
                     >
-                      <SelectTrigger className="h-7 text-sm">
+                      <SelectTrigger className="h-7">
                         <SelectValue placeholder="Seleziona sesso" />
                       </SelectTrigger>
                       <SelectContent>
@@ -594,7 +594,7 @@ export function WorkerProfileHeader({
                       }
                       disabled={fieldsDisabled}
                     >
-                      <SelectTrigger className="h-7 text-sm">
+                      <SelectTrigger className="h-7">
                         <SelectValue placeholder="Seleziona nazionalita" />
                       </SelectTrigger>
                       <SelectContent>
@@ -659,7 +659,7 @@ export function WorkerProfileHeader({
                     }
                     disabled={resolvedMotivazioneDisabled}
                   >
-                    <SelectTrigger className={`h-8 w-full text-xs ${motivationClassName}`}>
+                    <SelectTrigger className={`h-8 w-full ${motivationClassName}`}>
                       <SelectValue placeholder="Motivazione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -682,7 +682,7 @@ export function WorkerProfileHeader({
                   }
                   disabled={resolvedStatusDisabled}
                 >
-                  <SelectTrigger className={`h-8 w-full text-xs ${selectedStatusClassName}`}>
+                  <SelectTrigger className={`h-8 w-full ${selectedStatusClassName}`}>
                     <SelectValue placeholder="Stato lavoratore" />
                   </SelectTrigger>
                   <SelectContent>
@@ -707,7 +707,7 @@ export function WorkerProfileHeader({
                 }
                 disabled={resolvedDisponibilitaDisabled}
               >
-                <SelectTrigger className={`h-8 w-full text-xs ${selectedDisponibilitaClassName}`}>
+                <SelectTrigger className={`h-8 w-full ${selectedDisponibilitaClassName}`}>
                   <SelectValue placeholder="Disponibilita" />
                 </SelectTrigger>
                 <SelectContent>

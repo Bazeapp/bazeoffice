@@ -1,7 +1,7 @@
 import * as React from "react"
 import { MapPinIcon, PencilIcon } from "lucide-react"
 
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -74,10 +74,10 @@ export function AddressSectionCard({
   onMobilityChange,
 }: AddressSectionCardProps) {
   return (
-    <DetailSectionCard
+    <DetailSectionBlock
       title="Indirizzo"
-      titleIcon={<MapPinIcon className="text-muted-foreground size-4" />}
-      titleAction={showEditAction ? (
+      icon={<MapPinIcon className="text-muted-foreground size-4" />}
+      action={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -89,19 +89,18 @@ export function AddressSectionCard({
           <PencilIcon />
         </Button>
       ) : undefined}
-      titleOnBorder
       contentClassName="space-y-3"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[170px_130px_minmax(0,1fr)_minmax(220px,280px)]">
         <div className="space-y-1">
-          <p className="text-muted-foreground text-xs">Provincia</p>
+          <p className="ui-type-label">Provincia</p>
           {isEditing ? (
             <Select
               value={addressDraft.provincia || undefined}
               onValueChange={onProvinciaChange}
               disabled={isUpdating}
             >
-              <SelectTrigger className="h-8 text-sm">
+              <SelectTrigger className="h-8">
                 <SelectValue placeholder="Provincia" />
               </SelectTrigger>
               <SelectContent>
@@ -119,7 +118,7 @@ export function AddressSectionCard({
 
         {showCap ? (
           <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">CAP</p>
+            <p className="ui-type-label">CAP</p>
             {isEditing ? (
               <Input
                 value={addressDraft.cap}
@@ -142,7 +141,7 @@ export function AddressSectionCard({
         ) : null}
 
         <div className="space-y-1">
-          <p className="text-muted-foreground text-xs">Indirizzo</p>
+          <p className="ui-type-label">Indirizzo</p>
           {isEditing ? (
             <Input
               value={addressDraft.indirizzo_residenza_completo}
@@ -158,7 +157,7 @@ export function AddressSectionCard({
         </div>
 
         <div className="space-y-1">
-          <p className="text-muted-foreground text-xs">Mobilita</p>
+          <p className="ui-type-label">Mobilita</p>
           {isEditing ? (
             <Combobox
               multiple
@@ -204,6 +203,6 @@ export function AddressSectionCard({
           )}
         </div>
       </div>
-    </DetailSectionCard>
+    </DetailSectionBlock>
   )
 }

@@ -13,7 +13,7 @@ import {
   ShieldCheckIcon,
 } from "lucide-react"
 
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import {
   AttachmentUploadSlot,
   hasAttachmentValue,
@@ -467,10 +467,10 @@ export function DocumentsCard({
   )
 
   return (
-    <DetailSectionCard
+    <DetailSectionBlock
       title="Documenti"
-      titleIcon={<FolderArchiveIcon className="text-muted-foreground size-4" />}
-      titleAction={showEditAction ? (
+      icon={<FolderArchiveIcon className="text-muted-foreground size-4" />}
+      action={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -483,13 +483,12 @@ export function DocumentsCard({
           <PencilIcon className="size-4" />
         </Button>
       ) : undefined}
-      titleOnBorder
       contentClassName="space-y-5 pt-2"
     >
       <FieldSet className="gap-5">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="space-y-2">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            <FieldTitle>
               Check documenti verificati da Baze
             </FieldTitle>
             {isEditing ? (
@@ -521,7 +520,7 @@ export function DocumentsCard({
           </div>
 
           <div className="space-y-2">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            <FieldTitle>
               Stato documenti
             </FieldTitle>
             {isEditing ? (
@@ -585,7 +584,7 @@ export function DocumentsCard({
         </div>
 
         <div className="space-y-2">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Data scadenza Naspi
           </FieldTitle>
           {isEditing ? (
@@ -629,6 +628,6 @@ export function DocumentsCard({
           ) : null}
         </DialogContent>
       </Dialog>
-    </DetailSectionCard>
+    </DetailSectionBlock>
   )
 }

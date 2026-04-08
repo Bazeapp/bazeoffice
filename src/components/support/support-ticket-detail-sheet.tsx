@@ -14,7 +14,7 @@ import {
   AttachmentUploadSlot,
   type AttachmentLink,
 } from "@/components/shared/attachment-upload-slot"
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -185,10 +185,9 @@ export function SupportTicketDetailSheet({
               <div className="mx-auto max-w-5xl space-y-5">
                 <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={card.rapporto} />
 
-                <DetailSectionCard
+                <DetailSectionBlock
                   title="Categoria e urgenza"
-                  titleIcon={<TagIcon className="text-muted-foreground size-5" />}
-                  titleOnBorder
+                  icon={<TagIcon className="text-muted-foreground size-5" />}
                   contentClassName="space-y-4"
                 >
                   <div className="flex flex-wrap gap-2">
@@ -209,22 +208,20 @@ export function SupportTicketDetailSheet({
                       Assegnatario: <strong className="text-foreground">{card.assegnatario}</strong>
                     </span>
                   </div>
-                </DetailSectionCard>
+                </DetailSectionBlock>
 
                 {card.note ? (
-                  <DetailSectionCard
+                  <DetailSectionBlock
                     title="Note"
-                    titleIcon={<StickyNoteIcon className="text-muted-foreground size-5" />}
-                    titleOnBorder
+                    icon={<StickyNoteIcon className="text-muted-foreground size-5" />}
                   >
                     <p className="text-sm whitespace-pre-wrap">{card.note}</p>
-                  </DetailSectionCard>
+                  </DetailSectionBlock>
                 ) : null}
 
-                <DetailSectionCard
+                <DetailSectionBlock
                   title="Allegati"
-                  titleIcon={<FileTextIcon className="text-muted-foreground size-5" />}
-                  titleOnBorder
+                  icon={<FileTextIcon className="text-muted-foreground size-5" />}
                   contentClassName="space-y-4"
                 >
                   <AttachmentUploadSlot
@@ -235,7 +232,7 @@ export function SupportTicketDetailSheet({
                     isUploading={isUploadingAttachment}
                   />
                   {uploadError ? <p className="text-sm text-red-600">{uploadError}</p> : null}
-                </DetailSectionCard>
+                </DetailSectionBlock>
               </div>
             </section>
           ) : null}

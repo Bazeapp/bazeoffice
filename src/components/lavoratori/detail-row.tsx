@@ -17,7 +17,7 @@ export function DetailRow({
     <div
       className={`flex gap-3 text-sm ${align === "start" ? "items-start" : "items-center"}`}
     >
-      <FieldTitle className="text-muted-foreground w-24 shrink-0 text-xs font-medium tracking-wide">
+      <FieldTitle className="w-24 shrink-0">
         {label}
       </FieldTitle>
       <div className="min-w-0 flex-1 text-foreground">{children}</div>

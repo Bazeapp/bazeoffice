@@ -18,7 +18,7 @@ import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kan
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card"
 import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot"
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -380,42 +380,41 @@ function CedolinoDetailSheet({
             <div className="mx-auto max-w-5xl space-y-5">
               <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} status={statoServizio} />
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Dettagli rapporto"
-                titleIcon={<ClipboardListIcon className="text-muted-foreground size-5" />}
-                titleAction={<PencilIcon className="text-muted-foreground size-4" />}
-                titleOnBorder
+                icon={<ClipboardListIcon className="text-muted-foreground size-5" />}
+                action={<PencilIcon className="text-muted-foreground size-4" />}
                 contentClassName="space-y-5"
               >
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Stato del servizio</p>
+                    <p className="ui-type-label">Stato del servizio</p>
                     <Badge variant="secondary" className="w-fit rounded-full px-3">
                       {statoServizio}
                     </Badge>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Data creazione rapporto</p>
+                    <p className="ui-type-label">Data creazione rapporto</p>
                     <p className="font-medium">{formatDateTime(rapporto?.creata ?? card.record.data_ora_creazione)}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Nome</p>
+                    <p className="ui-type-label">Nome</p>
                     <p className="font-medium">{famiglia?.nome ?? "Non disponibile"}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Email</p>
+                    <p className="ui-type-label">Email</p>
                     <p className="font-medium">{famiglia?.email ?? famiglia?.customer_email ?? "Non disponibile"}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">ID</p>
+                    <p className="ui-type-label">ID</p>
                     <p className="font-medium">{rapporto?.id_rapporto ?? rapporto?.id ?? "Non disponibile"}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Codice Datore Webcolf</p>
+                    <p className="ui-type-label">Codice Datore Webcolf</p>
                     <p className="font-medium">{rapporto?.codice_datore_webcolf ?? "Non disponibile"}</p>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-muted-foreground text-sm">Data invio famiglia</label>
+                    <label className="ui-type-label">Data invio famiglia</label>
                     <Input
                       type="date"
                       value={toInputDateValue(card.record.data_invio_famiglia)}
@@ -427,7 +426,7 @@ function CedolinoDetailSheet({
                     />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Caso particolare?</p>
+                    <p className="ui-type-label">Caso particolare?</p>
                     <Select
                       value={normalizeCaseFlag(card.record.caso_particolare)}
                       onValueChange={(value) =>
@@ -446,12 +445,12 @@ function CedolinoDetailSheet({
                     </Select>
                   </div>
                 </div>
-              </DetailSectionCard>
+              </DetailSectionBlock>
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Cedolino"
-                titleIcon={<FileTextIcon className="text-muted-foreground size-5" />}
-                titleAction={
+                icon={<FileTextIcon className="text-muted-foreground size-5" />}
+                action={
                   <Button variant="outline" size="sm" asChild>
                     <a href="#" onClick={(event) => event.preventDefault()}>
                       Apri calendario presenze
@@ -459,11 +458,10 @@ function CedolinoDetailSheet({
                     </a>
                   </Button>
                 }
-                titleOnBorder
                 contentClassName="space-y-5"
               >
                 <div className="space-y-2">
-                  <p className="text-muted-foreground text-sm">Stato cedolino</p>
+                  <p className="ui-type-label">Stato cedolino</p>
                   <Select
                     value={card.stage}
                     onValueChange={(nextValue) => onStageChange(card.id, nextValue)}
@@ -491,15 +489,15 @@ function CedolinoDetailSheet({
 
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Ore da contratto</p>
+                    <p className="ui-type-label">Ore da contratto</p>
                     <p className="font-medium">{card.record.ore_contratto_mese ?? "Non disponibile"}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Ore svolte</p>
+                    <p className="ui-type-label">Ore svolte</p>
                     <p className="font-medium">{card.record.ore_lavorate_estratte ?? "Non disponibile"}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Importo busta paga</p>
+                    <p className="ui-type-label">Importo busta paga</p>
                     <Input
                       type="number"
                       step="0.01"
@@ -514,7 +512,7 @@ function CedolinoDetailSheet({
                     />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Cedolino corretto?</p>
+                    <p className="ui-type-label">Cedolino corretto?</p>
                     <Badge variant={card.record.cedolino_corretto ? "default" : "secondary"} className="w-fit rounded-full px-3">
                       {card.record.cedolino_corretto ? "Confermato" : "Da verificare"}
                     </Badge>
@@ -522,69 +520,67 @@ function CedolinoDetailSheet({
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-muted-foreground text-sm">Note interne</p>
+                  <p className="ui-type-label">Note interne</p>
                   <Textarea
                     value={card.record.note ?? ""}
                     className="min-h-24 w-full"
                     onChange={(event) => onPatchCard(card.id, { note: event.target.value || null })}
                   />
                 </div>
-              </DetailSectionCard>
+              </DetailSectionBlock>
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Pagamento"
-                titleIcon={<CreditCardIcon className="text-muted-foreground size-5" />}
-                titleOnBorder
+                icon={<CreditCardIcon className="text-muted-foreground size-5" />}
                 contentClassName="space-y-5"
               >
                 {pagamento ? (
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Transazione</p>
+                      <p className="ui-type-label">Transazione</p>
                       <p className="font-medium">{pagamento.payment_intent_id ?? pagamento.charge_id ?? "Non disponibile"}</p>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Stato pagamento</p>
+                      <p className="ui-type-label">Stato pagamento</p>
                       <Badge variant="secondary" className="w-fit rounded-full px-3">
                         {pagamento.status ?? "Non disponibile"}
                       </Badge>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Importo cedolino</p>
+                      <p className="ui-type-label">Importo cedolino</p>
                       <p className="font-medium">{formatCurrencyAmount(pagamento.amount)}</p>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Application fee</p>
+                      <p className="ui-type-label">Application fee</p>
                       <p className="font-medium">{formatCurrencyAmount(pagamento.fee)}</p>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Tipo pagamento</p>
+                      <p className="ui-type-label">Tipo pagamento</p>
                       <p className="font-medium">{pagamento.type_of_payment ?? "Non disponibile"}</p>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-muted-foreground text-sm">Data pagamento</p>
+                      <p className="ui-type-label">Data pagamento</p>
                       <p className="font-medium">{formatDateTime(pagamento.data_ora_di_pagamento)}</p>
                     </div>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">Nessun pagamento collegato a questo cedolino.</p>
                 )}
-              </DetailSectionCard>
+              </DetailSectionBlock>
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Presenze"
-                titleIcon={<BadgeCheckIcon className="text-muted-foreground size-5" />}
-                titleOnBorder
+                icon={<BadgeCheckIcon className="text-muted-foreground size-5" />}
                 contentClassName="space-y-5"
               >
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-muted-foreground text-sm">Presenze regolari?</span>
+                  <span className="ui-type-label">Presenze regolari?</span>
                   <PresenceBadge isRegular={isRegularPresence} />
                 </div>
 
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Presenze</p>
+                    <p className="ui-type-label">Presenze</p>
                     <div className="rounded-xl border bg-background p-4">
                       <p className="truncate font-medium">{card.nomeCompleto}</p>
                       <div className="text-muted-foreground mt-2 grid gap-2 text-sm sm:grid-cols-2">
@@ -600,7 +596,7 @@ function CedolinoDetailSheet({
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Totale ore da pagare</p>
+                    <p className="ui-type-label">Totale ore da pagare</p>
                     <p className="font-medium">{card.presenze?.presenze_mensili ?? card.record.ore_lavorate_estratte ?? "Non disponibile"}</p>
                   </div>
                 </div>
@@ -641,24 +637,23 @@ function CedolinoDetailSheet({
                 ) : (
                   <p className="text-sm text-muted-foreground">Nessuna presenza collegata a questo mese lavorato.</p>
                 )}
-              </DetailSectionCard>
+              </DetailSectionBlock>
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Feedback"
-                titleIcon={<MessageSquareTextIcon className="text-muted-foreground size-5" />}
-                titleOnBorder
+                icon={<MessageSquareTextIcon className="text-muted-foreground size-5" />}
                 contentClassName="space-y-5"
               >
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Feedback rating</p>
+                    <p className="ui-type-label">Feedback rating</p>
                     <EditableStars
                       value={card.record.rating_feedback_famiglia}
                       onChange={(value) => onPatchCard(card.id, { rating_feedback_famiglia: value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-muted-foreground text-sm">Feedback scritto</p>
+                    <p className="ui-type-label">Feedback scritto</p>
                     <Textarea
                       value={card.record.testo_feedback_famiglia ?? ""}
                       className="min-h-24"
@@ -668,7 +663,7 @@ function CedolinoDetailSheet({
                     />
                   </div>
                 </div>
-              </DetailSectionCard>
+              </DetailSectionBlock>
             </div>
           </section>
         ) : null}
@@ -761,7 +756,7 @@ function CedoliniPayrollView() {
   )
 
   return (
-    <section className="flex h-[calc(100vh-6.5rem)] min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
+    <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
       <div className="flex justify-end px-1">
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground text-sm">Mese</span>

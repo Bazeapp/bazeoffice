@@ -7,8 +7,8 @@ import {
   CreditCardIcon,
   ExternalLinkIcon,
   FileTextIcon,
-  Link2Icon,
   MailIcon,
+  PencilIcon,
   PhoneIcon,
   RefreshCwIcon,
   ShieldAlertIcon,
@@ -22,10 +22,19 @@ import {
   AttachmentUploadSlot,
   type AttachmentLink,
 } from "@/components/shared/attachment-upload-slot"
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import {
+  DetailField,
+  DetailFieldControl,
+  DetailSectionBlock,
+  DetailSectionCard,
+} from "@/components/shared/detail-section-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { updateRecord } from "@/lib/anagrafiche-api"
 import { supabase } from "@/lib/supabase-client"
@@ -222,21 +231,6 @@ function copyToClipboard(value: string | null | undefined) {
   void navigator.clipboard?.writeText(value)
 }
 
-function InfoCell({
-  label,
-  value,
-}: {
-  label: string
-  value: React.ReactNode
-}) {
-  return (
-    <div className="space-y-1">
-      <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">{label}</p>
-      <div className="text-sm font-medium">{value}</div>
-    </div>
-  )
-}
-
 function RelatedPersonCard({
   role,
   name,
@@ -251,46 +245,48 @@ function RelatedPersonCard({
   href?: string
 }) {
   return (
-    <div className="rounded-xl border px-4 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-full">
-            <UserIcon className="text-muted-foreground size-4" />
+    <Card className="bg-background py-0 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <CardContent className="px-4 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-full">
+              <UserIcon className="text-muted-foreground size-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="ui-type-label">{role}</p>
+              <p className="ui-type-value truncate">{name}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">{role}</p>
-            <p className="truncate text-sm font-semibold">{name}</p>
-          </div>
+          {href ? (
+            <Button asChild variant="ghost" size="icon-sm">
+              <a href={href} title={`Apri ${role.toLowerCase()}`}>
+                <ExternalLinkIcon className="size-4" />
+              </a>
+            </Button>
+          ) : null}
         </div>
-        {href ? (
-          <Button asChild variant="ghost" size="icon-sm">
-            <a href={href} title={`Apri ${role.toLowerCase()}`}>
-              <ExternalLinkIcon className="size-4" />
-            </a>
-          </Button>
-        ) : null}
-      </div>
-      <div className="mt-3 space-y-1.5 pl-11 text-sm">
-        <button
-          type="button"
-          onClick={() => copyToClipboard(email)}
-          className="text-muted-foreground hover:text-foreground flex w-full items-center gap-2 text-left transition-colors"
-        >
-          <MailIcon className="size-4" />
-          <span className="truncate">{email ?? "-"}</span>
-          {email ? <CopyIcon className="size-3.5 opacity-50" /> : null}
-        </button>
-        <button
-          type="button"
-          onClick={() => copyToClipboard(phone)}
-          className="text-muted-foreground hover:text-foreground flex w-full items-center gap-2 text-left transition-colors"
-        >
-          <PhoneIcon className="size-4" />
-          <span>{phone ?? "-"}</span>
-          {phone ? <CopyIcon className="size-3.5 opacity-50" /> : null}
-        </button>
-      </div>
-    </div>
+        <div className="mt-3 space-y-1.5 pl-11 text-sm">
+          <button
+            type="button"
+            onClick={() => copyToClipboard(email)}
+            className="text-muted-foreground hover:text-foreground flex w-full items-center gap-2 text-left transition-colors"
+          >
+            <MailIcon className="size-4" />
+            <span className="truncate">{email ?? "-"}</span>
+            {email ? <CopyIcon className="size-3.5 opacity-50" /> : null}
+          </button>
+          <button
+            type="button"
+            onClick={() => copyToClipboard(phone)}
+            className="text-muted-foreground hover:text-foreground flex w-full items-center gap-2 text-left transition-colors"
+          >
+            <PhoneIcon className="size-4" />
+            <span>{phone ?? "-"}</span>
+            {phone ? <CopyIcon className="size-3.5 opacity-50" /> : null}
+          </button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -308,23 +304,25 @@ function ListRowCard({
   onClick?: () => void
 }) {
   return (
-    <div
-      className={`hover:bg-muted/30 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${
+    <Card
+      className={`bg-background py-0 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:bg-muted/30 ${
         onClick ? "cursor-pointer" : ""
       }`}
       onClick={onClick}
     >
-      <div className="min-w-0">
-        <p className="text-sm font-medium">{title}</p>
-        {subtitle ? <p className="text-muted-foreground mt-1 text-xs">{subtitle}</p> : null}
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        {rightBadge ? (
-          <Badge className={getTagClassName(getStatusColor(rightBadge))}>{rightBadge}</Badge>
-        ) : null}
-        {trailing}
-      </div>
-    </div>
+      <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">{title}</p>
+          {subtitle ? <p className="text-muted-foreground mt-1 text-xs">{subtitle}</p> : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          {rightBadge ? (
+            <Badge className={getTagClassName(getStatusColor(rightBadge))}>{rightBadge}</Badge>
+          ) : null}
+          {trailing}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -340,7 +338,7 @@ function EmptyLinkedState({
       <div className="text-muted-foreground/35 mx-auto mb-2 flex size-10 items-center justify-center">
         {icon}
       </div>
-      <p className="text-muted-foreground text-xs">{label}</p>
+      <p className="ui-type-meta">{label}</p>
     </div>
   )
 }
@@ -367,6 +365,56 @@ export function RapportoDetailPanel({
   const [selectedPreview, setSelectedPreview] = React.useState<AttachmentLink | null>(null)
   const [uploadingSlot, setUploadingSlot] = React.useState<string | null>(null)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
+  const [editingSection, setEditingSection] = React.useState<"contratto" | null>(null)
+  const [savingContratto, setSavingContratto] = React.useState(false)
+  const [rapportoState, setRapportoState] = React.useState<RapportoLavorativoRecord | null>(rapporto)
+  const autosaveTimeoutRef = React.useRef<number | null>(null)
+  const [rapportoDraft, setRapportoDraft] = React.useState(() => ({
+    tipo_contratto_durata: rapporto?.tipo_contratto_durata ?? "",
+    tipo_contratto: rapporto?.tipo_contratto ?? "",
+    tipo_rapporto: rapporto?.tipo_rapporto ?? "",
+    ore_a_settimana:
+      typeof rapporto?.ore_a_settimana === "number" ? String(rapporto.ore_a_settimana) : "",
+    data_inizio_rapporto: rapporto?.data_inizio_rapporto ?? "",
+    stato_assunzione: rapporto?.stato_assunzione ?? "",
+    relazione_lavorativa: rapporto?.relazione_lavorativa ?? "",
+    paga_oraria_lorda:
+      typeof rapporto?.paga_oraria_lorda === "number" ? String(rapporto.paga_oraria_lorda) : "",
+    paga_mensile_lorda:
+      typeof rapporto?.paga_mensile_lorda === "number" ? String(rapporto.paga_mensile_lorda) : "",
+    codice_datore_webcolf:
+      typeof rapporto?.codice_datore_webcolf === "number" ? String(rapporto.codice_datore_webcolf) : "",
+    codice_dipendente_webcolf:
+      typeof rapporto?.codice_dipendente_webcolf === "number" ? String(rapporto.codice_dipendente_webcolf) : "",
+  }))
+
+  React.useEffect(() => {
+    setRapportoState(rapporto)
+    setRapportoDraft({
+      tipo_contratto_durata: rapporto?.tipo_contratto_durata ?? "",
+      tipo_contratto: rapporto?.tipo_contratto ?? "",
+      tipo_rapporto: rapporto?.tipo_rapporto ?? "",
+      ore_a_settimana:
+        typeof rapporto?.ore_a_settimana === "number" ? String(rapporto.ore_a_settimana) : "",
+      data_inizio_rapporto: rapporto?.data_inizio_rapporto ?? "",
+      stato_assunzione: rapporto?.stato_assunzione ?? "",
+      relazione_lavorativa: rapporto?.relazione_lavorativa ?? "",
+      paga_oraria_lorda:
+        typeof rapporto?.paga_oraria_lorda === "number" ? String(rapporto.paga_oraria_lorda) : "",
+      paga_mensile_lorda:
+        typeof rapporto?.paga_mensile_lorda === "number" ? String(rapporto.paga_mensile_lorda) : "",
+      codice_datore_webcolf:
+        typeof rapporto?.codice_datore_webcolf === "number" ? String(rapporto.codice_datore_webcolf) : "",
+      codice_dipendente_webcolf:
+        typeof rapporto?.codice_dipendente_webcolf === "number" ? String(rapporto.codice_dipendente_webcolf) : "",
+    })
+    setEditingSection(null)
+    setSavingContratto(false)
+    if (autosaveTimeoutRef.current) {
+      window.clearTimeout(autosaveTimeoutRef.current)
+      autosaveTimeoutRef.current = null
+    }
+  }, [rapporto?.id])
 
   React.useEffect(() => {
     const container = detailScrollRef.current
@@ -486,6 +534,91 @@ export function RapportoDetailPanel({
     [rapporto]
   )
 
+  const setDraftValue = React.useCallback(
+    (field: keyof typeof rapportoDraft, value: string) => {
+      setRapportoDraft((current) => ({ ...current, [field]: value }))
+    },
+    []
+  )
+
+  const currentRapporto = rapportoState ?? rapporto
+
+  const buildContrattoPatch = React.useCallback(
+    () => ({
+      tipo_contratto_durata: rapportoDraft.tipo_contratto_durata || null,
+      tipo_contratto: rapportoDraft.tipo_contratto || null,
+      tipo_rapporto: rapportoDraft.tipo_rapporto || null,
+      ore_a_settimana: rapportoDraft.ore_a_settimana ? Number(rapportoDraft.ore_a_settimana) : null,
+      data_inizio_rapporto: rapportoDraft.data_inizio_rapporto || null,
+      stato_assunzione: rapportoDraft.stato_assunzione || null,
+      relazione_lavorativa: rapportoDraft.relazione_lavorativa || null,
+      paga_oraria_lorda: rapportoDraft.paga_oraria_lorda ? Number(rapportoDraft.paga_oraria_lorda) : null,
+      paga_mensile_lorda: rapportoDraft.paga_mensile_lorda ? Number(rapportoDraft.paga_mensile_lorda) : null,
+      codice_datore_webcolf: rapportoDraft.codice_datore_webcolf
+        ? Number(rapportoDraft.codice_datore_webcolf)
+        : null,
+      codice_dipendente_webcolf: rapportoDraft.codice_dipendente_webcolf
+        ? Number(rapportoDraft.codice_dipendente_webcolf)
+        : null,
+    }),
+    [rapportoDraft]
+  )
+
+  const getChangedContrattoPatch = React.useCallback(() => {
+    if (!currentRapporto) return {}
+
+    const nextValues = buildContrattoPatch()
+    const patch: Record<string, string | number | null> = {}
+
+    for (const [key, nextValue] of Object.entries(nextValues)) {
+      const currentValue = currentRapporto[key as keyof RapportoLavorativoRecord] ?? null
+      if (currentValue !== nextValue) {
+        patch[key] = nextValue
+      }
+    }
+
+    return patch
+  }, [buildContrattoPatch, currentRapporto])
+
+  const persistContrattoChanges = React.useCallback(async () => {
+    if (!currentRapporto) return
+
+    const patch = getChangedContrattoPatch()
+    if (Object.keys(patch).length === 0) return
+
+    setSavingContratto(true)
+    setRapportoState((previous) => (previous ? { ...previous, ...patch } : previous))
+
+    try {
+      await updateRecord("rapporti_lavorativi", currentRapporto.id, patch)
+    } finally {
+      setSavingContratto(false)
+    }
+  }, [currentRapporto, getChangedContrattoPatch])
+
+  React.useEffect(() => {
+    if (editingSection !== "contratto") return
+
+    const patch = getChangedContrattoPatch()
+    if (Object.keys(patch).length === 0) return
+
+    if (autosaveTimeoutRef.current) {
+      window.clearTimeout(autosaveTimeoutRef.current)
+    }
+
+    autosaveTimeoutRef.current = window.setTimeout(() => {
+      void persistContrattoChanges()
+      autosaveTimeoutRef.current = null
+    }, 500)
+
+    return () => {
+      if (autosaveTimeoutRef.current) {
+        window.clearTimeout(autosaveTimeoutRef.current)
+        autosaveTimeoutRef.current = null
+      }
+    }
+  }, [editingSection, getChangedContrattoPatch, persistContrattoChanges])
+
   if (!rapporto) {
     return (
       <DetailSectionCard
@@ -501,32 +634,33 @@ export function RapportoDetailPanel({
     )
   }
 
+  const rapportoView = currentRapporto ?? rapporto
   const familyName =
     (famiglia ? [famiglia.nome, famiglia.cognome].filter(Boolean).join(" ").trim() : "") ||
-    rapporto.cognome_nome_datore_proper ||
+    rapportoView.cognome_nome_datore_proper ||
     "Famiglia non trovata"
   const workerName =
     (lavoratore ? [lavoratore.nome, lavoratore.cognome].filter(Boolean).join(" ").trim() : "") ||
-    rapporto.nome_lavoratore_per_url ||
+    rapportoView.nome_lavoratore_per_url ||
     "Lavoratore non trovato"
   const relationshipTitle = `${familyName} – ${workerName}`
   const distributionItems = buildDistributionItems(
-    rapporto.distribuzione_ore_settimana,
-    rapporto.ore_a_settimana
+    rapportoView.distribuzione_ore_settimana,
+    rapportoView.ore_a_settimana
   )
   const rapportoMetadata =
-    rapporto.metadati_migrazione && typeof rapporto.metadati_migrazione === "object"
-      ? rapporto.metadati_migrazione
+    rapportoView.metadati_migrazione && typeof rapportoView.metadati_migrazione === "object"
+      ? rapportoView.metadati_migrazione
       : {}
   const delegaInpsValue =
     typeof rapportoMetadata === "object" && rapportoMetadata
       ? (rapportoMetadata as Record<string, unknown>).delega_inps_allegati ?? null
       : null
-  const startDateLabel = formatDate(rapporto.data_inizio_rapporto)
+  const startDateLabel = formatDate(rapportoView.data_inizio_rapporto)
   const statoRapportoColor =
     lookupColorsByDomain.get(
-      `rapporti_lavorativi.stato_rapporto:${normalizeToken(rapporto.stato_rapporto)}`
-    ) ?? getStatusColor(rapporto.stato_rapporto)
+      `rapporti_lavorativi.stato_rapporto:${normalizeToken(rapportoView.stato_rapporto)}`
+    ) ?? getStatusColor(rapportoView.stato_rapporto)
   const meseCalendarioById = new Map(mesiCalendario.map((item) => [item.id, item]))
   const pagamentiByTicketId = new Map(
     pagamenti
@@ -549,36 +683,39 @@ export function RapportoDetailPanel({
   return (
     <section
       ref={detailScrollRef}
-      className="bg-background relative min-h-0 overflow-y-auto rounded-xl border px-4 pt-0 pb-4"
+      className="scrollbar-hidden bg-slate-50/80 relative min-h-0 overflow-y-auto rounded-xl border px-4 pt-0 pb-4"
     >
       <div className="space-y-6">
         <div className="sticky top-0 z-20 -mx-4 -mt-4 border-b bg-background/95 px-4 py-3 backdrop-blur">
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <h2 className="truncate text-lg leading-tight font-semibold">{relationshipTitle}</h2>
-                <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                  {famiglia?.email ? <span>{famiglia.email}</span> : null}
-                  {famiglia?.email && startDateLabel !== "-" ? <span>•</span> : null}
-                  {startDateLabel !== "-" ? <span>dal {startDateLabel}</span> : null}
+              <div className="min-w-0 space-y-3">
+                <div>
+                  <h2 className="truncate text-xl leading-tight font-semibold">{relationshipTitle}</h2>
+                  <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                    {famiglia?.email ? <span>{famiglia.email}</span> : null}
+                    {famiglia?.email && startDateLabel !== "-" ? <span>•</span> : null}
+                    {startDateLabel !== "-" ? <span>dal {startDateLabel}</span> : null}
+                  </div>
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+
+                <div className="flex flex-wrap items-center gap-1.5">
                   <Badge className={getTagClassName(statoRapportoColor)}>
-                    {rapporto.stato_rapporto ?? "Sconosciuto"}
+                    {rapportoView.stato_rapporto ?? "Sconosciuto"}
                   </Badge>
-                  {rapporto.stato_servizio ? (
-                    <Badge variant="outline" className="h-5 px-2 text-[11px] font-medium">
-                      {rapporto.stato_servizio}
+                  {rapportoView.stato_servizio ? (
+                    <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+                      {rapportoView.stato_servizio}
                     </Badge>
                   ) : null}
-                  {rapporto.tipo_rapporto ? (
-                    <Badge variant="outline" className="h-5 px-2 text-[11px] font-medium">
-                      {rapporto.tipo_rapporto}
+                  {rapportoView.tipo_rapporto ? (
+                    <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+                      {rapportoView.tipo_rapporto}
                     </Badge>
                   ) : null}
-                  {rapporto.tipo_contratto ? (
-                    <Badge variant="secondary" className="h-5 px-2 text-[11px] font-medium">
-                      {rapporto.tipo_contratto}
+                  {rapportoView.tipo_contratto ? (
+                    <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+                      {rapportoView.tipo_contratto}
                     </Badge>
                   ) : null}
                 </div>
@@ -609,157 +746,361 @@ export function RapportoDetailPanel({
         </div>
 
         <div className="space-y-6 text-sm">
-          <div ref={setSectionRef("contratto")} className="space-y-4">
-            <DetailSectionCard
+          <div ref={setSectionRef("contratto")}>
+            <DetailSectionBlock
               title="Caratteristiche del rapporto"
-              titleIcon={<BriefcaseBusinessIcon className="size-5" />}
-              titleOnBorder
-              contentClassName="space-y-5 pt-2"
-            >
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <InfoCell label="Tipo durata" value={rapporto.tipo_contratto_durata ?? "-"} />
-                <InfoCell label="Tipo contratto" value={rapporto.tipo_contratto ?? "-"} />
-                <InfoCell label="Tipo rapporto" value={rapporto.tipo_rapporto ?? "-"} />
-                <InfoCell
-                  label="Ore settimanali"
-                  value={
-                    typeof rapporto.ore_a_settimana === "number"
-                      ? `${rapporto.ore_a_settimana}h`
-                      : "-"
-                  }
-                />
-              </div>
+              icon={<BriefcaseBusinessIcon className="size-5" />}
+              action={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={savingContratto}
+                  onClick={async () => {
+                    if (editingSection === "contratto") {
+                      if (autosaveTimeoutRef.current) {
+                        window.clearTimeout(autosaveTimeoutRef.current)
+                        autosaveTimeoutRef.current = null
+                      }
+                      await persistContrattoChanges()
+                      setEditingSection(null)
+                      return
+                    }
 
-              <div className="space-y-3">
-                <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
-                  Distribuzione ore
-                </p>
-                <div className="flex flex-wrap gap-2">
+                    setEditingSection("contratto")
+                  }}
+                  aria-label={
+                    editingSection === "contratto"
+                      ? "Chiudi modifica caratteristiche del rapporto"
+                      : "Modifica caratteristiche del rapporto"
+                  }
+                  title={
+                    editingSection === "contratto"
+                      ? "Chiudi modifica caratteristiche del rapporto"
+                      : "Modifica caratteristiche del rapporto"
+                  }
+                >
+                  <PencilIcon className="size-4" />
+                </Button>
+              }
+            >
+              <DetailSectionCard
+                title=""
+                titleOnBorder
+                className="border-border/60 bg-background"
+                contentClassName="space-y-4 pt-0"
+                titleClassName="hidden"
+              >
+                {editingSection === "contratto" ? (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <DetailFieldControl label="Tipo durata">
+                      <Select
+                        value={rapportoDraft.tipo_contratto_durata || "__empty__"}
+                        onValueChange={(value) =>
+                          setDraftValue("tipo_contratto_durata", value === "__empty__" ? "" : value)
+                        }
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Seleziona tipo durata" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__empty__">Non impostato</SelectItem>
+                          <SelectItem value="Determinato">Determinato</SelectItem>
+                          <SelectItem value="Indeterminato">Indeterminato</SelectItem>
+                          {rapportoDraft.tipo_contratto_durata &&
+                          !["Determinato", "Indeterminato"].includes(rapportoDraft.tipo_contratto_durata) ? (
+                            <SelectItem value={rapportoDraft.tipo_contratto_durata}>
+                              {rapportoDraft.tipo_contratto_durata}
+                            </SelectItem>
+                          ) : null}
+                        </SelectContent>
+                      </Select>
+                    </DetailFieldControl>
+                    <DetailFieldControl label="Tipo contratto">
+                      <Input
+                        value={rapportoDraft.tipo_contratto}
+                        onChange={(event) => setDraftValue("tipo_contratto", event.target.value)}
+                      />
+                    </DetailFieldControl>
+                    <DetailFieldControl label="Tipo rapporto">
+                      <Select
+                        value={rapportoDraft.tipo_rapporto || "__empty__"}
+                        onValueChange={(value) =>
+                          setDraftValue("tipo_rapporto", value === "__empty__" ? "" : value)
+                        }
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Seleziona tipo rapporto" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__empty__">Non impostato</SelectItem>
+                          <SelectItem value="Lavoro ad ore">Lavoro ad ore</SelectItem>
+                          <SelectItem value="Part time">Part time</SelectItem>
+                          <SelectItem value="Convivente">Convivente</SelectItem>
+                          <SelectItem value="Non convivente full-time">Non convivente full-time</SelectItem>
+                          {rapportoDraft.tipo_rapporto &&
+                          ![
+                            "Lavoro ad ore",
+                            "Part time",
+                            "Convivente",
+                            "Non convivente full-time",
+                          ].includes(rapportoDraft.tipo_rapporto) ? (
+                            <SelectItem value={rapportoDraft.tipo_rapporto}>
+                              {rapportoDraft.tipo_rapporto}
+                            </SelectItem>
+                          ) : null}
+                        </SelectContent>
+                      </Select>
+                    </DetailFieldControl>
+                    <DetailFieldControl label="Ore settimanali">
+                      <Input
+                        type="number"
+                        value={rapportoDraft.ore_a_settimana}
+                        onChange={(event) => setDraftValue("ore_a_settimana", event.target.value)}
+                      />
+                    </DetailFieldControl>
+                    <DetailFieldControl label="Data inizio">
+                      <Input
+                        type="date"
+                        value={rapportoDraft.data_inizio_rapporto.slice(0, 10)}
+                        onChange={(event) => setDraftValue("data_inizio_rapporto", event.target.value)}
+                      />
+                    </DetailFieldControl>
+                    <DetailField label="Durata" value={getDurationLabel(rapportoDraft.data_inizio_rapporto || null)} />
+                    <DetailFieldControl label="Stato assunzione">
+                      <Input
+                        value={rapportoDraft.stato_assunzione}
+                        onChange={(event) => setDraftValue("stato_assunzione", event.target.value)}
+                      />
+                    </DetailFieldControl>
+                    <DetailFieldControl label="Relazione lavorativa">
+                      <Input
+                        value={rapportoDraft.relazione_lavorativa}
+                        onChange={(event) => setDraftValue("relazione_lavorativa", event.target.value)}
+                      />
+                    </DetailFieldControl>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <DetailField label="Tipo durata" value={rapportoView.tipo_contratto_durata ?? "-"} />
+                    <DetailField label="Tipo contratto" value={rapportoView.tipo_contratto ?? "-"} />
+                    <DetailField label="Tipo rapporto" value={rapportoView.tipo_rapporto ?? "-"} />
+                    <DetailField
+                      label="Ore settimanali"
+                      value={
+                        typeof rapportoView.ore_a_settimana === "number"
+                          ? `${rapportoView.ore_a_settimana}h`
+                          : "-"
+                      }
+                    />
+                    <DetailField label="Data inizio" value={startDateLabel} />
+                    <DetailField label="Durata" value={getDurationLabel(rapportoView.data_inizio_rapporto)} />
+                    <DetailField label="Stato assunzione" value={rapportoView.stato_assunzione ?? "-"} />
+                    <DetailField label="Relazione lavorativa" value={rapportoView.relazione_lavorativa ?? "-"} />
+                  </div>
+                )}
+              </DetailSectionCard>
+
+              <Separator className="bg-border/60" />
+
+              <DetailSectionCard
+                title=""
+                titleOnBorder
+                className="border-border/60 bg-background"
+                contentClassName="space-y-4 pt-0"
+                titleClassName="hidden"
+              >
+                <div className="space-y-3">
+                  <p className="ui-type-label">
+                    Distribuzione ore
+                  </p>
+                  <div className="flex flex-wrap gap-2">
                   {distributionItems.map((item) => (
                     <div
                       key={item.day}
-                      className="bg-muted/35 flex min-w-14 flex-col items-center rounded-md border px-2 py-1.5"
+                      className="bg-muted/35 flex min-w-14 flex-col items-center rounded-xl px-2.5 py-2"
                     >
-                      <span className="text-muted-foreground text-[11px]">{item.day}</span>
-                      <span className="text-xs font-semibold">{item.value}</span>
+                      <span className="ui-type-label normal-case tracking-normal">{item.day}</span>
+                      <span className="ui-type-value mt-1">{item.value}</span>
                     </div>
                   ))}
+                  </div>
                 </div>
-              </div>
+              </DetailSectionCard>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <InfoCell label="Paga oraria lorda" value={formatCurrency(rapporto.paga_oraria_lorda)} />
-                <InfoCell label="Paga mensile lorda" value={formatCurrency(rapporto.paga_mensile_lorda)} />
-                <InfoCell label="Data inizio" value={startDateLabel} />
-                <InfoCell label="Durata" value={getDurationLabel(rapporto.data_inizio_rapporto)} />
-                <InfoCell
-                  label="Cod. rapporto Webcolf"
-                  value={rapporto.codice_datore_webcolf ? String(rapporto.codice_datore_webcolf) : "-"}
-                />
-                <InfoCell
-                  label="Cod. lavoratore Webcolf"
-                  value={rapporto.codice_dipendente_webcolf ? String(rapporto.codice_dipendente_webcolf) : "-"}
-                />
-                <InfoCell label="Stato assunzione" value={rapporto.stato_assunzione ?? "-"} />
-                <InfoCell label="Relazione lavorativa" value={rapporto.relazione_lavorativa ?? "-"} />
-              </div>
-            </DetailSectionCard>
+              <Separator className="bg-border/60" />
+
+              <DetailSectionCard
+                title=""
+                titleOnBorder
+                className="border-border/60 bg-background"
+                contentClassName="space-y-4 pt-0"
+                titleClassName="hidden"
+              >
+                {editingSection === "contratto" ? (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <DetailFieldControl label="Paga oraria lorda">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={rapportoDraft.paga_oraria_lorda}
+                        onChange={(event) => setDraftValue("paga_oraria_lorda", event.target.value)}
+                      />
+                    </DetailFieldControl>
+                    <DetailFieldControl label="Paga mensile lorda">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={rapportoDraft.paga_mensile_lorda}
+                        onChange={(event) => setDraftValue("paga_mensile_lorda", event.target.value)}
+                      />
+                    </DetailFieldControl>
+                    <DetailFieldControl label="Cod. rapporto Webcolf">
+                      <Input
+                        type="number"
+                        value={rapportoDraft.codice_datore_webcolf}
+                        onChange={(event) => setDraftValue("codice_datore_webcolf", event.target.value)}
+                      />
+                    </DetailFieldControl>
+                    <DetailFieldControl label="Cod. lavoratore Webcolf">
+                      <Input
+                        type="number"
+                        value={rapportoDraft.codice_dipendente_webcolf}
+                        onChange={(event) => setDraftValue("codice_dipendente_webcolf", event.target.value)}
+                      />
+                    </DetailFieldControl>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <DetailField label="Paga oraria lorda" value={formatCurrency(rapportoView.paga_oraria_lorda)} />
+                    <DetailField label="Paga mensile lorda" value={formatCurrency(rapportoView.paga_mensile_lorda)} />
+                    <DetailField
+                      label="Cod. rapporto Webcolf"
+                      value={rapportoView.codice_datore_webcolf ? String(rapportoView.codice_datore_webcolf) : "-"}
+                    />
+                    <DetailField
+                      label="Cod. lavoratore Webcolf"
+                      value={
+                        rapportoView.codice_dipendente_webcolf
+                          ? String(rapportoView.codice_dipendente_webcolf)
+                          : "-"
+                      }
+                    />
+                  </div>
+                )}
+              </DetailSectionCard>
+            </DetailSectionBlock>
           </div>
 
-          <div ref={setSectionRef("gestione")} className="space-y-4">
-            <DetailSectionCard
+          <div ref={setSectionRef("gestione")}>
+            <DetailSectionBlock
               title="Datore e lavoratore"
-              titleIcon={<UsersIcon className="size-5" />}
-              titleOnBorder
-              contentClassName="space-y-5 pt-2"
+              icon={<UsersIcon className="size-5" />}
             >
               {loadingRelated ? (
                 <p className="text-muted-foreground text-sm">Caricamento record collegati...</p>
               ) : (
                 <>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <RelatedPersonCard
-                      role="Datore"
-                      name={familyName}
-                      email={famiglia?.email}
-                      phone={famiglia?.telefono}
-                      href={
-                        famiglia
-                          ? buildPathForRoute({
-                              mainSection: "anagrafiche",
-                              anagraficheTab: "famiglie",
-                              ricercaProcessId: null,
-                            })
-                          : undefined
-                      }
-                    />
-                    <RelatedPersonCard
-                      role="Lavoratore"
-                      name={workerName}
-                      email={lavoratore?.email}
-                      phone={lavoratore?.telefono}
-                      href={
-                        lavoratore
-                          ? buildPathForRoute({
-                              mainSection: "lavoratori_cerca",
-                              anagraficheTab: "famiglie",
-                              ricercaProcessId: null,
-                            })
-                          : undefined
-                      }
-                    />
-                  </div>
+                  <DetailSectionCard
+                    title=""
+                    titleOnBorder
+                    className="border-border/60 bg-background"
+                    contentClassName="space-y-4 pt-0"
+                    titleClassName="hidden"
+                  >
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <RelatedPersonCard
+                        role="Datore"
+                        name={familyName}
+                        email={famiglia?.email}
+                        phone={famiglia?.telefono}
+                        href={
+                          famiglia
+                            ? buildPathForRoute({
+                                mainSection: "anagrafiche",
+                                anagraficheTab: "famiglie",
+                                ricercaProcessId: null,
+                              })
+                            : undefined
+                        }
+                      />
+                      <RelatedPersonCard
+                        role="Lavoratore"
+                        name={workerName}
+                        email={lavoratore?.email}
+                        phone={lavoratore?.telefono}
+                        href={
+                          lavoratore
+                            ? buildPathForRoute({
+                                mainSection: "lavoratori_cerca",
+                                anagraficheTab: "famiglie",
+                                ricercaProcessId: null,
+                              })
+                            : undefined
+                        }
+                      />
+                    </div>
+                  </DetailSectionCard>
 
-                  <div className="grid gap-4 lg:grid-cols-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <FileTextIcon className="text-muted-foreground size-4" />
-                        <span className="text-[11px] font-semibold">Accordo di lavoro</span>
+                  <DetailSectionCard
+                    title=""
+                    titleOnBorder
+                    className="border-border/60 bg-background"
+                    contentClassName="space-y-4 pt-0"
+                    titleClassName="hidden"
+                  >
+                    <div className="grid gap-4 lg:grid-cols-3">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <FileTextIcon className="text-muted-foreground size-4" />
+                          <span className="text-[11px] font-semibold">Accordo di lavoro</span>
+                        </div>
+                        <AttachmentUploadSlot
+                          label="Accordo di lavoro"
+                          value={rapporto.accordo_di_lavoro_allegati}
+                          onAdd={(file) => void handleUploadRapportoAttachment("accordo_di_lavoro_allegati", file)}
+                          onPreviewOpen={setSelectedPreview}
+                          isUploading={uploadingSlot === "accordo_di_lavoro_allegati"}
+                        />
                       </div>
-                      <AttachmentUploadSlot
-                        label="Accordo di lavoro"
-                        value={rapporto.accordo_di_lavoro_allegati}
-                        onAdd={(file) => void handleUploadRapportoAttachment("accordo_di_lavoro_allegati", file)}
-                        onPreviewOpen={setSelectedPreview}
-                        isUploading={uploadingSlot === "accordo_di_lavoro_allegati"}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <FileTextIcon className="text-muted-foreground size-4" />
-                        <span className="text-[11px] font-semibold">Ricevuta INPS</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <FileTextIcon className="text-muted-foreground size-4" />
+                          <span className="text-[11px] font-semibold">Ricevuta INPS</span>
+                        </div>
+                        <AttachmentUploadSlot
+                          label="Ricevuta INPS"
+                          value={rapporto.ricevuta_inps_allegati}
+                          onAdd={(file) => void handleUploadRapportoAttachment("ricevuta_inps_allegati", file)}
+                          onPreviewOpen={setSelectedPreview}
+                          isUploading={uploadingSlot === "ricevuta_inps_allegati"}
+                        />
                       </div>
-                      <AttachmentUploadSlot
-                        label="Ricevuta INPS"
-                        value={rapporto.ricevuta_inps_allegati}
-                        onAdd={(file) => void handleUploadRapportoAttachment("ricevuta_inps_allegati", file)}
-                        onPreviewOpen={setSelectedPreview}
-                        isUploading={uploadingSlot === "ricevuta_inps_allegati"}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <FileTextIcon className="text-muted-foreground size-4" />
-                        <span className="text-[11px] font-semibold">Delega INPS</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <FileTextIcon className="text-muted-foreground size-4" />
+                          <span className="text-[11px] font-semibold">Delega INPS</span>
+                        </div>
+                        <AttachmentUploadSlot
+                          label="Delega INPS"
+                          value={delegaInpsValue}
+                          onAdd={(file) => void handleUploadRapportoAttachment("delega_inps_allegati", file)}
+                          onPreviewOpen={setSelectedPreview}
+                          isUploading={uploadingSlot === "delega_inps_allegati"}
+                        />
                       </div>
-                      <AttachmentUploadSlot
-                        label="Delega INPS"
-                        value={delegaInpsValue}
-                        onAdd={(file) => void handleUploadRapportoAttachment("delega_inps_allegati", file)}
-                        onPreviewOpen={setSelectedPreview}
-                        isUploading={uploadingSlot === "delega_inps_allegati"}
-                      />
                     </div>
-                  </div>
+                  </DetailSectionCard>
 
                   {uploadError ? <p className="text-sm text-red-600">{uploadError}</p> : null}
 
                   {processi.length > 0 ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Link2Icon className="text-muted-foreground size-4" />
-                        <p className="text-[11px] font-semibold tracking-wide uppercase">Record collegati</p>
-                      </div>
+                    <DetailSectionCard
+                      title="Record collegati"
+                      titleOnBorder
+                      className="border-border/60 bg-background"
+                      contentClassName="space-y-3"
+                    >
                       <div className="space-y-2">
                         {processi.map((processo) => (
                           <ListRowCard
@@ -783,18 +1124,17 @@ export function RapportoDetailPanel({
                           />
                         ))}
                       </div>
-                    </div>
+                    </DetailSectionCard>
                   ) : null}
                 </>
               )}
-            </DetailSectionCard>
+            </DetailSectionBlock>
           </div>
 
           <div ref={setSectionRef("cedolini")} className="space-y-4">
-            <DetailSectionCard
+            <DetailSectionBlock
               title="Cedolini"
-              titleIcon={<FileTextIcon className="size-5" />}
-              titleOnBorder
+              icon={<FileTextIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
               {sortedMesi.length > 0 ? (
@@ -831,14 +1171,13 @@ export function RapportoDetailPanel({
                   label="Nessun cedolino collegato"
                 />
               )}
-            </DetailSectionCard>
+            </DetailSectionBlock>
           </div>
 
           <div ref={setSectionRef("contributi")} className="space-y-4">
-            <DetailSectionCard
+            <DetailSectionBlock
               title="Contributi INPS"
-              titleIcon={<CalendarDaysIcon className="size-5" />}
-              titleOnBorder
+              icon={<CalendarDaysIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
               {contributi.length > 0 ? (
@@ -874,14 +1213,13 @@ export function RapportoDetailPanel({
                   label="Nessun contributo INPS collegato"
                 />
               )}
-            </DetailSectionCard>
+            </DetailSectionBlock>
           </div>
 
           <div ref={setSectionRef("variazioni")} className="space-y-4">
-            <DetailSectionCard
+            <DetailSectionBlock
               title="Variazioni contrattuali"
-              titleIcon={<RefreshCwIcon className="size-5" />}
-              titleOnBorder
+              icon={<RefreshCwIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
               {variazioni.length > 0 ? (
@@ -906,14 +1244,13 @@ export function RapportoDetailPanel({
                   label="Nessuna variazione contrattuale collegata"
                 />
               )}
-            </DetailSectionCard>
+            </DetailSectionBlock>
           </div>
 
           <div ref={setSectionRef("chiusure")} className="space-y-4">
-            <DetailSectionCard
+            <DetailSectionBlock
               title="Chiusure"
-              titleIcon={<ShieldAlertIcon className="size-5" />}
-              titleOnBorder
+              icon={<ShieldAlertIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
               {chiusure.length > 0 ? (
@@ -942,7 +1279,7 @@ export function RapportoDetailPanel({
                   label="Nessuna chiusura collegata"
                 />
               )}
-            </DetailSectionCard>
+            </DetailSectionBlock>
           </div>
 
           <div className="h-8" />

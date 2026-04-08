@@ -14,7 +14,7 @@ import {
   UserIcon,
 } from "lucide-react";
 
-import { DetailSectionCard } from "@/components/shared/detail-section-card";
+import { DetailSectionBlock } from "@/components/shared/detail-section-card";
 import {
   Accordion,
   AccordionContent,
@@ -305,7 +305,7 @@ function AddReferenceAction({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            <FieldTitle>
               Nome
             </FieldTitle>
             <Input
@@ -321,7 +321,7 @@ function AddReferenceAction({
             />
           </div>
           <div className="space-y-2">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            <FieldTitle>
               Cognome
             </FieldTitle>
             <Input
@@ -337,7 +337,7 @@ function AddReferenceAction({
             />
           </div>
           <div className="space-y-2">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            <FieldTitle>
               Telefono
             </FieldTitle>
             <Input
@@ -427,7 +427,7 @@ function EditableReferenceCard({
     <Card className="gap-0 py-0 shadow-none">
       <CardContent className="space-y-4 p-4 pt-3 pb-3">
         <div className="space-y-2">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Stato verifica referenza
           </FieldTitle>
           <div className="max-w-sm">
@@ -442,7 +442,7 @@ function EditableReferenceCard({
               }}
               disabled={disabled}
             >
-              <SelectTrigger className="h-9 w-full text-sm">
+              <SelectTrigger className="h-9 w-full">
                 <SelectValue placeholder="Seleziona stato" />
               </SelectTrigger>
               <SelectContent>
@@ -458,7 +458,7 @@ function EditableReferenceCard({
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            <FieldTitle>
               <UserIcon className="size-3.5" />
               Nome referenza
             </FieldTitle>
@@ -480,7 +480,7 @@ function EditableReferenceCard({
             />
           </div>
           <div className="space-y-2">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            <FieldTitle>
               <UserIcon className="size-3.5" />
               Cognome referenza
             </FieldTitle>
@@ -504,7 +504,7 @@ function EditableReferenceCard({
             />
           </div>
           <div className="space-y-2">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            <FieldTitle>
               <PhoneIcon className="size-3.5" />
               Numero referenza
             </FieldTitle>
@@ -532,7 +532,7 @@ function EditableReferenceCard({
         {isVerified ? (
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+              <FieldTitle>
                 <StarIcon className="size-3.5" />
                 Valutazione
               </FieldTitle>
@@ -567,7 +567,7 @@ function EditableReferenceCard({
               </div>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+              <FieldTitle>
                 <CheckCircle2Icon className="size-3.5" />
                 Disponibile a essere chiamata
               </FieldTitle>
@@ -593,7 +593,7 @@ function EditableReferenceCard({
               </label>
             </div>
             <div className="space-y-2 md:col-span-3">
-              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+              <FieldTitle>
                 <MessageSquareTextIcon className="size-3.5" />
                 Feedback della referenza
               </FieldTitle>
@@ -689,7 +689,7 @@ function EditableExperienceCard({
         <div className="space-y-2">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+              <FieldTitle>
                 Tipo lavoro
               </FieldTitle>
               <ExperienceRoleField
@@ -705,7 +705,7 @@ function EditableExperienceCard({
               />
             </div>
             <div className="space-y-2">
-              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+              <FieldTitle>
                 Tipo rapporto
               </FieldTitle>
               <Select
@@ -718,7 +718,7 @@ function EditableExperienceCard({
                 }}
                 disabled={disabled}
               >
-                <SelectTrigger className="h-9 w-full text-sm">
+                <SelectTrigger className="h-9 w-full">
                   <SelectValue placeholder="Seleziona tipo rapporto" />
                 </SelectTrigger>
                 <SelectContent>
@@ -734,7 +734,7 @@ function EditableExperienceCard({
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+              <FieldTitle>
                 Data inizio
               </FieldTitle>
               <Input
@@ -758,7 +758,7 @@ function EditableExperienceCard({
               />
             </div>
             <div className="space-y-2">
-              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+              <FieldTitle>
                 Data fine
               </FieldTitle>
               <Input
@@ -781,7 +781,7 @@ function EditableExperienceCard({
               />
             </div>
             <div className="space-y-2">
-              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+              <FieldTitle>
                 Rapporto attivo
               </FieldTitle>
               <label className="flex h-9 items-center gap-2 text-sm">
@@ -809,7 +809,7 @@ function EditableExperienceCard({
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            <FieldTitle>
               Descrizione Mansioni ed Esperienza
             </FieldTitle>
             <Textarea
@@ -832,7 +832,7 @@ function EditableExperienceCard({
             />
           </div>
           <div className="space-y-2">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            <FieldTitle>
               Descrizione Famiglia e Contesto
             </FieldTitle>
             <Textarea
@@ -862,7 +862,7 @@ function EditableExperienceCard({
 
         {!draft.stato_esperienza_attiva ? (
           <div className="space-y-2">
-            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+            <FieldTitle>
               Motivazione fine rapporto
             </FieldTitle>
             <Textarea
@@ -888,7 +888,7 @@ function EditableExperienceCard({
         ) : null}
 
         <div className="space-y-3">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Referenze
           </FieldTitle>
           {referencesLoading ? (
@@ -1029,10 +1029,10 @@ export function ExperienceReferencesCard({
   }, [experiences]);
 
   return (
-    <DetailSectionCard
+    <DetailSectionBlock
       title={title}
-      titleIcon={<FileTextIcon className="text-muted-foreground size-4" />}
-      titleAction={
+      icon={<FileTextIcon className="text-muted-foreground size-4" />}
+      action={
         showEditAction ? (
           <Button
             type="button"
@@ -1050,14 +1050,13 @@ export function ExperienceReferencesCard({
           </Button>
         ) : undefined
       }
-      titleOnBorder
       contentClassName="space-y-4"
     >
       {showSummaryFields ? (
         isEditing ? (
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-1">
-              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+              <FieldTitle>
                 Anni Esperienza Colf
               </FieldTitle>
               <Input
@@ -1075,7 +1074,7 @@ export function ExperienceReferencesCard({
             </div>
 
             <div className="space-y-1">
-              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+              <FieldTitle>
                 Anni Esperienza Badante
               </FieldTitle>
               <Input
@@ -1093,7 +1092,7 @@ export function ExperienceReferencesCard({
             </div>
 
             <div className="space-y-1">
-              <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+              <FieldTitle>
                 Anni Esperienza Babysitter
               </FieldTitle>
               <Input
@@ -1130,7 +1129,7 @@ export function ExperienceReferencesCard({
 
       {showSituationField ? (
         <div className="space-y-2">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Situazione lavorativa attuale
           </FieldTitle>
           {isEditing ? (
@@ -1153,7 +1152,7 @@ export function ExperienceReferencesCard({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Inserisci una sola esperienza
           </FieldTitle>
           {showCreateExperienceAction && isEditing && onExperienceCreate ? (
@@ -1262,7 +1261,7 @@ export function ExperienceReferencesCard({
                         <CardContent className="space-y-4 px-0 pt-1 pb-2">
                           <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+                        <FieldTitle>
                           Descrizione Mansioni ed Esperienza
                         </FieldTitle>
                         <FieldDescription className="text-foreground leading-7 whitespace-pre-wrap">
@@ -1270,7 +1269,7 @@ export function ExperienceReferencesCard({
                         </FieldDescription>
                       </div>
                       <div className="space-y-2">
-                        <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+                        <FieldTitle>
                           Descrizione Famiglia e Contesto
                         </FieldTitle>
                         <FieldDescription className="text-foreground leading-7 whitespace-pre-wrap">
@@ -1281,7 +1280,7 @@ export function ExperienceReferencesCard({
 
                     {!experience.stato_esperienza_attiva ? (
                       <div className="space-y-2">
-                        <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+                        <FieldTitle>
                           Motivazione fine rapporto
                         </FieldTitle>
                         <FieldDescription className="text-foreground leading-7 whitespace-pre-wrap">
@@ -1292,7 +1291,7 @@ export function ExperienceReferencesCard({
 
                     {showReferencesSection ? (
                       <div className="space-y-3">
-                        <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+                        <FieldTitle>
                           Referenze
                         </FieldTitle>
                         {referencesLoading ? (
@@ -1359,7 +1358,7 @@ export function ExperienceReferencesCard({
                                       <div className="space-y-4">
                                         <div className="grid gap-4 md:grid-cols-2">
                                           <div className="space-y-2">
-                                            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+                                            <FieldTitle>
                                               <StarIcon className="size-3.5" />
                                               Valutazione
                                             </FieldTitle>
@@ -1385,7 +1384,7 @@ export function ExperienceReferencesCard({
                                             </div>
                                           </div>
                                           <div className="space-y-2">
-                                            <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+                                            <FieldTitle>
                                               <CheckCircle2Icon className="size-3.5" />
                                               Disponibile a essere richiamata
                                             </FieldTitle>
@@ -1401,7 +1400,7 @@ export function ExperienceReferencesCard({
                                         </div>
 
                                         <div className="space-y-2">
-                                          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+                                          <FieldTitle>
                                             <MessageSquareTextIcon className="size-3.5" />
                                             Feedback della referenza
                                           </FieldTitle>
@@ -1431,6 +1430,6 @@ export function ExperienceReferencesCard({
           </Accordion>
         )}
       </div>
-    </DetailSectionCard>
+    </DetailSectionBlock>
   );
 }

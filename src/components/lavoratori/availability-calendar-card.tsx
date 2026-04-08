@@ -1,7 +1,7 @@
 import * as React from "react"
 import { CalendarDaysIcon, PencilIcon } from "lucide-react"
 
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -70,7 +70,7 @@ export function AvailabilityCalendarCard({
   }, [comparisonRows])
 
   return (
-    <DetailSectionCard
+    <DetailSectionBlock
       title={
         <span className="flex items-center gap-2">
           <span>Calendario disponibilita</span>
@@ -79,8 +79,8 @@ export function AvailabilityCalendarCard({
           </span>
         </span>
       }
-      titleIcon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
-      titleAction={showEditAction ? (
+      icon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
+      action={showEditAction ? (
         <Button
           type="button"
           variant="ghost"
@@ -92,7 +92,6 @@ export function AvailabilityCalendarCard({
           <PencilIcon />
         </Button>
       ) : undefined}
-      titleOnBorder
       contentClassName="space-y-4"
     >
       <div className="space-y-4">
@@ -223,6 +222,6 @@ export function AvailabilityCalendarCard({
           )}
         </DetailRow>
       </div>
-    </DetailSectionCard>
+    </DetailSectionBlock>
   )
 }

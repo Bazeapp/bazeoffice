@@ -4,7 +4,7 @@ import { Clock3Icon, PencilIcon } from "lucide-react";
 import { AvailabilityCalendarCard } from "@/components/lavoratori/availability-calendar-card";
 import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
-import { DetailSectionCard } from "@/components/shared/detail-section-card";
+import { DetailSectionBlock } from "@/components/shared/detail-section-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -398,10 +398,10 @@ function TravelTimeCard({
       : "Non dichiarato";
 
   return (
-    <DetailSectionCard
+    <DetailSectionBlock
       title="Travel time"
-      titleIcon={<Clock3Icon className="text-muted-foreground size-4" />}
-      titleAction={
+      icon={<Clock3Icon className="text-muted-foreground size-4" />}
+      action={
         <div className="flex items-center gap-2">
           <SectionToneBadge label={travelTone.label} tone={travelTone.tone} />
           <Button
@@ -424,7 +424,6 @@ function TravelTimeCard({
           </Button>
         </div>
       }
-      titleOnBorder
       contentClassName="space-y-4"
     >
       <div className="grid gap-4 text-sm sm:grid-cols-[220px_minmax(0,1fr)] sm:items-start">
@@ -455,7 +454,7 @@ function TravelTimeCard({
                 void commitAddressField("provincia", nextValue);
               }}
             >
-              <SelectTrigger className="h-9 text-sm">
+              <SelectTrigger className="h-9">
                 <SelectValue placeholder="Provincia" />
               </SelectTrigger>
               <SelectContent>
@@ -527,7 +526,7 @@ function TravelTimeCard({
               }}
               disabled={updatingProcessAddress}
             >
-              <SelectTrigger className="h-9 text-sm">
+              <SelectTrigger className="h-9">
                 <SelectValue placeholder="Provincia" />
               </SelectTrigger>
               <SelectContent>
@@ -635,7 +634,7 @@ function TravelTimeCard({
           <p>-</p>
         )}
       </div>
-    </DetailSectionCard>
+    </DetailSectionBlock>
   );
 }
 

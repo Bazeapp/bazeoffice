@@ -13,7 +13,6 @@ import {
 import {
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
 
 type AppShellProps = {
@@ -265,11 +264,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onOpenCustomerSupportPayrollTicket={handleOpenCustomerSupportPayrollTicket}
       />
       <SidebarInset>
-        <header className="flex h-12 items-center gap-2 border-b px-3">
-          <SidebarTrigger />
-        </header>
-
-        <main className="flex-1 min-w-0 p-3">
+        <main className="flex min-h-0 flex-1 min-w-0 p-3">
           <AppPageContent
             route={route}
             onOpenAnagraficheTab={handleOpenAnagraficheTab}

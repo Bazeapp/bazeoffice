@@ -15,7 +15,7 @@ import {
 
 import type { AssunzioniBoardCardData } from "@/hooks/use-assunzioni-board"
 import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot"
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -86,7 +86,7 @@ function EditableField({
 }) {
   return (
     <div className="space-y-2">
-      <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">{label}</p>
+      <p className="ui-type-label">{label}</p>
       {children}
     </div>
   )
@@ -130,7 +130,7 @@ function RelatedSubjectCard({
           )}
         </div>
         <FieldContent className="min-w-0 flex-1">
-          <FieldTitle className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <FieldTitle>
             {role}
           </FieldTitle>
           <FieldDescription className="mt-1 text-sm font-semibold text-foreground">
@@ -204,10 +204,9 @@ function RapportoDetailSections({ card }: { card: AssunzioniBoardCardData }) {
 
   return (
     <>
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Tipologia di rapporto"
-        titleIcon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
         contentClassName="space-y-4"
       >
         <EditableField label="Tipologia di rapporto">
@@ -253,12 +252,11 @@ function RapportoDetailSections({ card }: { card: AssunzioniBoardCardData }) {
             <Input value={draft.oreSabato} onChange={(event) => setValue("oreSabato", event.target.value)} />
           </EditableField>
         </div>
-      </DetailSectionCard>
+      </DetailSectionBlock>
 
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Altri dettagli rapporto di lavoro"
-        titleIcon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
         contentClassName="space-y-4"
       >
         <EditableField label="Il rapporto di lavoro corrisponde alla residenza?">
@@ -322,7 +320,7 @@ function RapportoDetailSections({ card }: { card: AssunzioniBoardCardData }) {
             placeholder="Aggiungi note sul rapporto o sulla pratica"
           />
         </EditableField>
-      </DetailSectionCard>
+      </DetailSectionBlock>
     </>
   )
 }
@@ -392,10 +390,9 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
 
   return (
     <div className="space-y-5">
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Riepilogo datore"
-        titleIcon={<UsersIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<UsersIcon className="text-muted-foreground size-4" />}
         contentClassName="grid gap-4 md:grid-cols-2"
       >
         <EditableField label="Nome">
@@ -410,12 +407,11 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
         <EditableField label="Cellulare">
           <Input value={draft.cellulare} onChange={(event) => setValue("cellulare", event.target.value)} />
         </EditableField>
-      </DetailSectionCard>
+      </DetailSectionBlock>
 
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Informazioni generali"
-        titleIcon={<UserIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<UserIcon className="text-muted-foreground size-4" />}
         contentClassName="space-y-4"
       >
         <EditableField label="Tipo utente">
@@ -485,12 +481,11 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
             <Input type="date" value={draft.scadenzaDocumento} onChange={(event) => setValue("scadenzaDocumento", event.target.value)} />
           </EditableField>
         </div>
-      </DetailSectionCard>
+      </DetailSectionBlock>
 
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Cittadini extracomunitari"
-        titleIcon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
         contentClassName="space-y-4"
       >
         <EditableField label="E extracomunitario?">
@@ -507,18 +502,17 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
             </SelectContent>
           </Select>
         </EditableField>
-      </DetailSectionCard>
+      </DetailSectionBlock>
 
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Documenti datore"
-        titleIcon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
         contentClassName="grid gap-3 md:grid-cols-3"
       >
         <AttachmentUploadSlot label="Documento identita" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
         <AttachmentUploadSlot label="Codice fiscale" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
         <AttachmentUploadSlot label="Permesso di soggiorno" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
-      </DetailSectionCard>
+      </DetailSectionBlock>
     </div>
   )
 }
@@ -572,10 +566,9 @@ function LavoratoreDetail({ card }: { card: AssunzioniBoardCardData }) {
 
   return (
     <div className="space-y-5">
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Riepilogo lavoratore"
-        titleIcon={<UserIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<UserIcon className="text-muted-foreground size-4" />}
         contentClassName="grid gap-4 md:grid-cols-2"
       >
         <EditableField label="Nome">
@@ -596,12 +589,11 @@ function LavoratoreDetail({ card }: { card: AssunzioniBoardCardData }) {
         <EditableField label="Data assunzione">
           <Input type="date" value={draft.dataAssunzione} onChange={(event) => setValue("dataAssunzione", event.target.value)} />
         </EditableField>
-      </DetailSectionCard>
+      </DetailSectionBlock>
 
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Informazioni generali"
-        titleIcon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
         contentClassName="space-y-4"
       >
         <EditableField label="Tipo utente">
@@ -666,12 +658,11 @@ function LavoratoreDetail({ card }: { card: AssunzioniBoardCardData }) {
             <Input type="date" value={draft.scadenzaDocumento} onChange={(event) => setValue("scadenzaDocumento", event.target.value)} />
           </EditableField>
         </div>
-      </DetailSectionCard>
+      </DetailSectionBlock>
 
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Dati bancari"
-        titleIcon={<CreditCardIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<CreditCardIcon className="text-muted-foreground size-4" />}
         contentClassName="space-y-4"
       >
         <EditableField label="Dati bancari">
@@ -682,12 +673,11 @@ function LavoratoreDetail({ card }: { card: AssunzioniBoardCardData }) {
             placeholder="IBAN..."
           />
         </EditableField>
-      </DetailSectionCard>
+      </DetailSectionBlock>
 
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Cittadini extracomunitari"
-        titleIcon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
         contentClassName="space-y-4"
       >
         <EditableField label="E extracomunitario?">
@@ -704,12 +694,11 @@ function LavoratoreDetail({ card }: { card: AssunzioniBoardCardData }) {
             </SelectContent>
           </Select>
         </EditableField>
-      </DetailSectionCard>
+      </DetailSectionBlock>
 
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Dati lavoratore"
-        titleIcon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
         contentClassName="space-y-4"
       >
         <EditableField label="Appunti extra">
@@ -720,18 +709,17 @@ function LavoratoreDetail({ card }: { card: AssunzioniBoardCardData }) {
             placeholder="Aggiungi note sul lavoratore o sulla pratica"
           />
         </EditableField>
-      </DetailSectionCard>
+      </DetailSectionBlock>
 
-      <DetailSectionCard
+      <DetailSectionBlock
         title="Documenti lavoratore"
-        titleIcon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
+        icon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
         contentClassName="grid gap-3 md:grid-cols-3"
       >
         <AttachmentUploadSlot label="Documento identità" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
         <AttachmentUploadSlot label="Codice fiscale" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
         <AttachmentUploadSlot label="Permesso di soggiorno" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
-      </DetailSectionCard>
+      </DetailSectionBlock>
 
     </div>
   )
@@ -877,10 +865,9 @@ export function AssunzioniDetailSheet({
                 type={card.rapporto?.tipo_rapporto ?? card.tipoRapporto}
               />
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Contesto pratica"
-                titleIcon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
-                titleOnBorder
+                icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
                 contentClassName="grid gap-4 md:grid-cols-3"
               >
                 <EditableField label="Stato assunzione">
@@ -939,12 +926,11 @@ export function AssunzioniDetailSheet({
                     }
                   />
                 </EditableField>
-              </DetailSectionCard>
+              </DetailSectionBlock>
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Documenti del rapporto"
-                titleIcon={<FileTextIcon className="text-muted-foreground size-4" />}
-                titleOnBorder
+                icon={<FileTextIcon className="text-muted-foreground size-4" />}
                 contentClassName="space-y-4"
               >
                 <div className="grid gap-3 md:grid-cols-3">
@@ -970,7 +956,7 @@ export function AssunzioniDetailSheet({
                     isUploading={false}
                   />
                 </div>
-              </DetailSectionCard>
+              </DetailSectionBlock>
 
               <RapportoDetailSections card={card} />
 

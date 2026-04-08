@@ -93,3 +93,34 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ui-type-section {
+    @apply text-sm font-semibold tracking-[0.01em];
+  }
+
+  .ui-type-subsection {
+    @apply text-sm font-semibold leading-none tracking-normal;
+  }
+
+  .ui-type-label {
+    @apply text-muted-foreground text-[11px] font-medium uppercase tracking-wide;
+  }
+
+  .ui-type-value {
+    @apply text-foreground text-sm leading-snug font-medium;
+  }
+
+  .ui-type-meta {
+    @apply text-muted-foreground text-xs leading-snug;
+  }
+}

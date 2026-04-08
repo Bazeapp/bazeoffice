@@ -42,7 +42,9 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  SidebarRail,
   SidebarSeparator,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 
 type SidebarCategory = {
@@ -249,20 +251,23 @@ export function AppSidebar({
   return (
     <Sidebar>
       <SidebarHeader className="px-2 py-2">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive>
-              <a href="#">
-                <img
-                  src={logoSrc}
-                  alt="Baze logo"
-                  className="size-[18px] rounded-sm object-contain"
-                />
-                <span>BazeOffice</span>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <div className="flex items-center gap-2">
+          <SidebarMenu className="flex-1">
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive>
+                <a href="#">
+                  <img
+                    src={logoSrc}
+                    alt="Baze logo"
+                    className="size-[18px] rounded-sm object-contain"
+                  />
+                  <span>BazeOffice</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          <SidebarTrigger className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground shrink-0" />
+        </div>
       </SidebarHeader>
 
       <SidebarSeparator className="max-w-48" />
@@ -658,6 +663,7 @@ export function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }

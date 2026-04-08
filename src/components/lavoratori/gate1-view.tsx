@@ -27,7 +27,10 @@ import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card
 import { SkillsChoiceMatrix } from "@/components/lavoratori/skills-choice-matrix";
 import { WorkerProfileOverview } from "@/components/lavoratori/worker-profile-overview";
 import { DetailRow } from "@/components/lavoratori/detail-row";
-import { DetailSectionCard } from "@/components/shared/detail-section-card";
+import {
+  DetailSectionBlock,
+  DetailSectionCard,
+} from "@/components/shared/detail-section-card";
 import { SideCardsPanel } from "@/components/shared/side-cards-panel";
 import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -226,15 +229,14 @@ function GateInfoCard({
   children: React.ReactNode;
 }) {
   return (
-    <DetailSectionCard
+    <DetailSectionBlock
       title={title}
-      titleIcon={icon}
-      titleAction={titleAction}
-      titleOnBorder
+      icon={icon}
+      action={titleAction}
       contentClassName="space-y-4 pt-1"
     >
       {children}
-    </DetailSectionCard>
+    </DetailSectionBlock>
   );
 }
 
@@ -2402,7 +2404,7 @@ function GateDocumentIdentityCard({
               }}
               disabled={!isEditing}
             >
-              <SelectTrigger className="bg-background h-9 text-sm">
+              <SelectTrigger className="bg-background h-9">
                 <SelectValue placeholder="Seleziona nazionalita" />
               </SelectTrigger>
               <SelectContent>
@@ -3293,8 +3295,8 @@ export function Gate1View({
     <div
       className={
         selectedWorkerId
-          ? "grid h-[calc(100vh-6.5rem)] min-h-0 gap-3 lg:grid-cols-[332px_minmax(0,1fr)]"
-          : "grid h-[calc(100vh-6.5rem)] min-h-0 gap-3 grid-cols-1"
+          ? "grid h-full min-h-0 gap-3 lg:grid-cols-[332px_minmax(0,1fr)]"
+          : "grid h-full min-h-0 gap-3 grid-cols-1"
       }
     >
       <div className="flex min-h-0 flex-col gap-2">

@@ -41,7 +41,7 @@ import {
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
 import { Button } from "@/components/ui/button";
-import { DetailSectionCard } from "@/components/shared/detail-section-card";
+import { DetailSectionBlock } from "@/components/shared/detail-section-card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -613,8 +613,8 @@ export function LavoratoriCercaView() {
     <div
       className={
         selectedWorkerId
-          ? "grid h-[calc(100vh-6.5rem)] min-h-0 gap-3 lg:grid-cols-[332px_minmax(0,1fr)]"
-          : "grid h-[calc(100vh-6.5rem)] min-h-0 gap-3 grid-cols-1"
+          ? "grid h-full min-h-0 gap-3 lg:grid-cols-[332px_minmax(0,1fr)]"
+          : "grid h-full min-h-0 gap-3 grid-cols-1"
       }
     >
       <LavoratoriCercaListPanel
@@ -1196,12 +1196,11 @@ export function LavoratoriCercaView() {
 
                 {selectedWorkerIsNonIdoneo ? (
                   <div ref={setWorkerSectionRef("non-idoneo")}>
-                    <DetailSectionCard
+                    <DetailSectionBlock
                       title="Questo lavoratore non è idoneo"
-                      titleIcon={
+                      icon={
                         <SirenIcon className="text-muted-foreground size-4" />
                       }
-                      titleOnBorder
                       contentClassName="space-y-4"
                     >
                       <div className="space-y-2">
@@ -1265,18 +1264,17 @@ export function LavoratoriCercaView() {
                           </ComboboxContent>
                         </Combobox>
                       </div>
-                    </DetailSectionCard>
+                    </DetailSectionBlock>
                   </div>
                 ) : null}
 
                 {selectedWorkerIsNonQualificato ? (
                   <div ref={setWorkerSectionRef("non-qualificato")}>
-                    <DetailSectionCard
+                    <DetailSectionBlock
                       title="Questo lavoratore non è qualificato"
-                      titleIcon={
+                      icon={
                         <SirenIcon className="text-muted-foreground size-4" />
                       }
-                      titleOnBorder
                       contentClassName="space-y-4"
                     >
                       <div className="space-y-3">
@@ -1478,14 +1476,13 @@ export function LavoratoriCercaView() {
                           </div>
                         ))}
                       </div>
-                    </DetailSectionCard>
+                    </DetailSectionBlock>
                   </div>
                 ) : null}
 
                 <div ref={setWorkerSectionRef("preferenze")}>
-                  <DetailSectionCard
+                  <DetailSectionBlock
                     title="Preferenze"
-                    titleOnBorder
                     contentClassName="flex flex-col items-start gap-2"
                   >
                     {selectedWorker.tipoRuolo ? (
@@ -1498,19 +1495,18 @@ export function LavoratoriCercaView() {
                         {selectedWorker.tipoLavoro}
                       </Badge>
                     ) : null}
-                  </DetailSectionCard>
+                  </DetailSectionBlock>
                 </div>
 
                 <div ref={setWorkerSectionRef("processi")}>
-                  <DetailSectionCard
+                  <DetailSectionBlock
                     title="Processi coinvolti"
-                    titleOnBorder
                     contentClassName="space-y-2"
                   >
                     <p className="text-muted-foreground text-sm">
                       Placeholder processi coinvolti.
                     </p>
-                  </DetailSectionCard>
+                  </DetailSectionBlock>
                 </div>
               </div>
             </div>

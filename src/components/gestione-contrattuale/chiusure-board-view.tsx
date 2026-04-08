@@ -14,7 +14,7 @@ import {
   useChiusureBoard,
 } from "@/hooks/use-chiusure-board"
 import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot"
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { Card, CardContent } from "@/components/ui/card"
@@ -149,11 +149,10 @@ function ChiusureDetailSheet({
             <div className="mx-auto max-w-5xl space-y-5">
               <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={card.rapporto} />
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Dettagli chiusura"
-                titleIcon={<FileTextIcon className="text-muted-foreground size-5" />}
-                titleAction={<PencilIcon className="text-muted-foreground size-4" />}
-                titleOnBorder
+                icon={<FileTextIcon className="text-muted-foreground size-5" />}
+                action={<PencilIcon className="text-muted-foreground size-4" />}
                 contentClassName="space-y-5"
               >
                 <div className="flex items-center gap-2 text-sm sm:text-base">
@@ -192,12 +191,11 @@ function ChiusureDetailSheet({
                     </span>
                   </p>
                 </div>
-              </DetailSectionCard>
+              </DetailSectionBlock>
 
-              <DetailSectionCard
+              <DetailSectionBlock
                 title="Allegato chiusura"
-                titleIcon={<FileTextIcon className="text-muted-foreground size-5" />}
-                titleOnBorder
+                icon={<FileTextIcon className="text-muted-foreground size-5" />}
                 contentClassName="space-y-4"
               >
                 <AttachmentUploadSlot
@@ -207,7 +205,7 @@ function ChiusureDetailSheet({
                   onPreviewOpen={() => {}}
                   isUploading={false}
                 />
-              </DetailSectionCard>
+              </DetailSectionBlock>
             </div>
           </section>
         ) : null}
@@ -403,7 +401,7 @@ export function ChiusureBoardView() {
 
   return (
     <>
-      <section className="flex h-[calc(100vh-6.5rem)] min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
+      <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
         <div className="flex items-center gap-2 px-1">
           <FileX2Icon className="text-muted-foreground size-4" />
           <h1 className="text-base font-semibold">Chiusure</h1>

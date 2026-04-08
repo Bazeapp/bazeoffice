@@ -332,7 +332,7 @@ export function RicercaDetailView({ processId, onBack }: RicercaDetailViewProps)
   const resolvedCard = card ?? fallbackCard
 
   return (
-    <section className="flex h-[calc(100vh-6.5rem)] min-h-0 w-full flex-col gap-3 overflow-hidden pb-3">
+    <section className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden pb-3">
       <div className="shrink-0 flex items-center justify-between gap-3">
         <Button type="button" variant="outline" onClick={onBack}>
           <ArrowLeftIcon className="size-4" />

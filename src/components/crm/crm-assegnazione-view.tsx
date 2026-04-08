@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SideCardsPanel } from "@/components/shared/side-cards-panel";
-import { DetailSectionCard } from "@/components/shared/detail-section-card";
+import { DetailSectionBlock } from "@/components/shared/detail-section-card";
 import {
   Accordion,
   AccordionContent,
@@ -465,10 +465,9 @@ function AssegnazioneDetailSheet({
 
         {card ? (
           <div className="space-y-4 px-4 pb-6 text-sm">
-            <DetailSectionCard
+            <DetailSectionBlock
               title="Stato e assegnazione"
-              titleOnBorder
-              titleAction={
+              action={
                 <Button
                   type="button"
                   variant="ghost"
@@ -491,7 +490,7 @@ function AssegnazioneDetailSheet({
               contentClassName="grid grid-cols-1 gap-3"
             >
               <div className="space-y-1">
-                <p className="text-muted-foreground text-xs">Stato</p>
+                <p className="ui-type-label">Stato</p>
                 {isEditingScheduling ? (
                   <Select
                     value={schedulingDraft.statoRes}
@@ -524,7 +523,7 @@ function AssegnazioneDetailSheet({
               </div>
 
               <div className="space-y-1">
-                <p className="text-muted-foreground text-xs">Tipologia ricerca</p>
+                <p className="ui-type-label">Tipologia ricerca</p>
                 <Badge
                   variant="outline"
                   className={cn(
@@ -541,7 +540,7 @@ function AssegnazioneDetailSheet({
               </div>
 
               <div className="space-y-1">
-                <p className="text-muted-foreground text-xs">Recruiter</p>
+                <p className="ui-type-label">Recruiter</p>
                 {isEditingScheduling ? (
                   <Select
                     value={schedulingDraft.recruiterId || "none"}
@@ -574,7 +573,7 @@ function AssegnazioneDetailSheet({
               </div>
 
               <div className="space-y-1">
-                <p className="text-muted-foreground text-xs">
+                <p className="ui-type-label">
                   Data assegnazione
                 </p>
                 {isEditingScheduling ? (
@@ -597,7 +596,7 @@ function AssegnazioneDetailSheet({
               </div>
 
               <div className="space-y-1">
-                <p className="text-muted-foreground text-xs">Deadline</p>
+                <p className="ui-type-label">Deadline</p>
                 {isEditingScheduling ? (
                   <Input
                     type="date"
@@ -617,35 +616,34 @@ function AssegnazioneDetailSheet({
 
               {isEditingScheduling ? (
                 <div>
-                  <p className="text-muted-foreground text-xs">
+                  <p className="ui-type-label">
                     {isSavingScheduling
                       ? "Salvataggio..."
                       : "Salvataggio automatico attivo"}
                   </p>
                 </div>
               ) : null}
-            </DetailSectionCard>
+            </DetailSectionBlock>
 
-            <DetailSectionCard
+            <DetailSectionBlock
               title="Panoramica ricerca"
-              titleOnBorder
               contentClassName="space-y-2"
             >
               <div className="grid grid-cols-1 gap-2.5">
                 <div className="space-y-1">
-                  <p className="text-muted-foreground text-xs">
+                  <p className="ui-type-label">
                     Ore settimanali
                   </p>
                   <p className="font-medium">{card.oreSettimanali}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-muted-foreground text-xs">
+                  <p className="ui-type-label">
                     Giorni settimanali
                   </p>
                   <p className="font-medium">{card.giorniSettimanali}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-muted-foreground text-xs">
+                  <p className="ui-type-label">
                     Orari e giorni
                   </p>
                   <p className="font-medium">
@@ -656,17 +654,17 @@ function AssegnazioneDetailSheet({
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-muted-foreground text-xs">
+                  <p className="ui-type-label">
                     Orario di lavoro
                   </p>
                   <p className="font-medium">{card.orarioDiLavoro}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-muted-foreground text-xs">Luogo</p>
+                  <p className="ui-type-label">Luogo</p>
                   <p className="font-medium">{card.zona}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-muted-foreground text-xs">Tipo profilo</p>
+                  <p className="ui-type-label">Tipo profilo</p>
                   {card.tipoLavoroBadge ? (
                     <Badge
                       variant="outline"
@@ -682,7 +680,7 @@ function AssegnazioneDetailSheet({
                   )}
                 </div>
                 <div className="space-y-1">
-                  <p className="text-muted-foreground text-xs">Tipo lavoro</p>
+                  <p className="ui-type-label">Tipo lavoro</p>
                   {card.tipoRapportoBadge ? (
                     <Badge
                       variant="outline"
@@ -698,7 +696,7 @@ function AssegnazioneDetailSheet({
                   )}
                 </div>
               </div>
-            </DetailSectionCard>
+            </DetailSectionBlock>
           </div>
         ) : null}
       </SheetContent>
@@ -993,7 +991,7 @@ export function CrmAssegnazioneView() {
         )}
       </div>
 
-      <div className="grid h-[calc(100vh-8.5rem)] grid-cols-1 gap-3 xl:grid-cols-[292px_minmax(0,1fr)]">
+      <div className="grid h-full min-h-0 min-w-0 grid-cols-1 gap-3 xl:grid-cols-[292px_minmax(0,1fr)]">
         <SideCardsPanel
           title="Da assegnare"
           icon={CalendarDaysIcon}

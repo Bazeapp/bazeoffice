@@ -1,7 +1,7 @@
 import * as React from "react"
 import { ClipboardListIcon } from "lucide-react"
 
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import {
   Combobox,
   ComboboxChip,
@@ -161,14 +161,13 @@ export function SelectionDetailsCard({
   const selectedStatusClassName = getTagClassName(resolveStatusColor(draft.stato_selezione))
 
   return (
-    <DetailSectionCard
+    <DetailSectionBlock
       title="Selezione"
-      titleIcon={<ClipboardListIcon className="text-muted-foreground size-4" />}
-      titleOnBorder
+      icon={<ClipboardListIcon className="text-muted-foreground size-4" />}
       contentClassName="space-y-4"
     >
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-        <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+        <FieldTitle>
           Stato selezione
         </FieldTitle>
         <div className="max-w-sm">
@@ -181,7 +180,7 @@ export function SelectionDetailsCard({
             }}
             disabled={disabled}
           >
-            <SelectTrigger className={`h-9 w-full text-sm ${selectedStatusClassName}`}>
+            <SelectTrigger className={`h-9 w-full ${selectedStatusClassName}`}>
               <SelectValue placeholder="Seleziona stato" />
             </SelectTrigger>
             <SelectContent>
@@ -201,7 +200,7 @@ export function SelectionDetailsCard({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-        <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+        <FieldTitle>
           Appunti generali
         </FieldTitle>
         <Textarea
@@ -216,7 +215,7 @@ export function SelectionDetailsCard({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-        <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+        <FieldTitle>
           Perché è stata inserita manualmente?
         </FieldTitle>
         <Textarea
@@ -240,7 +239,7 @@ export function SelectionDetailsCard({
 
       {showFollowupSenzaRisposta ? (
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Followup senza risposta
           </FieldTitle>
           <div className="max-w-sm">
@@ -253,7 +252,7 @@ export function SelectionDetailsCard({
               }}
               disabled={disabled}
             >
-              <SelectTrigger className="h-9 w-full text-sm">
+              <SelectTrigger className="h-9 w-full">
                 <SelectValue placeholder="Seleziona followup" />
               </SelectTrigger>
               <SelectContent>
@@ -271,7 +270,7 @@ export function SelectionDetailsCard({
 
       {showMotivazioneArchivio ? (
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Motivazione archivio
           </FieldTitle>
           <div className="max-w-sm">
@@ -284,7 +283,7 @@ export function SelectionDetailsCard({
               }}
               disabled={disabled}
             >
-              <SelectTrigger className="h-9 w-full text-sm">
+              <SelectTrigger className="h-9 w-full">
                 <SelectValue placeholder="Seleziona motivazione" />
               </SelectTrigger>
               <SelectContent>
@@ -302,7 +301,7 @@ export function SelectionDetailsCard({
 
       {showMotivazioneNonSelezionato ? (
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Motivazione non selezionato
           </FieldTitle>
           <MultiLookupField
@@ -319,7 +318,7 @@ export function SelectionDetailsCard({
 
       {showMotivazioneNoMatch ? (
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-          <FieldTitle className="text-muted-foreground text-xs font-medium tracking-wide">
+          <FieldTitle>
             Motivazione no match
           </FieldTitle>
           <div className="max-w-sm">
@@ -332,7 +331,7 @@ export function SelectionDetailsCard({
               }}
               disabled={disabled}
             >
-              <SelectTrigger className="h-9 w-full text-sm">
+              <SelectTrigger className="h-9 w-full">
                 <SelectValue placeholder="Seleziona motivazione" />
               </SelectTrigger>
               <SelectContent>
@@ -347,6 +346,6 @@ export function SelectionDetailsCard({
           </div>
         </div>
       ) : null}
-    </DetailSectionCard>
+    </DetailSectionBlock>
   )
 }

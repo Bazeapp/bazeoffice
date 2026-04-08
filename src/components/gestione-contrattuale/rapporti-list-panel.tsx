@@ -535,11 +535,11 @@ export function RapportiListPanel({
           <div className="bg-muted/35 space-y-3 rounded-lg border p-3">
             <div className="grid gap-3 md:grid-cols-3">
               <div className="space-y-1.5">
-                <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                <p className="ui-type-label">
                   Stato assunzione
                 </p>
                 <Select value={filterAssunzione} onValueChange={setFilterAssunzione}>
-                  <SelectTrigger className="h-8 text-sm">
+                  <SelectTrigger className="h-8">
                     <SelectValue placeholder="Tutti" />
                   </SelectTrigger>
                   <SelectContent>
@@ -554,11 +554,11 @@ export function RapportiListPanel({
               </div>
 
               <div className="space-y-1.5">
-                <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                <p className="ui-type-label">
                   Tipo contratto
                 </p>
                 <Select value={filterTipoContratto} onValueChange={setFilterTipoContratto}>
-                  <SelectTrigger className="h-8 text-sm">
+                  <SelectTrigger className="h-8">
                     <SelectValue placeholder="Tutti" />
                   </SelectTrigger>
                   <SelectContent>
@@ -573,11 +573,11 @@ export function RapportiListPanel({
               </div>
 
               <div className="space-y-1.5">
-                <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-wide">
+                <p className="ui-type-label">
                   Tipo rapporto
                 </p>
                 <Select value={filterTipoRapporto} onValueChange={setFilterTipoRapporto}>
-                  <SelectTrigger className="h-8 text-sm">
+                  <SelectTrigger className="h-8">
                     <SelectValue placeholder="Tutti" />
                   </SelectTrigger>
                   <SelectContent>
@@ -618,7 +618,7 @@ export function RapportiListPanel({
         <p className="text-muted-foreground py-6 text-sm">Nessun rapporto lavorativo trovato.</p>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto pr-1">
             <div className="space-y-4">
               {renderGroupTree(
                 visibleItems,

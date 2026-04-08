@@ -24,7 +24,7 @@ function FieldLegend({
     <legend
       data-slot="field-legend"
       data-variant={variant}
-      className={cn("mb-1 font-medium data-[variant=label]:text-sm data-[variant=legend]:text-sm", className)}
+      className={cn("ui-type-label mb-1", className)}
       {...props}
     />
   )
@@ -96,7 +96,7 @@ function FieldLabel({
     <Label
       data-slot="field-label"
       className={cn(
-        "text-muted-foreground has-data-checked:bg-primary/5 has-data-checked:border-primary/30 dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10 gap-1.5 text-[11px] font-medium tracking-wide group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border *:data-[slot=field]:p-2 group/field-label peer/field-label flex w-fit leading-snug",
+        "ui-type-label has-data-checked:bg-primary/5 has-data-checked:border-primary/30 dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10 gap-1.5 group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border *:data-[slot=field]:p-2 group/field-label peer/field-label flex w-fit leading-snug",
         "has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col",
         className
       )}
@@ -110,7 +110,7 @@ function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="field-label"
       className={cn(
-        "gap-2 text-sm font-medium group-data-[disabled=true]/field:opacity-50 flex w-fit items-center leading-snug",
+        "ui-type-label gap-2 group-data-[disabled=true]/field:opacity-50 flex w-fit items-center leading-snug",
         className
       )}
       {...props}

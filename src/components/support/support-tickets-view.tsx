@@ -227,7 +227,7 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
   )
 
   return (
-    <section className="flex h-[calc(100vh-6.5rem)] min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
+    <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[240px] flex-1 sm:max-w-xs">
