@@ -9,9 +9,10 @@ import {
 } from "@/lib/anagrafiche-api"
 import type { LookupValueRecord, RapportoLavorativoRecord, TicketRecord } from "@/types"
 import {
-  DEFAULT_SUPPORT_TICKET_STATUSES,
+  SUPPORT_TICKET_STATUSES,
   getSupportTicketMetadata,
-  inferSupportTicketTag,
+  resolveSupportTicketTag,
+  resolveSupportTicketUrgency,
   type SupportTicketMetadata,
   type SupportTicketStatusDefinition,
   type SupportTicketTag,
@@ -90,16 +91,6 @@ function readLookupSortOrder(value: LookupValueRecord["sort_order"]) {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
-function getStatusColorFallback(value: string | null | undefined) {
-  const token = normalizeToken(value)
-  if (!token) return "sky"
-  if (token.includes("risolt") || token.includes("chius")) return "green"
-  if (token.includes("attesa")) return "orange"
-  if (token.includes("lavor")) return "amber"
-  if (token.includes("apert")) return "sky"
-  return "zinc"
-}
-
 function countAttachments(value: TicketRecord["allegati"]) {
   if (!value) return 0
   if (Array.isArray(value)) return value.length
@@ -132,49 +123,35 @@ function buildStageMetadata(rows: LookupValueRecord[], ticketRows: TicketRecord[
     (row) => row.is_active && row.entity_table === "ticket" && row.entity_field === "stato"
   )
 
-  if (lookupRows.length === 0) {
-    for (const stage of DEFAULT_SUPPORT_TICKET_STATUSES) {
-      aliases.set(normalizeToken(stage.id), stage.id)
-      aliases.set(normalizeToken(stage.label), stage.id)
-      definitionsById.set(stage.id, { ...stage, sortOrder: null })
-    }
-  } else {
-    for (const row of lookupRows) {
-      const valueKey = toStringValue(row.value_key)
-      const valueLabel = toStringValue(row.value_label)
-      const stageId = valueKey ?? valueLabel
-      if (!stageId) continue
-
-      const existing = definitionsById.get(stageId)
-      const color = readLookupColor(row.metadata) ?? existing?.color ?? getStatusColorFallback(stageId)
-
-      definitionsById.set(stageId, {
-        id: stageId,
-        label: valueLabel ?? valueKey ?? stageId,
-        color,
-        badgeClassName: DEFAULT_SUPPORT_TICKET_STATUSES.find(
-          (item) => normalizeToken(item.id) === normalizeToken(stageId)
-        )?.badgeClassName ?? "bg-zinc-100 text-zinc-700 hover:bg-zinc-100",
-        icon:
-          DEFAULT_SUPPORT_TICKET_STATUSES.find((item) => normalizeToken(item.id) === normalizeToken(stageId))
-            ?.icon ?? DEFAULT_SUPPORT_TICKET_STATUSES[0].icon,
-        sortOrder: readLookupSortOrder(row.sort_order) ?? existing?.sortOrder ?? null,
-      })
-
-      aliases.set(normalizeToken(stageId), stageId)
-      if (valueKey) aliases.set(normalizeToken(valueKey), stageId)
-      if (valueLabel) aliases.set(normalizeToken(valueLabel), stageId)
-    }
+  for (const stage of SUPPORT_TICKET_STATUSES) {
+    aliases.set(normalizeToken(stage.id), stage.id)
+    aliases.set(normalizeToken(stage.label), stage.id)
+    definitionsById.set(stage.id, { ...stage, sortOrder: null })
   }
 
-  for (const stage of DEFAULT_SUPPORT_TICKET_STATUSES) {
-    const resolvedId = aliases.get(normalizeToken(stage.id)) ?? stage.id
-    aliases.set(normalizeToken(stage.id), resolvedId)
-    aliases.set(normalizeToken(stage.label), resolvedId)
+  for (const row of lookupRows) {
+    const valueKey = toStringValue(row.value_key)
+    const valueLabel = toStringValue(row.value_label)
+    const stageId = valueKey ?? valueLabel
+    if (!stageId) continue
 
-    if (!definitionsById.has(resolvedId)) {
-      definitionsById.set(resolvedId, { ...stage, id: resolvedId, label: stage.label, sortOrder: null })
+    const existing = definitionsById.get(stageId)
+    if (!existing) {
+      throw new Error(`lookup_values contiene uno stato ticket non supportato: ${stageId}`)
     }
+
+    const color = readLookupColor(row.metadata) ?? existing.color
+
+    definitionsById.set(stageId, {
+      ...existing,
+      label: valueLabel ?? valueKey ?? existing.label,
+      color,
+      sortOrder: readLookupSortOrder(row.sort_order) ?? existing.sortOrder ?? null,
+    })
+
+    aliases.set(normalizeToken(stageId), stageId)
+    if (valueKey) aliases.set(normalizeToken(valueKey), stageId)
+    if (valueLabel) aliases.set(normalizeToken(valueLabel), stageId)
   }
 
   for (const row of ticketRows) {
@@ -182,14 +159,7 @@ function buildStageMetadata(rows: LookupValueRecord[], ticketRows: TicketRecord[
     if (!status) continue
 
     if (!definitionsById.has(status)) {
-      definitionsById.set(status, {
-        id: status,
-        label: status,
-        color: getStatusColorFallback(status),
-        badgeClassName: "bg-zinc-100 text-zinc-700 hover:bg-zinc-100",
-        icon: DEFAULT_SUPPORT_TICKET_STATUSES[0].icon,
-        sortOrder: null,
-      })
+      throw new Error(`Valore ticket.stato non supportato: ${status}`)
     }
 
     aliases.set(normalizeToken(status), status)
@@ -197,10 +167,10 @@ function buildStageMetadata(rows: LookupValueRecord[], ticketRows: TicketRecord[
 
   const definitions = Array.from(definitionsById.values())
     .sort((left, right) => {
-      const leftDefaultIndex = DEFAULT_SUPPORT_TICKET_STATUSES.findIndex(
+      const leftDefaultIndex = SUPPORT_TICKET_STATUSES.findIndex(
         (item) => normalizeToken(item.id) === normalizeToken(left.id)
       )
-      const rightDefaultIndex = DEFAULT_SUPPORT_TICKET_STATUSES.findIndex(
+      const rightDefaultIndex = SUPPORT_TICKET_STATUSES.findIndex(
         (item) => normalizeToken(item.id) === normalizeToken(right.id)
       )
       const leftOrder = left.sortOrder ?? (leftDefaultIndex >= 0 ? leftDefaultIndex : Number.POSITIVE_INFINITY)
@@ -262,10 +232,28 @@ function mapRecordToCard(
 
   const rapporto = getRapportoForTicket(record, rapportoIndex)
   const metadata = getSupportTicketMetadata(record)
-  const tag = toStringValue(metadata.tag) ?? inferSupportTicketTag(record)
+  const tag = toStringValue(metadata.tag)
   const note = toStringValue(metadata.note)
-  const assegnatario = toStringValue(metadata.assegnatario) ?? "Da assegnare"
-  const stage = aliases.get(normalizeToken(record.stato)) ?? toStringValue(record.stato) ?? DEFAULT_SUPPORT_TICKET_STATUSES[0].id
+  const assegnatario = toStringValue(metadata.assegnatario)
+  if (!tag) {
+    throw new Error(`Ticket ${record.id} senza tag valorizzato in metadati_migrazione.tag`)
+  }
+  resolveSupportTicketTag(tag)
+
+  const urgenza = toStringValue(record.urgenza)
+  if (!urgenza) {
+    throw new Error(`Ticket ${record.id} senza urgenza valorizzata`)
+  }
+  resolveSupportTicketUrgency(urgenza)
+
+  const rawStage = toStringValue(record.stato)
+  if (!rawStage) {
+    throw new Error(`Ticket ${record.id} senza stato valorizzato`)
+  }
+  const stage = aliases.get(normalizeToken(rawStage))
+  if (!stage) {
+    throw new Error(`Stato ticket non mappato per ticket ${record.id}: ${rawStage}`)
+  }
   const nomeFamiglia = rapporto?.cognome_nome_datore_proper?.trim() || "Famiglia non disponibile"
   const nomeLavoratore = rapporto?.nome_lavoratore_per_url?.trim() || "Lavoratore non disponibile"
 
@@ -281,8 +269,8 @@ function mapRecordToCard(
     nomeCompleto: `${nomeFamiglia} – ${nomeLavoratore}`,
     dataAperturaLabel: formatDateLabel(record.data_apertura ?? record.creato_il),
     tag,
-    urgenza: toStringValue(record.urgenza) ?? "Media",
-    assegnatario,
+    urgenza,
+    assegnatario: assegnatario ?? "",
     note,
     attachmentCount: countAttachments(record.allegati),
   }
@@ -341,7 +329,7 @@ async function fetchSupportTicketsData(ticketType: SupportTicketType) {
 export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSupportTicketsBoardState {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [stages, setStages] = React.useState<SupportTicketStatusDefinition[]>(DEFAULT_SUPPORT_TICKET_STATUSES)
+  const [stages, setStages] = React.useState<SupportTicketStatusDefinition[]>([])
   const [cards, setCards] = React.useState<SupportTicketBoardCardData[]>([])
   const [activeRapportiCount, setActiveRapportiCount] = React.useState(0)
   const [rapportoOptions, setRapportoOptions] = React.useState<Array<{ id: string; label: string }>>([])
@@ -368,7 +356,7 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
       } catch (caughtError) {
         if (cancelled) return
         setError(caughtError instanceof Error ? caughtError.message : "Errore caricamento ticket")
-        setStages(DEFAULT_SUPPORT_TICKET_STATUSES)
+        setStages([])
         setCards([])
         setActiveRapportiCount(0)
         setRapportoOptions([])
@@ -461,7 +449,7 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
           causale: input.causale,
           data_apertura: new Date().toISOString(),
           rapporto_id: input.rapportoId,
-          stato: DEFAULT_SUPPORT_TICKET_STATUSES[0].id,
+          stato: SUPPORT_TICKET_STATUSES[0].id,
           tipo: input.tipo,
           urgenza: input.urgenza,
           metadati_migrazione: metadata,

@@ -1,5 +1,5 @@
 import * as React from "react"
-import { ExternalLinkIcon, FileTextIcon, PaperclipIcon, StickyNoteIcon, TagIcon } from "lucide-react"
+import { FileTextIcon, StickyNoteIcon, TagIcon } from "lucide-react"
 
 import {
   type SupportTicketBoardCardData,
@@ -15,13 +15,12 @@ import {
   type AttachmentLink,
 } from "@/components/shared/attachment-upload-slot"
 import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { supabase } from "@/lib/supabase-client"
-import { buildPathForRoute } from "@/routes/app-routes"
 import type { TicketRecord } from "@/types"
 
 type StoredAttachmentPayload = {
@@ -184,6 +183,8 @@ export function SupportTicketDetailSheet({
           {card ? (
             <section className="h-full overflow-y-auto bg-muted/20 px-5 py-5">
               <div className="mx-auto max-w-5xl space-y-5">
+                <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={card.rapporto} />
+
                 <DetailSectionCard
                   title="Categoria e urgenza"
                   titleIcon={<TagIcon className="text-muted-foreground size-5" />}
@@ -207,36 +208,6 @@ export function SupportTicketDetailSheet({
                     <span>
                       Assegnatario: <strong className="text-foreground">{card.assegnatario}</strong>
                     </span>
-                  </div>
-                </DetailSectionCard>
-
-                <DetailSectionCard
-                  title="Rapporto collegato"
-                  titleIcon={<PaperclipIcon className="text-muted-foreground size-5" />}
-                  titleOnBorder
-                  contentClassName="space-y-5"
-                >
-                  <div className="rounded-xl border bg-background p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-base font-semibold">{card.nomeCompleto}</p>
-                        <p className="text-muted-foreground mt-1 text-sm">
-                          {card.rapporto?.id_rapporto ?? card.rapporto?.id ?? "Rapporto non disponibile"}
-                        </p>
-                      </div>
-                      <Button variant="outline" size="sm" asChild>
-                        <a
-                          href={buildPathForRoute({
-                            mainSection: "gestione_contrattuale_rapporti",
-                            anagraficheTab: "famiglie",
-                            ricercaProcessId: null,
-                          })}
-                        >
-                          Apri rapporti
-                          <ExternalLinkIcon className="size-3.5" />
-                        </a>
-                      </Button>
-                    </div>
                   </div>
                 </DetailSectionCard>
 

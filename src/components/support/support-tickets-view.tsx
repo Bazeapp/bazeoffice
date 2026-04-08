@@ -323,16 +323,18 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
         onCreateTicket={createTicket}
       />
 
-      <SupportTicketDetailSheet
-        card={selectedCard}
-        stages={stages}
-        open={Boolean(selectedCard)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedTicketId(null)
-        }}
-        onMoveTicket={moveTicket}
-        onPatchTicket={patchTicket}
-      />
+      {selectedCard ? (
+        <SupportTicketDetailSheet
+          card={selectedCard}
+          stages={stages}
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setSelectedTicketId(null)
+          }}
+          onMoveTicket={moveTicket}
+          onPatchTicket={patchTicket}
+        />
+      ) : null}
     </section>
   )
 }

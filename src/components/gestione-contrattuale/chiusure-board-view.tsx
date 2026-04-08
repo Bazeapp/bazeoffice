@@ -4,7 +4,6 @@ import {
   CalendarX2Icon,
   FileTextIcon,
   FileX2Icon,
-  Link2Icon,
   MailIcon,
   PencilIcon,
 } from "lucide-react"
@@ -17,10 +16,10 @@ import {
 import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot"
 import { DetailSectionCard } from "@/components/shared/detail-section-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { buildPathForRoute } from "@/routes/app-routes"
 import { cn } from "@/lib/utils"
 
 function formatDate(value: string | null | undefined) {
@@ -114,18 +113,6 @@ function ChiusureDetailSheet({
                 <SheetTitle className="truncate text-xl font-semibold">
                   {card?.nomeCompleto ?? "Dettaglio chiusura"}
                 </SheetTitle>
-                <a
-                  href={buildPathForRoute({
-                    mainSection: "gestione_contrattuale_rapporti",
-                    anagraficheTab: "famiglie",
-                    ricercaProcessId: null,
-                  })}
-                  className="text-primary flex shrink-0 items-center gap-2 text-sm font-medium"
-                  title="Vai al rapporto"
-                  aria-label="Vai al rapporto"
-                >
-                  <Link2Icon className="size-4" />
-                </a>
               </div>
               <SheetDescription className="sr-only">
                 Dettaglio pratica di chiusura con stato, riepilogo rapporto e allegati.
@@ -160,6 +147,8 @@ function ChiusureDetailSheet({
         {card ? (
           <section className="h-full overflow-y-auto bg-muted/20 px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
+              <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={card.rapporto} />
+
               <DetailSectionCard
                 title="Dettagli chiusura"
                 titleIcon={<FileTextIcon className="text-muted-foreground size-5" />}

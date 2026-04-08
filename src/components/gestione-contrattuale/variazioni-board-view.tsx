@@ -1,6 +1,5 @@
 import * as React from "react";
 import {
-  BriefcaseBusinessIcon,
   CalendarDaysIcon,
   CalendarIcon,
   FilePenLineIcon,
@@ -17,6 +16,7 @@ import {
 import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot";
 import { DetailSectionCard } from "@/components/shared/detail-section-card";
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban";
+import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -121,6 +121,8 @@ function VariazioniDetailSheet({
         {card ? (
           <section className="h-full overflow-y-auto bg-muted/20 px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
+              <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={card.rapporto} />
+
               <DetailSectionCard
                 title="Dettagli variazione"
                 titleIcon={
@@ -154,9 +156,7 @@ function VariazioniDetailSheet({
 
               <DetailSectionCard
                 title="Dati rapporto lavorativo"
-                titleIcon={
-                  <BriefcaseBusinessIcon className="text-muted-foreground size-5" />
-                }
+                titleIcon={<PencilIcon className="text-muted-foreground size-5" />}
                 titleAction={
                   <PencilIcon className="text-muted-foreground size-4" />
                 }

@@ -19,10 +19,11 @@ import type { TicketRecord } from "@/types"
 export type SupportTicketType = "Customer" | "Payroll"
 
 export type SupportTicketStatus =
-  | "Aperto"
-  | "In lavorazione"
-  | "In attesa cliente"
-  | "Risolto"
+  | "aperto"
+  | "preso in carico"
+  | "in attesa di info"
+  | "in corso"
+  | "chiuso"
 
 export type SupportTicketUrgency = "Bassa" | "Media" | "Alta"
 
@@ -68,31 +69,38 @@ export type SupportTicketUrgencyDefinition = {
   icon: LucideIcon
 }
 
-export const DEFAULT_SUPPORT_TICKET_STATUSES: SupportTicketStatusDefinition[] = [
+export const SUPPORT_TICKET_STATUSES: SupportTicketStatusDefinition[] = [
   {
-    id: "Aperto",
-    label: "Aperto",
+    id: "aperto",
+    label: "aperto",
     color: "sky",
     badgeClassName: "bg-sky-100 text-sky-700 hover:bg-sky-100",
     icon: CircleDotIcon,
   },
   {
-    id: "In lavorazione",
-    label: "In lavorazione",
+    id: "preso in carico",
+    label: "preso in carico",
     color: "amber",
     badgeClassName: "bg-amber-100 text-amber-700 hover:bg-amber-100",
     icon: Clock3Icon,
   },
   {
-    id: "In attesa cliente",
-    label: "In attesa cliente",
+    id: "in attesa di info",
+    label: "in attesa di info",
     color: "orange",
     badgeClassName: "bg-orange-100 text-orange-700 hover:bg-orange-100",
     icon: CalendarClockIcon,
   },
   {
-    id: "Risolto",
-    label: "Risolto",
+    id: "in corso",
+    label: "in corso",
+    color: "amber",
+    badgeClassName: "bg-amber-100 text-amber-700 hover:bg-amber-100",
+    icon: Clock3Icon,
+  },
+  {
+    id: "chiuso",
+    label: "chiuso",
     color: "green",
     badgeClassName: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
     icon: CircleCheckBigIcon,
@@ -247,15 +255,11 @@ export function resolveSupportTicketTag(rawTag: string | null | undefined) {
   const resolvedTag = toStringValue(rawTag)
   const definition = SUPPORT_TICKET_TAGS.find((item) => normalizeToken(item.id) === normalizeToken(resolvedTag))
 
-  if (definition) return definition
-
-  return {
-    id: resolvedTag ?? "Altro",
-    label: resolvedTag ?? "Altro",
-    colorClassName: "bg-zinc-100 text-zinc-700 hover:bg-zinc-100",
-    icon: FileQuestionIcon,
-    supportedTypes: ["Customer", "Payroll"] as SupportTicketType[],
+  if (!definition) {
+    throw new Error(`Tag ticket non riconosciuto: ${resolvedTag ?? "(vuoto)"}`)
   }
+
+  return definition
 }
 
 export function resolveSupportTicketUrgency(rawUrgency: string | null | undefined) {
@@ -264,32 +268,24 @@ export function resolveSupportTicketUrgency(rawUrgency: string | null | undefine
     (item) => normalizeToken(item.id) === normalizeToken(resolvedUrgency)
   )
 
-  if (definition) return definition
-
-  return {
-    id: resolvedUrgency ?? "Media",
-    label: resolvedUrgency ?? "Media",
-    colorClassName: "bg-zinc-100 text-zinc-700 hover:bg-zinc-100",
-    badgeClassName: "bg-zinc-100 text-zinc-700 hover:bg-zinc-100",
-    icon: AlertTriangleIcon,
+  if (!definition) {
+    throw new Error(`Urgenza ticket non riconosciuta: ${resolvedUrgency ?? "(vuoto)"}`)
   }
+
+  return definition
 }
 
 export function resolveSupportTicketStatus(rawStatus: string | null | undefined) {
   const resolvedStatus = toStringValue(rawStatus)
-  const definition = DEFAULT_SUPPORT_TICKET_STATUSES.find(
+  const definition = SUPPORT_TICKET_STATUSES.find(
     (item) => normalizeToken(item.id) === normalizeToken(resolvedStatus)
   )
 
-  if (definition) return definition
-
-  return {
-    id: resolvedStatus ?? "Aperto",
-    label: resolvedStatus ?? "Aperto",
-    color: "zinc",
-    badgeClassName: "bg-zinc-100 text-zinc-700 hover:bg-zinc-100",
-    icon: CircleDotIcon,
+  if (!definition) {
+    throw new Error(`Stato ticket non riconosciuto: ${resolvedStatus ?? "(vuoto)"}`)
   }
+
+  return definition
 }
 
 export function getSupportTicketTagsForType(ticketType: SupportTicketType) {

@@ -1,7 +1,7 @@
 import * as React from "react"
 
-import { fetchChiusureContratti, fetchLookupValues, updateRecord } from "@/lib/anagrafiche-api"
-import type { ChiusuraContrattoRecord, LookupValueRecord } from "@/types"
+import { fetchChiusureContratti, fetchLookupValues, fetchRapportiLavorativi, updateRecord } from "@/lib/anagrafiche-api"
+import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
 
 type ChiusuraStageDefinition = {
   id: string
@@ -23,6 +23,7 @@ export type ChiusureBoardCardData = {
   id: string
   stage: string
   record: ChiusuraContrattoRecord
+  rapporto: RapportoLavorativoRecord | null
   nomeCompleto: string
   email: string
   motivazione: string | null
@@ -176,8 +177,13 @@ function buildTipoMetadata(rows: LookupValueRecord[]): TipoMetadata {
 }
 
 async function fetchChiusureBoardData(): Promise<ChiusureBoardColumnData[]> {
-  const [chiusureResult, lookupResult] = await Promise.all([
+  const [chiusureResult, rapportiResult, lookupResult] = await Promise.all([
     fetchChiusureContratti({
+      limit: 1000,
+      offset: 0,
+      orderBy: [{ field: "aggiornato_il", ascending: false }],
+    }),
+    fetchRapportiLavorativi({
       limit: 1000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
@@ -189,6 +195,11 @@ async function fetchChiusureBoardData(): Promise<ChiusureBoardColumnData[]> {
   const tipoMetadata = buildTipoMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
   const aliases = stageMetadata.aliases
+  const rapportoByTicketId = new Map(
+    rapportiResult.rows
+      .filter((rapporto) => rapporto.ticket_id)
+      .map((rapporto) => [rapporto.ticket_id as string, rapporto] as const)
+  )
   const cardsByStage = new Map<string, ChiusureBoardCardData[]>(
     stages.map((stage) => [stage.id, []])
   )
@@ -197,7 +208,11 @@ async function fetchChiusureBoardData(): Promise<ChiusureBoardColumnData[]> {
     const stage = aliases.get(normalizeToken(record.stato))
     if (!stage) continue
 
-    const nomeCompleto = [record.nome, record.cognome].filter(Boolean).join(" ").trim() || "Nominativo non disponibile"
+    const rapporto = record.ticket_id ? rapportoByTicketId.get(record.ticket_id) ?? null : null
+    const nomeCompleto =
+      [rapporto?.cognome_nome_datore_proper, rapporto?.nome_lavoratore_per_url].filter(Boolean).join(" – ").trim() ||
+      [record.nome, record.cognome].filter(Boolean).join(" ").trim() ||
+      "Nominativo non disponibile"
     const rawTipo = record.tipo_licenziamento ?? record.tipo_decesso ?? "-"
     const normalizedTipo = normalizeToken(rawTipo)
 
@@ -205,6 +220,7 @@ async function fetchChiusureBoardData(): Promise<ChiusureBoardColumnData[]> {
       id: record.id,
       stage,
       record,
+      rapporto,
       nomeCompleto,
       email: record.email ?? "-",
       motivazione: record.motivazione_cessazione_rapporto,

@@ -15,6 +15,7 @@ import {
 import { usePayrollBoard, type PayrollBoardCardData, type PayrollBoardColumnData } from "@/hooks/use-payroll-board"
 import { ContributiInpsView } from "@/components/payroll/contributi-inps-view"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card"
 import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot"
 import { DetailSectionCard } from "@/components/shared/detail-section-card"
@@ -377,6 +378,8 @@ function CedolinoDetailSheet({
         {card ? (
           <section className="h-full overflow-y-auto bg-muted/20 px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
+              <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} status={statoServizio} />
+
               <DetailSectionCard
                 title="Dettagli rapporto"
                 titleIcon={<ClipboardListIcon className="text-muted-foreground size-5" />}
@@ -384,30 +387,6 @@ function CedolinoDetailSheet({
                 titleOnBorder
                 contentClassName="space-y-5"
               >
-                <div className="rounded-xl border bg-background p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-base font-semibold">{card.nomeCompleto}</p>
-                    {rapporto?.id ? (
-                      <Button variant="ghost" size="sm" asChild className="h-7 gap-1.5 text-primary">
-                        <a href={`/contratti/rapporti?id=${rapporto.id}`}>
-                          Vai al rapporto
-                          <ExternalLinkIcon className="size-3.5" />
-                        </a>
-                      </Button>
-                    ) : null}
-                  </div>
-                  <div className="text-muted-foreground mt-3 grid gap-3 text-sm sm:grid-cols-2">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide">Famiglia</p>
-                      <p className="mt-1 font-medium text-foreground">{famiglia?.nome ?? rapporto?.cognome_nome_datore_proper ?? "Non disponibile"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide">Email famiglia</p>
-                      <p className="mt-1 font-medium text-foreground">{famiglia?.email ?? famiglia?.customer_email ?? "Non disponibile"}</p>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
                     <p className="text-muted-foreground text-sm">Stato del servizio</p>

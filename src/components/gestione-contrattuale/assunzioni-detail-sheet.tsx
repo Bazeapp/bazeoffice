@@ -5,7 +5,6 @@ import {
   CheckCircle2Icon,
   CreditCardIcon,
   FileTextIcon,
-  Link2Icon,
   MailIcon,
   OctagonAlertIcon,
   PhoneIcon,
@@ -17,6 +16,7 @@ import {
 import type { AssunzioniBoardCardData } from "@/hooks/use-assunzioni-board"
 import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot"
 import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -24,7 +24,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { fetchLookupValues } from "@/lib/anagrafiche-api"
-import { buildPathForRoute } from "@/routes/app-routes"
 import { cn } from "@/lib/utils"
 
 function formatDate(value: string | null | undefined) {
@@ -864,20 +863,6 @@ export function AssunzioniDetailSheet({
                   </span>
                 </div>
               </div>
-              {card?.rapporto?.id ? (
-                <a
-                  href={buildPathForRoute({
-                    mainSection: "gestione_contrattuale_rapporti",
-                    anagraficheTab: "famiglie",
-                    ricercaProcessId: null,
-                  })}
-                  className="text-primary flex shrink-0 items-center gap-2 text-sm font-medium"
-                  title="Vai al rapporto"
-                  aria-label="Vai al rapporto"
-                >
-                  <Link2Icon className="size-4" />
-                </a>
-              ) : null}
             </div>
 
           </div>
@@ -886,6 +871,12 @@ export function AssunzioniDetailSheet({
         {card ? (
           <section className="h-full overflow-y-auto bg-muted/20 px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
+              <LinkedRapportoSummaryCard
+                title={`${card.nomeFamiglia} – ${card.nomeLavoratore}`}
+                rapporto={card.rapporto}
+                type={card.rapporto?.tipo_rapporto ?? card.tipoRapporto}
+              />
+
               <DetailSectionCard
                 title="Contesto pratica"
                 titleIcon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}

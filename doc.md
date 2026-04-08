@@ -1,5 +1,27 @@
 # DB Map Completa
 
+## Aggiornamento 2026-04-08
+
+In questa iterazione non sono stati aggiunti nuovi campi al database.
+
+Le modifiche recenti lato FE e mapping hanno riusato campi gia presenti, in particolare:
+
+- `rapporti_lavorativi.ticket_id`
+- `rapporti_lavorativi.stato_servizio`
+- `rapporti_lavorativi.tipo_rapporto`
+- `rapporti_lavorativi.ore_a_settimana`
+- `rapporti_lavorativi.data_inizio_rapporto`
+- `ticket.rapporto_id`
+- `ticket.stato`
+- `chiusure_contratti.ticket_id`
+- `variazioni_contrattuali.rapporto_lavorativo_id`
+- `contributi_inps.rapporto_lavorativo_id`
+- `mesi_lavorati.rapporto_lavorativo_id`
+
+Nota operativa:
+
+- `chiusure_contratti` non espone un riferimento diretto al rapporto lavorativo; il collegamento viene risolto tramite `ticket_id -> rapporti_lavorativi.ticket_id`.
+
 Documentazione costruita incrociando tutte le fonti locali della repo:
 
 - `src/types/entities/*`: shape tipizzati dei record

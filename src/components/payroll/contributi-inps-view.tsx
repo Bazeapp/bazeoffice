@@ -5,9 +5,7 @@ import {
   ChevronRightIcon,
   CircleCheckBigIcon,
   CreditCardIcon,
-  ExternalLinkIcon,
   FileTextIcon,
-  LandmarkIcon,
   SearchIcon,
 } from "lucide-react"
 
@@ -22,6 +20,7 @@ import {
 } from "@/components/shared/attachment-upload-slot"
 import { DetailSectionCard } from "@/components/shared/detail-section-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,7 +31,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { supabase } from "@/lib/supabase-client"
-import { buildPathForRoute } from "@/routes/app-routes"
 import { cn } from "@/lib/utils"
 
 type QuarterState = {
@@ -388,58 +386,7 @@ function ContributoInpsDetailSheet({
           {card ? (
             <section className="h-full overflow-y-auto bg-muted/20 px-5 py-5">
               <div className="mx-auto max-w-5xl space-y-5">
-                <DetailSectionCard
-                  title="Rapporto collegato"
-                  titleIcon={<LandmarkIcon className="text-muted-foreground size-5" />}
-                  titleOnBorder
-                  contentClassName="space-y-5"
-                >
-                  <div className="rounded-xl border bg-background p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-base font-semibold">{card.nomeCompleto}</p>
-                        <p className="text-muted-foreground mt-1 text-sm">
-                          {rapporto?.id_rapporto ?? rapporto?.id ?? "Rapporto non disponibile"}
-                        </p>
-                      </div>
-                      <Button variant="outline" size="sm" asChild>
-                        <a
-                          href={buildPathForRoute({
-                            mainSection: "gestione_contrattuale_rapporti",
-                            anagraficheTab: "famiglie",
-                            ricercaProcessId: null,
-                          })}
-                        >
-                          Apri rapporti
-                          <ExternalLinkIcon className="size-3.5" />
-                        </a>
-                      </Button>
-                    </div>
-
-                    <div className="text-muted-foreground mt-3 grid gap-3 text-sm sm:grid-cols-2">
-                      <div>
-                        <p className="text-xs uppercase tracking-wide">Famiglia</p>
-                        <p className="mt-1 font-medium text-foreground">{card.nomeFamiglia}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide">Lavoratore</p>
-                        <p className="mt-1 font-medium text-foreground">{card.nomeLavoratore}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide">Ticket</p>
-                        <p className="mt-1 font-medium text-foreground">
-                          {card.record.ticket_id ?? "Non disponibile"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide">Stato rapporto</p>
-                        <p className="mt-1 font-medium text-foreground">
-                          {rapporto?.stato_rapporto ?? "Non disponibile"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </DetailSectionCard>
+                <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} />
 
                 <DetailSectionCard
                   title="Contributo INPS"
