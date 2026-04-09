@@ -1,12 +1,23 @@
 import * as React from "react";
 import type { ReactNode } from "react";
-import { CopyIcon } from "lucide-react";
+import {
+  CalendarDaysIcon,
+  CopyIcon,
+  FileTextIcon,
+  MapPinnedIcon,
+  TimerResetIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { CrmDetailCard } from "@/components/crm/detail-card";
 import {
   OnboardingDecisioneLavoroSection,
   type OnboardingDecisioneLavoroCheckboxDefaults,
 } from "@/components/crm/cards/onboarding-decisione-lavoro-card";
+import {
+  DetailField,
+  DetailFieldControl,
+  DetailSectionBlock,
+} from "@/components/shared/detail-section-card";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,
@@ -366,219 +377,127 @@ export function OnboardingCard({
     const richiestaPatente = card?.richiestaPatente ? "Si" : "No";
     const richiestaTrasferte = card?.richiestaTrasferte ? "Si" : "No";
     const richiestaFerie = card?.richiestaFerie ? "Si" : "No";
+    const compactGridClassName = "grid gap-4 sm:grid-cols-2";
 
     return (
-      <CrmDetailCard title={showTitle ? "Onboarding" : ""} titleAction={titleAction}>
-        <FieldGroup>
-          <p className="text-base font-semibold">Orari e frequenza</p>
-          <Field>
-            <FieldLabel>Orario di lavoro</FieldLabel>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-              {displayText(card?.orarioDiLavoro)}
-            </div>
-          </Field>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Field>
-              <FieldLabel>Ore Settimanali</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {displayText(card?.oreSettimana)}
-              </div>
-            </Field>
-            <Field>
-              <FieldLabel>Giorni Settimanali</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {displayText(card?.giorniSettimana)}
-              </div>
-            </Field>
-            <Field>
-              <FieldLabel>Giornate preferite</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {weekdayBadges.length ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {weekdayBadges.map((day) => (
-                      <Badge
-                        key={day}
-                        variant="outline"
-                        className={cn("h-5 px-2 text-[11px] font-medium", getTagClassName(getWeekdayColor(day)))}
-                      >
-                        {day}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  "-"
-                )}
-              </div>
-            </Field>
+      <div className="space-y-4">
+        <DetailSectionBlock
+          title={showTitle ? "Onboarding" : "Orari e frequenza"}
+          icon={<CalendarDaysIcon className="size-4" />}
+          action={showTitle ? titleAction : undefined}
+          showDefaultAction={false}
+          contentClassName="space-y-4"
+        >
+          <DetailField label="Orario di lavoro" value={displayText(card?.orarioDiLavoro)} />
+          <div className={compactGridClassName}>
+            <DetailField label="Ore settimanali" value={displayText(card?.oreSettimana)} />
+            <DetailField label="Giorni settimanali" value={displayText(card?.giorniSettimana)} />
           </div>
-
-          <Separator />
-
-          <p className="text-base font-semibold">Descrizione lavoro</p>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <Field>
-              <FieldLabel>Nucleo famigliare</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {displayText(card?.nucleoFamigliare)}
+          <DetailFieldControl label="Giornate preferite">
+            {weekdayBadges.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {weekdayBadges.map((day) => (
+                  <Badge
+                    key={day}
+                    variant="outline"
+                    className={cn("h-5 px-2 text-[11px] font-medium", getTagClassName(getWeekdayColor(day)))}
+                  >
+                    {day}
+                  </Badge>
+                ))}
               </div>
-            </Field>
-            <Field>
-              <FieldLabel>Eta lavoratore</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {`${displayText(card?.etaMinima)} - ${displayText(card?.etaMassima)}`}
-              </div>
-            </Field>
+            ) : (
+              <div className="ui-type-value">-</div>
+            )}
+          </DetailFieldControl>
+        </DetailSectionBlock>
+
+        <DetailSectionBlock
+          title="Descrizione lavoro"
+          icon={<FileTextIcon className="size-4" />}
+          showDefaultAction={false}
+          contentClassName="space-y-4"
+        >
+          <div className={compactGridClassName}>
+            <DetailField label="Nucleo famigliare" value={displayText(card?.nucleoFamigliare)} />
+            <DetailField
+              label="Eta lavoratore"
+              value={`${displayText(card?.etaMinima)} - ${displayText(card?.etaMassima)}`}
+            />
           </div>
-          <Field>
-            <FieldLabel>Descrizione casa</FieldLabel>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-              {displayText(card?.descrizioneCasa)}
-            </div>
-          </Field>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <Field>
-              <FieldLabel>Metratura casa</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {displayText(card?.metraturaCasa)}
-              </div>
-            </Field>
-            <Field>
-              <FieldLabel>Sesso</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {displayText(card?.sesso)}
-              </div>
-            </Field>
+          <DetailField label="Descrizione casa" value={displayText(card?.descrizioneCasa)} />
+          <div className={compactGridClassName}>
+            <DetailField label="Metratura casa" value={displayText(card?.metraturaCasa)} />
+            <DetailField label="Sesso" value={displayText(card?.sesso)} />
           </div>
-          <Field>
-            <FieldLabel>Animali in casa</FieldLabel>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-              {displayText(card?.descrizioneAnimaliInCasa)}
-            </div>
-          </Field>
-          <Field>
-            <FieldLabel>Mansioni richieste</FieldLabel>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-              {displayText(card?.mansioniRichieste)}
-            </div>
-          </Field>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Field>
-              <FieldLabel>Richiesta patente</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {richiestaPatente}
-              </div>
-            </Field>
-            <Field>
-              <FieldLabel>Richiesta trasferte</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {richiestaTrasferte}
-              </div>
-            </Field>
-            <Field>
-              <FieldLabel>Richiesta ferie</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {richiestaFerie}
-              </div>
-            </Field>
+          <DetailField label="Animali in casa" value={displayText(card?.descrizioneAnimaliInCasa)} />
+          <DetailField label="Mansioni richieste" value={displayText(card?.mansioniRichieste)} />
+          <div className={compactGridClassName}>
+            <DetailField label="Richiesta patente" value={richiestaPatente} />
+            <DetailField label="Richiesta trasferte" value={richiestaTrasferte} />
           </div>
-          <Field>
-            <FieldLabel>Dettaglio patente</FieldLabel>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-              {displayText(card?.patenteDettaglio)}
-            </div>
-          </Field>
-          <Field>
-            <FieldLabel>Descrizione trasferte</FieldLabel>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-              {displayText(card?.descrizioneRichiestaTrasferte)}
-            </div>
-          </Field>
-          <Field>
-            <FieldLabel>Descrizione ferie</FieldLabel>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-              {displayText(card?.descrizioneRichiestaFerie)}
-            </div>
-          </Field>
-          <Field>
-            <FieldLabel>Informazioni extra riservate</FieldLabel>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-              {displayText(card?.informazioniExtraRiservate)}
-            </div>
-          </Field>
-
-          <Separator />
-
-          <p className="text-base font-semibold">Luogo di lavoro</p>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <Field>
-              <FieldLabel>Provincia</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {displayText(card?.indirizzoProvincia)}
-              </div>
-            </Field>
-            <Field>
-              <FieldLabel>CAP</FieldLabel>
-              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                {displayText(card?.indirizzoCap)}
-              </div>
-            </Field>
+          <div className={compactGridClassName}>
+            <DetailField label="Richiesta ferie" value={richiestaFerie} />
+            <DetailField label="Dettaglio patente" value={displayText(card?.patenteDettaglio)} />
           </div>
-          <Field>
-            <FieldLabel>Quartiere</FieldLabel>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-              {displayText(card?.indirizzoNote)}
-            </div>
-          </Field>
-          <Field>
-            <FieldLabel>Indirizzo completo</FieldLabel>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-              {displayText(card?.indirizzoCompleto)}
-            </div>
-          </Field>
-          <Field>
-            <FieldLabel>SRC Maps</FieldLabel>
-            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm break-all">
-              {hasMapsUrl ? (
-                <a
-                  href={srcMapsValue}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary underline underline-offset-2"
-                >
-                  {srcMapsValue}
-                </a>
-              ) : (
-                "-"
-              )}
-            </div>
-          </Field>
+          <DetailField
+            label="Descrizione trasferte"
+            value={displayText(card?.descrizioneRichiestaTrasferte)}
+          />
+          <DetailField
+            label="Descrizione ferie"
+            value={displayText(card?.descrizioneRichiestaFerie)}
+          />
+          <DetailField
+            label="Informazioni extra riservate"
+            value={displayText(card?.informazioniExtraRiservate)}
+          />
+        </DetailSectionBlock>
 
-          {showTempistiche ? (
-            <>
-              <Separator />
-              <p className="text-base font-semibold">Tempistiche</p>
-              <Field>
-                <FieldLabel>Deadline</FieldLabel>
-                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                  {displayText(card?.deadlineMobile)}
-                </div>
-              </Field>
-              <Field>
-                <FieldLabel>Disponibilita colloqui</FieldLabel>
-                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                  {displayText(card?.disponibilitaColloquiInPresenza)}
-                </div>
-              </Field>
-              <Field>
-                <FieldLabel>Tipologia primo incontro</FieldLabel>
-                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                  {tipoIncontroLabel}
-                </div>
-              </Field>
-            </>
-          ) : null}
-        </FieldGroup>
-      </CrmDetailCard>
+        <DetailSectionBlock
+          title="Luogo di lavoro"
+          icon={<MapPinnedIcon className="size-4" />}
+          showDefaultAction={false}
+          contentClassName="space-y-4"
+        >
+          <div className={compactGridClassName}>
+            <DetailField label="Provincia" value={displayText(card?.indirizzoProvincia)} />
+            <DetailField label="CAP" value={displayText(card?.indirizzoCap)} />
+          </div>
+          <DetailField label="Quartiere" value={displayText(card?.indirizzoNote)} />
+          <DetailField label="Indirizzo completo" value={displayText(card?.indirizzoCompleto)} />
+          <DetailFieldControl label="SRC Maps">
+            {hasMapsUrl ? (
+              <a
+                href={srcMapsValue}
+                target="_blank"
+                rel="noreferrer"
+                className="ui-type-value text-primary break-all underline underline-offset-2"
+              >
+                {srcMapsValue}
+              </a>
+            ) : (
+              <div className="ui-type-value">-</div>
+            )}
+          </DetailFieldControl>
+        </DetailSectionBlock>
+
+        {showTempistiche ? (
+          <DetailSectionBlock
+            title="Tempistiche"
+            icon={<TimerResetIcon className="size-4" />}
+            showDefaultAction={false}
+            contentClassName="space-y-4"
+          >
+            <DetailField label="Deadline" value={displayText(card?.deadlineMobile)} />
+            <DetailField
+              label="Disponibilita colloqui"
+              value={displayText(card?.disponibilitaColloquiInPresenza)}
+            />
+            <DetailField label="Tipologia primo incontro" value={tipoIncontroLabel} />
+          </DetailSectionBlock>
+        ) : null}
+      </div>
     );
   }
 
