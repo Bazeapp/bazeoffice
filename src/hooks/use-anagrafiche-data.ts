@@ -20,6 +20,7 @@ export type LookupOptionsMap = Record<
     value: string
   }>
 >
+export type LookupFilterTypeMap = Record<string, TableColumnMeta["filterType"]>
 export type AnagraficheTab = "famiglie" | "processi" | "lavoratori"
 
 type UseAnagraficheDataParams = {
@@ -44,6 +45,7 @@ type AnagraficheDataState = {
   processesColumns: TableColumnMeta[]
   lookupColors: LookupColorMap
   lookupOptions: LookupOptionsMap
+  lookupFilterTypes: LookupFilterTypeMap
   loading: boolean
   error: string | null
   refresh: () => Promise<void>
@@ -99,6 +101,23 @@ function buildLookupOptionsMap(rows: LookupValueRecord[]): LookupOptionsMap {
       }))
 
     acc[domain] = normalized
+    return acc
+  }, {})
+}
+
+function buildLookupFilterTypeMap(rows: LookupValueRecord[]): LookupFilterTypeMap {
+  return rows.reduce<LookupFilterTypeMap>((acc, current) => {
+    if (!current.is_active) return acc
+    const metadata = current.metadata
+    const filterType =
+      metadata && typeof metadata === "object" && "filter_type" in metadata
+        ? metadata.filter_type
+        : null
+
+    if (filterType === "enum" || filterType === "multi_enum") {
+      acc[`${current.entity_table}.${current.entity_field}`] = filterType
+    }
+
     return acc
   }, {})
 }
@@ -194,6 +213,7 @@ export function useAnagraficheData({
   const [processesColumns, setProcessesColumns] = React.useState<TableColumnMeta[]>([])
   const [lookupColors, setLookupColors] = React.useState<LookupColorMap>({})
   const [lookupOptions, setLookupOptions] = React.useState<LookupOptionsMap>({})
+  const [lookupFilterTypes, setLookupFilterTypes] = React.useState<LookupFilterTypeMap>({})
   const [loadingLookup, setLoadingLookup] = React.useState(true)
   const [loadingTable, setLoadingTable] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -214,6 +234,7 @@ export function useAnagraficheData({
         const lookupResult = await fetchLookupValues()
         setLookupColors(buildLookupColorMap(lookupResult.rows))
         setLookupOptions(buildLookupOptionsMap(lookupResult.rows))
+        setLookupFilterTypes(buildLookupFilterTypeMap(lookupResult.rows))
         setLookupLoaded(true)
       } catch (caughtError) {
         const message =
@@ -223,6 +244,7 @@ export function useAnagraficheData({
         setError(message)
         setLookupColors({})
         setLookupOptions({})
+        setLookupFilterTypes({})
       } finally {
         setLoadingLookup(false)
       }
@@ -343,6 +365,7 @@ export function useAnagraficheData({
     processesColumns,
     lookupColors,
     lookupOptions,
+    lookupFilterTypes,
     loading: loadingLookup || loadingTable,
     error,
     refresh,

@@ -125,6 +125,8 @@ export function DataTableToolbar<TData>({
   hasPendingFilters = false,
 }: DataTableToolbarProps<TData>) {
   const [viewName, setViewName] = React.useState("");
+  const [localSearchValue, setLocalSearchValue] = React.useState(searchValue);
+  const previousExternalSearchValueRef = React.useRef(searchValue);
   const sortableColumns = table
     .getAllLeafColumns()
     .filter((column) => column.getCanSort());
@@ -146,6 +148,26 @@ export function DataTableToolbar<TData>({
     () => new Map(filterFields.map((field) => [field.value, field])),
     [filterFields],
   );
+
+  React.useEffect(() => {
+    if (previousExternalSearchValueRef.current === searchValue) return;
+    previousExternalSearchValueRef.current = searchValue;
+    setLocalSearchValue(searchValue);
+  }, [searchValue]);
+
+  React.useEffect(() => {
+    if (localSearchValue === searchValue) return;
+
+    const timeout = window.setTimeout(() => {
+      React.startTransition(() => {
+        onSearchValueChange(localSearchValue);
+      });
+    }, 120);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [localSearchValue, onSearchValueChange, searchValue]);
 
   function upsertSort(index: number, partial: { id?: string; desc?: boolean }) {
     const next: SortingState = [...sorting];
@@ -218,8 +240,8 @@ export function DataTableToolbar<TData>({
         <Input
           className={compactControls ? "w-full" : "w-full md:max-w-sm"}
           placeholder={searchPlaceholder}
-          value={searchValue}
-          onChange={(event) => onSearchValueChange(event.target.value)}
+          value={localSearchValue}
+          onChange={(event) => setLocalSearchValue(event.target.value)}
         />
 
         <div

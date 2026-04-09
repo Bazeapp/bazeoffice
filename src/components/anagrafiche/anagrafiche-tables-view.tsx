@@ -7,10 +7,12 @@ import { createEmptyGroup, type FilterFieldType } from "@/components/data-table/
 import type { TableColumnMeta } from "@/lib/anagrafiche-api"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { toast } from "sonner"
 import {
   type AnagraficheTab,
   type AnagraficaRow,
   type LookupColorMap,
+  type LookupFilterTypeMap,
   type LookupOptionsMap,
   useAnagraficheData,
 } from "@/hooks/use-anagrafiche-data"
@@ -245,7 +247,8 @@ function toFieldOptions(
   rows: AnagraficaRow[],
   columns: TableColumnMeta[],
   entityTable: "famiglie" | "processi_matching" | "lavoratori",
-  lookupOptions: LookupOptionsMap
+  lookupOptions: LookupOptionsMap,
+  lookupFilterTypes: LookupFilterTypeMap
 ) {
   const keys = getOrderedKeys(rows)
   const columnsByName = new Map(columns.map((column) => [column.name, column]))
@@ -288,9 +291,8 @@ function toFieldOptions(
       }
     }
 
-    const type = resolveFieldTypeFromSchema(key, columnsByName)
-
     const lookupDomain = `${entityTable}.${key}`
+    const type = lookupFilterTypes[lookupDomain] ?? resolveFieldTypeFromSchema(key, columnsByName)
     const lookupDomainOptions = lookupOptions[lookupDomain] ?? []
     const optionsSource = type === "multi_enum" ? uniqueArrayValues : uniqueScalarValues
     const fallbackOptions = Array.from(optionsSource)
@@ -349,6 +351,7 @@ export function AnagraficheTablesView({
   activeTab: activeTabProp,
   onActiveTabChange,
 }: AnagraficheTablesViewProps = {}) {
+  const loadingToastIdRef = React.useRef<string | number | null>(null)
   const [internalActiveTab, setInternalActiveTab] = React.useState<TabValue>(
     activeTabProp ?? "famiglie"
   )
@@ -388,6 +391,7 @@ export function AnagraficheTablesView({
     processesColumns,
     lookupColors,
     lookupOptions,
+    lookupFilterTypes,
     loading,
     error,
   } = useAnagraficheData({
@@ -410,7 +414,8 @@ export function AnagraficheTablesView({
           processes,
           processesColumns,
           "processi_matching",
-          lookupOptions
+          lookupOptions,
+          lookupFilterTypes
         ),
         searchPlaceholder: "Cerca in processi...",
         totalRows: processesTotal,
@@ -422,7 +427,13 @@ export function AnagraficheTablesView({
         key: "lavoratori",
         columns: buildColumns(workers, "lavoratori", lookupColors),
         data: workers,
-        fields: toFieldOptions(workers, workersColumns, "lavoratori", lookupOptions),
+        fields: toFieldOptions(
+          workers,
+          workersColumns,
+          "lavoratori",
+          lookupOptions,
+          lookupFilterTypes
+        ),
         searchPlaceholder: "Cerca in lavoratori...",
         totalRows: workersTotal,
       }
@@ -432,7 +443,13 @@ export function AnagraficheTablesView({
       key: "famiglie",
       columns: buildColumns(families, "famiglie", lookupColors),
       data: families,
-      fields: toFieldOptions(families, familiesColumns, "famiglie", lookupOptions),
+      fields: toFieldOptions(
+        families,
+        familiesColumns,
+        "famiglie",
+        lookupOptions,
+        lookupFilterTypes
+      ),
       searchPlaceholder: "Cerca in famiglie...",
       totalRows: familiesTotal,
     }
@@ -442,6 +459,7 @@ export function AnagraficheTablesView({
     familiesTotal,
     familiesColumns,
     lookupColors,
+    lookupFilterTypes,
     lookupOptions,
     processes,
     processesColumns,
@@ -502,14 +520,31 @@ export function AnagraficheTablesView({
     [activeTab]
   )
 
+  React.useEffect(() => {
+    if (loading) {
+      if (loadingToastIdRef.current == null) {
+        loadingToastIdRef.current = toast.loading("Caricamento dati da Supabase...")
+      }
+      return
+    }
+
+    if (loadingToastIdRef.current != null) {
+      toast.dismiss(loadingToastIdRef.current)
+      loadingToastIdRef.current = null
+    }
+  }, [loading])
+
+  React.useEffect(() => {
+    return () => {
+      if (loadingToastIdRef.current != null) {
+        toast.dismiss(loadingToastIdRef.current)
+        loadingToastIdRef.current = null
+      }
+    }
+  }, [])
+
   return (
     <section className="w-full min-w-0 space-y-4">
-      {loading ? (
-        <div className="text-muted-foreground rounded-lg border p-4 text-sm">
-          Caricamento dati da Supabase...
-        </div>
-      ) : null}
-
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento dati: {error}
@@ -542,7 +577,7 @@ export function AnagraficheTablesView({
             paginationState={activePagination}
             onPaginationStateChange={handleTabPaginationChange}
             serverQueryMode
-            serverQueryDebounceMs={700}
+            serverQueryDebounceMs={300}
             onServerQueryChange={handleServerQueryChange}
             initialServerQuery={activeQuery}
           />

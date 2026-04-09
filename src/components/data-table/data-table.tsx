@@ -12,6 +12,7 @@ import {
   type PaginationState,
   useReactTable,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import * as React from "react";
 import { ExpandIcon, PanelRightOpenIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -80,6 +81,11 @@ type DataTableProps<TData, TValue> = {
   onServerQueryChange?: (query: DataTableQueryState) => void;
   initialServerQuery?: Partial<DataTableQueryState>;
   serverQueryDebounceMs?: number;
+  virtualizeRows?: boolean;
+  virtualRowHeight?: number;
+  virtualOverscan?: number;
+  virtualContainerClassName?: string;
+  stickyHeader?: boolean;
 };
 
 export type DataTableQueryState = SharedTableQueryState;
@@ -185,6 +191,11 @@ export function DataTable<TData, TValue>({
   onServerQueryChange,
   initialServerQuery,
   serverQueryDebounceMs = 700,
+  virtualizeRows = false,
+  virtualRowHeight = 44,
+  virtualOverscan = 8,
+  virtualContainerClassName,
+  stickyHeader = false,
 }: DataTableProps<TData, TValue>) {
   const {
     debouncedQuery,
@@ -224,6 +235,7 @@ export function DataTable<TData, TValue>({
   const [recordPanelTitle, setRecordPanelTitle] =
     React.useState("Dettaglio record");
   const tableWrapperRef = React.useRef<HTMLDivElement | null>(null);
+  const virtualParentRef = React.useRef<HTMLDivElement | null>(null);
   const pagination = paginationState ?? internalPagination;
 
   const handlePaginationChange = React.useCallback(
@@ -342,6 +354,14 @@ export function DataTable<TData, TValue>({
   const pageCount = manualPagination
     ? manualPageCount
     : Math.max(table.getPageCount(), 1);
+  const rowModelRows = table.getRowModel().rows;
+  const canVirtualizeRows = React.useMemo(() => {
+    if (!virtualizeRows) return false;
+    if (rowModelRows.length === 0) return false;
+    return rowModelRows.every(
+      (row) => !(row as unknown as { groupingColumnId?: string }).groupingColumnId,
+    );
+  }, [rowModelRows, virtualizeRows]);
   const visibleColumnIds = React.useMemo(
     () => table.getVisibleLeafColumns().map((column) => column.id),
     [table],
@@ -355,13 +375,11 @@ export function DataTable<TData, TValue>({
     return map;
   }, [table]);
   const visibleDataRows = React.useMemo(() => {
-    return table
-      .getRowModel()
-      .rows.filter(
-        (row) =>
-          !(row as unknown as { groupingColumnId?: string }).groupingColumnId,
-      );
-  }, [table]);
+    return rowModelRows.filter(
+      (row) =>
+        !(row as unknown as { groupingColumnId?: string }).groupingColumnId,
+    );
+  }, [rowModelRows]);
   const rowIndexById = React.useMemo(() => {
     const map = new Map<string, number>();
     visibleDataRows.forEach((row, index) => {
@@ -391,6 +409,29 @@ export function DataTable<TData, TValue>({
       setSelection(null);
     }
   }, [columnIndexById, rowIndexById, selection]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: canVirtualizeRows ? rowModelRows.length : 0,
+    getScrollElement: () => virtualParentRef.current,
+    estimateSize: React.useCallback(() => virtualRowHeight, [virtualRowHeight]),
+    overscan: virtualOverscan,
+  });
+
+  React.useEffect(() => {
+    if (!canVirtualizeRows) return;
+    rowVirtualizer.scrollToOffset(0);
+  }, [canVirtualizeRows, rowVirtualizer, pagination.pageIndex, data, searchValue, filters, sorting, grouping]);
+
+  const virtualItems = canVirtualizeRows ? rowVirtualizer.getVirtualItems() : [];
+  const topPaddingHeight =
+    canVirtualizeRows && virtualItems.length > 0 ? virtualItems[0]!.start : 0;
+  const bottomPaddingHeight =
+    canVirtualizeRows && virtualItems.length > 0
+      ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1]!.end
+      : 0;
+  const renderedRows = canVirtualizeRows
+    ? virtualItems.map((virtualRow) => rowModelRows[virtualRow.index]!).filter(Boolean)
+    : rowModelRows;
 
   const recordPanelFields = React.useMemo(() => {
     if (!recordPanelData) return [];
@@ -619,10 +660,7 @@ export function DataTable<TData, TValue>({
 
   function renderDataRow(row: Row<TData>) {
     return (
-      <TableRow
-        key={row.id}
-        style={{ contentVisibility: "auto", containIntrinsicSize: "44px" }}
-      >
+      <TableRow key={row.id}>
         <TableCell className="w-10 p-1 text-center align-middle">
           <Button
             variant="ghost"
@@ -727,11 +765,7 @@ export function DataTable<TData, TValue>({
     }
 
     return (
-      <TableRow
-        key={row.id}
-        className="bg-muted/30 hover:bg-muted/30"
-        style={{ contentVisibility: "auto", containIntrinsicSize: "44px" }}
-      >
+      <TableRow key={row.id} className="bg-muted/30 hover:bg-muted/30">
         <TableCell colSpan={renderColumnCount} className="font-medium">
           <button
             type="button"
@@ -776,16 +810,31 @@ export function DataTable<TData, TValue>({
         hasPendingFilters={serverQueryMode ? hasPendingFilters : false}
       />
 
-      <div className="w-full rounded-lg border">
+      <div
+        ref={virtualParentRef}
+        className={cn(
+          "w-full rounded-lg border",
+          canVirtualizeRows && "max-h-[calc(100svh-12rem)] overflow-auto",
+          virtualContainerClassName,
+        )}
+      >
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                <TableHead className="w-10 px-1">
+                <TableHead
+                  className={cn(
+                    "w-10 px-1",
+                    stickyHeader && "sticky top-0 z-20 bg-background",
+                  )}
+                >
                   <span className="sr-only">Dettaglio</span>
                 </TableHead>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead
+                    key={header.id}
+                    className={cn(stickyHeader && "sticky top-0 z-20 bg-background")}
+                  >
                     <div className="max-w-[16rem] overflow-hidden text-ellipsis whitespace-nowrap">
                       {header.isPlaceholder
                         ? null
@@ -801,7 +850,7 @@ export function DataTable<TData, TValue>({
           </TableHeader>
 
           <TableBody>
-            {table.getRowModel().rows.length === 0 ? (
+            {rowModelRows.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={renderColumnCount}
@@ -811,7 +860,27 @@ export function DataTable<TData, TValue>({
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => renderGroupedRow(row))
+              <>
+                {canVirtualizeRows && topPaddingHeight > 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={renderColumnCount}
+                      className="p-0"
+                      style={{ height: `${topPaddingHeight}px` }}
+                    />
+                  </TableRow>
+                ) : null}
+                {renderedRows.map((row) => renderGroupedRow(row))}
+                {canVirtualizeRows && bottomPaddingHeight > 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={renderColumnCount}
+                      className="p-0"
+                      style={{ height: `${bottomPaddingHeight}px` }}
+                    />
+                  </TableRow>
+                ) : null}
+              </>
             )}
           </TableBody>
         </Table>
