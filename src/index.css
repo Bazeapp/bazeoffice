@@ -38,6 +38,83 @@
   --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
   --sidebar-border: oklch(0.923 0.003 48.717);
   --sidebar-ring: oklch(0.709 0.01 56.259);
+
+  /* ========================================
+   * LOVABLE DESIGN TOKENS — Step 1A
+   * Aggiunte non invasive: nuovi token che non
+   * sovrascrivono nulla di esistente
+   * ======================================== */
+
+  /* Surface layering (3 livelli di profondità) */
+  --surface: oklch(0.995 0.002 220);
+  --surface-raised: oklch(1 0 0);
+  --surface-inset: oklch(0.955 0.005 220);
+
+  /* Elevation shadows (a doppio strato per realismo) */
+  --shadow-xs: 0 1px 2px 0 oklch(0.15 0.02 240 / 0.04);
+  --shadow-sm: 0 1px 3px 0 oklch(0.15 0.02 240 / 0.06), 0 1px 2px -1px oklch(0.15 0.02 240 / 0.06);
+  --shadow-md: 0 4px 6px -1px oklch(0.15 0.02 240 / 0.07), 0 2px 4px -2px oklch(0.15 0.02 240 / 0.05);
+  --shadow-lg: 0 10px 15px -3px oklch(0.15 0.02 240 / 0.08), 0 4px 6px -4px oklch(0.15 0.02 240 / 0.04);
+  --shadow-xl: 0 20px 25px -5px oklch(0.15 0.02 240 / 0.08), 0 8px 10px -6px oklch(0.15 0.02 240 / 0.04);
+
+  /* Pipeline state colors (CRM semantic) */
+  --state-warm: oklch(0.72 0.17 55);
+  --state-hot: oklch(0.58 0.22 25);
+  --state-cold: oklch(0.62 0.14 235);
+  --state-won: oklch(0.55 0.14 155);
+  --state-lost: oklch(0.55 0 0);
+  --state-out: oklch(0.55 0.1 295);
+
+  /* Urgency tokens (aging / deadlines) */
+  --urgency-overdue: oklch(0.58 0.22 25);
+  --urgency-today: oklch(0.68 0.2 40);
+  --urgency-tomorrow: oklch(0.72 0.17 55);
+  --urgency-soon: oklch(0.68 0.15 230);
+
+  /* Badge palette — 18 colori, coppia foreground + background */
+  --badge-green: oklch(0.5 0.13 155);
+  --badge-green-bg: oklch(0.96 0.03 155);
+  --badge-red: oklch(0.58 0.22 25);
+  --badge-red-bg: oklch(0.96 0.03 25);
+  --badge-blue: oklch(0.5 0.19 258);
+  --badge-blue-bg: oklch(0.96 0.03 258);
+  --badge-orange: oklch(0.7 0.19 45);
+  --badge-orange-bg: oklch(0.96 0.04 45);
+  --badge-gray: oklch(0.55 0 0);
+  --badge-gray-bg: oklch(0.955 0.005 220);
+  --badge-purple: oklch(0.55 0.16 295);
+  --badge-purple-bg: oklch(0.96 0.03 295);
+  --badge-amber: oklch(0.72 0.17 75);
+  --badge-amber-bg: oklch(0.96 0.04 75);
+  --badge-teal: oklch(0.55 0.1 185);
+  --badge-teal-bg: oklch(0.96 0.03 185);
+  --badge-sky: oklch(0.66 0.14 225);
+  --badge-sky-bg: oklch(0.96 0.03 225);
+  --badge-emerald: oklch(0.58 0.13 160);
+  --badge-emerald-bg: oklch(0.96 0.03 160);
+  --badge-lime: oklch(0.62 0.14 125);
+  --badge-lime-bg: oklch(0.96 0.04 125);
+  --badge-yellow: oklch(0.82 0.16 95);
+  --badge-yellow-bg: oklch(0.97 0.04 95);
+  --badge-slate: oklch(0.55 0.03 250);
+  --badge-slate-bg: oklch(0.955 0.01 250);
+  --badge-cyan: oklch(0.62 0.12 210);
+  --badge-cyan-bg: oklch(0.96 0.03 210);
+  --badge-rose: oklch(0.58 0.2 10);
+  --badge-rose-bg: oklch(0.96 0.03 10);
+
+  /* Warning / highlight */
+  --warning: oklch(0.72 0.17 80);
+  --warning-bg: oklch(0.97 0.04 80);
+  --warning-foreground: oklch(0.4 0.08 55);
+  --warning-border: oklch(0.8 0.12 80);
+
+  /* Kanban specifiche */
+  --kanban-header-bg: oklch(0.97 0.005 220);
+  --kanban-drop-ring: oklch(0.5 0.19 258);
+
+  /* Table stripe */
+  --table-stripe: oklch(0.97 0.005 220);
 }
 
 @theme inline {
@@ -73,6 +150,81 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+
+  /* ========================================
+   * LOVABLE TOKENS → TAILWIND UTILITIES
+   * Step 1A: espone i nuovi token come classi
+   * ======================================== */
+
+  /* Surface layering */
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-inset: var(--surface-inset);
+
+  /* Shadow elevation */
+  --shadow-elevation-xs: var(--shadow-xs);
+  --shadow-elevation-sm: var(--shadow-sm);
+  --shadow-elevation-md: var(--shadow-md);
+  --shadow-elevation-lg: var(--shadow-lg);
+  --shadow-elevation-xl: var(--shadow-xl);
+
+  /* Pipeline state */
+  --color-state-warm: var(--state-warm);
+  --color-state-hot: var(--state-hot);
+  --color-state-cold: var(--state-cold);
+  --color-state-won: var(--state-won);
+  --color-state-lost: var(--state-lost);
+  --color-state-out: var(--state-out);
+
+  /* Urgency */
+  --color-urgency-overdue: var(--urgency-overdue);
+  --color-urgency-today: var(--urgency-today);
+  --color-urgency-tomorrow: var(--urgency-tomorrow);
+  --color-urgency-soon: var(--urgency-soon);
+
+  /* Badge palette */
+  --color-badge-green: var(--badge-green);
+  --color-badge-green-bg: var(--badge-green-bg);
+  --color-badge-red: var(--badge-red);
+  --color-badge-red-bg: var(--badge-red-bg);
+  --color-badge-blue: var(--badge-blue);
+  --color-badge-blue-bg: var(--badge-blue-bg);
+  --color-badge-orange: var(--badge-orange);
+  --color-badge-orange-bg: var(--badge-orange-bg);
+  --color-badge-gray: var(--badge-gray);
+  --color-badge-gray-bg: var(--badge-gray-bg);
+  --color-badge-purple: var(--badge-purple);
+  --color-badge-purple-bg: var(--badge-purple-bg);
+  --color-badge-amber: var(--badge-amber);
+  --color-badge-amber-bg: var(--badge-amber-bg);
+  --color-badge-teal: var(--badge-teal);
+  --color-badge-teal-bg: var(--badge-teal-bg);
+  --color-badge-sky: var(--badge-sky);
+  --color-badge-sky-bg: var(--badge-sky-bg);
+  --color-badge-emerald: var(--badge-emerald);
+  --color-badge-emerald-bg: var(--badge-emerald-bg);
+  --color-badge-lime: var(--badge-lime);
+  --color-badge-lime-bg: var(--badge-lime-bg);
+  --color-badge-yellow: var(--badge-yellow);
+  --color-badge-yellow-bg: var(--badge-yellow-bg);
+  --color-badge-slate: var(--badge-slate);
+  --color-badge-slate-bg: var(--badge-slate-bg);
+  --color-badge-cyan: var(--badge-cyan);
+  --color-badge-cyan-bg: var(--badge-cyan-bg);
+  --color-badge-rose: var(--badge-rose);
+  --color-badge-rose-bg: var(--badge-rose-bg);
+
+  /* Warning */
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-border: var(--warning-border);
+
+  /* Kanban e table */
+  --color-kanban-header-bg: var(--kanban-header-bg);
+  --color-kanban-drop-ring: var(--kanban-drop-ring);
+  --color-table-stripe: var(--table-stripe);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
