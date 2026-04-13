@@ -202,9 +202,10 @@ export function AvailabilityCalendarCard({
           </div>
         )}
 
-        <DetailRow label="Vincoli orari" align="start">
+        <div className="space-y-1.5">
+          <div className="ui-type-label">Vincoli orari</div>
           {isEditing ? (
-            <div className="w-full max-w-md">
+            <div className="w-full max-w-2xl">
               <Textarea
                 value={vincoliOrari}
                 onChange={(event) => onVincoliChange(event.target.value)}
@@ -212,15 +213,17 @@ export function AvailabilityCalendarCard({
                 disabled={isUpdating}
                 placeholder="Inserisci vincoli orari"
                 rows={3}
-                className="min-h-[5.25rem] text-sm"
+                className="min-h-[5.25rem] w-full text-sm"
               />
             </div>
           ) : (
-            <span className="whitespace-pre-wrap break-words">
-              {vincoliOrari || "-"}
-            </span>
+            <div className="w-full max-w-2xl">
+              <div className="text-foreground whitespace-pre-wrap break-words text-sm">
+                {vincoliOrari || "-"}
+              </div>
+            </div>
           )}
-        </DetailRow>
+        </div>
       </div>
     </DetailSectionBlock>
   )

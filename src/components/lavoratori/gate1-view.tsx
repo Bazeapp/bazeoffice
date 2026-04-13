@@ -47,6 +47,16 @@ import {
 } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
@@ -572,6 +582,33 @@ function GateAssessmentCard({
   const isNonIdoneo = statusValue === "Non idoneo";
   const ratingScore = Number.parseInt(ratingValue, 10);
   const normalizedRatingScore = Number.isNaN(ratingScore) ? 0 : ratingScore;
+  const [pendingStatusValue, setPendingStatusValue] = React.useState<string | null>(
+    null,
+  );
+  const [isStatusConfirmOpen, setIsStatusConfirmOpen] = React.useState(false);
+
+  const handleStatusSelection = React.useCallback(
+    (value: string) => {
+      if (!value || value === statusValue) return;
+      setPendingStatusValue(value);
+      setIsStatusConfirmOpen(true);
+    },
+    [statusValue],
+  );
+
+  const handleStatusConfirm = React.useCallback(() => {
+    if (!pendingStatusValue) return;
+    onStatusChange(pendingStatusValue);
+    setIsStatusConfirmOpen(false);
+    setPendingStatusValue(null);
+  }, [onStatusChange, pendingStatusValue]);
+
+  const handleStatusConfirmOpenChange = React.useCallback((open: boolean) => {
+    setIsStatusConfirmOpen(open);
+    if (!open) {
+      setPendingStatusValue(null);
+    }
+  }, []);
 
   return (
     <GateInfoCard
@@ -605,7 +642,7 @@ function GateAssessmentCard({
           </p>
           <RadioGroup
             value={statusValue}
-            onValueChange={onStatusChange}
+            onValueChange={handleStatusSelection}
             className="gap-3"
           >
             {orderedStatusOptions.map((option) => (
@@ -688,6 +725,30 @@ function GateAssessmentCard({
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        open={isStatusConfirmOpen}
+        onOpenChange={handleStatusConfirmOpenChange}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader className="place-items-start text-left">
+            <AlertDialogTitle className="text-left font-semibold">
+              Confermi il cambio di stato?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Lo stato del lavoratore verrà aggiornato da{" "}
+              <strong>{statusValue || "nessuno"}</strong> a{" "}
+              <strong>{pendingStatusValue || "nessuno"}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStatusConfirm}>
+              Conferma
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </GateInfoCard>
   );
 }
@@ -2096,8 +2157,6 @@ function GateBazeChecksCard({
 }
 
 function GateSpecificChecksCard({
-  mobilityValue,
-  mobilityOptions,
   isBabysitterEnabled,
   neonatiValue,
   neonatiOptions,
@@ -2114,7 +2173,6 @@ function GateSpecificChecksCard({
   trasfertaValue,
   trasfertaOptions,
   lookupColorsByDomain,
-  onMobilityChange,
   onNeonatiChange,
   onMultipliBambiniChange,
   onCaniChange,
@@ -2123,8 +2181,6 @@ function GateSpecificChecksCard({
   onScaleChange,
   onTrasfertaChange,
 }: {
-  mobilityValue: string;
-  mobilityOptions: Array<{ label: string; value: string }>;
   isBabysitterEnabled: boolean;
   neonatiValue: string;
   neonatiOptions: Array<{ label: string; value: string }>;
@@ -2141,7 +2197,6 @@ function GateSpecificChecksCard({
   trasfertaValue: string;
   trasfertaOptions: Array<{ label: string; value: string }>;
   lookupColorsByDomain: Map<string, string>;
-  onMobilityChange: (value: string) => void;
   onNeonatiChange: (value: string) => void;
   onMultipliBambiniChange: (value: string) => void;
   onCaniChange: (value: string) => void;
@@ -2155,25 +2210,6 @@ function GateSpecificChecksCard({
       title="Check disponibilita aspetti specifici"
       icon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
     >
-      <div className="max-w-lg space-y-2">
-        <p className="text-sm">Ha patente o macchina?</p>
-        <Select
-          value={mobilityValue || undefined}
-          onValueChange={onMobilityChange}
-        >
-          <SelectTrigger className="bg-background w-full">
-            <SelectValue placeholder="Seleziona opzione" />
-          </SelectTrigger>
-          <SelectContent>
-            {mobilityOptions.map((option) => (
-              <SelectItem key={option.value} value={option.label}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       <div className="space-y-2">
         <p className={isBabysitterEnabled ? "text-sm" : "text-sm opacity-50"}>
           Accetta lavori di babysitting con neonati?
@@ -4527,8 +4563,6 @@ export function Gate1View({
                       />
                     ) : (
                       <GateSpecificChecksCard
-                        mobilityValue={addressDraft.come_ti_sposti[0] ?? ""}
-                        mobilityOptions={mobilityLookupOptions}
                         isBabysitterEnabled={includesBabysitterType(
                           jobSearchDraft.tipo_lavoro_domestico,
                           tipoLavoroDomesticoOptions,
@@ -4560,17 +4594,6 @@ export function Gate1View({
                         }
                         trasfertaOptions={trasfertaOptions}
                         lookupColorsByDomain={lookupColorsByDomain}
-                        onMobilityChange={(value) => {
-                          const nextValues = value ? [value] : [];
-                          setAddressDraft((current) => ({
-                            ...current,
-                            come_ti_sposti: nextValues,
-                          }));
-                          void patchSelectedWorkerField(
-                            "come_ti_sposti",
-                            nextValues.length > 0 ? nextValues : null,
-                          );
-                        }}
                         onNeonatiChange={(value) => {
                           setSkillsDraft((current) => ({
                             ...current,

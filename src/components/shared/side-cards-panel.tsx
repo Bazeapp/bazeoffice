@@ -24,12 +24,12 @@ export function SideCardsPanel({
 }: SideCardsPanelProps) {
   return (
     <Card className={cn("flex h-full flex-col overflow-hidden", className)} {...props}>
-      <CardHeader className={cn("pb-3", headerClassName)}>
-        <CardTitle className="flex items-center gap-2 text-base">
-          {Icon ? <Icon className="size-4" /> : null}
+      <CardHeader className={cn("pb-2.5", headerClassName)}>
+        <CardTitle className="flex items-center gap-1.5 text-[13px]">
+          {Icon ? <Icon className="size-3.5" /> : null}
           {title}
         </CardTitle>
-        {subtitle ? <p className="text-muted-foreground text-sm">{subtitle}</p> : null}
+        {subtitle ? <p className="text-muted-foreground text-[12px]">{subtitle}</p> : null}
       </CardHeader>
       <CardContent className={cn("flex-1 overflow-y-auto", contentClassName)}>
         {children}
@@ -37,4 +37,3 @@ export function SideCardsPanel({
     </Card>
   )
 }
-

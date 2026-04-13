@@ -183,10 +183,6 @@ function getStatusSoftClassName(
   }
 }
 
-function normalizeToken(value: string) {
-  return value.trim().toLowerCase().replaceAll("_", " ")
-}
-
 function formatYearsLabel(value: number) {
   if (Number.isInteger(value)) return `${value} anni`
   return `${value.toFixed(1).replace(".", ",")} anni`
@@ -209,9 +205,6 @@ export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProp
   const qualificationStatus = getWorkerQualificationStatus(worker)
   const StatusIcon = qualificationStatus.icon
   const ruoliDomestici = Array.isArray(worker.ruoliDomestici) ? worker.ruoliDomestici : []
-  const normalizedRoles = ruoliDomestici.map(normalizeToken)
-  const hasColfRole = normalizedRoles.some((role) => role.includes("colf"))
-  const hasBabysitterRole = normalizedRoles.some((role) => role.includes("babysitter"))
   const displayRoles =
     ruoliDomestici.length > 0 ? ruoliDomestici.slice(0, 3) : worker.tipoRuolo ? [worker.tipoRuolo] : []
 
@@ -220,24 +213,26 @@ export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProp
     years: number
     icon: "colf" | "babysitter"
   }> = []
-  if (hasColfRole && typeof worker.anniEsperienzaColf === "number" && worker.anniEsperienzaColf > 0) {
-    experienceEntries.push({
-      label: formatYearsLabel(worker.anniEsperienzaColf),
-      years: worker.anniEsperienzaColf,
-      icon: "colf",
-    })
-  }
-  if (
-    hasBabysitterRole &&
+  const anniEsperienzaColf =
+    typeof worker.anniEsperienzaColf === "number" && Number.isFinite(worker.anniEsperienzaColf)
+      ? worker.anniEsperienzaColf
+      : 0
+  const anniEsperienzaBabysitter =
     typeof worker.anniEsperienzaBabysitter === "number" &&
-    worker.anniEsperienzaBabysitter > 0
-  ) {
-    experienceEntries.push({
-      label: formatYearsLabel(worker.anniEsperienzaBabysitter),
-      years: worker.anniEsperienzaBabysitter,
-      icon: "babysitter",
-    })
-  }
+    Number.isFinite(worker.anniEsperienzaBabysitter)
+      ? worker.anniEsperienzaBabysitter
+      : 0
+
+  experienceEntries.push({
+    label: formatYearsLabel(anniEsperienzaColf),
+    years: anniEsperienzaColf,
+    icon: "colf",
+  })
+  experienceEntries.push({
+    label: formatYearsLabel(anniEsperienzaBabysitter),
+    years: anniEsperienzaBabysitter,
+    icon: "babysitter",
+  })
 
   return (
     <Card
@@ -327,11 +322,10 @@ export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProp
                 <PhoneIcon className="size-3 shrink-0" />
                 <span className="truncate">{worker.telefono ?? "-"}</span>
               </p>
-              {experienceEntries.length > 0 ? (
-                <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-[11px] leading-none">
-                  {experienceEntries.map((entry, index) => {
-                    const level = getExperienceLevel(entry.years)
-                    return (
+              <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-[11px] leading-none">
+                {experienceEntries.map((entry, index) => {
+                  const level = getExperienceLevel(entry.years)
+                  return (
                     <div
                       key={`${worker.id}-exp-${entry.label}`}
                       className="inline-flex items-center gap-1.5"
@@ -355,10 +349,9 @@ export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProp
                         ))}
                       </div>
                     </div>
-                    )
-                  })}
-                </div>
-              ) : null}
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>

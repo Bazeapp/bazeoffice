@@ -89,6 +89,22 @@ function getBadgeClassName(color: string | null | undefined) {
   }
 }
 
+function formatOreGiorniLabel(oreSettimanali: string, giorniSettimanali: string) {
+  const oreToken = oreSettimanali.trim()
+  const giorniToken = giorniSettimanali.trim()
+
+  if (
+    (oreToken === "" || oreToken === "-") &&
+    (giorniToken === "" || giorniToken === "-")
+  ) {
+    return "-"
+  }
+
+  const oreLabel = oreToken && oreToken !== "-" ? `${oreToken}h` : "-"
+  const giorniLabel = giorniToken && giorniToken !== "-" ? `${giorniToken}g` : "-"
+  return `${oreLabel} | ${giorniLabel}`
+}
+
 type ColumnVisual = {
   columnClassName: string
   headerClassName: string
@@ -300,6 +316,8 @@ function RicercaBoardCard({
   onDragStart: (event: React.DragEvent<HTMLDivElement>) => void
   onDragEnd: () => void
 }) {
+  const oreGiorni = formatOreGiorniLabel(data.oreSettimanali, data.giorniSettimanali)
+
   return (
     <div
       draggable
@@ -338,8 +356,12 @@ function RicercaBoardCard({
               </Badge>
             ) : null}
           </div>
-          <div className="flex items-start justify-between gap-2 border-t pt-2">
+          <div className="border-t pt-2">
             <div className="text-muted-foreground min-w-0 space-y-1 text-xs">
+              <p className="flex items-center gap-1.5 truncate">
+                <Clock3Icon className="size-3.5 shrink-0" />
+                <span className="truncate">{oreGiorni}</span>
+              </p>
               <p className="flex items-center gap-1.5 truncate">
                 <CalendarIcon className="size-3.5 shrink-0" />
                 <span className="truncate">{data.deadline}</span>
@@ -660,7 +682,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
       </div>
 
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2">
-        <div className="flex h-full min-w-max gap-4">
+        <div className="flex h-full min-h-0 min-w-max gap-4">
           {loading
             ? Array.from({ length: 5 }).map((_, index) => (
                 <RicercaBoardSkeletonColumn key={index} />

@@ -7,7 +7,6 @@ import {
   MessageSquareTextIcon,
   SirenIcon,
   SparklesIcon,
-  StarIcon,
   FolderArchiveIcon,
   UploadIcon,
   UsersIcon,
@@ -42,7 +41,6 @@ import {
 } from "@/features/lavoratori/lib/lookup-utils";
 import { Button } from "@/components/ui/button";
 import { DetailSectionBlock } from "@/components/shared/detail-section-card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -546,10 +544,7 @@ export function LavoratoriCercaView() {
       });
     }
 
-    tabs.push(
-      { id: "preferenze", label: "Preferenze", icon: StarIcon },
-      { id: "processi", label: "Processi", icon: MessageSquareTextIcon },
-    );
+    tabs.push({ id: "processi", label: "Processi", icon: MessageSquareTextIcon });
 
     return tabs;
   }, [selectedWorkerIsNonIdoneo, selectedWorkerIsNonQualificato]);
@@ -1479,24 +1474,6 @@ export function LavoratoriCercaView() {
                     </DetailSectionBlock>
                   </div>
                 ) : null}
-
-                <div ref={setWorkerSectionRef("preferenze")}>
-                  <DetailSectionBlock
-                    title="Preferenze"
-                    contentClassName="flex flex-col items-start gap-2"
-                  >
-                    {selectedWorker.tipoRuolo ? (
-                      <Badge variant="outline">
-                        {selectedWorker.tipoRuolo}
-                      </Badge>
-                    ) : null}
-                    {selectedWorker.tipoLavoro ? (
-                      <Badge variant="outline">
-                        {selectedWorker.tipoLavoro}
-                      </Badge>
-                    ) : null}
-                  </DetailSectionBlock>
-                </div>
 
                 <div ref={setWorkerSectionRef("processi")}>
                   <DetailSectionBlock

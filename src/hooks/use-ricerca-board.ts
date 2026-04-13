@@ -22,6 +22,8 @@ type StageMetadata = {
   aliases: Map<string, string>
 }
 
+const BOARD_FETCH_PAGE_SIZE = 2000
+
 const VISIBLE_STAGE_ORDER = [
   "fare ricerca",
   "selezione inviata",
@@ -41,6 +43,8 @@ export type RicercaBoardCardData = {
   email: string
   telefono: string
   operatorId: string | null
+  oreSettimanali: string
+  giorniSettimanali: string
   deadline: string
   zona: string
   tipoLavoroBadge: string | null
@@ -95,6 +99,13 @@ function getFirstArrayValue(value: unknown): string | null {
   }
 
   return toStringValue(value)
+}
+
+function extractFirstNumberToken(value: unknown): string | null {
+  const raw = toStringValue(value)
+  if (!raw) return null
+  const match = raw.match(/\d+/)
+  return match ? match[0] : null
 }
 
 function formatItalianDate(value: unknown): string {
@@ -191,22 +202,49 @@ function resolveBadgeColor(
 }
 
 async function fetchRicercaBoardData(): Promise<RicercaBoardColumnData[]> {
+  async function fetchAllRows(
+    fetchPage: (offset: number) => Promise<{ rows: GenericRow[]; total: number }>
+  ) {
+    const firstPage = await fetchPage(0)
+    const rows = [...firstPage.rows]
+    const total = firstPage.total
+
+    if (rows.length >= total) return rows
+
+    for (let offset = rows.length; offset < total; offset += BOARD_FETCH_PAGE_SIZE) {
+      const page = await fetchPage(offset)
+      rows.push(...page.rows)
+    }
+
+    return rows
+  }
+
   const [processesResult, familiesResult, lookupResult] = await Promise.all([
-    fetchProcessiMatching({
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
-    fetchFamiglie({
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
+    fetchAllRows((offset) =>
+      fetchProcessiMatching({
+        limit: BOARD_FETCH_PAGE_SIZE,
+        offset,
+        orderBy: [{ field: "aggiornato_il", ascending: false }],
+      }).then((result) => ({
+        rows: asRowArray(result.rows),
+        total: result.total,
+      }))
+    ),
+    fetchAllRows((offset) =>
+      fetchFamiglie({
+        limit: BOARD_FETCH_PAGE_SIZE,
+        offset,
+        orderBy: [{ field: "aggiornato_il", ascending: false }],
+      }).then((result) => ({
+        rows: asRowArray(result.rows),
+        total: result.total,
+      }))
+    ),
     fetchLookupValues(),
   ])
 
-  const processRows = asRowArray(processesResult.rows)
-  const familyRows = asRowArray(familiesResult.rows)
+  const processRows = processesResult
+  const familyRows = familiesResult
   const lookupRows = lookupResult.rows
 
   const lookupColors = buildLookupColorMap(lookupRows)
@@ -255,6 +293,11 @@ async function fetchRicercaBoardData(): Promise<RicercaBoardColumnData[]> {
       email: toStringValue(family.email) ?? "-",
       telefono: toStringValue(family.telefono) ?? "-",
       operatorId: toStringValue(process.referente_ricerca_e_selezione_id),
+      oreSettimanali: toStringValue(process.ore_settimanale) ?? "-",
+      giorniSettimanali:
+        toStringValue(process.numero_giorni_settimanali) ??
+        extractFirstNumberToken(process.frequenza_rapporto) ??
+        "-",
       deadline: formatItalianDate(process.data_limite_invio_selezione),
       zona: toStringValue(process.luogo_id) ?? "-",
       tipoLavoroBadge,

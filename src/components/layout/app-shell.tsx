@@ -241,7 +241,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
   }, [route.anagraficheTab])
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar
         user={user}
         onLogout={onLogout}
@@ -263,14 +263,16 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onOpenCustomerSupportCustomerTicket={handleOpenCustomerSupportCustomerTicket}
         onOpenCustomerSupportPayrollTicket={handleOpenCustomerSupportPayrollTicket}
       />
-      <SidebarInset>
-        <main className="flex min-h-0 flex-1 min-w-0 p-3">
-          <AppPageContent
-            route={route}
-            onOpenAnagraficheTab={handleOpenAnagraficheTab}
-            onOpenRicercaDetail={handleOpenRicercaDetail}
-            onOpenRicercaPipeline={handleOpenRicercaPipeline}
-          />
+      <SidebarInset className="h-svh min-h-0 overflow-hidden">
+        <main className="scrollbar-hidden flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-3">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <AppPageContent
+              route={route}
+              onOpenAnagraficheTab={handleOpenAnagraficheTab}
+              onOpenRicercaDetail={handleOpenRicercaDetail}
+              onOpenRicercaPipeline={handleOpenRicercaPipeline}
+            />
+          </div>
         </main>
       </SidebarInset>
     </SidebarProvider>

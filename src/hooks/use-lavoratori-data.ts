@@ -49,11 +49,30 @@ type UseLavoratoriDataOptions = {
   forcedWorkerStatus?: string
 }
 
+function toCanonicalWorkerStatus(value: string) {
+  const normalized = value.trim().toLowerCase().replaceAll("_", " ")
+
+  switch (normalized) {
+    case "non qualificato":
+      return "Non qualificato"
+    case "qualificato":
+      return "Qualificato"
+    case "non idoneo":
+      return "Non idoneo"
+    case "idoneo":
+      return "Idoneo"
+    case "certificato":
+      return "Certificato"
+    default:
+      return value.trim()
+  }
+}
+
 function buildStatusForcedFilter(
   baseFilters: QueryFilterGroup | undefined,
   forcedWorkerStatus: string | undefined
 ) {
-  const normalizedStatus = (forcedWorkerStatus ?? "").trim()
+  const normalizedStatus = toCanonicalWorkerStatus(forcedWorkerStatus ?? "")
   if (!normalizedStatus) return baseFilters
 
   const statusCondition: QueryFilterCondition = {

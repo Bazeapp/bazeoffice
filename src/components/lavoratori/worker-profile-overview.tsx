@@ -2,9 +2,9 @@ import {
   CakeIcon,
   CalendarDaysIcon,
   FlagIcon,
-  LanguagesIcon,
   MailIcon,
   PhoneIcon,
+  PizzaIcon,
   StarIcon,
   VenusAndMarsIcon,
 } from "lucide-react"
@@ -73,14 +73,19 @@ export function WorkerProfileOverview({
   const qualificationStatus = getWorkerQualificationStatus(worker)
   const StatusIcon = qualificationStatus.icon
   const canUseSessoSelect = sessoOptions.length > 0
-  const canUseNazionalitaSelect = nazionalitaOptions.length > 0
+  const resolvedNazionalitaOptions =
+    nazionalitaOptions.length > 0
+      ? nazionalitaOptions
+      : draft?.nazionalita
+        ? [{ label: draft.nazionalita, value: draft.nazionalita }]
+        : []
 
   return (
-    <div className="mb-6 flex items-stretch gap-5">
-      <div className="flex w-52 shrink-0 flex-col gap-2 self-stretch">
+    <div className="mb-6 flex items-start gap-5">
+      <div className="flex w-52 shrink-0 flex-col gap-2 self-start">
         {isEditing && presentationPhotoSlots.length > 0 ? (
           <div
-            className={`relative min-h-0 flex-1 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
+            className={`relative h-80 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
             title={qualificationStatus.label}
           >
             <Carousel opts={{ loop: false }} className="h-full w-full">
@@ -142,7 +147,7 @@ export function WorkerProfileOverview({
           </div>
         ) : (
           <div
-            className={`bg-muted relative flex flex-1 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
+            className={`bg-muted relative flex h-80 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
             title={qualificationStatus.label}
           >
             {worker.immagineUrl ? (
@@ -239,7 +244,7 @@ export function WorkerProfileOverview({
             )}
           </p>
           <div className="text-muted-foreground flex items-center gap-2">
-            <LanguagesIcon className="size-4 shrink-0" />
+            <PizzaIcon className="size-4 shrink-0" />
             {isEditing && livelloItaliano !== undefined ? (
               <div className="w-full max-w-xs">
                 <Select
@@ -308,37 +313,28 @@ export function WorkerProfileOverview({
           <p className="text-muted-foreground flex items-center gap-2">
             <FlagIcon className="size-4 shrink-0" />
             {isEditing && draft ? (
-              canUseNazionalitaSelect ? (
-                <div className="w-full max-w-xs">
-                  <Select
-                    value={draft.nazionalita || undefined}
-                    onValueChange={(value) =>
-                      onFieldChange?.("nazionalita", value)
-                    }
+              <div className="w-full max-w-xs">
+                <Select
+                  value={draft.nazionalita || undefined}
+                  onValueChange={(value) =>
+                    onFieldChange?.("nazionalita", value)
+                  }
+                >
+                  <SelectTrigger
+                    className="h-7 text-sm"
+                    onBlur={() => onFieldBlur?.("nazionalita")}
                   >
-                    <SelectTrigger
-                      className="h-7 text-sm"
-                      onBlur={() => onFieldBlur?.("nazionalita")}
-                    >
-                      <SelectValue placeholder="Seleziona nazionalita" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {nazionalitaOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : (
-                <Input
-                  value={draft.nazionalita}
-                  onChange={(event) => onFieldChange?.("nazionalita", event.target.value)}
-                  onBlur={() => onFieldBlur?.("nazionalita")}
-                  className="h-7 max-w-xs text-sm"
-                />
-              )
+                    <SelectValue placeholder="Seleziona nazionalita" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {resolvedNazionalitaOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             ) : (
               <span className="truncate">{asString(workerRow.nazionalita) || "-"}</span>
             )}

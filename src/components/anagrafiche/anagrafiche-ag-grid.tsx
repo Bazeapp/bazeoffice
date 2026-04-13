@@ -1,0 +1,445 @@
+import type { SortingState } from "@tanstack/react-table"
+import {
+  AllCommunityModule,
+  ModuleRegistry,
+  themeQuartz,
+  type ColDef,
+  type SortChangedEvent,
+} from "ag-grid-community"
+import { AgGridReact } from "ag-grid-react"
+import * as React from "react"
+
+import type { AnagraficaRow, LookupColorMap } from "@/hooks/use-anagrafiche-data"
+import type { TableColumnMeta } from "@/lib/anagrafiche-api"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+
+ModuleRegistry.registerModules([AllCommunityModule])
+
+const anagraficheGridTheme = themeQuartz.withParams({
+  browserColorScheme: "light",
+})
+
+const UPPERCASE_TOKENS = new Set([
+  "id",
+  "url",
+  "utm",
+  "otp",
+  "seo",
+  "wa",
+  "fbclid",
+  "gclid",
+  "cet",
+  "ai",
+  "inps",
+  "cud",
+  "json",
+  "jsonb",
+  "uuid",
+])
+const LOWERCASE_CONNECTORS = new Set([
+  "a",
+  "ad",
+  "al",
+  "alla",
+  "con",
+  "da",
+  "dal",
+  "dalla",
+  "dei",
+  "del",
+  "della",
+  "delle",
+  "di",
+  "e",
+  "il",
+  "in",
+  "la",
+  "le",
+  "nel",
+  "nella",
+  "o",
+  "per",
+  "su",
+  "tra",
+])
+const TOKEN_LABEL_OVERRIDES: Record<string, string> = {
+  whatsapp: "WhatsApp",
+  webflow: "Webflow",
+  looker: "Looker",
+  stripe: "Stripe",
+  hubspot: "HubSpot",
+  pipedrive: "Pipedrive",
+  typeform: "Typeform",
+  wized: "Wized",
+  klaaryo: "Klaaryo",
+}
+
+function normalizeLookupToken(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase()
+}
+
+function toReadableColumnLabel(key: string) {
+  const normalized = key.replace(/__+/g, "_").trim()
+  if (!normalized) return key
+
+  const parts = normalized
+    .split("_")
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  if (!parts.length) return key
+
+  return parts
+    .map((part, index) => {
+      const lower = part.toLowerCase()
+
+      if (TOKEN_LABEL_OVERRIDES[lower]) {
+        return TOKEN_LABEL_OVERRIDES[lower]
+      }
+
+      if (UPPERCASE_TOKENS.has(lower)) {
+        return lower.toUpperCase()
+      }
+
+      if (index > 0 && LOWERCASE_CONNECTORS.has(lower)) {
+        return lower
+      }
+
+      return lower.charAt(0).toUpperCase() + lower.slice(1)
+    })
+    .join(" ")
+}
+
+function getBadgeClassName(color: string | null | undefined) {
+  switch ((color ?? "").toLowerCase()) {
+    case "red":
+      return "border-red-200 bg-red-50 text-red-700"
+    case "rose":
+      return "border-rose-200 bg-rose-50 text-rose-700"
+    case "orange":
+      return "border-orange-200 bg-orange-50 text-orange-700"
+    case "amber":
+      return "border-amber-200 bg-amber-50 text-amber-700"
+    case "yellow":
+      return "border-yellow-200 bg-yellow-50 text-yellow-700"
+    case "lime":
+      return "border-lime-200 bg-lime-50 text-lime-700"
+    case "green":
+      return "border-green-200 bg-green-50 text-green-700"
+    case "emerald":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700"
+    case "teal":
+      return "border-teal-200 bg-teal-50 text-teal-700"
+    case "cyan":
+      return "border-cyan-200 bg-cyan-50 text-cyan-700"
+    case "sky":
+      return "border-sky-200 bg-sky-50 text-sky-700"
+    case "blue":
+      return "border-blue-200 bg-blue-50 text-blue-700"
+    case "indigo":
+      return "border-indigo-200 bg-indigo-50 text-indigo-700"
+    case "violet":
+      return "border-violet-200 bg-violet-50 text-violet-700"
+    case "purple":
+      return "border-purple-200 bg-purple-50 text-purple-700"
+    case "fuchsia":
+      return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700"
+    case "pink":
+      return "border-pink-200 bg-pink-50 text-pink-700"
+    case "slate":
+      return "border-slate-200 bg-slate-50 text-slate-700"
+    case "gray":
+      return "border-gray-200 bg-gray-50 text-gray-700"
+    case "zinc":
+      return "border-zinc-200 bg-zinc-50 text-zinc-700"
+    case "neutral":
+      return "border-neutral-200 bg-neutral-50 text-neutral-700"
+    case "stone":
+      return "border-stone-200 bg-stone-50 text-stone-700"
+    default:
+      return "border-border bg-muted/60 text-foreground"
+  }
+}
+
+function resolveLookupColor(
+  lookupColors: LookupColorMap,
+  entityTable: "famiglie" | "processi_matching" | "lavoratori",
+  entityField: string,
+  rawValue: unknown
+) {
+  if (typeof rawValue !== "string" || !rawValue.trim()) return null
+  const domain = `${entityTable}.${entityField}`
+  return lookupColors[domain]?.[normalizeLookupToken(rawValue)] ?? null
+}
+
+function formatArrayItem(value: unknown) {
+  if (value === null || value === undefined) return "-"
+  if (typeof value === "string") return value
+  if (typeof value === "number" || typeof value === "boolean") return String(value)
+  if (typeof value === "object") return "[oggetto]"
+  return String(value)
+}
+
+function formatCellValue(value: unknown) {
+  if (value === null || value === undefined) return "-"
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value)
+  }
+  if (Array.isArray(value)) {
+    if (!value.length) return "-"
+    const preview = value.slice(0, 3).map((item) => formatArrayItem(item)).join(", ")
+    if (value.length <= 3) return preview
+    return `${preview}, +${value.length - 3}`
+  }
+  if (typeof value === "object") {
+    const keys = Object.keys(value as Record<string, unknown>)
+    if (!keys.length) return "{}"
+    const preview = keys.slice(0, 3).join(", ")
+    if (keys.length <= 3) return `{ ${preview} }`
+    return `{ ${preview}, +${keys.length - 3} }`
+  }
+  return String(value)
+}
+
+function getOrderedKeys(rows: AnagraficaRow[], columns: TableColumnMeta[]) {
+  const keys: string[] = []
+  const seen = new Set<string>()
+
+  for (const column of columns) {
+    if (!seen.has(column.name)) {
+      seen.add(column.name)
+      keys.push(column.name)
+    }
+  }
+
+  for (const row of rows) {
+    for (const key of Object.keys(row)) {
+      if (seen.has(key)) continue
+      seen.add(key)
+      keys.push(key)
+    }
+  }
+
+  return keys
+}
+
+function buildColumnDefs(
+  rows: AnagraficaRow[],
+  columns: TableColumnMeta[],
+  entityTable: "famiglie" | "processi_matching" | "lavoratori",
+  lookupColors: LookupColorMap,
+  sorting: SortingState
+): ColDef<AnagraficaRow>[] {
+  const keys = getOrderedKeys(rows, columns)
+
+  return keys.map((key) => {
+    const sortIndex = sorting.findIndex((item) => item.id === key)
+    const sort = sortIndex >= 0 ? (sorting[sortIndex]?.desc ? "desc" : "asc") : null
+
+    return {
+      field: key,
+      colId: key,
+      headerName: toReadableColumnLabel(key),
+      sortable: true,
+      resizable: true,
+      minWidth: 160,
+      width: 180,
+      sort,
+      sortIndex: sortIndex >= 0 ? sortIndex : undefined,
+      cellRenderer: (params: { data?: AnagraficaRow; value: unknown }) => {
+        const rawValue = params.data?.[key]
+        const color = resolveLookupColor(lookupColors, entityTable, key, rawValue)
+        const renderedValue = formatCellValue(params.value)
+
+        if (color && typeof renderedValue === "string" && renderedValue !== "-") {
+          return (
+            <span
+              className={cn(
+                "inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[11px] font-medium leading-4 whitespace-nowrap",
+                getBadgeClassName(color)
+              )}
+            >
+              {renderedValue}
+            </span>
+          )
+        }
+
+        return <span>{renderedValue}</span>
+      },
+    }
+  })
+}
+
+type AnagraficheAgGridProps = {
+  rows: AnagraficaRow[]
+  columns: TableColumnMeta[]
+  entityTable: "famiglie" | "processi_matching" | "lavoratori"
+  lookupColors: LookupColorMap
+  searchPlaceholder: string
+  searchValue: string
+  sorting: SortingState
+  totalRows: number
+  pageIndex: number
+  pageSize: number
+  toolbarActions?: React.ReactNode
+  onSearchValueChange: (next: string) => void
+  onSortingChange: (next: SortingState) => void
+  onPaginationChange: (next: { pageIndex: number; pageSize: number }) => void
+}
+
+export function AnagraficheAgGrid({
+  rows,
+  columns,
+  entityTable,
+  lookupColors,
+  searchPlaceholder,
+  searchValue,
+  sorting,
+  totalRows,
+  pageIndex,
+  pageSize,
+  toolbarActions,
+  onSearchValueChange,
+  onSortingChange,
+  onPaginationChange,
+}: AnagraficheAgGridProps) {
+  const [localSearchValue, setLocalSearchValue] = React.useState(searchValue)
+  const previousExternalSearchValueRef = React.useRef(searchValue)
+
+  React.useEffect(() => {
+    if (previousExternalSearchValueRef.current === searchValue) return
+    previousExternalSearchValueRef.current = searchValue
+    setLocalSearchValue(searchValue)
+  }, [searchValue])
+
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      React.startTransition(() => {
+        onSearchValueChange(localSearchValue)
+      })
+    }, 120)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [localSearchValue, onSearchValueChange])
+
+  const defaultColDef = React.useMemo<ColDef<AnagraficaRow>>(
+    () => ({
+      sortable: true,
+      resizable: true,
+      minWidth: 160,
+      width: 180,
+      cellDataType: false,
+      suppressMovable: true,
+      wrapHeaderText: true,
+      autoHeaderHeight: true,
+    }),
+    []
+  )
+
+  const columnDefs = React.useMemo(
+    () => buildColumnDefs(rows, columns, entityTable, lookupColors, sorting),
+    [columns, entityTable, lookupColors, rows, sorting]
+  )
+
+  const handleSortChanged = React.useCallback(
+    (event: SortChangedEvent<AnagraficaRow>) => {
+      const nextSorting: SortingState = event.api
+        .getColumnState()
+        .filter((columnState) => columnState.sort)
+        .sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0))
+        .map((columnState) => ({
+          id: columnState.colId,
+          desc: columnState.sort === "desc",
+        }))
+
+      onSortingChange(nextSorting)
+    },
+    [onSortingChange]
+  )
+
+  const pageCount = Math.max(1, Math.ceil(totalRows / pageSize))
+  const canGoPrevious = pageIndex > 0
+  const canGoNext = pageIndex + 1 < pageCount
+  const rangeStart = totalRows === 0 ? 0 : pageIndex * pageSize + 1
+  const rangeEnd = Math.min(totalRows, (pageIndex + 1) * pageSize)
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold">Anagrafiche</h2>
+          <p className="text-muted-foreground text-sm">
+            {rangeStart}-{rangeEnd} di {totalRows} record
+          </p>
+        </div>
+
+        <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+          <Input
+            value={localSearchValue}
+            onChange={(event) => setLocalSearchValue(event.target.value)}
+            placeholder={searchPlaceholder}
+            className="w-full sm:min-w-80"
+          />
+          {toolbarActions}
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          "overflow-hidden rounded-2xl border bg-background",
+          "[&_.ag-root-wrapper]:border-0 [&_.ag-root-wrapper]:rounded-none",
+          "[&_.ag-cell]:border-border [&_.ag-header]:border-border [&_.ag-row]:border-border",
+          "[&_.ag-header-cell-label]:font-medium [&_.ag-header-cell]:text-foreground [&_.ag-cell]:text-foreground",
+          "[&_.ag-header-cell]:ui-type-label [&_.ag-cell]:ui-type-value [&_.ag-cell]:leading-5"
+        )}
+      >
+        <div className="h-[calc(100svh-14rem)] min-h-[34rem]">
+          <AgGridReact<AnagraficaRow>
+            theme={anagraficheGridTheme}
+            rowData={rows}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            cellSelection
+            enableCellTextSelection
+            rowHeight={44}
+            headerHeight={42}
+            animateRows={false}
+            suppressMovableColumns
+            ensureDomOrder
+            suppressFieldDotNotation
+            overlayNoRowsTemplate="Nessun record trovato"
+            onSortChanged={handleSortChanged}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-muted-foreground text-sm">
+          Pagina {Math.min(pageIndex + 1, pageCount)} di {pageCount}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!canGoPrevious}
+            onClick={() => onPaginationChange({ pageIndex: pageIndex - 1, pageSize })}
+          >
+            Precedente
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!canGoNext}
+            onClick={() => onPaginationChange({ pageIndex: pageIndex + 1, pageSize })}
+          >
+            Successiva
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}

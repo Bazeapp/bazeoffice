@@ -259,7 +259,10 @@ export function WorkerProfileHeader({
   ]
 
   const canUseSessoSelect = sessoOptions.length > 0
-  const canUseNazionalitaSelect = nazionalitaOptions.length > 0
+  const resolvedNazionalitaOptions = resolveSingleValueOptions(
+    asString(workerRow.nazionalita) || null,
+    nazionalitaOptions
+  )
   const resolvedStatusDisabled = statoLavoratoreDisabled ?? !onStatoLavoratoreChange
   const resolvedDisponibilitaDisabled = disponibilitaDisabled ?? !onDisponibilitaChange
   const resolvedMotivazioneDisabled = motivazioneDisabled ?? !onMotivazioneChange
@@ -294,11 +297,11 @@ export function WorkerProfileHeader({
   )
 
   return (
-    <div className="mb-2 flex items-stretch gap-5">
-      <div className="flex w-52 shrink-0 flex-col gap-2 self-stretch">
+    <div className="mb-2 flex items-start gap-5">
+      <div className="flex w-52 shrink-0 flex-col gap-2 self-start">
         {isEditing && presentationPhotoSlots.length > 0 ? (
           <div
-            className={`relative min-h-0 flex-1 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
+            className={`relative h-80 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
             title={qualificationStatus.label}
           >
             <Carousel opts={{ loop: false }} className="h-full w-full">
@@ -367,7 +370,7 @@ export function WorkerProfileHeader({
           </div>
         ) : (
           <div
-            className={`bg-muted relative flex flex-1 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
+            className={`bg-muted relative flex h-80 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
             title={qualificationStatus.label}
           >
             {worker.immagineUrl ? (
@@ -585,38 +588,27 @@ export function WorkerProfileHeader({
             <p className="text-muted-foreground flex items-center gap-2">
               <FlagIcon className="size-4 shrink-0" />
               {isEditing ? (
-                canUseNazionalitaSelect ? (
-                  <div className="w-full max-w-xs">
-                    <Select
-                      value={draft.nazionalita || "none"}
-                      onValueChange={(value) =>
-                        void handleLookupFieldChange("nazionalita", value)
-                      }
-                      disabled={fieldsDisabled}
-                    >
-                      <SelectTrigger className="h-7">
-                        <SelectValue placeholder="Seleziona nazionalita" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Non indicata</SelectItem>
-                        {nazionalitaOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : (
-                  <Input
-                    value={draft.nazionalita}
-                    onChange={(event) => updateDraftField("nazionalita", event.target.value)}
-                    onBlur={() => void commitField("nazionalita")}
+                <div className="w-full max-w-xs">
+                  <Select
+                    value={draft.nazionalita || "none"}
+                    onValueChange={(value) =>
+                      void handleLookupFieldChange("nazionalita", value)
+                    }
                     disabled={fieldsDisabled}
-                    placeholder="Nazionalita"
-                    className="h-7 w-56 text-sm"
-                  />
-                )
+                  >
+                    <SelectTrigger className="h-7">
+                      <SelectValue placeholder="Seleziona nazionalita" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Non indicata</SelectItem>
+                      {resolvedNazionalitaOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               ) : (
                 <span className="truncate">{asString(workerRow.nazionalita) || "-"}</span>
               )}
