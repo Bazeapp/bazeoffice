@@ -251,7 +251,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
   }, [route.anagraficheTab])
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar
         user={user}
         onLogout={onLogout}
@@ -275,7 +275,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onOpenCustomerSupportPayrollTicket={handleOpenCustomerSupportPayrollTicket}
       />
       <SidebarInset>
-        <main className="flex min-h-0 flex-1 min-w-0 p-3">
+        <main className="flex flex-col min-h-0 flex-1 min-w-0 overflow-hidden p-3">
           <AppPageContent
             route={route}
             onOpenAnagraficheTab={handleOpenAnagraficheTab}

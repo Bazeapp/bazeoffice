@@ -30,6 +30,7 @@ type ColumnVisual = {
   columnClassName: string
   headerClassName: string
   iconClassName: string
+  accentBg?: string
 }
 
 function getColumnVisual(color: string | null): ColumnVisual {
@@ -39,120 +40,140 @@ function getColumnVisual(color: string | null): ColumnVisual {
         columnClassName: "border-red-300 bg-red-50/70",
         headerClassName: "border-b border-red-200/70",
         iconClassName: "text-red-500",
+        accentBg: "bg-red-500",
       }
     case "rose":
       return {
         columnClassName: "border-rose-300 bg-rose-50/70",
         headerClassName: "border-b border-rose-200/70",
         iconClassName: "text-rose-500",
+        accentBg: "bg-rose-500",
       }
     case "orange":
       return {
         columnClassName: "border-orange-300 bg-orange-50/70",
         headerClassName: "border-b border-orange-200/70",
         iconClassName: "text-orange-500",
+        accentBg: "bg-orange-500",
       }
     case "amber":
       return {
         columnClassName: "border-amber-300 bg-amber-50/70",
         headerClassName: "border-b border-amber-200/70",
         iconClassName: "text-amber-500",
+        accentBg: "bg-amber-500",
       }
     case "yellow":
       return {
         columnClassName: "border-yellow-300 bg-yellow-50/70",
         headerClassName: "border-b border-yellow-200/70",
         iconClassName: "text-yellow-500",
+        accentBg: "bg-yellow-500",
       }
     case "lime":
       return {
         columnClassName: "border-lime-300 bg-lime-50/70",
         headerClassName: "border-b border-lime-200/70",
         iconClassName: "text-lime-500",
+        accentBg: "bg-lime-500",
       }
     case "green":
       return {
         columnClassName: "border-green-300 bg-green-50/70",
         headerClassName: "border-b border-green-200/70",
         iconClassName: "text-green-500",
+        accentBg: "bg-green-500",
       }
     case "emerald":
       return {
         columnClassName: "border-emerald-300 bg-emerald-50/70",
         headerClassName: "border-b border-emerald-200/70",
         iconClassName: "text-emerald-500",
+        accentBg: "bg-emerald-500",
       }
     case "teal":
       return {
         columnClassName: "border-teal-300 bg-teal-50/70",
         headerClassName: "border-b border-teal-200/70",
         iconClassName: "text-teal-500",
+        accentBg: "bg-teal-500",
       }
     case "cyan":
       return {
         columnClassName: "border-cyan-300 bg-cyan-50/70",
         headerClassName: "border-b border-cyan-200/70",
         iconClassName: "text-cyan-500",
+        accentBg: "bg-cyan-500",
       }
     case "sky":
       return {
         columnClassName: "border-sky-300 bg-sky-50/70",
         headerClassName: "border-b border-sky-200/70",
         iconClassName: "text-sky-500",
+        accentBg: "bg-sky-500",
       }
     case "blue":
       return {
         columnClassName: "border-blue-300 bg-blue-50/70",
         headerClassName: "border-b border-blue-200/70",
         iconClassName: "text-blue-500",
+        accentBg: "bg-blue-500",
       }
     case "indigo":
       return {
         columnClassName: "border-indigo-300 bg-indigo-50/70",
         headerClassName: "border-b border-indigo-200/70",
         iconClassName: "text-indigo-500",
+        accentBg: "bg-indigo-500",
       }
     case "violet":
       return {
         columnClassName: "border-violet-300 bg-violet-50/70",
         headerClassName: "border-b border-violet-200/70",
         iconClassName: "text-violet-500",
+        accentBg: "bg-violet-500",
       }
     case "purple":
       return {
         columnClassName: "border-purple-300 bg-purple-50/70",
         headerClassName: "border-b border-purple-200/70",
         iconClassName: "text-purple-500",
+        accentBg: "bg-purple-500",
       }
     case "fuchsia":
       return {
         columnClassName: "border-fuchsia-300 bg-fuchsia-50/70",
         headerClassName: "border-b border-fuchsia-200/70",
         iconClassName: "text-fuchsia-500",
+        accentBg: "bg-fuchsia-500",
       }
     case "pink":
       return {
         columnClassName: "border-pink-300 bg-pink-50/70",
         headerClassName: "border-b border-pink-200/70",
         iconClassName: "text-pink-500",
+        accentBg: "bg-pink-500",
       }
     case "slate":
       return {
         columnClassName: "border-slate-300 bg-slate-50/70",
         headerClassName: "border-b border-slate-200/70",
         iconClassName: "text-slate-500",
+        accentBg: "bg-slate-500",
       }
     case "gray":
       return {
         columnClassName: "border-gray-300 bg-gray-50/70",
         headerClassName: "border-b border-gray-200/70",
         iconClassName: "text-gray-500",
+        accentBg: "bg-gray-500",
       }
     case "zinc":
       return {
         columnClassName: "border-zinc-300 bg-zinc-50/70",
         headerClassName: "border-b border-zinc-200/70",
         iconClassName: "text-zinc-500",
+        accentBg: "bg-zinc-500",
       }
     default:
       return {
@@ -237,7 +258,7 @@ function Column({
     <KanbanColumnShell
       columnId={column.id}
       title={column.label}
-      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "ricerca" : "ricerche"}`}
+      count={column.cards.length}
       visual={visual}
       headerIcon={<span className="pt-0.5">{getStageIcon(column.id, visual.iconClassName)}</span>}
       widthClassName="w-[292px]"
@@ -327,7 +348,7 @@ export function CrmPipelineFamiglieView() {
   )
 
   return (
-    <section className="w-full min-w-0 space-y-3">
+    <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
       <PageHeader
         title="Sales Pipeline"
         subtitle="Gestisci le ricerche con drag & drop"
@@ -361,8 +382,8 @@ export function CrmPipelineFamiglieView() {
         </div>
       ) : null}
 
-      <div className="w-full overflow-x-auto pb-2">
-        <div className="flex min-w-max gap-4">
+      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2">
+        <div className="flex h-full min-h-0 min-w-max gap-4">
               {loading
                 ? Array.from({ length: 5 }).map((_, index) => (
                     <CrmPipelineSkeletonColumn key={index} />
