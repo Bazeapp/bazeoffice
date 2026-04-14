@@ -15,6 +15,7 @@ import {
 import { usePayrollBoard, type PayrollBoardCardData, type PayrollBoardColumnData } from "@/hooks/use-payroll-board"
 import { ContributiInpsView } from "@/components/payroll/contributi-inps-view"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { KanbanCard, KanbanCardBadge, KanbanCardBadgeRow, KanbanCardSubtitle, KanbanCardTitle } from "@/components/shared/kanban-card"
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card"
@@ -22,7 +23,6 @@ import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot
 import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Pagination,
@@ -249,24 +249,28 @@ function getColumnClasses(color: string) {
         columnClassName: "border-sky-300 bg-sky-50/70",
         headerClassName: "border-b border-sky-200/70",
         iconClassName: "text-sky-500",
+        accentBg: "bg-sky-500",
       }
     case "cyan":
       return {
         columnClassName: "border-cyan-300 bg-cyan-50/70",
         headerClassName: "border-b border-cyan-200/70",
         iconClassName: "text-cyan-500",
+        accentBg: "bg-cyan-500",
       }
     case "blue":
       return {
         columnClassName: "border-blue-300 bg-blue-50/70",
         headerClassName: "border-b border-blue-200/70",
         iconClassName: "text-blue-500",
+        accentBg: "bg-blue-500",
       }
     case "orange":
       return {
         columnClassName: "border-orange-300 bg-orange-50/70",
         headerClassName: "border-b border-orange-200/70",
         iconClassName: "text-orange-500",
+        accentBg: "bg-orange-500",
       }
     case "amber":
     case "yellow":
@@ -274,18 +278,21 @@ function getColumnClasses(color: string) {
         columnClassName: "border-amber-300 bg-amber-50/70",
         headerClassName: "border-b border-amber-200/70",
         iconClassName: "text-amber-500",
+        accentBg: "bg-amber-500",
       }
     case "lime":
       return {
         columnClassName: "border-lime-300 bg-lime-50/70",
         headerClassName: "border-b border-lime-200/70",
         iconClassName: "text-lime-500",
+        accentBg: "bg-lime-500",
       }
     case "green":
       return {
         columnClassName: "border-green-300 bg-green-50/70",
         headerClassName: "border-b border-green-200/70",
         iconClassName: "text-green-500",
+        accentBg: "bg-green-500",
       }
     default:
       return {
@@ -301,36 +308,27 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
   const lavoratore = card.rapporto?.nome_lavoratore_per_url?.trim() || "Lavoratore non disponibile"
 
   return (
-    <Card className="border border-border/70 bg-white py-0 transition-shadow hover:shadow-md">
-      <CardContent className="space-y-3 px-3 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold leading-tight">{famiglia}</p>
-            <p className="text-muted-foreground mt-0.5 truncate text-xs">{lavoratore}</p>
-          </div>
-          {card.importoLabel ? (
-            <p className="shrink-0 text-sm font-semibold">{card.importoLabel}</p>
-          ) : null}
+    <KanbanCard>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <KanbanCardTitle>{famiglia}</KanbanCardTitle>
+          <KanbanCardSubtitle>{lavoratore}</KanbanCardSubtitle>
         </div>
-
-        <div className="flex flex-wrap gap-1.5">
-          <Badge
-            variant="secondary"
-            className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] text-emerald-700 hover:bg-emerald-100"
-          >
-            <CircleCheckBigIcon className="size-3" />
-            <span>REG</span>
-          </Badge>
-          <Badge
-            variant="secondary"
-            className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] text-emerald-700 hover:bg-emerald-100"
-          >
-            <CircleCheckBigIcon className="size-3" />
-            <span>Pagato</span>
-          </Badge>
-        </div>
-      </CardContent>
-    </Card>
+        {card.importoLabel ? (
+          <p className="shrink-0 text-sm font-semibold">{card.importoLabel}</p>
+        ) : null}
+      </div>
+      <KanbanCardBadgeRow>
+        <KanbanCardBadge color="bg-badge-emerald-bg text-badge-emerald">
+          <CircleCheckBigIcon className="size-3" />
+          REG
+        </KanbanCardBadge>
+        <KanbanCardBadge color="bg-badge-emerald-bg text-badge-emerald">
+          <CircleCheckBigIcon className="size-3" />
+          Pagato
+        </KanbanCardBadge>
+      </KanbanCardBadgeRow>
+    </KanbanCard>
   )
 }
 
@@ -702,7 +700,7 @@ function PayrollBoardColumn({
     <KanbanColumnShell
       columnId={column.id}
       title={column.label}
-      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "cedolino" : "cedolini"}`}
+      count={column.cards.length}
       visual={visual}
       density="compact"
       widthClassName="w-[280px]"

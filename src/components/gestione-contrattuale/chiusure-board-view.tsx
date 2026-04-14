@@ -15,9 +15,9 @@ import {
 import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot"
 import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { KanbanCard, KanbanCardBadge, KanbanCardMeta, KanbanCardTitle } from "@/components/shared/kanban-card"
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { PageHeader } from "@/components/shared/page-header"
-import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
@@ -35,46 +35,40 @@ function formatDate(value: string | null | undefined) {
 
 function getLicenziamentoVariant(label: string | null | undefined) {
   const normalized = String(label ?? "").toLowerCase()
-  if (normalized.includes("prova")) {
-    return "bg-amber-100 text-amber-700"
-  }
-  if (normalized.includes("preavviso")) {
-    return "bg-sky-100 text-sky-700"
-  }
-  if (normalized.includes("decesso")) {
-    return "bg-rose-100 text-rose-700"
-  }
-  return "bg-muted text-foreground"
+  if (normalized.includes("prova")) return "bg-badge-amber-bg text-badge-amber"
+  if (normalized.includes("preavviso")) return "bg-badge-sky-bg text-badge-sky"
+  if (normalized.includes("decesso")) return "bg-badge-rose-bg text-badge-rose"
+  return "bg-badge-gray-bg text-badge-gray"
 }
 
 function getLookupBadgeClasses(color: string | null | undefined) {
   switch (String(color ?? "").toLowerCase()) {
     case "sky":
     case "cyan":
-      return "bg-sky-100 text-sky-700"
+      return "bg-badge-sky-bg text-badge-sky"
     case "teal":
-      return "bg-teal-100 text-teal-700"
+      return "bg-badge-teal-bg text-badge-teal"
     case "lime":
     case "green":
-      return "bg-green-100 text-green-700"
+      return "bg-badge-green-bg text-badge-green"
     case "amber":
     case "yellow":
-      return "bg-amber-100 text-amber-700"
+      return "bg-badge-amber-bg text-badge-amber"
     case "orange":
-      return "bg-orange-100 text-orange-700"
+      return "bg-badge-orange-bg text-badge-orange"
     case "red":
     case "rose":
     case "pink":
-      return "bg-rose-100 text-rose-700"
+      return "bg-badge-rose-bg text-badge-rose"
     case "violet":
     case "purple":
-      return "bg-violet-100 text-violet-700"
+      return "bg-badge-purple-bg text-badge-purple"
     case "zinc":
     case "gray":
     case "grey":
-      return "bg-zinc-100 text-zinc-700"
+      return "bg-badge-gray-bg text-badge-gray"
     default:
-      return "bg-muted text-foreground"
+      return "bg-badge-gray-bg text-badge-gray"
   }
 }
 
@@ -221,42 +215,49 @@ function getColumnClasses(color: string) {
         columnClassName: "border-violet-300 bg-violet-50/70",
         headerClassName: "border-b border-violet-200/70",
         iconClassName: "text-violet-500",
+        accentBg: "bg-violet-500",
       }
     case "zinc":
       return {
         columnClassName: "border-zinc-300 bg-zinc-50/70",
         headerClassName: "border-b border-zinc-200/70",
         iconClassName: "text-zinc-500",
+        accentBg: "bg-zinc-500",
       }
     case "sky":
       return {
         columnClassName: "border-sky-300 bg-sky-50/70",
         headerClassName: "border-b border-sky-200/70",
         iconClassName: "text-sky-500",
+        accentBg: "bg-sky-500",
       }
     case "lime":
       return {
         columnClassName: "border-lime-300 bg-lime-50/70",
         headerClassName: "border-b border-lime-200/70",
         iconClassName: "text-lime-500",
+        accentBg: "bg-lime-500",
       }
     case "amber":
       return {
         columnClassName: "border-amber-300 bg-amber-50/70",
         headerClassName: "border-b border-amber-200/70",
         iconClassName: "text-amber-500",
+        accentBg: "bg-amber-500",
       }
     case "orange":
       return {
         columnClassName: "border-orange-300 bg-orange-50/70",
         headerClassName: "border-b border-orange-200/70",
         iconClassName: "text-orange-500",
+        accentBg: "bg-orange-500",
       }
     case "green":
       return {
         columnClassName: "border-green-300 bg-green-50/70",
         headerClassName: "border-b border-green-200/70",
         iconClassName: "text-green-600",
+        accentBg: "bg-green-600",
       }
     default:
       return {
@@ -287,39 +288,31 @@ function ChiusureBoardCard({
       onDragEnd={onDragEnd}
       className={cn("cursor-grab transition-opacity active:cursor-grabbing", dragging && "opacity-40")}
     >
-      <Card
-        className="border border-border/70 bg-white py-2 transition-shadow hover:shadow-md"
-        onClick={onOpen}
-      >
-        <CardContent className="space-y-3 px-3">
-          <div className="space-y-2">
-            <p className="text-sm font-semibold leading-tight">{card.nomeCompleto}</p>
-            <div>
-              <span
-                className={cn(
-                  "inline-flex rounded-full px-2 py-1 text-[11px] font-medium",
-                  card.tipoColor
-                    ? getLookupBadgeClasses(card.tipoColor)
-                    : getLicenziamentoVariant(card.record.tipo_licenziamento)
-                )}
-              >
-                {card.tipoLabel}
-              </span>
-            </div>
-          </div>
-          <div className="text-muted-foreground space-y-1.5 border-t pt-2 text-xs">
-            <p className="flex items-center gap-1.5 truncate">
-              <MailIcon className="size-3.5 shrink-0" />
-              <span className="truncate">{card.email}</span>
-            </p>
-            <p className="flex items-center gap-1.5 truncate">
-              <CalendarIcon className="size-3.5 shrink-0" />
-              <span className="truncate">{card.dataFineRapporto}</span>
-            </p>
-            {card.motivazione ? <p className="line-clamp-2">{card.motivazione}</p> : null}
-          </div>
-        </CardContent>
-      </Card>
+      <KanbanCard onClick={onOpen} className="cursor-grab active:cursor-grabbing">
+        <div className="space-y-1">
+          <KanbanCardTitle>{card.nomeCompleto}</KanbanCardTitle>
+          <KanbanCardBadge
+            color={card.tipoColor
+              ? getLookupBadgeClasses(card.tipoColor)
+              : getLicenziamentoVariant(card.record.tipo_licenziamento)}
+          >
+            {card.tipoLabel}
+          </KanbanCardBadge>
+        </div>
+        <div className="mt-2 space-y-1 border-t pt-2">
+          <KanbanCardMeta>
+            <MailIcon className="size-3.5 shrink-0" />
+            <span className="truncate">{card.email}</span>
+          </KanbanCardMeta>
+          <KanbanCardMeta>
+            <CalendarIcon className="size-3.5 shrink-0" />
+            <span className="truncate">{card.dataFineRapporto}</span>
+          </KanbanCardMeta>
+          {card.motivazione ? (
+            <p className="text-[11px] text-muted-foreground line-clamp-2">{card.motivazione}</p>
+          ) : null}
+        </div>
+      </KanbanCard>
     </div>
   )
 }
@@ -353,7 +346,7 @@ function ChiusureBoardColumn({
     <KanbanColumnShell
       columnId={column.id}
       title={column.label}
-      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "chiusura" : "chiusure"}`}
+      count={column.cards.length}
       visual={visual}
       isDropTarget={isDropTarget}
       emptyState={

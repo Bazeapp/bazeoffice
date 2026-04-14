@@ -13,10 +13,9 @@ import {
 } from "@/hooks/use-assunzioni-board"
 import { AssunzioniDetailSheet } from "@/components/gestione-contrattuale/assunzioni-detail-sheet"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { KanbanCard, KanbanCardBadge, KanbanCardBadgeRow, KanbanCardMeta, KanbanCardTitle } from "@/components/shared/kanban-card"
 import { PageHeader } from "@/components/shared/page-header"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { buildPathForRoute } from "@/routes/app-routes"
 import { cn } from "@/lib/utils"
 
@@ -27,36 +26,42 @@ function getColumnClasses(color: string) {
         columnClassName: "border-sky-300 bg-sky-50/70",
         headerClassName: "border-b border-sky-200/70",
         iconClassName: "text-sky-500",
+        accentBg: "bg-sky-500",
       }
     case "teal":
       return {
         columnClassName: "border-teal-300 bg-teal-50/70",
         headerClassName: "border-b border-teal-200/70",
         iconClassName: "text-teal-500",
+        accentBg: "bg-teal-500",
       }
     case "amber":
       return {
         columnClassName: "border-amber-300 bg-amber-50/70",
         headerClassName: "border-b border-amber-200/70",
         iconClassName: "text-amber-500",
+        accentBg: "bg-amber-500",
       }
     case "lime":
       return {
         columnClassName: "border-lime-300 bg-lime-50/70",
         headerClassName: "border-b border-lime-200/70",
         iconClassName: "text-lime-500",
+        accentBg: "bg-lime-500",
       }
     case "green":
       return {
         columnClassName: "border-green-300 bg-green-50/70",
         headerClassName: "border-b border-green-200/70",
         iconClassName: "text-green-600",
+        accentBg: "bg-green-600",
       }
     case "orange":
       return {
         columnClassName: "border-orange-300 bg-orange-50/70",
         headerClassName: "border-b border-orange-200/70",
         iconClassName: "text-orange-600",
+        accentBg: "bg-orange-600",
       }
     default:
       return {
@@ -88,68 +93,50 @@ function AssunzioniBoardCard({
       onClick={onClick}
       className={cn("cursor-grab transition-opacity active:cursor-grabbing", dragging && "opacity-40")}
     >
-      <Card className="border border-border/70 bg-white py-2 transition-shadow hover:shadow-md">
-        <CardContent className="space-y-3 px-3">
-          <div className="flex items-start justify-between gap-2">
-            <p className="min-w-0 text-sm font-semibold leading-tight">
-              {card.nomeFamiglia} – {card.nomeLavoratore}
-            </p>
-            <Button asChild variant="ghost" size="icon-sm" className="-mr-1 -mt-1 shrink-0">
-              <a
-                href={
-                  card.processId
-                    ? buildPathForRoute({
-                        mainSection: "ricerca_pipeline",
-                        anagraficheTab: "famiglie",
-                        ricercaProcessId: card.processId,
-                      })
-                    : "#"
-                }
-                title="Apri processo"
-                aria-disabled={!card.processId}
-                onClick={(event) => {
-                  if (card.processId) return
-                  event.preventDefault()
-                }}
-              >
-                <ExternalLinkIcon className="size-4" />
-              </a>
-            </Button>
-          </div>
-
-          <div className="flex min-h-5 flex-wrap gap-1.5">
-            <Badge
-              variant="outline"
-              className={cn(
-                "text-[11px] font-medium",
-                card.famiglia ? "border-green-200 bg-green-100 text-green-700" : "border-zinc-200 bg-zinc-100 text-zinc-600"
-              )}
+      <KanbanCard className="cursor-grab active:cursor-grabbing">
+        <div className="flex items-start justify-between gap-2">
+          <KanbanCardTitle>{card.nomeFamiglia} – {card.nomeLavoratore}</KanbanCardTitle>
+          <Button asChild variant="ghost" size="icon-sm" className="-mr-1 -mt-1 shrink-0">
+            <a
+              href={
+                card.processId
+                  ? buildPathForRoute({
+                      mainSection: "ricerca_pipeline",
+                      anagraficheTab: "famiglie",
+                      ricercaProcessId: card.processId,
+                    })
+                  : "#"
+              }
+              title="Apri processo"
+              aria-disabled={!card.processId}
+              onClick={(event) => {
+                if (card.processId) return
+                event.preventDefault()
+              }}
             >
-              <UsersIcon className="mr-1 size-3" />
-              Famiglia
-            </Badge>
-            <Badge
-              variant="outline"
-              className={cn(
-                "text-[11px] font-medium",
-                card.lavoratore ? "border-green-200 bg-green-100 text-green-700" : "border-zinc-200 bg-zinc-100 text-zinc-600"
-              )}
-            >
-              <UserCheckIcon className="mr-1 size-3" />
-              Lavoratore
-            </Badge>
-          </div>
-
-          <div className="text-muted-foreground space-y-1.5 border-t pt-2 text-xs">
-            <p className="flex items-center gap-1.5 truncate">
-              <CalendarIcon className="size-3.5 shrink-0" />
-              <span className="truncate">
-                {card.rapporto?.data_inizio_rapporto ? formatItalianDate(card.rapporto.data_inizio_rapporto) : card.deadline}
-              </span>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+              <ExternalLinkIcon className="size-4" />
+            </a>
+          </Button>
+        </div>
+        <KanbanCardBadgeRow>
+          <KanbanCardBadge color={card.famiglia ? "bg-badge-green-bg text-badge-green" : "bg-badge-gray-bg text-badge-gray"}>
+            <UsersIcon className="size-3" />
+            Famiglia
+          </KanbanCardBadge>
+          <KanbanCardBadge color={card.lavoratore ? "bg-badge-green-bg text-badge-green" : "bg-badge-gray-bg text-badge-gray"}>
+            <UserCheckIcon className="size-3" />
+            Lavoratore
+          </KanbanCardBadge>
+        </KanbanCardBadgeRow>
+        <div className="mt-2 border-t pt-2">
+          <KanbanCardMeta>
+            <CalendarIcon className="size-3.5 shrink-0" />
+            <span className="truncate">
+              {card.rapporto?.data_inizio_rapporto ? formatItalianDate(card.rapporto.data_inizio_rapporto) : card.deadline}
+            </span>
+          </KanbanCardMeta>
+        </div>
+      </KanbanCard>
     </div>
   )
 }
@@ -193,7 +180,7 @@ function AssunzioniBoardColumn({
     <KanbanColumnShell
       columnId={column.id}
       title={column.label}
-      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "processo" : "processi"}`}
+      count={column.cards.length}
       visual={visual}
       isDropTarget={isDropTarget}
       emptyState={

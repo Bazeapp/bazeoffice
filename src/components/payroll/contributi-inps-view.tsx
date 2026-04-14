@@ -19,12 +19,11 @@ import {
 } from "@/components/shared/attachment-upload-slot"
 import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { KanbanCard, KanbanCardBadge, KanbanCardBadgeRow, KanbanCardSubtitle, KanbanCardTitle } from "@/components/shared/kanban-card"
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { PageHeader, PageHeaderSearch } from "@/components/shared/page-header"
 import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -152,12 +151,14 @@ function getColumnClasses(color: string) {
         columnClassName: "border-sky-300 bg-sky-50/70",
         headerClassName: "border-b border-sky-200/70",
         iconClassName: "text-sky-500",
+        accentBg: "bg-sky-500",
       }
     case "cyan":
       return {
         columnClassName: "border-cyan-300 bg-cyan-50/70",
         headerClassName: "border-b border-cyan-200/70",
         iconClassName: "text-cyan-500",
+        accentBg: "bg-cyan-500",
       }
     case "amber":
     case "yellow":
@@ -165,12 +166,14 @@ function getColumnClasses(color: string) {
         columnClassName: "border-amber-300 bg-amber-50/70",
         headerClassName: "border-b border-amber-200/70",
         iconClassName: "text-amber-500",
+        accentBg: "bg-amber-500",
       }
     case "green":
       return {
         columnClassName: "border-green-300 bg-green-50/70",
         headerClassName: "border-b border-green-200/70",
         iconClassName: "text-green-500",
+        accentBg: "bg-green-500",
       }
     default:
       return {
@@ -185,43 +188,31 @@ function ContributoInpsCard({ card }: { card: ContributoInpsBoardCardData }) {
   const hasAttachment = Boolean(card.record.allegato)
 
   return (
-    <Card className="border border-border/70 bg-white py-0 transition-shadow hover:shadow-md">
-      <CardContent className="space-y-3 px-3 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold leading-tight">{card.nomeFamiglia}</p>
-            <p className="text-muted-foreground mt-0.5 truncate text-xs">{card.nomeLavoratore}</p>
-          </div>
-          {card.importoLabel ? <p className="shrink-0 text-sm font-semibold">{card.importoLabel}</p> : null}
+    <KanbanCard>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <KanbanCardTitle>{card.nomeFamiglia}</KanbanCardTitle>
+          <KanbanCardSubtitle>{card.nomeLavoratore}</KanbanCardSubtitle>
         </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge
-            variant="secondary"
-            className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] text-violet-700 hover:bg-violet-100"
-          >
-            {card.trimestreLabel}
-          </Badge>
-          {card.pagopaLabel ? (
-            <Badge
-              variant="secondary"
-              className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] text-sky-700 hover:bg-sky-100"
-            >
-              PagoPA {card.pagopaLabel}
-            </Badge>
-          ) : null}
-          {hasAttachment ? (
-            <Badge
-              variant="secondary"
-              className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] text-emerald-700 hover:bg-emerald-100"
-            >
-              <CircleCheckBigIcon className="size-3" />
-              Allegato
-            </Badge>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
+        {card.importoLabel ? <p className="shrink-0 text-sm font-semibold">{card.importoLabel}</p> : null}
+      </div>
+      <KanbanCardBadgeRow>
+        <KanbanCardBadge color="bg-badge-purple-bg text-badge-purple">
+          {card.trimestreLabel}
+        </KanbanCardBadge>
+        {card.pagopaLabel ? (
+          <KanbanCardBadge color="bg-badge-sky-bg text-badge-sky">
+            PagoPA {card.pagopaLabel}
+          </KanbanCardBadge>
+        ) : null}
+        {hasAttachment ? (
+          <KanbanCardBadge color="bg-badge-emerald-bg text-badge-emerald">
+            <CircleCheckBigIcon className="size-3" />
+            Allegato
+          </KanbanCardBadge>
+        ) : null}
+      </KanbanCardBadgeRow>
+    </KanbanCard>
   )
 }
 
@@ -533,7 +524,7 @@ function ContributoInpsBoardColumn({
     <KanbanColumnShell
       columnId={column.id}
       title={column.label}
-      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "contributo" : "contributi"}`}
+      count={column.cards.length}
       visual={visual}
       density="compact"
       widthClassName="w-[292px]"

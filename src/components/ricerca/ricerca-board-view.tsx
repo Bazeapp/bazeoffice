@@ -14,11 +14,10 @@ import {
 } from "@/hooks/use-ricerca-board"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { KanbanCard, KanbanCardBadge, KanbanCardBadgeRow, KanbanCardMeta, KanbanCardTitle } from "@/components/shared/kanban-card"
 import { PageHeader } from "@/components/shared/page-header"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   Field,
   FieldContent,
@@ -46,47 +45,42 @@ function formatBadgeLabel(value: string) {
 function getBadgeClassName(color: string | null | undefined) {
   switch ((color ?? "").toLowerCase()) {
     case "red":
-      return "border-red-200 bg-red-100 text-red-700"
+      return "bg-badge-red-bg text-badge-red"
     case "rose":
-      return "border-rose-200 bg-rose-100 text-rose-700"
-    case "orange":
-      return "border-orange-200 bg-orange-100 text-orange-700"
-    case "amber":
-      return "border-amber-200 bg-amber-100 text-amber-700"
-    case "yellow":
-      return "border-yellow-200 bg-yellow-100 text-yellow-700"
-    case "lime":
-      return "border-lime-200 bg-lime-100 text-lime-700"
-    case "green":
-      return "border-green-200 bg-green-100 text-green-700"
-    case "emerald":
-      return "border-emerald-200 bg-emerald-100 text-emerald-700"
-    case "teal":
-      return "border-teal-200 bg-teal-100 text-teal-700"
-    case "cyan":
-      return "border-cyan-200 bg-cyan-100 text-cyan-700"
-    case "sky":
-      return "border-sky-200 bg-sky-100 text-sky-700"
-    case "blue":
-      return "border-blue-200 bg-blue-100 text-blue-700"
-    case "indigo":
-      return "border-indigo-200 bg-indigo-100 text-indigo-700"
-    case "violet":
-      return "border-violet-200 bg-violet-100 text-violet-700"
-    case "purple":
-      return "border-purple-200 bg-purple-100 text-purple-700"
-    case "fuchsia":
-      return "border-fuchsia-200 bg-fuchsia-100 text-fuchsia-700"
     case "pink":
-      return "border-pink-200 bg-pink-100 text-pink-700"
+      return "bg-badge-rose-bg text-badge-rose"
+    case "orange":
+      return "bg-badge-orange-bg text-badge-orange"
+    case "amber":
+    case "yellow":
+      return "bg-badge-amber-bg text-badge-amber"
+    case "lime":
+      return "bg-badge-lime-bg text-badge-lime"
+    case "green":
+      return "bg-badge-green-bg text-badge-green"
+    case "emerald":
+      return "bg-badge-emerald-bg text-badge-emerald"
+    case "teal":
+      return "bg-badge-teal-bg text-badge-teal"
+    case "cyan":
+      return "bg-badge-cyan-bg text-badge-cyan"
+    case "sky":
+      return "bg-badge-sky-bg text-badge-sky"
+    case "blue":
+      return "bg-badge-blue-bg text-badge-blue"
+    case "indigo":
+      return "bg-badge-blue-bg text-badge-blue"
+    case "violet":
+    case "purple":
+    case "fuchsia":
+      return "bg-badge-purple-bg text-badge-purple"
     case "slate":
-      return "border-slate-200 bg-slate-100 text-slate-700"
+      return "bg-badge-slate-bg text-badge-slate"
     case "gray":
-      return "border-gray-200 bg-gray-100 text-gray-700"
     case "zinc":
-      return "border-zinc-200 bg-zinc-100 text-zinc-700"
+      return "bg-badge-gray-bg text-badge-gray"
     default:
-      return "border-border bg-muted text-foreground"
+      return "bg-badge-gray-bg text-badge-gray"
   }
 }
 
@@ -94,6 +88,7 @@ type ColumnVisual = {
   columnClassName: string
   headerClassName: string
   iconClassName: string
+  accentBg?: string
 }
 
 function normalizeStageToken(value: string) {
@@ -113,42 +108,49 @@ function getColumnVisual(columnId: string, columnLabel: string, color: string | 
         columnClassName: "border-amber-300 bg-amber-50/70",
         headerClassName: "border-b border-amber-200/70",
         iconClassName: "text-amber-500",
+        accentBg: "bg-amber-500",
       }
     case "selezione inviata":
       return {
         columnClassName: "border-emerald-200 bg-emerald-50/60",
         headerClassName: "border-b border-emerald-200/70",
         iconClassName: "text-emerald-400",
+        accentBg: "bg-emerald-400",
       }
     case "fase di colloqui":
       return {
         columnClassName: "border-emerald-300 bg-emerald-50/70",
         headerClassName: "border-b border-emerald-300/70",
         iconClassName: "text-emerald-500",
+        accentBg: "bg-emerald-500",
       }
     case "in prova con lavoratore":
       return {
         columnClassName: "border-emerald-400 bg-emerald-100/70",
         headerClassName: "border-b border-emerald-400/60",
         iconClassName: "text-emerald-600",
+        accentBg: "bg-emerald-600",
       }
     case "match":
       return {
         columnClassName: "border-emerald-600 bg-emerald-100/90",
         headerClassName: "border-b border-emerald-600/40",
         iconClassName: "text-emerald-700",
+        accentBg: "bg-emerald-700",
       }
     case "no match":
       return {
         columnClassName: "border-red-300 bg-red-50/70",
         headerClassName: "border-b border-red-200/70",
         iconClassName: "text-red-500",
+        accentBg: "bg-red-500",
       }
     case "stand by":
       return {
         columnClassName: "border-zinc-300 bg-zinc-50/70",
         headerClassName: "border-b border-zinc-200/70",
         iconClassName: "text-zinc-500",
+        accentBg: "bg-zinc-500",
       }
     default:
       break
@@ -160,120 +162,140 @@ function getColumnVisual(columnId: string, columnLabel: string, color: string | 
         columnClassName: "border-red-300 bg-red-50/70",
         headerClassName: "border-b border-red-200/70",
         iconClassName: "text-red-500",
+        accentBg: "bg-red-500",
       }
     case "rose":
       return {
         columnClassName: "border-rose-300 bg-rose-50/70",
         headerClassName: "border-b border-rose-200/70",
         iconClassName: "text-rose-500",
+        accentBg: "bg-rose-500",
       }
     case "orange":
       return {
         columnClassName: "border-orange-300 bg-orange-50/70",
         headerClassName: "border-b border-orange-200/70",
         iconClassName: "text-orange-500",
+        accentBg: "bg-orange-500",
       }
     case "amber":
       return {
         columnClassName: "border-amber-300 bg-amber-50/70",
         headerClassName: "border-b border-amber-200/70",
         iconClassName: "text-amber-500",
+        accentBg: "bg-amber-500",
       }
     case "yellow":
       return {
         columnClassName: "border-yellow-300 bg-yellow-50/70",
         headerClassName: "border-b border-yellow-200/70",
         iconClassName: "text-yellow-500",
+        accentBg: "bg-yellow-500",
       }
     case "lime":
       return {
         columnClassName: "border-lime-300 bg-lime-50/70",
         headerClassName: "border-b border-lime-200/70",
         iconClassName: "text-lime-500",
+        accentBg: "bg-lime-500",
       }
     case "green":
       return {
         columnClassName: "border-green-300 bg-green-50/70",
         headerClassName: "border-b border-green-200/70",
         iconClassName: "text-green-500",
+        accentBg: "bg-green-500",
       }
     case "emerald":
       return {
         columnClassName: "border-emerald-300 bg-emerald-50/70",
         headerClassName: "border-b border-emerald-200/70",
         iconClassName: "text-emerald-500",
+        accentBg: "bg-emerald-500",
       }
     case "teal":
       return {
         columnClassName: "border-teal-300 bg-teal-50/70",
         headerClassName: "border-b border-teal-200/70",
         iconClassName: "text-teal-500",
+        accentBg: "bg-teal-500",
       }
     case "cyan":
       return {
         columnClassName: "border-cyan-300 bg-cyan-50/70",
         headerClassName: "border-b border-cyan-200/70",
         iconClassName: "text-cyan-500",
+        accentBg: "bg-cyan-500",
       }
     case "sky":
       return {
         columnClassName: "border-sky-300 bg-sky-50/70",
         headerClassName: "border-b border-sky-200/70",
         iconClassName: "text-sky-500",
+        accentBg: "bg-sky-500",
       }
     case "blue":
       return {
         columnClassName: "border-blue-300 bg-blue-50/70",
         headerClassName: "border-b border-blue-200/70",
         iconClassName: "text-blue-500",
+        accentBg: "bg-blue-500",
       }
     case "indigo":
       return {
         columnClassName: "border-indigo-300 bg-indigo-50/70",
         headerClassName: "border-b border-indigo-200/70",
         iconClassName: "text-indigo-500",
+        accentBg: "bg-indigo-500",
       }
     case "violet":
       return {
         columnClassName: "border-violet-300 bg-violet-50/70",
         headerClassName: "border-b border-violet-200/70",
         iconClassName: "text-violet-500",
+        accentBg: "bg-violet-500",
       }
     case "purple":
       return {
         columnClassName: "border-purple-300 bg-purple-50/70",
         headerClassName: "border-b border-purple-200/70",
         iconClassName: "text-purple-500",
+        accentBg: "bg-purple-500",
       }
     case "fuchsia":
       return {
         columnClassName: "border-fuchsia-300 bg-fuchsia-50/70",
         headerClassName: "border-b border-fuchsia-200/70",
         iconClassName: "text-fuchsia-500",
+        accentBg: "bg-fuchsia-500",
       }
     case "pink":
       return {
         columnClassName: "border-pink-300 bg-pink-50/70",
         headerClassName: "border-b border-pink-200/70",
         iconClassName: "text-pink-500",
+        accentBg: "bg-pink-500",
       }
     case "slate":
       return {
         columnClassName: "border-slate-300 bg-slate-50/70",
         headerClassName: "border-b border-slate-200/70",
         iconClassName: "text-slate-500",
+        accentBg: "bg-slate-500",
       }
     case "gray":
       return {
         columnClassName: "border-gray-300 bg-gray-50/70",
         headerClassName: "border-b border-gray-200/70",
         iconClassName: "text-gray-500",
+        accentBg: "bg-gray-500",
       }
     case "zinc":
       return {
         columnClassName: "border-zinc-300 bg-zinc-50/70",
         headerClassName: "border-b border-zinc-200/70",
         iconClassName: "text-zinc-500",
+        accentBg: "bg-zinc-500",
       }
     default:
       return {
@@ -312,47 +334,35 @@ function RicercaBoardCard({
       )}
       onClick={onClick}
     >
-      <Card className="border border-border/70 bg-white py-2 transition-shadow hover:shadow-md">
-        <CardContent className="space-y-2 px-3">
-          <p className="truncate text-sm font-semibold">{data.nomeFamiglia}</p>
-          <div className="flex min-h-4 flex-col gap-1.5">
+      <KanbanCard className="cursor-grab active:cursor-grabbing">
+        <KanbanCardTitle>{data.nomeFamiglia}</KanbanCardTitle>
+        {(data.tipoLavoroBadge || data.tipoRapportoBadge) ? (
+          <KanbanCardBadgeRow>
             {data.tipoLavoroBadge ? (
-              <Badge
-                variant="outline"
-                className={`h-5 px-2 text-[11px] font-medium ${getBadgeClassName(
-                  data.tipoLavoroColor
-                )}`}
-              >
-                <BriefcaseBusinessIcon data-icon="inline-start" />
+              <KanbanCardBadge color={getBadgeClassName(data.tipoLavoroColor)}>
+                <BriefcaseBusinessIcon className="size-3" />
                 {formatBadgeLabel(data.tipoLavoroBadge)}
-              </Badge>
+              </KanbanCardBadge>
             ) : null}
             {data.tipoRapportoBadge ? (
-              <Badge
-                variant="outline"
-                className={`h-5 px-2 text-[11px] font-medium ${getBadgeClassName(
-                  data.tipoRapportoColor
-                )}`}
-              >
-                <Clock3Icon data-icon="inline-start" />
+              <KanbanCardBadge color={getBadgeClassName(data.tipoRapportoColor)}>
+                <Clock3Icon className="size-3" />
                 {formatBadgeLabel(data.tipoRapportoBadge)}
-              </Badge>
+              </KanbanCardBadge>
             ) : null}
-          </div>
-          <div className="flex items-start justify-between gap-2 border-t pt-2">
-            <div className="text-muted-foreground min-w-0 space-y-1 text-xs">
-              <p className="flex items-center gap-1.5 truncate">
-                <CalendarIcon className="size-3.5 shrink-0" />
-                <span className="truncate">{data.deadline}</span>
-              </p>
-              <p className="flex items-center gap-1.5 truncate">
-                <MapPinIcon className="size-3.5 shrink-0" />
-                <span className="truncate">{data.zona}</span>
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </KanbanCardBadgeRow>
+        ) : null}
+        <div className="mt-2 space-y-1 border-t pt-2">
+          <KanbanCardMeta>
+            <CalendarIcon className="size-3.5 shrink-0" />
+            <span className="truncate">{data.deadline}</span>
+          </KanbanCardMeta>
+          <KanbanCardMeta>
+            <MapPinIcon className="size-3.5 shrink-0" />
+            <span className="truncate">{data.zona}</span>
+          </KanbanCardMeta>
+        </div>
+      </KanbanCard>
     </div>
   )
 }
@@ -388,7 +398,7 @@ function RicercaBoardColumn({
     <KanbanColumnShell
       columnId={column.id}
       title={column.label}
-      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "ricerca" : "ricerche"}`}
+      count={column.cards.length}
       visual={visual}
       widthClassName="w-[300px]"
       isDropTarget={isDropTarget}

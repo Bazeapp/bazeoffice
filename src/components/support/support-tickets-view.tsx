@@ -13,10 +13,9 @@ import {
   useSupportTicketsBoard,
 } from "@/hooks/use-support-tickets-board"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { KanbanCard, KanbanCardBadge, KanbanCardBadgeRow, KanbanCardMeta, KanbanCardSubtitle, KanbanCardTitle } from "@/components/shared/kanban-card"
 import { PageHeader, PageHeaderPrimaryButton, PageHeaderSearch } from "@/components/shared/page-header"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
@@ -34,24 +33,28 @@ function getColumnClasses(color: string) {
         columnClassName: "border-sky-300 bg-sky-50/70",
         headerClassName: "border-b border-sky-200/70",
         iconClassName: "text-sky-500",
+        accentBg: "bg-sky-500",
       }
     case "amber":
       return {
         columnClassName: "border-amber-300 bg-amber-50/70",
         headerClassName: "border-b border-amber-200/70",
         iconClassName: "text-amber-500",
+        accentBg: "bg-amber-500",
       }
     case "orange":
       return {
         columnClassName: "border-orange-300 bg-orange-50/70",
         headerClassName: "border-b border-orange-200/70",
         iconClassName: "text-orange-500",
+        accentBg: "bg-orange-500",
       }
     case "green":
       return {
         columnClassName: "border-green-300 bg-green-50/70",
         headerClassName: "border-b border-green-200/70",
         iconClassName: "text-green-500",
+        accentBg: "bg-green-500",
       }
     default:
       return {
@@ -68,40 +71,34 @@ function SupportTicketCard({ card }: { card: SupportTicketBoardCardData }) {
   const TagIcon = tagConfig.icon
 
   return (
-    <Card className="border border-border/70 bg-white py-0 transition-shadow hover:shadow-md">
-      <CardContent className="space-y-3 px-3 py-3">
-        <div className="space-y-1">
-          <p className="line-clamp-2 text-sm font-semibold leading-tight">{card.causale}</p>
-          <p className="text-muted-foreground truncate text-xs">{card.nomeCompleto}</p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="secondary" className={tagConfig.colorClassName}>
-            <TagIcon className="mr-1 size-3.5" />
-            {tagConfig.label}
-          </Badge>
-          <Badge variant="secondary" className={urgencyConfig.badgeClassName}>
-            {urgencyConfig.label}
-          </Badge>
-        </div>
-
-        <div className="flex items-center justify-between gap-3 text-[11px]">
-          <div className="text-muted-foreground flex items-center gap-1.5">
-            <Clock3Icon className="size-3.5" />
-            <span>{card.dataAperturaLabel}</span>
-          </div>
-          <div className="text-muted-foreground flex items-center gap-2">
-            {card.attachmentCount > 0 ? (
-              <span className="flex items-center gap-1">
-                <PaperclipIcon className="size-3.5" />
-                {card.attachmentCount}
-              </span>
-            ) : null}
-            <span className="font-medium text-foreground">{card.assegnatario.split(" ")[0]}</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <KanbanCard>
+      <KanbanCardTitle>{card.causale}</KanbanCardTitle>
+      <KanbanCardSubtitle>{card.nomeCompleto}</KanbanCardSubtitle>
+      <KanbanCardBadgeRow>
+        <KanbanCardBadge color={tagConfig.colorClassName}>
+          <TagIcon className="size-3.5" />
+          {tagConfig.label}
+        </KanbanCardBadge>
+        <KanbanCardBadge color={urgencyConfig.badgeClassName}>
+          {urgencyConfig.label}
+        </KanbanCardBadge>
+      </KanbanCardBadgeRow>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <KanbanCardMeta>
+          <Clock3Icon className="size-3.5" />
+          <span>{card.dataAperturaLabel}</span>
+        </KanbanCardMeta>
+        <KanbanCardMeta>
+          {card.attachmentCount > 0 ? (
+            <span className="flex items-center gap-1">
+              <PaperclipIcon className="size-3.5" />
+              {card.attachmentCount}
+            </span>
+          ) : null}
+          <span className="font-medium text-foreground">{card.assegnatario.split(" ")[0]}</span>
+        </KanbanCardMeta>
+      </div>
+    </KanbanCard>
   )
 }
 
@@ -134,7 +131,7 @@ function SupportTicketsBoardColumn({
     <KanbanColumnShell
       columnId={column.id}
       title={column.label}
-      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "ticket" : "ticket"}`}
+      count={column.cards.length}
       visual={visual}
       density="compact"
       widthClassName="w-[292px]"

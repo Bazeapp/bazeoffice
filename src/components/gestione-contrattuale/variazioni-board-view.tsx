@@ -15,10 +15,9 @@ import {
 import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot";
 import { DetailSectionBlock } from "@/components/shared/detail-section-card";
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban";
+import { KanbanCard, KanbanCardBadge, KanbanCardBadgeRow, KanbanCardMeta, KanbanCardTitle } from "@/components/shared/kanban-card";
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card";
 import { PageHeader } from "@/components/shared/page-header";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Sheet,
   SheetContent,
@@ -249,18 +248,21 @@ function getColumnClasses(color: string) {
         columnClassName: "border-sky-300 bg-sky-50/70",
         headerClassName: "border-b border-sky-200/70",
         iconClassName: "text-sky-500",
+        accentBg: "bg-sky-500",
       };
     case "cyan":
       return {
         columnClassName: "border-cyan-300 bg-cyan-50/70",
         headerClassName: "border-b border-cyan-200/70",
         iconClassName: "text-cyan-500",
+        accentBg: "bg-cyan-500",
       };
     case "teal":
       return {
         columnClassName: "border-teal-300 bg-teal-50/70",
         headerClassName: "border-b border-teal-200/70",
         iconClassName: "text-teal-500",
+        accentBg: "bg-teal-500",
       };
     default:
       return {
@@ -294,29 +296,20 @@ function VariazioniBoardCard({
         dragging && "opacity-40",
       )}
     >
-      <Card
-        className="border border-border/70 bg-white py-2 transition-shadow hover:shadow-md"
-        onClick={onOpen}
-      >
-        <CardContent className="space-y-3 px-3">
-          <div className="space-y-1">
-            <p className="text-sm font-semibold leading-tight">
-              {card.nomeCompleto}
-            </p>
-            {card.variazioneDaApplicare ? (
-              <div>
-                <Badge variant="secondary">{card.variazioneDaApplicare}</Badge>
-              </div>
-            ) : null}
-          </div>
-          <div className="text-muted-foreground space-y-1.5 border-t pt-2 text-xs">
-            <p className="flex items-center gap-1.5 truncate">
-              <CalendarIcon className="size-3.5 shrink-0" />
-              <span className="truncate">{card.dataVariazione}</span>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <KanbanCard onClick={onOpen} className="cursor-grab active:cursor-grabbing">
+        <KanbanCardTitle>{card.nomeCompleto}</KanbanCardTitle>
+        {card.variazioneDaApplicare ? (
+          <KanbanCardBadgeRow>
+            <KanbanCardBadge>{card.variazioneDaApplicare}</KanbanCardBadge>
+          </KanbanCardBadgeRow>
+        ) : null}
+        <div className="mt-2 border-t pt-2">
+          <KanbanCardMeta>
+            <CalendarIcon className="size-3.5 shrink-0" />
+            <span className="truncate">{card.dataVariazione}</span>
+          </KanbanCardMeta>
+        </div>
+      </KanbanCard>
     </div>
   );
 }
@@ -350,9 +343,7 @@ function VariazioniBoardColumn({
     <KanbanColumnShell
       columnId={column.id}
       title={column.label}
-      countLabel={`${column.cards.length} ${
-        column.cards.length === 1 ? "variazione" : "variazioni"
-      }`}
+      count={column.cards.length}
       visual={visual}
       isDropTarget={isDropTarget}
       emptyState={
