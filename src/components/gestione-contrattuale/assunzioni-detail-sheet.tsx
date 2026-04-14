@@ -21,7 +21,7 @@ import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from "@
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { DetailSheetWrapper } from "@/components/shared/detail-sheet-wrapper"
 import { Textarea } from "@/components/ui/textarea"
 import { fetchLookupValues } from "@/lib/anagrafiche-api"
 import { cn } from "@/lib/utils"
@@ -828,168 +828,150 @@ export function AssunzioniDetailSheet({
   }, [card?.stage, card?.tipoRapporto])
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
-        <SheetHeader className="border-b bg-background px-5 py-5">
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <SheetTitle className="truncate text-xl font-semibold">
-                  {card ? `${card.nomeFamiglia} - ${card.nomeLavoratore}` : "Dettaglio assunzione"}
-                </SheetTitle>
-                <SheetDescription className="sr-only">
-                  Dettaglio pratica di assunzione con dati del datore e del lavoratore.
-                </SheetDescription>
-                <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                  <span className="flex items-center gap-1.5">
-                    <CalendarDaysIcon className="size-4" />
-                    {card ? formatDate(card.rapporto?.data_inizio_rapporto) : "-"}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <BriefcaseBusinessIcon className="size-4" />
-                    {card?.tipoRapporto ?? "-"}
-                  </span>
-                </div>
-              </div>
-            </div>
+    <DetailSheetWrapper
+      open={open}
+      onOpenChange={onOpenChange}
+      title={card ? `${card.nomeFamiglia} - ${card.nomeLavoratore}` : "Dettaglio assunzione"}
+      subtitle={
+        <>
+          <CalendarDaysIcon className="size-3.5" />
+          {card ? formatDate(card.rapporto?.data_inizio_rapporto) : "-"}
+          <BriefcaseBusinessIcon className="size-3.5" />
+          {card?.tipoRapporto ?? "-"}
+        </>
+      }
+    >
+      {card ? (
+        <div className="mx-auto max-w-5xl space-y-5">
+          <LinkedRapportoSummaryCard
+            title={`${card.nomeFamiglia} – ${card.nomeLavoratore}`}
+            rapporto={card.rapporto}
+            type={card.rapporto?.tipo_rapporto ?? card.tipoRapporto}
+          />
 
-          </div>
-        </SheetHeader>
-
-        {card ? (
-          <section className="h-full overflow-y-auto bg-muted/20 px-5 py-5">
-            <div className="mx-auto max-w-5xl space-y-5">
-              <LinkedRapportoSummaryCard
-                title={`${card.nomeFamiglia} – ${card.nomeLavoratore}`}
-                rapporto={card.rapporto}
-                type={card.rapporto?.tipo_rapporto ?? card.tipoRapporto}
+          <DetailSectionBlock
+            title="Contesto pratica"
+            icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
+            contentClassName="grid gap-4 md:grid-cols-3"
+          >
+            <EditableField label="Stato assunzione">
+              <Select
+                value={practiceDraft.statoAssunzione || undefined}
+                onValueChange={(value) =>
+                  setPracticeDraft((current) => ({
+                    ...current,
+                    statoAssunzione: value,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona stato" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statoAssunzioneOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </EditableField>
+            <EditableField label="Tipo rapporto">
+              <Select
+                value={practiceDraft.tipoRapporto || undefined}
+                onValueChange={(value) =>
+                  setPracticeDraft((current) => ({
+                    ...current,
+                    tipoRapporto: value,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona tipo rapporto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tipoRapportoOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </EditableField>
+            <EditableField label="Deadline">
+              <Input
+                type="date"
+                value={practiceDraft.deadline}
+                onChange={(event) =>
+                  setPracticeDraft((current) => ({
+                    ...current,
+                    deadline: event.target.value,
+                  }))
+                }
               />
+            </EditableField>
+          </DetailSectionBlock>
 
-              <DetailSectionBlock
-                title="Contesto pratica"
-                icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
-                contentClassName="grid gap-4 md:grid-cols-3"
-              >
-                <EditableField label="Stato assunzione">
-                  <Select
-                    value={practiceDraft.statoAssunzione || undefined}
-                    onValueChange={(value) =>
-                      setPracticeDraft((current) => ({
-                        ...current,
-                        statoAssunzione: value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona stato" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statoAssunzioneOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </EditableField>
-                <EditableField label="Tipo rapporto">
-                  <Select
-                    value={practiceDraft.tipoRapporto || undefined}
-                    onValueChange={(value) =>
-                      setPracticeDraft((current) => ({
-                        ...current,
-                        tipoRapporto: value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona tipo rapporto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tipoRapportoOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </EditableField>
-                <EditableField label="Deadline">
-                  <Input
-                    type="date"
-                    value={practiceDraft.deadline}
-                    onChange={(event) =>
-                      setPracticeDraft((current) => ({
-                        ...current,
-                        deadline: event.target.value,
-                      }))
-                    }
-                  />
-                </EditableField>
-              </DetailSectionBlock>
-
-              <DetailSectionBlock
-                title="Documenti del rapporto"
-                icon={<FileTextIcon className="text-muted-foreground size-4" />}
-                contentClassName="space-y-4"
-              >
-                <div className="grid gap-3 md:grid-cols-3">
-                  <AttachmentUploadSlot
-                    label="Accordo di lavoro"
-                    value={card.rapporto?.accordo_di_lavoro_allegati ?? null}
-                    onAdd={() => {}}
-                    onPreviewOpen={() => {}}
-                    isUploading={false}
-                  />
-                  <AttachmentUploadSlot
-                    label="Ricevuta INPS"
-                    value={card.rapporto?.ricevuta_inps_allegati ?? null}
-                    onAdd={() => {}}
-                    onPreviewOpen={() => {}}
-                    isUploading={false}
-                  />
-                  <AttachmentUploadSlot
-                    label="Delega INPS"
-                    value={null}
-                    onAdd={() => {}}
-                    onPreviewOpen={() => {}}
-                    isUploading={false}
-                  />
-                </div>
-              </DetailSectionBlock>
-
-              <RapportoDetailSections card={card} />
-
-              <RadioGroup
-                value={target}
-                onValueChange={(value) => setTarget(value as DetailTarget)}
-                className="grid gap-3 md:grid-cols-2"
-              >
-                <RelatedSubjectCard
-                  role="Datore"
-                  name={card.nomeFamiglia}
-                  email={card.email}
-                  phone={card.telefono}
-                  value="datore"
-                  selected={target === "datore"}
-                  isComplete={datoreIsComplete}
-                />
-                <RelatedSubjectCard
-                  role="Lavoratore"
-                  name={card.nomeLavoratore}
-                  email={card.lavoratore?.email}
-                  phone={card.lavoratore?.telefono}
-                  value="lavoratore"
-                  selected={target === "lavoratore"}
-                  isComplete={lavoratoreIsComplete}
-                />
-              </RadioGroup>
-
-              {target === "datore" ? <DatoreDetail card={card} /> : <LavoratoreDetail card={card} />}
+          <DetailSectionBlock
+            title="Documenti del rapporto"
+            icon={<FileTextIcon className="text-muted-foreground size-4" />}
+            contentClassName="space-y-4"
+          >
+            <div className="grid gap-3 md:grid-cols-3">
+              <AttachmentUploadSlot
+                label="Accordo di lavoro"
+                value={card.rapporto?.accordo_di_lavoro_allegati ?? null}
+                onAdd={() => {}}
+                onPreviewOpen={() => {}}
+                isUploading={false}
+              />
+              <AttachmentUploadSlot
+                label="Ricevuta INPS"
+                value={card.rapporto?.ricevuta_inps_allegati ?? null}
+                onAdd={() => {}}
+                onPreviewOpen={() => {}}
+                isUploading={false}
+              />
+              <AttachmentUploadSlot
+                label="Delega INPS"
+                value={null}
+                onAdd={() => {}}
+                onPreviewOpen={() => {}}
+                isUploading={false}
+              />
             </div>
-          </section>
-        ) : null}
-      </SheetContent>
-    </Sheet>
+          </DetailSectionBlock>
+
+          <RapportoDetailSections card={card} />
+
+          <RadioGroup
+            value={target}
+            onValueChange={(value) => setTarget(value as DetailTarget)}
+            className="grid gap-3 md:grid-cols-2"
+          >
+            <RelatedSubjectCard
+              role="Datore"
+              name={card.nomeFamiglia}
+              email={card.email}
+              phone={card.telefono}
+              value="datore"
+              selected={target === "datore"}
+              isComplete={datoreIsComplete}
+            />
+            <RelatedSubjectCard
+              role="Lavoratore"
+              name={card.nomeLavoratore}
+              email={card.lavoratore?.email}
+              phone={card.lavoratore?.telefono}
+              value="lavoratore"
+              selected={target === "lavoratore"}
+              isComplete={lavoratoreIsComplete}
+            />
+          </RadioGroup>
+
+          {target === "datore" ? <DatoreDetail card={card} /> : <LavoratoreDetail card={card} />}
+        </div>
+      ) : null}
+    </DetailSheetWrapper>
   )
 }

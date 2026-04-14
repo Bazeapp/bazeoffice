@@ -14,13 +14,7 @@ import { Button } from "@/components/ui/button"
 import { CreazioneAnnuncioCard } from "@/components/crm/cards/creazione-annuncio-card"
 import { OnboardingCard } from "@/components/crm/cards/onboarding-card"
 import { StatoLeadCard } from "@/components/crm/cards/stato-lead-card"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+import { DetailSheetWrapper } from "@/components/shared/detail-sheet-wrapper"
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
@@ -144,172 +138,162 @@ export function FamigliaProcessoDetailSidebar({
   const canEditAnnuncio = editMode === "always" ? true : isEditingAnnuncio
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="!w-[min(96vw,680px)] !max-w-none overflow-y-auto sm:!max-w-none"
-      >
-        <SheetHeader>
-          <SheetTitle className="text-xl font-semibold">
-            {renderValue(card?.nomeFamiglia)}
-          </SheetTitle>
-          <SheetDescription className="sr-only">
-            Dettaglio famiglia e ricerca
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="space-y-4 px-4 pb-4">
-          <div className="text-muted-foreground space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <PhoneIcon className="size-4" />
-              <span className="truncate">{renderValue(card?.telefono)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <MailIcon className="size-4" />
-              <span className="truncate">{renderValue(card?.email)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="size-4" />
-              <span className="truncate">{renderValue(card?.dataLead)}</span>
-            </div>
+    <DetailSheetWrapper
+      open={open}
+      onOpenChange={onOpenChange}
+      title={renderValue(card?.nomeFamiglia)}
+    >
+      <div className="space-y-4">
+        <div className="text-muted-foreground space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <PhoneIcon className="size-4" />
+            <span className="truncate">{renderValue(card?.telefono)}</span>
           </div>
-
-          <div className="flex flex-col items-start gap-2">
-            {card?.tipoLavoroBadge ? (
-              <Badge
-                variant="outline"
-                className={getBadgeClassName(card.tipoLavoroColor)}
-              >
-                <BriefcaseBusinessIcon data-icon="inline-start" />
-                {formatBadgeLabel(card.tipoLavoroBadge)}
-              </Badge>
-            ) : null}
-            {card?.tipoRapportoBadge ? (
-              <Badge
-                variant="outline"
-                className={getBadgeClassName(card.tipoRapportoColor)}
-              >
-                <Clock3Icon data-icon="inline-start" />
-                {formatBadgeLabel(card.tipoRapportoBadge)}
-              </Badge>
-            ) : null}
+          <div className="flex items-center gap-2">
+            <MailIcon className="size-4" />
+            <span className="truncate">{renderValue(card?.email)}</span>
           </div>
-
-          <div className="space-y-4">
-            <div
-              className={
-                canEditStatoLead
-                  ? "space-y-4"
-                  : "pointer-events-none space-y-4 select-none"
-              }
-            >
-              <StatoLeadCard
-                card={card}
-                lookupOptionsByField={lookupOptionsByField}
-                titleAction={
-                  editMode === "toggle" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={
-                        canEditStatoLead
-                          ? "Termina modifica stato lead"
-                          : "Modifica stato lead"
-                      }
-                      title={
-                        canEditStatoLead
-                          ? "Termina modifica stato lead"
-                          : "Modifica stato lead"
-                      }
-                      onClick={() =>
-                        setIsEditingStatoLead((current) => !current)
-                      }
-                    >
-                      <PencilIcon />
-                    </Button>
-                  ) : undefined
-                }
-                onChangeStage={canEditStatoLead ? onChangeStatoSales : undefined}
-                onPatchProcess={canEditStatoLead ? onPatchProcess : undefined}
-              />
-            </div>
-
-            <div
-              className={
-                canEditOnboarding
-                  ? "space-y-4"
-                  : "pointer-events-none space-y-4 select-none"
-              }
-            >
-              <OnboardingCard
-                card={card}
-                lookupOptionsByField={lookupOptionsByField}
-                titleAction={
-                  editMode === "toggle" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={
-                        canEditOnboarding
-                          ? "Termina modifica onboarding"
-                          : "Modifica onboarding"
-                      }
-                      title={
-                        canEditOnboarding
-                          ? "Termina modifica onboarding"
-                          : "Modifica onboarding"
-                      }
-                      onClick={() =>
-                        setIsEditingOnboarding((current) => !current)
-                      }
-                    >
-                      <PencilIcon />
-                    </Button>
-                  ) : undefined
-                }
-                onPatchProcess={canEditOnboarding ? onPatchProcess : undefined}
-              />
-            </div>
-
-            <div
-              className={
-                canEditAnnuncio
-                  ? "space-y-4"
-                  : "pointer-events-none space-y-4 select-none"
-              }
-            >
-              <CreazioneAnnuncioCard
-                titleAction={
-                  editMode === "toggle" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={
-                        canEditAnnuncio
-                          ? "Termina modifica creazione annuncio"
-                          : "Modifica creazione annuncio"
-                      }
-                      title={
-                        canEditAnnuncio
-                          ? "Termina modifica creazione annuncio"
-                          : "Modifica creazione annuncio"
-                      }
-                      onClick={() =>
-                        setIsEditingAnnuncio((current) => !current)
-                      }
-                    >
-                      <PencilIcon />
-                    </Button>
-                  ) : undefined
-                }
-              />
-            </div>
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="size-4" />
+            <span className="truncate">{renderValue(card?.dataLead)}</span>
           </div>
         </div>
-      </SheetContent>
-    </Sheet>
+
+        <div className="flex flex-col items-start gap-2">
+          {card?.tipoLavoroBadge ? (
+            <Badge
+              variant="outline"
+              className={getBadgeClassName(card.tipoLavoroColor)}
+            >
+              <BriefcaseBusinessIcon data-icon="inline-start" />
+              {formatBadgeLabel(card.tipoLavoroBadge)}
+            </Badge>
+          ) : null}
+          {card?.tipoRapportoBadge ? (
+            <Badge
+              variant="outline"
+              className={getBadgeClassName(card.tipoRapportoColor)}
+            >
+              <Clock3Icon data-icon="inline-start" />
+              {formatBadgeLabel(card.tipoRapportoBadge)}
+            </Badge>
+          ) : null}
+        </div>
+
+        <div className="space-y-4">
+          <div
+            className={
+              canEditStatoLead
+                ? "space-y-4"
+                : "pointer-events-none space-y-4 select-none"
+            }
+          >
+            <StatoLeadCard
+              card={card}
+              lookupOptionsByField={lookupOptionsByField}
+              titleAction={
+                editMode === "toggle" ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={
+                      canEditStatoLead
+                        ? "Termina modifica stato lead"
+                        : "Modifica stato lead"
+                    }
+                    title={
+                      canEditStatoLead
+                        ? "Termina modifica stato lead"
+                        : "Modifica stato lead"
+                    }
+                    onClick={() =>
+                      setIsEditingStatoLead((current) => !current)
+                    }
+                  >
+                    <PencilIcon />
+                  </Button>
+                ) : undefined
+              }
+              onChangeStage={canEditStatoLead ? onChangeStatoSales : undefined}
+              onPatchProcess={canEditStatoLead ? onPatchProcess : undefined}
+            />
+          </div>
+
+          <div
+            className={
+              canEditOnboarding
+                ? "space-y-4"
+                : "pointer-events-none space-y-4 select-none"
+            }
+          >
+            <OnboardingCard
+              card={card}
+              lookupOptionsByField={lookupOptionsByField}
+              titleAction={
+                editMode === "toggle" ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={
+                      canEditOnboarding
+                        ? "Termina modifica onboarding"
+                        : "Modifica onboarding"
+                    }
+                    title={
+                      canEditOnboarding
+                        ? "Termina modifica onboarding"
+                        : "Modifica onboarding"
+                    }
+                    onClick={() =>
+                      setIsEditingOnboarding((current) => !current)
+                    }
+                  >
+                    <PencilIcon />
+                  </Button>
+                ) : undefined
+              }
+              onPatchProcess={canEditOnboarding ? onPatchProcess : undefined}
+            />
+          </div>
+
+          <div
+            className={
+              canEditAnnuncio
+                ? "space-y-4"
+                : "pointer-events-none space-y-4 select-none"
+            }
+          >
+            <CreazioneAnnuncioCard
+              titleAction={
+                editMode === "toggle" ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={
+                      canEditAnnuncio
+                        ? "Termina modifica creazione annuncio"
+                        : "Modifica creazione annuncio"
+                    }
+                    title={
+                      canEditAnnuncio
+                        ? "Termina modifica creazione annuncio"
+                        : "Modifica creazione annuncio"
+                    }
+                    onClick={() =>
+                      setIsEditingAnnuncio((current) => !current)
+                    }
+                  >
+                    <PencilIcon />
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
+        </div>
+      </div>
+    </DetailSheetWrapper>
   )
 }

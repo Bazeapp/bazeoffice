@@ -20,8 +20,9 @@ type DetailSheetProps = {
   children: React.ReactNode
   /**
    * Tailwind width class(es) for the sheet panel.
-   * Default: "w-[min(96vw,980px)] max-w-none" — preserves current Repo A width.
-   * Pass e.g. "w-full sm:max-w-xl" to use the narrower Lovable-style panel.
+   * Default: "!w-[min(96vw,800px)] !max-w-none sm:!max-w-none" — unified 800px width.
+   * The ! modifiers override Shadcn's max-w-sm default on SheetContent.
+   * Pass a custom value to override per-modal (e.g. a narrower panel).
    */
   widthClass?: string
 }
@@ -30,7 +31,7 @@ export function DetailSheet({
   open,
   onOpenChange,
   children,
-  widthClass = "w-[min(96vw,980px)] max-w-none",
+  widthClass = "!w-[min(96vw,800px)] !max-w-none sm:!max-w-none",
 }: DetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

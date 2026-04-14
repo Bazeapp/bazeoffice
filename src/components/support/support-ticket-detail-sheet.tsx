@@ -19,7 +19,7 @@ import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-s
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { DetailSheetWrapper } from "@/components/shared/detail-sheet-wrapper"
 import { supabase } from "@/lib/supabase-client"
 import type { TicketRecord } from "@/types"
 
@@ -146,98 +146,90 @@ export function SupportTicketDetailSheet({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
-          <SheetHeader className="border-b bg-background px-5 py-5">
-            <div className="space-y-2">
-              <SheetTitle className="truncate text-xl font-semibold">
-                {card?.causale ?? "Dettaglio ticket"}
-              </SheetTitle>
-              <SheetDescription className="text-sm">
-                {card?.nomeCompleto ?? "Dettaglio ticket di supporto"}
-              </SheetDescription>
-              <div className="flex flex-wrap items-center gap-2">
-                {card ? (
-                  <Select value={card.stage} onValueChange={(value) => void onMoveTicket(card.id, value)}>
-                    <SelectTrigger className="min-w-[180px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stages.map((stage) => (
-                        <SelectItem key={stage.id} value={stage.id}>
-                          {stage.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : null}
-                <Badge variant="secondary" className={statusConfig.badgeClassName}>
-                  <StatusIcon className="mr-1 size-3.5" />
-                  {statusConfig.label}
+      <DetailSheetWrapper
+        open={open}
+        onOpenChange={onOpenChange}
+        title={card?.causale ?? "Dettaglio ticket"}
+        subtitle={card?.nomeCompleto ?? "Dettaglio ticket di supporto"}
+        rightSlot={
+          <div className="flex flex-wrap items-center gap-2">
+            {card ? (
+              <Select value={card.stage} onValueChange={(value) => void onMoveTicket(card.id, value)}>
+                <SelectTrigger className="min-w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {stages.map((stage) => (
+                    <SelectItem key={stage.id} value={stage.id}>
+                      {stage.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+            <Badge variant="secondary" className={statusConfig.badgeClassName}>
+              <StatusIcon className="mr-1 size-3.5" />
+              {statusConfig.label}
+            </Badge>
+            {card?.tipo ? <Badge variant="outline">{card.tipo}</Badge> : null}
+          </div>
+        }
+      >
+        {card ? (
+          <div className="mx-auto max-w-5xl space-y-5">
+            <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={card.rapporto} />
+
+            <DetailSectionBlock
+              title="Categoria e urgenza"
+              icon={<TagIcon className="text-muted-foreground size-5" />}
+              contentClassName="space-y-4"
+            >
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary" className={tagConfig.colorClassName}>
+                  <TagIconComponent className="mr-1 size-3.5" />
+                  {tagConfig.label}
                 </Badge>
-                {card?.tipo ? <Badge variant="outline">{card.tipo}</Badge> : null}
+                <Badge variant="secondary" className={urgencyConfig.badgeClassName}>
+                  <UrgencyIcon className="mr-1 size-3.5" />
+                  {urgencyConfig.label}
+                </Badge>
               </div>
-            </div>
-          </SheetHeader>
-
-          {card ? (
-            <section className="h-full overflow-y-auto bg-muted/20 px-5 py-5">
-              <div className="mx-auto max-w-5xl space-y-5">
-                <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={card.rapporto} />
-
-                <DetailSectionBlock
-                  title="Categoria e urgenza"
-                  icon={<TagIcon className="text-muted-foreground size-5" />}
-                  contentClassName="space-y-4"
-                >
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className={tagConfig.colorClassName}>
-                      <TagIconComponent className="mr-1 size-3.5" />
-                      {tagConfig.label}
-                    </Badge>
-                    <Badge variant="secondary" className={urgencyConfig.badgeClassName}>
-                      <UrgencyIcon className="mr-1 size-3.5" />
-                      {urgencyConfig.label}
-                    </Badge>
-                  </div>
-                  <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-2 text-sm">
-                    <span>
-                      Aperto il: <strong className="text-foreground">{card.dataAperturaLabel}</strong>
-                    </span>
-                    <span>
-                      Assegnatario: <strong className="text-foreground">{card.assegnatario}</strong>
-                    </span>
-                  </div>
-                </DetailSectionBlock>
-
-                {card.note ? (
-                  <DetailSectionBlock
-                    title="Note"
-                    icon={<StickyNoteIcon className="text-muted-foreground size-5" />}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{card.note}</p>
-                  </DetailSectionBlock>
-                ) : null}
-
-                <DetailSectionBlock
-                  title="Allegati"
-                  icon={<FileTextIcon className="text-muted-foreground size-5" />}
-                  contentClassName="space-y-4"
-                >
-                  <AttachmentUploadSlot
-                    label="Allegato ticket"
-                    value={normalizeAttachmentValue(card.record.allegati)}
-                    onAdd={(file) => void handleUploadAttachment(file)}
-                    onPreviewOpen={setSelectedPreview}
-                    isUploading={isUploadingAttachment}
-                  />
-                  {uploadError ? <p className="text-sm text-red-600">{uploadError}</p> : null}
-                </DetailSectionBlock>
+              <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                <span>
+                  Aperto il: <strong className="text-foreground">{card.dataAperturaLabel}</strong>
+                </span>
+                <span>
+                  Assegnatario: <strong className="text-foreground">{card.assegnatario}</strong>
+                </span>
               </div>
-            </section>
-          ) : null}
-        </SheetContent>
-      </Sheet>
+            </DetailSectionBlock>
+
+            {card.note ? (
+              <DetailSectionBlock
+                title="Note"
+                icon={<StickyNoteIcon className="text-muted-foreground size-5" />}
+              >
+                <p className="text-sm whitespace-pre-wrap">{card.note}</p>
+              </DetailSectionBlock>
+            ) : null}
+
+            <DetailSectionBlock
+              title="Allegati"
+              icon={<FileTextIcon className="text-muted-foreground size-5" />}
+              contentClassName="space-y-4"
+            >
+              <AttachmentUploadSlot
+                label="Allegato ticket"
+                value={normalizeAttachmentValue(card.record.allegati)}
+                onAdd={(file) => void handleUploadAttachment(file)}
+                onPreviewOpen={setSelectedPreview}
+                isUploading={isUploadingAttachment}
+              />
+              {uploadError ? <p className="text-sm text-red-600">{uploadError}</p> : null}
+            </DetailSectionBlock>
+          </div>
+        ) : null}
+      </DetailSheetWrapper>
 
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(nextOpen) => !nextOpen && setSelectedPreview(null)}>
         <DialogContent

@@ -1,12 +1,6 @@
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+import { DetailSheetWrapper } from "@/components/shared/detail-sheet-wrapper"
 
 type RecruiterFeedbackEntry = {
   name: string
@@ -26,31 +20,30 @@ export function RecruiterFeedbackSheet({
   entries,
 }: RecruiterFeedbackSheetProps) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-130">
-        <SheetHeader>
-          <SheetTitle>Feedback recruiter</SheetTitle>
-          <SheetDescription>Storico note su questo lavoratore</SheetDescription>
-        </SheetHeader>
-        <div className="space-y-4 p-4 pt-0">
-          {entries.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nessun feedback disponibile.
-            </p>
-          ) : (
-            entries.map((entry, index) => (
-              <div key={`${entry.name}-${entry.date}-${index}`} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold">{entry.name}</p>
-                  {entry.date ? <Badge variant="outline">{entry.date}</Badge> : null}
-                </div>
-                {entry.text ? <p className="text-sm leading-relaxed">{entry.text}</p> : null}
-                {index < entries.length - 1 ? <Separator /> : null}
+    <DetailSheetWrapper
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Feedback recruiter"
+      subtitle="Storico note su questo lavoratore"
+    >
+      <div className="space-y-4">
+        {entries.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Nessun feedback disponibile.
+          </p>
+        ) : (
+          entries.map((entry, index) => (
+            <div key={`${entry.name}-${entry.date}-${index}`} className="space-y-2">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold">{entry.name}</p>
+                {entry.date ? <Badge variant="outline">{entry.date}</Badge> : null}
               </div>
-            ))
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
+              {entry.text ? <p className="text-sm leading-relaxed">{entry.text}</p> : null}
+              {index < entries.length - 1 ? <Separator /> : null}
+            </div>
+          ))
+        )}
+      </div>
+    </DetailSheetWrapper>
   )
 }
