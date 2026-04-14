@@ -7,8 +7,6 @@ import {
   ScanSearchIcon,
 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-
 export type AttachmentLink = {
   url: string
   label: string
@@ -129,8 +127,41 @@ export function AttachmentUploadSlot({
     inputRef.current?.click()
   }
 
+  if (!hasValue) {
+    // ── Empty state ──────────────────────────────────────────────────────────
+    return (
+      <button
+        type="button"
+        onClick={openFilePicker}
+        disabled={isUploading}
+        className="w-full flex items-center gap-2 p-2 border border-dashed border-border rounded-md hover:border-primary/40 hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          className="hidden"
+          onChange={handleInputChange}
+        />
+        <div className="w-10 h-8 rounded bg-muted/50 shrink-0 flex items-center justify-center">
+          {isUploading ? (
+            <LoaderCircleIcon className="size-3.5 text-muted-foreground animate-spin" />
+          ) : (
+            <FileIcon className="size-3.5 text-muted-foreground" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1 text-left">
+          <p className="text-[11px] font-medium text-foreground truncate">{label}</p>
+          <p className="text-[9px] text-muted-foreground">Nessun file allegato</p>
+        </div>
+        <PlusIcon className="size-3.5 text-muted-foreground shrink-0" />
+      </button>
+    )
+  }
+
+  // ── Filled state ────────────────────────────────────────────────────────────
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-xl border-dashed border bg-muted/10 px-3 py-2.5">
+    <div className="flex items-center gap-2 p-2 border border-border rounded-md bg-card group">
       <input
         ref={inputRef}
         type="file"
@@ -138,7 +169,7 @@ export function AttachmentUploadSlot({
         className="hidden"
         onChange={handleInputChange}
       />
-      <div className="bg-background flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border">
+      <div className="w-10 h-8 rounded bg-muted shrink-0 overflow-hidden flex items-center justify-center">
         {previewLink ? (
           <img
             src={previewLink.url}
@@ -147,58 +178,53 @@ export function AttachmentUploadSlot({
             loading="lazy"
           />
         ) : (
-          <FileIcon className="text-muted-foreground size-4" />
+          <FileIcon className="size-3.5 text-muted-foreground" />
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{label}</span>
-        </div>
-        <p className="text-muted-foreground mt-0.5 truncate text-[11px]">
-          {links[0]?.label ?? (hasValue ? "Documento caricato" : "Nessun file allegato")}
+        <p className="text-[11px] font-medium text-foreground truncate">{label}</p>
+        <p className="text-[9px] text-muted-foreground truncate">
+          {links[0]?.label ?? "Documento caricato"}
         </p>
       </div>
-      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+      <div className="flex shrink-0 items-center gap-0.5">
         {previewLink ? (
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="icon-sm"
             onClick={() => onPreviewOpen(previewLink)}
             aria-label={`Ingrandisci ${label}`}
             title={`Ingrandisci ${label}`}
+            className="p-1 rounded hover:bg-muted"
           >
-            <ScanSearchIcon className="size-3.5" />
-          </Button>
+            <ScanSearchIcon className="size-3.5 text-muted-foreground" />
+          </button>
         ) : null}
         {links[0] ? (
-          <Button type="button" variant="outline" size="icon-sm" asChild>
-            <a
-              href={links[0].url}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={`Apri file ${label}`}
-              title={`Apri file ${label}`}
-            >
-              <ExternalLinkIcon className="size-3.5" />
-            </a>
-          </Button>
+          <a
+            href={links[0].url}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Apri file ${label}`}
+            title={`Apri file ${label}`}
+            className="p-1 rounded hover:bg-muted"
+          >
+            <ExternalLinkIcon className="size-3.5 text-muted-foreground" />
+          </a>
         ) : null}
-        <Button
+        <button
           type="button"
-          variant="outline"
-          size="icon-sm"
           onClick={openFilePicker}
           disabled={isUploading}
-          aria-label={hasValue ? `Sostituisci ${label}` : `Carica ${label}`}
-          title={hasValue ? `Sostituisci ${label}` : `Carica ${label}`}
+          aria-label={`Sostituisci ${label}`}
+          title={`Sostituisci ${label}`}
+          className="p-1 rounded hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
         >
           {isUploading ? (
-            <LoaderCircleIcon className="size-3.5 animate-spin" />
+            <LoaderCircleIcon className="size-3.5 text-muted-foreground animate-spin" />
           ) : (
-            <PlusIcon className="size-3.5" />
+            <PlusIcon className="size-3.5 text-muted-foreground" />
           )}
-        </Button>
+        </button>
       </div>
     </div>
   )

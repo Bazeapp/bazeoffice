@@ -1,10 +1,16 @@
 import type { ReactNode } from "react";
 import { PencilIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+// ─── DetailSectionCard (legacy) ───────────────────────────────────────────────
+// @deprecated — Predates the Lovable design system refresh. Still in active use
+// by rapporto-detail-panel, gate1-view, skills-competenze-card, and others
+// outside the current restyling scope. Do not use in new code — prefer
+// DetailSectionBlock for section headers inside detail sheets.
+// Will be migrated in a future cleanup step.
+// ─────────────────────────────────────────────────────────────────────────────
 
 type DetailSectionCardProps = {
   title: ReactNode;
@@ -74,6 +80,11 @@ export function DetailSectionCard({
   );
 }
 
+// ─── DetailSectionBlock ───────────────────────────────────────────────────────
+// BREAKING CHANGE (Step 6a): Previously rendered as two nested Shadcn Cards.
+// Now renders a sticky header bar followed by a plain content div.
+// ─────────────────────────────────────────────────────────────────────────────
+
 type DetailSectionBlockProps = {
   title: ReactNode;
   icon?: ReactNode;
@@ -83,9 +94,13 @@ type DetailSectionBlockProps = {
   showDefaultAction?: boolean;
   children?: ReactNode;
   className?: string;
+  /** @deprecated No longer renders a banner Card. Kept for interface compat. */
   bannerClassName?: string;
+  /** @deprecated No longer renders an inner content Card. Kept for interface compat. */
   cardClassName?: string;
   contentClassName?: string;
+  /** Pass true on the first block to suppress the top border/margin separator. */
+  first?: boolean;
 };
 
 export function DetailSectionBlock({
@@ -97,56 +112,56 @@ export function DetailSectionBlock({
   showDefaultAction = true,
   children,
   className,
-  bannerClassName,
-  cardClassName,
+  // bannerClassName and cardClassName kept in signature but not applied
   contentClassName,
+  first = false,
 }: DetailSectionBlockProps) {
   const resolvedAction =
     action ??
     (showDefaultAction ? (
-      <Button
+      <button
         type="button"
-        variant="ghost"
-        size="icon-sm"
         onClick={onActionClick}
         disabled={!onActionClick}
         aria-label={actionLabel}
         title={actionLabel}
+        className="p-1.5 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:pointer-events-none"
       >
-        <PencilIcon className="size-4" />
-      </Button>
+        <PencilIcon className="size-3.5" />
+      </button>
     ) : null);
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <Card className={cn("bg-primary/5 py-0 shadow-none", bannerClassName)}>
-        <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3">
-            {icon ? (
-              <div className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-xl">
-                {icon}
-              </div>
-            ) : null}
-            <p className="ui-type-section uppercase">{title}</p>
+    <div
+      className={cn(
+        "mt-6 pt-6 border-t border-border/50",
+        "first:mt-0 first:pt-0 first:border-t-0",
+        first && "mt-0 pt-0 border-t-0",
+        className,
+      )}
+    >
+      <div className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 mb-4 bg-primary/[0.04] border border-primary/20 shadow-elevation-xs sticky top-0 z-10 backdrop-blur-sm">
+        {icon ? (
+          <div className="flex items-center justify-center w-7 h-7 shrink-0 rounded-md bg-primary/10 [&_svg]:!size-3.5 [&_svg]:!text-primary">
+            {icon}
           </div>
-          {resolvedAction ? <div className="shrink-0">{resolvedAction}</div> : null}
-        </CardContent>
-      </Card>
+        ) : null}
+        <h3 className="text-[11px] font-bold text-foreground uppercase tracking-wider flex-1 leading-none">
+          {title}
+        </h3>
+        {resolvedAction ? <div className="shrink-0">{resolvedAction}</div> : null}
+      </div>
 
-      <DetailSectionCard
-        title={title}
-        titleIcon={icon}
-        className={cn(
-          "rounded-[1.6rem] bg-background px-3 py-3 shadow-none [&_[data-slot=card-header]]:hidden",
-          cardClassName,
-        )}
-        contentClassName={cn("space-y-4 px-1 pt-1", contentClassName)}
-      >
-        {children}
-      </DetailSectionCard>
+      {children != null ? (
+        <div className={cn("px-1 pb-4", contentClassName)}>
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }
+
+// ─── DetailField ──────────────────────────────────────────────────────────────
 
 type DetailFieldProps = {
   label: string;
@@ -163,37 +178,20 @@ export function DetailField({
   labelClassName,
   valueClassName,
 }: DetailFieldProps) {
-  const isPrimitiveValue =
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "bigint";
-
   return (
-    <div className={cn("space-y-1.5", className)}>
-      <p className={cn("ui-type-label", labelClassName)}>{label}</p>
-      {isPrimitiveValue ? (
-        <Input
-          readOnly
-          tabIndex={-1}
-          value={String(value)}
-          className={cn(
-            "ui-type-value h-auto border-transparent bg-transparent px-0 py-0 shadow-none focus-visible:ring-0",
-            valueClassName,
-          )}
-        />
-      ) : (
-        <div
-          className={cn(
-            "ui-type-value flex min-h-0 items-center px-0 py-0 shadow-none",
-            valueClassName,
-          )}
-        >
-          {value}
-        </div>
-      )}
+    <div className={cn(className)}>
+      <span className={cn("text-muted-foreground text-xs", labelClassName)}>
+        {label}:
+      </span>{" "}
+      <span className={cn("text-foreground text-xs", valueClassName)}>
+        {value ?? "–"}
+      </span>
     </div>
   );
 }
+
+// ─── DetailFieldControl ───────────────────────────────────────────────────────
+// Child inputs should use `h-8 text-xs bg-background` for visual consistency.
 
 type DetailFieldControlProps = {
   label: string;
@@ -209,8 +207,10 @@ export function DetailFieldControl({
   labelClassName,
 }: DetailFieldControlProps) {
   return (
-    <div className={cn("space-y-1.5", className)}>
-      <p className={cn("ui-type-label", labelClassName)}>{label}</p>
+    <div className={cn("space-y-1", className)}>
+      <p className={cn("text-[11px] font-medium text-muted-foreground", labelClassName)}>
+        {label}
+      </p>
       {children}
     </div>
   );

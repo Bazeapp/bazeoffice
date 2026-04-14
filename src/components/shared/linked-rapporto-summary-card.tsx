@@ -1,7 +1,5 @@
 import { Link2Icon } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { buildPathForRoute } from "@/routes/app-routes"
 import type { RapportoLavorativoRecord } from "@/types"
@@ -70,11 +68,11 @@ export function LinkedRapportoSummaryCard({
     : null
 
   return (
-    <div className={cn("rounded-2xl border bg-background px-5 py-4", className)}>
+    <div className={cn("rounded-lg border border-border bg-muted/30 p-3", className)}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-semibold sm:text-[17px]">{title}</p>
-          <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+          <p className="truncate text-xs font-semibold">{title}</p>
+          <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px]">
             {resolvedLevel ? <MetaItem label="Livello" value={resolvedLevel} /> : null}
             <MetaItem label="Tipo" value={resolvedType} />
             <MetaItem label="Ore/sett" value={resolvedHours} />
@@ -83,20 +81,21 @@ export function LinkedRapportoSummaryCard({
         </div>
 
         {rapportoPath ? (
-          <Button variant="ghost" size="sm" asChild className="h-auto shrink-0 gap-1.5 px-0 text-primary">
-            <a href={rapportoPath}>
-              <Link2Icon className="size-4" />
-              Vai al rapporto
-            </a>
-          </Button>
+          <a
+            href={rapportoPath}
+            className="shrink-0 flex items-center gap-1 text-[10px] text-primary hover:underline"
+          >
+            <Link2Icon className="size-3" />
+            Vai al rapporto
+          </a>
         ) : null}
       </div>
 
       {resolvedStatus ? (
-        <div className="mt-4">
-          <Badge variant="outline" className="rounded-full px-3 text-xs font-medium">
+        <div className="mt-2">
+          <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-medium text-muted-foreground">
             {resolvedStatus}
-          </Badge>
+          </span>
         </div>
       ) : null}
     </div>
