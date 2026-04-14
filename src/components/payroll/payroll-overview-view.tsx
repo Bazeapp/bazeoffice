@@ -16,6 +16,7 @@ import { usePayrollBoard, type PayrollBoardCardData, type PayrollBoardColumnData
 import { ContributiInpsView } from "@/components/payroll/contributi-inps-view"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
+import { PageHeader } from "@/components/shared/page-header"
 import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card"
 import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot"
 import { DetailSectionBlock } from "@/components/shared/detail-section-card"
@@ -757,68 +758,71 @@ function CedoliniPayrollView() {
 
   return (
     <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
-      <div className="flex justify-end px-1">
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">Mese</span>
-          <Pagination className="mx-0 w-auto justify-end">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  text=""
-                  className="h-8 min-w-8 px-2"
-                  onClick={(event) => {
-                    event.preventDefault()
-                    setSelectedMonth((current) => shiftMonth(current, -1))
-                  }}
-                />
-              </PaginationItem>
-              <PaginationItem>
-                <div className="text-foreground flex h-8 min-w-[160px] items-center justify-center rounded-md px-3 text-sm font-medium capitalize">
-                  <CalendarDaysIcon className="text-muted-foreground mr-2 size-4" />
-                  {formatMonthLabel(selectedMonth)}
-                </div>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  text=""
-                  className="h-8 min-w-8 px-2"
-                  onClick={(event) => {
-                    event.preventDefault()
-                    setSelectedMonth((current) => shiftMonth(current, 1))
-                  }}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      </div>
-
-      <div className="min-h-0 pb-2">
-        <div className="flex w-full items-stretch gap-3">
-          {metricGroups.map((group, groupIndex) => (
-            <React.Fragment key={groupIndex}>
-              <div
-                className={cn(
-                  "grid flex-1 items-stretch gap-3",
-                  group.length === 2 && "grid-cols-2",
-                  group.length === 3 && "grid-cols-3"
-                )}
-              >
-                {group.map((metric) => (
-                  <div key={metric.title} className="min-w-0">
-                    <StatisticsMetricCard {...metric} density="compact" />
+      <PageHeader
+        title="Gestione Mensile Cedolini"
+        subtitle="Gestisci i cedolini mensili con drag & drop"
+        actionsSlot={
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground text-sm">Mese</span>
+            <Pagination className="mx-0 w-auto justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    text=""
+                    className="h-8 min-w-8 px-2"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setSelectedMonth((current) => shiftMonth(current, -1))
+                    }}
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <div className="text-foreground flex h-8 min-w-[160px] items-center justify-center rounded-md px-3 text-sm font-medium capitalize">
+                    <CalendarDaysIcon className="text-muted-foreground mr-2 size-4" />
+                    {formatMonthLabel(selectedMonth)}
                   </div>
-                ))}
-              </div>
-              {groupIndex < metricGroups.length - 1 ? (
-                <Separator orientation="vertical" className="mx-1 h-auto self-stretch" />
-              ) : null}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    text=""
+                    className="h-8 min-w-8 px-2"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setSelectedMonth((current) => shiftMonth(current, 1))
+                    }}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        }
+        statsSlot={
+          <div className="flex w-full items-stretch gap-3">
+            {metricGroups.map((group, groupIndex) => (
+              <React.Fragment key={groupIndex}>
+                <div
+                  className={cn(
+                    "grid flex-1 items-stretch gap-3",
+                    group.length === 2 && "grid-cols-2",
+                    group.length === 3 && "grid-cols-3"
+                  )}
+                >
+                  {group.map((metric) => (
+                    <div key={metric.title} className="min-w-0">
+                      <StatisticsMetricCard {...metric} density="compact" />
+                    </div>
+                  ))}
+                </div>
+                {groupIndex < metricGroups.length - 1 ? (
+                  <Separator orientation="vertical" className="mx-1 h-auto self-stretch" />
+                ) : null}
+              </React.Fragment>
+            ))}
+          </div>
+        }
+      />
 
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

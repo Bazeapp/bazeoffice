@@ -1,3 +1,4 @@
+import { HomePage } from "@/pages/home-page"
 import { AnagrafichePage } from "@/pages/anagrafiche-page"
 import { AssunzioniPage } from "@/pages/assunzioni-page"
 import { ChiusurePage } from "@/pages/chiusure-page"
@@ -27,6 +28,13 @@ type AppPageContentProps = {
 }
 
 export function getPageMeta(route: AppRoute): PageMeta {
+  if (route.mainSection === "home") {
+    return {
+      title: "Home",
+      description: "Panoramica delle attività di oggi su BazeOffice.",
+    }
+  }
+
   if (route.mainSection === "crm_pipeline_famiglie") {
     return {
       title: "Pipeline CRM",
@@ -141,6 +149,10 @@ export function AppPageContent({
   onOpenRicercaDetail,
   onOpenRicercaPipeline,
 }: AppPageContentProps) {
+  if (route.mainSection === "home") {
+    return <HomePage />
+  }
+
   if (route.mainSection === "crm_pipeline_famiglie") {
     return <CrmPipelineFamigliePage />
   }

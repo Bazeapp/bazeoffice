@@ -2,7 +2,6 @@ import * as React from "react"
 import {
   CalendarIcon,
   ExternalLinkIcon,
-  FilePlus2Icon,
   UserCheckIcon,
   UsersIcon,
 } from "lucide-react"
@@ -14,6 +13,7 @@ import {
 } from "@/hooks/use-assunzioni-board"
 import { AssunzioniDetailSheet } from "@/components/gestione-contrattuale/assunzioni-detail-sheet"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { PageHeader } from "@/components/shared/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -236,10 +236,10 @@ export function AssunzioniBoardView() {
 
   return (
     <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
-      <div className="flex items-center gap-2 px-1">
-        <FilePlus2Icon className="text-muted-foreground size-4" />
-        <h1 className="text-base font-semibold">Assunzioni</h1>
-      </div>
+      <PageHeader
+        title="Assunzioni"
+        subtitle="Gestisci le pratiche di assunzione con drag & drop"
+      />
 
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

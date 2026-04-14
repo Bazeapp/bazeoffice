@@ -1,6 +1,7 @@
 export type AnagraficheSidebarTab = "famiglie" | "processi" | "lavoratori"
 
 export type MainSection =
+  | "home"
   | "anagrafiche"
   | "crm_pipeline_famiglie"
   | "crm_assegnazione"
@@ -24,7 +25,7 @@ export type AppRoute = {
 }
 
 export const DEFAULT_ROUTE: AppRoute = {
-  mainSection: "anagrafiche",
+  mainSection: "home",
   anagraficheTab: "famiglie",
   ricercaProcessId: null,
 }
@@ -50,6 +51,14 @@ export function resolveRouteStateFromPath(pathname: string): AppRoute {
   const parts = slug.split("/").filter(Boolean)
   const section = parts[0] ?? ""
   const detailId = parts[1] ? decodeURIComponent(parts[1]) : null
+
+  if (slug === "home" || slug === "") {
+    return {
+      mainSection: "home",
+      anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+      ricercaProcessId: null,
+    }
+  }
 
   if (slug === "pipeline") {
     return {
@@ -177,6 +186,7 @@ export function resolveRouteStateFromPath(pathname: string): AppRoute {
 export function buildPathForRoute(route: AppRoute) {
   const basePrefix = getBasePrefix()
   const slug = (() => {
+    if (route.mainSection === "home") return "home"
     if (route.mainSection === "crm_pipeline_famiglie") return "pipeline"
     if (route.mainSection === "crm_assegnazione") return "assegnazione"
     if (route.mainSection === "ricerca_pipeline") {

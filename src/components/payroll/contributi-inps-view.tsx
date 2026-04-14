@@ -6,7 +6,6 @@ import {
   CircleCheckBigIcon,
   CreditCardIcon,
   FileTextIcon,
-  SearchIcon,
 } from "lucide-react"
 
 import {
@@ -21,6 +20,7 @@ import {
 import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
+import { PageHeader, PageHeaderSearch } from "@/components/shared/page-header"
 import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -658,89 +658,89 @@ export function ContributiInpsView() {
 
   return (
     <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[240px] flex-1 sm:max-w-xs">
-            <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="pl-8"
-              placeholder="Cerca famiglia o lavoratore"
-            />
-          </div>
-
-          <Select value={stageFilter} onValueChange={setStageFilter}>
-            <SelectTrigger className="min-w-[180px]">
-              <SelectValue placeholder="Tutti gli stati" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tutti gli stati</SelectItem>
-              {stages.map((stage) => (
-                <SelectItem key={stage.id} value={stage.id}>
-                  {stage.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {(search || stageFilter !== "all") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSearch("")
-                setStageFilter("all")
-              }}
-            >
-              Reset filtri
-            </Button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">Trimestre</span>
-          <Button variant="outline" size="icon-sm" onClick={() => setPeriod((current) => shiftQuarter(current, -1))}>
-            <ChevronLeftIcon className="size-3.5" />
-          </Button>
-          <div className="text-foreground min-w-[120px] text-center text-sm font-medium">
-            {period.quarter} {period.year}
-          </div>
-          <Button variant="outline" size="icon-sm" onClick={() => setPeriod((current) => shiftQuarter(current, 1))}>
-            <ChevronRightIcon className="size-3.5" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="min-h-0 pb-2">
-        <div className="flex w-full items-stretch gap-3">
-          {metricGroups.map((group, groupIndex) => (
-            <React.Fragment key={groupIndex}>
-              <div
-                className={cn(
-                  "grid flex-1 items-stretch gap-3",
-                  group.length > 0 && "grid-cols-1"
-                )}
-                style={{ gridTemplateColumns: `repeat(${Math.max(group.length, 1)}, minmax(0, 1fr))` }}
-              >
-                {group.map((metric) => (
-                  <div key={metric.title} className="min-w-0">
-                    <StatisticsMetricCard
-                      value={metric.value}
-                      title={metric.title}
-                      density="compact"
-                      className={metric.className}
-                    />
-                  </div>
+      <PageHeader
+        title="Contributi INPS"
+        subtitle="Gestisci i contributi INPS trimestrali con drag & drop"
+        searchSlot={
+          <PageHeaderSearch
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Cerca per nome..."
+          />
+        }
+        actionsSlot={
+          <div className="flex items-center gap-2">
+            <Select value={stageFilter} onValueChange={setStageFilter}>
+              <SelectTrigger className="h-9 min-w-[160px] text-[12px]">
+                <SelectValue placeholder="Tutti gli stati" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti gli stati</SelectItem>
+                {stages.map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    {stage.label}
+                  </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            {(search || stageFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-[11px]"
+                onClick={() => {
+                  setSearch("")
+                  setStageFilter("all")
+                }}
+              >
+                Reset
+              </Button>
+            )}
+
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon-sm" onClick={() => setPeriod((current) => shiftQuarter(current, -1))}>
+                <ChevronLeftIcon className="size-3.5" />
+              </Button>
+              <div className="text-foreground min-w-[100px] text-center text-[12px] font-semibold">
+                {period.quarter} {period.year}
               </div>
-              {groupIndex < metricGroups.length - 1 ? (
-                <Separator orientation="vertical" className="mx-1 h-auto self-stretch" />
-              ) : null}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
+              <Button variant="outline" size="icon-sm" onClick={() => setPeriod((current) => shiftQuarter(current, 1))}>
+                <ChevronRightIcon className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+        }
+        statsSlot={
+          <div className="flex w-full items-stretch gap-3">
+            {metricGroups.map((group, groupIndex) => (
+              <React.Fragment key={groupIndex}>
+                <div
+                  className={cn(
+                    "grid flex-1 items-stretch gap-3",
+                    group.length > 0 && "grid-cols-1"
+                  )}
+                  style={{ gridTemplateColumns: `repeat(${Math.max(group.length, 1)}, minmax(0, 1fr))` }}
+                >
+                  {group.map((metric) => (
+                    <div key={metric.title} className="min-w-0">
+                      <StatisticsMetricCard
+                        value={metric.value}
+                        title={metric.title}
+                        density="compact"
+                        className={metric.className}
+                      />
+                    </div>
+                  ))}
+                </div>
+                {groupIndex < metricGroups.length - 1 ? (
+                  <Separator orientation="vertical" className="mx-1 h-auto self-stretch" />
+                ) : null}
+              </React.Fragment>
+            ))}
+          </div>
+        }
+      />
 
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

@@ -3,7 +3,6 @@ import {
   CalendarIcon,
   CalendarX2Icon,
   FileTextIcon,
-  FileX2Icon,
   MailIcon,
   PencilIcon,
 } from "lucide-react"
@@ -17,6 +16,7 @@ import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot
 import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
+import { PageHeader } from "@/components/shared/page-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -402,10 +402,10 @@ export function ChiusureBoardView() {
   return (
     <>
       <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
-        <div className="flex items-center gap-2 px-1">
-          <FileX2Icon className="text-muted-foreground size-4" />
-          <h1 className="text-base font-semibold">Chiusure</h1>
-        </div>
+        <PageHeader
+          title="Chiusure"
+          subtitle="Gestisci le pratiche di chiusura con drag & drop"
+        />
 
         {error ? (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

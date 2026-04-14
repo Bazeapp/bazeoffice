@@ -187,6 +187,7 @@ type AppSidebarProps = {
   onLogout: () => Promise<void>;
   activeMainSection?: MainSection;
   activeAnagraficheTab?: AnagraficheSidebarTab;
+  onOpenHome?: () => void;
   onOpenAnagraficheTab?: (tab: AnagraficheSidebarTab) => void;
   onOpenCrmPipelineFamiglie?: () => void;
   onOpenCrmAssegnazione?: () => void;
@@ -249,6 +250,7 @@ export function AppSidebar({
   onLogout,
   activeMainSection,
   activeAnagraficheTab,
+  onOpenHome,
   onOpenAnagraficheTab,
   onOpenCrmPipelineFamiglie,
   onOpenCrmAssegnazione,
@@ -274,7 +276,7 @@ export function AppSidebar({
 
   const userDisplayName = getUserDisplayName(user);
   const userEmail = user.email ?? user.id;
-  const logoSrc = "/LOGO_BLUE_TRASPARENTE_BAZE.png";
+  const logoSrc = `${import.meta.env.BASE_URL}LOGO_BLUE_TRASPARENTE_BAZE.png`;
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -298,7 +300,6 @@ export function AppSidebar({
                     alt="Baze logo"
                     className="h-6 w-auto object-contain"
                   />
-                  <span className="font-semibold">Baze</span>
                 </a>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -315,8 +316,12 @@ export function AppSidebar({
             <SidebarMenu>
               <SidebarMenuItem>
                 <button
-                  onClick={() => console.log("Home route sarà creata nello Step 2.5")}
-                  className="flex w-full items-center gap-2 rounded-md bg-primary/10 px-2 py-1.5 text-[13px] font-medium text-primary"
+                  onClick={() => onOpenHome?.()}
+                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors ${
+                    activeMainSection === "home"
+                      ? "bg-primary/10 font-medium text-primary"
+                      : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+                  }`}
                 >
                   <HomeIcon className="size-4 shrink-0" />
                   <span>Home</span>

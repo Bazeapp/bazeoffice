@@ -14,6 +14,7 @@ import {
 } from "@/hooks/use-ricerca-board"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { PageHeader } from "@/components/shared/page-header"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -553,111 +554,115 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-start">
-        <div className="flex items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="relative"
-                title="Filtri"
-                aria-label={`Filtri (${activeFilterCount})`}
-              >
-                <ListFilterIcon />
-                <span className="bg-muted text-muted-foreground absolute -top-1 -right-1 rounded-full px-1 text-[10px] leading-4">
-                  {activeFilterCount}
-                </span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" side="bottom" sideOffset={8} className="w-[360px] p-0">
-              <div className="border-b px-4 py-3">
-                <div className="text-sm font-medium">Filtri ricerca</div>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  Filtra la board per cognome, email o ID.
-                </p>
-              </div>
-              <div className="px-4 py-3">
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel>Cognome</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        value={filters.cognome}
-                        onChange={(event) =>
-                          setFilters((current) => ({
-                            ...current,
-                            cognome: event.target.value,
-                          }))
-                        }
-                        placeholder="Filtra per cognome"
-                      />
-                    </FieldContent>
-                  </Field>
-                  <Field>
-                    <FieldLabel>Email</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        value={filters.email}
-                        onChange={(event) =>
-                          setFilters((current) => ({
-                            ...current,
-                            email: event.target.value,
-                          }))
-                        }
-                        placeholder="Filtra per email"
-                      />
-                    </FieldContent>
-                  </Field>
-                  <Field>
-                    <FieldLabel>ID</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        value={filters.id}
-                        onChange={(event) =>
-                          setFilters((current) => ({
-                            ...current,
-                            id: event.target.value,
-                          }))
-                        }
-                        placeholder="Filtra per ID"
-                      />
-                    </FieldContent>
-                  </Field>
-                </FieldGroup>
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          <Select value={selectedOperatorId} onValueChange={setSelectedOperatorId}>
-            <SelectTrigger className="w-[240px]">
-              {selectedOperator ? (
-                <span className="inline-flex items-center gap-2">
-                  <Avatar size="sm" className={selectedOperator.avatarBorderClassName}>
-                    <AvatarFallback>{selectedOperator.avatar}</AvatarFallback>
-                  </Avatar>
-                  <span>{selectedOperator.label}</span>
-                </span>
-              ) : (
-                <span>Tutti gli operatori</span>
-              )}
-            </SelectTrigger>
-            <SelectContent align="start">
-              <SelectItem value="all">Tutti gli operatori</SelectItem>
-              {selectableOperatorOptions.map((operator) => (
-                <SelectItem key={operator.id} value={operator.id}>
-                  <span className="inline-flex items-center gap-2">
-                    <Avatar size="sm" className={operator.avatarBorderClassName}>
-                      <AvatarFallback>{operator.avatar}</AvatarFallback>
-                    </Avatar>
-                    <span>{operator.label}</span>
+      <PageHeader
+        title="Ricerca"
+        subtitle="Gestisci le ricerche attive con drag & drop"
+        actionsSlot={
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="relative"
+                  title="Filtri"
+                  aria-label={`Filtri (${activeFilterCount})`}
+                >
+                  <ListFilterIcon />
+                  <span className="bg-muted text-muted-foreground absolute -top-1 -right-1 rounded-full px-1 text-[10px] leading-4">
+                    {activeFilterCount}
                   </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" side="bottom" sideOffset={8} className="w-[360px] p-0">
+                <div className="border-b px-4 py-3">
+                  <div className="text-sm font-medium">Filtri ricerca</div>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Filtra la board per cognome, email o ID.
+                  </p>
+                </div>
+                <div className="px-4 py-3">
+                  <FieldGroup>
+                    <Field>
+                      <FieldLabel>Cognome</FieldLabel>
+                      <FieldContent>
+                        <Input
+                          value={filters.cognome}
+                          onChange={(event) =>
+                            setFilters((current) => ({
+                              ...current,
+                              cognome: event.target.value,
+                            }))
+                          }
+                          placeholder="Filtra per cognome"
+                        />
+                      </FieldContent>
+                    </Field>
+                    <Field>
+                      <FieldLabel>Email</FieldLabel>
+                      <FieldContent>
+                        <Input
+                          value={filters.email}
+                          onChange={(event) =>
+                            setFilters((current) => ({
+                              ...current,
+                              email: event.target.value,
+                            }))
+                          }
+                          placeholder="Filtra per email"
+                        />
+                      </FieldContent>
+                    </Field>
+                    <Field>
+                      <FieldLabel>ID</FieldLabel>
+                      <FieldContent>
+                        <Input
+                          value={filters.id}
+                          onChange={(event) =>
+                            setFilters((current) => ({
+                              ...current,
+                              id: event.target.value,
+                            }))
+                          }
+                          placeholder="Filtra per ID"
+                        />
+                      </FieldContent>
+                    </Field>
+                  </FieldGroup>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Select value={selectedOperatorId} onValueChange={setSelectedOperatorId}>
+              <SelectTrigger className="w-[240px]">
+                {selectedOperator ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Avatar size="sm" className={selectedOperator.avatarBorderClassName}>
+                      <AvatarFallback>{selectedOperator.avatar}</AvatarFallback>
+                    </Avatar>
+                    <span>{selectedOperator.label}</span>
+                  </span>
+                ) : (
+                  <span>Tutti gli operatori</span>
+                )}
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="all">Tutti gli operatori</SelectItem>
+                {selectableOperatorOptions.map((operator) => (
+                  <SelectItem key={operator.id} value={operator.id}>
+                    <span className="inline-flex items-center gap-2">
+                      <Avatar size="sm" className={operator.avatarBorderClassName}>
+                        <AvatarFallback>{operator.avatar}</AvatarFallback>
+                      </Avatar>
+                      <span>{operator.label}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        }
+      />
 
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2">
         <div className="flex h-full min-w-max gap-4">

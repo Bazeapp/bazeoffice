@@ -18,6 +18,7 @@ import {
 import { FamigliaProcessoDetailSidebar } from "@/components/crm/famiglia-processo-detail-sidebar"
 import { FamigliaProcessoCard } from "@/components/crm/famiglia-processo-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { PageHeader, PageHeaderSearch } from "@/components/shared/page-header"
 import {
   type CrmPipelineCardData,
   type CrmPipelineColumnData,
@@ -327,6 +328,33 @@ export function CrmPipelineFamiglieView() {
 
   return (
     <section className="w-full min-w-0 space-y-3">
+      <PageHeader
+        title="Sales Pipeline"
+        subtitle="Gestisci le ricerche con drag & drop"
+        searchSlot={
+          /* TODO: controlli placeholder — da collegare quando implementeremo i filtri reali */
+          <PageHeaderSearch
+            disabled
+            placeholder="Cerca per nome..."
+            className="cursor-not-allowed opacity-50"
+          />
+        }
+        actionsSlot={
+          /* TODO: controlli placeholder — da collegare quando implementeremo i filtri reali */
+          <div className="flex items-center gap-2 opacity-50 pointer-events-none">
+            <select disabled className="border-input h-9 rounded-md border bg-background px-2.5 py-1.5 text-xs text-muted-foreground">
+              <option>Tipo lavoro</option>
+            </select>
+            <select disabled className="border-input h-9 rounded-md border bg-background px-2.5 py-1.5 text-xs text-muted-foreground">
+              <option>Tipo contratto</option>
+            </select>
+            <select disabled className="border-input h-9 rounded-md border bg-background px-2.5 py-1.5 text-xs text-muted-foreground">
+              <option>Provincia</option>
+            </select>
+          </div>
+        }
+      />
+
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento dati CRM: {error}

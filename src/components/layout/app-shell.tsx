@@ -72,6 +72,16 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     []
   )
 
+  const handleOpenHome = React.useCallback(() => {
+    const nextRoute: AppRoute = {
+      mainSection: "home",
+      anagraficheTab: route.anagraficheTab,
+      ricercaProcessId: null,
+    }
+    setRoute(nextRoute)
+    syncBrowserUrl(nextRoute)
+  }, [route.anagraficheTab])
+
   const handleOpenCrmPipelineFamiglie = React.useCallback(() => {
     const nextRoute: AppRoute = {
       mainSection: "crm_pipeline_famiglie",
@@ -247,6 +257,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onLogout={onLogout}
         activeMainSection={route.mainSection}
         activeAnagraficheTab={route.anagraficheTab}
+        onOpenHome={handleOpenHome}
         onOpenAnagraficheTab={handleOpenAnagraficheTab}
         onOpenCrmPipelineFamiglie={handleOpenCrmPipelineFamiglie}
         onOpenCrmAssegnazione={handleOpenCrmAssegnazione}

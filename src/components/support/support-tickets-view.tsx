@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Clock3Icon, PaperclipIcon, PlusIcon, SearchIcon } from "lucide-react"
+import { Clock3Icon, PaperclipIcon, PlusIcon } from "lucide-react"
 
 import { SupportTicketCreateDialog } from "@/components/support/support-ticket-create-dialog"
 import { SupportTicketDetailSheet } from "@/components/support/support-ticket-detail-sheet"
@@ -13,10 +13,10 @@ import {
   useSupportTicketsBoard,
 } from "@/hooks/use-support-tickets-board"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { PageHeader, PageHeaderPrimaryButton, PageHeaderSearch } from "@/components/shared/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
@@ -228,50 +228,57 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
 
   return (
     <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[240px] flex-1 sm:max-w-xs">
-            <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="pl-8"
-              placeholder="Cerca causale, famiglia o lavoratore"
-            />
+      <PageHeader
+        title={ticketType === "Customer" ? "Support Customer" : "Support Payroll"}
+        subtitle={
+          ticketType === "Customer"
+            ? "Ticket di tipo Customer"
+            : "Ticket di tipo Payroll"
+        }
+        searchSlot={
+          <PageHeaderSearch
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Cerca ticket…"
+          />
+        }
+        actionsSlot={
+          <div className="flex items-center gap-2">
+            <Select value={stageFilter} onValueChange={setStageFilter}>
+              <SelectTrigger className="h-9 min-w-[160px] text-[12px]">
+                <SelectValue placeholder="Tutti gli stati" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti gli stati</SelectItem>
+                {stages.map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    {stage.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {(search || stageFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-[11px]"
+                onClick={() => {
+                  setSearch("")
+                  setStageFilter("all")
+                }}
+              >
+                Reset
+              </Button>
+            )}
+
+            <PageHeaderPrimaryButton onClick={() => setIsCreateDialogOpen(true)}>
+              <PlusIcon className="w-3.5 h-3.5" />
+              Apri ticket
+            </PageHeaderPrimaryButton>
           </div>
-
-          <Select value={stageFilter} onValueChange={setStageFilter}>
-            <SelectTrigger className="min-w-[180px]">
-              <SelectValue placeholder="Tutti gli stati" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tutti gli stati</SelectItem>
-              {stages.map((stage) => (
-                <SelectItem key={stage.id} value={stage.id}>
-                  {stage.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {(search || stageFilter !== "all") && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setSearch("")
-                setStageFilter("all")
-              }}
-            >
-              Reset filtri
-            </Button>
-          )}
-        </div>
-
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <PlusIcon className="size-4" />
-          Apri ticket
-        </Button>
-      </div>
+        }
+      />
 
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
