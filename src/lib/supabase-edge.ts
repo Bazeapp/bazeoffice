@@ -12,6 +12,17 @@ function getFunctionsBaseUrl() {
   return SUPABASE_FUNCTIONS_URL
 }
 
+const EDGE_FUNCTION_MAX_ATTEMPTS = 3
+const EDGE_FUNCTION_RETRY_DELAY_MS = 350
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function isRetryableStatus(status: number) {
+  return status >= 500 || status === 408 || status === 429
+}
+
 export async function invokeEdgeFunction<TResponse>(
   functionName: string,
   payload: unknown
@@ -34,22 +45,47 @@ export async function invokeEdgeFunction<TResponse>(
   }
 
   const baseUrl = getFunctionsBaseUrl()
-  const response = await fetch(`${baseUrl}/${functionName}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify(payload),
-  })
+  let lastError: Error | null = null
 
-  if (!response.ok) {
-    const errorBody = await response.text()
-    throw new Error(
-      `Edge function '${functionName}' failed (${response.status}): ${errorBody}`
-    )
+  for (let attempt = 1; attempt <= EDGE_FUNCTION_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(`${baseUrl}/${functionName}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const errorBody = await response.text()
+        if (attempt < EDGE_FUNCTION_MAX_ATTEMPTS && isRetryableStatus(response.status)) {
+          await wait(EDGE_FUNCTION_RETRY_DELAY_MS * attempt)
+          continue
+        }
+
+        throw new Error(
+          `Edge function '${functionName}' failed (${response.status}): ${errorBody}`
+        )
+      }
+
+      return (await response.json()) as TResponse
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+      const isNetworkError =
+        lastError.message === "Failed to fetch" ||
+        lastError.message.includes("Load failed") ||
+        lastError.name === "TypeError"
+
+      if (!isNetworkError || attempt >= EDGE_FUNCTION_MAX_ATTEMPTS) {
+        throw lastError
+      }
+
+      await wait(EDGE_FUNCTION_RETRY_DELAY_MS * attempt)
+    }
   }
 
-  return (await response.json()) as TResponse
+  throw lastError ?? new Error(`Edge function '${functionName}' failed`)
 }

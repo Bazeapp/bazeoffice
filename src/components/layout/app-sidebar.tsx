@@ -1,20 +1,5 @@
 import * as React from "react";
 import {
-  ChevronsUpDownIcon,
-  CircleHelpIcon,
-  FolderTreeIcon,
-  LogOutIcon,
-  type LucideIcon,
-  SettingsIcon,
-  SearchIcon,
-  BriefcaseBusinessIcon,
-  UserCircle2Icon,
-  WalletIcon,
-} from "lucide-react";
-import type { User } from "@supabase/supabase-js";
-import { buildPathForRoute, type AnagraficheSidebarTab, type MainSection } from "@/routes/app-routes";
-
-import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -43,30 +28,55 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
-  SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import type { User } from "@supabase/supabase-js";
+import {
+  BriefcaseBusinessIcon,
+  ChevronsUpDownIcon,
+  CircleHelpIcon,
+  FolderTreeIcon,
+  HomeIcon,
+  LogOutIcon,
+  type LucideIcon,
+  SearchIcon,
+  SettingsIcon,
+  UserCircle2Icon,
+  WalletIcon,
+} from "lucide-react";
+
+import {
+  buildPathForRoute,
+  type AnagraficheSidebarTab,
+  type MainSection,
+} from "@/routes/app-routes";
+
+type SidebarCategoryChild = {
+  name: string;
+  href: string;
+  anagraficheTab?: AnagraficheSidebarTab;
+  mainSection?: MainSection;
+};
 
 type SidebarCategory = {
   name: string;
   href: string;
   icon: LucideIcon;
-  children?: Array<{
-    name: string;
-    href: string;
-    anagraficheTab?: AnagraficheSidebarTab;
-    mainSection?: MainSection;
-  }>;
+  children?: SidebarCategoryChild[];
 };
 
 type SidebarCategoryGroup = {
   accentClassName: string;
+  activeTextClassName: string;
+  activeBgClassName: string;
   categories: SidebarCategory[];
 };
 
 const sidebarCategoryGroups: SidebarCategoryGroup[] = [
   {
     accentClassName: "bg-zinc-300",
+    activeTextClassName: "text-primary",
+    activeBgClassName: "bg-primary/5",
     categories: [
       {
         name: "Anagrafiche",
@@ -98,14 +108,24 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
         href: "#",
         icon: CircleHelpIcon,
         children: [
-          { name: "Ticket Customer", href: "#", mainSection: "customer_support_customer_ticket" },
-          { name: "Ticket Payroll", href: "#", mainSection: "customer_support_payroll_ticket" },
+          {
+            name: "Ticket Customer",
+            href: "#",
+            mainSection: "customer_support_customer_ticket",
+          },
+          {
+            name: "Ticket Payroll",
+            href: "#",
+            mainSection: "customer_support_payroll_ticket",
+          },
         ],
       },
     ],
   },
   {
     accentClassName: "bg-primary",
+    activeTextClassName: "text-primary",
+    activeBgClassName: "bg-primary/5",
     categories: [
       {
         name: "CRM famiglie",
@@ -117,7 +137,11 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
             href: "#",
             mainSection: "crm_pipeline_famiglie",
           },
-          { name: "Assegnazione", href: "#", mainSection: "crm_assegnazione" },
+          {
+            name: "Assegnazione",
+            href: "#",
+            mainSection: "crm_assegnazione",
+          },
         ],
       },
       {
@@ -142,6 +166,8 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
   },
   {
     accentClassName: "bg-amber-400",
+    activeTextClassName: "text-[hsl(var(--state-warm))]",
+    activeBgClassName: "bg-[hsl(var(--state-warm)/0.08)]",
     categories: [
       {
         name: "Gestione contrattuale",
@@ -213,6 +239,44 @@ function getUserDisplayName(user: User) {
   return user.email ?? user.id;
 }
 
+function isChildActive(
+  child: SidebarCategoryChild,
+  activeMainSection?: MainSection,
+  activeAnagraficheTab?: AnagraficheSidebarTab,
+) {
+  if (child.mainSection === "anagrafiche" && child.anagraficheTab) {
+    return (
+      activeMainSection === "anagrafiche" &&
+      child.anagraficheTab === activeAnagraficheTab
+    );
+  }
+
+  return child.mainSection === activeMainSection;
+}
+
+function buildChildHref(
+  child: SidebarCategoryChild,
+  activeAnagraficheTab?: AnagraficheSidebarTab,
+) {
+  if (child.mainSection === "anagrafiche" && child.anagraficheTab) {
+    return buildPathForRoute({
+      mainSection: "anagrafiche",
+      anagraficheTab: child.anagraficheTab,
+      ricercaProcessId: null,
+    });
+  }
+
+  if (!child.mainSection) {
+    return child.href;
+  }
+
+  return buildPathForRoute({
+    mainSection: child.mainSection,
+    anagraficheTab: activeAnagraficheTab ?? "famiglie",
+    ricercaProcessId: null,
+  });
+}
+
 export function AppSidebar({
   user,
   onLogout,
@@ -239,6 +303,116 @@ export function AppSidebar({
   const userEmail = user.email ?? user.id;
   const logoSrc = `${import.meta.env.BASE_URL}baze.png`;
 
+  const handleChildClick = React.useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>, child: SidebarCategoryChild) => {
+      if (child.mainSection === "anagrafiche" && child.anagraficheTab) {
+        event.preventDefault();
+        onOpenAnagraficheTab?.(child.anagraficheTab);
+        return;
+      }
+
+      if (child.mainSection === "crm_pipeline_famiglie") {
+        event.preventDefault();
+        onOpenCrmPipelineFamiglie?.();
+        return;
+      }
+
+      if (child.mainSection === "crm_assegnazione") {
+        event.preventDefault();
+        onOpenCrmAssegnazione?.();
+        return;
+      }
+
+      if (child.mainSection === "ricerca_pipeline") {
+        event.preventDefault();
+        onOpenRicercaPipeline?.();
+        return;
+      }
+
+      if (child.mainSection === "lavoratori_cerca") {
+        event.preventDefault();
+        onOpenLavoratoriCerca?.();
+        return;
+      }
+
+      if (child.mainSection === "gate_1") {
+        event.preventDefault();
+        onOpenGate1?.();
+        return;
+      }
+
+      if (child.mainSection === "gate_2") {
+        event.preventDefault();
+        onOpenGate2?.();
+        return;
+      }
+
+      if (child.mainSection === "gestione_contrattuale_rapporti") {
+        event.preventDefault();
+        onOpenGestioneContrattualeRapporti?.();
+        return;
+      }
+
+      if (child.mainSection === "gestione_contrattuale_assunzioni") {
+        event.preventDefault();
+        onOpenGestioneContrattualeAssunzioni?.();
+        return;
+      }
+
+      if (child.mainSection === "gestione_contrattuale_chiusure") {
+        event.preventDefault();
+        onOpenGestioneContrattualeChiusure?.();
+        return;
+      }
+
+      if (child.mainSection === "gestione_contrattuale_variazioni") {
+        event.preventDefault();
+        onOpenGestioneContrattualeVariazioni?.();
+        return;
+      }
+
+      if (child.mainSection === "payroll_cedolini") {
+        event.preventDefault();
+        onOpenPayrollCedolini?.();
+        return;
+      }
+
+      if (child.mainSection === "payroll_contributi_inps") {
+        event.preventDefault();
+        onOpenPayrollContributiInps?.();
+        return;
+      }
+
+      if (child.mainSection === "customer_support_customer_ticket") {
+        event.preventDefault();
+        onOpenCustomerSupportCustomerTicket?.();
+        return;
+      }
+
+      if (child.mainSection === "customer_support_payroll_ticket") {
+        event.preventDefault();
+        onOpenCustomerSupportPayrollTicket?.();
+      }
+    },
+    [
+      onOpenAnagraficheTab,
+      onOpenCrmAssegnazione,
+      onOpenCrmPipelineFamiglie,
+      onOpenCustomerSupportCustomerTicket,
+      onOpenCustomerSupportPayrollTicket,
+      onOpenGate1,
+      onOpenGate2,
+      onOpenGestioneContrattualeAssunzioni,
+      onOpenGestioneContrattualeChiusure,
+      onOpenGestioneContrattualeRapporti,
+      onOpenGestioneContrattualeVariazioni,
+      onOpenLavoratoriCerca,
+      onOpenPayrollCedolini,
+      onOpenPayrollContributiInps,
+      onOpenRicercaPipeline,
+    ],
+  );
+
   async function handleLogout() {
     setIsLoggingOut(true);
     try {
@@ -249,371 +423,125 @@ export function AppSidebar({
   }
 
   return (
-    <Sidebar>
-      <SidebarHeader className="px-2 py-2">
+    <Sidebar className="border-r border-border/60 bg-surface-raised/95 shadow-elevation-sm">
+      <SidebarHeader className="gap-3 border-b border-border/60 bg-gradient-to-b from-surface-raised to-transparent px-3 py-3">
         <div className="flex items-center gap-2">
-          <SidebarMenu className="flex-1">
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive>
-                <a href="#">
-                  <img
-                    src={logoSrc}
-                    alt="Baze logo"
-                    className="size-[18px] rounded-sm object-contain"
-                  />
-                  <span>BazeOffice</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-          <SidebarTrigger className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground shrink-0" />
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <img
+              src={logoSrc}
+              alt="Baze logo"
+              className="h-6 w-auto shrink-0 object-contain"
+            />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">
+                BazeOffice
+              </p>
+            </div>
+          </div>
+          <SidebarTrigger className="size-8 rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground" />
         </div>
+
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={activeMainSection === "anagrafiche"}
+              tooltip="Home"
+              className="text-sm"
+              onClick={() => onOpenAnagraficheTab?.("famiglie")}
+            >
+              <HomeIcon className="size-4 shrink-0" />
+              <span className="text-sm">Home</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarSeparator className="max-w-48" />
-
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
-          <SidebarGroupContent className="space-y-3">
+      <SidebarContent className="px-2 py-3">
+        <SidebarGroup className="p-0">
+          <SidebarGroupLabel className="px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Menu
+          </SidebarGroupLabel>
+          <SidebarGroupContent className="space-y-3 pt-2">
             {sidebarCategoryGroups.map((group, groupIndex) => (
-              <div key={groupIndex} className="relative pl-3">
+              <div key={groupIndex} className="relative ml-2 pl-2">
                 <div
-                  className={`absolute top-1 bottom-1 left-0 w-0.5 rounded-full ${group.accentClassName}`}
+                  className={`absolute top-1 bottom-1 left-0 w-[3px] rounded-full ${group.accentClassName}`}
                 />
                 <SidebarMenu>
-                  {group.categories.map((category) => (
-                    <SidebarMenuItem key={category.name}>
-                  {category.children && category.children.length > 0 ? (
-                    <Accordion type="single" collapsible>
-                      <AccordionItem
-                        value={category.name}
-                        className="border-none"
-                      >
-                        <AccordionTrigger className="hover:no-underline py-0">
-                          <span className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex h-7 w-full items-center gap-2 rounded-md px-2 text-[13px]">
-                            <category.icon className="size-4 shrink-0" />
-                            <span className="truncate">{category.name}</span>
-                          </span>
-                        </AccordionTrigger>
-                        <AccordionContent className="pb-0 [&_a]:no-underline">
-                          <SidebarMenuSub className="pb-0">
-                            {category.children.map((child) => {
-                              const isAnagraficheChild =
-                                child.mainSection === "anagrafiche" &&
-                                typeof child.anagraficheTab === "string";
-                              const isCrmPipelineChild =
-                                child.mainSection === "crm_pipeline_famiglie";
-                              const isCrmAssegnazioneChild =
-                                child.mainSection === "crm_assegnazione";
-                              const isRicercaPipelineChild =
-                                child.mainSection === "ricerca_pipeline";
-                              const isLavoratoriCercaChild =
-                                child.mainSection === "lavoratori_cerca";
-                              const isGate1Child =
-                                child.mainSection === "gate_1";
-                              const isGate2Child =
-                                child.mainSection === "gate_2";
-                              const isGestioneContrattualeRapportiChild =
-                                child.mainSection ===
-                                "gestione_contrattuale_rapporti";
-                              const isGestioneContrattualeAssunzioniChild =
-                                child.mainSection ===
-                                "gestione_contrattuale_assunzioni";
-                              const isGestioneContrattualeChiusureChild =
-                                child.mainSection ===
-                                "gestione_contrattuale_chiusure";
-                              const isGestioneContrattualeVariazioniChild =
-                                child.mainSection ===
-                                "gestione_contrattuale_variazioni";
-                              const isPayrollCedoliniChild =
-                                child.mainSection === "payroll_cedolini";
-                              const isPayrollContributiInpsChild =
-                                child.mainSection === "payroll_contributi_inps";
-                              const isCustomerSupportCustomerChild =
-                                child.mainSection === "customer_support_customer_ticket";
-                              const isCustomerSupportPayrollChild =
-                                child.mainSection === "customer_support_payroll_ticket";
+                  {group.categories.map((category) => {
+                    const hasActiveChild = Boolean(
+                      category.children?.some((child) =>
+                        isChildActive(child, activeMainSection, activeAnagraficheTab),
+                      ),
+                    );
 
-                              return (
-                                <SidebarMenuSubItem key={child.name}>
-                                  <SidebarMenuSubButton
-                                    asChild
-                                    isActive={
-                                      (Boolean(isAnagraficheChild) &&
-                                        activeMainSection === "anagrafiche" &&
-                                        child.anagraficheTab ===
-                                          activeAnagraficheTab) ||
-                                      (isCrmPipelineChild &&
-                                        activeMainSection ===
-                                          "crm_pipeline_famiglie") ||
-                                      (isCrmAssegnazioneChild &&
-                                        activeMainSection ===
-                                          "crm_assegnazione") ||
-                                      (isRicercaPipelineChild &&
-                                        activeMainSection ===
-                                          "ricerca_pipeline") ||
-                                      (isLavoratoriCercaChild &&
-                                        activeMainSection ===
-                                          "lavoratori_cerca") ||
-                                      (isGate1Child &&
-                                        activeMainSection === "gate_1") ||
-                                      (isGate2Child &&
-                                        activeMainSection === "gate_2") ||
-                                      (isGestioneContrattualeRapportiChild &&
-                                        activeMainSection ===
-                                          "gestione_contrattuale_rapporti") ||
-                                      (isGestioneContrattualeAssunzioniChild &&
-                                        activeMainSection ===
-                                          "gestione_contrattuale_assunzioni") ||
-                                      (isGestioneContrattualeChiusureChild &&
-                                        activeMainSection ===
-                                          "gestione_contrattuale_chiusure") ||
-                                      (isGestioneContrattualeVariazioniChild &&
-                                        activeMainSection ===
-                                          "gestione_contrattuale_variazioni") ||
-                                      (isPayrollCedoliniChild &&
-                                        activeMainSection === "payroll_cedolini") ||
-                                      (isPayrollContributiInpsChild &&
-                                        activeMainSection === "payroll_contributi_inps") ||
-                                      (isCustomerSupportCustomerChild &&
-                                        activeMainSection === "customer_support_customer_ticket") ||
-                                      (isCustomerSupportPayrollChild &&
-                                        activeMainSection === "customer_support_payroll_ticket")
-                                    }
-                                  >
-                                    <a
-                                      href={
-                                        isAnagraficheChild &&
-                                        child.anagraficheTab
-                                          ? buildPathForRoute({
-                                              mainSection: "anagrafiche",
-                                              anagraficheTab: child.anagraficheTab,
-                                              ricercaProcessId: null,
-                                            })
-                                          : isCrmPipelineChild
-                                            ? buildPathForRoute({
-                                                mainSection: "crm_pipeline_famiglie",
-                                                anagraficheTab:
-                                                  activeAnagraficheTab ?? "famiglie",
-                                                ricercaProcessId: null,
-                                              })
-                                            : isCrmAssegnazioneChild
-                                              ? buildPathForRoute({
-                                                  mainSection: "crm_assegnazione",
-                                                  anagraficheTab:
-                                                    activeAnagraficheTab ?? "famiglie",
-                                                  ricercaProcessId: null,
-                                                })
-                                              : isRicercaPipelineChild
-                                                ? buildPathForRoute({
-                                                    mainSection: "ricerca_pipeline",
-                                                    anagraficheTab:
-                                                      activeAnagraficheTab ?? "famiglie",
-                                                    ricercaProcessId: null,
-                                                  })
-                                                : isLavoratoriCercaChild
-                                                  ? buildPathForRoute({
-                                                      mainSection: "lavoratori_cerca",
-                                                      anagraficheTab:
-                                                        activeAnagraficheTab ?? "famiglie",
-                                                      ricercaProcessId: null,
-                                                    })
-                                                  : isGate1Child
-                                                    ? buildPathForRoute({
-                                                        mainSection: "gate_1",
-                                                        anagraficheTab:
-                                                          activeAnagraficheTab ?? "famiglie",
-                                                        ricercaProcessId: null,
-                                                      })
-                                                    : isGate2Child
-                                                      ? buildPathForRoute({
-                                                          mainSection: "gate_2",
-                                                          anagraficheTab:
-                                                            activeAnagraficheTab ?? "famiglie",
-                                                          ricercaProcessId: null,
-                                                        })
-                                                      : isGestioneContrattualeRapportiChild
-                                                        ? buildPathForRoute({
-                                                            mainSection:
-                                                              "gestione_contrattuale_rapporti",
-                                                            anagraficheTab:
-                                                              activeAnagraficheTab ?? "famiglie",
-                                                            ricercaProcessId: null,
-                                                          })
-                                                        : isGestioneContrattualeAssunzioniChild
-                                                          ? buildPathForRoute({
-                                                              mainSection:
-                                                                "gestione_contrattuale_assunzioni",
-                                                              anagraficheTab:
-                                                                activeAnagraficheTab ?? "famiglie",
-                                                              ricercaProcessId: null,
-                                                            })
-                                                          : isGestioneContrattualeChiusureChild
-                                                            ? buildPathForRoute({
-                                                                mainSection:
-                                                                  "gestione_contrattuale_chiusure",
-                                                                anagraficheTab:
-                                                                  activeAnagraficheTab ?? "famiglie",
-                                                                ricercaProcessId: null,
-                                                              })
-                                                            : isGestioneContrattualeVariazioniChild
-                                                              ? buildPathForRoute({
-                                                                  mainSection:
-                                                                    "gestione_contrattuale_variazioni",
-                                                                  anagraficheTab:
-                                                                    activeAnagraficheTab ?? "famiglie",
-                                                                  ricercaProcessId: null,
-                                                                })
-                                                              : isPayrollCedoliniChild
-                                                                ? buildPathForRoute({
-                                                                    mainSection: "payroll_cedolini",
-                                                                    anagraficheTab:
-                                                                      activeAnagraficheTab ?? "famiglie",
-                                                                    ricercaProcessId: null,
-                                                                  })
-                                                                : isPayrollContributiInpsChild
-                                                                  ? buildPathForRoute({
-                                                                      mainSection:
-                                                                        "payroll_contributi_inps",
-                                                                      anagraficheTab:
-                                                                        activeAnagraficheTab ?? "famiglie",
-                                                                      ricercaProcessId: null,
-                                                                    })
-                                                                  : isCustomerSupportCustomerChild
-                                                                    ? buildPathForRoute({
-                                                                        mainSection:
-                                                                          "customer_support_customer_ticket",
-                                                                        anagraficheTab:
-                                                                          activeAnagraficheTab ?? "famiglie",
-                                                                        ricercaProcessId: null,
-                                                                      })
-                                                                    : isCustomerSupportPayrollChild
-                                                                      ? buildPathForRoute({
-                                                                          mainSection:
-                                                                            "customer_support_payroll_ticket",
-                                                                          anagraficheTab:
-                                                                            activeAnagraficheTab ?? "famiglie",
-                                                                          ricercaProcessId: null,
-                                                                        })
-                                                      : child.href
-                                      }
-                                      onClick={(event) => {
-                                        if (
-                                          isAnagraficheChild &&
-                                          child.anagraficheTab
-                                        ) {
-                                          event.preventDefault();
-                                          onOpenAnagraficheTab?.(
-                                            child.anagraficheTab,
-                                          );
-                                          return;
-                                        }
+                    return (
+                      <SidebarMenuItem key={category.name}>
+                        {category.children && category.children.length > 0 ? (
+                          <Accordion
+                            type="single"
+                            collapsible
+                            defaultValue={hasActiveChild ? category.name : undefined}
+                          >
+                            <AccordionItem value={category.name} className="border-none">
+                              <AccordionTrigger className="rounded-md py-0 hover:no-underline">
+                                <span className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-sm text-foreground transition-colors hover:bg-white/60">
+                                  <category.icon className="size-4 shrink-0" />
+                                  <span className="truncate text-sm">
+                                    {category.name}
+                                  </span>
+                                </span>
+                              </AccordionTrigger>
+                              <AccordionContent className="pb-0 [&_a]:no-underline">
+                                <SidebarMenuSub className="ml-4 mt-1 space-y-0.5 border-l-0 px-0 py-0">
+                                  {category.children.map((child) => {
+                                    const isActive = isChildActive(
+                                      child,
+                                      activeMainSection,
+                                      activeAnagraficheTab,
+                                    );
 
-                                        if (isCrmPipelineChild) {
-                                          event.preventDefault();
-                                          onOpenCrmPipelineFamiglie?.();
-                                          return;
-                                        }
-
-                                        if (isCrmAssegnazioneChild) {
-                                          event.preventDefault();
-                                          onOpenCrmAssegnazione?.();
-                                          return;
-                                        }
-
-                                        if (isRicercaPipelineChild) {
-                                          event.preventDefault();
-                                          onOpenRicercaPipeline?.();
-                                          return;
-                                        }
-
-                                        if (isLavoratoriCercaChild) {
-                                          event.preventDefault();
-                                          onOpenLavoratoriCerca?.();
-                                          return;
-                                        }
-
-                                        if (isGate1Child) {
-                                          event.preventDefault();
-                                          onOpenGate1?.();
-                                          return;
-                                        }
-
-                                        if (isGate2Child) {
-                                          event.preventDefault();
-                                          onOpenGate2?.();
-                                          return;
-                                        }
-
-                                        if (isGestioneContrattualeRapportiChild) {
-                                          event.preventDefault();
-                                          onOpenGestioneContrattualeRapporti?.();
-                                          return;
-                                        }
-
-                                        if (isGestioneContrattualeAssunzioniChild) {
-                                          event.preventDefault();
-                                          onOpenGestioneContrattualeAssunzioni?.();
-                                          return;
-                                        }
-
-                                        if (isGestioneContrattualeChiusureChild) {
-                                          event.preventDefault();
-                                          onOpenGestioneContrattualeChiusure?.();
-                                          return;
-                                        }
-
-                                        if (isGestioneContrattualeVariazioniChild) {
-                                          event.preventDefault();
-                                          onOpenGestioneContrattualeVariazioni?.();
-                                          return;
-                                        }
-
-                                        if (isPayrollCedoliniChild) {
-                                          event.preventDefault();
-                                          onOpenPayrollCedolini?.();
-                                          return;
-                                        }
-
-                                        if (isPayrollContributiInpsChild) {
-                                          event.preventDefault();
-                                          onOpenPayrollContributiInps?.();
-                                          return;
-                                        }
-
-                                        if (isCustomerSupportCustomerChild) {
-                                          event.preventDefault();
-                                          onOpenCustomerSupportCustomerTicket?.();
-                                          return;
-                                        }
-
-                                        if (isCustomerSupportPayrollChild) {
-                                          event.preventDefault();
-                                          onOpenCustomerSupportPayrollTicket?.();
-                                        }
-                                      }}
-                                    >
-                                      <span>{child.name}</span>
-                                    </a>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              );
-                            })}
-                          </SidebarMenuSub>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  ) : (
-                    <SidebarMenuButton asChild>
-                      <a href={category.href}>
-                        <category.icon />
-                        <span>{category.name}</span>
-                      </a>
-                    </SidebarMenuButton>
-                  )}
-                    </SidebarMenuItem>
-                  ))}
+                                    return (
+                                      <SidebarMenuSubItem key={child.name}>
+                                        <SidebarMenuSubButton
+                                          asChild
+                                          isActive={isActive}
+                                          className={
+                                            isActive
+                                              ? `${group.activeTextClassName} ${group.activeBgClassName} border-l-2 border-current font-semibold shadow-elevation-xs`
+                                              : "text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                                          }
+                                        >
+                                          <a
+                                            href={buildChildHref(
+                                              child,
+                                              activeAnagraficheTab,
+                                            )}
+                                            onClick={(event) =>
+                                              handleChildClick(event, child)
+                                            }
+                                          >
+                                            <span>{child.name}</span>
+                                          </a>
+                                        </SidebarMenuSubButton>
+                                      </SidebarMenuSubItem>
+                                    );
+                                  })}
+                                </SidebarMenuSub>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+                        ) : (
+                          <SidebarMenuButton asChild className="text-sm">
+                            <a href={category.href}>
+                              <category.icon className="size-4 shrink-0" />
+                              <span>{category.name}</span>
+                            </a>
+                          </SidebarMenuButton>
+                        )}
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </div>
             ))}
@@ -621,18 +549,20 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="border-t border-border/60 bg-gradient-to-t from-surface-inset/50 to-transparent p-3">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton>
-                  <UserCircle2Icon />
+                <SidebarMenuButton className="h-11 rounded-lg bg-white/70 px-2.5 hover:bg-white">
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
+                    <UserCircle2Icon className="size-4 text-primary" />
+                  </div>
                   <div className="grid flex-1 text-left leading-tight">
-                    <span className="truncate text-[13px] font-medium">
+                    <span className="truncate text-sm font-medium text-foreground">
                       {userDisplayName}
                     </span>
-                    <span className="text-muted-foreground truncate text-[11px]">
+                    <span className="truncate text-xs text-muted-foreground">
                       {userEmail}
                     </span>
                   </div>
@@ -663,6 +593,7 @@ export function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
       <SidebarRail />
     </Sidebar>
   );

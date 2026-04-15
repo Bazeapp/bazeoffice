@@ -33,6 +33,7 @@ type QuerySort = {
 
 type FilterOperator =
   | "is"
+  | "in"
   | "is_not"
   | "has"
   | "not_has"
@@ -813,6 +814,10 @@ function evaluateCondition(
     switch (condition.operator) {
       case "is":
         return leftNum !== null && rightNum !== null && leftNum === rightNum;
+      case "in":
+        return parseFilterList(condition.value)
+          .map((item) => parseNumber(item))
+          .some((item) => item !== null && leftNum !== null && item === leftNum);
       case "is_not":
         return leftNum !== null && rightNum !== null && leftNum !== rightNum;
       case "gt":
@@ -846,6 +851,10 @@ function evaluateCondition(
     switch (condition.operator) {
       case "is":
         return leftDay !== null && rightDay !== null && leftDay === rightDay;
+      case "in":
+        return parseFilterList(condition.value)
+          .map((item) => parseDate(item))
+          .some((item) => item !== null && leftDate !== null && item === leftDate);
       case "is_not":
         return leftDay !== null && rightDay !== null && leftDay !== rightDay;
       case "gt":
@@ -876,6 +885,10 @@ function evaluateCondition(
     switch (condition.operator) {
       case "is":
         return leftBoolean !== null && rightBoolean !== null && leftBoolean === rightBoolean;
+      case "in":
+        return parseFilterList(condition.value)
+          .map((item) => parseBoolean(item))
+          .some((item) => item !== null && leftBoolean !== null && item === leftBoolean);
       case "is_not":
         return leftBoolean !== null && rightBoolean !== null && leftBoolean !== rightBoolean;
       default:
@@ -908,6 +921,8 @@ function evaluateCondition(
   switch (condition.operator) {
     case "is":
       return left === right;
+    case "in":
+      return parseFilterList(condition.value).includes(left);
     case "is_not":
       return left !== right;
     case "has":
@@ -1061,6 +1076,7 @@ function collectFlatAndConditions(group: FilterGroup | undefined): FilterConditi
 function supportsServerCondition(operator: FilterOperator) {
   return (
     operator === "is" ||
+    operator === "in" ||
     operator === "is_not" ||
     operator === "gt" ||
     operator === "gte" ||
@@ -1083,6 +1099,8 @@ function applyServerCondition(
   switch (condition.operator) {
     case "is":
       return query.eq(field, value);
+    case "in":
+      return query.in(field, parseFilterList(value));
     case "is_not":
       return query.neq(field, value);
     case "gt":

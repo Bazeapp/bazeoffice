@@ -82,6 +82,7 @@ type QuerySort = {
 
 export type QueryFilterOperator =
   | "is"
+  | "in"
   | "is_not"
   | "has"
   | "not_has"

@@ -22,7 +22,6 @@ import {
   fetchLookupValues,
   fetchSelezioniLavoratori,
   updateRecord,
-  type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
 import type { LookupValueRecord } from "@/types"
 
@@ -62,6 +61,9 @@ type UseRicercaWorkersPipelineState = {
   columns: RicercaWorkerSelectionColumn[]
   moveCard: (selectionId: string, targetStatusId: string) => Promise<void>
 }
+
+const SELEZIONI_PAGE_SIZE = 1000
+const WORKER_BATCH_SIZE = 250
 
 function asRowArray(input: unknown): GenericRow[] {
   if (!Array.isArray(input)) return []
@@ -321,52 +323,102 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
   }
 }
 
-async function fetchWorkersPipelineData(
-  processId: string
-): Promise<RicercaWorkerSelectionColumn[]> {
-  const selezioniFilter: QueryFilterGroup = {
-    kind: "group",
-    id: "selezioni-lavoratori-by-process",
-    logic: "and",
-    nodes: [
-      {
-        kind: "condition",
-        id: "processo-matching-id",
-        field: "processo_matching_id",
-        operator: "is",
-        value: processId,
-      },
-    ],
-  }
+async function fetchAllSelectionsForProcess(processId: string) {
+  const rows: GenericRow[] = []
+  let offset = 0
 
-  const [selezioniResult, workersResult, lookupResult] = await Promise.all([
-    fetchSelezioniLavoratori({
-      limit: 1000,
-      offset: 0,
+  while (true) {
+    const result = await fetchSelezioniLavoratori({
+      limit: SELEZIONI_PAGE_SIZE,
+      offset,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: selezioniFilter,
+      filters: {
+        kind: "group",
+        id: "selezioni-lavoratori-by-process",
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: "processo-matching-id",
+            field: "processo_matching_id",
+            operator: "is",
+            value: processId,
+          },
+        ],
+      },
     }).catch((error) => {
       const message = error instanceof Error ? error.message : String(error)
       throw new Error(`selezioni_lavoratori: ${message}`)
-    }),
-    fetchLavoratori({
-      limit: 2000,
+    })
+
+    const pageRows = asRowArray(result.rows)
+    rows.push(...pageRows)
+
+    if (pageRows.length < SELEZIONI_PAGE_SIZE) break
+    offset += SELEZIONI_PAGE_SIZE
+  }
+
+  return rows
+}
+
+async function fetchWorkersByIds(workerIds: string[]) {
+  if (workerIds.length === 0) return []
+
+  const workerRows: GenericRow[] = []
+
+  for (let index = 0; index < workerIds.length; index += WORKER_BATCH_SIZE) {
+    const batch = workerIds.slice(index, index + WORKER_BATCH_SIZE)
+    const result = await fetchLavoratori({
+      limit: batch.length,
       offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
+      filters: {
+        kind: "group",
+        id: `pipeline-workers-by-id-batch-${index}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition" as const,
+            id: `pipeline-workers-id-in-${index}`,
+            field: "id",
+            operator: "in",
+            value: batch.join(","),
+          },
+        ],
+      },
     }).catch((error) => {
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`lavoratori: ${message}`)
-    }),
+      throw new Error(`lavoratori(batch ${index}): ${message}`)
+    })
+
+    workerRows.push(...asRowArray(result.rows))
+  }
+
+  return workerRows
+}
+
+async function fetchWorkersPipelineData(
+  processId: string
+): Promise<RicercaWorkerSelectionColumn[]> {
+  const [selezioniRows, lookupResult] = await Promise.all([
+    fetchAllSelectionsForProcess(processId),
     fetchLookupValues().catch((error) => {
       const message = error instanceof Error ? error.message : String(error)
       throw new Error(`lookup_values: ${message}`)
     }),
   ])
 
-  const selezioniRows = asRowArray(selezioniResult.rows)
-  const workerRows = asRowArray(workersResult.rows)
   const lookupRows = lookupResult.rows
   const lookupColorsByDomain = normalizeLookupColors(lookupRows)
+
+  const workerIds = Array.from(
+    new Set(
+      selezioniRows
+        .map((selection) => toStringValue(selection.lavoratore_id))
+        .filter((value): value is string => Boolean(value))
+    )
+  )
+
+  const workerRows = await fetchWorkersByIds(workerIds)
 
   const stageMetadata = buildStageMetadata(lookupRows)
   const stageDefinitions = stageMetadata.definitions

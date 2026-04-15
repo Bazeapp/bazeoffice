@@ -65,6 +65,7 @@ type WorkerProfileHeaderDraft = Record<WorkerProfileHeaderField, string>
 type WorkerProfileHeaderProps = {
   worker: LavoratoreListItem
   workerRow: LavoratoreRecord
+  headerLayout?: "side" | "stacked"
   statoLavoratoreOptions?: LookupOption[]
   disponibilitaOptions?: LookupOption[]
   motivazioniOptions?: LookupOption[]
@@ -177,6 +178,7 @@ function resolveSingleValueOptions(value: string | null, options: LookupOption[]
 export function WorkerProfileHeader({
   worker,
   workerRow,
+  headerLayout = "side",
   statoLavoratoreOptions = [],
   disponibilitaOptions = [],
   motivazioniOptions = [],
@@ -266,6 +268,7 @@ export function WorkerProfileHeader({
   const resolvedStatusDisabled = statoLavoratoreDisabled ?? !onStatoLavoratoreChange
   const resolvedDisponibilitaDisabled = disponibilitaDisabled ?? !onDisponibilitaChange
   const resolvedMotivazioneDisabled = motivazioneDisabled ?? !onMotivazioneChange
+  const usesStackedHeaderLayout = headerLayout === "stacked"
 
   const updateDraftField = React.useCallback(
     (field: WorkerProfileHeaderField, value: string) => {
@@ -500,9 +503,11 @@ export function WorkerProfileHeader({
 
         <div
           className={`grid items-start gap-6 ${
-            showMotivazioneSelect
-              ? "grid-cols-[minmax(0,1fr)_452px]"
-              : "grid-cols-[minmax(0,1fr)_220px]"
+            usesStackedHeaderLayout
+              ? "grid-cols-1"
+              : showMotivazioneSelect
+                ? "grid-cols-[minmax(0,1fr)_452px]"
+                : "grid-cols-[minmax(0,1fr)_220px]"
           }`}
         >
           <div className="min-w-0 space-y-2">
@@ -640,10 +645,26 @@ export function WorkerProfileHeader({
             </p>
           </div>
 
-          <div className="flex flex-col items-end gap-3 self-start">
-            <div className="flex w-full justify-end gap-2">
+          <div
+            className={`flex gap-3 self-start ${
+              usesStackedHeaderLayout
+                ? "ml-auto flex-col items-end"
+                : "flex-col items-end"
+            }`}
+          >
+            <div
+              className={`flex gap-2 ${
+                usesStackedHeaderLayout
+                  ? "w-auto flex-col items-end"
+                  : "w-full justify-end"
+              }`}
+            >
               {showMotivazioneSelect ? (
-                <div className="w-[230px] shrink-0">
+                <div
+                  className={
+                    usesStackedHeaderLayout ? "w-auto shrink-0" : "w-[230px] shrink-0"
+                  }
+                >
                   <Select
                     value={motivazione ?? "none"}
                     onValueChange={(value) =>
@@ -666,7 +687,7 @@ export function WorkerProfileHeader({
                 </div>
               ) : null}
 
-              <div className="w-[220px] shrink-0">
+              <div className={usesStackedHeaderLayout ? "w-auto shrink-0" : "w-[220px] shrink-0"}>
                 <Select
                   value={statoLavoratore || "none"}
                   onValueChange={(value) =>
@@ -691,7 +712,11 @@ export function WorkerProfileHeader({
               </div>
             </div>
 
-            <div className="w-[220px] shrink-0 self-end">
+            <div
+              className={
+                usesStackedHeaderLayout ? "w-auto shrink-0 self-end" : "w-[220px] shrink-0 self-end"
+              }
+            >
               <Select
                 value={disponibilita || "none"}
                 onValueChange={(value) =>
@@ -715,7 +740,13 @@ export function WorkerProfileHeader({
               </Select>
             </div>
 
-            <div className="grid w-[220px] grid-cols-2 justify-items-end gap-3">
+            <div
+              className={`gap-3 ${
+                usesStackedHeaderLayout
+                  ? "flex w-auto items-center justify-end self-end"
+                  : "grid w-[220px] grid-cols-2 justify-items-end"
+              }`}
+            >
               {gateControls.map((control, index) => {
                 const hr = getHrById(control.assigneeId)
                 const Icon = control.icon
@@ -728,9 +759,11 @@ export function WorkerProfileHeader({
                   <div
                     key={control.label}
                     className={
-                      index > 0
+                      !usesStackedHeaderLayout && index > 0
                         ? "border-border flex items-center justify-end border-l pl-3"
-                        : "flex items-center justify-end"
+                        : usesStackedHeaderLayout
+                          ? "flex items-center justify-end"
+                          : "flex items-center justify-end"
                     }
                   >
                     <div

@@ -1,11 +1,19 @@
 import * as React from "react";
-import { ChevronLeftIcon, ChevronRightIcon, CircleDotIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, CircleDotIcon, XIcon } from "lucide-react";
 
 import { OnboardingCard } from "@/components/crm/cards/onboarding-card";
 import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
-import { SelectionDetailsCard } from "@/components/ricerca/selection-details-card";
+import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
 import { WorkerPipelineSummaryCards } from "@/components/ricerca/worker-pipeline-summary-cards";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import {
   Accordion,
   AccordionContent,
@@ -16,12 +24,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatAvailabilityComputedAt } from "@/features/lavoratori/lib/availability-utils";
 import {
+  asString,
+  asStringArrayFirst,
+  getAgeFromBirthDate,
+  getDefaultWorkerAvatar,
+  normalizeDomesticRoleLabels,
+  readArrayStrings,
+  toAvatarUrl,
+} from "@/features/lavoratori/lib/base-utils";
+import {
   getTagClassName,
+  isBlacklistValue,
   normalizeLookupColors,
   normalizeLookupOptions,
   type LookupOption,
 } from "@/features/lavoratori/lib/lookup-utils";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils";
 import {
   getLookupDropZoneActiveClassName,
   getLookupDropZoneClassName,
@@ -437,7 +455,7 @@ export function RicercaWorkersPipelineView({
   >(null);
   const [selectedCard, setSelectedCard] =
     React.useState<RicercaWorkerSelectionCard | null>(null);
-  const [isWorkerSheetOpen, setIsWorkerSheetOpen] = React.useState(false);
+  const [isWorkerOverlayOpen, setIsWorkerOverlayOpen] = React.useState(false);
   const [selectedWorkerRow, setSelectedWorkerRow] =
     React.useState<LavoratoreRecord | null>(null);
   const [selectedWorkerExperiences, setSelectedWorkerExperiences] =
@@ -475,7 +493,54 @@ export function RicercaWorkersPipelineView({
     string | null
   >(null);
   const selectedWorkerId = selectedWorkerRow?.id ?? null;
-  const selectedWorker = selectedCard?.worker ?? null;
+  const selectedWorker = React.useMemo(() => {
+    if (!selectedCard) return null;
+    if (!selectedWorkerRow) return selectedCard.worker;
+
+    const nome = asString(selectedWorkerRow.nome);
+    const cognome = asString(selectedWorkerRow.cognome);
+    const nomeCompleto =
+      `${nome} ${cognome}`.trim() || selectedCard.worker.nomeCompleto;
+    const ruoliDomestici = normalizeDomesticRoleLabels(
+      readArrayStrings(selectedWorkerRow.tipo_lavoro_domestico),
+    );
+    const statoLavoratore = asString(selectedWorkerRow.stato_lavoratore) || null;
+    const disponibilita = asString(selectedWorkerRow.disponibilita) || null;
+    const statusFlags = toWorkerStatusFlags(statoLavoratore);
+
+    return {
+      ...selectedCard.worker,
+      id: asString(selectedWorkerRow.id) || selectedCard.worker.id,
+      nomeCompleto,
+      immagineUrl:
+        toAvatarUrl(selectedWorkerRow) ??
+        selectedCard.worker.immagineUrl ??
+        getDefaultWorkerAvatar(
+          asString(selectedWorkerRow.id) || selectedCard.worker.id,
+        ),
+      cap: asString(selectedWorkerRow.cap) || null,
+      telefono: asString(selectedWorkerRow.telefono) || null,
+      isBlacklisted: isBlacklistValue(selectedWorkerRow.check_blacklist),
+      tipoRuolo: ruoliDomestici[0] ?? null,
+      tipoLavoro:
+        asStringArrayFirst(selectedWorkerRow.tipo_rapporto_lavorativo) || null,
+      ruoliDomestici,
+      eta: getAgeFromBirthDate(selectedWorkerRow.data_di_nascita),
+      anniEsperienzaColf:
+        typeof selectedWorkerRow.anni_esperienza_colf === "number"
+          ? selectedWorkerRow.anni_esperienza_colf
+          : 0,
+      anniEsperienzaBabysitter:
+        typeof selectedWorkerRow.anni_esperienza_babysitter === "number"
+          ? selectedWorkerRow.anni_esperienza_babysitter
+          : 0,
+      statoLavoratore,
+      disponibilita,
+      isQualified: statusFlags.isQualified,
+      isIdoneo: statusFlags.isIdoneo,
+      isCertificato: statusFlags.isCertificato,
+    };
+  }, [selectedCard, selectedWorkerRow]);
 
   const applyUpdatedWorkerRow = React.useCallback((row: LavoratoreRecord) => {
     setSelectedWorkerRow(row);
@@ -559,13 +624,18 @@ export function RicercaWorkersPipelineView({
   const handleOpenWorker = React.useCallback(
     (card: RicercaWorkerSelectionCard) => {
       setSelectedCard(card);
-      setIsWorkerSheetOpen(true);
+      setIsWorkerOverlayOpen(true);
     },
     [],
   );
 
+  const handleCloseWorkerOverlay = React.useCallback(() => {
+    setIsWorkerOverlayOpen(false);
+    setSelectedCard(null);
+  }, []);
+
   React.useEffect(() => {
-    if (!selectedCard || !isWorkerSheetOpen) {
+    if (!selectedCard || !isWorkerOverlayOpen) {
       setSelectedWorkerRow(null);
       setSelectedWorkerExperiences([]);
       setSelectedWorkerReferences([]);
@@ -671,7 +741,7 @@ export function RicercaWorkersPipelineView({
     return () => {
       isCancelled = true;
     };
-  }, [selectedCard, isWorkerSheetOpen]);
+  }, [selectedCard, isWorkerOverlayOpen]);
 
   React.useEffect(() => {
     setFamilyAddressDraft({
@@ -743,6 +813,30 @@ export function RicercaWorkersPipelineView({
       }
     },
     [selectedCard],
+  );
+
+  const handleMoveSelectionStatus = React.useCallback(
+    async (value: string) => {
+      if (!selectedCard?.id) return;
+      await moveCard(selectedCard.id, value);
+      setSelectedSelectionRow((current) =>
+        current
+          ? {
+              ...current,
+              stato_selezione: value,
+            }
+          : current,
+      );
+      setSelectedCard((current) =>
+        current
+          ? {
+              ...current,
+              status: value,
+            }
+          : current,
+      );
+    },
+    [moveCard, selectedCard],
   );
 
   const patchSelectedProcessAddressField = React.useCallback(
@@ -876,210 +970,252 @@ export function RicercaWorkersPipelineView({
         </div>
       </div>
 
-      <Sheet
-        open={isWorkerSheetOpen}
-        onOpenChange={(open) => {
-          setIsWorkerSheetOpen(open);
-          if (!open) setSelectedCard(null);
-        }}
-      >
-        <SheetContent
-          side="right"
-          className="data-[side=right]:w-[min(980px,68vw)] data-[side=right]:max-w-[min(980px,68vw)] data-[side=right]:sm:max-w-[min(980px,68vw)] overflow-y-auto"
-        >
-          <div className="px-4 pt-2 pb-4">
-            {selectedWorkerLoading ? (
-              <div className="text-muted-foreground text-sm">
-                Caricamento profilo...
-              </div>
-            ) : null}
-            {selectedWorkerError ? (
-              <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-                Errore caricamento lavoratore: {selectedWorkerError}
-              </div>
-            ) : null}
-            {selectedCard && selectedWorkerRow ? (
-              <div className="space-y-6">
-                <div className="mb-8">
-                  <WorkerProfileHeader
-                    worker={selectedCard.worker}
-                    workerRow={selectedWorkerRow}
-                    statoLavoratoreOptions={
-                      lookupOptionsByDomain.get(
-                        "lavoratori.stato_lavoratore",
-                      ) ?? []
-                    }
-                    disponibilitaOptions={
-                      lookupOptionsByDomain.get("lavoratori.disponibilita") ??
-                      []
-                    }
-                    motivazioniOptions={
-                      lookupOptionsByDomain.get(
-                        "lavoratori.motivazione_non_idoneo",
-                      ) ?? []
-                    }
-                    sessoOptions={
-                      lookupOptionsByDomain.get("lavoratori.sesso") ?? []
-                    }
-                    nazionalitaOptions={
-                      lookupOptionsByDomain.get("lavoratori.nazionalita") ?? []
-                    }
-                    onPatchField={(field, value) =>
-                      patchSelectedWorkerField(field, value)
-                    }
-                    onStatoLavoratoreChange={(value) =>
-                      patchSelectedWorkerField("stato_lavoratore", value)
-                    }
-                    onDisponibilitaChange={(value) =>
-                      patchSelectedWorkerField("disponibilita", value)
-                    }
-                    onMotivazioneChange={(value) =>
-                      patchSelectedWorkerField(
-                        "motivazione_non_idoneo",
-                        value ? [value] : [],
-                      )
-                    }
+      {isWorkerOverlayOpen ? (
+        <div className="bg-background fixed inset-0 z-50 flex flex-col animate-in fade-in-0">
+          <div className="bg-card flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
+            <Breadcrumb className="min-w-0">
+              <BreadcrumbList className="text-xs">
+                <BreadcrumbItem>
+                  <BreadcrumbLink
+                    asChild
+                  >
+                    <button
+                      type="button"
+                      onClick={handleCloseWorkerOverlay}
+                      className="cursor-pointer"
+                    >
+                      Ricerca
+                    </button>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink
+                    asChild
+                  >
+                    <button
+                      type="button"
+                      onClick={handleCloseWorkerOverlay}
+                      className="cursor-pointer truncate"
+                    >
+                      {card.nomeFamiglia}
+                    </button>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>
+                    {selectedWorker?.nomeCompleto ?? "Lavoratore"}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleCloseWorkerOverlay}
+            >
+              <XIcon />
+            </Button>
+          </div>
+
+          {selectedWorkerLoading ? (
+            <div className="text-muted-foreground p-4 text-sm">
+              Caricamento profilo...
+            </div>
+          ) : null}
+          {selectedWorkerError ? (
+            <div className="mx-4 mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+              Errore caricamento lavoratore: {selectedWorkerError}
+            </div>
+          ) : null}
+
+          {selectedCard && selectedWorkerRow && selectedSelectionRow ? (
+            <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,1fr)_minmax(560px,2fr)_minmax(320px,1fr)] overflow-hidden">
+              <div className="scrollbar-hidden min-w-0 overflow-y-auto border-r border-border">
+                <div className="p-3">
+                  <OnboardingCard
+                    card={card}
+                    lookupOptionsByField={lookupOptionsByField}
+                    showTitle={false}
+                    showTempistiche={false}
+                    readOnly
                   />
                 </div>
+              </div>
 
-                {selectedSelectionRow ? (
-                  <SelectionDetailsCard
-                    selectionRow={selectedSelectionRow}
-                    lookupColorsByDomain={lookupColorsByDomain}
-                    statusOptions={
-                      lookupOptionsByDomain.get(
-                        "selezioni_lavoratori.stato_selezione",
-                      ) ??
-                      lookupOptionsByDomain.get("lavoratori.stato_selezione") ??
-                      []
-                    }
-                    followupOptions={
-                      lookupOptionsByDomain.get(
-                        "selezioni_lavoratori.followup_senza_risposta",
-                      ) ?? []
-                    }
-                    archivioOptions={
-                      lookupOptionsByDomain.get(
-                        "selezioni_lavoratori.motivo_archivio",
-                      ) ?? []
-                    }
-                    nonSelezionatoOptions={
-                      lookupOptionsByDomain.get(
-                        "selezioni_lavoratori.motivo_non_selezionato",
-                      ) ?? []
-                    }
-                    noMatchOptions={
-                      lookupOptionsByDomain.get(
-                        "selezioni_lavoratori.motivo_no_match",
-                      ) ?? []
-                    }
-                    onPatchField={patchSelectedSelectionField}
-                    disabled={updatingSelectionDetails}
-                  />
-                ) : null}
-
-                <WorkerPipelineSummaryCards
-                  workerRow={selectedWorkerRow}
+              <div className="min-w-0 overflow-hidden">
+                <SchedaColloquioPanel
+                  ricerca={card}
+                  selectionCard={{
+                    ...selectedCard,
+                    worker: selectedWorker ?? selectedCard.worker,
+                  }}
                   selectionRow={selectedSelectionRow}
-                  onPatchWorkerField={patchSelectedWorkerField}
-                  onPatchProcessField={patchSelectedProcessAddressField}
-                  processWeeklyHours={card.oreSettimana}
-                  familyAddress={familyAddressDraft.address}
-                  familyCap={familyAddressDraft.cap}
-                  familyProvince={familyAddressDraft.province}
-                  familyAddressNote={familyAddressDraft.note}
-                  familyAvailabilityJson={card.familyAvailabilityJson}
-                  familyWorkSchedule={card.orarioDiLavoro}
-                  familyWeeklyFrequency={card.giorniSettimana}
-                  provinceOptions={
-                    lookupOptionsByDomain.get("processi_matching.indirizzo_prova_provincia") ??
-                    lookupOptionsByDomain.get("processi_matching.provincia") ??
-                    lookupOptionsByDomain.get("lavoratori.provincia") ??
+                  workerRow={selectedWorkerRow}
+                  statusOptions={
+                    lookupOptionsByDomain.get(
+                      "selezioni_lavoratori.stato_selezione",
+                    ) ??
+                    lookupOptionsByDomain.get("lavoratori.stato_selezione") ??
                     []
                   }
-                  updatingProcessAddress={updatingFamilyAddress}
-                  availabilityTitleMeta={
-                    formatAvailabilityComputedAt(availabilityPayload?.computed_at) ?? "-"
-                  }
-                  availabilityReadOnlyRows={availabilityReadOnlyRows}
-                  lookupOptionsByDomain={lookupOptionsByDomain}
                   lookupColorsByDomain={lookupColorsByDomain}
-                  experienceTipoLavoroOptions={
-                    lookupOptionsByDomain.get(
-                      "esperienze_lavoratori.tipo_lavoro",
-                    ) ??
-                    lookupOptionsByDomain.get(
-                      "lavoratori.tipo_lavoro_domestico",
-                    ) ??
-                    []
-                  }
-                  experienceTipoRapportoOptions={
-                    lookupOptionsByDomain.get(
-                      "esperienze_lavoratori.tipo_rapporto",
-                    ) ?? []
-                  }
-                  referenceStatusOptions={
-                    lookupOptionsByDomain.get(
-                      "referenze_lavoratori.referenza_verificata",
-                    ) ?? []
-                  }
-                  experiences={selectedWorkerExperiences}
-                  experiencesLoading={loadingSelectedWorkerExperiences}
-                  references={selectedWorkerReferences}
-                  referencesLoading={loadingSelectedWorkerReferences}
-                  isEditingAvailability={isEditingAvailability}
-                  onToggleAvailabilityEdit={() =>
-                    setIsEditingAvailability((current) => !current)
-                  }
-                  updatingAvailability={updatingAvailability}
-                  availabilityMatrix={availabilityDraft.matrix}
-                  availabilityVincoli={availabilityDraft.vincoli_orari_disponibilita}
-                  onAvailabilityMatrixChange={(
-                    dayField,
-                    bandField,
-                    checked,
-                  ) => handleAvailabilityMatrixChange(dayField, bandField, checked)}
-                  onAvailabilityVincoliChange={(value) =>
-                    setAvailabilityDraft((current) => ({
-                      ...current,
-                      vincoli_orari_disponibilita: value,
-                    }))
-                  }
-                  onAvailabilityVincoliBlur={() =>
-                    void commitAvailabilityField("vincoli_orari_disponibilita")
-                  }
-                  isEditingExperience={isEditingExperience}
-                  onToggleExperienceEdit={() =>
-                    setIsEditingExperience((current) => !current)
-                  }
-                  updatingExperience={updatingExperience}
-                  experienceDraft={experienceDraft}
-                  onExperienceDraftChange={(patch) =>
-                    setExperienceDraft((current) => ({ ...current, ...patch }))
-                  }
-                  onExperienceFieldBlur={(field) =>
-                    void commitExperienceField(field)
-                  }
-                  onExperiencePatch={patchExperienceRecord}
-                  onExperienceCreate={createExperienceRecord}
-                  onReferencePatch={patchReferenceRecord}
-                  onReferenceCreate={createReferenceRecord}
-                  isEditingSkills={isEditingSkills}
-                  onToggleSkillsEdit={() =>
-                    setIsEditingSkills((current) => !current)
-                  }
-                  updatingSkills={updatingSkills}
-                  skillsDraft={skillsDraft}
-                  onSkillsDraftChange={(patch) =>
-                    setSkillsDraft((current) => ({ ...current, ...patch }))
-                  }
-                  onSkillsFieldPatch={patchSkillsField}
+                  disabled={updatingSelectionDetails}
+                  onMoveStatus={handleMoveSelectionStatus}
+                  onPatchField={patchSelectedSelectionField}
                 />
               </div>
-            ) : null}
-          </div>
-        </SheetContent>
-      </Sheet>
+
+              <div className="scrollbar-hidden min-w-0 overflow-y-auto border-l border-border">
+                <div className="space-y-6 p-4">
+                  <div>
+                    <WorkerProfileHeader
+                      worker={selectedWorker ?? selectedCard.worker}
+                      workerRow={selectedWorkerRow}
+                      headerLayout="stacked"
+                      statoLavoratoreOptions={
+                        lookupOptionsByDomain.get(
+                          "lavoratori.stato_lavoratore",
+                        ) ?? []
+                      }
+                      disponibilitaOptions={
+                        lookupOptionsByDomain.get("lavoratori.disponibilita") ??
+                        []
+                      }
+                      motivazioniOptions={
+                        lookupOptionsByDomain.get(
+                          "lavoratori.motivazione_non_idoneo",
+                        ) ?? []
+                      }
+                      sessoOptions={
+                        lookupOptionsByDomain.get("lavoratori.sesso") ?? []
+                      }
+                      nazionalitaOptions={
+                        lookupOptionsByDomain.get("lavoratori.nazionalita") ?? []
+                      }
+                      onPatchField={(field, value) =>
+                        patchSelectedWorkerField(field, value)
+                      }
+                      onStatoLavoratoreChange={(value) =>
+                        patchSelectedWorkerField("stato_lavoratore", value)
+                      }
+                      onDisponibilitaChange={(value) =>
+                        patchSelectedWorkerField("disponibilita", value)
+                      }
+                      onMotivazioneChange={(value) =>
+                        patchSelectedWorkerField(
+                          "motivazione_non_idoneo",
+                          value ? [value] : [],
+                        )
+                      }
+                    />
+                  </div>
+
+                  <WorkerPipelineSummaryCards
+                    workerRow={selectedWorkerRow}
+                    selectionRow={selectedSelectionRow}
+                    onPatchWorkerField={patchSelectedWorkerField}
+                    onPatchProcessField={patchSelectedProcessAddressField}
+                    processWeeklyHours={card.oreSettimana}
+                    familyAddress={familyAddressDraft.address}
+                    familyCap={familyAddressDraft.cap}
+                    familyProvince={familyAddressDraft.province}
+                    familyAddressNote={familyAddressDraft.note}
+                    familyAvailabilityJson={card.familyAvailabilityJson}
+                    familyWorkSchedule={card.orarioDiLavoro}
+                    familyWeeklyFrequency={card.giorniSettimana}
+                    provinceOptions={
+                      lookupOptionsByDomain.get("processi_matching.indirizzo_prova_provincia") ??
+                      lookupOptionsByDomain.get("processi_matching.provincia") ??
+                      lookupOptionsByDomain.get("lavoratori.provincia") ??
+                      []
+                    }
+                    updatingProcessAddress={updatingFamilyAddress}
+                    availabilityTitleMeta={
+                      formatAvailabilityComputedAt(availabilityPayload?.computed_at) ?? "-"
+                    }
+                    availabilityReadOnlyRows={availabilityReadOnlyRows}
+                    lookupOptionsByDomain={lookupOptionsByDomain}
+                    lookupColorsByDomain={lookupColorsByDomain}
+                    experienceTipoLavoroOptions={
+                      lookupOptionsByDomain.get(
+                        "esperienze_lavoratori.tipo_lavoro",
+                      ) ??
+                      lookupOptionsByDomain.get(
+                        "lavoratori.tipo_lavoro_domestico",
+                      ) ??
+                      []
+                    }
+                    experienceTipoRapportoOptions={
+                      lookupOptionsByDomain.get(
+                        "esperienze_lavoratori.tipo_rapporto",
+                      ) ?? []
+                    }
+                    referenceStatusOptions={
+                      lookupOptionsByDomain.get(
+                        "referenze_lavoratori.referenza_verificata",
+                      ) ?? []
+                    }
+                    experiences={selectedWorkerExperiences}
+                    experiencesLoading={loadingSelectedWorkerExperiences}
+                    references={selectedWorkerReferences}
+                    referencesLoading={loadingSelectedWorkerReferences}
+                    isEditingAvailability={isEditingAvailability}
+                    onToggleAvailabilityEdit={() =>
+                      setIsEditingAvailability((current) => !current)
+                    }
+                    updatingAvailability={updatingAvailability}
+                    availabilityMatrix={availabilityDraft.matrix}
+                    availabilityVincoli={availabilityDraft.vincoli_orari_disponibilita}
+                    onAvailabilityMatrixChange={(
+                      dayField,
+                      bandField,
+                      checked,
+                    ) => handleAvailabilityMatrixChange(dayField, bandField, checked)}
+                    onAvailabilityVincoliChange={(value) =>
+                      setAvailabilityDraft((current) => ({
+                        ...current,
+                        vincoli_orari_disponibilita: value,
+                      }))
+                    }
+                    onAvailabilityVincoliBlur={() =>
+                      void commitAvailabilityField("vincoli_orari_disponibilita")
+                    }
+                    isEditingExperience={isEditingExperience}
+                    onToggleExperienceEdit={() =>
+                      setIsEditingExperience((current) => !current)
+                    }
+                    updatingExperience={updatingExperience}
+                    experienceDraft={experienceDraft}
+                    onExperienceDraftChange={(patch) =>
+                      setExperienceDraft((current) => ({ ...current, ...patch }))
+                    }
+                    onExperienceFieldBlur={(field) =>
+                      void commitExperienceField(field)
+                    }
+                    onExperiencePatch={patchExperienceRecord}
+                    onExperienceCreate={createExperienceRecord}
+                    onReferencePatch={patchReferenceRecord}
+                    onReferenceCreate={createReferenceRecord}
+                    isEditingSkills={isEditingSkills}
+                    onToggleSkillsEdit={() =>
+                      setIsEditingSkills((current) => !current)
+                    }
+                    updatingSkills={updatingSkills}
+                    skillsDraft={skillsDraft}
+                    onSkillsDraftChange={(patch) =>
+                      setSkillsDraft((current) => ({ ...current, ...patch }))
+                    }
+                    onSkillsFieldPatch={patchSkillsField}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
