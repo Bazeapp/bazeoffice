@@ -18,18 +18,6 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined
 
-          if (
-            id.includes("/react/") ||
-            id.includes("/react-dom/") ||
-            id.includes("radix-ui") ||
-            id.includes("@base-ui/react") ||
-            id.includes("lucide-react") ||
-            id.includes("embla-carousel-react") ||
-            id.includes("sonner")
-          ) {
-            return "framework"
-          }
-
           if (id.includes("@supabase/supabase-js")) {
             return "supabase-vendor"
           }
@@ -37,7 +25,24 @@ export default defineConfig({
           if (id.includes("@tanstack/react-table")) {
             return "table-vendor"
           }
-          
+
+          if (id.includes("/react/") || id.includes("/react-dom/")) {
+            return "react-vendor"
+          }
+
+          if (
+            id.includes("radix-ui") ||
+            id.includes("@base-ui/react") ||
+            id.includes("embla-carousel-react") ||
+            id.includes("sonner")
+          ) {
+            return "ui-vendor"
+          }
+
+          if (id.includes("lucide-react")) {
+            return "icons-vendor"
+          }
+
           return undefined
         },
       },

@@ -266,12 +266,20 @@ export function AppShell({ user, onLogout }: AppShellProps) {
       <SidebarInset className="h-svh min-h-0 overflow-hidden bg-muted">
         <main className="scrollbar-hidden flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-muted p-3">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <AppPageContent
-              route={route}
-              onOpenAnagraficheTab={handleOpenAnagraficheTab}
-              onOpenRicercaDetail={handleOpenRicercaDetail}
-              onOpenRicercaPipeline={handleOpenRicercaPipeline}
-            />
+            <React.Suspense
+              fallback={
+                <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-2xl border border-border/60 bg-background/80 px-6 py-10 text-sm text-muted-foreground shadow-sm">
+                  Caricamento pagina...
+                </div>
+              }
+            >
+              <AppPageContent
+                route={route}
+                onOpenAnagraficheTab={handleOpenAnagraficheTab}
+                onOpenRicercaDetail={handleOpenRicercaDetail}
+                onOpenRicercaPipeline={handleOpenRicercaPipeline}
+              />
+            </React.Suspense>
           </div>
         </main>
       </SidebarInset>

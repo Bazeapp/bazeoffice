@@ -1,18 +1,75 @@
-import { AnagrafichePage } from "@/pages/anagrafiche-page"
-import { AssunzioniPage } from "@/pages/assunzioni-page"
-import { ChiusurePage } from "@/pages/chiusure-page"
-import { CrmAssegnazionePage } from "@/pages/crm-assegnazione-page"
-import { CrmPipelineFamigliePage } from "@/pages/crm-pipeline-famiglie-page"
-import { Gate1Page } from "@/pages/gate1-page"
-import { Gate2Page } from "@/pages/gate2-page"
-import { LavoratoriCercaPage } from "@/pages/lavoratori-cerca-page"
-import { PayrollPage } from "@/pages/payroll-page"
-import { RapportiLavorativiPage } from "@/pages/rapporti-lavorativi-page"
-import { RicercaBoardPage } from "@/pages/ricerca-board-page"
-import { RicercaDetailPage } from "@/pages/ricerca-detail-page"
-import { SupportTicketsPage } from "@/pages/support-tickets-page"
-import { VariazioniPage } from "@/pages/variazioni-page"
+import * as React from "react"
 import type { AppRoute } from "@/routes/app-routes"
+
+const AnagrafichePage = React.lazy(async () => {
+  const module = await import("@/pages/anagrafiche-page")
+  return { default: module.AnagrafichePage }
+})
+
+const AssunzioniPage = React.lazy(async () => {
+  const module = await import("@/pages/assunzioni-page")
+  return { default: module.AssunzioniPage }
+})
+
+const ChiusurePage = React.lazy(async () => {
+  const module = await import("@/pages/chiusure-page")
+  return { default: module.ChiusurePage }
+})
+
+const CrmAssegnazionePage = React.lazy(async () => {
+  const module = await import("@/pages/crm-assegnazione-page")
+  return { default: module.CrmAssegnazionePage }
+})
+
+const CrmPipelineFamigliePage = React.lazy(async () => {
+  const module = await import("@/pages/crm-pipeline-famiglie-page")
+  return { default: module.CrmPipelineFamigliePage }
+})
+
+const Gate1Page = React.lazy(async () => {
+  const module = await import("@/pages/gate1-page")
+  return { default: module.Gate1Page }
+})
+
+const Gate2Page = React.lazy(async () => {
+  const module = await import("@/pages/gate2-page")
+  return { default: module.Gate2Page }
+})
+
+const LavoratoriCercaPage = React.lazy(async () => {
+  const module = await import("@/pages/lavoratori-cerca-page")
+  return { default: module.LavoratoriCercaPage }
+})
+
+const PayrollPage = React.lazy(async () => {
+  const module = await import("@/pages/payroll-page")
+  return { default: module.PayrollPage }
+})
+
+const RapportiLavorativiPage = React.lazy(async () => {
+  const module = await import("@/pages/rapporti-lavorativi-page")
+  return { default: module.RapportiLavorativiPage }
+})
+
+const RicercaBoardPage = React.lazy(async () => {
+  const module = await import("@/pages/ricerca-board-page")
+  return { default: module.RicercaBoardPage }
+})
+
+const RicercaDetailPage = React.lazy(async () => {
+  const module = await import("@/pages/ricerca-detail-page")
+  return { default: module.RicercaDetailPage }
+})
+
+const SupportTicketsPage = React.lazy(async () => {
+  const module = await import("@/pages/support-tickets-page")
+  return { default: module.SupportTicketsPage }
+})
+
+const VariazioniPage = React.lazy(async () => {
+  const module = await import("@/pages/variazioni-page")
+  return { default: module.VariazioniPage }
+})
 
 type PageMeta = {
   title: string
