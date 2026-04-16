@@ -263,8 +263,8 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onOpenCustomerSupportCustomerTicket={handleOpenCustomerSupportCustomerTicket}
         onOpenCustomerSupportPayrollTicket={handleOpenCustomerSupportPayrollTicket}
       />
-      <SidebarInset className="h-svh min-h-0 overflow-hidden">
-        <main className="scrollbar-hidden flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-3">
+      <SidebarInset className="h-svh min-h-0 overflow-hidden bg-muted">
+        <main className="scrollbar-hidden flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-muted p-3">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <AppPageContent
               route={route}

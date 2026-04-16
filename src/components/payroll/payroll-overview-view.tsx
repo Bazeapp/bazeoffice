@@ -333,7 +333,7 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
   )
 }
 
-function CedolinoDetailSheet({
+export function CedolinoDetailSheet({
   card,
   columns,
   open,

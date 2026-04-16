@@ -28,6 +28,13 @@ import {
   DetailSectionBlock,
   DetailSectionCard,
 } from "@/components/shared/detail-section-card"
+import {
+  ContributoInpsDetailSheet,
+  type ContributiColumnData,
+} from "@/components/payroll/contributi-inps-view"
+import {
+  CedolinoDetailSheet,
+} from "@/components/payroll/payroll-overview-view"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -52,6 +59,8 @@ import type {
   RapportoLavorativoRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
+import type { PayrollBoardCardData, PayrollBoardColumnData } from "@/hooks/use-payroll-board"
+import type { ContributoInpsBoardCardData } from "@/hooks/use-contributi-inps-board"
 
 type RapportoDetailPanelProps = {
   rapporto: RapportoLavorativoRecord | null
@@ -83,6 +92,27 @@ const SECTION_TABS: SectionTab[] = [
   { id: "variazioni", label: "Variazioni", icon: RefreshCwIcon },
   { id: "chiusure", label: "Chiusure", icon: TriangleAlertIcon },
 ]
+
+const PAYROLL_STAGE_OPTIONS = [
+  "TODO",
+  "Inviate richiesta presenze",
+  "Follow up richiesta presenze",
+  "Followup fatti",
+  "Problema in comunicazione presenze",
+  "Ricezione presenze",
+  "Cedolino da controllare",
+  "Cedolino Pronto",
+  "Inviato cedolino",
+  "Richiesta chiarimenti",
+  "Pagato",
+] as const
+
+const CONTRIBUTI_STAGE_OPTIONS = [
+  { id: "Da richiedere", label: "Da richiedere", color: "sky" },
+  { id: "PagoPA ricevuto", label: "PagoPA ricevuto", color: "cyan" },
+  { id: "Inviato alla famiglia", label: "Inviato alla famiglia", color: "amber" },
+  { id: "Pagato", label: "Pagato", color: "green" },
+] as const
 
 function normalizeToken(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase().replaceAll("_", " ")
@@ -367,6 +397,8 @@ export function RapportoDetailPanel({
   const [uploadError, setUploadError] = React.useState<string | null>(null)
   const [editingSection, setEditingSection] = React.useState<"contratto" | null>(null)
   const [savingContratto, setSavingContratto] = React.useState(false)
+  const [selectedCedolinoId, setSelectedCedolinoId] = React.useState<string | null>(null)
+  const [selectedContributoId, setSelectedContributoId] = React.useState<string | null>(null)
   const [rapportoState, setRapportoState] = React.useState<RapportoLavorativoRecord | null>(rapporto)
   const autosaveTimeoutRef = React.useRef<number | null>(null)
   const [rapportoDraft, setRapportoDraft] = React.useState(() => ({
@@ -390,6 +422,8 @@ export function RapportoDetailPanel({
 
   React.useEffect(() => {
     setRapportoState(rapporto)
+    setSelectedCedolinoId(null)
+    setSelectedContributoId(null)
     setRapportoDraft({
       tipo_contratto_durata: rapporto?.tipo_contratto_durata ?? "",
       tipo_contratto: rapporto?.tipo_contratto ?? "",
@@ -679,6 +713,71 @@ export function RapportoDetailPanel({
       ""
     return rightDate.localeCompare(leftDate)
   })
+  const cedolinoCards = sortedMesi.map((mese) => {
+    const meseCalendario = mese.mese_id ? meseCalendarioById.get(mese.mese_id) ?? null : null
+    const pagamento = mese.ticket_id ? pagamentiByTicketId.get(mese.ticket_id) ?? null : null
+    const presenzeMese = mese.presenze_id ? presenzeById.get(mese.presenze_id) ?? null : null
+    const presenzeRegolari = mese.presenze_regolare_id
+      ? presenzeById.get(mese.presenze_regolare_id) ?? null
+      : null
+    const nomeCompleto =
+      [rapportoView.cognome_nome_datore_proper, rapportoView.nome_lavoratore_per_url]
+        .filter(Boolean)
+        .join(" – ")
+        .trim() || "Rapporto non disponibile"
+
+    return {
+      id: mese.id,
+      stage: mese.stato_mese_lavorativo ?? "TODO",
+      record: mese,
+      famiglia,
+      pagamento,
+      presenze: presenzeMese,
+      presenzeRegolari,
+      rapporto: rapportoView,
+      mese: meseCalendario,
+      nomeCompleto,
+      importoLabel: typeof mese.importo_busta_estratto === "number" ? formatCurrency(mese.importo_busta_estratto) : null,
+      dataInvioLabel: mese.data_invio_famiglia ? formatDate(mese.data_invio_famiglia) : null,
+    } satisfies PayrollBoardCardData
+  })
+  const cedolinoColumns: PayrollBoardColumnData[] = PAYROLL_STAGE_OPTIONS.map((stage) => ({
+    id: stage,
+    label: stage,
+    color: "sky",
+    cards: cedolinoCards.filter((card) => card.stage === stage),
+  }))
+  const selectedCedolino = cedolinoCards.find((card) => card.id === selectedCedolinoId) ?? null
+  const contributoCards: ContributoInpsBoardCardData[] = contributi.map((contributo) => {
+    const nomeFamiglia = rapportoView.cognome_nome_datore_proper?.trim() || "Famiglia non disponibile"
+    const nomeLavoratore = rapportoView.nome_lavoratore_per_url?.trim() || "Lavoratore non disponibile"
+
+    return {
+      id: contributo.id,
+      stage: contributo.stato_contributi_inps ?? CONTRIBUTI_STAGE_OPTIONS[0].id,
+      record: contributo,
+      rapporto: rapportoView,
+      trimestre: null,
+      nomeFamiglia,
+      nomeLavoratore,
+      nomeCompleto: `${nomeFamiglia} – ${nomeLavoratore}`,
+      trimestreLabel: getContributoTitle(contributo),
+      importoLabel:
+        typeof contributo.importo_contributi_inps === "number"
+          ? formatCurrency(contributo.importo_contributi_inps)
+          : null,
+      pagopaLabel:
+        typeof contributo.valore_pagopa === "number" ? formatCurrency(contributo.valore_pagopa) : null,
+    } satisfies ContributoInpsBoardCardData
+  })
+  const contributoColumns: ContributiColumnData[] = CONTRIBUTI_STAGE_OPTIONS.map((stage) => ({
+    id: stage.id,
+    label: stage.label,
+    color: stage.color,
+    cards: contributoCards.filter((card) => card.stage === stage.id),
+  }))
+  const selectedContributo =
+    contributoCards.find((card) => card.id === selectedContributoId) ?? null
 
   return (
     <section
@@ -1162,6 +1261,7 @@ export function RapportoDetailPanel({
                             : "-"}
                         </span>
                       }
+                      onClick={() => setSelectedCedolinoId(mese.id)}
                     />
                   )
                 })
@@ -1205,6 +1305,7 @@ export function RapportoDetailPanel({
                           : "-"}
                       </span>
                     }
+                    onClick={() => setSelectedContributoId(contributo.id)}
                   />
                 ))
               ) : (
@@ -1285,6 +1386,38 @@ export function RapportoDetailPanel({
           <div className="h-8" />
         </div>
       </div>
+      <CedolinoDetailSheet
+        card={selectedCedolino}
+        columns={cedolinoColumns}
+        open={Boolean(selectedCedolino)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedCedolinoId(null)
+        }}
+        onStageChange={(recordId, targetStageId) => {
+          void updateRecord("mesi_lavorati", recordId, {
+            stato_mese_lavorativo: targetStageId,
+          })
+        }}
+        onPatchCard={(recordId, patch) => {
+          void updateRecord("mesi_lavorati", recordId, patch as Record<string, unknown>)
+        }}
+      />
+      <ContributoInpsDetailSheet
+        card={selectedContributo}
+        columns={contributoColumns}
+        open={Boolean(selectedContributo)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedContributoId(null)
+        }}
+        onStageChange={async (recordId, targetStageId) => {
+          await updateRecord("contributi_inps", recordId, {
+            stato_contributi_inps: targetStageId,
+          })
+        }}
+        onPatchCard={async (recordId, patch) => {
+          await updateRecord("contributi_inps", recordId, patch as Record<string, unknown>)
+        }}
+      />
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(open) => !open && setSelectedPreview(null)}>
         <DialogContent
           className="max-w-[min(96vw,72rem)] border-none bg-black/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"

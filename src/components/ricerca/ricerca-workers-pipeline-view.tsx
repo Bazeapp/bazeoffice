@@ -1,21 +1,18 @@
 import * as React from "react";
 import {
-  BriefcaseBusinessIcon,
-  CalendarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CircleDotIcon,
-  Clock3Icon,
-  MailIcon,
-  PhoneIcon,
   XIcon,
 } from "lucide-react";
 
 import { OnboardingCard } from "@/components/crm/cards/onboarding-card";
 import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
+import { RicercaFamilySummaryCard } from "@/components/ricerca/ricerca-family-summary-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
 import { WorkerPipelineSummaryCards } from "@/components/ricerca/worker-pipeline-summary-cards";
+import { DetailSectionBlock } from "@/components/shared/detail-section-card";
 import { SideCardsPanel } from "@/components/shared/side-cards-panel";
 import {
   Breadcrumb,
@@ -44,7 +41,6 @@ import {
   toAvatarUrl,
 } from "@/features/lavoratori/lib/base-utils";
 import {
-  getTagClassName,
   isBlacklistValue,
   normalizeLookupColors,
   normalizeLookupOptions,
@@ -93,21 +89,6 @@ function normalizeToken(value: string | null | undefined) {
     .toLowerCase()
     .replaceAll("_", " ")
     .replaceAll("-", " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function renderValue(value: string | null | undefined) {
-  if (!value) return "-";
-  const normalized = value.trim();
-  return normalized ? normalized : "-";
-}
-
-function formatBadgeLabel(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replaceAll("/", " / ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -919,10 +900,10 @@ export function RicercaWorkersPipelineView({
 
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2">
         <div className="flex h-full min-h-0 min-w-max gap-4">
-          <div
-            className={cn(
-              "flex h-full min-h-0 shrink-0 pt-2",
-              isOnboardingCollapsed ? "w-10" : "w-105",
+              <div
+                className={cn(
+                  "flex h-full min-h-0 shrink-0 pt-2",
+                  isOnboardingCollapsed ? "w-10" : "w-105",
             )}
           >
             {isOnboardingCollapsed ? (
@@ -954,13 +935,17 @@ export function RicercaWorkersPipelineView({
                   <ChevronLeftIcon />
                 </Button>
 
-                <OnboardingCard
-                  card={card}
-                  lookupOptionsByField={lookupOptionsByField}
-                  showTitle={false}
-                  showTempistiche={false}
-                  readOnly
-                />
+                <div className="space-y-4">
+                  <RicercaFamilySummaryCard card={card} />
+
+                  <OnboardingCard
+                    card={card}
+                    lookupOptionsByField={lookupOptionsByField}
+                    showTitle={false}
+                    showTempistiche={false}
+                    readOnly
+                  />
+                </div>
               </div>
             ) : null}
           </div>
@@ -1069,48 +1054,7 @@ export function RicercaWorkersPipelineView({
                   headerClassName="hidden"
                   contentClassName="space-y-4 px-4 pt-0 pb-4"
                 >
-                  <div className="space-y-4 px-1">
-                    <div className="space-y-3">
-                      <p className="text-2xl leading-tight font-semibold text-foreground">
-                        {renderValue(card.nomeFamiglia)}
-                      </p>
-                      <div className="space-y-2.5 text-muted-foreground">
-                        <div className="flex items-center gap-2 text-sm">
-                          <PhoneIcon className="size-4 shrink-0" />
-                          <span className="truncate">{renderValue(card.telefono)}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <MailIcon className="size-4 shrink-0" />
-                          <span className="truncate">{renderValue(card.email)}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <CalendarIcon className="size-4 shrink-0" />
-                          <span className="truncate">{renderValue(card.dataLead)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {card.tipoLavoroBadge ? (
-                        <Badge
-                          variant="outline"
-                          className={getTagClassName(card.tipoLavoroColor)}
-                        >
-                          <BriefcaseBusinessIcon data-icon="inline-start" />
-                          {formatBadgeLabel(card.tipoLavoroBadge)}
-                        </Badge>
-                      ) : null}
-                      {card.tipoRapportoBadge ? (
-                        <Badge
-                          variant="outline"
-                          className={getTagClassName(card.tipoRapportoColor)}
-                        >
-                          <Clock3Icon data-icon="inline-start" />
-                          {formatBadgeLabel(card.tipoRapportoBadge)}
-                        </Badge>
-                      ) : null}
-                    </div>
-                  </div>
+                  <RicercaFamilySummaryCard card={card} />
 
                   <OnboardingCard
                     card={card}
@@ -1124,7 +1068,12 @@ export function RicercaWorkersPipelineView({
 
               <div className="scrollbar-hidden min-w-0 overflow-y-auto border-r border-border">
                 <div className="space-y-4 p-4">
-                  <div className="border-b border-border pb-4">
+                  <DetailSectionBlock
+                    title="Profilo lavoratore"
+                    showDefaultAction={false}
+                    className="space-y-2"
+                    contentClassName="space-y-0 px-1 pt-1"
+                  >
                     <WorkerProfileHeader
                       worker={selectedWorker ?? selectedCard.worker}
                       workerRow={selectedWorkerRow}
@@ -1165,35 +1114,44 @@ export function RicercaWorkersPipelineView({
                         )
                       }
                     />
-                  </div>
+                  </DetailSectionBlock>
 
-                  <SchedaColloquioPanel
-                    selectionRow={selectedSelectionRow}
-                    statusOptions={
-                      lookupOptionsByDomain.get(
-                        "selezioni_lavoratori.stato_selezione",
-                      ) ??
-                      lookupOptionsByDomain.get("lavoratori.stato_selezione") ??
-                      []
-                    }
-                    lookupColorsByDomain={lookupColorsByDomain}
-                    disabled={updatingSelectionDetails}
-                    onMoveStatus={handleMoveSelectionStatus}
-                    onPatchField={patchSelectedSelectionField}
-                  />
+                  <DetailSectionBlock
+                    title="Scheda colloquio"
+                    showDefaultAction={false}
+                    className="space-y-2"
+                    contentClassName="space-y-0 px-1 pt-1"
+                  >
+                    <SchedaColloquioPanel
+                      selectionRow={selectedSelectionRow}
+                      statusOptions={
+                        lookupOptionsByDomain.get(
+                          "selezioni_lavoratori.stato_selezione",
+                        ) ??
+                        lookupOptionsByDomain.get("lavoratori.stato_selezione") ??
+                        []
+                      }
+                      lookupColorsByDomain={lookupColorsByDomain}
+                      disabled={updatingSelectionDetails}
+                      onMoveStatus={handleMoveSelectionStatus}
+                      onPatchField={patchSelectedSelectionField}
+                    />
+                  </DetailSectionBlock>
                 </div>
               </div>
 
               <div className="scrollbar-hidden min-w-0 overflow-y-auto">
                 <div className="space-y-6 p-4">
-                  <div className="px-1">
-                    <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.18em]">
-                      Lavoratore
-                    </p>
-                    <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                  <DetailSectionBlock
+                    title="Lavoratore"
+                    showDefaultAction={false}
+                    className="space-y-2"
+                    contentClassName="space-y-0 px-1 pt-1"
+                  >
+                    <p className="truncate text-sm font-semibold text-foreground">
                       {selectedWorker?.nomeCompleto ?? selectedCard.worker.nomeCompleto}
                     </p>
-                  </div>
+                  </DetailSectionBlock>
 
                   <WorkerPipelineSummaryCards
                     workerRow={selectedWorkerRow}

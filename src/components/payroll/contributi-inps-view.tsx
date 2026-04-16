@@ -38,7 +38,7 @@ type QuarterState = {
   year: number
 }
 
-type ContributiColumnData = {
+export type ContributiColumnData = {
   id: string
   label: string
   color: string
@@ -225,7 +225,7 @@ function ContributoInpsCard({ card }: { card: ContributoInpsBoardCardData }) {
   )
 }
 
-function ContributoInpsDetailSheet({
+export function ContributoInpsDetailSheet({
   card,
   columns,
   open,

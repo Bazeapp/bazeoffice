@@ -31,6 +31,25 @@ import type {
 } from "@/types"
 
 const PAGE_SIZE = 50
+const SEARCH_FIELDS = ["nome_lavoratore_per_url", "cognome_nome_datore_proper", "id"]
+
+function buildSearchQuery(value: string) {
+  const normalizedValue = value.trim()
+  if (!normalizedValue) return undefined
+
+  const tokens = normalizedValue
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+
+  if (tokens.length === 0) return undefined
+
+  // Use the longest token on the server query to avoid missing inverted names
+  // like "Jacquet Coline" when the stored value is "Coline Jacquet".
+  return tokens.reduce((longest, current) =>
+    current.length > longest.length ? current : longest
+  )
+}
 
 function buildEqualsFilter(field: string, value: string): QueryFilterGroup {
   return {
@@ -91,6 +110,7 @@ export function useRapportiLavorativiData() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [pageIndex, setPageIndex] = React.useState(0)
+  const [searchValue, setSearchValue] = React.useState("")
   const [selectedRapportoId, setSelectedRapportoId] = React.useState<string | null>(null)
   const [selectedFamiglia, setSelectedFamiglia] = React.useState<FamigliaRecord | null>(null)
   const [selectedLavoratore, setSelectedLavoratore] = React.useState<LavoratoreRecord | null>(null)
@@ -106,6 +126,11 @@ export function useRapportiLavorativiData() {
   const [lookupColorsByDomain, setLookupColorsByDomain] = React.useState<Map<string, string>>(
     new Map()
   )
+  const serverSearchQuery = React.useMemo(() => buildSearchQuery(searchValue), [searchValue])
+
+  React.useEffect(() => {
+    setPageIndex(0)
+  }, [serverSearchQuery])
 
   React.useEffect(() => {
     let isActive = true
@@ -122,6 +147,8 @@ export function useRapportiLavorativiData() {
             { field: "ultimo_aggiornamento", ascending: false },
             { field: "aggiornato_il", ascending: false },
           ],
+          search: serverSearchQuery,
+          searchFields: SEARCH_FIELDS,
         })
 
         if (!isActive) return
@@ -144,7 +171,7 @@ export function useRapportiLavorativiData() {
     return () => {
       isActive = false
     }
-  }, [pageIndex])
+  }, [pageIndex, serverSearchQuery])
 
   React.useEffect(() => {
     let isActive = true
@@ -336,6 +363,8 @@ export function useRapportiLavorativiData() {
     pageIndex,
     pageSize: PAGE_SIZE,
     setPageIndex,
+    searchValue,
+    setSearchValue,
     selectedRapportoId,
     setSelectedRapportoId,
     selectedRapporto,

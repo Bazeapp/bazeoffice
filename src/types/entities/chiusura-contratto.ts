@@ -10,7 +10,6 @@ export type ChiusuraContrattoRecord = {
   data_fine_rapporto: string | null
   documenti_chiusura_rapporto: JsonObject | null
   email: string | null
-  field_14: string | null
   informazioni_aggiuntive: string | null
   motivazione_cessazione_rapporto: string | null
   nome: string | null

@@ -56,6 +56,8 @@ type RapportiListPanelProps = {
   pageIndex: number
   pageSize: number
   onPageChange: (pageIndex: number) => void
+  searchValue: string
+  onSearchValueChange: (value: string) => void
   selectedRapportoId: string | null
   onSelect: (id: string) => void
   lookupColorsByDomain: Map<string, string>
@@ -69,6 +71,22 @@ function getFamilyName(rapporto: RapportoLavorativoRecord) {
 
 function getWorkerName(rapporto: RapportoLavorativoRecord) {
   return rapporto.nome_lavoratore_per_url?.trim() || "Lavoratore non associato"
+}
+
+function normalizeSearchToken(value: string) {
+  return value.trim().toLowerCase()
+}
+
+function matchesSearchCandidate(candidate: string, searchValue: string) {
+  const normalizedCandidate = normalizeSearchToken(candidate)
+  const normalizedSearch = normalizeSearchToken(searchValue)
+  if (!normalizedSearch) return true
+  if (normalizedCandidate.includes(normalizedSearch)) return true
+
+  const searchTokens = normalizedSearch.split(/\s+/).filter(Boolean)
+  if (searchTokens.length <= 1) return false
+
+  return searchTokens.every((token) => normalizedCandidate.includes(token))
 }
 
 function formatCompactDate(value: string | null) {
@@ -111,6 +129,11 @@ function sortItems(items: RapportiListItem[], sorting: Array<{ id: string; desc:
 
 function getStatusColor(lookupColorsByDomain: Map<string, string>, domain: string, value: string | null) {
   return resolveLookupColor(lookupColorsByDomain, domain, value)
+}
+
+function getStatusBadgeLabel(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim()
+  return normalized || "Sconosciuto"
 }
 
 function getFallbackColor(value: string | null | undefined) {
@@ -156,23 +179,21 @@ function renderGroupTree(
                     </p>
                   </div>
                   <div className="flex flex-wrap justify-end gap-1.5">
-                    {rapporto.stato_rapporto ? (
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "h-5 shrink-0 px-2 text-[11px] font-medium",
-                          getTagClassName(
-                            getStatusColor(
-                              lookupColorsByDomain,
-                              "rapporti_lavorativi.stato_rapporto",
-                              rapporto.stato_rapporto
-                            ) ?? getFallbackColor(rapporto.stato_rapporto)
-                          )
-                        )}
-                      >
-                        {rapporto.stato_rapporto}
-                      </Badge>
-                    ) : null}
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "h-5 shrink-0 px-2 text-[11px] font-medium",
+                        getTagClassName(
+                          getStatusColor(
+                            lookupColorsByDomain,
+                            "rapporti_lavorativi.stato_rapporto",
+                            rapporto.stato_rapporto
+                          ) ?? getFallbackColor(getStatusBadgeLabel(rapporto.stato_rapporto))
+                        )
+                      )}
+                    >
+                      {getStatusBadgeLabel(rapporto.stato_rapporto)}
+                    </Badge>
                   </div>
                 </div>
 
@@ -261,6 +282,8 @@ export function RapportiListPanel({
   pageIndex,
   pageSize,
   onPageChange,
+  searchValue: externalSearchValue,
+  onSearchValueChange,
   selectedRapportoId,
   onSelect,
   lookupColorsByDomain,
@@ -272,7 +295,7 @@ export function RapportiListPanel({
   const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({})
   const initialQuery = React.useMemo(
     () => ({
-      grouping: ["stato_rapporto"],
+      grouping: [],
       sorting: [{ id: "data_inizio_rapporto", desc: true }],
     }),
     []
@@ -298,6 +321,11 @@ export function RapportiListPanel({
     debounceMs: 0,
     initialQuery,
   })
+
+  React.useEffect(() => {
+    if (searchValue === externalSearchValue) return
+    onSearchValueChange(searchValue)
+  }, [externalSearchValue, onSearchValueChange, searchValue])
 
   const items = React.useMemo<RapportiListItem[]>(
     () =>
@@ -425,15 +453,12 @@ export function RapportiListPanel({
   )
 
   const visibleItems = React.useMemo(() => {
-    const normalizedSearch = searchValue.trim().toLowerCase()
     const filtered = items
       .filter((rapporto) => {
-        if (!normalizedSearch) return true
-
         return (
-          rapporto.famigliaLabel.toLowerCase().includes(normalizedSearch) ||
-          rapporto.lavoratoreLabel.toLowerCase().includes(normalizedSearch) ||
-          rapporto.id.toLowerCase().includes(normalizedSearch)
+          matchesSearchCandidate(rapporto.famigliaLabel, searchValue) ||
+          matchesSearchCandidate(rapporto.lavoratoreLabel, searchValue) ||
+          matchesSearchCandidate(rapporto.id, searchValue)
         )
       })
       .filter((rapporto) =>

@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { Separator } from "@/components/ui/separator"
 import {
   Sheet,
@@ -32,23 +33,29 @@ export function RecruiterFeedbackSheet({
           <SheetTitle>Feedback recruiter</SheetTitle>
           <SheetDescription>Storico note su questo lavoratore</SheetDescription>
         </SheetHeader>
-        <div className="space-y-4 p-4 pt-0">
-          {entries.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nessun feedback disponibile.
-            </p>
-          ) : (
-            entries.map((entry, index) => (
-              <div key={`${entry.name}-${entry.date}-${index}`} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold">{entry.name}</p>
-                  {entry.date ? <Badge variant="outline">{entry.date}</Badge> : null}
+        <div className="p-4 pt-0">
+          <DetailSectionBlock
+            title="Storico feedback"
+            showDefaultAction={false}
+            contentClassName="space-y-4 px-1 pt-1"
+          >
+            {entries.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                Nessun feedback disponibile.
+              </p>
+            ) : (
+              entries.map((entry, index) => (
+                <div key={`${entry.name}-${entry.date}-${index}`} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold">{entry.name}</p>
+                    {entry.date ? <Badge variant="outline">{entry.date}</Badge> : null}
+                  </div>
+                  {entry.text ? <p className="text-sm leading-relaxed">{entry.text}</p> : null}
+                  {index < entries.length - 1 ? <Separator /> : null}
                 </div>
-                {entry.text ? <p className="text-sm leading-relaxed">{entry.text}</p> : null}
-                {index < entries.length - 1 ? <Separator /> : null}
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </DetailSectionBlock>
         </div>
       </SheetContent>
     </Sheet>

@@ -95,7 +95,7 @@
     height: 0;
   }
   body {
-    @apply h-full overflow-hidden font-sans bg-background text-foreground;
+    @apply h-full overflow-hidden font-sans bg-muted text-foreground;
   }
   html {
     @apply h-full font-sans;

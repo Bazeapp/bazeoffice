@@ -11,6 +11,8 @@ export function RapportiLavorativiView() {
     pageIndex,
     pageSize,
     setPageIndex,
+    searchValue,
+    setSearchValue,
     selectedRapportoId,
     setSelectedRapportoId,
     selectedRapporto,
@@ -38,6 +40,8 @@ export function RapportiLavorativiView() {
         pageIndex={pageIndex}
         pageSize={pageSize}
         onPageChange={setPageIndex}
+        searchValue={searchValue}
+        onSearchValueChange={setSearchValue}
         selectedRapportoId={selectedRapportoId}
         onSelect={setSelectedRapportoId}
         lookupColorsByDomain={lookupColorsByDomain}

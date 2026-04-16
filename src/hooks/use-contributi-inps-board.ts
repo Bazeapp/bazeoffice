@@ -69,6 +69,8 @@ const LEGACY_STAGE_ALIASES: Record<string, string> = {
   pagato: "Pagato",
 }
 
+const QUARTER_ORDER: ContributoQuarterValue[] = ["Q1", "Q2", "Q3", "Q4"]
+
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
     .trim()
@@ -85,6 +87,11 @@ function toStringValue(value: unknown): string | null {
   }
   if (typeof value === "number" || typeof value === "boolean") return String(value)
   return null
+}
+
+function normalizeRecordKey(value: unknown) {
+  const normalized = toStringValue(value)?.trim() ?? null
+  return normalized || null
 }
 
 function readLookupSortOrder(value: LookupValueRecord["sort_order"]) {
@@ -105,6 +112,19 @@ function getStageColorFallback(value: string | null | undefined) {
   if (token.includes("pagopa")) return "cyan"
   if (token.includes("richied")) return "sky"
   return "sky"
+}
+
+function isActiveRapporto(
+  rapporto: Pick<RapportoLavorativoRecord, "stato_rapporto" | "stato_servizio">
+) {
+  const token = normalizeToken(rapporto.stato_servizio ?? rapporto.stato_rapporto)
+  if (!token) return false
+  if (token === "attivo") return true
+  if (token.includes("non attivo")) return false
+  if (token.includes("attivo")) return true
+  if (token.includes("in attivazione")) return true
+  if (token.includes("in corso")) return true
+  return false
 }
 
 function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
@@ -243,6 +263,109 @@ function getYearFromDate(value: string | null | undefined) {
   return date.getFullYear()
 }
 
+function getQuarterDateRange(year: number, quarter: ContributoQuarterValue) {
+  const quarterIndex = QUARTER_ORDER.indexOf(quarter)
+  if (quarterIndex < 0) return null
+
+  const startMonth = quarterIndex * 3
+  const start = new Date(Date.UTC(year, startMonth, 1))
+  const end = new Date(Date.UTC(year, startMonth + 3, 0))
+
+  return {
+    start: start.toISOString(),
+    end: new Date(
+      Date.UTC(
+        end.getUTCFullYear(),
+        end.getUTCMonth(),
+        end.getUTCDate(),
+        23,
+        59,
+        59,
+        999
+      )
+    ).toISOString(),
+  }
+}
+
+function buildQuarterRowsFilter(
+  selectedYear: number,
+  selectedQuarter: ContributoQuarterValue
+) {
+  const range = getQuarterDateRange(selectedYear, selectedQuarter)
+  if (!range) return undefined
+
+  return {
+    kind: "group" as const,
+    id: `contributi-inps-quarter-${selectedQuarter}-${selectedYear}`,
+    logic: "or" as const,
+    nodes: [
+      {
+        kind: "group" as const,
+        id: `contributi-inps-data-ora-creazione-${selectedQuarter}-${selectedYear}`,
+        logic: "and" as const,
+        nodes: [
+          {
+            kind: "condition" as const,
+            id: `contributi-inps-data-ora-creazione-start-${selectedQuarter}-${selectedYear}`,
+            field: "data_ora_creazione",
+            operator: "gte" as const,
+            value: range.start,
+          },
+          {
+            kind: "condition" as const,
+            id: `contributi-inps-data-ora-creazione-end-${selectedQuarter}-${selectedYear}`,
+            field: "data_ora_creazione",
+            operator: "lte" as const,
+            value: range.end,
+          },
+        ],
+      },
+      {
+        kind: "group" as const,
+        id: `contributi-inps-creato-il-${selectedQuarter}-${selectedYear}`,
+        logic: "and" as const,
+        nodes: [
+          {
+            kind: "condition" as const,
+            id: `contributi-inps-creato-il-start-${selectedQuarter}-${selectedYear}`,
+            field: "creato_il",
+            operator: "gte" as const,
+            value: range.start,
+          },
+          {
+            kind: "condition" as const,
+            id: `contributi-inps-creato-il-end-${selectedQuarter}-${selectedYear}`,
+            field: "creato_il",
+            operator: "lte" as const,
+            value: range.end,
+          },
+        ],
+      },
+      {
+        kind: "group" as const,
+        id: `contributi-inps-aggiornato-il-${selectedQuarter}-${selectedYear}`,
+        logic: "and" as const,
+        nodes: [
+          {
+            kind: "condition" as const,
+            id: `contributi-inps-aggiornato-il-start-${selectedQuarter}-${selectedYear}`,
+            field: "aggiornato_il",
+            operator: "gte" as const,
+            value: range.start,
+          },
+          {
+            kind: "condition" as const,
+            id: `contributi-inps-aggiornato-il-end-${selectedQuarter}-${selectedYear}`,
+            field: "aggiornato_il",
+            operator: "lte" as const,
+            value: range.end,
+          },
+        ],
+      },
+    ],
+  }
+}
+
 function formatCurrency(value: number | null | undefined) {
   if (typeof value !== "number" || Number.isNaN(value)) return null
   return new Intl.NumberFormat("it-IT", {
@@ -260,27 +383,6 @@ function formatQuarterLabel(
 ) {
   if (quarter && year) return `${quarter} ${year}`
   return fallback?.trim() || "Trimestre non disponibile"
-}
-
-function buildQuarterTokenSet(rows: MeseCalendarioRecord[]) {
-  return new Set(
-    rows
-      .flatMap((row) => {
-        const parsedQuarter =
-          parseQuarterReference(row.trimestre_id) ??
-          parseQuarterReference(row.data_inizio)
-
-        return [
-          row.id,
-          row.trimestre_id,
-          parsedQuarter ? `${parsedQuarter.quarter} ${parsedQuarter.year}` : null,
-          parsedQuarter ? `${parsedQuarter.year} ${parsedQuarter.quarter}` : null,
-          parsedQuarter ? `${parsedQuarter.quarter}-${parsedQuarter.year}` : null,
-        ]
-      })
-      .filter(Boolean)
-      .map((value) => normalizeToken(value))
-  )
 }
 
 function buildQuarterIndex(rows: MeseCalendarioRecord[]) {
@@ -317,6 +419,7 @@ async function fetchContributiBoardData(
       limit: 3000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
+      filters: buildQuarterRowsFilter(selectedYear, selectedQuarter),
     }),
     fetchMesiCalendario({
       limit: 500,
@@ -334,27 +437,30 @@ async function fetchContributiBoardData(
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
   const aliases = stageMetadata.aliases
-  const rapportoById = new Map(rapportiResult.rows.map((rapporto) => [rapporto.id, rapporto]))
+  const rapportoById = new Map(
+    rapportiResult.rows
+      .map((rapporto) => {
+        const key = normalizeRecordKey(rapporto.id)
+        return key ? ([key, rapporto] as const) : null
+      })
+      .filter(Boolean) as Array<readonly [string, RapportoLavorativoRecord]>
+  )
   const rapportoByExternalId = new Map(
     rapportiResult.rows
       .flatMap((rapporto) =>
-        [rapporto.id_rapporto, rapporto.ticket_id, rapporto.airtable_id, rapporto.airtable_record_id]
+        [
+          rapporto.id_rapporto,
+          rapporto.ticket_id,
+          rapporto.airtable_id,
+          rapporto.airtable_record_id,
+        ]
+          .map((key) => normalizeRecordKey(key))
           .filter(Boolean)
           .map((key) => [key as string, rapporto] as const)
       )
   )
   const quarterIndex = buildQuarterIndex(mesiResult.rows)
-  const activeRapportiCount = rapportiResult.rows.filter((rapporto) => {
-    const token = normalizeToken(rapporto.stato_rapporto)
-    return token === "attivo" || (token.includes("attivo") && !token.includes("non"))
-  }).length
-
-  const selectedQuarterRows = mesiResult.rows.filter(
-    (row) =>
-      getQuarterValueFromDate(row.data_inizio) === selectedQuarter &&
-      getYearFromDate(row.data_inizio) === selectedYear
-  )
-  const selectedQuarterTokens = buildQuarterTokenSet(selectedQuarterRows)
+  const activeRapportiCount = rapportiResult.rows.filter((rapporto) => isActiveRapporto(rapporto)).length
 
   const cards = contributiResult.rows.flatMap((record) => {
     const resolvedQuarter =
@@ -362,9 +468,13 @@ async function fetchContributiBoardData(
       (record.trimestre_id ? quarterIndex.byToken.get(normalizeToken(record.trimestre_id)) : null) ??
       null
     const parsedQuarterReference = parseQuarterReference(record.trimestre_id)
+    const recordQuarter =
+      getQuarterValueFromDate(record.data_ora_creazione ?? record.creato_il ?? record.aggiornato_il) ?? null
+    const recordYear =
+      getYearFromDate(record.data_ora_creazione ?? record.creato_il ?? record.aggiornato_il) ?? null
 
     const matchesSelectedQuarter =
-      (record.trimestre_id && selectedQuarterTokens.has(normalizeToken(record.trimestre_id))) ||
+      (recordQuarter === selectedQuarter && recordYear === selectedYear) ||
       (resolvedQuarter?.data_inizio
         ? getQuarterValueFromDate(resolvedQuarter.data_inizio) === selectedQuarter &&
           getYearFromDate(resolvedQuarter.data_inizio) === selectedYear
@@ -378,20 +488,28 @@ async function fetchContributiBoardData(
 
     const stage =
       aliases.get(normalizeToken(record.stato_contributi_inps)) ?? DEFAULT_STAGE_DEFINITIONS[0]?.id ?? ""
-    const rapporto = record.rapporto_lavorativo_id
-      ? rapportoById.get(record.rapporto_lavorativo_id) ??
-        rapportoByExternalId.get(record.rapporto_lavorativo_id) ??
+    const rapportoKey = normalizeRecordKey(record.rapporto_lavorativo_id)
+    const ticketKey = normalizeRecordKey(record.ticket_id)
+    const rapporto = rapportoKey
+      ? rapportoById.get(rapportoKey) ??
+        rapportoByExternalId.get(rapportoKey) ??
         null
-      : record.ticket_id
-        ? rapportoByExternalId.get(record.ticket_id) ?? null
+      : ticketKey
+        ? rapportoByExternalId.get(ticketKey) ?? null
       : null
 
     const nomeFamiglia = rapporto?.cognome_nome_datore_proper?.trim() || "Famiglia non disponibile"
     const nomeLavoratore = rapporto?.nome_lavoratore_per_url?.trim() || "Lavoratore non disponibile"
     const quarterValue =
-      getQuarterValueFromDate(resolvedQuarter?.data_inizio ?? null) ?? parsedQuarterReference?.quarter ?? null
+      recordQuarter ??
+      getQuarterValueFromDate(resolvedQuarter?.data_inizio ?? null) ??
+      parsedQuarterReference?.quarter ??
+      null
     const quarterYear =
-      getYearFromDate(resolvedQuarter?.data_inizio ?? null) ?? parsedQuarterReference?.year ?? null
+      recordYear ??
+      getYearFromDate(resolvedQuarter?.data_inizio ?? null) ??
+      parsedQuarterReference?.year ??
+      null
 
     return [
       {

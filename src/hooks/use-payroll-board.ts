@@ -197,17 +197,117 @@ function buildAnyOfFilter(field: string, values: string[]): QueryFilterGroup | u
   }
 }
 
+function normalizeRecordKey(value: unknown) {
+  if (value === null || value === undefined) return null
+  const normalized = String(value).trim()
+  return normalized || null
+}
+
+function buildMonthDateRange(selectedMonth: string) {
+  const [yearPart, monthPart] = selectedMonth.split("-")
+  const year = Number.parseInt(yearPart ?? "", 10)
+  const month = Number.parseInt(monthPart ?? "", 10)
+
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return null
+
+  const start = new Date(Date.UTC(year, month - 1, 1))
+  const end = new Date(Date.UTC(year, month, 0))
+
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  }
+}
+
+function buildMonthRowsFilter(selectedMonth: string): QueryFilterGroup | undefined {
+  const range = buildMonthDateRange(selectedMonth)
+  if (!range) return undefined
+
+  return {
+    kind: "group",
+    id: `mesi-lavorati-month-${selectedMonth}`,
+    logic: "or",
+    nodes: [
+      {
+        kind: "group",
+        id: `mesi-lavorati-data-ora-creazione-${selectedMonth}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `mesi-lavorati-data-ora-creazione-start-${selectedMonth}`,
+            field: "data_ora_creazione",
+            operator: "gte",
+            value: `${range.start}T00:00:00.000Z`,
+          },
+          {
+            kind: "condition",
+            id: `mesi-lavorati-data-ora-creazione-end-${selectedMonth}`,
+            field: "data_ora_creazione",
+            operator: "lte",
+            value: `${range.end}T23:59:59.999Z`,
+          },
+        ],
+      },
+      {
+        kind: "group",
+        id: `mesi-lavorati-creato-il-${selectedMonth}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `mesi-lavorati-creato-il-start-${selectedMonth}`,
+            field: "creato_il",
+            operator: "gte",
+            value: `${range.start}T00:00:00.000Z`,
+          },
+          {
+            kind: "condition",
+            id: `mesi-lavorati-creato-il-end-${selectedMonth}`,
+            field: "creato_il",
+            operator: "lte",
+            value: `${range.end}T23:59:59.999Z`,
+          },
+        ],
+      },
+      {
+        kind: "group",
+        id: `mesi-lavorati-aggiornato-il-${selectedMonth}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `mesi-lavorati-aggiornato-il-start-${selectedMonth}`,
+            field: "aggiornato_il",
+            operator: "gte",
+            value: `${range.start}T00:00:00.000Z`,
+          },
+          {
+            kind: "condition",
+            id: `mesi-lavorati-aggiornato-il-end-${selectedMonth}`,
+            field: "aggiornato_il",
+            operator: "lte",
+            value: `${range.end}T23:59:59.999Z`,
+          },
+        ],
+      },
+    ],
+  }
+}
+
 async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoardColumnData[]> {
-  const [mesiLavoratiResult, mesiCalendarioResult, rapportiResult, famiglieResult, lookupResult] = await Promise.all([
+  const mesiCalendarioResult = await fetchMesiCalendario({
+    limit: 200,
+    offset: 0,
+    orderBy: [{ field: "data_inizio", ascending: false }],
+  })
+
+  const [mesiLavoratiResult, rapportiResult, famiglieResult, lookupResult] = await Promise.all([
     fetchMesiLavorati({
       limit: 3000,
       offset: 0,
       orderBy: [{ field: "creato_il", ascending: false }],
-    }),
-    fetchMesiCalendario({
-      limit: 200,
-      offset: 0,
-      orderBy: [{ field: "data_inizio", ascending: false }],
+      filters: buildMonthRowsFilter(selectedMonth),
     }),
     fetchRapportiLavorativi({
       limit: 1000,
@@ -228,13 +328,31 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
   const cardsByStage = new Map<string, PayrollBoardCardData[]>(
     stages.map((stage) => [stage.id, []])
   )
-  const meseById = new Map(mesiCalendarioResult.rows.map((mese) => [mese.id, mese]))
-  const rapportoById = new Map(rapportiResult.rows.map((rapporto) => [rapporto.id, rapporto]))
-  const famigliaById = new Map(famiglieResult.rows.map((famiglia) => [famiglia.id as string, famiglia as FamigliaRecord]))
-  const selectedRows = mesiLavoratiResult.rows.filter((record) => {
-    const mese = record.mese_id ? meseById.get(record.mese_id) ?? null : null
-    return mese?.data_inizio?.slice(0, 7) === selectedMonth
-  })
+  const meseById = new Map(
+    mesiCalendarioResult.rows
+      .map((mese) => {
+        const key = normalizeRecordKey(mese.id)
+        return key ? ([key, mese] as const) : null
+      })
+      .filter(Boolean) as Array<readonly [string, MeseCalendarioRecord]>
+  )
+  const rapportoById = new Map(
+    rapportiResult.rows
+      .map((rapporto) => {
+        const key = normalizeRecordKey(rapporto.id)
+        return key ? ([key, rapporto] as const) : null
+      })
+      .filter(Boolean) as Array<readonly [string, RapportoLavorativoRecord]>
+  )
+  const famigliaById = new Map(
+    famiglieResult.rows
+      .map((famiglia) => {
+        const key = normalizeRecordKey(famiglia.id)
+        return key ? ([key, famiglia as FamigliaRecord] as const) : null
+      })
+      .filter(Boolean) as Array<readonly [string, FamigliaRecord]>
+  )
+  const selectedRows = mesiLavoratiResult.rows
   const ticketIds = selectedRows.map((record) => record.ticket_id).filter(Boolean) as string[]
   const presenzaIds = selectedRows.flatMap((record) =>
     [record.presenze_id, record.presenze_regolare_id].filter(Boolean) as string[]
@@ -261,24 +379,39 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
   const pagamentoByTicketId = new Map(
     pagamentiResult.rows
       .filter((pagamento) => pagamento.ticket_id)
-      .map((pagamento) => [pagamento.ticket_id as string, pagamento])
+      .map((pagamento) => [normalizeRecordKey(pagamento.ticket_id) as string, pagamento] as const)
   )
-  const presenzeById = new Map(presenzeResult.rows.map((presenza) => [presenza.id, presenza]))
+  const presenzeById = new Map(
+    presenzeResult.rows
+      .map((presenza) => {
+        const key = normalizeRecordKey(presenza.id)
+        return key ? ([key, presenza] as const) : null
+      })
+      .filter(Boolean) as Array<readonly [string, PresenzaMensileRecord]>
+  )
 
   for (const record of selectedRows) {
-    const mese = record.mese_id ? meseById.get(record.mese_id) ?? null : null
+    const mese = normalizeRecordKey(record.mese_id)
+      ? meseById.get(normalizeRecordKey(record.mese_id) as string) ?? null
+      : null
 
     const stage = aliases.get(normalizeToken(record.stato_mese_lavorativo))
     if (!stage) continue
 
-    const rapporto = record.rapporto_lavorativo_id
-      ? rapportoById.get(record.rapporto_lavorativo_id) ?? null
+    const rapporto = normalizeRecordKey(record.rapporto_lavorativo_id)
+      ? rapportoById.get(normalizeRecordKey(record.rapporto_lavorativo_id) as string) ?? null
       : null
-    const famiglia = rapporto?.famiglia_id ? famigliaById.get(rapporto.famiglia_id) ?? null : null
-    const pagamento = record.ticket_id ? pagamentoByTicketId.get(record.ticket_id) ?? null : null
-    const presenze = record.presenze_id ? presenzeById.get(record.presenze_id) ?? null : null
-    const presenzeRegolari = record.presenze_regolare_id
-      ? presenzeById.get(record.presenze_regolare_id) ?? null
+    const famiglia = normalizeRecordKey(rapporto?.famiglia_id)
+      ? famigliaById.get(normalizeRecordKey(rapporto?.famiglia_id) as string) ?? null
+      : null
+    const pagamento = normalizeRecordKey(record.ticket_id)
+      ? pagamentoByTicketId.get(normalizeRecordKey(record.ticket_id) as string) ?? null
+      : null
+    const presenze = normalizeRecordKey(record.presenze_id)
+      ? presenzeById.get(normalizeRecordKey(record.presenze_id) as string) ?? null
+      : null
+    const presenzeRegolari = normalizeRecordKey(record.presenze_regolare_id)
+      ? presenzeById.get(normalizeRecordKey(record.presenze_regolare_id) as string) ?? null
       : null
 
     const nomeCompleto =

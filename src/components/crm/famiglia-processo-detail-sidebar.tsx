@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { CreazioneAnnuncioCard } from "@/components/crm/cards/creazione-annuncio-card"
 import { OnboardingCard } from "@/components/crm/cards/onboarding-card"
 import { StatoLeadCard } from "@/components/crm/cards/stato-lead-card"
+import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import {
   Sheet,
   SheetContent,
@@ -159,41 +160,47 @@ export function FamigliaProcessoDetailSidebar({
         </SheetHeader>
 
         <div className="space-y-4 px-4 pb-4">
-          <div className="text-muted-foreground space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <PhoneIcon className="size-4" />
-              <span className="truncate">{renderValue(card?.telefono)}</span>
+          <DetailSectionBlock
+            title="Contatti e contesto"
+            showDefaultAction={false}
+            contentClassName="space-y-4 px-1 pt-1"
+          >
+            <div className="text-muted-foreground space-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                <PhoneIcon className="size-4" />
+                <span className="truncate">{renderValue(card?.telefono)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MailIcon className="size-4" />
+                <span className="truncate">{renderValue(card?.email)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="size-4" />
+                <span className="truncate">{renderValue(card?.dataLead)}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <MailIcon className="size-4" />
-              <span className="truncate">{renderValue(card?.email)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="size-4" />
-              <span className="truncate">{renderValue(card?.dataLead)}</span>
-            </div>
-          </div>
 
-          <div className="flex flex-col items-start gap-2">
-            {card?.tipoLavoroBadge ? (
-              <Badge
-                variant="outline"
-                className={getBadgeClassName(card.tipoLavoroColor)}
-              >
-                <BriefcaseBusinessIcon data-icon="inline-start" />
-                {formatBadgeLabel(card.tipoLavoroBadge)}
-              </Badge>
-            ) : null}
-            {card?.tipoRapportoBadge ? (
-              <Badge
-                variant="outline"
-                className={getBadgeClassName(card.tipoRapportoColor)}
-              >
-                <Clock3Icon data-icon="inline-start" />
-                {formatBadgeLabel(card.tipoRapportoBadge)}
-              </Badge>
-            ) : null}
-          </div>
+            <div className="flex flex-col items-start gap-2">
+              {card?.tipoLavoroBadge ? (
+                <Badge
+                  variant="outline"
+                  className={getBadgeClassName(card.tipoLavoroColor)}
+                >
+                  <BriefcaseBusinessIcon data-icon="inline-start" />
+                  {formatBadgeLabel(card.tipoLavoroBadge)}
+                </Badge>
+              ) : null}
+              {card?.tipoRapportoBadge ? (
+                <Badge
+                  variant="outline"
+                  className={getBadgeClassName(card.tipoRapportoColor)}
+                >
+                  <Clock3Icon data-icon="inline-start" />
+                  {formatBadgeLabel(card.tipoRapportoBadge)}
+                </Badge>
+              ) : null}
+            </div>
+          </DetailSectionBlock>
 
           <div className="space-y-4">
             <div

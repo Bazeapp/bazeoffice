@@ -127,7 +127,6 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "data_fine_rapporto",
     "documenti_chiusura_rapporto",
     "email",
-    "field_14",
     "informazioni_aggiuntive",
     "motivazione_cessazione_rapporto",
     "nome",
