@@ -10,6 +10,7 @@ type SupportedTable =
   | "famiglie"
   | "chiusure_contratti"
   | "contributi_inps"
+  | "indirizzi"
   | "lavoratori"
   | "mesi_calendario"
   | "mesi_lavorati"
@@ -157,6 +158,29 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "airtable_record_id",
     "creato_il",
     "aggiornato_il",
+    "metadati_migrazione",
+  ],
+  indirizzi: [
+    "id",
+    "entita_tabella",
+    "entita_id",
+    "tipo_indirizzo",
+    "via",
+    "civico",
+    "cap",
+    "citta",
+    "provincia",
+    "paese",
+    "indirizzo_formattato",
+    "citofono",
+    "place_id",
+    "latitudine",
+    "longitudine",
+    "note",
+    "creato_il",
+    "aggiornato_il",
+    "airtable_id",
+    "airtable_record_id",
     "metadati_migrazione",
   ],
   lavoratori: [

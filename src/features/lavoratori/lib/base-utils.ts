@@ -174,7 +174,7 @@ export function toListItem(
     id: workerId,
     nomeCompleto: toDisplayName(row),
     immagineUrl: imageUrl ?? getDefaultWorkerAvatar(workerId),
-    cap: asString(row.cap) || null,
+    locationLabel: asString(row.cap) || null,
     telefono: asString(row.telefono) || null,
     isBlacklisted: options.isBlacklisted,
     tipoRuolo: firstDomesticRole,

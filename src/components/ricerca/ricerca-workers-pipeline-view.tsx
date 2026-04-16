@@ -1,11 +1,22 @@
 import * as React from "react";
-import { ChevronLeftIcon, ChevronRightIcon, CircleDotIcon, XIcon } from "lucide-react";
+import {
+  BriefcaseBusinessIcon,
+  CalendarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CircleDotIcon,
+  Clock3Icon,
+  MailIcon,
+  PhoneIcon,
+  XIcon,
+} from "lucide-react";
 
 import { OnboardingCard } from "@/components/crm/cards/onboarding-card";
 import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
 import { WorkerPipelineSummaryCards } from "@/components/ricerca/worker-pipeline-summary-cards";
+import { SideCardsPanel } from "@/components/shared/side-cards-panel";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -82,6 +93,21 @@ function normalizeToken(value: string | null | undefined) {
     .toLowerCase()
     .replaceAll("_", " ")
     .replaceAll("-", " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function renderValue(value: string | null | undefined) {
+  if (!value) return "-";
+  const normalized = value.trim();
+  return normalized ? normalized : "-";
+}
+
+function formatBadgeLabel(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .replaceAll("/", " / ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -180,6 +206,9 @@ const GROUPED_COLUMN_GROUPS: Record<string, GroupedColumnGroup[]> = {
   __archivio__: ARCHIVIO_GROUPS,
   __colloqui_match__: COLLOQUI_MATCH_GROUPS,
 };
+
+const DEFAULT_BLUE_BADGE_CLASS_NAME =
+  "border-blue-200 bg-blue-100 text-blue-700";
 
 function resolveGroupColor(
   column: RicercaWorkerSelectionColumn,
@@ -303,7 +332,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
               >
                 <Badge
                   variant="outline"
-                  className={getTagClassName(groupColor)}
+                  className={DEFAULT_BLUE_BADGE_CLASS_NAME}
                 >
                   {group.label}
                 </Badge>
@@ -362,7 +391,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
                     <span className="flex items-center gap-2">
                       <Badge
                         variant="outline"
-                        className={getTagClassName(groupColor)}
+                        className={DEFAULT_BLUE_BADGE_CLASS_NAME}
                       >
                         {group.label}
                       </Badge>
@@ -877,7 +906,7 @@ export function RicercaWorkersPipelineView({
   );
 
   return (
-    <div className={cn("flex min-h-0 flex-col gap-3", className)}>
+    <div className={cn("relative flex min-h-0 flex-col gap-3", className)}>
       {loading ? (
         <span className="text-muted-foreground text-xs">Caricamento...</span>
       ) : null}
@@ -971,7 +1000,7 @@ export function RicercaWorkersPipelineView({
       </div>
 
       {isWorkerOverlayOpen ? (
-        <div className="bg-background fixed inset-0 z-50 flex flex-col animate-in fade-in-0">
+        <div className="bg-background absolute inset-0 z-50 flex flex-col overflow-y-auto animate-in fade-in-0">
           <div className="bg-card flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
             <Breadcrumb className="min-w-0">
               <BreadcrumbList className="text-xs">
@@ -1032,9 +1061,57 @@ export function RicercaWorkersPipelineView({
           ) : null}
 
           {selectedCard && selectedWorkerRow && selectedSelectionRow ? (
-            <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,1fr)_minmax(560px,2fr)_minmax(320px,1fr)] overflow-hidden">
+            <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,1fr)_minmax(640px,2fr)_minmax(340px,1fr)] overflow-hidden">
               <div className="scrollbar-hidden min-w-0 overflow-y-auto border-r border-border">
-                <div className="p-3">
+                <SideCardsPanel
+                  title=""
+                  className="h-full rounded-none border-0 shadow-none"
+                  headerClassName="hidden"
+                  contentClassName="space-y-4 px-4 pt-0 pb-4"
+                >
+                  <div className="space-y-4 px-1">
+                    <div className="space-y-3">
+                      <p className="text-2xl leading-tight font-semibold text-foreground">
+                        {renderValue(card.nomeFamiglia)}
+                      </p>
+                      <div className="space-y-2.5 text-muted-foreground">
+                        <div className="flex items-center gap-2 text-sm">
+                          <PhoneIcon className="size-4 shrink-0" />
+                          <span className="truncate">{renderValue(card.telefono)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <MailIcon className="size-4 shrink-0" />
+                          <span className="truncate">{renderValue(card.email)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <CalendarIcon className="size-4 shrink-0" />
+                          <span className="truncate">{renderValue(card.dataLead)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {card.tipoLavoroBadge ? (
+                        <Badge
+                          variant="outline"
+                          className={getTagClassName(card.tipoLavoroColor)}
+                        >
+                          <BriefcaseBusinessIcon data-icon="inline-start" />
+                          {formatBadgeLabel(card.tipoLavoroBadge)}
+                        </Badge>
+                      ) : null}
+                      {card.tipoRapportoBadge ? (
+                        <Badge
+                          variant="outline"
+                          className={getTagClassName(card.tipoRapportoColor)}
+                        >
+                          <Clock3Icon data-icon="inline-start" />
+                          {formatBadgeLabel(card.tipoRapportoBadge)}
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </div>
+
                   <OnboardingCard
                     card={card}
                     lookupOptionsByField={lookupOptionsByField}
@@ -1042,35 +1119,12 @@ export function RicercaWorkersPipelineView({
                     showTempistiche={false}
                     readOnly
                   />
-                </div>
+                </SideCardsPanel>
               </div>
 
-              <div className="min-w-0 overflow-hidden">
-                <SchedaColloquioPanel
-                  ricerca={card}
-                  selectionCard={{
-                    ...selectedCard,
-                    worker: selectedWorker ?? selectedCard.worker,
-                  }}
-                  selectionRow={selectedSelectionRow}
-                  workerRow={selectedWorkerRow}
-                  statusOptions={
-                    lookupOptionsByDomain.get(
-                      "selezioni_lavoratori.stato_selezione",
-                    ) ??
-                    lookupOptionsByDomain.get("lavoratori.stato_selezione") ??
-                    []
-                  }
-                  lookupColorsByDomain={lookupColorsByDomain}
-                  disabled={updatingSelectionDetails}
-                  onMoveStatus={handleMoveSelectionStatus}
-                  onPatchField={patchSelectedSelectionField}
-                />
-              </div>
-
-              <div className="scrollbar-hidden min-w-0 overflow-y-auto border-l border-border">
-                <div className="space-y-6 p-4">
-                  <div>
+              <div className="scrollbar-hidden min-w-0 overflow-y-auto border-r border-border">
+                <div className="space-y-4 p-4">
+                  <div className="border-b border-border pb-4">
                     <WorkerProfileHeader
                       worker={selectedWorker ?? selectedCard.worker}
                       workerRow={selectedWorkerRow}
@@ -1111,6 +1165,34 @@ export function RicercaWorkersPipelineView({
                         )
                       }
                     />
+                  </div>
+
+                  <SchedaColloquioPanel
+                    selectionRow={selectedSelectionRow}
+                    statusOptions={
+                      lookupOptionsByDomain.get(
+                        "selezioni_lavoratori.stato_selezione",
+                      ) ??
+                      lookupOptionsByDomain.get("lavoratori.stato_selezione") ??
+                      []
+                    }
+                    lookupColorsByDomain={lookupColorsByDomain}
+                    disabled={updatingSelectionDetails}
+                    onMoveStatus={handleMoveSelectionStatus}
+                    onPatchField={patchSelectedSelectionField}
+                  />
+                </div>
+              </div>
+
+              <div className="scrollbar-hidden min-w-0 overflow-y-auto">
+                <div className="space-y-6 p-4">
+                  <div className="px-1">
+                    <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.18em]">
+                      Lavoratore
+                    </p>
+                    <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                      {selectedWorker?.nomeCompleto ?? selectedCard.worker.nomeCompleto}
+                    </p>
                   </div>
 
                   <WorkerPipelineSummaryCards

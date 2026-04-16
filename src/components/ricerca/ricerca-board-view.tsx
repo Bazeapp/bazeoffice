@@ -303,6 +303,22 @@ function RicercaBoardSkeletonColumn() {
   return <KanbanColumnSkeleton widthClassName="w-[300px]" showBadgeRow />
 }
 
+function isUrgentDeadline(value: string | null | undefined) {
+  if (!value) return false
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return false
+
+  const today = new Date()
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const startOfDeadline = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
+  const dayDiff = Math.round(
+    (startOfDeadline.getTime() - startOfToday.getTime()) / (1000 * 60 * 60 * 24)
+  )
+
+  return dayDiff <= 1
+}
+
 function RicercaBoardCard({
   data,
   onClick,
@@ -317,6 +333,7 @@ function RicercaBoardCard({
   onDragEnd: () => void
 }) {
   const oreGiorni = formatOreGiorniLabel(data.oreSettimanali, data.giorniSettimanali)
+  const hasUrgentDeadline = isUrgentDeadline(data.deadlineRaw)
 
   return (
     <div
@@ -363,8 +380,20 @@ function RicercaBoardCard({
                 <span className="truncate">{oreGiorni}</span>
               </p>
               <p className="flex items-center gap-1.5 truncate">
-                <CalendarIcon className="size-3.5 shrink-0" />
-                <span className="truncate">{data.deadline}</span>
+                <CalendarIcon
+                  className={cn(
+                    "size-3.5 shrink-0",
+                    hasUrgentDeadline && "text-red-600"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "truncate",
+                    hasUrgentDeadline && "font-medium text-red-600"
+                  )}
+                >
+                  {data.deadline}
+                </span>
               </p>
               <p className="flex items-center gap-1.5 truncate">
                 <MapPinIcon className="size-3.5 shrink-0" />
@@ -390,6 +419,7 @@ function RicercaBoardColumn({
   onDragEndCard,
   onCardClick,
   suppressCardClickRef,
+  onLoadDeferredColumn,
 }: {
   column: RicercaBoardColumnData
   isDropTarget: boolean
@@ -402,14 +432,22 @@ function RicercaBoardColumn({
   onDragEndCard: () => void
   onCardClick: (card: RicercaBoardCardData) => void
   suppressCardClickRef: React.MutableRefObject<boolean>
+  onLoadDeferredColumn: (columnId: string) => void
 }) {
   const visual = getColumnVisual(column.id, column.label, column.color)
+  const count = column.totalCount
+  const deferredActionLabel = (() => {
+    const token = normalizeStageToken(column.label || column.id)
+    if (token === "match") return "Mostra Match"
+    if (token === "no match") return "Mostra NoMatch"
+    return `Mostra ${column.label}`
+  })()
 
   return (
     <KanbanColumnShell
       columnId={column.id}
       title={column.label}
-      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "ricerca" : "ricerche"}`}
+      countLabel={`${count} ${count === 1 ? "ricerca" : "ricerche"}`}
       visual={visual}
       widthClassName="w-[300px]"
       isDropTarget={isDropTarget}
@@ -423,6 +461,19 @@ function RicercaBoardColumn({
       onDragLeave={onDragLeaveColumn}
       onDrop={onDropToColumn}
     >
+      {column.deferred && !column.isLoaded ? (
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={column.isLoading}
+          onClick={(event) => {
+            event.stopPropagation()
+            onLoadDeferredColumn(column.id)
+          }}
+        >
+          {column.isLoading ? "Caricamento..." : deferredActionLabel}
+        </Button>
+      ) : null}
       {column.cards.map((card) => (
         <RicercaBoardCard
           key={card.id}
@@ -449,7 +500,7 @@ type RicercaBoardViewProps = {
 }
 
 export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
-  const { loading, error, columns, moveCard } = useRicercaBoard()
+  const { loading, error, columns, moveCard, loadDeferredColumn } = useRicercaBoard()
   const { options: operatorOptions } = useOperatoriOptions()
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
@@ -712,6 +763,9 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
                     onOpenDetail(card.id)
                   }}
                   suppressCardClickRef={suppressCardClickRef}
+                  onLoadDeferredColumn={(columnId) => {
+                    void loadDeferredColumn(columnId)
+                  }}
                 />
               ))}
         </div>

@@ -504,7 +504,7 @@ export function WorkerProfileHeader({
         <div
           className={`grid items-start gap-6 ${
             usesStackedHeaderLayout
-              ? "grid-cols-1"
+              ? "grid-cols-[minmax(0,1fr)_auto]"
               : showMotivazioneSelect
                 ? "grid-cols-[minmax(0,1fr)_452px]"
                 : "grid-cols-[minmax(0,1fr)_220px]"
@@ -648,21 +648,21 @@ export function WorkerProfileHeader({
           <div
             className={`flex gap-3 self-start ${
               usesStackedHeaderLayout
-                ? "ml-auto flex-col items-end"
+                ? "ml-auto min-w-[220px] flex-col items-end"
                 : "flex-col items-end"
             }`}
           >
             <div
               className={`flex gap-2 ${
                 usesStackedHeaderLayout
-                  ? "w-auto flex-col items-end"
+                  ? "w-full flex-col items-end"
                   : "w-full justify-end"
               }`}
             >
               {showMotivazioneSelect ? (
                 <div
                   className={
-                    usesStackedHeaderLayout ? "w-auto shrink-0" : "w-[230px] shrink-0"
+                    usesStackedHeaderLayout ? "w-full shrink-0" : "w-[230px] shrink-0"
                   }
                 >
                   <Select
@@ -687,7 +687,7 @@ export function WorkerProfileHeader({
                 </div>
               ) : null}
 
-              <div className={usesStackedHeaderLayout ? "w-auto shrink-0" : "w-[220px] shrink-0"}>
+              <div className={usesStackedHeaderLayout ? "w-full shrink-0" : "w-[220px] shrink-0"}>
                 <Select
                   value={statoLavoratore || "none"}
                   onValueChange={(value) =>
@@ -714,7 +714,7 @@ export function WorkerProfileHeader({
 
             <div
               className={
-                usesStackedHeaderLayout ? "w-auto shrink-0 self-end" : "w-[220px] shrink-0 self-end"
+                usesStackedHeaderLayout ? "w-full shrink-0 self-end" : "w-[220px] shrink-0 self-end"
               }
             >
               <Select
@@ -743,7 +743,7 @@ export function WorkerProfileHeader({
             <div
               className={`gap-3 ${
                 usesStackedHeaderLayout
-                  ? "flex w-auto items-center justify-end self-end"
+                  ? "flex w-full items-center justify-end self-end"
                   : "grid w-[220px] grid-cols-2 justify-items-end"
               }`}
             >

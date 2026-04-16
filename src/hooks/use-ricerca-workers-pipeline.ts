@@ -18,6 +18,7 @@ import {
 } from "@/features/lavoratori/lib/lookup-utils"
 import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
 import {
+  fetchIndirizzi,
   fetchLavoratori,
   fetchLookupValues,
   fetchSelezioniLavoratori,
@@ -62,8 +63,9 @@ type UseRicercaWorkersPipelineState = {
   moveCard: (selectionId: string, targetStatusId: string) => Promise<void>
 }
 
-const SELEZIONI_PAGE_SIZE = 1000
+const SELEZIONI_PAGE_SIZE = 500
 const WORKER_BATCH_SIZE = 250
+const ADDRESS_BATCH_SIZE = 120
 
 function asRowArray(input: unknown): GenericRow[] {
   if (!Array.isArray(input)) return []
@@ -214,9 +216,43 @@ function toNumberValue(value: unknown): number | null {
   return null
 }
 
+function formatAddressLabel(address: GenericRow | undefined) {
+  if (!address) return null
+
+  const note = toStringValue(address.note)
+  const citta = toStringValue(address.citta)
+  const cap = toStringValue(address.cap)
+  const shortNote = note?.split("-")[0]?.trim() || null
+
+  return (
+    [shortNote, citta, cap]
+      .filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index)
+      .join(" • ") || null
+  )
+}
+
+function resolveWorkerAddress(
+  workerId: string,
+  addressesByWorkerId: Map<string, GenericRow[]>
+) {
+  const addresses = addressesByWorkerId.get(workerId) ?? []
+  if (addresses.length === 0) return undefined
+
+  return (
+    addresses.find(
+      (address) => normalizeLookupToken(toStringValue(address.tipo_indirizzo)) === "residenza"
+    ) ??
+    addresses.find(
+      (address) => normalizeLookupToken(toStringValue(address.tipo_indirizzo)) === "domicilio"
+    ) ??
+    addresses[0]
+  )
+}
+
 function buildWorkerListItem(
   worker: GenericRow,
-  lookupColorsByDomain: Map<string, string>
+  lookupColorsByDomain: Map<string, string>,
+  addressesByWorkerId: Map<string, GenericRow[]>
 ): LavoratoreListItem {
   const workerId = toStringValue(worker.id) ?? "unknown-worker"
   const nome = toStringValue(worker.nome) ?? ""
@@ -237,6 +273,7 @@ function buildWorkerListItem(
   const tipoRuolo = ruoliDomestici[0] ?? null
   const tipoLavoro = asStringArrayFirst(worker.tipo_rapporto_lavorativo) || null
   const statusFlags = toWorkerStatusFlags(statoLavoratore)
+  const workerAddress = resolveWorkerAddress(workerId, addressesByWorkerId)
 
   const anniEsperienzaColf = toNumberValue(worker.anni_esperienza_colf)
   const anniEsperienzaBabysitter = toNumberValue(worker.anni_esperienza_babysitter)
@@ -245,7 +282,7 @@ function buildWorkerListItem(
     id: workerId,
     nomeCompleto: `${nome} ${cognome}`.trim() || workerId,
     immagineUrl: toAvatarUrl(worker) ?? getDefaultWorkerAvatar(workerId),
-    cap: asString(worker.cap) || null,
+    locationLabel: formatAddressLabel(workerAddress) ?? asString(worker.cap) ?? null,
     telefono: asString(worker.telefono) || null,
     isBlacklisted: isBlacklistValue(worker.check_blacklist),
     tipoRuolo,
@@ -396,6 +433,62 @@ async function fetchWorkersByIds(workerIds: string[]) {
   return workerRows
 }
 
+async function fetchWorkerAddressesByIds(workerIds: string[]) {
+  if (workerIds.length === 0) return new Map<string, GenericRow[]>()
+
+  const addressesByWorkerId = new Map<string, GenericRow[]>()
+
+  for (let index = 0; index < workerIds.length; index += ADDRESS_BATCH_SIZE) {
+    const batch = workerIds.slice(index, index + ADDRESS_BATCH_SIZE)
+    const result = await fetchIndirizzi({
+      select: [
+        "entita_id",
+        "tipo_indirizzo",
+        "cap",
+        "citta",
+        "note",
+      ],
+      limit: Math.max(batch.length * 2, batch.length),
+      offset: 0,
+      orderBy: [{ field: "aggiornato_il", ascending: false }],
+      filters: {
+        kind: "group",
+        id: `pipeline-worker-addresses-${index}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `pipeline-worker-addresses-table-${index}`,
+            field: "entita_tabella",
+            operator: "is",
+            value: "lavoratori",
+          },
+          {
+            kind: "condition",
+            id: `pipeline-worker-addresses-id-${index}`,
+            field: "entita_id",
+            operator: "in",
+            value: batch.join(","),
+          },
+        ],
+      },
+    }).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`indirizzi(batch ${index}): ${message}`)
+    })
+
+    for (const row of asRowArray(result.rows)) {
+      const workerId = toStringValue(row.entita_id)
+      if (!workerId) continue
+      const current = addressesByWorkerId.get(workerId) ?? []
+      current.push(row)
+      addressesByWorkerId.set(workerId, current)
+    }
+  }
+
+  return addressesByWorkerId
+}
+
 async function fetchWorkersPipelineData(
   processId: string
 ): Promise<RicercaWorkerSelectionColumn[]> {
@@ -418,7 +511,10 @@ async function fetchWorkersPipelineData(
     )
   )
 
-  const workerRows = await fetchWorkersByIds(workerIds)
+  const [workerRows, addressesByWorkerId] = await Promise.all([
+    fetchWorkersByIds(workerIds),
+    fetchWorkerAddressesByIds(workerIds),
+  ])
 
   const stageMetadata = buildStageMetadata(lookupRows)
   const stageDefinitions = stageMetadata.definitions
@@ -448,12 +544,12 @@ async function fetchWorkersPipelineData(
     const worker = workerById.get(workerId)
 
     const workerCard = worker
-      ? buildWorkerListItem(worker, lookupColorsByDomain)
+      ? buildWorkerListItem(worker, lookupColorsByDomain, addressesByWorkerId)
       : {
           id: workerId,
           nomeCompleto: workerId,
           immagineUrl: getDefaultWorkerAvatar(workerId),
-          cap: null,
+          locationLabel: null,
           telefono: null,
           isBlacklisted: false,
           tipoRuolo: null,

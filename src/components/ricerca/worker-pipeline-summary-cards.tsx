@@ -426,7 +426,7 @@ function TravelTimeCard({
       }
       contentClassName="space-y-4"
     >
-      <div className="grid gap-4 text-sm sm:grid-cols-[220px_minmax(0,1fr)] sm:items-start">
+      <div className="space-y-1.5 text-sm">
         <p className="text-muted-foreground text-xs font-medium tracking-wide">
           Tempo di viaggio dichiarato
         </p>
@@ -437,12 +437,12 @@ function TravelTimeCard({
         )}
       </div>
 
-      <div className="grid gap-4 text-sm sm:grid-cols-[220px_minmax(0,1fr)] sm:items-start">
+      <div className="space-y-1.5 text-sm">
         <p className="text-muted-foreground text-xs font-medium tracking-wide">
           Indirizzo lavoratore
         </p>
         {isEditing ? (
-          <div className="grid gap-2 sm:grid-cols-[140px_120px_minmax(0,1fr)]">
+          <div className="grid gap-2">
             <Select
               value={addressDraft.provincia || "none"}
               onValueChange={(value) => {
@@ -505,12 +505,12 @@ function TravelTimeCard({
         )}
       </div>
 
-      <div className="grid gap-4 text-sm sm:grid-cols-[220px_minmax(0,1fr)] sm:items-start">
+      <div className="space-y-1.5 text-sm">
         <p className="text-muted-foreground text-xs font-medium tracking-wide">
           Indirizzo famiglia
         </p>
         {isEditing ? (
-          <div className="grid gap-2 sm:grid-cols-[140px_120px_minmax(0,1fr)]">
+          <div className="grid gap-2">
             <Select
               value={familyAddressDraft.provincia || "none"}
               onValueChange={(value) => {
@@ -605,7 +605,7 @@ function TravelTimeCard({
         )}
       </div>
 
-      <div className="grid gap-4 text-sm sm:grid-cols-[220px_minmax(0,1fr)] sm:items-start">
+      <div className="space-y-1.5 text-sm">
         <p className="text-muted-foreground text-xs font-medium tracking-wide">
           Mobilita
         </p>

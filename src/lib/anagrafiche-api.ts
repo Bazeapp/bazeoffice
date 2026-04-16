@@ -36,6 +36,7 @@ type TableName =
   | "famiglie"
   | "chiusure_contratti"
   | "contributi_inps"
+  | "indirizzi"
   | "lavoratori"
   | "mesi_calendario"
   | "mesi_lavorati"
@@ -134,6 +135,7 @@ type TableQueryRequest = {
 type TablePageQuery = {
   limit: number
   offset: number
+  select?: string[]
   orderBy?: QuerySort[]
   includeSchema?: boolean
   search?: string
@@ -220,7 +222,7 @@ async function queryTable<TRecord>(payload: TableQueryRequest) {
 export async function fetchFamiglie(query: TablePageQuery) {
   return queryTable<TableRow>({
     table: "famiglie",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
@@ -259,10 +261,24 @@ export async function fetchContributiInps(query: TablePageQuery) {
   })
 }
 
+export async function fetchIndirizzi(query: TablePageQuery) {
+  return queryTable<TableRow>({
+    table: "indirizzi",
+    select: query.select ?? ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+  })
+}
+
 export async function fetchLavoratori(query: TablePageQuery) {
   return queryTable<TableRow>({
     table: "lavoratori",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
@@ -448,7 +464,7 @@ export async function fetchReferenzeLavoratoriByWorker(lavoratoreId: string) {
 export async function fetchProcessiMatching(query: TablePageQuery) {
   return queryTable<ProcessoMatchingRecord>({
     table: "processi_matching",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
@@ -462,7 +478,7 @@ export async function fetchProcessiMatching(query: TablePageQuery) {
 export async function fetchSelezioniLavoratori(query: TablePageQuery) {
   return queryTable<TableRow>({
     table: "selezioni_lavoratori",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],

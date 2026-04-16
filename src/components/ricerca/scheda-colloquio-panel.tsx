@@ -27,15 +27,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { asString, getAgeFromBirthDate } from "@/features/lavoratori/lib/base-utils";
+import { asString } from "@/features/lavoratori/lib/base-utils";
 import {
   getTagClassName,
   resolveLookupColor,
   type LookupOption,
 } from "@/features/lavoratori/lib/lookup-utils";
-import type { LavoratoreRecord } from "@/types/entities/lavoratore";
-import type { RicercaWorkerSelectionCard } from "@/hooks/use-ricerca-workers-pipeline";
-import type { CrmPipelineCardData } from "@/hooks/use-crm-pipeline-preview";
 
 type SelectionRow = Record<string, unknown>;
 
@@ -65,16 +62,8 @@ type SchedaColloquioDraft = {
   slotColloquio: [SchedaSlotDraft, SchedaSlotDraft, SchedaSlotDraft];
 };
 
-type MatchFlag = {
-  field: string;
-  tipo: "green" | "red";
-};
-
 type SchedaColloquioPanelProps = {
-  ricerca: CrmPipelineCardData;
-  selectionCard: RicercaWorkerSelectionCard;
   selectionRow: SelectionRow;
-  workerRow: LavoratoreRecord;
   statusOptions: LookupOption[];
   lookupColorsByDomain: Map<string, string>;
   disabled?: boolean;
@@ -101,18 +90,6 @@ const FALLBACK_STATI_SELEZIONE = [
   "Non selezionato",
   "Archivio",
 ] as const;
-
-function normalizeToken(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function toDateInputParts(value: unknown): { date: string; time: string } {
   const raw = asString(value);
@@ -201,53 +178,6 @@ function buildDraft(selectionRow: SelectionRow): SchedaColloquioDraft {
       },
     ],
   };
-}
-
-function computeMatchFlags(
-  ricerca: CrmPipelineCardData,
-  selectionCard: RicercaWorkerSelectionCard,
-  workerRow: LavoratoreRecord,
-): MatchFlag[] {
-  const flags: MatchFlag[] = [];
-
-  const workerRoles = (selectionCard.worker.ruoliDomestici ?? []).map((role) =>
-    normalizeToken(role),
-  );
-  const ricercaRole = normalizeToken(ricerca.tipoLavoroBadge);
-  if (ricercaRole) {
-    flags.push({
-      field: "Ruolo",
-      tipo: workerRoles.some((role) => role.includes(ricercaRole) || ricercaRole.includes(role))
-        ? "green"
-        : "red",
-    });
-  }
-
-  const familyProvince = normalizeToken(ricerca.indirizzoProvincia);
-  const workerProvince = normalizeToken(asString(workerRow.provincia));
-  if (familyProvince) {
-    flags.push({
-      field: "Località",
-      tipo:
-        workerProvince && (workerProvince.includes(familyProvince) || familyProvince.includes(workerProvince))
-          ? "green"
-          : "red",
-    });
-  }
-
-  const availabilityToken = normalizeToken(selectionCard.worker.disponibilita);
-  if (availabilityToken) {
-    flags.push({
-      field: "Disponibilità",
-      tipo:
-        availabilityToken.includes("disponib") &&
-        !availabilityToken.includes("non disponibile")
-          ? "green"
-          : "red",
-    });
-  }
-
-  return flags;
 }
 
 function CollapsibleSection({
@@ -356,10 +286,7 @@ function ScoreSelect({
 }
 
 export function SchedaColloquioPanel({
-  ricerca,
-  selectionCard,
   selectionRow,
-  workerRow,
   statusOptions,
   lookupColorsByDomain,
   disabled = false,
@@ -382,11 +309,6 @@ export function SchedaColloquioPanel({
     }));
   }, [statusOptions]);
 
-  const flags = React.useMemo(
-    () => computeMatchFlags(ricerca, selectionCard, workerRow),
-    [ricerca, selectionCard, workerRow],
-  );
-
   const statusClassName = getTagClassName(
     resolveLookupColor(
       lookupColorsByDomain,
@@ -399,8 +321,6 @@ export function SchedaColloquioPanel({
         draft.statoSelezione,
       ),
   );
-
-  const workerAge = getAgeFromBirthDate(workerRow.data_di_nascita);
 
   const patchTextField = React.useCallback(
     (field: string, value: string) => {
@@ -424,32 +344,8 @@ export function SchedaColloquioPanel({
   );
 
   return (
-    <div className="bg-card flex h-full flex-col border-x border-border">
-      <div className="space-y-2 border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2">
-          {selectionCard.worker.immagineUrl ? (
-            <img
-              src={selectionCard.worker.immagineUrl}
-              alt=""
-              className="h-9 w-9 rounded-full object-cover"
-            />
-          ) : (
-            <div className="bg-muted text-muted-foreground flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold">
-              {selectionCard.worker.nomeCompleto.slice(0, 2).toUpperCase()}
-            </div>
-          )}
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground">
-              {selectionCard.worker.nomeCompleto}
-              {workerAge ? `, ${workerAge}` : ""}
-            </p>
-            <p className="text-muted-foreground truncate text-[10px]">
-              {(selectionCard.worker.ruoliDomestici ?? []).join(", ") || "-"} ·{" "}
-              {asString(workerRow.provincia) || "-"}
-            </p>
-          </div>
-        </div>
-
+    <div className="bg-card">
+      <div className="space-y-2 px-4 py-3">
         <div className="space-y-0.5">
           <label className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
             Stato selezione
@@ -498,25 +394,9 @@ export function SchedaColloquioPanel({
           </Select>
         </div>
 
-        {flags.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {flags.map((flag) => (
-              <span
-                key={flag.field}
-                className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
-                  flag.tipo === "green"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-rose-100 text-rose-700"
-                }`}
-              >
-                {flag.tipo === "green" ? "OK" : "NO"} {flag.field}
-              </span>
-            ))}
-          </div>
-        ) : null}
       </div>
 
-      <div className="scrollbar-hidden flex-1 space-y-3 overflow-y-auto p-3">
+      <div className="space-y-3 p-3">
         <CollapsibleSection
           title="Completa la scheda colloquio"
           icon={ClipboardListIcon}
