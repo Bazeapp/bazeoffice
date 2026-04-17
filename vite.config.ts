@@ -26,17 +26,15 @@ export default defineConfig({
             return "table-vendor"
           }
 
-          if (id.includes("/react/") || id.includes("/react-dom/")) {
-            return "react-vendor"
-          }
-
           if (
+            id.includes("/react/") ||
+            id.includes("/react-dom/") ||
             id.includes("radix-ui") ||
             id.includes("@base-ui/react") ||
             id.includes("embla-carousel-react") ||
             id.includes("sonner")
           ) {
-            return "ui-vendor"
+            return "framework"
           }
 
           if (id.includes("lucide-react")) {
