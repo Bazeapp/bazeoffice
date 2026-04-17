@@ -272,7 +272,7 @@ export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProp
                   const level = getExperienceLevel(entry.years)
                   return (
                     <div
-                      key={`${worker.id}-exp-${entry.label}`}
+                      key={`${worker.id}-exp-${entry.icon}-${entry.label}-${index}`}
                       className="inline-flex items-center gap-1.5"
                     >
                       {index > 0 ? <span className="mx-0.5">•</span> : null}

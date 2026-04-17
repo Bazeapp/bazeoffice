@@ -401,7 +401,6 @@ export function AnagraficheAgGrid({
             rowData={rows}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
-            cellSelection
             enableCellTextSelection
             rowHeight={44}
             headerHeight={42}
