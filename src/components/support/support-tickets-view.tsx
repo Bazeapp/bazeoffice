@@ -12,7 +12,11 @@ import {
   type SupportTicketBoardCardData,
   useSupportTicketsBoard,
 } from "@/hooks/use-support-tickets-board"
-import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import {
+  KanbanColumnShell,
+  KanbanColumnSkeleton,
+  KanbanDeferredColumnAction,
+} from "@/components/shared/kanban"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -24,7 +28,11 @@ type SupportColumnData = {
   id: string
   label: string
   color: string
+  totalCount: number
   cards: SupportTicketBoardCardData[]
+  deferred?: boolean
+  isLoaded?: boolean
+  deferredActionLabel?: string
 }
 
 function getColumnClasses(color: string) {
@@ -110,6 +118,7 @@ function SupportTicketsBoardColumn({
   draggingTicketId,
   isDropTarget,
   onOpenTicket,
+  onLoadDeferredColumn,
   onDragStartTicket,
   onDragEndTicket,
   onDragEnterColumn,
@@ -121,6 +130,7 @@ function SupportTicketsBoardColumn({
   draggingTicketId: string | null
   isDropTarget: boolean
   onOpenTicket: (ticketId: string) => void
+  onLoadDeferredColumn: (columnId: string) => void
   onDragStartTicket: (ticketId: string) => void
   onDragEndTicket: () => void
   onDragEnterColumn: (columnId: string) => void
@@ -134,7 +144,7 @@ function SupportTicketsBoardColumn({
     <KanbanColumnShell
       columnId={column.id}
       title={column.label}
-      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "ticket" : "ticket"}`}
+      countLabel={`${column.totalCount} ticket`}
       visual={visual}
       density="compact"
       widthClassName="w-[292px]"
@@ -149,6 +159,14 @@ function SupportTicketsBoardColumn({
       onDragLeave={onDragLeaveColumn}
       onDrop={onDropToColumn}
     >
+      {column.deferred && !column.isLoaded ? (
+        <KanbanDeferredColumnAction
+          label={column.deferredActionLabel ?? `Mostra ${column.label}`}
+          onClick={() => {
+            onLoadDeferredColumn(column.id)
+          }}
+        />
+      ) : null}
       {column.cards.map((card) => (
         <div
           key={card.id}
@@ -179,6 +197,7 @@ function SupportTicketsBoardSkeletonColumn() {
 export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketType }) {
   const [search, setSearch] = React.useState("")
   const [stageFilter, setStageFilter] = React.useState("all")
+  const [showClosedTickets, setShowClosedTickets] = React.useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
   const [draggingTicketId, setDraggingTicketId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
@@ -198,6 +217,7 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
     const normalizedSearch = search.trim().toLowerCase()
 
     return cards.filter((card) => {
+      if (!showClosedTickets && card.stage === "chiuso") return false
       if (stageFilter !== "all" && card.stage !== stageFilter) return false
       if (!normalizedSearch) return true
 
@@ -208,7 +228,7 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
         card.tag.toLowerCase().includes(normalizedSearch)
       )
     })
-  }, [cards, search, stageFilter])
+  }, [cards, search, showClosedTickets, stageFilter])
 
   const columns = React.useMemo<SupportColumnData[]>(
     () =>
@@ -216,9 +236,13 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
         id: stage.id,
         label: stage.label,
         color: stage.color,
+        totalCount: cards.filter((card) => card.stage === stage.id).length,
         cards: filteredCards.filter((card) => card.stage === stage.id),
+        deferred: stage.id === "chiuso",
+        isLoaded: stage.id !== "chiuso" || showClosedTickets,
+        deferredActionLabel: stage.id === "chiuso" ? "Mostra chiusi" : undefined,
       })),
-    [filteredCards, stages]
+    [cards, filteredCards, showClosedTickets, stages]
   )
 
   const selectedCard = React.useMemo(
@@ -290,6 +314,11 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
                   draggingTicketId={draggingTicketId}
                   isDropTarget={dropTargetColumnId === column.id}
                   onOpenTicket={setSelectedTicketId}
+                  onLoadDeferredColumn={(columnId) => {
+                    if (columnId === "chiuso") {
+                      setShowClosedTickets(true)
+                    }
+                  }}
                   onDragStartTicket={setDraggingTicketId}
                   onDragEndTicket={() => {
                     window.setTimeout(() => {

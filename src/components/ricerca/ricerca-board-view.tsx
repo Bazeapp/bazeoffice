@@ -13,7 +13,11 @@ import {
   useRicercaBoard,
 } from "@/hooks/use-ricerca-board"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
-import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import {
+  KanbanColumnShell,
+  KanbanColumnSkeleton,
+  KanbanDeferredColumnAction,
+} from "@/components/shared/kanban"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -462,17 +466,13 @@ function RicercaBoardColumn({
       onDrop={onDropToColumn}
     >
       {column.deferred && !column.isLoaded ? (
-        <Button
-          variant="outline"
-          className="w-full"
-          disabled={column.isLoading}
-          onClick={(event) => {
-            event.stopPropagation()
+        <KanbanDeferredColumnAction
+          label={deferredActionLabel}
+          isLoading={column.isLoading}
+          onClick={() => {
             onLoadDeferredColumn(column.id)
           }}
-        >
-          {column.isLoading ? "Caricamento..." : deferredActionLabel}
-        </Button>
+        />
       ) : null}
       {column.cards.map((card) => (
         <RicercaBoardCard

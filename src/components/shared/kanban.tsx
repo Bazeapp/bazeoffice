@@ -1,6 +1,7 @@
 import * as React from "react"
 import { CircleDotIcon } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
@@ -133,5 +134,33 @@ export function KanbanColumnSkeleton({
         ))}
       </div>
     </div>
+  )
+}
+
+type KanbanDeferredColumnActionProps = {
+  label: string
+  loadingLabel?: string
+  isLoading?: boolean
+  onClick: () => void
+}
+
+export function KanbanDeferredColumnAction({
+  label,
+  loadingLabel = "Caricamento...",
+  isLoading = false,
+  onClick,
+}: KanbanDeferredColumnActionProps) {
+  return (
+    <Button
+      variant="outline"
+      className="w-full"
+      disabled={isLoading}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick()
+      }}
+    >
+      {isLoading ? loadingLabel : label}
+    </Button>
   )
 }

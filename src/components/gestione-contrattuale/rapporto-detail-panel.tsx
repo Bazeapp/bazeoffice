@@ -76,6 +76,7 @@ type RapportoDetailPanelProps = {
   chiusure: ChiusuraContrattoRecord[]
   loadingRelated: boolean
   lookupColorsByDomain: Map<string, string>
+  hideHeader?: boolean
 }
 
 type SectionTab = {
@@ -387,6 +388,7 @@ export function RapportoDetailPanel({
   chiusure,
   loadingRelated,
   lookupColorsByDomain,
+  hideHeader = false,
 }: RapportoDetailPanelProps) {
   const detailScrollRef = React.useRef<HTMLElement | null>(null)
   const sectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({})
@@ -785,64 +787,66 @@ export function RapportoDetailPanel({
       className="scrollbar-hidden bg-slate-50/80 relative min-h-0 overflow-y-auto rounded-xl border px-4 pt-0 pb-4"
     >
       <div className="space-y-6">
-        <div className="sticky top-0 z-20 -mx-4 -mt-4 border-b bg-background/95 px-4 py-3 backdrop-blur">
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 space-y-3">
-                <div>
-                  <h2 className="truncate text-xl leading-tight font-semibold">{relationshipTitle}</h2>
-                  <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                    {famiglia?.email ? <span>{famiglia.email}</span> : null}
-                    {famiglia?.email && startDateLabel !== "-" ? <span>•</span> : null}
-                    {startDateLabel !== "-" ? <span>dal {startDateLabel}</span> : null}
+        {hideHeader ? null : (
+          <div className="sticky top-0 z-20 -mx-4 -mt-4 border-b bg-background/95 px-4 py-3 backdrop-blur">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 space-y-3">
+                  <div>
+                    <h2 className="truncate text-xl leading-tight font-semibold">{relationshipTitle}</h2>
+                    <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                      {famiglia?.email ? <span>{famiglia.email}</span> : null}
+                      {famiglia?.email && startDateLabel !== "-" ? <span>•</span> : null}
+                      {startDateLabel !== "-" ? <span>dal {startDateLabel}</span> : null}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge className={getTagClassName(statoRapportoColor)}>
+                      {rapportoView.stato_rapporto ?? "Sconosciuto"}
+                    </Badge>
+                    {rapportoView.stato_servizio ? (
+                      <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+                        {rapportoView.stato_servizio}
+                      </Badge>
+                    ) : null}
+                    {rapportoView.tipo_rapporto ? (
+                      <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+                        {rapportoView.tipo_rapporto}
+                      </Badge>
+                    ) : null}
+                    {rapportoView.tipo_contratto ? (
+                      <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+                        {rapportoView.tipo_contratto}
+                      </Badge>
+                    ) : null}
                   </div>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge className={getTagClassName(statoRapportoColor)}>
-                    {rapportoView.stato_rapporto ?? "Sconosciuto"}
-                  </Badge>
-                  {rapportoView.stato_servizio ? (
-                    <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
-                      {rapportoView.stato_servizio}
-                    </Badge>
-                  ) : null}
-                  {rapportoView.tipo_rapporto ? (
-                    <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
-                      {rapportoView.tipo_rapporto}
-                    </Badge>
-                  ) : null}
-                  {rapportoView.tipo_contratto ? (
-                    <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
-                      {rapportoView.tipo_contratto}
-                    </Badge>
-                  ) : null}
-                </div>
               </div>
-            </div>
 
-            <Tabs value={activeSection} onValueChange={scrollToSection} className="w-full">
-              <TabsList
-                variant="line"
-                className="h-auto w-full justify-start gap-x-0.5 overflow-x-auto overflow-y-hidden whitespace-nowrap p-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-              >
-                {SECTION_TABS.map((tab) => {
-                  const TabIcon = tab.icon
-                  return (
-                    <TabsTrigger
-                      key={tab.id}
-                      value={tab.id}
-                      className="text-muted-foreground/70 h-8 flex-none rounded-md px-2.5 text-xs shadow-none"
-                    >
-                      <TabIcon className="size-3.5" />
-                      {tab.label}
-                    </TabsTrigger>
-                  )
-                })}
-              </TabsList>
-            </Tabs>
+              <Tabs value={activeSection} onValueChange={scrollToSection} className="w-full">
+                <TabsList
+                  variant="line"
+                  className="h-auto w-full justify-start gap-x-0.5 overflow-x-auto overflow-y-hidden whitespace-nowrap p-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                >
+                  {SECTION_TABS.map((tab) => {
+                    const TabIcon = tab.icon
+                    return (
+                      <TabsTrigger
+                        key={tab.id}
+                        value={tab.id}
+                        className="text-muted-foreground/70 h-8 flex-none rounded-md px-2.5 text-xs shadow-none"
+                      >
+                        <TabIcon className="size-3.5" />
+                        {tab.label}
+                      </TabsTrigger>
+                    )
+                  })}
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="space-y-6 text-sm">
           <div ref={setSectionRef("contratto")}>

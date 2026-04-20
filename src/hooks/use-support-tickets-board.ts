@@ -11,6 +11,7 @@ import type { LookupValueRecord, RapportoLavorativoRecord, TicketRecord } from "
 import {
   SUPPORT_TICKET_STATUSES,
   getSupportTicketMetadata,
+  inferSupportTicketTag,
   resolveSupportTicketTag,
   resolveSupportTicketUrgency,
   type SupportTicketMetadata,
@@ -111,7 +112,9 @@ function formatDateLabel(value: string | null | undefined) {
 function normalizeTicketType(value: string | null | undefined): SupportTicketType | null {
   const token = normalizeToken(value)
   if (token === "customer") return "Customer"
+  if (token === "customer support") return "Customer"
   if (token === "payroll") return "Payroll"
+  if (token === "consulenza lavoro") return "Payroll"
   return null
 }
 
@@ -232,12 +235,9 @@ function mapRecordToCard(
 
   const rapporto = getRapportoForTicket(record, rapportoIndex)
   const metadata = getSupportTicketMetadata(record)
-  const tag = toStringValue(metadata.tag)
+  const tag = toStringValue(metadata.tag) ?? inferSupportTicketTag(record)
   const note = toStringValue(metadata.note)
   const assegnatario = toStringValue(metadata.assegnatario)
-  if (!tag) {
-    throw new Error(`Ticket ${record.id} senza tag valorizzato in metadati_migrazione.tag`)
-  }
   resolveSupportTicketTag(tag)
 
   const urgenza = toStringValue(record.urgenza)

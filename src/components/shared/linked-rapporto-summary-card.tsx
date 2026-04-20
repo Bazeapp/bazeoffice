@@ -1,7 +1,15 @@
-import { Link2Icon } from "lucide-react"
+import {
+  BriefcaseBusinessIcon,
+  CalendarDaysIcon,
+  Clock3Icon,
+  Link2Icon,
+  ShieldCheckIcon,
+  UserRoundIcon,
+} from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles"
 import { cn } from "@/lib/utils"
 import { buildPathForRoute } from "@/routes/app-routes"
 import type { RapportoLavorativoRecord } from "@/types"
@@ -37,12 +45,41 @@ function formatStartDate(value: string | null | undefined) {
   return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}-${`${date.getDate()}`.padStart(2, "0")}`
 }
 
-function MetaItem({ label, value }: { label: string; value: string }) {
+function normalizeToken(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+}
+
+function getStatusColor(status: string | null | undefined) {
+  const token = normalizeToken(status)
+  if (!token) return "zinc"
+  if (token.includes("attivo") && !token.includes("non")) return "emerald"
+  if (token.includes("attesa") || token.includes("attivazione") || token.includes("corso")) return "amber"
+  if (token.includes("chiuso") || token.includes("terminato") || token.includes("cessato")) return "orange"
+  if (token.includes("sosp")) return "zinc"
+  return "sky"
+}
+
+function MetaItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+}) {
   return (
-    <span className="flex items-center gap-1.5">
-      <span>{label}:</span>
-      <strong className="text-foreground font-semibold">{value}</strong>
-    </span>
+    <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2">
+      <div className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.08em]">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
+    </div>
   )
 }
 
@@ -61,6 +98,8 @@ export function LinkedRapportoSummaryCard({
   const resolvedType = toTextValue(type) ?? toTextValue(rapporto?.tipo_rapporto) ?? "-"
   const resolvedHours = toTextValue(hoursPerWeek) ?? toTextValue(rapporto?.ore_a_settimana) ?? "-"
   const resolvedStartDate = formatStartDate(startDate ?? rapporto?.data_inizio_rapporto)
+  const resolvedWorkerName = toTextValue(rapporto?.nome_lavoratore_per_url) ?? "Lavoratore non disponibile"
+  const statusBadgeClassName = getLookupBadgeSoftClassName(getStatusColor(resolvedStatus))
   const rapportoPath = rapporto?.id
     ? buildPathForRoute({
         mainSection: "gestione_contrattuale_rapporti",
@@ -70,20 +109,29 @@ export function LinkedRapportoSummaryCard({
     : null
 
   return (
-    <div className={cn("rounded-2xl border bg-background px-5 py-4", className)}>
+    <div className={cn("rounded-2xl border bg-background px-5 py-4 shadow-sm", className)}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-semibold sm:text-[17px]">{title}</p>
-          <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-            {resolvedLevel ? <MetaItem label="Livello" value={resolvedLevel} /> : null}
-            <MetaItem label="Tipo" value={resolvedType} />
-            <MetaItem label="Ore/sett" value={resolvedHours} />
-            <MetaItem label="Inizio" value={resolvedStartDate} />
+          <p className="text-muted-foreground text-[11px] font-medium uppercase tracking-[0.12em]">
+            Rapporto collegato
+          </p>
+          <p className="mt-2 truncate text-base font-semibold sm:text-[17px]">{title}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {resolvedStatus ? (
+              <Badge variant="outline" className={cn("rounded-full px-3 text-xs font-medium", statusBadgeClassName)}>
+                <ShieldCheckIcon data-icon="inline-start" />
+                {resolvedStatus}
+              </Badge>
+            ) : null}
+            <Badge variant="outline" className="rounded-full px-3 text-xs font-medium">
+              <UserRoundIcon data-icon="inline-start" />
+              {resolvedWorkerName}
+            </Badge>
           </div>
         </div>
 
         {rapportoPath ? (
-          <Button variant="ghost" size="sm" asChild className="h-auto shrink-0 gap-1.5 px-0 text-primary">
+          <Button variant="outline" size="sm" asChild className="shrink-0 gap-1.5">
             <a href={rapportoPath}>
               <Link2Icon className="size-4" />
               Vai al rapporto
@@ -92,13 +140,30 @@ export function LinkedRapportoSummaryCard({
         ) : null}
       </div>
 
-      {resolvedStatus ? (
-        <div className="mt-4">
-          <Badge variant="outline" className="rounded-full px-3 text-xs font-medium">
-            {resolvedStatus}
-          </Badge>
-        </div>
-      ) : null}
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {resolvedLevel ? (
+          <MetaItem
+            icon={<BriefcaseBusinessIcon className="size-3.5" />}
+            label="Livello"
+            value={resolvedLevel}
+          />
+        ) : null}
+        <MetaItem
+          icon={<BriefcaseBusinessIcon className="size-3.5" />}
+          label="Tipo"
+          value={resolvedType}
+        />
+        <MetaItem
+          icon={<Clock3Icon className="size-3.5" />}
+          label="Ore sett."
+          value={resolvedHours}
+        />
+        <MetaItem
+          icon={<CalendarDaysIcon className="size-3.5" />}
+          label="Inizio"
+          value={resolvedStartDate}
+        />
+      </div>
     </div>
   )
 }
