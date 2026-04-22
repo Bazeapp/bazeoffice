@@ -37,6 +37,7 @@ export type LookupOptionsByField = Record<string, LookupOption[]>
 
 export type CrmPipelineCardData = {
   id: string
+  airtableRecordId: string | null
   famigliaId: string
   stage: string
   nomeFamiglia: string
@@ -61,6 +62,11 @@ export type CrmPipelineCardData = {
   appuntiChiamataSales: string
   dataPerRicercaFutura: string
   dataCallPrenotata: string
+  dataLeadRaw: string | null
+  dataPerRicercaFuturaRaw: string | null
+  dataCallPrenotataRaw: string | null
+  tentativiChiamataCount: number
+  preventivoAccettato: boolean
   orarioDiLavoro: string
   nucleoFamigliare: string
   descrizioneCasa: string
@@ -103,6 +109,10 @@ type UseCrmPipelinePreviewState = {
   moveCard: (processId: string, targetStageId: string) => Promise<void>
   updateProcessCard: (
     processId: string,
+    patch: Record<string, unknown>
+  ) => Promise<void>
+  updateFamilyCard: (
+    familyId: string,
     patch: Record<string, unknown>
   ) => Promise<void>
 }
@@ -189,8 +199,94 @@ function formatItalianDate(value: unknown): string {
   }).format(parsed)
 }
 
+function formatItalianDateTime(value: unknown): string {
+  const raw = toStringValue(value)
+  if (!raw) return "-"
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return "-"
+
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed)
+}
+
 function displayValue(value: unknown): string {
   return toStringValue(value) ?? "-"
+}
+
+function getFlexibleStringArrayValue(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => toStringValue(item))
+      .filter((item): item is string => Boolean(item))
+  }
+
+  const single = toStringValue(value)
+  if (!single) return []
+
+  return single
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function resolveLookupOptionColor(
+  lookupOptionsByField: LookupOptionsByField,
+  field: string,
+  value: string | null
+) {
+  if (!value) return null
+  const token = normalizeLookupToken(value)
+  const options = lookupOptionsByField[field] ?? []
+  const matched = options.find(
+    (option) =>
+      normalizeLookupToken(option.valueKey) === token ||
+      normalizeLookupToken(option.valueLabel) === token
+  )
+  return matched?.color ?? null
+}
+
+function parseIsoTime(value: string | null) {
+  if (!value) return null
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) ? timestamp : null
+}
+
+function compareNullableDates(left: string | null, right: string | null, ascending: boolean) {
+  const leftTime = parseIsoTime(left)
+  const rightTime = parseIsoTime(right)
+
+  if (leftTime === null && rightTime === null) return 0
+  if (leftTime === null) return -1
+  if (rightTime === null) return 1
+  return ascending ? leftTime - rightTime : rightTime - leftTime
+}
+
+function sortCardsForStage(cards: CrmPipelineCardData[], stageId: string) {
+  const sorted = [...cards]
+
+  sorted.sort((left, right) => {
+    if (stageId === "hot_call_attivazione_prenotata") {
+      const byCall = compareNullableDates(left.dataCallPrenotataRaw, right.dataCallPrenotataRaw, true)
+      if (byCall !== 0) return byCall
+    } else if (stageId === "cold_ricerca_futura") {
+      const byCallback = compareNullableDates(
+        left.dataPerRicercaFuturaRaw,
+        right.dataPerRicercaFuturaRaw,
+        true
+      )
+      if (byCallback !== 0) return byCallback
+    }
+
+    return compareNullableDates(left.dataLeadRaw, right.dataLeadRaw, false)
+  })
+
+  return sorted
 }
 
 function extractFirstNumberToken(value: unknown) {
@@ -202,6 +298,54 @@ function extractFirstNumberToken(value: unknown) {
 
 function normalizeLookupToken(value: string | null | undefined) {
   return String(value ?? "").trim().toLowerCase()
+}
+
+function canonicalizeLookupValue(
+  field: string | null | undefined,
+  value: string | null | undefined
+) {
+  const token = normalizeLookupToken(value)
+  if (!token) return null
+
+  if (field === "tipo_lavoro") {
+    if (["colf/pulizia", "colf / pulizia"].includes(token)) {
+      return "Colf / Pulizie"
+    }
+    if (
+      ["assistenza domestica / badante", "assistenza domiciliare / badante"].includes(
+        token
+      )
+    ) {
+      return "Assistenza domiciliare / Badante"
+    }
+    if (["tata colf", "babysitter / tata-colf"].includes(token)) {
+      return "Babysitter / Tata-Colf"
+    }
+  }
+
+  if (field === "tipo_rapporto") {
+    if (
+      [
+        "*non* convivente full time",
+        "non convivente full time",
+        "non convivente full-time",
+        "full time",
+      ].includes(token)
+    ) {
+      return "Non convivente Full-time"
+    }
+    if (["part-time", "part time"].includes(token)) {
+      return "Part time"
+    }
+    if (token === "lavoro ad ore") {
+      return "Lavoro ad ore"
+    }
+    if (token === "convivente") {
+      return "Convivente"
+    }
+  }
+
+  return value?.trim() ?? null
 }
 
 function readLookupColor(metadata: LookupValueRecord["metadata"]) {
@@ -220,8 +364,23 @@ function buildLookupColorMap(rows: LookupValueRecord[]): LookupColorMap {
     const domain = `${current.entity_table}.${current.entity_field}`
     if (!acc[domain]) acc[domain] = {}
 
+    const canonicalValueKey = canonicalizeLookupValue(
+      current.entity_field,
+      current.value_key
+    )
+    const canonicalValueLabel = canonicalizeLookupValue(
+      current.entity_field,
+      current.value_label
+    )
+
     acc[domain][normalizeLookupToken(current.value_key)] = color
     acc[domain][normalizeLookupToken(current.value_label)] = color
+    if (canonicalValueKey) {
+      acc[domain][normalizeLookupToken(canonicalValueKey)] = color
+    }
+    if (canonicalValueLabel) {
+      acc[domain][normalizeLookupToken(canonicalValueLabel)] = color
+    }
     return acc
   }, {})
 }
@@ -243,13 +402,26 @@ function buildLookupOptionsByField(rows: LookupValueRecord[]): LookupOptionsByFi
     })
 
   const map: LookupOptionsByField = {}
+  const seenByField = new Map<string, Set<string>>()
   for (const row of entries) {
     const field = toStringValue(row.entity_field)
-    const valueKey = toStringValue(row.value_key)
-    const valueLabel = toStringValue(row.value_label)
+    const valueKey = canonicalizeLookupValue(field, toStringValue(row.value_key))
+    const valueLabel = canonicalizeLookupValue(field, toStringValue(row.value_label))
     if (!field || !valueKey || !valueLabel) continue
 
     if (!map[field]) map[field] = []
+    if (!seenByField.has(field)) {
+      seenByField.set(field, new Set<string>())
+    }
+
+    const normalizedValueKey = normalizeLookupToken(valueKey)
+    const normalizedValueLabel = normalizeLookupToken(valueLabel)
+    const dedupeToken = `${normalizedValueKey}::${normalizedValueLabel}`
+    if (seenByField.get(field)?.has(dedupeToken)) {
+      continue
+    }
+
+    seenByField.get(field)?.add(dedupeToken)
 
     map[field].push({
       valueKey,
@@ -323,8 +495,14 @@ function mapCardData(
 
   const processId = displayValue(process.id)
   const famigliaId = displayValue(process.famiglia_id)
-  const tipoLavoroBadge = getFirstArrayValue(process.tipo_lavoro)
-  const tipoRapportoBadge = getFirstArrayValue(process.tipo_rapporto)
+  const tipoLavoroBadge = canonicalizeLookupValue(
+    "tipo_lavoro",
+    getFirstArrayValue(process.tipo_lavoro)
+  )
+  const tipoRapportoBadge = canonicalizeLookupValue(
+    "tipo_rapporto",
+    getFirstArrayValue(process.tipo_rapporto)
+  )
   const giorniSettimanaValue =
     toStringValue(process.numero_giorni_settimanali) ??
     extractFirstNumberToken(process.frequenza_rapporto) ??
@@ -332,6 +510,7 @@ function mapCardData(
 
   return {
     id: processId,
+    airtableRecordId: toStringValue(process.airtable_record_id),
     famigliaId,
     stage: stageId,
     nomeFamiglia: familyName || "-",
@@ -365,7 +544,12 @@ function mapCardData(
     motivazioneOot: displayValue(process.motivazione_oot),
     appuntiChiamataSales: displayValue(process.appunti_chiamata_sales),
     dataPerRicercaFutura: formatItalianDate(process.data_per_ricerca_futura),
-    dataCallPrenotata: formatItalianDate(family.data_call_prenotata),
+    dataCallPrenotata: formatItalianDateTime(family.data_call_prenotata),
+    dataLeadRaw: toStringValue(family.creato_il),
+    dataPerRicercaFuturaRaw: toStringValue(process.data_per_ricerca_futura),
+    dataCallPrenotataRaw: toStringValue(family.data_call_prenotata),
+    tentativiChiamataCount: getFlexibleStringArrayValue(process.sales_cold_call_followup).length,
+    preventivoAccettato: toBooleanValue(process.preventivo_firmato) ?? false,
     orarioDiLavoro: displayValue(process.orario_di_lavoro),
     nucleoFamigliare: displayValue(process.nucleo_famigliare),
     descrizioneCasa: displayValue(process.descrizione_casa),
@@ -473,7 +657,7 @@ async function fetchBoardData(): Promise<FetchBoardDataResult> {
       id: stage.id,
       label: stage.label,
       color: stage.color,
-      cards: cardsByStage.get(stage.id) ?? [],
+      cards: sortCardsForStage(cardsByStage.get(stage.id) ?? [], stage.id),
     })),
     lookupOptionsByField,
   }
@@ -524,10 +708,10 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
       const previousColumns = columns
       const optimisticColumns = columns.map((column) => {
         if (column.id === sourceColumn.id) {
-          return { ...column, cards: updatedSourceCards }
+          return { ...column, cards: sortCardsForStage(updatedSourceCards, sourceColumn.id) }
         }
         if (column.id === targetStageId) {
-          return { ...column, cards: updatedTargetCards }
+          return { ...column, cards: sortCardsForStage(updatedTargetCards, targetStageId) }
         }
         return column
       })
@@ -557,7 +741,7 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
 
       const optimisticColumns = columns.map((column) => ({
         ...column,
-        cards: column.cards.map((card) => {
+        cards: sortCardsForStage(column.cards.map((card) => {
           if (card.id !== processId) return card
 
           const nextCard = { ...card }
@@ -565,10 +749,31 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
           if (typeof patch.stato_sales === "string" && patch.stato_sales.trim()) {
             nextCard.stage = patch.stato_sales.trim()
           }
+          if ("tipo_lavoro" in patch) {
+            const nextTipoLavoro = getFirstArrayValue(patch.tipo_lavoro)
+            nextCard.tipoLavoroBadge = nextTipoLavoro
+            nextCard.tipoLavoroColor = resolveLookupOptionColor(
+              lookupOptionsByField,
+              "tipo_lavoro",
+              nextTipoLavoro
+            )
+          }
+          if ("tipo_rapporto" in patch) {
+            const nextTipoRapporto = getFirstArrayValue(patch.tipo_rapporto)
+            nextCard.tipoRapportoBadge = nextTipoRapporto
+            nextCard.tipoRapportoColor = resolveLookupOptionColor(
+              lookupOptionsByField,
+              "tipo_rapporto",
+              nextTipoRapporto
+            )
+          }
           if ("sales_cold_call_followup" in patch) {
             nextCard.salesColdCallFollowup = displayValue(
               patch.sales_cold_call_followup
             )
+            nextCard.tentativiChiamataCount = getFlexibleStringArrayValue(
+              patch.sales_cold_call_followup
+            ).length
           }
           if ("sales_no_show_followup" in patch) {
             nextCard.salesNoShowFollowup = displayValue(
@@ -588,6 +793,9 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
           }
           if ("data_per_ricerca_futura" in patch) {
             nextCard.dataPerRicercaFutura = formatItalianDate(
+              patch.data_per_ricerca_futura
+            )
+            nextCard.dataPerRicercaFuturaRaw = toStringValue(
               patch.data_per_ricerca_futura
             )
           }
@@ -650,6 +858,10 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
           if ("richiesta_ferie" in patch) {
             nextCard.richiestaFerie = toBooleanValue(patch.richiesta_ferie) ?? false
           }
+          if ("preventivo_firmato" in patch) {
+            nextCard.preventivoAccettato =
+              toBooleanValue(patch.preventivo_firmato) ?? false
+          }
           if ("descrizione_richiesta_trasferte" in patch) {
             nextCard.descrizioneRichiestaTrasferte = displayValue(
               patch.descrizione_richiesta_trasferte
@@ -704,7 +916,7 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
           }
 
           return nextCard
-        }),
+        }), column.id),
       }))
 
       setColumns(optimisticColumns)
@@ -717,6 +929,52 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
           caughtError instanceof Error
             ? caughtError.message
             : "Errore aggiornando ricerca su Supabase"
+        setError(message)
+        throw caughtError
+      }
+    },
+    [columns, lookupOptionsByField]
+  )
+
+  const updateFamilyCard = React.useCallback(
+    async (familyId: string, patch: Record<string, unknown>) => {
+      setError(null)
+
+      const previousColumns = columns
+
+      const optimisticColumns = columns.map((column) => ({
+        ...column,
+        cards: sortCardsForStage(
+          column.cards.map((card) => {
+            if (card.famigliaId !== familyId) return card
+
+            const nextCard = { ...card }
+
+            if ("data_call_prenotata" in patch) {
+              nextCard.dataCallPrenotata = formatItalianDateTime(
+                patch.data_call_prenotata
+              )
+              nextCard.dataCallPrenotataRaw = toStringValue(
+                patch.data_call_prenotata
+              )
+            }
+
+            return nextCard
+          }),
+          column.id
+        ),
+      }))
+
+      setColumns(optimisticColumns)
+
+      try {
+        await updateRecord("famiglie", familyId, patch)
+      } catch (caughtError) {
+        setColumns(previousColumns)
+        const message =
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore aggiornando famiglia su Supabase"
         setError(message)
         throw caughtError
       }
@@ -766,5 +1024,6 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
     lookupOptionsByField,
     moveCard,
     updateProcessCard,
+    updateFamilyCard,
   }
 }

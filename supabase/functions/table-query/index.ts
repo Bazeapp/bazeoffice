@@ -18,6 +18,7 @@ type SupportedTable =
   | "presenze_mensili"
   | "rapporti_lavorativi"
   | "ticket"
+  | "transazioni_finanziarie"
   | "variazioni_contrattuali"
   | "documenti_lavoratori"
   | "selezioni_lavoratori"
@@ -81,6 +82,7 @@ type QueryPayload = {
   search?: string;
   searchFields?: string[];
   filters?: FilterGroup;
+  groupBy?: string[];
 };
 
 type FilterFieldType =
@@ -97,6 +99,18 @@ type ColumnMeta = {
   dataType: string;
   udtName: string | null;
   filterType: FilterFieldType;
+};
+
+type GroupResult = {
+  field: string;
+  value: string;
+  label: string;
+  count: number;
+};
+
+type LookupFilterMetadata = {
+  fieldTypes: Map<string, FilterFieldType>;
+  aliasesByField: Map<string, Map<string, string[]>>;
 };
 
 const MAX_SERVER_SCAN_ROWS = 25000;
@@ -388,6 +402,21 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
       `codice_malattia_day_${day}`,
     ]),
   ],
+  transazioni_finanziarie: [
+    "id",
+    "data_ora_creazione",
+    "id_stripe_checkout_session",
+    "link_pagamento",
+    "link_pagamento_short",
+    "mese_lavorativo_id",
+    "url_ricevuta_pagamento",
+    "stato_pagamento",
+    "airtable_id",
+    "airtable_record_id",
+    "creato_il",
+    "aggiornato_il",
+    "metadati_migrazione",
+  ],
   rapporti_lavorativi: [
     "id",
     "accordo_di_lavoro_allegati",
@@ -510,6 +539,8 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "cognome",
     "email",
     "telefono",
+    "ruolo",
+    "attivo",
     "creato_il",
     "aggiornato_il",
   ],
@@ -813,15 +844,116 @@ function parseFilterList(value: string) {
     .filter(Boolean);
 }
 
+function parseRawFilterList(value: string) {
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function readLookupFilterType(metadata: unknown): FilterFieldType | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const filterType = (metadata as { filter_type?: unknown }).filter_type;
+  return filterType === "enum" || filterType === "multi_enum" ? filterType : null;
+}
+
+function addLookupAlias(
+  aliasesByField: LookupFilterMetadata["aliasesByField"],
+  field: string,
+  sourceValue: unknown,
+  aliases: string[],
+) {
+  const token = normalize(sourceValue);
+  if (!token) return;
+
+  const fieldAliases = aliasesByField.get(field) ?? new Map<string, string[]>();
+  const current = fieldAliases.get(token) ?? [];
+  const merged = new Set([...current, ...aliases.map((alias) => String(alias ?? "").trim()).filter(Boolean)]);
+  fieldAliases.set(token, Array.from(merged));
+  aliasesByField.set(field, fieldAliases);
+}
+
+async function fetchLookupFilterMetadata(
+  supabase: ReturnType<typeof createClient>,
+  table: SupportedTable,
+  fields: string[],
+): Promise<LookupFilterMetadata> {
+  const metadata: LookupFilterMetadata = {
+    fieldTypes: new Map(),
+    aliasesByField: new Map(),
+  };
+
+  const uniqueFields = Array.from(new Set(fields.filter(Boolean)));
+  if (table === "lookup_values" || uniqueFields.length === 0) return metadata;
+
+  const { data, error } = await supabase
+    .from("lookup_values")
+    .select("entity_field,value_key,value_label,metadata,is_active")
+    .eq("entity_table", table)
+    .in("entity_field", uniqueFields)
+    .eq("is_active", true);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+    const field = String(row.entity_field ?? "").trim();
+    if (!field) continue;
+
+    const filterType = readLookupFilterType(row.metadata);
+    if (filterType) {
+      metadata.fieldTypes.set(field, filterType);
+    }
+
+    const valueKey = String(row.value_key ?? "").trim();
+    const valueLabel = String(row.value_label ?? "").trim();
+    const aliases = [valueKey, valueLabel].filter(Boolean);
+    if (!aliases.length) continue;
+
+    addLookupAlias(metadata.aliasesByField, field, valueKey, aliases);
+    addLookupAlias(metadata.aliasesByField, field, valueLabel, aliases);
+  }
+
+  return metadata;
+}
+
+function getLookupFilterValueGroups(
+  field: string,
+  value: string,
+  lookupMetadata: LookupFilterMetadata,
+) {
+  const fieldAliases = lookupMetadata.aliasesByField.get(field);
+  const rawValues = parseRawFilterList(value);
+  const values = rawValues.length > 0 ? rawValues : [value];
+
+  return values.map((currentValue) => {
+    const token = normalize(currentValue);
+    const aliases = fieldAliases?.get(token) ?? [currentValue];
+    return Array.from(new Set(aliases.map((alias) => normalize(alias)).filter(Boolean)));
+  });
+}
+
+function matchesAnyLookupValue(tokens: string[], groups: string[][]) {
+  return groups.some((group) => group.some((value) => tokens.includes(value)));
+}
+
+function matchesAllLookupValues(tokens: string[], groups: string[][]) {
+  return groups.every((group) => group.some((value) => tokens.includes(value)));
+}
+
 function evaluateCondition(
   row: Record<string, unknown>,
   condition: FilterCondition,
   fieldTypes: Map<string, FilterFieldType>,
+  lookupMetadata: LookupFilterMetadata,
 ): boolean {
   const raw = row[condition.field];
   const fieldType = fieldTypes.get(condition.field) ?? "text";
   const left = normalize(raw);
   const right = normalize(condition.value);
+  const lookupGroups = getLookupFilterValueGroups(condition.field, condition.value, lookupMetadata);
+  const lookupValues = lookupGroups.flat();
 
   if (condition.operator === "is_empty") return isEmptyValue(raw);
   if (condition.operator === "is_not_empty") return !isEmptyValue(raw);
@@ -926,16 +1058,26 @@ function evaluateCondition(
     switch (condition.operator) {
       case "is":
       case "has":
-        return tokens.includes(right);
+        return lookupValues.length > 0
+          ? matchesAnyLookupValue(tokens, lookupGroups.slice(0, 1))
+          : tokens.includes(right);
       case "is_not":
       case "not_has":
-        return !tokens.includes(right);
+        return lookupValues.length > 0
+          ? !matchesAnyLookupValue(tokens, lookupGroups.slice(0, 1))
+          : !tokens.includes(right);
       case "has_any":
-        return list.some((token) => tokens.includes(token));
+        return lookupValues.length > 0
+          ? matchesAnyLookupValue(tokens, lookupGroups)
+          : list.some((token) => tokens.includes(token));
       case "has_all":
-        return list.every((token) => tokens.includes(token));
+        return lookupValues.length > 0
+          ? matchesAllLookupValues(tokens, lookupGroups)
+          : list.every((token) => tokens.includes(token));
       case "not_has_any":
-        return !list.some((token) => tokens.includes(token));
+        return lookupValues.length > 0
+          ? !matchesAnyLookupValue(tokens, lookupGroups)
+          : !list.some((token) => tokens.includes(token));
       default:
         return true;
     }
@@ -943,11 +1085,15 @@ function evaluateCondition(
 
   switch (condition.operator) {
     case "is":
-      return left === right;
+      return lookupValues.length > 0 ? lookupValues.includes(left) : left === right;
+    case "has_any":
+      return lookupValues.length > 0 ? lookupValues.includes(left) : parseFilterList(condition.value).includes(left);
     case "in":
-      return parseFilterList(condition.value).includes(left);
+      return lookupValues.length > 0 ? lookupValues.includes(left) : parseFilterList(condition.value).includes(left);
     case "is_not":
-      return left !== right;
+      return lookupValues.length > 0 ? !lookupValues.includes(left) : left !== right;
+    case "not_has_any":
+      return lookupValues.length > 0 ? !lookupValues.includes(left) : !parseFilterList(condition.value).includes(left);
     case "has":
       return left.includes(right);
     case "not_has":
@@ -965,6 +1111,7 @@ function evaluateGroup(
   row: Record<string, unknown>,
   group: FilterGroup,
   fieldTypes: Map<string, FilterFieldType>,
+  lookupMetadata: LookupFilterMetadata,
 ): boolean {
   function evaluateNested(currentGroup: FilterGroup): boolean {
     if (!Array.isArray(currentGroup.nodes) || currentGroup.nodes.length === 0) {
@@ -973,7 +1120,7 @@ function evaluateGroup(
 
     const results = currentGroup.nodes.map((node) => {
       if (node.kind === "condition") {
-        return evaluateCondition(row, node, fieldTypes);
+        return evaluateCondition(row, node, fieldTypes, lookupMetadata);
       }
 
       return evaluateNested(node);
@@ -984,6 +1131,28 @@ function evaluateGroup(
   }
 
   return evaluateNested(group);
+}
+
+function collectFilterFields(group: FilterGroup | undefined): string[] {
+  const fields = new Set<string>();
+
+  function collect(currentGroup: FilterGroup | undefined) {
+    if (!currentGroup || !Array.isArray(currentGroup.nodes)) return;
+
+    for (const node of currentGroup.nodes) {
+      if (node.kind === "condition") {
+        if (typeof node.field === "string" && node.field.trim()) {
+          fields.add(node.field.trim());
+        }
+        continue;
+      }
+
+      collect(node);
+    }
+  }
+
+  collect(group);
+  return Array.from(fields);
 }
 
 function applySearch(
@@ -1074,6 +1243,48 @@ function applySorting(
   return sorted;
 }
 
+function getGroupLabel(value: unknown) {
+  if (value === null || value === undefined) return "Senza valore";
+  if (typeof value === "string") return value.trim() || "Senza valore";
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.length ? value.map((item) => getGroupLabel(item)).join(", ") : "Senza valore";
+  return JSON.stringify(value);
+}
+
+function buildGroupResults(
+  rows: Record<string, unknown>[],
+  groupBy: string[] | undefined,
+  allowedFields: string[],
+  lookupMetadata: LookupFilterMetadata,
+): GroupResult[] {
+  const groupField = groupBy?.find((field) => allowedFields.includes(field));
+  if (!groupField) return [];
+
+  const groups = new Map<string, GroupResult>();
+  const fieldAliases = lookupMetadata.aliasesByField.get(groupField);
+  for (const row of rows) {
+    const rawValue = row[groupField];
+    const aliases = fieldAliases?.get(normalize(rawValue));
+    const value = aliases?.[0] ?? (rawValue === null || rawValue === undefined ? "" : String(rawValue));
+    const label = aliases?.[1] ?? getGroupLabel(rawValue);
+    const key = normalize(value) || "__empty__";
+    const current = groups.get(key) ?? {
+      field: groupField,
+      value,
+      label,
+      count: 0,
+    };
+    current.count += 1;
+    groups.set(key, current);
+  }
+
+  return Array.from(groups.values()).sort((a, b) => {
+    if (a.label === "Senza valore" && b.label !== "Senza valore") return 1;
+    if (b.label === "Senza valore" && a.label !== "Senza valore") return -1;
+    return a.label.localeCompare(b.label);
+  });
+}
+
 function escapeLikeValue(value: string) {
   return value.replace(/[%_]/g, (token) => `\\${token}`);
 }
@@ -1099,8 +1310,9 @@ function collectFlatAndConditions(group: FilterGroup | undefined): FilterConditi
 function supportsServerCondition(operator: FilterOperator) {
   return (
     operator === "is" ||
-    operator === "in" ||
     operator === "is_not" ||
+    operator === "in" ||
+    operator === "between" ||
     operator === "gt" ||
     operator === "gte" ||
     operator === "lt" ||
@@ -1110,6 +1322,22 @@ function supportsServerCondition(operator: FilterOperator) {
     operator === "starts_with" ||
     operator === "ends_with"
   );
+}
+
+function orderRangeValues(value: string, valueTo: string | undefined) {
+  const left = String(value ?? "");
+  const right = String(valueTo ?? "");
+  if (!right) return { from: left, to: right };
+
+  const leftNumber = Number(left);
+  const rightNumber = Number(right);
+  if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
+    return leftNumber <= rightNumber
+      ? { from: left, to: right }
+      : { from: right, to: left };
+  }
+
+  return left <= right ? { from: left, to: right } : { from: right, to: left };
 }
 
 function applyServerCondition(
@@ -1122,10 +1350,15 @@ function applyServerCondition(
   switch (condition.operator) {
     case "is":
       return query.eq(field, value);
-    case "in":
-      return query.in(field, parseFilterList(value));
     case "is_not":
       return query.neq(field, value);
+    case "between": {
+      const range = orderRangeValues(value, condition.valueTo);
+      if (!range.to) return null;
+      return query.gte(field, range.from).lte(field, range.to);
+    }
+    case "in":
+      return query.in(field, parseFilterList(value));
     case "gt":
       return query.gt(field, value);
     case "gte":
@@ -1162,6 +1395,7 @@ async function fetchAllRows(
     const { data, error } = await supabase
       .from(table)
       .select(selectClause)
+      .order("id", { ascending: true })
       .range(from, to);
 
     if (error) {
@@ -1234,17 +1468,27 @@ Deno.serve(async (req) => {
     ? payload.searchFields.filter((field) => typeof field === "string" && field.trim())
     : undefined;
   const filters = payload.filters;
+  const groupBy = Array.isArray(payload.groupBy)
+    ? payload.groupBy.filter((field) => typeof field === "string" && selectFields.includes(field))
+    : [];
 
   const supabase = createClient(url, serviceRole, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
   try {
+    const lookupMetadata = await fetchLookupFilterMetadata(
+      supabase,
+      payload.table,
+      [...collectFilterFields(filters), ...groupBy],
+    );
     const flatConditions = collectFlatAndConditions(filters);
     const canUseServerQuery =
       !search &&
+      groupBy.length === 0 &&
       flatConditions !== null &&
-      flatConditions.every((condition) => supportsServerCondition(condition.operator));
+      flatConditions.every((condition) => supportsServerCondition(condition.operator)) &&
+      flatConditions.every((condition) => !lookupMetadata.fieldTypes.has(condition.field));
 
     if (canUseServerQuery) {
       let serverQuery = supabase
@@ -1294,6 +1538,9 @@ Deno.serve(async (req) => {
     const fieldTypes = new Map<string, FilterFieldType>(
       columns.map((column) => [column.name, column.filterType]),
     );
+    for (const [field, filterType] of lookupMetadata.fieldTypes) {
+      fieldTypes.set(field, filterType);
+    }
 
     const safeSearchFields =
       searchFields && searchFields.length > 0
@@ -1306,8 +1553,27 @@ Deno.serve(async (req) => {
 
     const rowsAfterFilter =
       filters && filters.kind === "group"
-        ? rowsAfterSearch.filter((row) => evaluateGroup(row, filters, fieldTypes))
+        ? rowsAfterSearch.filter((row) => evaluateGroup(row, filters, fieldTypes, lookupMetadata))
         : rowsAfterSearch;
+
+    if (groupBy.length > 0) {
+      const groups = buildGroupResults(rowsAfterFilter, groupBy, selectFields, lookupMetadata);
+
+      return new Response(
+        JSON.stringify({
+          rows: [],
+          total: rowsAfterFilter.length,
+          limit,
+          offset,
+          columns,
+          groups,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     const safeOrderBy = orderBy.filter((item) =>
       typeof item.field === "string" && item.field in (rowsAfterFilter[0] ?? {})

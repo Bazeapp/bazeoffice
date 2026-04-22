@@ -32,6 +32,8 @@ type StatoLeadCardProps = {
   card: CrmPipelineCardData | null;
   lookupOptionsByField: LookupOptionsByField;
   titleAction?: ReactNode;
+  title?: string;
+  showStageField?: boolean;
   onChangeStage?: (
     processId: string,
     targetStageId: string,
@@ -211,6 +213,29 @@ function getStageGroupLabel(groupKey: string) {
   }
 }
 
+function getContextualCardTitle(stage: string) {
+  switch (stage) {
+    case "hot_in_attesa_di_primo_contatto":
+      return "Onboarding - Primo contatto"
+    case "hot_contatto_avvenuto":
+      return "Onboarding - Esito contatto"
+    case "hot_callback_programmato":
+      return "Onboarding - Callback"
+    case "hot_call_attivazione_prenotata":
+      return "Onboarding - Call attivazione prenotata"
+    case "hot_no_show":
+      return "Onboarding - No-show"
+    case "cold_ricerca_futura":
+      return "Onboarding - Ricerca futura"
+    case "lost":
+      return "Onboarding - Lost"
+    case "out_of_target":
+      return "Onboarding - Out of target"
+    default:
+      return "Onboarding contestuale"
+  }
+}
+
 function resolveOptions(
   selected: string,
   options: LookupOption[],
@@ -314,6 +339,8 @@ export function StatoLeadCard({
   card,
   lookupOptionsByField,
   titleAction,
+  title,
+  showStageField = true,
   onChangeStage,
   onPatchProcess,
 }: StatoLeadCardProps) {
@@ -520,44 +547,52 @@ export function StatoLeadCard({
     "other",
   ].filter((group) => (groupedStageOptions[group] ?? []).length > 0);
 
+  if (!showStageField && !content) {
+    return null;
+  }
+
+  const resolvedTitle = title ?? (showStageField ? "Stato Lead" : getContextualCardTitle(card.stage));
+
   return (
-    <CrmDetailCard title="Stato Lead" titleAction={titleAction}>
+    <CrmDetailCard title={resolvedTitle} titleAction={titleAction}>
       <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="stato-lead-stage">Stato</FieldLabel>
-          <Select
-            value={card.stage}
-            onValueChange={(nextStage) => {
-              if (!nextStage || nextStage === card.stage) return;
-              void onChangeStage?.(card.id, nextStage);
-            }}
-          >
-            <SelectTrigger id="stato-lead-stage" className="w-full">
-              <SelectValue placeholder="Seleziona stato" />
-            </SelectTrigger>
-            <SelectContent>
-              {groupOrder.map((groupKey, groupIndex) => (
-                <React.Fragment key={groupKey}>
-                  <SelectGroup>
-                    <SelectLabel>{getStageGroupLabel(groupKey)}</SelectLabel>
-                    {groupedStageOptions[groupKey].map((option) => (
-                      <SelectItem
-                        key={option.valueKey}
-                        value={option.valueKey}
-                        className={getSelectItemClassName(option.color)}
-                      >
-                        {option.valueLabel}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                  {groupIndex < groupOrder.length - 1 ? (
-                    <SelectSeparator />
-                  ) : null}
-                </React.Fragment>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        {showStageField ? (
+          <Field>
+            <FieldLabel htmlFor="stato-lead-stage">Stato</FieldLabel>
+            <Select
+              value={card.stage}
+              onValueChange={(nextStage) => {
+                if (!nextStage || nextStage === card.stage) return;
+                void onChangeStage?.(card.id, nextStage);
+              }}
+            >
+              <SelectTrigger id="stato-lead-stage" className="w-full">
+                <SelectValue placeholder="Seleziona stato" />
+              </SelectTrigger>
+              <SelectContent>
+                {groupOrder.map((groupKey, groupIndex) => (
+                  <React.Fragment key={groupKey}>
+                    <SelectGroup>
+                      <SelectLabel>{getStageGroupLabel(groupKey)}</SelectLabel>
+                      {groupedStageOptions[groupKey].map((option) => (
+                        <SelectItem
+                          key={option.valueKey}
+                          value={option.valueKey}
+                          className={getSelectItemClassName(option.color)}
+                        >
+                          {option.valueLabel}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                    {groupIndex < groupOrder.length - 1 ? (
+                      <SelectSeparator />
+                    ) : null}
+                  </React.Fragment>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        ) : null}
 
         {content}
       </FieldGroup>

@@ -182,7 +182,9 @@ function needsNoValue(operator: string) {
 function getValueEditorType(fieldType: FilterFieldType, operator: string) {
   if (needsNoValue(operator)) return null
   if (fieldType === "boolean") return "select"
-  if (fieldType === "enum") return "select"
+  if (fieldType === "enum") {
+    return operator === "has_any" || operator === "not_has_any" ? "multiselect" : "select"
+  }
   if (fieldType === "multi_enum") {
     return operator === "has_any" || operator === "has_all" || operator === "not_has_any"
       ? "multiselect"
@@ -208,6 +210,26 @@ function splitFilterList(value: string) {
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean)
+}
+
+function readBetweenValue(value: unknown) {
+  if (Array.isArray(value)) {
+    return {
+      from: String(value[0] ?? ""),
+      to: String(value[1] ?? ""),
+    }
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>
+    return {
+      from: String(record.from ?? ""),
+      to: String(record.to ?? ""),
+    }
+  }
+
+  const [from = "", to = ""] = String(value ?? "").split(",")
+  return { from, to }
 }
 
 type NormalizedOption = {
@@ -376,15 +398,53 @@ function ShadcnValueEditor(props: ValueEditorProps) {
   const valueLabelByValue = new Map(normalizedOptions.map((option) => [option.value, option.label]))
   const stringValue = Array.isArray(props.value) ? props.value.join(",") : String(props.value ?? "")
   const useSingleSelect =
-    (fieldType === "boolean" || fieldType === "enum") && normalizedOptions.length > 0
+    (fieldType === "boolean" ||
+      (fieldType === "enum" && !["has_any", "not_has_any"].includes(props.operator))) &&
+    normalizedOptions.length > 0
   const useSingleEnumSelect =
     fieldType === "multi_enum" &&
     ["is", "is_not", "has", "not_has"].includes(props.operator) &&
+    normalizedOptions.length > 0
+  const useEnumLookupMultiSelect =
+    fieldType === "enum" &&
+    ["has_any", "not_has_any"].includes(props.operator) &&
     normalizedOptions.length > 0
   const useMultiEnumLookupSelect =
     fieldType === "multi_enum" &&
     ["has_any", "has_all", "not_has_any"].includes(props.operator) &&
     normalizedOptions.length > 0
+
+  if (props.operator === "between") {
+    const betweenValue = readBetweenValue(props.value)
+    const inputType = fieldTypeToInputType(fieldType)
+
+    return (
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          type={inputType}
+          inputMode={fieldType === "number" ? "decimal" : undefined}
+          value={betweenValue.from}
+          onChange={(event) =>
+            props.handleOnChange([event.target.value, betweenValue.to])
+          }
+          placeholder="Da"
+          className="h-9 min-w-[160px]"
+          disabled={props.disabled}
+        />
+        <Input
+          type={inputType}
+          inputMode={fieldType === "number" ? "decimal" : undefined}
+          value={betweenValue.to}
+          onChange={(event) =>
+            props.handleOnChange([betweenValue.from, event.target.value])
+          }
+          placeholder="A"
+          className="h-9 min-w-[160px]"
+          disabled={props.disabled}
+        />
+      </div>
+    )
+  }
 
   if (fieldType === "boolean") {
     return (
@@ -425,7 +485,7 @@ function ShadcnValueEditor(props: ValueEditorProps) {
     )
   }
 
-  if (useMultiEnumLookupSelect) {
+  if (useEnumLookupMultiSelect || useMultiEnumLookupSelect) {
     const selectedValues = splitFilterList(stringValue)
 
     return (
@@ -472,7 +532,7 @@ function ShadcnValueEditor(props: ValueEditorProps) {
       value={stringValue}
       onChange={(event) => props.handleOnChange(event.target.value)}
       placeholder={
-        fieldType === "multi_enum" &&
+        (fieldType === "enum" || fieldType === "multi_enum") &&
         ["has_any", "has_all", "not_has_any"].includes(props.operator)
           ? "Valori separati da virgola"
           : "Valore"
@@ -491,14 +551,15 @@ function translateRuleToCondition(rule: any, fieldsByName: Map<string, Anagrafic
 
   const rawValue = rule.value
   const normalizedValue = Array.isArray(rawValue) ? rawValue.join(",") : String(rawValue ?? "")
+  const betweenValue = operator === "between" ? readBetweenValue(rawValue) : null
 
   return {
     kind: "condition",
     id: createFilterId(),
     field,
     operator: operator as QueryFilterCondition["operator"],
-    value: needsNoValue(operator) ? "" : normalizedValue,
-    valueTo: "",
+    value: needsNoValue(operator) ? "" : betweenValue ? betweenValue.from : normalizedValue,
+    valueTo: betweenValue ? betweenValue.to : "",
   }
 }
 
@@ -658,7 +719,14 @@ export function AnagraficheQueryBuilder({
 type ToQueryBuilderFieldParams = {
   keys: string[]
   columnsByName: Map<string, { filterType: FilterFieldType }>
-  entityTable: "famiglie" | "processi_matching" | "lavoratori"
+  entityTable:
+    | "famiglie"
+    | "processi_matching"
+    | "lavoratori"
+    | "mesi_lavorati"
+    | "pagamenti"
+    | "selezioni_lavoratori"
+    | "rapporti_lavorativi"
   lookupOptions: Record<string, Array<{ label: string; value: string }>>
   lookupFilterTypes: Record<string, FilterFieldType | undefined>
 }
@@ -685,28 +753,6 @@ export function toQueryBuilderFields({
       values: values.length > 0 ? values : undefined,
     }
   })
-}
-
-export function toKeysFromRows(rows: Record<string, unknown>[], knownColumns: string[]) {
-  const keys: string[] = []
-  const seen = new Set<string>()
-
-  for (const key of knownColumns) {
-    if (!seen.has(key)) {
-      seen.add(key)
-      keys.push(key)
-    }
-  }
-
-  for (const row of rows) {
-    for (const key of Object.keys(row)) {
-      if (seen.has(key)) continue
-      seen.add(key)
-      keys.push(key)
-    }
-  }
-
-  return keys
 }
 
 export function emptyServerFilterGroup() {

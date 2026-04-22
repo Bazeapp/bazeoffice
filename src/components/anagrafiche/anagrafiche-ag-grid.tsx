@@ -4,12 +4,18 @@ import {
   ModuleRegistry,
   themeQuartz,
   type ColDef,
+  type ICellRendererParams,
+  type RowClickedEvent,
   type SortChangedEvent,
 } from "ag-grid-community"
 import { AgGridReact } from "ag-grid-react"
 import * as React from "react"
 
-import type { AnagraficaRow, LookupColorMap } from "@/hooks/use-anagrafiche-data"
+import type {
+  AnagraficaRow,
+  AnagraficheGroupResult,
+  LookupColorMap,
+} from "@/hooks/use-anagrafiche-data"
 import type { TableColumnMeta } from "@/lib/anagrafiche-api"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -80,7 +86,7 @@ function normalizeLookupToken(value: string | null | undefined) {
   return String(value ?? "").trim().toLowerCase()
 }
 
-function toReadableColumnLabel(key: string) {
+export function toReadableColumnLabel(key: string) {
   const normalized = key.replace(/__+/g, "_").trim()
   if (!normalized) return key
 
@@ -165,7 +171,14 @@ function getBadgeClassName(color: string | null | undefined) {
 
 function resolveLookupColor(
   lookupColors: LookupColorMap,
-  entityTable: "famiglie" | "processi_matching" | "lavoratori",
+  entityTable:
+    | "famiglie"
+    | "processi_matching"
+    | "lavoratori"
+    | "mesi_lavorati"
+    | "pagamenti"
+    | "selezioni_lavoratori"
+    | "rapporti_lavorativi",
   entityField: string,
   rawValue: unknown
 ) {
@@ -182,7 +195,7 @@ function formatArrayItem(value: unknown) {
   return String(value)
 }
 
-function formatCellValue(value: unknown) {
+export function formatCellValue(value: unknown) {
   if (value === null || value === undefined) return "-"
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return String(value)
@@ -228,7 +241,14 @@ function getOrderedKeys(rows: AnagraficaRow[], columns: TableColumnMeta[]) {
 function buildColumnDefs(
   rows: AnagraficaRow[],
   columns: TableColumnMeta[],
-  entityTable: "famiglie" | "processi_matching" | "lavoratori",
+  entityTable:
+    | "famiglie"
+    | "processi_matching"
+    | "lavoratori"
+    | "mesi_lavorati"
+    | "pagamenti"
+    | "selezioni_lavoratori"
+    | "rapporti_lavorativi",
   lookupColors: LookupColorMap,
   sorting: SortingState
 ): ColDef<AnagraficaRow>[] {
@@ -275,18 +295,158 @@ function buildColumnDefs(
 type AnagraficheAgGridProps = {
   rows: AnagraficaRow[]
   columns: TableColumnMeta[]
-  entityTable: "famiglie" | "processi_matching" | "lavoratori"
+  entityTable:
+    | "famiglie"
+    | "processi_matching"
+    | "lavoratori"
+    | "mesi_lavorati"
+    | "pagamenti"
+    | "selezioni_lavoratori"
+    | "rapporti_lavorativi"
   lookupColors: LookupColorMap
+  groups: AnagraficheGroupResult[]
   searchPlaceholder: string
   searchValue: string
   sorting: SortingState
+  grouping: string[]
   totalRows: number
   pageIndex: number
   pageSize: number
   toolbarActions?: React.ReactNode
+  onRowOpen?: (row: AnagraficaRow) => void
+  onLoadGroupRows: (
+    group: AnagraficheGroupResult,
+    pageIndex: number,
+    pageSize: number
+  ) => Promise<{ rows: AnagraficaRow[]; total: number }>
   onSearchValueChange: (next: string) => void
   onSortingChange: (next: SortingState) => void
   onPaginationChange: (next: { pageIndex: number; pageSize: number }) => void
+}
+
+type AnagraficheGridRow =
+  | AnagraficaRow
+  | {
+      __rowType: "group"
+      __groupId: string
+      __groupField: string
+      __groupValue: string
+      __groupCount: number
+      __groupDepth: number
+    }
+  | {
+      __rowType: "group-action"
+      __groupId: string
+      __groupLabel: string
+      __loadedCount: number
+      __totalCount: number
+      __loading: boolean
+    }
+
+function getGroupDisplayValue(value: unknown) {
+  const formatted = formatCellValue(value)
+  return formatted === "-" ? "Senza valore" : formatted
+}
+
+function buildGroupedRows(
+  rows: AnagraficaRow[],
+  grouping: string[],
+  collapsedGroups: Set<string>
+): AnagraficheGridRow[] {
+  const activeGrouping = grouping.filter(Boolean)
+  if (!activeGrouping.length) return rows
+
+  function buildLevel(currentRows: AnagraficaRow[], depth: number, parentKey: string): AnagraficheGridRow[] {
+    const field = activeGrouping[depth]
+    if (!field) return currentRows
+
+    const groups = new Map<string, { label: string; rows: AnagraficaRow[] }>()
+    for (const row of currentRows) {
+      const label = getGroupDisplayValue(row[field])
+      const key = `${parentKey}/${field}:${label}`
+      const current = groups.get(key) ?? { label, rows: [] }
+      current.rows.push(row)
+      groups.set(key, current)
+    }
+
+    return Array.from(groups.entries()).flatMap(([groupId, group]) => {
+      const header: AnagraficheGridRow = {
+        __rowType: "group",
+        __groupId: groupId,
+        __groupField: field,
+        __groupValue: group.label,
+        __groupCount: group.rows.length,
+        __groupDepth: depth,
+      }
+
+      if (collapsedGroups.has(groupId)) return [header]
+      return [header, ...buildLevel(group.rows, depth + 1, groupId)]
+    })
+  }
+
+  return buildLevel(rows, 0, "root")
+}
+
+function isGroupRow(row: AnagraficheGridRow | undefined): row is Extract<AnagraficheGridRow, { __rowType: "group" }> {
+  return row?.__rowType === "group"
+}
+
+function isGroupActionRow(
+  row: AnagraficheGridRow | undefined
+): row is Extract<AnagraficheGridRow, { __rowType: "group-action" }> {
+  return row?.__rowType === "group-action"
+}
+
+function getServerGroupId(group: AnagraficheGroupResult) {
+  return `${group.field}:${group.value || "__empty__"}`
+}
+
+type GroupRowsState = {
+  rows: AnagraficaRow[]
+  total: number
+  loading: boolean
+}
+
+function buildServerGroupedRows(
+  groups: AnagraficheGroupResult[],
+  expandedGroups: Set<string>,
+  groupRowsById: Record<string, GroupRowsState>
+): AnagraficheGridRow[] {
+  return groups.flatMap((group) => {
+    const groupId = getServerGroupId(group)
+    const header: AnagraficheGridRow = {
+      __rowType: "group",
+      __groupId: groupId,
+      __groupField: group.field,
+      __groupValue: group.label,
+      __groupCount: group.count,
+      __groupDepth: 0,
+    }
+
+    if (!expandedGroups.has(groupId)) return [header]
+
+    const state = groupRowsById[groupId] ?? { rows: [], total: group.count, loading: false }
+    const hasMore = state.rows.length < state.total
+    const action: AnagraficheGridRow | null =
+      state.loading || hasMore
+        ? {
+            __rowType: "group-action",
+            __groupId: groupId,
+            __groupLabel: group.label,
+            __loadedCount: state.rows.length,
+            __totalCount: state.total,
+            __loading: state.loading,
+          }
+        : null
+
+    return action ? [header, ...state.rows, action] : [header, ...state.rows]
+  })
+}
+
+function buildGroupsSignature(groups: AnagraficheGroupResult[]) {
+  return groups
+    .map((group) => `${group.field}:${group.value}:${group.count}`)
+    .join("|")
 }
 
 export function AnagraficheAgGrid({
@@ -294,19 +454,34 @@ export function AnagraficheAgGrid({
   columns,
   entityTable,
   lookupColors,
+  groups,
   searchPlaceholder,
   searchValue,
   sorting,
+  grouping,
   totalRows,
   pageIndex,
   pageSize,
   toolbarActions,
+  onRowOpen,
+  onLoadGroupRows,
   onSearchValueChange,
   onSortingChange,
   onPaginationChange,
 }: AnagraficheAgGridProps) {
   const [localSearchValue, setLocalSearchValue] = React.useState(searchValue)
+  const [collapsedGroups, setCollapsedGroups] = React.useState<Set<string>>(new Set())
+  const [expandedServerGroups, setExpandedServerGroups] = React.useState<Set<string>>(new Set())
+  const [groupRowsById, setGroupRowsById] = React.useState<Record<string, GroupRowsState>>({})
   const previousExternalSearchValueRef = React.useRef(searchValue)
+  const serverGroupingActive = grouping.length > 0
+  const serverGroupById = React.useMemo(
+    () => new Map(groups.map((group) => [getServerGroupId(group), group])),
+    [groups]
+  )
+  const groupsSignature = React.useMemo(() => buildGroupsSignature(groups), [groups])
+  const groupingSignature = React.useMemo(() => JSON.stringify(grouping), [grouping])
+  const sortingSignature = React.useMemo(() => JSON.stringify(sorting), [sorting])
 
   React.useEffect(() => {
     if (previousExternalSearchValueRef.current === searchValue) return
@@ -342,6 +517,61 @@ export function AnagraficheAgGrid({
     () => buildColumnDefs(rows, columns, entityTable, lookupColors, sorting),
     [columns, entityTable, lookupColors, rows, sorting]
   )
+  const gridRows = React.useMemo(
+    () =>
+      serverGroupingActive
+        ? buildServerGroupedRows(groups, expandedServerGroups, groupRowsById)
+        : buildGroupedRows(rows, grouping, collapsedGroups),
+    [collapsedGroups, expandedServerGroups, grouping, groupRowsById, groups, rows, serverGroupingActive]
+  )
+
+  React.useEffect(() => {
+    setCollapsedGroups(new Set())
+    setExpandedServerGroups(new Set())
+    setGroupRowsById({})
+  }, [groupingSignature, groupsSignature, pageIndex, searchValue, sortingSignature])
+
+  const loadServerGroupRows = React.useCallback(
+    async (groupId: string) => {
+      const group = serverGroupById.get(groupId)
+      if (!group) return
+
+      const current = groupRowsById[groupId]
+      if (current?.loading) return
+
+      const nextPageIndex = Math.floor((current?.rows.length ?? 0) / pageSize)
+      setGroupRowsById((previous) => ({
+        ...previous,
+        [groupId]: {
+          rows: previous[groupId]?.rows ?? [],
+          total: previous[groupId]?.total ?? group.count,
+          loading: true,
+        },
+      }))
+
+      try {
+        const result = await onLoadGroupRows(group, nextPageIndex, pageSize)
+        setGroupRowsById((previous) => ({
+          ...previous,
+          [groupId]: {
+            rows: [...(previous[groupId]?.rows ?? []), ...result.rows],
+            total: result.total,
+            loading: false,
+          },
+        }))
+      } catch {
+        setGroupRowsById((previous) => ({
+          ...previous,
+          [groupId]: {
+            rows: previous[groupId]?.rows ?? [],
+            total: previous[groupId]?.total ?? group.count,
+            loading: false,
+          },
+        }))
+      }
+    },
+    [groupRowsById, onLoadGroupRows, pageSize, serverGroupById]
+  )
 
   const handleSortChanged = React.useCallback(
     (event: SortChangedEvent<AnagraficaRow>) => {
@@ -359,11 +589,22 @@ export function AnagraficheAgGrid({
     [onSortingChange]
   )
 
-  const pageCount = Math.max(1, Math.ceil(totalRows / pageSize))
+  const handleRowClicked = React.useCallback(
+    (event: RowClickedEvent<AnagraficaRow>) => {
+      const data = event.data as AnagraficheGridRow | undefined
+      if (!data || isGroupRow(data) || isGroupActionRow(data)) return
+      onRowOpen?.(data)
+    },
+    [onRowOpen]
+  )
+
+  const pageCount = serverGroupingActive ? 1 : Math.max(1, Math.ceil(totalRows / pageSize))
   const canGoPrevious = pageIndex > 0
-  const canGoNext = pageIndex + 1 < pageCount
-  const rangeStart = totalRows === 0 ? 0 : pageIndex * pageSize + 1
-  const rangeEnd = Math.min(totalRows, (pageIndex + 1) * pageSize)
+  const canGoNext = !serverGroupingActive && pageIndex + 1 < pageCount
+  const rangeStart = serverGroupingActive ? (groups.length > 0 ? 1 : 0) : totalRows === 0 ? 0 : pageIndex * pageSize + 1
+  const rangeEnd = serverGroupingActive ? groups.length : Math.min(totalRows, (pageIndex + 1) * pageSize)
+  const groupingActive = grouping.length > 0
+  const groupingLabel = grouping.map(toReadableColumnLabel).join(" / ")
 
   return (
     <div className="space-y-3">
@@ -371,16 +612,23 @@ export function AnagraficheAgGrid({
         <div className="space-y-1">
           <h2 className="text-base font-semibold">Anagrafiche</h2>
           <p className="text-muted-foreground text-sm">
-            {rangeStart}-{rangeEnd} di {totalRows} record
+            {serverGroupingActive
+              ? `${rangeStart}-${rangeEnd} gruppi, ${totalRows} record`
+              : `${rangeStart}-${rangeEnd} di ${totalRows} record`}
           </p>
+          {groupingActive ? (
+            <p className="text-muted-foreground text-xs">
+              Raggruppamento server-side: {groupingLabel}
+            </p>
+          ) : null}
         </div>
 
-        <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+        <div className="flex w-full min-w-0 items-center gap-2 lg:w-auto">
           <Input
             value={localSearchValue}
             onChange={(event) => setLocalSearchValue(event.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full sm:min-w-80"
+            className="min-w-0 flex-1 lg:w-80 lg:flex-none"
           />
           {toolbarActions}
         </div>
@@ -398,9 +646,81 @@ export function AnagraficheAgGrid({
         <div className="h-[calc(100svh-14rem)] min-h-[34rem]">
           <AgGridReact<AnagraficaRow>
             theme={anagraficheGridTheme}
-            rowData={rows}
+            rowData={gridRows as AnagraficaRow[]}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
+            getRowId={(params) =>
+              isGroupRow(params.data as AnagraficheGridRow)
+                ? (params.data as Extract<AnagraficheGridRow, { __rowType: "group" }>).__groupId
+                : isGroupActionRow(params.data as AnagraficheGridRow)
+                  ? `${(params.data as Extract<AnagraficheGridRow, { __rowType: "group-action" }>).__groupId}:action`
+                : String((params.data as AnagraficaRow).id ?? JSON.stringify(params.data))
+            }
+            isFullWidthRow={(params) => {
+              const data = params.rowNode.data as AnagraficheGridRow
+              return isGroupRow(data) || isGroupActionRow(data)
+            }}
+            fullWidthCellRenderer={(params: ICellRendererParams<AnagraficheGridRow>) => {
+              const data = params.data
+              if (isGroupActionRow(data)) {
+                return (
+                  <button
+                    type="button"
+                    className="flex h-full w-full items-center justify-center gap-2 bg-background px-4 text-sm text-muted-foreground hover:bg-muted/40"
+                    disabled={data.__loading}
+                    onClick={() => void loadServerGroupRows(data.__groupId)}
+                  >
+                    {data.__loading
+                      ? "Caricamento..."
+                      : `Mostra altri (${data.__loadedCount}/${data.__totalCount})`}
+                  </button>
+                )
+              }
+              if (!isGroupRow(data)) return null
+              const isServerGroup = serverGroupById.has(data.__groupId)
+              const isCollapsed = isServerGroup
+                ? !expandedServerGroups.has(data.__groupId)
+                : collapsedGroups.has(data.__groupId)
+
+              return (
+                <button
+                  type="button"
+                  className="flex h-full w-full items-center gap-2 bg-muted/40 px-4 text-left text-sm font-medium text-foreground hover:bg-muted/60"
+                  style={{ paddingLeft: `${16 + data.__groupDepth * 20}px` }}
+                  onClick={() => {
+                    if (isServerGroup) {
+                      setExpandedServerGroups((previous) => {
+                        const next = new Set(previous)
+                        if (next.has(data.__groupId)) {
+                          next.delete(data.__groupId)
+                        } else {
+                          next.add(data.__groupId)
+                          if (!groupRowsById[data.__groupId]) {
+                            void loadServerGroupRows(data.__groupId)
+                          }
+                        }
+                        return next
+                      })
+                    } else {
+                      setCollapsedGroups((previous) => {
+                        const next = new Set(previous)
+                        if (next.has(data.__groupId)) {
+                          next.delete(data.__groupId)
+                        } else {
+                          next.add(data.__groupId)
+                        }
+                        return next
+                      })
+                    }
+                  }}
+                >
+                  <span className="text-muted-foreground">{isCollapsed ? "▶" : "▼"}</span>
+                  <span>{toReadableColumnLabel(data.__groupField)}:</span>
+                  <span>{data.__groupValue}</span>
+                  <span className="text-muted-foreground">({data.__groupCount})</span>
+                </button>
+              )
+            }}
             enableCellTextSelection
             rowHeight={44}
             headerHeight={42}
@@ -410,6 +730,7 @@ export function AnagraficheAgGrid({
             suppressFieldDotNotation
             overlayNoRowsTemplate="Nessun record trovato"
             onSortChanged={handleSortChanged}
+            onRowClicked={handleRowClicked}
           />
         </div>
       </div>

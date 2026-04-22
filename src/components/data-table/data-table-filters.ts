@@ -110,13 +110,13 @@ export const filterOperators: FilterOperatorMeta[] = [
   },
   { label: "is true", value: "is_true", needsValue: false, fieldTypes: ["boolean"] },
   { label: "is false", value: "is_false", needsValue: false, fieldTypes: ["boolean"] },
-  { label: "has any", value: "has_any", needsValue: true, fieldTypes: ["multi_enum"] },
+  { label: "has any", value: "has_any", needsValue: true, fieldTypes: ["enum", "multi_enum"] },
   { label: "has all", value: "has_all", needsValue: true, fieldTypes: ["multi_enum"] },
   {
     label: "doesn't have any",
     value: "not_has_any",
     needsValue: true,
-    fieldTypes: ["multi_enum"],
+    fieldTypes: ["enum", "multi_enum"],
   },
   {
     label: "is empty",
@@ -375,8 +375,12 @@ function evaluateCondition(
   switch (condition.operator) {
     case "is":
       return left === right
+    case "has_any":
+      return parseFilterList(condition.value).includes(left)
     case "is_not":
       return left !== right
+    case "not_has_any":
+      return !parseFilterList(condition.value).includes(left)
     case "has":
       return left.includes(right)
     case "not_has":

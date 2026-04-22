@@ -7,6 +7,7 @@ import {
   CreditCardIcon,
   ExternalLinkIcon,
   FileTextIcon,
+  LoaderCircleIcon,
   MessageSquareTextIcon,
   PencilIcon,
   StarIcon,
@@ -35,7 +36,9 @@ import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import { runAutomationWebhook } from "@/lib/anagrafiche-api"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 type PayrollMetric = {
   title: string
@@ -43,38 +46,57 @@ type PayrollMetric = {
   className?: string
 }
 
-const payrollMetrics: PayrollMetric[] = [
-  {
-    title: "Rapporti attivi",
-    value: "341",
-    className: "border-primary/30 [&_[data-slot=card-content]>p:first-child]:text-primary [&_[data-slot=card-content]>p:last-child]:text-primary/80",
-  },
-  {
-    title: "Cedolini totali",
-    value: "389",
-    className: "border-primary/30 [&_[data-slot=card-content]>p:first-child]:text-primary [&_[data-slot=card-content]>p:last-child]:text-primary/80",
-  },
-  {
-    title: "Presenze da raccogliere",
-    value: "13",
-  },
-  {
-    title: "Presenze ricevute",
-    value: "376",
-  },
-  {
-    title: "Inviati",
-    value: "364",
-  },
-  {
-    title: "Pagati",
-    value: "1",
-  },
-  {
-    title: "Da pagare",
-    value: "39",
-  },
-]
+function buildPayrollMetrics(columns: PayrollBoardColumnData[]): PayrollMetric[] {
+  const cards = columns.flatMap((column) => column.cards)
+  const rapportiAttivi = new Set(
+    cards
+      .map((card) => card.rapporto?.id)
+      .filter((value): value is string => Boolean(value))
+  ).size
+  const cedoliniTotali = cards.length
+  const presenzeDaRaccogliere = cards.filter((card) => !card.record.presenze_id).length
+  const presenzeRicevute = cards.filter((card) => Boolean(card.record.presenze_id)).length
+  const inviati = cards.filter((card) => card.stage === "Inviato cedolino").length
+  const pagati = cards.filter((card) => card.stage === "Pagato").length
+  const daPagare = cards.filter((card) =>
+    ["Cedolino da controllare", "Cedolino Pronto", "Inviato cedolino", "Richiesta chiarimenti"].includes(card.stage)
+  ).length
+
+  return [
+    {
+      title: "Rapporti attivi",
+      value: String(rapportiAttivi),
+      className:
+        "border-primary/30 [&_[data-slot=card-content]>p:first-child]:text-primary [&_[data-slot=card-content]>p:last-child]:text-primary/80",
+    },
+    {
+      title: "Cedolini totali",
+      value: String(cedoliniTotali),
+      className:
+        "border-primary/30 [&_[data-slot=card-content]>p:first-child]:text-primary [&_[data-slot=card-content]>p:last-child]:text-primary/80",
+    },
+    {
+      title: "Presenze da raccogliere",
+      value: String(presenzeDaRaccogliere),
+    },
+    {
+      title: "Presenze ricevute",
+      value: String(presenzeRicevute),
+    },
+    {
+      title: "Inviati",
+      value: String(inviati),
+    },
+    {
+      title: "Pagati",
+      value: String(pagati),
+    },
+    {
+      title: "Da pagare",
+      value: String(daPagare),
+    },
+  ]
+}
 
 function getCurrentMonthValue() {
   const now = new Date()
@@ -354,6 +376,36 @@ export function CedolinoDetailSheet({
   const rapporto = card?.rapporto
   const statoServizio = rapporto?.stato_servizio || "Non disponibile"
   const isRegularPresence = Boolean(card?.record.presenze_regolare_id)
+  const [runningAutomationId, setRunningAutomationId] = React.useState<string | null>(null)
+
+  const handleRunPagamentoAutomation = React.useCallback(
+    async (
+      automationId: "finance-request-invoice-data" | "finance-invoice-payment"
+    ) => {
+      if (!pagamento?.id) {
+        toast.error("Il pagamento non ha un id associato")
+        return
+      }
+
+      setRunningAutomationId(automationId)
+      try {
+        await runAutomationWebhook(automationId, pagamento.id, {
+          famiglia_id: pagamento.famiglia_id,
+          ticket_id: pagamento.ticket_id,
+        })
+        toast.success(
+          automationId === "finance-request-invoice-data"
+            ? "Richiesta dati fatturazione inviata"
+            : "Workflow fatturazione avviato"
+        )
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Errore avvio automazione")
+      } finally {
+        setRunningAutomationId(null)
+      }
+    },
+    [pagamento]
+  )
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -535,32 +587,63 @@ export function CedolinoDetailSheet({
                 contentClassName="space-y-5"
               >
                 {pagamento ? (
-                  <div className="grid gap-5 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Transazione</p>
-                      <p className="font-medium">{pagamento.payment_intent_id ?? pagamento.charge_id ?? "Non disponibile"}</p>
+                  <div className="space-y-5">
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <p className="ui-type-label">Transazione</p>
+                        <p className="font-medium">{pagamento.payment_intent_id ?? pagamento.charge_id ?? "Non disponibile"}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="ui-type-label">Stato pagamento</p>
+                        <Badge variant="secondary" className="w-fit rounded-full px-3">
+                          {pagamento.status ?? "Non disponibile"}
+                        </Badge>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="ui-type-label">Importo cedolino</p>
+                        <p className="font-medium">{formatCurrencyAmount(pagamento.amount)}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="ui-type-label">Application fee</p>
+                        <p className="font-medium">{formatCurrencyAmount(pagamento.fee)}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="ui-type-label">Tipo pagamento</p>
+                        <p className="font-medium">{pagamento.type_of_payment ?? "Non disponibile"}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="ui-type-label">Data pagamento</p>
+                        <p className="font-medium">{formatDateTime(pagamento.data_ora_di_pagamento)}</p>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Stato pagamento</p>
-                      <Badge variant="secondary" className="w-fit rounded-full px-3">
-                        {pagamento.status ?? "Non disponibile"}
-                      </Badge>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Importo cedolino</p>
-                      <p className="font-medium">{formatCurrencyAmount(pagamento.amount)}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Application fee</p>
-                      <p className="font-medium">{formatCurrencyAmount(pagamento.fee)}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Tipo pagamento</p>
-                      <p className="font-medium">{pagamento.type_of_payment ?? "Non disponibile"}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Data pagamento</p>
-                      <p className="font-medium">{formatDateTime(pagamento.data_ora_di_pagamento)}</p>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={runningAutomationId !== null}
+                        onClick={() =>
+                          void handleRunPagamentoAutomation("finance-request-invoice-data")
+                        }
+                      >
+                        {runningAutomationId === "finance-request-invoice-data" ? (
+                          <LoaderCircleIcon className="animate-spin" />
+                        ) : null}
+                        Chiedi dati
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={runningAutomationId !== null}
+                        onClick={() =>
+                          void handleRunPagamentoAutomation("finance-invoice-payment")
+                        }
+                      >
+                        {runningAutomationId === "finance-invoice-payment" ? (
+                          <LoaderCircleIcon className="animate-spin" />
+                        ) : null}
+                        Fatturare
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -746,6 +829,7 @@ function PayrollBoardSkeletonColumn() {
 function CedoliniPayrollView() {
   const [selectedMonth, setSelectedMonth] = React.useState(getCurrentMonthValue)
   const { loading, error, columns, moveCard, patchCard } = usePayrollBoard(selectedMonth)
+  const payrollMetrics = React.useMemo(() => buildPayrollMetrics(columns), [columns])
   const metricGroups = [payrollMetrics.slice(0, 2), payrollMetrics.slice(2, 5), payrollMetrics.slice(5)]
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)

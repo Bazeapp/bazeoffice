@@ -2,9 +2,13 @@ import type { ReactNode } from "react";
 import {
   BriefcaseBusinessIcon,
   CalendarIcon,
+  CalendarClockIcon,
+  CheckSquareIcon,
   Clock3Icon,
   MailIcon,
+  PhoneForwardedIcon,
   PhoneIcon,
+  SquareIcon,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -147,8 +151,35 @@ export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
           <Separator />
           <MetaRow
             icon={<CalendarIcon className="size-3.5" />}
-            value={data.dataLead}
+            value={`Creata il ${data.dataLead}`}
           />
+          {data.dataCallPrenotata !== "-" ? (
+            <MetaRow
+              icon={<CalendarClockIcon className="size-3.5" />}
+              value={`Call il ${data.dataCallPrenotata.replace(",", " alle")}`}
+            />
+          ) : null}
+          {data.stage === "cold_ricerca_futura" && data.dataPerRicercaFutura !== "-" ? (
+            <MetaRow
+              icon={<CalendarClockIcon className="size-3.5" />}
+              value={`Ricontatto il ${data.dataPerRicercaFutura}`}
+            />
+          ) : null}
+          {data.stage === "hot_in_attesa_di_primo_contatto" &&
+          data.tentativiChiamataCount > 0 ? (
+            <Badge variant="outline" className="h-5 px-2 text-[11px] font-medium">
+              <PhoneForwardedIcon data-icon="inline-start" />
+              {data.tentativiChiamataCount}/3 tentativi
+            </Badge>
+          ) : null}
+          <div className="text-muted-foreground flex items-center gap-2 text-xs">
+            {data.preventivoAccettato ? (
+              <CheckSquareIcon className="size-3.5 text-emerald-600" />
+            ) : (
+              <SquareIcon className="size-3.5" />
+            )}
+            <span>Preventivo accettato</span>
+          </div>
         </div>
       </CardContent>
     </Card>

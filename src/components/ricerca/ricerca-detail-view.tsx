@@ -1,5 +1,5 @@
 import * as React from "react";
-import { PencilIcon } from "lucide-react";
+import { LoaderCircleIcon, PencilIcon } from "lucide-react";
 
 import { CrmDetailCard } from "@/components/crm/detail-card";
 import { RicercaWorkersPipelineView } from "@/components/ricerca/ricerca-workers-pipeline-view";
@@ -8,7 +8,11 @@ import {
   type CrmPipelineCardData,
   useCrmPipelinePreview,
 } from "@/hooks/use-crm-pipeline-preview";
-import { fetchFamiglie, fetchProcessiMatching } from "@/lib/anagrafiche-api";
+import {
+  fetchFamiglie,
+  fetchProcessiMatching,
+  runAutomationWebhook,
+} from "@/lib/anagrafiche-api";
 import {
   Select,
   SelectContent,
@@ -16,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 
 type RicercaDetailViewProps = {
   processId: string;
@@ -105,6 +110,7 @@ export function RicercaDetailView({ processId }: RicercaDetailViewProps) {
   const [fallbackCard, setFallbackCard] =
     React.useState<CrmPipelineCardData | null>(null);
   const [isFallbackLoading, setIsFallbackLoading] = React.useState(false);
+  const [isRunningSmartMatching, setIsRunningSmartMatching] = React.useState(false);
 
   const card = React.useMemo(() => {
     for (const column of columns) {
@@ -231,6 +237,7 @@ export function RicercaDetailView({ processId }: RicercaDetailViewProps) {
 
         const mapped: CrmPipelineCardData = {
           id: displayValue(processRow.id),
+          airtableRecordId: toStringValue(processRow.airtable_record_id),
           famigliaId: famigliaId ?? "-",
           stage: displayValue(processRow.stato_sales),
           nomeFamiglia: familyName || "-",
@@ -259,6 +266,16 @@ export function RicercaDetailView({ processId }: RicercaDetailViewProps) {
             processRow.data_per_ricerca_futura,
           ),
           dataCallPrenotata: formatItalianDate(familyRow?.data_call_prenotata),
+          dataLeadRaw: toStringValue(familyRow?.creato_il),
+          dataPerRicercaFuturaRaw: toStringValue(
+            processRow.data_per_ricerca_futura,
+          ),
+          dataCallPrenotataRaw: toStringValue(familyRow?.data_call_prenotata),
+          tentativiChiamataCount: getStringArrayValue(
+            processRow.sales_cold_call_followup,
+          ).length,
+          preventivoAccettato:
+            toBooleanValue(processRow.preventivo_firmato) ?? false,
           orarioDiLavoro: displayValue(processRow.orario_di_lavoro),
           nucleoFamigliare: displayValue(processRow.nucleo_famigliare),
           descrizioneCasa: displayValue(processRow.descrizione_casa),
@@ -325,6 +342,25 @@ export function RicercaDetailView({ processId }: RicercaDetailViewProps) {
 
   const resolvedCard = card ?? fallbackCard;
 
+  const handleRunSmartMatching = React.useCallback(async () => {
+    if (!resolvedCard?.id) {
+      toast.error("Il processo non ha id");
+      return;
+    }
+
+    setIsRunningSmartMatching(true);
+    try {
+      await runAutomationWebhook("workflow-smart-matching", resolvedCard.id);
+      toast.success("Smart Matching avviato");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Errore avvio Smart Matching",
+      );
+    } finally {
+      setIsRunningSmartMatching(false);
+    }
+  }, [resolvedCard]);
+
   return (
     <section className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden pb-3">
       {error ? (
@@ -343,6 +379,20 @@ export function RicercaDetailView({ processId }: RicercaDetailViewProps) {
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <div className="flex shrink-0 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isRunningSmartMatching}
+              onClick={() => void handleRunSmartMatching()}
+            >
+              {isRunningSmartMatching ? (
+                <LoaderCircleIcon className="animate-spin" />
+              ) : null}
+              Avvia Smart Matching
+            </Button>
+          </div>
+
           {isNoMatchState ? (
             <CrmDetailCard
               title="Motivo No Match"

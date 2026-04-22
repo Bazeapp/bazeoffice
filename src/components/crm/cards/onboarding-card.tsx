@@ -3,21 +3,23 @@ import type { ReactNode } from "react";
 import {
   CalendarDaysIcon,
   CopyIcon,
-  FileTextIcon,
   MapPinnedIcon,
   TimerResetIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { CrmDetailCard } from "@/components/crm/detail-card";
+
 import {
   OnboardingDecisioneLavoroSection,
+  type OnboardingDecisioneLavoroSectionKey,
   type OnboardingDecisioneLavoroCheckboxDefaults,
 } from "@/components/crm/cards/onboarding-decisione-lavoro-card";
+import { CrmDetailCard } from "@/components/crm/detail-card";
 import {
   DetailField,
   DetailFieldControl,
   DetailSectionBlock,
 } from "@/components/shared/detail-section-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,
@@ -31,15 +33,14 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@/components/ui/combobox";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -49,11 +50,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
+import { cn } from "@/lib/utils";
 
 type OnboardingCardProps = {
   card: CrmPipelineCardData | null;
@@ -62,11 +63,22 @@ type OnboardingCardProps = {
   showTitle?: boolean;
   showTempistiche?: boolean;
   readOnly?: boolean;
+  flattenSections?: boolean;
+  sectionContainerProps?: Partial<
+    Record<OnboardingFlatSectionKey, React.ComponentProps<"div">>
+  >;
   onPatchProcess?: (
     processId: string,
     patch: Record<string, unknown>,
   ) => void | Promise<void>;
 };
+
+export type OnboardingFlatSectionKey =
+  | "orari-frequenza"
+  | "luogo-lavoro"
+  | OnboardingDecisioneLavoroSectionKey
+  | "tempistiche";
+
 type LookupOption = LookupOptionsByField[string][number];
 
 function toInputValue(value: string | null | undefined) {
@@ -189,9 +201,7 @@ function normalizeWeekdayList(values: string[] | null | undefined): string[] {
   if (!values?.length) return [];
   return Array.from(
     new Set(
-      values
-        .map((value) => normalizeWeekday(value))
-        .filter(Boolean),
+      values.map((value) => normalizeWeekday(value)).filter(Boolean),
     ),
   ) as string[];
 }
@@ -208,6 +218,8 @@ export function OnboardingCard({
   showTitle = true,
   showTempistiche = true,
   readOnly = false,
+  flattenSections = false,
+  sectionContainerProps,
   onPatchProcess,
 }: OnboardingCardProps) {
   const [orarioDiLavoro, setOrarioDiLavoro] = React.useState(
@@ -234,7 +246,6 @@ export function OnboardingCard({
   const [preventivoUrl, setPreventivoUrl] = React.useState(
     "https://app.bazeapp.com/checkout/accettare-preventivo?utm_source=whatsapp&utm_medium=organic&utm_campaign=whatsapp&utm_content=reminder1&session_id=rechnKFsmhqbiQP4D",
   );
-
   const anchor = useComboboxAnchor();
   const [oreSettimanali, setOreSettimanali] = React.useState(
     toInputValue(card?.oreSettimana),
@@ -247,6 +258,7 @@ export function OnboardingCard({
   const [giornatePreferite, setGiornatePreferite] = React.useState<string[]>(
     normalizeWeekdayList(card?.giornatePreferite),
   );
+
   const weekdayColorMap = React.useMemo(() => {
     const options = (lookupOptionsByField?.preferenza_giorno ??
       []) as LookupOption[];
@@ -276,7 +288,9 @@ export function OnboardingCard({
     setIndirizzoNote(toInputValue(card?.indirizzoNote));
     setIndirizzoCompleto(toInputValue(card?.indirizzoCompleto));
     setSrcMapsUrl(toInputValue(card?.srcEmbedMapsAnnucio));
-    setDisponibilitaColloqui(toInputValue(card?.disponibilitaColloquiInPresenza));
+    setDisponibilitaColloqui(
+      toInputValue(card?.disponibilitaColloquiInPresenza),
+    );
     setGiornatePreferite(normalizeWeekdayList(card?.giornatePreferite));
   }, [
     card?.id,
@@ -316,24 +330,28 @@ export function OnboardingCard({
     }
   }, []);
 
-  const checkboxDefaults = React.useMemo<OnboardingDecisioneLavoroCheckboxDefaults>(() => {
-    const sesso = String(card?.sesso ?? "")
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/\p{M}/gu, "");
+  const checkboxDefaults = React.useMemo<OnboardingDecisioneLavoroCheckboxDefaults>(
+    () => {
+      const sesso = String(card?.sesso ?? "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "");
 
-    return {
-      "onboarding-patente-si": card?.richiestaPatente ?? false,
-      "onboarding-trasferte-si": card?.richiestaTrasferte ?? false,
-      "onboarding-ferie-si": card?.richiestaFerie ?? false,
-      "onboarding-genere-donna": sesso === "donna",
-      "onboarding-genere-uomo": sesso === "uomo",
-    };
-  }, [card?.richiestaFerie, card?.richiestaPatente, card?.richiestaTrasferte, card?.sesso]);
+      return {
+        "onboarding-patente-si": card?.richiestaPatente ?? false,
+        "onboarding-trasferte-si": card?.richiestaTrasferte ?? false,
+        "onboarding-ferie-si": card?.richiestaFerie ?? false,
+        "onboarding-genere-donna": sesso === "donna",
+        "onboarding-genere-uomo": sesso === "uomo",
+      };
+    },
+    [card?.richiestaFerie, card?.richiestaPatente, card?.richiestaTrasferte, card?.sesso],
+  );
 
   const tipoIncontroOptions = React.useMemo(() => {
-    const fromLookup = lookupOptionsByField?.tipo_incontro_famiglia_lavoratore ?? [];
+    const fromLookup =
+      lookupOptionsByField?.tipo_incontro_famiglia_lavoratore ?? [];
     if (fromLookup.length > 0) return fromLookup;
     return [
       {
@@ -400,7 +418,10 @@ export function OnboardingCard({
                   <Badge
                     key={day}
                     variant="outline"
-                    className={cn("h-5 px-2 text-[11px] font-medium", getTagClassName(getWeekdayColor(day)))}
+                    className={cn(
+                      "h-5 px-2 text-[11px] font-medium",
+                      getTagClassName(getWeekdayColor(day)),
+                    )}
                   >
                     {day}
                   </Badge>
@@ -414,16 +435,12 @@ export function OnboardingCard({
 
         <DetailSectionBlock
           title="Descrizione lavoro"
-          icon={<FileTextIcon className="size-4" />}
           showDefaultAction={false}
           contentClassName="space-y-4"
         >
           <div className={compactGridClassName}>
             <DetailField label="Nucleo famigliare" value={displayText(card?.nucleoFamigliare)} />
-            <DetailField
-              label="Eta lavoratore"
-              value={`${displayText(card?.etaMinima)} - ${displayText(card?.etaMassima)}`}
-            />
+            <DetailField label="Eta lavoratore" value={`${displayText(card?.etaMinima)} - ${displayText(card?.etaMassima)}`} />
           </div>
           <DetailField label="Descrizione casa" value={displayText(card?.descrizioneCasa)} />
           <div className={compactGridClassName}>
@@ -440,18 +457,9 @@ export function OnboardingCard({
             <DetailField label="Richiesta ferie" value={richiestaFerie} />
             <DetailField label="Dettaglio patente" value={displayText(card?.patenteDettaglio)} />
           </div>
-          <DetailField
-            label="Descrizione trasferte"
-            value={displayText(card?.descrizioneRichiestaTrasferte)}
-          />
-          <DetailField
-            label="Descrizione ferie"
-            value={displayText(card?.descrizioneRichiestaFerie)}
-          />
-          <DetailField
-            label="Informazioni extra riservate"
-            value={displayText(card?.informazioniExtraRiservate)}
-          />
+          <DetailField label="Descrizione trasferte" value={displayText(card?.descrizioneRichiestaTrasferte)} />
+          <DetailField label="Descrizione ferie" value={displayText(card?.descrizioneRichiestaFerie)} />
+          <DetailField label="Informazioni extra riservate" value={displayText(card?.informazioniExtraRiservate)} />
         </DetailSectionBlock>
 
         <DetailSectionBlock
@@ -490,10 +498,7 @@ export function OnboardingCard({
             contentClassName="space-y-4"
           >
             <DetailField label="Deadline" value={displayText(card?.deadlineMobile)} />
-            <DetailField
-              label="Disponibilita colloqui"
-              value={displayText(card?.disponibilitaColloquiInPresenza)}
-            />
+            <DetailField label="Disponibilita colloqui" value={displayText(card?.disponibilitaColloquiInPresenza)} />
             <DetailField label="Tipologia primo incontro" value={tipoIncontroLabel} />
           </DetailSectionBlock>
         ) : null}
@@ -501,10 +506,16 @@ export function OnboardingCard({
     );
   }
 
-  return (
-    <CrmDetailCard title={showTitle ? "Onboarding" : ""} titleAction={titleAction}>
-      <FieldGroup>
-        <p className="text-base font-semibold">Orari e frequenza</p>
+  const flattenedContent = (
+    <div className="space-y-4">
+      <div {...sectionContainerProps?.["orari-frequenza"]}>
+        <DetailSectionBlock
+          title="Orari e frequenza"
+          icon={<CalendarDaysIcon className="size-4" />}
+          action={titleAction}
+          showDefaultAction={false}
+          contentClassName="space-y-4"
+        >
         <Field>
           <FieldLabel htmlFor="onboarding-orario-lavoro" className="font-semibold">
             Orario di lavoro
@@ -593,7 +604,7 @@ export function OnboardingCard({
               >
                 <ComboboxValue>
                   {(values) => (
-                    <React.Fragment>
+                    <>
                       {values.map((value: string) => (
                         <ComboboxChip
                           key={value}
@@ -603,7 +614,384 @@ export function OnboardingCard({
                         </ComboboxChip>
                       ))}
                       <ComboboxChipsInput />
-                    </React.Fragment>
+                    </>
+                  )}
+                </ComboboxValue>
+              </ComboboxChips>
+              <ComboboxContent anchor={anchor}>
+                <ComboboxEmpty>Nessun giorno trovato.</ComboboxEmpty>
+                <ComboboxList>
+                  {(item) => (
+                    <ComboboxItem
+                      key={item}
+                      value={item}
+                      className={getTagClassName(getWeekdayColor(item))}
+                    >
+                      {item}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </Field>
+        </div>
+        </DetailSectionBlock>
+      </div>
+
+      <div {...sectionContainerProps?.["luogo-lavoro"]}>
+        <DetailSectionBlock
+          title="Luogo di lavoro"
+          icon={<MapPinnedIcon className="size-4" />}
+          showDefaultAction={false}
+          contentClassName="space-y-4"
+        >
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor="onboarding-provincia">Provincia</FieldLabel>
+            <Select
+              value={indirizzoProvincia}
+              onValueChange={(next) => {
+                setIndirizzoProvincia(next);
+                void patchProcess({ indirizzo_prova_provincia: next || null });
+              }}
+            >
+              <SelectTrigger id="onboarding-provincia" className="w-full">
+                <SelectValue placeholder="Seleziona provincia" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="mi">Milano</SelectItem>
+                  <SelectItem value="rm">Roma</SelectItem>
+                  <SelectItem value="to">Torino</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="onboarding-cap">CAP</FieldLabel>
+            <Input
+              id="onboarding-cap"
+              placeholder="20158"
+              value={indirizzoCap}
+              onChange={(event) => setIndirizzoCap(event.target.value)}
+              onBlur={() => {
+                void patchProcess({ indirizzo_prova_cap: indirizzoCap || null });
+              }}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
+            <Input
+              id="onboarding-quartiere"
+              value={indirizzoNote}
+              onChange={(event) => setIndirizzoNote(event.target.value)}
+              onBlur={() => {
+                void patchProcess({ indirizzo_prova_note: indirizzoNote || null });
+              }}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="onboarding-indirizzo-completo">
+              Indirizzo completo
+            </FieldLabel>
+            <Input
+              id="onboarding-indirizzo-completo"
+              value={indirizzoCompleto}
+              onChange={(event) => setIndirizzoCompleto(event.target.value)}
+              onBlur={() => {
+                const parts = indirizzoCompleto
+                  .split(",")
+                  .map((value) => value.trim())
+                  .filter(Boolean);
+                void patchProcess({
+                  indirizzo_prova_via: parts[0] ?? null,
+                  indirizzo_prova_civico: parts[1] ?? null,
+                  indirizzo_prova_comune: parts[2] ?? null,
+                  indirizzo_prova_cap: parts[3] ?? indirizzoCap ?? null,
+                });
+              }}
+            />
+          </Field>
+        </div>
+
+        <Field>
+          <div className="mb-1 flex items-center gap-2">
+            <FieldLabel>SRC Maps</FieldLabel>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => copyToClipboard(srcMapsUrl, "SRC Maps")}
+              aria-label="Copia SRC Maps"
+            >
+              <CopyIcon className="size-4" />
+            </Button>
+          </div>
+          <FieldDescription>
+            <a
+              href={srcMapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary underline underline-offset-2"
+            >
+              {srcMapsUrl}
+            </a>
+          </FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
+          <Input
+            id="onboarding-src-maps-edit"
+            value={srcMapsUrl}
+            onChange={(event) => setSrcMapsUrl(event.target.value)}
+            onBlur={() => {
+              void patchProcess({ src_embed_maps_annucio: srcMapsUrl || null });
+            }}
+          />
+        </Field>
+        </DetailSectionBlock>
+      </div>
+
+      <OnboardingDecisioneLavoroSection
+        checkboxDefaults={checkboxDefaults}
+        lookupOptionsByField={lookupOptionsByField}
+        defaults={{
+          nucleoFamigliare: card?.nucleoFamigliare,
+          descrizioneCasa: card?.descrizioneCasa,
+          metraturaCasa: card?.metraturaCasa,
+          descrizioneAnimaliInCasa: card?.descrizioneAnimaliInCasa,
+          mansioniRichieste: card?.mansioniRichieste,
+          informazioniExtraRiservate: card?.informazioniExtraRiservate,
+          etaMinima: card?.etaMinima,
+          etaMassima: card?.etaMassima,
+          descrizioneRichiestaTrasferte: card?.descrizioneRichiestaTrasferte,
+          descrizioneRichiestaFerie: card?.descrizioneRichiestaFerie,
+          patenteDettaglio: card?.patenteDettaglio,
+          sesso: card?.sesso,
+          richiestaPatente: card?.richiestaPatente,
+          richiestaTrasferte: card?.richiestaTrasferte,
+          richiestaFerie: card?.richiestaFerie,
+        }}
+        onPatchProcess={patchProcess}
+        useSectionBlocks
+        sectionContainerProps={{
+          famiglia: sectionContainerProps?.famiglia,
+          casa: sectionContainerProps?.casa,
+          animali: sectionContainerProps?.animali,
+          mansioni: sectionContainerProps?.mansioni,
+          "richieste-specifiche":
+            sectionContainerProps?.["richieste-specifiche"],
+        }}
+      />
+
+      {showTempistiche ? (
+        <div {...sectionContainerProps?.tempistiche}>
+          <DetailSectionBlock
+            title="Tempistiche"
+            icon={<TimerResetIcon className="size-4" />}
+            showDefaultAction={false}
+            contentClassName="space-y-4"
+          >
+          <Field>
+            <FieldLabel htmlFor="onboarding-deadline">Deadline</FieldLabel>
+            <DatePicker
+              value={deadline}
+              onValueChange={(next) => {
+                setDeadline(next);
+                void patchProcess({
+                  deadline_mobile: next ? toIsoDate(next) : null,
+                });
+              }}
+              placeholder="dd/mm/yyyy"
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="onboarding-disponibilita-incontro">
+              Inserire 3 disponibilità di giorno e fascia oraria, es. 12/10 dalle 8 alle 12
+            </FieldLabel>
+            <Input
+              id="onboarding-disponibilita-incontro"
+              value={disponibilitaColloqui}
+              onChange={(event) => setDisponibilitaColloqui(event.target.value)}
+              onBlur={() => {
+                void patchProcess({
+                  disponibilita_colloqui_in_presenza:
+                    disponibilitaColloqui || null,
+                });
+              }}
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="onboarding-tipologia-primo-incontro">
+              Seleziona la tipologia del primo incontro
+            </FieldLabel>
+            <Select
+              value={tipoIncontro}
+              onValueChange={(next) => {
+                setTipoIncontro(next);
+                void patchProcess({
+                  tipo_incontro_famiglia_lavoratore: next || null,
+                });
+              }}
+            >
+              <SelectTrigger id="onboarding-tipologia-primo-incontro" className="w-full">
+                <SelectValue placeholder="Seleziona tipologia" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {tipoIncontroOptions.map((option) => (
+                    <SelectItem key={option.valueKey} value={option.valueKey}>
+                      {option.valueLabel}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field>
+            <div className="mb-1 flex items-center gap-2">
+              <FieldLabel>Preventivo da inviare</FieldLabel>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => copyToClipboard(preventivoUrl, "Preventivo")}
+                aria-label="Copia link preventivo"
+              >
+                <CopyIcon className="size-4" />
+              </Button>
+            </div>
+            <FieldDescription>
+              <a
+                href={preventivoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline underline-offset-2 break-all"
+              >
+                {preventivoUrl}
+              </a>
+            </FieldDescription>
+            <Input
+              id="onboarding-preventivo-url"
+              value={preventivoUrl}
+              onChange={(event) => setPreventivoUrl(event.target.value)}
+            />
+          </Field>
+          </DetailSectionBlock>
+        </div>
+      ) : null}
+    </div>
+  );
+
+  if (flattenSections) {
+    return flattenedContent;
+  }
+
+  return (
+    <CrmDetailCard title={showTitle ? "Onboarding" : ""} titleAction={titleAction}>
+      <FieldGroup>
+        <p className="text-base font-semibold">Orari e frequenza</p>
+        <Field>
+          <FieldLabel htmlFor="onboarding-orario-lavoro" className="font-semibold">
+            Orario di lavoro
+          </FieldLabel>
+          <FieldDescription>
+            Cerca di essere il più chiaro possibile e mantieni il formato del
+            placeholder; in caso di più giornate specifica indicando
+            &quot;OPPURE&quot;.
+          </FieldDescription>
+          <Input
+            id="onboarding-orario-lavoro"
+            placeholder="da lunedì a venerdì, dalle 9:00 alle 19:00"
+            value={orarioDiLavoro}
+            onChange={(event) => setOrarioDiLavoro(event.target.value)}
+            onBlur={() => {
+              void patchProcess({ orario_di_lavoro: orarioDiLavoro || null });
+            }}
+          />
+        </Field>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <Field>
+            <FieldLabel htmlFor="onboarding-ore-settimanali">
+              Ore Settimanali
+            </FieldLabel>
+            <Input
+              id="onboarding-ore-settimanali"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={52}
+              value={oreSettimanali}
+              placeholder="8"
+              onChange={(event) =>
+                setOreSettimanali(clampNumericInput(event.target.value, 52))
+              }
+              onBlur={() => {
+                void patchProcess({ ore_settimanale: oreSettimanali || null });
+              }}
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="onboarding-giorni-settimanali">
+              Giorni Settimanali
+            </FieldLabel>
+            <Input
+              id="onboarding-giorni-settimanali"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={7}
+              value={giorniSettimanali}
+              placeholder="8"
+              onChange={(event) =>
+                setGiorniSettimanali(clampNumericInput(event.target.value, 7))
+              }
+              onBlur={() => {
+                void patchProcess({
+                  numero_giorni_settimanali: giorniSettimanali || null,
+                });
+              }}
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="onboarding-giornate-preferite">
+              Giornate preferite
+            </FieldLabel>
+            <Combobox
+              key={`giornate-preferite-${card?.id ?? "new"}`}
+              multiple
+              autoHighlight
+              items={WEEKDAY_ITEMS}
+              value={giornatePreferite}
+              onValueChange={(nextValues) => {
+                const normalized = normalizeWeekdayList(nextValues as string[]);
+                setGiornatePreferite(normalized);
+                void patchProcess({ preferenza_giorno: normalized });
+              }}
+            >
+              <ComboboxChips ref={anchor} id="onboarding-giornate-preferite" className="w-full">
+                <ComboboxValue>
+                  {(values) => (
+                    <>
+                      {values.map((value: string) => (
+                        <ComboboxChip
+                          key={value}
+                          className={getTagClassName(getWeekdayColor(value))}
+                        >
+                          {value}
+                        </ComboboxChip>
+                      ))}
+                      <ComboboxChipsInput />
+                    </>
                   )}
                 </ComboboxValue>
               </ComboboxChips>
@@ -740,27 +1128,27 @@ export function OnboardingCard({
               </Button>
             </div>
             <FieldDescription>
-                <a
-                  href={srcMapsUrl}
+              <a
+                href={srcMapsUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-primary underline underline-offset-2"
-                >
-                  {srcMapsUrl}
-                </a>
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
-              <Input
-                id="onboarding-src-maps-edit"
-                value={srcMapsUrl}
-                onChange={(event) => setSrcMapsUrl(event.target.value)}
-                onBlur={() => {
-                  void patchProcess({ src_embed_maps_annucio: srcMapsUrl || null });
-                }}
-              />
-            </Field>
+              >
+                {srcMapsUrl}
+              </a>
+            </FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
+            <Input
+              id="onboarding-src-maps-edit"
+              value={srcMapsUrl}
+              onChange={(event) => setSrcMapsUrl(event.target.value)}
+              onBlur={() => {
+                void patchProcess({ src_embed_maps_annucio: srcMapsUrl || null });
+              }}
+            />
+          </Field>
         </div>
 
         {showTempistiche ? (
@@ -775,7 +1163,9 @@ export function OnboardingCard({
                   value={deadline}
                   onValueChange={(next) => {
                     setDeadline(next);
-                    void patchProcess({ deadline_mobile: next ? toIsoDate(next) : null });
+                    void patchProcess({
+                      deadline_mobile: next ? toIsoDate(next) : null,
+                    });
                   }}
                   placeholder="dd/mm/yyyy"
                 />

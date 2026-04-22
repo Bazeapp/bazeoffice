@@ -1,31 +1,79 @@
 import * as React from "react"
 
 import {
+  BriefcaseIcon,
   BriefcaseBusinessIcon,
   CalendarIcon,
+  CatIcon,
   Clock3Icon,
+  HomeIcon,
+  MapPinnedIcon,
   MailIcon,
   PencilIcon,
   PhoneIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
+  TimerResetIcon,
+  UsersIcon,
+  XIcon,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { OnboardingContextCard } from "@/components/crm/cards/onboarding-context-card"
 import { CreazioneAnnuncioCard } from "@/components/crm/cards/creazione-annuncio-card"
-import { OnboardingCard } from "@/components/crm/cards/onboarding-card"
-import { StatoLeadCard } from "@/components/crm/cards/stato-lead-card"
-import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import {
+  OnboardingCard,
+  type OnboardingFlatSectionKey,
+} from "@/components/crm/cards/onboarding-card"
+import {
+  SheetClose,
   Sheet,
   SheetContent,
   SheetDescription,
-  SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview"
+
+type SidebarSectionTab = {
+  id: OnboardingFlatSectionKey | "creazione-annuncio"
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+}
+
+const SIDEBAR_SECTION_TABS: SidebarSectionTab[] = [
+  { id: "orari-frequenza", label: "Orari e frequenza", icon: CalendarIcon },
+  { id: "luogo-lavoro", label: "Luogo di lavoro", icon: MapPinnedIcon },
+  { id: "famiglia", label: "Famiglia", icon: UsersIcon },
+  { id: "casa", label: "Casa", icon: HomeIcon },
+  { id: "animali", label: "Animali", icon: CatIcon },
+  { id: "mansioni", label: "Mansioni", icon: BriefcaseIcon },
+  {
+    id: "richieste-specifiche",
+    label: "Richieste specifiche",
+    icon: ShieldCheckIcon,
+  },
+  { id: "tempistiche", label: "Tempistiche", icon: TimerResetIcon },
+  {
+    id: "creazione-annuncio",
+    label: "Creazione annuncio",
+    icon: SparklesIcon,
+  },
+]
 
 type FamigliaProcessoDetailSidebarProps = {
   open: boolean
@@ -36,6 +84,10 @@ type FamigliaProcessoDetailSidebarProps = {
   onChangeStatoSales?: (processId: string, targetStageId: string) => void | Promise<void>
   onPatchProcess?: (
     processId: string,
+    patch: Record<string, unknown>
+  ) => void | Promise<void>
+  onPatchFamily?: (
+    familyId: string,
     patch: Record<string, unknown>
   ) => void | Promise<void>
 }
@@ -106,6 +158,72 @@ function getBadgeClassName(color: string | null | undefined) {
   }
 }
 
+function normalizeToken(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase()
+}
+
+function groupStageOptions(options: LookupOptionsByField["stato_sales"]) {
+  return options.reduce<Record<string, LookupOptionsByField["stato_sales"]>>(
+    (acc, option) => {
+      const normalized = normalizeToken(option.valueKey)
+      const groupKey = normalized.startsWith("warm_")
+        ? "warm"
+        : normalized.startsWith("hot_")
+          ? "hot"
+          : normalized.startsWith("cold_")
+            ? "cold"
+            : normalized.startsWith("won_")
+              ? "won"
+              : normalized === "lost"
+                ? "lost"
+                : normalized === "out_of_target"
+                  ? "out_of_target"
+                  : "other"
+
+      if (!acc[groupKey]) {
+        acc[groupKey] = []
+      }
+      acc[groupKey].push(option)
+      return acc
+    },
+    {}
+  )
+}
+
+function getStageGroupLabel(groupKey: string) {
+  switch (groupKey) {
+    case "warm":
+      return "WARM"
+    case "hot":
+      return "HOT"
+    case "cold":
+      return "COLD"
+    case "won":
+      return "WON"
+    case "lost":
+      return "LOST"
+    case "out_of_target":
+      return "OUT OF TARGET"
+    default:
+      return "Altri"
+  }
+}
+
+function getSelectedLookupValue(
+  selected: string | null | undefined,
+  options: LookupOptionsByField[string]
+) {
+  const token = normalizeToken(selected)
+  if (!token) return ""
+
+  const matched = options.find(
+    (option) =>
+      normalizeToken(option.valueKey) === token ||
+      normalizeToken(option.valueLabel) === token
+  )
+  return matched?.valueKey ?? selected ?? ""
+}
+
 export function FamigliaProcessoDetailSidebar({
   open,
   onOpenChange,
@@ -114,7 +232,12 @@ export function FamigliaProcessoDetailSidebar({
   editMode = "always",
   onChangeStatoSales,
   onPatchProcess,
+  onPatchFamily,
 }: FamigliaProcessoDetailSidebarProps) {
+  const detailScrollRef = React.useRef<HTMLDivElement | null>(null)
+  const sectionRefs = React.useRef<
+    Partial<Record<SidebarSectionTab["id"], HTMLDivElement | null>>
+  >({})
   const [isEditingStatoLead, setIsEditingStatoLead] = React.useState(
     editMode === "always"
   )
@@ -123,6 +246,9 @@ export function FamigliaProcessoDetailSidebar({
   )
   const [isEditingAnnuncio, setIsEditingAnnuncio] = React.useState(
     editMode === "always"
+  )
+  const [activeSection, setActiveSection] = React.useState<SidebarSectionTab["id"]>(
+    SIDEBAR_SECTION_TABS[0]?.id ?? "orari-frequenza"
   )
 
   React.useEffect(() => {
@@ -143,66 +269,275 @@ export function FamigliaProcessoDetailSidebar({
   const canEditStatoLead = editMode === "always" ? true : isEditingStatoLead
   const canEditOnboarding = editMode === "always" ? true : isEditingOnboarding
   const canEditAnnuncio = editMode === "always" ? true : isEditingAnnuncio
+  const stageOptions = lookupOptionsByField.stato_sales ?? []
+  const groupedStageOptions = groupStageOptions(stageOptions)
+  const stageGroupOrder = [
+    "warm",
+    "hot",
+    "cold",
+    "won",
+    "lost",
+    "out_of_target",
+    "other",
+  ].filter((groupKey) => (groupedStageOptions[groupKey] ?? []).length > 0)
+  const tipoLavoroOptions = lookupOptionsByField.tipo_lavoro ?? []
+  const tipoRapportoOptions = lookupOptionsByField.tipo_rapporto ?? []
+
+  const bindSectionRef = React.useCallback(
+    (sectionId: SidebarSectionTab["id"]) => (node: HTMLDivElement | null) => {
+      sectionRefs.current[sectionId] = node
+    },
+    []
+  )
+
+  const scrollToSection = React.useCallback((sectionId: SidebarSectionTab["id"]) => {
+    const container = detailScrollRef.current
+    const target = sectionRefs.current[sectionId]
+    if (!container || !target) return
+
+    setActiveSection(sectionId)
+    container.scrollTo({
+      top: Math.max(target.offsetTop - 108, 0),
+      behavior: "smooth",
+    })
+  }, [])
+
+  React.useEffect(() => {
+    setActiveSection(SIDEBAR_SECTION_TABS[0]?.id ?? "orari-frequenza")
+  }, [card?.id])
+
+  React.useEffect(() => {
+    const container = detailScrollRef.current
+    if (!container || SIDEBAR_SECTION_TABS.length === 0) return
+
+    const syncActiveSection = () => {
+      let nextActive = SIDEBAR_SECTION_TABS[0]?.id ?? "orari-frequenza"
+
+      for (const tab of SIDEBAR_SECTION_TABS) {
+        const node = sectionRefs.current[tab.id]
+        if (!node) continue
+        if (node.offsetTop - 140 <= container.scrollTop) {
+          nextActive = tab.id
+        } else {
+          break
+        }
+      }
+
+      setActiveSection((current) => (current === nextActive ? current : nextActive))
+    }
+
+    syncActiveSection()
+    container.addEventListener("scroll", syncActiveSection, { passive: true })
+
+    return () => {
+      container.removeEventListener("scroll", syncActiveSection)
+    }
+  }, [card?.id, open])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="!w-[min(96vw,680px)] !max-w-none overflow-y-auto sm:!max-w-none"
+        showCloseButton={false}
+        className="!w-[min(96vw,760px)] !max-w-none overflow-hidden p-0 sm:!max-w-none"
       >
-        <SheetHeader>
-          <SheetTitle className="text-xl font-semibold">
-            {renderValue(card?.nomeFamiglia)}
-          </SheetTitle>
-          <SheetDescription className="sr-only">
-            Dettaglio famiglia e ricerca
-          </SheetDescription>
-        </SheetHeader>
+        <section
+          ref={detailScrollRef}
+          className="bg-muted relative h-full min-h-0 overflow-y-auto"
+        >
+          <div className="bg-muted/95 sticky top-0 z-20 border-b backdrop-blur">
+            <div className="space-y-4 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 space-y-1">
+                  <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
+                    Pipeline famiglie
+                  </p>
+                  <SheetTitle className="truncate text-xl font-semibold">
+                    {renderValue(card?.nomeFamiglia)}
+                  </SheetTitle>
+                  <SheetDescription className="sr-only">
+                    Dettaglio famiglia e ricerca
+                  </SheetDescription>
+                  <p className="text-muted-foreground text-xs">
+                    Record ID: {renderValue(card?.id)}
+                  </p>
+                </div>
 
-        <div className="space-y-4 px-4 pb-4">
-          <DetailSectionBlock
-            title="Contatti e contesto"
-            showDefaultAction={false}
-            contentClassName="space-y-4 px-1 pt-1"
-          >
-            <div className="text-muted-foreground space-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                <PhoneIcon className="size-4" />
-                <span className="truncate">{renderValue(card?.telefono)}</span>
+                <SheetClose asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Chiudi dettaglio"
+                    title="Chiudi dettaglio"
+                  >
+                    <XIcon />
+                  </Button>
+                </SheetClose>
               </div>
-              <div className="flex items-center gap-2">
-                <MailIcon className="size-4" />
-                <span className="truncate">{renderValue(card?.email)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="size-4" />
-                <span className="truncate">{renderValue(card?.dataLead)}</span>
-              </div>
-            </div>
 
-            <div className="flex flex-col items-start gap-2">
-              {card?.tipoLavoroBadge ? (
-                <Badge
-                  variant="outline"
-                  className={getBadgeClassName(card.tipoLavoroColor)}
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <p className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
+                    Stato lead
+                  </p>
+                  <Select
+                    value={getSelectedLookupValue(card?.stage, stageOptions)}
+                    onValueChange={(nextStage) => {
+                      if (!card || !nextStage || nextStage === card.stage) return
+                      void onChangeStatoSales?.(card.id, nextStage)
+                    }}
+                  >
+                    <SelectTrigger className="bg-background w-full">
+                      <SelectValue placeholder="Seleziona stato lead" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stageGroupOrder.map((groupKey, groupIndex) => (
+                        <React.Fragment key={groupKey}>
+                          <SelectGroup>
+                            <SelectLabel>{getStageGroupLabel(groupKey)}</SelectLabel>
+                            {groupedStageOptions[groupKey].map((option) => (
+                              <SelectItem key={option.valueKey} value={option.valueKey}>
+                                {option.valueLabel}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                          {groupIndex < stageGroupOrder.length - 1 ? (
+                            <SelectSeparator />
+                          ) : null}
+                        </React.Fragment>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
+                    Tipo rapporto
+                  </p>
+                  <Select
+                    value={getSelectedLookupValue(card?.tipoRapportoBadge, tipoRapportoOptions)}
+                    onValueChange={(nextValue) => {
+                      if (!card || !nextValue) return
+                      void onPatchProcess?.(card.id, {
+                        tipo_rapporto: [nextValue],
+                      })
+                    }}
+                  >
+                    <SelectTrigger className="bg-background w-full">
+                      <SelectValue placeholder="Seleziona tipo rapporto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tipoRapportoOptions.map((option) => (
+                        <SelectItem key={option.valueKey} value={option.valueKey}>
+                          {option.valueLabel}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
+                    Tipo lavoro
+                  </p>
+                  <Select
+                    value={getSelectedLookupValue(card?.tipoLavoroBadge, tipoLavoroOptions)}
+                    onValueChange={(nextValue) => {
+                      if (!card || !nextValue) return
+                      void onPatchProcess?.(card.id, {
+                        tipo_lavoro: [nextValue],
+                      })
+                    }}
+                  >
+                    <SelectTrigger className="bg-background w-full">
+                      <SelectValue placeholder="Seleziona tipo lavoro" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tipoLavoroOptions.map((option) => (
+                        <SelectItem key={option.valueKey} value={option.valueKey}>
+                          {option.valueLabel}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="rounded-xl border bg-background p-3">
+                  <div className="text-muted-foreground space-y-2 text-sm">
+                    <div className="flex items-start gap-2">
+                      <MailIcon className="mt-0.5 size-4 shrink-0" />
+                      <span className="min-w-0 break-all">{renderValue(card?.email)}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <PhoneIcon className="mt-0.5 size-4 shrink-0" />
+                      <span className="min-w-0 break-all">{renderValue(card?.telefono)}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <MapPinnedIcon className="mt-0.5 size-4 shrink-0" />
+                      <span className="min-w-0 break-all">
+                        {renderValue(card?.indirizzoProvincia)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+                  <CalendarIcon className="size-3.5" />
+                  <span>Lead del {renderValue(card?.dataLead)}</span>
+                </div>
+                {card?.tipoLavoroBadge ? (
+                  <Badge
+                    variant="outline"
+                    className={getBadgeClassName(card.tipoLavoroColor)}
+                  >
+                    <BriefcaseBusinessIcon data-icon="inline-start" />
+                    {formatBadgeLabel(card.tipoLavoroBadge)}
+                  </Badge>
+                ) : null}
+                {card?.tipoRapportoBadge ? (
+                  <Badge
+                    variant="outline"
+                    className={getBadgeClassName(card.tipoRapportoColor)}
+                  >
+                    <Clock3Icon data-icon="inline-start" />
+                    {formatBadgeLabel(card.tipoRapportoBadge)}
+                  </Badge>
+                ) : null}
+              </div>
+
+              <Tabs
+                value={activeSection}
+                onValueChange={(value) =>
+                  scrollToSection(value as SidebarSectionTab["id"])
+                }
+                className="w-full"
+              >
+                <TabsList
+                  variant="line"
+                  className="h-auto w-full justify-start gap-x-1 overflow-x-auto overflow-y-hidden whitespace-nowrap p-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                 >
-                  <BriefcaseBusinessIcon data-icon="inline-start" />
-                  {formatBadgeLabel(card.tipoLavoroBadge)}
-                </Badge>
-              ) : null}
-              {card?.tipoRapportoBadge ? (
-                <Badge
-                  variant="outline"
-                  className={getBadgeClassName(card.tipoRapportoColor)}
-                >
-                  <Clock3Icon data-icon="inline-start" />
-                  {formatBadgeLabel(card.tipoRapportoBadge)}
-                </Badge>
-              ) : null}
+                  {SIDEBAR_SECTION_TABS.map((tab) => {
+                    const TabIcon = tab.icon
+                    return (
+                      <TabsTrigger
+                        key={tab.id}
+                        value={tab.id}
+                        className="h-10 flex-none rounded-full px-3 text-sm text-muted-foreground/70 shadow-none"
+                      >
+                        <TabIcon className="size-4" />
+                        {tab.label}
+                      </TabsTrigger>
+                    )
+                  })}
+                </TabsList>
+              </Tabs>
             </div>
-          </DetailSectionBlock>
+          </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 p-4">
             <div
               className={
                 canEditStatoLead
@@ -210,35 +545,11 @@ export function FamigliaProcessoDetailSidebar({
                   : "pointer-events-none space-y-4 select-none"
               }
             >
-              <StatoLeadCard
+              <OnboardingContextCard
                 card={card}
                 lookupOptionsByField={lookupOptionsByField}
-                titleAction={
-                  editMode === "toggle" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={
-                        canEditStatoLead
-                          ? "Termina modifica stato lead"
-                          : "Modifica stato lead"
-                      }
-                      title={
-                        canEditStatoLead
-                          ? "Termina modifica stato lead"
-                          : "Modifica stato lead"
-                      }
-                      onClick={() =>
-                        setIsEditingStatoLead((current) => !current)
-                      }
-                    >
-                      <PencilIcon />
-                    </Button>
-                  ) : undefined
-                }
-                onChangeStage={canEditStatoLead ? onChangeStatoSales : undefined}
                 onPatchProcess={canEditStatoLead ? onPatchProcess : undefined}
+                onPatchFamily={canEditStatoLead ? onPatchFamily : undefined}
               />
             </div>
 
@@ -252,28 +563,41 @@ export function FamigliaProcessoDetailSidebar({
               <OnboardingCard
                 card={card}
                 lookupOptionsByField={lookupOptionsByField}
+                flattenSections
+                sectionContainerProps={{
+                  "orari-frequenza": { ref: bindSectionRef("orari-frequenza") },
+                  "luogo-lavoro": { ref: bindSectionRef("luogo-lavoro") },
+                  famiglia: { ref: bindSectionRef("famiglia") },
+                  casa: { ref: bindSectionRef("casa") },
+                  animali: { ref: bindSectionRef("animali") },
+                  mansioni: { ref: bindSectionRef("mansioni") },
+                  "richieste-specifiche": {
+                    ref: bindSectionRef("richieste-specifiche"),
+                  },
+                  tempistiche: { ref: bindSectionRef("tempistiche") },
+                }}
                 titleAction={
                   editMode === "toggle" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={
-                        canEditOnboarding
-                          ? "Termina modifica onboarding"
-                          : "Modifica onboarding"
-                      }
-                      title={
-                        canEditOnboarding
-                          ? "Termina modifica onboarding"
-                          : "Modifica onboarding"
-                      }
-                      onClick={() =>
-                        setIsEditingOnboarding((current) => !current)
-                      }
-                    >
-                      <PencilIcon />
-                    </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={
+                          canEditOnboarding
+                            ? "Termina modifica onboarding"
+                            : "Modifica onboarding"
+                        }
+                        title={
+                          canEditOnboarding
+                            ? "Termina modifica onboarding"
+                            : "Modifica onboarding"
+                        }
+                        onClick={() =>
+                          setIsEditingOnboarding((current) => !current)
+                        }
+                      >
+                        <PencilIcon />
+                      </Button>
                   ) : undefined
                 }
                 onPatchProcess={canEditOnboarding ? onPatchProcess : undefined}
@@ -288,6 +612,8 @@ export function FamigliaProcessoDetailSidebar({
               }
             >
               <CreazioneAnnuncioCard
+                processId={card?.id ?? null}
+                containerProps={{ ref: bindSectionRef("creazione-annuncio") }}
                 titleAction={
                   editMode === "toggle" ? (
                     <Button
@@ -315,7 +641,7 @@ export function FamigliaProcessoDetailSidebar({
               />
             </div>
           </div>
-        </div>
+        </section>
       </SheetContent>
     </Sheet>
   )

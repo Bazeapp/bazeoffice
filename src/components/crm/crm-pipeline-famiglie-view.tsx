@@ -214,7 +214,6 @@ type ColumnProps = {
   onDragStartCard: (processId: string) => void
   onDragEndCard: () => void
   onCardClick: (card: CrmPipelineCardData) => void
-  suppressCardClickRef: React.MutableRefObject<boolean>
 }
 
 function Column({
@@ -228,7 +227,6 @@ function Column({
   onDragStartCard,
   onDragEndCard,
   onCardClick,
-  suppressCardClickRef,
 }: ColumnProps) {
   const visual = getColumnVisual(column.color)
 
@@ -266,7 +264,6 @@ function Column({
             draggingProcessId === card.id && "opacity-40"
           )}
           onClick={() => {
-            if (suppressCardClickRef.current) return
             onCardClick(card)
           }}
         >
@@ -285,6 +282,7 @@ export function CrmPipelineFamiglieView() {
     lookupOptionsByField,
     moveCard,
     updateProcessCard,
+    updateFamilyCard,
   } =
     useCrmPipelinePreview()
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(
@@ -293,11 +291,17 @@ export function CrmPipelineFamiglieView() {
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(
     null
   )
-  const [selectedCard, setSelectedCard] = React.useState<CrmPipelineCardData | null>(
-    null
-  )
+  const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [isDetailOpen, setIsDetailOpen] = React.useState(false)
-  const suppressCardClickRef = React.useRef(false)
+
+  const selectedCard = React.useMemo(() => {
+    if (!selectedCardId) return null
+    for (const column of columns) {
+      const matched = column.cards.find((card) => card.id === selectedCardId)
+      if (matched) return matched
+    }
+    return null
+  }, [columns, selectedCardId])
 
   const handleDropToColumn = React.useCallback(
     (columnId: string, droppedProcessId: string | null) => {
@@ -326,15 +330,15 @@ export function CrmPipelineFamiglieView() {
   )
 
   return (
-    <section className="w-full min-w-0 space-y-3">
+    <section className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento dati CRM: {error}
         </div>
       ) : null}
 
-      <div className="w-full overflow-x-auto pb-2">
-        <div className="flex min-w-max gap-4">
+      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+        <div className="flex h-full min-w-max gap-4">
               {loading
                 ? Array.from({ length: 5 }).map((_, index) => (
                     <CrmPipelineSkeletonColumn key={index} />
@@ -350,21 +354,16 @@ export function CrmPipelineFamiglieView() {
                       onDragLeaveColumn={handleDragLeaveColumn}
                       onDropToColumn={handleDropToColumn}
                       onDragStartCard={(processId) => {
-                        suppressCardClickRef.current = true
                         setDraggingProcessId(processId)
                       }}
                       onDragEndCard={() => {
                         setDraggingProcessId(null)
                         setDropTargetColumnId(null)
-                        setTimeout(() => {
-                          suppressCardClickRef.current = false
-                        }, 150)
                       }}
                       onCardClick={(card) => {
-                        setSelectedCard(card)
+                        setSelectedCardId(card.id)
                         setIsDetailOpen(true)
                       }}
-                      suppressCardClickRef={suppressCardClickRef}
                     />
                   ))}
         </div>
@@ -372,19 +371,20 @@ export function CrmPipelineFamiglieView() {
 
       <FamigliaProcessoDetailSidebar
         open={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
+        onOpenChange={(open) => {
+          setIsDetailOpen(open)
+          if (!open) {
+            setSelectedCardId(null)
+          }
+        }}
         card={selectedCard}
         lookupOptionsByField={lookupOptionsByField}
-        onChangeStatoSales={async (processId, targetStageId) => {
-          setSelectedCard((current) =>
-            current && current.id === processId
-              ? { ...current, stage: targetStageId }
-              : current
-          )
-          await moveCard(processId, targetStageId)
-        }}
+        onChangeStatoSales={moveCard}
         onPatchProcess={async (processId, patch) => {
           await updateProcessCard(processId, patch)
+        }}
+        onPatchFamily={async (familyId, patch) => {
+          await updateFamilyCard(familyId, patch)
         }}
       />
     </section>

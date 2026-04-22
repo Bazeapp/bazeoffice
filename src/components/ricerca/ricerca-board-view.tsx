@@ -422,7 +422,6 @@ function RicercaBoardColumn({
   onDragStartCard,
   onDragEndCard,
   onCardClick,
-  suppressCardClickRef,
   onLoadDeferredColumn,
 }: {
   column: RicercaBoardColumnData
@@ -435,7 +434,6 @@ function RicercaBoardColumn({
   onDragStartCard: (processId: string) => void
   onDragEndCard: () => void
   onCardClick: (card: RicercaBoardCardData) => void
-  suppressCardClickRef: React.MutableRefObject<boolean>
   onLoadDeferredColumn: (columnId: string) => void
 }) {
   const visual = getColumnVisual(column.id, column.label, column.color)
@@ -486,7 +484,6 @@ function RicercaBoardColumn({
           }}
           onDragEnd={onDragEndCard}
           onClick={() => {
-            if (suppressCardClickRef.current) return
             onCardClick(card)
           }}
         />
@@ -510,7 +507,6 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
     id: "",
   })
   const [selectedOperatorId, setSelectedOperatorId] = React.useState("all")
-  const suppressCardClickRef = React.useRef(false)
   const operatorFilterAllowedStages = React.useMemo(
     () =>
       new Set([
@@ -749,20 +745,15 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
                   onDragLeaveColumn={handleDragLeaveColumn}
                   onDropToColumn={handleDropToColumn}
                   onDragStartCard={(processId) => {
-                    suppressCardClickRef.current = true
                     setDraggingProcessId(processId)
                   }}
                   onDragEndCard={() => {
                     setDraggingProcessId(null)
                     setDropTargetColumnId(null)
-                    setTimeout(() => {
-                      suppressCardClickRef.current = false
-                    }, 150)
                   }}
                   onCardClick={(card) => {
                     onOpenDetail(card.id)
                   }}
-                  suppressCardClickRef={suppressCardClickRef}
                   onLoadDeferredColumn={(columnId) => {
                     void loadDeferredColumn(columnId)
                   }}

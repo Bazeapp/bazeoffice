@@ -1,39 +1,45 @@
-import * as React from "react"
-import { Clock3Icon, PaperclipIcon, PlusIcon, SearchIcon } from "lucide-react"
+import * as React from "react";
+import { Clock3Icon, PaperclipIcon, PlusIcon, SearchIcon } from "lucide-react";
 
-import { SupportTicketCreateDialog } from "@/components/support/support-ticket-create-dialog"
-import { SupportTicketDetailSheet } from "@/components/support/support-ticket-detail-sheet"
+import { SupportTicketCreateDialog } from "@/components/support/support-ticket-create-dialog";
+import { SupportTicketDetailSheet } from "@/components/support/support-ticket-detail-sheet";
 import {
   resolveSupportTicketTag,
   resolveSupportTicketUrgency,
   type SupportTicketType,
-} from "@/components/support/support-ticket-config"
+} from "@/components/support/support-ticket-config";
 import {
   type SupportTicketBoardCardData,
   useSupportTicketsBoard,
-} from "@/hooks/use-support-tickets-board"
+} from "@/hooks/use-support-tickets-board";
 import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
   KanbanDeferredColumnAction,
-} from "@/components/shared/kanban"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
+} from "@/components/shared/kanban";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 type SupportColumnData = {
-  id: string
-  label: string
-  color: string
-  totalCount: number
-  cards: SupportTicketBoardCardData[]
-  deferred?: boolean
-  isLoaded?: boolean
-  deferredActionLabel?: string
-}
+  id: string;
+  label: string;
+  color: string;
+  totalCount: number;
+  cards: SupportTicketBoardCardData[];
+  deferred?: boolean;
+  isLoaded?: boolean;
+  deferredActionLabel?: string;
+};
 
 function getColumnClasses(color: string) {
   switch (color.toLowerCase()) {
@@ -42,45 +48,49 @@ function getColumnClasses(color: string) {
         columnClassName: "border-sky-300 bg-sky-50/70",
         headerClassName: "border-b border-sky-200/70",
         iconClassName: "text-sky-500",
-      }
+      };
     case "amber":
       return {
         columnClassName: "border-amber-300 bg-amber-50/70",
         headerClassName: "border-b border-amber-200/70",
         iconClassName: "text-amber-500",
-      }
+      };
     case "orange":
       return {
         columnClassName: "border-orange-300 bg-orange-50/70",
         headerClassName: "border-b border-orange-200/70",
         iconClassName: "text-orange-500",
-      }
+      };
     case "green":
       return {
         columnClassName: "border-green-300 bg-green-50/70",
         headerClassName: "border-b border-green-200/70",
         iconClassName: "text-green-500",
-      }
+      };
     default:
       return {
         columnClassName: "border-border bg-muted/40",
         headerClassName: "border-b border-border/70",
         iconClassName: "text-muted-foreground",
-      }
+      };
   }
 }
 
 function SupportTicketCard({ card }: { card: SupportTicketBoardCardData }) {
-  const tagConfig = resolveSupportTicketTag(card.tag)
-  const urgencyConfig = resolveSupportTicketUrgency(card.urgenza)
-  const TagIcon = tagConfig.icon
+  const tagConfig = resolveSupportTicketTag(card.tag);
+  const urgencyConfig = resolveSupportTicketUrgency(card.urgenza);
+  const TagIcon = tagConfig.icon;
 
   return (
     <Card className="border border-border/70 bg-white py-0 transition-shadow hover:shadow-md">
       <CardContent className="space-y-3 px-3 py-3">
         <div className="space-y-1">
-          <p className="line-clamp-2 text-sm font-semibold leading-tight">{card.causale}</p>
-          <p className="text-muted-foreground truncate text-xs">{card.nomeCompleto}</p>
+          <p className="line-clamp-2 text-sm font-semibold leading-tight">
+            {card.causale}
+          </p>
+          <p className="text-muted-foreground truncate text-xs">
+            {card.nomeCompleto}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
@@ -105,12 +115,14 @@ function SupportTicketCard({ card }: { card: SupportTicketBoardCardData }) {
                 {card.attachmentCount}
               </span>
             ) : null}
-            <span className="font-medium text-foreground">{card.assegnatario.split(" ")[0]}</span>
+            <span className="font-medium text-foreground">
+              {card.assegnatario.split(" ")[0]}
+            </span>
           </div>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function SupportTicketsBoardColumn({
@@ -126,19 +138,19 @@ function SupportTicketsBoardColumn({
   onDragLeaveColumn,
   onDropToColumn,
 }: {
-  column: SupportColumnData
-  draggingTicketId: string | null
-  isDropTarget: boolean
-  onOpenTicket: (ticketId: string) => void
-  onLoadDeferredColumn: (columnId: string) => void
-  onDragStartTicket: (ticketId: string) => void
-  onDragEndTicket: () => void
-  onDragEnterColumn: (columnId: string) => void
-  onDragOverColumn: (columnId: string) => void
-  onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void
-  onDropToColumn: (columnId: string, ticketId: string | null) => void
+  column: SupportColumnData;
+  draggingTicketId: string | null;
+  isDropTarget: boolean;
+  onOpenTicket: (ticketId: string) => void;
+  onLoadDeferredColumn: (columnId: string) => void;
+  onDragStartTicket: (ticketId: string) => void;
+  onDragEndTicket: () => void;
+  onDragEnterColumn: (columnId: string) => void;
+  onDragOverColumn: (columnId: string) => void;
+  onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDropToColumn: (columnId: string, ticketId: string | null) => void;
 }) {
-  const visual = getColumnClasses(column.color)
+  const visual = getColumnClasses(column.color);
 
   return (
     <KanbanColumnShell
@@ -163,7 +175,7 @@ function SupportTicketsBoardColumn({
         <KanbanDeferredColumnAction
           label={column.deferredActionLabel ?? `Mostra ${column.label}`}
           onClick={() => {
-            onLoadDeferredColumn(column.id)
+            onLoadDeferredColumn(column.id);
           }}
         />
       ) : null}
@@ -173,35 +185,51 @@ function SupportTicketsBoardColumn({
           draggable
           onClick={() => onOpenTicket(card.id)}
           onDragStart={(event) => {
-            event.dataTransfer.setData("text/plain", card.id)
-            event.dataTransfer.effectAllowed = "move"
-            onDragStartTicket(card.id)
+            event.dataTransfer.setData("text/plain", card.id);
+            event.dataTransfer.effectAllowed = "move";
+            onDragStartTicket(card.id);
           }}
           onDragEnd={onDragEndTicket}
           className={cn(
             "cursor-grab transition-opacity active:cursor-grabbing",
-            draggingTicketId === card.id && "opacity-40"
+            draggingTicketId === card.id && "opacity-40",
           )}
         >
           <SupportTicketCard card={card} />
         </div>
       ))}
     </KanbanColumnShell>
-  )
+  );
 }
 
 function SupportTicketsBoardSkeletonColumn() {
-  return <KanbanColumnSkeleton widthClassName="w-[292px]" density="compact" showBadgeRow />
+  return (
+    <KanbanColumnSkeleton
+      widthClassName="w-[292px]"
+      density="compact"
+      showBadgeRow
+    />
+  );
 }
 
-export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketType }) {
-  const [search, setSearch] = React.useState("")
-  const [stageFilter, setStageFilter] = React.useState("all")
-  const [showClosedTickets, setShowClosedTickets] = React.useState(false)
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
-  const [draggingTicketId, setDraggingTicketId] = React.useState<string | null>(null)
-  const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
-  const [selectedTicketId, setSelectedTicketId] = React.useState<string | null>(null)
+export function SupportTicketsView({
+  ticketType,
+}: {
+  ticketType: SupportTicketType;
+}) {
+  const [search, setSearch] = React.useState("");
+  const [stageFilter, setStageFilter] = React.useState("all");
+  const [showClosedTickets, setShowClosedTickets] = React.useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
+  const [draggingTicketId, setDraggingTicketId] = React.useState<string | null>(
+    null,
+  );
+  const [dropTargetColumnId, setDropTargetColumnId] = React.useState<
+    string | null
+  >(null);
+  const [selectedTicketId, setSelectedTicketId] = React.useState<string | null>(
+    null,
+  );
   const {
     loading,
     error,
@@ -211,24 +239,24 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
     createTicket,
     moveTicket,
     patchTicket,
-  } = useSupportTicketsBoard(ticketType)
+  } = useSupportTicketsBoard(ticketType);
 
   const filteredCards = React.useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase()
+    const normalizedSearch = search.trim().toLowerCase();
 
     return cards.filter((card) => {
-      if (!showClosedTickets && card.stage === "chiuso") return false
-      if (stageFilter !== "all" && card.stage !== stageFilter) return false
-      if (!normalizedSearch) return true
+      if (!showClosedTickets && card.stage === "chiuso") return false;
+      if (stageFilter !== "all" && card.stage !== stageFilter) return false;
+      if (!normalizedSearch) return true;
 
       return (
         card.causale.toLowerCase().includes(normalizedSearch) ||
         card.nomeFamiglia.toLowerCase().includes(normalizedSearch) ||
         card.nomeLavoratore.toLowerCase().includes(normalizedSearch) ||
         card.tag.toLowerCase().includes(normalizedSearch)
-      )
-    })
-  }, [cards, search, showClosedTickets, stageFilter])
+      );
+    });
+  }, [cards, search, showClosedTickets, stageFilter]);
 
   const columns = React.useMemo<SupportColumnData[]>(
     () =>
@@ -240,21 +268,22 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
         cards: filteredCards.filter((card) => card.stage === stage.id),
         deferred: stage.id === "chiuso",
         isLoaded: stage.id !== "chiuso" || showClosedTickets,
-        deferredActionLabel: stage.id === "chiuso" ? "Mostra chiusi" : undefined,
+        deferredActionLabel:
+          stage.id === "chiuso" ? "Mostra chiusi" : undefined,
       })),
-    [cards, filteredCards, showClosedTickets, stages]
-  )
+    [cards, filteredCards, showClosedTickets, stages],
+  );
 
   const selectedCard = React.useMemo(
     () => cards.find((card) => card.id === selectedTicketId) ?? null,
-    [cards, selectedTicketId]
-  )
+    [cards, selectedTicketId],
+  );
 
   return (
     <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[240px] flex-1 sm:max-w-xs">
+          <div className="relative min-w-60 flex-1 sm:max-w-xs">
             <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
             <Input
               value={search}
@@ -265,7 +294,7 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
           </div>
 
           <Select value={stageFilter} onValueChange={setStageFilter}>
-            <SelectTrigger className="min-w-[180px]">
+            <SelectTrigger className="min-w-45">
               <SelectValue placeholder="Tutti gli stati" />
             </SelectTrigger>
             <SelectContent>
@@ -282,8 +311,8 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
             <Button
               variant="ghost"
               onClick={() => {
-                setSearch("")
-                setStageFilter("all")
+                setSearch("");
+                setStageFilter("all");
               }}
             >
               Reset filtri
@@ -306,7 +335,9 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2">
         <div className="flex h-full min-h-0 min-w-max gap-4">
           {loading
-            ? Array.from({ length: 4 }).map((_, index) => <SupportTicketsBoardSkeletonColumn key={index} />)
+            ? Array.from({ length: 4 }).map((_, index) => (
+                <SupportTicketsBoardSkeletonColumn key={index} />
+              ))
             : columns.map((column) => (
                 <SupportTicketsBoardColumn
                   key={column.id}
@@ -316,28 +347,34 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
                   onOpenTicket={setSelectedTicketId}
                   onLoadDeferredColumn={(columnId) => {
                     if (columnId === "chiuso") {
-                      setShowClosedTickets(true)
+                      setShowClosedTickets(true);
                     }
                   }}
                   onDragStartTicket={setDraggingTicketId}
                   onDragEndTicket={() => {
                     window.setTimeout(() => {
-                      setDraggingTicketId(null)
-                      setDropTargetColumnId(null)
-                    }, 0)
+                      setDraggingTicketId(null);
+                      setDropTargetColumnId(null);
+                    }, 0);
                   }}
                   onDragEnterColumn={setDropTargetColumnId}
                   onDragOverColumn={setDropTargetColumnId}
                   onDragLeaveColumn={(event) => {
-                    const nextTarget = event.relatedTarget
-                    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return
-                    setDropTargetColumnId((current) => (current === column.id ? null : current))
+                    const nextTarget = event.relatedTarget;
+                    if (
+                      nextTarget instanceof Node &&
+                      event.currentTarget.contains(nextTarget)
+                    )
+                      return;
+                    setDropTargetColumnId((current) =>
+                      current === column.id ? null : current,
+                    );
                   }}
                   onDropToColumn={(columnId, ticketId) => {
-                    setDropTargetColumnId(null)
-                    setDraggingTicketId(null)
-                    if (!ticketId) return
-                    void moveTicket(ticketId, columnId)
+                    setDropTargetColumnId(null);
+                    setDraggingTicketId(null);
+                    if (!ticketId) return;
+                    void moveTicket(ticketId, columnId);
                   }}
                 />
               ))}
@@ -358,12 +395,12 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
           stages={stages}
           open={true}
           onOpenChange={(open) => {
-            if (!open) setSelectedTicketId(null)
+            if (!open) setSelectedTicketId(null);
           }}
           onMoveTicket={moveTicket}
           onPatchTicket={patchTicket}
         />
       ) : null}
     </section>
-  )
+  );
 }

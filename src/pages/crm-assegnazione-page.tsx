@@ -1,5 +1,11 @@
 import { CrmAssegnazioneView } from "@/components/crm/crm-assegnazione-view"
 
-export function CrmAssegnazionePage() {
-  return <CrmAssegnazioneView />
+type CrmAssegnazionePageProps = {
+  onOpenRicercaDetail?: (processId: string) => void
+}
+
+export function CrmAssegnazionePage({
+  onOpenRicercaDetail,
+}: CrmAssegnazionePageProps) {
+  return <CrmAssegnazioneView onOpenRicercaDetail={onOpenRicercaDetail} />
 }

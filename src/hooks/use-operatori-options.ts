@@ -12,6 +12,11 @@ export type OperatoreOption = {
   avatarBorderClassName: string
 }
 
+type UseOperatoriOptionsParams = {
+  role?: string
+  activeOnly?: boolean
+}
+
 function toStringValue(value: unknown): string | null {
   if (value === null || value === undefined) return null
   if (typeof value === "string") {
@@ -54,7 +59,29 @@ function buildAvatar(nome: string, cognome: string) {
   return initials || nome.trim()[0]?.toUpperCase() || "?"
 }
 
-export function useOperatoriOptions() {
+function normalizeRole(value: string) {
+  return value.trim().toLowerCase().replaceAll(" ", "_")
+}
+
+function hasRole(row: GenericRow, role: string | undefined) {
+  if (!role) return true
+  const rawRole = row.ruolo
+  if (!Array.isArray(rawRole)) return false
+  const normalizedRole = normalizeRole(role)
+  return rawRole.some(
+    (item) =>
+      typeof item === "string" && normalizeRole(item) === normalizedRole
+  )
+}
+
+function isActive(row: GenericRow, activeOnly: boolean) {
+  if (!activeOnly) return true
+  return row.attivo === true
+}
+
+export function useOperatoriOptions(params: UseOperatoriOptionsParams = {}) {
+  const role = params.role ? normalizeRole(params.role) : undefined
+  const activeOnly = params.activeOnly ?? false
   const [options, setOptions] = React.useState<OperatoreOption[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -69,15 +96,52 @@ export function useOperatoriOptions() {
       try {
         const rows = await invokeEdgeFunction<TableQueryResponse>("table-query", {
           table: "operatori",
-          select: ["id", "nome", "cognome"],
+          select: ["id", "nome", "cognome", "ruolo", "attivo"],
           orderBy: [
             { field: "nome", ascending: true },
             { field: "cognome", ascending: true },
           ],
+          filters: {
+            kind: "group",
+            id: "operatori-options-root",
+            logic: "and",
+            nodes: [
+              ...(activeOnly
+                ? [
+                    {
+                      kind: "condition",
+                      id: "operatori-options-attivo",
+                      field: "attivo",
+                      operator: "is_true",
+                      value: "",
+                    },
+                  ]
+                : []),
+              ...(role
+                ? [
+                    {
+                      kind: "condition",
+                      id: "operatori-options-role",
+                      field: "ruolo",
+                      operator: "has",
+                      value: role,
+                    },
+                  ]
+                : []),
+            ],
+          },
         })
 
         const rawRows = Array.isArray(rows) ? rows : rows.data ?? rows.rows ?? []
-        const nextOptions = rawRows
+        let filteredRows = rawRows.filter(
+          (row) => isActive(row, activeOnly) && hasRole(row, role)
+        )
+
+        if (role && activeOnly && filteredRows.length === 0) {
+          filteredRows = rawRows.filter((row) => isActive(row, activeOnly))
+        }
+
+        const nextOptions = filteredRows
           .map((row) => {
             const id = toStringValue(row.id)
             const nome = toStringValue(row.nome) ?? ""
@@ -111,7 +175,7 @@ export function useOperatoriOptions() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [activeOnly, role])
 
   return {
     options,

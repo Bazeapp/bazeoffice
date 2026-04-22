@@ -1,4 +1,11 @@
-export type AnagraficheSidebarTab = "famiglie" | "processi" | "lavoratori"
+export type AnagraficheSidebarTab =
+  | "famiglie"
+  | "processi"
+  | "lavoratori"
+  | "mesi_lavorati"
+  | "pagamenti"
+  | "selezioni_lavoratori"
+  | "rapporti_lavorativi"
 
 export type MainSection =
   | "anagrafiche"
@@ -163,7 +170,15 @@ export function resolveRouteStateFromPath(pathname: string): AppRoute {
     }
   }
 
-  if (slug === "famiglie" || slug === "processi" || slug === "lavoratori") {
+  if (
+    slug === "famiglie" ||
+    slug === "processi" ||
+    slug === "lavoratori" ||
+    slug === "mesi_lavorati" ||
+    slug === "pagamenti" ||
+    slug === "selezioni_lavoratori" ||
+    slug === "rapporti_lavorativi"
+  ) {
     return {
       mainSection: "anagrafiche",
       anagraficheTab: slug,

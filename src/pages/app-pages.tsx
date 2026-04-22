@@ -203,7 +203,7 @@ export function AppPageContent({
   }
 
   if (route.mainSection === "crm_assegnazione") {
-    return <CrmAssegnazionePage />
+    return <CrmAssegnazionePage onOpenRicercaDetail={onOpenRicercaDetail} />
   }
 
   if (route.mainSection === "ricerca_pipeline") {

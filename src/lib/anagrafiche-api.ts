@@ -12,6 +12,7 @@ import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
 import type { RapportoLavorativoRecord } from "@/types/entities/rapporto-lavorativo"
 import type { TicketRecord } from "@/types/entities/ticket"
+import type { TransazioneFinanziariaRecord } from "@/types/entities/transazione-finanziaria"
 import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-contrattuale"
 
 type TableRow = Record<string, unknown>
@@ -32,6 +33,13 @@ export type TableColumnMeta = {
   filterType: TableFilterFieldType
 }
 
+export type TableGroupResult = {
+  field: string
+  value: string
+  label: string
+  count: number
+}
+
 type TableName =
   | "famiglie"
   | "chiusure_contratti"
@@ -44,6 +52,7 @@ type TableName =
   | "presenze_mensili"
   | "rapporti_lavorativi"
   | "ticket"
+  | "transazioni_finanziarie"
   | "variazioni_contrattuali"
   | "selezioni_lavoratori"
   | "documenti_lavoratori"
@@ -130,6 +139,7 @@ type TableQueryRequest = {
   search?: string
   searchFields?: string[]
   filters?: QueryFilterGroup
+  groupBy?: string[]
 }
 
 type TablePageQuery = {
@@ -141,6 +151,7 @@ type TablePageQuery = {
   search?: string
   searchFields?: string[]
   filters?: QueryFilterGroup
+  groupBy?: string[]
 }
 
 type TableQueryResponse<TRecord> =
@@ -150,19 +161,20 @@ type TableQueryResponse<TRecord> =
       total?: number
       count?: number
       columns?: TableColumnMeta[]
+      groups?: TableGroupResult[]
     }
   | TRecord[]
 
 function normalizeTableResponse<TRecord>(
   response: TableQueryResponse<TRecord>
-): { rows: TRecord[]; total: number; columns: TableColumnMeta[] } {
+): { rows: TRecord[]; total: number; columns: TableColumnMeta[]; groups: TableGroupResult[] } {
   if (Array.isArray(response)) {
-    return { rows: response, total: response.length, columns: [] }
+    return { rows: response, total: response.length, columns: [], groups: [] }
   }
 
   const rows = response.data ?? response.rows ?? []
   const total = response.total ?? response.count ?? rows.length
-  return { rows, total, columns: response.columns ?? [] }
+  return { rows, total, columns: response.columns ?? [], groups: response.groups ?? [] }
 }
 
 const TABLE_QUERY_CACHE_TTL_MS = 1500
@@ -172,6 +184,7 @@ type TableResponse<TRecord> = {
   rows: TRecord[]
   total: number
   columns: TableColumnMeta[]
+  groups: TableGroupResult[]
 }
 
 const tableQueryCache = new Map<
@@ -230,6 +243,7 @@ export async function fetchFamiglie(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -244,6 +258,7 @@ export async function fetchChiusureContratti(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -258,6 +273,7 @@ export async function fetchContributiInps(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -272,6 +288,7 @@ export async function fetchIndirizzi(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -286,6 +303,7 @@ export async function fetchLavoratori(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -300,6 +318,7 @@ export async function fetchMesiCalendario(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -314,6 +333,7 @@ export async function fetchMesiLavorati(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -328,6 +348,7 @@ export async function fetchPagamenti(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -342,6 +363,7 @@ export async function fetchPresenzeMensili(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -356,6 +378,7 @@ export async function fetchRapportiLavorativi(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -370,6 +393,22 @@ export async function fetchTickets(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
+  })
+}
+
+export async function fetchTransazioniFinanziarie(query: TablePageQuery) {
+  return queryTable<TransazioneFinanziariaRecord>({
+    table: "transazioni_finanziarie",
+    select: ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -384,6 +423,7 @@ export async function fetchVariazioniContrattuali(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -472,6 +512,7 @@ export async function fetchProcessiMatching(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -486,6 +527,7 @@ export async function fetchSelezioniLavoratori(query: TablePageQuery) {
     search: query.search,
     searchFields: query.searchFields,
     filters: query.filters,
+    groupBy: query.groupBy,
   })
 }
 
@@ -529,6 +571,20 @@ type CreateRecordResponse = {
   row: TableRow
 }
 
+export type AutomationWebhookId =
+  | "finance-request-invoice-data"
+  | "finance-invoice-payment"
+  | "workflow-smart-matching"
+  | "workflow-create-job-offer-seo"
+  | "workflow-create-rapporto-after-match"
+
+type RunAutomationWebhookResponse = {
+  ok: boolean
+  automationId: AutomationWebhookId
+  recordId: string
+  responseBody?: string
+}
+
 export async function updateRecord(
   table: UpdateTableName,
   id: string,
@@ -548,6 +604,18 @@ export async function createRecord(
   return invokeEdgeFunction<CreateRecordResponse>("create-record", {
     table,
     values,
+  })
+}
+
+export async function runAutomationWebhook(
+  automationId: AutomationWebhookId,
+  recordId: string,
+  context?: Record<string, unknown>
+) {
+  return invokeEdgeFunction<RunAutomationWebhookResponse>("run-automation-webhook", {
+    automationId,
+    recordId,
+    context,
   })
 }
 

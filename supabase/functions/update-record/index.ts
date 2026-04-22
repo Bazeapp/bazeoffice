@@ -75,6 +75,10 @@ const AUTO_UPDATED_AT_FIELD: Record<SupportedTable, string> = {
   processi_matching: "aggiornato_il",
 };
 
+const MATCH_WORKFLOW_TARGET_STATUSES = new Set(["match", "prova con cliente"]);
+const CREATE_RAPPORTO_AFTER_MATCH_WEBHOOK_URL =
+  "https://hook.eu1.make.com/aq1sq4aa3tc6ujccbqq9dodx9pt3uxni";
+
 function badRequest(message: string) {
   return new Response(JSON.stringify({ error: message }), {
     status: 400,
@@ -103,6 +107,66 @@ function normalizeToken(value: unknown) {
 
 function isSafeColumnName(field: string) {
   return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field);
+}
+
+async function runCreateRapportoAfterMatchAutomation(
+  supabase: ReturnType<typeof createClient>,
+  row: Record<string, unknown>
+) {
+  const processoMatchingId =
+    typeof row.processo_matching_id === "string" && row.processo_matching_id.trim()
+      ? row.processo_matching_id.trim()
+      : null;
+  const lavoratoreId =
+    typeof row.lavoratore_id === "string" && row.lavoratore_id.trim()
+      ? row.lavoratore_id.trim()
+      : null;
+
+  if (!processoMatchingId) {
+    throw new Error("Missing processo_matching_id for post-match workflow");
+  }
+
+  if (!lavoratoreId) {
+    throw new Error("Missing lavoratore_id for post-match workflow");
+  }
+
+  const { data: processRow, error: processError } = await supabase
+    .from("processi_matching")
+    .select("famiglia_id")
+    .eq("id", processoMatchingId)
+    .maybeSingle();
+
+  if (processError) {
+    throw new Error(processError.message);
+  }
+
+  const famigliaId =
+    processRow &&
+    typeof processRow.famiglia_id === "string" &&
+    processRow.famiglia_id.trim()
+      ? processRow.famiglia_id.trim()
+      : null;
+
+  if (!famigliaId) {
+    throw new Error("Missing famiglia_id for post-match workflow");
+  }
+
+  const response = await fetch(CREATE_RAPPORTO_AFTER_MATCH_WEBHOOK_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify([
+      {
+        famigliaId: [famigliaId],
+        lavoratoreId: [lavoratoreId],
+      },
+    ]),
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
 }
 
 Deno.serve(async (req) => {
@@ -163,8 +227,7 @@ Deno.serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const currentRecordSelect =
-    table === "processi_matching" ? "id, stato_sales" : "id";
+  const currentRecordSelect = "*";
 
   const { data: currentRecord, error: currentRecordError } = await supabase
     .from(table)
@@ -225,6 +288,33 @@ Deno.serve(async (req) => {
 
   if (updateError) {
     return serverError(updateError.message);
+  }
+
+  if (table === "selezioni_lavoratori" && "stato_selezione" in sanitizedPatch) {
+    const previousStatus = normalizeToken(
+      (currentRecord as { stato_selezione?: unknown }).stato_selezione
+    );
+    const nextStatus = normalizeToken(
+      (updatedRecord as { stato_selezione?: unknown }).stato_selezione
+    );
+
+    if (
+      MATCH_WORKFLOW_TARGET_STATUSES.has(nextStatus) &&
+      !MATCH_WORKFLOW_TARGET_STATUSES.has(previousStatus)
+    ) {
+      try {
+        await runCreateRapportoAfterMatchAutomation(
+          supabase,
+          updatedRecord as Record<string, unknown>
+        );
+      } catch (error) {
+        return serverError(
+          error instanceof Error
+            ? `Post-match workflow failed: ${error.message}`
+            : "Post-match workflow failed"
+        );
+      }
+    }
   }
 
   return new Response(

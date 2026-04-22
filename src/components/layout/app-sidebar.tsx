@@ -101,6 +101,30 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
             anagraficheTab: "processi",
             mainSection: "anagrafiche",
           },
+          {
+            name: "Mesi lavorati",
+            href: "#",
+            anagraficheTab: "mesi_lavorati",
+            mainSection: "anagrafiche",
+          },
+          {
+            name: "Pagamenti",
+            href: "#",
+            anagraficheTab: "pagamenti",
+            mainSection: "anagrafiche",
+          },
+          {
+            name: "Selezioni lavoratori",
+            href: "#",
+            anagraficheTab: "selezioni_lavoratori",
+            mainSection: "anagrafiche",
+          },
+          {
+            name: "Rapporti lavorativi",
+            href: "#",
+            anagraficheTab: "rapporti_lavorativi",
+            mainSection: "anagrafiche",
+          },
         ],
       },
       {

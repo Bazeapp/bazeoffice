@@ -162,26 +162,12 @@ function resolveLabel(
   return lookupLabels[domain]?.[normalizeToken(value)] ?? value
 }
 
-function isDaAssegnare(value: unknown) {
-  const token = normalizeToken(value).replaceAll("_", " ")
-  return token === "da assegnare"
-}
-
-function isFareRicerca(value: unknown) {
-  const token = normalizeToken(value).replaceAll("_", " ")
-  return token === "fare ricerca"
-}
-
 function toAssegnazioneStatus(
-  rawStatus: string | null,
-  labelsMap: Record<string, string>,
-  hasAssignedDate: boolean
-): "da_assegnare" | "fare_ricerca" {
-  const normalizedRaw = normalizeToken(rawStatus)
-  const statusLabel = labelsMap[normalizedRaw] ?? rawStatus ?? ""
-  if (isFareRicerca(statusLabel)) return "fare_ricerca"
-  if (isDaAssegnare(statusLabel)) return "da_assegnare"
-  return hasAssignedDate ? "fare_ricerca" : "da_assegnare"
+  rawStatus: string | null
+): "da_assegnare" | "fare_ricerca" | null {
+  if (rawStatus === "fare ricerca") return "fare_ricerca"
+  if (rawStatus === "da assegnare") return "da_assegnare"
+  return null
 }
 
 function toReadableStatusLabel(status: "da_assegnare" | "fare_ricerca") {
@@ -191,7 +177,7 @@ function toReadableStatusLabel(status: "da_assegnare" | "fare_ricerca") {
 function toAssegnazioneStatusPatch(
   status: "da_assegnare" | "fare_ricerca"
 ) {
-  return status === "fare_ricerca" ? "Fare ricerca" : "Da assegnare"
+  return status === "fare_ricerca" ? "fare ricerca" : "da assegnare"
 }
 
 function toNumberValue(value: unknown) {
@@ -216,6 +202,27 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
       limit: 500,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
+      filters: {
+        kind: "group",
+        id: "crm-assegnazione-status-root",
+        logic: "or",
+        nodes: [
+          {
+            kind: "condition",
+            id: "crm-assegnazione-status-da-assegnare-label",
+            field: "stato_res",
+            operator: "is",
+            value: "da assegnare",
+          },
+          {
+            kind: "condition",
+            id: "crm-assegnazione-status-fare-ricerca-label",
+            field: "stato_res",
+            operator: "is",
+            value: "fare ricerca",
+          },
+        ],
+      },
     }),
     fetchFamiglie({
       limit: 500,
@@ -231,7 +238,6 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
 
   const lookupColors = buildLookupColorMap(lookupRows)
   const lookupLabels = buildLookupLabelMap(lookupRows)
-  const statoResLabels = lookupLabels["processi_matching.stato_res"] ?? {}
 
   const familyById = new Map<string, GenericRow>()
   for (const family of familyRows) {
@@ -271,15 +277,15 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
       rawTipoRapporto
     )
     const rawDataAssegnazione = toIsoDate(process.data_assegnazione)
-    const statoRes = toAssegnazioneStatus(
-      toStringValue(process.stato_res),
-      statoResLabels,
-      Boolean(rawDataAssegnazione)
-    )
+    const statoRes = toAssegnazioneStatus(toStringValue(process.stato_res))
+    if (!statoRes) continue
+
+    if (statoRes === "da_assegnare" && rawDataAssegnazione) continue
+    if (statoRes === "fare_ricerca" && !rawDataAssegnazione) continue
+
     const dataAssegnazione =
       statoRes === "da_assegnare" ? null : rawDataAssegnazione
     const statoResLabel = toReadableStatusLabel(statoRes)
-    if (statoRes !== "da_assegnare" && statoRes !== "fare_ricerca") continue
 
     const numeroRicercaAttivata = toNumberValue(process.numero_ricerca_attivata)
     const tipoRicerca: "nuova" | "sostituzione" =
@@ -341,6 +347,15 @@ export function useCrmAssegnazione(): UseCrmAssegnazioneState {
 
   const patchCard = React.useCallback(
     async (processId: string, patch: Record<string, unknown>) => {
+      let patchedStatus: "da_assegnare" | "fare_ricerca" | null = null
+
+      if ("stato_res" in patch) {
+        patchedStatus = toAssegnazioneStatus(toStringValue(patch.stato_res))
+        if (!patchedStatus) {
+          throw new Error("Stato assegnazione non valido")
+        }
+      }
+
       const previous = cards
 
       setCards((current) =>
@@ -349,14 +364,10 @@ export function useCrmAssegnazione(): UseCrmAssegnazioneState {
 
           const nextCard = { ...card }
 
-          if ("stato_res" in patch) {
-            const nextStatus =
-              isFareRicerca(patch.stato_res) || normalizeToken(patch.stato_res) === "fare_ricerca"
-                ? "fare_ricerca"
-                : "da_assegnare"
-            nextCard.statoRes = nextStatus
-            nextCard.statoResLabel = toReadableStatusLabel(nextStatus)
-            if (nextStatus === "da_assegnare") {
+          if (patchedStatus) {
+            nextCard.statoRes = patchedStatus
+            nextCard.statoResLabel = toReadableStatusLabel(patchedStatus)
+            if (patchedStatus === "da_assegnare") {
               nextCard.dataAssegnazione = null
             }
           }

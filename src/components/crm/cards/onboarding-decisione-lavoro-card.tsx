@@ -5,11 +5,11 @@ import {
   CatIcon,
   HomeIcon,
   ShieldCheckIcon,
-  UserRoundIcon,
   UsersIcon,
 } from "lucide-react";
 
 import { CrmDetailCard } from "@/components/crm/detail-card";
+import { DetailSectionBlock } from "@/components/shared/detail-section-card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
@@ -45,7 +45,33 @@ import type { LookupOptionsByField } from "@/hooks/use-crm-pipeline-preview";
 export type OnboardingDecisioneLavoroCheckboxDefaults = Partial<
   Record<string, boolean>
 >;
+
 type LookupOption = LookupOptionsByField[string][number];
+
+type OnboardingDecisioneLavoroDefaults = {
+  nucleoFamigliare?: string;
+  descrizioneCasa?: string;
+  metraturaCasa?: string;
+  descrizioneAnimaliInCasa?: string;
+  mansioniRichieste?: string;
+  informazioniExtraRiservate?: string;
+  etaMinima?: string;
+  etaMassima?: string;
+  descrizioneRichiestaTrasferte?: string;
+  descrizioneRichiestaFerie?: string;
+  patenteDettaglio?: string;
+  sesso?: string | null;
+  richiestaPatente?: boolean;
+  richiestaTrasferte?: boolean;
+  richiestaFerie?: boolean;
+};
+
+export type OnboardingDecisioneLavoroSectionKey =
+  | "famiglia"
+  | "casa"
+  | "animali"
+  | "mansioni"
+  | "richieste-specifiche";
 
 function toInputValue(value: string | null | undefined) {
   if (!value) return "";
@@ -220,7 +246,7 @@ function LookupMultiComboboxField({
         <ComboboxChips ref={anchor} id={id} className="w-full">
           <ComboboxValue>
             {(values) => (
-              <React.Fragment>
+              <>
                 {values.map((value: string) => (
                   <ComboboxChip
                     key={value}
@@ -230,7 +256,7 @@ function LookupMultiComboboxField({
                   </ComboboxChip>
                 ))}
                 <ComboboxChipsInput />
-              </React.Fragment>
+              </>
             )}
           </ComboboxValue>
         </ComboboxChips>
@@ -253,6 +279,44 @@ function LookupMultiComboboxField({
   );
 }
 
+function SectionWrapper({
+  title,
+  icon,
+  children,
+  useSectionBlocks,
+  containerProps,
+}: {
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+  useSectionBlocks: boolean;
+  containerProps?: React.ComponentProps<"div">;
+}) {
+  if (useSectionBlocks) {
+    return (
+      <div {...containerProps}>
+        <DetailSectionBlock
+          title={title}
+          icon={icon}
+          showDefaultAction={false}
+          contentClassName="space-y-4"
+        >
+          {children}
+        </DetailSectionBlock>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      {...containerProps}
+      className="rounded-xl bg-muted/60 p-4 space-y-4"
+    >
+      {children}
+    </div>
+  );
+}
+
 export function OnboardingDecisioneLavoroCard() {
   return (
     <CrmDetailCard title="Onboarding - Descisione lavoro">
@@ -266,27 +330,17 @@ export function OnboardingDecisioneLavoroSection({
   lookupOptionsByField,
   defaults,
   onPatchProcess,
+  useSectionBlocks = false,
+  sectionContainerProps,
 }: {
   checkboxDefaults?: OnboardingDecisioneLavoroCheckboxDefaults;
   lookupOptionsByField?: LookupOptionsByField;
-  defaults?: {
-    nucleoFamigliare?: string;
-    descrizioneCasa?: string;
-    metraturaCasa?: string;
-    descrizioneAnimaliInCasa?: string;
-    mansioniRichieste?: string;
-    informazioniExtraRiservate?: string;
-    etaMinima?: string;
-    etaMassima?: string;
-    descrizioneRichiestaTrasferte?: string;
-    descrizioneRichiestaFerie?: string;
-    patenteDettaglio?: string;
-    sesso?: string | null;
-    richiestaPatente?: boolean;
-    richiestaTrasferte?: boolean;
-    richiestaFerie?: boolean;
-  };
+  defaults?: OnboardingDecisioneLavoroDefaults;
   onPatchProcess?: (patch: Record<string, unknown>) => void | Promise<void>;
+  useSectionBlocks?: boolean;
+  sectionContainerProps?: Partial<
+    Record<OnboardingDecisioneLavoroSectionKey, React.ComponentProps<"div">>
+  >;
 } = {}) {
   const isChecked = (id: string) => checkboxDefaults?.[id] ?? false;
   const nazionalitaEscluseOptions =
@@ -361,7 +415,13 @@ export function OnboardingDecisioneLavoroSection({
           ? "uomo"
           : "",
     );
-  }, [checkboxDefaults, defaults?.richiestaTrasferte, defaults?.richiestaFerie, defaults?.richiestaPatente, defaults?.sesso]);
+  }, [
+    checkboxDefaults,
+    defaults?.richiestaTrasferte,
+    defaults?.richiestaFerie,
+    defaults?.richiestaPatente,
+    defaults?.sesso,
+  ]);
 
   React.useEffect(() => {
     setDescrizioneTrasferte(
@@ -374,7 +434,9 @@ export function OnboardingDecisioneLavoroSection({
     setMetraturaCasa(numbersOnly(toInputValue(defaults?.metraturaCasa)));
     setDescrizioneAnimaliInCasa(toInputValue(defaults?.descrizioneAnimaliInCasa));
     setMansioniRichieste(toInputValue(defaults?.mansioniRichieste));
-    setInformazioniExtraRiservate(toInputValue(defaults?.informazioniExtraRiservate));
+    setInformazioniExtraRiservate(
+      toInputValue(defaults?.informazioniExtraRiservate),
+    );
     setEtaMin(clampNumberInRange(toInputValue(defaults?.etaMinima), 20, 80));
     setEtaMax(clampNumberInRange(toInputValue(defaults?.etaMassima), 20, 80));
   }, [
@@ -416,505 +478,507 @@ export function OnboardingDecisioneLavoroSection({
       },
     ];
   }, [lookupOptionsByField]);
-  const blockClass = "rounded-xl bg-muted/60 p-4 space-y-4";
-  return (
-    <>
-      <FieldGroup className="space-y-4">
-        <div className={blockClass}>
-          <Field>
-            <FieldLabel
-              htmlFor="onboarding-famiglia-note"
-              className="flex items-center gap-2 font-semibold"
-            >
-              <UsersIcon className="size-4 text-muted-foreground" />
-              Famiglia
-            </FieldLabel>
-            <Input
-              id="onboarding-famiglia-note"
-              placeholder="indica situazioni o casi particolari sul nucleo familiare"
-              value={nucleoFamigliare}
-              onChange={(event) => setNucleoFamigliare(event.target.value)}
-              onBlur={() => {
-                void patchProcess({ nucleo_famigliare: nucleoFamigliare || null });
-              }}
-            />
-          </Field>
 
-          <div className="space-y-3">
-            <FieldSet>
-              <FieldGroup className="gap-3">
-                <CheckboxRow
-                  id="onboarding-neonati"
-                  label="Sono presenti neonati"
-                  defaultChecked={isChecked("onboarding-neonati")}
-                />
-              </FieldGroup>
-            </FieldSet>
-            <FieldSet>
-              <FieldGroup className="gap-3">
-                <CheckboxRow
-                  id="onboarding-piu-bambini"
-                  label="Deve accudire più di un bambino?"
-                  defaultChecked={isChecked("onboarding-piu-bambini")}
-                />
-              </FieldGroup>
-            </FieldSet>
-            <FieldSet>
-              <FieldGroup className="gap-3">
-                <CheckboxRow
-                  id="onboarding-famiglia-4"
-                  label="Famiglia 4+ persone"
-                  defaultChecked={isChecked("onboarding-famiglia-4")}
-                />
-              </FieldGroup>
-            </FieldSet>
-          </div>
+  return (
+    <FieldGroup className="space-y-4">
+      <SectionWrapper
+        title="Famiglia"
+        icon={<UsersIcon className="size-4" />}
+        useSectionBlocks={useSectionBlocks}
+        containerProps={sectionContainerProps?.famiglia}
+      >
+        <Field>
+          <FieldLabel
+            htmlFor="onboarding-famiglia-note"
+            className="flex items-center gap-2 font-semibold"
+          >
+            <UsersIcon className="size-4 text-muted-foreground" />
+            Famiglia
+          </FieldLabel>
+          <Input
+            id="onboarding-famiglia-note"
+            placeholder="indica situazioni o casi particolari sul nucleo familiare"
+            value={nucleoFamigliare}
+            onChange={(event) => setNucleoFamigliare(event.target.value)}
+            onBlur={() => {
+              void patchProcess({ nucleo_famigliare: nucleoFamigliare || null });
+            }}
+          />
+        </Field>
+
+        <div className="space-y-3">
+          <FieldSet>
+            <FieldGroup className="gap-3">
+              <CheckboxRow
+                id="onboarding-neonati"
+                label="Sono presenti neonati"
+                defaultChecked={isChecked("onboarding-neonati")}
+              />
+            </FieldGroup>
+          </FieldSet>
+          <FieldSet>
+            <FieldGroup className="gap-3">
+              <CheckboxRow
+                id="onboarding-piu-bambini"
+                label="Deve accudire più di un bambino?"
+                defaultChecked={isChecked("onboarding-piu-bambini")}
+              />
+            </FieldGroup>
+          </FieldSet>
+          <FieldSet>
+            <FieldGroup className="gap-3">
+              <CheckboxRow
+                id="onboarding-famiglia-4"
+                label="Famiglia 4+ persone"
+                defaultChecked={isChecked("onboarding-famiglia-4")}
+              />
+            </FieldGroup>
+          </FieldSet>
+        </div>
+      </SectionWrapper>
+
+      <SectionWrapper
+        title="Casa"
+        icon={<HomeIcon className="size-4" />}
+        useSectionBlocks={useSectionBlocks}
+        containerProps={sectionContainerProps?.casa}
+      >
+        <Field>
+          <FieldLabel
+            htmlFor="onboarding-casa-desc"
+            className="flex items-center gap-2 font-semibold"
+          >
+            <HomeIcon className="size-4 text-muted-foreground" />
+            Casa
+          </FieldLabel>
+          <Input
+            id="onboarding-casa-desc"
+            placeholder="Descrizione della casa"
+            value={descrizioneCasa}
+            onChange={(event) => setDescrizioneCasa(event.target.value)}
+            onBlur={() => {
+              void patchProcess({ descrizione_casa: descrizioneCasa || null });
+            }}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="onboarding-casa-mq">Metratura casa</FieldLabel>
+          <Input
+            id="onboarding-casa-mq"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={metraturaCasa}
+            onChange={(event) => setMetraturaCasa(numbersOnly(event.target.value))}
+            placeholder="120"
+            onBlur={() => {
+              void patchProcess({ metratura_casa: metraturaCasa || null });
+            }}
+          />
+        </Field>
+      </SectionWrapper>
+
+      <SectionWrapper
+        title="Animali"
+        icon={<CatIcon className="size-4" />}
+        useSectionBlocks={useSectionBlocks}
+        containerProps={sectionContainerProps?.animali}
+      >
+        <Field>
+          <FieldLabel
+            htmlFor="onboarding-animali-note"
+            className="flex items-center gap-2 font-semibold"
+          >
+            <CatIcon className="size-4 text-muted-foreground" />
+            Animali
+          </FieldLabel>
+          <Input
+            id="onboarding-animali-note"
+            placeholder="Ci sono 3 gatti e un cane"
+            value={descrizioneAnimaliInCasa}
+            onChange={(event) => setDescrizioneAnimaliInCasa(event.target.value)}
+            onBlur={() => {
+              void patchProcess({
+                descrizione_animali_in_casa: descrizioneAnimaliInCasa || null,
+              });
+            }}
+          />
+        </Field>
+
+        <div className="space-y-3">
+          <CheckboxGroupSet legend="Ci sono dei cani?">
+            <CheckboxRow
+              id="onboarding-cani-piccoli"
+              label="Si, di taglia media o inferiore"
+              defaultChecked={isChecked("onboarding-cani-piccoli")}
+            />
+            <CheckboxRow
+              id="onboarding-cani-grandi"
+              label="Si, di taglia grande"
+              defaultChecked={isChecked("onboarding-cani-grandi")}
+            />
+          </CheckboxGroupSet>
+          <FieldSet>
+            <FieldLegend variant="label">Ci sono dei gatti?</FieldLegend>
+            <FieldGroup className="gap-3">
+              <CheckboxRow
+                id="onboarding-gatti"
+                label="Si"
+                defaultChecked={isChecked("onboarding-gatti")}
+              />
+            </FieldGroup>
+          </FieldSet>
+        </div>
+      </SectionWrapper>
+
+      <SectionWrapper
+        title="Mansioni"
+        icon={<BriefcaseIcon className="size-4" />}
+        useSectionBlocks={useSectionBlocks}
+        containerProps={sectionContainerProps?.mansioni}
+      >
+        <Field>
+          <FieldLabel
+            htmlFor="onboarding-mansioni-note"
+            className="flex items-center gap-2 font-semibold"
+          >
+            <BriefcaseIcon className="size-4 text-muted-foreground" />
+            Mansioni
+          </FieldLabel>
+          <Input
+            id="onboarding-mansioni-note"
+            placeholder='Inserire solo le mansioni "particolari" Es: deve saper essere una massima esperta di orchidee da competizione'
+            value={mansioniRichieste}
+            onChange={(event) => setMansioniRichieste(event.target.value)}
+            onBlur={() => {
+              void patchProcess({ mansioni_richieste: mansioniRichieste || null });
+            }}
+          />
+        </Field>
+
+        <CheckboxGroupSet legend="Pulizie">
+          <CheckboxRow
+            id="onboarding-ripiani-alti-si"
+            label="Deve pulire ripiani alti usando se necessario scale?"
+            defaultChecked={isChecked("onboarding-ripiani-alti-si")}
+          />
+        </CheckboxGroupSet>
+
+        <CheckboxGroupSet legend="Deve stirare:">
+          <CheckboxRow
+            id="onboarding-stirare-si"
+            label="Si"
+            defaultChecked={isChecked("onboarding-stirare-si")}
+          />
+          <CheckboxRow
+            id="onboarding-stirare-difficile"
+            label="Si e abiti difficile"
+            defaultChecked={isChecked("onboarding-stirare-difficile")}
+          />
+        </CheckboxGroupSet>
+
+        <CheckboxGroupSet legend="Deve cucinare:">
+          <CheckboxRow
+            id="onboarding-cucinare-si"
+            label="Si"
+            defaultChecked={isChecked("onboarding-cucinare-si")}
+          />
+          <CheckboxRow
+            id="onboarding-cucinare-elaborati"
+            label="Si e piatti elaborati"
+            defaultChecked={isChecked("onboarding-cucinare-elaborati")}
+          />
+        </CheckboxGroupSet>
+
+        <CheckboxGroupSet legend="Giardino">
+          <CheckboxRow
+            id="onboarding-giardino-si"
+            label="È richiesta la cura del giardino?"
+            defaultChecked={isChecked("onboarding-giardino-si")}
+          />
+        </CheckboxGroupSet>
+      </SectionWrapper>
+
+      <SectionWrapper
+        title="Richieste specifiche"
+        icon={<ShieldCheckIcon className="size-4" />}
+        useSectionBlocks={useSectionBlocks}
+        containerProps={sectionContainerProps?.["richieste-specifiche"]}
+      >
+        <Field>
+          <FieldLabel
+            htmlFor="onboarding-richieste-specifiche"
+            className="flex items-center gap-2 font-semibold"
+          >
+            <ShieldCheckIcon className="size-4 text-muted-foreground" />
+            Richieste specifiche sul lavoratore
+          </FieldLabel>
+          <Input
+            id="onboarding-richieste-specifiche"
+            placeholder='Richieste particolari sul lavoratore "deve raccontare barzellette da urlo"'
+            value={richiesteSpecificheLavoratore}
+            onChange={(event) =>
+              setRichiesteSpecificheLavoratore(event.target.value)
+            }
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="onboarding-altre-info">Altre info</FieldLabel>
+          <Input
+            id="onboarding-altre-info"
+            placeholder="Informazioni extra riservate"
+            value={informazioniExtraRiservate}
+            onChange={(event) =>
+              setInformazioniExtraRiservate(event.target.value)
+            }
+            onBlur={() => {
+              void patchProcess({
+                informazioni_extra_riservate: informazioniExtraRiservate || null,
+              });
+            }}
+          />
+        </Field>
+
+        <FieldSet>
+          <FieldGroup className="gap-3">
+            <CheckboxRow
+              id="onboarding-italiano-si"
+              label="Deve comunicare spesso in italiano?"
+              defaultChecked={isChecked("onboarding-italiano-si")}
+            />
+          </FieldGroup>
+        </FieldSet>
+
+        <FieldSet>
+          <FieldGroup className="gap-3">
+            <CheckboxRow
+              id="onboarding-inglese-si"
+              label="Deve comunicare spesso in inglese?"
+              defaultChecked={isChecked("onboarding-inglese-si")}
+            />
+          </FieldGroup>
+        </FieldSet>
+
+        <FieldSet>
+          <FieldLegend variant="label">Genere</FieldLegend>
+          <RadioGroup
+            value={genere}
+            onValueChange={(value) => {
+              const next = value === "donna" || value === "uomo" ? value : "";
+              setGenere(next);
+              void patchProcess({ sesso: next || null });
+            }}
+            className="gap-3"
+          >
+            <Field orientation="horizontal">
+              <RadioGroupItem id="onboarding-genere-donna" value="donna" />
+              <FieldLabel
+                htmlFor="onboarding-genere-donna"
+                className="font-normal"
+              >
+                Donna
+              </FieldLabel>
+            </Field>
+            <Field orientation="horizontal">
+              <RadioGroupItem id="onboarding-genere-uomo" value="uomo" />
+              <FieldLabel
+                htmlFor="onboarding-genere-uomo"
+                className="font-normal"
+              >
+                Uomo
+              </FieldLabel>
+            </Field>
+          </RadioGroup>
+        </FieldSet>
+
+        <FieldLegend variant="label">Vincoli Operativi</FieldLegend>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FieldSet>
+            <FieldGroup className="gap-3">
+              <CheckboxRow
+                id="onboarding-trasferte-si"
+                label="Chiedono trasferte?"
+                checked={richiestaTrasferte}
+                onCheckedChange={(checked) => {
+                  setRichiestaTrasferte(checked);
+                  void patchProcess({ richiesta_trasferte: checked });
+                }}
+              />
+            </FieldGroup>
+          </FieldSet>
+          {richiestaTrasferte ? (
+            <Field>
+              <FieldLabel htmlFor="onboarding-trasferte-desc">
+                Che trasferte bisogna fare?
+              </FieldLabel>
+              <Input
+                id="onboarding-trasferte-desc"
+                value={descrizioneTrasferte}
+                onChange={(event) => setDescrizioneTrasferte(event.target.value)}
+                onBlur={() => {
+                  void patchProcess({
+                    descrizione_richiesta_trasferte:
+                      descrizioneTrasferte || null,
+                  });
+                }}
+              />
+            </Field>
+          ) : null}
         </div>
 
-        <div className={blockClass}>
-          <Field>
-            <FieldLabel
-              htmlFor="onboarding-casa-desc"
-              className="flex items-center gap-2 font-semibold"
-            >
-              <HomeIcon className="size-4 text-muted-foreground" />
-              Casa
-            </FieldLabel>
-            <Input
-              id="onboarding-casa-desc"
-              placeholder="Descrizione della casa"
-              value={descrizioneCasa}
-              onChange={(event) => setDescrizioneCasa(event.target.value)}
-              onBlur={() => {
-                void patchProcess({ descrizione_casa: descrizioneCasa || null });
-              }}
-            />
-          </Field>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FieldSet>
+            <FieldGroup className="gap-3">
+              <CheckboxRow
+                id="onboarding-ferie-si"
+                label="Richieste specifiche su ferie?"
+                checked={richiestaFerie}
+                onCheckedChange={(checked) => {
+                  setRichiestaFerie(checked);
+                  void patchProcess({ richiesta_ferie: checked });
+                }}
+              />
+            </FieldGroup>
+          </FieldSet>
+          {richiestaFerie ? (
+            <Field>
+              <FieldLabel htmlFor="onboarding-ferie-desc">
+                Che ferie richiedono?
+              </FieldLabel>
+              <Input
+                id="onboarding-ferie-desc"
+                value={descrizioneFerie}
+                onChange={(event) => setDescrizioneFerie(event.target.value)}
+                onBlur={() => {
+                  void patchProcess({
+                    descrizione_richiesta_ferie: descrizioneFerie || null,
+                  });
+                }}
+              />
+            </Field>
+          ) : null}
+        </div>
 
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <FieldSet>
+            <FieldGroup className="gap-3">
+              <CheckboxRow
+                id="onboarding-patente-si"
+                label="Chiedono patente?"
+                checked={richiestaPatente}
+                onCheckedChange={(checked) => {
+                  setRichiestaPatente(checked);
+                  void patchProcess({ richiesta_patente: checked });
+                }}
+              />
+            </FieldGroup>
+          </FieldSet>
+          {richiestaPatente ? (
+            <Field>
+              <FieldLabel htmlFor="onboarding-patente-dettaglio">
+                Serve solo patente o anche macchina?
+              </FieldLabel>
+              <Select
+                value={patenteDettaglio}
+                onValueChange={(next) => {
+                  setPatenteDettaglio(next);
+                  void patchProcess({ patente: next ? [next] : [] });
+                }}
+              >
+                <SelectTrigger id="onboarding-patente-dettaglio" className="w-full">
+                  <SelectValue placeholder="Seleziona opzione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {patenteOptions.map((option) => (
+                    <SelectItem key={option.valueKey} value={option.valueLabel}>
+                      {option.valueLabel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <LookupMultiComboboxField
+            id="onboarding-nazionalita-escluse"
+            label="Nazionalità escluse"
+            options={nazionalitaEscluseOptions}
+          />
+
+          <LookupMultiComboboxField
+            id="onboarding-nazionalita-obbligatorie"
+            label="Nazionalità obbligatorie"
+            options={nazionalitaObbligatorieOptions}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field>
-            <FieldLabel htmlFor="onboarding-casa-mq">Metratura casa</FieldLabel>
+            <FieldLabel htmlFor="onboarding-eta-min">Età min</FieldLabel>
             <Input
-              id="onboarding-casa-mq"
+              id="onboarding-eta-min"
               type="number"
               inputMode="numeric"
-              min={0}
-              value={metraturaCasa}
+              min={20}
+              max={80}
+              value={etaMin}
               onChange={(event) =>
-                setMetraturaCasa(numbersOnly(event.target.value))
+                setEtaMin(clampNumberInRange(event.target.value, 20, 80))
               }
-              placeholder="120"
+              placeholder="20"
               onBlur={() => {
-                void patchProcess({ metratura_casa: metraturaCasa || null });
+                void patchProcess({ eta_minima: etaMin || null });
               }}
             />
           </Field>
-        </div>
-
-        <div className={blockClass}>
           <Field>
-            <FieldLabel
-              htmlFor="onboarding-animali-note"
-              className="flex items-center gap-2 font-semibold"
-            >
-              <CatIcon className="size-4 text-muted-foreground" />
-              Animali
-            </FieldLabel>
+            <FieldLabel htmlFor="onboarding-eta-max">Età max</FieldLabel>
             <Input
-              id="onboarding-animali-note"
-              placeholder="Ci sono 3 gatti e un cane"
-              value={descrizioneAnimaliInCasa}
-              onChange={(event) => setDescrizioneAnimaliInCasa(event.target.value)}
-              onBlur={() => {
-                void patchProcess({
-                  descrizione_animali_in_casa: descrizioneAnimaliInCasa || null,
-                });
-              }}
-            />
-          </Field>
-
-          <div className="space-y-3">
-            <CheckboxGroupSet legend="Ci sono dei cani?">
-              <CheckboxRow
-                id="onboarding-cani-piccoli"
-                label="Si, di taglia media o inferiore"
-                defaultChecked={isChecked("onboarding-cani-piccoli")}
-              />
-              <CheckboxRow
-                id="onboarding-cani-grandi"
-                label="Si, di taglia grande"
-                defaultChecked={isChecked("onboarding-cani-grandi")}
-              />
-            </CheckboxGroupSet>
-            <FieldSet>
-              <FieldLegend variant="label">Ci sono dei gatti?</FieldLegend>
-              <FieldGroup className="gap-3">
-                <CheckboxRow
-                  id="onboarding-gatti"
-                  label="Si"
-                  defaultChecked={isChecked("onboarding-gatti")}
-                />
-              </FieldGroup>
-            </FieldSet>
-          </div>
-        </div>
-
-        <div className={blockClass}>
-          <Field>
-            <FieldLabel
-              htmlFor="onboarding-mansioni-note"
-              className="flex items-center gap-2 font-semibold"
-            >
-              <BriefcaseIcon className="size-4 text-muted-foreground" />
-              Mansioni
-            </FieldLabel>
-            <Input
-              id="onboarding-mansioni-note"
-              placeholder='Inserire solo le mansioni "particolari" Es: deve saper essere una massima esperta di orchidee da competizione'
-              value={mansioniRichieste}
-              onChange={(event) => setMansioniRichieste(event.target.value)}
-              onBlur={() => {
-                void patchProcess({ mansioni_richieste: mansioniRichieste || null });
-              }}
-            />
-          </Field>
-
-          <CheckboxGroupSet legend="Pulizie">
-            <CheckboxRow
-              id="onboarding-ripiani-alti-si"
-              label="Deve pulire ripiani alti usando se necessario scale?"
-              defaultChecked={isChecked("onboarding-ripiani-alti-si")}
-            />
-          </CheckboxGroupSet>
-
-          <CheckboxGroupSet legend="Deve stirare:">
-            <CheckboxRow
-              id="onboarding-stirare-si"
-              label="Si"
-              defaultChecked={isChecked("onboarding-stirare-si")}
-            />
-            <CheckboxRow
-              id="onboarding-stirare-difficile"
-              label="Si e abiti difficile"
-              defaultChecked={isChecked("onboarding-stirare-difficile")}
-            />
-          </CheckboxGroupSet>
-
-          <CheckboxGroupSet legend="Deve cucinare:">
-            <CheckboxRow
-              id="onboarding-cucinare-si"
-              label="Si"
-              defaultChecked={isChecked("onboarding-cucinare-si")}
-            />
-            <CheckboxRow
-              id="onboarding-cucinare-elaborati"
-              label="Si e piatti elaborati"
-              defaultChecked={isChecked("onboarding-cucinare-elaborati")}
-            />
-          </CheckboxGroupSet>
-
-          <CheckboxGroupSet legend="Giardino">
-            <CheckboxRow
-              id="onboarding-giardino-si"
-              label="È richiesta la cura del giardino?"
-              defaultChecked={isChecked("onboarding-giardino-si")}
-            />
-          </CheckboxGroupSet>
-        </div>
-
-        <div className={blockClass}>
-          <Field>
-            <FieldLabel
-              htmlFor="onboarding-richieste-specifiche"
-              className="flex items-center gap-2 font-semibold"
-            >
-              <ShieldCheckIcon className="size-4 text-muted-foreground" />
-              Richieste specifiche sul lavoratore
-            </FieldLabel>
-            <Input
-              id="onboarding-richieste-specifiche"
-              placeholder='Richieste particolari sul lavoratore "deve raccontare barzellette da urlo"'
-              value={richiesteSpecificheLavoratore}
+              id="onboarding-eta-max"
+              type="number"
+              inputMode="numeric"
+              min={20}
+              max={80}
+              value={etaMax}
               onChange={(event) =>
-                setRichiesteSpecificheLavoratore(event.target.value)
+                setEtaMax(clampNumberInRange(event.target.value, 20, 80))
               }
-            />
-          </Field>
-
-          <FieldSet>
-            <FieldGroup className="gap-3">
-              <CheckboxRow
-                id="onboarding-italiano-si"
-                label="Deve comunicare spesso in italiano?"
-                defaultChecked={isChecked("onboarding-italiano-si")}
-              />
-            </FieldGroup>
-          </FieldSet>
-
-          <FieldSet>
-            <FieldGroup className="gap-3">
-              <CheckboxRow
-                id="onboarding-inglese-si"
-                label="Deve comunicare spesso in inglese?"
-                defaultChecked={isChecked("onboarding-inglese-si")}
-              />
-            </FieldGroup>
-          </FieldSet>
-
-          <FieldSet>
-            <FieldLegend variant="label">Genere</FieldLegend>
-            <RadioGroup
-              value={genere}
-              onValueChange={(value) =>
-                {
-                  const next = value === "donna" || value === "uomo" ? value : "";
-                  setGenere(next);
-                  void patchProcess({ sesso: next || null });
-                }
-              }
-              className="gap-3"
-            >
-              <Field orientation="horizontal">
-                <RadioGroupItem id="onboarding-genere-donna" value="donna" />
-                <FieldLabel
-                  htmlFor="onboarding-genere-donna"
-                  className="font-normal"
-                >
-                  Donna
-                </FieldLabel>
-              </Field>
-              <Field orientation="horizontal">
-                <RadioGroupItem id="onboarding-genere-uomo" value="uomo" />
-                <FieldLabel
-                  htmlFor="onboarding-genere-uomo"
-                  className="font-normal"
-                >
-                  Uomo
-                </FieldLabel>
-              </Field>
-            </RadioGroup>
-          </FieldSet>
-
-          <FieldLegend variant="label">Vincoli Operativi</FieldLegend>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <FieldSet>
-              <FieldGroup className="gap-3">
-                <CheckboxRow
-                  id="onboarding-trasferte-si"
-                  label="Chiedono trasferte?"
-                  checked={richiestaTrasferte}
-                  onCheckedChange={(checked) => {
-                    setRichiestaTrasferte(checked);
-                    void patchProcess({ richiesta_trasferte: checked });
-                  }}
-                />
-              </FieldGroup>
-            </FieldSet>
-            {richiestaTrasferte ? (
-              <Field>
-                <FieldLabel htmlFor="onboarding-trasferte-desc">
-                  Che trasferte bisogna fare?
-                </FieldLabel>
-                <Input
-                  id="onboarding-trasferte-desc"
-                  value={descrizioneTrasferte}
-                  onChange={(event) =>
-                    setDescrizioneTrasferte(event.target.value)
-                  }
-                  onBlur={() => {
-                    void patchProcess({
-                      descrizione_richiesta_trasferte:
-                        descrizioneTrasferte || null,
-                    });
-                  }}
-                />
-              </Field>
-            ) : null}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <FieldSet>
-              <FieldGroup className="gap-3">
-                <CheckboxRow
-                  id="onboarding-ferie-si"
-                  label="Richieste specifiche su ferie?"
-                  checked={richiestaFerie}
-                  onCheckedChange={(checked) => {
-                    setRichiestaFerie(checked);
-                    void patchProcess({ richiesta_ferie: checked });
-                  }}
-                />
-              </FieldGroup>
-            </FieldSet>
-            {richiestaFerie ? (
-              <Field>
-                <FieldLabel htmlFor="onboarding-ferie-desc">
-                  Che ferie richiedono?
-                </FieldLabel>
-                <Input
-                  id="onboarding-ferie-desc"
-                  value={descrizioneFerie}
-                  onChange={(event) => setDescrizioneFerie(event.target.value)}
-                  onBlur={() => {
-                    void patchProcess({
-                      descrizione_richiesta_ferie: descrizioneFerie || null,
-                    });
-                  }}
-                />
-              </Field>
-            ) : null}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <FieldSet>
-              <FieldGroup className="gap-3">
-                <CheckboxRow
-                  id="onboarding-patente-si"
-                  label="Chiedono patente?"
-                  checked={richiestaPatente}
-                  onCheckedChange={(checked) => {
-                    setRichiestaPatente(checked);
-                    void patchProcess({ richiesta_patente: checked });
-                  }}
-                />
-              </FieldGroup>
-            </FieldSet>
-            {richiestaPatente ? (
-              <Field>
-                <FieldLabel htmlFor="onboarding-patente-dettaglio">
-                  Serve solo patente o anche macchina?
-                </FieldLabel>
-                <Select
-                  value={patenteDettaglio}
-                  onValueChange={(next) => {
-                    setPatenteDettaglio(next);
-                    void patchProcess({ patente: next ? [next] : [] });
-                  }}
-                >
-                  <SelectTrigger
-                    id="onboarding-patente-dettaglio"
-                    className="w-full"
-                  >
-                    <SelectValue placeholder="Seleziona opzione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {patenteOptions.map((option) => (
-                      <SelectItem
-                        key={option.valueKey}
-                        value={option.valueLabel}
-                      >
-                        {option.valueLabel}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            ) : null}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <LookupMultiComboboxField
-              id="onboarding-nazionalita-escluse"
-              label="Nazionalità escluse"
-              options={nazionalitaEscluseOptions}
-            />
-
-            <LookupMultiComboboxField
-              id="onboarding-nazionalita-obbligatorie"
-              label="Nazionalità obbligatorie"
-              options={nazionalitaObbligatorieOptions}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="onboarding-eta-min">Età min</FieldLabel>
-              <Input
-                id="onboarding-eta-min"
-                type="number"
-                inputMode="numeric"
-                min={20}
-                max={80}
-                value={etaMin}
-                onChange={(event) =>
-                  setEtaMin(clampNumberInRange(event.target.value, 20, 80))
-                }
-                placeholder="20"
-                onBlur={() => {
-                  void patchProcess({ eta_minima: etaMin || null });
-                }}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="onboarding-eta-max">Età max</FieldLabel>
-              <Input
-                id="onboarding-eta-max"
-                type="number"
-                inputMode="numeric"
-                min={20}
-                max={80}
-                value={etaMax}
-                onChange={(event) =>
-                  setEtaMax(clampNumberInRange(event.target.value, 20, 80))
-                }
-                placeholder="80"
-                onBlur={() => {
-                  void patchProcess({ eta_massima: etaMax || null });
-                }}
-              />
-            </Field>
-          </div>
-        </div>
-
-        <div className={blockClass}>
-          <Field>
-            <FieldLabel
-              htmlFor="onboarding-altre-info"
-              className="flex items-center gap-2 font-semibold"
-            >
-              <UserRoundIcon className="size-4 text-muted-foreground" />
-              Altre info
-            </FieldLabel>
-            <Input
-              id="onboarding-altre-info"
-              placeholder="Informazioni extra riservate"
-              value={informazioniExtraRiservate}
-              onChange={(event) =>
-                setInformazioniExtraRiservate(event.target.value)
-              }
+              placeholder="80"
               onBlur={() => {
-                void patchProcess({
-                  informazioni_extra_riservate:
-                    informazioniExtraRiservate || null,
-                });
+                void patchProcess({ eta_massima: etaMax || null });
               }}
             />
           </Field>
-
-          <CheckboxGroupSet legend="Profilo famiglia">
-            <CheckboxRow
-              id="onboarding-esigente-si"
-              label="Famiglia molto esigente"
-              defaultChecked={isChecked("onboarding-esigente-si")}
-            />
-            <CheckboxRow
-              id="onboarding-autonomia-si"
-              label="Richiesta autonomia"
-              defaultChecked={isChecked("onboarding-autonomia-si")}
-            />
-            <CheckboxRow
-              id="onboarding-datore-presente-si"
-              label="Datore spesso presente"
-              defaultChecked={isChecked("onboarding-datore-presente-si")}
-            />
-            <CheckboxRow
-              id="onboarding-discrezione-si"
-              label="Richiesta discrezione"
-              defaultChecked={isChecked("onboarding-discrezione-si")}
-            />
-          </CheckboxGroupSet>
         </div>
-      </FieldGroup>
-    </>
+
+        <CheckboxGroupSet legend="Profilo famiglia">
+          <CheckboxRow
+            id="onboarding-esigente-si"
+            label="Famiglia molto esigente"
+            defaultChecked={isChecked("onboarding-esigente-si")}
+          />
+          <CheckboxRow
+            id="onboarding-autonomia-si"
+            label="Richiesta autonomia"
+            defaultChecked={isChecked("onboarding-autonomia-si")}
+          />
+          <CheckboxRow
+            id="onboarding-datore-presente-si"
+            label="Datore spesso presente"
+            defaultChecked={isChecked("onboarding-datore-presente-si")}
+          />
+          <CheckboxRow
+            id="onboarding-discrezione-si"
+            label="Richiesta discrezione"
+            defaultChecked={isChecked("onboarding-discrezione-si")}
+          />
+        </CheckboxGroupSet>
+      </SectionWrapper>
+    </FieldGroup>
   );
 }

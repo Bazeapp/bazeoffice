@@ -1,0 +1,137 @@
+﻿Pagina Ricerche
+
+[RIC-001] Fissare orizzontalmente la colonna info ricerca nella kanban Ricerche attive
+Tag: [UX] Severity: low Page/Component: Ricerca → Ricerche attive (detail ricerca) — colonna sinistra info ricerca + kanban stages Effort: S (<1h)
+Sintomo / Cosa succede ora La colonna di sinistra con le informazioni della ricerca (Famiglia, Orari e frequenza, Descrizione lavoro) scrolla orizzontalmente insieme alle colonne della kanban (Candidati, Da colloquiare, Selezionato, Invitato a colloquio, ecc.). Quando si scrolla a destra per vedere gli stage successivi, la colonna info esce dalla viewport e si perde il contesto della ricerca su cui si sta lavorando.
+Atteso / Cosa dovrebbe succedere La colonna info ricerca deve restare fissa orizzontalmente (sticky) mentre si scrollano le colonne kanban a destra, così da mantenere sempre visibile il contesto della ricerca. Deve comunque:
+Scrollare verticalmente insieme al resto della pagina (comportamento attuale OK).
+Mantenere il comportamento di collapse/expand tramite il chevron < già presente (comportamento attuale OK).
+Note Puramente estetico/UX, nessun impatto funzionale — per questo severity low. Direzione di investigazione suggerita: probabilmente il container della kanban è un unico flex/grid orizzontale che include anche la colonna info; va separata la colonna info dal container scrollabile, oppure applicato position: sticky; left: 0 alla colonna info all'interno dello stesso container orizzontale.
+
+[RIC-002] Filtrare il dropdown "Operatori" ai soli recruiter attivi
+Tag: [BUG] Severity: medium Page/Component: Ricerca → Ricerche attive — dropdown filtro operatori (kanban ricerche) Effort: S (<1h)
+Sintomo / Cosa succede ora Il dropdown "Tutti gli operatori" nella kanban delle Ricerche attive mostra tutti gli utenti del workspace, senza filtrare per ruolo o stato. Nello screenshot compaiono Nicolò Gori e Sabrina Nannini, ma in generale la lista include utenti che non sono recruiter e quindi non hanno senso come filtro in questa interfaccia.
+Atteso / Cosa dovrebbe succedere Il dropdown deve mostrare solo i recruiter attivi. Il meccanismo di identificazione del ruolo è in corso di implementazione lato backend/DB — il SWE sa a cosa si riferisce il concetto di "recruiter attivo".
+Come riprodurre
+Andare su CRM famiglie → Ricerca → Ricerche attive
+Cliccare sul dropdown "Tutti gli operatori" in alto
+Notare che la lista non è filtrata per ruolo recruiter
+Note Issue speculare esiste sulla pagina Assegnazione (stesso problema, stessa logica di filtro mancante) — già catalogato tra gli ASS. Se il dropdown è servito dallo stesso hook/endpoint (es. lookup-values Edge Function o hook condiviso tipo use-operators), fixare alla sorgente risolve entrambe le istanze. Direzione di investigazione suggerita: verificare se la query utenti è centralizzata o duplicata nelle due pagine.
+
+[RIC-003] Aggiungere bottone "Smart Matching" nell'header della pagina detail ricerca
+Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — header pagina Effort: M (1-4h)
+Sintomo / Cosa succede ora Nel detail di una ricerca (kanban stage lavoratori) non è presente alcun bottone per avviare lo Smart Matching. Non c'è neanche un header di pagina strutturato: la colonna info ricerca parte direttamente dall'alto senza breadcrumb, titolo pagina o zona actions. L'operatore non ha modo di triggerare lo Smart Matching da questa interfaccia.
+Atteso / Cosa dovrebbe succedere Nell'header della pagina detail ricerca, in alto a destra, va aggiunto un bottone "Smart Matching". Il bottone triggera una Google Cloud Function che valuta i lavoratori in fit con la ricerca e li aggiunge automaticamente allo stage "Prospetto" della kanban.
+Come riferimento visivo del risultato atteso, vedi il primo screenshot allegato: header con breadcrumb "Torna alle ricerche", titolo "Famiglia Manganotti" + ID ricerca (RIC-2041), toggle "Mappa / Pipeline" a destra, e nella sezione "Lavoratori per questa ricerca" un bottone "Smart Matching" (con icona sparkle) affiancato al bottone "+ Aggiungi".
+Note Dipendenza diretta con l'issue globale "Page shell standard (breadcrumb + titolo + actions + zona filtri)" — questo bottone è parte delle actions che vivono nell'header della page shell mancante. Quando definiremo la page shell globale, lo Smart Matching rientra nel pattern actions-area.
+Direzione di investigazione suggerita: la Cloud Function esiste già lato Google Cloud; il frontend deve solo esporre il trigger. Verificare se c'è già un endpoint/Edge Function Supabase che fa da proxy verso la Cloud Function, oppure se il frontend la chiama direttamente. Probabile pattern: bottone → loading state → refresh della kanban (o aggiunta ottimistica allo stage Prospetto).
+Considerazione UX fuori scope di questo issue ma da tenere a mente: feedback durante l'esecuzione (può essere long-running), gestione errori, e cosa succede se ci sono già lavoratori in Prospetto da una precedente esecuzione.
+
+[RIC-004] Aggiungere bottone "+ Aggiungi" per inserire un lavoratore nella ricerca
+Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — header pagina / sezione "Lavoratori per questa ricerca" Effort: M (1-4h)
+Sintomo / Cosa succede ora Nel detail di una ricerca non è presente alcun bottone per aggiungere manualmente un lavoratore alla ricerca. L'operatore non ha modo, dall'interfaccia, di inserire un lavoratore specifico pescandolo dal db lavoratori.
+Atteso / Cosa dovrebbe succedere Nell'header della pagina detail ricerca, in alto a destra, va aggiunto un bottone "+ Aggiungi" (come da primo screenshot nell'issue RIC-003). Il bottone apre una modale "Aggiungi lavoratore" con:
+Campo search "Cerca lavoratore" per nome o email, che interroga il db lavoratori.
+Campo testo "Motivazione" (obbligatorio) — "Scrivi perché l'hai selezionato per questa ricerca".
+Bottoni "Annulla" / "Aggiungi lavoratore".
+Al submit, il lavoratore viene inserito di default nello stage "Prospetto" della kanban.
+Se il lavoratore selezionato è già presente in uno qualsiasi degli stage della ricerca, il submit deve fallire con un messaggio di errore chiaro tipo "Lavoratore già presente in questa ricerca" (o equivalente), senza creare duplicati.
+Come riferimento visivo della modale, vedi il secondo screenshot allegato.
+Note Dipendenza con l'issue globale "Page shell standard" come per RIC-003: il bottone vive nella zona actions dell'header di pagina, accanto a "Smart Matching".
+Direzione di investigazione suggerita: il search sul db lavoratori probabilmente può riusare l'Edge Function lookup-values o table-query se già espongono la query su lavoratori, altrimenti serve endpoint dedicato. Per il check duplicato: validazione preferibilmente lato Edge Function create-record (single source of truth) piuttosto che solo lato client, così da evitare race condition se due operatori aggiungono contemporaneamente lo stesso lavoratore.
+Considerazione UX fuori scope: il "Cerca lavoratore" dovrà probabilmente mostrare risultati con contesto minimo (età, skill, zona) per aiutare il recruiter a scegliere il lavoratore giusto tra omonimi — può essere un follow-up issue.
+
+[RIC-005] Mostrare il travel time nella card lavoratore della kanban
+Tag: [MISSING] (regressione) Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — card lavoratore negli stage della kanban Effort: S (<1h)
+Sintomo / Cosa succede ora Le card dei lavoratori negli stage della kanban (Candidati, Da colloquiare, Selezionato, ecc.) non mostrano il travel time tra il domicilio del lavoratore e il luogo di lavoro della famiglia. Attualmente la card mostra età, skill, part-time, CAP, telefono, anni di esperienza casa, anni di esperienza lavoro — ma non il travel time.
+Atteso / Cosa dovrebbe succedere Ogni card lavoratore deve mostrare il travel time tra il domicilio del lavoratore e l'indirizzo della famiglia della ricerca. Il dato è una feature che esisteva già nel vecchio backoffice e va ripristinata nel nuovo.
+Note Il valore è già disponibile nel payload restituito dal backend — si tratta solo di renderizzarlo nella card. Nessun lavoro lato dati.
+
+[RIC-006] Mostrare indicatore availability score sulla card lavoratore
+Tag: [MISSING] (regressione) Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — card lavoratore negli stage della kanban Effort: S (<1h)
+Sintomo / Cosa succede ora La card del lavoratore non mostra alcun indicatore visivo dell'availability score del lavoratore. Se un lavoratore diventa poco disponibile o non disponibile, il recruiter non ha segnale in card — deve aprire il profilo per saperlo. Il dato è valorizzato (non ci dovrebbero essere casi in cui l'availability score sia null).
+Atteso / Cosa dovrebbe succedere Sulla foto del lavoratore, in basso a destra (pattern "status dot" stile social network), va mostrato un pallino colorato che codifica l'availability score secondo queste soglie:
+< 30 → rosso (poco/non disponibile)
+30 – 60 → giallo (disponibilità intermedia)
+> 60 → verde (pienamente disponibile)
+Da definire in implementazione: comportamento esatto ai bordi (inclusivo/esclusivo su 30 e 60) — il SWE lo allinea con Nicolò.
+Note Dato sempre valorizzato, quindi nessun fallback "pallino grigio" o assente da gestire. Feature presente nel vecchio backoffice e non ancora portata nel nuovo.
+Direzione di investigazione suggerita: identificare il field name nel payload lavoratori (probabile naming tipo availability_score o simile) e aggiungerlo al componente avatar/card. Il pallino può essere un overlay assoluto sull'avatar container, riusabile come componente se serve altrove (es. pagina Assegnazione, Anagrafica lavoratore).
+
+[RIC-007] Mostrare sulla card lavoratore il coinvolgimento in altre selezioni attive
+Tag: [MISSING] Severity: high Page/Component: Ricerca → Ricerche attive (detail ricerca) — card lavoratore negli stage della kanban Effort: L (>4h)
+Sintomo / Cosa succede ora La card del lavoratore non mostra se e in quali altre ricerche attive il lavoratore è coinvolto. Questa informazione è critica per decidere se chiamare il lavoratore: se è già impegnato in selezioni avanzate altrove, il recruiter deve saperlo prima di investirci sopra.
+Atteso / Cosa dovrebbe succedere Sulla card del lavoratore va mostrato un indicatore compatto del numero di selezioni attive in cui è coinvolto (es. "2 altre selezioni") con pallini colorati che codificano lo stage delle altre selezioni (es. verde = Selezionato, arancio = Da colloquiare, ecc.).
+In hover/over sull'indicatore, tooltip o popover deve mostrare, per ogni altra selezione attiva:
+Stato del lavoratore in quella selezione
+Ricerca di riferimento (nome famiglia / ID ricerca)
+Come riferimento visivo del pattern desiderato, vedi lo screenshot allegato (riga "2 altre selezioni" con i due pallini). Il pattern non esiste ancora da nessuna parte nel sistema, va disegnato da zero.
+Note La logica di cosa conti come "selezione attiva" è definita nel campo Airtable stati_processi_res_in_selezione sul profilo del lavoratore — il SWE deve chiedere a Nicolò i dettagli della formula prima di implementare. In sintesi: è un rollup/lookup che, a partire dal lavoratore, guarda tutti i lavoratori_selezionati collegati e il loro stato, incrociandolo con lo stato della ricerca (processo_res) e con lo stato di situazione lavorativa del lavoratore, per determinare se quella selezione è "attiva".
+Importante per l'implementazione: questa logica probabilmente non è ancora stata replicata lato Supabase nel nuovo backoffice. Non è semplicissima perché è un campo che, a livello lavoratore, aggrega stati di entità collegate (lavoratori_selezionati + processi_res) e va reso disponibile a sua volta su ogni lavoratore_selezionato. Non è complicatissimo: vanno lette bene le condizioni in Airtable e replicate come view/funzione/field computato su Supabase. Da qui l'effort L.
+Dipendenza: questo issue dipende dalla disponibilità del dato lato backend. Se la replica della formula lato Supabase non è ancora iniziata, il SWE potrebbe dover aprire un sotto-task backend prima del lavoro frontend.
+Dipendenza design: il componente "altre selezioni + tooltip con dettagli" è un pattern nuovo — potrebbe rientrare negli issue globali di design system alignment se decidiamo di renderlo componente condiviso (utile anche altrove, es. Assegnazione).
+
+
+[RIC-008] Esporre stato ricerca (processo_res) editabile in cima alla colonna info famiglia
+Tag: [MISSING] Severity: high Page/Component: Ricerca → Ricerche attive (detail ricerca) — colonna sinistra info famiglia Effort: S (<1h)
+Sintomo / Cosa succede ora Nel detail della ricerca non è esposto lo stato della ricerca complessiva (processo_res). Il recruiter non può leggere né modificare questo stato dall'interfaccia della ricerca attiva.
+Atteso / Cosa dovrebbe succedere In cima alla colonna info famiglia, sotto il nome famiglia e sopra gli altri dati, va esposto un campo "STATO" come dropdown editabile che mostra lo stato corrente della ricerca (processo_res) e permette al recruiter di cambiarlo.
+I valori del dropdown sono quelli della pipeline processo_res standard (es. Match, Stand by, No match, In prova con lavoratore, ecc.). Lo stato corrente mostra anche un'icona/pallino colorato coerente con il valore (es. ✓ verde per "Match", come da screenshot di riferimento).
+Vedi screenshot mockup allegato per il posizionamento e lo stile.
+Note Il campo esiste già a DB (pipeline processo_res). Questo issue copre solo esposizione + edit lato frontend nella pagina detail ricerca.
+Direzione di investigazione suggerita: il dropdown probabilmente può riusare il componente select già esistente per gli stati pipeline (es. quello usato nel Sales Pipeline). L'update passa via Edge Function update-process-stato-sales o equivalente per processo_res — verificare quale endpoint è già disponibile.
+
+[RIC-009] Esporre tipologia incontro editabile nella colonna info famiglia
+Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — colonna sinistra info famiglia Effort: S (<1h)
+Sintomo / Cosa succede ora Nel detail della ricerca non è esposto il campo "tipologia di incontro", che definisce se il primo incontro con il lavoratore sarà un colloquio conoscitivo o una prova diretta.
+Atteso / Cosa dovrebbe succedere Nella colonna info famiglia, subito sotto lo stato ricerca, va aggiunto un campo "TIPOLOGIA DI INCONTRO" come dropdown editabile con due valori possibili:
+Colloquio conoscitivo
+Prova diretta
+Vedi screenshot mockup allegato per posizionamento e stile.
+Note Il campo esiste già a DB. Questo issue copre solo esposizione + edit lato frontend nella pagina detail ricerca.
+
+
+[RIC-010] Riorganizzare la colonna info famiglia in 5 sezioni collassabili
+
+
+Tag: [UX] Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — colonna sinistra info famiglia Effort: M (1-4h)
+Sintomo / Cosa succede ora I campi descrittivi della famiglia/ricerca sono attualmente raggruppati in un'unica sezione conglomerata (in screenshot precedenti: Orari e frequenza + Descrizione lavoro + Luogo di lavoro tutto insieme). Questo rende difficile la lettura e impedisce di nascondere temporaneamente le sezioni non rilevanti.
+Atteso / Cosa dovrebbe succedere I campi devono essere riorganizzati in 5 sezioni separate e collassabili, nell'ordine:
+Orari e frequenza
+Richieste famiglia
+Luogo di lavoro
+Famiglia
+Casa
+Ogni sezione ha:
+Header con icona + nome sezione in maiuscolo + chevron per collassare/espandere
+Possibilità di essere chiusa (collapsed) o aperta (expanded) indipendentemente dalle altre
+I campi esistenti vanno ridistribuiti nelle nuove 5 sezioni senza aggiungere né rimuovere dati — è puro raggruppamento diverso.
+Vedi screenshot mockup allegato per il layout finale atteso.
+Note Dipendenza: la mappatura precisa di "quale campo attuale va in quale nuova sezione" va definita in fase di implementazione con Nicolò, perché i nomi delle sezioni nuove non corrispondono 1:1 a quelli attuali (es. "Richieste famiglia" vs "Descrizione lavoro" — probabilmente includerà mansioni richieste, richiesta patente, richiesta trasferte, età lavoratore, sesso, ecc.).
+Direzione di investigazione suggerita: probabile componente CollapsibleSection riusabile da creare se non esiste già. Lo stato aperto/chiuso può essere locale (non persistito) in prima battuta.
+
+[RIC-011] Aggiungere sezione "Annuncio" con brief copiabile nella colonna info famiglia
+Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — colonna sinistra info famiglia Effort: S (<1h)
+Sintomo / Cosa succede ora Nel detail della ricerca non è presente una sezione "Annuncio" che mostri il brief della ricerca già formattato per essere inviato via WhatsApp. Il recruiter che deve spammare il brief su canali esterni deve ricostruirlo manualmente o recuperarlo da altre pagine.
+Atteso / Cosa dovrebbe succedere Aggiungere una sezione collassabile "Annuncio" nella colonna info famiglia (dopo le 5 sezioni di RIC-010, posizione finale da confermare in implementazione) che contiene:
+Il brief/annuncio della ricerca in formato testo (stile WhatsApp).
+Un bottone "Copia" che copia il testo del brief negli appunti.
+Il brief è già generato dalla pipeline Sales, quindi il campo è disponibile a DB. Questa sezione lo espone anche nella pagina detail ricerca (oltre che nella Sales Pipeline dove è già visibile).
+Note Il brief non è da generare: è già popolato dalla pipeline Sales ed esiste come campo sul record ricerca. Questo issue copre solo esposizione frontend + funzionalità copia.
+Direzione di investigazione suggerita: verificare il field name del brief sul record ricerca (probabilmente qualcosa tipo annuncio_whatsapp o brief). Per il copy-to-clipboard, usare navigator.clipboard.writeText() con feedback visivo (es. toast "Copiato!" o cambio temporaneo del bottone).
+
+[RIC-012] Esporre label e valore dei dropdown "Stato lavoratore" e "Disponibile" nel detail lavoratore
+Tag: [BUG] Severity: high Page/Component: Ricerca → Ricerche attive (detail ricerca) — detail panel lavoratore (aperto cliccando su card lavoratore dalla kanban) Effort: S (<1h)
+Sintomo / Cosa succede ora Nel detail panel del lavoratore (aperto dalla card in kanban) sono presenti due dropdown verdi accanto ai dati di contatto (email, telefono) ma non mostrano né il label del campo né il valore corrente. Dal punto di vista dell'utente appaiono come due box vuoti non identificabili: non si capisce che campi siano né cosa contengano.
+I due campi sono stato_lavoratore (stato situazione lavorativa anagrafica: attivo / non attivo / blacklisted / ecc.) e disponibile (campo correlato ma distinto dall'availability score).
+Atteso / Cosa dovrebbe succedere I due dropdown devono:
+Mostrare il label del campo sopra o accanto al dropdown (es. "STATO LAVORATORE" e "DISPONIBILE") in modo coerente con gli altri campi della colonna famiglia (RIC-008, RIC-009).
+Mostrare il valore corrente del campo sul record lavoratore.
+Essere editabili: cambiare il valore nel dropdown salva il nuovo valore sul record lavoratore.
+Come riprodurre
+Andare su CRM famiglie → Ricerca → Ricerche attive
+Aprire una ricerca
+Cliccare su una card lavoratore nella kanban per aprire il detail panel
+Notare i due dropdown verdi nella sezione header del lavoratore, senza label né valore visibili
+Note Lo stato stato_lavoratore è lo stesso campo "situazione lavorativa" usato nella logica di RIC-007 (coinvolgimento in altre selezioni attive). Coerenza importante: se lo stato lavoratore viene cambiato qui a "non attivo", il conteggio "altre selezioni attive" di RIC-007 dovrebbe riflettere il cambio (dipendenza logica, non di implementazione).
+Direzione di investigazione suggerita: probabilmente il componente dropdown è stato renderizzato senza passare label e value props correttamente, oppure sta facendo rendering prima che il payload del lavoratore sia risolto. Verificare lo stato di loading e il binding dei campi nel componente detail panel lavoratore.

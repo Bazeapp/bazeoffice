@@ -1,0 +1,60 @@
+# Roadmap fix
+
+## Blocker
+- [x] [ANA-002] Filtri su campi enum restituiscono sempre 0 record
+
+## High
+- [x] [ANA-001] Aggiungere operatore has any of per enum singoli nel query builder
+- [x] [ANA-003] Componente filtri si corrompe quando la query restituisce 0 record
+- [x] [ANA-004] Tipizzazione dei campi nel query builder si perde dopo navigazione e dopo aver applicato un filtro
+- [x] [ANA-006] Operatori is e is not sui campi testuali sono case-sensitive (incoerenti con gli altri operatori testuali)
+- [x] [CRM-002] Dopo un drag di una card tra colonne, il click sulle card non apre più il modale di dettaglio
+- [x] [ASS-004] Colonna "Da assegnare" mostra 239 ricerche invece del sottoinsieme atteso
+- [x] [Workflow] Creazione gestione rapporto lavorativo dopo il Match
+- [ ] [RIC-007] Mostrare sulla card lavoratore il coinvolgimento in altre selezioni attive
+  Note: il dato backend è già disponibile nel campo `active_selection_json` della tab `lavoratori`, che contiene una lista di selezioni attive da considerare (può avere uno o più id). Esempio: `{"sources":[{"type":"active_selection","id":"recKPNpeJ1nMfh86A","effect":"block","weekly":{"mon":[{"from":"10:00","to":"14:00"}],"tue":[{"from":"10:00","to":"14:00"}],"wed":[{"from":"10:00","to":"14:00"}],"thu":[{"from":"10:00","to":"14:00"}],"fri":[{"from":"10:00","to":"14:00"}],"sat":[],"sun":[]}}]}`
+- [ ] [RIC-008] Esporre stato ricerca (processo_res) editabile in cima alla colonna info famiglia
+- [ ] [RIC-012] Esporre label e valore dei dropdown "Stato lavoratore" e "Disponibile" nel detail lavoratore
+
+## Medium
+- [x] [G-001] Aggiungere campi ruolo (multi-valore) e attivo alla tabella operatori
+- [x] [ANA-005] Operatore between nel query builder accetta solo un valore invece di due
+- [x] [ANA-007] Ripristinare panel laterale di dettaglio record (read-only) al click sulla riga
+- [x] [ANA-008] Export CSV della vista filtrata sulle pagine Anagrafiche
+- [x] [ANA-009] Aggiungere visualizzazioni anagrafiche per Mesi Lavorati, Pagamenti, Selezioni Lavoratori e Rapporti Lavorativi
+- [x] [ANA-010] Search bar della pagina Processi cerca solo per ID, non per identificativi famiglia
+- [x] [CRM-001] Scroll verticale della pipeline famiglie avviene a livello di board invece che dentro le singole colonne
+- [x] [CRM-003] Mostrare data e ora della call prenotata sulla card della Pipeline Famiglie
+- [x] [CRM-004] Mostrare tentativi di chiamata senza risposta sulla card della Pipeline Famiglie (solo nella colonna "HOT - In attesa di primo contatto")
+- [x] [CRM-005] Mostrare stato "Preventivo accettato" come checkbox sulla card della Pipeline Famiglie
+- [x] [CRM-006] Ordinamento delle card nelle colonne della Pipeline Famiglie
+- [x] [CRM-008] Header sticky ricco nel detail sheet della Pipeline Famiglie (allineare al pattern già usato in altre sezioni)
+- [x] [CRM-009] Riorganizzare la gerarchia delle sezioni del detail sheet della Pipeline Famiglie
+- [x] [CRM-010] Tabs di navigazione nel detail sheet della Pipeline Famiglie (allineare al pattern già usato in altre sezioni)
+- [x] [CRM-012] Sezione "Onboarding" contestuale dinamica nel detail sheet della Pipeline Famiglie
+- [x] [ASS-001] Dropdown "Tutti i recruiter" nella pagina Assegnazione mostra tutti gli operatori invece dei soli recruiter attivi
+- [x] [ASS-002] Scroll verticale della kanban di Assegnazione avviene a livello di board invece che dentro le singole colonne
+- [x] [ASS-003] Ridurre le colonne giorno visibili da 5 a 3 con navigazione per frecce
+- [x] [ASS-005] Aggiungere link "Vai alla ricerca" nel detail sheet della pagina Assegnazione
+- [x] [ASS-006] Colore delle card nella colonna "Da assegnare" basato sulla deadline, non sull'assegnatario
+- [x] [ASS-007] Ordinamento delle card nelle colonne giorno per recruiter (con grouping collassabile come nice-to-have)
+- [x] [Workflow] Avvio Smart-Matching
+- [x] [Workflow] Creare titolo SEO e lo slug per la Job Offer
+- [ ] [RIC-002] Filtrare il dropdown "Operatori" ai soli recruiter attivi
+- [ ] [RIC-003] Aggiungere bottone "Smart Matching" nell'header della pagina detail ricerca
+- [ ] [RIC-004] Aggiungere bottone "+ Aggiungi" per inserire un lavoratore nella ricerca
+- [ ] [RIC-005] Mostrare il travel time nella card lavoratore della kanban
+- [ ] [RIC-006] Mostrare indicatore availability score sulla card lavoratore
+- [ ] [RIC-009] Esporre tipologia incontro editabile nella colonna info famiglia
+- [ ] [RIC-010] Riorganizzare la colonna info famiglia in 5 sezioni collassabili
+- [ ] [RIC-011] Aggiungere sezione "Annuncio" con brief copiabile nella colonna info famiglia
+
+## Low
+- [x] [CRM-007] Mostrare data di ricontatto futuro sulla card della Pipeline Famiglie
+- [x] [CRM-011] Semplificare la sezione "Creazione annuncio" con un bottone unico e workflow di automazione unificato
+- [x] [Email] Invia richiesta dati alla famiglia per fare la fattura
+- [x] [Data Cleaning] Fatturare pagamento
+- [ ] [RIC-001] Fissare orizzontalmente la colonna info ricerca nella kanban Ricerche attive
+
+## Note completate fuori roadmap
+- [x] Grouping server-side Anagrafiche con conteggi globali, lazy load dei gruppi e applicazione esplicita dal popover.

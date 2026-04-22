@@ -7,6 +7,7 @@ import {
   ChevronRightIcon,
   Clock3Icon,
   FilterXIcon,
+  LinkIcon,
   MapPinIcon,
   PencilIcon,
 } from "lucide-react";
@@ -126,19 +127,21 @@ function formatDayLabel(date: Date) {
   }).format(date);
 }
 
-function startOfWeekMonday(input: Date) {
+function startOfDay(input: Date) {
   const date = new Date(input);
-  const day = date.getDay();
-  const delta = day === 0 ? -6 : 1 - day;
-  date.setDate(date.getDate() + delta);
   date.setHours(0, 0, 0, 0);
   return date;
 }
 
-function buildWeekDays(weekStart: Date) {
-  return Array.from({ length: 5 }).map((_, index) => {
-    const date = new Date(weekStart);
-    date.setDate(weekStart.getDate() + index);
+function addDays(input: Date, days: number) {
+  const date = new Date(input);
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+function buildVisibleDays(windowStart: Date) {
+  return Array.from({ length: 3 }).map((_, index) => {
+    const date = addDays(windowStart, index);
     return {
       key: toDateKey(date),
       date,
@@ -169,6 +172,39 @@ function getAssigneeAccentClass(assigneeId: AssigneeValue) {
   return (
     variants[hashString(assigneeId) % variants.length] ?? "border-l-zinc-400"
   );
+}
+
+function getDeadlineTime(value: string | null | undefined) {
+  const isoDate = value ? toIsoDateInput(value) : "";
+  if (!isoDate) return Number.POSITIVE_INFINITY;
+  const parsed = new Date(`${isoDate}T00:00:00`);
+  return Number.isNaN(parsed.getTime())
+    ? Number.POSITIVE_INFINITY
+    : parsed.getTime();
+}
+
+function getDeadlineAccentClass(deadline: string | null | undefined) {
+  const deadlineTime = getDeadlineTime(deadline);
+  if (!Number.isFinite(deadlineTime)) return "border-l-zinc-300";
+
+  const today = startOfDay(new Date()).getTime();
+  const daysUntilDeadline = Math.floor(
+    (deadlineTime - today) / (24 * 60 * 60 * 1000),
+  );
+
+  if (daysUntilDeadline <= 3) return "border-l-red-500";
+  if (daysUntilDeadline <= 7) return "border-l-emerald-500";
+  return "border-l-zinc-300";
+}
+
+function compareByDeadlineAsc(
+  first: AssegnazioneCardData,
+  second: AssegnazioneCardData,
+) {
+  const deadlineDelta =
+    getDeadlineTime(first.deadlineMobile) - getDeadlineTime(second.deadlineMobile);
+  if (deadlineDelta !== 0) return deadlineDelta;
+  return first.nomeFamiglia.localeCompare(second.nomeFamiglia, "it");
 }
 
 function getAssigneeAvatarBorderClass(assigneeId: AssigneeValue) {
@@ -243,6 +279,7 @@ function AssegnazioneSearchCard({
   assigneeLabel,
   assigneeAvatar,
   assigneeOptions,
+  accentClassName,
   onAssigneeChange,
 }: {
   data: AssegnazioneCardData;
@@ -250,13 +287,14 @@ function AssegnazioneSearchCard({
   assigneeLabel: string;
   assigneeAvatar: string;
   assigneeOptions: Array<{ id: string; label: string }>;
+  accentClassName: string;
   onAssigneeChange: (assigneeId: AssigneeValue) => void;
 }) {
   return (
     <Card
       className={cn(
         "cursor-pointer border border-border/70 border-l-4 bg-white py-1.5 gap-0 shadow-none transition-shadow hover:shadow-md",
-        getAssigneeAccentClass(assigneeId),
+        accentClassName,
       )}
     >
       <CardContent className="space-y-1 px-3 py-1">
@@ -367,12 +405,14 @@ function AssegnazioneDetailSheet({
   card,
   operatorOptions,
   onPatchCard,
+  onOpenRicerca,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   card: AssegnazioneCardData | null;
   operatorOptions: Array<{ id: string; label: string }>;
   onPatchCard: (patch: Record<string, unknown>) => Promise<void>;
+  onOpenRicerca: (processId: string) => void;
 }) {
   const [isEditingScheduling, setIsEditingScheduling] = React.useState(false);
   const [isSavingScheduling, setIsSavingScheduling] = React.useState(false);
@@ -428,8 +468,8 @@ function AssegnazioneDetailSheet({
       void onPatchCard({
         stato_res:
           schedulingDraft.statoRes === "fare_ricerca"
-            ? "Fare ricerca"
-            : "Da assegnare",
+            ? "fare ricerca"
+            : "da assegnare",
         recruiter_ricerca_e_selezione_id: schedulingDraft.recruiterId || null,
         data_assegnazione: schedulingDraft.dataAssegnazione || null,
         deadline_mobile: schedulingDraft.deadlineMobile || null,
@@ -465,6 +505,55 @@ function AssegnazioneDetailSheet({
 
         {card ? (
           <div className="space-y-4 px-4 pb-6 text-sm">
+            <DetailSectionBlock
+              title="Ricerca collegata"
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onOpenRicerca(card.id)}
+                >
+                  <LinkIcon className="size-4" />
+                  Vai alla ricerca
+                </Button>
+              }
+              contentClassName="grid grid-cols-1 gap-3"
+            >
+              <div>
+                <p className="text-lg font-semibold">{card.nomeFamiglia}</p>
+                <p className="text-muted-foreground text-xs">
+                  ID ricerca: {card.id}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <p className="ui-type-label">Stato</p>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-5 w-fit px-2 text-[11px] font-medium",
+                      getStatoResBadgeClassName(card.statoRes),
+                    )}
+                  >
+                    {card.statoResLabel}
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  <p className="ui-type-label">Deadline</p>
+                  <p className="font-medium">{card.deadlineMobile}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="ui-type-label">Tipo</p>
+                  <p className="font-medium">
+                    {card.tipoRicerca === "sostituzione"
+                      ? "Sostituzione"
+                      : "Nuova"}
+                  </p>
+                </div>
+              </div>
+            </DetailSectionBlock>
+
             <DetailSectionBlock
               title="Stato e assegnazione"
               action={
@@ -704,12 +793,21 @@ function AssegnazioneDetailSheet({
   );
 }
 
-export function CrmAssegnazioneView() {
+type CrmAssegnazioneViewProps = {
+  onOpenRicercaDetail?: (processId: string) => void;
+};
+
+export function CrmAssegnazioneView({
+  onOpenRicercaDetail,
+}: CrmAssegnazioneViewProps = {}) {
   const { loading, error, cards, assignCardToDate, patchCard } =
     useCrmAssegnazione();
-  const { options: operatorOptions } = useOperatoriOptions();
-  const [currentWeekStart, setCurrentWeekStart] = React.useState(() =>
-    startOfWeekMonday(new Date()),
+  const { options: operatorOptions } = useOperatoriOptions({
+    role: "recruiter",
+    activeOnly: true,
+  });
+  const [visibleWindowStart, setVisibleWindowStart] = React.useState(() =>
+    addDays(startOfDay(new Date()), -1),
   );
   const [draggingProcessId, setDraggingProcessId] = React.useState<
     string | null
@@ -727,7 +825,6 @@ export function CrmAssegnazioneView() {
   const [tipoRicercaFilter, setTipoRicercaFilter] = React.useState<
     "all" | "nuova" | "sostituzione"
   >("all");
-  const draggedCardIdsRef = React.useRef<Set<string>>(new Set());
   const cardPointerStateRef = React.useRef<
     Map<string, { x: number; y: number; exceededThreshold: boolean }>
   >(new Map());
@@ -743,18 +840,9 @@ export function CrmAssegnazioneView() {
     });
   }, [cards]);
 
-  const weeks = React.useMemo(() => {
-    return [currentWeekStart].map((start) => ({
-      id: 0,
-      start,
-      days: buildWeekDays(start),
-      isCurrent: true,
-    }));
-  }, [currentWeekStart]);
-
-  const allDays = React.useMemo(
-    () => weeks.flatMap((week) => week.days),
-    [weeks],
+  const visibleDays = React.useMemo(
+    () => buildVisibleDays(visibleWindowStart),
+    [visibleWindowStart],
   );
 
   const getCardAssigneeId = React.useCallback(
@@ -778,9 +866,30 @@ export function CrmAssegnazioneView() {
     });
   }, [assigneeFilter, cards, getCardAssigneeId, tipoRicercaFilter]);
 
+  const assigneeById = React.useMemo(() => {
+    const map = new Map<string, { label: string; avatar: string }>();
+    for (const option of operatorOptions) {
+      map.set(option.id, { label: option.label, avatar: option.avatar });
+    }
+    return map;
+  }, [operatorOptions]);
+
+  const compareByAssigneeName = React.useCallback(
+    (first: AssegnazioneCardData, second: AssegnazioneCardData) => {
+      const firstAssigneeId = getCardAssigneeId(first);
+      const secondAssigneeId = getCardAssigneeId(second);
+      const firstLabel = assigneeById.get(firstAssigneeId)?.label ?? "";
+      const secondLabel = assigneeById.get(secondAssigneeId)?.label ?? "";
+      const assigneeDelta = firstLabel.localeCompare(secondLabel, "it");
+      if (assigneeDelta !== 0) return assigneeDelta;
+      return first.nomeFamiglia.localeCompare(second.nomeFamiglia, "it");
+    },
+    [assigneeById, getCardAssigneeId],
+  );
+
   const cardsByDate = React.useMemo(() => {
     const map = new Map<string, AssegnazioneCardData[]>();
-    for (const day of allDays) {
+    for (const day of visibleDays) {
       map.set(day.key, []);
     }
     for (const card of filteredCards) {
@@ -788,11 +897,19 @@ export function CrmAssegnazioneView() {
       if (!map.has(card.dataAssegnazione)) continue;
       map.get(card.dataAssegnazione)?.push(card);
     }
+    for (const dayCards of map.values()) {
+      dayCards.sort(compareByAssigneeName);
+    }
     return map;
-  }, [allDays, filteredCards]);
+  }, [compareByAssigneeName, visibleDays, filteredCards]);
 
   const unassignedCards = React.useMemo(
-    () => filteredCards.filter((card) => !card.dataAssegnazione),
+    () =>
+      filteredCards
+        .filter(
+          (card) => card.statoRes === "da_assegnare" && !card.dataAssegnazione,
+        )
+        .sort(compareByDeadlineAsc),
     [filteredCards],
   );
   const unassignedGroupedByTipoRicerca = React.useMemo(() => {
@@ -804,14 +921,6 @@ export function CrmAssegnazioneView() {
     );
     return { nuove, sostituzioni };
   }, [unassignedCards]);
-
-  const assigneeById = React.useMemo(() => {
-    const map = new Map<string, { label: string; avatar: string }>();
-    for (const option of operatorOptions) {
-      map.set(option.id, { label: option.label, avatar: option.avatar });
-    }
-    return map;
-  }, [operatorOptions]);
 
   const applyAssigneeChange = React.useCallback(
     async (card: AssegnazioneCardData, nextAssigneeId: AssigneeValue) => {
@@ -863,10 +972,6 @@ export function CrmAssegnazioneView() {
 
   const handleOpenCardDetails = React.useCallback(
     (card: AssegnazioneCardData) => {
-      if (draggedCardIdsRef.current.has(card.id)) {
-        draggedCardIdsRef.current.delete(card.id);
-        return;
-      }
       setSelectedCard(card);
       setIsSheetOpen(true);
     },
@@ -878,7 +983,6 @@ export function CrmAssegnazioneView() {
       event.dataTransfer.setData("text/plain", processId);
       event.dataTransfer.effectAllowed = "move";
       cardPointerStateRef.current.delete(processId);
-      draggedCardIdsRef.current.add(processId);
       setDraggingProcessId(processId);
     },
     [],
@@ -910,7 +1014,6 @@ export function CrmAssegnazioneView() {
       const deltaY = Math.abs(event.clientY - pointerState.y);
       if (deltaX > DRAG_POINTER_THRESHOLD || deltaY > DRAG_POINTER_THRESHOLD) {
         pointerState.exceededThreshold = true;
-        draggedCardIdsRef.current.add(processId);
       }
     },
     [],
@@ -929,15 +1032,27 @@ export function CrmAssegnazioneView() {
     [cards, selectedCard],
   );
 
+  const handleOpenRicerca = React.useCallback(
+    (processId: string) => {
+      if (onOpenRicercaDetail) {
+        onOpenRicercaDetail(processId);
+        return;
+      }
+
+      window.location.assign(`/ricerca/${encodeURIComponent(processId)}`);
+    },
+    [onOpenRicercaDetail],
+  );
+
   return (
-    <section className="w-full min-w-0 space-y-4">
+    <section className="flex h-full min-h-0 w-full min-w-0 flex-col gap-4 overflow-hidden">
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento assegnazione: {error}
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex shrink-0 items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Select
             value={assigneeFilter}
@@ -991,7 +1106,7 @@ export function CrmAssegnazioneView() {
         )}
       </div>
 
-      <div className="grid h-full min-h-0 min-w-0 grid-cols-1 gap-3 xl:grid-cols-[292px_minmax(0,1fr)]">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 overflow-hidden xl:grid-cols-[292px_minmax(0,1fr)]">
         <SideCardsPanel
           title="Da assegnare"
           icon={CalendarDaysIcon}
@@ -1093,6 +1208,9 @@ export function CrmAssegnazioneView() {
                           assigneeId={assigneeId}
                           assigneeLabel={assigneeMeta?.label ?? "Non assegnato"}
                           assigneeAvatar={assigneeMeta?.avatar ?? "-"}
+                          accentClassName={getDeadlineAccentClass(
+                            card.deadlineMobile,
+                          )}
                           assigneeOptions={operatorOptions.map((option) => ({
                             id: option.id,
                             label: option.label,
@@ -1153,6 +1271,9 @@ export function CrmAssegnazioneView() {
                           assigneeId={assigneeId}
                           assigneeLabel={assigneeMeta?.label ?? "Non assegnato"}
                           assigneeAvatar={assigneeMeta?.avatar ?? "-"}
+                          accentClassName={getDeadlineAccentClass(
+                            card.deadlineMobile,
+                          )}
                           assigneeOptions={operatorOptions.map((option) => ({
                             id: option.id,
                             label: option.label,
@@ -1170,144 +1291,147 @@ export function CrmAssegnazioneView() {
           )}
         </SideCardsPanel>
 
-        <div className="flex h-full flex-col gap-2">
-          {weeks.map((week) => (
-            <div
-              key={toDateKey(week.start)}
-              className="h-full rounded-lg border p-2"
-            >
-              <div className="grid h-full grid-cols-5 gap-2">
-                {week.days.map((day) => {
-                  const dayCards = cardsByDate.get(day.key) ?? [];
-                  return (
-                    <div
-                      key={day.key}
-                      className={cn(
-                        "bg-muted/30 h-full min-h-0 rounded-lg border p-2 transition-all",
-                        dropTarget === day.key && "ring-primary/40 ring-2",
-                      )}
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = "move";
-                        setDropTarget(day.key);
-                      }}
-                      onDragLeave={(event) => {
-                        const rect =
-                          event.currentTarget.getBoundingClientRect();
-                        const stillInside =
-                          event.clientX >= rect.left &&
-                          event.clientX <= rect.right &&
-                          event.clientY >= rect.top &&
-                          event.clientY <= rect.bottom;
-                        if (stillInside) return;
-                        setDropTarget(null);
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        const droppedProcessId =
-                          event.dataTransfer.getData("text/plain") || null;
-                        handleDrop(day.key, droppedProcessId);
-                      }}
-                    >
-                      <div className="mb-2 border-b pb-2">
-                        <p className="text-xs font-semibold">{day.label}</p>
-                        <p className="text-muted-foreground text-[11px]">
-                          {dayCards.length}{" "}
-                          {dayCards.length === 1 ? "ricerca" : "ricerche"}
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        {dayCards.length === 0 ? (
-                          <p className="text-muted-foreground text-xs">
-                            Nessuna assegnazione
-                          </p>
-                        ) : (
-                          dayCards.map((card) => {
-                            const assigneeId = getCardAssigneeId(card);
-                            const assigneeMeta = assigneeById.get(assigneeId);
-                            return (
-                              <div
-                                key={card.id}
-                                draggable
-                                onClick={() => handleOpenCardDetails(card)}
-                                onDragStart={(event) =>
-                                  onCardDragStart(event, card.id)
-                                }
-                                onDragEnd={onCardDragEnd}
-                                onPointerDown={(event) =>
-                                  onCardPointerDown(event, card.id)
-                                }
-                                onPointerMove={(event) =>
-                                  onCardPointerMove(event, card.id)
-                                }
-                                onPointerUp={() => onCardPointerUp(card.id)}
-                                onPointerCancel={() =>
-                                  onCardPointerCancel(card.id)
-                                }
-                                className={cn(
-                                  "cursor-grab transition-opacity active:cursor-grabbing",
-                                  draggingProcessId === card.id && "opacity-40",
-                                )}
-                              >
-                                <AssegnazioneSearchCard
-                                  data={card}
-                                  assigneeId={assigneeId}
-                                  assigneeLabel={
-                                    assigneeMeta?.label ?? "Non assegnato"
-                                  }
-                                  assigneeAvatar={assigneeMeta?.avatar ?? "-"}
-                                  assigneeOptions={operatorOptions.map(
-                                    (option) => ({
-                                      id: option.id,
-                                      label: option.label,
-                                    }),
-                                  )}
-                                  onAssigneeChange={(nextAssigneeId) => {
-                                    void applyAssigneeChange(
-                                      card,
-                                      nextAssigneeId,
-                                    );
-                                  }}
-                                />
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+        <div className="flex min-h-0 flex-col gap-2 overflow-hidden">
+          <div className="flex shrink-0 items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2">
+            <div>
+              <p className="text-sm font-semibold">Giorni assegnazione</p>
+              <p className="text-muted-foreground text-xs">
+                {visibleDays.map((day) => day.label).join(" · ")}
+              </p>
             </div>
-          ))}
-          <div className="flex justify-end gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              onClick={() => {
-                const next = new Date(currentWeekStart);
-                next.setDate(next.getDate() - 7);
-                setCurrentWeekStart(next);
-              }}
-              aria-label="Settimana precedente"
-            >
-              <ChevronLeftIcon className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              onClick={() => {
-                const next = new Date(currentWeekStart);
-                next.setDate(next.getDate() + 7);
-                setCurrentWeekStart(next);
-              }}
-              aria-label="Settimana successiva"
-            >
-              <ChevronRightIcon className="size-4" />
-            </Button>
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={() => {
+                  setVisibleWindowStart((current) => addDays(current, -1));
+                }}
+                aria-label="Giorno precedente"
+              >
+                <ChevronLeftIcon className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={() => {
+                  setVisibleWindowStart((current) => addDays(current, 1));
+                }}
+                aria-label="Giorno successivo"
+              >
+                <ChevronRightIcon className="size-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="min-h-0 flex-1 rounded-lg border p-2">
+            <div className="grid h-full min-h-0 grid-cols-3 gap-2">
+              {visibleDays.map((day) => {
+                const dayCards = cardsByDate.get(day.key) ?? [];
+                return (
+                  <div
+                    key={day.key}
+                    className={cn(
+                      "bg-muted/30 flex h-full min-h-0 flex-col rounded-lg border p-2 transition-all",
+                      dropTarget === day.key && "ring-primary/40 ring-2",
+                    )}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "move";
+                      setDropTarget(day.key);
+                    }}
+                    onDragLeave={(event) => {
+                      const rect =
+                        event.currentTarget.getBoundingClientRect();
+                      const stillInside =
+                        event.clientX >= rect.left &&
+                        event.clientX <= rect.right &&
+                        event.clientY >= rect.top &&
+                        event.clientY <= rect.bottom;
+                      if (stillInside) return;
+                      setDropTarget(null);
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const droppedProcessId =
+                        event.dataTransfer.getData("text/plain") || null;
+                      handleDrop(day.key, droppedProcessId);
+                    }}
+                  >
+                    <div className="mb-2 shrink-0 border-b pb-2">
+                      <p className="text-xs font-semibold">{day.label}</p>
+                      <p className="text-muted-foreground text-[11px]">
+                        {dayCards.length}{" "}
+                        {dayCards.length === 1 ? "ricerca" : "ricerche"}
+                      </p>
+                    </div>
+
+                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                      {dayCards.length === 0 ? (
+                        <p className="text-muted-foreground text-xs">
+                          Nessuna assegnazione
+                        </p>
+                      ) : (
+                        dayCards.map((card) => {
+                          const assigneeId = getCardAssigneeId(card);
+                          const assigneeMeta = assigneeById.get(assigneeId);
+                          return (
+                            <div
+                              key={card.id}
+                              draggable
+                              onClick={() => handleOpenCardDetails(card)}
+                              onDragStart={(event) =>
+                                onCardDragStart(event, card.id)
+                              }
+                              onDragEnd={onCardDragEnd}
+                              onPointerDown={(event) =>
+                                onCardPointerDown(event, card.id)
+                              }
+                              onPointerMove={(event) =>
+                                onCardPointerMove(event, card.id)
+                              }
+                              onPointerUp={() => onCardPointerUp(card.id)}
+                              onPointerCancel={() =>
+                                onCardPointerCancel(card.id)
+                              }
+                              className={cn(
+                                "cursor-grab transition-opacity active:cursor-grabbing",
+                                draggingProcessId === card.id && "opacity-40",
+                              )}
+                            >
+                              <AssegnazioneSearchCard
+                                data={card}
+                                assigneeId={assigneeId}
+                                assigneeLabel={
+                                  assigneeMeta?.label ?? "Non assegnato"
+                                }
+                                assigneeAvatar={assigneeMeta?.avatar ?? "-"}
+                                accentClassName={getAssigneeAccentClass(
+                                  assigneeId,
+                                )}
+                                assigneeOptions={operatorOptions.map(
+                                  (option) => ({
+                                    id: option.id,
+                                    label: option.label,
+                                  }),
+                                )}
+                                onAssigneeChange={(nextAssigneeId) => {
+                                  void applyAssigneeChange(
+                                    card,
+                                    nextAssigneeId,
+                                  );
+                                }}
+                              />
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -1324,6 +1448,7 @@ export function CrmAssegnazioneView() {
           if (!selectedCardFromState?.id) return;
           await patchCard(selectedCardFromState.id, patch);
         }}
+        onOpenRicerca={handleOpenRicerca}
       />
     </section>
   );
