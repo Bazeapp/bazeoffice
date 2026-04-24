@@ -1,31 +1,14 @@
-import * as React from "react"
 import { BriefcaseBusinessIcon, CheckIcon, PencilIcon, XIcon } from "lucide-react"
 
+import { WorkerShiftPreferencesFields } from "@/components/lavoratori/worker-shift-preferences-fields"
 import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Combobox,
-  ComboboxChip,
-  ComboboxChips,
-  ComboboxChipsInput,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxValue,
-  useComboboxAnchor,
-} from "@/components/ui/combobox"
-import { DayCountSelector } from "@/components/ui/day-count-selector"
 import { FieldTitle } from "@/components/ui/field"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/lookup-utils"
 import { cn } from "@/lib/utils"
-
-type LookupOption = {
-  label: string
-  value: string
-}
+import type { LookupOption } from "@/features/lavoratori/lib/lookup-utils"
 
 type JobSearchDraft = {
   tipo_lavoro_domestico: string[]
@@ -61,58 +44,6 @@ type JobSearchCardProps = {
   onTrasfertaChange: (value: string) => void
   onMultipliContrattiChange: (value: string) => void
   onPaga9Change: (value: string) => void
-}
-
-type MultiSelectFieldProps = {
-  value: string[]
-  options: LookupOption[]
-  disabled: boolean
-  placeholder: string
-  onChange: (values: string[]) => void
-}
-
-function MultiSelectField({
-  value,
-  options,
-  disabled,
-  placeholder,
-  onChange,
-}: MultiSelectFieldProps) {
-  const anchor = useComboboxAnchor()
-
-  return (
-    <Combobox
-      multiple
-      autoHighlight
-      items={options.map((option) => option.label)}
-      value={value}
-      onValueChange={(nextValues) => onChange(nextValues as string[])}
-      disabled={disabled}
-    >
-      <ComboboxChips ref={anchor} className="w-full">
-        <ComboboxValue>
-          {(values) => (
-            <React.Fragment>
-              {values.map((item: string) => (
-                <ComboboxChip key={item}>{item}</ComboboxChip>
-              ))}
-              <ComboboxChipsInput placeholder={placeholder} />
-            </React.Fragment>
-          )}
-        </ComboboxValue>
-      </ComboboxChips>
-      <ComboboxContent anchor={anchor} className="max-h-80">
-        <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
-        <ComboboxList className="max-h-72 overflow-y-auto">
-          {(item) => (
-            <ComboboxItem key={item} value={item}>
-              {item}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
-  )
 }
 
 type AcceptFieldProps = {
@@ -161,34 +92,6 @@ function AcceptField({
           </label>
         ))}
       </RadioGroup>
-    </div>
-  )
-}
-
-function ReadOnlyBadges({
-  values,
-  domain,
-  lookupColorsByDomain,
-}: {
-  values: string[]
-  domain: string
-  lookupColorsByDomain: Map<string, string>
-}) {
-  if (values.length === 0) {
-    return <span className="truncate">-</span>
-  }
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {values.map((value) => (
-        <Badge
-          key={value}
-          variant="outline"
-          className={getTagClassName(resolveLookupColor(lookupColorsByDomain, domain, value))}
-        >
-          {value}
-        </Badge>
-      ))}
     </div>
   )
 }
@@ -265,68 +168,52 @@ export function JobSearchCard({
       ) : undefined}
       contentClassName="space-y-4"
     >
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-1">
-          <FieldTitle>
-            Lavori che accetta
-          </FieldTitle>
-          {isEditing ? (
-            <MultiSelectField
-              value={draft.tipo_lavoro_domestico}
-              options={tipoLavoroOptions}
-              disabled={isUpdating}
-              placeholder="Seleziona lavori"
-              onChange={onTipoLavoroChange}
-            />
-          ) : (
-            <ReadOnlyBadges
-              values={selectedTipoLavoro}
-              domain="lavoratori.tipo_lavoro_domestico"
-              lookupColorsByDomain={lookupColorsByDomain}
-            />
-          )}
-        </div>
+      <div className="space-y-4">
+        <WorkerShiftPreferencesFields
+          fields={[
+            {
+              id: "tipo-lavoro-domestico",
+              label: "Lavori che accetta",
+              domain: "lavoratori.tipo_lavoro_domestico",
+              value: isEditing ? draft.tipo_lavoro_domestico : selectedTipoLavoro,
+              options: tipoLavoroOptions,
+              placeholder: "Seleziona lavori",
+              onChange: onTipoLavoroChange,
+            },
+          ]}
+          isEditing={isEditing}
+          isUpdating={isUpdating}
+          lookupColorsByDomain={lookupColorsByDomain}
+          columns={1}
+        />
 
-        <div className="space-y-1">
-          <FieldTitle>
-            Frequenza disponibilita
-          </FieldTitle>
-          {isEditing ? (
-            <MultiSelectField
-              value={draft.tipo_rapporto_lavorativo}
-              options={tipoRapportoOptions}
-              disabled={isUpdating}
-              placeholder="Seleziona frequenze"
-              onChange={onTipoRapportoChange}
-            />
-          ) : (
-            <ReadOnlyBadges
-              values={selectedTipoRapporto}
-              domain="lavoratori.tipo_rapporto_lavorativo"
-              lookupColorsByDomain={lookupColorsByDomain}
-            />
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-1">
-        <FieldTitle>
-          Numero di giorni lavorativi che accetta per fare un contratto
-        </FieldTitle>
-        {isEditing ? (
-          <DayCountSelector
-            value={draft.check_lavori_accettabili}
-            options={lavoriAccettabiliOptions}
-            disabled={isUpdating}
-            onChange={onLavoriAccettabiliChange}
-          />
-        ) : (
-          <DayCountSelector
-            options={lavoriAccettabiliOptions}
-            value={selectedLavoriAccettabili}
-            readOnly
-          />
-        )}
+        <WorkerShiftPreferencesFields
+          fields={[
+            {
+              id: "tipo-rapporto-lavorativo",
+              label: "Frequenza disponibilita",
+              domain: "lavoratori.tipo_rapporto_lavorativo",
+              value: isEditing ? draft.tipo_rapporto_lavorativo : selectedTipoRapporto,
+              options: tipoRapportoOptions,
+              placeholder: "Seleziona frequenze",
+              onChange: onTipoRapportoChange,
+            },
+            {
+              id: "lavori-accettabili",
+              label: "Numero di giorni lavorativi che accetta per fare un contratto",
+              domain: "lavoratori.check_lavori_accettabili",
+              value: isEditing ? draft.check_lavori_accettabili : selectedLavoriAccettabili,
+              options: lavoriAccettabiliOptions,
+              placeholder: "Seleziona lavori",
+              onChange: onLavoriAccettabiliChange,
+              sortByOptionOrder: true,
+            },
+          ]}
+          isEditing={isEditing}
+          isUpdating={isUpdating}
+          lookupColorsByDomain={lookupColorsByDomain}
+          columns={1}
+        />
       </div>
 
       <div className="space-y-4">
@@ -351,7 +238,8 @@ export function JobSearchCard({
             />
           )}
         </div>
-
+      </div>
+      <div className="space-y-4">
         <div className="space-y-1">
           <FieldTitle>
             Accetta di fare piu contratti?

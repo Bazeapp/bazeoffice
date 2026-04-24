@@ -1,6 +1,8 @@
 import * as React from "react";
 import {
   AlertCircleIcon,
+  AlertTriangleIcon,
+  BotIcon,
   CalendarRangeIcon,
   CheckCircle2Icon,
   CheckIcon,
@@ -11,6 +13,7 @@ import {
   PhoneIcon,
   PlusIcon,
   StarIcon,
+  Trash2Icon,
   UserIcon,
 } from "lucide-react";
 
@@ -38,6 +41,16 @@ import {
 import { ExperienceCardTitle } from "@/components/ui/experience-card-title";
 import { ExperienceLevel } from "@/components/ui/experience-level";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -378,6 +391,302 @@ function AddReferenceAction({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+type AddExperienceActionProps = {
+  workerId: string | null;
+  disabled: boolean;
+  experienceTipoLavoroOptions: LookupOption[];
+  experienceTipoRapportoOptions: LookupOption[];
+  onExperienceCreate: (
+    values: Partial<EsperienzaLavoratoreRecord>,
+  ) => Promise<void> | void;
+};
+
+function AddExperienceAction({
+  workerId,
+  disabled,
+  experienceTipoLavoroOptions,
+  experienceTipoRapportoOptions,
+  onExperienceCreate,
+}: AddExperienceActionProps) {
+  const [open, setOpen] = React.useState(false);
+  const [draft, setDraft] = React.useState({
+    tipo_lavoro: [] as string[],
+    tipo_rapporto: "",
+    data_inizio: "",
+    data_fine: "",
+    stato_esperienza_attiva: false,
+    descrizione: "",
+    descrizione_contesto_lavorativo: "",
+    motivazione_fine_rapporto: "",
+  });
+
+  const resetDraft = React.useCallback(() => {
+    setDraft({
+      tipo_lavoro: [],
+      tipo_rapporto: "",
+      data_inizio: "",
+      data_fine: "",
+      stato_esperienza_attiva: false,
+      descrizione: "",
+      descrizione_contesto_lavorativo: "",
+      motivazione_fine_rapporto: "",
+    });
+  }, []);
+
+  const handleCreate = React.useCallback(async () => {
+    await onExperienceCreate({
+      lavoratore_id: workerId,
+      tipo_lavoro: draft.tipo_lavoro.length > 0 ? draft.tipo_lavoro : null,
+      tipo_rapporto: draft.tipo_rapporto || null,
+      data_inizio: draft.data_inizio || null,
+      data_fine: draft.stato_esperienza_attiva ? null : draft.data_fine || null,
+      stato_esperienza_attiva: draft.stato_esperienza_attiva,
+      descrizione: draft.descrizione.trim() || null,
+      descrizione_contesto_lavorativo:
+        draft.descrizione_contesto_lavorativo.trim() || null,
+      motivazione_fine_rapporto:
+        draft.stato_esperienza_attiva
+          ? null
+          : draft.motivazione_fine_rapporto.trim() || null,
+    });
+
+    resetDraft();
+    setOpen(false);
+  }, [draft, onExperienceCreate, resetDraft, workerId]);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button
+        type="button"
+        variant="outline"
+        size="default"
+        aria-label="Aggiungi esperienza"
+        title="Aggiungi esperienza"
+        className="h-10 px-4 text-sm"
+        onClick={() => setOpen(true)}
+        disabled={disabled || !workerId}
+      >
+        <PlusIcon />
+        Aggiungi esperienza
+      </Button>
+
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Nuova esperienza</DialogTitle>
+          <DialogDescription>
+            Inserisci i dettagli dell&apos;esperienza lavorativa del lavoratore.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <FieldTitle>Tipo lavoro</FieldTitle>
+              <ExperienceRoleField
+                value={draft.tipo_lavoro}
+                options={experienceTipoLavoroOptions}
+                disabled={disabled}
+                onChange={(values) =>
+                  setDraft((current) => ({ ...current, tipo_lavoro: values }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldTitle>Tipo rapporto</FieldTitle>
+              <Select
+                value={draft.tipo_rapporto || undefined}
+                onValueChange={(value) =>
+                  setDraft((current) => ({ ...current, tipo_rapporto: value }))
+                }
+                disabled={disabled}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue placeholder="Seleziona tipo rapporto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {experienceTipoRapportoOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.label}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <FieldTitle>Data inizio</FieldTitle>
+              <Input
+                type="date"
+                value={draft.data_inizio}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    data_inizio: event.target.value,
+                  }))
+                }
+                disabled={disabled}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldTitle>Data fine</FieldTitle>
+              <Input
+                type="date"
+                value={draft.data_fine}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    data_fine: event.target.value,
+                  }))
+                }
+                disabled={disabled || draft.stato_esperienza_attiva}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldTitle>Rapporto attivo</FieldTitle>
+              <label className="flex h-9 items-center gap-2 text-sm">
+                <Checkbox
+                  checked={draft.stato_esperienza_attiva}
+                  onCheckedChange={(checked) =>
+                    setDraft((current) => ({
+                      ...current,
+                      stato_esperienza_attiva: checked === true,
+                      data_fine: checked === true ? "" : current.data_fine,
+                    }))
+                  }
+                  disabled={disabled}
+                />
+                <span>{draft.stato_esperienza_attiva ? "Si" : "No"}</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <FieldTitle>Descrizione Mansioni ed Esperienza</FieldTitle>
+              <Textarea
+                value={draft.descrizione}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    descrizione: event.target.value,
+                  }))
+                }
+                disabled={disabled}
+                className="min-h-28 w-full text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldTitle>Descrizione Famiglia e Contesto</FieldTitle>
+              <Textarea
+                value={draft.descrizione_contesto_lavorativo}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    descrizione_contesto_lavorativo: event.target.value,
+                  }))
+                }
+                disabled={disabled}
+                className="min-h-28 w-full text-sm"
+              />
+            </div>
+          </div>
+
+          {!draft.stato_esperienza_attiva ? (
+            <div className="space-y-2">
+              <FieldTitle>Motivazione fine rapporto</FieldTitle>
+              <Textarea
+                value={draft.motivazione_fine_rapporto}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    motivazione_fine_rapporto: event.target.value,
+                  }))
+                }
+                disabled={disabled}
+                className="min-h-24 w-full text-sm"
+              />
+            </div>
+          ) : null}
+        </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              resetDraft();
+              setOpen(false);
+            }}
+          >
+            Annulla
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void handleCreate()}
+            disabled={disabled || !workerId}
+          >
+            Aggiungi esperienza
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteExperienceAction({
+  disabled,
+  onDelete,
+}: {
+  disabled: boolean;
+  onDelete: () => Promise<void> | void;
+}) {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen(true);
+        }}
+        disabled={disabled}
+        aria-label="Elimina esperienza"
+        title="Elimina esperienza"
+        className="text-destructive hover:text-destructive"
+      >
+        <Trash2Icon className="size-4" />
+      </Button>
+      <AlertDialogContent size="sm">
+        <AlertDialogHeader className="place-items-start text-left">
+          <div className="bg-destructive/10 text-destructive flex size-9 items-center justify-center rounded-full">
+            <AlertTriangleIcon className="size-4" />
+          </div>
+          <AlertDialogTitle>Eliminare questa esperienza?</AlertDialogTitle>
+          <AlertDialogDescription>
+            L&apos;esperienza verrà rimossa dal profilo del lavoratore. Se ci
+            sono referenze collegate a questa esperienza, verranno eliminate
+            insieme all&apos;esperienza. Questa azione non è reversibile.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annulla</AlertDialogCancel>
+          <AlertDialogAction onClick={() => void onDelete()}>
+            Elimina esperienza
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -926,10 +1235,16 @@ type ExperienceReferencesCardProps = {
   isEditing: boolean;
   showEditAction?: boolean;
   showCreateExperienceAction?: boolean;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
   title?: string;
   showSummaryFields?: boolean;
   showSituationField?: boolean;
   showReferencesSection?: boolean;
+  aiSummaryValue?: string;
+  isGeneratingAiSummary?: boolean;
+  onGenerateAiSummary?: () => Promise<void> | void;
+  children?: React.ReactNode;
   isUpdating: boolean;
   draft: ExperienceDraft;
   experiences: EsperienzaLavoratoreRecord[];
@@ -960,6 +1275,7 @@ type ExperienceReferencesCardProps = {
   onExperienceCreate?: (
     values: Partial<EsperienzaLavoratoreRecord>,
   ) => Promise<void> | void;
+  onExperienceDelete?: (experienceId: string) => Promise<void> | void;
   onReferencePatch: (
     referenceId: string,
     patch: Partial<ReferenzaLavoratoreRecord>,
@@ -974,10 +1290,16 @@ export function ExperienceReferencesCard({
   isEditing,
   showEditAction = true,
   showCreateExperienceAction = false,
+  collapsible = false,
+  defaultOpen = true,
   title = "Esperienze e Referenze",
   showSummaryFields = true,
   showSituationField = true,
   showReferencesSection = true,
+  aiSummaryValue,
+  isGeneratingAiSummary = false,
+  onGenerateAiSummary,
+  children,
   isUpdating,
   draft,
   experiences,
@@ -1003,6 +1325,7 @@ export function ExperienceReferencesCard({
   onSituazioneLavorativaAttualeBlur,
   onExperiencePatch,
   onExperienceCreate,
+  onExperienceDelete,
   onReferencePatch,
   onReferenceCreate,
 }: ExperienceReferencesCardProps) {
@@ -1048,10 +1371,38 @@ export function ExperienceReferencesCard({
           >
             <PencilIcon />
           </Button>
-        ) : undefined
+      ) : undefined
       }
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
       contentClassName="space-y-4"
     >
+      {children}
+
+      {onGenerateAiSummary ? (
+        <div className="space-y-2 rounded-lg border bg-muted/15 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <FieldTitle>Riassunto esperienze AI</FieldTitle>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void onGenerateAiSummary()}
+              disabled={isUpdating || isGeneratingAiSummary}
+            >
+              <BotIcon className="size-4" />
+              {aiSummaryValue ? "Rigenera" : "Genera"}
+            </Button>
+          </div>
+          <Textarea
+            value={aiSummaryValue || ""}
+            readOnly
+            placeholder="Nessun riassunto generato."
+            className="min-h-24 w-full resize-y bg-background text-sm"
+          />
+        </div>
+      ) : null}
+
       {showSummaryFields ? (
         isEditing ? (
           <div className="grid gap-4 md:grid-cols-3">
@@ -1153,33 +1504,16 @@ export function ExperienceReferencesCard({
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <FieldTitle>
-            Inserisci una sola esperienza
+            Esperienze di lavoro
           </FieldTitle>
           {showCreateExperienceAction && isEditing && onExperienceCreate ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="default"
-              aria-label="Aggiungi esperienza"
-              title="Aggiungi esperienza"
-              className="h-10 px-4 text-sm"
-              onClick={() =>
-                void onExperienceCreate({
-                  lavoratore_id: workerId,
-                  tipo_lavoro: null,
-                  tipo_rapporto: null,
-                  data_inizio: null,
-                  data_fine: null,
-                  stato_esperienza_attiva: false,
-                  descrizione: null,
-                  descrizione_contesto_lavorativo: null,
-                  motivazione_fine_rapporto: null,
-                })
-              }
-            >
-              <PlusIcon />
-              Aggiungi nuova esperienza
-            </Button>
+            <AddExperienceAction
+              workerId={workerId}
+              disabled={isUpdating}
+              experienceTipoLavoroOptions={experienceTipoLavoroOptions}
+              experienceTipoRapportoOptions={experienceTipoRapportoOptions}
+              onExperienceCreate={onExperienceCreate}
+            />
           ) : null}
         </div>
         {experiencesLoading ? (
@@ -1240,6 +1574,12 @@ export function ExperienceReferencesCard({
                           <span>{dateLabel}</span>
                         </div>
                       </div>
+                      {isEditing && onExperienceDelete ? (
+                        <DeleteExperienceAction
+                          disabled={isUpdating}
+                          onDelete={() => onExperienceDelete(experience.id)}
+                        />
+                      ) : null}
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pt-0 pb-0">

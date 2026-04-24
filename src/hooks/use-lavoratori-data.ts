@@ -543,6 +543,12 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     []
   )
 
+  const removeWorkerExperience = React.useCallback((experienceId: string) => {
+    setSelectedWorkerExperiences((current) =>
+      current.filter((row) => row.id !== experienceId)
+    )
+  }, [])
+
   const applyUpdatedWorkerReference = React.useCallback(
     (nextRow: ReferenzaLavoratoreRecord) => {
       setSelectedWorkerReferences((current) =>
@@ -613,6 +619,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     applyUpdatedWorkerRow,
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
+    removeWorkerExperience,
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
     upsertSelectedWorkerDocument,

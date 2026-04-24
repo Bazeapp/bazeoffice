@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   AlertTriangleIcon,
+  BotIcon,
   CalendarCheckIcon,
   CalendarDaysIcon,
   ChevronDownIcon,
@@ -19,6 +20,18 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -27,7 +40,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { asString } from "@/features/lavoratori/lib/base-utils";
+import { Button } from "@/components/ui/button";
+import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils";
 import {
   getTagClassName,
   resolveLookupColor,
@@ -59,14 +73,22 @@ type SchedaColloquioDraft = {
   scoreOverall: ScoreCardValue | "";
   tipologiaIncontro: string;
   feedbackBaze: string;
+  motivoNonSelezionato: string[];
+  motivoNoMatch: string;
+  dataOraColloquioFamigliaLavoratore: string;
+  colloquioEffettuato: string;
   slotColloquio: [SchedaSlotDraft, SchedaSlotDraft, SchedaSlotDraft];
 };
 
 type SchedaColloquioPanelProps = {
   selectionRow: SelectionRow;
   statusOptions: LookupOption[];
+  nonSelezionatoOptions: LookupOption[];
+  noMatchOptions: LookupOption[];
   lookupColorsByDomain: Map<string, string>;
   disabled?: boolean;
+  isGeneratingFeedback?: boolean;
+  onGenerateFeedback?: () => Promise<string | null | undefined> | string | null | undefined;
   onMoveStatus: (value: string) => Promise<void> | void;
   onPatchField: (field: string, value: unknown) => Promise<void> | void;
 };
@@ -117,6 +139,89 @@ function toTimestampValue(date: string, time: string) {
   return parsed.toISOString();
 }
 
+function toDatetimeLocalValue(value: unknown) {
+  const raw = asString(value);
+  if (!raw) return "";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return "";
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const hours = String(parsed.getHours()).padStart(2, "0");
+  const minutes = String(parsed.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function datetimeLocalToTimestampValue(value: string) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+}
+
+function normalizeStatusToken(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replaceAll("_", " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function MultiLookupField({
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  value: string[];
+  options: LookupOption[];
+  disabled: boolean;
+  onChange: (values: string[]) => void;
+}) {
+  const anchor = useComboboxAnchor();
+
+  return (
+    <Combobox
+      multiple
+      autoHighlight
+      items={options.map((option) => option.value)}
+      value={value}
+      onValueChange={(nextValues) => onChange(nextValues as string[])}
+      disabled={disabled}
+    >
+      <ComboboxChips ref={anchor} className="w-full">
+        <ComboboxValue>
+          {(values) => (
+            <React.Fragment>
+              {values.map((itemValue: string) => {
+                const label =
+                  options.find((option) => option.value === itemValue)?.label ??
+                  itemValue;
+                return <ComboboxChip key={itemValue}>{label}</ComboboxChip>;
+              })}
+              <ComboboxChipsInput placeholder="Seleziona motivazioni" />
+            </React.Fragment>
+          )}
+        </ComboboxValue>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor} className="max-h-80">
+        <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
+        <ComboboxList className="max-h-72 overflow-y-auto">
+          {(item) => (
+            <ComboboxItem key={item} value={item}>
+              {options.find((option) => option.value === item)?.label ?? item}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
 function buildDraft(selectionRow: SelectionRow): SchedaColloquioDraft {
   const slot1Inizio = toDateInputParts(
     selectionRow.disponibilita_colloquio_lavoratore_slot1_inizio,
@@ -157,6 +262,12 @@ function buildDraft(selectionRow: SelectionRow): SchedaColloquioDraft {
     feedbackBaze: asString(
       selectionRow.messaggio_famiglia_selezione_lavoratore,
     ),
+    motivoNonSelezionato: readArrayStrings(selectionRow.motivo_non_selezionato),
+    motivoNoMatch: asString(selectionRow.motivo_no_match),
+    dataOraColloquioFamigliaLavoratore: toDatetimeLocalValue(
+      selectionRow.data_ora_colloquio_famiglia_lavoratore,
+    ),
+    colloquioEffettuato: asString(selectionRow.colloquio_effettuato),
     slotColloquio: [
       {
         inizioData: slot1Inizio.date,
@@ -288,8 +399,12 @@ function ScoreSelect({
 export function SchedaColloquioPanel({
   selectionRow,
   statusOptions,
+  nonSelezionatoOptions,
+  noMatchOptions,
   lookupColorsByDomain,
   disabled = false,
+  isGeneratingFeedback = false,
+  onGenerateFeedback,
   onMoveStatus,
   onPatchField,
 }: SchedaColloquioPanelProps) {
@@ -321,6 +436,17 @@ export function SchedaColloquioPanel({
         draft.statoSelezione,
       ),
   );
+  const normalizedStatus = React.useMemo(
+    () => normalizeStatusToken(draft.statoSelezione),
+    [draft.statoSelezione],
+  );
+  const showMotivazioneNonSelezionato =
+    normalizedStatus === "non selezionato" || normalizedStatus === "nascosto oot";
+  const showMotivazioneNoMatch = normalizedStatus === "no match";
+  const showColloquioFamigliaFields =
+    normalizedStatus.includes("colloquio") ||
+    normalizedStatus.includes("prova") ||
+    normalizedStatus === "match";
 
   const patchTextField = React.useCallback(
     (field: string, value: string) => {
@@ -393,6 +519,61 @@ export function SchedaColloquioPanel({
             </SelectContent>
           </Select>
         </div>
+
+        {showMotivazioneNonSelezionato ? (
+          <div className="space-y-1.5">
+            <label className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+              Motivo non selezionato
+            </label>
+            <MultiLookupField
+              value={draft.motivoNonSelezionato}
+              options={nonSelezionatoOptions}
+              disabled={disabled}
+              onChange={(values) => {
+                setDraft((current) => ({
+                  ...current,
+                  motivoNonSelezionato: values,
+                }));
+                void onPatchField(
+                  "motivo_non_selezionato",
+                  values.length > 0 ? values : null,
+                );
+              }}
+            />
+          </div>
+        ) : null}
+
+        {showMotivazioneNoMatch ? (
+          <div className="space-y-1.5">
+            <label className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+              Motivo no match
+            </label>
+            <Select
+              value={draft.motivoNoMatch || "none"}
+              onValueChange={(value) => {
+                const nextValue = value === "none" ? "" : value;
+                setDraft((current) => ({
+                  ...current,
+                  motivoNoMatch: nextValue,
+                }));
+                void onPatchField("motivo_no_match", nextValue || null);
+              }}
+              disabled={disabled}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Seleziona motivo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nessun motivo</SelectItem>
+                {noMatchOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
 
       </div>
 
@@ -522,38 +703,6 @@ export function SchedaColloquioPanel({
           title="Segna gli slot di disponibilità per fare il colloquio"
           icon={CalendarDaysIcon}
         >
-          <div className="space-y-1">
-            <label className="text-foreground text-[11px] font-medium">
-              Tipologia di incontro
-            </label>
-            <Select
-              value={draft.tipologiaIncontro || "none"}
-              onValueChange={(value) => {
-                const nextValue = value === "none" ? "" : value;
-                setDraft((current) => ({
-                  ...current,
-                  tipologiaIncontro: nextValue,
-                }));
-                void onPatchField("colloquio_effettuato", nextValue || null);
-              }}
-              disabled={disabled}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Seleziona..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nessuna tipologia</SelectItem>
-                <SelectItem value="Colloquio conoscitivo">
-                  Colloquio conoscitivo
-                </SelectItem>
-                <SelectItem value="Colloquio tecnico">
-                  Colloquio tecnico
-                </SelectItem>
-                <SelectItem value="Prova pratica">Prova pratica</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {draft.slotColloquio.map((slot, index) => (
             <div key={index} className="space-y-1.5">
               <p className="text-foreground text-[11px] font-medium">
@@ -663,15 +812,97 @@ export function SchedaColloquioPanel({
           ))}
         </CollapsibleSection>
 
+        {showColloquioFamigliaFields ? (
+          <CollapsibleSection
+            title="Colloquio famiglia lavoratore"
+            icon={CalendarCheckIcon}
+          >
+            <div className="space-y-1.5">
+              <label className="text-foreground text-[11px] font-medium">
+                Data/ora colloquio famiglia lavoratore
+              </label>
+              <Input
+                type="datetime-local"
+                className="h-8 text-xs"
+                value={draft.dataOraColloquioFamigliaLavoratore}
+                disabled={disabled}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    dataOraColloquioFamigliaLavoratore: event.target.value,
+                  }))
+                }
+                onBlur={() =>
+                  void onPatchField(
+                    "data_ora_colloquio_famiglia_lavoratore",
+                    datetimeLocalToTimestampValue(
+                      draft.dataOraColloquioFamigliaLavoratore,
+                    ),
+                  )
+                }
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-foreground text-[11px] font-medium">
+                Colloquio effettuato
+              </label>
+              <Select
+                value={draft.colloquioEffettuato || "none"}
+                onValueChange={(value) => {
+                  const nextValue = value === "none" ? "" : value;
+                  setDraft((current) => ({
+                    ...current,
+                    colloquioEffettuato: nextValue,
+                  }));
+                  void onPatchField("colloquio_effettuato", nextValue || null);
+                }}
+                disabled={disabled}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Seleziona..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Non segnato</SelectItem>
+                  <SelectItem value="Si">Si</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CollapsibleSection>
+        ) : null}
+
         <CollapsibleSection
           title="Lavoratore selezionato – finalizza la scheda colloquio"
           icon={TrophyIcon}
         >
           <div className="space-y-1">
-            <label className="text-foreground text-[11px] font-medium">
-              Crea feedback Baze – il messaggio che spiega perché è perfetta per
-              la richiesta
-            </label>
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-foreground text-[11px] font-medium">
+                Crea feedback Baze – il messaggio che spiega perché è perfetta per
+                la richiesta
+              </label>
+              {onGenerateFeedback ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const generated = await onGenerateFeedback();
+                    if (typeof generated === "string") {
+                      setDraft((current) => ({
+                        ...current,
+                        feedbackBaze: generated,
+                      }));
+                    }
+                  }}
+                  disabled={disabled || isGeneratingFeedback}
+                >
+                  <BotIcon className="size-4" />
+                  {draft.feedbackBaze ? "Rigenera" : "Genera"}
+                </Button>
+              ) : null}
+            </div>
             <Textarea
               value={draft.feedbackBaze}
               onChange={(event) =>

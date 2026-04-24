@@ -28,6 +28,7 @@ const PROCESS_BOARD_SELECT_FIELDS = [
   "id",
   "stato_res",
   "famiglia_id",
+  "recruiter_ricerca_e_selezione_id",
   "referente_ricerca_e_selezione_id",
   "ore_settimanale",
   "numero_giorni_settimanali",
@@ -538,7 +539,7 @@ async function buildCardsForProcesses(
       cognomeFamiglia,
       email: toStringValue(family.email) ?? "-",
       telefono: toStringValue(family.telefono) ?? "-",
-      operatorId: toStringValue(process.referente_ricerca_e_selezione_id),
+      operatorId: toStringValue(process.recruiter_ricerca_e_selezione_id),
       oreSettimanali: toStringValue(process.ore_settimanale) ?? "-",
       giorniSettimanali:
         toStringValue(process.numero_giorni_settimanali) ??

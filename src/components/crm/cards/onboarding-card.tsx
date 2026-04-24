@@ -1,10 +1,15 @@
 import * as React from "react";
 import type { ReactNode } from "react";
 import {
+  BriefcaseIcon,
   CalendarDaysIcon,
+  CatIcon,
   CopyIcon,
+  HomeIcon,
   MapPinnedIcon,
+  ShieldCheckIcon,
   TimerResetIcon,
+  UsersIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -399,14 +404,21 @@ export function OnboardingCard({
 
     return (
       <div className="space-y-4">
-        <DetailSectionBlock
-          title={showTitle ? "Onboarding" : "Orari e frequenza"}
-          icon={<CalendarDaysIcon className="size-4" />}
-          action={showTitle ? titleAction : undefined}
-          showDefaultAction={false}
-          contentClassName="space-y-4"
-        >
-          <DetailField label="Orario di lavoro" value={displayText(card?.orarioDiLavoro)} />
+        <div {...sectionContainerProps?.["orari-frequenza"]}>
+          <DetailSectionBlock
+            title="Orari e frequenza"
+            icon={<CalendarDaysIcon className="size-4" />}
+            action={showTitle ? titleAction : undefined}
+            showDefaultAction={false}
+            collapsible={flattenSections}
+            defaultOpen
+            contentClassName="space-y-4"
+          >
+          <DetailField
+            label="Orario di lavoro"
+            value={displayText(card?.orarioDiLavoro)}
+            multiline
+          />
           <div className={compactGridClassName}>
             <DetailField label="Ore settimanali" value={displayText(card?.oreSettimana)} />
             <DetailField label="Giorni settimanali" value={displayText(card?.giorniSettimana)} />
@@ -431,43 +443,18 @@ export function OnboardingCard({
               <div className="ui-type-value">-</div>
             )}
           </DetailFieldControl>
-        </DetailSectionBlock>
+          </DetailSectionBlock>
+        </div>
 
-        <DetailSectionBlock
-          title="Descrizione lavoro"
-          showDefaultAction={false}
-          contentClassName="space-y-4"
-        >
-          <div className={compactGridClassName}>
-            <DetailField label="Nucleo famigliare" value={displayText(card?.nucleoFamigliare)} />
-            <DetailField label="Eta lavoratore" value={`${displayText(card?.etaMinima)} - ${displayText(card?.etaMassima)}`} />
-          </div>
-          <DetailField label="Descrizione casa" value={displayText(card?.descrizioneCasa)} />
-          <div className={compactGridClassName}>
-            <DetailField label="Metratura casa" value={displayText(card?.metraturaCasa)} />
-            <DetailField label="Sesso" value={displayText(card?.sesso)} />
-          </div>
-          <DetailField label="Animali in casa" value={displayText(card?.descrizioneAnimaliInCasa)} />
-          <DetailField label="Mansioni richieste" value={displayText(card?.mansioniRichieste)} />
-          <div className={compactGridClassName}>
-            <DetailField label="Richiesta patente" value={richiestaPatente} />
-            <DetailField label="Richiesta trasferte" value={richiestaTrasferte} />
-          </div>
-          <div className={compactGridClassName}>
-            <DetailField label="Richiesta ferie" value={richiestaFerie} />
-            <DetailField label="Dettaglio patente" value={displayText(card?.patenteDettaglio)} />
-          </div>
-          <DetailField label="Descrizione trasferte" value={displayText(card?.descrizioneRichiestaTrasferte)} />
-          <DetailField label="Descrizione ferie" value={displayText(card?.descrizioneRichiestaFerie)} />
-          <DetailField label="Informazioni extra riservate" value={displayText(card?.informazioniExtraRiservate)} />
-        </DetailSectionBlock>
-
-        <DetailSectionBlock
-          title="Luogo di lavoro"
-          icon={<MapPinnedIcon className="size-4" />}
-          showDefaultAction={false}
-          contentClassName="space-y-4"
-        >
+        <div {...sectionContainerProps?.["luogo-lavoro"]}>
+          <DetailSectionBlock
+            title="Luogo di lavoro"
+            icon={<MapPinnedIcon className="size-4" />}
+            showDefaultAction={false}
+            collapsible={flattenSections}
+            defaultOpen={false}
+            contentClassName="space-y-4"
+          >
           <div className={compactGridClassName}>
             <DetailField label="Provincia" value={displayText(card?.indirizzoProvincia)} />
             <DetailField label="CAP" value={displayText(card?.indirizzoCap)} />
@@ -488,19 +475,106 @@ export function OnboardingCard({
               <div className="ui-type-value">-</div>
             )}
           </DetailFieldControl>
-        </DetailSectionBlock>
+          </DetailSectionBlock>
+        </div>
 
-        {showTempistiche ? (
+        <div {...sectionContainerProps?.famiglia}>
           <DetailSectionBlock
-            title="Tempistiche"
-            icon={<TimerResetIcon className="size-4" />}
+            title="Famiglia"
+            icon={<UsersIcon className="size-4" />}
             showDefaultAction={false}
+            collapsible={flattenSections}
+            defaultOpen={false}
             contentClassName="space-y-4"
           >
-            <DetailField label="Deadline" value={displayText(card?.deadlineMobile)} />
-            <DetailField label="Disponibilita colloqui" value={displayText(card?.disponibilitaColloquiInPresenza)} />
-            <DetailField label="Tipologia primo incontro" value={tipoIncontroLabel} />
+          <div className={compactGridClassName}>
+            <DetailField label="Nucleo famigliare" value={displayText(card?.nucleoFamigliare)} />
+            <DetailField label="Eta lavoratore" value={`${displayText(card?.etaMinima)} - ${displayText(card?.etaMassima)}`} />
+          </div>
           </DetailSectionBlock>
+        </div>
+
+        <div {...sectionContainerProps?.casa}>
+          <DetailSectionBlock
+            title="Casa"
+            icon={<HomeIcon className="size-4" />}
+            showDefaultAction={false}
+            collapsible={flattenSections}
+            defaultOpen={false}
+            contentClassName="space-y-4"
+          >
+            <DetailField label="Descrizione casa" value={displayText(card?.descrizioneCasa)} />
+            <div className={compactGridClassName}>
+              <DetailField label="Metratura casa" value={displayText(card?.metraturaCasa)} />
+              <DetailField label="Sesso" value={displayText(card?.sesso)} />
+            </div>
+          </DetailSectionBlock>
+        </div>
+
+        <div {...sectionContainerProps?.animali}>
+          <DetailSectionBlock
+            title="Animali"
+            icon={<CatIcon className="size-4" />}
+            showDefaultAction={false}
+            collapsible={flattenSections}
+            defaultOpen={false}
+            contentClassName="space-y-4"
+          >
+            <DetailField label="Animali in casa" value={displayText(card?.descrizioneAnimaliInCasa)} />
+          </DetailSectionBlock>
+        </div>
+
+        <div {...sectionContainerProps?.mansioni}>
+          <DetailSectionBlock
+            title="Mansioni"
+            icon={<BriefcaseIcon className="size-4" />}
+            showDefaultAction={false}
+            collapsible={flattenSections}
+            defaultOpen={false}
+            contentClassName="space-y-4"
+          >
+            <DetailField label="Mansioni richieste" value={displayText(card?.mansioniRichieste)} />
+          </DetailSectionBlock>
+        </div>
+
+        <div {...sectionContainerProps?.["richieste-specifiche"]}>
+          <DetailSectionBlock
+            title="Richieste specifiche"
+            icon={<ShieldCheckIcon className="size-4" />}
+            showDefaultAction={false}
+            collapsible={flattenSections}
+            defaultOpen={false}
+            contentClassName="space-y-4"
+          >
+          <div className={compactGridClassName}>
+            <DetailField label="Richiesta patente" value={richiestaPatente} />
+            <DetailField label="Richiesta trasferte" value={richiestaTrasferte} />
+          </div>
+          <div className={compactGridClassName}>
+            <DetailField label="Richiesta ferie" value={richiestaFerie} />
+            <DetailField label="Dettaglio patente" value={displayText(card?.patenteDettaglio)} />
+          </div>
+          <DetailField label="Descrizione trasferte" value={displayText(card?.descrizioneRichiestaTrasferte)} />
+          <DetailField label="Descrizione ferie" value={displayText(card?.descrizioneRichiestaFerie)} />
+          <DetailField label="Informazioni extra riservate" value={displayText(card?.informazioniExtraRiservate)} />
+          </DetailSectionBlock>
+        </div>
+
+        {showTempistiche ? (
+          <div {...sectionContainerProps?.tempistiche}>
+            <DetailSectionBlock
+              title="Tempistiche"
+              icon={<TimerResetIcon className="size-4" />}
+              showDefaultAction={false}
+              collapsible={flattenSections}
+              defaultOpen={false}
+              contentClassName="space-y-4"
+            >
+              <DetailField label="Deadline" value={displayText(card?.deadlineMobile)} />
+              <DetailField label="Disponibilita colloqui" value={displayText(card?.disponibilitaColloquiInPresenza)} />
+              <DetailField label="Tipologia primo incontro" value={tipoIncontroLabel} />
+            </DetailSectionBlock>
+          </div>
         ) : null}
       </div>
     );
@@ -514,6 +588,8 @@ export function OnboardingCard({
           icon={<CalendarDaysIcon className="size-4" />}
           action={titleAction}
           showDefaultAction={false}
+          collapsible={flattenSections}
+          defaultOpen
           contentClassName="space-y-4"
         >
         <Field>
@@ -643,6 +719,8 @@ export function OnboardingCard({
           title="Luogo di lavoro"
           icon={<MapPinnedIcon className="size-4" />}
           showDefaultAction={false}
+          collapsible={flattenSections}
+          defaultOpen={false}
           contentClassName="space-y-4"
         >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -793,6 +871,8 @@ export function OnboardingCard({
             title="Tempistiche"
             icon={<TimerResetIcon className="size-4" />}
             showDefaultAction={false}
+            collapsible={flattenSections}
+            defaultOpen={false}
             contentClassName="space-y-4"
           >
           <Field>

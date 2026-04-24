@@ -19,6 +19,10 @@ import {
   type AttachmentLink,
 } from "@/components/shared/attachment-upload-slot"
 import { DetailSectionBlock } from "@/components/shared/detail-section-card"
+import {
+  buildAttachmentPayload,
+  normalizeAttachmentArray,
+} from "@/lib/attachments"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
 import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
 import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card"
@@ -132,17 +136,6 @@ function sanitizeFileName(name: string) {
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/-+/g, "-")
-}
-
-type StoredAttachmentPayload = {
-  bucket: string
-  content_type: string
-  file_name: string
-  name: string
-  path: string
-  public_url: string
-  size: number
-  uploaded_at: string
 }
 
 function getColumnClasses(color: string) {
@@ -319,7 +312,7 @@ export function ContributoInpsDetailSheet({
 
       try {
         const safeName = sanitizeFileName(file.name || "allegato")
-        const storagePath = ["contributi-inps", card.id, `${Date.now()}-${safeName}`].join("/")
+        const storagePath = ["contributi_inps", card.id, `${Date.now()}-${safeName}`].join("/")
 
         const uploadResult = await supabase.storage.from("baze-bucket").upload(storagePath, file, {
           cacheControl: "3600",
@@ -331,20 +324,10 @@ export function ContributoInpsDetailSheet({
           throw uploadResult.error
         }
 
-        const publicUrlResult = supabase.storage.from("baze-bucket").getPublicUrl(storagePath)
-        const payload: StoredAttachmentPayload = {
-          bucket: "baze-bucket",
-          content_type: file.type || "application/octet-stream",
-          file_name: file.name,
-          name: file.name,
-          path: storagePath,
-          public_url: publicUrlResult.data.publicUrl,
-          size: file.size,
-          uploaded_at: new Date().toISOString(),
-        }
+        const payload = buildAttachmentPayload(file, storagePath)
 
         await onPatchCard(card.id, {
-          allegato: payload,
+          allegato: [...normalizeAttachmentArray(card.record.allegato), payload],
         })
       } catch (caughtError) {
         setUploadError(

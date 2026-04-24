@@ -11,10 +11,11 @@
 - [x] [CRM-002] Dopo un drag di una card tra colonne, il click sulle card non apre più il modale di dettaglio
 - [x] [ASS-004] Colonna "Da assegnare" mostra 239 ricerche invece del sottoinsieme atteso
 - [x] [Workflow] Creazione gestione rapporto lavorativo dopo il Match
-- [ ] [RIC-007] Mostrare sulla card lavoratore il coinvolgimento in altre selezioni attive
-  Note: il dato backend è già disponibile nel campo `active_selection_json` della tab `lavoratori`, che contiene una lista di selezioni attive da considerare (può avere uno o più id). Esempio: `{"sources":[{"type":"active_selection","id":"recKPNpeJ1nMfh86A","effect":"block","weekly":{"mon":[{"from":"10:00","to":"14:00"}],"tue":[{"from":"10:00","to":"14:00"}],"wed":[{"from":"10:00","to":"14:00"}],"thu":[{"from":"10:00","to":"14:00"}],"fri":[{"from":"10:00","to":"14:00"}],"sat":[],"sun":[]}}]}`
-- [ ] [RIC-008] Esporre stato ricerca (processo_res) editabile in cima alla colonna info famiglia
-- [ ] [RIC-012] Esporre label e valore dei dropdown "Stato lavoratore" e "Disponibile" nel detail lavoratore
+- [x] [RIC-007] Mostrare sulla card lavoratore il coinvolgimento in altre selezioni attive
+- [x] [RIC-008] Esporre stato ricerca (processo_res) editabile in cima alla colonna info famiglia
+- [x] [RIC-012] Esporre label e valore dei dropdown "Stato lavoratore" e "Disponibile" nel detail lavoratore
+- [x] [RIC-013] Aggiungere sezione "Altre ricerche attive" nel detail lavoratore con navigazione cross-ricerca
+- [x] [RIC-016] Mostrare la colonna famiglia completa anche nel detail lavoratore
 
 ## Medium
 - [x] [G-001] Aggiungere campi ruolo (multi-valore) e attivo alla tabella operatori
@@ -40,14 +41,25 @@
 - [x] [ASS-007] Ordinamento delle card nelle colonne giorno per recruiter (con grouping collassabile come nice-to-have)
 - [x] [Workflow] Avvio Smart-Matching
 - [x] [Workflow] Creare titolo SEO e lo slug per la Job Offer
-- [ ] [RIC-002] Filtrare il dropdown "Operatori" ai soli recruiter attivi
-- [ ] [RIC-003] Aggiungere bottone "Smart Matching" nell'header della pagina detail ricerca
-- [ ] [RIC-004] Aggiungere bottone "+ Aggiungi" per inserire un lavoratore nella ricerca
-- [ ] [RIC-005] Mostrare il travel time nella card lavoratore della kanban
-- [ ] [RIC-006] Mostrare indicatore availability score sulla card lavoratore
-- [ ] [RIC-009] Esporre tipologia incontro editabile nella colonna info famiglia
-- [ ] [RIC-010] Riorganizzare la colonna info famiglia in 5 sezioni collassabili
-- [ ] [RIC-011] Aggiungere sezione "Annuncio" con brief copiabile nella colonna info famiglia
+- [x] [RIC-002] Filtrare il dropdown "Operatori" ai soli recruiter attivi
+- [x] [RIC-003] Aggiungere bottone "Smart Matching" nell'header della pagina detail ricerca
+- [x] [RIC-004] Aggiungere bottone "+ Aggiungi" per inserire un lavoratore nella ricerca
+- [x] [RIC-005] Mostrare il travel time nella card lavoratore della kanban
+- [x] [RIC-010] Riorganizzare la colonna info famiglia in 5 sezioni collassabili
+- [x] [RIC-011] Aggiungere sezione "Annuncio" con brief copiabile nella colonna info famiglia
+- [x] [RIC-014] Mostrare per intero il campo "Orario di lavoro" nel sheet lavoratore senza troncamento
+- [x] [RIC-015] Aggiungere campo "Riassunto esperienze AI" nel detail lavoratore con bottone genera/rigenera
+- [x] [RIC-017] Aggiungere bottone "Genera con AI" per il campo "Crea feedback Baze"
+- [x] [RIC-020] Aggiungere bottone "+ Aggiungi esperienza" con modale nella sezione esperienze del detail lavoratore
+- [x] [RIC-021] Aggiungere icona cestino per cancellare esperienza in modalità edit della sezione esperienze
+- [x] [RIC-022] Esporre campo "Lavori accettabili" multi-select nella sezione Calendario disponibilità
+- [x] [RIC-023] Aggiungere sezione "Documenti" come ultima sezione della colonna destra del detail lavoratore
+- [x] [RIC-024] Aggiungere sezione "Preferenze e vincoli" con check accetta/non accetta nel detail lavoratore
+- [x] [RIC-025] Esporre campo "Tipo di rapporto" nella sezione Calendario disponibilità
+- [x] [RIC-026] Esporre campo "Tipo di lavoro" nella sezione Esperienza sopra gli anni di esperienza
+- [x] [RIC-027] Mostrare campo "Motivo non selezionato" quando lo stato selezione è "Non selezionato"
+- [x] [RIC-028] Mostrare campo "Motivo no match" quando lo stato selezione è "No match"
+- [x] [RIC-029] Mostrare campi "Data/ora colloquio famiglia lavoratore" e "Colloquio effettuato" negli stati colloquio/prova
 
 ## Low
 - [x] [CRM-007] Mostrare data di ricontatto futuro sulla card della Pipeline Famiglie
@@ -55,6 +67,12 @@
 - [x] [Email] Invia richiesta dati alla famiglia per fare la fattura
 - [x] [Data Cleaning] Fatturare pagamento
 - [ ] [RIC-001] Fissare orizzontalmente la colonna info ricerca nella kanban Ricerche attive
+- [ ] [RIC-018] La textarea "Crea feedback Baze" non occupa il 100% della larghezza del container
+- [x] [RIC-019] Correggere copy dell'header della sezione esperienze
 
 ## Note completate fuori roadmap
 - [x] Grouping server-side Anagrafiche con conteggi globali, lazy load dei gruppi e applicazione esplicita dal popover.
+
+## Task rimossi o rimandati
+- [~] [RIC-006] Indicatore availability score sulla card lavoratore: rimosso, non va mostrato.
+- [~] [RIC-009] Tipologia incontro editabile nella colonna info famiglia: rimosso su richiesta.

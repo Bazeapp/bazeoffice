@@ -88,7 +88,11 @@ export function WorkerProfileOverview({
             className={`relative h-80 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
             title={qualificationStatus.label}
           >
-            <Carousel opts={{ loop: false }} className="h-full w-full">
+            <Carousel
+              key={presentationPhotoSlots.join("|")}
+              opts={{ loop: false }}
+              className="h-full w-full"
+            >
               <CarouselContent className="ml-0 h-full">
                 {presentationPhotoSlots.map((photoUrl, index) => (
                   <CarouselItem
@@ -97,11 +101,11 @@ export function WorkerProfileOverview({
                   >
                     <div className="h-full">
                       <Card className="h-full rounded-none border-0 py-0 shadow-none">
-                        <CardContent className="relative flex h-full min-h-80 items-center justify-center p-0">
+                        <CardContent className="bg-muted/20 relative flex h-full min-h-80 items-center justify-center p-0">
                           <img
                             src={photoUrl}
                             alt={`Foto profilo ${index + 1}`}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-contain"
                           />
                           {onSelectedPresentationPhotoIndexChange ? (
                             <Button
@@ -122,7 +126,7 @@ export function WorkerProfileOverview({
                                   ? "Foto principale"
                                   : "Imposta come foto principale"
                               }
-                              className="absolute right-2 bottom-2 rounded-full"
+                              className="absolute top-2 right-2 rounded-full bg-background/90"
                               onClick={() =>
                                 onSelectedPresentationPhotoIndexChange(index)
                               }
@@ -154,7 +158,7 @@ export function WorkerProfileOverview({
               <img
                 src={worker.immagineUrl}
                 alt={worker.nomeCompleto}
-                className="h-full w-full scale-[1.85] object-cover"
+                className="h-full w-full object-contain"
               />
             ) : (
               <span className="text-muted-foreground px-2 text-center text-xs">

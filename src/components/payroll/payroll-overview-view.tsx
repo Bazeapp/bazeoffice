@@ -533,7 +533,7 @@ export function CedolinoDetailSheet({
 
                 <AttachmentUploadSlot
                   label="Cedolino"
-                  value={normalizeAttachmentValue(card.record.cedolino) ?? card.record.cedolino_url ?? null}
+                  value={normalizeAttachmentValue(card.record.cedolino)}
                   onAdd={() => {}}
                   onPreviewOpen={() => {}}
                   isUploading={false}

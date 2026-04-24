@@ -28,19 +28,12 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import {
+  buildAttachmentPayload,
+  normalizeAttachmentArray,
+} from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"
 import type { TicketRecord } from "@/types"
-
-type StoredAttachmentPayload = {
-  bucket: string
-  content_type: string
-  file_name: string
-  name: string
-  path: string
-  public_url: string
-  size: number
-  uploaded_at: string
-}
 
 function sanitizeFileName(name: string) {
   return name
@@ -95,9 +88,7 @@ function normalizeAttachmentValue(value: unknown) {
 }
 
 function toAttachmentArray(value: TicketRecord["allegati"]) {
-  if (!value) return []
-  if (Array.isArray(value)) return value
-  return [value]
+  return normalizeAttachmentArray(value)
 }
 
 type SupportTicketDetailSheetProps = {
@@ -166,7 +157,7 @@ export function SupportTicketDetailSheet({
 
       try {
         const safeName = sanitizeFileName(file.name || "allegato")
-        const storagePath = ["support-tickets", card.id, `${Date.now()}-${safeName}`].join("/")
+        const storagePath = ["ticket", card.id, `${Date.now()}-${safeName}`].join("/")
 
         const uploadResult = await supabase.storage.from("baze-bucket").upload(storagePath, file, {
           cacheControl: "3600",
@@ -178,17 +169,7 @@ export function SupportTicketDetailSheet({
           throw uploadResult.error
         }
 
-        const publicUrlResult = supabase.storage.from("baze-bucket").getPublicUrl(storagePath)
-        const payload: StoredAttachmentPayload = {
-          bucket: "baze-bucket",
-          content_type: file.type || "application/octet-stream",
-          file_name: file.name,
-          name: file.name,
-          path: storagePath,
-          public_url: publicUrlResult.data.publicUrl,
-          size: file.size,
-          uploaded_at: new Date().toISOString(),
-        }
+        const payload = buildAttachmentPayload(file, storagePath)
 
         await onPatchTicket(card.id, {
           allegati: [...toAttachmentArray(card.record.allegati), payload],

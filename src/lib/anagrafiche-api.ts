@@ -79,6 +79,7 @@ type UpdateTableName =
 type CreateTableName =
   | "famiglie"
   | "lavoratori"
+  | "selezioni_lavoratori"
   | "documenti_lavoratori"
   | "esperienze_lavoratori"
   | "referenze_lavoratori"
@@ -571,6 +572,12 @@ type CreateRecordResponse = {
   row: TableRow
 }
 
+type DeleteRecordResponse = {
+  table: UpdateTableName
+  id: string
+  deleted: boolean
+}
+
 export type AutomationWebhookId =
   | "finance-request-invoice-data"
   | "finance-invoice-payment"
@@ -604,6 +611,13 @@ export async function createRecord(
   return invokeEdgeFunction<CreateRecordResponse>("create-record", {
     table,
     values,
+  })
+}
+
+export async function deleteRecord(table: UpdateTableName, id: string) {
+  return invokeEdgeFunction<DeleteRecordResponse>("delete-record", {
+    table,
+    id,
   })
 }
 

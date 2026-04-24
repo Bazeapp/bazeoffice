@@ -284,12 +284,16 @@ function SectionWrapper({
   icon,
   children,
   useSectionBlocks,
+  collapsible = false,
+  defaultOpen = true,
   containerProps,
 }: {
   title: string;
   icon: ReactNode;
   children: ReactNode;
   useSectionBlocks: boolean;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
   containerProps?: React.ComponentProps<"div">;
 }) {
   if (useSectionBlocks) {
@@ -299,6 +303,8 @@ function SectionWrapper({
           title={title}
           icon={icon}
           showDefaultAction={false}
+          collapsible={collapsible}
+          defaultOpen={defaultOpen}
           contentClassName="space-y-4"
         >
           {children}
@@ -485,6 +491,8 @@ export function OnboardingDecisioneLavoroSection({
         title="Famiglia"
         icon={<UsersIcon className="size-4" />}
         useSectionBlocks={useSectionBlocks}
+        collapsible={useSectionBlocks}
+        defaultOpen={false}
         containerProps={sectionContainerProps?.famiglia}
       >
         <Field>
@@ -541,6 +549,8 @@ export function OnboardingDecisioneLavoroSection({
         title="Casa"
         icon={<HomeIcon className="size-4" />}
         useSectionBlocks={useSectionBlocks}
+        collapsible={useSectionBlocks}
+        defaultOpen={false}
         containerProps={sectionContainerProps?.casa}
       >
         <Field>
@@ -583,6 +593,8 @@ export function OnboardingDecisioneLavoroSection({
         title="Animali"
         icon={<CatIcon className="size-4" />}
         useSectionBlocks={useSectionBlocks}
+        collapsible={useSectionBlocks}
+        defaultOpen={false}
         containerProps={sectionContainerProps?.animali}
       >
         <Field>
@@ -636,6 +648,8 @@ export function OnboardingDecisioneLavoroSection({
         title="Mansioni"
         icon={<BriefcaseIcon className="size-4" />}
         useSectionBlocks={useSectionBlocks}
+        collapsible={useSectionBlocks}
+        defaultOpen={false}
         containerProps={sectionContainerProps?.mansioni}
       >
         <Field>
@@ -704,6 +718,8 @@ export function OnboardingDecisioneLavoroSection({
         title="Richieste specifiche"
         icon={<ShieldCheckIcon className="size-4" />}
         useSectionBlocks={useSectionBlocks}
+        collapsible={useSectionBlocks}
+        defaultOpen={false}
         containerProps={sectionContainerProps?.["richieste-specifiche"]}
       >
         <Field>

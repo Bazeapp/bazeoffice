@@ -9,6 +9,7 @@ const corsHeaders = {
 type SupportedTable =
   | "famiglie"
   | "lavoratori"
+  | "selezioni_lavoratori"
   | "documenti_lavoratori"
   | "esperienze_lavoratori"
   | "referenze_lavoratori"
@@ -23,6 +24,7 @@ type CreateRecordPayload = {
 const SUPPORTED_TABLES = new Set<SupportedTable>([
   "famiglie",
   "lavoratori",
+  "selezioni_lavoratori",
   "documenti_lavoratori",
   "esperienze_lavoratori",
   "referenze_lavoratori",
@@ -33,6 +35,7 @@ const SUPPORTED_TABLES = new Set<SupportedTable>([
 const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
   famiglie: new Set(["id", "creato_il", "aggiornato_il"]),
   lavoratori: new Set(["id", "creato_il", "aggiornato_il"]),
+  selezioni_lavoratori: new Set(["id", "creato_il", "aggiornato_il"]),
   documenti_lavoratori: new Set(["id", "creato_il", "aggiornato_il"]),
   esperienze_lavoratori: new Set(["id", "creato_il", "aggiornato_il"]),
   referenze_lavoratori: new Set(["id", "creato_il", "aggiornato_il"]),

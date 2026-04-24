@@ -8,6 +8,10 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  attachmentPathToPublicUrl,
+  normalizeAttachmentArray,
+} from "@/lib/attachments"
 
 export type AttachmentLink = {
   url: string
@@ -46,6 +50,17 @@ function extractNameCandidate(source: Record<string, unknown>) {
 export function flattenAttachmentLinks(value: unknown, fallbackLabel: string): AttachmentLink[] {
   const seen = new Set<string>()
   const links: AttachmentLink[] = []
+
+  for (const attachment of normalizeAttachmentArray(value)) {
+    const url = attachmentPathToPublicUrl(attachment.path)
+    if (!url || seen.has(url)) continue
+    seen.add(url)
+    links.push({ url, label: attachment.name || fallbackLabel })
+  }
+
+  if (links.length > 0) {
+    return links
+  }
 
   function visit(current: unknown, inheritedLabel?: string) {
     const directUrl = extractUrlCandidate(current)

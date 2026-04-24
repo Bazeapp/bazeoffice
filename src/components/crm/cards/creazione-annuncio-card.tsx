@@ -1,6 +1,7 @@
 import * as React from "react";
 import type { ReactNode } from "react";
 import {
+  CopyIcon,
   LoaderCircleIcon,
   WandSparklesIcon,
 } from "lucide-react";
@@ -28,14 +29,25 @@ export function CreazioneAnnuncioCard({
   titleAction,
   containerProps,
   processId,
+  title = "Creazione Annuncio",
+  brief,
+  briefOnly = false,
+  collapsible = false,
+  defaultOpen = true,
 }: {
   titleAction?: ReactNode;
   containerProps?: React.ComponentProps<"div">;
   processId?: string | null;
+  title?: string;
+  brief?: string | null;
+  briefOnly?: boolean;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
 }) {
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [isGenerated, setIsGenerated] = React.useState(true);
   const [isGeneratingSeo, setIsGeneratingSeo] = React.useState(false);
+  const normalizedBrief = brief?.trim() || "";
 
   const handleGenerate = React.useCallback(() => {
     setIsGenerating(true);
@@ -64,70 +76,105 @@ export function CreazioneAnnuncioCard({
     }
   }, [processId]);
 
+  const handleCopy = React.useCallback(async () => {
+    if (!normalizedBrief) return;
+    try {
+      await navigator.clipboard.writeText(normalizedBrief);
+      toast.success("Brief copiato");
+    } catch {
+      toast.error("Impossibile copiare il brief");
+    }
+  }, [normalizedBrief]);
+
   return (
     <div {...containerProps}>
-      <CrmDetailCard title="Creazione Annuncio" titleAction={titleAction}>
+      <CrmDetailCard
+        title={title}
+        titleAction={briefOnly ? undefined : titleAction}
+        collapsible={collapsible}
+        defaultOpen={defaultOpen}
+      >
         <FieldGroup>
-          <div className="rounded-lg border p-4">
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Workflow annuncio</p>
-                  <p className="text-muted-foreground text-sm">
-                    Un solo step per generare annuncio e testo WhatsApp finale.
-                  </p>
+          {!briefOnly ? (
+            <div className="rounded-lg border p-4">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Workflow annuncio</p>
+                    <p className="text-muted-foreground text-sm">
+                      Un solo step per generare annuncio e testo WhatsApp finale.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    disabled={isGenerating}
+                    onClick={handleGenerate}
+                  >
+                    {isGenerating ? (
+                      <LoaderCircleIcon className="animate-spin" />
+                    ) : (
+                      <WandSparklesIcon />
+                    )}
+                    {isGenerating ? "Creazione in corso..." : "Crea annuncio"}
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  disabled={isGenerating}
-                  onClick={handleGenerate}
-                >
-                  {isGenerating ? (
-                    <LoaderCircleIcon className="animate-spin" />
-                  ) : (
-                    <WandSparklesIcon />
-                  )}
-                  {isGenerating ? "Creazione in corso..." : "Crea annuncio"}
-                </Button>
-              </div>
 
-              <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">SEO e slug Webflow</p>
-                  <p className="text-muted-foreground text-sm">
-                    Genera titolo SEO, descrizione SEO e slug della job offer.
-                  </p>
+                <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">SEO e slug Webflow</p>
+                    <p className="text-muted-foreground text-sm">
+                      Genera titolo SEO, descrizione SEO e slug della job offer.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    disabled={isGeneratingSeo}
+                    onClick={() => void handleGenerateSeo()}
+                  >
+                    {isGeneratingSeo ? (
+                      <LoaderCircleIcon className="animate-spin" />
+                    ) : (
+                      <WandSparklesIcon />
+                    )}
+                    {isGeneratingSeo ? "Generazione in corso..." : "Crea SEO e slug"}
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  disabled={isGeneratingSeo}
-                  onClick={() => void handleGenerateSeo()}
-                >
-                  {isGeneratingSeo ? (
-                    <LoaderCircleIcon className="animate-spin" />
-                  ) : (
-                    <WandSparklesIcon />
-                  )}
-                  {isGeneratingSeo ? "Generazione in corso..." : "Crea SEO e slug"}
-                </Button>
               </div>
             </div>
-          </div>
+          ) : null}
 
           <Field>
             <FieldLabel htmlFor="onboarding-testo-whatsapp">Testo per whatsapp</FieldLabel>
             <FieldDescription>
               Compare solo l’output finale pronto da copiare e inviare ai lavoratori.
             </FieldDescription>
+            {briefOnly ? (
+              <div className="mb-2 flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!normalizedBrief}
+                  onClick={() => void handleCopy()}
+                >
+                  <CopyIcon className="size-4" />
+                  Copia
+                </Button>
+              </div>
+            ) : null}
             <div
               id="onboarding-testo-whatsapp"
               className="rounded-md border bg-[#efeae2] p-3 dark:bg-muted/40"
             >
-              {isGenerated ? (
+              {briefOnly ? (
+                <div className="ml-auto max-w-[92%] rounded-xl rounded-br-sm border border-emerald-200 bg-emerald-100/80 px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">
+                  {normalizedBrief || "Nessun brief disponibile."}
+                </div>
+              ) : isGenerated ? (
                 <div className="ml-auto max-w-[92%] rounded-xl rounded-br-sm border border-emerald-200 bg-emerald-100/80 px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">
                   {WHATSAPP_TEXT}
                 </div>

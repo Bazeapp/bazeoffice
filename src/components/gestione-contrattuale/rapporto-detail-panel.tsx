@@ -3,11 +3,13 @@ import {
   ArrowRightIcon,
   BriefcaseBusinessIcon,
   CalendarDaysIcon,
+  CheckCircle2Icon,
   CopyIcon,
   CreditCardIcon,
   ExternalLinkIcon,
   FileTextIcon,
   MailIcon,
+  OctagonAlertIcon,
   PencilIcon,
   PhoneIcon,
   RefreshCwIcon,
@@ -20,6 +22,7 @@ import {
 import { getTagClassName } from "@/features/lavoratori/lib/lookup-utils"
 import {
   AttachmentUploadSlot,
+  hasAttachmentValue,
   type AttachmentLink,
 } from "@/components/shared/attachment-upload-slot"
 import {
@@ -44,6 +47,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { updateRecord } from "@/lib/anagrafiche-api"
+import {
+  buildAttachmentPayload,
+  normalizeAttachmentArray,
+} from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"
 import { buildPathForRoute } from "@/routes/app-routes"
 import type {
@@ -173,17 +180,6 @@ function sanitizeFileName(name: string) {
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/-+/g, "-")
-}
-
-type StoredAttachmentPayload = {
-  bucket: string
-  content_type: string
-  file_name: string
-  name: string
-  path: string
-  public_url: string
-  size: number
-  uploaded_at: string
 }
 
 function buildDistributionItems(source: string | null, totalHours: number | null) {
@@ -503,21 +499,22 @@ export function RapportoDetailPanel({
       slot: "accordo_di_lavoro_allegati" | "ricevuta_inps_allegati" | "delega_inps_allegati",
       file: File
     ) => {
-      if (!rapporto) return
+      const rapportoRecord = rapportoState ?? rapporto
+      if (!rapportoRecord) return
 
       setUploadError(null)
       setUploadingSlot(slot)
 
       const rapportoMetadata =
-        rapporto.metadati_migrazione && typeof rapporto.metadati_migrazione === "object"
-          ? rapporto.metadati_migrazione
+        rapportoRecord.metadati_migrazione && typeof rapportoRecord.metadati_migrazione === "object"
+          ? rapportoRecord.metadati_migrazione
           : {}
 
       try {
         const safeName = sanitizeFileName(file.name || "documento")
         const storagePath = [
-          "rapporti-lavorativi",
-          rapporto.id,
+          "rapporti_lavorativi",
+          rapportoRecord.id,
           slot,
           `${Date.now()}-${safeName}`,
         ].join("/")
@@ -534,30 +531,27 @@ export function RapportoDetailPanel({
           throw uploadResult.error
         }
 
-        const publicUrlResult = supabase.storage.from("baze-bucket").getPublicUrl(storagePath)
-        const payload: StoredAttachmentPayload = {
-          bucket: "baze-bucket",
-          content_type: file.type || "application/octet-stream",
-          file_name: file.name,
-          name: file.name,
-          path: storagePath,
-          public_url: publicUrlResult.data.publicUrl,
-          size: file.size,
-          uploaded_at: new Date().toISOString(),
-        }
+        const payload = buildAttachmentPayload(file, storagePath)
 
         if (slot === "delega_inps_allegati") {
           const nextMetadata = {
             ...(typeof rapportoMetadata === "object" ? rapportoMetadata : {}),
-            delega_inps_allegati: payload,
+            delega_inps_allegati: [
+              ...normalizeAttachmentArray(
+                (rapportoMetadata as Record<string, unknown>)?.delega_inps_allegati,
+              ),
+              payload,
+            ],
           }
-          await updateRecord("rapporti_lavorativi", rapporto.id, {
+          const response = await updateRecord("rapporti_lavorativi", rapportoRecord.id, {
             metadati_migrazione: nextMetadata,
           })
+          setRapportoState(response.row as RapportoLavorativoRecord)
         } else {
-          await updateRecord("rapporti_lavorativi", rapporto.id, {
-            [slot]: payload,
+          const response = await updateRecord("rapporti_lavorativi", rapportoRecord.id, {
+            [slot]: [...normalizeAttachmentArray(rapportoRecord[slot]), payload],
           })
+          setRapportoState(response.row as RapportoLavorativoRecord)
         }
       } catch (caughtError) {
         setUploadError(
@@ -567,7 +561,7 @@ export function RapportoDetailPanel({
         setUploadingSlot(null)
       }
     },
-    [rapporto]
+    [rapporto, rapportoState]
   )
 
   const setDraftValue = React.useCallback(
@@ -692,6 +686,9 @@ export function RapportoDetailPanel({
     typeof rapportoMetadata === "object" && rapportoMetadata
       ? (rapportoMetadata as Record<string, unknown>).delega_inps_allegati ?? null
       : null
+  const hasAccordoDiLavoro = hasAttachmentValue(rapportoView.accordo_di_lavoro_allegati)
+  const hasRicevutaInps = hasAttachmentValue(rapportoView.ricevuta_inps_allegati)
+  const hasDelegaInps = hasAttachmentValue(delegaInpsValue)
   const startDateLabel = formatDate(rapportoView.data_inizio_rapporto)
   const statoRapportoColor =
     lookupColorsByDomain.get(
@@ -1157,10 +1154,15 @@ export function RapportoDetailPanel({
                         <div className="flex items-center gap-2">
                           <FileTextIcon className="text-muted-foreground size-4" />
                           <span className="text-[11px] font-semibold">Accordo di lavoro</span>
+                          {hasAccordoDiLavoro ? (
+                            <CheckCircle2Icon className="size-4 text-green-600" />
+                          ) : (
+                            <OctagonAlertIcon className="size-4 text-red-500" />
+                          )}
                         </div>
                         <AttachmentUploadSlot
                           label="Accordo di lavoro"
-                          value={rapporto.accordo_di_lavoro_allegati}
+                          value={rapportoView.accordo_di_lavoro_allegati}
                           onAdd={(file) => void handleUploadRapportoAttachment("accordo_di_lavoro_allegati", file)}
                           onPreviewOpen={setSelectedPreview}
                           isUploading={uploadingSlot === "accordo_di_lavoro_allegati"}
@@ -1170,10 +1172,15 @@ export function RapportoDetailPanel({
                         <div className="flex items-center gap-2">
                           <FileTextIcon className="text-muted-foreground size-4" />
                           <span className="text-[11px] font-semibold">Ricevuta INPS</span>
+                          {hasRicevutaInps ? (
+                            <CheckCircle2Icon className="size-4 text-green-600" />
+                          ) : (
+                            <OctagonAlertIcon className="size-4 text-red-500" />
+                          )}
                         </div>
                         <AttachmentUploadSlot
                           label="Ricevuta INPS"
-                          value={rapporto.ricevuta_inps_allegati}
+                          value={rapportoView.ricevuta_inps_allegati}
                           onAdd={(file) => void handleUploadRapportoAttachment("ricevuta_inps_allegati", file)}
                           onPreviewOpen={setSelectedPreview}
                           isUploading={uploadingSlot === "ricevuta_inps_allegati"}
@@ -1183,6 +1190,11 @@ export function RapportoDetailPanel({
                         <div className="flex items-center gap-2">
                           <FileTextIcon className="text-muted-foreground size-4" />
                           <span className="text-[11px] font-semibold">Delega INPS</span>
+                          {hasDelegaInps ? (
+                            <CheckCircle2Icon className="size-4 text-green-600" />
+                          ) : (
+                            <OctagonAlertIcon className="size-4 text-red-500" />
+                          )}
                         </div>
                         <AttachmentUploadSlot
                           label="Delega INPS"

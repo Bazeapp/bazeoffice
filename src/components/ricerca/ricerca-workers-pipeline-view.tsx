@@ -1,4 +1,5 @@
 import * as React from "react";
+import { toast } from "sonner";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -6,12 +7,14 @@ import {
   XIcon,
 } from "lucide-react";
 
-import { OnboardingCard } from "@/components/crm/cards/onboarding-card";
+import { FamigliaProcessoDetailContent } from "@/components/crm/famiglia-processo-detail-content";
 import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
-import { RicercaFamilySummaryCard } from "@/components/ricerca/ricerca-family-summary-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
-import { WorkerPipelineSummaryCards } from "@/components/ricerca/worker-pipeline-summary-cards";
+import {
+  type RelatedActiveSearchItem,
+  WorkerPipelineSummaryCards,
+} from "@/components/ricerca/worker-pipeline-summary-cards";
 import { DetailSectionBlock } from "@/components/shared/detail-section-card";
 import { SideCardsPanel } from "@/components/shared/side-cards-panel";
 import {
@@ -54,6 +57,7 @@ import {
   getLookupToneTextClassName,
 } from "@/lib/lookup-color-styles";
 import { cn } from "@/lib/utils";
+import { invokeAiGenerationFunction } from "@/lib/ai-generation";
 import {
   type CrmPipelineCardData,
   type LookupOptionsByField,
@@ -63,16 +67,21 @@ import {
   type RicercaWorkerSelectionCard,
   useRicercaWorkersPipeline,
 } from "@/hooks/use-ricerca-workers-pipeline";
+import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import {
   fetchEsperienzeLavoratoriByWorker,
+  fetchDocumentiLavoratoriByWorker,
+  fetchFamiglie,
   fetchLavoratori,
   fetchLookupValues,
+  fetchProcessiMatching,
   fetchReferenzeLavoratoriByWorker,
   fetchSelezioniLavoratori,
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore";
+import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore";
 import type { LavoratoreRecord } from "@/types/entities/lavoratore";
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore";
 
@@ -80,6 +89,12 @@ type RicercaWorkersPipelineViewProps = {
   processId: string;
   card: CrmPipelineCardData;
   lookupOptionsByField: LookupOptionsByField;
+  focusSelectionId?: string | null;
+  onOpenRelatedSearch?: (processId: string, selectionId: string) => void;
+  onPatchProcess?: (
+    processId: string,
+    patch: Record<string, unknown>,
+  ) => Promise<void> | void;
   className?: string;
 };
 
@@ -190,6 +205,185 @@ const GROUPED_COLUMN_GROUPS: Record<string, GroupedColumnGroup[]> = {
 
 const DEFAULT_BLUE_BADGE_CLASS_NAME =
   "border-blue-200 bg-blue-100 text-blue-700";
+
+const RELATED_SELECTIONS_PAGE_SIZE = 500;
+const RELATED_PROCESS_BATCH_SIZE = 150;
+const RELATED_FAMILY_BATCH_SIZE = 150;
+const ACTIVE_RELATED_SEARCH_STATUS_TOKENS = new Set([
+  "fare ricerca",
+  "selezione inviata",
+  "selezione inviata in attesa di feedback",
+  "fase di colloqui",
+  "in prova con lavoratore",
+  "match",
+  "stand by",
+]);
+
+function isActiveRelatedSearch(value: unknown) {
+  return ACTIVE_RELATED_SEARCH_STATUS_TOKENS.has(normalizeToken(asString(value)));
+}
+
+function formatRelatedFamilyName(row: Record<string, unknown> | null | undefined) {
+  const familyName = [asString(row?.nome), asString(row?.cognome)]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .trim();
+
+  return familyName || "Famiglia senza nome";
+}
+
+function formatRelatedSearchLabel(processRow: Record<string, unknown>) {
+  const searchNumber = asString(processRow.numero_ricerca_attivata);
+  if (searchNumber) return `Ricerca #${searchNumber}`;
+
+  const relatedProcessId = asString(processRow.id);
+  return relatedProcessId ? `Ricerca ${relatedProcessId.slice(0, 8)}` : "Ricerca";
+}
+
+function extractGeneratedMessage(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+
+  const record = value as Record<string, unknown>;
+  const directValue = asString(record.messaggio_famiglia_selezione_lavoratore);
+  if (directValue) return directValue;
+
+  return (
+    extractGeneratedMessage(record.row) ||
+    extractGeneratedMessage(record.data) ||
+    extractGeneratedMessage(record.result)
+  );
+}
+
+function waitFor(milliseconds: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function formatRelatedZona(processRow: Record<string, unknown>) {
+  const parts = [
+    asString(processRow.indirizzo_prova_comune),
+    asString(processRow.indirizzo_prova_provincia),
+    asString(processRow.indirizzo_prova_cap),
+    asString(processRow.indirizzo_prova_note),
+  ].filter(
+    (value, index, values): value is string =>
+      Boolean(value) && values.indexOf(value) === index,
+  );
+
+  return parts.join(" • ") || "-";
+}
+
+async function fetchAllSelectionsForWorker(workerId: string) {
+  const rows: Record<string, unknown>[] = [];
+  let offset = 0;
+
+  while (true) {
+    const result = await fetchSelezioniLavoratori({
+      limit: RELATED_SELECTIONS_PAGE_SIZE,
+      offset,
+      orderBy: [{ field: "aggiornato_il", ascending: false }],
+      filters: {
+        kind: "group",
+        id: "related-active-searches-by-worker",
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: "related-active-searches-worker-id",
+            field: "lavoratore_id",
+            operator: "is",
+            value: workerId,
+          },
+        ],
+      },
+    });
+
+    const pageRows = Array.isArray(result.rows)
+      ? (result.rows as Record<string, unknown>[])
+      : [];
+    rows.push(...pageRows);
+
+    if (pageRows.length < RELATED_SELECTIONS_PAGE_SIZE) break;
+    offset += RELATED_SELECTIONS_PAGE_SIZE;
+  }
+
+  return rows;
+}
+
+async function fetchRelatedProcessesByIds(processIds: string[]) {
+  if (processIds.length === 0) return [];
+
+  const rows: Record<string, unknown>[] = [];
+
+  for (
+    let index = 0;
+    index < processIds.length;
+    index += RELATED_PROCESS_BATCH_SIZE
+  ) {
+    const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE);
+    const result = await fetchProcessiMatching({
+      limit: batch.length,
+      offset: 0,
+      filters: {
+        kind: "group",
+        id: `related-processes-batch-${index}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `related-processes-ids-${index}`,
+            field: "id",
+            operator: "in",
+            value: batch.join(","),
+          },
+        ],
+      },
+    });
+
+    if (Array.isArray(result.rows)) {
+      rows.push(...(result.rows as Record<string, unknown>[]));
+    }
+  }
+
+  return rows;
+}
+
+async function fetchRelatedFamiliesByIds(familyIds: string[]) {
+  if (familyIds.length === 0) return [];
+
+  const rows: Record<string, unknown>[] = [];
+
+  for (
+    let index = 0;
+    index < familyIds.length;
+    index += RELATED_FAMILY_BATCH_SIZE
+  ) {
+    const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE);
+    const result = await fetchFamiglie({
+      limit: batch.length,
+      offset: 0,
+      filters: {
+        kind: "group",
+        id: `related-families-batch-${index}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `related-families-ids-${index}`,
+            field: "id",
+            operator: "in",
+            value: batch.join(","),
+          },
+        ],
+      },
+    });
+
+    if (Array.isArray(result.rows)) {
+      rows.push(...(result.rows as Record<string, unknown>[]));
+    }
+  }
+
+  return rows;
+}
 
 function resolveGroupColor(
   column: RicercaWorkerSelectionColumn,
@@ -448,10 +642,16 @@ export function RicercaWorkersPipelineView({
   processId,
   card,
   lookupOptionsByField,
+  focusSelectionId = null,
+  onOpenRelatedSearch,
   className,
 }: RicercaWorkersPipelineViewProps) {
   const { loading, error, columns, moveCard } =
     useRicercaWorkersPipeline(processId);
+  const { options: recruiterOptions } = useOperatoriOptions({
+    role: "recruiter",
+    activeOnly: true,
+  });
   const [isOnboardingCollapsed, setIsOnboardingCollapsed] =
     React.useState(false);
   const [draggingSelectionId, setDraggingSelectionId] = React.useState<
@@ -470,6 +670,8 @@ export function RicercaWorkersPipelineView({
     React.useState<LavoratoreRecord | null>(null);
   const [selectedWorkerExperiences, setSelectedWorkerExperiences] =
     React.useState<EsperienzaLavoratoreRecord[]>([]);
+  const [selectedWorkerDocuments, setSelectedWorkerDocuments] =
+    React.useState<DocumentoLavoratoreRecord[]>([]);
   const [selectedSelectionRow, setSelectedSelectionRow] = React.useState<Record<
     string,
     unknown
@@ -480,6 +682,8 @@ export function RicercaWorkersPipelineView({
     loadingSelectedWorkerExperiences,
     setLoadingSelectedWorkerExperiences,
   ] = React.useState(false);
+  const [loadingSelectedWorkerDocuments, setLoadingSelectedWorkerDocuments] =
+    React.useState(false);
   const [loadingSelectedWorkerReferences, setLoadingSelectedWorkerReferences] =
     React.useState(false);
   const [lookupOptionsByDomain, setLookupOptionsByDomain] = React.useState<
@@ -492,6 +696,10 @@ export function RicercaWorkersPipelineView({
     React.useState(false);
   const [updatingSelectionDetails, setUpdatingSelectionDetails] =
     React.useState(false);
+  const [generatingWorkerSummary, setGeneratingWorkerSummary] =
+    React.useState(false);
+  const [generatingSelectionFeedback, setGeneratingSelectionFeedback] =
+    React.useState(false);
   const [updatingFamilyAddress, setUpdatingFamilyAddress] = React.useState(false);
   const [familyAddressDraft, setFamilyAddressDraft] = React.useState({
     province: card.indirizzoProvincia,
@@ -502,7 +710,19 @@ export function RicercaWorkersPipelineView({
   const [selectedWorkerError, setSelectedWorkerError] = React.useState<
     string | null
   >(null);
+  const selectedWorkerLoadingToastIdRef = React.useRef<string | number | null>(
+    null,
+  );
+  const [relatedActiveSearches, setRelatedActiveSearches] = React.useState<
+    RelatedActiveSearchItem[]
+  >([]);
+  const [loadingRelatedActiveSearches, setLoadingRelatedActiveSearches] =
+    React.useState(false);
   const selectedWorkerId = selectedWorkerRow?.id ?? null;
+  const recruiterLabelsById = React.useMemo(
+    () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
+    [recruiterOptions],
+  );
   const selectedWorker = React.useMemo(() => {
     if (!selectedCard) return null;
     if (!selectedWorkerRow) return selectedCard.worker;
@@ -572,6 +792,12 @@ export function RicercaWorkersPipelineView({
     [],
   );
 
+  const removeWorkerExperience = React.useCallback((experienceId: string) => {
+    setSelectedWorkerExperiences((current) =>
+      current.filter((item) => item.id !== experienceId),
+    );
+  }, []);
+
   const applyUpdatedWorkerReference = React.useCallback(
     (row: ReferenzaLavoratoreRecord) => {
       setSelectedWorkerReferences((current) =>
@@ -588,32 +814,60 @@ export function RicercaWorkersPipelineView({
     [],
   );
 
+  const upsertSelectedWorkerDocument = React.useCallback(
+    (row: DocumentoLavoratoreRecord) => {
+      setSelectedWorkerDocuments((current) => {
+        const existingIndex = current.findIndex((item) => item.id === row.id);
+        if (existingIndex === -1) {
+          return [row, ...current];
+        }
+
+        return current.map((item) => (item.id === row.id ? row : item));
+      });
+    },
+    [],
+  );
+
   const {
     availabilityPayload,
     availabilityReadOnlyRows,
     isEditingAvailability,
     setIsEditingAvailability,
+    isEditingJobSearch,
+    setIsEditingJobSearch,
     isEditingExperience,
     setIsEditingExperience,
     isEditingSkills,
     setIsEditingSkills,
+    isEditingDocuments,
+    setIsEditingDocuments,
     updatingAvailability,
+    updatingJobSearch,
     updatingExperience,
     updatingSkills,
+    updatingDocuments,
     availabilityDraft,
     setAvailabilityDraft,
+    jobSearchDraft,
+    setJobSearchDraft,
     experienceDraft,
     setExperienceDraft,
     skillsDraft,
     setSkillsDraft,
+    documentsDraft,
+    setDocumentsDraft,
     handleAvailabilityMatrixChange,
     commitAvailabilityField,
+    patchJobSearchField,
     patchExperienceRecord,
     createExperienceRecord,
+    deleteExperienceRecord,
     patchReferenceRecord,
     createReferenceRecord,
     commitExperienceField,
     patchSkillsField,
+    patchDocumentField,
+    commitDocumentField,
     patchSelectedWorkerField,
   } = useSelectedWorkerEditor({
     selectedWorkerId,
@@ -624,6 +878,7 @@ export function RicercaWorkersPipelineView({
     applyUpdatedWorkerRow,
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
+    removeWorkerExperience,
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
@@ -639,19 +894,59 @@ export function RicercaWorkersPipelineView({
     [],
   );
 
+  React.useEffect(() => {
+    if (!focusSelectionId || loading) return;
+
+    const nextCard =
+      columns
+        .flatMap((column) => column.cards)
+        .find((columnCard) => columnCard.id === focusSelectionId) ?? null;
+
+    if (!nextCard) return;
+
+    setSelectedCard(nextCard);
+    setIsWorkerOverlayOpen(true);
+  }, [columns, focusSelectionId, loading]);
+
   const handleCloseWorkerOverlay = React.useCallback(() => {
     setIsWorkerOverlayOpen(false);
     setSelectedCard(null);
   }, []);
 
   React.useEffect(() => {
+    if (selectedWorkerLoading) {
+      if (selectedWorkerLoadingToastIdRef.current == null) {
+        selectedWorkerLoadingToastIdRef.current =
+          toast.loading("Caricamento profilo...");
+      }
+      return;
+    }
+
+    if (selectedWorkerLoadingToastIdRef.current != null) {
+      toast.dismiss(selectedWorkerLoadingToastIdRef.current);
+      selectedWorkerLoadingToastIdRef.current = null;
+    }
+  }, [selectedWorkerLoading]);
+
+  React.useEffect(() => {
+    return () => {
+      if (selectedWorkerLoadingToastIdRef.current != null) {
+        toast.dismiss(selectedWorkerLoadingToastIdRef.current);
+        selectedWorkerLoadingToastIdRef.current = null;
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
     if (!selectedCard || !isWorkerOverlayOpen) {
       setSelectedWorkerRow(null);
       setSelectedWorkerExperiences([]);
+      setSelectedWorkerDocuments([]);
       setSelectedWorkerReferences([]);
       setSelectedSelectionRow(null);
       setSelectedWorkerLoading(false);
       setLoadingSelectedWorkerExperiences(false);
+      setLoadingSelectedWorkerDocuments(false);
       setLoadingSelectedWorkerReferences(false);
       setSelectedWorkerError(null);
       return;
@@ -664,6 +959,7 @@ export function RicercaWorkersPipelineView({
     async function loadWorkerRow() {
       setSelectedWorkerLoading(true);
       setLoadingSelectedWorkerExperiences(true);
+      setLoadingSelectedWorkerDocuments(true);
       setLoadingSelectedWorkerReferences(true);
       setSelectedWorkerError(null);
 
@@ -672,6 +968,7 @@ export function RicercaWorkersPipelineView({
           workerResult,
           lookupResult,
           experiencesResult,
+          documentsResult,
           referencesResult,
           selectionResult,
         ] = await Promise.all([
@@ -695,6 +992,7 @@ export function RicercaWorkersPipelineView({
           }),
           fetchLookupValues(),
           fetchEsperienzeLavoratoriByWorker(workerId),
+          fetchDocumentiLavoratoriByWorker(workerId),
           fetchReferenzeLavoratoriByWorker(workerId),
           fetchSelezioniLavoratori({
             limit: 1,
@@ -728,6 +1026,7 @@ export function RicercaWorkersPipelineView({
         setLookupOptionsByDomain(normalizeLookupOptions(lookupResult.rows));
         setLookupColorsByDomain(normalizeLookupColors(lookupResult.rows));
         setSelectedWorkerExperiences(experiencesResult.rows);
+        setSelectedWorkerDocuments(documentsResult.rows);
         setSelectedWorkerReferences(referencesResult.rows);
       } catch (error) {
         if (isCancelled) return;
@@ -735,12 +1034,14 @@ export function RicercaWorkersPipelineView({
         setSelectedWorkerError(message || "Errore caricamento profilo");
         setSelectedWorkerRow(null);
         setSelectedWorkerExperiences([]);
+        setSelectedWorkerDocuments([]);
         setSelectedWorkerReferences([]);
         setSelectedSelectionRow(null);
       } finally {
         if (!isCancelled) {
           setSelectedWorkerLoading(false);
           setLoadingSelectedWorkerExperiences(false);
+          setLoadingSelectedWorkerDocuments(false);
           setLoadingSelectedWorkerReferences(false);
         }
       }
@@ -752,6 +1053,147 @@ export function RicercaWorkersPipelineView({
       isCancelled = true;
     };
   }, [selectedCard, isWorkerOverlayOpen]);
+
+  React.useEffect(() => {
+    if (!selectedWorkerId || !isWorkerOverlayOpen) {
+      setRelatedActiveSearches([]);
+      setLoadingRelatedActiveSearches(false);
+      return;
+    }
+
+    let isCancelled = false;
+    const workerId = selectedWorkerId;
+
+    async function loadRelatedActiveSearches() {
+      setLoadingRelatedActiveSearches(true);
+
+      try {
+        const workerSelections = await fetchAllSelectionsForWorker(workerId);
+        if (isCancelled) return;
+
+        const filteredSelections = workerSelections.filter((selection) => {
+          const selectionId = asString(selection.id);
+          const selectionProcessId = asString(selection.processo_matching_id);
+
+          return Boolean(selectionProcessId) &&
+            selectionId !== selectedCard?.id &&
+            selectionProcessId !== processId;
+        });
+
+        const processIds = Array.from(
+          new Set(
+            filteredSelections
+              .map((selection) => asString(selection.processo_matching_id))
+              .filter((value): value is string => Boolean(value)),
+          ),
+        );
+
+        const processRows = await fetchRelatedProcessesByIds(processIds);
+        if (isCancelled) return;
+
+        const activeProcessRows = processRows.filter((row) =>
+          isActiveRelatedSearch(row.stato_res),
+        );
+        const processRowsById = new Map(
+          activeProcessRows
+            .map((row) => {
+              const rowId = asString(row.id);
+              if (!rowId) return null;
+              return [rowId, row] as const;
+            })
+            .filter(
+              (entry): entry is readonly [string, Record<string, unknown>] =>
+                Boolean(entry),
+            ),
+        );
+
+        const familyIds = Array.from(
+          new Set(
+            activeProcessRows
+              .map((row) => asString(row.famiglia_id))
+              .filter((value): value is string => Boolean(value)),
+          ),
+        );
+
+        const familyRows = await fetchRelatedFamiliesByIds(familyIds);
+        if (isCancelled) return;
+
+        const familyRowsById = new Map(
+          familyRows
+            .map((row) => {
+              const rowId = asString(row.id);
+              if (!rowId) return null;
+              return [rowId, row] as const;
+            })
+            .filter(
+              (entry): entry is readonly [string, Record<string, unknown>] =>
+                Boolean(entry),
+            ),
+        );
+
+        const seenProcessIds = new Set<string>();
+        const nextItems: RelatedActiveSearchItem[] = [];
+
+        for (const selection of filteredSelections) {
+          const selectionId = asString(selection.id);
+          const selectionProcessId = asString(selection.processo_matching_id);
+          if (!selectionId || !selectionProcessId) continue;
+          if (seenProcessIds.has(selectionProcessId)) continue;
+
+          const processRow = processRowsById.get(selectionProcessId);
+          if (!processRow) continue;
+
+          const familyRow = familyRowsById.get(asString(processRow.famiglia_id) ?? "");
+          const recruiterId = asString(processRow.recruiter_ricerca_e_selezione_id);
+
+          nextItems.push({
+            selectionId,
+            processId: selectionProcessId,
+            familyName: formatRelatedFamilyName(familyRow),
+            ricercaLabel: formatRelatedSearchLabel(processRow),
+            recruiterLabel: recruiterId
+              ? recruiterLabelsById.get(recruiterId) ?? "Recruiter non assegnato"
+              : "Recruiter non assegnato",
+            statoSelezione: asString(selection.stato_selezione) || "-",
+            statoRicerca: asString(processRow.stato_res) || "-",
+            orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
+            zona: formatRelatedZona(processRow),
+            appunti: asString(selection.note_selezione) || "",
+          });
+          seenProcessIds.add(selectionProcessId);
+        }
+
+        if (isCancelled) return;
+        setRelatedActiveSearches(nextItems);
+      } catch {
+        if (isCancelled) return;
+        setRelatedActiveSearches([]);
+      } finally {
+        if (!isCancelled) {
+          setLoadingRelatedActiveSearches(false);
+        }
+      }
+    }
+
+    void loadRelatedActiveSearches();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    isWorkerOverlayOpen,
+    processId,
+    recruiterLabelsById,
+    selectedCard?.id,
+    selectedWorkerId,
+  ]);
+
+  const handleOpenRelatedSearchCard = React.useCallback(
+    (nextProcessId: string, nextSelectionId: string) => {
+      onOpenRelatedSearch?.(nextProcessId, nextSelectionId);
+    },
+    [onOpenRelatedSearch],
+  );
 
   React.useEffect(() => {
     setFamilyAddressDraft({
@@ -824,6 +1266,131 @@ export function RicercaWorkersPipelineView({
     },
     [selectedCard],
   );
+
+  const handleGenerateWorkerSummary = React.useCallback(async () => {
+    if (!selectedWorkerId) return;
+
+    setGeneratingWorkerSummary(true);
+    setSelectedWorkerError(null);
+    const toastId = toast.loading("Generazione riassunto esperienze...");
+
+    try {
+      await invokeAiGenerationFunction(
+        "generare-lavoratore-riassunto-profilo-breve",
+        { id: selectedWorkerId },
+      );
+
+      const result = await fetchLavoratori({
+        limit: 1,
+        offset: 0,
+        filters: {
+          kind: "group",
+          id: "ai-generated-worker-summary",
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: "ai-generated-worker-summary-id",
+              field: "id",
+              operator: "is",
+              value: selectedWorkerId,
+            },
+          ],
+        },
+      });
+      const row = result.rows[0] as LavoratoreRecord | undefined;
+      if (row) {
+        applyUpdatedWorkerRow(row);
+      }
+      toast.success("Riassunto esperienze generato", { id: toastId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setSelectedWorkerError(message || "Errore generazione riassunto");
+      toast.error("Errore generazione riassunto", {
+        id: toastId,
+        description: message,
+      });
+    } finally {
+      setGeneratingWorkerSummary(false);
+    }
+  }, [applyUpdatedWorkerRow, selectedWorkerId]);
+
+  const handleGenerateSelectionFeedback = React.useCallback(async () => {
+    if (!selectedCard?.id) return null;
+
+    setGeneratingSelectionFeedback(true);
+    setSelectedWorkerError(null);
+    const toastId = toast.loading("Generazione feedback Baze...");
+
+    try {
+      const functionResult = await invokeAiGenerationFunction(
+        "generare-selezioni-lavoratori-messaggio-famiglia",
+        { id: selectedCard.id },
+      );
+      const generatedFromFunction = extractGeneratedMessage(functionResult);
+
+      const fetchSelection = () => fetchSelezioniLavoratori({
+        limit: 1,
+        offset: 0,
+        filters: {
+          kind: "group",
+          id: "ai-generated-selection-feedback",
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: "ai-generated-selection-feedback-id",
+              field: "id",
+              operator: "is",
+              value: selectedCard.id,
+            },
+          ],
+        },
+      });
+      let result = await fetchSelection();
+      let row = result.rows[0] ?? null;
+      let generatedText =
+        asString(row?.messaggio_famiglia_selezione_lavoratore) ||
+        generatedFromFunction;
+
+      if (!generatedText) {
+        await waitFor(500);
+        result = await fetchSelection();
+        row = result.rows[0] ?? null;
+        generatedText = asString(row?.messaggio_famiglia_selezione_lavoratore);
+      }
+
+      if (row) {
+        setSelectedSelectionRow({
+          ...row,
+          ...(generatedText
+            ? { messaggio_famiglia_selezione_lavoratore: generatedText }
+            : {}),
+        });
+      } else if (generatedText) {
+        setSelectedSelectionRow((current) =>
+          current
+            ? {
+                ...current,
+                messaggio_famiglia_selezione_lavoratore: generatedText,
+              }
+            : current,
+        );
+      }
+      toast.success("Feedback Baze generato", { id: toastId });
+      return generatedText;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setSelectedWorkerError(message || "Errore generazione feedback");
+      toast.error("Errore generazione feedback", {
+        id: toastId,
+        description: message,
+      });
+      return null;
+    } finally {
+      setGeneratingSelectionFeedback(false);
+    }
+  }, [selectedCard?.id]);
 
   const handleMoveSelectionStatus = React.useCallback(
     async (value: string) => {
@@ -935,17 +1502,17 @@ export function RicercaWorkersPipelineView({
                   <ChevronLeftIcon />
                 </Button>
 
-                <div className="space-y-4">
-                  <RicercaFamilySummaryCard card={card} />
-
-                  <OnboardingCard
-                    card={card}
-                    lookupOptionsByField={lookupOptionsByField}
-                    showTitle={false}
-                    showTempistiche={false}
-                    readOnly
-                  />
-                </div>
+                <FamigliaProcessoDetailContent
+                  card={card}
+                  lookupOptionsByField={lookupOptionsByField}
+                  editMode="toggle"
+                  showHeaderMeta={false}
+                  showPrimaryControls={false}
+                  showContextCard={false}
+                  showAnnuncio
+                  readOnly
+                  isActive
+                />
               </div>
             ) : null}
           </div>
@@ -1034,11 +1601,6 @@ export function RicercaWorkersPipelineView({
             </Button>
           </div>
 
-          {selectedWorkerLoading ? (
-            <div className="text-muted-foreground p-4 text-sm">
-              Caricamento profilo...
-            </div>
-          ) : null}
           {selectedWorkerError ? (
             <div className="mx-4 mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
               Errore caricamento lavoratore: {selectedWorkerError}
@@ -1052,16 +1614,19 @@ export function RicercaWorkersPipelineView({
                   title=""
                   className="h-full rounded-none border-0 shadow-none"
                   headerClassName="hidden"
-                  contentClassName="space-y-4 px-4 pt-0 pb-4"
+                  contentClassName="px-4 pt-0 pb-4"
                 >
-                  <RicercaFamilySummaryCard card={card} />
-
-                  <OnboardingCard
+                  <FamigliaProcessoDetailContent
                     card={card}
                     lookupOptionsByField={lookupOptionsByField}
-                    showTitle={false}
-                    showTempistiche={false}
+                    editMode="toggle"
+                    showHeaderMeta={false}
+                    showPrimaryControls={false}
+                    showContextCard={false}
+                    showAnnuncio
                     readOnly
+                    isActive
+                    className="bg-transparent"
                   />
                 </SideCardsPanel>
               </div>
@@ -1071,6 +1636,7 @@ export function RicercaWorkersPipelineView({
                   <DetailSectionBlock
                     title="Profilo lavoratore"
                     showDefaultAction={false}
+                    collapsible
                     className="space-y-2"
                     contentClassName="space-y-0 px-1 pt-1"
                   >
@@ -1079,13 +1645,11 @@ export function RicercaWorkersPipelineView({
                       workerRow={selectedWorkerRow}
                       headerLayout="stacked"
                       statoLavoratoreOptions={
-                        lookupOptionsByDomain.get(
-                          "lavoratori.stato_lavoratore",
-                        ) ?? []
+                        lookupOptionsByDomain.get("lavoratori.stato_lavoratore") ??
+                        []
                       }
                       disponibilitaOptions={
-                        lookupOptionsByDomain.get("lavoratori.disponibilita") ??
-                        []
+                        lookupOptionsByDomain.get("lavoratori.disponibilita") ?? []
                       }
                       motivazioniOptions={
                         lookupOptionsByDomain.get(
@@ -1119,6 +1683,7 @@ export function RicercaWorkersPipelineView({
                   <DetailSectionBlock
                     title="Scheda colloquio"
                     showDefaultAction={false}
+                    collapsible
                     className="space-y-2"
                     contentClassName="space-y-0 px-1 pt-1"
                   >
@@ -1131,8 +1696,20 @@ export function RicercaWorkersPipelineView({
                         lookupOptionsByDomain.get("lavoratori.stato_selezione") ??
                         []
                       }
+                      nonSelezionatoOptions={
+                        lookupOptionsByDomain.get(
+                          "selezioni_lavoratori.motivo_non_selezionato",
+                        ) ?? []
+                      }
+                      noMatchOptions={
+                        lookupOptionsByDomain.get(
+                          "selezioni_lavoratori.motivo_no_match",
+                        ) ?? []
+                      }
                       lookupColorsByDomain={lookupColorsByDomain}
                       disabled={updatingSelectionDetails}
+                      isGeneratingFeedback={generatingSelectionFeedback}
+                      onGenerateFeedback={handleGenerateSelectionFeedback}
                       onMoveStatus={handleMoveSelectionStatus}
                       onPatchField={patchSelectedSelectionField}
                     />
@@ -1142,20 +1719,12 @@ export function RicercaWorkersPipelineView({
 
               <div className="scrollbar-hidden min-w-0 overflow-y-auto">
                 <div className="space-y-6 p-4">
-                  <DetailSectionBlock
-                    title="Lavoratore"
-                    showDefaultAction={false}
-                    className="space-y-2"
-                    contentClassName="space-y-0 px-1 pt-1"
-                  >
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {selectedWorker?.nomeCompleto ?? selectedCard.worker.nomeCompleto}
-                    </p>
-                  </DetailSectionBlock>
-
                   <WorkerPipelineSummaryCards
                     workerRow={selectedWorkerRow}
                     selectionRow={selectedSelectionRow}
+                    relatedActiveSearches={relatedActiveSearches}
+                    relatedActiveSearchesLoading={loadingRelatedActiveSearches}
+                    onOpenRelatedSearch={handleOpenRelatedSearchCard}
                     onPatchWorkerField={patchSelectedWorkerField}
                     onPatchProcessField={patchSelectedProcessAddressField}
                     processWeeklyHours={card.oreSettimana}
@@ -1167,7 +1736,9 @@ export function RicercaWorkersPipelineView({
                     familyWorkSchedule={card.orarioDiLavoro}
                     familyWeeklyFrequency={card.giorniSettimana}
                     provinceOptions={
-                      lookupOptionsByDomain.get("processi_matching.indirizzo_prova_provincia") ??
+                      lookupOptionsByDomain.get(
+                        "processi_matching.indirizzo_prova_provincia",
+                      ) ??
                       lookupOptionsByDomain.get("processi_matching.provincia") ??
                       lookupOptionsByDomain.get("lavoratori.provincia") ??
                       []
@@ -1193,6 +1764,16 @@ export function RicercaWorkersPipelineView({
                         "esperienze_lavoratori.tipo_rapporto",
                       ) ?? []
                     }
+                    tipoLavoroOptions={
+                      lookupOptionsByDomain.get(
+                        "lavoratori.tipo_lavoro_domestico",
+                      ) ?? []
+                    }
+                    tipoRapportoOptions={
+                      lookupOptionsByDomain.get(
+                        "lavoratori.tipo_rapporto_lavorativo",
+                      ) ?? []
+                    }
                     referenceStatusOptions={
                       lookupOptionsByDomain.get(
                         "referenze_lavoratori.referenza_verificata",
@@ -1200,15 +1781,63 @@ export function RicercaWorkersPipelineView({
                     }
                     experiences={selectedWorkerExperiences}
                     experiencesLoading={loadingSelectedWorkerExperiences}
+                    isGeneratingAiSummary={generatingWorkerSummary}
+                    onGenerateAiSummary={handleGenerateWorkerSummary}
                     references={selectedWorkerReferences}
                     referencesLoading={loadingSelectedWorkerReferences}
+                    documents={selectedWorkerDocuments}
+                    documentsLoading={loadingSelectedWorkerDocuments}
                     isEditingAvailability={isEditingAvailability}
                     onToggleAvailabilityEdit={() =>
                       setIsEditingAvailability((current) => !current)
                     }
                     updatingAvailability={updatingAvailability}
+                    isEditingJobSearch={isEditingJobSearch}
+                    onToggleJobSearchEdit={() =>
+                      setIsEditingJobSearch((current) => !current)
+                    }
+                    updatingJobSearch={updatingJobSearch}
+                    jobSearchDraft={jobSearchDraft}
+                    funzionamentoBazeOptions={
+                      lookupOptionsByDomain.get(
+                        "lavoratori.check_accetta_funzionamento_baze",
+                      ) ?? []
+                    }
+                    trasfertaOptions={
+                      lookupOptionsByDomain.get(
+                        "lavoratori.check_accetta_lavori_con_trasferta",
+                      ) ?? []
+                    }
+                    multipliContrattiOptions={
+                      lookupOptionsByDomain.get(
+                        "lavoratori.check_accetta_multipli_contratti",
+                      ) ?? []
+                    }
+                    paga9Options={
+                      lookupOptionsByDomain.get(
+                        "lavoratori.check_accetta_paga_9_euro_netti",
+                      ) ?? []
+                    }
+                    onJobSearchDraftChange={(patch) =>
+                      setJobSearchDraft((current) => ({ ...current, ...patch }))
+                    }
+                    onJobSearchFieldPatch={patchJobSearchField}
+                    lavoriAccettabili={readArrayStrings(
+                      selectedWorkerRow?.check_lavori_accettabili,
+                    )}
+                    lavoriAccettabiliOptions={
+                      lookupOptionsByDomain.get(
+                        "lavoratori.check_lavori_accettabili",
+                      ) ?? []
+                    }
                     availabilityMatrix={availabilityDraft.matrix}
                     availabilityVincoli={availabilityDraft.vincoli_orari_disponibilita}
+                    onLavoriAccettabiliChange={(values) =>
+                      void patchSelectedWorkerField(
+                        "check_lavori_accettabili",
+                        values.length > 0 ? values : null,
+                      )
+                    }
                     onAvailabilityMatrixChange={(
                       dayField,
                       bandField,
@@ -1237,6 +1866,7 @@ export function RicercaWorkersPipelineView({
                     }
                     onExperiencePatch={patchExperienceRecord}
                     onExperienceCreate={createExperienceRecord}
+                    onExperienceDelete={deleteExperienceRecord}
                     onReferencePatch={patchReferenceRecord}
                     onReferenceCreate={createReferenceRecord}
                     isEditingSkills={isEditingSkills}
@@ -1249,6 +1879,49 @@ export function RicercaWorkersPipelineView({
                       setSkillsDraft((current) => ({ ...current, ...patch }))
                     }
                     onSkillsFieldPatch={patchSkillsField}
+                    isEditingDocuments={isEditingDocuments}
+                    onToggleDocumentsEdit={() =>
+                      setIsEditingDocuments((current) => !current)
+                    }
+                    updatingDocuments={updatingDocuments}
+                    documentsDraft={documentsDraft}
+                    documentiVerificatiOptions={
+                      lookupOptionsByDomain.get(
+                        "lavoratori.stato_verifica_documenti",
+                      ) ?? []
+                    }
+                    documentiInRegolaOptions={
+                      lookupOptionsByDomain.get("lavoratori.documenti_in_regola") ??
+                      []
+                    }
+                    onDocumentVerificationChange={(value) => {
+                      setDocumentsDraft((current) => ({
+                        ...current,
+                        stato_verifica_documenti: value,
+                      }));
+                      void patchDocumentField(
+                        "stato_verifica_documenti",
+                        value || null,
+                      );
+                    }}
+                    onDocumentStatusChange={(value) => {
+                      setDocumentsDraft((current) => ({
+                        ...current,
+                        documenti_in_regola: value,
+                      }));
+                      void patchDocumentField("documenti_in_regola", value || null);
+                    }}
+                    onDocumentNaspiChange={(value) =>
+                      setDocumentsDraft((current) => ({
+                        ...current,
+                        data_scadenza_naspi: value,
+                      }))
+                    }
+                    onDocumentNaspiBlur={() =>
+                      void commitDocumentField("data_scadenza_naspi")
+                    }
+                    onDocumentUpsert={upsertSelectedWorkerDocument}
+                    onDocumentUploadError={setSelectedWorkerError}
                   />
                 </div>
               </div>

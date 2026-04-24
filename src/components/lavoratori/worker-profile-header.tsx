@@ -10,7 +10,6 @@ import {
   PhoneIcon,
   ShieldCheckIcon,
   SkullIcon,
-  SparklesIcon,
   StarIcon,
   UploadIcon,
   VenusAndMarsIcon,
@@ -175,6 +174,20 @@ function resolveSingleValueOptions(value: string | null, options: LookupOption[]
   return [{ value, label: value }]
 }
 
+function selectedOptionValue(selected: string | null, options: LookupOption[]) {
+  const normalizedSelected = String(selected ?? "").trim().toLowerCase()
+  if (!normalizedSelected) return "none"
+
+  const resolved = resolveSingleValueOptions(selected, options)
+  const match = resolved.find(
+    (option) =>
+      option.value.trim().toLowerCase() === normalizedSelected ||
+      option.label.trim().toLowerCase() === normalizedSelected
+  )
+
+  return match?.value ?? "none"
+}
+
 export function WorkerProfileHeader({
   worker,
   workerRow,
@@ -199,8 +212,6 @@ export function WorkerProfileHeader({
   presentationPhotoSlots = [],
   selectedPresentationPhotoIndex = 0,
   onSelectedPresentationPhotoIndexChange,
-  showAiImageEditAction = false,
-  onAiImageEdit,
   showUploadPhotoAction = false,
   onUploadPhoto,
   selectedMotivazioneClassName,
@@ -307,38 +318,30 @@ export function WorkerProfileHeader({
             className={`relative h-80 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
             title={qualificationStatus.label}
           >
-            <Carousel opts={{ loop: false }} className="h-full w-full">
+            <Carousel
+              key={presentationPhotoSlots.join("|")}
+              opts={{ loop: false }}
+              className="h-full w-full"
+            >
               <CarouselContent className="ml-0 h-full">
                 {presentationPhotoSlots.map((photoUrl, index) => (
                   <CarouselItem key={photoUrl} className="h-full basis-full pl-0">
                     <div className="h-full">
                       <Card className="h-full rounded-none border-0 py-0 shadow-none">
-                        <CardContent className="relative flex h-full min-h-80 items-center justify-center p-0">
+                        <CardContent className="bg-muted/20 relative flex h-full min-h-80 items-center justify-center p-0">
                           <img
                             src={photoUrl}
                             alt={`Foto profilo ${index + 1}`}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-contain"
                           />
-                          {showAiImageEditAction ? (
-                            <Button
-                              type="button"
-                              size="icon-sm"
-                              variant="outline"
-                              aria-label="Modifica immagine con AI"
-                              title="Modifica immagine con AI"
-                              className="absolute top-2 right-2 rounded-full bg-background/90"
-                              onClick={() => onAiImageEdit?.()}
-                              disabled={!onAiImageEdit}
-                            >
-                              <StarIcon className="size-4" />
-                            </Button>
-                          ) : null}
                           {onSelectedPresentationPhotoIndexChange ? (
                             <Button
                               type="button"
                               size="icon-sm"
                               variant={
-                                selectedPresentationPhotoIndex === index ? "default" : "secondary"
+                                selectedPresentationPhotoIndex === index
+                                  ? "default"
+                                  : "secondary"
                               }
                               aria-label={
                                 selectedPresentationPhotoIndex === index
@@ -350,10 +353,10 @@ export function WorkerProfileHeader({
                                   ? "Foto principale"
                                   : "Imposta come foto principale"
                               }
-                              className="absolute right-2 bottom-2 rounded-full"
+                              className="absolute top-2 right-2 rounded-full bg-background/90"
                               onClick={() => onSelectedPresentationPhotoIndexChange(index)}
                             >
-                              <SparklesIcon className="size-4" />
+                              <StarIcon className="size-4" />
                             </Button>
                           ) : null}
                           <span
@@ -380,7 +383,7 @@ export function WorkerProfileHeader({
               <img
                 src={worker.immagineUrl}
                 alt={worker.nomeCompleto}
-                className="h-full w-full scale-[1.85] object-cover"
+                className="h-full w-full object-contain"
               />
             ) : (
               <span className="text-muted-foreground px-2 text-center text-xs">
@@ -511,7 +514,7 @@ export function WorkerProfileHeader({
           }`}
         >
           <div className="min-w-0 space-y-2">
-            <p className="text-muted-foreground flex items-center gap-2">
+            <div className="text-muted-foreground flex items-center gap-2">
               <MailIcon className="size-4 shrink-0" />
               {isEditing ? (
                 <div className="w-full max-w-md">
@@ -527,9 +530,9 @@ export function WorkerProfileHeader({
               ) : (
                 <span className="truncate">{asString(workerRow.email) || "-"}</span>
               )}
-            </p>
+            </div>
 
-            <p className="text-muted-foreground flex items-center gap-2">
+            <div className="text-muted-foreground flex items-center gap-2">
               <PhoneIcon className="size-4 shrink-0" />
               {isEditing ? (
                 <div className="w-full max-w-xs">
@@ -545,14 +548,14 @@ export function WorkerProfileHeader({
               ) : (
                 <span className="truncate">{asString(workerRow.telefono) || "-"}</span>
               )}
-            </p>
+            </div>
 
-            <p className="text-muted-foreground flex items-center gap-2">
+            <div className="text-muted-foreground flex items-center gap-2">
               <MapPinIcon className="size-4 shrink-0" />
               <span className="truncate">{asString(workerRow.cap) || "-"}</span>
-            </p>
+            </div>
 
-            <p className="text-muted-foreground flex items-center gap-2">
+            <div className="text-muted-foreground flex items-center gap-2">
               <VenusAndMarsIcon className="size-4 shrink-0" />
               {isEditing ? (
                 canUseSessoSelect ? (
@@ -588,9 +591,9 @@ export function WorkerProfileHeader({
               ) : (
                 <span className="truncate">{asString(workerRow.sesso) || "-"}</span>
               )}
-            </p>
+            </div>
 
-            <p className="text-muted-foreground flex items-center gap-2">
+            <div className="text-muted-foreground flex items-center gap-2">
               <FlagIcon className="size-4 shrink-0" />
               {isEditing ? (
                 <div className="w-full max-w-xs">
@@ -617,7 +620,7 @@ export function WorkerProfileHeader({
               ) : (
                 <span className="truncate">{asString(workerRow.nazionalita) || "-"}</span>
               )}
-            </p>
+            </div>
 
             <p className="text-muted-foreground flex items-center gap-2">
               <CalendarDaysIcon className="size-4 shrink-0" />
@@ -688,19 +691,57 @@ export function WorkerProfileHeader({
               ) : null}
 
               <div className={usesStackedHeaderLayout ? "w-full shrink-0" : "w-[220px] shrink-0"}>
+                <div className="space-y-1.5">
+                  <p className="text-muted-foreground text-[11px] font-medium tracking-[0.18em] uppercase">
+                    Stato lavoratore
+                  </p>
+                  <Select
+                    value={selectedOptionValue(statoLavoratore, statoLavoratoreOptions)}
+                    onValueChange={(value) =>
+                      void onStatoLavoratoreChange?.(value === "none" ? null : value)
+                    }
+                    disabled={resolvedStatusDisabled}
+                  >
+                    <SelectTrigger className={`h-8 w-full ${selectedStatusClassName}`}>
+                      <SelectValue placeholder="Stato lavoratore" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Senza stato</SelectItem>
+                      {resolveSingleValueOptions(statoLavoratore, statoLavoratoreOptions).map(
+                        (option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={
+                usesStackedHeaderLayout ? "w-full shrink-0 self-end" : "w-[220px] shrink-0 self-end"
+              }
+            >
+              <div className="space-y-1.5">
+                <p className="text-muted-foreground text-[11px] font-medium tracking-[0.18em] uppercase">
+                  Disponibile
+                </p>
                 <Select
-                  value={statoLavoratore || "none"}
+                  value={selectedOptionValue(disponibilita, disponibilitaOptions)}
                   onValueChange={(value) =>
-                    void onStatoLavoratoreChange?.(value === "none" ? null : value)
+                    void onDisponibilitaChange?.(value === "none" ? null : value)
                   }
-                  disabled={resolvedStatusDisabled}
+                  disabled={resolvedDisponibilitaDisabled}
                 >
-                  <SelectTrigger className={`h-8 w-full ${selectedStatusClassName}`}>
-                    <SelectValue placeholder="Stato lavoratore" />
+                  <SelectTrigger className={`h-8 w-full ${selectedDisponibilitaClassName}`}>
+                    <SelectValue placeholder="Disponibilita" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Senza stato</SelectItem>
-                    {resolveSingleValueOptions(statoLavoratore, statoLavoratoreOptions).map(
+                    <SelectItem value="none">Non indicata</SelectItem>
+                    {resolveSingleValueOptions(disponibilita, disponibilitaOptions).map(
                       (option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
@@ -710,34 +751,6 @@ export function WorkerProfileHeader({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div
-              className={
-                usesStackedHeaderLayout ? "w-full shrink-0 self-end" : "w-[220px] shrink-0 self-end"
-              }
-            >
-              <Select
-                value={disponibilita || "none"}
-                onValueChange={(value) =>
-                  void onDisponibilitaChange?.(value === "none" ? null : value)
-                }
-                disabled={resolvedDisponibilitaDisabled}
-              >
-                <SelectTrigger className={`h-8 w-full ${selectedDisponibilitaClassName}`}>
-                  <SelectValue placeholder="Disponibilita" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Non indicata</SelectItem>
-                  {resolveSingleValueOptions(disponibilita, disponibilitaOptions).map(
-                    (option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
             </div>
 
             <div

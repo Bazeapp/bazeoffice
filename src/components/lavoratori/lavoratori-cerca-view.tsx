@@ -1,4 +1,5 @@
 import * as React from "react";
+import { toast } from "sonner";
 import {
   AlertTriangleIcon,
   BriefcaseBusinessIcon,
@@ -27,10 +28,13 @@ import { DocumentsCard } from "@/components/lavoratori/documents-card";
 import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
 import { JobSearchCard } from "@/components/lavoratori/job-search-card";
 import { LavoratoriCercaListPanel } from "@/components/lavoratori/lavoratori-cerca-list-panel";
+import { WorkerDetailShell } from "@/components/lavoratori/worker-detail-shell";
+import { RicercaActiveSearchCard } from "@/components/ricerca/ricerca-active-search-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { RecruiterFeedbackSheet } from "@/components/lavoratori/recruiter-feedback-sheet";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
 import {
+  asLavoratoreRecord,
   asInputValue,
   asString,
   readArrayStrings,
@@ -41,7 +45,23 @@ import {
 } from "@/features/lavoratori/lib/lookup-utils";
 import { Button } from "@/components/ui/button";
 import { DetailSectionBlock } from "@/components/shared/detail-section-card";
+import { useOperatoriOptions } from "@/hooks/use-operatori-options";
+import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board";
 import { Input } from "@/components/ui/input";
+import {
+  fetchFamiglie,
+  fetchLavoratori,
+  fetchProcessiMatching,
+  fetchSelezioniLavoratori,
+  updateRecord,
+} from "@/lib/anagrafiche-api";
+import {
+  buildAttachmentPayload,
+  type MinimalAttachment,
+  normalizeAttachmentArray,
+} from "@/lib/attachments";
+import { invokeAiGenerationFunction } from "@/lib/ai-generation";
+import { supabase } from "@/lib/supabase-client";
 import {
   Select,
   SelectContent,
@@ -61,7 +81,13 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@/components/ui/combobox";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type NonQualificatoTipoLavoroFieldProps = {
   value: string[];
@@ -75,6 +101,263 @@ type WorkerSectionTab = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 };
+
+function sanitizeFileName(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+type WorkerRelatedSearchItem = {
+  selectionId: string;
+  processId: string;
+  familyName: string;
+  ricercaLabel: string;
+  recruiterLabel: string;
+  statoSelezione: string;
+  statoRicerca: string;
+  orarioDiLavoro: string;
+  zona: string;
+  appunti: string;
+  boardCard: RicercaBoardCardData;
+};
+
+const RELATED_SELECTIONS_PAGE_SIZE = 500;
+const RELATED_PROCESS_BATCH_SIZE = 150;
+const RELATED_FAMILY_BATCH_SIZE = 150;
+const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
+  "selezionato",
+  "inviato al cliente",
+  "colloquio schedulato",
+  "colloquio fatto",
+  "prova schedulata",
+  "prova con cliente",
+  "match",
+]);
+const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo";
+const OTHER_SEARCH_GROUP_A_PROCESS_STATUS_TOKENS = new Set([
+  "da assegnare",
+  "fare ricerca",
+  "in preparazione per invio",
+]);
+const OTHER_SEARCH_GROUP_A_SELECTION_STATUS_TOKENS = new Set([
+  "prospetto",
+  "candidato poor fit",
+  "candidato good fit",
+  "da colloquiare",
+  "non risponde",
+  "invitato a colloquio",
+  "selezionato",
+  "inviato al cliente",
+]);
+const OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS = new Set([
+  "selezione inviata in attesa di feedback",
+  "fase di colloqui",
+  "in prova con lavoratore",
+  "match",
+  "no match",
+]);
+const OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS = new Set([
+  "selezionato",
+  "inviato al cliente",
+  "colloquio schedulato",
+  "colloquio fatto",
+  "prova schedulata",
+  "prova con cliente",
+  "match",
+  "no match",
+]);
+
+function normalizeLookupToken(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .replaceAll(",", " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isDirectInvolvementSelection(selection: Record<string, unknown>) {
+  return (
+    DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS.has(
+      normalizeLookupToken(asString(selection.stato_selezione)),
+    ) &&
+    normalizeLookupToken(asString(selection.stato_situazione_lavorativa)) ===
+      DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
+  );
+}
+
+function isOtherSearchSelection(
+  selection: Record<string, unknown>,
+  processRow: Record<string, unknown>,
+) {
+  const processStatusToken = normalizeLookupToken(asString(processRow.stato_res));
+  const selectionStatusToken = normalizeLookupToken(
+    asString(selection.stato_selezione),
+  );
+
+  const matchesGroupA =
+    OTHER_SEARCH_GROUP_A_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
+    OTHER_SEARCH_GROUP_A_SELECTION_STATUS_TOKENS.has(selectionStatusToken);
+
+  const matchesGroupB =
+    OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
+    OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS.has(selectionStatusToken);
+
+  return matchesGroupA || matchesGroupB;
+}
+
+function formatRelatedFamilyName(row: Record<string, unknown> | null | undefined) {
+  const familyName = [asString(row?.nome), asString(row?.cognome)]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .trim();
+
+  return familyName || "Famiglia senza nome";
+}
+
+function formatRelatedSearchLabel(processRow: Record<string, unknown>) {
+  const searchNumber = asString(processRow.numero_ricerca_attivata);
+  if (searchNumber) return `Ricerca #${searchNumber}`;
+
+  const processId = asString(processRow.id);
+  return processId ? `Ricerca ${processId.slice(0, 8)}` : "Ricerca";
+}
+
+function formatRelatedZona(processRow: Record<string, unknown>) {
+  const parts = [
+    asString(processRow.indirizzo_prova_comune),
+    asString(processRow.indirizzo_prova_provincia),
+    asString(processRow.indirizzo_prova_cap),
+    asString(processRow.indirizzo_prova_note),
+  ].filter(
+    (value, index, values): value is string =>
+      Boolean(value) && values.indexOf(value) === index,
+  );
+
+  return parts.join(" • ") || "-";
+}
+
+function getFirstLookupArrayValue(value: unknown) {
+  return readArrayStrings(value)[0] ?? null;
+}
+
+async function fetchAllSelectionsForWorker(workerId: string) {
+  const rows: Record<string, unknown>[] = [];
+  let offset = 0;
+
+  while (true) {
+    const result = await fetchSelezioniLavoratori({
+      limit: RELATED_SELECTIONS_PAGE_SIZE,
+      offset,
+      orderBy: [{ field: "aggiornato_il", ascending: false }],
+      filters: {
+        kind: "group",
+        id: "worker-processi-coinvolti-by-worker",
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: "worker-processi-coinvolti-worker-id",
+            field: "lavoratore_id",
+            operator: "is",
+            value: workerId,
+          },
+        ],
+      },
+    });
+
+    const pageRows = Array.isArray(result.rows)
+      ? (result.rows as Record<string, unknown>[])
+      : [];
+    rows.push(...pageRows);
+
+    if (pageRows.length < RELATED_SELECTIONS_PAGE_SIZE) break;
+    offset += RELATED_SELECTIONS_PAGE_SIZE;
+  }
+
+  return rows;
+}
+
+async function fetchRelatedProcessesByIds(processIds: string[]) {
+  if (processIds.length === 0) return [];
+
+  const rows: Record<string, unknown>[] = [];
+
+  for (
+    let index = 0;
+    index < processIds.length;
+    index += RELATED_PROCESS_BATCH_SIZE
+  ) {
+    const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE);
+    const result = await fetchProcessiMatching({
+      limit: batch.length,
+      offset: 0,
+      filters: {
+        kind: "group",
+        id: `worker-processi-coinvolti-processes-${index}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `worker-processi-coinvolti-process-ids-${index}`,
+            field: "id",
+            operator: "in",
+            value: batch.join(","),
+          },
+        ],
+      },
+    });
+
+    if (Array.isArray(result.rows)) {
+      rows.push(...(result.rows as Record<string, unknown>[]));
+    }
+  }
+
+  return rows;
+}
+
+async function fetchRelatedFamiliesByIds(familyIds: string[]) {
+  if (familyIds.length === 0) return [];
+
+  const rows: Record<string, unknown>[] = [];
+
+  for (
+    let index = 0;
+    index < familyIds.length;
+    index += RELATED_FAMILY_BATCH_SIZE
+  ) {
+    const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE);
+    const result = await fetchFamiglie({
+      limit: batch.length,
+      offset: 0,
+      filters: {
+        kind: "group",
+        id: `worker-processi-coinvolti-families-${index}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `worker-processi-coinvolti-family-ids-${index}`,
+            field: "id",
+            operator: "in",
+            value: batch.join(","),
+          },
+        ],
+      },
+    });
+
+    if (Array.isArray(result.rows)) {
+      rows.push(...(result.rows as Record<string, unknown>[]));
+    }
+  }
+
+  return rows;
+}
 
 function NonQualificatoTipoLavoroField({
   value,
@@ -161,6 +444,7 @@ export function LavoratoriCercaView() {
     applyUpdatedWorkerRow,
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
+    removeWorkerExperience,
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
     upsertSelectedWorkerDocument,
@@ -172,8 +456,60 @@ export function LavoratoriCercaView() {
   const nonIdoneoReasonAnchor = useComboboxAnchor();
   const addressMobilityAnchor = useComboboxAnchor();
   const [feedbackSheetOpen, setFeedbackSheetOpen] = React.useState(false);
+  const workerPhotoInputRef = React.useRef<HTMLInputElement | null>(null);
   const detailScrollRef = React.useRef<HTMLElement | null>(null);
   const sectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+  const [uploadingWorkerPhoto, setUploadingWorkerPhoto] = React.useState(false);
+  const [generatingWorkerSummary, setGeneratingWorkerSummary] =
+    React.useState(false);
+  const [relatedActiveSearches, setRelatedActiveSearches] = React.useState<
+    { direct: WorkerRelatedSearchItem[]; other: WorkerRelatedSearchItem[] }
+  >({ direct: [], other: [] });
+  const [loadingRelatedActiveSearches, setLoadingRelatedActiveSearches] =
+    React.useState(false);
+  const { options: recruiterOptions } = useOperatoriOptions({
+    role: "recruiter_ricerca_e_selezione",
+    activeOnly: true,
+  });
+  const groupedDirectRelatedSearches = React.useMemo(() => {
+    const groups = new Map<string, WorkerRelatedSearchItem[]>();
+
+    for (const item of relatedActiveSearches.direct) {
+      const groupKey = item.statoRicerca || "Senza stato";
+      const currentItems = groups.get(groupKey) ?? [];
+      currentItems.push(item);
+      groups.set(groupKey, currentItems);
+    }
+
+    return Array.from(groups.entries());
+  }, [relatedActiveSearches.direct]);
+  const groupedOtherRelatedSearches = React.useMemo(() => {
+    const groups = new Map<string, WorkerRelatedSearchItem[]>();
+
+    for (const item of relatedActiveSearches.other) {
+      const groupKey = item.statoRicerca || "Senza stato";
+      const currentItems = groups.get(groupKey) ?? [];
+      currentItems.push(item);
+      groups.set(groupKey, currentItems);
+    }
+
+    return Array.from(groups.entries());
+  }, [relatedActiveSearches.other]);
+  const recruiterLabelsById = React.useMemo(
+    () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
+    [recruiterOptions],
+  );
+  const getProcessStateClassName = React.useCallback(
+    (value: string) =>
+      getTagClassName(
+        resolveLookupColor(
+          lookupColorsByDomain,
+          "processi_matching.stato_res",
+          value,
+        ),
+      ),
+    [lookupColorsByDomain],
+  );
   const motivazioniNonIdoneoOptionsByValue = React.useMemo(() => {
     const optionsMap = new Map<string, { label: string; value: string }>();
     for (const option of motivazioniNonIdoneoOptions) {
@@ -367,6 +703,158 @@ export function LavoratoriCercaView() {
       return true;
     });
   }, [lookupOptionsByDomain]);
+
+  React.useEffect(() => {
+    if (!selectedWorkerId) {
+      setRelatedActiveSearches({ direct: [], other: [] });
+      setLoadingRelatedActiveSearches(false);
+      return;
+    }
+
+    let isCancelled = false;
+    const workerId = selectedWorkerId;
+
+    async function loadRelatedActiveSearches() {
+      setLoadingRelatedActiveSearches(true);
+
+      try {
+        const workerSelections = await fetchAllSelectionsForWorker(workerId);
+        if (isCancelled) return;
+
+        const processIds = Array.from(
+          new Set(
+            workerSelections
+              .map((selection) => asString(selection.processo_matching_id))
+              .filter((value): value is string => Boolean(value)),
+          ),
+        );
+        const processRows = await fetchRelatedProcessesByIds(processIds);
+        if (isCancelled) return;
+        const processRowsById = new Map(
+          processRows
+            .map((row) => {
+              const rowId = asString(row.id);
+              if (!rowId) return null;
+              return [rowId, row] as const;
+            })
+            .filter(
+              (entry): entry is readonly [string, Record<string, unknown>] =>
+                Boolean(entry),
+            ),
+        );
+
+        const familyIds = Array.from(
+          new Set(
+            processRows
+              .map((row) => asString(row.famiglia_id))
+              .filter((value): value is string => Boolean(value)),
+          ),
+        );
+        const familyRows = await fetchRelatedFamiliesByIds(familyIds);
+        if (isCancelled) return;
+
+        const familyRowsById = new Map(
+          familyRows
+            .map((row) => {
+              const rowId = asString(row.id);
+              if (!rowId) return null;
+              return [rowId, row] as const;
+            })
+            .filter(
+              (entry): entry is readonly [string, Record<string, unknown>] =>
+                Boolean(entry),
+            ),
+        );
+
+        const seenProcessIds = new Set<string>();
+        const nextDirectItems: WorkerRelatedSearchItem[] = [];
+        const nextOtherItems: WorkerRelatedSearchItem[] = [];
+
+        for (const selection of workerSelections) {
+          const selectionId = asString(selection.id);
+          const processId = asString(selection.processo_matching_id);
+          if (!selectionId || !processId) continue;
+          if (seenProcessIds.has(processId)) continue;
+
+          const processRow = processRowsById.get(processId);
+          if (!processRow) continue;
+
+          const familyRow = familyRowsById.get(asString(processRow.famiglia_id) ?? "");
+          const recruiterId = asString(processRow.recruiter_ricerca_e_selezione_id);
+          const nextItem: WorkerRelatedSearchItem = {
+            selectionId,
+            processId,
+            familyName: formatRelatedFamilyName(familyRow),
+            ricercaLabel: formatRelatedSearchLabel(processRow),
+            recruiterLabel: recruiterId
+              ? recruiterLabelsById.get(recruiterId) ?? "Recruiter non assegnato"
+              : "Recruiter non assegnato",
+            statoSelezione: asString(selection.stato_selezione) || "-",
+            statoRicerca: asString(processRow.stato_res) || "-",
+            orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
+            zona: formatRelatedZona(processRow),
+            appunti: asString(selection.note_selezione) || "",
+            boardCard: {
+              id: processId,
+              stage: asString(processRow.stato_res) || "-",
+              nomeFamiglia: formatRelatedFamilyName(familyRow),
+              cognomeFamiglia: "",
+              email: "-",
+              telefono: "-",
+              operatorId: recruiterId,
+              oreSettimanali: asString(processRow.ore_settimanale) || "-",
+              giorniSettimanali: asString(processRow.giorni_a_settimana) || "-",
+              deadline: asString(processRow.deadline_mobile) || "-",
+              deadlineRaw: asString(processRow.deadline_mobile),
+              zona: formatRelatedZona(processRow),
+              tipoLavoroBadge: getFirstLookupArrayValue(processRow.tipo_lavoro),
+              tipoLavoroColor: resolveLookupColor(
+                lookupColorsByDomain,
+                "processi_matching.tipo_lavoro",
+                getFirstLookupArrayValue(processRow.tipo_lavoro),
+              ),
+              tipoRapportoBadge: getFirstLookupArrayValue(processRow.tipo_rapporto),
+              tipoRapportoColor: resolveLookupColor(
+                lookupColorsByDomain,
+                "processi_matching.tipo_rapporto",
+                getFirstLookupArrayValue(processRow.tipo_rapporto),
+              ),
+            },
+          };
+
+          if (isDirectInvolvementSelection(selection)) {
+            nextDirectItems.push(nextItem);
+            seenProcessIds.add(processId);
+            continue;
+          }
+
+          if (isOtherSearchSelection(selection, processRow)) {
+            nextOtherItems.push(nextItem);
+            seenProcessIds.add(processId);
+          }
+        }
+
+        if (isCancelled) return;
+        setRelatedActiveSearches({
+          direct: nextDirectItems,
+          other: nextOtherItems,
+        });
+      } catch {
+        if (isCancelled) return;
+        setRelatedActiveSearches({ direct: [], other: [] });
+      } finally {
+        if (!isCancelled) {
+          setLoadingRelatedActiveSearches(false);
+        }
+      }
+    }
+
+    void loadRelatedActiveSearches();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [lookupColorsByDomain, recruiterLabelsById, selectedWorkerId]);
   const {
     selectedWorkerIsNonIdoneo,
     selectedWorkerNonQualificatoIssues,
@@ -427,6 +915,7 @@ export function LavoratoriCercaView() {
     patchJobSearchField,
     patchExperienceRecord,
     createExperienceRecord,
+    deleteExperienceRecord,
     patchReferenceRecord,
     createReferenceRecord,
     commitExperienceField,
@@ -445,9 +934,59 @@ export function LavoratoriCercaView() {
     applyUpdatedWorkerRow,
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
+    removeWorkerExperience,
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
+
+  const handleGenerateWorkerSummary = React.useCallback(async () => {
+    if (!selectedWorkerId) return;
+
+    setGeneratingWorkerSummary(true);
+    setError(null);
+    const toastId = toast.loading("Generazione riassunto esperienze...");
+
+    try {
+      await invokeAiGenerationFunction(
+        "generare-lavoratore-riassunto-profilo-breve",
+        { id: selectedWorkerId },
+      );
+
+      const result = await fetchLavoratori({
+        limit: 1,
+        offset: 0,
+        filters: {
+          kind: "group",
+          id: "ai-generated-worker-summary",
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: "ai-generated-worker-summary-id",
+              field: "id",
+              operator: "is",
+              value: selectedWorkerId,
+            },
+          ],
+        },
+      });
+      const row = result.rows[0];
+      if (row) {
+        applyUpdatedWorkerRow(asLavoratoreRecord(row));
+      }
+      toast.success("Riassunto esperienze generato", { id: toastId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setError(message || "Errore generazione riassunto");
+      toast.error("Errore generazione riassunto", {
+        id: toastId,
+        description: message,
+      });
+    } finally {
+      setGeneratingWorkerSummary(false);
+    }
+  }, [applyUpdatedWorkerRow, selectedWorkerId, setError]);
+
   const selectedMotivazioneValue = React.useMemo(
     () => nonIdoneoReasonValues[0] ?? "",
     [nonIdoneoReasonValues],
@@ -604,6 +1143,108 @@ export function LavoratoriCercaView() {
     };
   }, [workerSectionTabs, selectedWorkerId]);
 
+  const openWorkerPhotoPicker = React.useCallback(() => {
+    if (uploadingWorkerPhoto) return;
+    workerPhotoInputRef.current?.click();
+  }, [uploadingWorkerPhoto]);
+
+  const handleWorkerPhotoInputChange = React.useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files ?? []);
+      event.target.value = "";
+
+      if (files.length === 0 || !selectedWorkerId) return;
+
+      setError(null);
+      setUploadingWorkerPhoto(true);
+
+      try {
+        const nextPhotos: MinimalAttachment[] = normalizeAttachmentArray(
+          selectedWorkerRow?.foto,
+        );
+
+        for (const file of files) {
+          const safeName = sanitizeFileName(file.name || "foto");
+          const storagePath = [
+            "lavoratori",
+            selectedWorkerId,
+            "foto",
+            `${Date.now()}-${safeName}`,
+          ].join("/");
+
+          const uploadResult = await supabase.storage
+            .from("baze-bucket")
+            .upload(storagePath, file, {
+              cacheControl: "3600",
+              upsert: false,
+              contentType: file.type || undefined,
+            });
+
+          if (uploadResult.error) {
+            throw uploadResult.error;
+          }
+
+          nextPhotos.push(buildAttachmentPayload(file, storagePath));
+        }
+
+        const response = await updateRecord("lavoratori", selectedWorkerId, {
+          foto: nextPhotos,
+        });
+        applyUpdatedWorkerRow(asLavoratoreRecord(response.row));
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore caricando la foto",
+        );
+      } finally {
+        setUploadingWorkerPhoto(false);
+      }
+    },
+    [applyUpdatedWorkerRow, selectedWorkerId, selectedWorkerRow?.foto, setError],
+  );
+
+  const handlePrimaryWorkerPhotoChange = React.useCallback(
+    async (index: number) => {
+      if (!selectedWorkerId) return;
+
+      const existingPhotos = normalizeAttachmentArray(selectedWorkerRow?.foto);
+      if (existingPhotos.length === 0) return;
+      if (index <= 0 || index >= existingPhotos.length) {
+        setSelectedPresentationPhotoIndex(Math.max(index, 0));
+        return;
+      }
+
+      setError(null);
+
+      try {
+        const [selectedPhoto] = existingPhotos.splice(index, 1);
+        if (!selectedPhoto) return;
+
+        const reorderedPhotos = [selectedPhoto, ...existingPhotos];
+        const response = await updateRecord("lavoratori", selectedWorkerId, {
+          foto: reorderedPhotos,
+        });
+
+        applyUpdatedWorkerRow(asLavoratoreRecord(response.row));
+        setSelectedPresentationPhotoIndex(0);
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore aggiornando la foto principale",
+        );
+      }
+    },
+    [
+      applyUpdatedWorkerRow,
+      selectedWorkerId,
+      selectedWorkerRow?.foto,
+      setError,
+      setSelectedPresentationPhotoIndex,
+    ],
+  );
+
   return (
     <div
       className={
@@ -612,6 +1253,14 @@ export function LavoratoriCercaView() {
           : "grid h-full min-h-0 gap-3 grid-cols-1"
       }
     >
+      <input
+        ref={workerPhotoInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleWorkerPhotoInputChange}
+      />
       <LavoratoriCercaListPanel
         workers={workers}
         workersTotal={workersTotal}
@@ -639,131 +1288,107 @@ export function LavoratoriCercaView() {
       />
 
       {selectedWorkerId ? (
-        <section
-          ref={detailScrollRef}
-          className="bg-background relative min-h-0 overflow-y-auto rounded-xl border px-4 pt-0 pb-4"
-        >
+        <>
+          <WorkerDetailShell
+            sectionRef={detailScrollRef}
+            tabs={workerSectionTabs}
+            activeSection={activeWorkerSection}
+            onSectionChange={scrollToWorkerSection}
+            headerRef={setWorkerSectionRef("profilo")}
+            header={
+              <>
+                {selectedWorkerBlacklistAlert ? (
+                  <div className="flex items-start gap-2 rounded-md bg-rose-50/70 px-3 py-2 text-sm text-rose-700">
+                    <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
+                    <div className="space-y-0.5">
+                      <p className="font-semibold">
+                        {selectedWorkerBlacklistAlert.statusLabel}
+                      </p>
+                      <p>{selectedWorkerBlacklistAlert.reasonLabel}</p>
+                    </div>
+                  </div>
+                ) : null}
+                {selectedWorkerStatusAlert ? (
+                  <div
+                    className={`flex items-start gap-2 rounded-md px-3 py-2 text-sm ${
+                      selectedWorkerStatusAlert.tone === "critical"
+                        ? "bg-rose-50/70 text-rose-700"
+                        : "bg-zinc-100/70 text-zinc-700"
+                    }`}
+                  >
+                    <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
+                    <div className="space-y-0.5">
+                      <p className="font-semibold">
+                        {selectedWorkerStatusAlert.statusLabel}
+                      </p>
+                      <p>{selectedWorkerStatusAlert.reasonLabel}</p>
+                    </div>
+                  </div>
+                ) : null}
+                {selectedWorker && selectedWorkerRow ? (
+                  <WorkerProfileHeader
+                    worker={selectedWorker}
+                    workerRow={selectedWorkerRow}
+                    statoLavoratoreOptions={statoLavoratoreLookupOptions}
+                    disponibilitaOptions={disponibilitaLookupOptions}
+                    motivazioniOptions={motivazioniNonIdoneoOptions}
+                    sessoOptions={sessoLookupOptions}
+                    nazionalitaOptions={nazionalitaLookupOptions}
+                    onPatchField={(field, value) =>
+                      patchSelectedWorkerField(field, value)
+                    }
+                    onStatoLavoratoreChange={(value) =>
+                      patchSelectedWorkerField("stato_lavoratore", value)
+                    }
+                    onDisponibilitaChange={(value) => {
+                      setAvailabilityStatusDraft((current) => ({
+                        ...current,
+                        disponibilita: value ?? "",
+                      }));
+                      void patchAvailabilityStatusValue(
+                        "disponibilita",
+                        value ?? "",
+                      );
+                    }}
+                    onMotivazioneChange={(value) =>
+                      void handleNonIdoneoReasonsChange(value ? [value] : [])
+                    }
+                    fieldsDisabled={updatingNonQualificato}
+                    statoLavoratoreDisabled={
+                      updatingNonQualificato ||
+                      statoLavoratoreLookupOptions.length === 0
+                    }
+                    disponibilitaDisabled={
+                      updatingAvailabilityStatus ||
+                      disponibilitaLookupOptions.length === 0
+                    }
+                    motivazioneDisabled={updatingNonIdoneo}
+                    blacklistChecked={blacklistChecked}
+                    onBlacklistToggle={(nextValue) =>
+                      void handleBlacklistChange(nextValue)
+                    }
+                    blacklistDisabled={updatingNonIdoneo}
+                    onClose={() => setSelectedWorkerId(null)}
+                    presentationPhotoSlots={presentationPhotoSlots}
+                    selectedPresentationPhotoIndex={
+                      selectedPresentationPhotoIndex
+                    }
+                    onSelectedPresentationPhotoIndexChange={
+                      handlePrimaryWorkerPhotoChange
+                    }
+                    showUploadPhotoAction
+                    onUploadPhoto={openWorkerPhotoPicker}
+                    selectedMotivazioneClassName={
+                      selectedMotivazioneClassName
+                    }
+                  />
+                ) : null}
+              </>
+            }
+          >
           {selectedWorker ? (
             <div className="space-y-6">
-              <div className="sticky top-0 z-20 -mx-4 -mt-4 -mr-4 border-b bg-background/95 px-4 py-3 backdrop-blur">
-                <Tabs
-                  value={activeWorkerSection}
-                  onValueChange={scrollToWorkerSection}
-                  className="w-full"
-                >
-                  <TabsList
-                    variant="line"
-                    className="h-auto w-full justify-start gap-x-1 p-0 overflow-x-auto overflow-y-hidden whitespace-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                  >
-                    {workerSectionTabs.map((tab) => {
-                      const TabIcon = tab.icon;
-                      return (
-                        <TabsTrigger
-                          key={tab.id}
-                          value={tab.id}
-                          className="h-10 flex-none rounded-full text-muted-foreground/50 px-3 text-sm shadow-none"
-                        >
-                          <TabIcon className="size-4" />
-                          {tab.label}
-                        </TabsTrigger>
-                      );
-                    })}
-                  </TabsList>
-                </Tabs>
-              </div>
               <div className="space-y-6 text-sm">
-                <div className="sticky top-14 z-10 -mx-1 space-y-3 border-b bg-background px-1 pb-4">
-                  {selectedWorkerBlacklistAlert ? (
-                    <div className="flex items-start gap-2 rounded-md bg-rose-50/70 px-3 py-2 text-sm text-rose-700">
-                      <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
-                      <div className="space-y-0.5">
-                        <p className="font-semibold">
-                          {selectedWorkerBlacklistAlert.statusLabel}
-                        </p>
-                        <p>{selectedWorkerBlacklistAlert.reasonLabel}</p>
-                      </div>
-                    </div>
-                  ) : null}
-                  {selectedWorkerStatusAlert ? (
-                    <div
-                      className={`flex items-start gap-2 rounded-md px-3 py-2 text-sm ${
-                        selectedWorkerStatusAlert.tone === "critical"
-                          ? "bg-rose-50/70 text-rose-700"
-                          : "bg-zinc-100/70 text-zinc-700"
-                      }`}
-                    >
-                      <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
-                      <div className="space-y-0.5">
-                        <p className="font-semibold">
-                          {selectedWorkerStatusAlert.statusLabel}
-                        </p>
-                        <p>{selectedWorkerStatusAlert.reasonLabel}</p>
-                      </div>
-                    </div>
-                  ) : null}
-                  <div ref={setWorkerSectionRef("profilo")}>
-                    {selectedWorkerRow ? (
-                      <WorkerProfileHeader
-                        worker={selectedWorker}
-                        workerRow={selectedWorkerRow}
-                        statoLavoratoreOptions={statoLavoratoreLookupOptions}
-                        disponibilitaOptions={disponibilitaLookupOptions}
-                        motivazioniOptions={motivazioniNonIdoneoOptions}
-                        sessoOptions={sessoLookupOptions}
-                        nazionalitaOptions={nazionalitaLookupOptions}
-                        onPatchField={(field, value) =>
-                          patchSelectedWorkerField(field, value)
-                        }
-                        onStatoLavoratoreChange={(value) =>
-                          patchSelectedWorkerField("stato_lavoratore", value)
-                        }
-                        onDisponibilitaChange={(value) => {
-                          setAvailabilityStatusDraft((current) => ({
-                            ...current,
-                            disponibilita: value ?? "",
-                          }));
-                          void patchAvailabilityStatusValue(
-                            "disponibilita",
-                            value ?? "",
-                          );
-                        }}
-                        onMotivazioneChange={(value) =>
-                          void handleNonIdoneoReasonsChange(value ? [value] : [])
-                        }
-                        fieldsDisabled={updatingNonQualificato}
-                        statoLavoratoreDisabled={
-                          updatingNonQualificato ||
-                          statoLavoratoreLookupOptions.length === 0
-                        }
-                        disponibilitaDisabled={
-                          updatingAvailabilityStatus ||
-                          disponibilitaLookupOptions.length === 0
-                        }
-                        motivazioneDisabled={updatingNonIdoneo}
-                        blacklistChecked={blacklistChecked}
-                        onBlacklistToggle={(nextValue) =>
-                          void handleBlacklistChange(nextValue)
-                        }
-                        blacklistDisabled={updatingNonIdoneo}
-                        onClose={() => setSelectedWorkerId(null)}
-                        presentationPhotoSlots={presentationPhotoSlots}
-                        selectedPresentationPhotoIndex={
-                          selectedPresentationPhotoIndex
-                        }
-                        onSelectedPresentationPhotoIndexChange={
-                          setSelectedPresentationPhotoIndex
-                        }
-                        showAiImageEditAction
-                        onAiImageEdit={() => {}}
-                        showUploadPhotoAction
-                        onUploadPhoto={() => {}}
-                        selectedMotivazioneClassName={
-                          selectedMotivazioneClassName
-                        }
-                      />
-                    ) : null}
-                  </div>
-                </div>
 
                 <div ref={setWorkerSectionRef("residenza")}>
                   <AddressSectionCard
@@ -1012,6 +1637,11 @@ export function LavoratoriCercaView() {
                     draft={experienceDraft}
                     experiences={selectedWorkerExperiences}
                     experiencesLoading={loadingSelectedWorkerExperiences}
+                    aiSummaryValue={asString(
+                      selectedWorkerRow?.riassunto_profilo_breve,
+                    )}
+                    isGeneratingAiSummary={generatingWorkerSummary}
+                    onGenerateAiSummary={handleGenerateWorkerSummary}
                     references={selectedWorkerReferences}
                     referencesLoading={loadingSelectedWorkerReferences}
                     lookupColorsByDomain={lookupColorsByDomain}
@@ -1079,6 +1709,9 @@ export function LavoratoriCercaView() {
                     onExperienceCreate={(values) =>
                       void createExperienceRecord(values)
                     }
+                    onExperienceDelete={(experienceId) =>
+                      void deleteExperienceRecord(experienceId)
+                    }
                     onReferencePatch={(referenceId, patch) =>
                       void patchReferenceRecord(referenceId, patch)
                     }
@@ -1127,27 +1760,6 @@ export function LavoratoriCercaView() {
                       ),
                     }}
                     documents={selectedWorkerDocuments}
-                    fallbackDocuments={{
-                      allegato_codice_fiscale_fronte:
-                        selectedWorkerRow?.docs_codice_fiscale_fronte ?? null,
-                      allegato_codice_fiscale_retro:
-                        selectedWorkerRow?.docs_codice_fiscale_retro ?? null,
-                      allegato_documento_identita_fronte:
-                        selectedWorkerRow?.docs_documento_identita_fronte ??
-                        null,
-                      allegato_documento_identita_retro:
-                        selectedWorkerRow?.docs_documento_identita_retro ??
-                        null,
-                      allegato_permesso_di_soggiorno_fronte:
-                        selectedWorkerRow?.docs_permesso_di_soggiorno_fronte ??
-                        null,
-                      allegato_permesso_di_soggiorno_retro:
-                        selectedWorkerRow?.docs_permesso_di_soggiorno_retro ??
-                        null,
-                      allegato_ricevuta_rinnovo_permesso:
-                        selectedWorkerRow?.docs_ricevuta_rinnovo_permesso_di_soggiorno ??
-                        null,
-                    }}
                     documentsLoading={loadingSelectedWorkerDocuments}
                     verificationOptions={documentiVerificatiOptions}
                     statoDocumentiOptions={documentiInRegolaOptions}
@@ -1297,8 +1909,11 @@ export function LavoratoriCercaView() {
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  onClick={() => {}}
-                                  disabled={updatingNonQualificato}
+                                  onClick={openWorkerPhotoPicker}
+                                  disabled={
+                                    updatingNonQualificato ||
+                                    uploadingWorkerPhoto
+                                  }
                                 >
                                   <UploadIcon className="size-4" />
                                   Carica foto
@@ -1480,9 +2095,119 @@ export function LavoratoriCercaView() {
                     title="Processi coinvolti"
                     contentClassName="space-y-2"
                   >
-                    <p className="text-muted-foreground text-sm">
-                      Placeholder processi coinvolti.
-                    </p>
+                    {loadingRelatedActiveSearches ? (
+                      <p className="text-muted-foreground text-sm">
+                        Caricamento processi coinvolti...
+                      </p>
+                    ) : relatedActiveSearches.direct.length === 0 &&
+                      relatedActiveSearches.other.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">
+                        Nessun processo coinvolto.
+                      </p>
+                    ) : (
+                      <Tabs defaultValue="direct" className="space-y-4">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="direct" className="gap-2">
+                            Coinvolto direttamente
+                            <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-[10px]">
+                              {relatedActiveSearches.direct.length}
+                            </span>
+                          </TabsTrigger>
+                          <TabsTrigger value="other" className="gap-2">
+                            Tutte le altre ricerche
+                            <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-[10px]">
+                              {relatedActiveSearches.other.length}
+                            </span>
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="direct" className="mt-0">
+                          {groupedDirectRelatedSearches.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">
+                              Nessun coinvolgimento diretto.
+                            </p>
+                          ) : (
+                            <Accordion
+                              type="multiple"
+                              defaultValue={groupedDirectRelatedSearches.map(([groupLabel]) => `direct-${groupLabel}`)}
+                              className="space-y-3"
+                            >
+                              {groupedDirectRelatedSearches.map(([groupLabel, groupItems]) => (
+                                <AccordionItem
+                                  key={`direct-${groupLabel}`}
+                                  value={`direct-${groupLabel}`}
+                                  className="overflow-hidden rounded-xl border border-border/70 bg-background"
+                                >
+                                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                                    <div className="flex min-w-0 items-center gap-2 text-left">
+                                      <div
+                                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getProcessStateClassName(groupLabel)}`}
+                                      >
+                                        {groupLabel}
+                                      </div>
+                                      <span className="text-muted-foreground text-xs">
+                                        {groupItems.length} {groupItems.length === 1 ? "ricerca" : "ricerche"}
+                                      </span>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="space-y-2 px-4 pb-4">
+                                    {groupItems.map((item) => (
+                                      <RicercaActiveSearchCard
+                                        key={item.selectionId}
+                                        data={item.boardCard}
+                                      />
+                                    ))}
+                                  </AccordionContent>
+                                </AccordionItem>
+                              ))}
+                            </Accordion>
+                          )}
+                        </TabsContent>
+
+                        <TabsContent value="other" className="mt-0">
+                          {groupedOtherRelatedSearches.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">
+                              Nessun'altra ricerca rilevante.
+                            </p>
+                          ) : (
+                            <Accordion
+                              type="multiple"
+                              defaultValue={groupedOtherRelatedSearches.map(([groupLabel]) => `other-${groupLabel}`)}
+                              className="space-y-3"
+                            >
+                              {groupedOtherRelatedSearches.map(([groupLabel, groupItems]) => (
+                                <AccordionItem
+                                  key={`other-${groupLabel}`}
+                                  value={`other-${groupLabel}`}
+                                  className="overflow-hidden rounded-xl border border-border/70 bg-background"
+                                >
+                                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                                    <div className="flex min-w-0 items-center gap-2 text-left">
+                                      <div
+                                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getProcessStateClassName(groupLabel)}`}
+                                      >
+                                        {groupLabel}
+                                      </div>
+                                      <span className="text-muted-foreground text-xs">
+                                        {groupItems.length} {groupItems.length === 1 ? "ricerca" : "ricerche"}
+                                      </span>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="space-y-2 px-4 pb-4">
+                                    {groupItems.map((item) => (
+                                      <RicercaActiveSearchCard
+                                        key={item.selectionId}
+                                        data={item.boardCard}
+                                      />
+                                    ))}
+                                  </AccordionContent>
+                                </AccordionItem>
+                              ))}
+                            </Accordion>
+                          )}
+                        </TabsContent>
+                      </Tabs>
+                    )}
                   </DetailSectionBlock>
                 </div>
               </div>
@@ -1506,7 +2231,8 @@ export function LavoratoriCercaView() {
             onOpenChange={setFeedbackSheetOpen}
             entries={recruiterFeedbackEntries}
           />
-        </section>
+        </WorkerDetailShell>
+        </>
       ) : null}
     </div>
   );

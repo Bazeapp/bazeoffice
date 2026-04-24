@@ -1,5 +1,6 @@
+import * as React from "react";
 import type { ReactNode } from "react";
-import { PencilIcon } from "lucide-react";
+import { ChevronDownIcon, PencilIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,6 +82,8 @@ type DetailSectionBlockProps = {
   onActionClick?: () => void;
   actionLabel?: string;
   showDefaultAction?: boolean;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
   children?: ReactNode;
   className?: string;
   bannerClassName?: string;
@@ -95,12 +98,20 @@ export function DetailSectionBlock({
   onActionClick,
   actionLabel = "Modifica sezione",
   showDefaultAction = true,
+  collapsible = false,
+  defaultOpen = true,
   children,
   className,
   bannerClassName,
   cardClassName,
   contentClassName,
 }: DetailSectionBlockProps) {
+  const [isOpen, setIsOpen] = React.useState(defaultOpen);
+
+  React.useEffect(() => {
+    setIsOpen(defaultOpen);
+  }, [defaultOpen, title]);
+
   const resolvedAction =
     action ??
     (showDefaultAction ? (
@@ -117,6 +128,24 @@ export function DetailSectionBlock({
       </Button>
     ) : null);
 
+  const resolvedHeaderAction = collapsible ? (
+    <div className="flex items-center gap-1">
+      {resolvedAction ? <div className="shrink-0">{resolvedAction}</div> : null}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        onClick={() => setIsOpen((current) => !current)}
+        aria-label={isOpen ? "Comprimi sezione" : "Espandi sezione"}
+        title={isOpen ? "Comprimi sezione" : "Espandi sezione"}
+      >
+        <ChevronDownIcon className={cn("size-4 transition-transform", !isOpen && "-rotate-90")} />
+      </Button>
+    </div>
+  ) : resolvedAction ? (
+    <div className="shrink-0">{resolvedAction}</div>
+  ) : null;
+
   return (
     <div className={cn("space-y-3", className)}>
       <Card className={cn("bg-primary/5 py-0 shadow-none", bannerClassName)}>
@@ -129,21 +158,23 @@ export function DetailSectionBlock({
             ) : null}
             <p className="ui-type-section uppercase">{title}</p>
           </div>
-          {resolvedAction ? <div className="shrink-0">{resolvedAction}</div> : null}
+          {resolvedHeaderAction}
         </CardContent>
       </Card>
 
-      <DetailSectionCard
-        title={title}
-        titleIcon={icon}
-        className={cn(
-          "rounded-[1.6rem] bg-background px-3 py-3 shadow-none [&_[data-slot=card-header]]:hidden",
-          cardClassName,
-        )}
-        contentClassName={cn("space-y-4 px-1 pt-1", contentClassName)}
-      >
-        {children}
-      </DetailSectionCard>
+      {isOpen ? (
+        <DetailSectionCard
+          title={title}
+          titleIcon={icon}
+          className={cn(
+            "rounded-[1.6rem] bg-background px-3 py-3 shadow-none [&_[data-slot=card-header]]:hidden",
+            cardClassName,
+          )}
+          contentClassName={cn("space-y-4 px-1 pt-1", contentClassName)}
+        >
+          {children}
+        </DetailSectionCard>
+      ) : null}
     </div>
   );
 }
@@ -151,6 +182,7 @@ export function DetailSectionBlock({
 type DetailFieldProps = {
   label: string;
   value: ReactNode;
+  multiline?: boolean;
   className?: string;
   labelClassName?: string;
   valueClassName?: string;
@@ -159,6 +191,7 @@ type DetailFieldProps = {
 export function DetailField({
   label,
   value,
+  multiline = false,
   className,
   labelClassName,
   valueClassName,
@@ -171,7 +204,7 @@ export function DetailField({
   return (
     <div className={cn("space-y-1.5", className)}>
       <p className={cn("ui-type-label", labelClassName)}>{label}</p>
-      {isPrimitiveValue ? (
+      {isPrimitiveValue && !multiline ? (
         <Input
           readOnly
           tabIndex={-1}
@@ -184,11 +217,12 @@ export function DetailField({
       ) : (
         <div
           className={cn(
-            "ui-type-value flex min-h-0 items-center px-0 py-0 shadow-none",
+            "ui-type-value min-h-0 px-0 py-0 shadow-none whitespace-pre-wrap break-words",
+            !multiline && "flex items-center",
             valueClassName,
           )}
         >
-          {value}
+          {isPrimitiveValue ? String(value) : value}
         </div>
       )}
     </div>

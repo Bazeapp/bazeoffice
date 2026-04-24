@@ -148,7 +148,6 @@ export function EmbeddedRapportoDetail({ rapporto }: EmbeddedRapportoDetailProps
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <DetailField label="Creato il" value={formatDate(rapporto.creato_il)} />
           <DetailField label="Aggiornato il" value={formatDate(rapporto.aggiornato_il)} />
-          <DetailField label="Airtable ID" value={toTextValue(rapporto.airtable_id) ?? "-"} />
           <DetailField label="Ticket collegato" value={toTextValue(rapporto.ticket_id) ?? "-"} />
         </div>
       </DetailSectionBlock>

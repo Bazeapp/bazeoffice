@@ -1,11 +1,63 @@
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import { type LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
+import {
+  attachmentPathToPublicUrl,
+  normalizeAttachmentArray,
+} from "@/lib/attachments"
 
 const UPPERCASE_TOKENS = new Set(["id", "url", "utm", "seo", "wa", "inps", "uuid"])
 export const DEFAULT_WORKER_AVATARS = ["avatar1.png", "avatar2.png", "avatar3.png", "avatar4.png"] as const
 
 export function asRecord(value: unknown) {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {}
+}
+
+export function readAttachmentItems(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === "object" && !Array.isArray(item)
+      )
+      .map((item) => ({ ...item }))
+  }
+
+  if (value && typeof value === "object") {
+    return [value as Record<string, unknown>]
+  }
+
+  return []
+}
+
+function isAllowedWorkerImageUrl(value: string) {
+  const normalized = value.trim()
+  if (!normalized) return false
+  if (normalized.startsWith("/")) return true
+
+  try {
+    const parsed = new URL(normalized)
+    const supabaseBaseUrl = asString(import.meta.env.VITE_SUPABASE_URL)
+
+    if (supabaseBaseUrl) {
+      const supabaseHost = new URL(supabaseBaseUrl).host
+      if (parsed.host === supabaseHost) return true
+    }
+
+    if (typeof window !== "undefined" && parsed.host === window.location.host) {
+      return true
+    }
+  } catch {
+    return false
+  }
+
+  return false
+}
+
+export function sanitizeWorkerImageUrl(value: unknown) {
+  const url = asString(value)
+  if (!url) return null
+  if (!isAllowedWorkerImageUrl(url)) return null
+  return url
 }
 
 export function asLavoratoreRecord(value: unknown) {
@@ -87,11 +139,19 @@ export function toDisplayName(row: Record<string, unknown>) {
 }
 
 export function toAvatarUrl(row: Record<string, unknown>) {
-  const permalink = asString(row.permalink_foto)
-  if (permalink) return permalink
+  for (const foto of normalizeAttachmentArray(row.foto)) {
+    const resolved = attachmentPathToPublicUrl(foto.path)
+    if (resolved) return resolved
+  }
+
   const foto = asRecord(row.foto)
-  const direct = asString(foto.url) || asString(foto.download_url) || asString(foto.src)
-  return direct || null
+  return (
+    sanitizeWorkerImageUrl(foto.url) ||
+    sanitizeWorkerImageUrl(foto.public_url) ||
+    sanitizeWorkerImageUrl(foto.download_url) ||
+    sanitizeWorkerImageUrl(foto.src) ||
+    null
+  )
 }
 
 function hashString(input: string) {

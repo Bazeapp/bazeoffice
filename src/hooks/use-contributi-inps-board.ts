@@ -451,8 +451,6 @@ async function fetchContributiBoardData(
         [
           rapporto.id_rapporto,
           rapporto.ticket_id,
-          rapporto.airtable_id,
-          rapporto.airtable_record_id,
         ]
           .map((key) => normalizeRecordKey(key))
           .filter(Boolean)

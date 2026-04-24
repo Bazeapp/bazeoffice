@@ -18,6 +18,10 @@ import {
   readAvailabilitySlots,
 } from "@/features/lavoratori/lib/availability-utils"
 import {
+  attachmentPathToPublicUrl,
+  normalizeAttachmentArray,
+} from "@/lib/attachments"
+import {
   DEFAULT_WORKER_AVATARS,
   asInputValue,
   asLavoratoreRecord,
@@ -38,7 +42,7 @@ import {
   isNonIdoneoStatus,
   normalizeWorkerStatus,
 } from "@/features/lavoratori/lib/status-utils"
-import { createRecord, updateRecord } from "@/lib/anagrafiche-api"
+import { createRecord, deleteRecord, updateRecord } from "@/lib/anagrafiche-api"
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
@@ -75,6 +79,7 @@ type WorkerJobSearchDraft = {
   tipo_lavoro_domestico: string[]
   tipo_rapporto_lavorativo: string[]
   check_lavori_accettabili: string[]
+  check_accetta_funzionamento_baze: string
   check_accetta_lavori_con_trasferta: string
   check_accetta_multipli_contratti: string
   check_accetta_paga_9_euro_netti: string
@@ -139,6 +144,7 @@ type UseSelectedWorkerEditorParams = {
   applyUpdatedWorkerRow: (row: LavoratoreRecord) => void
   applyUpdatedWorkerExperience: (row: EsperienzaLavoratoreRecord) => void
   appendCreatedWorkerExperience: (row: EsperienzaLavoratoreRecord) => void
+  removeWorkerExperience: (id: string) => void
   applyUpdatedWorkerReference: (row: ReferenzaLavoratoreRecord) => void
   appendCreatedWorkerReference: (row: ReferenzaLavoratoreRecord) => void
 }
@@ -189,6 +195,7 @@ function buildJobSearchDraft(row: LavoratoreRecord | null): WorkerJobSearchDraft
     tipo_lavoro_domestico: readArrayStrings(row?.tipo_lavoro_domestico),
     tipo_rapporto_lavorativo: readArrayStrings(row?.tipo_rapporto_lavorativo),
     check_lavori_accettabili: readArrayStrings(row?.check_lavori_accettabili),
+    check_accetta_funzionamento_baze: asString(row?.check_accetta_funzionamento_baze),
     check_accetta_lavori_con_trasferta: asString(row?.check_accetta_lavori_con_trasferta),
     check_accetta_multipli_contratti: asString(row?.check_accetta_multipli_contratti),
     check_accetta_paga_9_euro_netti: asString(row?.check_accetta_paga_9_euro_netti),
@@ -268,6 +275,7 @@ export function useSelectedWorkerEditor({
   applyUpdatedWorkerRow,
   applyUpdatedWorkerExperience,
   appendCreatedWorkerExperience,
+  removeWorkerExperience,
   applyUpdatedWorkerReference,
   appendCreatedWorkerReference,
 }: UseSelectedWorkerEditorParams) {
@@ -366,6 +374,14 @@ export function useSelectedWorkerEditor({
     [availabilityPayload]
   )
   const presentationPhotoSlots = React.useMemo(() => {
+    const uploadedPhotoUrls = normalizeAttachmentArray(selectedWorkerRow?.foto)
+      .map((item) => attachmentPathToPublicUrl(item.path))
+      .filter((value): value is string => Boolean(value))
+
+    if (uploadedPhotoUrls.length > 0) {
+      return uploadedPhotoUrls
+    }
+
     const defaults = DEFAULT_WORKER_AVATARS.map((fileName) => toPublicAssetUrl(fileName))
     if (selectedWorker?.immagineUrl) {
       return [
@@ -374,7 +390,7 @@ export function useSelectedWorkerEditor({
       ]
     }
     return defaults
-  }, [selectedWorker?.immagineUrl])
+  }, [selectedWorker?.immagineUrl, selectedWorkerRow?.foto])
 
   React.useEffect(() => {
     setNonIdoneoReasonValues(readArrayStrings(selectedWorkerRow?.motivazione_non_idoneo))
@@ -638,6 +654,7 @@ export function useSelectedWorkerEditor({
         | "tipo_lavoro_domestico"
         | "tipo_rapporto_lavorativo"
         | "check_lavori_accettabili"
+        | "check_accetta_funzionamento_baze"
         | "check_accetta_lavori_con_trasferta"
         | "check_accetta_multipli_contratti"
         | "check_accetta_paga_9_euro_netti",
@@ -684,6 +701,23 @@ export function useSelectedWorkerEditor({
       }
     },
     [appendCreatedWorkerExperience, setError]
+  )
+
+  const deleteExperienceRecord = React.useCallback(
+    async (experienceId: string) => {
+      setUpdatingExperience(true)
+      try {
+        await deleteRecord("esperienze_lavoratori", experienceId)
+
+        removeWorkerExperience(experienceId)
+      } catch (caughtError) {
+        setError(formatEditorError("Errore eliminando esperienza", caughtError))
+        throw caughtError
+      } finally {
+        setUpdatingExperience(false)
+      }
+    },
+    [removeWorkerExperience, setError]
   )
 
   const patchReferenceRecord = React.useCallback(
@@ -850,6 +884,7 @@ export function useSelectedWorkerEditor({
     patchJobSearchField,
     patchExperienceRecord,
     createExperienceRecord,
+    deleteExperienceRecord,
     patchReferenceRecord,
     createReferenceRecord,
     commitExperienceField,

@@ -70,6 +70,8 @@ type SkillSectionConfig = {
 type SkillsCompetenzeCardProps = {
   isEditing: boolean
   showEditAction?: boolean
+  collapsible?: boolean
+  defaultOpen?: boolean
   isUpdating: boolean
   draft: SkillCompetenzeValues
   selectedValues: SkillCompetenzeValues
@@ -625,6 +627,8 @@ function SkillSection({
 export function SkillsCompetenzeCard({
   isEditing,
   showEditAction = true,
+  collapsible = false,
+  defaultOpen = true,
   isUpdating,
   draft,
   selectedValues,
@@ -651,6 +655,8 @@ export function SkillsCompetenzeCard({
           <PencilIcon />
         </Button>
       ) : undefined}
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
       contentClassName="space-y-5 pt-1"
     >
       <div className="grid gap-5">

@@ -28,6 +28,8 @@ type AvailabilityCalendarCardProps = {
   titleMeta: string
   isEditing: boolean
   showEditAction?: boolean
+  collapsible?: boolean
+  defaultOpen?: boolean
   isUpdating: boolean
   editDays: AvailabilityEditDay[]
   editBands: AvailabilityEditBand[]
@@ -41,12 +43,15 @@ type AvailabilityCalendarCardProps = {
   onMatrixChange: (dayField: string, bandField: string, checked: boolean) => void
   onVincoliChange: (value: string) => void
   onVincoliBlur: () => void
+  children?: React.ReactNode
 }
 
 export function AvailabilityCalendarCard({
   titleMeta,
   isEditing,
   showEditAction = true,
+  collapsible = false,
+  defaultOpen = true,
   isUpdating,
   editDays,
   editBands,
@@ -60,6 +65,7 @@ export function AvailabilityCalendarCard({
   onMatrixChange,
   onVincoliChange,
   onVincoliBlur,
+  children,
 }: AvailabilityCalendarCardProps) {
   const comparisonByDay = React.useMemo(() => {
     const map = new Map<string, boolean[]>()
@@ -92,6 +98,8 @@ export function AvailabilityCalendarCard({
           <PencilIcon />
         </Button>
       ) : undefined}
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
       contentClassName="space-y-4"
     >
       <div className="space-y-4">
@@ -224,6 +232,8 @@ export function AvailabilityCalendarCard({
             </div>
           )}
         </div>
+
+        {children}
       </div>
     </DetailSectionBlock>
   )

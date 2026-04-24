@@ -33,19 +33,12 @@ import {
 } from "@/components/ui/select"
 import { getTagClassName, resolveLookupColor, type LookupOption } from "@/features/lavoratori/lib/lookup-utils"
 import { createRecord, updateRecord } from "@/lib/anagrafiche-api"
+import {
+  buildAttachmentPayload,
+} from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
-
-type DocumentAttachmentValues = {
-  allegato_codice_fiscale_fronte: unknown
-  allegato_codice_fiscale_retro: unknown
-  allegato_documento_identita_fronte: unknown
-  allegato_documento_identita_retro: unknown
-  allegato_permesso_di_soggiorno_fronte: unknown
-  allegato_permesso_di_soggiorno_retro: unknown
-  allegato_ricevuta_rinnovo_permesso: unknown
-}
 
 type DocumentsDraft = {
   stato_verifica_documenti: string
@@ -57,11 +50,12 @@ type DocumentsCardProps = {
   workerId: string | null
   isEditing: boolean
   showEditAction?: boolean
+  collapsible?: boolean
+  defaultOpen?: boolean
   isUpdating: boolean
   draft: DocumentsDraft
   selectedValues: DocumentsDraft
   documents: DocumentoLavoratoreRecord[]
-  fallbackDocuments: DocumentAttachmentValues
   documentsLoading: boolean
   verificationOptions: LookupOption[]
   statoDocumentiOptions: LookupOption[]
@@ -84,17 +78,6 @@ type AttachmentGroupConfig = {
   title: string
   icon: React.ReactNode
   slots: AttachmentSlotConfig[]
-}
-
-type StoredAttachmentPayload = {
-  bucket: string
-  content_type: string
-  file_name: string
-  name: string
-  path: string
-  public_url: string
-  size: number
-  uploaded_at: string
 }
 
 const ATTACHMENT_GROUPS: AttachmentGroupConfig[] = [
@@ -139,18 +122,12 @@ function sanitizeFileName(name: string) {
 
 function pickAttachmentValue(
   documents: DocumentoLavoratoreRecord[],
-  field: keyof DocumentoLavoratoreRecord,
-  fallbackDocuments?: Partial<DocumentAttachmentValues>
+  field: keyof DocumentoLavoratoreRecord
 ) {
   for (const document of documents) {
     const value = document[field]
     if (!hasAttachmentValue(value)) continue
     return value
-  }
-
-  const fallbackValue = fallbackDocuments?.[field as keyof DocumentAttachmentValues]
-  if (hasAttachmentValue(fallbackValue)) {
-    return fallbackValue
   }
 
   return null
@@ -184,27 +161,25 @@ function ReadOnlyLookupBadge({
 function AttachmentGroupCard({
   group,
   documents,
-  fallbackDocuments,
   onAdd,
   onPreviewOpen,
   uploadingField,
 }: {
   group: AttachmentGroupConfig
   documents: DocumentoLavoratoreRecord[]
-  fallbackDocuments: DocumentAttachmentValues
   onAdd: (field: keyof DocumentoLavoratoreRecord, file: File) => void
   onPreviewOpen: (link: AttachmentLink) => void
   uploadingField: keyof DocumentoLavoratoreRecord | null
 }) {
   const slotValues = group.slots.map((slot) => ({
     ...slot,
-    value: pickAttachmentValue(documents, slot.field, fallbackDocuments),
+    value: pickAttachmentValue(documents, slot.field),
   }))
   const isComplete = slotValues.every((slot) => hasAttachmentValue(slot.value))
 
   return (
     <div className="relative">
-      <div className="text-foreground absolute top-0 left-3 z-10 inline-flex -translate-y-1/2 items-center gap-2 px-2 text-base font-semibold">
+      <div className="bg-background text-foreground absolute top-0 left-3 z-0 inline-flex -translate-y-1/2 items-center gap-2 px-2 text-base font-semibold">
         {group.icon}
         <span>{group.title}</span>
         {isComplete ? (
@@ -320,7 +295,7 @@ function AttachmentPlaceholderGroupCard({
 
   return (
     <div className="relative">
-      <div className="text-foreground absolute top-0 left-3 z-10 inline-flex -translate-y-1/2 items-center gap-2 px-2 text-base font-semibold">
+      <div className="bg-background text-foreground absolute top-0 left-3 z-0 inline-flex -translate-y-1/2 items-center gap-2 px-2 text-base font-semibold">
         {group.icon}
         <span>{group.title}</span>
         {isComplete ? (
@@ -366,11 +341,12 @@ export function DocumentsCard({
   workerId,
   isEditing,
   showEditAction = true,
+  collapsible = false,
+  defaultOpen = true,
   isUpdating,
   draft,
   selectedValues,
   documents,
-  fallbackDocuments,
   documentsLoading,
   verificationOptions,
   statoDocumentiOptions,
@@ -389,13 +365,9 @@ export function DocumentsCard({
   const hasAnyDocuments = React.useMemo(
     () =>
       ATTACHMENT_GROUPS.some((group) =>
-        group.slots.some((slot) =>
-          hasAttachmentValue(
-            pickAttachmentValue(documents, slot.field, fallbackDocuments)
-          )
-        )
+        group.slots.some((slot) => hasAttachmentValue(pickAttachmentValue(documents, slot.field)))
       ),
-    [documents, fallbackDocuments]
+    [documents]
   )
 
   const handleUpload = React.useCallback(
@@ -408,9 +380,8 @@ export function DocumentsCard({
       try {
         const safeName = sanitizeFileName(file.name || "documento")
         const storagePath = [
-          "lavoratori",
+          "documenti_lavoratori",
           workerId,
-          "documenti",
           field,
           `${Date.now()}-${safeName}`,
         ].join("/")
@@ -427,31 +398,22 @@ export function DocumentsCard({
           throw uploadResult.error
         }
 
-        const publicUrlResult = supabase.storage.from("baze-bucket").getPublicUrl(storagePath)
-        const payload: StoredAttachmentPayload = {
-          bucket: "baze-bucket",
-          content_type: file.type || "application/octet-stream",
-          file_name: file.name,
-          name: file.name,
-          path: storagePath,
-          public_url: publicUrlResult.data.publicUrl,
-          size: file.size,
-          uploaded_at: new Date().toISOString(),
-        }
+        const payload = buildAttachmentPayload(file, storagePath)
 
         const targetDocument =
           documents.find((document) => hasAttachmentValue(document[field])) ?? documents[0] ?? null
+        const nextValue = [payload]
 
         if (targetDocument) {
           const response = await updateRecord("documenti_lavoratori", targetDocument.id, {
-            [field]: payload,
+            [field]: nextValue,
             lavoratore_id: workerId,
           })
           onDocumentUpsert(response.row as DocumentoLavoratoreRecord)
         } else {
           const response = await createRecord("documenti_lavoratori", {
             lavoratore_id: workerId,
-            [field]: payload,
+            [field]: [payload],
           })
           onDocumentUpsert(response.row as DocumentoLavoratoreRecord)
         }
@@ -470,6 +432,8 @@ export function DocumentsCard({
     <DetailSectionBlock
       title="Documenti"
       icon={<FolderArchiveIcon className="text-muted-foreground size-4" />}
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
       action={showEditAction ? (
         <Button
           type="button"
@@ -573,7 +537,6 @@ export function DocumentsCard({
                   key={group.title}
                   group={group}
                   documents={documents}
-                  fallbackDocuments={fallbackDocuments}
                   onAdd={handleUpload}
                   onPreviewOpen={setSelectedPreview}
                   uploadingField={uploadingField}

@@ -37,8 +37,8 @@ export type LookupOptionsByField = Record<string, LookupOption[]>
 
 export type CrmPipelineCardData = {
   id: string
-  airtableRecordId: string | null
   famigliaId: string
+  numeroRicercaAttivata: string | null
   stage: string
   nomeFamiglia: string
   email: string
@@ -92,6 +92,7 @@ export type CrmPipelineCardData = {
   descrizioneRichiestaFerie: string
   patenteDettaglio: string
   sesso: string | null
+  testoAnnuncioWhatsapp: string
 }
 
 export type CrmPipelineColumnData = {
@@ -510,8 +511,8 @@ function mapCardData(
 
   return {
     id: processId,
-    airtableRecordId: toStringValue(process.airtable_record_id),
     famigliaId,
+    numeroRicercaAttivata: toStringValue(process.numero_ricerca_attivata),
     stage: stageId,
     nomeFamiglia: familyName || "-",
     email: displayValue(family.email),
@@ -586,6 +587,7 @@ function mapCardData(
     descrizioneRichiestaFerie: displayValue(process.descrizione_richiesta_ferie),
     patenteDettaglio: getFirstArrayValue(process.patente) ?? displayValue(process.patente),
     sesso: toStringValue(process.sesso),
+    testoAnnuncioWhatsapp: displayValue(process.testo_annuncio_whatsapp),
   }
 }
 
@@ -912,6 +914,11 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
           if ("tipo_incontro_famiglia_lavoratore" in patch) {
             nextCard.tipoIncontroFamigliaLavoratore = displayValue(
               patch.tipo_incontro_famiglia_lavoratore
+            )
+          }
+          if ("testo_annuncio_whatsapp" in patch) {
+            nextCard.testoAnnuncioWhatsapp = displayValue(
+              patch.testo_annuncio_whatsapp
             )
           }
 

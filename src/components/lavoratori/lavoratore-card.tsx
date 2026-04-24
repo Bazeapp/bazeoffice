@@ -14,15 +14,38 @@ import {
 
 import { cn } from "@/lib/utils"
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles"
+import { RelatedActiveSearchCard } from "@/components/ricerca/worker-pipeline-summary-cards"
 import { Avatar, AvatarBadge, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
+
+type WorkerOtherSelectionSummaryItem = {
+  id: string
+  familyName: string
+  ricercaLabel: string
+  recruiterLabel: string
+  statoSelezione: string
+  statoSelezioneColor?: string | null
+  statoRicerca: string
+  statoRicercaColor?: string | null
+  orarioDiLavoro: string
+  zona: string
+  appunti: string
+}
+
+type WorkerOtherSelectionSummary = {
+  count: number
+  dots: Array<{ key: string; colorClassName: string; label: string }>
+  details: WorkerOtherSelectionSummaryItem[]
+}
 
 export type LavoratoreListItem = {
   id: string
   nomeCompleto: string
   immagineUrl: string | null
+  travelTimeMinutes?: number | null
   locationLabel: string | null
   telefono: string | null
   isBlacklisted: boolean
@@ -42,6 +65,7 @@ export type LavoratoreListItem = {
   isQualified: boolean
   isIdoneo: boolean
   isCertificato: boolean
+  otherActiveSelections?: WorkerOtherSelectionSummary | null
 }
 
 function initialsFromName(name: string) {
@@ -148,6 +172,16 @@ function getExperienceLevel(value: number) {
   return { activeSegments: 3, segmentClassName: "bg-emerald-600" }
 }
 
+function formatOtherSelectionsLabel(count: number) {
+  if (count === 1) return "1 altra selezione"
+  return `${count} altre selezioni`
+}
+
+function formatTravelTimeLabel(minutes: number | null | undefined) {
+  if (minutes == null || !Number.isFinite(minutes)) return null
+  return `${Math.round(minutes)} min`
+}
+
 export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProps) {
   const qualificationStatus = getWorkerQualificationStatus(worker)
   const StatusIcon = qualificationStatus.icon
@@ -180,6 +214,8 @@ export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProp
     years: anniEsperienzaBabysitter,
     icon: "babysitter",
   })
+  const otherSelections = worker.otherActiveSelections
+  const travelTimeLabel = formatTravelTimeLabel(worker.travelTimeMinutes)
 
   return (
     <Card
@@ -192,16 +228,16 @@ export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProp
     >
       <CardContent className="space-y-4 px-4">
         <div className="flex items-start gap-4">
-          <Avatar
-            className={cn("size-10", qualificationStatus.ringClassName)}
-            title={qualificationStatus.label}
-          >
-            <AvatarImage src={worker.immagineUrl ?? undefined} alt={worker.nomeCompleto} />
-            <AvatarFallback>{initialsFromName(worker.nomeCompleto)}</AvatarFallback>
-            <AvatarBadge className={qualificationStatus.badgeClassName}>
-              <StatusIcon />
-            </AvatarBadge>
-          </Avatar>
+            <Avatar
+              className={cn("size-10", qualificationStatus.ringClassName)}
+              title={qualificationStatus.label}
+            >
+              <AvatarImage src={worker.immagineUrl ?? undefined} alt={worker.nomeCompleto} />
+              <AvatarFallback>{initialsFromName(worker.nomeCompleto)}</AvatarFallback>
+              <AvatarBadge className={cn("left-0 right-auto", qualificationStatus.badgeClassName)}>
+                <StatusIcon />
+              </AvatarBadge>
+            </Avatar>
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -260,6 +296,61 @@ export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProp
             </div>
             <Separator className="my-3" />
             <div className="space-y-2">
+              {otherSelections && otherSelections.count > 0 ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(event) => event.stopPropagation()}
+                      className="text-muted-foreground flex items-center gap-2 text-[11px] leading-none transition-colors hover:text-foreground"
+                    >
+                      <div className="flex items-center gap-1">
+                        {otherSelections.dots.map((dot) => (
+                          <span
+                            key={dot.key}
+                            className={cn("size-2 rounded-full", dot.colorClassName)}
+                            title={dot.label}
+                          />
+                        ))}
+                      </div>
+                      <span>{formatOtherSelectionsLabel(otherSelections.count)}</span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    className="w-80 space-y-2 p-3"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="space-y-2">
+                      {otherSelections.details.map((detail) => (
+                        <RelatedActiveSearchCard
+                          key={detail.id}
+                          item={{
+                            selectionId: detail.id,
+                            processId: detail.id,
+                            familyName: detail.familyName,
+                            ricercaLabel: detail.ricercaLabel,
+                            recruiterLabel: detail.recruiterLabel,
+                            statoSelezione: detail.statoSelezione,
+                            statoSelezioneColor: detail.statoSelezioneColor,
+                            statoRicerca: detail.statoRicerca,
+                            statoRicercaColor: detail.statoRicercaColor,
+                            orarioDiLavoro: detail.orarioDiLavoro,
+                            zona: detail.zona,
+                            appunti: detail.appunti,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              ) : null}
+              {travelTimeLabel ? (
+                <p className="text-muted-foreground flex items-center gap-1.5 text-[11px] leading-none">
+                  <Clock3Icon className="size-3 shrink-0" />
+                  <span>{travelTimeLabel}</span>
+                </p>
+              ) : null}
               <p className="text-muted-foreground flex items-center gap-1.5 text-[11px] leading-none">
                 <MapPinIcon className="size-3 shrink-0" />
                 <span className="truncate">{worker.locationLabel ?? "-"}</span>

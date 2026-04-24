@@ -663,3 +663,160 @@ Documentazione costruita incrociando tutte le fonti locali della repo:
 - Se un campo e `explicit gap`, la UI lo nomina o lo aspetta ma `table-query` non lo espone oggi.
 - I campi `query only` sono comunque parte del modello dati leggibile dal frontend, specialmente nella vista `Anagrafiche` che usa `select ["*"]` lato API ma viene poi filtrata dalla whitelist server.
 - Il catalogo lookup evita di ridefinire enum e multi-enum nel codice: i valori canonici stanno in `lookup_values`.
+
+## Mappa Allegati FE/DB
+
+### Aggiornamento 2026-04-23
+
+Audit manuale incrociato tra:
+
+- schema locale `data/migrationshema.sql`
+- componenti FE `src/components/**`
+- utils FE `src/features/**`
+- shape effettivamente lette da `AttachmentUploadSlot`
+
+Obiettivo: distinguere con precisione i campi attachment davvero usati nel frontend da quelli solo presenti a schema o usati come fallback legacy.
+
+### Contratto desiderato
+
+Tutti i campi attachment dovrebbero convergere su una shape `jsonb` coerente:
+
+```json
+[
+  {
+    "name": "nome_visibile_file.pdf",
+    "path": "baze-bucket/tabella/nome_tecnico_file.pdf",
+    "type": "application/pdf"
+  }
+]
+```
+
+### Stato reale attuale
+
+Il FE oggi non salva ancora in modo uniforme quella shape minima.
+
+Nei flussi upload attivi i payload salvati contengono tipicamente anche:
+
+- `bucket`
+- `content_type`
+- `file_name`
+- `public_url`
+- `size`
+- `uploaded_at`
+
+Inoltre `AttachmentUploadSlot` e permissivo in lettura e accetta shape legacy con:
+
+- `url`
+- `download_url`
+- `signed_url`
+- `public_url`
+- `src`
+- `name`
+- `file_name`
+- `filename`
+- `original_filename`
+- `title`
+
+Quindi oggi il contratto attachment e ancora misto: il FE legge molte varianti e non impone ancora la shape canonica.
+
+### Matrice campi attachment
+
+| Tabella.campo | Stato FE | Modalita | Note |
+| --- | --- | --- | --- |
+| `lavoratori.foto` | usato | upload + render | Fonte reale per avatar/profilo; `toAvatarUrl()` usa prima `permalink_foto`, poi `foto.url` / `download_url` / `src` |
+| `documenti_lavoratori.allegato_codice_fiscale_fronte` | usato | upload + render | Fonte primaria documenti lavoratore |
+| `documenti_lavoratori.allegato_codice_fiscale_retro` | usato | upload + render | Fonte primaria documenti lavoratore |
+| `documenti_lavoratori.allegato_documento_identita_fronte` | usato | upload + render | Fonte primaria documenti lavoratore |
+| `documenti_lavoratori.allegato_documento_identita_retro` | usato | upload + render | Fonte primaria documenti lavoratore |
+| `documenti_lavoratori.allegato_permesso_di_soggiorno_fronte` | usato | upload + render | Fonte primaria documenti lavoratore |
+| `documenti_lavoratori.allegato_permesso_di_soggiorno_retro` | usato | upload + render | Fonte primaria documenti lavoratore |
+| `documenti_lavoratori.allegato_ricevuta_rinnovo_permesso` | usato | upload + render | Fonte primaria documenti lavoratore |
+| `lavoratori.docs_codice_fiscale_fronte` | usato | fallback | Fallback legacy per `DocumentsCard`, non fonte primaria |
+| `lavoratori.docs_codice_fiscale_retro` | usato | fallback | Fallback legacy per `DocumentsCard`, non fonte primaria |
+| `lavoratori.docs_documento_identita_fronte` | usato | fallback | Fallback legacy per `DocumentsCard`, non fonte primaria |
+| `lavoratori.docs_documento_identita_retro` | usato | fallback | Fallback legacy per `DocumentsCard`, non fonte primaria |
+| `lavoratori.docs_permesso_di_soggiorno_fronte` | usato | fallback | Fallback legacy per `DocumentsCard`, non fonte primaria |
+| `lavoratori.docs_permesso_di_soggiorno_retro` | usato | fallback | Fallback legacy per `DocumentsCard`, non fonte primaria |
+| `lavoratori.docs_ricevuta_rinnovo_permesso_di_soggiorno` | usato | fallback | Fallback legacy per `DocumentsCard`, non fonte primaria |
+| `ticket.allegati` | usato | upload + render | Campo attachment pienamente attivo nel support |
+| `contributi_inps.allegato` | usato | upload + render | Campo attachment pienamente attivo nel payroll |
+| `rapporti_lavorativi.accordo_di_lavoro_allegati` | usato | upload + render | Gestito nel pannello rapporto |
+| `rapporti_lavorativi.ricevuta_inps_allegati` | usato | upload + render | Gestito nel pannello rapporto |
+| `metadati_migrazione.delega_inps_allegati` | usato | upload + render | Caso speciale: non e una colonna attachment vera di `rapporti_lavorativi`, vive dentro `metadati_migrazione` |
+| `mesi_lavorati.cedolino` | usato | read-only | Mostrato nel dettaglio cedolino; in UI e di fatto non editabile |
+| `mesi_lavorati.cedolino_url` | usato | fallback read-only | Fallback testuale/url per il cedolino |
+| `chiusure_contratti.documenti_chiusura_rapporto` | usato | read-only | Renderizzato nel board chiusure |
+| `chiusure_contratti.allegato_compilato` | usato | read-only | Renderizzato nel board chiusure |
+| `variazioni_contrattuali.accordo_variazione_contrattuale` | usato | read-only | Renderizzato nel board variazioni |
+| `variazioni_contrattuali.ricevuta_inps_variazione_rapporto` | usato | read-only | Renderizzato nel board variazioni |
+| `assunzioni.codice_fiscale_allegati` | non coperto bene | placeholder/parziale | Il detail assunzioni mostra slot documentali, ma non mi risulta un binding reale completo a questi campi |
+| `assunzioni.delega_inps_allegati` | non coperto bene | placeholder/parziale | Nel FE il caso delega oggi passa dal metadata del rapporto, non da qui |
+| `assunzioni.documenti_bambini_allegati` | non usato | - | Presente a schema, non emerso nel FE |
+| `assunzioni.documento_identita_allegati` | non coperto bene | placeholder/parziale | Vedi nota su assunzioni |
+| `assunzioni.permesso_di_soggiorno_allegati` | non coperto bene | placeholder/parziale | Vedi nota su assunzioni |
+| `assunzioni.ricevuta_rinnovo_permesso_allegati` | non coperto bene | placeholder/parziale | Vedi nota su assunzioni |
+| `processi_matching.firma_preventivo` | non usato | - | Presente a DB, non emerso in FE |
+| `rapporti_lavorativi.dichiarazione_ospitalita_allegati` | non usato | - | Presente a DB, non emerso in FE |
+| `documenti_lavoratori.fronte` | non usato | - | Presente a DB, nessun uso FE rilevato |
+| `documenti_lavoratori.retro` | non usato | - | Presente a DB, nessun uso FE rilevato |
+| `documenti_lavoratori.selfie` | non usato | - | Presente a DB, nessun uso FE rilevato |
+| `lavoratori.allegati` | non usato | - | Campo generico, non emerso come flusso attivo |
+| `lavoratori.cv` | non usato | - | Presente a DB, non emerso come flusso attivo |
+| `operatori.foto` | non usato | - | Esiste a DB, ma l'UI operatori usa avatar generati/iniziali |
+| `esperienze_lavoratori.referenza_documenti` | non usato | - | Presente a DB, non emerso in FE |
+| `referenze_lavoratori.allegati_referenza` | non usato | - | Presente a DB, non emerso in FE |
+| `costi_marketing.attachments` | non usato | - | Presente a DB, non emerso in FE |
+| `moduli_cud.allegato` | non usato | - | Presente a DB, non emerso in FE |
+| `variabili_globali.allegati` | non usato | - | Presente a DB, non emerso in FE |
+
+### Fonti FE principali
+
+I punti centrali da ricordare sono questi:
+
+- `documenti_lavoratori.allegato_*` e il flusso documentale primario del lavoratore
+- `lavoratori.docs_*` e solo fallback legacy per popolare `DocumentsCard`
+- `lavoratori.foto` e davvero usato nel profilo lavoratore
+- `operatori.foto` esiste a DB ma non mi risulta usato nel FE attuale
+
+### File FE chiave
+
+- `src/components/lavoratori/documents-card.tsx`
+- `src/components/lavoratori/lavoratori-cerca-view.tsx`
+- `src/components/lavoratori/gate1-view.tsx`
+- `src/components/lavoratori/worker-profile-header.tsx`
+- `src/components/lavoratori/worker-profile-overview.tsx`
+- `src/features/lavoratori/lib/base-utils.ts`
+- `src/components/support/support-ticket-detail-sheet.tsx`
+- `src/components/payroll/contributi-inps-view.tsx`
+- `src/components/payroll/payroll-overview-view.tsx`
+- `src/components/gestione-contrattuale/rapporto-detail-panel.tsx`
+- `src/components/gestione-contrattuale/assunzioni-detail-sheet.tsx`
+- `src/components/gestione-contrattuale/chiusure-board-view.tsx`
+- `src/components/gestione-contrattuale/variazioni-board-view.tsx`
+
+### Problemi strutturali emersi
+
+1. Duplicazione logica sui documenti lavoratore
+   - `documenti_lavoratori.allegato_*` e `lavoratori.docs_*` convivono
+   - i primi sono il flusso vero, i secondi sono fallback legacy
+
+2. Shape attachment non uniforme
+   - il formato letto/scritto oggi non e ancora allineato alla shape minima `name/path/type`
+
+3. Campi attachment generici o poco chiari
+   - `lavoratori.allegati`
+   - `ticket.allegati`
+   - `costi_marketing.attachments`
+   Questi rischiano di diventare contenitori eterogenei se non governati bene
+
+4. Caso speciale sporco su delega INPS
+   - `delega_inps_allegati` lato FE oggi vive in `metadati_migrazione`
+   - non e modellato come colonna attachment dedicata sul rapporto
+
+### Direzione consigliata
+
+- Tenere come fonte primaria i documenti worker in `documenti_lavoratori.allegato_*`
+- Tenere `lavoratori.foto` come fonte foto worker
+- Deprecare progressivamente i fallback `lavoratori.docs_*`
+- Uniformare la shape attachment a `name/path/type`
+- Ridurre i campi attachment generici quando esiste gia una categoria documentale specifica

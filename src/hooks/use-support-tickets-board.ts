@@ -204,8 +204,6 @@ function buildRapportoIndex(rows: RapportoLavorativoRecord[]) {
       rapporto.id,
       rapporto.id_rapporto,
       rapporto.ticket_id,
-      rapporto.airtable_id,
-      rapporto.airtable_record_id,
     ]) {
       if (!key) continue
       byExternalId.set(key, rapporto)

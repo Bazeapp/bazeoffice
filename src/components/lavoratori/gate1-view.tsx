@@ -25,6 +25,7 @@ import { ExperienceReferencesCard } from "@/components/lavoratori/experience-ref
 import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card";
 import { SkillsChoiceMatrix } from "@/components/lavoratori/skills-choice-matrix";
+import { WorkerShiftPreferencesFields } from "@/components/lavoratori/worker-shift-preferences-fields";
 import { WorkerProfileOverview } from "@/components/lavoratori/worker-profile-overview";
 import { DetailRow } from "@/components/lavoratori/detail-row";
 import {
@@ -201,19 +202,6 @@ function getGateAvatarStateClass(
     ringClassName: "ring-2 ring-emerald-400/40",
     badgeClassName: "bg-emerald-400 text-emerald-950",
   };
-}
-
-function sortValuesByOptionOrder(
-  values: string[],
-  options: Array<{ label: string; value: string }>,
-) {
-  const order = new Map(options.map((option, index) => [option.label, index]));
-
-  return [...values].sort((left, right) => {
-    const leftOrder = order.get(left) ?? Number.MAX_SAFE_INTEGER;
-    const rightOrder = order.get(right) ?? Number.MAX_SAFE_INTEGER;
-    return leftOrder - rightOrder || left.localeCompare(right);
-  });
 }
 
 function includesBabysitterType(
@@ -793,53 +781,6 @@ function GateAllowedWorkField({
           {(item) => (
             <ComboboxItem key={item} value={item}>
               {options.find((option) => option.value === item)?.label ?? item}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
-  );
-}
-
-function GateLookupMultiSelectField({
-  value,
-  options,
-  placeholder,
-  onChange,
-}: {
-  value: string[];
-  options: Array<{ label: string; value: string }>;
-  placeholder: string;
-  onChange: (values: string[]) => void;
-}) {
-  const anchor = useComboboxAnchor();
-
-  return (
-    <Combobox
-      multiple
-      autoHighlight
-      items={options.map((option) => option.label)}
-      value={value}
-      onValueChange={(nextValues) => onChange(nextValues as string[])}
-    >
-      <ComboboxChips ref={anchor} className="w-full">
-        <ComboboxValue>
-          {(values) => (
-            <React.Fragment>
-              {values.map((itemValue: string) => (
-                <ComboboxChip key={itemValue}>{itemValue}</ComboboxChip>
-              ))}
-              <ComboboxChipsInput placeholder={placeholder} />
-            </React.Fragment>
-          )}
-        </ComboboxValue>
-      </ComboboxChips>
-      <ComboboxContent anchor={anchor} className="max-h-80">
-        <ComboboxEmpty>Nessun valore trovato.</ComboboxEmpty>
-        <ComboboxList className="max-h-72 overflow-y-auto">
-          {(item) => (
-            <ComboboxItem key={item} value={item}>
-              {item}
             </ComboboxItem>
           )}
         </ComboboxList>
@@ -2524,92 +2465,41 @@ function GateShiftPreferencesCard({
         ) : undefined
       }
     >
-      <div className="max-w-3xl space-y-2">
-        <p className="text-sm">Verifica sulle tipologia turni</p>
-        {isEditing ? (
-          <GateLookupMultiSelectField
-            value={tipoRapportoLavorativo}
-            options={tipoRapportoOptions}
-            placeholder="Seleziona tipologie"
-            onChange={onTipoRapportoChange}
-          />
-        ) : tipoRapportoLavorativo.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {tipoRapportoLavorativo.map((value) => (
-              <GateLookupBadge
-                key={value}
-                domain="lavoratori.tipo_rapporto_lavorativo"
-                value={value}
-                options={tipoRapportoOptions}
-                lookupColorsByDomain={lookupColorsByDomain}
-              />
-            ))}
-          </div>
-        ) : (
-          <span className="text-muted-foreground text-sm">-</span>
-        )}
-      </div>
-
-      <div className="max-w-3xl space-y-2">
-        <p className="text-sm">Quali tipi di lavori accetta?</p>
-        {isEditing ? (
-          <GateLookupMultiSelectField
-            value={sortValuesByOptionOrder(
-              lavoriAccettabili,
-              lavoriAccettabiliOptions,
-            )}
-            options={lavoriAccettabiliOptions}
-            placeholder="Seleziona lavori"
-            onChange={(values) =>
-              onLavoriAccettabiliChange(
-                sortValuesByOptionOrder(values, lavoriAccettabiliOptions),
-              )
-            }
-          />
-        ) : lavoriAccettabili.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {sortValuesByOptionOrder(
-              lavoriAccettabili,
-              lavoriAccettabiliOptions,
-            ).map((value) => (
-              <GateLookupBadge
-                key={value}
-                domain="lavoratori.check_lavori_accettabili"
-                value={value}
-                options={lavoriAccettabiliOptions}
-                lookupColorsByDomain={lookupColorsByDomain}
-              />
-            ))}
-          </div>
-        ) : (
-          <span className="text-muted-foreground text-sm">-</span>
-        )}
-      </div>
-
-      <div className="max-w-3xl space-y-2">
-        <p className="text-sm">In che momento e disponibile generalmente?</p>
-        {isEditing ? (
-          <GateLookupMultiSelectField
-            value={disponibilitaNelGiorno}
-            options={disponibilitaNelGiornoOptions}
-            placeholder="Seleziona momenti"
-            onChange={onDisponibilitaNelGiornoChange}
-          />
-        ) : disponibilitaNelGiorno.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {disponibilitaNelGiorno.map((value) => (
-              <GateLookupBadge
-                key={value}
-                domain="lavoratori.disponibilita_nel_giorno"
-                value={value}
-                options={disponibilitaNelGiornoOptions}
-                lookupColorsByDomain={lookupColorsByDomain}
-              />
-            ))}
-          </div>
-        ) : (
-          <span className="text-muted-foreground text-sm">-</span>
-        )}
+      <div className="max-w-3xl">
+        <WorkerShiftPreferencesFields
+          fields={[
+            {
+              id: "gate-tipo-rapporto-lavorativo",
+              label: "Verifica sulle tipologia turni",
+              domain: "lavoratori.tipo_rapporto_lavorativo",
+              value: tipoRapportoLavorativo,
+              options: tipoRapportoOptions,
+              placeholder: "Seleziona tipologie",
+              onChange: onTipoRapportoChange,
+            },
+            {
+              id: "gate-lavori-accettabili",
+              label: "Quali tipi di lavori accetta?",
+              domain: "lavoratori.check_lavori_accettabili",
+              value: lavoriAccettabili,
+              options: lavoriAccettabiliOptions,
+              placeholder: "Seleziona lavori",
+              onChange: onLavoriAccettabiliChange,
+              sortByOptionOrder: true,
+            },
+            {
+              id: "gate-disponibilita-nel-giorno",
+              label: "In che momento e disponibile generalmente?",
+              domain: "lavoratori.disponibilita_nel_giorno",
+              value: disponibilitaNelGiorno,
+              options: disponibilitaNelGiornoOptions,
+              placeholder: "Seleziona momenti",
+              onChange: onDisponibilitaNelGiornoChange,
+            },
+          ]}
+          isEditing={isEditing}
+          lookupColorsByDomain={lookupColorsByDomain}
+        />
       </div>
     </GateInfoCard>
   );
@@ -2672,6 +2562,7 @@ export function Gate1View({
     applyUpdatedWorkerRow,
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
+    removeWorkerExperience,
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
     upsertSelectedWorkerDocument,
@@ -2752,6 +2643,7 @@ export function Gate1View({
     applyUpdatedWorkerRow,
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
+    removeWorkerExperience,
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
@@ -4699,29 +4591,6 @@ export function Gate1View({
                           ),
                         }}
                         documents={selectedWorkerDocuments}
-                        fallbackDocuments={{
-                          allegato_codice_fiscale_fronte:
-                            selectedWorkerRow?.docs_codice_fiscale_fronte ??
-                            null,
-                          allegato_codice_fiscale_retro:
-                            selectedWorkerRow?.docs_codice_fiscale_retro ??
-                            null,
-                          allegato_documento_identita_fronte:
-                            selectedWorkerRow?.docs_documento_identita_fronte ??
-                            null,
-                          allegato_documento_identita_retro:
-                            selectedWorkerRow?.docs_documento_identita_retro ??
-                            null,
-                          allegato_permesso_di_soggiorno_fronte:
-                            selectedWorkerRow?.docs_permesso_di_soggiorno_fronte ??
-                            null,
-                          allegato_permesso_di_soggiorno_retro:
-                            selectedWorkerRow?.docs_permesso_di_soggiorno_retro ??
-                            null,
-                          allegato_ricevuta_rinnovo_permesso:
-                            selectedWorkerRow?.docs_ricevuta_rinnovo_permesso_di_soggiorno ??
-                            null,
-                        }}
                         documentsLoading={loadingSelectedWorkerDocuments}
                         verificationOptions={documentiVerificatiOptions}
                         statoDocumentiOptions={documentiInRegolaOptions}

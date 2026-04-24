@@ -8,6 +8,8 @@ type CrmDetailCardProps = {
   children?: ReactNode
   className?: string
   contentClassName?: string
+  collapsible?: boolean
+  defaultOpen?: boolean
 }
 
 export function CrmDetailCard({
@@ -16,6 +18,8 @@ export function CrmDetailCard({
   children,
   className,
   contentClassName,
+  collapsible = false,
+  defaultOpen = true,
 }: CrmDetailCardProps) {
   return (
     <DetailSectionBlock
@@ -23,6 +27,8 @@ export function CrmDetailCard({
       action={titleAction}
       className={className}
       contentClassName={contentClassName}
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
     >
       {children}
     </DetailSectionBlock>
