@@ -117,6 +117,8 @@ export type LavoratoreRecord = {
   id_stripe_price: string | null
   idoneita: string | null
   indirizzo_residenza_completo: string | null
+  referente_idoneità: string | null
+  referente_certificazione: string | null
   invito: string | null
   invito_link: string | null
   invito_referrer: string | null

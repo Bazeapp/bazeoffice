@@ -16,6 +16,19 @@
 - [x] [RIC-012] Esporre label e valore dei dropdown "Stato lavoratore" e "Disponibile" nel detail lavoratore
 - [x] [RIC-013] Aggiungere sezione "Altre ricerche attive" nel detail lavoratore con navigazione cross-ricerca
 - [x] [RIC-016] Mostrare la colonna famiglia completa anche nel detail lavoratore
+- [x] [LAV-001] Mostrare città + CAP del lavoratore nella card
+- [x] [LAV-002] Mostrare sulla card lavoratore il coinvolgimento in altre selezioni attive
+- [x] [LAV-003] Esporre label e valore dei dropdown "Stato lavoratore" e "Disponibile" nel detail lavoratore
+- [x] [LAV-010] Aggiungere sezione "Ricerche coinvolte" con tab Attivi/Tutti nel detail lavoratore
+- [x] [GT1-001] Rendere editabile il "Referente idoneità" e posizionarlo sopra la sezione Follow-up
+- [x] [GT1-002] Aggiungere due filter picker (Provincia + Followup) per filtrare la lista Gate 1
+- [x] [GT1-004] Badge stato nelle card mostra "Non idoneo" invece dello stato reale del lavoratore
+- [x] [GT1-008] Formalizzare i filtri base non modificabili della lista Gate 1
+- [x] [GT2-001] Espandere il filtro base di Gate 2 per includere anche i lavoratori "Qualificato"
+- [x] [GT2-004] Rendere editabile la collezione di foto del lavoratore in Gate 2
+- [x] [GT2-005] Aggiungere record picker "Referente Gate 2" editabile + mostrare referente Gate 1 read-only nella stessa sezione
+- [x] [GT2-007] Aggiungere sezione "Aspetti specifici" in Gate 2 con campi pre-popolati editabili
+- [ ] [RAP-001] Correggere il tag di stato del rapporto che risulta sempre "Sconosciuto"
 
 ## Medium
 - [x] [G-001] Aggiungere campi ruolo (multi-valore) e attivo alla tabella operatori
@@ -60,6 +73,21 @@
 - [x] [RIC-027] Mostrare campo "Motivo non selezionato" quando lo stato selezione è "Non selezionato"
 - [x] [RIC-028] Mostrare campo "Motivo no match" quando lo stato selezione è "No match"
 - [x] [RIC-029] Mostrare campi "Data/ora colloquio famiglia lavoratore" e "Colloquio effettuato" negli stati colloquio/prova
+- [x] [LAV-004] Mostrare il campo "Motivazione" solo quando stato_lavoratore = "Non idoneo"
+- [x] [LAV-005] Header sticky del detail lavoratore coperto dalle sezioni in scroll (z-index)
+- [x] [LAV-007] Rimuovere tab "Disponibilità" e mostrare "ritorno disponibilità" condizionalmente nell'header
+- [ ] [LAV-009] Aggiungere bottone "Elimina" nelle singole esperienze del detail lavoratore
+- [x] [LAV-012] Aggiungere campo IBAN nella sezione "Dati amministrativi"
+- [x] [LAV-013] Aggiungere campo ID account Stripe nella sezione "Dati amministrativi"
+- [ ] [LAV-014] Mostrare bottone "Genera account Stripe" quando IBAN è valorizzato e ID Stripe è vuoto
+- [x] [LAV-016] Aggiungere bottone "+ Aggiungi ad una ricerca" con flusso di ricerca via email e check idempotenza
+- [x] [GT1-006] Mantenere il record Gate 1 nel detail panel per 10 secondi dopo cambio stato_lavoratore
+- [x] [GT1-007] Semplificare la card lavoratore nella lista Gate 1
+- [x] [GT2-003] Mantenere il record Gate 2 nel detail panel per 10 secondi dopo cambio stato_lavoratore
+- [x] [GT2-008] Aggiungere campo "Referenze verificabili" come primo campo della sezione Tipologia lavori
+- [x] [GT2-009] Aggiungere campo IBAN in fondo al detail lavoratore di Gate 2
+- [x] [GT2-010] Aggiungere campo ID account Stripe in fondo al detail lavoratore di Gate 2
+- [ ] [GT2-011] Mostrare bottone "Genera account Stripe" quando IBAN è valorizzato e ID Stripe è vuoto
 
 ## Low
 - [x] [CRM-007] Mostrare data di ricontatto futuro sulla card della Pipeline Famiglie
@@ -69,6 +97,13 @@
 - [ ] [RIC-001] Fissare orizzontalmente la colonna info ricerca nella kanban Ricerche attive
 - [ ] [RIC-018] La textarea "Crea feedback Baze" non occupa il 100% della larghezza del container
 - [x] [RIC-019] Correggere copy dell'header della sezione esperienze
+- [x] [LAV-008] Spostare icona X di chiusura fuori dall'header sticky in una barra superiore dedicata
+- [x] [LAV-011] Rinominare la tab "Documenti" in "Documenti e dati amministrativi" con sezione dedicata ai dati amministrativi
+- [x] [LAV-015] Rimuovere tab/sezione "Questo lavoratore non è idoneo" ridondante con l'header sticky
+- [x] [GT1-003] Rimuovere l'icona matita dagli header delle sezioni in Gate 1
+- [x] [GT1-005] Rimuovere il campo "Rating" (Baze score) deprecato dalla sezione Assessment finale
+- [x] [GT2-002] Rimuovere il campo "Rating" deprecato dalla sezione Assessment finale
+- [x] [GT2-006] Uniformare tutte le sezioni Gate 2 a editing diretto inline senza icona matita
 
 ## Note completate fuori roadmap
 - [x] Grouping server-side Anagrafiche con conteggi globali, lazy load dei gruppi e applicazione esplicita dal popover.

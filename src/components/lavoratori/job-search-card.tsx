@@ -166,6 +166,7 @@ export function JobSearchCard({
           <PencilIcon />
         </Button>
       ) : undefined}
+      showDefaultAction={showEditAction}
       contentClassName="space-y-4"
     >
       <div className="space-y-4">

@@ -6,6 +6,7 @@ import {
   PhoneIcon,
   PizzaIcon,
   StarIcon,
+  UploadIcon,
   VenusAndMarsIcon,
 } from "lucide-react"
 
@@ -46,6 +47,9 @@ type WorkerProfileOverviewProps = {
   nazionalitaOptions?: Array<{ label: string; value: string }>
   presentationPhotoSlots?: string[]
   selectedPresentationPhotoIndex?: number
+  showUploadPhotoAction?: boolean
+  uploadingPhoto?: boolean
+  onUploadPhoto?: () => void
   onSelectedPresentationPhotoIndexChange?: (value: number) => void
   onLivelloItalianoChange?: (value: string) => void
   onLivelloItalianoBlur?: () => void
@@ -64,6 +68,9 @@ export function WorkerProfileOverview({
   nazionalitaOptions = [],
   presentationPhotoSlots = [],
   selectedPresentationPhotoIndex = 0,
+  showUploadPhotoAction = false,
+  uploadingPhoto = false,
+  onUploadPhoto,
   onSelectedPresentationPhotoIndexChange,
   onLivelloItalianoChange,
   onLivelloItalianoBlur,
@@ -172,6 +179,19 @@ export function WorkerProfileOverview({
             </span>
           </div>
         )}
+        {isEditing && showUploadPhotoAction ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={uploadingPhoto || !onUploadPhoto}
+            onClick={onUploadPhoto}
+            className="w-full justify-center"
+          >
+            <UploadIcon className="size-4" />
+            {uploadingPhoto ? "Caricamento..." : "Carica foto"}
+          </Button>
+        ) : null}
       </div>
 
       <div className="min-w-0 flex-1">

@@ -26,6 +26,7 @@ import {
   asInputValue,
   asLavoratoreRecord,
   asString,
+  formatWorkerAddressLine,
   getAgeFromBirthDate,
   parseNumberValue,
   readArrayStrings,
@@ -123,6 +124,8 @@ type WorkerDocumentsDraft = {
   stato_verifica_documenti: string
   documenti_in_regola: string
   data_scadenza_naspi: string
+  iban: string
+  id_stripe_account: string
 }
 
 type PatchLoadingKey =
@@ -139,9 +142,11 @@ type UseSelectedWorkerEditorParams = {
   selectedWorkerId: string | null
   selectedWorker: LavoratoreListItem | null
   selectedWorkerRow: LavoratoreRecord | null
+  selectedWorkerAddress: Record<string, unknown> | null
   lookupColorsByDomain: Map<string, string>
   setError: React.Dispatch<React.SetStateAction<string | null>>
   applyUpdatedWorkerRow: (row: LavoratoreRecord) => void
+  applyUpdatedWorkerAddress: (row: Record<string, unknown>) => void
   applyUpdatedWorkerExperience: (row: EsperienzaLavoratoreRecord) => void
   appendCreatedWorkerExperience: (row: EsperienzaLavoratoreRecord) => void
   removeWorkerExperience: (id: string) => void
@@ -161,11 +166,15 @@ function buildHeaderDraft(row: LavoratoreRecord | null): WorkerHeaderDraft {
   }
 }
 
-function buildAddressDraft(row: LavoratoreRecord | null): WorkerAddressDraft {
+function buildAddressDraft(
+  row: LavoratoreRecord | null,
+  address?: Record<string, unknown> | null
+): WorkerAddressDraft {
   return {
     provincia: asString(row?.provincia),
-    cap: asString(row?.cap),
-    indirizzo_residenza_completo: asString(row?.indirizzo_residenza_completo),
+    cap: asString(address?.cap) || asString(row?.cap),
+    indirizzo_residenza_completo:
+      formatWorkerAddressLine(address) || asString(row?.indirizzo_residenza_completo),
     come_ti_sposti: readArrayStrings(row?.come_ti_sposti),
   }
 }
@@ -259,6 +268,8 @@ function buildDocumentsDraft(row: LavoratoreRecord | null): WorkerDocumentsDraft
     stato_verifica_documenti: asString(row?.stato_verifica_documenti),
     documenti_in_regola: asString(row?.documenti_in_regola),
     data_scadenza_naspi: asString(row?.data_scadenza_naspi),
+    iban: asString(row?.iban),
+    id_stripe_account: asString(row?.id_stripe_account),
   }
 }
 
@@ -270,9 +281,11 @@ export function useSelectedWorkerEditor({
   selectedWorkerId,
   selectedWorker,
   selectedWorkerRow,
+  selectedWorkerAddress,
   lookupColorsByDomain,
   setError,
   applyUpdatedWorkerRow,
+  applyUpdatedWorkerAddress,
   applyUpdatedWorkerExperience,
   appendCreatedWorkerExperience,
   removeWorkerExperience,
@@ -302,7 +315,7 @@ export function useSelectedWorkerEditor({
     buildHeaderDraft(selectedWorkerRow)
   )
   const [addressDraft, setAddressDraft] = React.useState<WorkerAddressDraft>(() =>
-    buildAddressDraft(selectedWorkerRow)
+    buildAddressDraft(selectedWorkerRow, selectedWorkerAddress)
   )
   const [availabilityStatusDraft, setAvailabilityStatusDraft] =
     React.useState<WorkerAvailabilityStatusDraft>(() =>
@@ -397,14 +410,14 @@ export function useSelectedWorkerEditor({
     const blacklistToken = normalizeLookupToken(selectedWorkerRow?.check_blacklist)
     setBlacklistChecked(blacklistToken === "blacklist" || blacklistToken === "yes")
     setHeaderDraft(buildHeaderDraft(selectedWorkerRow))
-    setAddressDraft(buildAddressDraft(selectedWorkerRow))
+    setAddressDraft(buildAddressDraft(selectedWorkerRow, selectedWorkerAddress))
     setAvailabilityDraft(buildAvailabilityDraft(selectedWorkerRow, availabilityPayload))
     setAvailabilityStatusDraft(buildAvailabilityStatusDraft(selectedWorkerRow))
     setJobSearchDraft(buildJobSearchDraft(selectedWorkerRow))
     setExperienceDraft(buildExperienceDraft(selectedWorkerRow))
     setSkillsDraft(buildSkillsDraft(selectedWorkerRow))
     setDocumentsDraft(buildDocumentsDraft(selectedWorkerRow))
-  }, [selectedWorkerRow, availabilityPayload])
+  }, [selectedWorkerRow, selectedWorkerAddress, availabilityPayload])
 
   React.useEffect(() => {
     setSelectedPresentationPhotoIndex(0)
@@ -530,6 +543,39 @@ export function useSelectedWorkerEditor({
     [patchWorkerField, selectedWorkerId]
   )
 
+  const applyAddressPatch = React.useCallback(
+    async (patch: Record<string, unknown>) => {
+      if (!selectedWorkerId) return null
+      setPatchLoading("nonQualificato", true)
+      try {
+        const addressId = asString(selectedWorkerAddress?.id)
+        const result = addressId
+          ? await updateRecord("indirizzi", addressId, patch)
+          : await createRecord("indirizzi", {
+              entita_tabella: "lavoratori",
+              entita_id: selectedWorkerId,
+              tipo_indirizzo: "residenza",
+              ...patch,
+            })
+        const nextAddress = result.row as Record<string, unknown>
+        applyUpdatedWorkerAddress(nextAddress)
+        return nextAddress
+      } catch (caughtError) {
+        setError(formatEditorError("Errore aggiornando indirizzo", caughtError))
+        throw caughtError
+      } finally {
+        setPatchLoading("nonQualificato", false)
+      }
+    },
+    [
+      applyUpdatedWorkerAddress,
+      selectedWorkerAddress,
+      selectedWorkerId,
+      setError,
+      setPatchLoading,
+    ]
+  )
+
   const commitHeaderField = React.useCallback(
     async (
       field:
@@ -566,18 +612,44 @@ export function useSelectedWorkerEditor({
         return
       }
 
-      const currentValue = asString(selectedWorkerRow?.[field])
-      const rawValue = addressDraft[field].trim()
-      const nextValue =
-        field === "cap" ? rawValue.replace(/\s+/g, "").toUpperCase() : rawValue
-      if (field === "cap" && nextValue && !/^[A-Z0-9]{3,10}$/.test(nextValue)) {
-        setError("Formato CAP non valido (3-10 caratteri alfanumerici).")
+      if (field === "cap" || field === "indirizzo_residenza_completo") {
+        const currentValue =
+          field === "cap"
+            ? asString(selectedWorkerAddress?.cap)
+            : formatWorkerAddressLine(selectedWorkerAddress)
+        const rawValue = addressDraft[field].trim()
+        const nextValue =
+          field === "cap" ? rawValue.replace(/\s+/g, "").toUpperCase() : rawValue
+        if (field === "cap" && nextValue && !/^[A-Z0-9]{3,10}$/.test(nextValue)) {
+          setError("Formato CAP non valido (3-10 caratteri alfanumerici).")
+          return
+        }
+        if (nextValue === currentValue) return
+        await applyAddressPatch(
+          field === "cap"
+            ? { cap: nextValue || null }
+            : {
+                via: nextValue || null,
+                indirizzo_formattato: nextValue || null,
+              }
+        )
         return
       }
+
+      const currentValue = asString(selectedWorkerRow?.[field])
+      const rawValue = addressDraft[field].trim()
+      const nextValue = rawValue
       if (nextValue === currentValue) return
       await patchSelectedWorkerField(field, nextValue || null)
     },
-    [addressDraft, patchSelectedWorkerField, selectedWorkerRow, setError]
+    [
+      addressDraft,
+      applyAddressPatch,
+      patchSelectedWorkerField,
+      selectedWorkerAddress,
+      selectedWorkerRow,
+      setError,
+    ]
   )
 
   const commitAvailabilityField = React.useCallback(
@@ -809,7 +881,7 @@ export function useSelectedWorkerEditor({
   )
 
   const commitDocumentField = React.useCallback(
-    async (field: "data_scadenza_naspi") => {
+    async (field: "data_scadenza_naspi" | "iban" | "id_stripe_account") => {
       const currentValue = asString(selectedWorkerRow?.[field])
       const nextValue = documentsDraft[field]
       if (nextValue === currentValue) return

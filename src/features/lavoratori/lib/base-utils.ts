@@ -138,6 +138,27 @@ export function toDisplayName(row: Record<string, unknown>) {
   return asString(row.nome_e_cognome) || "Lavoratore"
 }
 
+export function formatWorkerLocationLabel(
+  row: Record<string, unknown>,
+  address?: Record<string, unknown> | null
+) {
+  const city =
+    asString(address?.citta) ||
+    asString(address?.provincia) ||
+    asString(row.citta) ||
+    asString(row.provincia)
+  const cap = asString(address?.cap) || asString(row.cap)
+  const label = [city, cap].filter(Boolean).join(" ").trim()
+  return label || null
+}
+
+export function formatWorkerAddressLine(address?: Record<string, unknown> | null) {
+  if (!address) return ""
+  const formatted = asString(address.indirizzo_formattato)
+  if (formatted) return formatted
+  return [asString(address.via), asString(address.civico)].filter(Boolean).join(" ").trim()
+}
+
 export function toAvatarUrl(row: Record<string, unknown>) {
   for (const foto of normalizeAttachmentArray(row.foto)) {
     const resolved = attachmentPathToPublicUrl(foto.path)
@@ -234,7 +255,7 @@ export function toListItem(
     id: workerId,
     nomeCompleto: toDisplayName(row),
     immagineUrl: imageUrl ?? getDefaultWorkerAvatar(workerId),
-    locationLabel: asString(row.cap) || null,
+    locationLabel: formatWorkerLocationLabel(row),
     telefono: asString(row.telefono) || null,
     isBlacklisted: options.isBlacklisted,
     tipoRuolo: firstDomesticRole,

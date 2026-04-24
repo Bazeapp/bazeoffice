@@ -38,16 +38,16 @@ export function DetailSectionCard({
       {titleOnBorder ? (
         <CardTitle
           className={cn(
-            "ui-type-subsection text-foreground pointer-events-none absolute top-1 right-3 left-1 flex -translate-y-1/2 items-center justify-between gap-2 px-0 font-semibold",
+            "ui-type-subsection text-foreground pointer-events-none absolute top-0 right-4 left-4 z-10 flex -translate-y-1/2 items-center justify-between gap-2 px-0 font-semibold",
             titleClassName,
           )}
         >
-          <span className="flex items-center gap-2">
+          <span className="bg-card flex min-w-0 items-center gap-2 rounded-full px-2 py-0.5">
             {titleIcon ? titleIcon : null}
-            <span>{title}</span>
+            <span className="truncate">{title}</span>
           </span>
           {titleAction ? (
-            <span className="pointer-events-auto shrink-0">{titleAction}</span>
+            <span className="bg-card pointer-events-auto shrink-0 rounded-full px-1 py-0.5">{titleAction}</span>
           ) : null}
         </CardTitle>
       ) : (
@@ -69,7 +69,7 @@ export function DetailSectionCard({
         </CardHeader>
       )}
       {children ? (
-        <CardContent className={cn(titleOnBorder && "pt-6", contentClassName)}>{children}</CardContent>
+        <CardContent className={cn(titleOnBorder && "pt-7", contentClassName)}>{children}</CardContent>
       ) : null}
     </Card>
   );
@@ -82,6 +82,7 @@ type DetailSectionBlockProps = {
   onActionClick?: () => void;
   actionLabel?: string;
   showDefaultAction?: boolean;
+  tone?: "primary" | "muted" | "neutral" | "transparent";
   collapsible?: boolean;
   defaultOpen?: boolean;
   children?: ReactNode;
@@ -98,6 +99,7 @@ export function DetailSectionBlock({
   onActionClick,
   actionLabel = "Modifica sezione",
   showDefaultAction = true,
+  tone = "primary",
   collapsible = false,
   defaultOpen = true,
   children,
@@ -146,13 +148,32 @@ export function DetailSectionBlock({
     <div className="shrink-0">{resolvedAction}</div>
   ) : null;
 
+  const toneClassName = {
+    primary: {
+      banner: "bg-primary/5",
+      icon: "bg-primary/10 text-primary",
+    },
+    muted: {
+      banner: "bg-muted/50",
+      icon: "bg-muted text-muted-foreground",
+    },
+    neutral: {
+      banner: "bg-card",
+      icon: "bg-muted text-muted-foreground",
+    },
+    transparent: {
+      banner: "bg-transparent",
+      icon: "bg-muted text-muted-foreground",
+    },
+  }[tone];
+
   return (
     <div className={cn("space-y-3", className)}>
-      <Card className={cn("bg-primary/5 py-0 shadow-none", bannerClassName)}>
+      <Card className={cn("py-0 shadow-none", toneClassName.banner, bannerClassName)}>
         <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             {icon ? (
-              <div className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-xl">
+              <div className={cn("flex size-9 items-center justify-center rounded-xl", toneClassName.icon)}>
                 {icon}
               </div>
             ) : null}

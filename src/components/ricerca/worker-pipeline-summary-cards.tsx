@@ -207,6 +207,8 @@ type WorkerPipelineSummaryCardsProps = {
     stato_verifica_documenti: string;
     documenti_in_regola: string;
     data_scadenza_naspi: string;
+    iban: string;
+    id_stripe_account: string;
   };
   documentiVerificatiOptions: LookupOption[];
   documentiInRegolaOptions: LookupOption[];
@@ -214,6 +216,10 @@ type WorkerPipelineSummaryCardsProps = {
   onDocumentStatusChange: (value: string) => void;
   onDocumentNaspiChange: (value: string) => void;
   onDocumentNaspiBlur: () => void;
+  onDocumentIbanChange: (value: string) => void;
+  onDocumentIbanBlur: () => void;
+  onDocumentStripeAccountChange: (value: string) => void;
+  onDocumentStripeAccountBlur: () => void;
   onDocumentUpsert: (row: DocumentoLavoratoreRecord) => void;
   onDocumentUploadError: React.Dispatch<React.SetStateAction<string | null>>;
 };
@@ -1480,6 +1486,10 @@ export function WorkerPipelineSummaryCards({
   onDocumentStatusChange,
   onDocumentNaspiChange,
   onDocumentNaspiBlur,
+  onDocumentIbanChange,
+  onDocumentIbanBlur,
+  onDocumentStripeAccountChange,
+  onDocumentStripeAccountBlur,
   onDocumentUpsert,
   onDocumentUploadError,
 }: WorkerPipelineSummaryCardsProps) {
@@ -1614,11 +1624,19 @@ export function WorkerPipelineSummaryCards({
         verificationOptions={documentiVerificatiOptions}
         statoDocumentiOptions={documentiInRegolaOptions}
         lookupColorsByDomain={lookupColorsByDomain}
+        administrativeValues={{
+          iban: asString(workerRow.iban),
+          id_stripe_account: asString(workerRow.id_stripe_account),
+        }}
         onToggleEdit={onToggleDocumentsEdit}
         onVerificationChange={onDocumentVerificationChange}
         onStatoDocumentiChange={onDocumentStatusChange}
         onNaspiChange={onDocumentNaspiChange}
         onNaspiBlur={onDocumentNaspiBlur}
+        onIbanChange={onDocumentIbanChange}
+        onIbanBlur={onDocumentIbanBlur}
+        onStripeAccountChange={onDocumentStripeAccountChange}
+        onStripeAccountBlur={onDocumentStripeAccountBlur}
         onDocumentUpsert={onDocumentUpsert}
         onUploadError={onDocumentUploadError}
         collapsible

@@ -89,6 +89,7 @@ export function AddressSectionCard({
           <PencilIcon />
         </Button>
       ) : undefined}
+      showDefaultAction={showEditAction}
       contentClassName="space-y-3"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[170px_130px_minmax(0,1fr)_minmax(220px,280px)]">

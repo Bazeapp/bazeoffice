@@ -1,5 +1,11 @@
 import { LavoratoriCercaView } from "@/components/lavoratori/lavoratori-cerca-view"
 
-export function LavoratoriCercaPage() {
-  return <LavoratoriCercaView />
+type LavoratoriCercaPageProps = {
+  onOpenRicercaDetail?: (processId: string) => void
+}
+
+export function LavoratoriCercaPage({
+  onOpenRicercaDetail,
+}: LavoratoriCercaPageProps) {
+  return <LavoratoriCercaView onOpenRicercaDetail={onOpenRicercaDetail} />
 }

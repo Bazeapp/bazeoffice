@@ -1,0 +1,81 @@
+import type { Meta, StoryObj } from "@storybook/react-vite";
+
+import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
+import { lookupColorsByDomain, lookupOptions } from "../mocks";
+
+const draft = {
+  anni_esperienza_colf: "6",
+  anni_esperienza_badante: "2",
+  anni_esperienza_babysitter: "3",
+  situazione_lavorativa_attuale: "Attualmente lavora part time presso una famiglia a Milano.",
+};
+
+const meta = {
+  title: "Lavoratori/ExperienceReferencesCard",
+  component: ExperienceReferencesCard,
+  args: {
+    workerId: "worker-story-1",
+    isEditing: false,
+    showEditAction: true,
+    showCreateExperienceAction: true,
+    collapsible: true,
+    defaultOpen: true,
+    title: "Esperienze e Referenze",
+    showSummaryFields: true,
+    showSituationField: true,
+    showReferencesSection: true,
+    aiSummaryValue: "Esperienza solida come colf e tata, con referenze verificabili.",
+    isGeneratingAiSummary: false,
+    isUpdating: false,
+    draft,
+    experiences: [],
+    experiencesLoading: false,
+    references: [],
+    referencesLoading: false,
+    lookupColorsByDomain,
+    experienceTipoLavoroOptions: lookupOptions.lavori,
+    experienceTipoRapportoOptions: lookupOptions.rapporti,
+    referenceStatusOptions: [
+      { label: "Verificata", value: "Verificata" },
+      { label: "Da verificare", value: "Da verificare" },
+    ],
+    selectedAnniEsperienzaColf: draft.anni_esperienza_colf,
+    selectedAnniEsperienzaBadante: draft.anni_esperienza_badante,
+    selectedAnniEsperienzaBabysitter: draft.anni_esperienza_babysitter,
+    selectedSituazioneLavorativaAttuale: draft.situazione_lavorativa_attuale,
+    onGenerateAiSummary: () => undefined,
+    onToggleEdit: () => undefined,
+    onAnniEsperienzaColfChange: () => undefined,
+    onAnniEsperienzaBadanteChange: () => undefined,
+    onAnniEsperienzaBabysitterChange: () => undefined,
+    onSituazioneLavorativaAttualeChange: () => undefined,
+    onAnniEsperienzaColfBlur: () => undefined,
+    onAnniEsperienzaBadanteBlur: () => undefined,
+    onAnniEsperienzaBabysitterBlur: () => undefined,
+    onSituazioneLavorativaAttualeBlur: () => undefined,
+    onExperiencePatch: () => undefined,
+    onExperienceCreate: () => undefined,
+    onExperienceDelete: () => undefined,
+    onReferencePatch: () => undefined,
+    onReferenceCreate: () => undefined,
+  },
+  argTypes: {
+    isEditing: { control: "boolean" },
+    showEditAction: { control: "boolean" },
+    showCreateExperienceAction: { control: "boolean" },
+    collapsible: { control: "boolean" },
+    defaultOpen: { control: "boolean" },
+    showSummaryFields: { control: "boolean" },
+    showSituationField: { control: "boolean" },
+    showReferencesSection: { control: "boolean" },
+    isGeneratingAiSummary: { control: "boolean" },
+    isUpdating: { control: "boolean" },
+  },
+} satisfies Meta<typeof ExperienceReferencesCard>;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {};
+

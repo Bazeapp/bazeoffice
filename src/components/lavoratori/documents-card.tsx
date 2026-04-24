@@ -2,6 +2,7 @@ import * as React from "react"
 import {
   CalendarDaysIcon,
   CheckCircle2Icon,
+  CreditCardIcon,
   FileIcon,
   FileBadge2Icon,
   FolderArchiveIcon,
@@ -44,6 +45,19 @@ type DocumentsDraft = {
   stato_verifica_documenti: string
   documenti_in_regola: string
   data_scadenza_naspi: string
+  iban: string
+  id_stripe_account: string
+}
+
+type DocumentsSelectedValues = {
+  stato_verifica_documenti: string
+  documenti_in_regola: string
+  data_scadenza_naspi: string
+}
+
+type AdministrativeValues = {
+  iban: string
+  id_stripe_account: string
 }
 
 type DocumentsCardProps = {
@@ -54,17 +68,22 @@ type DocumentsCardProps = {
   defaultOpen?: boolean
   isUpdating: boolean
   draft: DocumentsDraft
-  selectedValues: DocumentsDraft
+  selectedValues: DocumentsSelectedValues
   documents: DocumentoLavoratoreRecord[]
   documentsLoading: boolean
   verificationOptions: LookupOption[]
   statoDocumentiOptions: LookupOption[]
   lookupColorsByDomain: Map<string, string>
+  administrativeValues?: AdministrativeValues
   onToggleEdit: () => void
   onVerificationChange: (value: string) => void
   onStatoDocumentiChange: (value: string) => void
   onNaspiChange: (value: string) => void
   onNaspiBlur: () => void
+  onIbanChange?: (value: string) => void
+  onIbanBlur?: () => void
+  onStripeAccountChange?: (value: string) => void
+  onStripeAccountBlur?: () => void
   onDocumentUpsert: (row: DocumentoLavoratoreRecord) => void
   onUploadError: React.Dispatch<React.SetStateAction<string | null>>
 }
@@ -155,6 +174,111 @@ function ReadOnlyLookupBadge({
     >
       {value}
     </Badge>
+  )
+}
+
+function ReadOnlyAdminValue({
+  label,
+  value,
+}: {
+  label: string
+  value: string
+}) {
+  return (
+    <div className="rounded-xl border bg-muted/20 px-3 py-3">
+      <FieldTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+        {label}
+      </FieldTitle>
+      <p
+        className={cn(
+          "mt-2 break-all text-sm font-medium",
+          !value && "text-muted-foreground"
+        )}
+      >
+        {value || "-"}
+      </p>
+    </div>
+  )
+}
+
+function AdministrativeDataSection({
+  values,
+  ibanValue,
+  isEditing,
+  isUpdating,
+  onIbanChange,
+  onIbanBlur,
+  stripeAccountValue,
+  onStripeAccountChange,
+  onStripeAccountBlur,
+}: {
+  values?: AdministrativeValues
+  ibanValue: string
+  stripeAccountValue: string
+  isEditing: boolean
+  isUpdating: boolean
+  onIbanChange?: (value: string) => void
+  onIbanBlur?: () => void
+  onStripeAccountChange?: (value: string) => void
+  onStripeAccountBlur?: () => void
+}) {
+  const canEditIban = isEditing && Boolean(onIbanChange && onIbanBlur)
+  const canEditStripeAccount =
+    isEditing && Boolean(onStripeAccountChange && onStripeAccountBlur)
+
+  return (
+    <div className="space-y-3 rounded-2xl border bg-background p-4">
+      <div className="flex items-center gap-2">
+        <CreditCardIcon className="text-muted-foreground size-4" />
+        <div>
+          <h3 className="text-sm font-semibold">Dati amministrativi</h3>
+          <p className="text-muted-foreground text-xs">
+            Dati operativi per pagamenti e account Stripe.
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {canEditIban ? (
+          <div className="rounded-xl border bg-muted/20 px-3 py-3">
+            <FieldTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+              IBAN
+            </FieldTitle>
+            <Input
+              value={ibanValue}
+              onChange={(event) => onIbanChange?.(event.target.value)}
+              onBlur={onIbanBlur}
+              disabled={isUpdating}
+              className="mt-2 bg-muted/35"
+              placeholder="Inserisci IBAN"
+            />
+          </div>
+        ) : (
+          <ReadOnlyAdminValue label="IBAN" value={values?.iban ?? ""} />
+        )}
+        {canEditStripeAccount ? (
+          <div className="rounded-xl border bg-muted/20 px-3 py-3">
+            <FieldTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+              ID account Stripe
+            </FieldTitle>
+            <Input
+              value={stripeAccountValue}
+              onChange={(event) =>
+                onStripeAccountChange?.(event.target.value)
+              }
+              onBlur={onStripeAccountBlur}
+              disabled={isUpdating}
+              className="mt-2 bg-muted/35"
+              placeholder="Inserisci ID account Stripe"
+            />
+          </div>
+        ) : (
+          <ReadOnlyAdminValue
+            label="ID account Stripe"
+            value={values?.id_stripe_account ?? ""}
+          />
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -351,11 +475,16 @@ export function DocumentsCard({
   verificationOptions,
   statoDocumentiOptions,
   lookupColorsByDomain,
+  administrativeValues,
   onToggleEdit,
   onVerificationChange,
   onStatoDocumentiChange,
   onNaspiChange,
   onNaspiBlur,
+  onIbanChange,
+  onIbanBlur,
+  onStripeAccountChange,
+  onStripeAccountBlur,
   onDocumentUpsert,
   onUploadError,
 }: DocumentsCardProps) {
@@ -430,7 +559,7 @@ export function DocumentsCard({
 
   return (
     <DetailSectionBlock
-      title="Documenti"
+      title="Documenti e dati amministrativi"
       icon={<FolderArchiveIcon className="text-muted-foreground size-4" />}
       collapsible={collapsible}
       defaultOpen={defaultOpen}
@@ -447,6 +576,7 @@ export function DocumentsCard({
           <PencilIcon className="size-4" />
         </Button>
       ) : undefined}
+      showDefaultAction={showEditAction}
       contentClassName="space-y-5 pt-2"
     >
       <FieldSet className="gap-5">
@@ -571,6 +701,18 @@ export function DocumentsCard({
             </div>
           )}
         </div>
+
+        <AdministrativeDataSection
+          values={administrativeValues}
+          ibanValue={draft.iban}
+          stripeAccountValue={draft.id_stripe_account}
+          isEditing={isEditing}
+          isUpdating={isUpdating}
+          onIbanChange={onIbanChange}
+          onIbanBlur={onIbanBlur}
+          onStripeAccountChange={onStripeAccountChange}
+          onStripeAccountBlur={onStripeAccountBlur}
+        />
       </FieldSet>
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(open) => !open && setSelectedPreview(null)}>
         <DialogContent

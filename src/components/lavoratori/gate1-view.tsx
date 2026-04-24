@@ -33,7 +33,6 @@ import {
   DetailSectionCard,
 } from "@/components/shared/detail-section-card";
 import { SideCardsPanel } from "@/components/shared/side-cards-panel";
-import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar";
 import {
   Combobox,
   ComboboxChip,
@@ -86,6 +85,7 @@ import {
   type AvailabilityEditDayField,
 } from "@/features/lavoratori/lib/availability-utils";
 import {
+  asLavoratoreRecord,
   asInputValue,
   asString,
   parseNumberValue,
@@ -96,7 +96,15 @@ import {
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
 import { useLavoratoriData } from "@/hooks/use-lavoratori-data";
+import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
+import { updateRecord } from "@/lib/anagrafiche-api";
+import {
+  buildAttachmentPayload,
+  type MinimalAttachment,
+  normalizeAttachmentArray,
+} from "@/lib/attachments";
+import { supabase } from "@/lib/supabase-client";
 import { normalizeWorkerStatus } from "@/features/lavoratori/lib/status-utils";
 import type { LavoratoreRecord } from "@/types/entities/lavoratore";
 
@@ -106,7 +114,16 @@ type GateTab = {
   icon: React.ComponentType<{ className?: string }>;
 };
 
+function sanitizeFileName(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-");
+}
+
 type GateSectionId =
+  | "referente"
   | "contatti"
   | "presentazione"
   | "documenti"
@@ -123,14 +140,17 @@ type GateStepInfo = {
 
 type GateViewProps = {
   gateLabel?: string;
-  workerStatus?: string;
+  workerStatus?: string | string[];
   workerCountLabel?: string;
   showFollowup?: boolean;
   showSelfCertification?: boolean;
+  showReferencesInWorkTypes?: boolean;
+  showAdministrativeFields?: boolean;
   showStepper?: boolean;
   splitBazeChecksStep?: boolean;
   stepInfoBySection?: Partial<Record<GateSectionId, GateStepInfo>>;
   presentationEditMode?: "always" | "toggle";
+  photoEditMode?: "hidden" | "editable";
   addressEditMode?: "always" | "toggle";
   workTypesEditMode?: "always" | "toggle";
   availabilityEditMode?: "always" | "toggle";
@@ -139,70 +159,9 @@ type GateViewProps = {
   showAssessment?: boolean;
   specificChecksMode?: "gate1" | "confirmation";
   specificChecksEditMode?: "always" | "toggle";
+  applyGate1BaseFilters?: boolean;
+  showCertificationReferente?: boolean;
 };
-
-const HR_OPTIONS = [
-  { id: "giulia", label: "Giulia", avatar: "G" },
-  { id: "elisa", label: "Elisa", avatar: "E" },
-  { id: "francesca", label: "Francesca", avatar: "F" },
-] as const;
-
-type HrId = (typeof HR_OPTIONS)[number]["id"];
-
-function hashString(input: string) {
-  let hash = 0;
-  for (let index = 0; index < input.length; index += 1) {
-    hash = (hash << 5) - hash + input.charCodeAt(index);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
-function getAssigneeIdFromSeed(seed: string): HrId {
-  const index = hashString(seed) % HR_OPTIONS.length;
-  return HR_OPTIONS[index].id;
-}
-
-function getHrById(assigneeId: HrId) {
-  return HR_OPTIONS.find((option) => option.id === assigneeId) ?? HR_OPTIONS[0];
-}
-
-function getAssigneeAvatarBorderClass(assigneeId: HrId) {
-  switch (assigneeId) {
-    case "giulia":
-      return "after:border-emerald-500";
-    case "elisa":
-      return "after:border-sky-500";
-    case "francesca":
-      return "after:border-violet-500";
-    default:
-      return "";
-  }
-}
-
-function getGateAvatarStateClass(
-  isCompleted: boolean,
-  variant: "idoneo" | "certificato",
-) {
-  if (!isCompleted) {
-    return {
-      ringClassName: "ring-2 ring-zinc-300/50",
-      badgeClassName: "bg-zinc-300 text-zinc-900",
-    };
-  }
-
-  if (variant === "certificato") {
-    return {
-      ringClassName: "ring-2 ring-emerald-600/40",
-      badgeClassName: "bg-emerald-600 text-white",
-    };
-  }
-
-  return {
-    ringClassName: "ring-2 ring-emerald-400/40",
-    badgeClassName: "bg-emerald-400 text-emerald-950",
-  };
-}
 
 function includesBabysitterType(
   values: string[],
@@ -231,6 +190,7 @@ function GateInfoCard({
       title={title}
       icon={icon}
       action={titleAction}
+      showDefaultAction={false}
       contentClassName="space-y-4 pt-1"
     >
       {children}
@@ -338,6 +298,112 @@ function GateContactsCard({
   );
 }
 
+function GateReferenteCard({
+  title = "Referente idoneità",
+  label = "Referente",
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  title?: string;
+  label?: string;
+  value: string;
+  options: Array<{ id: string; label: string }>;
+  disabled?: boolean;
+  onChange: (value: string | null) => void;
+}) {
+  return (
+    <GateInfoCard
+      title={title}
+      icon={<UsersIcon className="text-muted-foreground size-4" />}
+    >
+      <DetailRow label={label} align="start">
+        <Select
+          value={value || "none"}
+          onValueChange={(nextValue) =>
+            onChange(nextValue === "none" ? null : nextValue)
+          }
+          disabled={disabled}
+        >
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="Seleziona referente" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Nessun referente</SelectItem>
+            {options.map((option) => (
+              <SelectItem key={option.id} value={option.id}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </DetailRow>
+    </GateInfoCard>
+  );
+}
+
+function resolveOperatorLabel(
+  value: string,
+  options: Array<{ id: string; label: string }>,
+) {
+  if (!value) return "—";
+  return options.find((option) => option.id === value)?.label ?? value;
+}
+
+function GateCertificationReferenteCard({
+  referenteCertificazioneValue,
+  referenteIdoneitaValue,
+  options,
+  disabled,
+  onReferenteCertificazioneChange,
+}: {
+  referenteCertificazioneValue: string;
+  referenteIdoneitaValue: string;
+  options: Array<{ id: string; label: string }>;
+  disabled?: boolean;
+  onReferenteCertificazioneChange: (value: string | null) => void;
+}) {
+  return (
+    <GateInfoCard
+      title="Referente"
+      icon={<UsersIcon className="text-muted-foreground size-4" />}
+    >
+      <div className="grid gap-4 md:grid-cols-2">
+        <DetailRow label="Referente Gate 2" align="start">
+          <Select
+            value={referenteCertificazioneValue || "none"}
+            onValueChange={(nextValue) =>
+              onReferenteCertificazioneChange(
+                nextValue === "none" ? null : nextValue,
+              )
+            }
+            disabled={disabled}
+          >
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Seleziona referente Gate 2" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Nessun referente Gate 2</SelectItem>
+              {options.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </DetailRow>
+
+        <DetailRow label="Referente Gate 1" align="start">
+          <div className="bg-muted/40 text-foreground flex min-h-10 items-center rounded-md border px-3 text-sm">
+            {resolveOperatorLabel(referenteIdoneitaValue, options)}
+          </div>
+        </DetailRow>
+      </div>
+    </GateInfoCard>
+  );
+}
+
 function GatePresentationCard({
   worker,
   workerRow,
@@ -351,7 +417,10 @@ function GatePresentationCard({
   selectedPresentationPhotoIndex,
   isEditing,
   showEditAction = false,
+  showUploadPhotoAction = false,
+  uploadingPhoto = false,
   onToggleEdit,
+  onUploadPhoto,
   onSelectedPresentationPhotoIndexChange,
   onHeaderChange,
   onHeaderBlur,
@@ -383,7 +452,10 @@ function GatePresentationCard({
   selectedPresentationPhotoIndex: number;
   isEditing: boolean;
   showEditAction?: boolean;
+  showUploadPhotoAction?: boolean;
+  uploadingPhoto?: boolean;
   onToggleEdit?: () => void;
+  onUploadPhoto?: () => void;
   onSelectedPresentationPhotoIndexChange: (value: number) => void;
   livelloItalianoOptions: Array<{ label: string; value: string }>;
   onHeaderChange: (field: string, value: string) => void;
@@ -397,24 +469,26 @@ function GatePresentationCard({
       icon={<CircleUserRoundIcon className="text-muted-foreground size-4" />}
       titleAction={
         showEditAction ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={
-              isEditing
-                ? "Termina modifica presentazione"
-                : "Modifica presentazione"
-            }
-            title={
-              isEditing
-                ? "Termina modifica presentazione"
-                : "Modifica presentazione"
-            }
-            onClick={onToggleEdit}
-          >
-            <PencilIcon />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={
+                isEditing
+                  ? "Termina modifica presentazione"
+                  : "Modifica presentazione"
+              }
+              title={
+                isEditing
+                  ? "Termina modifica presentazione"
+                  : "Modifica presentazione"
+              }
+              onClick={onToggleEdit}
+            >
+              <PencilIcon />
+            </Button>
+          </div>
         ) : undefined
       }
     >
@@ -448,6 +522,9 @@ function GatePresentationCard({
           nazionalitaOptions={nazionalitaOptions}
           presentationPhotoSlots={presentationPhotoSlots}
           selectedPresentationPhotoIndex={selectedPresentationPhotoIndex}
+          showUploadPhotoAction={showUploadPhotoAction}
+          uploadingPhoto={uploadingPhoto}
+          onUploadPhoto={onUploadPhoto}
           onSelectedPresentationPhotoIndexChange={
             onSelectedPresentationPhotoIndexChange
           }
@@ -456,65 +533,6 @@ function GatePresentationCard({
           onFieldChange={onHeaderChange}
           onFieldBlur={onHeaderBlur}
         />
-        <div className="flex justify-end">
-          <div className="flex items-center gap-3">
-            {[
-              {
-                label: "Gate 1",
-                icon: ShieldCheckIcon,
-                assigneeId: getAssigneeIdFromSeed(`${worker.id}:gate-1`),
-                isCompleted: worker.isIdoneo,
-                variant: "idoneo" as const,
-              },
-              {
-                label: "Gate 2",
-                icon: BadgeCheckIcon,
-                assigneeId: getAssigneeIdFromSeed(`${worker.id}:gate-2`),
-                isCompleted: worker.isCertificato,
-                variant: "certificato" as const,
-              },
-            ].map((control, index) => {
-              const hr = getHrById(control.assigneeId);
-              const Icon = control.icon;
-              const stateClasses = getGateAvatarStateClass(
-                control.isCompleted,
-                control.variant,
-              );
-
-              return (
-                <React.Fragment key={control.label}>
-                  {index > 0 ? (
-                    <div className="bg-border h-8 w-px shrink-0" />
-                  ) : null}
-                  <div
-                    className="flex items-center gap-2"
-                    title={`${control.label} assegnato a ${hr.label}`}
-                  >
-                    <Icon
-                      strokeWidth={2.5}
-                      className={`size-3.5 shrink-0 ${
-                        control.isCompleted
-                          ? control.variant === "certificato"
-                            ? "text-emerald-600"
-                            : "text-emerald-500"
-                          : "text-zinc-400"
-                      }`}
-                    />
-                    <Avatar
-                      size="sm"
-                      className={`${getAssigneeAvatarBorderClass(control.assigneeId)} ${stateClasses.ringClassName}`}
-                    >
-                      <AvatarFallback>{hr.avatar}</AvatarFallback>
-                      <AvatarBadge className={stateClasses.badgeClassName}>
-                        <Icon />
-                      </AvatarBadge>
-                    </Avatar>
-                  </div>
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </div>
       </div>
     </GateInfoCard>
   );
@@ -527,8 +545,6 @@ function GateAssessmentCard({
   nonIdoneoReasonValue,
   nonIdoneoReasonOptions,
   onNonIdoneoReasonChange,
-  ratingValue,
-  onRatingChange,
   feedbackValue,
   onFeedbackChange,
   onFeedbackBlur,
@@ -540,8 +556,6 @@ function GateAssessmentCard({
   nonIdoneoReasonValue: string;
   nonIdoneoReasonOptions: Array<{ label: string; value: string }>;
   onNonIdoneoReasonChange: (value: string) => void;
-  ratingValue: string;
-  onRatingChange: (value: string) => void;
   feedbackValue: string;
   onFeedbackChange: (value: string) => void;
   onFeedbackBlur: () => void;
@@ -568,8 +582,6 @@ function GateAssessmentCard({
     });
   }, [statusOptions]);
   const isNonIdoneo = statusValue === "Non idoneo";
-  const ratingScore = Number.parseInt(ratingValue, 10);
-  const normalizedRatingScore = Number.isNaN(ratingScore) ? 0 : ratingScore;
   const [pendingStatusValue, setPendingStatusValue] = React.useState<string | null>(
     null,
   );
@@ -681,39 +693,6 @@ function GateAssessmentCard({
         </div>
       </div>
 
-      <div className="w-fit space-y-2">
-        <p className="text-sm">Rating</p>
-        <div className="bg-background inline-flex h-11 items-center rounded-lg border px-3">
-          <div className="flex items-center gap-1">
-            {Array.from({ length: 5 }, (_, index) => {
-              const score = index + 1;
-              const active = normalizedRatingScore >= score;
-
-              return (
-                <button
-                  key={score}
-                  type="button"
-                  className="disabled:opacity-50"
-                  onClick={() =>
-                    onRatingChange(
-                      normalizedRatingScore === score ? "" : String(score),
-                    )
-                  }
-                >
-                  <StarIcon
-                    className={
-                      active
-                        ? "size-4 fill-amber-400 text-amber-400"
-                        : "text-muted-foreground/35 size-4"
-                    }
-                  />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
       <AlertDialog
         open={isStatusConfirmOpen}
         onOpenChange={handleStatusConfirmOpenChange}
@@ -791,12 +770,16 @@ function GateAllowedWorkField({
 
 function GateWorkTypesCard({
   workerId,
+  haiReferenze,
+  referenzeOptions,
   situationValue,
   allowedWorks,
   allowedWorkOptions,
   isEditing,
+  showReferencesField = false,
   showEditAction = false,
   onToggleEdit,
+  onReferenzeChange,
   experienceDraft,
   experiences,
   experiencesLoading,
@@ -822,12 +805,16 @@ function GateWorkTypesCard({
   onReferenceCreate,
 }: {
   workerId: string | null;
+  haiReferenze: string;
+  referenzeOptions: Array<{ label: string; value: string }>;
   situationValue: string;
   allowedWorks: string[];
   allowedWorkOptions: Array<{ label: string; value: string }>;
   isEditing: boolean;
+  showReferencesField?: boolean;
   showEditAction?: boolean;
   onToggleEdit?: () => void;
+  onReferenzeChange: (value: string) => void;
   experienceDraft: {
     anni_esperienza_colf: string;
     anni_esperienza_badante: string;
@@ -893,6 +880,35 @@ function GateWorkTypesCard({
         ) : undefined
       }
     >
+      {showReferencesField ? (
+        <div className="space-y-2">
+          <p className="text-sm">Referenze verificabili</p>
+          {isEditing ? (
+            <Select
+              value={haiReferenze || undefined}
+              onValueChange={onReferenzeChange}
+            >
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Seleziona referenze" />
+              </SelectTrigger>
+              <SelectContent>
+                {referenzeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="bg-muted/30 rounded-lg border px-3 py-2 text-sm">
+              {getLookupDisplayOption(referenzeOptions, haiReferenze)?.label ||
+                haiReferenze ||
+                "-"}
+            </div>
+          )}
+        </div>
+      ) : null}
+
       <div className="space-y-2">
         <p className="text-sm">Che lavori attivi sta svolgendo al momento?</p>
         {isEditing ? (
@@ -2311,6 +2327,67 @@ function GateSelfCertificationCard({
   );
 }
 
+function GateAdministrativeFieldsCard({
+  ibanValue,
+  stripeAccountValue,
+  isEditing,
+  onIbanChange,
+  onIbanBlur,
+  onStripeAccountChange,
+  onStripeAccountBlur,
+}: {
+  ibanValue: string;
+  stripeAccountValue: string;
+  isEditing: boolean;
+  onIbanChange: (value: string) => void;
+  onIbanBlur: () => void;
+  onStripeAccountChange: (value: string) => void;
+  onStripeAccountBlur: () => void;
+}) {
+  return (
+    <GateInfoCard
+      title="Dati amministrativi"
+      icon={<NotebookPenIcon className="text-muted-foreground size-4" />}
+    >
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-1">
+          <p className="text-sm">IBAN</p>
+          {isEditing ? (
+            <Input
+              value={ibanValue}
+              onChange={(event) => onIbanChange(event.target.value)}
+              onBlur={onIbanBlur}
+              className="bg-background h-9 text-sm"
+              placeholder="Inserisci IBAN"
+            />
+          ) : (
+            <div className="bg-muted/30 rounded-lg border px-3 py-2 text-sm">
+              {ibanValue || "-"}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-sm">ID account Stripe</p>
+          {isEditing ? (
+            <Input
+              value={stripeAccountValue}
+              onChange={(event) => onStripeAccountChange(event.target.value)}
+              onBlur={onStripeAccountBlur}
+              className="bg-background h-9 text-sm"
+              placeholder="Inserisci ID account Stripe"
+            />
+          ) : (
+            <div className="bg-muted/30 rounded-lg border px-3 py-2 text-sm">
+              {stripeAccountValue || "-"}
+            </div>
+          )}
+        </div>
+      </div>
+    </GateInfoCard>
+  );
+}
+
 function GateDocumentIdentityCard({
   headerDraft,
   nazionalitaOptions,
@@ -2511,10 +2588,13 @@ export function Gate1View({
   workerCountLabel = "qualificati",
   showFollowup = true,
   showSelfCertification = true,
+  showReferencesInWorkTypes = false,
+  showAdministrativeFields = false,
   showStepper = false,
   splitBazeChecksStep = false,
   stepInfoBySection = {},
   presentationEditMode = "always",
+  photoEditMode = "hidden",
   addressEditMode = "always",
   workTypesEditMode = "always",
   availabilityEditMode = "always",
@@ -2523,6 +2603,8 @@ export function Gate1View({
   showAssessment = true,
   specificChecksMode = "gate1",
   specificChecksEditMode = "always",
+  applyGate1BaseFilters = true,
+  showCertificationReferente = false,
 }: GateViewProps) {
   const {
     workers,
@@ -2566,7 +2648,7 @@ export function Gate1View({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
     upsertSelectedWorkerDocument,
-  } = useLavoratoriData({ forcedWorkerStatus: workerStatus });
+  } = useLavoratoriData({ forcedWorkerStatus: workerStatus, applyGate1BaseFilters });
   const groupingOptions = React.useMemo(
     () => filterFields.map((field) => ({ label: field.label, value: field.value })),
     [filterFields],
@@ -2638,9 +2720,11 @@ export function Gate1View({
     selectedWorkerId,
     selectedWorker,
     selectedWorkerRow,
+    selectedWorkerAddress: null,
     lookupColorsByDomain,
     setError,
     applyUpdatedWorkerRow,
+    applyUpdatedWorkerAddress: () => {},
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
     removeWorkerExperience,
@@ -2648,13 +2732,42 @@ export function Gate1View({
     appendCreatedWorkerReference,
   });
 
+  const retainSelectedWorkerAfterStatusChange = React.useCallback(
+    (workerId: string) => {
+      if (statusChangeRetainTimeoutRef.current) {
+        window.clearTimeout(statusChangeRetainTimeoutRef.current);
+      }
+
+      setStatusChangeRetainedWorkerId(workerId);
+      statusChangeRetainTimeoutRef.current = window.setTimeout(() => {
+        setStatusChangeRetainedWorkerId((current) =>
+          current === workerId ? null : current,
+        );
+        statusChangeRetainTimeoutRef.current = null;
+      }, 10_000);
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    return () => {
+      if (statusChangeRetainTimeoutRef.current) {
+        window.clearTimeout(statusChangeRetainTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const resolvedDocumentSectionMode =
     documentSectionMode ?? (showSelfCertification ? "self_certification" : "hidden");
   const showDocumentSection = resolvedDocumentSectionMode !== "hidden";
   const documentSectionAfterSpecificChecks =
     resolvedDocumentSectionMode === "documents";
 
-  const firstGateSection = showFollowup ? "contatti" : "presentazione";
+  const firstGateSection = showCertificationReferente
+    ? "referente"
+    : showFollowup
+      ? "contatti"
+      : "presentazione";
   const [activeGateSection, setActiveGateSection] = React.useState(firstGateSection);
   const detailScrollRef = React.useRef<HTMLElement | null>(null);
   const sectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
@@ -2662,7 +2775,18 @@ export function Gate1View({
   const [isEditingAvailabilityStep, setIsEditingAvailabilityStep] =
     React.useState(false);
   const [isEditingBazeChecks, setIsEditingBazeChecks] = React.useState(false);
+  const workerPhotoInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [uploadingWorkerPhoto, setUploadingWorkerPhoto] = React.useState(false);
+  const [gateProvinciaFilter, setGateProvinciaFilter] = React.useState("all");
+  const [gateFollowupFilter, setGateFollowupFilter] = React.useState("all");
+  const [statusChangeRetainedWorkerId, setStatusChangeRetainedWorkerId] =
+    React.useState<string | null>(null);
+  const statusChangeRetainTimeoutRef = React.useRef<ReturnType<
+    typeof window.setTimeout
+  > | null>(null);
   const [gateDraft, setGateDraft] = React.useState({
+    referenteIdoneita: "",
+    referenteCertificazione: "",
     followupStatus: "",
     descrizionePubblica: "",
     livelloItaliano: "",
@@ -2678,18 +2802,83 @@ export function Gate1View({
     dataScadenzaNaspi: "",
     assessmentStatus: "",
     assessmentFeedback: "",
-    assessmentRating: "",
+  });
+  const {
+    options: referenteIdoneitaOptions,
+    loading: referenteIdoneitaOptionsLoading,
+  } = useOperatoriOptions({
+    role: "recruiter",
+    activeOnly: true,
   });
 
-  const gateWorkers = React.useMemo(() => {
+  const baseGateWorkers = React.useMemo(() => {
+    const allowedStatuses = new Set(
+      (Array.isArray(workerStatus) ? workerStatus : [workerStatus])
+        .map((status) => normalizeWorkerStatus(status))
+        .filter(Boolean),
+    );
     const matchingIds = new Set(
       workerRows
-        .filter((row) => normalizeWorkerStatus(row.stato_lavoratore) === workerStatus)
+        .filter((row) =>
+          allowedStatuses.has(normalizeWorkerStatus(row.stato_lavoratore)),
+        )
         .map((row) => row.id),
     );
 
     return workers.filter((worker) => matchingIds.has(worker.id));
   }, [workerStatus, workerRows, workers]);
+
+  const workerRowsById = React.useMemo(() => {
+    const rowsById = new Map<string, LavoratoreRecord>();
+    for (const row of workerRows) {
+      rowsById.set(row.id, row);
+    }
+    return rowsById;
+  }, [workerRows]);
+
+  const gateProvinciaOptions = React.useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const worker of baseGateWorkers) {
+      const value = asString(workerRowsById.get(worker.id)?.provincia);
+      if (!value) continue;
+      const key = value.trim().toLowerCase();
+      if (!labels.has(key)) labels.set(key, value);
+    }
+    return Array.from(labels.values()).sort((a, b) => a.localeCompare(b, "it"));
+  }, [baseGateWorkers, workerRowsById]);
+
+  const gateFollowupOptions = React.useMemo(() => {
+    const optionLabels = (
+      lookupOptionsByDomain.get("lavoratori.followup_chiamata_idoneita") ?? []
+    ).map((option) => option.label);
+    const rowLabels = baseGateWorkers
+      .map((worker) =>
+        asString(workerRowsById.get(worker.id)?.followup_chiamata_idoneita),
+      )
+      .filter((value): value is string => Boolean(value));
+    return Array.from(new Set([...optionLabels, ...rowLabels]));
+  }, [baseGateWorkers, lookupOptionsByDomain, workerRowsById]);
+
+  const gateWorkers = React.useMemo(() => {
+    return baseGateWorkers.filter((worker) => {
+      const row = workerRowsById.get(worker.id);
+      if (!row) return false;
+
+      const matchesProvincia =
+        gateProvinciaFilter === "all" ||
+        asString(row.provincia) === gateProvinciaFilter;
+      const matchesFollowup =
+        gateFollowupFilter === "all" ||
+        asString(row.followup_chiamata_idoneita) === gateFollowupFilter;
+
+      return matchesProvincia && matchesFollowup;
+    });
+  }, [
+    baseGateWorkers,
+    gateFollowupFilter,
+    gateProvinciaFilter,
+    workerRowsById,
+  ]);
 
   const {
     presentationStep,
@@ -2702,6 +2891,7 @@ export function Gate1View({
   } = React.useMemo(() => {
     let currentStep = 0;
 
+    if (showCertificationReferente) currentStep += 1;
     if (showFollowup) currentStep += 1;
 
     const nextPresentationStep = ++currentStep;
@@ -2730,6 +2920,7 @@ export function Gate1View({
     };
   }, [
     documentSectionAfterSpecificChecks,
+    showCertificationReferente,
     showDocumentSection,
     showFollowup,
     showAssessment,
@@ -3037,6 +3228,9 @@ export function Gate1View({
   );
   const gateTabs = React.useMemo<GateTab[]>(
     () => [
+      ...(showCertificationReferente
+        ? [{ id: "referente", label: "Referente", icon: UsersIcon }]
+        : []),
       ...(showFollowup
         ? [{ id: "contatti", label: "Follow-up", icon: PhoneIcon }]
         : []),
@@ -3076,6 +3270,7 @@ export function Gate1View({
     ],
     [
       documentSectionAfterSpecificChecks,
+      showCertificationReferente,
       showAssessment,
       showDocumentSection,
       showFollowup,
@@ -3175,6 +3370,10 @@ export function Gate1View({
 
   React.useEffect(() => {
     setGateDraft({
+      referenteIdoneita: asString(selectedWorkerRow?.["referente_idoneità"]),
+      referenteCertificazione: asString(
+        selectedWorkerRow?.referente_certificazione,
+      ),
       followupStatus: asString(selectedWorkerRow?.followup_chiamata_idoneita),
       descrizionePubblica: asString(selectedWorkerRow?.descrizione_pubblica),
       livelloItaliano: asString(selectedWorkerRow?.livello_italiano),
@@ -3202,9 +3401,114 @@ export function Gate1View({
       dataScadenzaNaspi: asString(selectedWorkerRow?.data_scadenza_naspi),
       assessmentStatus: asString(selectedWorkerRow?.stato_lavoratore),
       assessmentFeedback: asString(selectedWorkerRow?.feedback_recruiter),
-      assessmentRating: asString(selectedWorkerRow?.rating),
     });
   }, [selectedWorkerRow]);
+
+  const openWorkerPhotoPicker = React.useCallback(() => {
+    if (uploadingWorkerPhoto) return;
+    workerPhotoInputRef.current?.click();
+  }, [uploadingWorkerPhoto]);
+
+  const handleWorkerPhotoInputChange = React.useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files ?? []);
+      event.target.value = "";
+
+      if (files.length === 0 || !selectedWorkerId) return;
+
+      setError(null);
+      setUploadingWorkerPhoto(true);
+
+      try {
+        const nextPhotos: MinimalAttachment[] = normalizeAttachmentArray(
+          selectedWorkerRow?.foto,
+        );
+
+        for (const [index, file] of files.entries()) {
+          const safeName = sanitizeFileName(file.name || "foto");
+          const storagePath = [
+            "lavoratori",
+            selectedWorkerId,
+            "foto",
+            `${Date.now()}-${index}-${safeName}`,
+          ].join("/");
+
+          const uploadResult = await supabase.storage
+            .from("baze-bucket")
+            .upload(storagePath, file, {
+              cacheControl: "3600",
+              upsert: false,
+              contentType: file.type || undefined,
+            });
+
+          if (uploadResult.error) {
+            throw uploadResult.error;
+          }
+
+          nextPhotos.push(buildAttachmentPayload(file, storagePath));
+        }
+
+        const response = await updateRecord("lavoratori", selectedWorkerId, {
+          foto: nextPhotos,
+        });
+        applyUpdatedWorkerRow(asLavoratoreRecord(response.row));
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore caricando la foto",
+        );
+      } finally {
+        setUploadingWorkerPhoto(false);
+      }
+    },
+    [applyUpdatedWorkerRow, selectedWorkerId, selectedWorkerRow?.foto, setError],
+  );
+
+  const handlePrimaryWorkerPhotoChange = React.useCallback(
+    async (index: number) => {
+      if (!selectedWorkerId) return;
+
+      const existingPhotos = normalizeAttachmentArray(selectedWorkerRow?.foto);
+      if (existingPhotos.length === 0) {
+        setSelectedPresentationPhotoIndex(Math.max(index, 0));
+        return;
+      }
+
+      if (index <= 0 || index >= existingPhotos.length) {
+        setSelectedPresentationPhotoIndex(Math.max(index, 0));
+        return;
+      }
+
+      setError(null);
+
+      try {
+        const [selectedPhoto] = existingPhotos.splice(index, 1);
+        if (!selectedPhoto) return;
+
+        const reorderedPhotos = [selectedPhoto, ...existingPhotos];
+        const response = await updateRecord("lavoratori", selectedWorkerId, {
+          foto: reorderedPhotos,
+        });
+
+        applyUpdatedWorkerRow(asLavoratoreRecord(response.row));
+        setSelectedPresentationPhotoIndex(0);
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore aggiornando la foto principale",
+        );
+      }
+    },
+    [
+      applyUpdatedWorkerRow,
+      selectedWorkerId,
+      selectedWorkerRow?.foto,
+      setError,
+      setSelectedPresentationPhotoIndex,
+    ],
+  );
 
   React.useEffect(() => {
     if (!selectedWorkerId) {
@@ -3214,13 +3518,37 @@ export function Gate1View({
       return;
     }
 
+    if (
+      statusChangeRetainedWorkerId === selectedWorkerId &&
+      selectedWorker &&
+      selectedWorkerRow
+    ) {
+      return;
+    }
+
     if (!gateWorkers.some((worker) => worker.id === selectedWorkerId)) {
       setSelectedWorkerId(gateWorkers[0]?.id ?? null);
     }
-  }, [gateWorkers, selectedWorkerId, setSelectedWorkerId]);
+  }, [
+    gateWorkers,
+    selectedWorker,
+    selectedWorkerId,
+    selectedWorkerRow,
+    setSelectedWorkerId,
+    statusChangeRetainedWorkerId,
+  ]);
 
   return (
-    <div
+    <>
+      <input
+        ref={workerPhotoInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleWorkerPhotoInputChange}
+      />
+      <div
       className={
         selectedWorkerId
           ? "grid h-full min-h-0 gap-3 lg:grid-cols-[332px_minmax(0,1fr)]"
@@ -3263,6 +3591,74 @@ export function Gate1View({
             hasPendingFilters={hasPendingFilters}
           />
 
+          <div className="grid gap-2 rounded-xl border bg-muted/20 p-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-[11px] font-medium">
+                  Provincia
+                </p>
+                <Select
+                  value={gateProvinciaFilter}
+                  onValueChange={setGateProvinciaFilter}
+                  disabled={loading}
+                >
+                  <SelectTrigger className="w-full bg-background">
+                    <SelectValue placeholder="Tutte le province" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutte le province</SelectItem>
+                    {gateProvinciaOptions.map((provincia) => (
+                      <SelectItem key={provincia} value={provincia}>
+                        {provincia}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-[11px] font-medium">
+                  Follow-up
+                </p>
+                <Select
+                  value={gateFollowupFilter}
+                  onValueChange={setGateFollowupFilter}
+                  disabled={loading}
+                >
+                  <SelectTrigger className="w-full bg-background">
+                    <SelectValue placeholder="Tutti i follow-up" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti i follow-up</SelectItem>
+                    {gateFollowupOptions.map((followup) => (
+                      <SelectItem key={followup} value={followup}>
+                        {followup}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {gateProvinciaFilter !== "all" || gateFollowupFilter !== "all" ? (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-muted-foreground text-xs">
+                  {gateWorkers.length} di {baseGateWorkers.length} lavoratori
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setGateProvinciaFilter("all");
+                    setGateFollowupFilter("all");
+                  }}
+                >
+                  Reset filtri
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
           {loading ? (
             <p className="text-muted-foreground py-3 text-sm">
               Caricamento lavoratori...
@@ -3271,22 +3667,35 @@ export function Gate1View({
             <p className="py-3 text-sm text-red-600">{error}</p>
           ) : gateWorkers.length === 0 ? (
             <p className="text-muted-foreground py-3 text-sm">
-              Nessun lavoratore trovato.
+              {gateProvinciaFilter !== "all" || gateFollowupFilter !== "all"
+                ? "Nessun lavoratore corrisponde ai filtri selezionati."
+                : "Nessun lavoratore trovato."}
             </p>
           ) : (
             <div className="space-y-2">
-              {gateWorkers.map((worker) => (
-                <LavoratoreCard
-                  key={worker.id}
-                  worker={worker}
-                  isActive={worker.id === selectedWorkerId}
-                  onClick={() =>
-                    setSelectedWorkerId((previous) =>
-                      previous === worker.id ? null : worker.id,
-                    )
-                  }
-                />
-              ))}
+              {gateWorkers.map((worker) => {
+                const row = workerRowsById.get(worker.id);
+                return (
+                  <LavoratoreCard
+                    key={worker.id}
+                    worker={worker}
+                    isActive={worker.id === selectedWorkerId}
+                    variant="gate1"
+                    gate1Summary={{
+                      provincia: asString(row?.provincia),
+                      createdAt:
+                        asString(row?.data_ora_di_creazione) ||
+                        asString(row?.creato_il),
+                      followup: asString(row?.followup_chiamata_idoneita),
+                    }}
+                    onClick={() =>
+                      setSelectedWorkerId((previous) =>
+                        previous === worker.id ? null : worker.id,
+                      )
+                    }
+                  />
+                );
+              })}
             </div>
           )}
         </SideCardsPanel>
@@ -3370,6 +3779,40 @@ export function Gate1View({
               </div>
 
               <div className="space-y-6 pt-4 pb-4 text-sm">
+                {showCertificationReferente ? (
+                  <div
+                    ref={(node) => {
+                      sectionRefs.current.referente = node;
+                    }}
+                  >
+                    <GateStepSection
+                      step={1}
+                      isFirst
+                      showStepper={showStepper}
+                      info={stepInfoBySection.referente}
+                    >
+                      <GateCertificationReferenteCard
+                        referenteCertificazioneValue={
+                          gateDraft.referenteCertificazione
+                        }
+                        referenteIdoneitaValue={gateDraft.referenteIdoneita}
+                        options={referenteIdoneitaOptions}
+                        disabled={referenteIdoneitaOptionsLoading}
+                        onReferenteCertificazioneChange={(value) => {
+                          setGateDraft((current) => ({
+                            ...current,
+                            referenteCertificazione: value ?? "",
+                          }));
+                          void patchSelectedWorkerField(
+                            "referente_certificazione",
+                            value,
+                          );
+                        }}
+                      />
+                    </GateStepSection>
+                  </div>
+                ) : null}
+
                 {showFollowup ? (
                   <div
                     ref={(node) => {
@@ -3378,10 +3821,25 @@ export function Gate1View({
                   >
                     <GateStepSection
                       step={1}
-                      isFirst
+                      isFirst={!showCertificationReferente}
                       showStepper={showStepper}
                       info={stepInfoBySection.contatti}
                     >
+                      <GateReferenteCard
+                        value={gateDraft.referenteIdoneita}
+                        options={referenteIdoneitaOptions}
+                        disabled={referenteIdoneitaOptionsLoading}
+                        onChange={(value) => {
+                          setGateDraft((current) => ({
+                            ...current,
+                            referenteIdoneita: value ?? "",
+                          }));
+                          void patchSelectedWorkerField(
+                            "referente_idoneità",
+                            value,
+                          );
+                        }}
+                      />
                       <GateContactsCard
                         followupStatus={gateDraft.followupStatus}
                         options={followupStatusOptions}
@@ -3407,7 +3865,7 @@ export function Gate1View({
                 >
                   <GateStepSection
                     step={presentationStep}
-                    isFirst={!showFollowup}
+                    isFirst={!showFollowup && !showCertificationReferente}
                     showStepper={showStepper}
                     info={stepInfoBySection.presentazione}
                   >
@@ -3426,11 +3884,14 @@ export function Gate1View({
                       }
                       isEditing={gatePresentationIsEditing}
                       showEditAction={presentationEditMode === "toggle"}
+                      showUploadPhotoAction={photoEditMode === "editable"}
+                      uploadingPhoto={uploadingWorkerPhoto}
                       onToggleEdit={() =>
                         setIsEditingHeader((current) => !current)
                       }
+                      onUploadPhoto={openWorkerPhotoPicker}
                       onSelectedPresentationPhotoIndexChange={
-                        setSelectedPresentationPhotoIndex
+                        handlePrimaryWorkerPhotoChange
                       }
                       livelloItalianoOptions={livelloItalianoOptions}
                       onHeaderChange={(field, value) => {
@@ -3588,15 +4049,24 @@ export function Gate1View({
                   >
                     <GateWorkTypesCard
                       workerId={selectedWorkerId}
+                      haiReferenze={asString(selectedWorkerRow.hai_referenze)}
+                      referenzeOptions={haiReferenzeOptions}
                       situationValue={
                         experienceDraft.situazione_lavorativa_attuale
                       }
                       allowedWorks={jobSearchDraft.tipo_lavoro_domestico}
                       allowedWorkOptions={tipoLavoroDomesticoOptions}
                       isEditing={gateWorkTypesIsEditing}
+                      showReferencesField={showReferencesInWorkTypes}
                       showEditAction={workTypesEditMode === "toggle"}
                       onToggleEdit={() =>
                         setIsEditingExperience((current) => !current)
+                      }
+                      onReferenzeChange={(value) =>
+                        void patchSelectedWorkerField(
+                          "hai_referenze",
+                          value || null,
+                        )
                       }
                       experienceDraft={experienceDraft}
                       experiences={selectedWorkerExperiences}
@@ -4136,6 +4606,7 @@ export function Gate1View({
                     info={stepInfoBySection.aspetti}
                   >
                     {specificChecksMode === "confirmation" ? (
+                      <>
                       <GateSkillConfirmationsCard
                         isEditing={gateSpecificChecksIsEditing}
                         showEditAction={specificChecksEditMode === "toggle"}
@@ -4453,6 +4924,110 @@ export function Gate1View({
                           );
                         }}
                       />
+                      <GateSpecificChecksCard
+                        isBabysitterEnabled={includesBabysitterType(
+                          jobSearchDraft.tipo_lavoro_domestico,
+                          tipoLavoroDomesticoOptions,
+                        )}
+                        neonatiValue={
+                          skillsDraft.check_accetta_babysitting_neonati
+                        }
+                        neonatiOptions={babysittingNeonatiOptions}
+                        multipliBambiniValue={
+                          skillsDraft.check_accetta_babysitting_multipli_bambini
+                        }
+                        multipliBambiniOptions={
+                          babysittingMultipliBambiniOptions
+                        }
+                        caniValue={skillsDraft.check_accetta_case_con_cani}
+                        caniOptions={caseConCaniOptions}
+                        caniGrandiValue={
+                          skillsDraft.check_accetta_case_con_cani_grandi
+                        }
+                        caniGrandiOptions={caseConCaniGrandiOptions}
+                        gattiValue={skillsDraft.check_accetta_case_con_gatti}
+                        gattiOptions={caseConGattiOptions}
+                        scaleValue={
+                          skillsDraft.check_accetta_salire_scale_o_soffitti_alti
+                        }
+                        scaleOptions={scaleSoffittiOptions}
+                        trasfertaValue={
+                          jobSearchDraft.check_accetta_lavori_con_trasferta
+                        }
+                        trasfertaOptions={trasfertaOptions}
+                        lookupColorsByDomain={lookupColorsByDomain}
+                        onNeonatiChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_babysitting_neonati: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_babysitting_neonati",
+                            value,
+                          );
+                        }}
+                        onMultipliBambiniChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_babysitting_multipli_bambini: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_babysitting_multipli_bambini",
+                            value,
+                          );
+                        }}
+                        onCaniChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_case_con_cani: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_case_con_cani",
+                            value,
+                          );
+                        }}
+                        onCaniGrandiChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_case_con_cani_grandi: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_case_con_cani_grandi",
+                            value,
+                          );
+                        }}
+                        onGattiChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_case_con_gatti: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_case_con_gatti",
+                            value,
+                          );
+                        }}
+                        onScaleChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_salire_scale_o_soffitti_alti: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_salire_scale_o_soffitti_alti",
+                            value,
+                          );
+                        }}
+                        onTrasfertaChange={(value) => {
+                          setJobSearchDraft((current) => ({
+                            ...current,
+                            check_accetta_lavori_con_trasferta: value,
+                          }));
+                          void patchSelectedWorkerField(
+                            "check_accetta_lavori_con_trasferta",
+                            value || null,
+                          );
+                        }}
+                      />
+                      </>
                     ) : (
                       <GateSpecificChecksCard
                         isBabysitterEnabled={includesBabysitterType(
@@ -4655,6 +5230,29 @@ export function Gate1View({
                           )
                         }
                       />
+                      {showAdministrativeFields ? (
+                        <GateAdministrativeFieldsCard
+                          ibanValue={documentsDraft.iban}
+                          stripeAccountValue={documentsDraft.id_stripe_account}
+                          isEditing={gateDocumentsIsEditing}
+                          onIbanChange={(value) =>
+                            setDocumentsDraft((current) => ({
+                              ...current,
+                              iban: value,
+                            }))
+                          }
+                          onIbanBlur={() => void commitDocumentField("iban")}
+                          onStripeAccountChange={(value) =>
+                            setDocumentsDraft((current) => ({
+                              ...current,
+                              id_stripe_account: value,
+                            }))
+                          }
+                          onStripeAccountBlur={() =>
+                            void commitDocumentField("id_stripe_account")
+                          }
+                        />
+                      ) : null}
                     </GateStepSection>
                   </div>
                 ) : null}
@@ -4675,6 +5273,11 @@ export function Gate1View({
                         statusValue={gateDraft.assessmentStatus}
                         statusOptions={statoLavoratoreOptions}
                         onStatusChange={(value) => {
+                          if (selectedWorkerId) {
+                            retainSelectedWorkerAfterStatusChange(
+                              selectedWorkerId,
+                            );
+                          }
                           setGateDraft((current) => ({
                             ...current,
                             assessmentStatus: value,
@@ -4689,17 +5292,6 @@ export function Gate1View({
                         onNonIdoneoReasonChange={(value) => {
                           void handleNonIdoneoReasonsChange(
                             value ? [value] : [],
-                          );
-                        }}
-                        ratingValue={gateDraft.assessmentRating}
-                        onRatingChange={(value) => {
-                          setGateDraft((current) => ({
-                            ...current,
-                            assessmentRating: value,
-                          }));
-                          void patchSelectedWorkerField(
-                            "rating",
-                            value || null,
                           );
                         }}
                         feedbackValue={gateDraft.assessmentFeedback}
@@ -4725,6 +5317,7 @@ export function Gate1View({
           ) : null}
         </section>
       ) : null}
-    </div>
+      </div>
+    </>
   );
 }

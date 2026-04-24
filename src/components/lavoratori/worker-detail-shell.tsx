@@ -12,6 +12,7 @@ type WorkerDetailShellProps = {
   tabs: WorkerDetailSectionTab[];
   activeSection: string;
   onSectionChange: (sectionId: string) => void;
+  topBar?: React.ReactNode;
   header: React.ReactNode;
   children: React.ReactNode;
   sectionRef?: React.Ref<HTMLElement>;
@@ -23,6 +24,7 @@ export function WorkerDetailShell({
   tabs,
   activeSection,
   onSectionChange,
+  topBar,
   header,
   children,
   sectionRef,
@@ -40,11 +42,11 @@ export function WorkerDetailShell({
         .join(" ")}
     >
       <div className="space-y-6">
-        <div className="sticky top-0 z-40 -mx-4 -mt-4 -mr-4 border-b bg-background/95 px-4 py-3 backdrop-blur">
+        <div className="sticky top-0 z-40 -mx-4 -mt-4 -mr-4 flex items-center gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur">
           <Tabs
             value={activeSection}
             onValueChange={onSectionChange}
-            className="w-full"
+            className="min-w-0 flex-1"
           >
             <TabsList
               variant="line"
@@ -65,12 +67,15 @@ export function WorkerDetailShell({
               })}
             </TabsList>
           </Tabs>
+          {topBar ? (
+            <div className="ml-auto flex shrink-0 items-center gap-2">{topBar}</div>
+          ) : null}
         </div>
 
         <div className="space-y-6 text-sm">
           <div
             ref={headerRef}
-            className="sticky top-14 z-30 -mx-1 space-y-3 border-b bg-background px-1 pb-4"
+            className="sticky top-14 z-50 -mx-1 isolate space-y-3 border-b bg-background px-1 pb-4 shadow-[0_8px_16px_-18px_rgba(15,23,42,0.45)]"
           >
             {header}
           </div>

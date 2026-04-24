@@ -98,6 +98,7 @@ export function AvailabilityCalendarCard({
           <PencilIcon />
         </Button>
       ) : undefined}
+      showDefaultAction={showEditAction}
       collapsible={collapsible}
       defaultOpen={defaultOpen}
       contentClassName="space-y-4"

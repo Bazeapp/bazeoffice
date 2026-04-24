@@ -66,6 +66,7 @@ type UpdateTableName =
   | "chiusure_contratti"
   | "contributi_inps"
   | "lavoratori"
+  | "indirizzi"
   | "mesi_lavorati"
   | "rapporti_lavorativi"
   | "ticket"
@@ -79,6 +80,7 @@ type UpdateTableName =
 type CreateTableName =
   | "famiglie"
   | "lavoratori"
+  | "indirizzi"
   | "selezioni_lavoratori"
   | "documenti_lavoratori"
   | "esperienze_lavoratori"

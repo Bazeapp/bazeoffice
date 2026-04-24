@@ -1373,6 +1373,7 @@ export function ExperienceReferencesCard({
           </Button>
       ) : undefined
       }
+      showDefaultAction={showEditAction}
       collapsible={collapsible}
       defaultOpen={defaultOpen}
       contentClassName="space-y-4"

@@ -1,416 +1,4 @@
-﻿[RIC-001] Fissare orizzontalmente la colonna info ricerca nella kanban Ricerche attive
-Tag: [UX] Severity: low Page/Component: Ricerca → Ricerche attive (detail ricerca) — colonna sinistra info ricerca + kanban stages Effort: S (<1h)
-Sintomo / Cosa succede ora La colonna di sinistra con le informazioni della ricerca (Famiglia, Orari e frequenza, Descrizione lavoro) scrolla orizzontalmente insieme alle colonne della kanban (Candidati, Da colloquiare, Selezionato, Invitato a colloquio, ecc.). Quando si scrolla a destra per vedere gli stage successivi, la colonna info esce dalla viewport e si perde il contesto della ricerca su cui si sta lavorando.
-Atteso / Cosa dovrebbe succedere La colonna info ricerca deve restare fissa orizzontalmente (sticky) mentre si scrollano le colonne kanban a destra, così da mantenere sempre visibile il contesto della ricerca. Deve comunque:
-Scrollare verticalmente insieme al resto della pagina (comportamento attuale OK).
-Mantenere il comportamento di collapse/expand tramite il chevron < già presente (comportamento attuale OK).
-Note Puramente estetico/UX, nessun impatto funzionale — per questo severity low. Direzione di investigazione suggerita: probabilmente il container della kanban è un unico flex/grid orizzontale che include anche la colonna info; va separata la colonna info dal container scrollabile, oppure applicato position: sticky; left: 0 alla colonna info all'interno dello stesso container orizzontale.
-
-[RIC-002] Filtrare il dropdown "Operatori" ai soli recruiter attivi
-Tag: [BUG] Severity: medium Page/Component: Ricerca → Ricerche attive — dropdown filtro operatori (kanban ricerche) Effort: S (<1h)
-Sintomo / Cosa succede ora Il dropdown "Tutti gli operatori" nella kanban delle Ricerche attive mostra tutti gli utenti del workspace, senza filtrare per ruolo o stato. Nello screenshot compaiono Nicolò Gori e Sabrina Nannini, ma in generale la lista include utenti che non sono recruiter e quindi non hanno senso come filtro in questa interfaccia.
-Atteso / Cosa dovrebbe succedere Il dropdown deve mostrare solo i recruiter attivi. Il meccanismo di identificazione del ruolo è in corso di implementazione lato backend/DB — il SWE sa a cosa si riferisce il concetto di "recruiter attivo".
-Come riprodurre
-Andare su CRM famiglie → Ricerca → Ricerche attive
-Cliccare sul dropdown "Tutti gli operatori" in alto
-Notare che la lista non è filtrata per ruolo recruiter
-Note Issue speculare esiste sulla pagina Assegnazione (stesso problema, stessa logica di filtro mancante) — già catalogato tra gli ASS. Se il dropdown è servito dallo stesso hook/endpoint (es. lookup-values Edge Function o hook condiviso tipo use-operators), fixare alla sorgente risolve entrambe le istanze. Direzione di investigazione suggerita: verificare se la query utenti è centralizzata o duplicata nelle due pagine.
-
-[RIC-003] Aggiungere bottone "Smart Matching" nell'header della pagina detail ricerca
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — header pagina Effort: M (1-4h)
-Sintomo / Cosa succede ora Nel detail di una ricerca (kanban stage lavoratori) non è presente alcun bottone per avviare lo Smart Matching. Non c'è neanche un header di pagina strutturato: la colonna info ricerca parte direttamente dall'alto senza breadcrumb, titolo pagina o zona actions. L'operatore non ha modo di triggerare lo Smart Matching da questa interfaccia.
-Atteso / Cosa dovrebbe succedere Nell'header della pagina detail ricerca, in alto a destra, va aggiunto un bottone "Smart Matching". Il bottone triggera una Google Cloud Function che valuta i lavoratori in fit con la ricerca e li aggiunge automaticamente allo stage "Prospetto" della kanban.
-Come riferimento visivo del risultato atteso, vedi il primo screenshot allegato: header con breadcrumb "Torna alle ricerche", titolo "Famiglia Manganotti" + ID ricerca (RIC-2041), toggle "Mappa / Pipeline" a destra, e nella sezione "Lavoratori per questa ricerca" un bottone "Smart Matching" (con icona sparkle) affiancato al bottone "+ Aggiungi".
-Note Dipendenza diretta con l'issue globale "Page shell standard (breadcrumb + titolo + actions + zona filtri)" — questo bottone è parte delle actions che vivono nell'header della page shell mancante. Quando definiremo la page shell globale, lo Smart Matching rientra nel pattern actions-area.
-Direzione di investigazione suggerita: la Cloud Function esiste già lato Google Cloud; il frontend deve solo esporre il trigger. Verificare se c'è già un endpoint/Edge Function Supabase che fa da proxy verso la Cloud Function, oppure se il frontend la chiama direttamente. Probabile pattern: bottone → loading state → refresh della kanban (o aggiunta ottimistica allo stage Prospetto).
-Considerazione UX fuori scope di questo issue ma da tenere a mente: feedback durante l'esecuzione (può essere long-running), gestione errori, e cosa succede se ci sono già lavoratori in Prospetto da una precedente esecuzione.
-
-[RIC-004] Aggiungere bottone "+ Aggiungi" per inserire un lavoratore nella ricerca
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — header pagina / sezione "Lavoratori per questa ricerca" Effort: M (1-4h)
-Sintomo / Cosa succede ora Nel detail di una ricerca non è presente alcun bottone per aggiungere manualmente un lavoratore alla ricerca. L'operatore non ha modo, dall'interfaccia, di inserire un lavoratore specifico pescandolo dal db lavoratori.
-Atteso / Cosa dovrebbe succedere Nell'header della pagina detail ricerca, in alto a destra, va aggiunto un bottone "+ Aggiungi" (come da primo screenshot nell'issue RIC-003). Il bottone apre una modale "Aggiungi lavoratore" con:
-Campo search "Cerca lavoratore" per nome o email, che interroga il db lavoratori.
-Campo testo "Motivazione" (obbligatorio) — "Scrivi perché l'hai selezionato per questa ricerca".
-Bottoni "Annulla" / "Aggiungi lavoratore".
-Al submit, il lavoratore viene inserito di default nello stage "Prospetto" della kanban.
-Se il lavoratore selezionato è già presente in uno qualsiasi degli stage della ricerca, il submit deve fallire con un messaggio di errore chiaro tipo "Lavoratore già presente in questa ricerca" (o equivalente), senza creare duplicati.
-Come riferimento visivo della modale, vedi il secondo screenshot allegato.
-Note Dipendenza con l'issue globale "Page shell standard" come per RIC-003: il bottone vive nella zona actions dell'header di pagina, accanto a "Smart Matching".
-Direzione di investigazione suggerita: il search sul db lavoratori probabilmente può riusare l'Edge Function lookup-values o table-query se già espongono la query su lavoratori, altrimenti serve endpoint dedicato. Per il check duplicato: validazione preferibilmente lato Edge Function create-record (single source of truth) piuttosto che solo lato client, così da evitare race condition se due operatori aggiungono contemporaneamente lo stesso lavoratore.
-Considerazione UX fuori scope: il "Cerca lavoratore" dovrà probabilmente mostrare risultati con contesto minimo (età, skill, zona) per aiutare il recruiter a scegliere il lavoratore giusto tra omonimi — può essere un follow-up issue.
-
-[RIC-005] Mostrare il travel time nella card lavoratore della kanban
-Tag: [MISSING] (regressione) Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — card lavoratore negli stage della kanban Effort: S (<1h)
-Sintomo / Cosa succede ora Le card dei lavoratori negli stage della kanban (Candidati, Da colloquiare, Selezionato, ecc.) non mostrano il travel time tra il domicilio del lavoratore e il luogo di lavoro della famiglia. Attualmente la card mostra età, skill, part-time, CAP, telefono, anni di esperienza casa, anni di esperienza lavoro — ma non il travel time.
-Atteso / Cosa dovrebbe succedere Ogni card lavoratore deve mostrare il travel time tra il domicilio del lavoratore e l'indirizzo della famiglia della ricerca. Il dato è una feature che esisteva già nel vecchio backoffice e va ripristinata nel nuovo.
-Note Il valore è già disponibile nel payload restituito dal backend — si tratta solo di renderizzarlo nella card. Nessun lavoro lato dati.
-
-[RIC-006] Mostrare indicatore availability score sulla card lavoratore
-Tag: [MISSING] (regressione) Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — card lavoratore negli stage della kanban Effort: S (<1h)
-Sintomo / Cosa succede ora La card del lavoratore non mostra alcun indicatore visivo dell'availability score del lavoratore. Se un lavoratore diventa poco disponibile o non disponibile, il recruiter non ha segnale in card — deve aprire il profilo per saperlo. Il dato è valorizzato (non ci dovrebbero essere casi in cui l'availability score sia null).
-Atteso / Cosa dovrebbe succedere Sulla foto del lavoratore, in basso a destra (pattern "status dot" stile social network), va mostrato un pallino colorato che codifica l'availability score secondo queste soglie:
-< 30 → rosso (poco/non disponibile)
-30 – 60 → giallo (disponibilità intermedia)
-> 60 → verde (pienamente disponibile)
-Da definire in implementazione: comportamento esatto ai bordi (inclusivo/esclusivo su 30 e 60) — il SWE lo allinea con Nicolò.
-Note Dato sempre valorizzato, quindi nessun fallback "pallino grigio" o assente da gestire. Feature presente nel vecchio backoffice e non ancora portata nel nuovo.
-Direzione di investigazione suggerita: identificare il field name nel payload lavoratori (probabile naming tipo availability_score o simile) e aggiungerlo al componente avatar/card. Il pallino può essere un overlay assoluto sull'avatar container, riusabile come componente se serve altrove (es. pagina Assegnazione, Anagrafica lavoratore).
-
-[RIC-007] Mostrare sulla card lavoratore il coinvolgimento in altre selezioni attive
-Tag: [MISSING] Severity: high Page/Component: Ricerca → Ricerche attive (detail ricerca) — card lavoratore negli stage della kanban Effort: L (>4h)
-Sintomo / Cosa succede ora La card del lavoratore non mostra se e in quali altre ricerche attive il lavoratore è coinvolto. Questa informazione è critica per decidere se chiamare il lavoratore: se è già impegnato in selezioni avanzate altrove, il recruiter deve saperlo prima di investirci sopra.
-Atteso / Cosa dovrebbe succedere Sulla card del lavoratore va mostrato un indicatore compatto del numero di selezioni attive in cui è coinvolto (es. "2 altre selezioni") con pallini colorati che codificano lo stage delle altre selezioni (es. verde = Selezionato, arancio = Da colloquiare, ecc.).
-In hover/over sull'indicatore, tooltip o popover deve mostrare, per ogni altra selezione attiva:
-Stato del lavoratore in quella selezione
-Ricerca di riferimento (nome famiglia / ID ricerca)
-Come riferimento visivo del pattern desiderato, vedi lo screenshot allegato (riga "2 altre selezioni" con i due pallini). Il pattern non esiste ancora da nessuna parte nel sistema, va disegnato da zero.
-Note La logica di cosa conti come "selezione attiva" è definita nel campo Airtable stati_processi_res_in_selezione sul profilo del lavoratore — il SWE deve chiedere a Nicolò i dettagli della formula prima di implementare. In sintesi: è un rollup/lookup che, a partire dal lavoratore, guarda tutti i lavoratori_selezionati collegati e il loro stato, incrociandolo con lo stato della ricerca (processo_res) e con lo stato di situazione lavorativa del lavoratore, per determinare se quella selezione è "attiva".
-Importante per l'implementazione: questa logica probabilmente non è ancora stata replicata lato Supabase nel nuovo backoffice. Non è semplicissima perché è un campo che, a livello lavoratore, aggrega stati di entità collegate (lavoratori_selezionati + processi_res) e va reso disponibile a sua volta su ogni lavoratore_selezionato. Non è complicatissimo: vanno lette bene le condizioni in Airtable e replicate come view/funzione/field computato su Supabase. Da qui l'effort L.
-Dipendenza: questo issue dipende dalla disponibilità del dato lato backend. Se la replica della formula lato Supabase non è ancora iniziata, il SWE potrebbe dover aprire un sotto-task backend prima del lavoro frontend.
-Dipendenza design: il componente "altre selezioni + tooltip con dettagli" è un pattern nuovo — potrebbe rientrare negli issue globali di design system alignment se decidiamo di renderlo componente condiviso (utile anche altrove, es. Assegnazione).
-
-
-[RIC-008] Esporre stato ricerca (processo_res) editabile in cima alla colonna info famiglia
-Tag: [MISSING] Severity: high Page/Component: Ricerca → Ricerche attive (detail ricerca) — colonna sinistra info famiglia Effort: S (<1h)
-Sintomo / Cosa succede ora Nel detail della ricerca non è esposto lo stato della ricerca complessiva (processo_res). Il recruiter non può leggere né modificare questo stato dall'interfaccia della ricerca attiva.
-Atteso / Cosa dovrebbe succedere In cima alla colonna info famiglia, sotto il nome famiglia e sopra gli altri dati, va esposto un campo "STATO" come dropdown editabile che mostra lo stato corrente della ricerca (processo_res) e permette al recruiter di cambiarlo.
-I valori del dropdown sono quelli della pipeline processo_res standard (es. Match, Stand by, No match, In prova con lavoratore, ecc.). Lo stato corrente mostra anche un'icona/pallino colorato coerente con il valore (es. ✓ verde per "Match", come da screenshot di riferimento).
-Vedi screenshot mockup allegato per il posizionamento e lo stile.
-Note Il campo esiste già a DB (pipeline processo_res). Questo issue copre solo esposizione + edit lato frontend nella pagina detail ricerca.
-Direzione di investigazione suggerita: il dropdown probabilmente può riusare il componente select già esistente per gli stati pipeline (es. quello usato nel Sales Pipeline). L'update passa via Edge Function update-process-stato-sales o equivalente per processo_res — verificare quale endpoint è già disponibile.
-
-[RIC-009] Esporre tipologia incontro editabile nella colonna info famiglia
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — colonna sinistra info famiglia Effort: S (<1h)
-Sintomo / Cosa succede ora Nel detail della ricerca non è esposto il campo "tipologia di incontro", che definisce se il primo incontro con il lavoratore sarà un colloquio conoscitivo o una prova diretta.
-Atteso / Cosa dovrebbe succedere Nella colonna info famiglia, subito sotto lo stato ricerca, va aggiunto un campo "TIPOLOGIA DI INCONTRO" come dropdown editabile con due valori possibili:
-Colloquio conoscitivo
-Prova diretta
-Vedi screenshot mockup allegato per posizionamento e stile.
-Note Il campo esiste già a DB. Questo issue copre solo esposizione + edit lato frontend nella pagina detail ricerca.
-Ah ok, ora capisco! Il conteggio — dopo RIC-015 il prossimo disponibile è RIC-016, non RIC-017. Mi ero perso io un numero. Quindi:
-RIC-010 → aggiornato (riscritto da zero)
-RIC-016 → nuovo, per la stessa cosa applicata al detail lavoratore
-E sulla domanda Tempistiche — visto che mi hai detto "procedi, il resto tutto confermato", vado con l'opzione (b): sezione Tempistiche resta con dentro solo "Disponibilità per incontro" e "Tipologia primo incontro" (ignorando il fatto che la tipologia è già in cima — magari utile lasciarla duplicata o ripensarci in implementazione). In realtà ci ripenso: meglio essere pulito — opzione (a), Tempistiche eliminata, Disponibilità per incontro messa in cima sotto Deadline (entrambe le info temporali concentrate in testa). Scrivo così e se non ti piace lo rigiriamo.
-
-
-[RIC-010] Riorganizzare e completare la colonna famiglia nel detail ricerca con tutti i campi matchmaking della sales pipeline
-Tag: [MISSING] (regressione) + [UX] Severity: high Page/Component: Ricerca → Ricerche attive (detail ricerca) — colonna sinistra info famiglia Effort: L (>4h)
-Sintomo / Cosa succede ora La colonna famiglia nel detail ricerca mostra solo una frazione dei campi matchmaking che il sales inserisce nella sales pipeline. Molti campi critici per il recruiter (vincoli operativi, animali dettagliati, richieste specifiche, profilo famiglia, tempistiche, ecc.) non arrivano fino a questa interfaccia. Inoltre i pochi campi presenti sono tutti conglomerati in sezioni poco organizzate, senza raggruppamento coerente né possibilità di collassare.
-Nota: questo issue sostituisce la versione precedente di RIC-010 che descriveva solo un problema di raggruppamento — in realtà il problema è molto più ampio e include l'assenza di campi.
-Atteso / Cosa dovrebbe succedere
-La colonna famiglia va strutturata in due blocchi:
-Blocco testa (sempre visibile, non collassabile) — identificazione rapida + campi temporali critici:
-Nome famiglia (titolo)
-STATO (dropdown editabile — vedi RIC-008)
-TIPOLOGIA DI INCONTRO (dropdown editabile — vedi RIC-009)
-Chip servizio e orario (es. Colf/Pulizie, Part time)
-Telefono
-Email
-Zona di lavoro sintetica (es. "Milano · Porta Romana")
-Riassunto ore/giorni settimanali (es. "20h / sett · 4gg")
-Ingresso (data)
-Deadline (data, evidenziata in rosso se imminente)
-Disponibilità per incontro
-Blocco sezioni collassabili (ognuna con header + icona + chevron), nell'ordine:
-Orari e frequenza
-Orario di lavoro (testo libero multi-riga, cfr. RIC-014)
-Ore settimanali
-Giorni settimanali
-Giornate preferite (chip multi-select)
-Luogo di lavoro
-Provincia
-CAP
-Quartiere
-Indirizzo completo
-Famiglia (con Animali accorpati)
-Composizione
-Neonati presenti (sì/no)
-Più di un bambino (sì/no)
-Famiglia di 4+ persone (sì/no)
-Animali — descrizione
-Cani presenti (sì/no)
-Cani di taglia grande (sì/no)
-Gatti presenti (sì/no)
-Casa
-Descrizione
-Metratura
-Mansioni
-Descrizione mansioni
-Pulizie con scale (sì/no)
-Deve stirare (sì/no)
-Stirare abiti difficili (sì/no)
-Deve cucinare (sì/no)
-Cucinare piatti elaborati (sì/no)
-Richiesta cura giardino/piante (sì/no)
-Richieste
-Note private del recruiter (testo, non compare nell'annuncio)
-Comunica in italiano (sì/no)
-Comunica in inglese (sì/no)
-Genere preferito (Donna / Uomo / Indifferente)
-Trasferte (sì/no) + descrizione trasferte opzionale
-Richieste su ferie (sì/no) + descrizione ferie opzionale
-Patente richiesta (sì/no)
-Automunita (sì/no)
-Nazionalità escluse (lista)
-Nazionalità obbligatorie (lista)
-Età min
-Età max
-Molto esigente (sì/no)
-Richiesta autonomia (sì/no)
-Datore spesso presente (sì/no)
-Richiesta discrezione (sì/no)
-La sezione Annuncio è gestita separatamente in RIC-011 e si aggiunge in coda come ottava sezione.
-Ogni sezione collassabile:
-Ha header con icona + nome in maiuscolo + chevron
-Si apre/chiude indipendentemente dalle altre
-Tutti i campi editabili inline (stessi permessi/validazioni della sales pipeline)
-Note
-Fonte di verità dei campi: i campi e i loro nomi sono quelli della sales pipeline. Screenshot della sales pipeline di Famiglia Grasso Cecilia allegati come reference di partenza per mappare ogni campo.
-Scelte deliberate rispetto alla sales pipeline:
-Animali accorpati dentro Famiglia (nella sales pipeline sono due sezioni separate) — scelta di semplificazione della vista recruiter nel detail ricerca.
-Niente sezione "Tempistiche" separata: Deadline, Ingresso e Disponibilità per incontro sono in cima al blocco testa (informazioni temporali concentrate in un unico punto).
-Tipologia primo incontro è il dropdown "TIPOLOGIA DI INCONTRO" in cima (RIC-009).
-Dipendenze:
-RIC-008 (dropdown stato) e RIC-009 (dropdown tipologia incontro) diventano parte del blocco testa di questa riorganizzazione.
-RIC-011 (Annuncio) aggiunge l'ottava sezione finale.
-RIC-014 (orario di lavoro non troncato) riguarda un campo che sta dentro la sezione "Orari e frequenza" di questo issue.
-Coerenza cross-componente: la stessa colonna famiglia viene mostrata anche nel detail lavoratore aperto da card kanban — vedi RIC-016. Stessi campi, stesso ordine, stesso comportamento. Ha senso implementare le due viste come stesso componente riusabile con props, per evitare drift futuri. Questa decisione di architettura spetta al SWE.
-Effort L perché implica: creazione componente CollapsibleSection se non esiste, mapping di ~40 campi dalla sales pipeline al detail ricerca (con verifica che i field name siano consumabili dall'attuale payload o serva update dell'Edge Function table-query), editabilità inline per tutti i campi, test di regressione.
-
-
-[RIC-011] Aggiungere sezione "Annuncio" con brief copiabile nella colonna info famiglia
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive (detail ricerca) — colonna sinistra info famiglia Effort: S (<1h)
-Sintomo / Cosa succede ora Nel detail della ricerca non è presente una sezione "Annuncio" che mostri il brief della ricerca già formattato per essere inviato via WhatsApp. Il recruiter che deve spammare il brief su canali esterni deve ricostruirlo manualmente o recuperarlo da altre pagine.
-Atteso / Cosa dovrebbe succedere Aggiungere una sezione collassabile "Annuncio" nella colonna info famiglia (dopo le 5 sezioni di RIC-010, posizione finale da confermare in implementazione) che contiene:
-Il brief/annuncio della ricerca in formato testo (stile WhatsApp).
-Un bottone "Copia" che copia il testo del brief negli appunti.
-Il brief è già generato dalla pipeline Sales, quindi il campo è disponibile a DB. Questa sezione lo espone anche nella pagina detail ricerca (oltre che nella Sales Pipeline dove è già visibile).
-Note Il brief non è da generare: è già popolato dalla pipeline Sales ed esiste come campo sul record ricerca. Questo issue copre solo esposizione frontend + funzionalità copia.
-Direzione di investigazione suggerita: verificare il field name del brief sul record ricerca (probabilmente qualcosa tipo annuncio_whatsapp o brief). Per il copy-to-clipboard, usare navigator.clipboard.writeText() con feedback visivo (es. toast "Copiato!" o cambio temporaneo del bottone).
-
-[RIC-012] Esporre label e valore dei dropdown "Stato lavoratore" e "Disponibile" nel detail lavoratore
-Tag: [BUG] Severity: high Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna profilo lavoratore, dropdown accanto a email/telefono Effort: S (<1h)
-Sintomo / Cosa succede ora Nel detail panel del lavoratore (aperto dalla card in kanban) sono presenti due dropdown verdi accanto ai dati di contatto (email, telefono) ma non mostrano né il label del campo né il valore corrente. Dal punto di vista dell'utente appaiono come due box vuoti non identificabili: non si capisce che campi siano né cosa contengano.
-I due campi sono stato_lavoratore (stato situazione lavorativa anagrafica: attivo / non attivo / blacklisted / ecc.) e disponibile (campo correlato ma distinto dall'availability score).
-Atteso / Cosa dovrebbe succedere I due dropdown devono:
-Mostrare il label del campo sopra o accanto al dropdown (es. "STATO LAVORATORE" e "DISPONIBILE") in modo coerente con gli altri campi della colonna famiglia (RIC-008, RIC-009).
-Mostrare il valore corrente del campo sul record lavoratore.
-Essere editabili: cambiare il valore nel dropdown salva il nuovo valore sul record lavoratore.
-Come riprodurre
-Andare su CRM famiglie → Ricerca → Ricerche attive
-Aprire una ricerca
-Cliccare su una card lavoratore nella kanban per aprire il detail panel
-Notare i due dropdown verdi nella sezione header del lavoratore, senza label né valore visibili
-Note Lo stato stato_lavoratore è lo stesso campo "situazione lavorativa" usato nella logica di RIC-007 (coinvolgimento in altre selezioni attive). Coerenza importante: se lo stato lavoratore viene cambiato qui a "non attivo", il conteggio "altre selezioni attive" di RIC-007 dovrebbe riflettere il cambio (dipendenza logica, non di implementazione).
-Direzione di investigazione suggerita: probabilmente il componente dropdown è stato renderizzato senza passare label e value props correttamente, oppure sta facendo rendering prima che il payload del lavoratore sia risolto. Verificare lo stato di loading e il binding dei campi nel componente detail panel lavoratore.
-
-
-[RIC-013] Aggiungere sezione "Altre ricerche attive" nel detail lavoratore con navigazione cross-ricerca
-Tag: [MISSING] Severity: high Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna destra (sezione LAVORATORE) Effort: L (>4h)
-Sintomo / Cosa succede ora Nella pagina detail del lavoratore (aperta dal click su una card in kanban) non è presente alcuna sezione che mostri le altre ricerche attive in cui il lavoratore è coinvolto. Il recruiter che sta valutando il lavoratore per la ricerca corrente non ha modo di vedere a colpo d'occhio se quello stesso lavoratore è impegnato altrove, in che stato si trova e con che ricerca.
-Atteso / Cosa dovrebbe succedere Nella colonna destra del detail lavoratore (dopo le sezioni LAVORATORE, TRAVEL TIME, ESPERIENZA) va aggiunta una nuova sezione collassabile "Altre ricerche attive" che mostra una lista di card, una per ogni altra ricerca attiva in cui il lavoratore è coinvolto.
-Ogni card deve mostrare a colpo d'occhio (senza bisogno di cliccare dentro):
-Nome famiglia della ricerca
-ID ricerca (es. RIC-2038)
-Recruiter assegnato alla ricerca
-Stato candidatura (stato del lavoratore nella selezione — es. Selezionato, Da colloquiare, Inviato al cliente, ecc.)
-Stato selezione (stato della ricerca / processo_res — es. Match, In prova con lavoratore, ecc.)
-Orari di lavoro richiesti da quella ricerca
-Zona di lavoro della ricerca
-Appunti della selezione (se presenti)
-Non vanno mostrati i flag "Candidato?" e "Preferito da cliente?" visibili nel reference Airtable.
-Cliccando su una card, si apre il detail lavoratore nel contesto di quell'altra ricerca — cioè lo stesso layout di pagina in cui ci si trova (colonna famiglia + profilo lavoratore + colonna lavoratore), ma popolato con i dati della selezione relativa alla ricerca cliccata (stato selezione in quella ricerca, scheda colloquio di quella ricerca, info famiglia di quella ricerca, ecc.).
-Note Filtro "quali ricerche mostrare": stessa logica backend di RIC-007 (campo Airtable stati_processi_res_in_selezione). Se RIC-007 e questo issue vengono implementati insieme, il SWE può riusare lo stesso endpoint/query per entrambi — questa sezione consuma lo stesso dato ma lo rende con un'UI più ricca.
-Dipendenza con RIC-007: come per RIC-007, se la replica della logica stati_processi_res_in_selezione lato Supabase non è ancora iniziata, va fatta come pre-requisito. Per i dettagli della formula il SWE chieda a Nicolò.
-Reference visive (screenshot allegati in chat):
-Screenshot 1 — variante minimal (Lovable) con barra stati e stato finale a destra, solo per dare l'idea del pattern "lista compatta di ricerche coinvolte".
-Screenshot 2/3/4 — vista Airtable più ricca con tutti i campi (recruiter, stati, orari, zona, appunti) — è la reference più vicina a quello che vogliamo, escludendo i flag candidato/preferito.
-Routing: la navigazione cross-ricerca mantiene lo stesso URL-pattern del detail lavoratore, cambiando i parametri ricerca/lavoratore (probabilmente /ricerche/:ricercaId/lavoratori/:lavoratoreId o simile). Verificare che il breadcrumb si aggiorni coerentemente (es. attualmente "Ricerca › Alba Manganotti › Catherin Poma" → dopo il click diventa "Ricerca › [altra famiglia] › Catherin Poma").
-Considerazione UX fuori scope di questo issue (da valutare dopo): cosa succede se la sezione è vuota (nessuna altra ricerca attiva). Probabile stato empty con messaggio tipo "Nessun'altra ricerca attiva" — follow-up.
-
-[RIC-014] Mostrare per intero il campo "Orario di lavoro" nel sheet lavoratore senza troncamento
-Tag: [BUG] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna famiglia, sezione Orari e frequenza Effort: S (<1h)
-Sintomo / Cosa succede ora Nel sheet laterale del lavoratore, nella colonna famiglia, il campo "ORARIO DI LAVORO" viene troncato orizzontalmente con ellissi (…) quando il testo supera la larghezza disponibile. Nello screenshot si vede "lun-mar-giov-ven o lun-…" con il resto del contenuto tagliato e non leggibile.
-Atteso / Cosa dovrebbe succedere Il campo "Orario di lavoro" è testo libero di lunghezza variabile (può contenere descrizioni articolate tipo "lun-mar-giov-ven o lun-mer-ven alternati, tra le 8 e le 14"). Il testo deve essere mostrato per intero andando a capo su più righe, senza troncamento.
-Come riprodurre
-Andare su CRM famiglie → Ricerca → Ricerche attive
-Aprire una ricerca con un valore "Orario di lavoro" abbastanza lungo (es. Alba Manganotti)
-Cliccare su una card lavoratore nella kanban per aprire il sheet laterale
-Nella colonna famiglia, sezione "Orari e frequenza", notare il testo troncato con …
-Note Direzione di investigazione suggerita: probabile white-space: nowrap + text-overflow: ellipsis applicato al campo, oppure un componente shared che tronca di default. Rimuovere il truncation e lasciare che il testo faccia wrap naturale (white-space: normal / overflow-wrap: break-word). Controllare anche coerenza con gli altri campi testo lungo della stessa colonna (es. Descrizione casa, Mansioni richieste) — se hanno lo stesso problema, fixare alla sorgente conviene.
-
-[RIC-015] Aggiungere campo "Riassunto esperienze AI" nel detail lavoratore con bottone genera/rigenera
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna destra, sezione "Esperienza" Effort: S (<1h)
-Sintomo / Cosa succede ora Nel detail lavoratore, nella colonna destra sezione "Esperienza", non è presente il campo "Riassunto esperienze" generato via AI. Il recruiter non può né consultare un riassunto AI-generato delle esperienze del lavoratore, né triggerarne la generazione da questa interfaccia.
-Atteso / Cosa dovrebbe succedere Nella sezione "Esperienza" della colonna destra, direttamente sotto i numeri di anni di esperienza (Colf / Badante / Babysitter), va aggiunto un campo "Riassunto esperienze" con questo comportamento:
-Se il campo è vuoto: mostrare stato vuoto (es. placeholder tipo "Nessun riassunto generato") con il bottone "Genera con AI" visibile.
-Se il campo è popolato: mostrare il testo del riassunto con accanto un bottone "Rigenera con AI" (il bottone è sempre visibile, anche quando il testo c'è).
-Il testo è editabile a mano dal recruiter (campo editabile inline, come gli altri campi testo del detail).
-Il bottone di generazione/rigenerazione triggera una funzione AI già esistente lato backend (il SWE sa qual è).
-Note La funzione di generazione esiste già e va solo esposta tramite il bottone lato frontend — pattern analogo a RIC-003 (Smart Matching).
-Direzione di investigazione suggerita: verificare il field name sul record lavoratore (probabile riassunto_esperienze_ai o simile) e l'endpoint della funzione di generazione. Durante la generazione gestire loading state sul bottone (es. spinner, bottone disabilitato) e aggiornare il campo con il risultato. L'edit manuale dopo la generazione deve essere salvato come override (il recruiter può correggere il testo AI).
-
-[RIC-016] Mostrare la colonna famiglia completa anche nel detail lavoratore
-Tag: [MISSING] Severity: high Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna sinistra famiglia Effort: S (<1h) se RIC-010 è già implementato come componente riusabile, M altrimenti
-Sintomo / Cosa succede ora Quando si apre il detail di un lavoratore cliccando su una card in kanban, la colonna famiglia mostra solo un sottoinsieme limitato di campi — molto meno di quanto serve al recruiter per valutare il match con la ricerca. I campi matchmaking completi (vincoli operativi, animali dettagliati, richieste specifiche, mansioni, profilo famiglia) non sono visibili.
-Atteso / Cosa dovrebbe succedere La colonna famiglia nel detail lavoratore deve mostrare le stesse identiche informazioni, nello stesso ordine e con lo stesso comportamento della colonna famiglia nel detail ricerca (vedi RIC-010 per la struttura completa: blocco testa + 7 sezioni collassabili + sezione Annuncio).
-Le informazioni visibili al recruiter sono quindi identiche indipendentemente dal punto di ingresso (detail ricerca o detail lavoratore).
-Note Architettura suggerita (da valutare con il SWE): implementare la colonna famiglia come componente riusabile unico, consumato sia dal detail ricerca che dal detail lavoratore. Stessa componente, stessi dati, stessa UI. Questa scelta riduce drift e costi di manutenzione futuri.
-Se RIC-010 viene implementato creando questo componente, RIC-016 diventa banale (basta instanziarlo nel detail lavoratore con la ricerca corrispondente come contesto). Se invece RIC-010 viene implementato inline, RIC-016 richiede re-implementazione → effort M.
-Dipendenza forte da RIC-010: questo issue va implementato dopo o contestualmente a RIC-010, non prima.
-
-
-[RIC-017] Aggiungere bottone "Genera con AI" per il campo "Crea feedback Baze"
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — sezione centrale, blocco "Lavoratore selezionato – finalizza la scheda colloquio", campo "Crea feedback Baze" Effort: S (<1h)
-Sintomo / Cosa succede ora Il campo "Crea feedback Baze – il messaggio che spiega perché è perfetta per la richiesta" (textarea con placeholder "Scrivi il feedback…") esiste già ed è editabile manualmente, ma non è presente alcun bottone per generarlo tramite AI. Il recruiter può solo scrivere il feedback a mano.
-Atteso / Cosa dovrebbe succedere Aggiungere accanto o sotto il campo un bottone "Genera con AI" (o "Rigenera con AI" quando il campo è popolato). Il bottone:
-È sempre visibile (sia a campo vuoto che popolato).
-Triggera una funzione AI già esistente lato backend — il SWE sa qual è.
-Popola la textarea con il testo generato, che resta editabile a mano dal recruiter dopo la generazione.
-Note Pattern analogo a RIC-015 (Riassunto esperienze AI nella colonna destra sezione Esperienza). Differenze:
-RIC-015 è un campo sul profilo lavoratore (globale, visibile in tutte le ricerche).
-RIC-017 è un campo sul record della selezione lavoratore_selezionato (specifico per questa ricerca+lavoratore).
-Sono persistenze distinte e probabilmente funzioni AI distinte, ma lo stesso pattern UI (campo testuale + bottone genera/rigenera sempre visibile + loading state + override manuale). Valutare se estrarre un componente condiviso "campo testo + bottone AI" riusabile tra RIC-015, RIC-017 e casi futuri.
-Direzione di investigazione suggerita: identificare il field name della textarea sul record lavoratore_selezionato e l'endpoint della funzione di generazione. Gestire loading state sul bottone durante la chiamata AI.
-
-[RIC-018] La textarea "Crea feedback Baze" non occupa il 100% della larghezza del container
-Tag: [BUG] Severity: low Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — sezione centrale, blocco "Lavoratore selezionato – finalizza la scheda colloquio", campo "Crea feedback Baze" Effort: S (<1h)
-Sintomo / Cosa succede ora La textarea "Crea feedback Baze" è renderizzata con larghezza limitata (circa width: fit-content o un max-width ristretto) — occupa solo una porzione dello spazio disponibile nel container, invece di estendersi fino al bordo destro come gli altri campi della sezione centrale (es. le risposte della scheda colloquio, le textarea superiori).
-Atteso / Cosa dovrebbe succedere La textarea deve occupare il 100% della larghezza del container genitore, coerentemente con gli altri campi textarea della scheda colloquio.
-Come riprodurre
-Andare su CRM famiglie → Ricerca → Ricerche attive
-Aprire una ricerca
-Cliccare su una card lavoratore nella kanban
-Scrollare fino al blocco "Lavoratore selezionato – finalizza la scheda colloquio"
-Notare che la textarea "Scrivi il feedback…" è visibilmente più stretta degli altri campi textarea della pagina
-Note Direzione di investigazione suggerita: probabile width: auto / width: fit-content o un max-width applicato al componente textarea, oppure un wrapper con display non-block. Verificare se il componente textarea è lo stesso usato altrove (nel qual caso il fix puntuale va fatto solo sull'istanza, non sul componente shared per evitare regressioni).
-
-[RIC-019] Correggere copy dell'header della sezione esperienze
-
-
-Tag: [UX] Severity: low Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna destra, sezione "Esperienza", sottosezione lista esperienze Effort: S (<1h)
-Sintomo / Cosa succede ora Sopra la lista delle esperienze di lavoro del lavoratore è presente la dicitura "INSERISCI UNA SOLA ESPERIENZA" (vedi screenshot RIC-013). La copy è un refuso / istruzione residua: non descrive correttamente il contenuto della sezione (che è una lista di esperienze, non l'invito a inserirne una sola).
-Atteso / Cosa dovrebbe succedere Cambiare l'header in "ESPERIENZE DI LAVORO".
-Note Fix puramente testuale, nessun impatto funzionale. Dipendenza logica con RIC-020 (bottone "+ Aggiungi esperienza" nella stessa sezione) — ha senso farli insieme ma sono PR indipendenti.
-
-[RIC-020] Aggiungere bottone "+ Aggiungi esperienza" con modale nella sezione esperienze del detail lavoratore
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna destra, sezione "Esperienza", sottosezione lista esperienze di lavoro Effort: M (1-4h)
-Sintomo / Cosa succede ora Nella sezione esperienze del detail lavoratore non è presente alcun bottone per aggiungere una nuova esperienza di lavoro. Il recruiter può solo visualizzare le esperienze esistenti (es. "Badante, Colf | Full-time | 2 anni", "Babysitter, Colf | Full-time | 1 anno") ma non può aggiungerne di nuove da questa interfaccia.
-Atteso / Cosa dovrebbe succedere Aggiungere un bottone "+ Aggiungi esperienza" nella sezione esperienze (posizionamento suggerito: sotto la lista delle esperienze esistenti, oppure nell'header della sottosezione — da definire in implementazione per coerenza con altri pattern simili già presenti nell'app).
-Al click, si apre una modale per inserire una nuova esperienza con i campi già definiti sul record esperienza lavoratore (gli stessi che vengono mostrati nella lista esistente). Al submit, l'esperienza viene creata e compare nella lista della sezione.
-Note I campi della modale sono quelli già definiti sul record esperienza — il SWE replica la struttura del record esistente in DB senza aggiungere né togliere campi.
-Direzione di investigazione suggerita: probabile Edge Function create-record già utilizzabile per la creazione. Verificare se esiste già un componente modale riusabile nell'app (es. la modale "Aggiungi lavoratore" di RIC-004 è un pattern analogo). Gestire loading state durante il submit e refresh della lista dopo creazione.
-
-[RIC-021] Aggiungere icona cestino per cancellare esperienza in modalità edit della sezione esperienze
-
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna destra, sezione "Esperienza", sottosezione lista esperienze di lavoro Effort: S (<1h)
-Sintomo / Cosa succede ora Nella sezione esperienze del detail lavoratore non è possibile cancellare un'esperienza esistente. Il recruiter non ha alcun affordance (cestino, menu contestuale, ecc.) per rimuovere un'esperienza errata o obsoleta.
-Atteso / Cosa dovrebbe succedere Quando la sezione "Esperienza" entra in modalità edit (click sull'icona matita ✏️ nell'header della sezione), accanto a ogni esperienza della lista deve comparire un'icona cestino 🗑️ per cancellarla.
-Fuori dalla modalità edit, l'icona cestino è nascosta.
-Al click sul cestino, mostrare un dialog di conferma (es. "Sei sicuro di voler eliminare questa esperienza?") prima di procedere con la cancellazione. Dopo conferma, l'esperienza viene eliminata e la lista si aggiorna.
-Note Dipendenza: questo issue presuppone che la modalità edit della sezione sia già implementata (l'icona matita nell'header è presente — RIC-013 screenshot). Se al click sulla matita la sezione non entra effettivamente in modalità edit (es. la matita non fa nulla o apre altro), va trattato come sotto-task parte di questo issue.
-Direzione di investigazione suggerita: probabile Edge Function esistente per delete (es. delete-record o analogo), altrimenti va creata. Gestire loading state sul cestino durante la chiamata e refresh della lista dopo delete. Per il dialog di conferma usare il componente modale/alert già presente nell'app.
-Considerazione UX fuori scope: undo della cancellazione (toast con "Annulla" per N secondi) — follow-up possibile se vogliamo alzare la safety dell'azione distruttiva.
-
-[RIC-022] Esporre campo "Lavori accettabili" multi-select nella sezione Calendario disponibilità
-Tag: [MISSING] (regressione) Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna destra, sezione "Calendario disponibilità" Effort: S (<1h)
-Sintomo / Cosa succede ora Nella sezione "Calendario disponibilità" del detail lavoratore non è esposto il campo "Lavori accettabili" che indica la durata in giorni/settimana dei lavori che il lavoratore è disposto ad accettare. Il recruiter non può vedere né modificare questa informazione da questa interfaccia, anche se il campo esiste sul record lavoratore.
-Atteso / Cosa dovrebbe succedere Nella sezione "Calendario disponibilità", va esposto un campo "Lavori accettabili" come multi-select con chip, con i valori:
-Lavori di 1 giorno
-Lavori di 2 giorni
-Lavori di 3 giorni
-Lavori di 4 giorni
-Lavori di 5 giorni
-Lavori di 6 giorni
-Comportamento:
-Chip toggleabili inline (click per selezionare/deselezionare).
-Più valori selezionabili contemporaneamente.
-Stile coerente con gli altri campi chip multi-select già presenti nell'app (es. "Giornate preferite" nella colonna famiglia).
-Posizionamento suggerito: dentro la sezione "Calendario disponibilità", vicino a "Vincoli orari" / sopra o sotto il calendar grid — da rifinire in implementazione.
-Note Il campo esiste già sul record lavoratore ma non è mai stato esposto in questa sezione del nuovo backoffice. Direzione di investigazione suggerita: identificare il field name nel payload lavoratore (probabile naming tipo check_lavori_accettabili e il componente chip multi-select già usato altrove per riusarlo (coerenza visiva + riduzione duplicazione).
-
-[RIC-023] Aggiungere sezione "Documenti" come ultima sezione della colonna destra del detail lavoratore
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna destra, in coda alle sezioni esistenti Effort: S (<1h)
-Sintomo / Cosa succede ora Nella colonna di destra con i dettagli del lavoratore, in fondo, manca la sezione Documenti. Il recruiter che sta lavorando dal detail lavoratore non ha accesso ai documenti del lavoratore (codice fiscale, documento di identità, permesso di soggiorno, ricevuta rinnovo permesso, data scadenza NASPI) da questa interfaccia.
-Atteso / Cosa dovrebbe succedere Aggiungere in coda alla colonna destra (dopo SKILL E COMPETENZE) una nuova sezione Documenti, identica a quella già esistente nella pagina anagrafica lavoratori — vedi screenshot allegato.
-La sezione deve includere:
-Check documenti verificati da Baze
-Stato documenti (es. "Ho tutti i documenti in regola")
-Slot Codice fiscale (Fronte / Retro)
-Slot Documento di identità (Fronte / Retro)
-Slot Permesso di soggiorno (Fronte / Retro)
-Slot Ricevuta rinnovo permesso (Allegato)
-Data scadenza NASPI
-Il recruiter deve poter fare le stesse operazioni che fa nella sezione Documenti della pagina anagrafica lavoratori (upload, visualizzazione, edit).
-
-[RIC-024] Aggiungere sezione "Preferenze e vincoli" con check accetta/non accetta nel detail lavoratore
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna destra, sopra la sezione "Skill e competenze" Effort: M (1-4h)
-Sintomo / Cosa succede ora Nella colonna destra del detail lavoratore non è presente alcuna sezione che mostri i check di accettazione del lavoratore rispetto alle condizioni specifiche di lavoro (es. case con animali, trasferte, babysitting di neonati, ecc.). Il recruiter non ha accesso a queste informazioni da questa interfaccia, pur essendo presenti sul record lavoratore.
-Atteso / Cosa dovrebbe succedere Aggiungere una nuova sezione collassabile "Preferenze e vincoli" nella colonna destra, posizionata sopra la sezione "Skill e competenze", struttura coerente con le altre sezioni della colonna (header + icona + chevron + icona matita edit).
-La sezione contiene 9 check, ognuno implementato come select Accetta / Non accetta:
-Case con cani
-Case con cani grandi
-Case con gatti
-Trasferte
-Babysitting di neonati
-Babysitting con più di due bambini
-Salire sulle scale
-Avere più di un contratto
-9 euro netti
-Comportamento atteso:
-Ogni check è un dropdown/select con valori "Accetta" / "Non accetta" (e presumibilmente uno stato default/non indicato quando il valore non è stato ancora inserito — da rifinire in implementazione).
-Editabili inline, come gli altri campi della colonna destra.
-Note I campi esistono già a DB sul record lavoratore, questo issue copre solo l'esposizione + edit lato frontend.
-Direzione di investigazione suggerita: identificare i field name esatti dei 9 check sul record lavoratore. Verificare se il componente select "Accetta / Non accetta" è già usato altrove (nel qual caso riusarlo) o se va creato come componente riusabile. Layout: una griglia a 2 colonne o una lista verticale — scelta da rifinire in implementazione per coerenza con le altre sezioni della colonna (es. "Calendario disponibilità" con i suoi campi).
-
-[RIC-025] Esporre campo "Tipo di rapporto" nella sezione Calendario disponibilità
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna destra, sezione "Calendario disponibilità" Effort: S (<1h)
-Sintomo / Cosa succede ora Nella sezione "Calendario disponibilità" del detail lavoratore non è esposto il campo "Tipo di rapporto" del lavoratore, pur essendo già presente a DB.
-Atteso / Cosa dovrebbe succedere Esporre il campo "Tipo di rapporto" all'interno della sezione "Calendario disponibilità". Stile coerente con gli altri campi della sezione, editabile inline come gli altri campi della colonna destra.
-
-[RIC-026] Esporre campo "Tipo di lavoro" nella sezione Esperienza sopra gli anni di esperienza
-
-
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — colonna destra, sezione "Esperienza" Effort: S (<1h)
-Sintomo / Cosa succede ora Nella sezione "Esperienza" del detail lavoratore, sopra i numeri di anni di esperienza (Colf / Badante / Babysitter), non è esposto il campo "Tipo di lavoro", pur essendo già presente a DB.
-Atteso / Cosa dovrebbe succedere Esporre il campo "Tipo di lavoro" sopra i numeri di anni di esperienza. Stile coerente con gli altri campi della sezione, editabile inline come gli altri campi della colonna destra.
-
-[RIC-027] Mostrare campo "Motivo non selezionato" quando lo stato selezione è "Non selezionato"
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — sezione centrale "Scheda colloquio", sotto il dropdown "Stato selezione" Effort: S (<1h)
-Sintomo / Cosa succede ora Quando il recruiter imposta lo stato selezione di un lavoratore su "Non selezionato", non compare alcun campo per indicare il motivo della non selezione. Il motivo non può essere tracciato da questa interfaccia, pur essendo un'informazione utile per analisi retrospettive e migliorie del matchmaking.
-Atteso / Cosa dovrebbe succedere Quando il valore del dropdown "Stato selezione" è impostato su "Non selezionato", deve apparire sotto il dropdown un campo "Motivo non selezionato" come multi-select con i valori già definiti a DB per quel campo. In tutti gli altri stati, il campo resta nascosto.
-Il campo non è obbligatorio: il salvataggio dello stato "Non selezionato" deve funzionare anche senza motivo compilato.
-Note Il campo motivo_non_selezionato esiste già a DB come multi-select con le opzioni definite (es. Distanza / Livello profilo / Mansioni / Età / Sesso / Paga / Giorni non compatibili; Documenti non regolari / Nessuna referenza / Non idoneo / Non interessato / Scartato dal cliente / Non risponde; ecc.). Questo issue copre solo esposizione + edit lato frontend, condizionato al valore di stato_selezione.
-Direzione di investigazione suggerita: identificare il field name esatto sul record lavoratore_selezionato. Per il conditional rendering, il campo va mostrato/nascosto reattivamente al cambio di stato_selezione. Quando lo stato viene cambiato da "Non selezionato" a un altro valore, valutare se pulire il campo motivo (reset) oppure mantenerlo (conservare il dato per history/riaggancio futuro) — io propongo di mantenere il dato (non resettare) perché il campo potrebbe essere utile per analisi anche dopo un cambio stato. Scelta finale in implementazione.
-
-[RIC-028] Mostrare campo "Motivo no match" quando lo stato selezione è "No match"
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — sezione centrale "Scheda colloquio", sotto il dropdown "Stato selezione" Effort: S (<1h)
-Sintomo / Cosa succede ora Quando il recruiter imposta lo stato selezione di un lavoratore su "No match", non compare alcun campo per indicare il motivo del no match. Il motivo non può essere tracciato da questa interfaccia, pur essendo un'informazione utile per analisi retrospettive e migliorie del matchmaking.
-Atteso / Cosa dovrebbe succedere Quando il valore del dropdown "Stato selezione" è impostato su "No match", deve apparire sotto il dropdown un campo "Motivo no match" come multi-select con i valori già definiti a DB (es. Cliente ha scelto altro lavoratore / Cliente ha scartato il lavoratore / Cliente ha chiuso la ricerca / Lavoratore rifiuta l'offerta / Lavoratore ha trovato altro / Lavoratore ha ghostato / Scartato dal cliente / Lavoratore non supera la prova / Lavoratore si ritira durante la prova). In tutti gli altri stati, il campo resta nascosto.
-Il campo non è obbligatorio: il salvataggio dello stato "No match" deve funzionare anche senza motivo compilato.
-Note Il campo motivo_no_match esiste già a DB come multi-select con le opzioni definite. Questo issue copre solo esposizione + edit lato frontend, condizionato al valore di stato_selezione.
-Pattern identico a RIC-027 (Motivo non selezionato): stessa logica di conditional rendering, stesso posizionamento, stesso comportamento, solo dipende da un valore diverso di stato_selezione e usa un field name diverso.
-Direzione di investigazione architetturale (suggerita al SWE): implementare un componente condizionale riusabile che prenda come props il valore target dello stato selezione + il field name del motivo + il label, così RIC-027 e RIC-028 (e potenzialmente futuri stati condizionati) riutilizzano la stessa struttura. Riduce duplicazione e drift.
-
-[RIC-029] Mostrare campi "Data/ora colloquio famiglia lavoratore" e "Colloquio effettuato" negli stati colloquio/prova
-Tag: [MISSING] Severity: medium Page/Component: Ricerca → Ricerche attive → detail lavoratore (aperto da card kanban) — sezione centrale "Scheda colloquio", sotto il dropdown "Stato selezione" Effort: S (<1h)
-Sintomo / Cosa succede ora Quando il recruiter imposta lo stato selezione di un lavoratore in uno degli stati relativi a colloquio o prova (Colloquio schedulato / Colloquio rimandato / Colloquio fatto / Prova schedulata / Prova rimandata / Prova in corso), non sono esposti i campi per indicare la data/ora pianificata dell'incontro né l'esito del colloquio. Queste informazioni non possono essere tracciate da questa interfaccia, pur essendo presenti a DB.
-Atteso / Cosa dovrebbe succedere Quando il valore del dropdown "Stato selezione" è uno tra:
-Colloquio schedulato
-Colloquio rimandato
-Colloquio fatto
-Prova schedulata
-Prova rimandata
-Prova in corso
-devono apparire sotto il dropdown, affiancati uno di fianco all'altro, due campi:
-Data/ora colloquio famiglia lavoratore — datetime field (data + ora) esistente a DB.
-Colloquio effettuato — select esistente a DB con i valori già definiti.
-In tutti gli altri stati selezione, i due campi restano nascosti.
-Entrambi i campi sono non obbligatori: il salvataggio di uno degli stati trigger deve funzionare anche senza campi compilati.
-Note Entrambi i campi esistono già a DB — il SWE sa a quali si riferiscono (data_ora_colloquio_famiglia_lavoratore e colloquio_effettuato o nomi equivalenti). Questo issue copre solo esposizione + edit lato frontend, condizionato al valore di stato_selezione.
-
-
-Pagina Ricerca lavoratori
+﻿Pagina Ricerca lavoratori
 
 [LAV-001] Mostrare città + CAP del lavoratore nella card
 Tag: BUG Severity: high Page/Component: Lavoratori → Cerca Lavoratori (card lavoratore) Effort: S
@@ -589,3 +177,296 @@ Il dropdown motivazione nell'header sticky (LAV-004) sia effettivamente bindato 
 Il componente nell'header sia un dropdown (select con opzioni predefinite), mentre nella tab ora è un text input libero. Vale la pena verificare se il campo è davvero enum (dropdown) o free text — i due componenti non sono equivalenti semanticamente. Se il campo è free text lato DB, LAV-004 va rivisto; se è enum, il text input di questa tab è un bug a sé.
 Stessa logica di LAV-007: rimuovere tab quasi-vuota che duplica informazione già nell'header. Pattern consolidato.
 Verifica data integrity prima della rimozione: assicurarsi che il valore attualmente scritto nella tab (se editato) finisca sullo stesso record letto dall'header. Se ci sono lavoratori con motivazione già valorizzata, il valore deve restare accessibile/editabile dall'header post-rimozione.
+
+[LAV-016] Aggiungere bottone "+ Aggiungi ad una ricerca" con flusso di ricerca via email e check idempotenza
+Tag: MISSING Severity: medium Page/Component: Lavoratori → Cerca Lavoratori → detail lavoratore — sezione "Ricerche coinvolte", bottone in header Effort: M
+Sintomo / Cosa succede ora Non esiste un flusso che permetta al recruiter, partendo dal detail di un lavoratore in anagrafica, di aggiungerlo come candidato a una ricerca esistente. Il recruiter deve navigare manualmente alla ricerca e aggiungere il lavoratore da lì — flusso reverse rispetto a quando si ha già il lavoratore in mano.
+Atteso / Cosa dovrebbe succedere Nella sezione "Ricerche coinvolte" del detail lavoratore (vedi LAV-010), in alto a destra, aggiungere un bottone "+ Aggiungi ad una ricerca".
+Al click, si apre un flusso che permette al recruiter di:
+Cercare la ricerca a cui aggiungere il lavoratore. La ricerca della ricerca può essere fatta per email della famiglia (da confermare se anche per altri campi: nome famiglia, res identifier, ecc.).
+Selezionare la ricerca trovata.
+Confermare l'aggiunta, che crea un nuovo record lavoratore_selezionato collegando lavoratore e ricerca.
+Note Flusso reverse di aggiunta: questo è il simmetrico di quanto già esiste nel detail ricerca (dove si aggiunge un lavoratore a una ricerca cercando il lavoratore). Qui si parte dal lavoratore e si cerca la ricerca. Il SWE può riusare componenti del flusso esistente (search box, selezione, mutation di creazione lavoratore_selezionato) invertendo il contesto.
+Check idempotenza (blocker): prima di creare il record lavoratore_selezionato, il backend (o frontend pre-submit) deve verificare che il lavoratore non sia già presente in quella ricerca. Se esiste già un record lavoratore_selezionato per la coppia (lavoratore_id, ricerca_id), il flusso deve:
+Bloccare l'aggiunta.
+Mostrare messaggio chiaro tipo "Questo lavoratore è già presente in questa ricerca — stato attuale: [stato_processo_res]".
+Offrire link di navigazione al detail di quella selezione esistente.
+Questo check è critico per evitare duplicati che sporcano i dati operativi e confondono i recruiter.
+Ricerca per email — da chiarire:
+L'email è il campo univoco che si usa per trovare la ricerca?
+Email = email del contatto famiglia (cliente) o email del recruiter assegnato?
+Supportiamo anche altri criteri di ricerca (nome famiglia, res ID)? Suggerirei sì, perché "per email" è utile ma il recruiter potrebbe non ricordarla — meglio un search box con match multi-campo (email, nome famiglia, ID ricerca).
+Nicolò conferma il comportamento esatto di questa ricerca prima dell'implementazione.
+Stato selezione di default: quando si crea una nuova lavoratore_selezionato da questo flusso, lo stato iniziale deve essere definito (probabilmente "Prospetto" o "Candidato" — coerente con quanto succede aggiungendo un lavoratore dal lato ricerca). Da confermare col SWE o con Nicolò.
+UX del flusso: probabile pattern è un dialog/modale che si apre al click sul bottone, con search box + risultati sotto. Pattern shadcn standard (Command + Dialog).
+Dipendenza con LAV-010: questo issue dipende da LAV-010 solo per il posizionamento del bottone (dentro la sezione "Ricerche coinvolte"). Se LAV-010 non è ancora implementato, il bottone può temporaneamente stare altrove nel detail lavoratore — ma il flusso funzionale è indipendente e può essere sviluppato in parallelo.
+Aggiornamento UI post-aggiunta: al successo della creazione, la sezione "Ricerche coinvolte" (LAV-010) deve aggiornarsi mostrando la nuova ricerca nel tab Attivi (probabilmente in cima, come più recente).
+
+Pagina Gate 1
+
+[GT1-001] Rendere editabile il "Referente idoneità" e posizionarlo sopra la sezione Follow-up
+Tag: UX + MISSING Severity: high Page/Component: Lavoratori → Gate 1 — detail lavoratore, header sticky + sezione Follow-up Effort: M
+Sintomo / Cosa succede ora Nel detail lavoratore di Gate 1 i referenti Gate 1 e Gate 2 sono visualizzati come due pallini-avatar nell'header sticky, in una forma che non supporta il workflow: il referente Gate 2 non è pertinente a questa pagina, e il referente Gate 1 non è editabile in modo evidente — il recruiter non ha un punto chiaro per prendere in carico il record.
+Atteso / Cosa dovrebbe succedere
+Rimuovere i due pallini-avatar referenti dall'header sticky di Gate 1 (nascondere, non eliminare i campi dal record — referente_gate_2 resta sul record per la pagina Gate 2).
+Aggiungere il campo Referente sopra la sezione Follow-up, editabile, con selezione tra i recruiter attivi usando lo stesso componente già in uso nella pagina Assegnazione (CRM famiglie).
+Note Riuso componente dalla pagina Assegnazione: il picker dei recruiter attivi è già implementato e funzionante in Assegnazione — il SWE deve riusarlo qui, non reimplementarlo. Stessa logica di dataset (lista recruiter attivi), stesso pattern UI.
+
+[GT1-002] Aggiungere due filter picker (Provincia + Followup) per filtrare la lista Gate 1
+Tag: MISSING Severity: high Page/Component: Lavoratori → Gate 1 — lista lavoratori qualificati (colonna sinistra) Effort: M
+Sintomo / Cosa succede ora La lista lavoratori in Gate 1 è una lista piatta senza possibilità di segmentazione. Il recruiter che deve lavorare un batch specifico (es. "fare le prime chiamate ai lavoratori di Milano") è costretto a scorrere tutta la lista identificando visivamente quelli rilevanti, perdendo tempo e rischiando di saltare record. Sull'attuale workflow Airtable il problema è risolto con grouping annidato provincia → followup.
+Atteso / Cosa dovrebbe succedere Aggiungere due filter picker (dropdown) sopra la lista:
+Provincia — filtra per provincia di residenza del lavoratore (es. Milano, Monza e della Brianza, Torino, ecc.).
+Followup chiamata idoneità — filtra per numero di tentativi di chiamata di followup già effettuati (es. "—" / "1° chiamata senza risposta" / "2° chiamata senza risposta" / "3° chiamata senza risposta").
+I due filtri sono indipendenti e combinabili via AND: il recruiter può selezionare Provincia: Milano + Followup: 1° chiamata senza risposta e vedere solo quel sottoinsieme come lista piatta.
+Entrambi i filtri devono avere opzione "tutti" / deselezione per tornare alla vista completa. Il counter "50 lavoratori qualificati" in cima alla lista deve aggiornarsi al conteggio filtrato.
+Note Divergenza deliberata dal workflow Airtable: Airtable usa grouping annidato (provincia esterna → followup interna) che mostra tutto insieme strutturato. Nel BazeOffice è stata scelta l'opzione di filtering (lista piatta con filtri), privilegiando velocità operativa su un singolo segmento rispetto alla vista strutturata d'insieme. Change management: il team che oggi lavora su Airtable (Sabrina, Ivana) va informato del cambio di paradigma prima del rollout, perché il nuovo pattern richiede un workflow leggermente diverso ("seleziono il segmento e ci lavoro" invece di "vedo tutto e salto tra gruppi"). Possibile pushback se non comunicato.
+Provincia = residenza del lavoratore, non provincia target di eventuali ricerche (Gate 1 è verifica di idoneità anagrafica, disaccoppiato dal matching su ricerche).
+Valori dei dropdown:
+Provincia: popolato dinamicamente dai valori distinti presenti nei lavoratori attualmente in Gate 1 (non lista hardcoded — altrimenti va mantenuta).
+Followup: valori fissi enum del campo followup_chiamata_idoneita, tutti sempre presenti nel dropdown anche se non matchano record (inclusa opzione per "nessun followup fatto" / "—").
+Filtri indipendenti: il secondo dropdown mostra sempre tutti i valori possibili, non solo quelli compatibili con la selezione del primo dropdown. Scelta UX per semplicità cognitiva. Conseguenza: è possibile selezionare combinazioni che restituiscono zero risultati — in quel caso mostrare empty state chiaro tipo "Nessun lavoratore corrisponde ai filtri selezionati".
+Persistenza: valutare se lo stato dei filtri deve persistere tra ricariche di pagina (sessionStorage o URL query param) o resettarsi ogni volta. Default consigliato: persistenza in sessione (sessionStorage) così il recruiter che torna alla pagina dopo aver aperto un detail lavoratore non perde il contesto. Se viene usato URL query param è anche condivisibile via link — bonus nice-to-have.
+Estendibilità: se emergono altri criteri di filtro per Gate 1 (es. stato_lavoratore, data di ultima chiamata, ecc.), il pattern filter picker scala naturalmente aggiungendo dropdown. Se superano i 3-4 filtri va valutata una filter area collassabile.
+Coerenza con altri filtri del sistema: questo è un filter picker semplice (dropdown singolo per campo), diverso dal query builder delle Anagrafiche e dai filtri rapidi della kanban. Va tracciato negli issue globali finali dove stiamo pianificando il "componente filtri rapidi per kanban" — valutare se unificare i pattern o mantenerli distinti.
+
+
+[GT1-003] Rimuovere l'icona matita dagli header delle sezioni in Gate 1
+Tag: UX Severity: low Page/Component: Lavoratori → Gate 1 — detail lavoratore, header di ogni sezione (Follow-up, Presentazione lavoratore, Indirizzo, ecc.) Effort: S
+Sintomo / Cosa succede ora Ogni sezione della pagina Gate 1 ha un'icona matita nell'header (in alto a destra) che suggerisce l'ingresso in una modalità di edit. L'icona è ridondante: tutti i campi della pagina sono già editabili inline senza bisogno di attivare una modalità dedicata.
+Atteso / Cosa dovrebbe succedere Rimuovere l'icona matita dagli header di tutte le sezioni della pagina Gate 1.
+Note Direzione di investigazione suggerita: verificare se il componente "section header" è condiviso con altre pagine (Cerca Lavoratori, Gate 2, altre). Se condiviso, la rimozione va fatta con approccio consapevole:
+Se in nessuna delle altre pagine l'icona matita ha senso (ipotesi: vero, dato che l'editabilità inline è il pattern del BazeOffice), rimuovere la matita dal componente base.
+Se in qualche pagina la matita serve (es. campi non-editabili inline che richiedono modale), condizionare la visibilità via prop (showEditIcon={false} di default, true dove serve).
+
+[GT1-004] Badge stato nelle card mostra "Non idoneo" invece dello stato reale del lavoratore
+Tag: BUG Severity: high Page/Component: Lavoratori → Gate 1 — card lavoratore nella lista Effort: S
+Sintomo / Cosa succede ora Tutte le card nella lista Gate 1 mostrano il badge "Non idoneo" in alto a destra, indipendentemente dallo stato reale del lavoratore. La pagina Gate 1 filtra correttamente solo i lavoratori in stato "Qualificato" (verificato aprendo i detail — il campo stato_lavoratore nel detail è effettivamente "Qualificato"), quindi il badge sulla card non corrisponde al valore reale del record.
+Atteso / Cosa dovrebbe succedere Il badge nella card deve mostrare lo stato reale del lavoratore leggendolo dal record. Nella pagina Gate 1, dato che il filtro limita la lista ai soli lavoratori "Qualificato", il badge dovrebbe riportare "Qualificato" per tutte le card.
+Come riprodurre
+Andare su Lavoratori → Gate 1
+Osservare che tutte le card mostrano badge "Non idoneo"
+Cliccare su una qualsiasi card e verificare che il detail riporta stato_lavoratore = "Qualificato"
+Constatare la discrepanza tra badge (Non idoneo) e stato reale (Qualificato)
+Note Direzione di investigazione suggerita: probabile hardcoding del valore "Non idoneo" nel componente card usato in Gate 1, oppure binding errato a un campo sbagliato (es. un flag diverso da stato_lavoratore, o un default di fallback mai sovrascritto). Il SWE deve verificare:
+Quale campo del record viene letto per popolare il badge.
+Se il componente card è condiviso con altre pagine (Cerca Lavoratori, Gate 2) e lì il badge funziona correttamente — in quel caso il binding è ok e il problema è specifico a come Gate 1 passa i dati al componente. Se anche altrove il badge è errato, il bug è nel componente stesso.
+
+[GT1-005] Rimuovere il campo "Rating" (Baze score) deprecato dalla sezione Assessment finale
+Tag: REFACTOR Severity: low Page/Component: Lavoratori → Gate 1 — detail lavoratore, sezione "Assessment finale" Effort: S
+Sintomo / Cosa succede ora Nella sezione "Assessment finale" del detail lavoratore in Gate 1 è presente un componente "Rating" con 5 stelle. Il campo è deprecato e non viene più utilizzato nel workflow Baze.
+Atteso / Cosa dovrebbe succedere Rimuovere il componente Rating dall'UI della sezione Assessment finale.
+Note Scope limitato all'UI: questo issue copre la rimozione del componente dall'interfaccia. Il campo sottostante in Supabase (se esiste) può essere mantenuto per retrocompatibilità storica (dati passati) o eliminato via migrazione dedicata — scelta da fare col SWE. Default consigliato: lasciare il campo in DB, rimuovere solo dall'UI. Se il campo non viene più scritto da nessuna parte, diventa dato orfano ma non pericoloso.
+Verifica dati storici: prima di rimuovere anche il campo dal DB (se si decide di farlo), verificare se ci sono lavoratori con rating storici valorizzati. Se sì, decidere se preservarli (export, archivio) o accettare la perdita.
+Coerenza cross-pagina: verificare se il rating compare anche in altre pagine (Cerca Lavoratori detail, Gate 2, altre). Se sì, rimuoverlo ovunque — il refactor deve essere completo per evitare che resti un orfano in altre viste.
+
+[GT1-006] Mantenere il record Gate 1 nel detail panel per 10 secondi dopo cambio stato_lavoratore
+Tag: BUG + UX Severity: medium Page/Component: Lavoratori → Gate 1 — lista lavoratori + detail panel, dopo cambio stato_lavoratore nell'Assessment finale Effort: S
+Sintomo / Cosa succede ora Quando il recruiter, nella sezione Assessment finale, cambia lo stato_lavoratore da "Qualificato" a un valore che lo fa uscire dal filtro della pagina (es. "Non idoneo", "Non qualificato"), il record sparisce immediatamente sia dalla lista sia dal detail panel (che passa automaticamente al lavoratore successivo in lista). Questo impedisce al recruiter di completare le azioni post-cambio, in particolare impostare la motivazione di non idoneità (dropdown condizionale che appare solo dopo il cambio a "Non idoneo").
+Atteso / Cosa dovrebbe succedere Dopo il cambio di stato_lavoratore a un valore che farebbe uscire il record dalla lista filtrata di Gate 1:
+Il record rimane visibile nel detail panel per almeno 10 secondi, permettendo al recruiter di impostare la motivazione di non idoneità (o altri campi condizionali) e di tornare indietro se ha cambiato stato per sbaglio.
+Trascorsi i 10 secondi senza interazione ulteriore, il panel avanza al lavoratore successivo in lista.
+Il record viene rimosso dalla lista di sinistra immediatamente (per coerenza del filtro), ma il detail panel mantiene il record corrente.
+Note Attenzione al timer e all'interazione utente: il timer di 10 secondi non deve essere "fisso dal momento del cambio stato" — se il recruiter sta interagendo col panel (dropdown aperto, focus su textarea motivazione, click su un campo) al decimo secondo il panel cambierebbe comunque, rompendo l'interazione. Implementazione consigliata:
+Il timer parte al cambio stato.
+Il timer viene annullato/resettato se il recruiter interagisce col panel (focus su campo, click, dropdown aperto).
+Il timer riparte solo quando il panel è idle (nessuna interazione in corso).
+Questa accortezza previene il caso in cui il recruiter sta completando un'azione e il record sparisce sotto il cursore.
+Direzione di investigazione suggerita: il comportamento attuale è probabilmente una conseguenza di binding reattivo tra lista filtrata e detail panel — appena il record esce dal filtro, il detail panel reagisce al cambio della lista e avanza al successivo. Il fix richiede disaccoppiare il detail panel dalla lista al momento del cambio stato: il panel mantiene un reference esplicito al record corrente (non derivato dalla lista) finché il timer/interazione non libera lo slot.
+Alternativa più robusta (considerata e scartata da Nicolò): tenere il record nel detail finché il recruiter non clicca su un altro lavoratore o chiude esplicitamente il panel. Approccio più semplice e senza timer, ma Nicolò ha preferito il delay di 10s per avere un comportamento predicibile e auto-cleanup. Se in produzione emerge che 10s non sono sufficienti (caso B ricorrente), valutare switch all'alternativa.
+Coerenza cross-gate: se lo stesso pattern "cambio stato → sparisce dalla lista" esiste in Gate 2 con filtro simile, il fix va replicato lì. Da tracciare quando arriveremo a Gate 2.
+
+[GT1-007] Semplificare la card lavoratore nella lista Gate 1
+Tag: UX Severity: medium Page/Component: Lavoratori → Gate 1 — card lavoratore nella lista Effort: S
+Sintomo / Cosa succede ora La card lavoratore nella lista Gate 1 mostra molti campi non pienamente utili al workflow di questa fase: badge stato, età, chip dei servizi (Tata, Colf, Badante, ecc.), chip del tipo di rapporto (Lavoro ad ore, Non convivente Full-time, ecc.), telefono, anni di esperienza con pallini. In Gate 1 tutti i lavoratori vanno chiamati per verifica idoneità — questi campi non guidano la priorizzazione né il lavoro del recruiter e appesantiscono visivamente la lista.
+Mancano invece due informazioni operativamente rilevanti per il recruiter in fase di Verifica Idoneità: provincia del lavoratore e tentativo di followup già effettuato.
+Atteso / Cosa dovrebbe succedere Semplificare la card lavoratore mostrando esclusivamente:
+Foto
+Nome + cognome
+Provincia (di residenza del lavoratore)
+Data + ora di creazione del record lavoratore
+Tentativo di followup corrente (valore del campo followup_chiamata_idoneita, es. "1° chiamata senza risposta", "2° chiamata senza risposta", ecc. — oppure stato vuoto se nessun followup ancora fatto)
+Rimuovere tutti gli altri campi attualmente visualizzati: età, chip servizi, chip tipo rapporto, telefono, anni di esperienza, location generica.
+Note Contesto: in Gate 1 tutti i lavoratori vengono chiamati indipendentemente dal profilo. I dati sulle competenze, esperienza e tipologia di rapporto sono pertinenti in fasi successive (Gate 2, matchmaking), non in questa fase operativa di "fai le chiamate". La semplificazione allinea la card al workflow Airtable attuale (reference fornita da Nicolò) con l'aggiunta di due campi che diventano rilevanti solo in Gate 1: data di creazione (capire da quanto il lavoratore è in pipeline e quindi urgenza) + tentativo di followup (capire se è già stato chiamato e quante volte).
+Direzione di investigazione suggerita: verificare se il componente card è condiviso con altre pagine (Cerca Lavoratori). Se sì, la semplificazione va fatta via variant/prop (variant="gate1" o simile) per non impattare le altre pagine che mostrano più campi. Se il componente è duplicato per pagina, semplice refactoring inline.
+
+[GT1-008] Formalizzare i filtri base non modificabili della lista Gate 1
+Tag: MISSING Severity: high Page/Component: Lavoratori → Gate 1 — lista lavoratori (query backend + rendering) Effort: M
+Sintomo / Cosa succede ora La lista Gate 1 applica un solo filtro base implicito (stato_lavoratore = Qualificato) ma mancano altri due filtri operativamente critici. Il risultato è che nella lista possono comparire lavoratori che non dovrebbero essere lavorati in Gate 1 perché:
+Sono "Non disponibili" senza data di ritorno imminente (inutili da chiamare ora).
+Sono già impegnati in una fase avanzata di selezione con un altro cliente (già "occupati", non ha senso perseguirli qui).
+Atteso / Cosa dovrebbe succedere La lista Gate 1 deve rispettare tutti e tre i seguenti filtri base in AND, lato query backend:
+Disponibilità rolling: disponibile = "Disponibile" OR (disponibile = "Non disponibile" AND ritorno_disponibilita ≤ oggi + 2 giorni). La condizione è relativa alla data corrente — il set di lavoratori visibili cambia naturalmente col passare dei giorni (un lavoratore con ritorno oggi+2 oggi entra in lista, tra 3 giorni esce se non ancora tornato disponibile).
+Stato anagrafico: stato_lavoratore = "Qualificato" (già implementato, va mantenuto e formalizzato come filtro base insieme agli altri).
+Non impegnato altrove: stati_processi_res_in_selezione (array) non contiene nessuno dei seguenti stati: Selezionato, Inviato al cliente, Colloquio schedulato, Colloquio rimandato, Colloquio fatto, Prova schedulata, Prova rimandata. Razionale: se il lavoratore è in una fase avanzata di selezione con un altro cliente, in Gate 1 non deve comparire perché di fatto è "occupato".
+Questi tre filtri sono invisibili all'operatore e non modificabili. Si applicano automaticamente sulla query di caricamento della pagina Gate 1.
+I filtri utente di GT1-001 (Provincia + Followup) si applicano on top di questi filtri base, restringendo ulteriormente il set.
+Note Invisibilità vs trasparenza: scelta confermata da Nicolò. Conseguenza UX: se un lavoratore "sparisce" dalla lista senza che l'operatore abbia cambiato nulla (es. la sua ritorno_disponibilita è diventata > oggi+2), l'operatore non ha visibilità immediata del motivo. Questa è una scelta accettata — se in futuro emerge bisogno di debuggability, valutare un piccolo indicatore con tooltip tipo "Questa lista mostra solo lavoratori chiamabili" accanto al counter, senza esporre la logica completa.
+Dipendenza backend critica su filtro 3: stati_processi_res_in_selezione è il campo Airtable già discusso in RIC-007 come "da replicare lato Supabase" (rollup/lookup che incrocia lavoratori_selezionati + processi_res + stato lavoratore). Se la replica non è ancora iniziata, è pre-requisito bloccante per questo issue. Per i dettagli della formula il SWE chieda a Nicolò.
+Nota: il filtro 3 usa stati_processi_res_in_selezione in senso più ampio (tutti gli stati di selezione del lavoratore), non solo il filtro "attivo/non attivo" come in RIC-007/LAV-002. Serve verificare con Nicolò se il campo replicato espone tutti gli stati o solo quelli filtrati come "attivi" — in caso del secondo, serve esporre anche gli stati raw oltre al flag "attiva/non attiva".
+Rolling date — nota implementativa: per il filtro 1, la soglia "oggi + 2 giorni" va calcolata a runtime della query, non cached. Se viene cached o calcolata lato client in modo aggressivo, rischia di non aggiornarsi al cambio giorno. Query parametrica con CURRENT_DATE + INTERVAL '2 days' o equivalente lato Supabase/Edge Function.
+Performance: con 21192 lavoratori totali in anagrafica (vedi screenshot Cerca Lavoratori) e 50 Qualificati in Gate 1, l'impatto performance dei tre filtri AND è trascurabile. Indice su stato_lavoratore + disponibile se non già presente; il filtro su array stati_processi_res_in_selezione richiede attenzione su come è implementato il campo (array nativo Postgres = indice GIN consigliato, rollup materializzato = già indicizzato).
+Coerenza cross-gate: probabile che Gate 2 richieda filtri base simili (con varianti sugli stati ammissibili). Da valutare quando arriveremo a Gate 2 — non obbligatorio che siano identici.
+Test di regressione suggerito: prima di rilasciare, verificare manualmente un campione di lavoratori che dovrebbero essere filtrati (es. uno Qualificato + Disponibile + Selezionato su un'altra ricerca → deve scomparire dalla lista Gate 1) per confermare che la logica AND funzioni correttamente.
+
+
+Pagina Gate 2
+
+[GT2-001] Espandere il filtro base di Gate 2 per includere anche i lavoratori "Qualificato"
+Tag: MISSING Severity: high Page/Component: Lavoratori → Gate 2 — lista lavoratori (query backend) Effort: S
+Sintomo / Cosa succede ora La lista Gate 2 filtra solo i lavoratori con stato_lavoratore = "Idoneo". Questo riflette il flusso standard (Qualificato → Gate 1 → Idoneo → Gate 2 → Certificato), ma esclude un caso d'uso operativo reale: i lavoratori "Qualificato" che si presentano direttamente in ufficio senza passare per un Gate 1 telefonico — tipicamente durante i recruiting day massivi. Oggi questi lavoratori non possono essere lavorati in Gate 2 dall'interfaccia, forzando workaround operativi.
+Atteso / Cosa dovrebbe succedere Espandere il filtro base di Gate 2 per includere sia Idoneo sia Qualificato:
+stato_lavoratore ∈ { "Idoneo", "Qualificato" }
+Un lavoratore "Qualificato" lavorato in Gate 2 passa direttamente a "Certificato" al completamento della certificazione, saltando lo stato intermedio "Idoneo". Non è richiesta logica aggiuntiva per impostare "Idoneo" automaticamente.
+Note Razionale operativo: durante i recruiting day, avere più persone in ufficio contemporaneamente significa che il Gate 1 (chiamata di verifica idoneità) può essere fatto de-facto di persona, rendendo inutile farli passare dalla pipeline telefonica. Il flusso fast-track è un'eccezione documentata ma ricorrente.
+Transizione di stato diretta Qualificato → Certificato: confermato da Nicolò che questa transizione è ammessa nel modello degli stati e non richiede passaggio intermedio per "Idoneo". Il SWE deve verificare che la mutation che imposta stato_lavoratore = "Certificato" al termine di Gate 2 funzioni correttamente partendo da entrambi gli stati di ingresso (Idoneo e Qualificato) — nessuna validazione di transizione deve bloccare Qualificato → Certificato.
+Edge case UI per lavoratori "Qualificato" in Gate 2: un lavoratore che arriva a Gate 2 direttamente da "Qualificato" probabilmente ha campi Gate-1-specifici non popolati (follow-up chiamata idoneità, note di screening, ecc.). Verificare che il detail di Gate 2 non abbia dipendenze hard su questi campi (es. validazioni che bloccano il passaggio a Certificato se i campi Gate 1 sono vuoti). Se emergono problemi, tracciarli come issue separati. In prima implementazione assumere che l'UI di Gate 2 gestisca naturalmente i campi vuoti.
+
+[GT2-002] Rimuovere il campo "Rating" deprecato dalla sezione Assessment finale
+Tag: REFACTOR Severity: low Page/Component: Lavoratori → Gate 2 — detail lavoratore, sezione "Assessment finale" Effort: S
+Sintomo / Cosa succede ora Nella sezione "Assessment finale" del detail lavoratore in Gate 2 è presente un componente "Rating" con 5 stelle. Il campo è deprecato e non viene più utilizzato nel workflow Baze.
+Atteso / Cosa dovrebbe succedere Rimuovere il componente Rating dall'UI della sezione Assessment finale di Gate 2.
+Note Stesso issue di GT1-005: il campo Rating è deprecato in entrambi i Gate. Se il componente Assessment finale è condiviso tra Gate 1 e Gate 2, la rimozione va fatta una sola volta sul componente base e si propaga automaticamente. Se è duplicato, va rimosso in entrambe le istanze.
+Scope limitato all'UI: come in GT1-005, rimozione dall'interfaccia è sufficiente. Il campo sottostante in Supabase può essere mantenuto per retrocompatibilità storica. Se si decide di eliminarlo dal DB, farlo con una migrazione dedicata coordinata tra GT1-005 e GT2-002.
+Coerenza cross-pagina: verificare se il Rating compare anche in Cerca Lavoratori o altre viste. Se sì, rimuoverlo ovunque — il refactor deve essere completo.
+
+[GT2-003] Mantenere il record Gate 2 nel detail panel per 10 secondi dopo cambio stato_lavoratore
+Tag: BUG + UX Severity: medium Page/Component: Lavoratori → Gate 2 — lista lavoratori + detail panel, dopo cambio stato_lavoratore nell'Assessment finale Effort: S
+Sintomo / Cosa succede ora Quando il recruiter, nella sezione Assessment finale, cambia lo stato_lavoratore a un valore che fa uscire il record dal filtro base di Gate 2 (stato_lavoratore ∉ {Idoneo, Qualificato} — es. "Non idoneo", "Non qualificato", "Certificato"), il record sparisce immediatamente sia dalla lista sia dal detail panel, che passa al lavoratore successivo. Questo impedisce al recruiter di completare le azioni post-cambio — in particolare impostare la motivazione di non idoneità quando lo stato diventa "Non idoneo".
+Atteso / Cosa dovrebbe succedere Dopo il cambio di stato_lavoratore a un valore che farebbe uscire il record dal filtro base:
+Il record rimane visibile nel detail panel per almeno 10 secondi, permettendo al recruiter di completare campi condizionali (motivazione, note, ecc.) o di tornare indietro se ha cambiato stato per sbaglio.
+Trascorsi i 10 secondi senza interazione ulteriore, il panel avanza al lavoratore successivo in lista.
+Il record viene rimosso dalla lista di sinistra immediatamente (per coerenza del filtro), ma il detail panel mantiene il record corrente.
+Note Stesso meccanismo di GT1-006: implementazione identica a Gate 1. Se il componente è condiviso, fix unico per entrambi i Gate.
+Attenzione al timer e all'interazione utente (come in GT1-006): il timer non deve essere fisso dal momento del cambio stato. Implementazione consigliata:
+Timer parte al cambio stato.
+Timer viene annullato/resettato se il recruiter interagisce col panel (focus su campo, click, dropdown aperto).
+Timer riparte solo quando il panel è idle.
+Questa accortezza previene il caso in cui il recruiter sta completando un'azione e il record sparisce sotto il cursore.
+Scope stati coperti dal delay: il delay si applica a qualsiasi cambio di stato che fa uscire dal filtro base, inclusi:
+"Non idoneo" / "Non qualificato" (fallimento — serve impostare motivazione).
+"Certificato" (successo — potrebbe esserci voglia di verificare un ultimo campo o rollback se scattato per errore).
+Se il delay per "Certificato" risulta fastidioso in pratica (es. rallenta il workflow di certificazione), valutare di limitarlo ai soli stati di fallimento in iterazione successiva.
+Direzione di investigazione suggerita: se il componente lista + detail panel è condiviso tra Gate 1 e Gate 2, il fix di GT1-006 risolve automaticamente anche GT2-003. In quel caso questo ticket va trattato come "verifica che il fix di GT1-006 copra anche Gate 2".
+
+[GT2-004] Rendere editabile la collezione di foto del lavoratore in Gate 2
+Tag: MISSING Severity: high Page/Component: Lavoratori → Gate 2 — detail lavoratore, sezione "Presentazione lavoratore" Effort: M
+Sintomo / Cosa succede ora Nella sezione "Presentazione lavoratore" del detail Gate 2 la foto del lavoratore è visualizzata come slider navigabile (frecce avanti/indietro) ma non è editabile: il recruiter non può aggiungere, riordinare o eliminare foto. Questo è un blocker operativo per Gate 2: durante la certificazione in ufficio vengono prodotte le foto ufficiali del profilo lavoratore (inclusa la versione originale e quella rivista con AI generata dal processo esistente), e queste devono essere caricate sul record. Oggi questa operazione non può essere fatta dall'interfaccia.
+Atteso / Cosa dovrebbe succedere La collezione di foto del lavoratore deve essere editabile con queste capacità:
+Aggiungere una nuova foto alla collezione esistente (upload+append, non sostituzione di default).
+Riordinare le foto nella collezione (drag-and-drop o tramite azioni "sposta su/giù").
+Eliminare una foto dalla collezione.
+La foto principale (quella visualizzata come avatar del lavoratore in tutte le altre viste del sistema — card lista Gate 2, card Cerca Lavoratori, header detail, ecc.) è sempre la prima in ordine di caricamento/collezione. Non è prevista selezione esplicita "imposta come principale" — l'ordine della collezione determina implicitamente la foto principale. Conseguenza: per cambiare la foto principale, il recruiter riordina la collezione spostando in prima posizione la foto desiderata.
+Vincoli su formato, dimensioni massime e numero di foto: default sensati lato implementazione (JPG/PNG/HEIC, limite dimensioni ragionevole tipo 10MB/foto, nessun limite stretto sul numero di foto).
+Note Scope: questo issue riguarda Gate 2, dove nascono operativamente le foto (sessione di certificazione in ufficio). In Cerca Lavoratori l'editabilità dovrebbe essere già presente secondo Nicolò — il SWE verifica: se è già funzionante in Cerca Lavoratori il lavoro qui è riuso del componente esistente (effort ridotto); se non lo è, questo issue copre l'implementazione base, e va flaggato di replicare anche in Cerca Lavoratori. In Gate 1 l'editabilità foto non serve.
+Foto rivista con AI: Nicolò ha menzionato una "foto rivista con AI" che viene prodotta dal processo esistente. Questo issue copre solo l'upload manuale della foto (una volta prodotta, va caricata qui). Se in futuro si vuole triggerare la generazione AI direttamente dal backoffice (pattern tipo RIC-015 / LAV-006), va aperto issue separato.
+Direzione di investigazione suggerita: verificare se esiste già un campo/tabella attachments per le foto del lavoratore su Supabase. Se esiste (probabile, dato che le foto sono già visualizzate), l'implementazione è solo UI + mutation. Se non esiste o gestisce una sola foto, serve estendere lo schema a una collezione ordinata.
+Gestione ordine in DB: l'ordine della collezione deve essere persistente. Il SWE scegliere un campo ordine (integer) su ciascun record foto, oppure gestire l'ordine tramite timestamp di creazione (che però non supporta riordinamento manuale — quindi va implementato un campo esplicito).
+UX di riordino: drag-and-drop è lo standard moderno. In alternativa, frecce su/giù/sposta-in-alto su ciascuna foto (meno elegante ma più prevedibile). Scelta implementativa.
+Impatto cross-pagina: ogni modifica alla collezione deve propagarsi a tutte le viste che leggono la foto principale (lista lavoratori, card in kanban ricerche, detail in altre pagine, ecc.). Dato che leggono dal DB, è automatico — ma va verificato che non ci siano cache stantie in stato frontend o query cacheate in modo aggressivo.
+Conferma prima di eliminare (nice-to-have): come per LAV-009 (elimina esperienza), valutare dialog di conferma prima dell'eliminazione di una foto. Non blocker, ma il rischio di perdere una foto caricata per errore di click è reale.
+
+[GT2-005] Aggiungere record picker "Referente Gate 2" editabile + mostrare referente Gate 1 read-only nella stessa sezione
+Tag: UX + MISSING Severity: high Page/Component: Lavoratori → Gate 2 — detail lavoratore, sezione iniziale "Referente" Effort: M
+Sintomo / Cosa succede ora Nel detail lavoratore di Gate 2 il referente Gate 2 non è selezionabile come primo step esplicito del flusso — manca l'equivalente di quanto previsto per Gate 1 in GT1-002. Inoltre non è visibile a contesto chi ha gestito il Gate 1 di quel lavoratore, informazione utile al referente Gate 2 per sapere a chi rivolgersi in caso di dubbi sulla qualificazione precedente.
+Atteso / Cosa dovrebbe succedere Aggiungere come primo step del flusso Gate 2 una sezione "Referente" con due campi affiancati:
+Referente Gate 2 — record picker editabile, con selezione tra i recruiter attivi. Di default vuoto; quando un recruiter apre il record, può auto-assegnarsi. Stesso componente già in uso nella pagina Assegnazione e in GT1-002.
+Referente Gate 1 — campo read-only, mostra il valore del referente Gate 1 assegnato precedentemente. Non editabile da questa pagina. Se vuoto (caso lavoratore arrivato direttamente a Gate 2 come "Qualificato" fast-track, vedi GT2-001), mostrare stato vuoto chiaro (es. placeholder "—" o "Nessun referente Gate 1").
+Note Riuso componente: il record picker dei recruiter attivi è già implementato (pagina Assegnazione, GT1-002) — il SWE deve riusarlo, non reimplementarlo.
+Header sticky pulito: coerentemente con la scelta fatta in GT1-002 (rimozione degli avatar referenti dall'header), anche in Gate 2 l'header sticky non deve mostrare pallini-avatar dei referenti. L'informazione "referente" vive tutta nella sezione dedicata, in un posto solo. Se l'header Gate 2 oggi mostra gli avatar referenti (come faceva Gate 1 prima di GT1-002), vanno nascosti via prop condizionale — stesso approccio di GT1-002.
+Edge case lavoratore fast-track (GT2-001): un lavoratore che arriva a Gate 2 direttamente come "Qualificato" senza passare da Gate 1 non ha un referente Gate 1 assegnato. Il campo read-only deve gestire gracefully questo caso mostrando stato vuoto (no errore, no placeholder confuso). Non forzare l'assegnazione di un referente Gate 1 fittizio — il campo resta legittimamente vuoto.
+Coerenza del componente "referente read-only": se in futuro emerge la necessità di mostrare anche altri referenti read-only in altre pagine (es. in Gate 1 mostrare referente di una fase ancora precedente), estrarre come variante del record picker ("mode=read-only"). Per ora basta implementarlo inline.
+Direzione di investigazione suggerita: i campi referente_gate_1 e referente_gate_2 sul record lavoratore sono già presenti (erano i due pallini che abbiamo nascosto in GT1-002). L'implementazione qui è leggere entrambi e renderizzare due slot differenti, uno editabile uno read-only.
+
+[GT2-006] Uniformare tutte le sezioni Gate 2 a editing diretto inline senza icona matita
+Tag: UX + REFACTOR Severity: low Page/Component: Lavoratori → Gate 2 — detail lavoratore, header di tutte le sezioni Effort: M
+Sintomo / Cosa succede ora In Gate 2 le sezioni del detail lavoratore hanno comportamento incoerente rispetto all'editabilità:
+Alcune sezioni supportano editing diretto inline sui campi (coerente con il pattern del resto del BazeOffice).
+Altre sezioni richiedono di cliccare un'icona matita nell'header per entrare in modalità edit.
+In più, l'icona matita è visualizzata anche nelle sezioni che sono già in edit diretto — quindi è al tempo stesso ridondante (dove non serve) e potenzialmente confondente (l'utente non sa a priori quali sezioni sono inline-editable senza cliccare la matita per scoprirlo).
+Atteso / Cosa dovrebbe succedere Uniformare tutte le sezioni di Gate 2 al pattern editing diretto inline:
+Tutti i campi editabili diventano editabili direttamente senza entrare in una modalità dedicata.
+L'icona matita viene rimossa dagli header di tutte le sezioni (coerentemente con GT1-003 per Gate 1).
+Note Stesso pattern di GT1-003: la rimozione della matita in Gate 1 era motivata dall'editing inline già universale. Qui la rimozione è coordinata con la conversione delle sezioni via-matita a editing inline. Risultato finale: GT1 e GT2 hanno pattern coerente (inline-editing ovunque, nessuna matita).
+Direzione di investigazione suggerita:
+Identificare le sezioni via-matita: il SWE deve fare un pass su tutte le sezioni di Gate 2 e mappare quali sono già inline e quali passano per la modalità edit via matita. Le seconde sono quelle che richiedono intervento.
+Valutare perché alcune sezioni richiedono la modalità edit: possibili cause: campi complessi (es. con validazione sincrona, upload, dipendenze tra campi) che sono stati sviluppati prima con un pattern modale per semplicità. La conversione a inline potrebbe richiedere rework del componente. Se emergono casi dove inline-editing è tecnicamente oneroso per qualche sezione, segnalarli a Nicolò prima di implementare — valutare caso per caso.
+Componente header sezione condiviso: se esiste come componente unificato (probabile), la rimozione dell'icona matita si fa in un posto solo. Se in Gate 2 il componente è una versione custom, vale la pena rifattorizzare per condividerlo con Gate 1.
+Coerenza cross-pagina: a valle di GT1-003 + GT2-006, il pattern è consolidato su entrambi i Gate. Se in Cerca Lavoratori o altre pagine emerge ancora il pattern matita+modale, va promosso a issue globale G-xxx per uniformare tutto il sistema.
+
+[GT2-007] Aggiungere sezione "Aspetti specifici" in Gate 2 con campi pre-popolati editabili
+Tag: MISSING Severity: high Page/Component: Lavoratori → Gate 2 — detail lavoratore, sezione "Aspetti specifici" Effort: M
+Sintomo / Cosa succede ora In Gate 2 manca la sezione "Aspetti specifici" con le domande di disponibilità operativa (accetta gatti/cani/neonati/più bambini/scale/trasferte, ecc.) che viene compilata in Gate 1. Il recruiter Gate 2 non può verificare col lavoratore di persona se le risposte date telefonicamente in Gate 1 sono corrette, né modificarle in caso di discrepanze emerse durante il colloquio di certificazione.
+Atteso / Cosa dovrebbe succedere Aggiungere in Gate 2 la stessa sezione "Aspetti specifici" già presente in Gate 1, con queste proprietà:
+I campi sono gli stessi campi di DB di Gate 1 (stesso schema, nessun campo duplicato tipo accetta_gatti_gate_2).
+I campi sono pre-popolati con i valori inseriti in Gate 1.
+I campi sono editabili: il recruiter Gate 2 può modificare il valore se, durante il colloquio di certificazione, emerge una discrepanza con quanto dichiarato telefonicamente in Gate 1. La modifica sovrascrive il valore di Gate 1 (stesso campo, ultimo valore vince).
+Domande visibili nella sezione (vedi screenshot reference):
+Accetta lavori di babysitting con neonati?
+Accetta lavori di babysitting con più di un bambino?
+Accetta lavori in cui sono presenti cani in casa?
+Accetta anche se i cani sono grandi? (Pastori tedeschi, Rottweiler, Pitbul…)
+Accetta lavori in cui sono presenti gatti in casa?
+Accetta lavori in cui deve salire sulle scale o pulire soffitti alti?
+Accetta lavori in cui sono richieste delle trasferte?
+Note Preservare visibilità condizionale dei campi: lo screenshot Gate 1 mostra che alcune domande sono visibili condizionalmente ad altri campi/stati del lavoratore:
+Le due domande "babysitting" hanno icona "occhio barrato" (👁️‍🗨️) — probabilmente visibili solo se il lavoratore ha tra le tipologie di lavoro "Babysitter" / "Tata".
+In Gate 2 queste stesse regole di visibilità vanno preservate. Se il componente della sezione è condiviso tra Gate 1 e Gate 2, la logica si propaga automaticamente.
+Nessuna duplicazione di campi: decisione confermata da Nicolò — i campi sono gli stessi in DB, non si crea storico della discrepanza. Se in futuro emerge bisogno di audit (es. "il recruiter Gate 1 ha sistematicamente compilato male"), valutare se introdurre versioning/history sui campi — fuori scope qui.
+Trattamento valori vuoti: se un lavoratore arriva a Gate 2 direttamente come "Qualificato" fast-track (vedi GT2-001) senza essere passato da Gate 1, i campi di "Aspetti specifici" probabilmente sono vuoti. In quel caso la sezione in Gate 2 fa da prima compilazione (non da verifica). L'UI deve gestire naturalmente entrambi i casi: pre-popolato (verifica) e vuoto (prima compilazione).
+
+[GT2-008] Aggiungere campo "Referenze verificabili" come primo campo della sezione Tipologia lavori
+Tag: MISSING Severity: medium Page/Component: Lavoratori → Gate 2 — detail lavoratore, sezione "Tipologia lavori" Effort: S
+Sintomo / Cosa succede ora Nella sezione "Tipologia lavori" di Gate 2 manca il campo Referenze verificabili. Il recruiter non può registrare se il lavoratore ha o non ha referenze verificabili da contattare — informazione che viene raccolta normalmente in altre interfacce ma non è esposta qui.
+Atteso / Cosa dovrebbe succedere Aggiungere il campo "Referenze verificabili" come primo campo della sezione "Tipologia lavori", sopra "Che lavori attivi sta svolgendo al momento?".
+Il campo accetta due valori:
+Ho referenze
+Non ho referenze
+Note Componente condiviso: il campo esiste già sul record lavoratore ed è mostrato in altre interfacce del sistema — l'implementazione qui è istanziazione del componente esistente nel posto giusto, non sviluppo da zero.
+Direzione di investigazione suggerita: verificare il field name esatto sul record lavoratore per binding corretto, e verificare lo stile del componente già usato altrove (radio button? select? chip?) per mantenere coerenza visiva.
+
+[GT2-009] Aggiungere campo IBAN in fondo al detail lavoratore di Gate 2
+Tag: MISSING Severity: medium Page/Component: Lavoratori → Gate 2 — detail lavoratore, sezione "Dati amministrativi" (da aggiungere in fondo alla pagina) Effort: S
+Sintomo / Cosa succede ora Nel detail lavoratore di Gate 2 non è presente il campo IBAN, nonostante il dato esista già sul record lavoratore in Supabase (usato in altri contesti, es. payroll). Il recruiter che certifica il lavoratore non può consultare né editare l'IBAN da questa interfaccia.
+Atteso / Cosa dovrebbe succedere Aggiungere il campo IBAN come campo di testo editabile in una nuova sezione "Dati amministrativi" posizionata in fondo al detail Gate 2.
+Note Stesso issue di LAV-012: il campo esiste già sul record lavoratore, va solo esposto nell'UI. Nessuna modifica allo schema.
+Sezione contenitore: diversamente da LAV (dove "Dati amministrativi" vive dentro la tab "Documenti e dati amministrativi"), in Gate 2 la struttura è a sezioni in sequenza e la sezione "Dati amministrativi" va aggiunta come nuova sezione in fondo. Stessa sezione contiene anche IBAN (questo issue), ID account Stripe (GT2-010) e bottone "Genera account Stripe" (GT2-011).
+Validazione formato IBAN (nice-to-have): valutare validazione lato frontend (lunghezza, prefisso paese, checksum). Se già implementata in LAV-012, riusare la stessa logica.
+Direzione di investigazione suggerita: verificare nome esatto del campo sul record lavoratore e allinearsi al pattern degli altri campi inline editable per coerenza visiva.
+
+[GT2-010] Aggiungere campo ID account Stripe in fondo al detail lavoratore di Gate 2
+Tag: MISSING Severity: medium Page/Component: Lavoratori → Gate 2 — detail lavoratore, sezione "Dati amministrativi" Effort: S
+Sintomo / Cosa succede ora Nel detail lavoratore di Gate 2 non è presente il campo ID account Stripe. Questo ID è necessario per il flusso di pagamento degli stipendi via Stripe (payroll digitale Baze), ma non è consultabile né editabile da questa interfaccia.
+Atteso / Cosa dovrebbe succedere Aggiungere il campo ID account Stripe nella sezione "Dati amministrativi" in fondo al detail Gate 2, accanto al campo IBAN (GT2-009). Il campo deve essere visualizzabile (ed editabile se il dato è modificabile a mano — da confermare con il SWE).
+Note Stesso issue di LAV-013: pattern identico. Riuso componente/binding se LAV-013 è già implementato.
+Dipendenza con GT2-011: quando IBAN è popolato ma ID Stripe è vuoto, va mostrato il bottone "Genera account Stripe" (GT2-011) nella stessa sezione.
+Da chiarire col SWE:
+Il campo ID Stripe esiste già sul record lavoratore in Supabase? (ipotesi: sì, il payroll è già operativo — ma va confermato, come in LAV-013).
+ID read-only in UI (generato solo dal flusso di creazione) o editabile a mano? Suggerimento: read-only, correzioni manuali lato admin. Coerente con LAV-013.
+
+[GT2-011] Mostrare bottone "Genera account Stripe" quando IBAN è valorizzato e ID Stripe è vuoto
+Tag: MISSING Severity: medium Page/Component: Lavoratori → Gate 2 — detail lavoratore, sezione "Dati amministrativi" Effort: M
+Sintomo / Cosa succede ora Quando il lavoratore ha IBAN valorizzato ma non ha ancora un ID account Stripe associato, non c'è modo dall'interfaccia Gate 2 di triggerare la creazione dell'account Stripe. Il recruiter che certifica il lavoratore deve ricorrere a workaround esterni o rimandare — frizione su un flusso che in Gate 2 ha senso chiudere contestualmente (il lavoratore è lì in ufficio, dati freschi, momento giusto per completare la parte amministrativa).
+Atteso / Cosa dovrebbe succedere Nella sezione "Dati amministrativi" in fondo al detail Gate 2, quando la condizione IBAN ≠ vuoto AND ID account Stripe = vuoto è soddisfatta, mostrare un bottone "Genera account Stripe" (o "Crea account Stripe").
+Al click, il bottone triggera la creazione dell'account Stripe via API, popola il campo ID account Stripe sul record lavoratore al successo, e nasconde il bottone (condizione non più soddisfatta).
+Note Stesso issue di LAV-014: pattern identico. Riuso backend/componente se LAV-014 è già implementato — qui basta istanziare il bottone nella posizione giusta di Gate 2.
+Condizione di visibilità — pattern componente condizionale: stesso pattern di LAV-014 e degli altri condizionali del sistema (LAV-004, LAV-007, RIC-027/028/029). Condizione composita AND su due campi.
+Backend idempotency e KYC: tutti i caveat di LAV-014 si applicano identici:
+Chiamata Stripe via Edge Function dedicata.
+Loading state sul bottone durante la chiamata.
+Gestione errore chiara (IBAN invalido, KYC incompleto, ecc.).
+Controllo idempotente lato backend (se esiste già un account Stripe per il lavoratore, non creare duplicati — controllo preventivo in Supabase prima di chiamare Stripe API).
+Blocco ri-click durante la chiamata.
+Bordo UI/business: come flaggato in LAV-014, questo è il ticket più rischioso del gruppo perché tocca il payroll reale. Se LAV-014 è già implementato con il flusso definito, GT2-011 riusa tutto. Se no, il SWE fa il writeup tecnico per LAV-014 e GT2-011 insieme prima della PR.
+
+
+
+Pagina Rapporti lavorativi
+[RAP-001] Correggere il tag di stato del rapporto che risulta sempre "Sconosciuto"
+Tag: [BUG] Severity: high Page/Component: src/pages/RapportiLavorativi (list card + detail header) Effort: S (<1h)
+Sintomo / Cosa succede ora Nella lista dei rapporti lavorativi, tutte le card visibili in pagina 1 mostrano il tag di stato "Sconosciuto", indipendentemente dai dati del rapporto. Lo stesso tag compare anche nell'header del detail a destra, accanto a "NON attivo".
+Atteso / Cosa dovrebbe succedere Il tag di stato deve riflettere dinamicamente lo stato reale del rapporto. "Sconosciuto" dovrebbe essere un fallback effettivo, non il valore mostrato di default su rapporti che hanno uno stato determinabile.
+Come riprodurre
+Aprire la pagina Rapporti lavorativi.
+Osservare le card in lista: ognuna mostra il badge "Sconosciuto" a destra del nome famiglia.
+Cliccare su un rapporto qualsiasi: nel detail header, sotto al titolo, compare di nuovo il badge "Sconosciuto" vicino a "NON attivo".

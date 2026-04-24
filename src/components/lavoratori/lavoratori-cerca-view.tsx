@@ -4,26 +4,28 @@ import {
   AlertTriangleIcon,
   BriefcaseBusinessIcon,
   CalendarDaysIcon,
+  ExternalLinkIcon,
+  LoaderCircleIcon,
   MapPinIcon,
   MessageSquareTextIcon,
+  PlusIcon,
   SirenIcon,
   SparklesIcon,
   FolderArchiveIcon,
   UploadIcon,
   UsersIcon,
+  XIcon,
 } from "lucide-react";
 
 import {
   type AvailabilityEditBandField,
   type AvailabilityEditDayField,
   formatAvailabilityComputedAt,
-  formatDateOnly,
 } from "@/features/lavoratori/lib/availability-utils";
 import { useLavoratoriData } from "@/hooks/use-lavoratori-data";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import { AddressSectionCard } from "@/components/lavoratori/address-section-card";
 import { AvailabilityCalendarCard } from "@/components/lavoratori/availability-calendar-card";
-import { AvailabilityStatusCard } from "@/components/lavoratori/availability-status-card";
 import { DocumentsCard } from "@/components/lavoratori/documents-card";
 import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
 import { JobSearchCard } from "@/components/lavoratori/job-search-card";
@@ -37,6 +39,7 @@ import {
   asLavoratoreRecord,
   asInputValue,
   asString,
+  formatWorkerAddressLine,
   readArrayStrings,
 } from "@/features/lavoratori/lib/base-utils";
 import {
@@ -53,6 +56,7 @@ import {
   fetchLavoratori,
   fetchProcessiMatching,
   fetchSelezioniLavoratori,
+  createRecord,
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import {
@@ -88,6 +92,15 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 type NonQualificatoTipoLavoroFieldProps = {
   value: string[];
@@ -124,6 +137,19 @@ type WorkerRelatedSearchItem = {
   boardCard: RicercaBoardCardData;
 };
 
+type SearchProcessResult = {
+  processId: string;
+  familyId: string;
+  familyName: string;
+  familyEmail: string;
+  searchLabel: string;
+  statoRicerca: string;
+  tipoLavoro: string;
+  tipoRapporto: string;
+  orarioDiLavoro: string;
+  zona: string;
+};
+
 const RELATED_SELECTIONS_PAGE_SIZE = 500;
 const RELATED_PROCESS_BATCH_SIZE = 150;
 const RELATED_FAMILY_BATCH_SIZE = 150;
@@ -131,16 +157,21 @@ const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
   "selezionato",
   "inviato al cliente",
   "colloquio schedulato",
+  "colloquio rimandato",
   "colloquio fatto",
   "prova schedulata",
+  "prova rimandata",
+  "prova in corso",
   "prova con cliente",
   "match",
 ]);
 const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo";
 const OTHER_SEARCH_GROUP_A_PROCESS_STATUS_TOKENS = new Set([
   "da assegnare",
+  "raccolta candidature",
   "fare ricerca",
   "in preparazione per invio",
+  "in preparazione per l invio",
 ]);
 const OTHER_SEARCH_GROUP_A_SELECTION_STATUS_TOKENS = new Set([
   "prospetto",
@@ -153,7 +184,9 @@ const OTHER_SEARCH_GROUP_A_SELECTION_STATUS_TOKENS = new Set([
   "inviato al cliente",
 ]);
 const OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS = new Set([
+  "inviare selezione",
   "selezione inviata in attesa di feedback",
+  "selezione inviata ma in attesa di feedback",
   "fase di colloqui",
   "in prova con lavoratore",
   "match",
@@ -163,8 +196,11 @@ const OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS = new Set([
   "selezionato",
   "inviato al cliente",
   "colloquio schedulato",
+  "colloquio rimandato",
   "colloquio fatto",
   "prova schedulata",
+  "prova rimandata",
+  "prova in corso",
   "prova con cliente",
   "match",
   "no match",
@@ -226,6 +262,34 @@ function formatRelatedSearchLabel(processRow: Record<string, unknown>) {
 
   const processId = asString(processRow.id);
   return processId ? `Ricerca ${processId.slice(0, 8)}` : "Ricerca";
+}
+
+function formatSearchProcessResult(
+  processRow: Record<string, unknown>,
+  familyRow: Record<string, unknown> | null | undefined,
+): SearchProcessResult | null {
+  const processId = asString(processRow.id);
+  if (!processId) return null;
+
+  const familyId = asString(processRow.famiglia_id) ?? "";
+  const familyEmail =
+    asString(familyRow?.email) ??
+    asString(familyRow?.customer_email) ??
+    asString(familyRow?.secondary_email) ??
+    "-";
+
+  return {
+    processId,
+    familyId,
+    familyName: formatRelatedFamilyName(familyRow),
+    familyEmail,
+    searchLabel: formatRelatedSearchLabel(processRow),
+    statoRicerca: asString(processRow.stato_res) || "-",
+    tipoLavoro: getFirstLookupArrayValue(processRow.tipo_lavoro) ?? "-",
+    tipoRapporto: getFirstLookupArrayValue(processRow.tipo_rapporto) ?? "-",
+    orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
+    zona: formatRelatedZona(processRow),
+  };
 }
 
 function formatRelatedZona(processRow: Record<string, unknown>) {
@@ -359,6 +423,139 @@ async function fetchRelatedFamiliesByIds(familyIds: string[]) {
   return rows;
 }
 
+function buildAnyOfFilter(field: string, values: string[], idPrefix: string) {
+  const normalizedValues = Array.from(new Set(values.filter(Boolean)));
+  if (normalizedValues.length === 0) return undefined;
+
+  return {
+    kind: "group" as const,
+    id: `${idPrefix}-${field}`,
+    logic: "or" as const,
+    nodes: normalizedValues.map((value, index) => ({
+      kind: "condition" as const,
+      id: `${idPrefix}-${field}-${index}`,
+      field,
+      operator: "is" as const,
+      value,
+    })),
+  };
+}
+
+async function searchProcessesForWorkerAdd(query: string) {
+  const normalizedQuery = query.trim();
+  if (normalizedQuery.length < 2) return [];
+
+  const familyRowsResult = await fetchFamiglie({
+    limit: 10,
+    offset: 0,
+    search: normalizedQuery,
+    searchFields: [
+      "email",
+      "customer_email",
+      "secondary_email",
+      "nome",
+      "cognome",
+      "telefono",
+    ],
+    select: [
+      "id",
+      "nome",
+      "cognome",
+      "email",
+      "customer_email",
+      "secondary_email",
+      "telefono",
+    ],
+  });
+
+  const familyRows = Array.isArray(familyRowsResult.rows)
+    ? (familyRowsResult.rows as Record<string, unknown>[])
+    : [];
+  const familyRowsById = new Map<string, Record<string, unknown>>();
+
+  for (const familyRow of familyRows) {
+    const familyId = asString(familyRow.id);
+    if (familyId) familyRowsById.set(familyId, familyRow);
+  }
+
+  const familyIds = familyRows
+    .map((familyRow) => asString(familyRow.id))
+    .filter((value): value is string => Boolean(value));
+
+  const processRowsById = new Map<string, Record<string, unknown>>();
+  const processSelect = [
+    "id",
+    "famiglia_id",
+    "numero_ricerca_attivata",
+    "stato_res",
+    "tipo_lavoro",
+    "tipo_rapporto",
+    "orario_di_lavoro",
+    "indirizzo_prova_comune",
+    "indirizzo_prova_provincia",
+    "indirizzo_prova_cap",
+    "indirizzo_prova_note",
+    "aggiornato_il",
+  ];
+
+  if (familyIds.length > 0) {
+    const familyProcesses = await fetchProcessiMatching({
+      limit: 25,
+      offset: 0,
+      select: processSelect,
+      filters: buildAnyOfFilter(
+        "famiglia_id",
+        familyIds,
+        "worker-add-search-families",
+      ),
+    });
+
+    for (const processRow of familyProcesses.rows as Record<string, unknown>[]) {
+      const processId = asString(processRow.id);
+      if (processId) processRowsById.set(processId, processRow);
+    }
+  }
+
+  const directProcesses = await fetchProcessiMatching({
+    limit: 12,
+    offset: 0,
+    search: normalizedQuery,
+    searchFields: ["id", "stato_res", "orario_di_lavoro"],
+    select: processSelect,
+  });
+
+  for (const processRow of directProcesses.rows as Record<string, unknown>[]) {
+    const processId = asString(processRow.id);
+    if (processId) processRowsById.set(processId, processRow);
+  }
+
+  const missingFamilyIds = Array.from(
+    new Set(
+      Array.from(processRowsById.values())
+        .map((processRow) => asString(processRow.famiglia_id))
+        .filter(
+          (value): value is string =>
+            Boolean(value) && !familyRowsById.has(value),
+        ),
+    ),
+  );
+  const missingFamilyRows = await fetchRelatedFamiliesByIds(missingFamilyIds);
+  for (const familyRow of missingFamilyRows) {
+    const familyId = asString(familyRow.id);
+    if (familyId) familyRowsById.set(familyId, familyRow);
+  }
+
+  return Array.from(processRowsById.values())
+    .map((processRow) =>
+      formatSearchProcessResult(
+        processRow,
+        familyRowsById.get(asString(processRow.famiglia_id) ?? ""),
+      ),
+    )
+    .filter((result): result is SearchProcessResult => Boolean(result))
+    .slice(0, 12);
+}
+
 function NonQualificatoTipoLavoroField({
   value,
   options,
@@ -405,7 +602,13 @@ function NonQualificatoTipoLavoroField({
   );
 }
 
-export function LavoratoriCercaView() {
+type LavoratoriCercaViewProps = {
+  onOpenRicercaDetail?: (processId: string) => void;
+};
+
+export function LavoratoriCercaView({
+  onOpenRicercaDetail,
+}: LavoratoriCercaViewProps = {}) {
   const {
     workers,
     workersTotal,
@@ -413,6 +616,7 @@ export function LavoratoriCercaView() {
     setSelectedWorkerId,
     selectedWorker,
     selectedWorkerRow,
+    selectedWorkerAddress,
     selectedWorkerDocuments,
     loadingSelectedWorkerDocuments,
     selectedWorkerExperiences,
@@ -442,6 +646,7 @@ export function LavoratoriCercaView() {
     pageCount,
     currentPage,
     applyUpdatedWorkerRow,
+    applyUpdatedWorkerAddress,
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
     removeWorkerExperience,
@@ -453,7 +658,6 @@ export function LavoratoriCercaView() {
     () => lookupOptionsByDomain.get("lavoratori.motivazione_non_idoneo") ?? [],
     [lookupOptionsByDomain],
   );
-  const nonIdoneoReasonAnchor = useComboboxAnchor();
   const addressMobilityAnchor = useComboboxAnchor();
   const [feedbackSheetOpen, setFeedbackSheetOpen] = React.useState(false);
   const workerPhotoInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -462,6 +666,22 @@ export function LavoratoriCercaView() {
   const [uploadingWorkerPhoto, setUploadingWorkerPhoto] = React.useState(false);
   const [generatingWorkerSummary, setGeneratingWorkerSummary] =
     React.useState(false);
+  const [isAddSearchDialogOpen, setIsAddSearchDialogOpen] =
+    React.useState(false);
+  const [searchProcessQuery, setSearchProcessQuery] = React.useState("");
+  const [searchProcessResults, setSearchProcessResults] = React.useState<
+    SearchProcessResult[]
+  >([]);
+  const [isSearchProcessLoading, setIsSearchProcessLoading] =
+    React.useState(false);
+  const [selectedSearchToAdd, setSelectedSearchToAdd] =
+    React.useState<SearchProcessResult | null>(null);
+  const [manualSearchInsertReason, setManualSearchInsertReason] =
+    React.useState("");
+  const [isSubmittingAddSearch, setIsSubmittingAddSearch] =
+    React.useState(false);
+  const [relatedSearchesRefreshKey, setRelatedSearchesRefreshKey] =
+    React.useState(0);
   const [relatedActiveSearches, setRelatedActiveSearches] = React.useState<
     { direct: WorkerRelatedSearchItem[]; other: WorkerRelatedSearchItem[] }
   >({ direct: [], other: [] });
@@ -521,15 +741,6 @@ export function LavoratoriCercaView() {
     (value: string) =>
       motivazioniNonIdoneoOptionsByValue.get(value)?.label ?? value,
     [motivazioniNonIdoneoOptionsByValue],
-  );
-  const getMotivazioneColor = React.useCallback(
-    (value: string) =>
-      resolveLookupColor(
-        lookupColorsByDomain,
-        "lavoratori.motivazione_non_idoneo",
-        value,
-      ),
-    [lookupColorsByDomain],
   );
   const tipoLavoroDomesticoOptions = React.useMemo(
     () => lookupOptionsByDomain.get("lavoratori.tipo_lavoro_domestico") ?? [],
@@ -705,6 +916,47 @@ export function LavoratoriCercaView() {
   }, [lookupOptionsByDomain]);
 
   React.useEffect(() => {
+    if (!isAddSearchDialogOpen) {
+      setSearchProcessQuery("");
+      setSearchProcessResults([]);
+      setSelectedSearchToAdd(null);
+      setManualSearchInsertReason("");
+      setIsSearchProcessLoading(false);
+      return;
+    }
+
+    const normalizedQuery = searchProcessQuery.trim();
+    if (normalizedQuery.length < 2) {
+      setSearchProcessResults([]);
+      setIsSearchProcessLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsSearchProcessLoading(true);
+
+    const timeoutId = window.setTimeout(() => {
+      void searchProcessesForWorkerAdd(normalizedQuery)
+        .then((results) => {
+          if (isCancelled) return;
+          setSearchProcessResults(results);
+        })
+        .catch(() => {
+          if (isCancelled) return;
+          setSearchProcessResults([]);
+        })
+        .finally(() => {
+          if (!isCancelled) setIsSearchProcessLoading(false);
+        });
+    }, 250);
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [isAddSearchDialogOpen, searchProcessQuery]);
+
+  React.useEffect(() => {
     if (!selectedWorkerId) {
       setRelatedActiveSearches({ direct: [], other: [] });
       setLoadingRelatedActiveSearches(false);
@@ -854,14 +1106,18 @@ export function LavoratoriCercaView() {
     return () => {
       isCancelled = true;
     };
-  }, [lookupColorsByDomain, recruiterLabelsById, selectedWorkerId]);
+  }, [
+    lookupColorsByDomain,
+    recruiterLabelsById,
+    relatedSearchesRefreshKey,
+    selectedWorkerId,
+  ]);
   const {
     selectedWorkerIsNonIdoneo,
     selectedWorkerNonQualificatoIssues,
     selectedWorkerIsNonQualificato,
     recruiterFeedbackEntries,
     availabilityPayload,
-    disponibilitaBadgeClassName,
     availabilityReadOnlyRows,
     presentationPhotoSlots,
     nonIdoneoReasonValues,
@@ -870,8 +1126,6 @@ export function LavoratoriCercaView() {
     updatingNonQualificato,
     isEditingAddress,
     setIsEditingAddress,
-    isEditingAvailabilityStatus,
-    setIsEditingAvailabilityStatus,
     isEditingAvailability,
     setIsEditingAvailability,
     isEditingJobSearch,
@@ -894,7 +1148,6 @@ export function LavoratoriCercaView() {
     setAddressDraft,
     availabilityDraft,
     setAvailabilityDraft,
-    availabilityStatusDraft,
     setAvailabilityStatusDraft,
     jobSearchDraft,
     setJobSearchDraft,
@@ -909,7 +1162,6 @@ export function LavoratoriCercaView() {
     patchSelectedWorkerField,
     commitAddressField,
     commitAvailabilityField,
-    commitAvailabilityStatusField,
     patchAvailabilityStatusValue,
     handleAvailabilityMatrixChange,
     patchJobSearchField,
@@ -929,9 +1181,11 @@ export function LavoratoriCercaView() {
     selectedWorkerId,
     selectedWorker,
     selectedWorkerRow,
+    selectedWorkerAddress,
     lookupColorsByDomain,
     setError,
     applyUpdatedWorkerRow,
+    applyUpdatedWorkerAddress,
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
     removeWorkerExperience,
@@ -986,6 +1240,102 @@ export function LavoratoriCercaView() {
       setGeneratingWorkerSummary(false);
     }
   }, [applyUpdatedWorkerRow, selectedWorkerId, setError]);
+
+  const handleAddWorkerToSearch = React.useCallback(async () => {
+    const workerId = selectedWorkerId;
+    const processId = selectedSearchToAdd?.processId;
+    const reason = manualSearchInsertReason.trim();
+
+    if (!workerId || !processId) {
+      toast.error("Seleziona una ricerca");
+      return;
+    }
+
+    if (!reason) {
+      toast.error("La motivazione è obbligatoria");
+      return;
+    }
+
+    setIsSubmittingAddSearch(true);
+    try {
+      const existingSelections = await fetchSelezioniLavoratori({
+        limit: 1,
+        offset: 0,
+        select: ["id", "stato_selezione", "processo_matching_id"],
+        filters: {
+          kind: "group",
+          id: "lavoratori-add-search-duplicate-check",
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: "lavoratori-add-search-process",
+              field: "processo_matching_id",
+              operator: "is",
+              value: processId,
+            },
+            {
+              kind: "condition",
+              id: "lavoratori-add-search-worker",
+              field: "lavoratore_id",
+              operator: "is",
+              value: workerId,
+            },
+          ],
+        },
+      });
+
+      const existingSelection = existingSelections.rows?.[0] as
+        | Record<string, unknown>
+        | undefined;
+
+      if (existingSelection) {
+        const currentState = asString(existingSelection.stato_selezione) || "-";
+        toast.error("Questo lavoratore è già presente in questa ricerca", {
+          description: `Stato attuale: ${currentState}`,
+          action: onOpenRicercaDetail
+            ? {
+                label: "Apri ricerca",
+                onClick: () => onOpenRicercaDetail(processId),
+              }
+            : undefined,
+        });
+        return;
+      }
+
+      await createRecord("selezioni_lavoratori", {
+        processo_matching_id: processId,
+        lavoratore_id: workerId,
+        stato_selezione: "Prospetto",
+        motivo_inserimento_manuale: reason,
+        source: "manuale",
+      });
+
+      setIsAddSearchDialogOpen(false);
+      setRelatedSearchesRefreshKey((current) => current + 1);
+      toast.success("Lavoratore aggiunto alla ricerca in Prospetto", {
+        action: onOpenRicercaDetail
+          ? {
+              label: "Apri ricerca",
+              onClick: () => onOpenRicercaDetail(processId),
+            }
+          : undefined,
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Errore aggiungendo il lavoratore alla ricerca",
+      );
+    } finally {
+      setIsSubmittingAddSearch(false);
+    }
+  }, [
+    manualSearchInsertReason,
+    onOpenRicercaDetail,
+    selectedSearchToAdd,
+    selectedWorkerId,
+  ]);
 
   const selectedMotivazioneValue = React.useMemo(
     () => nonIdoneoReasonValues[0] ?? "",
@@ -1063,17 +1413,16 @@ export function LavoratoriCercaView() {
     const tabs: WorkerSectionTab[] = [
       { id: "profilo", label: "Profilo", icon: UsersIcon },
       { id: "residenza", label: "Residenza", icon: MapPinIcon },
-      { id: "disponibilita", label: "Disponibilita", icon: CalendarDaysIcon },
       { id: "calendario", label: "Calendario", icon: CalendarDaysIcon },
       { id: "ricerca", label: "Ricerca", icon: BriefcaseBusinessIcon },
       { id: "esperienze", label: "Esperienze", icon: UsersIcon },
       { id: "competenze", label: "Competenze", icon: SparklesIcon },
-      { id: "documenti", label: "Documenti", icon: FolderArchiveIcon },
+      {
+        id: "documenti",
+        label: "Documenti e dati amministrativi",
+        icon: FolderArchiveIcon,
+      },
     ];
-
-    if (selectedWorkerIsNonIdoneo) {
-      tabs.push({ id: "non-idoneo", label: "Non idoneo", icon: SirenIcon });
-    }
 
     if (selectedWorkerIsNonQualificato) {
       tabs.push({
@@ -1083,7 +1432,7 @@ export function LavoratoriCercaView() {
       });
     }
 
-    tabs.push({ id: "processi", label: "Processi", icon: MessageSquareTextIcon });
+    tabs.push({ id: "processi", label: "Ricerche", icon: MessageSquareTextIcon });
 
     return tabs;
   }, [selectedWorkerIsNonIdoneo, selectedWorkerIsNonQualificato]);
@@ -1294,6 +1643,20 @@ export function LavoratoriCercaView() {
             tabs={workerSectionTabs}
             activeSection={activeWorkerSection}
             onSectionChange={scrollToWorkerSection}
+            topBar={
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Chiudi scheda lavoratore"
+                  title="Chiudi scheda lavoratore"
+                  onClick={() => setSelectedWorkerId(null)}
+                >
+                  <XIcon />
+                </Button>
+              </>
+            }
             headerRef={setWorkerSectionRef("profilo")}
             header={
               <>
@@ -1350,6 +1713,16 @@ export function LavoratoriCercaView() {
                         value ?? "",
                       );
                     }}
+                    onDataRitornoDisponibilitaChange={(value) => {
+                      setAvailabilityStatusDraft((current) => ({
+                        ...current,
+                        data_ritorno_disponibilita: value,
+                      }));
+                      void patchAvailabilityStatusValue(
+                        "data_ritorno_disponibilita",
+                        value,
+                      );
+                    }}
                     onMotivazioneChange={(value) =>
                       void handleNonIdoneoReasonsChange(value ? [value] : [])
                     }
@@ -1362,13 +1735,15 @@ export function LavoratoriCercaView() {
                       updatingAvailabilityStatus ||
                       disponibilitaLookupOptions.length === 0
                     }
+                    dataRitornoDisponibilitaDisabled={
+                      updatingAvailabilityStatus
+                    }
                     motivazioneDisabled={updatingNonIdoneo}
                     blacklistChecked={blacklistChecked}
                     onBlacklistToggle={(nextValue) =>
                       void handleBlacklistChange(nextValue)
                     }
                     blacklistDisabled={updatingNonIdoneo}
-                    onClose={() => setSelectedWorkerId(null)}
                     presentationPhotoSlots={presentationPhotoSlots}
                     selectedPresentationPhotoIndex={
                       selectedPresentationPhotoIndex
@@ -1398,10 +1773,11 @@ export function LavoratoriCercaView() {
                     provinciaOptions={provinciaLookupOptions}
                     mobilityOptions={mobilityLookupOptions}
                     selectedProvincia={asString(selectedWorkerRow?.provincia)}
-                    selectedCap={asString(selectedWorkerRow?.cap)}
-                    selectedAddress={asString(
-                      selectedWorkerRow?.indirizzo_residenza_completo,
-                    )}
+                    selectedCap={asString(selectedWorkerAddress?.cap)}
+                    selectedAddress={
+                      formatWorkerAddressLine(selectedWorkerAddress) ||
+                      asString(selectedWorkerRow?.indirizzo_residenza_completo)
+                    }
                     selectedMobility={readArrayStrings(
                       selectedWorkerRow?.come_ti_sposti,
                     )}
@@ -1442,47 +1818,6 @@ export function LavoratoriCercaView() {
                         values.length > 0 ? values : null,
                       );
                     }}
-                  />
-                </div>
-
-                <div ref={setWorkerSectionRef("disponibilita")}>
-                  <AvailabilityStatusCard
-                    isEditing={isEditingAvailabilityStatus}
-                    isUpdating={updatingAvailabilityStatus}
-                    disponibilitaOptions={disponibilitaLookupOptions}
-                    draft={availabilityStatusDraft}
-                    selectedDisponibilita={asString(
-                      selectedWorkerRow?.disponibilita,
-                    )}
-                    selectedDisponibilitaBadgeClassName={
-                      disponibilitaBadgeClassName
-                    }
-                    selectedDataRitorno={
-                      formatDateOnly(
-                        asString(selectedWorkerRow?.data_ritorno_disponibilita),
-                      ) ?? "-"
-                    }
-                    onToggleEdit={() =>
-                      setIsEditingAvailabilityStatus((current) => !current)
-                    }
-                    onDisponibilitaChange={(value) => {
-                      setAvailabilityStatusDraft((current) => ({
-                        ...current,
-                        disponibilita: value,
-                      }));
-                      void patchAvailabilityStatusValue("disponibilita", value);
-                    }}
-                    onDataRitornoChange={(value) =>
-                      setAvailabilityStatusDraft((current) => ({
-                        ...current,
-                        data_ritorno_disponibilita: value,
-                      }))
-                    }
-                    onDataRitornoBlur={() =>
-                      void commitAvailabilityStatusField(
-                        "data_ritorno_disponibilita",
-                      )
-                    }
                   />
                 </div>
 
@@ -1764,6 +2099,12 @@ export function LavoratoriCercaView() {
                     verificationOptions={documentiVerificatiOptions}
                     statoDocumentiOptions={documentiInRegolaOptions}
                     lookupColorsByDomain={lookupColorsByDomain}
+                    administrativeValues={{
+                      iban: asString(selectedWorkerRow?.iban),
+                      id_stripe_account: asString(
+                        selectedWorkerRow?.id_stripe_account,
+                      ),
+                    }}
                     onToggleEdit={() =>
                       setIsEditingDocuments((current) => !current)
                     }
@@ -1796,84 +2137,26 @@ export function LavoratoriCercaView() {
                     onNaspiBlur={() =>
                       void commitDocumentField("data_scadenza_naspi")
                     }
+                    onIbanChange={(value) =>
+                      setDocumentsDraft((current) => ({
+                        ...current,
+                        iban: value,
+                      }))
+                    }
+                    onIbanBlur={() => void commitDocumentField("iban")}
+                    onStripeAccountChange={(value) =>
+                      setDocumentsDraft((current) => ({
+                        ...current,
+                        id_stripe_account: value,
+                      }))
+                    }
+                    onStripeAccountBlur={() =>
+                      void commitDocumentField("id_stripe_account")
+                    }
                     onDocumentUpsert={upsertSelectedWorkerDocument}
                     onUploadError={setError}
                   />
                 </div>
-
-                {selectedWorkerIsNonIdoneo ? (
-                  <div ref={setWorkerSectionRef("non-idoneo")}>
-                    <DetailSectionBlock
-                      title="Questo lavoratore non è idoneo"
-                      icon={
-                        <SirenIcon className="text-muted-foreground size-4" />
-                      }
-                      contentClassName="space-y-4"
-                    >
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Motivazione</p>
-                        <Combobox
-                          multiple
-                          autoHighlight
-                          items={motivazioniNonIdoneoOptions.map(
-                            (option) => option.value,
-                          )}
-                          value={nonIdoneoReasonValues}
-                          onValueChange={(nextValues) => {
-                            void handleNonIdoneoReasonsChange(
-                              nextValues as string[],
-                            );
-                          }}
-                          disabled={updatingNonIdoneo}
-                        >
-                          <ComboboxChips
-                            ref={nonIdoneoReasonAnchor}
-                            className="w-full"
-                          >
-                            <ComboboxValue>
-                              {(values) => (
-                                <React.Fragment>
-                                  {values.map((value: string) => (
-                                    <ComboboxChip
-                                      key={value}
-                                      className={getTagClassName(
-                                        getMotivazioneColor(value),
-                                      )}
-                                    >
-                                      {getMotivazioneLabel(value)}
-                                    </ComboboxChip>
-                                  ))}
-                                  <ComboboxChipsInput />
-                                </React.Fragment>
-                              )}
-                            </ComboboxValue>
-                          </ComboboxChips>
-                          <ComboboxContent
-                            anchor={nonIdoneoReasonAnchor}
-                            className="max-h-80"
-                          >
-                            <ComboboxEmpty>
-                              Nessuna motivazione trovata.
-                            </ComboboxEmpty>
-                            <ComboboxList className="max-h-72 overflow-y-auto">
-                              {(item) => (
-                                <ComboboxItem
-                                  key={item}
-                                  value={item}
-                                  className={getTagClassName(
-                                    getMotivazioneColor(item),
-                                  )}
-                                >
-                                  {getMotivazioneLabel(item)}
-                                </ComboboxItem>
-                              )}
-                            </ComboboxList>
-                          </ComboboxContent>
-                        </Combobox>
-                      </div>
-                    </DetailSectionBlock>
-                  </div>
-                ) : null}
 
                 {selectedWorkerIsNonQualificato ? (
                   <div ref={setWorkerSectionRef("non-qualificato")}>
@@ -2092,17 +2375,28 @@ export function LavoratoriCercaView() {
 
                 <div ref={setWorkerSectionRef("processi")}>
                   <DetailSectionBlock
-                    title="Processi coinvolti"
+                    title="Ricerche coinvolte"
+                    action={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsAddSearchDialogOpen(true)}
+                        disabled={!selectedWorkerId}
+                      >
+                        <PlusIcon className="size-4" />
+                        Aggiungi ad una ricerca
+                      </Button>
+                    }
                     contentClassName="space-y-2"
                   >
                     {loadingRelatedActiveSearches ? (
                       <p className="text-muted-foreground text-sm">
-                        Caricamento processi coinvolti...
+                        Caricamento ricerche coinvolte...
                       </p>
                     ) : relatedActiveSearches.direct.length === 0 &&
                       relatedActiveSearches.other.length === 0 ? (
                       <p className="text-muted-foreground text-sm">
-                        Nessun processo coinvolto.
+                        Nessuna ricerca coinvolta.
                       </p>
                     ) : (
                       <Tabs defaultValue="direct" className="space-y-4">
@@ -2232,6 +2526,138 @@ export function LavoratoriCercaView() {
             entries={recruiterFeedbackEntries}
           />
         </WorkerDetailShell>
+        <Dialog
+          open={isAddSearchDialogOpen}
+          onOpenChange={(nextOpen) => {
+            if (isSubmittingAddSearch) return;
+            setIsAddSearchDialogOpen(nextOpen);
+          }}
+        >
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Aggiungi ad una ricerca</DialogTitle>
+              <DialogDescription>
+                Cerca una ricerca per email famiglia, nome famiglia o ID e
+                inserisci il lavoratore in Prospetto.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Cerca ricerca</p>
+                <Input
+                  value={searchProcessQuery}
+                  onChange={(event) =>
+                    setSearchProcessQuery(event.target.value)
+                  }
+                  placeholder="Email famiglia, nome famiglia o ID ricerca"
+                  className="w-full"
+                />
+                {searchProcessQuery.trim().length < 2 ? (
+                  <p className="text-muted-foreground text-xs">
+                    Inserisci almeno 2 caratteri.
+                  </p>
+                ) : isSearchProcessLoading ? (
+                  <p className="text-muted-foreground text-xs">
+                    Caricamento risultati...
+                  </p>
+                ) : searchProcessResults.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    Nessuna ricerca trovata.
+                  </p>
+                ) : (
+                  <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border p-2">
+                    {searchProcessResults.map((result) => {
+                      const isSelected =
+                        selectedSearchToAdd?.processId === result.processId;
+
+                      return (
+                        <button
+                          key={result.processId}
+                          type="button"
+                          onClick={() => setSelectedSearchToAdd(result)}
+                          className={`w-full rounded-md border px-3 py-2 text-left text-sm transition ${
+                            isSelected
+                              ? "border-emerald-400 bg-emerald-50"
+                              : "border-border hover:bg-muted/50"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="font-medium">
+                                {result.familyName}
+                              </div>
+                              <div className="text-muted-foreground text-xs">
+                                {result.searchLabel} • {result.familyEmail}
+                              </div>
+                            </div>
+                            <span className="text-muted-foreground shrink-0 text-xs">
+                              {result.statoRicerca}
+                            </span>
+                          </div>
+                          <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                            <span>{result.tipoLavoro}</span>
+                            <span>{result.tipoRapporto}</span>
+                            <span>{result.orarioDiLavoro}</span>
+                            <span>{result.zona}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Motivazione</p>
+                <Textarea
+                  value={manualSearchInsertReason}
+                  onChange={(event) =>
+                    setManualSearchInsertReason(event.target.value)
+                  }
+                  placeholder="Scrivi perché vuoi aggiungere questo lavoratore alla ricerca"
+                  className="min-h-28 w-full"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              {selectedSearchToAdd && onOpenRicercaDetail ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => onOpenRicercaDetail(selectedSearchToAdd.processId)}
+                  disabled={isSubmittingAddSearch}
+                >
+                  <ExternalLinkIcon className="size-4" />
+                  Apri ricerca
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsAddSearchDialogOpen(false)}
+                disabled={isSubmittingAddSearch}
+              >
+                Annulla
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void handleAddWorkerToSearch()}
+                disabled={
+                  isSubmittingAddSearch ||
+                  !selectedSearchToAdd ||
+                  !manualSearchInsertReason.trim()
+                }
+              >
+                {isSubmittingAddSearch ? (
+                  <LoaderCircleIcon className="size-4 animate-spin" />
+                ) : null}
+                Aggiungi alla ricerca
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         </>
       ) : null}
     </div>

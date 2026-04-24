@@ -2,6 +2,7 @@ import type { ComponentType } from "react"
 import {
   BadgeCheckIcon,
   BabyIcon,
+  CalendarDaysIcon,
   Clock3Icon,
   CheckCircle2Icon,
   HomeIcon,
@@ -83,6 +84,12 @@ type LavoratoreCardProps = {
   worker: LavoratoreListItem
   isActive: boolean
   onClick: () => void
+  variant?: "default" | "gate1"
+  gate1Summary?: {
+    provincia: string | null
+    createdAt: string | null
+    followup: string | null
+  }
 }
 
 type WorkerQualificationStatus = {
@@ -182,9 +189,30 @@ function formatTravelTimeLabel(minutes: number | null | undefined) {
   return `${Math.round(minutes)} min`
 }
 
-export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProps) {
+function formatCreatedAtLabel(value: string | null | undefined) {
+  if (!value) return "-"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)
+}
+
+export function LavoratoreCard({
+  worker,
+  isActive,
+  onClick,
+  variant = "default",
+  gate1Summary,
+}: LavoratoreCardProps) {
   const qualificationStatus = getWorkerQualificationStatus(worker)
   const StatusIcon = qualificationStatus.icon
+  const workerStatusLabel = worker.statoLavoratore || qualificationStatus.label
   const ruoliDomestici = Array.isArray(worker.ruoliDomestici) ? worker.ruoliDomestici : []
   const displayRoles =
     ruoliDomestici.length > 0 ? ruoliDomestici.slice(0, 3) : worker.tipoRuolo ? [worker.tipoRuolo] : []
@@ -216,6 +244,59 @@ export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProp
   })
   const otherSelections = worker.otherActiveSelections
   const travelTimeLabel = formatTravelTimeLabel(worker.travelTimeMinutes)
+
+  if (variant === "gate1") {
+    return (
+      <Card
+        onClick={onClick}
+        className={cn(
+          "bg-white border border-border/70 cursor-pointer py-3 shadow-none transition-shadow hover:shadow-md",
+          worker.isBlacklisted && "opacity-55 saturate-0",
+          isActive && "ring-primary/35 ring-2"
+        )}
+      >
+        <CardContent className="px-4">
+          <div className="flex items-start gap-3">
+            <Avatar
+              className={cn("size-11", qualificationStatus.ringClassName)}
+              title={qualificationStatus.label}
+            >
+              <AvatarImage src={worker.immagineUrl ?? undefined} alt={worker.nomeCompleto} />
+              <AvatarFallback>{initialsFromName(worker.nomeCompleto)}</AvatarFallback>
+              <AvatarBadge className={cn("left-0 right-auto", qualificationStatus.badgeClassName)}>
+                <StatusIcon />
+              </AvatarBadge>
+            </Avatar>
+            <div className="min-w-0 flex-1 space-y-2">
+              <p className="truncate text-sm font-semibold leading-none">
+                {worker.nomeCompleto}
+              </p>
+              <div className="text-muted-foreground space-y-1.5 text-[11px] leading-none">
+                <p className="flex min-w-0 items-center gap-1.5">
+                  <MapPinIcon className="size-3 shrink-0" />
+                  <span className="truncate">{gate1Summary?.provincia || "-"}</span>
+                </p>
+                <p className="flex min-w-0 items-center gap-1.5">
+                  <CalendarDaysIcon className="size-3 shrink-0" />
+                  <span className="truncate">
+                    {formatCreatedAtLabel(gate1Summary?.createdAt)}
+                  </span>
+                </p>
+                <p className="flex min-w-0 items-center gap-1.5">
+                  <PhoneIcon className="size-3 shrink-0" />
+                  <span className="truncate">{worker.telefono || "-"}</span>
+                </p>
+                <p className="flex min-w-0 items-center gap-1.5">
+                  <CheckCircle2Icon className="size-3 shrink-0" />
+                  <span className="truncate">{gate1Summary?.followup || "-"}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card
@@ -250,10 +331,10 @@ export function LavoratoreCard({ worker, isActive, onClick }: LavoratoreCardProp
                 variant="outline"
                 className={cn(
                   "h-5 shrink-0 px-2 text-[11px] font-medium",
-                  getStatusSoftClassName(worker.statoLavoratoreColor, qualificationStatus.label)
+                  getStatusSoftClassName(worker.statoLavoratoreColor, workerStatusLabel)
                 )}
               >
-                {qualificationStatus.label}
+                {workerStatusLabel}
               </Badge>
             </div>
             <div className="flex flex-col gap-2">

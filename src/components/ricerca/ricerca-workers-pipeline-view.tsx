@@ -873,9 +873,11 @@ export function RicercaWorkersPipelineView({
     selectedWorkerId,
     selectedWorker,
     selectedWorkerRow,
+    selectedWorkerAddress: null,
     lookupColorsByDomain,
     setError: setSelectedWorkerError,
     applyUpdatedWorkerRow,
+    applyUpdatedWorkerAddress: () => {},
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
     removeWorkerExperience,
@@ -1671,6 +1673,12 @@ export function RicercaWorkersPipelineView({
                       onDisponibilitaChange={(value) =>
                         patchSelectedWorkerField("disponibilita", value)
                       }
+                      onDataRitornoDisponibilitaChange={(value) =>
+                        patchSelectedWorkerField(
+                          "data_ritorno_disponibilita",
+                          value || null,
+                        )
+                      }
                       onMotivazioneChange={(value) =>
                         patchSelectedWorkerField(
                           "motivazione_non_idoneo",
@@ -1919,6 +1927,22 @@ export function RicercaWorkersPipelineView({
                     }
                     onDocumentNaspiBlur={() =>
                       void commitDocumentField("data_scadenza_naspi")
+                    }
+                    onDocumentIbanChange={(value) =>
+                      setDocumentsDraft((current) => ({
+                        ...current,
+                        iban: value,
+                      }))
+                    }
+                    onDocumentIbanBlur={() => void commitDocumentField("iban")}
+                    onDocumentStripeAccountChange={(value) =>
+                      setDocumentsDraft((current) => ({
+                        ...current,
+                        id_stripe_account: value,
+                      }))
+                    }
+                    onDocumentStripeAccountBlur={() =>
+                      void commitDocumentField("id_stripe_account")
                     }
                     onDocumentUpsert={upsertSelectedWorkerDocument}
                     onDocumentUploadError={setSelectedWorkerError}

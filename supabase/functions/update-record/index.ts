@@ -11,6 +11,7 @@ type SupportedTable =
   | "chiusure_contratti"
   | "contributi_inps"
   | "lavoratori"
+  | "indirizzi"
   | "mesi_lavorati"
   | "rapporti_lavorativi"
   | "ticket"
@@ -32,6 +33,7 @@ const SUPPORTED_TABLES = new Set<SupportedTable>([
   "chiusure_contratti",
   "contributi_inps",
   "lavoratori",
+  "indirizzi",
   "mesi_lavorati",
   "rapporti_lavorativi",
   "ticket",
@@ -48,6 +50,7 @@ const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
   chiusure_contratti: new Set(["id", "creato_il"]),
   contributi_inps: new Set(["id", "creato_il"]),
   lavoratori: new Set(["id", "creato_il"]),
+  indirizzi: new Set(["id", "creato_il"]),
   mesi_lavorati: new Set(["id", "creato_il"]),
   rapporti_lavorativi: new Set(["id", "creato_il"]),
   ticket: new Set(["id", "creato_il"]),
@@ -64,6 +67,7 @@ const AUTO_UPDATED_AT_FIELD: Record<SupportedTable, string> = {
   chiusure_contratti: "aggiornato_il",
   contributi_inps: "aggiornato_il",
   lavoratori: "aggiornato_il",
+  indirizzi: "aggiornato_il",
   mesi_lavorati: "aggiornato_il",
   rapporti_lavorativi: "aggiornato_il",
   ticket: "aggiornato_il",
@@ -106,7 +110,7 @@ function normalizeToken(value: unknown) {
 }
 
 function isSafeColumnName(field: string) {
-  return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field);
+  return /^[\p{L}_][\p{L}\p{N}_]*$/u.test(field);
 }
 
 async function runCreateRapportoAfterMatchAutomation(

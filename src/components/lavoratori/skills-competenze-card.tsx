@@ -655,6 +655,7 @@ export function SkillsCompetenzeCard({
           <PencilIcon />
         </Button>
       ) : undefined}
+      showDefaultAction={showEditAction}
       collapsible={collapsible}
       defaultOpen={defaultOpen}
       contentClassName="space-y-5 pt-1"

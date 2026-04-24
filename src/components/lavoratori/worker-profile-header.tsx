@@ -13,7 +13,6 @@ import {
   StarIcon,
   UploadIcon,
   VenusAndMarsIcon,
-  XIcon,
 } from "lucide-react"
 
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
@@ -76,15 +75,16 @@ type WorkerProfileHeaderProps = {
   ) => Promise<void> | void
   onStatoLavoratoreChange?: (value: string | null) => Promise<void> | void
   onDisponibilitaChange?: (value: string | null) => Promise<void> | void
+  onDataRitornoDisponibilitaChange?: (value: string) => Promise<void> | void
   onMotivazioneChange?: (value: string | null) => Promise<void> | void
   fieldsDisabled?: boolean
   statoLavoratoreDisabled?: boolean
   disponibilitaDisabled?: boolean
+  dataRitornoDisponibilitaDisabled?: boolean
   motivazioneDisabled?: boolean
   blacklistChecked?: boolean
   onBlacklistToggle?: (nextValue: boolean) => Promise<void> | void
   blacklistDisabled?: boolean
-  onClose?: () => void
   presentationPhotoSlots?: string[]
   selectedPresentationPhotoIndex?: number
   onSelectedPresentationPhotoIndexChange?: (value: number) => void
@@ -200,15 +200,16 @@ export function WorkerProfileHeader({
   onPatchField,
   onStatoLavoratoreChange,
   onDisponibilitaChange,
+  onDataRitornoDisponibilitaChange,
   onMotivazioneChange,
   fieldsDisabled = false,
   statoLavoratoreDisabled,
   disponibilitaDisabled,
+  dataRitornoDisponibilitaDisabled,
   motivazioneDisabled,
   blacklistChecked = false,
   onBlacklistToggle,
   blacklistDisabled = false,
-  onClose,
   presentationPhotoSlots = [],
   selectedPresentationPhotoIndex = 0,
   onSelectedPresentationPhotoIndexChange,
@@ -239,6 +240,7 @@ export function WorkerProfileHeader({
     .trim()
     .toLowerCase()
     .replaceAll("_", " ")
+  const dataRitornoDisponibilita = asString(workerRow.data_ritorno_disponibilita)
   const selectedStatusClassName =
     statoLavoratore &&
     (selectedStatusToken.includes("non qualificato") ||
@@ -252,8 +254,9 @@ export function WorkerProfileHeader({
   const motivationClassName = selectedMotivazioneClassName?.trim()
     ? selectedMotivazioneClassName
     : getTagClassName(null)
-  const showMotivazioneSelect =
-    selectedStatusToken.includes("non idoneo") || selectedStatusToken.includes("non qualificato")
+  const showMotivazioneSelect = selectedStatusToken === "non idoneo"
+  const showDataRitornoDisponibilita =
+    selectedDisponibilitaToken === "non disponibile"
   const gateControls = [
     {
       label: "Gate 1",
@@ -278,6 +281,8 @@ export function WorkerProfileHeader({
   )
   const resolvedStatusDisabled = statoLavoratoreDisabled ?? !onStatoLavoratoreChange
   const resolvedDisponibilitaDisabled = disponibilitaDisabled ?? !onDisponibilitaChange
+  const resolvedDataRitornoDisponibilitaDisabled =
+    dataRitornoDisponibilitaDisabled ?? !onDataRitornoDisponibilitaChange
   const resolvedMotivazioneDisabled = motivazioneDisabled ?? !onMotivazioneChange
   const usesStackedHeaderLayout = headerLayout === "stacked"
 
@@ -488,18 +493,6 @@ export function WorkerProfileHeader({
             )}
           </div>
 
-          {onClose ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Chiudi scheda"
-              title="Chiudi scheda"
-              onClick={onClose}
-            >
-              <XIcon />
-            </Button>
-          ) : null}
         </div>
 
         <Separator className="my-3" />
@@ -752,6 +745,31 @@ export function WorkerProfileHeader({
                 </Select>
               </div>
             </div>
+
+            {showDataRitornoDisponibilita ? (
+              <div
+                className={
+                  usesStackedHeaderLayout
+                    ? "w-full shrink-0 self-end"
+                    : "w-[220px] shrink-0 self-end"
+                }
+              >
+                <div className="space-y-1.5">
+                  <p className="text-muted-foreground text-[11px] font-medium tracking-[0.18em] uppercase">
+                    Ritorno disponibilita
+                  </p>
+                  <Input
+                    type="date"
+                    value={dataRitornoDisponibilita}
+                    onChange={(event) =>
+                      void onDataRitornoDisponibilitaChange?.(event.target.value)
+                    }
+                    disabled={resolvedDataRitornoDisponibilitaDisabled}
+                    className="h-8 w-full bg-background text-sm"
+                  />
+                </div>
+              </div>
+            ) : null}
 
             <div
               className={`gap-3 ${

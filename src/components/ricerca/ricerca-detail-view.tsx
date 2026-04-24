@@ -152,10 +152,14 @@ function selectedLookupOptionValue(
   return match?.valueKey ?? "";
 }
 
-export function RicercaDetailView({ processId, onBack }: RicercaDetailViewProps) {
+export function RicercaDetailView({
+  processId,
+  onBack,
+}: RicercaDetailViewProps) {
   const [currentProcessId, setCurrentProcessId] = React.useState(processId);
-  const [focusedSelectionId, setFocusedSelectionId] =
-    React.useState<string | null>(null);
+  const [focusedSelectionId, setFocusedSelectionId] = React.useState<
+    string | null
+  >(null);
   const { loading, error, columns, lookupOptionsByField, updateProcessCard } =
     useCrmPipelinePreview();
   const [isEditingNoMatchReason, setIsEditingNoMatchReason] =
@@ -163,18 +167,24 @@ export function RicercaDetailView({ processId, onBack }: RicercaDetailViewProps)
   const [fallbackCard, setFallbackCard] =
     React.useState<CrmPipelineCardData | null>(null);
   const [isFallbackLoading, setIsFallbackLoading] = React.useState(false);
-  const [isRunningSmartMatching, setIsRunningSmartMatching] = React.useState(false);
+  const [isRunningSmartMatching, setIsRunningSmartMatching] =
+    React.useState(false);
   const [pipelineRefreshKey, setPipelineRefreshKey] = React.useState(0);
-  const [isAddWorkerDialogOpen, setIsAddWorkerDialogOpen] = React.useState(false);
+  const [isAddWorkerDialogOpen, setIsAddWorkerDialogOpen] =
+    React.useState(false);
   const [workerSearchQuery, setWorkerSearchQuery] = React.useState("");
   const [workerSearchResults, setWorkerSearchResults] = React.useState<
     Record<string, unknown>[]
   >([]);
-  const [isWorkerSearchLoading, setIsWorkerSearchLoading] = React.useState(false);
-  const [selectedWorkerToAdd, setSelectedWorkerToAdd] =
-    React.useState<Record<string, unknown> | null>(null);
+  const [isWorkerSearchLoading, setIsWorkerSearchLoading] =
+    React.useState(false);
+  const [selectedWorkerToAdd, setSelectedWorkerToAdd] = React.useState<Record<
+    string,
+    unknown
+  > | null>(null);
   const [manualInsertReason, setManualInsertReason] = React.useState("");
-  const [isSubmittingAddWorker, setIsSubmittingAddWorker] = React.useState(false);
+  const [isSubmittingAddWorker, setIsSubmittingAddWorker] =
+    React.useState(false);
 
   React.useEffect(() => {
     setCurrentProcessId(processId);
@@ -458,7 +468,9 @@ export function RicercaDetailView({ processId, onBack }: RicercaDetailViewProps)
             getFirstArrayValue(processRow.patente) ??
             displayValue(processRow.patente),
           sesso: toStringValue(processRow.sesso),
-          testoAnnuncioWhatsapp: displayValue(processRow.testo_annuncio_whatsapp),
+          testoAnnuncioWhatsapp: displayValue(
+            processRow.testo_annuncio_whatsapp,
+          ),
         };
 
         if (!cancelled) setFallbackCard(mapped);
@@ -602,7 +614,7 @@ export function RicercaDetailView({ processId, onBack }: RicercaDetailViewProps)
                   </BreadcrumbItem>
                   <BreadcrumbSeparator />
                   <BreadcrumbItem>
-                    <BreadcrumbPage className="max-w-[32rem] truncate text-foreground">
+                    <BreadcrumbPage className="max-w-lg truncate text-foreground">
                       {headerTitle}
                     </BreadcrumbPage>
                   </BreadcrumbItem>
@@ -663,7 +675,7 @@ export function RicercaDetailView({ processId, onBack }: RicercaDetailViewProps)
                   }}
                   disabled={!resolvedCard?.id}
                 >
-                  <SelectTrigger className="bg-background w-[240px]">
+                  <SelectTrigger className="bg-background w-60">
                     <SelectValue placeholder="Seleziona stato ricerca" />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -742,13 +754,14 @@ export function RicercaDetailView({ processId, onBack }: RicercaDetailViewProps)
                 <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-2">
                   {workerSearchResults.map((worker) => {
                     const workerId = toStringValue(worker.id) ?? "";
-                    const workerName = [
-                      toStringValue(worker.nome),
-                      toStringValue(worker.cognome),
-                    ]
-                      .filter((value): value is string => Boolean(value))
-                      .join(" ")
-                      .trim() || "Lavoratore";
+                    const workerName =
+                      [
+                        toStringValue(worker.nome),
+                        toStringValue(worker.cognome),
+                      ]
+                        .filter((value): value is string => Boolean(value))
+                        .join(" ")
+                        .trim() || "Lavoratore";
                     const workerEmail = toStringValue(worker.email);
                     const isSelected =
                       toStringValue(selectedWorkerToAdd?.id) === workerId;

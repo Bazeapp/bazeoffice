@@ -218,7 +218,7 @@ export function AppPageContent({
   }
 
   if (route.mainSection === "lavoratori_cerca") {
-    return <LavoratoriCercaPage />
+    return <LavoratoriCercaPage onOpenRicercaDetail={onOpenRicercaDetail} />
   }
 
   if (route.mainSection === "gate_1") {

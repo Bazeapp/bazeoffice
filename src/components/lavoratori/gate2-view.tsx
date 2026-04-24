@@ -5,26 +5,46 @@ import {
   CircleUserRoundIcon,
   ShieldCheckIcon,
   SearchIcon,
+  UsersIcon,
 } from "lucide-react";
 
 import { Gate1View } from "@/components/lavoratori/gate1-view";
+
+const GATE2_WORKER_STATUSES = ["idoneo", "qualificato"];
 
 export function Gate2View() {
   return (
     <Gate1View
       gateLabel="Gate 2"
-      workerStatus="idoneo"
-      workerCountLabel="idonei"
+      workerStatus={GATE2_WORKER_STATUSES}
+      workerCountLabel="idonei o qualificati"
+      applyGate1BaseFilters={false}
+      showCertificationReferente
       showFollowup={false}
       showSelfCertification={false}
+      showReferencesInWorkTypes
+      showAdministrativeFields
       showStepper
       splitBazeChecksStep
       stepInfoBySection={{
+        referente: {
+          title: (
+            <span className="flex items-center gap-2">
+              <UsersIcon className="text-muted-foreground size-4" />
+              <span>1. Referente certificazione</span>
+            </span>
+          ),
+          content: (
+            <p className="text-muted-foreground">
+              Assegna chi segue il Gate 2 e controlla chi ha gestito il Gate 1.
+            </p>
+          ),
+        },
         presentazione: {
           title: (
             <span className="flex items-center gap-2">
               <CircleUserRoundIcon className="text-muted-foreground size-4" />
-              <span>1. Introduzione - Benvenuto e Check Veloci</span>
+              <span>2. Introduzione - Benvenuto e Check Veloci</span>
             </span>
           ),
           content: (
@@ -45,7 +65,7 @@ export function Gate2View() {
           title: (
             <span className="flex items-center gap-2">
               <BriefcaseBusinessIcon className="text-muted-foreground size-4" />
-              <span>2. Esperienze - Inserisci le esperienze rilevanti</span>
+              <span>3. Esperienze - Inserisci le esperienze rilevanti</span>
             </span>
           ),
           content: (
@@ -71,7 +91,7 @@ export function Gate2View() {
           title: (
             <span className="flex items-center gap-2">
               <SearchIcon className="text-muted-foreground size-4" />
-              <span>3. Check rapido su Ricerca Lavoro</span>
+              <span>4. Check rapido su Ricerca Lavoro</span>
             </span>
           ),
           content: (
@@ -95,7 +115,7 @@ export function Gate2View() {
           title: (
             <span className="flex items-center gap-2">
               <CheckCheckIcon className="text-muted-foreground size-4" />
-              <span>4. Check rapido su accettazioni</span>
+              <span>5. Check rapido su accettazioni</span>
             </span>
           ),
           content: (
@@ -118,7 +138,7 @@ export function Gate2View() {
           title: (
             <span className="flex items-center gap-2">
               <ShieldCheckIcon className="text-muted-foreground size-4" />
-              <span>5. Assessment Skills e Caratteristiche</span>
+              <span>6. Assessment Skills e Caratteristiche</span>
             </span>
           ),
           content: (
@@ -141,7 +161,7 @@ export function Gate2View() {
           title: (
             <span className="flex items-center gap-2">
               <CheckCheckIcon className="text-muted-foreground size-4" />
-              <span>6. Raccolta documenti</span>
+              <span>7. Raccolta documenti</span>
             </span>
           ),
           content: (
@@ -176,11 +196,12 @@ export function Gate2View() {
           ),
         },
       }}
-      presentationEditMode="toggle"
-      addressEditMode="toggle"
-      workTypesEditMode="toggle"
-      availabilityEditMode="toggle"
-      bazeChecksEditMode="toggle"
+      presentationEditMode="always"
+      photoEditMode="editable"
+      addressEditMode="always"
+      workTypesEditMode="always"
+      availabilityEditMode="always"
+      bazeChecksEditMode="always"
       documentSectionMode="documents"
       showAssessment
       specificChecksMode="confirmation"
