@@ -46,7 +46,6 @@ import {
 } from "@/components/ui-next/carousel";
 import { Checkbox } from "@/components/ui-next/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui-next/collapsible";
-import { Combobox } from "@/components/ui-next/combobox";
 import { DatePicker } from "@/components/ui-next/date-picker";
 import { DayCountSelector } from "@/components/ui-next/day-count-selector";
 import {
@@ -608,49 +607,14 @@ function SelectSection() {
 }
 
 function ComboboxSection() {
-  const [value, setValue] = React.useState<string | null>("aria");
-  const options = [
-    { value: "aria", label: "Aria Bocelli" },
-    { value: "luca", label: "Luca Marchetti" },
-    { value: "sara", label: "Sara D'Angelo" },
-    { value: "marco", label: "Marco Rossi" },
-    { value: "giulia", label: "Giulia Romano" },
-    { value: "elena", label: "Elena Conti" },
-  ];
   return (
     <Section id="combobox" title="Combobox">
-      <StateRow label="Default">
-        <Combobox
-          options={options}
-          value={value}
-          onValueChange={setValue}
-          className="max-w-[280px]"
-        />
-      </StateRow>
-      <StateRow label="Empty">
-        <Combobox
-          options={options}
-          value={null}
-          onValueChange={() => {}}
-          placeholder="Cerca lavoratore..."
-          className="max-w-[280px]"
-        />
-      </StateRow>
-      <StateRow label="Disabled">
-        <Combobox
-          options={options}
-          value="aria"
-          disabled
-          className="max-w-[280px]"
-        />
-      </StateRow>
-      <StateRow label="Invalid">
-        <Combobox
-          options={options}
-          value={null}
-          invalid
-          className="max-w-[280px]"
-        />
+      <StateRow label="Compound API">
+        <p className="text-sm text-[var(--foreground-subtle)]">
+          See `/bazeoffice/pipeline` for live usage of the compound combobox API
+          (Combobox, ComboboxContent, ComboboxList, ComboboxItem, ComboboxChips,
+          ComboboxChip, useComboboxAnchor).
+        </p>
       </StateRow>
     </Section>
   );
