@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 import { CrmDetailCard } from "@/components/crm/detail-card";
-import { DetailSectionBlock } from "@/components/shared/detail-section-card";
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { Checkbox } from "@/components/ui-next/checkbox";
 import {
   Field,

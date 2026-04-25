@@ -23,7 +23,7 @@ import {
   DetailField,
   DetailFieldControl,
   DetailSectionBlock,
-} from "@/components/shared/detail-section-card";
+} from "@/components/shared-next/detail-section-card";
 import { Badge } from "@/components/ui-next/badge";
 import { Button } from "@/components/ui-next/button";
 import {

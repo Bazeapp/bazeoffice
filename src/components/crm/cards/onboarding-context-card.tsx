@@ -17,7 +17,7 @@ import {
 import { Badge } from "@/components/ui-next/badge";
 import { Button } from "@/components/ui-next/button";
 import { Checkbox } from "@/components/ui-next/checkbox";
-import { DetailSectionBlock } from "@/components/shared/detail-section-card";
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import {
   Field,
   FieldGroup,

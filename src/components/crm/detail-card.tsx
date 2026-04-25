@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 
-import { DetailSectionBlock } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 
 type CrmDetailCardProps = {
   title: string

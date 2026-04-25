@@ -17,7 +17,7 @@ import {
 
 import { FamigliaProcessoDetailShell } from "@/components/crm/famiglia-processo-detail-shell"
 import { FamigliaProcessoCard } from "@/components/crm/famiglia-processo-card"
-import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
+import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared-next/kanban"
 import {
   type CrmPipelineCardData,
   type CrmPipelineColumnData,
