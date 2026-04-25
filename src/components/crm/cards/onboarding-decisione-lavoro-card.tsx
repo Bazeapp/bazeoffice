@@ -10,7 +10,7 @@ import {
 
 import { CrmDetailCard } from "@/components/crm/detail-card";
 import { DetailSectionBlock } from "@/components/shared/detail-section-card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@/components/ui-next/checkbox";
 import {
   Field,
   FieldDescription,
@@ -18,8 +18,8 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSet,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui-next/field";
+import { Input } from "@/components/ui-next/input";
 import {
   Combobox,
   ComboboxChip,
@@ -31,15 +31,15 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui/combobox";
+} from "@/components/ui-next/combobox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+} from "@/components/ui-next/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group";
 import type { LookupOptionsByField } from "@/hooks/use-crm-pipeline-preview";
 
 export type OnboardingDecisioneLavoroCheckboxDefaults = Partial<

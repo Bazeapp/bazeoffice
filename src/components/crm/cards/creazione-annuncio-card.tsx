@@ -8,8 +8,8 @@ import {
 import { toast } from "sonner";
 
 import { CrmDetailCard } from "@/components/crm/detail-card";
-import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Button } from "@/components/ui-next/button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui-next/field";
 import { runAutomationWebhook } from "@/lib/anagrafiche-api";
 
 const READONLY_BLOCK_CLASS =

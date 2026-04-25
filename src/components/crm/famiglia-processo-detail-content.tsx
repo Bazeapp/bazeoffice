@@ -15,8 +15,8 @@ import {
   TimerResetIcon,
 } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui-next/badge"
+import { Button } from "@/components/ui-next/button"
 import { OnboardingContextCard } from "@/components/crm/cards/onboarding-context-card"
 import { CreazioneAnnuncioCard } from "@/components/crm/cards/creazione-annuncio-card"
 import {
@@ -31,8 +31,8 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "@/components/ui-next/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui-next/tabs"
 import { cn } from "@/lib/utils"
 import type {
   CrmPipelineCardData,

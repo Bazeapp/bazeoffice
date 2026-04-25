@@ -24,8 +24,8 @@ import {
   DetailFieldControl,
   DetailSectionBlock,
 } from "@/components/shared/detail-section-card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui-next/badge";
+import { Button } from "@/components/ui-next/button";
 import {
   Combobox,
   ComboboxChip,
@@ -37,15 +37,15 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui/combobox";
-import { DatePicker } from "@/components/ui/date-picker";
+} from "@/components/ui-next/combobox";
+import { DatePicker } from "@/components/ui-next/date-picker";
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui-next/field";
+import { Input } from "@/components/ui-next/input";
 import {
   Select,
   SelectContent,
@@ -53,8 +53,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui-next/select";
+import { Separator } from "@/components/ui-next/separator";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,

@@ -11,8 +11,8 @@ import {
   SquareIcon,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui-next/badge";
+import { Card, CardContent } from "@/components/ui-next/card";
 import type { CrmPipelineCardData } from "@/hooks/use-crm-pipeline-preview";
 import { Separator } from "../ui/separator";
 
