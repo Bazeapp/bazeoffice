@@ -330,7 +330,7 @@ export function CrmPipelineFamiglieView() {
   )
 
   return (
-    <section className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
+    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento dati CRM: {error}
