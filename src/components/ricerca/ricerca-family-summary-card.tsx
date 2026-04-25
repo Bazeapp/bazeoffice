@@ -72,6 +72,8 @@ export function RicercaFamilySummaryCard({
     <DetailSectionBlock
       title="Famiglia"
       showDefaultAction={false}
+      collapsible
+      defaultOpen
       className="space-y-2"
       contentClassName="space-y-4 px-1 pt-1"
     >

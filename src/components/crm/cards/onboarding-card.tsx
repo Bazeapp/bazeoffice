@@ -65,7 +65,18 @@ type OnboardingCardProps = {
   card: CrmPipelineCardData | null;
   lookupOptionsByField?: LookupOptionsByField;
   titleAction?: ReactNode;
+  sectionTitleAction?: ReactNode;
   showTitle?: boolean;
+  sectionsCollapsible?: boolean;
+  firstSectionDefaultOpen?: boolean;
+  sectionsDefaultOpen?: boolean;
+  showOrariFrequenza?: boolean;
+  showLuogoLavoro?: boolean;
+  showFamiglia?: boolean;
+  showCasa?: boolean;
+  showAnimali?: boolean;
+  showMansioni?: boolean;
+  showRichiesteSpecifiche?: boolean;
   showTempistiche?: boolean;
   readOnly?: boolean;
   flattenSections?: boolean;
@@ -220,7 +231,18 @@ export function OnboardingCard({
   card,
   lookupOptionsByField,
   titleAction,
+  sectionTitleAction,
   showTitle = true,
+  sectionsCollapsible,
+  firstSectionDefaultOpen = true,
+  sectionsDefaultOpen = false,
+  showOrariFrequenza = true,
+  showLuogoLavoro = true,
+  showFamiglia = true,
+  showCasa = true,
+  showAnimali = true,
+  showMansioni = true,
+  showRichiesteSpecifiche = true,
   showTempistiche = true,
   readOnly = false,
   flattenSections = false,
@@ -230,6 +252,8 @@ export function OnboardingCard({
   const [orarioDiLavoro, setOrarioDiLavoro] = React.useState(
     toInputValue(card?.orarioDiLavoro),
   );
+  const resolvedSectionAction = sectionTitleAction ?? titleAction;
+  const shouldCollapseSections = sectionsCollapsible ?? flattenSections;
   const [indirizzoProvincia, setIndirizzoProvincia] = React.useState(
     toInputValue(card?.indirizzoProvincia),
   );
@@ -404,14 +428,15 @@ export function OnboardingCard({
 
     return (
       <div className="space-y-4">
+        {showOrariFrequenza ? (
         <div {...sectionContainerProps?.["orari-frequenza"]}>
           <DetailSectionBlock
             title="Orari e frequenza"
             icon={<CalendarDaysIcon className="size-4" />}
-            action={showTitle ? titleAction : undefined}
+            action={showTitle ? resolvedSectionAction : undefined}
             showDefaultAction={false}
-            collapsible={flattenSections}
-            defaultOpen
+            collapsible={shouldCollapseSections}
+            defaultOpen={firstSectionDefaultOpen}
             contentClassName="space-y-4"
           >
           <DetailField
@@ -445,14 +470,17 @@ export function OnboardingCard({
           </DetailFieldControl>
           </DetailSectionBlock>
         </div>
+        ) : null}
 
+        {showLuogoLavoro ? (
         <div {...sectionContainerProps?.["luogo-lavoro"]}>
           <DetailSectionBlock
             title="Luogo di lavoro"
             icon={<MapPinnedIcon className="size-4" />}
+            action={resolvedSectionAction}
             showDefaultAction={false}
-            collapsible={flattenSections}
-            defaultOpen={false}
+            collapsible={shouldCollapseSections}
+            defaultOpen={sectionsDefaultOpen}
             contentClassName="space-y-4"
           >
           <div className={compactGridClassName}>
@@ -477,14 +505,17 @@ export function OnboardingCard({
           </DetailFieldControl>
           </DetailSectionBlock>
         </div>
+        ) : null}
 
+        {showFamiglia ? (
         <div {...sectionContainerProps?.famiglia}>
           <DetailSectionBlock
             title="Famiglia"
             icon={<UsersIcon className="size-4" />}
+            action={resolvedSectionAction}
             showDefaultAction={false}
-            collapsible={flattenSections}
-            defaultOpen={false}
+            collapsible={shouldCollapseSections}
+            defaultOpen={sectionsDefaultOpen}
             contentClassName="space-y-4"
           >
           <div className={compactGridClassName}>
@@ -493,14 +524,17 @@ export function OnboardingCard({
           </div>
           </DetailSectionBlock>
         </div>
+        ) : null}
 
+        {showCasa ? (
         <div {...sectionContainerProps?.casa}>
           <DetailSectionBlock
             title="Casa"
             icon={<HomeIcon className="size-4" />}
+            action={resolvedSectionAction}
             showDefaultAction={false}
-            collapsible={flattenSections}
-            defaultOpen={false}
+            collapsible={shouldCollapseSections}
+            defaultOpen={sectionsDefaultOpen}
             contentClassName="space-y-4"
           >
             <DetailField label="Descrizione casa" value={displayText(card?.descrizioneCasa)} />
@@ -510,40 +544,49 @@ export function OnboardingCard({
             </div>
           </DetailSectionBlock>
         </div>
+        ) : null}
 
+        {showAnimali ? (
         <div {...sectionContainerProps?.animali}>
           <DetailSectionBlock
             title="Animali"
             icon={<CatIcon className="size-4" />}
+            action={resolvedSectionAction}
             showDefaultAction={false}
-            collapsible={flattenSections}
-            defaultOpen={false}
+            collapsible={shouldCollapseSections}
+            defaultOpen={sectionsDefaultOpen}
             contentClassName="space-y-4"
           >
             <DetailField label="Animali in casa" value={displayText(card?.descrizioneAnimaliInCasa)} />
           </DetailSectionBlock>
         </div>
+        ) : null}
 
+        {showMansioni ? (
         <div {...sectionContainerProps?.mansioni}>
           <DetailSectionBlock
             title="Mansioni"
             icon={<BriefcaseIcon className="size-4" />}
+            action={resolvedSectionAction}
             showDefaultAction={false}
-            collapsible={flattenSections}
-            defaultOpen={false}
+            collapsible={shouldCollapseSections}
+            defaultOpen={sectionsDefaultOpen}
             contentClassName="space-y-4"
           >
             <DetailField label="Mansioni richieste" value={displayText(card?.mansioniRichieste)} />
           </DetailSectionBlock>
         </div>
+        ) : null}
 
+        {showRichiesteSpecifiche ? (
         <div {...sectionContainerProps?.["richieste-specifiche"]}>
           <DetailSectionBlock
             title="Richieste specifiche"
             icon={<ShieldCheckIcon className="size-4" />}
+            action={resolvedSectionAction}
             showDefaultAction={false}
-            collapsible={flattenSections}
-            defaultOpen={false}
+            collapsible={shouldCollapseSections}
+            defaultOpen={sectionsDefaultOpen}
             contentClassName="space-y-4"
           >
           <div className={compactGridClassName}>
@@ -559,15 +602,17 @@ export function OnboardingCard({
           <DetailField label="Informazioni extra riservate" value={displayText(card?.informazioniExtraRiservate)} />
           </DetailSectionBlock>
         </div>
+        ) : null}
 
         {showTempistiche ? (
           <div {...sectionContainerProps?.tempistiche}>
             <DetailSectionBlock
               title="Tempistiche"
               icon={<TimerResetIcon className="size-4" />}
+              action={resolvedSectionAction}
               showDefaultAction={false}
-              collapsible={flattenSections}
-              defaultOpen={false}
+              collapsible={shouldCollapseSections}
+              defaultOpen={sectionsDefaultOpen}
               contentClassName="space-y-4"
             >
               <DetailField label="Deadline" value={displayText(card?.deadlineMobile)} />
@@ -582,14 +627,15 @@ export function OnboardingCard({
 
   const flattenedContent = (
     <div className="space-y-4">
+      {showOrariFrequenza ? (
       <div {...sectionContainerProps?.["orari-frequenza"]}>
         <DetailSectionBlock
           title="Orari e frequenza"
           icon={<CalendarDaysIcon className="size-4" />}
-          action={titleAction}
+          action={resolvedSectionAction}
           showDefaultAction={false}
-          collapsible={flattenSections}
-          defaultOpen
+          collapsible={shouldCollapseSections}
+          defaultOpen={firstSectionDefaultOpen}
           contentClassName="space-y-4"
         >
         <Field>
@@ -713,14 +759,17 @@ export function OnboardingCard({
         </div>
         </DetailSectionBlock>
       </div>
+      ) : null}
 
+      {showLuogoLavoro ? (
       <div {...sectionContainerProps?.["luogo-lavoro"]}>
         <DetailSectionBlock
           title="Luogo di lavoro"
           icon={<MapPinnedIcon className="size-4" />}
+          action={resolvedSectionAction}
           showDefaultAction={false}
-          collapsible={flattenSections}
-          defaultOpen={false}
+          collapsible={shouldCollapseSections}
+          defaultOpen={sectionsDefaultOpen}
           contentClassName="space-y-4"
         >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -832,6 +881,7 @@ export function OnboardingCard({
         </Field>
         </DetailSectionBlock>
       </div>
+      ) : null}
 
       <OnboardingDecisioneLavoroSection
         checkboxDefaults={checkboxDefaults}
@@ -855,6 +905,15 @@ export function OnboardingCard({
         }}
         onPatchProcess={patchProcess}
         useSectionBlocks
+        titleAction={resolvedSectionAction}
+        sectionsCollapsible={shouldCollapseSections}
+        firstSectionDefaultOpen={sectionsDefaultOpen}
+        sectionsDefaultOpen={sectionsDefaultOpen}
+        showFamiglia={showFamiglia}
+        showCasa={showCasa}
+        showAnimali={showAnimali}
+        showMansioni={showMansioni}
+        showRichiesteSpecifiche={showRichiesteSpecifiche}
         sectionContainerProps={{
           famiglia: sectionContainerProps?.famiglia,
           casa: sectionContainerProps?.casa,
@@ -870,9 +929,10 @@ export function OnboardingCard({
           <DetailSectionBlock
             title="Tempistiche"
             icon={<TimerResetIcon className="size-4" />}
+            action={resolvedSectionAction}
             showDefaultAction={false}
-            collapsible={flattenSections}
-            defaultOpen={false}
+            collapsible={shouldCollapseSections}
+            defaultOpen={sectionsDefaultOpen}
             contentClassName="space-y-4"
           >
           <Field>

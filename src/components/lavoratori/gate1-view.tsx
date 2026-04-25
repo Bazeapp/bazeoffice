@@ -26,8 +26,8 @@ import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card";
 import { SkillsChoiceMatrix } from "@/components/lavoratori/skills-choice-matrix";
 import { WorkerShiftPreferencesFields } from "@/components/lavoratori/worker-shift-preferences-fields";
+import { WorkerDetailShell } from "@/components/lavoratori/worker-detail-shell";
 import { WorkerProfileOverview } from "@/components/lavoratori/worker-profile-overview";
-import { DetailRow } from "@/components/lavoratori/detail-row";
 import {
   DetailSectionBlock,
   DetailSectionCard,
@@ -77,13 +77,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatAvailabilityComputedAt,
   type AvailabilityEditBandField,
   type AvailabilityEditDayField,
 } from "@/features/lavoratori/lib/availability-utils";
+import { FieldTitle } from "@/components/ui/field";
 import {
   asLavoratoreRecord,
   asInputValue,
@@ -274,26 +274,31 @@ function GateContactsCard({
       title="Follow-up"
       icon={<PhoneIcon className="text-muted-foreground size-4" />}
     >
-      <DetailRow label="Follow-up chiamata idoneita" align="start">
-        <RadioGroup
-          value={followupStatus}
-          onValueChange={onFollowupStatusChange}
-          className="gap-3 pt-1"
-        >
-          {options.map((option) => (
-            <label
-              key={option.value}
-              className="bg-background flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2"
-            >
-              <RadioGroupItem
-                value={option.value}
-                id={`followup-${option.value}`}
-              />
-              <span className="text-sm">{option.label}</span>
-            </label>
-          ))}
-        </RadioGroup>
-      </DetailRow>
+      <div className="flex items-start gap-3 text-sm">
+        <FieldTitle className="w-24 shrink-0">
+          Follow-up chiamata idoneita
+        </FieldTitle>
+        <div className="min-w-0 flex-1 text-foreground">
+          <RadioGroup
+            value={followupStatus}
+            onValueChange={onFollowupStatusChange}
+            className="gap-3 pt-1"
+          >
+            {options.map((option) => (
+              <label
+                key={option.value}
+                className="bg-background flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2"
+              >
+                <RadioGroupItem
+                  value={option.value}
+                  id={`followup-${option.value}`}
+                />
+                <span className="text-sm">{option.label}</span>
+              </label>
+            ))}
+          </RadioGroup>
+        </div>
+      </div>
     </GateInfoCard>
   );
 }
@@ -318,27 +323,30 @@ function GateReferenteCard({
       title={title}
       icon={<UsersIcon className="text-muted-foreground size-4" />}
     >
-      <DetailRow label={label} align="start">
-        <Select
-          value={value || "none"}
-          onValueChange={(nextValue) =>
-            onChange(nextValue === "none" ? null : nextValue)
-          }
-          disabled={disabled}
-        >
-          <SelectTrigger className="bg-background">
-            <SelectValue placeholder="Seleziona referente" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Nessun referente</SelectItem>
-            {options.map((option) => (
-              <SelectItem key={option.id} value={option.id}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </DetailRow>
+      <div className="flex items-start gap-3 text-sm">
+        <FieldTitle className="w-24 shrink-0">{label}</FieldTitle>
+        <div className="min-w-0 flex-1 text-foreground">
+          <Select
+            value={value || "none"}
+            onValueChange={(nextValue) =>
+              onChange(nextValue === "none" ? null : nextValue)
+            }
+            disabled={disabled}
+          >
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Seleziona referente" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Nessun referente</SelectItem>
+              {options.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
     </GateInfoCard>
   );
 }
@@ -370,35 +378,41 @@ function GateCertificationReferenteCard({
       icon={<UsersIcon className="text-muted-foreground size-4" />}
     >
       <div className="grid gap-4 md:grid-cols-2">
-        <DetailRow label="Referente Gate 2" align="start">
-          <Select
-            value={referenteCertificazioneValue || "none"}
-            onValueChange={(nextValue) =>
-              onReferenteCertificazioneChange(
-                nextValue === "none" ? null : nextValue,
-              )
-            }
-            disabled={disabled}
-          >
-            <SelectTrigger className="bg-background">
-              <SelectValue placeholder="Seleziona referente Gate 2" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Nessun referente Gate 2</SelectItem>
-              {options.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </DetailRow>
-
-        <DetailRow label="Referente Gate 1" align="start">
-          <div className="bg-muted/40 text-foreground flex min-h-10 items-center rounded-md border px-3 text-sm">
-            {resolveOperatorLabel(referenteIdoneitaValue, options)}
+        <div className="flex items-start gap-3 text-sm">
+          <FieldTitle className="w-24 shrink-0">Referente Gate 2</FieldTitle>
+          <div className="min-w-0 flex-1 text-foreground">
+            <Select
+              value={referenteCertificazioneValue || "none"}
+              onValueChange={(nextValue) =>
+                onReferenteCertificazioneChange(
+                  nextValue === "none" ? null : nextValue,
+                )
+              }
+              disabled={disabled}
+            >
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Seleziona referente Gate 2" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nessun referente Gate 2</SelectItem>
+                {options.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </DetailRow>
+        </div>
+
+        <div className="flex items-start gap-3 text-sm">
+          <FieldTitle className="w-24 shrink-0">Referente Gate 1</FieldTitle>
+          <div className="min-w-0 flex-1 text-foreground">
+            <div className="bg-muted/40 text-foreground flex min-h-10 items-center rounded-md border px-3 text-sm">
+              {resolveOperatorLabel(referenteIdoneitaValue, options)}
+            </div>
+          </div>
+        </div>
       </div>
     </GateInfoCard>
   );
@@ -3745,40 +3759,14 @@ export function Gate1View({
       </div>
 
       {selectedWorkerId ? (
-        <section
-          ref={detailScrollRef}
-          className="bg-background relative min-h-0 overflow-y-auto rounded-xl border px-4 pt-0 pb-4"
+        <WorkerDetailShell
+          sectionRef={detailScrollRef}
+          tabs={gateTabs}
+          activeSection={activeGateSection}
+          onSectionChange={scrollToSection}
         >
           {selectedWorker && selectedWorkerRow ? (
-            <div className="space-y-6">
-              <div className="sticky top-0 z-20 -mx-4 -mt-4 -mr-4 border-b bg-background/95 px-4 py-3 backdrop-blur">
-                <Tabs
-                  value={activeGateSection}
-                  onValueChange={scrollToSection}
-                  className="mt-3 w-full"
-                >
-                  <TabsList
-                    variant="line"
-                    className="h-auto w-full justify-start gap-x-1 overflow-x-auto overflow-y-hidden whitespace-nowrap p-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                  >
-                    {gateTabs.map((tab) => {
-                      const Icon = tab.icon;
-                      return (
-                        <TabsTrigger
-                          key={tab.id}
-                          value={tab.id}
-                          className="h-10 flex-none rounded-full px-3 text-sm text-muted-foreground/50 shadow-none"
-                        >
-                          <Icon className="size-4" />
-                          {tab.label}
-                        </TabsTrigger>
-                      );
-                    })}
-                  </TabsList>
-                </Tabs>
-              </div>
-
-              <div className="space-y-6 pt-4 pb-4 text-sm">
+            <div className="space-y-6 pt-4 pb-4 text-sm">
                 {showCertificationReferente ? (
                   <div
                     ref={(node) => {
@@ -5312,10 +5300,9 @@ export function Gate1View({
                     </GateStepSection>
                   </div>
                 ) : null}
-              </div>
             </div>
           ) : null}
-        </section>
+        </WorkerDetailShell>
       ) : null}
       </div>
     </>

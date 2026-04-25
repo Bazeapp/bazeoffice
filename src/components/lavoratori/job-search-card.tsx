@@ -22,6 +22,8 @@ type JobSearchDraft = {
 type JobSearchCardProps = {
   isEditing: boolean
   showEditAction?: boolean
+  collapsible?: boolean
+  defaultOpen?: boolean
   isUpdating: boolean
   draft: JobSearchDraft
   tipoLavoroOptions: LookupOption[]
@@ -127,6 +129,8 @@ function ReadOnlySingleBadge({
 export function JobSearchCard({
   isEditing,
   showEditAction = true,
+  collapsible = true,
+  defaultOpen = true,
   isUpdating,
   draft,
   tipoLavoroOptions,
@@ -167,6 +171,8 @@ export function JobSearchCard({
         </Button>
       ) : undefined}
       showDefaultAction={showEditAction}
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
       contentClassName="space-y-4"
     >
       <div className="space-y-4">

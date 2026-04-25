@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { KanbanColumnSkeleton } from "@/components/shared/kanban";
 
 const meta = {
-  title: "Shared/KanbanColumnSkeleton",
+  title: "Shared/Kanban",
   component: KanbanColumnSkeleton,
   argTypes: {
     widthClassName: { control: "text" },
@@ -22,4 +22,4 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Playground: Story = {};
+export const ColumnSkeleton: Story = {};

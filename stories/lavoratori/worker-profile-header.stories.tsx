@@ -4,7 +4,7 @@ import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-head
 import { lookupOptions, mockWorker, mockWorkerRow } from "../mocks";
 
 const meta = {
-  title: "Lavoratori/WorkerProfileHeader",
+  title: "Lavoratori/Blocchi/WorkerProfileHeader",
   component: WorkerProfileHeader,
   args: {
     worker: mockWorker,
@@ -58,4 +58,3 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
-

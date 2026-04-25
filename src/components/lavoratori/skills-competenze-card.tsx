@@ -627,7 +627,7 @@ function SkillSection({
 export function SkillsCompetenzeCard({
   isEditing,
   showEditAction = true,
-  collapsible = false,
+  collapsible = true,
   defaultOpen = true,
   isUpdating,
   draft,

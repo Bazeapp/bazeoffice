@@ -5,7 +5,7 @@ import { AddressSectionCard } from "@/components/lavoratori/address-section-card
 import { lookupOptions } from "../mocks";
 
 const meta = {
-  title: "Lavoratori/AddressSectionCard",
+  title: "Lavoratori/Blocchi/AddressSectionCard",
   component: AddressSectionCard,
   args: {
     isEditing: false,
@@ -49,4 +49,3 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
-

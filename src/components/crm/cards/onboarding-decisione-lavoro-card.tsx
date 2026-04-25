@@ -282,6 +282,7 @@ function LookupMultiComboboxField({
 function SectionWrapper({
   title,
   icon,
+  titleAction,
   children,
   useSectionBlocks,
   collapsible = false,
@@ -290,6 +291,7 @@ function SectionWrapper({
 }: {
   title: string;
   icon: ReactNode;
+  titleAction?: ReactNode;
   children: ReactNode;
   useSectionBlocks: boolean;
   collapsible?: boolean;
@@ -302,6 +304,7 @@ function SectionWrapper({
         <DetailSectionBlock
           title={title}
           icon={icon}
+          action={titleAction}
           showDefaultAction={false}
           collapsible={collapsible}
           defaultOpen={defaultOpen}
@@ -338,12 +341,30 @@ export function OnboardingDecisioneLavoroSection({
   onPatchProcess,
   useSectionBlocks = false,
   sectionContainerProps,
+  titleAction,
+  sectionsCollapsible,
+  firstSectionDefaultOpen = true,
+  sectionsDefaultOpen = false,
+  showFamiglia = true,
+  showCasa = true,
+  showAnimali = true,
+  showMansioni = true,
+  showRichiesteSpecifiche = true,
 }: {
   checkboxDefaults?: OnboardingDecisioneLavoroCheckboxDefaults;
   lookupOptionsByField?: LookupOptionsByField;
   defaults?: OnboardingDecisioneLavoroDefaults;
   onPatchProcess?: (patch: Record<string, unknown>) => void | Promise<void>;
   useSectionBlocks?: boolean;
+  titleAction?: ReactNode;
+  sectionsCollapsible?: boolean;
+  firstSectionDefaultOpen?: boolean;
+  sectionsDefaultOpen?: boolean;
+  showFamiglia?: boolean;
+  showCasa?: boolean;
+  showAnimali?: boolean;
+  showMansioni?: boolean;
+  showRichiesteSpecifiche?: boolean;
   sectionContainerProps?: Partial<
     Record<OnboardingDecisioneLavoroSectionKey, React.ComponentProps<"div">>
   >;
@@ -465,6 +486,7 @@ export function OnboardingDecisioneLavoroSection({
     },
     [onPatchProcess],
   );
+  const shouldCollapseSections = sectionsCollapsible ?? useSectionBlocks;
 
   const patenteOptions = React.useMemo(() => {
     const fromLookup = lookupOptionsByField?.patente ?? [];
@@ -487,12 +509,14 @@ export function OnboardingDecisioneLavoroSection({
 
   return (
     <FieldGroup className="space-y-4">
+      {showFamiglia ? (
       <SectionWrapper
         title="Famiglia"
         icon={<UsersIcon className="size-4" />}
+        titleAction={titleAction}
         useSectionBlocks={useSectionBlocks}
-        collapsible={useSectionBlocks}
-        defaultOpen={false}
+        collapsible={shouldCollapseSections}
+        defaultOpen={firstSectionDefaultOpen}
         containerProps={sectionContainerProps?.famiglia}
       >
         <Field>
@@ -544,13 +568,16 @@ export function OnboardingDecisioneLavoroSection({
           </FieldSet>
         </div>
       </SectionWrapper>
+      ) : null}
 
+      {showCasa ? (
       <SectionWrapper
         title="Casa"
         icon={<HomeIcon className="size-4" />}
+        titleAction={titleAction}
         useSectionBlocks={useSectionBlocks}
-        collapsible={useSectionBlocks}
-        defaultOpen={false}
+        collapsible={shouldCollapseSections}
+        defaultOpen={sectionsDefaultOpen}
         containerProps={sectionContainerProps?.casa}
       >
         <Field>
@@ -588,13 +615,16 @@ export function OnboardingDecisioneLavoroSection({
           />
         </Field>
       </SectionWrapper>
+      ) : null}
 
+      {showAnimali ? (
       <SectionWrapper
         title="Animali"
         icon={<CatIcon className="size-4" />}
+        titleAction={titleAction}
         useSectionBlocks={useSectionBlocks}
-        collapsible={useSectionBlocks}
-        defaultOpen={false}
+        collapsible={shouldCollapseSections}
+        defaultOpen={sectionsDefaultOpen}
         containerProps={sectionContainerProps?.animali}
       >
         <Field>
@@ -643,13 +673,16 @@ export function OnboardingDecisioneLavoroSection({
           </FieldSet>
         </div>
       </SectionWrapper>
+      ) : null}
 
+      {showMansioni ? (
       <SectionWrapper
         title="Mansioni"
         icon={<BriefcaseIcon className="size-4" />}
+        titleAction={titleAction}
         useSectionBlocks={useSectionBlocks}
-        collapsible={useSectionBlocks}
-        defaultOpen={false}
+        collapsible={shouldCollapseSections}
+        defaultOpen={sectionsDefaultOpen}
         containerProps={sectionContainerProps?.mansioni}
       >
         <Field>
@@ -713,13 +746,16 @@ export function OnboardingDecisioneLavoroSection({
           />
         </CheckboxGroupSet>
       </SectionWrapper>
+      ) : null}
 
+      {showRichiesteSpecifiche ? (
       <SectionWrapper
         title="Richieste specifiche"
         icon={<ShieldCheckIcon className="size-4" />}
+        titleAction={titleAction}
         useSectionBlocks={useSectionBlocks}
-        collapsible={useSectionBlocks}
-        defaultOpen={false}
+        collapsible={shouldCollapseSections}
+        defaultOpen={sectionsDefaultOpen}
         containerProps={sectionContainerProps?.["richieste-specifiche"]}
       >
         <Field>
@@ -995,6 +1031,7 @@ export function OnboardingDecisioneLavoroSection({
           />
         </CheckboxGroupSet>
       </SectionWrapper>
+      ) : null}
     </FieldGroup>
   );
 }

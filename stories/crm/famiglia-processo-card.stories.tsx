@@ -4,7 +4,7 @@ import { FamigliaProcessoCard } from "@/components/crm/famiglia-processo-card";
 import { mockCrmCard } from "../mocks";
 
 const meta = {
-  title: "CRM/FamigliaProcessoCard",
+  title: "Ricerca/FamigliaProcessoCard",
   component: FamigliaProcessoCard,
   args: {
     data: mockCrmCard,

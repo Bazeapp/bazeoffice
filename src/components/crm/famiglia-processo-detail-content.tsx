@@ -195,7 +195,7 @@ function getSelectedLookupValue(
   return matched?.valueKey ?? selected ?? ""
 }
 
-type FamigliaProcessoDetailContentProps = {
+export type FamigliaProcessoDetailContentProps = {
   card: CrmPipelineCardData | null
   lookupOptionsByField: LookupOptionsByField
   editMode?: "always" | "toggle"
@@ -213,6 +213,17 @@ type FamigliaProcessoDetailContentProps = {
   showHeaderMeta?: boolean
   showPrimaryControls?: boolean
   showContextCard?: boolean
+  showOrariFrequenza?: boolean
+  showLuogoLavoro?: boolean
+  showFamiglia?: boolean
+  showCasa?: boolean
+  showAnimali?: boolean
+  showMansioni?: boolean
+  showRichiesteSpecifiche?: boolean
+  showBlockEditActions?: boolean
+  blocksCollapsible?: boolean
+  firstBlockDefaultOpen?: boolean
+  blocksDefaultOpen?: boolean
   isActive?: boolean
   readOnly?: boolean
   headerAction?: React.ReactNode
@@ -231,6 +242,17 @@ export function FamigliaProcessoDetailContent({
   showHeaderMeta = true,
   showPrimaryControls = true,
   showContextCard = true,
+  showOrariFrequenza = true,
+  showLuogoLavoro = true,
+  showFamiglia = true,
+  showCasa = true,
+  showAnimali = true,
+  showMansioni = true,
+  showRichiesteSpecifiche = true,
+  showBlockEditActions = true,
+  blocksCollapsible = true,
+  firstBlockDefaultOpen = true,
+  blocksDefaultOpen = false,
   isActive = true,
   readOnly = false,
   headerAction,
@@ -240,11 +262,28 @@ export function FamigliaProcessoDetailContent({
   const visibleTabs = React.useMemo(
     () =>
       SIDEBAR_SECTION_TABS.filter((tab) => {
+        if (!showOrariFrequenza && tab.id === "orari-frequenza") return false
+        if (!showLuogoLavoro && tab.id === "luogo-lavoro") return false
+        if (!showFamiglia && tab.id === "famiglia") return false
+        if (!showCasa && tab.id === "casa") return false
+        if (!showAnimali && tab.id === "animali") return false
+        if (!showMansioni && tab.id === "mansioni") return false
+        if (!showRichiesteSpecifiche && tab.id === "richieste-specifiche") return false
         if (!showTempistiche && tab.id === "tempistiche") return false
         if (!showAnnuncio && tab.id === "creazione-annuncio") return false
         return true
       }),
-    [showAnnuncio, showTempistiche]
+    [
+      showAnimali,
+      showAnnuncio,
+      showCasa,
+      showFamiglia,
+      showLuogoLavoro,
+      showMansioni,
+      showOrariFrequenza,
+      showRichiesteSpecifiche,
+      showTempistiche,
+    ]
   )
   const sectionRefs = React.useRef<
     Partial<Record<SidebarSectionTab["id"], HTMLDivElement | null>>
@@ -290,6 +329,69 @@ export function FamigliaProcessoDetailContent({
     !readOnly && (editMode === "always" ? true : isEditingOnboarding)
   const canEditAnnuncio =
     !readOnly && (editMode === "always" ? true : isEditingAnnuncio)
+  const statoLeadEditAction =
+    showBlockEditActions && editMode === "toggle" && !readOnly ? (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={
+          canEditStatoLead
+            ? "Termina modifica stato lead"
+            : "Modifica stato lead"
+        }
+        title={
+          canEditStatoLead
+            ? "Termina modifica stato lead"
+            : "Modifica stato lead"
+        }
+        onClick={() => setIsEditingStatoLead((current) => !current)}
+      >
+        <PencilIcon />
+      </Button>
+    ) : undefined
+  const onboardingEditAction =
+    showBlockEditActions && editMode === "toggle" && !readOnly ? (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={
+          canEditOnboarding
+            ? "Termina modifica onboarding"
+            : "Modifica onboarding"
+        }
+        title={
+          canEditOnboarding
+            ? "Termina modifica onboarding"
+            : "Modifica onboarding"
+        }
+        onClick={() => setIsEditingOnboarding((current) => !current)}
+      >
+        <PencilIcon />
+      </Button>
+    ) : undefined
+  const annuncioEditAction =
+    showBlockEditActions && editMode === "toggle" && !readOnly ? (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={
+          canEditAnnuncio
+            ? "Termina modifica creazione annuncio"
+            : "Modifica creazione annuncio"
+        }
+        title={
+          canEditAnnuncio
+            ? "Termina modifica creazione annuncio"
+            : "Modifica creazione annuncio"
+        }
+        onClick={() => setIsEditingAnnuncio((current) => !current)}
+      >
+        <PencilIcon />
+      </Button>
+    ) : undefined
   const stageOptions = lookupOptionsByField.stato_sales ?? []
   const groupedStageOptions = groupStageOptions(stageOptions)
   const stageGroupOrder = [
@@ -562,6 +664,9 @@ export function FamigliaProcessoDetailContent({
             <OnboardingContextCard
               card={card}
               lookupOptionsByField={lookupOptionsByField}
+              titleAction={statoLeadEditAction}
+              collapsible={blocksCollapsible}
+              defaultOpen={firstBlockDefaultOpen}
               onPatchProcess={canEditStatoLead ? onPatchProcess : undefined}
               onPatchFamily={canEditStatoLead ? onPatchFamily : undefined}
             />
@@ -580,44 +685,39 @@ export function FamigliaProcessoDetailContent({
             lookupOptionsByField={lookupOptionsByField}
             flattenSections
             sectionContainerProps={{
-              "orari-frequenza": { ref: bindSectionRef("orari-frequenza") },
-              "luogo-lavoro": { ref: bindSectionRef("luogo-lavoro") },
-              famiglia: { ref: bindSectionRef("famiglia") },
-              casa: { ref: bindSectionRef("casa") },
-              animali: { ref: bindSectionRef("animali") },
-              mansioni: { ref: bindSectionRef("mansioni") },
-              "richieste-specifiche": {
-                ref: bindSectionRef("richieste-specifiche"),
-              },
+              ...(showOrariFrequenza
+                ? { "orari-frequenza": { ref: bindSectionRef("orari-frequenza") } }
+                : {}),
+              ...(showLuogoLavoro
+                ? { "luogo-lavoro": { ref: bindSectionRef("luogo-lavoro") } }
+                : {}),
+              ...(showFamiglia ? { famiglia: { ref: bindSectionRef("famiglia") } } : {}),
+              ...(showCasa ? { casa: { ref: bindSectionRef("casa") } } : {}),
+              ...(showAnimali ? { animali: { ref: bindSectionRef("animali") } } : {}),
+              ...(showMansioni ? { mansioni: { ref: bindSectionRef("mansioni") } } : {}),
+              ...(showRichiesteSpecifiche
+                ? {
+                    "richieste-specifiche": {
+                      ref: bindSectionRef("richieste-specifiche"),
+                    },
+                  }
+                : {}),
               ...(showTempistiche
                 ? { tempistiche: { ref: bindSectionRef("tempistiche") } }
                 : {}),
             }}
+            showOrariFrequenza={showOrariFrequenza}
+            showLuogoLavoro={showLuogoLavoro}
+            showFamiglia={showFamiglia}
+            showCasa={showCasa}
+            showAnimali={showAnimali}
+            showMansioni={showMansioni}
+            showRichiesteSpecifiche={showRichiesteSpecifiche}
             showTempistiche={showTempistiche}
-              titleAction={
-                editMode === "toggle" && !readOnly ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={
-                    canEditOnboarding
-                      ? "Termina modifica onboarding"
-                      : "Modifica onboarding"
-                  }
-                  title={
-                    canEditOnboarding
-                      ? "Termina modifica onboarding"
-                      : "Modifica onboarding"
-                  }
-                  onClick={() =>
-                    setIsEditingOnboarding((current) => !current)
-                  }
-                >
-                  <PencilIcon />
-                </Button>
-              ) : undefined
-            }
+            sectionTitleAction={onboardingEditAction}
+            sectionsCollapsible={blocksCollapsible}
+            firstSectionDefaultOpen={firstBlockDefaultOpen}
+            sectionsDefaultOpen={blocksDefaultOpen}
             onPatchProcess={canEditOnboarding ? onPatchProcess : undefined}
             readOnly={!canEditOnboarding}
           />
@@ -636,38 +736,17 @@ export function FamigliaProcessoDetailContent({
                 title="Annuncio"
                 brief={card?.testoAnnuncioWhatsapp}
                 briefOnly
-                collapsible
-                defaultOpen={false}
+                collapsible={blocksCollapsible}
+                defaultOpen={blocksDefaultOpen}
                 containerProps={{ ref: bindSectionRef("creazione-annuncio") }}
               />
             ) : (
               <CreazioneAnnuncioCard
                 processId={card?.id ?? null}
                 containerProps={{ ref: bindSectionRef("creazione-annuncio") }}
-                titleAction={
-                  editMode === "toggle" && !readOnly ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={
-                        canEditAnnuncio
-                          ? "Termina modifica creazione annuncio"
-                          : "Modifica creazione annuncio"
-                      }
-                      title={
-                        canEditAnnuncio
-                          ? "Termina modifica creazione annuncio"
-                          : "Modifica creazione annuncio"
-                      }
-                      onClick={() =>
-                        setIsEditingAnnuncio((current) => !current)
-                      }
-                    >
-                      <PencilIcon />
-                    </Button>
-                  ) : undefined
-                }
+                titleAction={annuncioEditAction}
+                collapsible={blocksCollapsible}
+                defaultOpen={blocksDefaultOpen}
               />
             )}
           </div>

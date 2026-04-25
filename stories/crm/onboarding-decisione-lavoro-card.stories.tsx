@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { OnboardingDecisioneLavoroCard } from "@/components/crm/cards/onboarding-decisione-lavoro-card";
 
 const meta = {
-  title: "CRM/OnboardingDecisioneLavoroCard",
+  title: "Ricerca/OnboardingDecisioneLavoroCard",
   component: OnboardingDecisioneLavoroCard,
   args: {},
 } satisfies Meta<typeof OnboardingDecisioneLavoroCard>;

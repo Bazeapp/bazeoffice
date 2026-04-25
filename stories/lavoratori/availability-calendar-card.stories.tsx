@@ -17,7 +17,7 @@ const editBands = [
 ];
 
 const meta = {
-  title: "Lavoratori/AvailabilityCalendarCard",
+  title: "Lavoratori/Blocchi/AvailabilityCalendarCard",
   component: AvailabilityCalendarCard,
   args: {
     titleMeta: "20 ore / settimana",
@@ -66,4 +66,3 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
-

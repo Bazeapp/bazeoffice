@@ -4,7 +4,7 @@ import { CrmDetailCard } from "@/components/crm/detail-card";
 import { Button } from "@/components/ui/button";
 
 const meta = {
-  title: "CRM/CrmDetailCard",
+  title: "Ricerca/DetailCard",
   component: CrmDetailCard,
   argTypes: {
     title: { control: "text" },

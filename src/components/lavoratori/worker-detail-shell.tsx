@@ -13,7 +13,7 @@ type WorkerDetailShellProps = {
   activeSection: string;
   onSectionChange: (sectionId: string) => void;
   topBar?: React.ReactNode;
-  header: React.ReactNode;
+  header?: React.ReactNode;
   children: React.ReactNode;
   sectionRef?: React.Ref<HTMLElement>;
   headerRef?: React.Ref<HTMLDivElement>;
@@ -73,12 +73,14 @@ export function WorkerDetailShell({
         </div>
 
         <div className="space-y-6 text-sm">
-          <div
-            ref={headerRef}
-            className="sticky top-14 z-50 -mx-1 isolate space-y-3 border-b bg-background px-1 pb-4 shadow-[0_8px_16px_-18px_rgba(15,23,42,0.45)]"
-          >
-            {header}
-          </div>
+          {header ? (
+            <div
+              ref={headerRef}
+              className="sticky top-14 z-50 -mx-1 isolate space-y-3 border-b bg-background px-1 pb-4 shadow-[0_8px_16px_-18px_rgba(15,23,42,0.45)]"
+            >
+              {header}
+            </div>
+          ) : null}
 
           {children}
         </div>

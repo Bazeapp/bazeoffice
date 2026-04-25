@@ -164,6 +164,8 @@ export function SelectionDetailsCard({
     <DetailSectionBlock
       title="Selezione"
       icon={<ClipboardListIcon className="text-muted-foreground size-4" />}
+      collapsible
+      defaultOpen
       contentClassName="space-y-4"
     >
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">

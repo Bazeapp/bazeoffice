@@ -9,7 +9,7 @@ const options = [
 ];
 
 const meta = {
-  title: "Lavoratori/SkillsChoiceMatrix",
+  title: "Lavoratori/Blocchi/SkillsChoiceMatrix",
   component: SkillsChoiceMatrix,
   args: {
     title: "Compatibilità",
@@ -46,4 +46,3 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
-

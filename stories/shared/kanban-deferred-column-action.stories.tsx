@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { KanbanDeferredColumnAction } from "@/components/shared/kanban";
 
 const meta = {
-  title: "Shared/KanbanDeferredColumnAction",
+  title: "Shared/Kanban",
   component: KanbanDeferredColumnAction,
   argTypes: {
     label: { control: "text" },
@@ -21,4 +21,4 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Playground: Story = {};
+export const DeferredColumnAction: Story = {};

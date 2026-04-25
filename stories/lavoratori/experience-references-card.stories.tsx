@@ -1,5 +1,3 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-
 import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
 import { lookupColorsByDomain, lookupOptions } from "../mocks";
 
@@ -10,8 +8,8 @@ const draft = {
   situazione_lavorativa_attuale: "Attualmente lavora part time presso una famiglia a Milano.",
 };
 
-const meta = {
-  title: "Lavoratori/ExperienceReferencesCard",
+export default {
+  title: "Lavoratori/Blocchi/ExperienceReferencesCard",
   component: ExperienceReferencesCard,
   args: {
     workerId: "worker-story-1",
@@ -71,11 +69,6 @@ const meta = {
     isGeneratingAiSummary: { control: "boolean" },
     isUpdating: { control: "boolean" },
   },
-} satisfies Meta<typeof ExperienceReferencesCard>;
+};
 
-export default meta;
-
-type Story = StoryObj<typeof meta>;
-
-export const Default: Story = {};
-
+export const Default = {};

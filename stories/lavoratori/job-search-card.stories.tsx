@@ -1,5 +1,3 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-
 import { JobSearchCard } from "@/components/lavoratori/job-search-card";
 import { lookupColorsByDomain, lookupOptions } from "../mocks";
 
@@ -12,8 +10,8 @@ const draft = {
   check_accetta_paga_9_euro_netti: "Accetta",
 };
 
-const meta = {
-  title: "Lavoratori/JobSearchCard",
+export default {
+  title: "Lavoratori/Blocchi/JobSearchCard",
   component: JobSearchCard,
   args: {
     isEditing: false,
@@ -46,11 +44,6 @@ const meta = {
     showEditAction: { control: "boolean" },
     isUpdating: { control: "boolean" },
   },
-} satisfies Meta<typeof JobSearchCard>;
+};
 
-export default meta;
-
-type Story = StoryObj<typeof meta>;
-
-export const Default: Story = {};
-
+export const Default = {};

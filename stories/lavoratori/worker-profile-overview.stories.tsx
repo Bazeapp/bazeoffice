@@ -4,7 +4,7 @@ import { WorkerProfileOverview } from "@/components/lavoratori/worker-profile-ov
 import { lookupOptions, mockWorker, mockWorkerRow } from "../mocks";
 
 const meta = {
-  title: "Lavoratori/WorkerProfileOverview",
+  title: "Lavoratori/Blocchi/WorkerProfileOverview",
   component: WorkerProfileOverview,
   argTypes: {
     worker: { control: "object" },

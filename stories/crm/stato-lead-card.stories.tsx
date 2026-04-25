@@ -4,7 +4,7 @@ import { StatoLeadCard } from "@/components/crm/cards/stato-lead-card";
 import { mockCrmCard, mockCrmLookupOptions } from "../mocks";
 
 const meta = {
-  title: "CRM/StatoLeadCard",
+  title: "Ricerca/StatoLeadCard",
   component: StatoLeadCard,
   args: {
     card: mockCrmCard,

@@ -17,19 +17,16 @@ const preview: Preview = {
     },
     layout: "centered",
     backgrounds: {
-      default: "app",
-      values: [
-        { name: "app", value: "hsl(0 0% 98%)" },
-        { name: "white", value: "hsl(0 0% 100%)" },
-        { name: "muted", value: "hsl(210 20% 96%)" },
-      ],
+      disable: true,
     },
   },
   decorators: [
     (Story) => (
       <TooltipProvider>
-        <div className="min-h-screen bg-muted p-6 text-foreground">
-          <Story />
+        <div className="flex min-h-screen w-full items-center justify-center bg-transparent p-6 text-foreground">
+          <div className="w-fit max-w-full">
+            <Story />
+          </div>
           <Toaster richColors closeButton position="top-right" />
         </div>
       </TooltipProvider>

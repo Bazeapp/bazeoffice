@@ -1290,7 +1290,7 @@ export function ExperienceReferencesCard({
   isEditing,
   showEditAction = true,
   showCreateExperienceAction = false,
-  collapsible = false,
+  collapsible = true,
   defaultOpen = true,
   title = "Esperienze e Referenze",
   showSummaryFields = true,

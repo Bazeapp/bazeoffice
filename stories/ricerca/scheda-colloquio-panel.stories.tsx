@@ -4,7 +4,7 @@ import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-pane
 import { lookupColorsByDomain } from "../mocks";
 
 const meta = {
-  title: "Ricerca/SchedaColloquioPanel",
+  title: "Ricerca/Blocchi/SchedaColloquioPanel",
   component: SchedaColloquioPanel,
   args: {
     selectionRow: {
@@ -47,4 +47,3 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
-

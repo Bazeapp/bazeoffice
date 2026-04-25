@@ -4,10 +4,9 @@ import { CalendarDaysIcon, PencilIcon } from "lucide-react"
 import { DetailSectionBlock } from "@/components/shared/detail-section-card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { FieldTitle } from "@/components/ui/field"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-
-import { DetailRow } from "@/components/lavoratori/detail-row"
 
 type AvailabilityEditDay = {
   field: string
@@ -50,7 +49,7 @@ export function AvailabilityCalendarCard({
   titleMeta,
   isEditing,
   showEditAction = true,
-  collapsible = false,
+  collapsible = true,
   defaultOpen = true,
   isUpdating,
   editDays,
@@ -105,9 +104,14 @@ export function AvailabilityCalendarCard({
     >
       <div className="space-y-4">
         {familyRequestsText ? (
-          <DetailRow label="Richieste famiglia" align="start">
-            <span className="whitespace-pre-wrap break-words">{familyRequestsText}</span>
-          </DetailRow>
+          <div className="flex items-start gap-3 text-sm">
+            <FieldTitle className="w-24 shrink-0">
+              Richieste famiglia
+            </FieldTitle>
+            <div className="min-w-0 flex-1 text-foreground">
+              <span className="whitespace-pre-wrap break-words">{familyRequestsText}</span>
+            </div>
+          </div>
         ) : null}
 
         {isEditing ? (

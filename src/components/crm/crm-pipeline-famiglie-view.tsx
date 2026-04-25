@@ -15,7 +15,7 @@ import {
   UserRoundXIcon,
 } from "lucide-react"
 
-import { FamigliaProcessoDetailSidebar } from "@/components/crm/famiglia-processo-detail-sidebar"
+import { FamigliaProcessoDetailShell } from "@/components/crm/famiglia-processo-detail-shell"
 import { FamigliaProcessoCard } from "@/components/crm/famiglia-processo-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
 import {
@@ -369,7 +369,8 @@ export function CrmPipelineFamiglieView() {
         </div>
       </div>
 
-      <FamigliaProcessoDetailSidebar
+      <FamigliaProcessoDetailShell
+        mode="sheet"
         open={isDetailOpen}
         onOpenChange={(open) => {
           setIsDetailOpen(open)

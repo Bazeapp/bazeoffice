@@ -32,7 +32,7 @@ export function CreazioneAnnuncioCard({
   title = "Creazione Annuncio",
   brief,
   briefOnly = false,
-  collapsible = false,
+  collapsible = true,
   defaultOpen = true,
 }: {
   titleAction?: ReactNode;

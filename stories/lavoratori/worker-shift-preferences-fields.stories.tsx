@@ -4,7 +4,7 @@ import { WorkerShiftPreferencesFields } from "@/components/lavoratori/worker-shi
 import { lookupColorsByDomain, lookupOptions } from "../mocks";
 
 const meta = {
-  title: "Lavoratori/WorkerShiftPreferencesFields",
+  title: "Lavoratori/Blocchi/WorkerShiftPreferencesFields",
   component: WorkerShiftPreferencesFields,
   argTypes: {
     fields: { control: "object" },

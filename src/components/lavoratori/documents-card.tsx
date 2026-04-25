@@ -465,7 +465,7 @@ export function DocumentsCard({
   workerId,
   isEditing,
   showEditAction = true,
-  collapsible = false,
+  collapsible = true,
   defaultOpen = true,
   isUpdating,
   draft,

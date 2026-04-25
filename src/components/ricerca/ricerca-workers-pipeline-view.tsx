@@ -7,7 +7,7 @@ import {
   XIcon,
 } from "lucide-react";
 
-import { FamigliaProcessoDetailContent } from "@/components/crm/famiglia-processo-detail-content";
+import { FamigliaProcessoDetailShell } from "@/components/crm/famiglia-processo-detail-shell";
 import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
@@ -1504,7 +1504,8 @@ export function RicercaWorkersPipelineView({
                   <ChevronLeftIcon />
                 </Button>
 
-                <FamigliaProcessoDetailContent
+                <FamigliaProcessoDetailShell
+                  mode="inline"
                   card={card}
                   lookupOptionsByField={lookupOptionsByField}
                   editMode="toggle"
@@ -1618,7 +1619,8 @@ export function RicercaWorkersPipelineView({
                   headerClassName="hidden"
                   contentClassName="px-4 pt-0 pb-4"
                 >
-                  <FamigliaProcessoDetailContent
+                  <FamigliaProcessoDetailShell
+                    mode="inline"
                     card={card}
                     lookupOptionsByField={lookupOptionsByField}
                     editMode="toggle"

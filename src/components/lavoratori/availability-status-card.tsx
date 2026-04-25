@@ -20,6 +20,8 @@ type AvailabilityStatusDraft = {
 type AvailabilityStatusCardProps = {
   isEditing: boolean
   showEditAction?: boolean
+  collapsible?: boolean
+  defaultOpen?: boolean
   isUpdating: boolean
   disponibilitaOptions: LookupOption[]
   draft: AvailabilityStatusDraft
@@ -35,6 +37,8 @@ type AvailabilityStatusCardProps = {
 export function AvailabilityStatusCard({
   isEditing,
   showEditAction = true,
+  collapsible = true,
+  defaultOpen = true,
   isUpdating,
   disponibilitaOptions,
   draft,
@@ -73,6 +77,8 @@ export function AvailabilityStatusCard({
         </Button>
       ) : undefined}
       showDefaultAction={showEditAction}
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
       contentClassName="space-y-4"
     >
       <div className="grid gap-4 md:grid-cols-2">

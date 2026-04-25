@@ -3,8 +3,6 @@ import type { ReactNode } from "react";
 import {
   CalendarClockIcon,
   CheckCircle2Icon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   CircleXIcon,
   Clock3Icon,
   FlameIcon,
@@ -19,7 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DetailSectionBlock } from "@/components/shared/detail-section-card";
 import {
   Field,
   FieldGroup,
@@ -47,6 +45,9 @@ type OnboardingContextCardProps = {
   card: CrmPipelineCardData | null;
   lookupOptionsByField: LookupOptionsByField;
   className?: string;
+  titleAction?: ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
   onPatchProcess?: (
     processId: string,
     patch: Record<string, unknown>,
@@ -444,10 +445,12 @@ export function OnboardingContextCard({
   card,
   lookupOptionsByField,
   className,
+  titleAction,
+  collapsible = true,
+  defaultOpen = true,
   onPatchProcess,
   onPatchFamily,
 }: OnboardingContextCardProps) {
-  const [isOpen, setIsOpen] = React.useState(true);
   const [noteStato, setNoteStato] = React.useState(card?.appuntiChiamataSales ?? "");
   const [dataRicontatto, setDataRicontatto] = React.useState(
     card?.dataPerRicercaFuturaRaw ? card.dataPerRicercaFuturaRaw.slice(0, 10) : ""
@@ -461,10 +464,6 @@ export function OnboardingContextCard({
   const [noShowAttempts, setNoShowAttempts] = React.useState<string[]>(
     splitStoredValues(card?.salesNoShowFollowup)
   );
-
-  React.useEffect(() => {
-    setIsOpen(true);
-  }, [card?.id]);
 
   React.useEffect(() => {
     setNoteStato(card?.appuntiChiamataSales === "-" ? "" : card?.appuntiChiamataSales ?? "");
@@ -689,65 +688,45 @@ export function OnboardingContextCard({
   }
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className={className}>
-      <div className="rounded-2xl border bg-background">
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left"
-          >
-            <div className="min-w-0 space-y-2">
-              <div className="flex items-center gap-2">
-                <div className={cn("flex size-9 items-center justify-center rounded-xl border", stageMeta.toneClassName)}>
-                  <StageIcon className="size-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-base font-semibold text-foreground">
-                    Onboarding
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={getBadgeClassName(stageOption?.color)}
-                    >
-                      {stageMeta.title}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {stageMeta.description}
-              </p>
-            </div>
-            <div className="shrink-0 pt-1 text-muted-foreground">
-              {isOpen ? <ChevronUpIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
-            </div>
-          </button>
-        </CollapsibleTrigger>
-
-        <CollapsibleContent>
-          <div className="space-y-4 border-t px-4 pt-4 pb-4">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                Guida operativa
-              </p>
-              <ol className="space-y-2 text-sm text-foreground">
-                {stageMeta.transitions.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ol>
-            </div>
-            {contextualFields ? (
-              <div className="space-y-3">
-                <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                  Campi contestuali
-                </p>
-                {contextualFields}
-              </div>
-            ) : null}
-          </div>
-        </CollapsibleContent>
+    <DetailSectionBlock
+      title="Onboarding"
+      icon={<StageIcon className="size-4" />}
+      action={titleAction}
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
+      className={className}
+      contentClassName="space-y-4"
+    >
+      <div className="space-y-2">
+        <Badge
+          variant="outline"
+          className={getBadgeClassName(stageOption?.color)}
+        >
+          {stageMeta.title}
+        </Badge>
+        <p className="text-sm text-muted-foreground">
+          {stageMeta.description}
+        </p>
       </div>
-    </Collapsible>
+
+      <div className="space-y-2">
+        <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+          Guida operativa
+        </p>
+        <ol className="space-y-2 text-sm text-foreground">
+          {stageMeta.transitions.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ol>
+      </div>
+      {contextualFields ? (
+        <div className="space-y-3">
+          <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+            Campi contestuali
+          </p>
+          {contextualFields}
+        </div>
+      ) : null}
+    </DetailSectionBlock>
   );
 }

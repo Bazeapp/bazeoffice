@@ -61,7 +61,7 @@ for (const key of Object.keys(skillValues)) {
 }
 
 const meta = {
-  title: "Lavoratori/SkillsCompetenzeCard",
+  title: "Lavoratori/Blocchi/SkillsCompetenzeCard",
   component: SkillsCompetenzeCard,
   args: {
     isEditing: false,
@@ -90,4 +90,3 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
-

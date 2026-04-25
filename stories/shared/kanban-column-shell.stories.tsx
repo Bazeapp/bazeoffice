@@ -11,7 +11,7 @@ const visual = {
 };
 
 const meta = {
-  title: "Shared/KanbanColumnShell",
+  title: "Shared/Kanban",
   component: KanbanColumnShell,
   argTypes: {
     columnId: { control: "text" },
@@ -36,7 +36,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Playground: Story = {
+export const ColumnShell: Story = {
   render: (args) => (
     <KanbanColumnShell {...args}>
       <LavoratoreCard worker={mockWorker} isActive={false} onClick={() => undefined} />

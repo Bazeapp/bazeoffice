@@ -98,7 +98,7 @@ export function DetailSectionBlock({
   action,
   onActionClick,
   actionLabel = "Modifica sezione",
-  showDefaultAction = true,
+  showDefaultAction = false,
   tone = "primary",
   collapsible = false,
   defaultOpen = true,
@@ -150,11 +150,11 @@ export function DetailSectionBlock({
 
   const toneClassName = {
     primary: {
-      banner: "bg-primary/5",
-      icon: "bg-primary/10 text-primary",
+      banner: "bg-primary text-primary-foreground",
+      icon: "bg-primary-foreground text-primary",
     },
     muted: {
-      banner: "bg-muted/50",
+      banner: "bg-muted",
       icon: "bg-muted text-muted-foreground",
     },
     neutral: {
@@ -162,7 +162,7 @@ export function DetailSectionBlock({
       icon: "bg-muted text-muted-foreground",
     },
     transparent: {
-      banner: "bg-transparent",
+      banner: "bg-background",
       icon: "bg-muted text-muted-foreground",
     },
   }[tone];
@@ -173,7 +173,7 @@ export function DetailSectionBlock({
         <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             {icon ? (
-              <div className={cn("flex size-9 items-center justify-center rounded-xl", toneClassName.icon)}>
+              <div className={cn("flex size-9 items-center justify-center rounded-xl [&_svg]:text-current", toneClassName.icon)}>
                 {icon}
               </div>
             ) : null}

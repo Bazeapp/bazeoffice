@@ -34,6 +34,8 @@ type AddressSectionCardProps = {
   isEditing: boolean
   isUpdating: boolean
   showEditAction?: boolean
+  collapsible?: boolean
+  defaultOpen?: boolean
   showCap?: boolean
   addressDraft: AddressDraft
   provinciaOptions: LookupOption[]
@@ -56,6 +58,8 @@ export function AddressSectionCard({
   isEditing,
   isUpdating,
   showEditAction = true,
+  collapsible = true,
+  defaultOpen = true,
   showCap = true,
   addressDraft,
   provinciaOptions,
@@ -90,6 +94,8 @@ export function AddressSectionCard({
         </Button>
       ) : undefined}
       showDefaultAction={showEditAction}
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
       contentClassName="space-y-3"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[170px_130px_minmax(0,1fr)_minmax(220px,280px)]">

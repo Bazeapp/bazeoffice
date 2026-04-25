@@ -4,7 +4,7 @@ import { OnboardingCard } from "@/components/crm/cards/onboarding-card";
 import { mockCrmCard, mockCrmLookupOptions } from "../mocks";
 
 const meta = {
-  title: "CRM/OnboardingCard",
+  title: "Ricerca/OnboardingCard",
   component: OnboardingCard,
   args: {
     card: mockCrmCard,

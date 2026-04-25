@@ -4,7 +4,7 @@ import { AvailabilityStatusCard } from "@/components/lavoratori/availability-sta
 import { lookupOptions } from "../mocks";
 
 const meta = {
-  title: "Lavoratori/AvailabilityStatusCard",
+  title: "Lavoratori/Blocchi/AvailabilityStatusCard",
   component: AvailabilityStatusCard,
   argTypes: {
     isEditing: { control: "boolean" },
@@ -34,9 +34,13 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {
+  args: {
+    showEditAction: false
+  },
+
   render: (args) => (
     <div className="w-[560px]">
       <AvailabilityStatusCard {...args} />
     </div>
-  ),
+  )
 };
