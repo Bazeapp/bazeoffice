@@ -1,23 +1,30 @@
-import { LoginView } from "@/components/auth/login-view"
-import { AppShell } from "@/components/layout/app-shell"
-import { useAuthSession } from "@/hooks/use-auth-session"
+import * as React from "react"
+
+import { UiNextGallery } from "@/components/ui-next-gallery"
+
+function isUiNextRoute() {
+  if (typeof window === "undefined") return false
+  return /(?:^|\/)ui-next(?:\/|$)/.test(window.location.pathname)
+}
+
+const MainApp = React.lazy(() => import("@/main-app"))
 
 export function App() {
-  const { loading, session, signIn, signOut } = useAuthSession()
-
-  if (loading) {
-    return (
-      <div className="text-muted-foreground flex min-h-svh items-center justify-center text-sm">
-        Verifica sessione...
-      </div>
-    )
+  if (isUiNextRoute()) {
+    return <UiNextGallery />
   }
 
-  if (!session?.user) {
-    return <LoginView onSignIn={signIn} />
-  }
-
-  return <AppShell user={session.user} onLogout={signOut} />
+  return (
+    <React.Suspense
+      fallback={
+        <div className="text-muted-foreground flex min-h-svh items-center justify-center text-sm">
+          Caricamento...
+        </div>
+      }
+    >
+      <MainApp />
+    </React.Suspense>
+  )
 }
 
 export default App

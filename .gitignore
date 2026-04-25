@@ -28,3 +28,5 @@ storybook-static
 .env
 .env.*
 !.env.example
+shared-imports-map.txt
+shared-inventory.txt
