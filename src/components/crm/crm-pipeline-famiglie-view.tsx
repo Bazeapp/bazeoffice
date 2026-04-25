@@ -35,128 +35,128 @@ function getColumnVisual(color: string | null): ColumnVisual {
   switch ((color ?? "").toLowerCase()) {
     case "red":
       return {
-        columnClassName: "border-red-300 bg-red-50/70",
-        headerClassName: "border-b border-red-200/70",
+        columnClassName: "border-t-4 border-t-red-400",
+        headerClassName: "",
         iconClassName: "text-red-500",
       }
     case "rose":
       return {
-        columnClassName: "border-rose-300 bg-rose-50/70",
-        headerClassName: "border-b border-rose-200/70",
+        columnClassName: "border-t-4 border-t-rose-400",
+        headerClassName: "",
         iconClassName: "text-rose-500",
       }
     case "orange":
       return {
-        columnClassName: "border-orange-300 bg-orange-50/70",
-        headerClassName: "border-b border-orange-200/70",
+        columnClassName: "border-t-4 border-t-orange-400",
+        headerClassName: "",
         iconClassName: "text-orange-500",
       }
     case "amber":
       return {
-        columnClassName: "border-amber-300 bg-amber-50/70",
-        headerClassName: "border-b border-amber-200/70",
+        columnClassName: "border-t-4 border-t-amber-400",
+        headerClassName: "",
         iconClassName: "text-amber-500",
       }
     case "yellow":
       return {
-        columnClassName: "border-yellow-300 bg-yellow-50/70",
-        headerClassName: "border-b border-yellow-200/70",
+        columnClassName: "border-t-4 border-t-yellow-400",
+        headerClassName: "",
         iconClassName: "text-yellow-500",
       }
     case "lime":
       return {
-        columnClassName: "border-lime-300 bg-lime-50/70",
-        headerClassName: "border-b border-lime-200/70",
+        columnClassName: "border-t-4 border-t-lime-400",
+        headerClassName: "",
         iconClassName: "text-lime-500",
       }
     case "green":
       return {
-        columnClassName: "border-green-300 bg-green-50/70",
-        headerClassName: "border-b border-green-200/70",
+        columnClassName: "border-t-4 border-t-green-400",
+        headerClassName: "",
         iconClassName: "text-green-500",
       }
     case "emerald":
       return {
-        columnClassName: "border-emerald-300 bg-emerald-50/70",
-        headerClassName: "border-b border-emerald-200/70",
+        columnClassName: "border-t-4 border-t-emerald-400",
+        headerClassName: "",
         iconClassName: "text-emerald-500",
       }
     case "teal":
       return {
-        columnClassName: "border-teal-300 bg-teal-50/70",
-        headerClassName: "border-b border-teal-200/70",
+        columnClassName: "border-t-4 border-t-teal-400",
+        headerClassName: "",
         iconClassName: "text-teal-500",
       }
     case "cyan":
       return {
-        columnClassName: "border-cyan-300 bg-cyan-50/70",
-        headerClassName: "border-b border-cyan-200/70",
+        columnClassName: "border-t-4 border-t-cyan-400",
+        headerClassName: "",
         iconClassName: "text-cyan-500",
       }
     case "sky":
       return {
-        columnClassName: "border-sky-300 bg-sky-50/70",
-        headerClassName: "border-b border-sky-200/70",
+        columnClassName: "border-t-4 border-t-sky-400",
+        headerClassName: "",
         iconClassName: "text-sky-500",
       }
     case "blue":
       return {
-        columnClassName: "border-blue-300 bg-blue-50/70",
-        headerClassName: "border-b border-blue-200/70",
+        columnClassName: "border-t-4 border-t-blue-400",
+        headerClassName: "",
         iconClassName: "text-blue-500",
       }
     case "indigo":
       return {
-        columnClassName: "border-indigo-300 bg-indigo-50/70",
-        headerClassName: "border-b border-indigo-200/70",
+        columnClassName: "border-t-4 border-t-indigo-400",
+        headerClassName: "",
         iconClassName: "text-indigo-500",
       }
     case "violet":
       return {
-        columnClassName: "border-violet-300 bg-violet-50/70",
-        headerClassName: "border-b border-violet-200/70",
+        columnClassName: "border-t-4 border-t-violet-400",
+        headerClassName: "",
         iconClassName: "text-violet-500",
       }
     case "purple":
       return {
-        columnClassName: "border-purple-300 bg-purple-50/70",
-        headerClassName: "border-b border-purple-200/70",
+        columnClassName: "border-t-4 border-t-purple-400",
+        headerClassName: "",
         iconClassName: "text-purple-500",
       }
     case "fuchsia":
       return {
-        columnClassName: "border-fuchsia-300 bg-fuchsia-50/70",
-        headerClassName: "border-b border-fuchsia-200/70",
+        columnClassName: "border-t-4 border-t-fuchsia-400",
+        headerClassName: "",
         iconClassName: "text-fuchsia-500",
       }
     case "pink":
       return {
-        columnClassName: "border-pink-300 bg-pink-50/70",
-        headerClassName: "border-b border-pink-200/70",
+        columnClassName: "border-t-4 border-t-pink-400",
+        headerClassName: "",
         iconClassName: "text-pink-500",
       }
     case "slate":
       return {
-        columnClassName: "border-slate-300 bg-slate-50/70",
-        headerClassName: "border-b border-slate-200/70",
+        columnClassName: "border-t-4 border-t-slate-400",
+        headerClassName: "",
         iconClassName: "text-slate-500",
       }
     case "gray":
       return {
-        columnClassName: "border-gray-300 bg-gray-50/70",
-        headerClassName: "border-b border-gray-200/70",
+        columnClassName: "border-t-4 border-t-gray-400",
+        headerClassName: "",
         iconClassName: "text-gray-500",
       }
     case "zinc":
       return {
-        columnClassName: "border-zinc-300 bg-zinc-50/70",
-        headerClassName: "border-b border-zinc-200/70",
+        columnClassName: "border-t-4 border-t-zinc-400",
+        headerClassName: "",
         iconClassName: "text-zinc-500",
       }
     default:
       return {
-        columnClassName: "border-border bg-muted/40",
-        headerClassName: "border-b border-border/70",
+        columnClassName: "",
+        headerClassName: "",
         iconClassName: "text-muted-foreground/80",
       }
   }
@@ -236,7 +236,7 @@ function Column({
       title={column.label}
       countLabel={`${column.cards.length} ${column.cards.length === 1 ? "ricerca" : "ricerche"}`}
       visual={visual}
-      headerIcon={<span className="pt-0.5">{getStageIcon(column.id, visual.iconClassName)}</span>}
+      headerIcon={getStageIcon(column.id, visual.iconClassName)}
       widthClassName="w-[292px]"
       isDropTarget={isDropTarget}
       emptyState={

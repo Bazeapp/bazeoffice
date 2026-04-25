@@ -594,7 +594,7 @@ export function RicercaDetailView({
   const headerUuid = resolvedCard?.id ?? currentProcessId;
 
   return (
-    <section className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden pb-3">
+    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden pb-3">
       <div className="sticky top-0 z-20 shrink-0 bg-transparent px-1 pt-1">
         <div className="bg-card flex flex-col gap-3 rounded-xl border px-4 py-3 shadow-xs">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
