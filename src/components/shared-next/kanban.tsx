@@ -66,7 +66,7 @@ export function KanbanColumnShell({
   return (
     <div
       className={cn(
-        "bg-background flex h-full shrink-0 flex-col rounded-xl border transition-all duration-150",
+        "bg-white flex h-full shrink-0 flex-col rounded-xl border transition-all duration-150",
         widthClassName,
         visual.columnClassName,
         isDropTarget && "ring-primary/50 scale-[1.02] ring-2 shadow-md"

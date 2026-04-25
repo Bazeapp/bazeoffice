@@ -96,7 +96,7 @@ function FamigliaPreviewCard({
     rose: "bg-rose-100 text-rose-700",
   };
   return (
-    <Card className="py-0 gap-0 shadow-sm">
+    <Card className="py-0 gap-0 shadow-sm transition-all hover:shadow-md hover:border-border cursor-pointer">
       <CardContent className="space-y-3 px-4 py-4">
         <p className="text-sm font-semibold">{name}</p>
         <div className="flex flex-wrap gap-1.5">

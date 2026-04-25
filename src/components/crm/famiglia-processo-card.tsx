@@ -103,13 +103,13 @@ export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
         }`;
 
   return (
-    <Card className="bg-white border border-border/70 py-2 shadow-none transition-shadow hover:shadow-md">
+    <Card className="bg-white border border-border/70 py-2 shadow-none transition-all hover:shadow-md hover:border-border cursor-pointer">
       <CardContent className="space-y-2.5 px-3">
         <div className="space-y-1.5">
           <p className="truncate text-sm leading-none font-semibold">
             {data.nomeFamiglia}
           </p>
-          <div className="flex min-h-4 flex-col gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {data.tipoLavoroBadge ? (
               <Badge
                 variant="outline"
