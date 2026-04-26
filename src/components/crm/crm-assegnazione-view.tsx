@@ -6,43 +6,46 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   Clock3Icon,
+  FilterIcon,
   FilterXIcon,
   LinkIcon,
   MapPinIcon,
   PencilIcon,
+  UsersIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import type { AssegnazioneCardData } from "@/hooks/use-crm-assegnazione";
 import { useCrmAssegnazione } from "@/hooks/use-crm-assegnazione";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { SideCardsPanel } from "@/components/shared/side-cards-panel";
-import { DetailSectionBlock } from "@/components/shared/detail-section-card";
+import { Avatar } from "@/components/ui-next/avatar";
+import { Badge } from "@/components/ui-next/badge";
+import { Button } from "@/components/ui-next/button";
+import { Card, CardContent } from "@/components/ui-next/card";
+import { Input } from "@/components/ui-next/input";
+import { SectionHeader } from "@/components/shared-next/section-header";
+import { SideCardsPanel } from "@/components/shared-next/side-cards-panel";
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from "@/components/ui-next/accordion";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui-next/select";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/components/ui-next/sheet";
 import { cn } from "@/lib/utils";
 
 type AssigneeValue = string | "none";
@@ -208,16 +211,18 @@ function compareByDeadlineAsc(
 }
 
 function getAssigneeAvatarBorderClass(assigneeId: AssigneeValue) {
-  if (assigneeId === "none") return "after:border-zinc-400";
+  if (assigneeId === "none") return "ring-1 ring-zinc-300";
   const variants = [
-    "after:border-emerald-500",
-    "after:border-sky-500",
-    "after:border-violet-500",
-    "after:border-amber-500",
-    "after:border-rose-500",
-    "after:border-cyan-500",
+    "ring-2 ring-emerald-500",
+    "ring-2 ring-sky-500",
+    "ring-2 ring-violet-500",
+    "ring-2 ring-amber-500",
+    "ring-2 ring-rose-500",
+    "ring-2 ring-cyan-500",
   ];
-  return variants[hashString(assigneeId) % variants.length] ?? variants[0];
+  return (
+    variants[hashString(assigneeId) % variants.length] ?? "ring-1 ring-zinc-300"
+  );
 }
 
 function toIsoDateInput(displayDate: string) {
@@ -293,19 +298,18 @@ function AssegnazioneSearchCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer border border-border/70 border-l-4 bg-white py-1.5 gap-0 shadow-none transition-shadow hover:shadow-md",
+        "cursor-pointer border-l-4 bg-white transition-shadow hover:shadow-md",
         accentClassName,
       )}
     >
-      <CardContent className="space-y-1 px-3 py-1">
-        <div className="flex min-w-0 items-start justify-between gap-1.5">
-          <div className="truncate text-sm leading-none font-semibold">
+      <CardContent className="space-y-3">
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <h3 className="truncate text-base font-semibold leading-snug">
             {data.nomeFamiglia}
-          </div>
+          </h3>
           <Badge
-            variant="outline"
             className={cn(
-              "h-5 shrink-0 px-2 text-[11px] font-medium",
+              "shrink-0",
               data.tipoRicerca === "sostituzione"
                 ? "border-amber-200 bg-amber-100 text-amber-700"
                 : "border-sky-200 bg-sky-100 text-sky-700",
@@ -315,84 +319,69 @@ function AssegnazioneSearchCard({
           </Badge>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1.5">
           {data.tipoLavoroBadge ? (
-            <Badge
-              variant="outline"
-              className={cn(
-                "h-5 px-2 text-[11px] font-medium",
-                getBadgeClassName(data.tipoLavoroColor),
-              )}
-            >
+            <Badge className={getBadgeClassName(data.tipoLavoroColor)}>
               <BriefcaseBusinessIcon data-icon="inline-start" />
               {formatRoleBadgeLabel(data.tipoLavoroBadge)}
             </Badge>
           ) : null}
           {data.tipoRapportoBadge ? (
-            <Badge
-              variant="outline"
-              className={cn(
-                "h-5 px-2 text-[11px] font-medium",
-                getBadgeClassName(data.tipoRapportoColor),
-              )}
-            >
+            <Badge className={getBadgeClassName(data.tipoRapportoColor)}>
               <Clock3Icon data-icon="inline-start" />
               {formatBadgeLabel(data.tipoRapportoBadge)}
             </Badge>
           ) : null}
         </div>
 
-        <div className="flex items-end justify-between gap-1 border-t pt-1">
-          <div className="text-muted-foreground min-w-0 space-y-1 text-[11px]/[1]">
-            <div className="flex items-center gap-1 truncate leading-none">
-              <CalendarIcon className="size-3 shrink-0" />
-              <span>{data.deadlineMobile}</span>
+        <div className="flex items-end justify-between gap-3 border-t pt-3">
+          <div className="text-muted-foreground min-w-0 space-y-1.5 text-sm">
+            <div className="flex min-w-0 items-center gap-2">
+              <CalendarIcon className="size-4 shrink-0" />
+              <span className="truncate">{data.deadlineMobile}</span>
             </div>
-            <div className="flex items-center gap-1 truncate leading-none">
-              <Clock3Icon className="size-3 shrink-0" />
-              <span>
+            <div className="flex min-w-0 items-center gap-2">
+              <Clock3Icon className="size-4 shrink-0" />
+              <span className="truncate">
                 {formatOreGiorniLabel(
                   data.oreSettimanali,
                   data.giorniSettimanali,
                 )}
               </span>
             </div>
-            <div className="flex items-center gap-1 truncate leading-none">
-              <MapPinIcon className="size-3 shrink-0" />
+            <div className="flex min-w-0 items-center gap-2">
+              <MapPinIcon className="size-4 shrink-0" />
               <span className="truncate">{data.zona}</span>
             </div>
           </div>
-          <div className="ml-auto flex w-6 justify-end">
-            <Select
-              value={assigneeId}
-              onValueChange={(value) =>
-                onAssigneeChange(value as AssigneeValue)
-              }
+          <Select
+            value={assigneeId}
+            onValueChange={(value) =>
+              onAssigneeChange(value as AssigneeValue)
+            }
+          >
+            <SelectTrigger
+              className="h-8 w-8 min-w-0 max-w-8 shrink-0 rounded-full border-0 p-0 shadow-none [&>svg]:hidden"
+              aria-label="Cambia assegnatario"
+              title={assigneeLabel}
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
             >
-              <SelectTrigger
-                className="h-6 w-6 min-w-0 max-w-6 rounded-full border-0 p-0 shadow-none [&>svg]:hidden"
-                aria-label="Cambia assegnatario"
-                title={assigneeLabel}
-                onClick={(event) => event.stopPropagation()}
-                onPointerDown={(event) => event.stopPropagation()}
-              >
-                <Avatar
-                  size="sm"
-                  className={getAssigneeAvatarBorderClass(assigneeId)}
-                >
-                  <AvatarFallback>{assigneeAvatar}</AvatarFallback>
-                </Avatar>
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value="none">Nessuno</SelectItem>
-                {assigneeOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <Avatar
+                size="md"
+                fallback={assigneeAvatar}
+                className={getAssigneeAvatarBorderClass(assigneeId)}
+              />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="none">Nessuno</SelectItem>
+              {assigneeOptions.map((option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </CardContent>
     </Card>
@@ -1045,15 +1034,25 @@ export function CrmAssegnazioneView({
   );
 
   return (
-    <section className="flex h-full min-h-0 w-full min-w-0 flex-col gap-4 overflow-hidden">
+    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col gap-4 overflow-hidden">
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento assegnazione: {error}
         </div>
       ) : null}
 
-      <div className="flex shrink-0 items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
+      <SectionHeader>
+        <SectionHeader.Title
+          badge={
+            <Badge>
+              {filteredCards.length}{" "}
+              {filteredCards.length === 1 ? "ricerca" : "ricerche"}
+            </Badge>
+          }
+        >
+          Assegnazione
+        </SectionHeader.Title>
+        <SectionHeader.Actions>
           <Select
             value={assigneeFilter}
             onValueChange={(value) =>
@@ -1061,7 +1060,8 @@ export function CrmAssegnazioneView({
             }
           >
             <SelectTrigger className="w-55">
-              <SelectValue placeholder="Filtro recruiter" />
+              <UsersIcon className="size-4" />
+              <SelectValue placeholder="Tutti i recruiter" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tutti i recruiter</SelectItem>
@@ -1081,7 +1081,8 @@ export function CrmAssegnazioneView({
             }
           >
             <SelectTrigger className="w-47.5">
-              <SelectValue placeholder="Tipo ricerca" />
+              <FilterIcon className="size-4" />
+              <SelectValue placeholder="Tutte le ricerche" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tutte le ricerche</SelectItem>
@@ -1089,24 +1090,25 @@ export function CrmAssegnazioneView({
               <SelectItem value="sostituzione">Sostituzioni</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-        {(assigneeFilter !== "all" || tipoRicercaFilter !== "all") && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setAssigneeFilter("all");
-              setTipoRicercaFilter("all");
-            }}
-          >
-            <FilterXIcon className="size-4" />
-            Reset filtri
-          </Button>
-        )}
-      </div>
 
-      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 overflow-hidden xl:grid-cols-[292px_minmax(0,1fr)]">
+          {(assigneeFilter !== "all" || tipoRicercaFilter !== "all") && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setAssigneeFilter("all");
+                setTipoRicercaFilter("all");
+              }}
+            >
+              <FilterXIcon className="size-4" />
+              Reset filtri
+            </Button>
+          )}
+        </SectionHeader.Actions>
+      </SectionHeader>
+
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 overflow-hidden px-6 xl:grid-cols-[292px_minmax(0,1fr)]">
         <SideCardsPanel
           title="Da assegnare"
           icon={CalendarDaysIcon}
@@ -1166,12 +1168,9 @@ export function CrmAssegnazioneView({
                 value="nuove"
                 className="not-last:border-0 bg-transparent"
               >
-                <AccordionTrigger className="py-2 text-sm font-semibold no-underline hover:no-underline text-sky-700">
+                <AccordionTrigger>
                   <span className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className="h-5 px-2 text-[11px] border-sky-200 bg-sky-100 text-sky-700"
-                    >
+                    <Badge className="border-sky-200 bg-sky-100 text-sky-700">
                       Nuove
                     </Badge>
                     <span className="text-muted-foreground font-normal">
@@ -1229,12 +1228,9 @@ export function CrmAssegnazioneView({
                 value="sostituzioni"
                 className="not-last:border-0 bg-transparent"
               >
-                <AccordionTrigger className="py-2 text-sm font-semibold no-underline hover:no-underline text-amber-700">
+                <AccordionTrigger>
                   <span className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className="h-5 px-2 text-[11px] border-amber-200 bg-amber-100 text-amber-700"
-                    >
+                    <Badge className="border-amber-200 bg-amber-100 text-amber-700">
                       Sostituzioni
                     </Badge>
                     <span className="text-muted-foreground font-normal">
