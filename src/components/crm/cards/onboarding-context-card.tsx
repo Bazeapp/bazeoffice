@@ -381,7 +381,7 @@ function ChoiceFieldSet({
             )}
             onClick={() => onValueChange?.(option.valueKey)}
           >
-            <Badge variant="outline" className={getBadgeClassName(option.color)}>
+            <Badge className={getBadgeClassName(option.color)}>
               {option.valueLabel}
             </Badge>
           </Button>

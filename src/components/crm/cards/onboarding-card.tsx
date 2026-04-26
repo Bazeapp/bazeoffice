@@ -728,10 +728,7 @@ export function OnboardingCard({
                   {(values) => (
                     <>
                       {values.map((value: string) => (
-                        <ComboboxChip
-                          key={value}
-                          className={getTagClassName(getWeekdayColor(value))}
-                        >
+                        <ComboboxChip key={value}>
                           {value}
                         </ComboboxChip>
                       ))}
@@ -744,11 +741,7 @@ export function OnboardingCard({
                 <ComboboxEmpty>Nessun giorno trovato.</ComboboxEmpty>
                 <ComboboxList>
                   {(item) => (
-                    <ComboboxItem
-                      key={item}
-                      value={item}
-                      className={getTagClassName(getWeekdayColor(item))}
-                    >
+                    <ComboboxItem key={item} value={item}>
                       {item}
                     </ComboboxItem>
                   )}
@@ -1007,16 +1000,6 @@ export function OnboardingCard({
                 <CopyIcon className="size-4" />
               </Button>
             </div>
-            <FieldDescription>
-              <a
-                href={preventivoUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline underline-offset-2 break-all"
-              >
-                {preventivoUrl}
-              </a>
-            </FieldDescription>
             <Input
               id="onboarding-preventivo-url"
               value={preventivoUrl}
@@ -1123,10 +1106,7 @@ export function OnboardingCard({
                   {(values) => (
                     <>
                       {values.map((value: string) => (
-                        <ComboboxChip
-                          key={value}
-                          className={getTagClassName(getWeekdayColor(value))}
-                        >
+                        <ComboboxChip key={value}>
                           {value}
                         </ComboboxChip>
                       ))}
@@ -1139,11 +1119,7 @@ export function OnboardingCard({
                 <ComboboxEmpty>Nessun giorno trovato.</ComboboxEmpty>
                 <ComboboxList>
                   {(item) => (
-                    <ComboboxItem
-                      key={item}
-                      value={item}
-                      className={getTagClassName(getWeekdayColor(item))}
-                    >
+                    <ComboboxItem key={item} value={item}>
                       {item}
                     </ComboboxItem>
                   )}
@@ -1369,16 +1345,6 @@ export function OnboardingCard({
                     <CopyIcon className="size-4" />
                   </Button>
                 </div>
-                <FieldDescription>
-                  <a
-                    href={preventivoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary underline underline-offset-2 break-all"
-                  >
-                    {preventivoUrl}
-                  </a>
-                </FieldDescription>
                 <Input
                   id="onboarding-preventivo-url"
                   value={preventivoUrl}

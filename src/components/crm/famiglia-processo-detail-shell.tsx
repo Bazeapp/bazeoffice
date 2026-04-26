@@ -47,7 +47,6 @@ export function FamigliaProcessoDetailShell({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
-          showCloseButton={false}
           className="!w-[min(96vw,760px)] !max-w-none overflow-hidden p-0 sm:!max-w-none"
         >
           {content}

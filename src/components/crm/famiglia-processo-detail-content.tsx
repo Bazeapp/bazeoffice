@@ -15,7 +15,6 @@ import {
   TimerResetIcon,
 } from "lucide-react"
 
-import { Badge } from "@/components/ui-next/badge"
 import { Button } from "@/components/ui-next/button"
 import { OnboardingContextCard } from "@/components/crm/cards/onboarding-context-card"
 import { CreazioneAnnuncioCard } from "@/components/crm/cards/creazione-annuncio-card"
@@ -69,15 +68,6 @@ function renderValue(value: string | null | undefined) {
   if (!value) return "-"
   const normalized = value.trim()
   return normalized ? normalized : "-"
-}
-
-function formatBadgeLabel(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replaceAll("/", " / ")
-    .replace(/\s+/g, " ")
-    .trim()
 }
 
 function getBadgeClassName(color: string | null | undefined) {
@@ -159,6 +149,17 @@ function groupStageOptions(options: LookupOptionsByField["stato_sales"]) {
     },
     {}
   )
+}
+
+function getStageDotClass(stage: string | null | undefined) {
+  const s = String(stage ?? "").toLowerCase()
+  if (s.startsWith("warm_")) return "bg-amber-400"
+  if (s.startsWith("hot_")) return "bg-red-500"
+  if (s.startsWith("cold_")) return "bg-sky-400"
+  if (s.startsWith("won_")) return "bg-emerald-500"
+  if (s === "lost") return "bg-zinc-400"
+  if (s === "out_of_target") return "bg-zinc-300"
+  return "bg-muted-foreground/60"
 }
 
 function getStageGroupLabel(groupKey: string) {
@@ -252,7 +253,7 @@ export function FamigliaProcessoDetailContent({
   showBlockEditActions = true,
   blocksCollapsible = true,
   firstBlockDefaultOpen = true,
-  blocksDefaultOpen = false,
+  blocksDefaultOpen = true,
   isActive = true,
   readOnly = false,
   headerAction,
@@ -460,166 +461,131 @@ export function FamigliaProcessoDetailContent({
   return (
     <section
       ref={detailScrollRef}
-      className={cn("bg-muted relative h-full min-h-0 overflow-y-auto", className)}
+      className={cn("bg-[var(--neutral-150)] relative h-full min-h-0 overflow-y-auto", className)}
     >
-      <div className="bg-muted/95 sticky top-0 z-20 border-b backdrop-blur">
-        <div className="space-y-4 p-4">
+      <div className="bg-white sticky top-0 z-20 border-b">
+        <div className="space-y-3 px-4 pt-4">
           {showHeaderMeta || headerAction ? (
-            <div
-              className={cn(
-                "flex items-start gap-3",
-                showHeaderMeta ? "justify-between" : "justify-end"
-              )}
-            >
+            <div className="flex items-start justify-between gap-3">
               {showHeaderMeta ? (
-                <div className="min-w-0 space-y-1">
-                  <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
-                    Pipeline famiglie
-                  </p>
-                  <h2 className="truncate text-xl font-semibold">
-                    {renderValue(card?.nomeFamiglia)}
-                  </h2>
-                  <p className="sr-only">
-                    Dettaglio famiglia e ricerca
-                  </p>
-                  <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-                    <span>Record ID: {renderValue(card?.id)}</span>
-                  </div>
-                </div>
+                <h2 className="min-w-0 flex-1 truncate text-xl font-semibold">
+                  {renderValue(card?.nomeFamiglia)}
+                </h2>
               ) : (
-                <div className="hidden" />
+                <div />
               )}
               {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
             </div>
           ) : null}
 
           {showPrimaryControls ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <p className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
-                  Stato lead
-                </p>
-                <Select
-                  value={getSelectedLookupValue(card?.stage, stageOptions)}
-                  onValueChange={(nextValue) => {
-                    if (!card || !nextValue) return
-                    void onChangeStatoSales?.(card.id, nextValue)
-                  }}
-                  disabled={!canEditStatoLead}
-                >
-                  <SelectTrigger className="bg-background w-full">
-                    <SelectValue placeholder="Seleziona stato" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stageGroupOrder.map((groupKey) => (
-                      <SelectGroup key={groupKey}>
-                        <SelectLabel>{getStageGroupLabel(groupKey)}</SelectLabel>
-                        {groupedStageOptions[groupKey]?.map((option) => (
-                          <SelectItem key={option.valueKey} value={option.valueKey}>
-                            {option.valueLabel}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <Select
+                value={getSelectedLookupValue(card?.stage, stageOptions)}
+                onValueChange={(nextValue) => {
+                  if (!card || !nextValue) return
+                  void onChangeStatoSales?.(card.id, nextValue)
+                }}
+                disabled={!canEditStatoLead}
+              >
+                <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full bg-white pl-2.5 pr-2 text-xs font-medium">
+                  <span className={cn("size-2 shrink-0 rounded-full", getStageDotClass(card?.stage))} />
+                  <SelectValue placeholder="Stato lead" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stageGroupOrder.map((groupKey) => (
+                    <SelectGroup key={groupKey}>
+                      <SelectLabel>{getStageGroupLabel(groupKey)}</SelectLabel>
+                      {groupedStageOptions[groupKey]?.map((option) => (
+                        <SelectItem key={option.valueKey} value={option.valueKey}>
+                          {option.valueLabel}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
 
-              <div className="space-y-1.5">
-                <p className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
-                  Tipo rapporto
-                </p>
-                <Select
-                  value={getSelectedLookupValue(card?.tipoRapportoBadge, tipoRapportoOptions)}
-                  onValueChange={(nextValue) => {
-                    if (!card || !nextValue) return
-                    void onPatchProcess?.(card.id, { tipo_rapporto: [nextValue] })
-                  }}
-                  disabled={!canEditStatoLead}
-                >
-                  <SelectTrigger className="bg-background w-full">
-                    <SelectValue placeholder="Seleziona tipo rapporto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tipoRapportoOptions.map((option) => (
-                      <SelectItem key={option.valueKey} value={option.valueKey}>
-                        {option.valueLabel}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <p className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
-                  Tipo lavoro
-                </p>
-                <Select
-                  value={getSelectedLookupValue(card?.tipoLavoroBadge, tipoLavoroOptions)}
-                  onValueChange={(nextValue) => {
-                    if (!card || !nextValue) return
-                    void onPatchProcess?.(card.id, { tipo_lavoro: [nextValue] })
-                  }}
-                  disabled={!canEditStatoLead}
-                >
-                  <SelectTrigger className="bg-background w-full">
-                    <SelectValue placeholder="Seleziona tipo lavoro" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tipoLavoroOptions.map((option) => (
-                      <SelectItem key={option.valueKey} value={option.valueKey}>
-                        {option.valueLabel}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="rounded-xl border bg-background p-3 md:col-span-2">
-                <div className="text-muted-foreground space-y-2 text-sm">
-                  <div className="flex items-start gap-2">
-                    <MailIcon className="mt-0.5 size-4 shrink-0" />
-                    <span className="min-w-0 break-all">{renderValue(card?.email)}</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <PhoneIcon className="mt-0.5 size-4 shrink-0" />
-                    <span className="min-w-0 break-all">{renderValue(card?.telefono)}</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <MapPinnedIcon className="mt-0.5 size-4 shrink-0" />
-                    <span className="min-w-0 break-all">
-                      {renderValue(card?.indirizzoProvincia)}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <span className="text-muted-foreground inline-flex min-w-0 items-center gap-1.5 text-xs">
+                <MailIcon className="size-3.5 shrink-0" />
+                <span className="truncate">{renderValue(card?.email)}</span>
+              </span>
+              <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+                <PhoneIcon className="size-3.5 shrink-0" />
+                <span>{renderValue(card?.telefono)}</span>
+              </span>
+              <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+                <MapPinnedIcon className="size-3.5 shrink-0" />
+                <span>{renderValue(card?.indirizzoProvincia)}</span>
+              </span>
+              <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+                <CalendarIcon className="size-3.5 shrink-0" />
+                <span>Creata il {renderValue(card?.dataLead)}</span>
+              </span>
             </div>
           ) : null}
 
-          {showHeaderMeta ? (
+          {showPrimaryControls ? (
             <div className="flex flex-wrap items-center gap-2">
-              <div className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
-                <CalendarIcon className="size-3.5" />
-                <span>Lead del {renderValue(card?.dataLead)}</span>
-              </div>
-              {card?.tipoLavoroBadge ? (
-                <Badge
-                  variant="outline"
-                  className={getBadgeClassName(card.tipoLavoroColor)}
+              <Select
+                value={getSelectedLookupValue(card?.tipoLavoroBadge, tipoLavoroOptions)}
+                onValueChange={(nextValue) => {
+                  if (!card || !nextValue) return
+                  const label =
+                    tipoLavoroOptions.find((o) => o.valueKey === nextValue)
+                      ?.valueLabel ?? nextValue
+                  void onPatchProcess?.(card.id, { tipo_lavoro: [label] })
+                }}
+                disabled={!canEditStatoLead}
+              >
+                <SelectTrigger
+                  className={cn(
+                    "h-7 w-auto gap-1.5 rounded-full pl-2.5 pr-1.5 text-xs font-medium shadow-none",
+                    "[&_svg]:!text-current",
+                    getBadgeClassName(card?.tipoLavoroColor)
+                  )}
                 >
-                  <BriefcaseBusinessIcon data-icon="inline-start" />
-                  {formatBadgeLabel(card.tipoLavoroBadge)}
-                </Badge>
-              ) : null}
-              {card?.tipoRapportoBadge ? (
-                <Badge
-                  variant="outline"
-                  className={getBadgeClassName(card.tipoRapportoColor)}
+                  <BriefcaseBusinessIcon className="size-3.5 shrink-0" />
+                  <SelectValue placeholder="Tipo lavoro" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tipoLavoroOptions.map((option) => (
+                    <SelectItem key={option.valueKey} value={option.valueKey}>
+                      {option.valueLabel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={getSelectedLookupValue(card?.tipoRapportoBadge, tipoRapportoOptions)}
+                onValueChange={(nextValue) => {
+                  if (!card || !nextValue) return
+                  const label =
+                    tipoRapportoOptions.find((o) => o.valueKey === nextValue)
+                      ?.valueLabel ?? nextValue
+                  void onPatchProcess?.(card.id, { tipo_rapporto: [label] })
+                }}
+                disabled={!canEditStatoLead}
+              >
+                <SelectTrigger
+                  className={cn(
+                    "h-7 w-auto gap-1.5 rounded-full pl-2.5 pr-1.5 text-xs font-medium shadow-none",
+                    "[&_svg]:!text-current",
+                    getBadgeClassName(card?.tipoRapportoColor)
+                  )}
                 >
-                  <Clock3Icon data-icon="inline-start" />
-                  {formatBadgeLabel(card.tipoRapportoBadge)}
-                </Badge>
-              ) : null}
+                  <Clock3Icon className="size-3.5 shrink-0" />
+                  <SelectValue placeholder="Tipo rapporto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tipoRapportoOptions.map((option) => (
+                    <SelectItem key={option.valueKey} value={option.valueKey}>
+                      {option.valueLabel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : null}
 

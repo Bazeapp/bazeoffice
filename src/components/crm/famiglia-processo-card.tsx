@@ -26,6 +26,7 @@ function renderValue(value: string | null | undefined) {
 
 function formatBadgeLabel(value: string) {
   return value
+    .replaceAll("_", " ")
     .replaceAll("-", " ")
     .replaceAll("/", " / ")
     .replace(/\s+/g, " ")
@@ -112,7 +113,6 @@ export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
           <div className="flex flex-wrap gap-1.5">
             {data.tipoLavoroBadge ? (
               <Badge
-                variant="outline"
                 className={`h-5 px-2 text-[11px] font-medium ${getBadgeClassName(
                   data.tipoLavoroColor,
                 )}`}
@@ -123,7 +123,6 @@ export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
             ) : null}
             {data.tipoRapportoBadge ? (
               <Badge
-                variant="outline"
                 className={`h-5 px-2 text-[11px] font-medium ${getBadgeClassName(
                   data.tipoRapportoColor,
                 )}`}

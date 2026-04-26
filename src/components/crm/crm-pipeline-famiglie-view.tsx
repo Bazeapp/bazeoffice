@@ -4,6 +4,7 @@ import {
   CalendarClockIcon,
   CalendarPlusIcon,
   CheckCircle2Icon,
+  ChevronRightIcon,
   CircleDotIcon,
   CircleXIcon,
   Clock3Icon,
@@ -18,6 +19,9 @@ import {
 import { FamigliaProcessoDetailShell } from "@/components/crm/famiglia-processo-detail-shell"
 import { FamigliaProcessoCard } from "@/components/crm/famiglia-processo-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared-next/kanban"
+import { SectionHeader } from "@/components/shared-next/section-header"
+import { Badge } from "@/components/ui-next/badge"
+import { SearchInput } from "@/components/ui-next/search-input"
 import {
   type CrmPipelineCardData,
   type CrmPipelineColumnData,
@@ -293,6 +297,12 @@ export function CrmPipelineFamiglieView() {
   )
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [isDetailOpen, setIsDetailOpen] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState("")
+
+  const totalRicerche = React.useMemo(
+    () => columns.reduce((sum, column) => sum + column.cards.length, 0),
+    [columns]
+  )
 
   const selectedCard = React.useMemo(() => {
     if (!selectedCardId) return null
@@ -331,6 +341,33 @@ export function CrmPipelineFamiglieView() {
 
   return (
     <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
+      <SectionHeader>
+        <SectionHeader.Breadcrumb>
+          <span>CRM</span>
+          <ChevronRightIcon className="size-3.5" />
+          <span className="text-foreground">Sales Pipeline</span>
+        </SectionHeader.Breadcrumb>
+        <SectionHeader.Title
+          badge={
+            <Badge>
+              {totalRicerche} {totalRicerche === 1 ? "ricerca" : "ricerche"}
+            </Badge>
+          }
+        >
+          Sales Pipeline
+        </SectionHeader.Title>
+        <SectionHeader.Toolbar>
+          <div className="min-w-0 flex-1 max-w-[420px]">
+            <SearchInput
+              placeholder="Cerca famiglia, email, telefono..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onClear={() => setSearchQuery("")}
+            />
+          </div>
+        </SectionHeader.Toolbar>
+      </SectionHeader>
+
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento dati CRM: {error}
@@ -338,7 +375,7 @@ export function CrmPipelineFamiglieView() {
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="flex h-full min-w-max gap-4">
+        <div className="flex h-full min-w-max gap-4 px-6">
               {loading
                 ? Array.from({ length: 5 }).map((_, index) => (
                     <CrmPipelineSkeletonColumn key={index} />

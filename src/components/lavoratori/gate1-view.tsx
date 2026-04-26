@@ -2795,9 +2795,7 @@ export function Gate1View({
   const [gateFollowupFilter, setGateFollowupFilter] = React.useState("all");
   const [statusChangeRetainedWorkerId, setStatusChangeRetainedWorkerId] =
     React.useState<string | null>(null);
-  const statusChangeRetainTimeoutRef = React.useRef<ReturnType<
-    typeof window.setTimeout
-  > | null>(null);
+  const statusChangeRetainTimeoutRef = React.useRef<number | null>(null);
   const [gateDraft, setGateDraft] = React.useState({
     referenteIdoneita: "",
     referenteCertificazione: "",

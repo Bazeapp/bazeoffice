@@ -20,6 +20,7 @@ import {
   FieldSet,
 } from "@/components/ui-next/field";
 import { Input } from "@/components/ui-next/input";
+import { Textarea } from "@/components/ui-next/textarea";
 import {
   Combobox,
   ComboboxChip,
@@ -142,66 +143,6 @@ function CheckboxGroupSet({
   );
 }
 
-function normalizeToken(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .replace(/\s+/g, " ");
-}
-
-function getTagClassName(color: string | null | undefined) {
-  switch ((color ?? "").toLowerCase()) {
-    case "red":
-      return "border-red-200 bg-red-100 text-red-700";
-    case "rose":
-      return "border-rose-200 bg-rose-100 text-rose-700";
-    case "orange":
-      return "border-orange-200 bg-orange-100 text-orange-700";
-    case "amber":
-      return "border-amber-200 bg-amber-100 text-amber-700";
-    case "yellow":
-      return "border-yellow-200 bg-yellow-100 text-yellow-700";
-    case "lime":
-      return "border-lime-200 bg-lime-100 text-lime-700";
-    case "green":
-      return "border-green-200 bg-green-100 text-green-700";
-    case "emerald":
-      return "border-emerald-200 bg-emerald-100 text-emerald-700";
-    case "teal":
-      return "border-teal-200 bg-teal-100 text-teal-700";
-    case "cyan":
-      return "border-cyan-200 bg-cyan-100 text-cyan-700";
-    case "sky":
-      return "border-sky-200 bg-sky-100 text-sky-700";
-    case "blue":
-      return "border-blue-200 bg-blue-100 text-blue-700";
-    case "indigo":
-      return "border-indigo-200 bg-indigo-100 text-indigo-700";
-    case "violet":
-      return "border-violet-200 bg-violet-100 text-violet-700";
-    case "purple":
-      return "border-purple-200 bg-purple-100 text-purple-700";
-    case "fuchsia":
-      return "border-fuchsia-200 bg-fuchsia-100 text-fuchsia-700";
-    case "pink":
-      return "border-pink-200 bg-pink-100 text-pink-700";
-    case "slate":
-      return "border-slate-200 bg-slate-100 text-slate-700";
-    case "gray":
-      return "border-gray-200 bg-gray-100 text-gray-700";
-    case "zinc":
-      return "border-zinc-200 bg-zinc-100 text-zinc-700";
-    case "neutral":
-      return "border-neutral-200 bg-neutral-100 text-neutral-700";
-    case "stone":
-      return "border-stone-200 bg-stone-100 text-stone-700";
-    default:
-      return "border-border bg-muted text-foreground";
-  }
-}
-
 function LookupMultiComboboxField({
   id,
   label,
@@ -212,15 +153,6 @@ function LookupMultiComboboxField({
   options: LookupOption[];
 }) {
   const anchor = useComboboxAnchor();
-  const colorByToken = React.useMemo(() => {
-    const map = new Map<string, string>();
-    for (const option of options) {
-      if (!option.color) continue;
-      map.set(normalizeToken(option.valueKey), option.color);
-      map.set(normalizeToken(option.valueLabel), option.color);
-    }
-    return map;
-  }, [options]);
 
   const labels = React.useMemo(
     () =>
@@ -234,11 +166,6 @@ function LookupMultiComboboxField({
     [options],
   );
 
-  const getColor = React.useCallback(
-    (value: string) => colorByToken.get(normalizeToken(value)) ?? null,
-    [colorByToken],
-  );
-
   return (
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
@@ -248,12 +175,7 @@ function LookupMultiComboboxField({
             {(values) => (
               <>
                 {values.map((value: string) => (
-                  <ComboboxChip
-                    key={value}
-                    className={getTagClassName(getColor(value))}
-                  >
-                    {value}
-                  </ComboboxChip>
+                  <ComboboxChip key={value}>{value}</ComboboxChip>
                 ))}
                 <ComboboxChipsInput />
               </>
@@ -262,13 +184,9 @@ function LookupMultiComboboxField({
         </ComboboxChips>
         <ComboboxContent anchor={anchor} className="max-h-80">
           <ComboboxEmpty>Nessuna nazionalità trovata.</ComboboxEmpty>
-          <ComboboxList className="max-h-72 overflow-y-auto">
+          <ComboboxList className="max-h-72">
             {(item) => (
-              <ComboboxItem
-                key={item}
-                value={item}
-                className={getTagClassName(getColor(item))}
-              >
+              <ComboboxItem key={item} value={item}>
                 {item}
               </ComboboxItem>
             )}
@@ -407,8 +325,6 @@ export function OnboardingDecisioneLavoroSection({
   const [mansioniRichieste, setMansioniRichieste] = React.useState(
     toInputValue(defaults?.mansioniRichieste),
   );
-  const [richiesteSpecificheLavoratore, setRichiesteSpecificheLavoratore] =
-    React.useState("");
   const [informazioniExtraRiservate, setInformazioniExtraRiservate] =
     React.useState(toInputValue(defaults?.informazioniExtraRiservate));
   const [etaMin, setEtaMin] = React.useState(
@@ -508,7 +424,7 @@ export function OnboardingDecisioneLavoroSection({
   }, [lookupOptionsByField]);
 
   return (
-    <FieldGroup className="space-y-4">
+    <FieldGroup>
       {showFamiglia ? (
       <SectionWrapper
         title="Famiglia"
@@ -522,9 +438,8 @@ export function OnboardingDecisioneLavoroSection({
         <Field>
           <FieldLabel
             htmlFor="onboarding-famiglia-note"
-            className="flex items-center gap-2 font-semibold"
+            className="font-semibold"
           >
-            <UsersIcon className="size-4 text-muted-foreground" />
             Famiglia
           </FieldLabel>
           <Input
@@ -583,9 +498,8 @@ export function OnboardingDecisioneLavoroSection({
         <Field>
           <FieldLabel
             htmlFor="onboarding-casa-desc"
-            className="flex items-center gap-2 font-semibold"
+            className="font-semibold"
           >
-            <HomeIcon className="size-4 text-muted-foreground" />
             Casa
           </FieldLabel>
           <Input
@@ -630,9 +544,8 @@ export function OnboardingDecisioneLavoroSection({
         <Field>
           <FieldLabel
             htmlFor="onboarding-animali-note"
-            className="flex items-center gap-2 font-semibold"
+            className="font-semibold"
           >
-            <CatIcon className="size-4 text-muted-foreground" />
             Animali
           </FieldLabel>
           <Input
@@ -688,13 +601,13 @@ export function OnboardingDecisioneLavoroSection({
         <Field>
           <FieldLabel
             htmlFor="onboarding-mansioni-note"
-            className="flex items-center gap-2 font-semibold"
+            className="font-semibold"
           >
-            <BriefcaseIcon className="size-4 text-muted-foreground" />
             Mansioni
           </FieldLabel>
-          <Input
+          <Textarea
             id="onboarding-mansioni-note"
+            rows={4}
             placeholder='Inserire solo le mansioni "particolari" Es: deve saper essere una massima esperta di orchidee da competizione'
             value={mansioniRichieste}
             onChange={(event) => setMansioniRichieste(event.target.value)}
@@ -759,27 +672,12 @@ export function OnboardingDecisioneLavoroSection({
         containerProps={sectionContainerProps?.["richieste-specifiche"]}
       >
         <Field>
-          <FieldLabel
-            htmlFor="onboarding-richieste-specifiche"
-            className="flex items-center gap-2 font-semibold"
-          >
-            <ShieldCheckIcon className="size-4 text-muted-foreground" />
-            Richieste specifiche sul lavoratore
+          <FieldLabel htmlFor="onboarding-altre-info">
+            Note private del recruiter
           </FieldLabel>
-          <Input
-            id="onboarding-richieste-specifiche"
-            placeholder='Richieste particolari sul lavoratore "deve raccontare barzellette da urlo"'
-            value={richiesteSpecificheLavoratore}
-            onChange={(event) =>
-              setRichiesteSpecificheLavoratore(event.target.value)
-            }
-          />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="onboarding-altre-info">Altre info</FieldLabel>
-          <Input
+          <Textarea
             id="onboarding-altre-info"
+            rows={4}
             placeholder="Informazioni extra riservate"
             value={informazioniExtraRiservate}
             onChange={(event) =>
