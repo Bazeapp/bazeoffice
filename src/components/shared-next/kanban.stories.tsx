@@ -12,19 +12,19 @@ import { Badge } from "@/components/ui-next/badge";
 import { Card, CardContent } from "@/components/ui-next/card";
 
 const warmVisual: KanbanColumnVisual = {
-  columnClassName: "border-t-4 border-t-amber-400",
+  columnClassName: "bg-amber-400",
   headerClassName: "",
   iconClassName: "text-amber-400",
 };
 
 const hotVisual: KanbanColumnVisual = {
-  columnClassName: "border-t-4 border-t-red-500",
+  columnClassName: "bg-red-500",
   headerClassName: "",
   iconClassName: "text-red-500",
 };
 
 const coldVisual: KanbanColumnVisual = {
-  columnClassName: "border-t-4 border-t-sky-400",
+  columnClassName: "bg-sky-400",
   headerClassName: "",
   iconClassName: "text-sky-400",
 };

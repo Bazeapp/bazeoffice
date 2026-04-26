@@ -6,6 +6,12 @@ import { Card, CardContent } from "@/components/ui-next/card"
 import { cn } from "@/lib/utils"
 
 export type KanbanColumnVisual = {
+  /**
+   * Classe Tailwind `bg-*` (es. `bg-red-400`) per la striscia accent sul top
+   * della colonna. La striscia e un rettangolo assoluto clippato dal
+   * border-radius della colonna (overflow-hidden), non un border CSS.
+   * Stringa vuota = nessuna striscia.
+   */
   columnClassName: string
   headerClassName: string
   iconClassName: string
@@ -66,9 +72,8 @@ export function KanbanColumnShell({
   return (
     <div
       className={cn(
-        "bg-white flex h-full shrink-0 flex-col rounded-xl border transition-all duration-150",
+        "relative overflow-hidden bg-white flex h-full shrink-0 flex-col rounded-xl border transition-all duration-150",
         widthClassName,
-        visual.columnClassName,
         isDropTarget && "ring-primary/50 scale-[1.02] ring-2 shadow-md"
       )}
       onDragEnter={() => onDragEnter?.(columnId)}
@@ -84,6 +89,15 @@ export function KanbanColumnShell({
         onDrop?.(columnId, payload)
       }}
     >
+      {visual.columnClassName ? (
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute top-0 left-0 right-0 h-[4px]",
+            visual.columnClassName,
+          )}
+        />
+      ) : null}
       {isInline ? (
         <div
           className={cn(
