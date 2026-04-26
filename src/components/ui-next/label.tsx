@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 const labelVariants = cva("inline-flex items-center gap-1.5 text-[var(--foreground)]", {
   variants: {
     variant: {
-      field: "text-[var(--text-xs)] font-medium",
+      field: "text-[var(--text-sm)] font-medium",
       eyebrow:
         "text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--foreground-faint)]",
       meta: "text-[var(--text-2xs)] font-semibold uppercase tracking-[0.06em] text-[var(--foreground-subtle)]",

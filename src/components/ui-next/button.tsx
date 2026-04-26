@@ -34,9 +34,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: [
-          "bg-[var(--accent)] !text-white",
+          "bg-[var(--neutral-950)] !text-white",
           "shadow-[var(--shadow-sm),var(--shadow-inset-top)]",
-          "hover:bg-[var(--accent-hover)]",
+          "hover:bg-[var(--neutral-800)]",
         ],
         secondary: [
           "bg-[var(--neutral-150)] !text-[var(--foreground-strong)]",

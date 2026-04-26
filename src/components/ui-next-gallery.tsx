@@ -46,6 +46,22 @@ import {
 } from "@/components/ui-next/carousel";
 import { Checkbox } from "@/components/ui-next/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui-next/collapsible";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsTrigger,
+  ComboboxContent,
+  ComboboxFooter,
+  ComboboxGroup,
+  ComboboxItem,
+  ComboboxItemCount,
+  ComboboxLabel,
+  ComboboxList,
+  ComboboxSearch,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui-next/combobox";
 import { DatePicker } from "@/components/ui-next/date-picker";
 import { DayCountSelector } from "@/components/ui-next/day-count-selector";
 import {
@@ -95,6 +111,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui-next/sheet";
+import { SearchInput } from "@/components/ui-next/search-input";
 import { Sidebar, SidebarItem, SidebarLabel, SidebarSection } from "@/components/ui-next/sidebar";
 import { Skeleton } from "@/components/ui-next/skeleton";
 import { Toaster } from "@/components/ui-next/sonner";
@@ -108,6 +125,7 @@ const SECTIONS: { id: string; title: string }[] = [
   { id: "button", title: "Button" },
   { id: "badge", title: "Badge" },
   { id: "input", title: "Input" },
+  { id: "search-input", title: "Search Input" },
   { id: "textarea", title: "Textarea" },
   { id: "label", title: "Label" },
   { id: "field", title: "Field" },
@@ -201,6 +219,7 @@ export function UiNextGallery() {
             <ButtonSection />
             <BadgeSection />
             <InputSection />
+            <SearchInputSection />
             <TextareaSection />
             <LabelSection />
             <FieldSection />
@@ -425,6 +444,39 @@ function InputSection() {
   );
 }
 
+function SearchInputSection() {
+  const [q, setQ] = React.useState("");
+  const [filled, setFilled] = React.useState("Mario");
+  return (
+    <Section id="search-input" title="Search Input">
+      <StateRow label="Default">
+        <SearchInput
+          placeholder="Cerca famiglia, email, telefono..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="max-w-[420px]"
+        />
+      </StateRow>
+      <StateRow label="With value (clearable)">
+        <SearchInput
+          placeholder="Cerca..."
+          value={filled}
+          onChange={(e) => setFilled(e.target.value)}
+          onClear={() => setFilled("")}
+          className="max-w-[420px]"
+        />
+      </StateRow>
+      <StateRow label="Disabled">
+        <SearchInput
+          placeholder="Cerca famiglia, email, telefono..."
+          disabled
+          className="max-w-[420px]"
+        />
+      </StateRow>
+    </Section>
+  );
+}
+
 function TextareaSection() {
   return (
     <Section id="textarea" title="Textarea">
@@ -606,15 +658,121 @@ function SelectSection() {
   );
 }
 
+type CittaItem = { value: string; label: string; count: number };
+
+const COMBOBOX_DEMO_ITEMS: CittaItem[] = [
+  { value: "milano", label: "Milano", count: 42 },
+  { value: "roma", label: "Roma", count: 28 },
+  { value: "torino", label: "Torino", count: 19 },
+  { value: "bologna", label: "Bologna", count: 11 },
+  { value: "firenze", label: "Firenze", count: 9 },
+  { value: "napoli", label: "Napoli", count: 7 },
+];
+
 function ComboboxSection() {
+  const anchor = useComboboxAnchor();
+  const [selected, setSelected] = React.useState<string[]>(["milano", "roma"]);
+
+  const itemsByValue = React.useMemo(() => {
+    const map = new Map<string, CittaItem>();
+    COMBOBOX_DEMO_ITEMS.forEach((item) => map.set(item.value, item));
+    return map;
+  }, []);
+
+  const selectedItems = React.useMemo(
+    () =>
+      selected
+        .map((v) => itemsByValue.get(v))
+        .filter((item): item is CittaItem => Boolean(item)),
+    [selected, itemsByValue],
+  );
+
+  const suggestedItems = React.useMemo(
+    () => COMBOBOX_DEMO_ITEMS.filter((item) => !selected.includes(item.value)),
+    [selected],
+  );
+
+  const allValues = React.useMemo(
+    () => COMBOBOX_DEMO_ITEMS.map((item) => item.value),
+    [],
+  );
+
+  const visibleChips = selectedItems.slice(0, 2);
+  const overflowChips = selectedItems.length - visibleChips.length;
+
   return (
     <Section id="combobox" title="Combobox">
-      <StateRow label="Compound API">
-        <p className="text-sm text-[var(--foreground-subtle)]">
-          See `/bazeoffice/pipeline` for live usage of the compound combobox API
-          (Combobox, ComboboxContent, ComboboxList, ComboboxItem, ComboboxChips,
-          ComboboxChip, useComboboxAnchor).
-        </p>
+      <StateRow label="Multi-select">
+        <div className="w-[320px]">
+          <Combobox
+            multiple
+            autoHighlight
+            items={allValues}
+            value={selected}
+            onValueChange={(next) => setSelected(next as string[])}
+          >
+            <ComboboxChips ref={anchor}>
+              <ComboboxValue>
+                {() => (
+                  <>
+                    {visibleChips.map((item) => (
+                      <ComboboxChip key={item.value}>{item.label}</ComboboxChip>
+                    ))}
+                  </>
+                )}
+              </ComboboxValue>
+              <ComboboxChipsTrigger
+                count={overflowChips > 0 ? overflowChips : undefined}
+              />
+            </ComboboxChips>
+            <ComboboxContent
+              anchor={anchor}
+              className="w-[320px] max-h-[400px]"
+            >
+              <ComboboxSearch placeholder="Cerca città..." />
+              <ComboboxList>
+                {selectedItems.length > 0 ? (
+                  <ComboboxGroup>
+                    <ComboboxLabel>Selezionate</ComboboxLabel>
+                    {selectedItems.map((item) => (
+                      <ComboboxItem key={item.value} value={item.value}>
+                        {item.label}
+                        <ComboboxItemCount>{item.count}</ComboboxItemCount>
+                      </ComboboxItem>
+                    ))}
+                  </ComboboxGroup>
+                ) : null}
+                {suggestedItems.length > 0 ? (
+                  <ComboboxGroup>
+                    <ComboboxLabel>Suggerite</ComboboxLabel>
+                    {suggestedItems.map((item) => (
+                      <ComboboxItem key={item.value} value={item.value}>
+                        {item.label}
+                        <ComboboxItemCount>{item.count}</ComboboxItemCount>
+                      </ComboboxItem>
+                    ))}
+                  </ComboboxGroup>
+                ) : null}
+              </ComboboxList>
+              <ComboboxFooter>
+                <button
+                  type="button"
+                  onClick={() => setSelected([])}
+                  className="text-[var(--text-sm)] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] disabled:opacity-50"
+                  disabled={selected.length === 0}
+                >
+                  Pulisci
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-8 items-center justify-center rounded-[var(--radius-md)] bg-[var(--accent)] px-3 text-[var(--text-sm)] font-medium text-[var(--foreground-on-accent)] shadow-[var(--shadow-sm)] transition-colors hover:bg-[var(--accent-hover)]"
+                >
+                  Applica ({selected.length})
+                </button>
+              </ComboboxFooter>
+            </ComboboxContent>
+          </Combobox>
+        </div>
       </StateRow>
     </Section>
   );
