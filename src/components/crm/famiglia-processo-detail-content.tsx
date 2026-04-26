@@ -640,7 +640,7 @@ export function FamigliaProcessoDetailContent({
                   <TabsTrigger
                     key={tab.id}
                     value={tab.id}
-                    className="h-10 flex-none rounded-full px-3 text-sm text-muted-foreground/70 shadow-none"
+                    className="flex-none"
                   >
                     <TabIcon className="size-4" />
                     {tab.label}

@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
  *
  * Variants
  *   underline   Accent underline on active (default).
+ *   line        Same family as underline but transparent bg, primary color on active,
+ *               built for in-page navigation tabs (e.g. detail sheet section nav).
  *   boxed       Filled pill on active, subtle border. Built-in count chip slot.
  *   pills       Soft accent-tint pill (compact toolbars).
  *   segmented   Same look as RadioGroup variant="segmented".
@@ -23,6 +25,7 @@ const listVariants = cva("inline-flex items-center", {
     variant: {
       underline:
         "gap-4 border-b border-[var(--border)] w-full",
+      line: "gap-4 border-b border-[var(--border)] w-full",
       boxed: "gap-1",
       pills: "gap-1",
       segmented: "p-0.5 bg-[var(--neutral-150)] rounded-[var(--radius-md)] gap-0",
@@ -46,6 +49,12 @@ const triggerVariants = cva(
           "h-9 px-1 -mb-px text-[var(--text-sm)] text-[var(--foreground-subtle)]",
           "border-b-2 border-transparent",
           "data-[state=active]:!text-[var(--foreground-strong)] data-[state=active]:border-[var(--accent)]",
+          "hover:!text-[var(--foreground)]",
+        ],
+        line: [
+          "h-10 px-3 -mb-px text-[var(--text-sm)] text-[var(--foreground-subtle)]",
+          "border-b-2 border-transparent",
+          "data-[state=active]:!text-[var(--accent)] data-[state=active]:border-[var(--accent)]",
           "hover:!text-[var(--foreground)]",
         ],
         boxed: [
@@ -77,6 +86,8 @@ const countVariants = cva(
       variant: {
         underline:
           "h-[18px] min-w-[18px] px-1 bg-[var(--neutral-150)] !text-[var(--foreground-muted)]",
+        line:
+          "h-[18px] min-w-[18px] px-1 bg-[var(--neutral-150)] !text-[var(--foreground-muted)]",
         boxed:
           "h-[18px] min-w-[18px] px-1 bg-[var(--neutral-150)] !text-[var(--foreground-muted)] group-data-[state=active]/tab-trigger:bg-[var(--neutral-200)] group-data-[state=active]/tab-trigger:!text-[var(--foreground-strong)]",
         pills:
@@ -90,7 +101,7 @@ const countVariants = cva(
 );
 
 interface VariantCtx {
-  variant: "underline" | "boxed" | "pills" | "segmented";
+  variant: "underline" | "line" | "boxed" | "pills" | "segmented";
 }
 const TabsCtx = React.createContext<VariantCtx>({ variant: "underline" });
 
@@ -125,7 +136,7 @@ const TabsTrigger = React.forwardRef<
       className={cn("group/tab-trigger", triggerVariants({ variant }), className)}
       {...props}
     >
-      <span>{children}</span>
+      {children}
       {count != null ? (
         <span className={cn(countVariants({ variant }))}>{count}</span>
       ) : null}
