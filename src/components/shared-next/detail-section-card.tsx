@@ -4,6 +4,7 @@ import { ChevronDownIcon, PencilIcon } from "lucide-react";
 
 import { Button } from "@/components/ui-next/button";
 import { Input } from "@/components/ui-next/input";
+import { Label } from "@/components/ui-next/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-next/card";
 import { cn } from "@/lib/utils";
 
@@ -149,7 +150,7 @@ export function DetailSectionBlock({
   ) : null;
 
   const iconToneClassName = {
-    primary: "bg-primary/10 text-primary",
+    primary: "bg-blue-100 text-blue-600",
     muted: "bg-muted text-muted-foreground",
     neutral: "bg-muted text-muted-foreground",
     transparent: "bg-muted text-muted-foreground",
@@ -169,7 +170,7 @@ export function DetailSectionBlock({
           {icon ? (
             <div
               className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-xl [&_svg]:text-current",
+                "flex size-9 shrink-0 items-center justify-center rounded-lg [&_svg]:text-current",
                 iconToneClassName,
               )}
             >
@@ -218,26 +219,34 @@ export function DetailField({
 
   return (
     <div className={cn("space-y-1.5", className)}>
-      <p className={cn("ui-type-label", labelClassName)}>{label}</p>
+      <Label className={labelClassName}>{label}</Label>
       {isPrimitiveValue && !multiline ? (
         <Input
           readOnly
           tabIndex={-1}
           value={String(value)}
-          className={cn(
-            "ui-type-value h-auto border-transparent bg-transparent px-0 py-0 shadow-none focus-visible:ring-0",
-            valueClassName,
-          )}
+          className={valueClassName}
         />
-      ) : (
+      ) : multiline ? (
         <div
           className={cn(
-            "ui-type-value min-h-0 px-0 py-0 shadow-none whitespace-pre-wrap break-words",
-            !multiline && "flex items-center",
+            "min-h-[var(--h-md)] w-full rounded-[var(--radius-md)] bg-[var(--surface)]",
+            "px-3 py-2 text-[var(--text-sm)] text-[var(--foreground-strong)]",
+            "shadow-[inset_0_0_0_1px_var(--border)]",
+            "leading-snug whitespace-pre-wrap break-words",
             valueClassName,
           )}
         >
           {isPrimitiveValue ? String(value) : value}
+        </div>
+      ) : (
+        <div
+          className={cn(
+            "flex min-h-[var(--h-md)] items-center text-[var(--text-sm)] text-[var(--foreground-strong)]",
+            valueClassName,
+          )}
+        >
+          {value}
         </div>
       )}
     </div>
@@ -259,7 +268,7 @@ export function DetailFieldControl({
 }: DetailFieldControlProps) {
   return (
     <div className={cn("space-y-1.5", className)}>
-      <p className={cn("ui-type-label", labelClassName)}>{label}</p>
+      <Label className={labelClassName}>{label}</Label>
       {children}
     </div>
   );
