@@ -63,15 +63,17 @@ export function SideCardsPanel({
 
   return (
     <Card
-      className={cn("flex h-full flex-col overflow-hidden bg-muted", className)}
+      className={cn("flex h-full flex-col overflow-hidden bg-white", className)}
       {...props}
     >
-      <CardHeader className={cn("pb-2.5", headerClassName)}>
-        <CardTitle className="flex items-center gap-1.5 text-[13px]">
-          {Icon ? <Icon className="size-3.5" /> : null}
-          {title}
-        </CardTitle>
-        {subtitle ? <p className="text-muted-foreground text-[12px]">{subtitle}</p> : null}
+      <CardHeader className={cn("flex-col items-start gap-1 pb-4", headerClassName)}>
+        <div className="flex items-center gap-2">
+          {Icon ? <Icon className="text-muted-foreground size-5" /> : null}
+          <CardTitle>{title}</CardTitle>
+        </div>
+        {subtitle ? (
+          <p className="text-muted-foreground text-[var(--text-sm)]">{subtitle}</p>
+        ) : null}
       </CardHeader>
       {hasToolbar ? (
         <div
