@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import {
   BriefcaseBusinessIcon,
   CalendarIcon,
@@ -12,9 +11,9 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui-next/badge";
-import { Card, CardContent } from "@/components/ui-next/card";
+import { CardMetaRow } from "@/components/shared-next/card-meta-row";
+import { RecordCard } from "@/components/shared-next/record-card";
 import type { CrmPipelineCardData } from "@/hooks/use-crm-pipeline-preview";
-import { Separator } from "../ui/separator";
 
 type FamigliaProcessoCardProps = {
   data: CrmPipelineCardData;
@@ -84,15 +83,6 @@ function getBadgeClassName(color: string | null | undefined) {
   }
 }
 
-function MetaRow({ icon, value }: { icon: ReactNode; value: string }) {
-  return (
-    <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-xs">
-      <span className="shrink-0">{icon}</span>
-      <span className="truncate">{renderValue(value)}</span>
-    </div>
-  );
-}
-
 export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
   const oreValue = renderValue(data.oreSettimana);
   const giorniValue = renderValue(data.giorniSettimana);
@@ -103,84 +93,71 @@ export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
           giorniValue === "-" ? "-" : `${giorniValue}g`
         }`;
 
+  const hasTags = Boolean(data.tipoLavoroBadge || data.tipoRapportoBadge);
+  const showTentativi =
+    data.stage === "hot_in_attesa_di_primo_contatto" &&
+    data.tentativiChiamataCount > 0;
+
   return (
-    <Card className="bg-white border border-border/70 py-2 shadow-none transition-all hover:shadow-md hover:border-border cursor-pointer">
-      <CardContent className="space-y-2.5 px-3">
-        <div className="space-y-1.5">
-          <p className="truncate text-sm leading-none font-semibold">
-            {data.nomeFamiglia}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
+    <RecordCard>
+      <RecordCard.Header title={data.nomeFamiglia} />
+      <RecordCard.Body>
+        {hasTags ? (
+          <CardMetaRow>
             {data.tipoLavoroBadge ? (
-              <Badge
-                className={`h-5 px-2 text-[11px] font-medium ${getBadgeClassName(
-                  data.tipoLavoroColor,
-                )}`}
-              >
+              <Badge className={getBadgeClassName(data.tipoLavoroColor)}>
                 <BriefcaseBusinessIcon data-icon="inline-start" />
                 {formatBadgeLabel(data.tipoLavoroBadge)}
               </Badge>
             ) : null}
             {data.tipoRapportoBadge ? (
-              <Badge
-                className={`h-5 px-2 text-[11px] font-medium ${getBadgeClassName(
-                  data.tipoRapportoColor,
-                )}`}
-              >
+              <Badge className={getBadgeClassName(data.tipoRapportoColor)}>
                 <Clock3Icon data-icon="inline-start" />
                 {formatBadgeLabel(data.tipoRapportoBadge)}
               </Badge>
             ) : null}
-          </div>
-        </div>
-
-        <div className="space-y-1.5 border-t pt-2">
-          <MetaRow
-            icon={<MailIcon className="size-3.5" />}
-            value={data.email}
-          />
-          <MetaRow
-            icon={<PhoneIcon className="size-3.5" />}
-            value={data.telefono}
-          />
-          <MetaRow
-            icon={<Clock3Icon className="size-3.5" />}
-            value={oreGiorni}
-          />
-          <Separator />
-          <MetaRow
-            icon={<CalendarIcon className="size-3.5" />}
-            value={`Creata il ${data.dataLead}`}
-          />
-          {data.dataCallPrenotata !== "-" ? (
-            <MetaRow
-              icon={<CalendarClockIcon className="size-3.5" />}
-              value={`Call il ${data.dataCallPrenotata.replace(",", " alle")}`}
-            />
-          ) : null}
-          {data.stage === "cold_ricerca_futura" && data.dataPerRicercaFutura !== "-" ? (
-            <MetaRow
-              icon={<CalendarClockIcon className="size-3.5" />}
-              value={`Ricontatto il ${data.dataPerRicercaFutura}`}
-            />
-          ) : null}
-          {data.stage === "hot_in_attesa_di_primo_contatto" &&
-          data.tentativiChiamataCount > 0 ? (
+          </CardMetaRow>
+        ) : null}
+        <CardMetaRow icon={<MailIcon />}>{renderValue(data.email)}</CardMetaRow>
+        <CardMetaRow icon={<PhoneIcon />}>
+          {renderValue(data.telefono)}
+        </CardMetaRow>
+        <CardMetaRow icon={<Clock3Icon />}>{oreGiorni}</CardMetaRow>
+        <CardMetaRow icon={<CalendarIcon />}>
+          {`Creata il ${data.dataLead}`}
+        </CardMetaRow>
+        {data.dataCallPrenotata !== "-" ? (
+          <CardMetaRow icon={<CalendarClockIcon />}>
+            {`Call il ${data.dataCallPrenotata.replace(",", " alle")}`}
+          </CardMetaRow>
+        ) : null}
+        {data.stage === "cold_ricerca_futura" &&
+        data.dataPerRicercaFutura !== "-" ? (
+          <CardMetaRow icon={<CalendarClockIcon />}>
+            {`Ricontatto il ${data.dataPerRicercaFutura}`}
+          </CardMetaRow>
+        ) : null}
+        {showTentativi ? (
+          <CardMetaRow>
             <Badge variant="outline" className="h-5 px-2 text-[11px] font-medium">
               <PhoneForwardedIcon data-icon="inline-start" />
               {data.tentativiChiamataCount}/3 tentativi
             </Badge>
-          ) : null}
-          <div className="text-muted-foreground flex items-center gap-2 text-xs">
+          </CardMetaRow>
+        ) : null}
+      </RecordCard.Body>
+      <RecordCard.Footer
+        leftSlot={
+          <span className="flex items-center gap-1.5 text-[12.5px] text-[#76756f]">
             {data.preventivoAccettato ? (
-              <CheckSquareIcon className="size-3.5 text-emerald-600" />
+              <CheckSquareIcon className="size-3 text-emerald-600" />
             ) : (
-              <SquareIcon className="size-3.5" />
+              <SquareIcon className="size-3 text-[#a3a29b]" />
             )}
-            <span>Preventivo accettato</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+            Preventivo accettato
+          </span>
+        }
+      />
+    </RecordCard>
   );
 }

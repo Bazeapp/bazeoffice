@@ -4,7 +4,6 @@ import {
   CalendarClockIcon,
   CalendarPlusIcon,
   CheckCircle2Icon,
-  ChevronRightIcon,
   CircleDotIcon,
   CircleXIcon,
   Clock3Icon,
@@ -299,9 +298,23 @@ export function CrmPipelineFamiglieView() {
   const [isDetailOpen, setIsDetailOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
 
+  const filteredColumns = React.useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return columns
+    return columns.map((column) => ({
+      ...column,
+      cards: column.cards.filter((card) =>
+        [card.nomeFamiglia, card.email, card.telefono].some((field) =>
+          field?.toLowerCase().includes(q)
+        )
+      ),
+    }))
+  }, [columns, searchQuery])
+
   const totalRicerche = React.useMemo(
-    () => columns.reduce((sum, column) => sum + column.cards.length, 0),
-    [columns]
+    () =>
+      filteredColumns.reduce((sum, column) => sum + column.cards.length, 0),
+    [filteredColumns]
   )
 
   const selectedCard = React.useMemo(() => {
@@ -342,11 +355,6 @@ export function CrmPipelineFamiglieView() {
   return (
     <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
       <SectionHeader>
-        <SectionHeader.Breadcrumb>
-          <span>CRM</span>
-          <ChevronRightIcon className="size-3.5" />
-          <span className="text-foreground">Sales Pipeline</span>
-        </SectionHeader.Breadcrumb>
         <SectionHeader.Title
           badge={
             <Badge>
@@ -380,7 +388,7 @@ export function CrmPipelineFamiglieView() {
                 ? Array.from({ length: 5 }).map((_, index) => (
                     <CrmPipelineSkeletonColumn key={index} />
                   ))
-                : columns.map((column) => (
+                : filteredColumns.map((column) => (
                     <Column
                       key={column.id}
                       column={column}

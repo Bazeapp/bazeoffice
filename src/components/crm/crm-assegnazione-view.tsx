@@ -3,6 +3,7 @@ import {
   BriefcaseBusinessIcon,
   CalendarDaysIcon,
   CalendarIcon,
+  CheckCircle2Icon,
   ChevronLeftIcon,
   ChevronRightIcon,
   Clock3Icon,
@@ -10,8 +11,8 @@ import {
   FilterXIcon,
   LinkIcon,
   MapPinIcon,
-  PencilIcon,
   UsersIcon,
+  XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,11 +22,17 @@ import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { Avatar } from "@/components/ui-next/avatar";
 import { Badge } from "@/components/ui-next/badge";
 import { Button } from "@/components/ui-next/button";
-import { Card, CardContent } from "@/components/ui-next/card";
+import { Card, CardContent, CardHeader } from "@/components/ui-next/card";
 import { Input } from "@/components/ui-next/input";
+import { CardMetaRow } from "@/components/shared-next/card-meta-row";
+import { RecordCard } from "@/components/shared-next/record-card";
 import { SectionHeader } from "@/components/shared-next/section-header";
 import { SideCardsPanel } from "@/components/shared-next/side-cards-panel";
-import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
+import {
+  DetailField,
+  DetailFieldControl,
+  DetailSectionBlock,
+} from "@/components/shared-next/detail-section-card";
 import {
   Accordion,
   AccordionContent,
@@ -41,15 +48,22 @@ import {
 } from "@/components/ui-next/select";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
-  SheetHeader,
   SheetTitle,
 } from "@/components/ui-next/sheet";
 import { cn } from "@/lib/utils";
 
 type AssigneeValue = string | "none";
 const DRAG_POINTER_THRESHOLD = 6;
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "-";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
 
 function formatBadgeLabel(value: string) {
   return value
@@ -130,6 +144,19 @@ function formatDayLabel(date: Date) {
   }).format(date);
 }
 
+function formatWeekday(date: Date) {
+  return new Intl.DateTimeFormat("it-IT", { weekday: "short" })
+    .format(date)
+    .replace(".", "");
+}
+
+function formatDayMonth(date: Date) {
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(date);
+}
+
 function startOfDay(input: Date) {
   const date = new Date(input);
   date.setHours(0, 0, 0, 0);
@@ -163,18 +190,16 @@ function hashString(input: string) {
 }
 
 function getAssigneeAccentClass(assigneeId: AssigneeValue) {
-  if (assigneeId === "none") return "border-l-zinc-400";
+  if (assigneeId === "none") return "bg-zinc-400";
   const variants = [
-    "border-l-emerald-500",
-    "border-l-sky-500",
-    "border-l-violet-500",
-    "border-l-amber-500",
-    "border-l-rose-500",
-    "border-l-cyan-500",
+    "bg-emerald-500",
+    "bg-sky-500",
+    "bg-violet-500",
+    "bg-amber-500",
+    "bg-rose-500",
+    "bg-cyan-500",
   ];
-  return (
-    variants[hashString(assigneeId) % variants.length] ?? "border-l-zinc-400"
-  );
+  return variants[hashString(assigneeId) % variants.length] ?? "bg-zinc-400";
 }
 
 function getDeadlineTime(value: string | null | undefined) {
@@ -188,16 +213,16 @@ function getDeadlineTime(value: string | null | undefined) {
 
 function getDeadlineAccentClass(deadline: string | null | undefined) {
   const deadlineTime = getDeadlineTime(deadline);
-  if (!Number.isFinite(deadlineTime)) return "border-l-zinc-300";
+  if (!Number.isFinite(deadlineTime)) return "bg-zinc-300";
 
   const today = startOfDay(new Date()).getTime();
   const daysUntilDeadline = Math.floor(
     (deadlineTime - today) / (24 * 60 * 60 * 1000),
   );
 
-  if (daysUntilDeadline <= 3) return "border-l-red-500";
-  if (daysUntilDeadline <= 7) return "border-l-emerald-500";
-  return "border-l-zinc-300";
+  if (daysUntilDeadline <= 3) return "bg-red-500";
+  if (daysUntilDeadline <= 7) return "bg-emerald-500";
+  return "bg-zinc-300";
 }
 
 function compareByDeadlineAsc(
@@ -295,21 +320,15 @@ function AssegnazioneSearchCard({
   accentClassName: string;
   onAssigneeChange: (assigneeId: AssigneeValue) => void;
 }) {
+  const hasTags = Boolean(data.tipoLavoroBadge || data.tipoRapportoBadge);
+
   return (
-    <Card
-      className={cn(
-        "cursor-pointer border-l-4 bg-white transition-shadow hover:shadow-md",
-        accentClassName,
-      )}
-    >
-      <CardContent className="space-y-3">
-        <div className="flex min-w-0 items-start justify-between gap-2">
-          <h3 className="truncate text-base font-semibold leading-snug">
-            {data.nomeFamiglia}
-          </h3>
+    <RecordCard accentClassName={accentClassName}>
+      <RecordCard.Header
+        title={data.nomeFamiglia}
+        rightSlot={
           <Badge
             className={cn(
-              "shrink-0",
               data.tipoRicerca === "sostituzione"
                 ? "border-amber-200 bg-amber-100 text-amber-700"
                 : "border-sky-200 bg-sky-100 text-sky-700",
@@ -317,43 +336,37 @@ function AssegnazioneSearchCard({
           >
             {data.tipoRicerca === "sostituzione" ? "Sostituzione" : "Nuova"}
           </Badge>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          {data.tipoLavoroBadge ? (
-            <Badge className={getBadgeClassName(data.tipoLavoroColor)}>
-              <BriefcaseBusinessIcon data-icon="inline-start" />
-              {formatRoleBadgeLabel(data.tipoLavoroBadge)}
-            </Badge>
-          ) : null}
-          {data.tipoRapportoBadge ? (
-            <Badge className={getBadgeClassName(data.tipoRapportoColor)}>
-              <Clock3Icon data-icon="inline-start" />
-              {formatBadgeLabel(data.tipoRapportoBadge)}
-            </Badge>
-          ) : null}
-        </div>
-
-        <div className="flex items-end justify-between gap-3 border-t pt-3">
-          <div className="text-muted-foreground min-w-0 space-y-1.5 text-sm">
-            <div className="flex min-w-0 items-center gap-2">
-              <CalendarIcon className="size-4 shrink-0" />
-              <span className="truncate">{data.deadlineMobile}</span>
-            </div>
-            <div className="flex min-w-0 items-center gap-2">
-              <Clock3Icon className="size-4 shrink-0" />
-              <span className="truncate">
-                {formatOreGiorniLabel(
-                  data.oreSettimanali,
-                  data.giorniSettimanali,
-                )}
-              </span>
-            </div>
-            <div className="flex min-w-0 items-center gap-2">
-              <MapPinIcon className="size-4 shrink-0" />
-              <span className="truncate">{data.zona}</span>
-            </div>
-          </div>
+        }
+      />
+      <RecordCard.Body>
+        {hasTags ? (
+          <CardMetaRow>
+            {data.tipoLavoroBadge ? (
+              <Badge className={getBadgeClassName(data.tipoLavoroColor)}>
+                <BriefcaseBusinessIcon data-icon="inline-start" />
+                {formatRoleBadgeLabel(data.tipoLavoroBadge)}
+              </Badge>
+            ) : null}
+            {data.tipoRapportoBadge ? (
+              <Badge className={getBadgeClassName(data.tipoRapportoColor)}>
+                <Clock3Icon data-icon="inline-start" />
+                {formatBadgeLabel(data.tipoRapportoBadge)}
+              </Badge>
+            ) : null}
+          </CardMetaRow>
+        ) : null}
+        <CardMetaRow icon={<Clock3Icon />}>
+          {formatOreGiorniLabel(data.oreSettimanali, data.giorniSettimanali)}
+        </CardMetaRow>
+        <CardMetaRow icon={<MapPinIcon />}>{data.zona}</CardMetaRow>
+      </RecordCard.Body>
+      <RecordCard.Footer
+        leftSlot={
+          <CardMetaRow icon={<CalendarIcon />}>
+            {data.deadlineMobile}
+          </CardMetaRow>
+        }
+        rightSlot={
           <Select
             value={assigneeId}
             onValueChange={(value) =>
@@ -382,9 +395,9 @@ function AssegnazioneSearchCard({
               ))}
             </SelectContent>
           </Select>
-        </div>
-      </CardContent>
-    </Card>
+        }
+      />
+    </RecordCard>
   );
 }
 
@@ -477,305 +490,312 @@ function AssegnazioneDetailSheet({
     };
   }, [card, isEditingScheduling, onPatchCard, schedulingDraft]);
 
+  const recruiterLabel = card?.recruiterId
+    ? (operatorOptions.find((op) => op.id === card.recruiterId)?.label ??
+      "Sconosciuto")
+    : null;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-[min(96vw,760px)]! max-w-none! overflow-y-auto sm:max-w-none!"
+        className="w-[min(96vw,760px)]! max-w-none! overflow-hidden p-0 sm:max-w-none!"
       >
-        <SheetHeader>
-          <SheetTitle className="text-xl font-semibold">
-            {card?.nomeFamiglia ?? "Dettaglio ricerca"}
-          </SheetTitle>
-          <SheetDescription>
-            Dettaglio ricerca con modifica inline dei campi principali.
-          </SheetDescription>
-        </SheetHeader>
-
         {card ? (
-          <div className="space-y-4 px-4 pb-6 text-sm">
-            <DetailSectionBlock
-              title="Ricerca collegata"
-              action={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onOpenRicerca(card.id)}
-                >
-                  <LinkIcon className="size-4" />
-                  Vai alla ricerca
-                </Button>
-              }
-              contentClassName="grid grid-cols-1 gap-3"
-            >
-              <div>
-                <p className="text-lg font-semibold">{card.nomeFamiglia}</p>
-                <p className="text-muted-foreground text-xs">
-                  ID ricerca: {card.id}
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <div className="space-y-1">
-                  <p className="ui-type-label">Stato</p>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "h-5 w-fit px-2 text-[11px] font-medium",
-                      getStatoResBadgeClassName(card.statoRes),
-                    )}
+          <section className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--neutral-150)]">
+            <header className="sticky top-0 z-20 shrink-0 border-b bg-white">
+              <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2">
+                <SheetTitle className="text-xl font-semibold">
+                  {card.nomeFamiglia}
+                </SheetTitle>
+                <SheetClose asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Chiudi"
                   >
-                    {card.statoResLabel}
-                  </Badge>
-                </div>
-                <div className="space-y-1">
-                  <p className="ui-type-label">Deadline</p>
-                  <p className="font-medium">{card.deadlineMobile}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="ui-type-label">Tipo</p>
-                  <p className="font-medium">
-                    {card.tipoRicerca === "sostituzione"
-                      ? "Sostituzione"
-                      : "Nuova"}
-                  </p>
-                </div>
+                    <XIcon className="size-4" />
+                  </Button>
+                </SheetClose>
               </div>
-            </DetailSectionBlock>
-
-            <DetailSectionBlock
-              title="Stato e assegnazione"
-              action={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={
-                    isEditingScheduling
-                      ? "Termina modifica stato e assegnazione"
-                      : "Modifica stato e assegnazione"
-                  }
-                  title={
-                    isEditingScheduling
-                      ? "Termina modifica stato e assegnazione"
-                      : "Modifica stato e assegnazione"
-                  }
-                  onClick={() => setIsEditingScheduling((current) => !current)}
-                >
-                  <PencilIcon />
-                </Button>
-              }
-              contentClassName="grid grid-cols-1 gap-3"
-            >
-              <div className="space-y-1">
-                <p className="ui-type-label">Stato</p>
-                {isEditingScheduling ? (
-                  <Select
-                    value={schedulingDraft.statoRes}
-                    onValueChange={(value) =>
-                      setSchedulingDraft((current) => ({
-                        ...current,
-                        statoRes: value as "da_assegnare" | "fare_ricerca",
-                      }))
-                    }
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Seleziona stato RES" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="da_assegnare">Da assegnare</SelectItem>
-                      <SelectItem value="fare_ricerca">Fare ricerca</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "h-5 w-fit px-2 text-[11px] font-medium",
-                      getStatoResBadgeClassName(card.statoRes),
-                    )}
-                  >
-                    {card.statoResLabel}
-                  </Badge>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <p className="ui-type-label">Tipologia ricerca</p>
+              <SheetDescription className="sr-only">
+                Dettaglio assegnazione di {card.nomeFamiglia}
+              </SheetDescription>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pb-3">
                 <Badge
-                  variant="outline"
                   className={cn(
-                    "h-5 w-fit px-2 text-[11px] font-medium",
-                    card.tipoRicerca === "sostituzione"
-                      ? "border-amber-200 bg-amber-100 text-amber-700"
-                      : "border-sky-200 bg-sky-100 text-sky-700",
+                    "shrink-0",
+                    getStatoResBadgeClassName(card.statoRes),
                   )}
                 >
-                  {card.tipoRicerca === "sostituzione"
-                    ? "Sostituzione"
-                    : "Nuova"}
+                  {card.statoResLabel}
                 </Badge>
+                <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+                  <CalendarIcon className="size-3.5" />
+                  Deadline{" "}
+                  <span className="text-foreground font-medium">
+                    {card.deadlineMobile}
+                  </span>
+                </span>
+                {recruiterLabel ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs">
+                    <Avatar size="xs" fallback={getInitials(recruiterLabel)} />
+                    <span>{recruiterLabel}</span>
+                  </span>
+                ) : null}
+                {card.tipoLavoroBadge ? (
+                  <Badge className={getBadgeClassName(card.tipoLavoroColor)}>
+                    <BriefcaseBusinessIcon data-icon="inline-start" />
+                    {formatRoleBadgeLabel(card.tipoLavoroBadge)}
+                  </Badge>
+                ) : null}
+                {card.tipoRapportoBadge ? (
+                  <Badge className={getBadgeClassName(card.tipoRapportoColor)}>
+                    <Clock3Icon data-icon="inline-start" />
+                    {formatBadgeLabel(card.tipoRapportoBadge)}
+                  </Badge>
+                ) : null}
               </div>
+            </header>
 
-              <div className="space-y-1">
-                <p className="ui-type-label">Recruiter</p>
-                {isEditingScheduling ? (
-                  <Select
-                    value={schedulingDraft.recruiterId || "none"}
-                    onValueChange={(value) =>
-                      setSchedulingDraft((current) => ({
-                        ...current,
-                        recruiterId: value === "none" ? "" : value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Seleziona recruiter" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Non assegnato</SelectItem>
-                      {operatorOptions.map((option) => (
-                        <SelectItem key={option.id} value={option.id}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="font-medium">
-                    {operatorOptions.find(
-                      (item) => item.id === card.recruiterId,
-                    )?.label ?? "Non assegnato"}
-                  </p>
-                )}
-              </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="space-y-3 px-4 py-4">
+                <DetailSectionBlock
+                  icon={<LinkIcon className="size-4" />}
+                  title="Ricerca collegata"
+                  action={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onOpenRicerca(card.id)}
+                    >
+                      <LinkIcon className="size-4" />
+                      Vai alla ricerca
+                    </Button>
+                  }
+                >
+                  <div className="space-y-1">
+                    <p className="text-base font-semibold">
+                      {card.nomeFamiglia}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      ID ricerca: {card.id}
+                    </p>
+                  </div>
+                </DetailSectionBlock>
 
-              <div className="space-y-1">
-                <p className="ui-type-label">
-                  Data assegnazione
-                </p>
-                {isEditingScheduling ? (
-                  <Input
-                    type="date"
-                    value={schedulingDraft.dataAssegnazione}
-                    onChange={(event) =>
-                      setSchedulingDraft((current) => ({
-                        ...current,
-                        dataAssegnazione: event.target.value,
-                      }))
-                    }
-                    className="h-8"
-                  />
-                ) : (
-                  <p className="font-medium">
-                    {formatDateForView(card.dataAssegnazione)}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <p className="ui-type-label">Deadline</p>
-                {isEditingScheduling ? (
-                  <Input
-                    type="date"
-                    value={schedulingDraft.deadlineMobile}
-                    onChange={(event) =>
-                      setSchedulingDraft((current) => ({
-                        ...current,
-                        deadlineMobile: event.target.value,
-                      }))
-                    }
-                    className="h-8"
-                  />
-                ) : (
-                  <p className="font-medium">{card.deadlineMobile}</p>
-                )}
-              </div>
-
-              {isEditingScheduling ? (
-                <div>
-                  <p className="ui-type-label">
-                    {isSavingScheduling
-                      ? "Salvataggio..."
-                      : "Salvataggio automatico attivo"}
-                  </p>
-                </div>
-              ) : null}
-            </DetailSectionBlock>
-
-            <DetailSectionBlock
-              title="Panoramica ricerca"
-              contentClassName="space-y-2"
-            >
-              <div className="grid grid-cols-1 gap-2.5">
-                <div className="space-y-1">
-                  <p className="ui-type-label">
-                    Ore settimanali
-                  </p>
-                  <p className="font-medium">{card.oreSettimanali}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="ui-type-label">
-                    Giorni settimanali
-                  </p>
-                  <p className="font-medium">{card.giorniSettimanali}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="ui-type-label">
-                    Orari e giorni
-                  </p>
-                  <p className="font-medium">
-                    {formatOreGiorniLabel(
-                      card.oreSettimanali,
-                      card.giorniSettimanali,
+                <DetailSectionBlock
+                  icon={<CheckCircle2Icon className="size-4" />}
+                  title="Stato e assegnazione"
+                  showDefaultAction
+                  onActionClick={() =>
+                    setIsEditingScheduling((current) => !current)
+                  }
+                  actionLabel={
+                    isEditingScheduling
+                      ? "Termina modifica stato e assegnazione"
+                      : "Modifica stato e assegnazione"
+                  }
+                >
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                    {isEditingScheduling ? (
+                      <DetailFieldControl label="Stato">
+                        <Select
+                          value={schedulingDraft.statoRes}
+                          onValueChange={(value) =>
+                            setSchedulingDraft((current) => ({
+                              ...current,
+                              statoRes: value as
+                                | "da_assegnare"
+                                | "fare_ricerca",
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona stato RES" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="da_assegnare">
+                              Da assegnare
+                            </SelectItem>
+                            <SelectItem value="fare_ricerca">
+                              Fare ricerca
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </DetailFieldControl>
+                    ) : (
+                      <DetailFieldControl label="Stato">
+                        <Badge
+                          className={cn(
+                            "w-fit",
+                            getStatoResBadgeClassName(card.statoRes),
+                          )}
+                        >
+                          {card.statoResLabel}
+                        </Badge>
+                      </DetailFieldControl>
                     )}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="ui-type-label">
-                    Orario di lavoro
-                  </p>
-                  <p className="font-medium">{card.orarioDiLavoro}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="ui-type-label">Luogo</p>
-                  <p className="font-medium">{card.zona}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="ui-type-label">Tipo profilo</p>
-                  {card.tipoLavoroBadge ? (
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "h-5 w-fit px-2 text-[11px] font-medium",
-                        getBadgeClassName(card.tipoLavoroColor),
+
+                    <DetailFieldControl label="Tipologia ricerca">
+                      <Badge
+                        className={cn(
+                          "w-fit",
+                          card.tipoRicerca === "sostituzione"
+                            ? "border-amber-200 bg-amber-100 text-amber-700"
+                            : "border-sky-200 bg-sky-100 text-sky-700",
+                        )}
+                      >
+                        {card.tipoRicerca === "sostituzione"
+                          ? "Sostituzione"
+                          : "Nuova"}
+                      </Badge>
+                    </DetailFieldControl>
+
+                    {isEditingScheduling ? (
+                      <DetailFieldControl label="Recruiter">
+                        <Select
+                          value={schedulingDraft.recruiterId || "none"}
+                          onValueChange={(value) =>
+                            setSchedulingDraft((current) => ({
+                              ...current,
+                              recruiterId: value === "none" ? "" : value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona recruiter" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Non assegnato</SelectItem>
+                            {operatorOptions.map((option) => (
+                              <SelectItem key={option.id} value={option.id}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </DetailFieldControl>
+                    ) : (
+                      <DetailFieldControl label="Recruiter">
+                        {recruiterLabel ? (
+                          <div className="flex items-center gap-2">
+                            <Avatar
+                              size="sm"
+                              fallback={getInitials(recruiterLabel)}
+                            />
+                            <span className="text-sm">{recruiterLabel}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">
+                            Non assegnato
+                          </span>
+                        )}
+                      </DetailFieldControl>
+                    )}
+
+                    {isEditingScheduling ? (
+                      <DetailFieldControl label="Data assegnazione">
+                        <Input
+                          type="date"
+                          value={schedulingDraft.dataAssegnazione}
+                          onChange={(event) =>
+                            setSchedulingDraft((current) => ({
+                              ...current,
+                              dataAssegnazione: event.target.value,
+                            }))
+                          }
+                        />
+                      </DetailFieldControl>
+                    ) : (
+                      <DetailField
+                        label="Data assegnazione"
+                        value={formatDateForView(card.dataAssegnazione)}
+                      />
+                    )}
+
+                    {isEditingScheduling ? (
+                      <DetailFieldControl label="Deadline">
+                        <Input
+                          type="date"
+                          value={schedulingDraft.deadlineMobile}
+                          onChange={(event) =>
+                            setSchedulingDraft((current) => ({
+                              ...current,
+                              deadlineMobile: event.target.value,
+                            }))
+                          }
+                        />
+                      </DetailFieldControl>
+                    ) : (
+                      <DetailField
+                        label="Deadline"
+                        value={card.deadlineMobile}
+                      />
+                    )}
+                  </div>
+
+                  {isEditingScheduling ? (
+                    <p className="text-muted-foreground mt-3 text-xs">
+                      {isSavingScheduling
+                        ? "Salvataggio..."
+                        : "Salvataggio automatico attivo"}
+                    </p>
+                  ) : null}
+                </DetailSectionBlock>
+
+                <DetailSectionBlock
+                  icon={<Clock3Icon className="size-4" />}
+                  title="Panoramica ricerca"
+                >
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <DetailField
+                      label="Orari e giorni"
+                      value={formatOreGiorniLabel(
+                        card.oreSettimanali,
+                        card.giorniSettimanali,
                       )}
-                    >
-                      {formatRoleBadgeLabel(card.tipoLavoroBadge)}
-                    </Badge>
-                  ) : (
-                    <p className="font-medium">-</p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <p className="ui-type-label">Tipo lavoro</p>
-                  {card.tipoRapportoBadge ? (
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "h-5 w-fit px-2 text-[11px] font-medium",
-                        getBadgeClassName(card.tipoRapportoColor),
+                    />
+                    <DetailField
+                      label="Orario di lavoro"
+                      value={card.orarioDiLavoro}
+                    />
+                    <DetailField label="Luogo" value={card.zona} />
+                    <DetailFieldControl label="Tipo profilo">
+                      {card.tipoLavoroBadge ? (
+                        <Badge
+                          className={cn(
+                            "w-fit",
+                            getBadgeClassName(card.tipoLavoroColor),
+                          )}
+                        >
+                          {formatRoleBadgeLabel(card.tipoLavoroBadge)}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
                       )}
-                    >
-                      {formatBadgeLabel(card.tipoRapportoBadge)}
-                    </Badge>
-                  ) : (
-                    <p className="font-medium">-</p>
-                  )}
-                </div>
+                    </DetailFieldControl>
+                    <DetailFieldControl label="Tipo lavoro">
+                      {card.tipoRapportoBadge ? (
+                        <Badge
+                          className={cn(
+                            "w-fit",
+                            getBadgeClassName(card.tipoRapportoColor),
+                          )}
+                        >
+                          {formatBadgeLabel(card.tipoRapportoBadge)}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </DetailFieldControl>
+                  </div>
+                </DetailSectionBlock>
               </div>
-            </DetailSectionBlock>
-          </div>
+            </div>
+          </section>
         ) : null}
       </SheetContent>
     </Sheet>
@@ -1287,18 +1307,27 @@ export function CrmAssegnazioneView({
           )}
         </SideCardsPanel>
 
-        <div className="flex min-h-0 flex-col gap-2 overflow-hidden">
-          <div className="flex shrink-0 items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2">
-            <div>
-              <p className="text-sm font-semibold">Giorni assegnazione</p>
-              <p className="text-muted-foreground text-xs">
-                {visibleDays.map((day) => day.label).join(" · ")}
-              </p>
+        <Card className="flex h-full min-h-0 flex-col overflow-hidden bg-white">
+          <CardHeader className="items-center">
+            <div className="flex min-w-0 items-center gap-2">
+              <CalendarIcon className="text-muted-foreground size-5 shrink-0" />
+              <span className="text-base font-semibold">
+                Giorni assegnazione
+              </span>
+              <span className="text-muted-foreground truncate text-sm">
+                {`${formatWeekday(visibleDays[0]!.date)} ${formatDayMonth(
+                  visibleDays[0]!.date,
+                )} · ${formatWeekday(
+                  visibleDays[visibleDays.length - 1]!.date,
+                )} ${formatDayMonth(
+                  visibleDays[visibleDays.length - 1]!.date,
+                )}`}
+              </span>
             </div>
-            <div className="flex gap-1">
+            <div className="flex shrink-0 items-center gap-0.5">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="icon-sm"
                 onClick={() => {
                   setVisibleWindowStart((current) => addDays(current, -1));
@@ -1309,7 +1338,17 @@ export function CrmAssegnazioneView({
               </Button>
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setVisibleWindowStart(addDays(startOfDay(new Date()), -1));
+                }}
+              >
+                Oggi
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
                 size="icon-sm"
                 onClick={() => {
                   setVisibleWindowStart((current) => addDays(current, 1));
@@ -1319,18 +1358,21 @@ export function CrmAssegnazioneView({
                 <ChevronRightIcon className="size-4" />
               </Button>
             </div>
-          </div>
+          </CardHeader>
 
-          <div className="min-h-0 flex-1 rounded-lg border p-2">
-            <div className="grid h-full min-h-0 grid-cols-3 gap-2">
+          <CardContent className="flex-1 overflow-hidden p-0">
+            <div className="grid h-full min-h-0 grid-cols-3 divide-x divide-[var(--border-subtle)]">
               {visibleDays.map((day) => {
                 const dayCards = cardsByDate.get(day.key) ?? [];
+                const isToday = day.key === toDateKey(new Date());
                 return (
                   <div
                     key={day.key}
                     className={cn(
-                      "bg-muted/30 flex h-full min-h-0 flex-col rounded-lg border p-2 transition-all",
-                      dropTarget === day.key && "ring-primary/40 ring-2",
+                      "flex h-full min-h-0 flex-col p-4 transition-colors",
+                      isToday && "bg-blue-50/40",
+                      dropTarget === day.key &&
+                        "ring-primary/40 ring-2 ring-inset",
                     )}
                     onDragOver={(event) => {
                       event.preventDefault();
@@ -1355,15 +1397,29 @@ export function CrmAssegnazioneView({
                       handleDrop(day.key, droppedProcessId);
                     }}
                   >
-                    <div className="mb-2 shrink-0 border-b pb-2">
-                      <p className="text-xs font-semibold">{day.label}</p>
-                      <p className="text-muted-foreground text-[11px]">
+                    <div className="mb-3 shrink-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">
+                          <span className="text-muted-foreground">
+                            {formatWeekday(day.date)}
+                          </span>{" "}
+                          <span className="font-semibold">
+                            {formatDayMonth(day.date)}
+                          </span>
+                        </span>
+                        {isToday ? (
+                          <Badge className="border-blue-200 bg-blue-100 text-blue-700">
+                            OGGI
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <p className="text-muted-foreground text-xs">
                         {dayCards.length}{" "}
                         {dayCards.length === 1 ? "ricerca" : "ricerche"}
                       </p>
                     </div>
 
-                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                       {dayCards.length === 0 ? (
                         <p className="text-muted-foreground text-xs">
                           Nessuna assegnazione
@@ -1428,8 +1484,8 @@ export function CrmAssegnazioneView({
                 );
               })}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       <AssegnazioneDetailSheet
