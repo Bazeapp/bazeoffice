@@ -218,7 +218,7 @@ export function DetailField({
     typeof value === "bigint";
 
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div className={cn("flex flex-col gap-1.5", className)}>
       <Label className={labelClassName}>{label}</Label>
       {isPrimitiveValue && !multiline ? (
         <Input
@@ -267,7 +267,7 @@ export function DetailFieldControl({
   labelClassName,
 }: DetailFieldControlProps) {
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div className={cn("flex flex-col gap-1.5", className)}>
       <Label className={labelClassName}>{label}</Label>
       {children}
     </div>

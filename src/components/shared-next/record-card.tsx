@@ -1,0 +1,183 @@
+import * as React from "react";
+
+import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui-next/card";
+
+/**
+ * RecordCard — pattern di card "record in lista" usato dovunque ci sia
+ * un elenco di entità (famiglia, ricerca, lavoratore, etc.).
+ *
+ * Compone visivamente `Card` di ui-next aggiungendo:
+ *   - struttura compound `Header / Body / Footer` con slot tipizzati
+ *   - prop `accent` per il bordo laterale colorato
+ *   - hover shadow + cursor-pointer quando `onClick` è passato
+ *
+ * Esempio:
+ *   <RecordCard accent="rose" onClick={...}>
+ *     <RecordCard.Header
+ *       title="Aria Bocelli"
+ *       rightSlot={<Badge>Nuova</Badge>}
+ *     />
+ *     <RecordCard.Body>
+ *       <CardMetaRow icon={<MailIcon />}>aria@bazeapp.it</CardMetaRow>
+ *     </RecordCard.Body>
+ *     <RecordCard.Footer
+ *       leftSlot={<span>Preventivo accettato</span>}
+ *       rightSlot={<Avatar />}
+ *     />
+ *   </RecordCard>
+ */
+
+export type RecordCardAccent =
+  | "red"
+  | "rose"
+  | "orange"
+  | "amber"
+  | "emerald"
+  | "sky"
+  | "blue"
+  | "violet"
+  | "zinc";
+
+const accentBgClasses: Record<RecordCardAccent, string> = {
+  red: "bg-red-500",
+  rose: "bg-rose-500",
+  orange: "bg-orange-500",
+  amber: "bg-amber-500",
+  emerald: "bg-emerald-500",
+  sky: "bg-sky-500",
+  blue: "bg-blue-500",
+  violet: "bg-violet-500",
+  zinc: "bg-zinc-400",
+};
+
+export interface RecordCardProps
+  extends Omit<React.HTMLAttributes<HTMLDivElement>, "title"> {
+  /** Striscia accent sul lato sinistro (preset). */
+  accent?: RecordCardAccent;
+  /**
+   * Classe Tailwind `bg-*` custom per la striscia accent. Usalo quando il
+   * colore dipende da logica runtime (es. deadline, assegnatario).
+   * Esempio: `bg-emerald-500`, `bg-rose-500`.
+   */
+  accentClassName?: string;
+  children?: React.ReactNode;
+}
+
+export interface RecordCardHeaderProps {
+  title: React.ReactNode;
+  rightSlot?: React.ReactNode;
+  className?: string;
+}
+
+export interface RecordCardBodyProps {
+  children?: React.ReactNode;
+  className?: string;
+}
+
+export interface RecordCardFooterProps {
+  leftSlot?: React.ReactNode;
+  rightSlot?: React.ReactNode;
+  className?: string;
+}
+
+function RecordCardHeader({
+  title,
+  rightSlot,
+  className,
+}: RecordCardHeaderProps) {
+  return (
+    <div
+      data-slot="record-card-header"
+      className={cn(
+        "flex min-w-0 items-start justify-between gap-2",
+        className,
+      )}
+    >
+      <h3 className="min-w-0 truncate text-base leading-snug font-semibold">
+        {title}
+      </h3>
+      {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
+    </div>
+  );
+}
+RecordCardHeader.displayName = "RecordCardHeader";
+
+function RecordCardBody({ children, className }: RecordCardBodyProps) {
+  return (
+    <div
+      data-slot="record-card-body"
+      className={cn("flex flex-col gap-1.5", className)}
+    >
+      {children}
+    </div>
+  );
+}
+RecordCardBody.displayName = "RecordCardBody";
+
+function RecordCardFooter({
+  leftSlot,
+  rightSlot,
+  className,
+}: RecordCardFooterProps) {
+  return (
+    <div
+      data-slot="record-card-footer"
+      className={cn(
+        "flex min-w-0 items-center justify-between gap-3",
+        className,
+      )}
+    >
+      <div className="min-w-0">{leftSlot}</div>
+      {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
+    </div>
+  );
+}
+RecordCardFooter.displayName = "RecordCardFooter";
+
+const RecordCardImpl = React.forwardRef<HTMLDivElement, RecordCardProps>(
+  (
+    { accent, accentClassName, onClick, children, className, ...rest },
+    ref,
+  ) => {
+    const hasAccent = Boolean(accent || accentClassName);
+    return (
+      <Card
+        ref={ref}
+        onClick={onClick}
+        data-slot="record-card"
+        className={cn(
+          // Shape + chrome (CSS border invece della box-shadow ring di Card primitive)
+          "relative overflow-hidden rounded-[10px] border border-[#ececea] bg-white p-4 gap-1.5",
+          // 2-layer flat shadow @ 2-4% nero
+          "shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]",
+          // Hover: cambio solo colore del bordo
+          "transition-colors hover:border-[#dcdcd8]",
+          onClick && "cursor-pointer",
+          className,
+        )}
+        {...rest}
+      >
+        {hasAccent ? (
+          <span
+            aria-hidden
+            className={cn(
+              // Striscia accent assoluta, clippata dal border-radius del card (overflow-hidden)
+              "pointer-events-none absolute top-0 bottom-0 left-0 w-[4px]",
+              accent && accentBgClasses[accent],
+              accentClassName,
+            )}
+          />
+        ) : null}
+        {children}
+      </Card>
+    );
+  },
+);
+RecordCardImpl.displayName = "RecordCard";
+
+export const RecordCard = Object.assign(RecordCardImpl, {
+  Header: RecordCardHeader,
+  Body: RecordCardBody,
+  Footer: RecordCardFooter,
+});
