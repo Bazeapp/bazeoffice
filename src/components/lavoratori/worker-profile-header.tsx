@@ -346,7 +346,7 @@ export function WorkerProfileHeader({
         }
         disabled={isDisabled}
       >
-        <SelectTrigger className={cn("h-8 min-w-[140px]", triggerClassName)}>
+        <SelectTrigger className={cn("min-w-[140px]", triggerClassName)}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
@@ -480,7 +480,7 @@ export function WorkerProfileHeader({
                     onBlur={() => void commitField("nome")}
                     disabled={fieldsDisabled}
                     placeholder="Nome"
-                    className="h-8 w-40 text-sm"
+                    className="w-40"
                   />
                   <Input
                     value={draft.cognome}
@@ -488,7 +488,7 @@ export function WorkerProfileHeader({
                     onBlur={() => void commitField("cognome")}
                     disabled={fieldsDisabled}
                     placeholder="Cognome"
-                    className="h-8 w-40 text-sm"
+                    className="w-40"
                   />
                 </div>
               ) : (
@@ -537,7 +537,7 @@ export function WorkerProfileHeader({
                 }
                 onBlur={() => void commitField("descrizione_pubblica")}
                 disabled={fieldsDisabled}
-                className="bg-background mt-2 min-h-20 text-sm"
+                className="mt-2 min-h-20"
               />
             ) : (
               <p className="text-muted-foreground line-clamp-3 text-sm leading-5 mt-1">
@@ -591,7 +591,7 @@ export function WorkerProfileHeader({
                     void onDataRitornoDisponibilitaChange?.(event.target.value)
                   }
                   disabled={resolvedDataRitornoDisponibilitaDisabled}
-                  className="h-8 min-w-[140px] text-sm"
+                  className="min-w-[140px]"
                 />
               </div>
             ) : null}
@@ -608,7 +608,7 @@ export function WorkerProfileHeader({
                 onChange={(event) => updateDraftField("email", event.target.value)}
                 onBlur={() => void commitField("email")}
                 disabled={fieldsDisabled}
-                className="h-7 w-64 text-sm"
+                className="w-64"
               />
             ) : (
               <span className="truncate">{asString(workerRow.email) || "-"}</span>
@@ -624,7 +624,7 @@ export function WorkerProfileHeader({
                 onChange={(event) => updateDraftField("telefono", event.target.value)}
                 onBlur={() => void commitField("telefono")}
                 disabled={fieldsDisabled}
-                className="h-7 w-40 text-sm"
+                className="w-40"
               />
             ) : (
               <span>{asString(workerRow.telefono) || "-"}</span>
@@ -645,7 +645,7 @@ export function WorkerProfileHeader({
                   onValueChange={(value) => void handleLookupFieldChange("sesso", value)}
                   disabled={fieldsDisabled}
                 >
-                  <SelectTrigger className="h-7 w-36 text-sm">
+                  <SelectTrigger className="w-36">
                     <SelectValue placeholder="Sesso" />
                   </SelectTrigger>
                   <SelectContent>
@@ -664,7 +664,7 @@ export function WorkerProfileHeader({
                   onBlur={() => void commitField("sesso")}
                   disabled={fieldsDisabled}
                   placeholder="Sesso"
-                  className="h-7 w-36 text-sm"
+                  className="w-36"
                 />
               )
             ) : (
@@ -682,7 +682,7 @@ export function WorkerProfileHeader({
                 }
                 disabled={fieldsDisabled}
               >
-                <SelectTrigger className="h-7 w-44 text-sm">
+                <SelectTrigger className="w-44">
                   <SelectValue placeholder="Nazionalita" />
                 </SelectTrigger>
                 <SelectContent>
@@ -710,7 +710,7 @@ export function WorkerProfileHeader({
                 }
                 onBlur={() => void commitField("data_di_nascita")}
                 disabled={fieldsDisabled}
-                className="h-7 w-40 text-sm"
+                className="w-40"
               />
             ) : (
               <span>{asString(workerRow.data_di_nascita) || "-"}</span>

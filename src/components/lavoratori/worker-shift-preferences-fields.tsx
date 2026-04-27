@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { Badge } from "@/components/ui/badge"
+import { Badge } from "@/components/ui-next/badge"
 import {
   Combobox,
   ComboboxChip,
@@ -12,8 +12,8 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui/combobox"
-import { FieldTitle } from "@/components/ui/field"
+} from "@/components/ui-next/combobox"
+import { FieldLabel } from "@/components/ui-next/field"
 import {
   getTagClassName,
   normalizeLookupToken,
@@ -121,7 +121,7 @@ export function WorkerShiftPreferencesFields({
 
         return (
           <div key={field.id} className="space-y-1">
-            <FieldTitle>{field.label}</FieldTitle>
+            <FieldLabel>{field.label}</FieldLabel>
             {isEditing ? (
               <MultiSelectField
                 value={values}

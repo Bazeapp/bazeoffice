@@ -1,11 +1,11 @@
 import { BriefcaseBusinessIcon, CheckIcon, PencilIcon, XIcon } from "lucide-react"
 
 import { WorkerShiftPreferencesFields } from "@/components/lavoratori/worker-shift-preferences-fields"
-import { DetailSectionBlock } from "@/components/shared/detail-section-card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { FieldTitle } from "@/components/ui/field"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
+import { Badge } from "@/components/ui-next/badge"
+import { Button } from "@/components/ui-next/button"
+import { FieldLabel } from "@/components/ui-next/field"
+import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group"
 import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/lookup-utils"
 import { cn } from "@/lib/utils"
 import type { LookupOption } from "@/features/lavoratori/lib/lookup-utils"
@@ -225,9 +225,9 @@ export function JobSearchCard({
 
       <div className="space-y-4">
         <div className="space-y-1">
-          <FieldTitle>
+          <FieldLabel>
             Accetta lavori con trasferte?
-          </FieldTitle>
+          </FieldLabel>
           {isEditing ? (
             <AcceptField
               value={draft.check_accetta_lavori_con_trasferta}
@@ -248,9 +248,9 @@ export function JobSearchCard({
       </div>
       <div className="space-y-4">
         <div className="space-y-1">
-          <FieldTitle>
+          <FieldLabel>
             Accetta di fare piu contratti?
-          </FieldTitle>
+          </FieldLabel>
           {isEditing ? (
             <AcceptField
               value={draft.check_accetta_multipli_contratti}
@@ -270,9 +270,9 @@ export function JobSearchCard({
         </div>
 
         <div className="space-y-1">
-          <FieldTitle>
+          <FieldLabel>
             Accetta la paga di 9€ netti l'ora in regola?
-          </FieldTitle>
+          </FieldLabel>
           {isEditing ? (
             <AcceptField
               value={draft.check_accetta_paga_9_euro_netti}

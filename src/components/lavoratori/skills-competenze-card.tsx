@@ -420,7 +420,7 @@ function LevelReadOnlyValue({
   const levelMeta = getLevelMeta(value)
 
   return (
-    <div className="bg-muted/35 flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2.5">
+    <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border/60 bg-white px-3 py-2.5">
       <Badge
         variant="outline"
         className={getTagClassName(resolveLookupColor(lookupColorsByDomain, domain, value))}
@@ -472,7 +472,7 @@ function LevelSegmentedField({
           onValueChange={(nextValue) => onChange(nextValue === "none" ? "" : nextValue)}
           disabled={isUpdating}
         >
-          <SelectTrigger className="h-8 min-w-32 flex-1 text-sm">
+          <SelectTrigger className="min-w-32 flex-1">
             <SelectValue placeholder="Seleziona" />
           </SelectTrigger>
           <SelectContent>

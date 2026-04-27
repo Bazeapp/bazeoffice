@@ -1,9 +1,9 @@
 import * as React from "react"
 import { MapPinIcon, PencilIcon } from "lucide-react"
 
-import { DetailSectionBlock } from "@/components/shared/detail-section-card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
+import { Badge } from "@/components/ui-next/badge"
+import { Button } from "@/components/ui-next/button"
 import {
   Combobox,
   ComboboxChip,
@@ -14,9 +14,10 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxValue,
-} from "@/components/ui/combobox"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+} from "@/components/ui-next/combobox"
+import { FieldLabel } from "@/components/ui-next/field"
+import { Input } from "@/components/ui-next/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
 
 type LookupOption = {
   label: string
@@ -100,14 +101,14 @@ export function AddressSectionCard({
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[170px_130px_minmax(0,1fr)_minmax(220px,280px)]">
         <div className="space-y-1">
-          <p className="ui-type-label">Provincia</p>
+          <FieldLabel>Provincia</FieldLabel>
           {isEditing ? (
             <Select
               value={addressDraft.provincia || undefined}
               onValueChange={onProvinciaChange}
               disabled={isUpdating}
             >
-              <SelectTrigger className="h-8">
+              <SelectTrigger>
                 <SelectValue placeholder="Provincia" />
               </SelectTrigger>
               <SelectContent>
@@ -125,7 +126,7 @@ export function AddressSectionCard({
 
         {showCap ? (
           <div className="space-y-1">
-            <p className="ui-type-label">CAP</p>
+            <FieldLabel>CAP</FieldLabel>
             {isEditing ? (
               <Input
                 value={addressDraft.cap}
@@ -139,7 +140,6 @@ export function AddressSectionCard({
                 onBlur={onCapBlur}
                 disabled={isUpdating}
                 placeholder="CAP"
-                className="h-8 text-sm"
               />
             ) : (
               <p className="truncate text-sm">{selectedCap || "-"}</p>
@@ -148,7 +148,7 @@ export function AddressSectionCard({
         ) : null}
 
         <div className="space-y-1">
-          <p className="ui-type-label">Indirizzo</p>
+          <FieldLabel>Indirizzo</FieldLabel>
           {isEditing ? (
             <Input
               value={addressDraft.indirizzo_residenza_completo}
@@ -156,7 +156,6 @@ export function AddressSectionCard({
               onBlur={onAddressBlur}
               disabled={isUpdating}
               placeholder="Inserisci indirizzo"
-              className="h-8 text-sm"
             />
           ) : (
             <p className="truncate text-sm">{selectedAddress || "-"}</p>
@@ -164,7 +163,7 @@ export function AddressSectionCard({
         </div>
 
         <div className="space-y-1">
-          <p className="ui-type-label">Mobilita</p>
+          <FieldLabel>Mobilita</FieldLabel>
           {isEditing ? (
             <Combobox
               multiple

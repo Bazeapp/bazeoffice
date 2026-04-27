@@ -366,7 +366,6 @@ export function SupportTicketDetailSheet({
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(nextOpen) => !nextOpen && setSelectedPreview(null)}>
         <DialogContent
           className="max-w-[min(96vw,72rem)] border-none bg-black/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
-          showCloseButton={true}
         >
           <DialogTitle className="sr-only">
             {selectedPreview?.label ?? "Anteprima allegato ticket"}

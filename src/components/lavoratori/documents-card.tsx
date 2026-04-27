@@ -189,10 +189,8 @@ function ReadOnlyAdminValue({
   value: string
 }) {
   return (
-    <div className="rounded-xl border bg-muted/20 px-3 py-3">
-      <FieldLabel className="text-xs uppercase tracking-wide text-muted-foreground">
-        {label}
-      </FieldLabel>
+    <div className="rounded-xl border bg-white px-3 py-3">
+      <FieldLabel>{label}</FieldLabel>
       <p
         className={cn(
           "mt-2 break-all text-sm font-medium",
@@ -243,16 +241,14 @@ function AdministrativeDataSection({
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {canEditIban ? (
-          <div className="rounded-xl border bg-muted/20 px-3 py-3">
-            <FieldLabel className="text-xs uppercase tracking-wide text-muted-foreground">
-              IBAN
-            </FieldLabel>
+          <div className="rounded-xl border bg-white px-3 py-3">
+            <FieldLabel>IBAN</FieldLabel>
             <Input
               value={ibanValue}
               onChange={(event) => onIbanChange?.(event.target.value)}
               onBlur={onIbanBlur}
               disabled={isUpdating}
-              className="mt-2 bg-muted/35"
+              className="mt-2"
               placeholder="Inserisci IBAN"
             />
           </div>
@@ -260,10 +256,8 @@ function AdministrativeDataSection({
           <ReadOnlyAdminValue label="IBAN" value={values?.iban ?? ""} />
         )}
         {canEditStripeAccount ? (
-          <div className="rounded-xl border bg-muted/20 px-3 py-3">
-            <FieldLabel className="text-xs uppercase tracking-wide text-muted-foreground">
-              ID account Stripe
-            </FieldLabel>
+          <div className="rounded-xl border bg-white px-3 py-3">
+            <FieldLabel>ID account Stripe</FieldLabel>
             <Input
               value={stripeAccountValue}
               onChange={(event) =>
@@ -271,7 +265,7 @@ function AdministrativeDataSection({
               }
               onBlur={onStripeAccountBlur}
               disabled={isUpdating}
-              className="mt-2 bg-muted/35"
+              className="mt-2"
               placeholder="Inserisci ID account Stripe"
             />
           </div>
@@ -577,7 +571,7 @@ export function DocumentsCard({
                 onValueChange={onVerificationChange}
                 disabled={isUpdating}
               >
-                <SelectTrigger className="bg-muted/35">
+                <SelectTrigger>
                   <SelectValue placeholder="Seleziona stato verifica" />
                 </SelectTrigger>
                 <SelectContent>
@@ -609,7 +603,7 @@ export function DocumentsCard({
                 onValueChange={onStatoDocumentiChange}
                 disabled={isUpdating}
               >
-                <SelectTrigger className="bg-muted/35">
+                <SelectTrigger>
                   <SelectValue placeholder="Seleziona stato documenti" />
                 </SelectTrigger>
                 <SelectContent>
@@ -674,7 +668,6 @@ export function DocumentsCard({
                 onChange={(event) => onNaspiChange(event.target.value)}
                 onBlur={onNaspiBlur}
                 disabled={isUpdating}
-                className="bg-muted/35"
               />
               <FieldDescription>Da inserire solo se e in Naspi.</FieldDescription>
             </div>

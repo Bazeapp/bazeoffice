@@ -57,7 +57,7 @@ export function SkillsChoiceMatrix({
         {rows.map((row) => (
           <div
             key={row.field}
-            className="bg-muted/35 rounded-lg border border-border/60 px-3 py-3"
+            className="rounded-lg border border-border/60 bg-white px-3 py-3"
             data-empty={!row.value}
           >
             <div

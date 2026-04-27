@@ -1,17 +1,10 @@
-import { UsersIcon } from "lucide-react"
 import type { Table } from "@tanstack/react-table"
 
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar"
 import type { FilterField, FilterGroup } from "@/components/data-table/data-table-filters"
 import { LavoratoreCard, type LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
-import { SideCardsPanel } from "@/components/shared/side-cards-panel"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
+import { SideCardsPanel } from "@/components/shared-next/side-cards-panel"
+import { Pagination } from "@/components/ui-next/pagination"
 
 type SavedViewSummary = {
   id: string
@@ -41,7 +34,6 @@ type LavoratoriCercaListPanelProps = {
   hasPendingFilters: boolean
   currentPage: number
   pageCount: number
-  pageIndex: number
   setPageIndex: React.Dispatch<React.SetStateAction<number>>
 }
 
@@ -67,21 +59,14 @@ export function LavoratoriCercaListPanel({
   hasPendingFilters,
   currentPage,
   pageCount,
-  pageIndex,
   setPageIndex,
 }: LavoratoriCercaListPanelProps) {
   return (
     <div className="flex min-h-0 flex-col gap-2">
       <SideCardsPanel
         title="Lavoratori"
-        icon={UsersIcon}
-        subtitle={
-          loading
-            ? "Caricamento..."
-            : `${workers.length} su ${workersTotal} lavoratori`
-        }
-        headerClassName="px-5 pb-1"
-        contentClassName="space-y-3 px-5 pt-0 pb-3"
+        headerClassName="hidden"
+        contentClassName="space-y-3 px-5 pt-3 pb-3"
         className="h-full gap-2"
       >
         <DataTableToolbar
@@ -142,47 +127,19 @@ export function LavoratoriCercaListPanel({
         )}
       </SideCardsPanel>
 
-      <div className="text-muted-foreground flex items-center justify-between px-1 text-xs">
-        <p>
-          Pagina {currentPage} di {pageCount} ({workersTotal} record)
-        </p>
-        <Pagination className="mx-0 w-auto justify-end">
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                href="#"
-                text="Prec"
-                className={
-                  pageIndex <= 0 || loading
-                    ? "pointer-events-none opacity-50"
-                    : undefined
-                }
-                onClick={(event) => {
-                  event.preventDefault()
-                  if (pageIndex <= 0 || loading) return
-                  setPageIndex((previous) => Math.max(previous - 1, 0))
-                }}
-              />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationNext
-                href="#"
-                text="Succ"
-                className={
-                  currentPage >= pageCount || loading
-                    ? "pointer-events-none opacity-50"
-                    : undefined
-                }
-                onClick={(event) => {
-                  event.preventDefault()
-                  if (currentPage >= pageCount || loading) return
-                  setPageIndex((previous) => previous + 1)
-                }}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      </div>
+      <Pagination className="px-1">
+        <Pagination.Pages
+          page={currentPage}
+          pageCount={pageCount}
+          onChange={(nextPage) => {
+            if (loading) return
+            setPageIndex(Math.max(nextPage - 1, 0))
+          }}
+        />
+        <span className="text-muted-foreground tabular-nums">
+          {workersTotal} record
+        </span>
+      </Pagination>
     </div>
   )
 }

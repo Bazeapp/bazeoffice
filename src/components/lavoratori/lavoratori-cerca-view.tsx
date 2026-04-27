@@ -46,11 +46,11 @@ import {
   getTagClassName,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
-import { Button } from "@/components/ui/button";
-import { DetailSectionBlock } from "@/components/shared/detail-section-card";
+import { Button } from "@/components/ui-next/button";
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui-next/input";
 import {
   fetchFamiglie,
   fetchLavoratori,
@@ -72,7 +72,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui-next/select";
 import {
   Combobox,
   ComboboxChip,
@@ -84,14 +84,14 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui/combobox";
+} from "@/components/ui-next/combobox";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@/components/ui-next/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-next/tabs";
 import {
   Dialog,
   DialogContent,
@@ -99,8 +99,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/ui-next/dialog";
+import { Textarea } from "@/components/ui-next/textarea";
 
 type NonQualificatoTipoLavoroFieldProps = {
   value: string[];
@@ -641,7 +641,6 @@ export function LavoratoriCercaView({
     saveCurrentView,
     applySavedView,
     deleteSavedView,
-    pageIndex,
     setPageIndex,
     pageCount,
     currentPage,
@@ -1595,22 +1594,23 @@ export function LavoratoriCercaView({
   );
 
   return (
-    <div
-      className={
-        selectedWorkerId
-          ? "grid h-full min-h-0 gap-3 lg:grid-cols-[332px_minmax(0,1fr)]"
-          : "grid h-full min-h-0 gap-3 grid-cols-1"
-      }
-    >
-      <input
-        ref={workerPhotoInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={handleWorkerPhotoInputChange}
-      />
-      <LavoratoriCercaListPanel
+    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+      <div
+        className={
+          selectedWorkerId
+            ? "grid min-h-0 flex-1 gap-3 px-4 pb-2 pt-4 lg:grid-cols-[332px_minmax(0,1fr)]"
+            : "grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-2 pt-4"
+        }
+      >
+        <input
+          ref={workerPhotoInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleWorkerPhotoInputChange}
+        />
+        <LavoratoriCercaListPanel
         workers={workers}
         workersTotal={workersTotal}
         selectedWorkerId={selectedWorkerId}
@@ -1632,7 +1632,6 @@ export function LavoratoriCercaView({
         hasPendingFilters={hasPendingFilters}
         currentPage={currentPage}
         pageCount={pageCount}
-        pageIndex={pageIndex}
         setPageIndex={setPageIndex}
       />
 
@@ -2660,6 +2659,7 @@ export function LavoratoriCercaView({
         </Dialog>
         </>
       ) : null}
-    </div>
+      </div>
+    </section>
   );
 }

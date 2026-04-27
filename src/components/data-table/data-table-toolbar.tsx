@@ -22,21 +22,22 @@ import {
   type FilterField,
   type FilterGroup,
 } from "@/components/data-table/data-table-filters";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui-next/button";
+import { Input } from "@/components/ui-next/input";
+import { SearchInput } from "@/components/ui-next/search-input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui-next/popover";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui-next/select";
+import { Separator } from "@/components/ui-next/separator";
 
 type GroupOption = {
   label: string;
@@ -237,11 +238,12 @@ export function DataTableToolbar<TData>({
             : "flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
         }
       >
-        <Input
+        <SearchInput
           className={compactControls ? "w-full" : "w-full md:max-w-sm"}
           placeholder={searchPlaceholder}
           value={localSearchValue}
           onChange={(event) => setLocalSearchValue(event.target.value)}
+          onClear={() => setLocalSearchValue("")}
         />
 
         <div

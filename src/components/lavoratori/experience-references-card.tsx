@@ -1570,9 +1570,7 @@ export function ExperienceReferencesCard({
                     <div className="flex w-full items-start justify-between gap-3 pr-2">
                       <div className="space-y-1 text-left">
                         <div className="flex items-center gap-2">
-                          <ExperienceCardTitle>
-                            {getExperienceHeader(experience)}
-                          </ExperienceCardTitle>
+                          <ExperienceCardTitle role={getExperienceHeader(experience)} />
                           {experience.stato_esperienza_attiva ? (
                             <Badge
                               variant="outline"
@@ -1693,9 +1691,7 @@ export function ExperienceReferencesCard({
                                   <div className="space-y-4">
                                     <div className="space-y-1">
                                       <div className="flex items-center gap-3">
-                                        <ExperienceCardTitle>
-                                          {referenceFullName}
-                                        </ExperienceCardTitle>
+                                        <ExperienceCardTitle role={referenceFullName} />
                                         <Badge
                                           variant="outline"
                                           className={statusClassName}

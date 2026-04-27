@@ -1,13 +1,13 @@
-import { Badge } from "@/components/ui/badge"
-import { DetailSectionBlock } from "@/components/shared/detail-section-card"
-import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui-next/badge"
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
+import { Separator } from "@/components/ui-next/separator"
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet"
+} from "@/components/ui-next/sheet"
 
 type RecruiterFeedbackEntry = {
   name: string
