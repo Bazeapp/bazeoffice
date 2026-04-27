@@ -477,15 +477,15 @@ export function AppSidebar({
 
   return (
     <Sidebar className="border-r border-border/60 bg-[#FFF]">
-      <SidebarHeader className="gap-3 border-b border-border/60 bg-[#FFF] px-3 py-3">
-        <div className="flex items-center gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+      <SidebarHeader className="gap-3 border-b border-border/60 bg-[#FFF] px-3 py-3 group-data-[state=collapsed]/sidebar:px-2">
+        <div className="flex items-center gap-2 group-data-[state=collapsed]/sidebar:flex-col">
+          <div className="flex min-w-0 flex-1 items-center gap-2 group-data-[state=collapsed]/sidebar:flex-none">
             <img
               src={logoSrc}
               alt="Baze logo"
               className="h-6 w-auto shrink-0 object-contain"
             />
-            <div className="min-w-0">
+            <div className="min-w-0 group-data-[state=collapsed]/sidebar:hidden">
               <p className="truncate text-sm font-semibold text-foreground">
                 BazeOffice
               </p>
@@ -531,7 +531,10 @@ export function AppSidebar({
               className="space-y-3"
             >
               {sidebarCategoryGroups.map((group, groupIndex) => (
-                <div key={groupIndex} className="relative ml-2 pl-2">
+                <div
+                  key={groupIndex}
+                  className="relative ml-2 pl-2 group-data-[state=collapsed]/sidebar:ml-0 group-data-[state=collapsed]/sidebar:pl-1.5"
+                >
                   <div
                     className={cn(
                       "absolute top-1 bottom-1 left-0 w-[3px] rounded-full",
@@ -547,12 +550,18 @@ export function AppSidebar({
                             className="border-none"
                           >
                             <AccordionPrimitive.Header className="flex">
-                              <AccordionPrimitive.Trigger className="group/sidebar-cat flex h-9 w-full items-center gap-2 rounded-md px-2 text-sm text-foreground outline-none transition-colors hover:bg-white/60 focus-visible:bg-white/60">
+                              <AccordionPrimitive.Trigger
+                                className={cn(
+                                  "group/sidebar-cat flex h-9 w-full items-center gap-2 rounded-md px-2 text-sm text-foreground outline-none transition-colors hover:bg-white/60 focus-visible:bg-white/60",
+                                  "group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0",
+                                )}
+                                title={category.name}
+                              >
                                 <category.icon className="size-4 shrink-0" />
-                                <span className="flex-1 truncate text-left text-sm">
+                                <span className="flex-1 truncate text-left text-sm group-data-[state=collapsed]/sidebar:hidden">
                                   {category.name}
                                 </span>
-                                <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform duration-[var(--duration-fast)] group-data-[state=open]/sidebar-cat:rotate-180" />
+                                <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform duration-[var(--duration-fast)] group-data-[state=open]/sidebar-cat:rotate-180 group-data-[state=collapsed]/sidebar:hidden" />
                               </AccordionPrimitive.Trigger>
                             </AccordionPrimitive.Header>
                             <AccordionPrimitive.Content className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
@@ -620,11 +629,14 @@ export function AppSidebar({
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton className="h-11 rounded-lg bg-white/70 px-2.5 hover:bg-white">
+                <SidebarMenuButton
+                  className="h-11 rounded-lg bg-white/70 px-2.5 hover:bg-white"
+                  tooltip={userDisplayName}
+                >
                   <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
                     <UserCircle2Icon className="size-4 text-primary" />
                   </div>
-                  <div className="grid flex-1 text-left leading-tight">
+                  <div className="grid flex-1 text-left leading-tight group-data-[state=collapsed]/sidebar:hidden">
                     <span className="truncate text-sm font-medium text-foreground">
                       {userDisplayName}
                     </span>
@@ -632,7 +644,7 @@ export function AppSidebar({
                       {userEmail}
                     </span>
                   </div>
-                  <ChevronsUpDownIcon className="ml-auto size-4" />
+                  <ChevronsUpDownIcon className="ml-auto size-4 group-data-[state=collapsed]/sidebar:hidden" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" side="top" className="w-64">
