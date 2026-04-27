@@ -1,0 +1,102 @@
+import * as React from "react";
+
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui-next/tabs";
+import { cn } from "@/lib/utils";
+
+export type RecordDetailShellTab = {
+  id: string;
+  label: string;
+  icon?: React.ComponentType<{ className?: string }>;
+};
+
+type RecordDetailShellProps = {
+  tabs: RecordDetailShellTab[];
+  activeSection: string;
+  onSectionChange: (sectionId: string) => void;
+  topBar?: React.ReactNode;
+  header?: React.ReactNode;
+  children: React.ReactNode;
+  sectionRef?: React.Ref<HTMLElement>;
+  headerRef?: React.Ref<HTMLDivElement>;
+  className?: string;
+  /** When true, skip outer chrome (rounded border + neutral surface). Use when embedded inside another container. */
+  embedded?: boolean;
+};
+
+export function RecordDetailShell({
+  tabs,
+  activeSection,
+  onSectionChange,
+  topBar,
+  header,
+  children,
+  sectionRef,
+  headerRef,
+  className,
+  embedded = false,
+}: RecordDetailShellProps) {
+  return (
+    <section
+      ref={sectionRef}
+      className={cn(
+        "relative min-h-0 overflow-y-auto pb-4",
+        embedded
+          ? "bg-transparent"
+          : "rounded-xl border bg-[var(--neutral-150)]",
+        className,
+      )}
+    >
+      {embedded ? null : (
+        <div className="sticky top-0 z-40 flex h-12 items-end gap-3 bg-white px-4">
+          <Tabs
+            value={activeSection}
+            onValueChange={onSectionChange}
+            className="min-w-0 flex-1"
+          >
+            <TabsList
+              variant="line"
+              className="h-auto w-full justify-start gap-x-0.5 overflow-x-auto overflow-y-hidden whitespace-nowrap border-b-0 p-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {tabs.map((tab) => {
+                const TabIcon = tab.icon;
+                return (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className="h-10 flex-none px-3 shadow-none"
+                  >
+                    {TabIcon ? <TabIcon className="size-4" /> : null}
+                    {tab.label}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
+          {topBar ? (
+            <div className="ml-auto flex shrink-0 items-center gap-2 pb-1">
+              {topBar}
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {!embedded && header ? (
+        <div
+          ref={headerRef}
+          className="sticky top-12 z-30 isolate border-b bg-white px-4 py-4 shadow-[0_8px_16px_-18px_rgba(15,23,42,0.45)]"
+        >
+          {header}
+        </div>
+      ) : null}
+
+      <div
+        className={cn(
+          "space-y-4 text-sm",
+          embedded ? "p-4" : "px-4 pt-4",
+        )}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}

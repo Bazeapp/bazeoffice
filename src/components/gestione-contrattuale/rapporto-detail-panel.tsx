@@ -24,13 +24,14 @@ import {
   AttachmentUploadSlot,
   hasAttachmentValue,
   type AttachmentLink,
-} from "@/components/shared/attachment-upload-slot"
+} from "@/components/shared-next/attachment-upload-slot"
 import {
   DetailField,
   DetailFieldControl,
   DetailSectionBlock,
   DetailSectionCard,
-} from "@/components/shared/detail-section-card"
+} from "@/components/shared-next/detail-section-card"
+import { RecordDetailShell } from "@/components/shared-next/record-detail-shell"
 import {
   ContributoInpsDetailSheet,
   type ContributiColumnData,
@@ -38,14 +39,14 @@ import {
 import {
   CedolinoDetailSheet,
 } from "@/components/payroll/payroll-overview-view"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui-next/badge"
+import { Button } from "@/components/ui-next/button"
+import { Card, CardContent } from "@/components/ui-next/card"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui-next/dialog"
+import { Input } from "@/components/ui-next/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
+import { Separator } from "@/components/ui-next/separator"
+import { cn } from "@/lib/utils"
 import { updateRecord } from "@/lib/anagrafiche-api"
 import {
   buildAttachmentPayload,
@@ -272,7 +273,7 @@ function RelatedPersonCard({
   href?: string
 }) {
   return (
-    <Card className="bg-background py-0 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <Card className="py-0 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <CardContent className="px-4 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
@@ -332,9 +333,10 @@ function ListRowCard({
 }) {
   return (
     <Card
-      className={`bg-background py-0 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:bg-muted/30 ${
-        onClick ? "cursor-pointer" : ""
-      }`}
+      className={cn(
+        "bg-white py-0 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:bg-[var(--neutral-100)]",
+        onClick ? "cursor-pointer" : "",
+      )}
       onClick={onClick}
     >
       <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
@@ -778,73 +780,49 @@ export function RapportoDetailPanel({
   const selectedContributo =
     contributoCards.find((card) => card.id === selectedContributoId) ?? null
 
+  const headerContent = (
+    <div className="space-y-3">
+      <div>
+        <h2 className="truncate text-xl leading-tight font-semibold">{relationshipTitle}</h2>
+        <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          {famiglia?.email ? <span>{famiglia.email}</span> : null}
+          {famiglia?.email && startDateLabel !== "-" ? <span>•</span> : null}
+          {startDateLabel !== "-" ? <span>dal {startDateLabel}</span> : null}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge className={getTagClassName(statoRapportoColor)}>
+          {rapportoView.stato_rapporto ?? "Sconosciuto"}
+        </Badge>
+        {rapportoView.stato_servizio ? (
+          <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+            {rapportoView.stato_servizio}
+          </Badge>
+        ) : null}
+        {rapportoView.tipo_rapporto ? (
+          <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+            {rapportoView.tipo_rapporto}
+          </Badge>
+        ) : null}
+        {rapportoView.tipo_contratto ? (
+          <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+            {rapportoView.tipo_contratto}
+          </Badge>
+        ) : null}
+      </div>
+    </div>
+  )
+
   return (
-    <section
-      ref={detailScrollRef}
-      className="scrollbar-hidden bg-slate-50/80 relative min-h-0 overflow-y-auto rounded-xl border px-4 pt-0 pb-4"
+    <RecordDetailShell
+      sectionRef={detailScrollRef}
+      tabs={SECTION_TABS}
+      activeSection={activeSection}
+      onSectionChange={scrollToSection}
+      header={hideHeader ? undefined : headerContent}
+      embedded={hideHeader}
     >
-      <div className="space-y-6">
-        {hideHeader ? null : (
-          <div className="sticky top-0 z-20 -mx-4 -mt-4 border-b bg-background/95 px-4 py-3 backdrop-blur">
-            <div className="space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 space-y-3">
-                  <div>
-                    <h2 className="truncate text-xl leading-tight font-semibold">{relationshipTitle}</h2>
-                    <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                      {famiglia?.email ? <span>{famiglia.email}</span> : null}
-                      {famiglia?.email && startDateLabel !== "-" ? <span>•</span> : null}
-                      {startDateLabel !== "-" ? <span>dal {startDateLabel}</span> : null}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge className={getTagClassName(statoRapportoColor)}>
-                      {rapportoView.stato_rapporto ?? "Sconosciuto"}
-                    </Badge>
-                    {rapportoView.stato_servizio ? (
-                      <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
-                        {rapportoView.stato_servizio}
-                      </Badge>
-                    ) : null}
-                    {rapportoView.tipo_rapporto ? (
-                      <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
-                        {rapportoView.tipo_rapporto}
-                      </Badge>
-                    ) : null}
-                    {rapportoView.tipo_contratto ? (
-                      <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
-                        {rapportoView.tipo_contratto}
-                      </Badge>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              <Tabs value={activeSection} onValueChange={scrollToSection} className="w-full">
-                <TabsList
-                  variant="line"
-                  className="h-auto w-full justify-start gap-x-0.5 overflow-x-auto overflow-y-hidden whitespace-nowrap p-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                >
-                  {SECTION_TABS.map((tab) => {
-                    const TabIcon = tab.icon
-                    return (
-                      <TabsTrigger
-                        key={tab.id}
-                        value={tab.id}
-                        className="text-muted-foreground/70 h-8 flex-none rounded-md px-2.5 text-xs shadow-none"
-                      >
-                        <TabIcon className="size-3.5" />
-                        {tab.label}
-                      </TabsTrigger>
-                    )
-                  })}
-                </TabsList>
-              </Tabs>
-            </div>
-          </div>
-        )}
-
+      <>
         <div className="space-y-6 text-sm">
           <div ref={setSectionRef("contratto")}>
             <DetailSectionBlock
@@ -884,13 +862,7 @@ export function RapportoDetailPanel({
                 </Button>
               }
             >
-              <DetailSectionCard
-                title=""
-                titleOnBorder
-                className="border-border/60 bg-background"
-                contentClassName="space-y-4 pt-0"
-                titleClassName="hidden"
-              >
+              <div className="space-y-4">
                 {editingSection === "contratto" ? (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <DetailFieldControl label="Tipo durata">
@@ -900,7 +872,7 @@ export function RapportoDetailPanel({
                           setDraftValue("tipo_contratto_durata", value === "__empty__" ? "" : value)
                         }
                       >
-                        <SelectTrigger className="bg-background">
+                        <SelectTrigger>
                           <SelectValue placeholder="Seleziona tipo durata" />
                         </SelectTrigger>
                         <SelectContent>
@@ -929,7 +901,7 @@ export function RapportoDetailPanel({
                           setDraftValue("tipo_rapporto", value === "__empty__" ? "" : value)
                         }
                       >
-                        <SelectTrigger className="bg-background">
+                        <SelectTrigger>
                           <SelectValue placeholder="Seleziona tipo rapporto" />
                         </SelectTrigger>
                         <SelectContent>
@@ -999,44 +971,28 @@ export function RapportoDetailPanel({
                     <DetailField label="Relazione lavorativa" value={rapportoView.relazione_lavorativa ?? "-"} />
                   </div>
                 )}
-              </DetailSectionCard>
+              </div>
 
               <Separator className="bg-border/60" />
 
-              <DetailSectionCard
-                title=""
-                titleOnBorder
-                className="border-border/60 bg-background"
-                contentClassName="space-y-4 pt-0"
-                titleClassName="hidden"
-              >
-                <div className="space-y-3">
-                  <p className="ui-type-label">
-                    Distribuzione ore
-                  </p>
-                  <div className="flex flex-wrap gap-2">
+              <div className="space-y-3">
+                <p className="ui-type-label">Distribuzione ore</p>
+                <div className="flex flex-wrap gap-2">
                   {distributionItems.map((item) => (
                     <div
                       key={item.day}
-                      className="bg-muted/35 flex min-w-14 flex-col items-center rounded-xl px-2.5 py-2"
+                      className="flex min-w-14 flex-col items-center rounded-xl border bg-white px-2.5 py-2"
                     >
                       <span className="ui-type-label normal-case tracking-normal">{item.day}</span>
                       <span className="ui-type-value mt-1">{item.value}</span>
                     </div>
                   ))}
-                  </div>
                 </div>
-              </DetailSectionCard>
+              </div>
 
               <Separator className="bg-border/60" />
 
-              <DetailSectionCard
-                title=""
-                titleOnBorder
-                className="border-border/60 bg-background"
-                contentClassName="space-y-4 pt-0"
-                titleClassName="hidden"
-              >
+              <div className="space-y-4">
                 {editingSection === "contratto" ? (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <DetailFieldControl label="Paga oraria lorda">
@@ -1088,7 +1044,7 @@ export function RapportoDetailPanel({
                     />
                   </div>
                 )}
-              </DetailSectionCard>
+              </div>
             </DetailSectionBlock>
           </div>
 
@@ -1101,145 +1057,130 @@ export function RapportoDetailPanel({
                 <p className="text-muted-foreground text-sm">Caricamento record collegati...</p>
               ) : (
                 <>
-                  <DetailSectionCard
-                    title=""
-                    titleOnBorder
-                    className="border-border/60 bg-background"
-                    contentClassName="space-y-4 pt-0"
-                    titleClassName="hidden"
-                  >
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <RelatedPersonCard
-                        role="Datore"
-                        name={familyName}
-                        email={famiglia?.email}
-                        phone={famiglia?.telefono}
-                        href={
-                          famiglia
-                            ? buildPathForRoute({
-                                mainSection: "anagrafiche",
-                                anagraficheTab: "famiglie",
-                                ricercaProcessId: null,
-                              })
-                            : undefined
-                        }
-                      />
-                      <RelatedPersonCard
-                        role="Lavoratore"
-                        name={workerName}
-                        email={lavoratore?.email}
-                        phone={lavoratore?.telefono}
-                        href={
-                          lavoratore
-                            ? buildPathForRoute({
-                                mainSection: "lavoratori_cerca",
-                                anagraficheTab: "famiglie",
-                                ricercaProcessId: null,
-                              })
-                            : undefined
-                        }
-                      />
-                    </div>
-                  </DetailSectionCard>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <RelatedPersonCard
+                      role="Datore"
+                      name={familyName}
+                      email={famiglia?.email}
+                      phone={famiglia?.telefono}
+                      href={
+                        famiglia
+                          ? buildPathForRoute({
+                              mainSection: "anagrafiche",
+                              anagraficheTab: "famiglie",
+                              ricercaProcessId: null,
+                            })
+                          : undefined
+                      }
+                    />
+                    <RelatedPersonCard
+                      role="Lavoratore"
+                      name={workerName}
+                      email={lavoratore?.email}
+                      phone={lavoratore?.telefono}
+                      href={
+                        lavoratore
+                          ? buildPathForRoute({
+                              mainSection: "lavoratori_cerca",
+                              anagraficheTab: "famiglie",
+                              ricercaProcessId: null,
+                            })
+                          : undefined
+                      }
+                    />
+                  </div>
 
-                  <DetailSectionCard
-                    title=""
-                    titleOnBorder
-                    className="border-border/60 bg-background"
-                    contentClassName="space-y-4 pt-0"
-                    titleClassName="hidden"
-                  >
-                    <div className="grid gap-4 lg:grid-cols-3">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <FileTextIcon className="text-muted-foreground size-4" />
-                          <span className="text-[11px] font-semibold">Accordo di lavoro</span>
-                          {hasAccordoDiLavoro ? (
-                            <CheckCircle2Icon className="size-4 text-green-600" />
-                          ) : (
-                            <OctagonAlertIcon className="size-4 text-red-500" />
-                          )}
-                        </div>
-                        <AttachmentUploadSlot
-                          label="Accordo di lavoro"
-                          value={rapportoView.accordo_di_lavoro_allegati}
-                          onAdd={(file) => void handleUploadRapportoAttachment("accordo_di_lavoro_allegati", file)}
-                          onPreviewOpen={setSelectedPreview}
-                          isUploading={uploadingSlot === "accordo_di_lavoro_allegati"}
-                        />
+                  <Separator className="bg-border/60" />
+
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FileTextIcon className="text-muted-foreground size-4" />
+                        <span className="text-[11px] font-semibold">Accordo di lavoro</span>
+                        {hasAccordoDiLavoro ? (
+                          <CheckCircle2Icon className="size-4 text-green-600" />
+                        ) : (
+                          <OctagonAlertIcon className="size-4 text-red-500" />
+                        )}
                       </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <FileTextIcon className="text-muted-foreground size-4" />
-                          <span className="text-[11px] font-semibold">Ricevuta INPS</span>
-                          {hasRicevutaInps ? (
-                            <CheckCircle2Icon className="size-4 text-green-600" />
-                          ) : (
-                            <OctagonAlertIcon className="size-4 text-red-500" />
-                          )}
-                        </div>
-                        <AttachmentUploadSlot
-                          label="Ricevuta INPS"
-                          value={rapportoView.ricevuta_inps_allegati}
-                          onAdd={(file) => void handleUploadRapportoAttachment("ricevuta_inps_allegati", file)}
-                          onPreviewOpen={setSelectedPreview}
-                          isUploading={uploadingSlot === "ricevuta_inps_allegati"}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <FileTextIcon className="text-muted-foreground size-4" />
-                          <span className="text-[11px] font-semibold">Delega INPS</span>
-                          {hasDelegaInps ? (
-                            <CheckCircle2Icon className="size-4 text-green-600" />
-                          ) : (
-                            <OctagonAlertIcon className="size-4 text-red-500" />
-                          )}
-                        </div>
-                        <AttachmentUploadSlot
-                          label="Delega INPS"
-                          value={delegaInpsValue}
-                          onAdd={(file) => void handleUploadRapportoAttachment("delega_inps_allegati", file)}
-                          onPreviewOpen={setSelectedPreview}
-                          isUploading={uploadingSlot === "delega_inps_allegati"}
-                        />
-                      </div>
+                      <AttachmentUploadSlot
+                        label="Accordo di lavoro"
+                        value={rapportoView.accordo_di_lavoro_allegati}
+                        onAdd={(file) => void handleUploadRapportoAttachment("accordo_di_lavoro_allegati", file)}
+                        onPreviewOpen={setSelectedPreview}
+                        isUploading={uploadingSlot === "accordo_di_lavoro_allegati"}
+                      />
                     </div>
-                  </DetailSectionCard>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FileTextIcon className="text-muted-foreground size-4" />
+                        <span className="text-[11px] font-semibold">Ricevuta INPS</span>
+                        {hasRicevutaInps ? (
+                          <CheckCircle2Icon className="size-4 text-green-600" />
+                        ) : (
+                          <OctagonAlertIcon className="size-4 text-red-500" />
+                        )}
+                      </div>
+                      <AttachmentUploadSlot
+                        label="Ricevuta INPS"
+                        value={rapportoView.ricevuta_inps_allegati}
+                        onAdd={(file) => void handleUploadRapportoAttachment("ricevuta_inps_allegati", file)}
+                        onPreviewOpen={setSelectedPreview}
+                        isUploading={uploadingSlot === "ricevuta_inps_allegati"}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FileTextIcon className="text-muted-foreground size-4" />
+                        <span className="text-[11px] font-semibold">Delega INPS</span>
+                        {hasDelegaInps ? (
+                          <CheckCircle2Icon className="size-4 text-green-600" />
+                        ) : (
+                          <OctagonAlertIcon className="size-4 text-red-500" />
+                        )}
+                      </div>
+                      <AttachmentUploadSlot
+                        label="Delega INPS"
+                        value={delegaInpsValue}
+                        onAdd={(file) => void handleUploadRapportoAttachment("delega_inps_allegati", file)}
+                        onPreviewOpen={setSelectedPreview}
+                        isUploading={uploadingSlot === "delega_inps_allegati"}
+                      />
+                    </div>
+                  </div>
 
                   {uploadError ? <p className="text-sm text-red-600">{uploadError}</p> : null}
 
                   {processi.length > 0 ? (
-                    <DetailSectionCard
-                      title="Record collegati"
-                      titleOnBorder
-                      className="border-border/60 bg-background"
-                      contentClassName="space-y-3"
-                    >
-                      <div className="space-y-2">
-                        {processi.map((processo) => (
-                          <ListRowCard
-                            key={processo.id}
-                            title={processo.titolo_annuncio || processo.id}
-                            subtitle={`Stato RES: ${processo.stato_res ?? "-"}`}
-                            trailing={
-                              <Button asChild variant="outline" size="sm">
-                                <a
-                                  href={buildPathForRoute({
-                                    mainSection: "ricerca_pipeline",
-                                    anagraficheTab: "famiglie",
-                                    ricercaProcessId: processo.id,
-                                  })}
-                                >
-                                  Apri
-                                  <ArrowRightIcon className="size-4" />
-                                </a>
-                              </Button>
-                            }
-                          />
-                        ))}
+                    <>
+                      <Separator className="bg-border/60" />
+                      <div className="space-y-3">
+                        <p className="ui-type-label">Record collegati</p>
+                        <div className="space-y-2">
+                          {processi.map((processo) => (
+                            <ListRowCard
+                              key={processo.id}
+                              title={processo.titolo_annuncio || processo.id}
+                              subtitle={`Stato RES: ${processo.stato_res ?? "-"}`}
+                              trailing={
+                                <Button asChild variant="outline" size="sm">
+                                  <a
+                                    href={buildPathForRoute({
+                                      mainSection: "ricerca_pipeline",
+                                      anagraficheTab: "famiglie",
+                                      ricercaProcessId: processo.id,
+                                    })}
+                                  >
+                                    Apri
+                                    <ArrowRightIcon className="size-4" />
+                                  </a>
+                                </Button>
+                              }
+                            />
+                          ))}
+                        </div>
                       </div>
-                    </DetailSectionCard>
+                    </>
                   ) : null}
                 </>
               )}
@@ -1401,7 +1342,6 @@ export function RapportoDetailPanel({
 
           <div className="h-8" />
         </div>
-      </div>
       <CedolinoDetailSheet
         card={selectedCedolino}
         columns={cedolinoColumns}
@@ -1437,7 +1377,6 @@ export function RapportoDetailPanel({
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(open) => !open && setSelectedPreview(null)}>
         <DialogContent
           className="max-w-[min(96vw,72rem)] border-none bg-black/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
-          showCloseButton={true}
         >
           <DialogTitle className="sr-only">
             {selectedPreview?.label ?? "Anteprima documento"}
@@ -1453,6 +1392,7 @@ export function RapportoDetailPanel({
           ) : null}
         </DialogContent>
       </Dialog>
-    </section>
+      </>
+    </RecordDetailShell>
   )
 }

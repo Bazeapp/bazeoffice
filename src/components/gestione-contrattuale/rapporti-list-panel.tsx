@@ -1,8 +1,9 @@
 import * as React from "react"
 import {
+  CalendarDaysIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  SlidersHorizontalIcon,
+  ClockIcon,
   XIcon,
 } from "lucide-react"
 import {
@@ -16,17 +17,20 @@ import {
   evaluateGroup,
   type FilterField,
 } from "@/components/data-table/data-table-filters"
-import { SideCardsPanel } from "@/components/shared/side-cards-panel"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { CardMetaRow } from "@/components/shared-next/card-meta-row"
+import { RecordCard } from "@/components/shared-next/record-card"
+import { SideCardsPanel } from "@/components/shared-next/side-cards-panel"
+import { Badge } from "@/components/ui-next/badge"
+import { Button } from "@/components/ui-next/button"
+import { FieldLabel } from "@/components/ui-next/field"
+import { Pagination } from "@/components/ui-next/pagination"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui-next/select"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/lookup-utils"
 import { cn } from "@/lib/utils"
@@ -145,6 +149,61 @@ function getFallbackColor(value: string | null | undefined) {
   return "sky"
 }
 
+function RapportoCard({
+  rapporto,
+  isActive,
+  onClick,
+  lookupColorsByDomain,
+}: {
+  rapporto: RapportiListItem
+  isActive: boolean
+  onClick: () => void
+  lookupColorsByDomain: Map<string, string>
+}) {
+  return (
+    <RecordCard
+      onClick={onClick}
+      className={cn(isActive && "ring-primary/35 ring-2")}
+    >
+      <RecordCard.Header
+        title={<span className="text-sm font-semibold">{rapporto.famigliaLabel}</span>}
+        subtitle={rapporto.lavoratoreLabel}
+        rightSlot={
+          <Badge
+            variant="outline"
+            className={cn(
+              "h-5 shrink-0 px-2 text-[11px] font-medium",
+              getTagClassName(
+                getStatusColor(
+                  lookupColorsByDomain,
+                  "rapporti_lavorativi.stato_rapporto",
+                  rapporto.stato_rapporto,
+                ) ?? getFallbackColor(getStatusBadgeLabel(rapporto.stato_rapporto)),
+              ),
+            )}
+          >
+            {getStatusBadgeLabel(rapporto.stato_rapporto)}
+          </Badge>
+        }
+      />
+      <RecordCard.Body className="gap-1 text-[11px]">
+        <CardMetaRow icon={<ClockIcon className="size-3 shrink-0" />}>
+          <span>{rapporto.ore_a_settimana ?? 0}h/sett</span>
+          {rapporto.distribuzione_ore_settimana ? (
+            <>
+              <span className="text-muted-foreground/60 mx-1">•</span>
+              <span className="truncate">{rapporto.distribuzione_ore_settimana}</span>
+            </>
+          ) : null}
+        </CardMetaRow>
+        <CardMetaRow icon={<CalendarDaysIcon className="size-3 shrink-0" />}>
+          <span>{formatCompactDate(rapporto.data_inizio_rapporto)}</span>
+        </CardMetaRow>
+      </RecordCard.Body>
+    </RecordCard>
+  )
+}
+
 function renderGroupTree(
   items: RapportiListItem[],
   grouping: string[],
@@ -153,66 +212,19 @@ function renderGroupTree(
   onToggleGroup: (groupKey: string) => void,
   selectedRapportoId: string | null,
   onSelect: (id: string) => void,
-  lookupColorsByDomain: Map<string, string>
+  lookupColorsByDomain: Map<string, string>,
 ): React.ReactNode {
   if (grouping.length === 0) {
     return (
       <div className="space-y-2">
         {items.map((rapporto) => (
-          <Card
+          <RapportoCard
             key={rapporto.id}
+            rapporto={rapporto}
+            isActive={selectedRapportoId === rapporto.id}
             onClick={() => onSelect(rapporto.id)}
-            className={cn(
-              "bg-white border border-border/70 cursor-pointer py-3 text-left shadow-none transition-shadow hover:shadow-md",
-              selectedRapportoId === rapporto.id && "ring-primary/35 ring-2"
-            )}
-          >
-            <CardContent className="space-y-4 px-4">
-              <div className="min-w-0 space-y-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm leading-none font-semibold">
-                      {rapporto.famigliaLabel}
-                    </p>
-                    <p className="text-muted-foreground mt-1.5 text-xs leading-none">
-                      {rapporto.lavoratoreLabel}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap justify-end gap-1.5">
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "h-5 shrink-0 px-2 text-[11px] font-medium",
-                        getTagClassName(
-                          getStatusColor(
-                            lookupColorsByDomain,
-                            "rapporti_lavorativi.stato_rapporto",
-                            rapporto.stato_rapporto
-                          ) ?? getFallbackColor(getStatusBadgeLabel(rapporto.stato_rapporto))
-                        )
-                      )}
-                    >
-                      {getStatusBadgeLabel(rapporto.stato_rapporto)}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-[11px] leading-none">
-                    <span>{rapporto.ore_a_settimana ?? 0}h/sett</span>
-                    {rapporto.distribuzione_ore_settimana ? (
-                      <>
-                        <span className="mx-1">•</span>
-                        <span>{rapporto.distribuzione_ore_settimana}</span>
-                      </>
-                    ) : null}
-                    <span className="mx-1">•</span>
-                    <span>{formatCompactDate(rapporto.data_inizio_rapporto)}</span>
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            lookupColorsByDomain={lookupColorsByDomain}
+          />
         ))}
       </div>
     )
@@ -245,7 +257,7 @@ function renderGroupTree(
           onClick={() => onToggleGroup(groupKey)}
           className={cn(
             "text-muted-foreground hover:text-foreground flex w-full items-center gap-1.5 px-1 text-sm font-medium transition-colors",
-            depth > 0 && "pl-4"
+            depth > 0 && "pl-4",
           )}
         >
           {isCollapsed ? <ChevronRightIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
@@ -265,7 +277,7 @@ function renderGroupTree(
               onToggleGroup,
               selectedRapportoId,
               onSelect,
-              lookupColorsByDomain
+              lookupColorsByDomain,
             )}
           </div>
         ) : null}
@@ -288,17 +300,14 @@ export function RapportiListPanel({
   onSelect,
   lookupColorsByDomain,
 }: RapportiListPanelProps) {
-  const [showFilters, setShowFilters] = React.useState(false)
   const [filterAssunzione, setFilterAssunzione] = React.useState("all")
-  const [filterTipoContratto, setFilterTipoContratto] = React.useState("all")
-  const [filterTipoRapporto, setFilterTipoRapporto] = React.useState("all")
   const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({})
   const initialQuery = React.useMemo(
     () => ({
       grouping: [],
       sorting: [{ id: "data_inizio_rapporto", desc: true }],
     }),
-    []
+    [],
   )
   const {
     searchValue,
@@ -344,7 +353,7 @@ export function RapportiListPanel({
         distribuzione_ore_settimana: rapporto.distribuzione_ore_settimana,
         raw: rapporto,
       })),
-    [rapporti]
+    [rapporti],
   )
 
   const columns = React.useMemo<ColumnDef<RapportiListItem>[]>(
@@ -360,7 +369,7 @@ export function RapportiListPanel({
       { accessorKey: "ore_a_settimana", header: "Ore" },
       { accessorKey: "data_inizio_rapporto", header: "Data inizio" },
     ],
-    []
+    [],
   )
 
   const table = useReactTable({
@@ -378,10 +387,10 @@ export function RapportiListPanel({
         new Set(
           rapporti
             .map((rapporto) => rapporto.stato_assunzione?.trim())
-            .filter((value): value is string => Boolean(value))
-        )
+            .filter((value): value is string => Boolean(value)),
+        ),
       ).sort((left, right) => left.localeCompare(right)),
-    [rapporti]
+    [rapporti],
   )
 
   const uniqueTipiContratto = React.useMemo(
@@ -390,10 +399,10 @@ export function RapportiListPanel({
         new Set(
           rapporti
             .map((rapporto) => rapporto.tipo_contratto?.trim())
-            .filter((value): value is string => Boolean(value))
-        )
+            .filter((value): value is string => Boolean(value)),
+        ),
       ).sort((left, right) => left.localeCompare(right)),
-    [rapporti]
+    [rapporti],
   )
 
   const uniqueTipiRapporto = React.useMemo(
@@ -402,15 +411,13 @@ export function RapportiListPanel({
         new Set(
           rapporti
             .map((rapporto) => rapporto.tipo_rapporto?.trim())
-            .filter((value): value is string => Boolean(value))
-        )
+            .filter((value): value is string => Boolean(value)),
+        ),
       ).sort((left, right) => left.localeCompare(right)),
-    [rapporti]
+    [rapporti],
   )
 
-  const activeFilterCount = [filterAssunzione, filterTipoContratto, filterTipoRapporto].filter(
-    (value) => value !== "all"
-  ).length
+  const activeFilterCount = filterAssunzione !== "all" ? 1 : 0
 
   const filterFields = React.useMemo<FilterField[]>(
     () => [
@@ -419,7 +426,7 @@ export function RapportiListPanel({
         value: "stato_rapporto",
         type: "enum",
         options: Array.from(
-          new Set(items.map((item) => item.stato_rapporto).filter((value): value is string => Boolean(value)))
+          new Set(items.map((item) => item.stato_rapporto).filter((value): value is string => Boolean(value))),
         ).map((value) => ({ label: value, value })),
       },
       {
@@ -427,7 +434,7 @@ export function RapportiListPanel({
         value: "stato_servizio",
         type: "enum",
         options: Array.from(
-          new Set(items.map((item) => item.stato_servizio).filter((value): value is string => Boolean(value)))
+          new Set(items.map((item) => item.stato_servizio).filter((value): value is string => Boolean(value))),
         ).map((value) => ({ label: value, value })),
       },
       {
@@ -449,7 +456,7 @@ export function RapportiListPanel({
         options: uniqueTipiRapporto.map((value) => ({ label: value, value })),
       },
     ],
-    [items, uniqueAssunzioni, uniqueTipiContratto, uniqueTipiRapporto]
+    [items, uniqueAssunzioni, uniqueTipiContratto, uniqueTipiRapporto],
   )
 
   const visibleItems = React.useMemo(() => {
@@ -462,13 +469,7 @@ export function RapportiListPanel({
         )
       })
       .filter((rapporto) =>
-        filterAssunzione === "all" ? true : rapporto.stato_assunzione === filterAssunzione
-      )
-      .filter((rapporto) =>
-        filterTipoContratto === "all" ? true : rapporto.tipo_contratto === filterTipoContratto
-      )
-      .filter((rapporto) =>
-        filterTipoRapporto === "all" ? true : rapporto.tipo_rapporto === filterTipoRapporto
+        filterAssunzione === "all" ? true : rapporto.stato_assunzione === filterAssunzione,
       )
       .filter((rapporto) => evaluateGroup(rapporto as unknown as Record<string, unknown>, filters, filterFields))
 
@@ -476,8 +477,6 @@ export function RapportiListPanel({
   }, [
     filterFields,
     filterAssunzione,
-    filterTipoContratto,
-    filterTipoRapporto,
     filters,
     items,
     searchValue,
@@ -486,209 +485,122 @@ export function RapportiListPanel({
 
   function clearFilters() {
     setFilterAssunzione("all")
-    setFilterTipoContratto("all")
-    setFilterTipoRapporto("all")
   }
 
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
   const currentPage = pageIndex + 1
-  const pageStart = totalCount === 0 ? 0 : pageIndex * pageSize + 1
-  const pageEnd = totalCount === 0 ? 0 : Math.min((pageIndex + 1) * pageSize, totalCount)
 
   return (
-    <SideCardsPanel
-      title="Rapporti lavorativi"
-      subtitle={
-        loading
-          ? "Caricamento..."
-          : `${pageStart}-${pageEnd} di ${totalCount} rapporti`
-      }
-      className="h-full"
-      headerClassName="px-5 pb-2"
-      contentClassName="flex min-h-0 flex-col gap-3 overflow-hidden px-5 pt-0 pb-5"
-    >
-      <div className="space-y-3">
-        <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">
-            <DataTableToolbar
-              table={table}
-              searchValue={searchValue}
-              onSearchValueChange={setSearchValue}
-              filters={filters}
-              onFiltersChange={setFilters}
-              filterFields={filterFields}
-              searchPlaceholder="Cerca famiglia o lavoratore..."
-              groupOptions={[
-                { label: "Stato rapporto", value: "stato_rapporto" },
-                { label: "Stato servizio", value: "stato_servizio" },
-                { label: "Stato assunzione", value: "stato_assunzione" },
-                { label: "Stato riattivazione", value: "stato_riattivazione" },
-                { label: "Tipo contratto", value: "tipo_contratto" },
-                { label: "Tipo rapporto", value: "tipo_rapporto" },
-              ]}
-              compactControls
-              savedViews={savedViews.map((view) => ({
-                id: view.id,
-                name: view.name,
-                updatedAt: view.updatedAt,
-              }))}
-              activeViewId={activeViewId}
-              onSaveCurrentView={saveView}
-              onApplySavedView={applyView}
-              onDeleteSavedView={deleteView}
-              onApplyFilters={applyFilters}
-              hasPendingFilters={hasPendingFilters}
-            />
-          </div>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant={showFilters ? "default" : "outline"}
-            className="relative mt-0.5 shrink-0"
-            onClick={() => setShowFilters((current) => !current)}
-          >
-            <SlidersHorizontalIcon className="size-4" />
-            {activeFilterCount > 0 ? (
-              <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 inline-flex size-4 items-center justify-center rounded-full text-[10px] font-semibold">
-                {activeFilterCount}
-              </span>
-            ) : null}
-          </Button>
+    <div className="flex min-h-0 flex-col gap-2">
+      <SideCardsPanel
+        title="Rapporti lavorativi"
+        headerClassName="hidden"
+        contentClassName="space-y-3 px-5 pt-3 pb-3"
+        className="h-full gap-2"
+      >
+        <DataTableToolbar
+          table={table}
+          searchValue={searchValue}
+          onSearchValueChange={setSearchValue}
+          filters={filters}
+          onFiltersChange={setFilters}
+          filterFields={filterFields}
+          searchPlaceholder="Cerca famiglia o lavoratore..."
+          groupOptions={[
+            { label: "Stato rapporto", value: "stato_rapporto" },
+            { label: "Stato servizio", value: "stato_servizio" },
+            { label: "Stato assunzione", value: "stato_assunzione" },
+            { label: "Stato riattivazione", value: "stato_riattivazione" },
+            { label: "Tipo contratto", value: "tipo_contratto" },
+            { label: "Tipo rapporto", value: "tipo_rapporto" },
+          ]}
+          compactControls
+          savedViews={savedViews.map((view) => ({
+            id: view.id,
+            name: view.name,
+            updatedAt: view.updatedAt,
+          }))}
+          activeViewId={activeViewId}
+          onSaveCurrentView={saveView}
+          onApplySavedView={applyView}
+          onDeleteSavedView={deleteView}
+          onApplyFilters={applyFilters}
+          hasPendingFilters={hasPendingFilters}
+        />
+
+        <div className="space-y-1">
+          <FieldLabel>Stato assunzione</FieldLabel>
+          <Select value={filterAssunzione} onValueChange={setFilterAssunzione}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Tutti" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutti</SelectItem>
+              {uniqueAssunzioni.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        {showFilters ? (
-          <div className="bg-muted/35 space-y-3 rounded-lg border p-3">
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-1.5">
-                <p className="ui-type-label">
-                  Stato assunzione
-                </p>
-                <Select value={filterAssunzione} onValueChange={setFilterAssunzione}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Tutti" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutti</SelectItem>
-                    {uniqueAssunzioni.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <p className="ui-type-label">
-                  Tipo contratto
-                </p>
-                <Select value={filterTipoContratto} onValueChange={setFilterTipoContratto}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Tutti" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutti</SelectItem>
-                    {uniqueTipiContratto.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <p className="ui-type-label">
-                  Tipo rapporto
-                </p>
-                <Select value={filterTipoRapporto} onValueChange={setFilterTipoRapporto}>
-                  <SelectTrigger className="h-8">
-                    <SelectValue placeholder="Tutti" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutti</SelectItem>
-                    {uniqueTipiRapporto.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {activeFilterCount > 0 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto h-7 gap-1 text-xs"
-                  onClick={clearFilters}
-                >
-                  <XIcon className="size-3" />
-                  Rimuovi filtri
-                </Button>
-              ) : null}
-            </div>
+        {activeFilterCount > 0 ? (
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-muted-foreground text-xs">
+              {visibleItems.length} di {items.length} rapporti
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+            >
+              <XIcon className="size-3" />
+              Reset filtri
+            </Button>
           </div>
         ) : null}
-      </div>
 
-      {loading ? (
-        <p className="text-muted-foreground py-6 text-sm">Caricamento rapporti lavorativi...</p>
-      ) : error ? (
-        <p className="py-6 text-sm text-red-600">{error}</p>
-      ) : visibleItems.length === 0 ? (
-        <p className="text-muted-foreground py-6 text-sm">Nessun rapporto lavorativo trovato.</p>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto pr-1">
-            <div className="space-y-4">
-              {renderGroupTree(
-                visibleItems,
-                grouping,
-                0,
-                collapsedGroups,
-                (groupKey) =>
-                  setCollapsedGroups((current) => ({
-                    ...current,
-                    [groupKey]: !current[groupKey],
-                  })),
-                selectedRapportoId,
-                onSelect,
-                lookupColorsByDomain
-              )}
-            </div>
+        {loading ? (
+          <p className="text-muted-foreground py-6 text-sm">Caricamento rapporti lavorativi...</p>
+        ) : error ? (
+          <p className="py-6 text-sm text-red-600">{error}</p>
+        ) : visibleItems.length === 0 ? (
+          <p className="text-muted-foreground py-6 text-sm">Nessun rapporto lavorativo trovato.</p>
+        ) : (
+          <div className="space-y-4">
+            {renderGroupTree(
+              visibleItems,
+              grouping,
+              0,
+              collapsedGroups,
+              (groupKey) =>
+                setCollapsedGroups((current) => ({
+                  ...current,
+                  [groupKey]: !current[groupKey],
+                })),
+              selectedRapportoId,
+              onSelect,
+              lookupColorsByDomain,
+            )}
           </div>
+        )}
+      </SideCardsPanel>
 
-          <div className="flex items-center justify-between gap-3 border-t pt-3">
-            <p className="text-muted-foreground text-xs">
-              Pagina {currentPage} di {pageCount}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pageIndex === 0 || loading}
-                onClick={() => onPageChange(Math.max(0, pageIndex - 1))}
-              >
-                Precedente
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pageIndex >= pageCount - 1 || loading}
-                onClick={() => onPageChange(Math.min(pageCount - 1, pageIndex + 1))}
-              >
-                Successiva
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </SideCardsPanel>
+      <Pagination className="px-1">
+        <Pagination.Pages
+          page={currentPage}
+          pageCount={pageCount}
+          onChange={(nextPage) => {
+            if (loading) return
+            onPageChange(Math.max(nextPage - 1, 0))
+          }}
+        />
+        <span className="text-muted-foreground tabular-nums">
+          {totalCount} {totalCount === 1 ? "rapporto" : "rapporti"}
+        </span>
+      </Pagination>
+    </div>
   )
 }
