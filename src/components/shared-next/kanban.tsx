@@ -1,5 +1,5 @@
 import * as React from "react"
-import { CircleDotIcon } from "lucide-react"
+import { CircleDotIcon, InboxIcon } from "lucide-react"
 
 import { Button } from "@/components/ui-next/button"
 import { Card, CardContent } from "@/components/ui-next/card"
@@ -27,6 +27,12 @@ type KanbanColumnShellProps = {
   isDropTarget?: boolean
   widthClassName?: string
   density?: "comfortable" | "compact"
+  /**
+   * Testo mostrato dentro l'empty-state di default quando la colonna non ha
+   * children renderizzati. Default: "Nessun elemento".
+   */
+  emptyMessage?: string
+  /** Override completo dell'empty-state. Se passato, ha precedenza su emptyMessage. */
   emptyState?: React.ReactNode
   children?: React.ReactNode
   onDragEnter?: (columnId: string) => void
@@ -45,6 +51,7 @@ export function KanbanColumnShell({
   isDropTarget = false,
   widthClassName = "w-[300px]",
   density = "comfortable",
+  emptyMessage = "Nessun elemento",
   emptyState,
   children,
   onDragEnter,
@@ -54,6 +61,17 @@ export function KanbanColumnShell({
 }: KanbanColumnShellProps) {
   const isCompact = density === "compact"
   const isInline = headerLayout === "inline"
+  // Usa toArray invece di count: count include i null (es. da `cond ? <X /> : null`),
+  // toArray li filtra. Questo permette ai consumer di mescolare expression
+  // condizionali con map() senza inquinare il rilevamento dell'empty-state.
+  const isContentEmpty = React.Children.toArray(children).length === 0
+  const renderedEmptyState =
+    emptyState ?? (
+      <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 px-4 py-8">
+        <InboxIcon className="size-5 text-muted-foreground/70" />
+        <p className="text-sm text-muted-foreground/70">{emptyMessage}</p>
+      </div>
+    )
 
   const renderedIcon =
     headerIcon ??
@@ -147,7 +165,7 @@ export function KanbanColumnShell({
       )}
 
       <div className={cn("min-h-0 flex-1 overflow-y-auto", isCompact ? "space-y-2.5 p-3" : "space-y-3 p-3")}>
-        {children ?? emptyState}
+        {isContentEmpty ? renderedEmptyState : children}
       </div>
     </div>
   )

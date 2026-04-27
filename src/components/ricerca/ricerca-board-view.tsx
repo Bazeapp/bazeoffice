@@ -1,5 +1,4 @@
 import * as React from "react"
-import { ListFilterIcon } from "lucide-react"
 
 import {
   type RicercaBoardCardData,
@@ -12,29 +11,28 @@ import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
   KanbanDeferredColumnAction,
-} from "@/components/shared/kanban"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import {
-  Field,
-  FieldContent,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+} from "@/components/shared-next/kanban"
+import { SectionHeader } from "@/components/shared-next/section-header"
+import { Avatar } from "@/components/ui-next/avatar"
+import { Badge } from "@/components/ui-next/badge"
+import { SearchInput } from "@/components/ui-next/search-input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-} from "@/components/ui/select"
+} from "@/components/ui-next/select"
 import { cn } from "@/lib/utils"
 
 type ColumnVisual = {
   columnClassName: string
   headerClassName: string
   iconClassName: string
+}
+
+function toAvatarRingClass(legacy: string) {
+  // Convert legacy `after:border-X-Y` -> new `ring-2 ring-X-Y` for ui-next Avatar.
+  return legacy.replace(/after:border-/g, "ring-2 ring-")
 }
 
 function normalizeStageToken(value: string) {
@@ -48,180 +46,71 @@ function normalizeStageToken(value: string) {
 function getColumnVisual(columnId: string, columnLabel: string, color: string | null): ColumnVisual {
   const token = normalizeStageToken(columnLabel || columnId)
 
+  // Stage-specific shades — preserva la progressione di intensità del legacy:
+  // selezione_inviata (chiaro) → match (intenso) sull'asse emerald.
   switch (token) {
     case "fare ricerca":
-      return {
-        columnClassName: "border-amber-300 bg-amber-50/70",
-        headerClassName: "border-b border-amber-200/70",
-        iconClassName: "text-amber-500",
-      }
+      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
     case "selezione inviata":
-      return {
-        columnClassName: "border-emerald-200 bg-emerald-50/60",
-        headerClassName: "border-b border-emerald-200/70",
-        iconClassName: "text-emerald-400",
-      }
+      return { columnClassName: "bg-emerald-300", headerClassName: "", iconClassName: "text-emerald-400" }
     case "fase di colloqui":
-      return {
-        columnClassName: "border-emerald-300 bg-emerald-50/70",
-        headerClassName: "border-b border-emerald-300/70",
-        iconClassName: "text-emerald-500",
-      }
+      return { columnClassName: "bg-emerald-400", headerClassName: "", iconClassName: "text-emerald-500" }
     case "in prova con lavoratore":
-      return {
-        columnClassName: "border-emerald-400 bg-emerald-100/70",
-        headerClassName: "border-b border-emerald-400/60",
-        iconClassName: "text-emerald-600",
-      }
+      return { columnClassName: "bg-emerald-500", headerClassName: "", iconClassName: "text-emerald-600" }
     case "match":
-      return {
-        columnClassName: "border-emerald-600 bg-emerald-100/90",
-        headerClassName: "border-b border-emerald-600/40",
-        iconClassName: "text-emerald-700",
-      }
+      return { columnClassName: "bg-emerald-600", headerClassName: "", iconClassName: "text-emerald-700" }
     case "no match":
-      return {
-        columnClassName: "border-red-300 bg-red-50/70",
-        headerClassName: "border-b border-red-200/70",
-        iconClassName: "text-red-500",
-      }
+      return { columnClassName: "bg-red-400", headerClassName: "", iconClassName: "text-red-500" }
     case "stand by":
-      return {
-        columnClassName: "border-zinc-300 bg-zinc-50/70",
-        headerClassName: "border-b border-zinc-200/70",
-        iconClassName: "text-zinc-500",
-      }
+      return { columnClassName: "bg-zinc-400", headerClassName: "", iconClassName: "text-zinc-500" }
     default:
       break
   }
 
+  // Fallback su color generico → bg-{color}-400 + icon text-{color}-500.
   switch ((color ?? "").toLowerCase()) {
     case "red":
-      return {
-        columnClassName: "border-red-300 bg-red-50/70",
-        headerClassName: "border-b border-red-200/70",
-        iconClassName: "text-red-500",
-      }
+      return { columnClassName: "bg-red-400", headerClassName: "", iconClassName: "text-red-500" }
     case "rose":
-      return {
-        columnClassName: "border-rose-300 bg-rose-50/70",
-        headerClassName: "border-b border-rose-200/70",
-        iconClassName: "text-rose-500",
-      }
+      return { columnClassName: "bg-rose-400", headerClassName: "", iconClassName: "text-rose-500" }
     case "orange":
-      return {
-        columnClassName: "border-orange-300 bg-orange-50/70",
-        headerClassName: "border-b border-orange-200/70",
-        iconClassName: "text-orange-500",
-      }
+      return { columnClassName: "bg-orange-400", headerClassName: "", iconClassName: "text-orange-500" }
     case "amber":
-      return {
-        columnClassName: "border-amber-300 bg-amber-50/70",
-        headerClassName: "border-b border-amber-200/70",
-        iconClassName: "text-amber-500",
-      }
+      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
     case "yellow":
-      return {
-        columnClassName: "border-yellow-300 bg-yellow-50/70",
-        headerClassName: "border-b border-yellow-200/70",
-        iconClassName: "text-yellow-500",
-      }
+      return { columnClassName: "bg-yellow-400", headerClassName: "", iconClassName: "text-yellow-500" }
     case "lime":
-      return {
-        columnClassName: "border-lime-300 bg-lime-50/70",
-        headerClassName: "border-b border-lime-200/70",
-        iconClassName: "text-lime-500",
-      }
+      return { columnClassName: "bg-lime-400", headerClassName: "", iconClassName: "text-lime-500" }
     case "green":
-      return {
-        columnClassName: "border-green-300 bg-green-50/70",
-        headerClassName: "border-b border-green-200/70",
-        iconClassName: "text-green-500",
-      }
+      return { columnClassName: "bg-green-400", headerClassName: "", iconClassName: "text-green-500" }
     case "emerald":
-      return {
-        columnClassName: "border-emerald-300 bg-emerald-50/70",
-        headerClassName: "border-b border-emerald-200/70",
-        iconClassName: "text-emerald-500",
-      }
+      return { columnClassName: "bg-emerald-400", headerClassName: "", iconClassName: "text-emerald-500" }
     case "teal":
-      return {
-        columnClassName: "border-teal-300 bg-teal-50/70",
-        headerClassName: "border-b border-teal-200/70",
-        iconClassName: "text-teal-500",
-      }
+      return { columnClassName: "bg-teal-400", headerClassName: "", iconClassName: "text-teal-500" }
     case "cyan":
-      return {
-        columnClassName: "border-cyan-300 bg-cyan-50/70",
-        headerClassName: "border-b border-cyan-200/70",
-        iconClassName: "text-cyan-500",
-      }
+      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" }
     case "sky":
-      return {
-        columnClassName: "border-sky-300 bg-sky-50/70",
-        headerClassName: "border-b border-sky-200/70",
-        iconClassName: "text-sky-500",
-      }
+      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
     case "blue":
-      return {
-        columnClassName: "border-blue-300 bg-blue-50/70",
-        headerClassName: "border-b border-blue-200/70",
-        iconClassName: "text-blue-500",
-      }
+      return { columnClassName: "bg-blue-400", headerClassName: "", iconClassName: "text-blue-500" }
     case "indigo":
-      return {
-        columnClassName: "border-indigo-300 bg-indigo-50/70",
-        headerClassName: "border-b border-indigo-200/70",
-        iconClassName: "text-indigo-500",
-      }
+      return { columnClassName: "bg-indigo-400", headerClassName: "", iconClassName: "text-indigo-500" }
     case "violet":
-      return {
-        columnClassName: "border-violet-300 bg-violet-50/70",
-        headerClassName: "border-b border-violet-200/70",
-        iconClassName: "text-violet-500",
-      }
+      return { columnClassName: "bg-violet-400", headerClassName: "", iconClassName: "text-violet-500" }
     case "purple":
-      return {
-        columnClassName: "border-purple-300 bg-purple-50/70",
-        headerClassName: "border-b border-purple-200/70",
-        iconClassName: "text-purple-500",
-      }
+      return { columnClassName: "bg-purple-400", headerClassName: "", iconClassName: "text-purple-500" }
     case "fuchsia":
-      return {
-        columnClassName: "border-fuchsia-300 bg-fuchsia-50/70",
-        headerClassName: "border-b border-fuchsia-200/70",
-        iconClassName: "text-fuchsia-500",
-      }
+      return { columnClassName: "bg-fuchsia-400", headerClassName: "", iconClassName: "text-fuchsia-500" }
     case "pink":
-      return {
-        columnClassName: "border-pink-300 bg-pink-50/70",
-        headerClassName: "border-b border-pink-200/70",
-        iconClassName: "text-pink-500",
-      }
+      return { columnClassName: "bg-pink-400", headerClassName: "", iconClassName: "text-pink-500" }
     case "slate":
-      return {
-        columnClassName: "border-slate-300 bg-slate-50/70",
-        headerClassName: "border-b border-slate-200/70",
-        iconClassName: "text-slate-500",
-      }
+      return { columnClassName: "bg-slate-400", headerClassName: "", iconClassName: "text-slate-500" }
     case "gray":
-      return {
-        columnClassName: "border-gray-300 bg-gray-50/70",
-        headerClassName: "border-b border-gray-200/70",
-        iconClassName: "text-gray-500",
-      }
+      return { columnClassName: "bg-gray-400", headerClassName: "", iconClassName: "text-gray-500" }
     case "zinc":
-      return {
-        columnClassName: "border-zinc-300 bg-zinc-50/70",
-        headerClassName: "border-b border-zinc-200/70",
-        iconClassName: "text-zinc-500",
-      }
+      return { columnClassName: "bg-zinc-400", headerClassName: "", iconClassName: "text-zinc-500" }
     default:
-      return {
-        columnClassName: "border-border bg-muted/40",
-        headerClassName: "border-b border-border/70",
-        iconClassName: "text-muted-foreground/80",
-      }
+      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
   }
 }
 
@@ -300,11 +189,7 @@ function RicercaBoardColumn({
       visual={visual}
       widthClassName="w-[300px]"
       isDropTarget={isDropTarget}
-      emptyState={
-        <div className="text-muted-foreground rounded-lg border border-dashed border-border/60 p-3 text-xs">
-          Nessuna ricerca
-        </div>
-      }
+      emptyMessage="Nessuna ricerca"
       onDragEnter={onDragEnterColumn}
       onDragOver={onDragOverColumn}
       onDragLeave={onDragLeaveColumn}
@@ -351,11 +236,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   })
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
-  const [filters, setFilters] = React.useState({
-    cognome: "",
-    email: "",
-    id: "",
-  })
+  const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedOperatorId, setSelectedOperatorId] = React.useState("all")
   const operatorFilterAllowedStages = React.useMemo(
     () =>
@@ -389,9 +270,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   }, [columns, operatorFilterAllowedStages, operatorOptions])
 
   const filteredColumns = React.useMemo(() => {
-    const cognomeFilter = filters.cognome.trim().toLowerCase()
-    const emailFilter = filters.email.trim().toLowerCase()
-    const idFilter = filters.id.trim().toLowerCase()
+    const q = searchQuery.trim().toLowerCase()
 
     return columns.map((column) => ({
       ...column,
@@ -399,22 +278,17 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
         if (selectedOperatorId !== "all" && card.operatorId !== selectedOperatorId) {
           return false
         }
-        if (
-          cognomeFilter &&
-          !card.cognomeFamiglia.toLowerCase().includes(cognomeFilter)
-        ) {
-          return false
-        }
-        if (emailFilter && !card.email.toLowerCase().includes(emailFilter)) {
-          return false
-        }
-        if (idFilter && !card.id.toLowerCase().includes(idFilter)) {
-          return false
+        if (q) {
+          const matches =
+            card.cognomeFamiglia.toLowerCase().includes(q) ||
+            card.email.toLowerCase().includes(q) ||
+            card.id.toLowerCase().includes(q)
+          if (!matches) return false
         }
         return true
       }),
     }))
-  }, [columns, filters, selectedOperatorId])
+  }, [columns, searchQuery, selectedOperatorId])
   const selectedOperator = React.useMemo(
     () =>
       selectableOperatorOptions.find((operator) => operator.id === selectedOperatorId) ??
@@ -431,14 +305,6 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
       setSelectedOperatorId("all")
     }
   }, [selectableOperatorOptions, selectedOperatorId])
-  const activeFilterCount = React.useMemo(() => {
-    return [
-      filters.cognome.trim(),
-      filters.email.trim(),
-      filters.id.trim(),
-      selectedOperatorId !== "all" ? selectedOperatorId : "",
-    ].filter(Boolean).length
-  }, [filters, selectedOperatorId])
   const handleDropToColumn = React.useCallback(
     (columnId: string, droppedProcessId: string | null) => {
       const processId = droppedProcessId || draggingProcessId
@@ -464,97 +330,42 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
     []
   )
 
+  const totalRicerche = React.useMemo(
+    () =>
+      filteredColumns.reduce((sum, column) => sum + column.cards.length, 0),
+    [filteredColumns]
+  )
+
   return (
-    <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
+    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento board ricerca: {error}
         </div>
       ) : null}
 
-      <div className="flex items-center justify-start">
-        <div className="flex items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="relative"
-                title="Filtri"
-                aria-label={`Filtri (${activeFilterCount})`}
-              >
-                <ListFilterIcon />
-                <span className="bg-muted text-muted-foreground absolute -top-1 -right-1 rounded-full px-1 text-[10px] leading-4">
-                  {activeFilterCount}
-                </span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" side="bottom" sideOffset={8} className="w-[360px] p-0">
-              <div className="border-b px-4 py-3">
-                <div className="text-sm font-medium">Filtri ricerca</div>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  Filtra la board per cognome, email o ID.
-                </p>
-              </div>
-              <div className="px-4 py-3">
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel>Cognome</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        value={filters.cognome}
-                        onChange={(event) =>
-                          setFilters((current) => ({
-                            ...current,
-                            cognome: event.target.value,
-                          }))
-                        }
-                        placeholder="Filtra per cognome"
-                      />
-                    </FieldContent>
-                  </Field>
-                  <Field>
-                    <FieldLabel>Email</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        value={filters.email}
-                        onChange={(event) =>
-                          setFilters((current) => ({
-                            ...current,
-                            email: event.target.value,
-                          }))
-                        }
-                        placeholder="Filtra per email"
-                      />
-                    </FieldContent>
-                  </Field>
-                  <Field>
-                    <FieldLabel>ID</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        value={filters.id}
-                        onChange={(event) =>
-                          setFilters((current) => ({
-                            ...current,
-                            id: event.target.value,
-                          }))
-                        }
-                        placeholder="Filtra per ID"
-                      />
-                    </FieldContent>
-                  </Field>
-                </FieldGroup>
-              </div>
-            </PopoverContent>
-          </Popover>
-
+      <SectionHeader>
+        <SectionHeader.Title
+          badge={
+            <Badge>
+              {totalRicerche} {totalRicerche === 1 ? "ricerca" : "ricerche"}
+            </Badge>
+          }
+        >
+          Ricerche
+        </SectionHeader.Title>
+        <SectionHeader.Actions>
           <Select value={selectedOperatorId} onValueChange={setSelectedOperatorId}>
             <SelectTrigger className="w-[240px]">
               {selectedOperator ? (
                 <span className="inline-flex items-center gap-2">
-                  <Avatar size="sm" className={selectedOperator.avatarBorderClassName}>
-                    <AvatarFallback>{selectedOperator.avatar}</AvatarFallback>
-                  </Avatar>
+                  <Avatar
+                    size="sm"
+                    fallback={selectedOperator.avatar}
+                    className={toAvatarRingClass(
+                      selectedOperator.avatarBorderClassName,
+                    )}
+                  />
                   <span>{selectedOperator.label}</span>
                 </span>
               ) : (
@@ -566,20 +377,32 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
               {selectableOperatorOptions.map((operator) => (
                 <SelectItem key={operator.id} value={operator.id}>
                   <span className="inline-flex items-center gap-2">
-                    <Avatar size="sm" className={operator.avatarBorderClassName}>
-                      <AvatarFallback>{operator.avatar}</AvatarFallback>
-                    </Avatar>
+                    <Avatar
+                      size="sm"
+                      fallback={operator.avatar}
+                      className={toAvatarRingClass(operator.avatarBorderClassName)}
+                    />
                     <span>{operator.label}</span>
                   </span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-      </div>
+        </SectionHeader.Actions>
+        <SectionHeader.Toolbar>
+          <div className="min-w-0 flex-1 max-w-[420px]">
+            <SearchInput
+              placeholder="Cerca per cognome, email o ID..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onClear={() => setSearchQuery("")}
+            />
+          </div>
+        </SectionHeader.Toolbar>
+      </SectionHeader>
 
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2">
-        <div className="flex h-full min-h-0 min-w-max gap-4">
+        <div className="flex h-full min-h-0 min-w-max gap-4 px-6">
           {loading
             ? Array.from({ length: 5 }).map((_, index) => (
                 <RicercaBoardSkeletonColumn key={index} />

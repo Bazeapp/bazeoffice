@@ -242,11 +242,7 @@ function Column({
       headerIcon={getStageIcon(column.id, visual.iconClassName)}
       widthClassName="w-[292px]"
       isDropTarget={isDropTarget}
-      emptyState={
-        <div className="text-muted-foreground border-border/60 rounded-lg border border-dashed p-3 text-xs">
-          Nessun contatto
-        </div>
-      }
+      emptyMessage="Nessuna ricerca"
       onDragEnter={onDragEnterColumn}
       onDragOver={onDragOverColumn}
       onDragLeave={onDragLeaveColumn}

@@ -16,19 +16,19 @@ import { DocumentsCard } from "@/components/lavoratori/documents-card";
 import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
 import { WorkerShiftPreferencesFields } from "@/components/lavoratori/worker-shift-preferences-fields";
-import { DetailSectionBlock } from "@/components/shared/detail-section-card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { FieldTitle } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
+import { Badge } from "@/components/ui-next/badge";
+import { Button } from "@/components/ui-next/button";
+import { Input } from "@/components/ui-next/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui-next/select";
+import { cn } from "@/lib/utils";
 import {
   AVAILABILITY_EDIT_BANDS,
   AVAILABILITY_EDIT_DAYS,
@@ -1182,7 +1182,7 @@ function AcceptPreferenceField({
 
   return (
     <div className="space-y-1.5">
-      <FieldTitle>{label}</FieldTitle>
+      <p className={cn("text-muted-foreground text-[10px] font-medium uppercase tracking-wider")}>{label}</p>
       {isEditing ? (
         <RadioGroup
           value={value}

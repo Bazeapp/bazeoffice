@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 /**
  * Avatar — refresh primitive.
  *
- * Sizes  xs(20) · sm(24) · md(32) · lg(40) · xl(56)
+ * Sizes  xs(20) · sm(24) · md(32) · lg(40) · xl(56) · 2xl(80)
  * Tones  neutral (default) · blue · green · amber · red — for initial fallbacks
  * Status optional dot (online · offline · away · busy)
  */
@@ -22,6 +22,7 @@ const avatarVariants = cva(
         md: "size-8 text-[11px]",
         lg: "size-10 text-[13px]",
         xl: "size-14 text-[16px]",
+        "2xl": "size-20 text-[22px]",
       },
       shape: {
         circle: "rounded-full",

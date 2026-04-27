@@ -1,60 +1,85 @@
 import * as React from "react";
 import {
-  BriefcaseBusinessIcon,
   CalendarIcon,
+  ChevronLeftIcon,
   Clock3Icon,
-  LoaderCircleIcon,
-  PencilIcon,
-  SparklesIcon,
+  CopyIcon,
+  KanbanSquareIcon,
+  MailIcon,
+  MapIcon,
+  MapPinIcon,
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+  PhoneIcon,
 } from "lucide-react";
 
-import { CrmDetailCard } from "@/components/crm/detail-card";
 import { RicercaWorkersPipelineView } from "@/components/ricerca/ricerca-workers-pipeline-view";
-import { Button } from "@/components/ui/button";
+import { CardMetaRow } from "@/components/shared-next/card-meta-row";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import {
-  type CrmPipelineCardData,
-  useCrmPipelinePreview,
-} from "@/hooks/use-crm-pipeline-preview";
-import {
-  createRecord,
-  fetchFamiglie,
-  fetchLavoratori,
-  fetchProcessiMatching,
-  fetchSelezioniLavoratori,
-  runAutomationWebhook,
-} from "@/lib/anagrafiche-api";
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui-next/accordion";
+import { Badge } from "@/components/ui-next/badge";
+import { Button } from "@/components/ui-next/button";
+import { Field, FieldLabel } from "@/components/ui-next/field";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/ui-next/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui-next/tabs";
+import {
+  type CrmPipelineCardData,
+  useCrmPipelinePreview,
+} from "@/hooks/use-crm-pipeline-preview";
+import {
+  fetchFamiglie,
+  fetchProcessiMatching,
+} from "@/lib/anagrafiche-api";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 type RicercaDetailViewProps = {
   processId: string;
   onBack: () => void;
 };
+
+/**
+ * Estende CrmPipelineCardData con i campi che vengono caricati via API
+ * (fetchProcessiMatching) e che servono al detail completo: tipologia
+ * incontro editabile, accordion "Orari e frequenza" e "Richieste famiglia".
+ * Tutti opzionali perche provengono dalla useEffect asincrona.
+ */
+type ExtendedCardData = CrmPipelineCardData &
+  Partial<{
+    tipoIncontroFamigliaLavoratore: string;
+    mansioniRichieste: string;
+    orarioDiLavoro: string;
+    richiestaPatente: boolean;
+    richiestaTrasferte: boolean;
+    richiestaFerie: boolean;
+    descrizioneRichiestaTrasferte: string;
+    descrizioneRichiestaFerie: string;
+    indirizzoCompleto: string;
+    indirizzoProvincia: string;
+    deadlineMobile: string;
+    nucleoFamigliare: string;
+    descrizioneCasa: string;
+    metraturaCasa: string;
+    descrizioneAnimaliInCasa: string;
+    informazioniExtraRiservate: string;
+    etaMinima: string;
+    etaMassima: string;
+  }>;
 
 function normalizeLookupToken(value: string | null | undefined) {
   return String(value ?? "")
@@ -162,96 +187,15 @@ export function RicercaDetailView({
   >(null);
   const { loading, error, columns, lookupOptionsByField, updateProcessCard } =
     useCrmPipelinePreview();
-  const [isEditingNoMatchReason, setIsEditingNoMatchReason] =
-    React.useState(false);
   const [fallbackCard, setFallbackCard] =
-    React.useState<CrmPipelineCardData | null>(null);
+    React.useState<ExtendedCardData | null>(null);
   const [isFallbackLoading, setIsFallbackLoading] = React.useState(false);
-  const [isRunningSmartMatching, setIsRunningSmartMatching] =
-    React.useState(false);
-  const [pipelineRefreshKey, setPipelineRefreshKey] = React.useState(0);
-  const [isAddWorkerDialogOpen, setIsAddWorkerDialogOpen] =
-    React.useState(false);
-  const [workerSearchQuery, setWorkerSearchQuery] = React.useState("");
-  const [workerSearchResults, setWorkerSearchResults] = React.useState<
-    Record<string, unknown>[]
-  >([]);
-  const [isWorkerSearchLoading, setIsWorkerSearchLoading] =
-    React.useState(false);
-  const [selectedWorkerToAdd, setSelectedWorkerToAdd] = React.useState<Record<
-    string,
-    unknown
-  > | null>(null);
-  const [manualInsertReason, setManualInsertReason] = React.useState("");
-  const [isSubmittingAddWorker, setIsSubmittingAddWorker] =
-    React.useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
 
   React.useEffect(() => {
     setCurrentProcessId(processId);
     setFocusedSelectionId(null);
-    setPipelineRefreshKey(0);
   }, [processId]);
-
-  React.useEffect(() => {
-    if (!isAddWorkerDialogOpen) {
-      setWorkerSearchQuery("");
-      setWorkerSearchResults([]);
-      setSelectedWorkerToAdd(null);
-      setManualInsertReason("");
-      setIsWorkerSearchLoading(false);
-      return;
-    }
-
-    const normalizedQuery = workerSearchQuery.trim();
-    if (normalizedQuery.length < 2) {
-      setWorkerSearchResults([]);
-      setIsWorkerSearchLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setIsWorkerSearchLoading(true);
-
-    const timeoutId = window.setTimeout(() => {
-      void fetchLavoratori({
-        limit: 8,
-        offset: 0,
-        search: normalizedQuery,
-        searchFields: ["nome", "cognome", "email"],
-        select: [
-          "id",
-          "nome",
-          "cognome",
-          "email",
-          "data_di_nascita",
-          "provincia",
-        ],
-      })
-        .then((result) => {
-          if (cancelled) return;
-          setWorkerSearchResults(
-            Array.isArray(result.rows)
-              ? result.rows.filter(
-                  (row): row is Record<string, unknown> =>
-                    Boolean(row) && typeof row === "object",
-                )
-              : [],
-          );
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setWorkerSearchResults([]);
-        })
-        .finally(() => {
-          if (!cancelled) setIsWorkerSearchLoading(false);
-        });
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [isAddWorkerDialogOpen, workerSearchQuery]);
 
   const card = React.useMemo(() => {
     for (const column of columns) {
@@ -275,31 +219,13 @@ export function RicercaDetailView({
     },
     [lookupOptionsByField],
   );
-  const lookupDisplayValue = React.useCallback(
-    (field: string, rawValue: string) => {
-      const options = lookupOptionsByField[field] ?? [];
-      const token = normalizeLookupToken(rawValue);
-      if (!token || token === "-") return "-";
-
-      const matched = options.find(
-        (option) =>
-          normalizeLookupToken(option.valueKey) === token ||
-          normalizeLookupToken(option.valueLabel) === token,
-      );
-      if (matched?.valueLabel) return matched.valueLabel;
-
-      return rawValue.replaceAll("_", " ");
-    },
-    [lookupOptionsByField],
-  );
   const isNoMatchState = React.useMemo(() => {
     const token = normalizeLookupToken((card ?? fallbackCard)?.statoRes);
     return token === "no_match" || token === "no match";
   }, [card, fallbackCard]);
 
   React.useEffect(() => {
-    if (loading || card) {
-      setFallbackCard(null);
+    if (loading) {
       setIsFallbackLoading(false);
       return;
     }
@@ -486,31 +412,20 @@ export function RicercaDetailView({
     };
   }, [card, loading, currentProcessId]);
 
-  const resolvedCard = card ?? fallbackCard;
+  const resolvedCard = React.useMemo<ExtendedCardData | null>(() => {
+    if (!card && !fallbackCard) return null;
+    // Fallback (caricato via fetchProcessiMatching) ha i campi extra; quando
+    // disponibile vince sui campi base condivisi e aggiunge gli extra.
+    return {
+      ...(card ?? ({} as Partial<ExtendedCardData>)),
+      ...(fallbackCard ?? ({} as Partial<ExtendedCardData>)),
+    } as ExtendedCardData;
+  }, [card, fallbackCard]);
   const statoRicercaOptions = lookupOptionsByField.stato_res ?? [];
   const selectedStatoRicercaValue = selectedLookupOptionValue(
     resolvedCard?.statoRes ?? null,
     statoRicercaOptions,
   );
-
-  const handleRunSmartMatching = React.useCallback(async () => {
-    if (!resolvedCard?.id) {
-      toast.error("Il processo non ha id");
-      return;
-    }
-
-    setIsRunningSmartMatching(true);
-    try {
-      await runAutomationWebhook("workflow-smart-matching", resolvedCard.id);
-      toast.success("Smart Matching avviato");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Errore avvio Smart Matching",
-      );
-    } finally {
-      setIsRunningSmartMatching(false);
-    }
-  }, [resolvedCard]);
 
   const handleOpenRelatedSearch = React.useCallback(
     (nextProcessId: string, nextSelectionId: string) => {
@@ -520,408 +435,551 @@ export function RicercaDetailView({
     [],
   );
 
-  const handleAddWorkerToSearch = React.useCallback(async () => {
-    const workerId = toStringValue(selectedWorkerToAdd?.id);
-    const reason = manualInsertReason.trim();
-
-    if (!currentProcessId || !workerId) {
-      toast.error("Seleziona un lavoratore");
-      return;
-    }
-    if (!reason) {
-      toast.error("La motivazione è obbligatoria");
-      return;
-    }
-
-    setIsSubmittingAddWorker(true);
-    try {
-      const existingSelections = await fetchSelezioniLavoratori({
-        limit: 1,
-        offset: 0,
-        select: ["id"],
-        filters: {
-          kind: "group",
-          id: "ricerca-detail-add-worker-duplicate-check",
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: "ricerca-detail-add-worker-process",
-              field: "processo_matching_id",
-              operator: "is",
-              value: currentProcessId,
-            },
-            {
-              kind: "condition",
-              id: "ricerca-detail-add-worker-worker",
-              field: "lavoratore_id",
-              operator: "is",
-              value: workerId,
-            },
-          ],
-        },
-      });
-
-      if ((existingSelections.rows ?? []).length > 0) {
-        throw new Error("Lavoratore già presente in questa ricerca");
-      }
-
-      await createRecord("selezioni_lavoratori", {
-        processo_matching_id: currentProcessId,
-        lavoratore_id: workerId,
-        stato_selezione: "Prospetto",
-        motivo_inserimento_manuale: reason,
-        source: "manuale",
-      });
-
-      setIsAddWorkerDialogOpen(false);
-      setPipelineRefreshKey((current) => current + 1);
-      toast.success("Lavoratore aggiunto in Prospetto");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Errore aggiungendo il lavoratore",
-      );
-    } finally {
-      setIsSubmittingAddWorker(false);
-    }
-  }, [currentProcessId, manualInsertReason, selectedWorkerToAdd]);
-
   const headerTitle = resolvedCard?.nomeFamiglia
     ? `Famiglia ${resolvedCard.nomeFamiglia}`
     : "Ricerca";
-  const headerUuid = resolvedCard?.id ?? currentProcessId;
+
+  const oreGiorniLabel = (() => {
+    const ore = resolvedCard?.oreSettimana ?? "-";
+    const giorni = resolvedCard?.giorniSettimana ?? "-";
+    if ((ore === "-" || !ore) && (giorni === "-" || !giorni)) return "-";
+    const oreLabel = ore && ore !== "-" ? `${ore}h` : "—";
+    const giorniLabel = giorni && giorni !== "-" ? `${giorni}gg` : "—";
+    return `${oreLabel} / sett · ${giorniLabel}`;
+  })();
+
+  const isDeadlineUrgent = (() => {
+    const value = resolvedCard?.deadlineMobile;
+    if (!value || value === "-") return false;
+    const parts = value.split("/");
+    if (parts.length !== 3) return false;
+    const [day, month, year] = parts;
+    const deadline = new Date(`${year}-${month}-${day}T00:00:00`);
+    if (Number.isNaN(deadline.getTime())) return false;
+    const now = new Date();
+    return deadline.getTime() - now.getTime() <= 1000 * 60 * 60 * 24 * 7;
+  })();
+
+  const tipoIncontroOptions =
+    lookupOptionsByField.tipo_incontro_famiglia_lavoratore ?? [];
+
+  const renderField = (label: string, value: React.ReactNode) => (
+    <Field>
+      <FieldLabel variant="eyebrow">{label}</FieldLabel>
+      <p className="text-sm text-foreground">{value || "—"}</p>
+    </Field>
+  );
 
   return (
-    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden pb-3">
-      <div className="sticky top-0 z-20 shrink-0 bg-transparent px-1 pt-1">
-        <div className="bg-card flex flex-col gap-3 rounded-xl border px-4 py-3 shadow-xs">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-2">
-              <Breadcrumb className="min-w-0">
-                <BreadcrumbList className="text-muted-foreground text-xs">
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <button
-                        type="button"
-                        onClick={onBack}
-                        className="cursor-pointer transition-colors hover:text-foreground"
-                      >
-                        Torna alle ricerche
-                      </button>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="max-w-lg truncate text-foreground">
-                      {headerTitle}
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-
-              <div className="min-w-0 space-y-1">
-                <h1 className="max-w-full truncate text-xl font-semibold tracking-tight">
-                  {headerTitle}
-                </h1>
-                <div className="flex flex-wrap items-center gap-2">
-                  {resolvedCard?.dataLead && resolvedCard.dataLead !== "-" ? (
-                    <Badge
-                      variant="outline"
-                      className="h-5 px-2 text-[11px] font-medium border-blue-200 bg-blue-100 text-blue-700"
-                    >
-                      <CalendarIcon data-icon="inline-start" />
-                      {`Lead del ${resolvedCard.dataLead}`}
-                    </Badge>
-                  ) : null}
-                  {resolvedCard?.tipoLavoroBadge ? (
-                    <Badge
-                      variant="outline"
-                      className="h-5 px-2 text-[11px] font-medium border-blue-200 bg-blue-100 text-blue-700"
-                    >
-                      <BriefcaseBusinessIcon data-icon="inline-start" />
-                      {resolvedCard.tipoLavoroBadge}
-                    </Badge>
-                  ) : null}
-                  {resolvedCard?.tipoRapportoBadge ? (
-                    <Badge
-                      variant="outline"
-                      className="h-5 px-2 text-[11px] font-medium border-blue-200 bg-blue-100 text-blue-700"
-                    >
-                      <Clock3Icon data-icon="inline-start" />
-                      {resolvedCard.tipoRapportoBadge}
-                    </Badge>
-                  ) : null}
-                </div>
-                <p className="text-muted-foreground truncate text-xs">
-                  {headerUuid}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex shrink-0 flex-wrap items-end gap-3 self-start">
-              <div className="space-y-1.5">
-                <p className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
-                  Stato ricerca
-                </p>
-                <Select
-                  value={selectedStatoRicercaValue}
-                  onValueChange={(next) => {
-                    if (!next || !resolvedCard?.id) return;
-                    void updateProcessCard?.(resolvedCard.id, {
-                      stato_res: next || null,
-                    });
-                  }}
-                  disabled={!resolvedCard?.id}
-                >
-                  <SelectTrigger className="bg-background w-60">
-                    <SelectValue placeholder="Seleziona stato ricerca" />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    {statoRicercaOptions.map((option) => (
-                      <SelectItem key={option.valueKey} value={option.valueKey}>
-                        {option.valueLabel}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsAddWorkerDialogOpen(true)}
-                >
-                  + Aggiungi
-                </Button>
-
-                <Button
-                  type="button"
-                  disabled={!resolvedCard?.id || isRunningSmartMatching}
-                  onClick={() => void handleRunSmartMatching()}
-                >
-                  {isRunningSmartMatching ? (
-                    <LoaderCircleIcon className="animate-spin" />
-                  ) : (
-                    <SparklesIcon />
-                  )}
-                  Smart Matching
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <Dialog
-        open={isAddWorkerDialogOpen}
-        onOpenChange={(nextOpen) => {
-          if (isSubmittingAddWorker) return;
-          setIsAddWorkerDialogOpen(nextOpen);
-        }}
+    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+      <Tabs
+        defaultValue="pipeline"
+        className="flex h-full min-h-0 flex-col gap-0"
       >
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Aggiungi lavoratore</DialogTitle>
-            <DialogDescription>
-              Cerca un lavoratore per nome o email e inseriscilo in Prospetto.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Cerca lavoratore</p>
-              <Input
-                value={workerSearchQuery}
-                onChange={(event) => setWorkerSearchQuery(event.target.value)}
-                placeholder="Nome, cognome o email"
-              />
-              {workerSearchQuery.trim().length < 2 ? (
-                <p className="text-muted-foreground text-xs">
-                  Inserisci almeno 2 caratteri.
-                </p>
-              ) : isWorkerSearchLoading ? (
-                <p className="text-muted-foreground text-xs">
-                  Caricamento risultati...
-                </p>
-              ) : workerSearchResults.length === 0 ? (
-                <p className="text-muted-foreground text-xs">
-                  Nessun lavoratore trovato.
-                </p>
-              ) : (
-                <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-2">
-                  {workerSearchResults.map((worker) => {
-                    const workerId = toStringValue(worker.id) ?? "";
-                    const workerName =
-                      [
-                        toStringValue(worker.nome),
-                        toStringValue(worker.cognome),
-                      ]
-                        .filter((value): value is string => Boolean(value))
-                        .join(" ")
-                        .trim() || "Lavoratore";
-                    const workerEmail = toStringValue(worker.email);
-                    const isSelected =
-                      toStringValue(selectedWorkerToAdd?.id) === workerId;
-
-                    return (
-                      <button
-                        key={workerId}
-                        type="button"
-                        onClick={() => setSelectedWorkerToAdd(worker)}
-                        className={`w-full rounded-md border px-3 py-2 text-left text-sm transition ${
-                          isSelected
-                            ? "border-emerald-400 bg-emerald-50"
-                            : "border-border hover:bg-muted/50"
-                        }`}
-                      >
-                        <div className="font-medium">{workerName}</div>
-                        {workerEmail ? (
-                          <div className="text-muted-foreground text-xs">
-                            {workerEmail}
-                          </div>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+        <header className="sticky top-0 z-20 shrink-0 border-b border-[var(--border-subtle)] bg-white px-6 py-3">
+          <div className="flex items-end justify-between gap-4">
+            <div className="min-w-0">
+              <button
+                type="button"
+                onClick={onBack}
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs transition-colors"
+              >
+                <ChevronLeftIcon className="size-3.5" />
+                Torna alle ricerche
+              </button>
+              <h1 className="mt-1 max-w-full truncate text-2xl font-semibold tracking-tight">
+                {headerTitle}
+              </h1>
             </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Motivazione</p>
-              <Textarea
-                value={manualInsertReason}
-                onChange={(event) => setManualInsertReason(event.target.value)}
-                placeholder="Scrivi perché l'hai selezionato per questa ricerca"
-                className="min-h-28"
-              />
-            </div>
+            <TabsList variant="segmented">
+              <TabsTrigger value="mappa">
+                <MapIcon />
+                Mappa
+              </TabsTrigger>
+              <TabsTrigger value="pipeline">
+                <KanbanSquareIcon />
+                Pipeline
+              </TabsTrigger>
+            </TabsList>
           </div>
+        </header>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsAddWorkerDialogOpen(false)}
-              disabled={isSubmittingAddWorker}
-            >
-              Annulla
-            </Button>
-            <Button
-              type="button"
-              onClick={() => void handleAddWorkerToSearch()}
-              disabled={
-                isSubmittingAddWorker ||
-                !selectedWorkerToAdd ||
-                !manualInsertReason.trim()
-              }
-            >
-              {isSubmittingAddWorker ? (
-                <LoaderCircleIcon className="animate-spin" />
-              ) : null}
-              Aggiungi lavoratore
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {error ? (
+          <div className="shrink-0 m-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+            Errore caricamento dettaglio ricerca: {error}
+          </div>
+        ) : null}
 
-      {error ? (
-        <div className="shrink-0 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
-          Errore caricamento dettaglio ricerca: {error}
-        </div>
-      ) : null}
-
-      {loading || isFallbackLoading ? (
-        <div className="shrink-0 text-muted-foreground rounded-lg border p-4 text-sm">
-          Caricamento dettaglio ricerca...
-        </div>
-      ) : !resolvedCard ? (
-        <div className="shrink-0 rounded-lg border p-4 text-sm">
-          Ricerca non trovata o non disponibile.
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-4">
-          {isNoMatchState ? (
-            <CrmDetailCard
-              title="Motivo No Match"
-              className="shrink-0"
-              titleAction={
+        {loading || isFallbackLoading ? (
+          <div className="shrink-0 m-6 text-muted-foreground rounded-lg border p-4 text-sm">
+            Caricamento dettaglio ricerca...
+          </div>
+        ) : !resolvedCard ? (
+          <div className="shrink-0 m-6 rounded-lg border p-4 text-sm">
+            Ricerca non trovata o non disponibile.
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "grid min-h-0 flex-1 gap-3 overflow-hidden p-3",
+              isSidebarCollapsed
+                ? "grid-cols-[40px_minmax(0,1fr)]"
+                : "grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)]",
+            )}
+          >
+            {isSidebarCollapsed ? (
+              <div className="flex h-full min-h-0 shrink-0 items-start justify-center rounded-lg border border-[#ececea] bg-white p-1 shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={
-                    isEditingNoMatchReason
-                      ? "Termina modifica motivo no match"
-                      : "Modifica motivo no match"
-                  }
-                  title={
-                    isEditingNoMatchReason
-                      ? "Termina modifica motivo no match"
-                      : "Modifica motivo no match"
-                  }
-                  onClick={() =>
-                    setIsEditingNoMatchReason((current) => !current)
-                  }
+                  aria-label="Espandi dettagli famiglia"
+                  title="Espandi dettagli famiglia"
+                  onClick={() => setIsSidebarCollapsed(false)}
                 >
-                  <PencilIcon />
+                  <PanelLeftOpenIcon />
                 </Button>
-              }
-            >
-              {isEditingNoMatchReason ? (
-                <Select
-                  value={resolveLookupValueKey(
-                    "motivo_no_match",
-                    resolvedCard.motivoNoMatch,
-                  )}
-                  onValueChange={(next) => {
-                    void updateProcessCard(currentProcessId, {
-                      motivo_no_match: next || null,
-                    });
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleziona motivo no match" />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    {(lookupOptionsByField.motivo_no_match ?? []).map(
-                      (option) => (
+              </div>
+            ) : (
+            <aside className="flex min-h-0 flex-col overflow-y-auto rounded-lg border border-[#ececea] bg-white p-4 shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]">
+              <div className="space-y-4">
+                <Field>
+                  <div className="flex items-center justify-between gap-2">
+                    <FieldLabel variant="eyebrow">Famiglia</FieldLabel>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Comprimi dettagli famiglia"
+                      title="Comprimi dettagli famiglia"
+                      onClick={() => setIsSidebarCollapsed(true)}
+                    >
+                      <PanelLeftCloseIcon />
+                    </Button>
+                  </div>
+                  <h2 className="text-2xl font-semibold leading-tight tracking-tight">
+                    {resolvedCard.nomeFamiglia ?? "—"}
+                  </h2>
+                </Field>
+
+                <Field>
+                  <FieldLabel variant="eyebrow">Stato</FieldLabel>
+                  <Select
+                    value={selectedStatoRicercaValue}
+                    onValueChange={(next) => {
+                      if (!next || !resolvedCard.id) return;
+                      void updateProcessCard?.(resolvedCard.id, {
+                        stato_res: next || null,
+                      });
+                    }}
+                    disabled={!resolvedCard.id}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleziona stato" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statoRicercaOptions.map((option) => (
                         <SelectItem
                           key={option.valueKey}
                           value={option.valueKey}
                         >
                           {option.valueLabel}
                         </SelectItem>
-                      ),
-                    )}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                  {lookupDisplayValue(
-                    "motivo_no_match",
-                    resolvedCard.motivoNoMatch,
-                  )}
-                </div>
-              )}
-            </CrmDetailCard>
-          ) : null}
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-          <RicercaWorkersPipelineView
-            key={`${currentProcessId}:${pipelineRefreshKey}`}
-            className="min-h-0 flex-1"
-            processId={currentProcessId}
-            card={resolvedCard}
-            lookupOptionsByField={lookupOptionsByField}
-            focusSelectionId={focusedSelectionId}
-            onOpenRelatedSearch={handleOpenRelatedSearch}
-            onPatchProcess={updateProcessCard}
-          />
-        </div>
-      )}
+                <Field>
+                  <FieldLabel variant="eyebrow">
+                    Tipologia di incontro
+                  </FieldLabel>
+                  <Select
+                    value={resolveLookupValueKey(
+                      "tipo_incontro_famiglia_lavoratore",
+                      resolvedCard.tipoIncontroFamigliaLavoratore,
+                    )}
+                    onValueChange={(next) => {
+                      if (!resolvedCard.id) return;
+                      void updateProcessCard?.(resolvedCard.id, {
+                        tipo_incontro_famiglia_lavoratore: next || null,
+                      });
+                    }}
+                    disabled={!resolvedCard.id}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleziona tipologia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tipoIncontroOptions.map((option) => (
+                        <SelectItem
+                          key={option.valueKey}
+                          value={option.valueKey}
+                        >
+                          {option.valueLabel}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                {isNoMatchState ? (
+                  <Field>
+                    <FieldLabel variant="eyebrow">Motivo no match</FieldLabel>
+                    <Select
+                      value={resolveLookupValueKey(
+                        "motivo_no_match",
+                        resolvedCard.motivoNoMatch,
+                      )}
+                      onValueChange={(next) => {
+                        void updateProcessCard(currentProcessId, {
+                          motivo_no_match: next || null,
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Seleziona motivo no match" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(lookupOptionsByField.motivo_no_match ?? []).map(
+                          (option) => (
+                            <SelectItem
+                              key={option.valueKey}
+                              value={option.valueKey}
+                            >
+                              {option.valueLabel}
+                            </SelectItem>
+                          ),
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                ) : null}
+
+                {resolvedCard.tipoLavoroBadge ||
+                resolvedCard.tipoRapportoBadge ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {resolvedCard.tipoLavoroBadge ? (
+                      <Badge className="border-emerald-200 bg-emerald-100 text-emerald-700">
+                        {resolvedCard.tipoLavoroBadge}
+                      </Badge>
+                    ) : null}
+                    {resolvedCard.tipoRapportoBadge ? (
+                      <Badge className="border-amber-200 bg-amber-100 text-amber-700">
+                        {resolvedCard.tipoRapportoBadge}
+                      </Badge>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="space-y-1.5">
+                  {resolvedCard.telefono && resolvedCard.telefono !== "-" ? (
+                    <CardMetaRow icon={<PhoneIcon />}>
+                      {resolvedCard.telefono}
+                    </CardMetaRow>
+                  ) : null}
+                  {resolvedCard.email && resolvedCard.email !== "-" ? (
+                    <CardMetaRow icon={<MailIcon />}>
+                      {resolvedCard.email}
+                    </CardMetaRow>
+                  ) : null}
+                  {resolvedCard.indirizzoCompleto &&
+                  resolvedCard.indirizzoCompleto !== "" ? (
+                    <CardMetaRow icon={<MapPinIcon />}>
+                      {resolvedCard.indirizzoCompleto}
+                    </CardMetaRow>
+                  ) : resolvedCard.indirizzoProvincia &&
+                    resolvedCard.indirizzoProvincia !== "-" ? (
+                    <CardMetaRow icon={<MapPinIcon />}>
+                      {resolvedCard.indirizzoProvincia}
+                    </CardMetaRow>
+                  ) : null}
+                  {oreGiorniLabel !== "-" ? (
+                    <CardMetaRow icon={<Clock3Icon />}>
+                      {oreGiorniLabel}
+                    </CardMetaRow>
+                  ) : null}
+                  {resolvedCard.deadlineMobile &&
+                  resolvedCard.deadlineMobile !== "-" ? (
+                    <div
+                      className={cn(
+                        "flex min-w-0 items-center gap-2 text-[12.5px]",
+                        isDeadlineUrgent ? "text-red-600" : "text-[#76756f]",
+                      )}
+                    >
+                      <CalendarIcon
+                        className={cn(
+                          "size-3 shrink-0",
+                          isDeadlineUrgent
+                            ? "text-red-600"
+                            : "text-[#a3a29b]",
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "min-w-0 truncate",
+                          isDeadlineUrgent && "font-medium",
+                        )}
+                      >
+                        Deadline: {resolvedCard.deadlineMobile}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+
+                <Accordion
+                  type="multiple"
+                  tone="flush"
+                  defaultValue={["orari"]}
+                >
+                  <AccordionItem value="orari">
+                    <AccordionTrigger>Orari e frequenza</AccordionTrigger>
+                    <AccordionContent className="space-y-3">
+                      {renderField(
+                        "Orario di lavoro",
+                        resolvedCard.orarioDiLavoro,
+                      )}
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderField(
+                          "Ore settimanali",
+                          resolvedCard.oreSettimana,
+                        )}
+                        {renderField(
+                          "Giorni settimanali",
+                          resolvedCard.giorniSettimana,
+                        )}
+                      </div>
+                      {resolvedCard.giornatePreferite &&
+                      resolvedCard.giornatePreferite.length > 0 ? (
+                        <Field>
+                          <FieldLabel variant="eyebrow">
+                            Giornate preferite
+                          </FieldLabel>
+                          <div className="flex flex-wrap gap-1.5">
+                            {resolvedCard.giornatePreferite.map((giorno) => (
+                              <Badge
+                                key={giorno}
+                                className="border-blue-200 bg-blue-50 text-blue-700"
+                              >
+                                {giorno}
+                              </Badge>
+                            ))}
+                          </div>
+                        </Field>
+                      ) : null}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="luogo-lavoro">
+                    <AccordionTrigger>Luogo di lavoro</AccordionTrigger>
+                    <AccordionContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderField(
+                          "Provincia",
+                          resolvedCard.indirizzoProvincia,
+                        )}
+                        {renderField("CAP", resolvedCard.indirizzoCap)}
+                      </div>
+                      {renderField("Quartiere", resolvedCard.indirizzoNote)}
+                      {renderField(
+                        "Indirizzo completo",
+                        resolvedCard.indirizzoCompleto,
+                      )}
+                      {resolvedCard.srcEmbedMapsAnnucio &&
+                      resolvedCard.srcEmbedMapsAnnucio !== "-" ? (
+                        <Field>
+                          <FieldLabel variant="eyebrow">SRC Maps</FieldLabel>
+                          <a
+                            href={resolvedCard.srcEmbedMapsAnnucio}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary block break-all text-sm underline underline-offset-2"
+                          >
+                            {resolvedCard.srcEmbedMapsAnnucio}
+                          </a>
+                        </Field>
+                      ) : null}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="famiglia">
+                    <AccordionTrigger>Famiglia</AccordionTrigger>
+                    <AccordionContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderField(
+                          "Nucleo famigliare",
+                          resolvedCard.nucleoFamigliare,
+                        )}
+                        {renderField(
+                          "Età lavoratore",
+                          `${resolvedCard.etaMinima ?? "-"} - ${resolvedCard.etaMassima ?? "-"}`,
+                        )}
+                      </div>
+                      {renderField(
+                        "Descrizione casa",
+                        resolvedCard.descrizioneCasa,
+                      )}
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderField(
+                          "Metratura casa",
+                          resolvedCard.metraturaCasa,
+                        )}
+                        {renderField("Sesso", resolvedCard.sesso)}
+                      </div>
+                      {renderField(
+                        "Animali in casa",
+                        resolvedCard.descrizioneAnimaliInCasa,
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="mansioni">
+                    <AccordionTrigger>Mansioni</AccordionTrigger>
+                    <AccordionContent className="space-y-3">
+                      {renderField(
+                        "Mansioni richieste",
+                        resolvedCard.mansioniRichieste,
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="richieste-specifiche">
+                    <AccordionTrigger>Richieste specifiche</AccordionTrigger>
+                    <AccordionContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderField(
+                          "Richiesta patente",
+                          resolvedCard.richiestaPatente ? "Sì" : "No",
+                        )}
+                        {renderField(
+                          "Richiesta trasferte",
+                          resolvedCard.richiestaTrasferte ? "Sì" : "No",
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderField(
+                          "Richiesta ferie",
+                          resolvedCard.richiestaFerie ? "Sì" : "No",
+                        )}
+                        {renderField(
+                          "Dettaglio patente",
+                          resolvedCard.patenteDettaglio,
+                        )}
+                      </div>
+                      {renderField(
+                        "Descrizione trasferte",
+                        resolvedCard.descrizioneRichiestaTrasferte,
+                      )}
+                      {renderField(
+                        "Descrizione ferie",
+                        resolvedCard.descrizioneRichiestaFerie,
+                      )}
+                      {renderField(
+                        "Informazioni extra riservate",
+                        resolvedCard.informazioniExtraRiservate,
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="tempistiche">
+                    <AccordionTrigger>Tempistiche</AccordionTrigger>
+                    <AccordionContent className="space-y-3">
+                      {renderField("Deadline", resolvedCard.deadlineMobile)}
+                      {renderField(
+                        "Disponibilità colloqui",
+                        resolvedCard.disponibilitaColloquiInPresenza,
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="annuncio">
+                    <AccordionTrigger>Annuncio</AccordionTrigger>
+                    <AccordionContent className="space-y-3">
+                      {(() => {
+                        const brief =
+                          resolvedCard.testoAnnuncioWhatsapp?.trim() ?? "";
+                        const hasBrief = brief && brief !== "-";
+                        return (
+                          <Field>
+                            <div className="flex items-center justify-between gap-2">
+                              <FieldLabel variant="eyebrow">
+                                Testo per WhatsApp
+                              </FieldLabel>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={!hasBrief}
+                                onClick={() => {
+                                  if (!hasBrief) return;
+                                  void navigator.clipboard
+                                    .writeText(brief)
+                                    .then(() => toast.success("Testo copiato"))
+                                    .catch(() =>
+                                      toast.error("Impossibile copiare"),
+                                    );
+                                }}
+                              >
+                                <CopyIcon className="size-3.5" />
+                                Copia
+                              </Button>
+                            </div>
+                            <div className="rounded-md border bg-[#efeae2] p-3">
+                              {hasBrief ? (
+                                <div className="ml-auto max-w-[92%] whitespace-pre-wrap rounded-xl rounded-br-sm border border-emerald-200 bg-emerald-100/80 px-3 py-2 text-sm leading-relaxed text-foreground shadow-sm">
+                                  {brief}
+                                </div>
+                              ) : (
+                                <p className="text-muted-foreground text-sm">
+                                  Nessun annuncio disponibile.
+                                </p>
+                              )}
+                            </div>
+                          </Field>
+                        );
+                      })()}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
+            </aside>
+            )}
+
+            <div className="flex min-h-0 flex-col overflow-hidden">
+              <TabsContent
+                value="pipeline"
+                className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+              >
+                <RicercaWorkersPipelineView
+                  key={currentProcessId}
+                  className="min-h-0 flex-1"
+                  processId={currentProcessId}
+                  card={resolvedCard}
+                  focusSelectionId={focusedSelectionId}
+                  onOpenRelatedSearch={handleOpenRelatedSearch}
+                  onPatchProcess={updateProcessCard}
+                />
+              </TabsContent>
+              <TabsContent
+                value="mappa"
+                className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+              >
+                <div className="flex h-full min-h-0 flex-1 items-center justify-center rounded-lg border border-[#ececea] bg-white shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]">
+                  <div className="text-center">
+                    <MapIcon className="text-muted-foreground/40 mx-auto mb-3 size-10" />
+                    <p className="text-foreground text-sm font-medium">
+                      Vista mappa
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Disponibile prossimamente
+                    </p>
+                  </div>
+                </div>
+              </TabsContent>
+            </div>
+          </div>
+        )}
+      </Tabs>
     </section>
   );
 }

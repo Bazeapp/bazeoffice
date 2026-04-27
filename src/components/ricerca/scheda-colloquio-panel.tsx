@@ -14,11 +14,7 @@ import {
   TrophyIcon,
 } from "lucide-react";
 
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import * as CollapsiblePrimitive from "@radix-ui/react-collapsible";
 import {
   Combobox,
   ComboboxChip,
@@ -30,23 +26,19 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui/combobox";
+} from "@/components/ui-next/combobox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui-next/select";
+import { Textarea } from "@/components/ui-next/textarea";
+import { Input } from "@/components/ui-next/input";
+import { Button } from "@/components/ui-next/button";
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils";
-import {
-  getTagClassName,
-  resolveLookupColor,
-  type LookupOption,
-} from "@/features/lavoratori/lib/lookup-utils";
+import { type LookupOption } from "@/features/lavoratori/lib/lookup-utils";
 
 type SelectionRow = Record<string, unknown>;
 
@@ -82,36 +74,15 @@ type SchedaColloquioDraft = {
 
 type SchedaColloquioPanelProps = {
   selectionRow: SelectionRow;
-  statusOptions: LookupOption[];
   nonSelezionatoOptions: LookupOption[];
   noMatchOptions: LookupOption[];
-  lookupColorsByDomain: Map<string, string>;
   disabled?: boolean;
   isGeneratingFeedback?: boolean;
   onGenerateFeedback?: () => Promise<string | null | undefined> | string | null | undefined;
-  onMoveStatus: (value: string) => Promise<void> | void;
   onPatchField: (field: string, value: unknown) => Promise<void> | void;
 };
 
 const SCORE_OPTIONS: ScoreCardValue[] = ["Basso", "Medio", "Alto"];
-
-const FALLBACK_STATI_SELEZIONE = [
-  "Prospetto",
-  "Candidato Good Fit",
-  "Candidato Poor Fit",
-  "Da colloquiare",
-  "Non risponde",
-  "Invitato a colloquio",
-  "Selezionato",
-  "Inviato a cliente",
-  "Colloquio schedulato",
-  "Colloquio fatto",
-  "In prova con cliente",
-  "Match",
-  "No Match",
-  "Non selezionato",
-  "Archivio",
-] as const;
 
 function toDateInputParts(value: unknown): { date: string; time: string } {
   const raw = asString(value);
@@ -305,18 +276,18 @@ function CollapsibleSection({
   const [open, setOpen] = React.useState(defaultOpen);
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="bg-muted hover:bg-muted/80 sticky top-0 z-10 flex w-full items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold text-foreground transition-colors">
+    <CollapsiblePrimitive.Root open={open} onOpenChange={setOpen}>
+      <CollapsiblePrimitive.Trigger className="bg-muted hover:bg-muted/80 sticky top-0 z-10 flex w-full items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold text-foreground transition-colors">
         <Icon className="text-muted-foreground size-3.5" />
         <span className="flex-1 text-left">{title}</span>
         <ChevronDownIcon
           className={`text-muted-foreground size-3.5 transition-transform ${open ? "rotate-180" : ""}`}
         />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-3 px-2 py-3">
+      </CollapsiblePrimitive.Trigger>
+      <CollapsiblePrimitive.Content className="space-y-3 px-2 py-3">
         {children}
-      </CollapsibleContent>
-    </Collapsible>
+      </CollapsiblePrimitive.Content>
+    </CollapsiblePrimitive.Root>
   );
 }
 
@@ -368,8 +339,8 @@ function ScoreSelect({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <label className="text-foreground flex items-center gap-1.5 text-[11px] font-medium">
-        <Icon className="text-muted-foreground size-3.5 shrink-0" />
+      <label className="text-foreground flex items-center gap-2 text-sm font-medium">
+        <Icon className="text-muted-foreground size-4 shrink-0" />
         {label}
       </label>
       <Select
@@ -380,7 +351,7 @@ function ScoreSelect({
         }}
         disabled={disabled}
       >
-        <SelectTrigger className="h-7 w-[120px] text-xs">
+        <SelectTrigger className="w-[180px]">
           <SelectValue placeholder="—" />
         </SelectTrigger>
         <SelectContent>
@@ -398,14 +369,11 @@ function ScoreSelect({
 
 export function SchedaColloquioPanel({
   selectionRow,
-  statusOptions,
   nonSelezionatoOptions,
   noMatchOptions,
-  lookupColorsByDomain,
   disabled = false,
   isGeneratingFeedback = false,
   onGenerateFeedback,
-  onMoveStatus,
   onPatchField,
 }: SchedaColloquioPanelProps) {
   const [draft, setDraft] = React.useState<SchedaColloquioDraft>(() =>
@@ -416,26 +384,6 @@ export function SchedaColloquioPanel({
     setDraft(buildDraft(selectionRow));
   }, [selectionRow]);
 
-  const mergedStatusOptions = React.useMemo(() => {
-    if (statusOptions.length > 0) return statusOptions;
-    return FALLBACK_STATI_SELEZIONE.map((status) => ({
-      label: status,
-      value: status,
-    }));
-  }, [statusOptions]);
-
-  const statusClassName = getTagClassName(
-    resolveLookupColor(
-      lookupColorsByDomain,
-      "selezioni_lavoratori.stato_selezione",
-      draft.statoSelezione,
-    ) ??
-      resolveLookupColor(
-        lookupColorsByDomain,
-        "lavoratori.stato_selezione",
-        draft.statoSelezione,
-      ),
-  );
   const normalizedStatus = React.useMemo(
     () => normalizeStatusToken(draft.statoSelezione),
     [draft.statoSelezione],
@@ -472,57 +420,9 @@ export function SchedaColloquioPanel({
   return (
     <div className="bg-card">
       <div className="space-y-2 px-4 py-3">
-        <div className="space-y-0.5">
-          <label className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
-            Stato selezione
-          </label>
-          <Select
-            value={draft.statoSelezione || "none"}
-            onValueChange={(value) => {
-              const nextValue = value === "none" ? "" : value;
-              setDraft((current) => ({ ...current, statoSelezione: nextValue }));
-              if (nextValue) {
-                void onMoveStatus(nextValue);
-              }
-            }}
-            disabled={disabled}
-          >
-            <SelectTrigger className={`h-8 text-xs font-semibold border ${statusClassName}`}>
-              <SelectValue placeholder="Seleziona stato" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Nessuno stato</SelectItem>
-              {mergedStatusOptions.map((status) => {
-                const optionClassName = getTagClassName(
-                  resolveLookupColor(
-                    lookupColorsByDomain,
-                    "selezioni_lavoratori.stato_selezione",
-                    status.label || status.value,
-                  ) ??
-                    resolveLookupColor(
-                      lookupColorsByDomain,
-                      "lavoratori.stato_selezione",
-                      status.label || status.value,
-                    ),
-                );
-
-                return (
-                  <SelectItem
-                    key={status.value}
-                    value={status.value}
-                    className={optionClassName}
-                  >
-                    {status.label}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-
         {showMotivazioneNonSelezionato ? (
           <div className="space-y-1.5">
-            <label className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+            <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
               Motivo non selezionato
             </label>
             <MultiLookupField
@@ -545,7 +445,7 @@ export function SchedaColloquioPanel({
 
         {showMotivazioneNoMatch ? (
           <div className="space-y-1.5">
-            <label className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+            <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
               Motivo no match
             </label>
             <Select
@@ -560,7 +460,7 @@ export function SchedaColloquioPanel({
               }}
               disabled={disabled}
             >
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger>
                 <SelectValue placeholder="Seleziona motivo" />
               </SelectTrigger>
               <SelectContent>
@@ -705,18 +605,18 @@ export function SchedaColloquioPanel({
         >
           {draft.slotColloquio.map((slot, index) => (
             <div key={index} className="space-y-1.5">
-              <p className="text-foreground text-[11px] font-medium">
+              <p className="text-foreground text-sm font-medium">
                 Slot {index + 1}
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-0.5">
-                  <label className="text-muted-foreground text-[10px]">
+                  <label className="text-muted-foreground text-xs">
                     Inizio disponibilità
                   </label>
                   <div className="flex gap-1">
                     <Input
                       type="date"
-                      className="h-7 flex-1 text-[10px]"
+                      className="flex-1"
                       value={slot.inizioData}
                       disabled={disabled}
                       onChange={(event) =>
@@ -737,7 +637,7 @@ export function SchedaColloquioPanel({
                     />
                     <Input
                       type="time"
-                      className="h-7 w-20 text-[10px]"
+                      className="w-28"
                       value={slot.inizioOra}
                       disabled={disabled}
                       onChange={(event) =>
@@ -759,13 +659,13 @@ export function SchedaColloquioPanel({
                   </div>
                 </div>
                 <div className="space-y-0.5">
-                  <label className="text-muted-foreground text-[10px]">
+                  <label className="text-muted-foreground text-xs">
                     Fine disponibilità
                   </label>
                   <div className="flex gap-1">
                     <Input
                       type="date"
-                      className="h-7 flex-1 text-[10px]"
+                      className="flex-1"
                       value={slot.fineData}
                       disabled={disabled}
                       onChange={(event) =>
@@ -786,7 +686,7 @@ export function SchedaColloquioPanel({
                     />
                     <Input
                       type="time"
-                      className="h-7 w-20 text-[10px]"
+                      className="w-28"
                       value={slot.fineOra}
                       disabled={disabled}
                       onChange={(event) =>
@@ -818,12 +718,11 @@ export function SchedaColloquioPanel({
             icon={CalendarCheckIcon}
           >
             <div className="space-y-1.5">
-              <label className="text-foreground text-[11px] font-medium">
+              <label className="text-foreground text-sm font-medium">
                 Data/ora colloquio famiglia lavoratore
               </label>
               <Input
                 type="datetime-local"
-                className="h-8 text-xs"
                 value={draft.dataOraColloquioFamigliaLavoratore}
                 disabled={disabled}
                 onChange={(event) =>
@@ -844,7 +743,7 @@ export function SchedaColloquioPanel({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-foreground text-[11px] font-medium">
+              <label className="text-foreground text-sm font-medium">
                 Colloquio effettuato
               </label>
               <Select
@@ -859,7 +758,7 @@ export function SchedaColloquioPanel({
                 }}
                 disabled={disabled}
               >
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger>
                   <SelectValue placeholder="Seleziona..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -878,7 +777,7 @@ export function SchedaColloquioPanel({
         >
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-3">
-              <label className="text-foreground text-[11px] font-medium">
+              <label className="text-foreground text-sm font-medium">
                 Crea feedback Baze – il messaggio che spiega perché è perfetta per
                 la richiesta
               </label>

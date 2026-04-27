@@ -1,7 +1,7 @@
 import { CheckIcon, XIcon } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui-next/badge"
+import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group"
 import { getTagClassName, resolveLookupColor, type LookupOption } from "@/features/lavoratori/lib/lookup-utils"
 import { cn } from "@/lib/utils"
 
@@ -60,56 +60,73 @@ export function SkillsChoiceMatrix({
             className="bg-muted/35 rounded-lg border border-border/60 px-3 py-3"
             data-empty={!row.value}
           >
-            <div className={cn(
-              "flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between",
-              !row.value && !isEditing && "opacity-80"
-            )}>
+            <div
+              className={cn(
+                "flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between",
+                !row.value && !isEditing && "opacity-80",
+              )}
+            >
               <p className="min-w-0 text-sm leading-snug font-medium">{row.label}</p>
-              <div className="flex flex-wrap gap-2">
-                {columns.map((option) => {
-                  const isSelected = row.value === option.label
-                  const color = resolveLookupColor(lookupColorsByDomain, row.domain, option.label)
-
-                  if (isEditing) {
+              {isEditing ? (
+                <RadioGroup
+                  value={row.value}
+                  onValueChange={(nextValue) => onFieldChange(row.field, nextValue)}
+                  className="flex flex-wrap gap-3"
+                  disabled={isUpdating}
+                >
+                  {columns.map((option) => {
+                    const color = resolveLookupColor(
+                      lookupColorsByDomain,
+                      row.domain,
+                      option.label,
+                    )
                     return (
-                      <Button
+                      <label
                         key={`${row.field}-${option.value}`}
-                        type="button"
-                        variant={isSelected ? "default" : "outline"}
-                        size="sm"
-                        disabled={isUpdating}
-                        className={cn(isSelected && getTagClassName(color))}
-                        onClick={() => onFieldChange(row.field, option.label)}
+                        className="flex items-center gap-2 text-sm"
                       >
-                        <span className="inline-flex items-center gap-1">
+                        <RadioGroupItem value={option.label} />
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs",
+                            getTagClassName(color),
+                          )}
+                        >
                           {getChoiceIcon(option.label)}
                           <span className="truncate">{option.label}</span>
                         </span>
-                      </Button>
+                      </label>
                     )
-                  }
-
-                  if (!isSelected) {
-                    return null
-                  }
-
-                  return (
-                    <Badge
-                      key={`${row.field}-${option.value}`}
-                      variant="outline"
-                      className={getTagClassName(color)}
-                    >
-                      {getChoiceIcon(option.label)}
-                      <span className="truncate">{option.label}</span>
+                  })}
+                </RadioGroup>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {columns.map((option) => {
+                    const isSelected = row.value === option.label
+                    if (!isSelected) return null
+                    const color = resolveLookupColor(
+                      lookupColorsByDomain,
+                      row.domain,
+                      option.label,
+                    )
+                    return (
+                      <Badge
+                        key={`${row.field}-${option.value}`}
+                        variant="outline"
+                        className={getTagClassName(color)}
+                      >
+                        {getChoiceIcon(option.label)}
+                        <span className="truncate">{option.label}</span>
+                      </Badge>
+                    )
+                  })}
+                  {!row.value ? (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      Non valutata
                     </Badge>
-                  )
-                })}
-                {!isEditing && !row.value ? (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    Non valutata
-                  </Badge>
-                ) : null}
-              </div>
+                  ) : null}
+                </div>
+              )}
             </div>
           </div>
         ))}

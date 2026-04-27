@@ -15,6 +15,11 @@ interface SectionHeaderBreadcrumbProps {
 interface SectionHeaderTitleProps {
   children: React.ReactNode;
   badge?: React.ReactNode;
+  /**
+   * Sottotitolo opzionale renderizzato sotto al titolo. Tipico per
+   * conteggi o context info ("45 lavoratori", "Aggiornato 2 min fa").
+   */
+  subtitle?: React.ReactNode;
   size?: "page" | "nested";
   className?: string;
 }
@@ -50,6 +55,7 @@ SectionHeaderBreadcrumb.displayName = "SectionHeader.Breadcrumb";
 function SectionHeaderTitle({
   children,
   badge,
+  subtitle,
   size = "page",
   className,
 }: SectionHeaderTitleProps) {
@@ -57,17 +63,24 @@ function SectionHeaderTitle({
     <div
       data-slot="section-header-title"
       data-size={size}
-      className={cn("flex min-w-0 items-center gap-3", className)}
+      className={cn("flex min-w-0 flex-col gap-0.5", className)}
     >
-      <h1
-        className={cn(
-          "text-foreground min-w-0 truncate font-semibold tracking-tight",
-          size === "page" ? "text-2xl" : "text-xl",
-        )}
-      >
-        {children}
-      </h1>
-      {badge ? <div className="shrink-0">{badge}</div> : null}
+      <div className="flex min-w-0 items-center gap-3">
+        <h1
+          className={cn(
+            "text-foreground min-w-0 truncate font-semibold tracking-tight",
+            size === "page" ? "text-2xl" : "text-xl",
+          )}
+        >
+          {children}
+        </h1>
+        {badge ? <div className="shrink-0">{badge}</div> : null}
+      </div>
+      {subtitle ? (
+        <div className="text-muted-foreground min-w-0 truncate text-sm">
+          {subtitle}
+        </div>
+      ) : null}
     </div>
   );
 }

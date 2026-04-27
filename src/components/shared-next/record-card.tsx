@@ -67,6 +67,17 @@ export interface RecordCardProps
 export interface RecordCardHeaderProps {
   title: React.ReactNode;
   rightSlot?: React.ReactNode;
+  /**
+   * Slot a sinistra del titolo. Tipicamente un Avatar (con eventuale
+   * status overlay), o una piccola icona. Il consumer è libero di
+   * dimensionare il contenuto.
+   */
+  media?: React.ReactNode;
+  /**
+   * Sottotitolo opzionale sotto al titolo. Pensato per metadati primari
+   * come "49 anni", "ID-1234", etc.
+   */
+  subtitle?: React.ReactNode;
   className?: string;
 }
 
@@ -84,19 +95,29 @@ export interface RecordCardFooterProps {
 function RecordCardHeader({
   title,
   rightSlot,
+  media,
+  subtitle,
   className,
 }: RecordCardHeaderProps) {
   return (
     <div
       data-slot="record-card-header"
       className={cn(
-        "flex min-w-0 items-start justify-between gap-2",
+        "flex min-w-0 items-start justify-between gap-3",
         className,
       )}
     >
-      <h3 className="min-w-0 truncate text-base leading-snug font-semibold">
-        {title}
-      </h3>
+      {media ? <div className="shrink-0">{media}</div> : null}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <h3 className="min-w-0 truncate text-base leading-snug font-semibold">
+          {title}
+        </h3>
+        {subtitle ? (
+          <div className="text-muted-foreground min-w-0 truncate text-xs leading-none">
+            {subtitle}
+          </div>
+        ) : null}
+      </div>
       {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
     </div>
   );

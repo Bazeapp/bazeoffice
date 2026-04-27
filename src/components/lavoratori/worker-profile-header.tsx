@@ -16,26 +16,26 @@ import {
 } from "lucide-react"
 
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
-import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Avatar } from "@/components/ui-next/avatar"
+import { Button } from "@/components/ui-next/button"
+import { Card, CardContent } from "@/components/ui-next/card"
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/components/ui/carousel"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui-next/carousel"
+import { Input } from "@/components/ui-next/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui-next/select"
+import { Textarea } from "@/components/ui-next/textarea"
+import { cn } from "@/lib/utils"
 import {
   asString,
   getAgeFromBirthDate,
@@ -63,7 +63,6 @@ type WorkerProfileHeaderDraft = Record<WorkerProfileHeaderField, string>
 type WorkerProfileHeaderProps = {
   worker: LavoratoreListItem
   workerRow: LavoratoreRecord
-  headerLayout?: "side" | "stacked"
   statoLavoratoreOptions?: LookupOption[]
   disponibilitaOptions?: LookupOption[]
   motivazioniOptions?: LookupOption[]
@@ -102,6 +101,19 @@ const HR_OPTIONS = [
 ] as const
 
 type HrId = (typeof HR_OPTIONS)[number]["id"]
+
+function initialsFromName(name: string) {
+  const parts = name
+    .split(" ")
+    .map((part) => part.trim())
+    .filter(Boolean)
+  return (
+    parts
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  )
+}
 
 function buildDraft(row: LavoratoreRecord): WorkerProfileHeaderDraft {
   return {
@@ -191,7 +203,6 @@ function selectedOptionValue(selected: string | null, options: LookupOption[]) {
 export function WorkerProfileHeader({
   worker,
   workerRow,
-  headerLayout = "side",
   statoLavoratoreOptions = [],
   disponibilitaOptions = [],
   motivazioniOptions = [],
@@ -284,7 +295,6 @@ export function WorkerProfileHeader({
   const resolvedDataRitornoDisponibilitaDisabled =
     dataRitornoDisponibilitaDisabled ?? !onDataRitornoDisponibilitaChange
   const resolvedMotivazioneDisabled = motivazioneDisabled ?? !onMotivazioneChange
-  const usesStackedHeaderLayout = headerLayout === "stacked"
 
   const updateDraftField = React.useCallback(
     (field: WorkerProfileHeaderField, value: string) => {
@@ -315,12 +325,51 @@ export function WorkerProfileHeader({
     [onPatchField, updateDraftField]
   )
 
+  const renderInlineLookupSelect = (
+    label: string,
+    value: string,
+    options: LookupOption[],
+    onValueChange: ((value: string | null) => Promise<void> | void) | undefined,
+    triggerClassName: string,
+    placeholder: string,
+    isDisabled: boolean,
+    emptyLabel: string,
+  ) => (
+    <div className="flex flex-col gap-1">
+      <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.14em]">
+        {label}
+      </p>
+      <Select
+        value={selectedOptionValue(value, options)}
+        onValueChange={(next) =>
+          void onValueChange?.(next === "none" ? null : next)
+        }
+        disabled={isDisabled}
+      >
+        <SelectTrigger className={cn("h-8 min-w-[140px]", triggerClassName)}>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">{emptyLabel}</SelectItem>
+          {resolveSingleValueOptions(value, options).map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+
   return (
-    <div className="mb-2 flex items-start gap-5">
-      <div className="flex w-52 shrink-0 flex-col gap-2 self-start">
+    <div className="flex items-start gap-4">
+      <div className="flex shrink-0 flex-col items-start gap-2 self-start">
         {isEditing && presentationPhotoSlots.length > 0 ? (
           <div
-            className={`relative h-80 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
+            className={cn(
+              "relative h-32 w-32 overflow-hidden rounded-lg border",
+              qualificationStatus.ringClassName,
+            )}
             title={qualificationStatus.label}
           >
             <Carousel
@@ -332,8 +381,8 @@ export function WorkerProfileHeader({
                 {presentationPhotoSlots.map((photoUrl, index) => (
                   <CarouselItem key={photoUrl} className="h-full basis-full pl-0">
                     <div className="h-full">
-                      <Card className="h-full rounded-none border-0 py-0 shadow-none">
-                        <CardContent className="bg-muted/20 relative flex h-full min-h-80 items-center justify-center p-0">
+                      <Card className="h-full rounded-none border-0 shadow-none">
+                        <CardContent className="bg-muted/20 relative flex h-full items-center justify-center p-0">
                           <img
                             src={photoUrl}
                             alt={`Foto profilo ${index + 1}`}
@@ -365,7 +414,10 @@ export function WorkerProfileHeader({
                             </Button>
                           ) : null}
                           <span
-                            className={`absolute left-2 bottom-2 inline-flex size-5 items-center justify-center rounded-full ${qualificationStatus.badgeClassName}`}
+                            className={cn(
+                              "absolute left-2 bottom-2 inline-flex size-5 items-center justify-center rounded-full",
+                              qualificationStatus.badgeClassName,
+                            )}
                           >
                             <StatusIcon className="size-3.5" />
                           </span>
@@ -380,25 +432,23 @@ export function WorkerProfileHeader({
             </Carousel>
           </div>
         ) : (
-          <div
-            className={`bg-muted relative flex h-80 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
-            title={qualificationStatus.label}
-          >
-            {worker.immagineUrl ? (
-              <img
-                src={worker.immagineUrl}
-                alt={worker.nomeCompleto}
-                className="h-full w-full object-contain"
-              />
-            ) : (
-              <span className="text-muted-foreground px-2 text-center text-xs">
-                Nessuna immagine
-              </span>
-            )}
+          <div className="relative inline-block">
+            <Avatar
+              size="xl"
+              src={worker.immagineUrl ?? undefined}
+              alt={worker.nomeCompleto}
+              fallback={initialsFromName(worker.nomeCompleto)}
+              className={qualificationStatus.ringClassName}
+            />
             <span
-              className={`absolute right-1 bottom-1 inline-flex size-5 items-center justify-center rounded-full ${qualificationStatus.badgeClassName}`}
+              aria-hidden
+              title={qualificationStatus.label}
+              className={cn(
+                "absolute -bottom-0.5 -right-0.5 inline-flex size-5 items-center justify-center rounded-full ring-2 ring-white",
+                qualificationStatus.badgeClassName,
+              )}
             >
-              <StatusIcon className="size-3.5" />
+              <StatusIcon className="size-3" />
             </span>
           </div>
         )}
@@ -407,20 +457,21 @@ export function WorkerProfileHeader({
           <Button
             type="button"
             variant="outline"
+            size="sm"
             className="w-full justify-center"
             onClick={() => onUploadPhoto?.()}
             disabled={!onUploadPhoto}
           >
-            <UploadIcon className="size-4" />
-            Carica nuova immagine
+            <UploadIcon className="size-3.5" />
+            Carica
           </Button>
         ) : null}
       </div>
 
-      <div className="min-w-0 flex flex-1 flex-col">
-        <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
               {isEditing ? (
                 <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
                   <Input
@@ -441,7 +492,9 @@ export function WorkerProfileHeader({
                   />
                 </div>
               ) : (
-                <p className="truncate text-2xl leading-tight font-semibold">{worker.nomeCompleto}</p>
+                <h2 className="truncate text-2xl leading-tight font-semibold">
+                  {worker.nomeCompleto}
+                </h2>
               )}
 
               <div className="flex shrink-0 items-center gap-1">
@@ -487,345 +540,234 @@ export function WorkerProfileHeader({
                 className="bg-background mt-2 min-h-20 text-sm"
               />
             ) : (
-              <p className="text-muted-foreground line-clamp-4 text-sm leading-5">
+              <p className="text-muted-foreground line-clamp-3 text-sm leading-5 mt-1">
                 {asString(workerRow.descrizione_pubblica) || "-"}
               </p>
             )}
           </div>
 
-        </div>
-
-        <Separator className="my-3" />
-
-        <div
-          className={`grid items-start gap-6 ${
-            usesStackedHeaderLayout
-              ? "grid-cols-[minmax(0,1fr)_auto]"
-              : showMotivazioneSelect
-                ? "grid-cols-[minmax(0,1fr)_452px]"
-                : "grid-cols-[minmax(0,1fr)_220px]"
-          }`}
-        >
-          <div className="min-w-0 space-y-2">
-            <div className="text-muted-foreground flex items-center gap-2">
-              <MailIcon className="size-4 shrink-0" />
-              {isEditing ? (
-                <div className="w-full max-w-md">
-                  <Input
-                    type="email"
-                    value={draft.email}
-                    onChange={(event) => updateDraftField("email", event.target.value)}
-                    onBlur={() => void commitField("email")}
-                    disabled={fieldsDisabled}
-                    className="h-7 text-sm"
-                  />
-                </div>
-              ) : (
-                <span className="truncate">{asString(workerRow.email) || "-"}</span>
-              )}
-            </div>
-
-            <div className="text-muted-foreground flex items-center gap-2">
-              <PhoneIcon className="size-4 shrink-0" />
-              {isEditing ? (
-                <div className="w-full max-w-xs">
-                  <Input
-                    type="tel"
-                    value={draft.telefono}
-                    onChange={(event) => updateDraftField("telefono", event.target.value)}
-                    onBlur={() => void commitField("telefono")}
-                    disabled={fieldsDisabled}
-                    className="h-7 text-sm"
-                  />
-                </div>
-              ) : (
-                <span className="truncate">{asString(workerRow.telefono) || "-"}</span>
-              )}
-            </div>
-
-            <div className="text-muted-foreground flex items-center gap-2">
-              <MapPinIcon className="size-4 shrink-0" />
-              <span className="truncate">{asString(workerRow.cap) || "-"}</span>
-            </div>
-
-            <div className="text-muted-foreground flex items-center gap-2">
-              <VenusAndMarsIcon className="size-4 shrink-0" />
-              {isEditing ? (
-                canUseSessoSelect ? (
-                  <div className="w-full max-w-xs">
-                    <Select
-                      value={draft.sesso || "none"}
-                      onValueChange={(value) => void handleLookupFieldChange("sesso", value)}
-                      disabled={fieldsDisabled}
-                    >
-                      <SelectTrigger className="h-7">
-                        <SelectValue placeholder="Seleziona sesso" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Non indicato</SelectItem>
-                        {sessoOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : (
-                  <Input
-                    value={draft.sesso}
-                    onChange={(event) => updateDraftField("sesso", event.target.value)}
-                    onBlur={() => void commitField("sesso")}
-                    disabled={fieldsDisabled}
-                    placeholder="Sesso"
-                    className="h-7 w-48 text-sm"
-                  />
+          <div className="flex shrink-0 flex-wrap items-start gap-3">
+            {showMotivazioneSelect
+              ? renderInlineLookupSelect(
+                  "Motivazione",
+                  motivazione ?? "",
+                  motivazioniOptions,
+                  onMotivazioneChange,
+                  motivationClassName,
+                  "Motivazione",
+                  resolvedMotivazioneDisabled,
+                  "Nessuna",
                 )
-              ) : (
-                <span className="truncate">{asString(workerRow.sesso) || "-"}</span>
-              )}
-            </div>
-
-            <div className="text-muted-foreground flex items-center gap-2">
-              <FlagIcon className="size-4 shrink-0" />
-              {isEditing ? (
-                <div className="w-full max-w-xs">
-                  <Select
-                    value={draft.nazionalita || "none"}
-                    onValueChange={(value) =>
-                      void handleLookupFieldChange("nazionalita", value)
-                    }
-                    disabled={fieldsDisabled}
-                  >
-                    <SelectTrigger className="h-7">
-                      <SelectValue placeholder="Seleziona nazionalita" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Non indicata</SelectItem>
-                      {resolvedNazionalitaOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : (
-                <span className="truncate">{asString(workerRow.nazionalita) || "-"}</span>
-              )}
-            </div>
-
-            <p className="text-muted-foreground flex items-center gap-2">
-              <CalendarDaysIcon className="size-4 shrink-0" />
-              {isEditing ? (
-                <div className="w-full max-w-xs">
-                  <Input
-                    type="date"
-                    value={draft.data_di_nascita}
-                    onChange={(event) =>
-                      updateDraftField("data_di_nascita", event.target.value)
-                    }
-                    onBlur={() => void commitField("data_di_nascita")}
-                    disabled={fieldsDisabled}
-                    className="h-7 text-sm"
-                  />
-                </div>
-              ) : (
-                <span className="truncate">{asString(workerRow.data_di_nascita) || "-"}</span>
-              )}
-            </p>
-
-            <p className="text-muted-foreground flex items-center gap-2">
-              <CakeIcon className="size-4 shrink-0" />
-              <span className="truncate">{getAgeFromBirthDate(workerRow.data_di_nascita) ?? "-"}</span>
-            </p>
-          </div>
-
-          <div
-            className={`flex gap-3 self-start ${
-              usesStackedHeaderLayout
-                ? "ml-auto min-w-[220px] flex-col items-end"
-                : "flex-col items-end"
-            }`}
-          >
-            <div
-              className={`flex gap-2 ${
-                usesStackedHeaderLayout
-                  ? "w-full flex-col items-end"
-                  : "w-full justify-end"
-              }`}
-            >
-              {showMotivazioneSelect ? (
-                <div
-                  className={
-                    usesStackedHeaderLayout ? "w-full shrink-0" : "w-[230px] shrink-0"
-                  }
-                >
-                  <Select
-                    value={motivazione ?? "none"}
-                    onValueChange={(value) =>
-                      void onMotivazioneChange?.(value === "none" ? null : value)
-                    }
-                    disabled={resolvedMotivazioneDisabled}
-                  >
-                    <SelectTrigger className={`h-8 w-full ${motivationClassName}`}>
-                      <SelectValue placeholder="Motivazione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessuna motivazione</SelectItem>
-                      {motivazioniOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : null}
-
-              <div className={usesStackedHeaderLayout ? "w-full shrink-0" : "w-[220px] shrink-0"}>
-                <div className="space-y-1.5">
-                  <p className="text-muted-foreground text-[11px] font-medium tracking-[0.18em] uppercase">
-                    Stato lavoratore
-                  </p>
-                  <Select
-                    value={selectedOptionValue(statoLavoratore, statoLavoratoreOptions)}
-                    onValueChange={(value) =>
-                      void onStatoLavoratoreChange?.(value === "none" ? null : value)
-                    }
-                    disabled={resolvedStatusDisabled}
-                  >
-                    <SelectTrigger className={`h-8 w-full ${selectedStatusClassName}`}>
-                      <SelectValue placeholder="Stato lavoratore" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Senza stato</SelectItem>
-                      {resolveSingleValueOptions(statoLavoratore, statoLavoratoreOptions).map(
-                        (option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        )
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={
-                usesStackedHeaderLayout ? "w-full shrink-0 self-end" : "w-[220px] shrink-0 self-end"
-              }
-            >
-              <div className="space-y-1.5">
-                <p className="text-muted-foreground text-[11px] font-medium tracking-[0.18em] uppercase">
-                  Disponibile
-                </p>
-                <Select
-                  value={selectedOptionValue(disponibilita, disponibilitaOptions)}
-                  onValueChange={(value) =>
-                    void onDisponibilitaChange?.(value === "none" ? null : value)
-                  }
-                  disabled={resolvedDisponibilitaDisabled}
-                >
-                  <SelectTrigger className={`h-8 w-full ${selectedDisponibilitaClassName}`}>
-                    <SelectValue placeholder="Disponibilita" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Non indicata</SelectItem>
-                    {resolveSingleValueOptions(disponibilita, disponibilitaOptions).map(
-                      (option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
+              : null}
+            {renderInlineLookupSelect(
+              "Stato",
+              statoLavoratore,
+              statoLavoratoreOptions,
+              onStatoLavoratoreChange,
+              selectedStatusClassName,
+              "Stato",
+              resolvedStatusDisabled,
+              "Senza stato",
+            )}
+            {renderInlineLookupSelect(
+              "Disponibile",
+              disponibilita,
+              disponibilitaOptions,
+              onDisponibilitaChange,
+              selectedDisponibilitaClassName,
+              "Disponibilita",
+              resolvedDisponibilitaDisabled,
+              "Non indicata",
+            )}
             {showDataRitornoDisponibilita ? (
-              <div
-                className={
-                  usesStackedHeaderLayout
-                    ? "w-full shrink-0 self-end"
-                    : "w-[220px] shrink-0 self-end"
-                }
-              >
-                <div className="space-y-1.5">
-                  <p className="text-muted-foreground text-[11px] font-medium tracking-[0.18em] uppercase">
-                    Ritorno disponibilita
-                  </p>
-                  <Input
-                    type="date"
-                    value={dataRitornoDisponibilita}
-                    onChange={(event) =>
-                      void onDataRitornoDisponibilitaChange?.(event.target.value)
-                    }
-                    disabled={resolvedDataRitornoDisponibilitaDisabled}
-                    className="h-8 w-full bg-background text-sm"
-                  />
-                </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.14em]">
+                  Ritorno
+                </p>
+                <Input
+                  type="date"
+                  value={dataRitornoDisponibilita}
+                  onChange={(event) =>
+                    void onDataRitornoDisponibilitaChange?.(event.target.value)
+                  }
+                  disabled={resolvedDataRitornoDisponibilitaDisabled}
+                  className="h-8 min-w-[140px] text-sm"
+                />
               </div>
             ) : null}
-
-            <div
-              className={`gap-3 ${
-                usesStackedHeaderLayout
-                  ? "flex w-full items-center justify-end self-end"
-                  : "grid w-[220px] grid-cols-2 justify-items-end"
-              }`}
-            >
-              {gateControls.map((control, index) => {
-                const hr = getHrById(control.assigneeId)
-                const Icon = control.icon
-                const stateClasses = getGateAvatarStateClass(
-                  control.isCompleted,
-                  control.variant
-                )
-
-                return (
-                  <div
-                    key={control.label}
-                    className={
-                      !usesStackedHeaderLayout && index > 0
-                        ? "border-border flex items-center justify-end border-l pl-3"
-                        : usesStackedHeaderLayout
-                          ? "flex items-center justify-end"
-                          : "flex items-center justify-end"
-                    }
-                  >
-                    <div
-                      className="flex items-center gap-2"
-                      title={`${control.label} assegnato a ${hr.label}`}
-                    >
-                      <Icon
-                        strokeWidth={2.5}
-                        className={`size-3.5 shrink-0 ${
-                          control.isCompleted
-                            ? control.variant === "certificato"
-                              ? "text-emerald-600"
-                              : "text-emerald-500"
-                            : "text-zinc-400"
-                        }`}
-                      />
-                      <Avatar
-                        size="sm"
-                        className={`${getAssigneeAvatarBorderClass(control.assigneeId)} ${stateClasses.ringClassName}`}
-                      >
-                        <AvatarFallback>{hr.avatar}</AvatarFallback>
-                        <AvatarBadge className={stateClasses.badgeClassName}>
-                          <Icon />
-                        </AvatarBadge>
-                      </Avatar>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
           </div>
+        </div>
+
+        <div className="text-muted-foreground flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
+          <span className="inline-flex items-center gap-1.5 min-w-0">
+            <MailIcon className="size-3.5 shrink-0" />
+            {isEditing ? (
+              <Input
+                type="email"
+                value={draft.email}
+                onChange={(event) => updateDraftField("email", event.target.value)}
+                onBlur={() => void commitField("email")}
+                disabled={fieldsDisabled}
+                className="h-7 w-64 text-sm"
+              />
+            ) : (
+              <span className="truncate">{asString(workerRow.email) || "-"}</span>
+            )}
+          </span>
+
+          <span className="inline-flex items-center gap-1.5">
+            <PhoneIcon className="size-3.5 shrink-0" />
+            {isEditing ? (
+              <Input
+                type="tel"
+                value={draft.telefono}
+                onChange={(event) => updateDraftField("telefono", event.target.value)}
+                onBlur={() => void commitField("telefono")}
+                disabled={fieldsDisabled}
+                className="h-7 w-40 text-sm"
+              />
+            ) : (
+              <span>{asString(workerRow.telefono) || "-"}</span>
+            )}
+          </span>
+
+          <span className="inline-flex items-center gap-1.5">
+            <MapPinIcon className="size-3.5 shrink-0" />
+            <span>{asString(workerRow.cap) || "-"}</span>
+          </span>
+
+          <span className="inline-flex items-center gap-1.5">
+            <VenusAndMarsIcon className="size-3.5 shrink-0" />
+            {isEditing ? (
+              canUseSessoSelect ? (
+                <Select
+                  value={draft.sesso || "none"}
+                  onValueChange={(value) => void handleLookupFieldChange("sesso", value)}
+                  disabled={fieldsDisabled}
+                >
+                  <SelectTrigger className="h-7 w-36 text-sm">
+                    <SelectValue placeholder="Sesso" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Non indicato</SelectItem>
+                    {sessoOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={draft.sesso}
+                  onChange={(event) => updateDraftField("sesso", event.target.value)}
+                  onBlur={() => void commitField("sesso")}
+                  disabled={fieldsDisabled}
+                  placeholder="Sesso"
+                  className="h-7 w-36 text-sm"
+                />
+              )
+            ) : (
+              <span>{asString(workerRow.sesso) || "-"}</span>
+            )}
+          </span>
+
+          <span className="inline-flex items-center gap-1.5">
+            <FlagIcon className="size-3.5 shrink-0" />
+            {isEditing ? (
+              <Select
+                value={draft.nazionalita || "none"}
+                onValueChange={(value) =>
+                  void handleLookupFieldChange("nazionalita", value)
+                }
+                disabled={fieldsDisabled}
+              >
+                <SelectTrigger className="h-7 w-44 text-sm">
+                  <SelectValue placeholder="Nazionalita" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Non indicata</SelectItem>
+                  {resolvedNazionalitaOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span>{asString(workerRow.nazionalita) || "-"}</span>
+            )}
+          </span>
+
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarDaysIcon className="size-3.5 shrink-0" />
+            {isEditing ? (
+              <Input
+                type="date"
+                value={draft.data_di_nascita}
+                onChange={(event) =>
+                  updateDraftField("data_di_nascita", event.target.value)
+                }
+                onBlur={() => void commitField("data_di_nascita")}
+                disabled={fieldsDisabled}
+                className="h-7 w-40 text-sm"
+              />
+            ) : (
+              <span>{asString(workerRow.data_di_nascita) || "-"}</span>
+            )}
+          </span>
+
+          <span className="inline-flex items-center gap-1.5">
+            <CakeIcon className="size-3.5 shrink-0" />
+            <span>{getAgeFromBirthDate(workerRow.data_di_nascita) ?? "-"}</span>
+          </span>
+
+          {gateControls.map((control) => {
+            const hr = getHrById(control.assigneeId)
+            const Icon = control.icon
+            const stateClasses = getGateAvatarStateClass(
+              control.isCompleted,
+              control.variant,
+            )
+            return (
+              <span
+                key={control.label}
+                className="inline-flex items-center gap-1.5"
+                title={`${control.label} · ${hr.label}`}
+              >
+                <Icon
+                  strokeWidth={2.5}
+                  className={cn(
+                    "size-3.5 shrink-0",
+                    control.isCompleted
+                      ? control.variant === "certificato"
+                        ? "text-emerald-600"
+                        : "text-emerald-500"
+                      : "text-zinc-400",
+                  )}
+                />
+                <span className="relative inline-block">
+                  <Avatar
+                    size="xs"
+                    fallback={hr.avatar}
+                    className={cn(
+                      getAssigneeAvatarBorderClass(control.assigneeId),
+                      stateClasses.ringClassName,
+                    )}
+                  />
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "absolute -bottom-0.5 -right-0.5 inline-flex size-2.5 items-center justify-center rounded-full ring-2 ring-white [&_svg]:size-1.5",
+                      stateClasses.badgeClassName,
+                    )}
+                  >
+                    <Icon />
+                  </span>
+                </span>
+              </span>
+            )
+          })}
         </div>
       </div>
     </div>

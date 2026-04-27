@@ -11,14 +11,21 @@ import {
   UtensilsCrossedIcon,
 } from "lucide-react"
 
-import { DetailSectionBlock, DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock, DetailSectionCard } from "@/components/shared-next/detail-section-card"
 import {
   SkillsChoiceMatrix,
   type SkillsChoiceMatrixRow,
 } from "@/components/lavoratori/skills-choice-matrix"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { FieldSet } from "@/components/ui/field"
+import { Badge } from "@/components/ui-next/badge"
+import { Button } from "@/components/ui-next/button"
+import { FieldSet } from "@/components/ui-next/field"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui-next/select"
 import { getTagClassName, resolveLookupColor, type LookupOption } from "@/features/lavoratori/lib/lookup-utils"
 import { cn } from "@/lib/utils"
 
@@ -455,35 +462,36 @@ function LevelSegmentedField({
   const options = lookupOptionsByDomain.get(config.domain) ?? []
 
   return (
-    <div className="space-y-2">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide">{config.label}</p>
+    <div className="flex items-center gap-3">
+      <p className="text-muted-foreground shrink-0 text-xs font-medium tracking-wide">
+        {config.label}
+      </p>
       {isEditing ? (
-        <div className="bg-muted/40 inline-flex w-full flex-wrap rounded-xl p-1">
-          {options.map((option) => {
-            const isSelected = option.label === value
-            const color = resolveLookupColor(lookupColorsByDomain, config.domain, option.label)
-
-            return (
-              <Button
-                key={option.value}
-                type="button"
-                variant={isSelected ? "default" : "outline"}
-                size="lg"
-                disabled={isUpdating}
-                className={cn("min-w-20 flex-1", isSelected && getTagClassName(color))}
-                onClick={() => onChange(option.label)}
-              >
-                <span>{option.label}</span>
-              </Button>
-            )
-          })}
-        </div>
+        <Select
+          value={value || "none"}
+          onValueChange={(nextValue) => onChange(nextValue === "none" ? "" : nextValue)}
+          disabled={isUpdating}
+        >
+          <SelectTrigger className="h-8 min-w-32 flex-1 text-sm">
+            <SelectValue placeholder="Seleziona" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Non valutato</SelectItem>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.label}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ) : (
-        <LevelReadOnlyValue
-          value={value}
-          domain={config.domain}
-          lookupColorsByDomain={lookupColorsByDomain}
-        />
+        <div className="min-w-0 flex-1">
+          <LevelReadOnlyValue
+            value={value}
+            domain={config.domain}
+            lookupColorsByDomain={lookupColorsByDomain}
+          />
+        </div>
       )}
     </div>
   )
@@ -570,7 +578,6 @@ function SkillSection({
     <DetailSectionCard
       title={section.title}
       titleIcon={<SectionIcon className="text-muted-foreground size-4" />}
-      titleOnBorder
       className="border-border/60 bg-background"
       contentClassName="space-y-4"
     >
@@ -678,7 +685,6 @@ export function SkillsCompetenzeCard({
       <DetailSectionCard
         title="Lingue"
         titleIcon={<GlobeIcon className="text-muted-foreground size-4" />}
-        titleOnBorder
         className="border-border/60 bg-background"
         contentClassName="space-y-4"
       >

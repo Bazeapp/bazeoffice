@@ -17,15 +17,15 @@ import {
   UserIcon,
 } from "lucide-react";
 
-import { DetailSectionBlock } from "@/components/shared/detail-section-card";
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui-next/accordion";
+import { Badge } from "@/components/ui-next/badge";
+import { Button } from "@/components/ui-next/button";
 import {
   Combobox,
   ComboboxChip,
@@ -37,10 +37,9 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui/combobox";
-import { ExperienceCardTitle } from "@/components/ui/experience-card-title";
-import { ExperienceLevel } from "@/components/ui/experience-level";
-import { Checkbox } from "@/components/ui/checkbox";
+} from "@/components/ui-next/combobox";
+import { ExperienceCardTitle } from "@/components/ui-next/experience-card-title";
+import { Checkbox } from "@/components/ui-next/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,9 +47,8 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui-next/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -58,10 +56,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { FieldDescription, FieldTitle } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+} from "@/components/ui-next/dialog";
+import { FieldDescription, FieldLabel } from "@/components/ui-next/field";
+import { Input } from "@/components/ui-next/input";
+import { Card, CardContent } from "@/components/ui-next/card";
 import { formatDateOnly } from "@/features/lavoratori/lib/availability-utils";
 import {
   getTagClassName,
@@ -73,8 +71,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/ui-next/select";
+import { Textarea } from "@/components/ui-next/textarea";
+import { cn } from "@/lib/utils";
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore";
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore";
 
@@ -89,6 +88,30 @@ type LookupOption = {
   label: string;
   value: string;
 };
+
+function ExperienceYearsField({
+  label,
+  years,
+}: {
+  label: string;
+  years: string;
+}) {
+  const numericYears = Number(years);
+  const hasYears = years !== "" && Number.isFinite(numericYears);
+  return (
+    <div className="space-y-1">
+      <FieldLabel>{label}</FieldLabel>
+      <p
+        className={cn(
+          "text-sm font-semibold leading-none",
+          hasYears ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {hasYears ? `${numericYears} ${numericYears === 1 ? "anno" : "anni"}` : "-"}
+      </p>
+    </div>
+  );
+}
 
 function getReferenceStatusIcon(status: string) {
   switch (status) {
@@ -318,9 +341,9 @@ function AddReferenceAction({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <FieldTitle>
+            <FieldLabel>
               Nome
-            </FieldTitle>
+            </FieldLabel>
             <Input
               value={draft.nome_datore}
               onChange={(event) =>
@@ -334,9 +357,9 @@ function AddReferenceAction({
             />
           </div>
           <div className="space-y-2">
-            <FieldTitle>
+            <FieldLabel>
               Cognome
-            </FieldTitle>
+            </FieldLabel>
             <Input
               value={draft.cognome_datore}
               onChange={(event) =>
@@ -350,9 +373,9 @@ function AddReferenceAction({
             />
           </div>
           <div className="space-y-2">
-            <FieldTitle>
+            <FieldLabel>
               Telefono
-            </FieldTitle>
+            </FieldLabel>
             <Input
               type="tel"
               value={draft.telefono_datore}
@@ -484,7 +507,7 @@ function AddExperienceAction({
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <FieldTitle>Tipo lavoro</FieldTitle>
+              <FieldLabel>Tipo lavoro</FieldLabel>
               <ExperienceRoleField
                 value={draft.tipo_lavoro}
                 options={experienceTipoLavoroOptions}
@@ -495,7 +518,7 @@ function AddExperienceAction({
               />
             </div>
             <div className="space-y-2">
-              <FieldTitle>Tipo rapporto</FieldTitle>
+              <FieldLabel>Tipo rapporto</FieldLabel>
               <Select
                 value={draft.tipo_rapporto || undefined}
                 onValueChange={(value) =>
@@ -519,7 +542,7 @@ function AddExperienceAction({
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <FieldTitle>Data inizio</FieldTitle>
+              <FieldLabel>Data inizio</FieldLabel>
               <Input
                 type="date"
                 value={draft.data_inizio}
@@ -534,7 +557,7 @@ function AddExperienceAction({
               />
             </div>
             <div className="space-y-2">
-              <FieldTitle>Data fine</FieldTitle>
+              <FieldLabel>Data fine</FieldLabel>
               <Input
                 type="date"
                 value={draft.data_fine}
@@ -549,7 +572,7 @@ function AddExperienceAction({
               />
             </div>
             <div className="space-y-2">
-              <FieldTitle>Rapporto attivo</FieldTitle>
+              <FieldLabel>Rapporto attivo</FieldLabel>
               <label className="flex h-9 items-center gap-2 text-sm">
                 <Checkbox
                   checked={draft.stato_esperienza_attiva}
@@ -569,7 +592,7 @@ function AddExperienceAction({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <FieldTitle>Descrizione Mansioni ed Esperienza</FieldTitle>
+              <FieldLabel>Descrizione Mansioni ed Esperienza</FieldLabel>
               <Textarea
                 value={draft.descrizione}
                 onChange={(event) =>
@@ -583,7 +606,7 @@ function AddExperienceAction({
               />
             </div>
             <div className="space-y-2">
-              <FieldTitle>Descrizione Famiglia e Contesto</FieldTitle>
+              <FieldLabel>Descrizione Famiglia e Contesto</FieldLabel>
               <Textarea
                 value={draft.descrizione_contesto_lavorativo}
                 onChange={(event) =>
@@ -600,7 +623,7 @@ function AddExperienceAction({
 
           {!draft.stato_esperienza_attiva ? (
             <div className="space-y-2">
-              <FieldTitle>Motivazione fine rapporto</FieldTitle>
+              <FieldLabel>Motivazione fine rapporto</FieldLabel>
               <Textarea
                 value={draft.motivazione_fine_rapporto}
                 onChange={(event) =>
@@ -667,8 +690,8 @@ function DeleteExperienceAction({
       >
         <Trash2Icon className="size-4" />
       </Button>
-      <AlertDialogContent size="sm">
-        <AlertDialogHeader className="place-items-start text-left">
+      <AlertDialogContent>
+        <div className="space-y-2 text-left">
           <div className="bg-destructive/10 text-destructive flex size-9 items-center justify-center rounded-full">
             <AlertTriangleIcon className="size-4" />
           </div>
@@ -678,7 +701,7 @@ function DeleteExperienceAction({
             sono referenze collegate a questa esperienza, verranno eliminate
             insieme all&apos;esperienza. Questa azione non è reversibile.
           </AlertDialogDescription>
-        </AlertDialogHeader>
+        </div>
         <AlertDialogFooter>
           <AlertDialogCancel>Annulla</AlertDialogCancel>
           <AlertDialogAction onClick={() => void onDelete()}>
@@ -736,9 +759,9 @@ function EditableReferenceCard({
     <Card className="gap-0 py-0 shadow-none">
       <CardContent className="space-y-4 p-4 pt-3 pb-3">
         <div className="space-y-2">
-          <FieldTitle>
+          <FieldLabel>
             Stato verifica referenza
-          </FieldTitle>
+          </FieldLabel>
           <div className="max-w-sm">
             <Select
               value={draft.referenza_verificata || undefined}
@@ -767,10 +790,10 @@ function EditableReferenceCard({
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
-            <FieldTitle>
+            <FieldLabel>
               <UserIcon className="size-3.5" />
               Nome referenza
-            </FieldTitle>
+            </FieldLabel>
             <Input
               value={draft.nome_datore}
               onChange={(event) =>
@@ -789,10 +812,10 @@ function EditableReferenceCard({
             />
           </div>
           <div className="space-y-2">
-            <FieldTitle>
+            <FieldLabel>
               <UserIcon className="size-3.5" />
               Cognome referenza
-            </FieldTitle>
+            </FieldLabel>
             <Input
               value={draft.cognome_datore}
               onChange={(event) =>
@@ -813,10 +836,10 @@ function EditableReferenceCard({
             />
           </div>
           <div className="space-y-2">
-            <FieldTitle>
+            <FieldLabel>
               <PhoneIcon className="size-3.5" />
               Numero referenza
-            </FieldTitle>
+            </FieldLabel>
             <Input
               value={draft.telefono_datore}
               onChange={(event) =>
@@ -841,10 +864,10 @@ function EditableReferenceCard({
         {isVerified ? (
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <FieldTitle>
+              <FieldLabel>
                 <StarIcon className="size-3.5" />
                 Valutazione
-              </FieldTitle>
+              </FieldLabel>
               <div className="flex items-center gap-1">
                 {Array.from({ length: 5 }, (_, index) => {
                   const score = index + 1;
@@ -876,10 +899,10 @@ function EditableReferenceCard({
               </div>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <FieldTitle>
+              <FieldLabel>
                 <CheckCircle2Icon className="size-3.5" />
                 Disponibile a essere chiamata
-              </FieldTitle>
+              </FieldLabel>
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox
                   checked={draft.referenza_verificata_da_baze}
@@ -902,10 +925,10 @@ function EditableReferenceCard({
               </label>
             </div>
             <div className="space-y-2 md:col-span-3">
-              <FieldTitle>
+              <FieldLabel>
                 <MessageSquareTextIcon className="size-3.5" />
                 Feedback della referenza
-              </FieldTitle>
+              </FieldLabel>
               <Textarea
                 value={draft.commento_esperienza}
                 onChange={(event) =>
@@ -998,9 +1021,9 @@ function EditableExperienceCard({
         <div className="space-y-2">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <FieldTitle>
+              <FieldLabel>
                 Tipo lavoro
-              </FieldTitle>
+              </FieldLabel>
               <ExperienceRoleField
                 value={draft.tipo_lavoro}
                 options={experienceTipoLavoroOptions}
@@ -1014,9 +1037,9 @@ function EditableExperienceCard({
               />
             </div>
             <div className="space-y-2">
-              <FieldTitle>
+              <FieldLabel>
                 Tipo rapporto
-              </FieldTitle>
+              </FieldLabel>
               <Select
                 value={draft.tipo_rapporto || undefined}
                 onValueChange={(value) => {
@@ -1043,9 +1066,9 @@ function EditableExperienceCard({
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <FieldTitle>
+              <FieldLabel>
                 Data inizio
-              </FieldTitle>
+              </FieldLabel>
               <Input
                 type="date"
                 value={draft.data_inizio}
@@ -1067,9 +1090,9 @@ function EditableExperienceCard({
               />
             </div>
             <div className="space-y-2">
-              <FieldTitle>
+              <FieldLabel>
                 Data fine
-              </FieldTitle>
+              </FieldLabel>
               <Input
                 type="date"
                 value={draft.data_fine}
@@ -1090,9 +1113,9 @@ function EditableExperienceCard({
               />
             </div>
             <div className="space-y-2">
-              <FieldTitle>
+              <FieldLabel>
                 Rapporto attivo
-              </FieldTitle>
+              </FieldLabel>
               <label className="flex h-9 items-center gap-2 text-sm">
                 <Checkbox
                   checked={draft.stato_esperienza_attiva}
@@ -1118,9 +1141,9 @@ function EditableExperienceCard({
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <FieldTitle>
+            <FieldLabel>
               Descrizione Mansioni ed Esperienza
-            </FieldTitle>
+            </FieldLabel>
             <Textarea
               value={draft.descrizione}
               onChange={(event) =>
@@ -1141,9 +1164,9 @@ function EditableExperienceCard({
             />
           </div>
           <div className="space-y-2">
-            <FieldTitle>
+            <FieldLabel>
               Descrizione Famiglia e Contesto
-            </FieldTitle>
+            </FieldLabel>
             <Textarea
               value={draft.descrizione_contesto_lavorativo}
               onChange={(event) =>
@@ -1171,9 +1194,9 @@ function EditableExperienceCard({
 
         {!draft.stato_esperienza_attiva ? (
           <div className="space-y-2">
-            <FieldTitle>
+            <FieldLabel>
               Motivazione fine rapporto
-            </FieldTitle>
+            </FieldLabel>
             <Textarea
               value={draft.motivazione_fine_rapporto}
               onChange={(event) =>
@@ -1197,9 +1220,9 @@ function EditableExperienceCard({
         ) : null}
 
         <div className="space-y-3">
-          <FieldTitle>
+          <FieldLabel>
             Referenze
-          </FieldTitle>
+          </FieldLabel>
           {referencesLoading ? (
             <FieldDescription>Caricamento referenze...</FieldDescription>
           ) : references.length === 0 ? (
@@ -1383,7 +1406,7 @@ export function ExperienceReferencesCard({
       {onGenerateAiSummary ? (
         <div className="space-y-2 rounded-lg border bg-muted/15 p-3">
           <div className="flex items-center justify-between gap-3">
-            <FieldTitle>Riassunto esperienze AI</FieldTitle>
+            <FieldLabel>Riassunto esperienze AI</FieldLabel>
             <Button
               type="button"
               variant="outline"
@@ -1408,9 +1431,7 @@ export function ExperienceReferencesCard({
         isEditing ? (
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-1">
-              <FieldTitle>
-                Anni Esperienza Colf
-              </FieldTitle>
+              <FieldLabel>Anni esp. Colf</FieldLabel>
               <Input
                 type="number"
                 min="0"
@@ -1426,9 +1447,7 @@ export function ExperienceReferencesCard({
             </div>
 
             <div className="space-y-1">
-              <FieldTitle>
-                Anni Esperienza Badante
-              </FieldTitle>
+              <FieldLabel>Anni esp. Badante</FieldLabel>
               <Input
                 type="number"
                 min="0"
@@ -1444,9 +1463,7 @@ export function ExperienceReferencesCard({
             </div>
 
             <div className="space-y-1">
-              <FieldTitle>
-                Anni Esperienza Babysitter
-              </FieldTitle>
+              <FieldLabel>Anni esp. Babysitter</FieldLabel>
               <Input
                 type="number"
                 min="0"
@@ -1463,16 +1480,16 @@ export function ExperienceReferencesCard({
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-3">
-            <ExperienceLevel
-              label="Anni Esperienza Colf"
+            <ExperienceYearsField
+              label="Anni esp. Colf"
               years={selectedAnniEsperienzaColf}
             />
-            <ExperienceLevel
-              label="Anni Esperienza Badante"
+            <ExperienceYearsField
+              label="Anni esp. Badante"
               years={selectedAnniEsperienzaBadante}
             />
-            <ExperienceLevel
-              label="Anni Esperienza Babysitter"
+            <ExperienceYearsField
+              label="Anni esp. Babysitter"
               years={selectedAnniEsperienzaBabysitter}
             />
           </div>
@@ -1481,9 +1498,9 @@ export function ExperienceReferencesCard({
 
       {showSituationField ? (
         <div className="space-y-2">
-          <FieldTitle>
+          <FieldLabel>
             Situazione lavorativa attuale
-          </FieldTitle>
+          </FieldLabel>
           {isEditing ? (
             <Textarea
               value={draft.situazione_lavorativa_attuale}
@@ -1504,9 +1521,9 @@ export function ExperienceReferencesCard({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <FieldTitle>
+          <FieldLabel>
             Esperienze di lavoro
-          </FieldTitle>
+          </FieldLabel>
           {showCreateExperienceAction && isEditing && onExperienceCreate ? (
             <AddExperienceAction
               workerId={workerId}
@@ -1602,17 +1619,17 @@ export function ExperienceReferencesCard({
                         <CardContent className="space-y-4 px-0 pt-1 pb-2">
                           <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <FieldTitle>
+                        <FieldLabel>
                           Descrizione Mansioni ed Esperienza
-                        </FieldTitle>
+                        </FieldLabel>
                         <FieldDescription className="text-foreground leading-7 whitespace-pre-wrap">
                           {experience.descrizione || "-"}
                         </FieldDescription>
                       </div>
                       <div className="space-y-2">
-                        <FieldTitle>
+                        <FieldLabel>
                           Descrizione Famiglia e Contesto
-                        </FieldTitle>
+                        </FieldLabel>
                         <FieldDescription className="text-foreground leading-7 whitespace-pre-wrap">
                           {experience.descrizione_contesto_lavorativo || "-"}
                         </FieldDescription>
@@ -1621,9 +1638,9 @@ export function ExperienceReferencesCard({
 
                     {!experience.stato_esperienza_attiva ? (
                       <div className="space-y-2">
-                        <FieldTitle>
+                        <FieldLabel>
                           Motivazione fine rapporto
-                        </FieldTitle>
+                        </FieldLabel>
                         <FieldDescription className="text-foreground leading-7 whitespace-pre-wrap">
                           {experience.motivazione_fine_rapporto || "-"}
                         </FieldDescription>
@@ -1632,9 +1649,9 @@ export function ExperienceReferencesCard({
 
                     {showReferencesSection ? (
                       <div className="space-y-3">
-                        <FieldTitle>
+                        <FieldLabel>
                           Referenze
-                        </FieldTitle>
+                        </FieldLabel>
                         {referencesLoading ? (
                           <FieldDescription>
                             Caricamento referenze...
@@ -1699,10 +1716,10 @@ export function ExperienceReferencesCard({
                                       <div className="space-y-4">
                                         <div className="grid gap-4 md:grid-cols-2">
                                           <div className="space-y-2">
-                                            <FieldTitle>
+                                            <FieldLabel>
                                               <StarIcon className="size-3.5" />
                                               Valutazione
-                                            </FieldTitle>
+                                            </FieldLabel>
                                             <div className="flex items-center gap-1">
                                               {Array.from(
                                                 { length: 5 },
@@ -1725,10 +1742,10 @@ export function ExperienceReferencesCard({
                                             </div>
                                           </div>
                                           <div className="space-y-2">
-                                            <FieldTitle>
+                                            <FieldLabel>
                                               <CheckCircle2Icon className="size-3.5" />
                                               Disponibile a essere richiamata
-                                            </FieldTitle>
+                                            </FieldLabel>
                                             <FieldDescription className="text-foreground leading-6 whitespace-pre-wrap">
                                               {(reference.referenza_verificata_da_baze ??
                                               Boolean(
@@ -1741,10 +1758,10 @@ export function ExperienceReferencesCard({
                                         </div>
 
                                         <div className="space-y-2">
-                                          <FieldTitle>
+                                          <FieldLabel>
                                             <MessageSquareTextIcon className="size-3.5" />
                                             Feedback della referenza
-                                          </FieldTitle>
+                                          </FieldLabel>
                                           <FieldDescription className="text-foreground leading-7 whitespace-pre-wrap">
                                             {reference.commento_esperienza ||
                                               "-"}

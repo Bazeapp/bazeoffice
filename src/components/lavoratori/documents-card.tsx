@@ -12,26 +12,30 @@ import {
   PencilIcon,
   PlusIcon,
   ShieldCheckIcon,
+  XIcon,
 } from "lucide-react"
 
-import { DetailSectionBlock } from "@/components/shared/detail-section-card"
+import {
+  DetailSectionBlock,
+  DetailSectionCard,
+} from "@/components/shared-next/detail-section-card"
 import {
   AttachmentUploadSlot,
   hasAttachmentValue,
   type AttachmentLink,
-} from "@/components/shared/attachment-upload-slot"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { FieldDescription, FieldSet, FieldTitle } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+} from "@/components/shared-next/attachment-upload-slot"
+import { Badge } from "@/components/ui-next/badge"
+import { Button } from "@/components/ui-next/button"
+import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui-next/dialog"
+import { FieldDescription, FieldSet, FieldLabel } from "@/components/ui-next/field"
+import { Input } from "@/components/ui-next/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui-next/select"
 import { getTagClassName, resolveLookupColor, type LookupOption } from "@/features/lavoratori/lib/lookup-utils"
 import { createRecord, updateRecord } from "@/lib/anagrafiche-api"
 import {
@@ -186,9 +190,9 @@ function ReadOnlyAdminValue({
 }) {
   return (
     <div className="rounded-xl border bg-muted/20 px-3 py-3">
-      <FieldTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+      <FieldLabel className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
-      </FieldTitle>
+      </FieldLabel>
       <p
         className={cn(
           "mt-2 break-all text-sm font-medium",
@@ -240,9 +244,9 @@ function AdministrativeDataSection({
       <div className="grid gap-3 md:grid-cols-2">
         {canEditIban ? (
           <div className="rounded-xl border bg-muted/20 px-3 py-3">
-            <FieldTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+            <FieldLabel className="text-xs uppercase tracking-wide text-muted-foreground">
               IBAN
-            </FieldTitle>
+            </FieldLabel>
             <Input
               value={ibanValue}
               onChange={(event) => onIbanChange?.(event.target.value)}
@@ -257,9 +261,9 @@ function AdministrativeDataSection({
         )}
         {canEditStripeAccount ? (
           <div className="rounded-xl border bg-muted/20 px-3 py-3">
-            <FieldTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+            <FieldLabel className="text-xs uppercase tracking-wide text-muted-foreground">
               ID account Stripe
-            </FieldTitle>
+            </FieldLabel>
             <Input
               value={stripeAccountValue}
               onChange={(event) =>
@@ -302,47 +306,42 @@ function AttachmentGroupCard({
   const isComplete = slotValues.every((slot) => hasAttachmentValue(slot.value))
 
   return (
-    <div className="relative">
-      <div className="bg-background text-foreground absolute top-0 left-3 z-0 inline-flex -translate-y-1/2 items-center gap-2 px-2 text-base font-semibold">
-        {group.icon}
-        <span>{group.title}</span>
-        {isComplete ? (
+    <DetailSectionCard
+      title={group.title}
+      titleIcon={group.icon}
+      titleAction={
+        isComplete ? (
           <CheckCircle2Icon className="size-4 text-green-600" />
         ) : (
           <OctagonAlertIcon className="size-4 text-red-500" />
-        )}
-      </div>
+        )
+      }
+      className="border-border/60 bg-background"
+    >
       <div
         className={cn(
-          "rounded-xl border bg-background p-3 pt-5",
-          group.slots.length === 1 ? "w-full sm:inline-block sm:w-auto" : "w-full",
+          "grid gap-3",
+          group.slots.length > 1
+            ? "grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]"
+            : "grid-cols-1",
         )}
       >
-        <div
-          className={cn(
-            "grid gap-3",
-            group.slots.length > 1
-              ? "grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]"
-              : "grid-cols-1",
-          )}
-        >
-          {slotValues.map((slot) => (
-            <div
-              key={slot.field}
-              className={cn(group.slots.length === 1 && "w-full sm:w-[17.5rem]")}
-            >
-              <AttachmentUploadSlot
-                label={slot.label}
-                value={slot.value}
-                onAdd={(file) => onAdd(slot.field, file)}
-                onPreviewOpen={onPreviewOpen}
-                isUploading={uploadingField === slot.field}
-              />
-            </div>
-          ))}
-        </div>
+        {slotValues.map((slot) => (
+          <div
+            key={slot.field}
+            className={cn(group.slots.length === 1 && "w-full sm:w-[17.5rem]")}
+          >
+            <AttachmentUploadSlot
+              label={slot.label}
+              value={slot.value}
+              onAdd={(file) => onAdd(slot.field, file)}
+              onPreviewOpen={onPreviewOpen}
+              isUploading={uploadingField === slot.field}
+            />
+          </div>
+        ))}
       </div>
-    </div>
+    </DetailSectionCard>
   )
 }
 
@@ -415,49 +414,36 @@ function AttachmentPlaceholderGroupCard({
   onAdd: (field: keyof DocumentoLavoratoreRecord, file: File) => void
   uploadingField: keyof DocumentoLavoratoreRecord | null
 }) {
-  const isComplete = false
-
   return (
-    <div className="relative">
-      <div className="bg-background text-foreground absolute top-0 left-3 z-0 inline-flex -translate-y-1/2 items-center gap-2 px-2 text-base font-semibold">
-        {group.icon}
-        <span>{group.title}</span>
-        {isComplete ? (
-          <CheckCircle2Icon className="size-4 text-green-600" />
-        ) : (
-          <OctagonAlertIcon className="size-4 text-red-500" />
-        )}
-      </div>
+    <DetailSectionCard
+      title={group.title}
+      titleIcon={group.icon}
+      titleAction={<OctagonAlertIcon className="size-4 text-red-500" />}
+      className="border-border/60 bg-background"
+    >
       <div
         className={cn(
-          "rounded-xl border bg-background p-3 pt-5",
-          group.slots.length === 1 ? "w-full sm:inline-block sm:w-auto" : "w-full"
+          "grid gap-3",
+          group.slots.length > 1
+            ? "grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]"
+            : "grid-cols-1",
         )}
       >
-        <div
-          className={cn(
-            "grid gap-3",
-            group.slots.length > 1
-              ? "grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]"
-              : "grid-cols-1"
-          )}
-        >
-          {group.slots.map((slot) => (
-            <div
-              key={slot.field}
-              className={cn(group.slots.length === 1 && "w-full sm:w-[17.5rem]")}
-            >
-              <AttachmentPlaceholderSlot
-                field={slot.field}
-                label={slot.label}
-                onAdd={onAdd}
-                isUploading={uploadingField === slot.field}
-              />
-            </div>
-          ))}
-        </div>
+        {group.slots.map((slot) => (
+          <div
+            key={slot.field}
+            className={cn(group.slots.length === 1 && "w-full sm:w-[17.5rem]")}
+          >
+            <AttachmentPlaceholderSlot
+              field={slot.field}
+              label={slot.label}
+              onAdd={onAdd}
+              isUploading={uploadingField === slot.field}
+            />
+          </div>
+        ))}
       </div>
-    </div>
+    </DetailSectionCard>
   )
 }
 
@@ -582,9 +568,9 @@ export function DocumentsCard({
       <FieldSet className="gap-5">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="space-y-2">
-            <FieldTitle>
+            <FieldLabel>
               Check documenti verificati da Baze
-            </FieldTitle>
+            </FieldLabel>
             {isEditing ? (
               <Select
                 value={draft.stato_verifica_documenti || undefined}
@@ -614,9 +600,9 @@ export function DocumentsCard({
           </div>
 
           <div className="space-y-2">
-            <FieldTitle>
+            <FieldLabel>
               Stato documenti
-            </FieldTitle>
+            </FieldLabel>
             {isEditing ? (
               <Select
                 value={draft.documenti_in_regola || undefined}
@@ -677,9 +663,9 @@ export function DocumentsCard({
         </div>
 
         <div className="space-y-2">
-          <FieldTitle>
+          <FieldLabel>
             Data scadenza Naspi
-          </FieldTitle>
+          </FieldLabel>
           {isEditing ? (
             <div className="space-y-2">
               <Input
@@ -717,11 +703,16 @@ export function DocumentsCard({
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(open) => !open && setSelectedPreview(null)}>
         <DialogContent
           className="max-w-[min(96vw,72rem)] border-none bg-black/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
-          showCloseButton={true}
         >
           <DialogTitle className="sr-only">
             {selectedPreview?.label ?? "Anteprima documento"}
           </DialogTitle>
+          <DialogClose
+            aria-label="Chiudi anteprima"
+            className="absolute right-3 top-3 z-10 inline-flex size-8 items-center justify-center rounded-full bg-white/10 text-white outline-none transition-colors hover:bg-white/20 focus-visible:bg-white/20"
+          >
+            <XIcon className="size-4" />
+          </DialogClose>
           {selectedPreview ? (
             <div className="flex max-h-[88vh] items-center justify-center overflow-hidden rounded-lg">
               <img

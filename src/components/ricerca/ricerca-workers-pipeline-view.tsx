@@ -1,13 +1,14 @@
 import * as React from "react";
 import { toast } from "sonner";
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CircleDotIcon,
+  ClipboardListIcon,
+  LoaderCircleIcon,
+  PlusIcon,
+  SparklesIcon,
+  UserIcon,
   XIcon,
 } from "lucide-react";
 
-import { FamigliaProcessoDetailShell } from "@/components/crm/famiglia-processo-detail-shell";
 import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
@@ -15,24 +16,37 @@ import {
   type RelatedActiveSearchItem,
   WorkerPipelineSummaryCards,
 } from "@/components/ricerca/worker-pipeline-summary-cards";
-import { DetailSectionBlock } from "@/components/shared/detail-section-card";
-import { SideCardsPanel } from "@/components/shared/side-cards-panel";
+import { SectionHeader } from "@/components/shared-next/section-header";
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui-next/select";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui-next/accordion";
+import { Badge } from "@/components/ui-next/badge";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+} from "@/components/ui-next/breadcrumb";
+import { Button } from "@/components/ui-next/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui-next/dialog";
+import { SearchInput } from "@/components/ui-next/search-input";
+import { Textarea } from "@/components/ui-next/textarea";
 import { formatAvailabilityComputedAt } from "@/features/lavoratori/lib/availability-utils";
 import {
   asString,
@@ -53,15 +67,11 @@ import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils";
 import {
   getLookupDropZoneActiveClassName,
   getLookupDropZoneClassName,
-  getLookupPanelClassName,
   getLookupToneTextClassName,
 } from "@/lib/lookup-color-styles";
 import { cn } from "@/lib/utils";
 import { invokeAiGenerationFunction } from "@/lib/ai-generation";
-import {
-  type CrmPipelineCardData,
-  type LookupOptionsByField,
-} from "@/hooks/use-crm-pipeline-preview";
+import { type CrmPipelineCardData } from "@/hooks/use-crm-pipeline-preview";
 import {
   type RicercaWorkerSelectionColumn,
   type RicercaWorkerSelectionCard,
@@ -70,6 +80,7 @@ import {
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import {
+  createRecord,
   fetchEsperienzeLavoratoriByWorker,
   fetchDocumentiLavoratoriByWorker,
   fetchFamiglie,
@@ -78,6 +89,7 @@ import {
   fetchProcessiMatching,
   fetchReferenzeLavoratoriByWorker,
   fetchSelezioniLavoratori,
+  runAutomationWebhook,
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore";
@@ -88,7 +100,6 @@ import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavor
 type RicercaWorkersPipelineViewProps = {
   processId: string;
   card: CrmPipelineCardData;
-  lookupOptionsByField: LookupOptionsByField;
   focusSelectionId?: string | null;
   onOpenRelatedSearch?: (processId: string, selectionId: string) => void;
   onPatchProcess?: (
@@ -404,6 +415,106 @@ function resolveGroupDropStatusId(
   );
 }
 
+function normalizeColumnLabelToken(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ");
+}
+
+function getWorkerColumnVisual(
+  columnId: string,
+  columnLabel: string,
+  color: string | null,
+) {
+  const token = normalizeColumnLabelToken(columnLabel || columnId);
+  switch (token) {
+    case "candidati":
+      return {
+        columnClassName: "bg-blue-400",
+        headerClassName: "",
+        iconClassName: "text-blue-500",
+      };
+    case "da colloquiare":
+      return {
+        columnClassName: "bg-violet-400",
+        headerClassName: "",
+        iconClassName: "text-violet-500",
+      };
+    case "colloqui match":
+    case "colloqui  match":
+    case "colloqui":
+      return {
+        columnClassName: "bg-emerald-400",
+        headerClassName: "",
+        iconClassName: "text-emerald-500",
+      };
+    case "selezionato":
+    case "selezionati":
+      return {
+        columnClassName: "bg-amber-400",
+        headerClassName: "",
+        iconClassName: "text-amber-500",
+      };
+    case "scartati":
+    case "archivio":
+      return {
+        columnClassName: "bg-zinc-400",
+        headerClassName: "",
+        iconClassName: "text-zinc-500",
+      };
+    default:
+      break;
+  }
+
+  switch ((color ?? "").toLowerCase()) {
+    case "red":
+      return { columnClassName: "bg-red-400", headerClassName: "", iconClassName: "text-red-500" };
+    case "rose":
+      return { columnClassName: "bg-rose-400", headerClassName: "", iconClassName: "text-rose-500" };
+    case "orange":
+      return { columnClassName: "bg-orange-400", headerClassName: "", iconClassName: "text-orange-500" };
+    case "amber":
+      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" };
+    case "yellow":
+      return { columnClassName: "bg-yellow-400", headerClassName: "", iconClassName: "text-yellow-500" };
+    case "lime":
+      return { columnClassName: "bg-lime-400", headerClassName: "", iconClassName: "text-lime-500" };
+    case "green":
+      return { columnClassName: "bg-green-400", headerClassName: "", iconClassName: "text-green-500" };
+    case "emerald":
+      return { columnClassName: "bg-emerald-400", headerClassName: "", iconClassName: "text-emerald-500" };
+    case "teal":
+      return { columnClassName: "bg-teal-400", headerClassName: "", iconClassName: "text-teal-500" };
+    case "cyan":
+      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" };
+    case "sky":
+      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" };
+    case "blue":
+      return { columnClassName: "bg-blue-400", headerClassName: "", iconClassName: "text-blue-500" };
+    case "indigo":
+      return { columnClassName: "bg-indigo-400", headerClassName: "", iconClassName: "text-indigo-500" };
+    case "violet":
+      return { columnClassName: "bg-violet-400", headerClassName: "", iconClassName: "text-violet-500" };
+    case "purple":
+      return { columnClassName: "bg-purple-400", headerClassName: "", iconClassName: "text-purple-500" };
+    case "fuchsia":
+      return { columnClassName: "bg-fuchsia-400", headerClassName: "", iconClassName: "text-fuchsia-500" };
+    case "pink":
+      return { columnClassName: "bg-pink-400", headerClassName: "", iconClassName: "text-pink-500" };
+    case "slate":
+      return { columnClassName: "bg-slate-400", headerClassName: "", iconClassName: "text-slate-500" };
+    case "gray":
+      return { columnClassName: "bg-gray-400", headerClassName: "", iconClassName: "text-gray-500" };
+    case "zinc":
+    case "muted":
+      return { columnClassName: "bg-zinc-400", headerClassName: "", iconClassName: "text-zinc-500" };
+    default:
+      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" };
+  }
+}
+
 const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
   column,
   isDropTarget,
@@ -437,12 +548,15 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
     isGroupedColumn &&
     Boolean(draggingSelectionId) &&
     (draggingFromColumnId !== column.id || isDropTarget);
+  const visual = getWorkerColumnVisual(column.id, column.label, column.color);
+  const countLabel = `${column.cards.length} ${
+    column.cards.length === 1 ? "lavoratore" : "lavoratori"
+  }`;
 
   return (
     <div
       className={cn(
-        "relative flex h-full w-[292px] shrink-0 flex-col rounded-xl border transition-all duration-150",
-        getLookupPanelClassName(column.color),
+        "relative overflow-hidden bg-white flex h-full w-[292px] shrink-0 flex-col rounded-xl border transition-all duration-150",
         isDropTarget && "ring-primary/50 ring-2 shadow-md",
       )}
       onDragEnter={() => onDragEnterColumn(column.id)}
@@ -459,6 +573,16 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
         onDropToColumn(column.dropStatusId ?? column.id, droppedSelectionId);
       }}
     >
+      {visual.columnClassName ? (
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute top-0 left-0 right-0 h-[4px]",
+            visual.columnClassName,
+          )}
+        />
+      ) : null}
+
       {groups ? (
         <div
           className={cn(
@@ -505,10 +629,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
                     ),
                 )}
               >
-                <Badge
-                  variant="outline"
-                  className={DEFAULT_BLUE_BADGE_CLASS_NAME}
-                >
+                <Badge className={DEFAULT_BLUE_BADGE_CLASS_NAME}>
                   {group.label}
                 </Badge>
               </div>
@@ -517,20 +638,28 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
         </div>
       ) : null}
 
-      <div className="space-y-1 border-b px-3 py-2.5">
-        <div className="flex items-start gap-2">
-          <CircleDotIcon className="text-muted-foreground size-3.5 pt-0.5" />
-          <h3 className="min-h-8 text-sm leading-5 font-semibold line-clamp-2">
-            {column.label}
-          </h3>
-        </div>
-        <p className="text-muted-foreground text-[11px]">
-          {column.cards.length}{" "}
-          {column.cards.length === 1 ? "lavoratore" : "lavoratori"}
-        </p>
+      <div
+        className={cn(
+          "flex items-center gap-2 px-4 py-3.5",
+          visual.headerClassName,
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "shrink-0 size-2 rounded-full bg-current",
+            visual.iconClassName,
+          )}
+        />
+        <h2 className="text-foreground min-w-0 flex-1 truncate text-[15px] leading-5 font-semibold">
+          {column.label}
+        </h2>
+        <span className="bg-muted text-muted-foreground shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium">
+          {countLabel}
+        </span>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2.5">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         {column.cards.length === 0 ? (
           <div className="text-muted-foreground rounded-lg border border-dashed border-border/60 p-3 text-xs">
             Nessun lavoratore
@@ -641,18 +770,33 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
 export function RicercaWorkersPipelineView({
   processId,
   card,
-  lookupOptionsByField,
   focusSelectionId = null,
   onOpenRelatedSearch,
   className,
 }: RicercaWorkersPipelineViewProps) {
-  const { loading, error, columns, moveCard } =
+  const { loading, error, columns, moveCard, refresh } =
     useRicercaWorkersPipeline(processId);
   const { options: recruiterOptions } = useOperatoriOptions({
     role: "recruiter",
     activeOnly: true,
   });
-  const [isOnboardingCollapsed, setIsOnboardingCollapsed] =
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [isRunningSmartMatching, setIsRunningSmartMatching] =
+    React.useState(false);
+  const [isAddWorkerDialogOpen, setIsAddWorkerDialogOpen] =
+    React.useState(false);
+  const [workerSearchQuery, setWorkerSearchQuery] = React.useState("");
+  const [workerSearchResults, setWorkerSearchResults] = React.useState<
+    Record<string, unknown>[]
+  >([]);
+  const [isWorkerSearchLoading, setIsWorkerSearchLoading] =
+    React.useState(false);
+  const [selectedWorkerToAdd, setSelectedWorkerToAdd] = React.useState<Record<
+    string,
+    unknown
+  > | null>(null);
+  const [manualInsertReason, setManualInsertReason] = React.useState("");
+  const [isSubmittingAddWorker, setIsSubmittingAddWorker] =
     React.useState(false);
   const [draggingSelectionId, setDraggingSelectionId] = React.useState<
     string | null
@@ -1455,72 +1599,247 @@ export function RicercaWorkersPipelineView({
     [processId],
   );
 
+  React.useEffect(() => {
+    if (!isAddWorkerDialogOpen) {
+      setWorkerSearchQuery("");
+      setWorkerSearchResults([]);
+      setSelectedWorkerToAdd(null);
+      setManualInsertReason("");
+      setIsWorkerSearchLoading(false);
+      return;
+    }
+
+    const normalizedQuery = workerSearchQuery.trim();
+    if (normalizedQuery.length < 2) {
+      setWorkerSearchResults([]);
+      setIsWorkerSearchLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsWorkerSearchLoading(true);
+
+    const timeoutId = window.setTimeout(() => {
+      void fetchLavoratori({
+        limit: 8,
+        offset: 0,
+        search: normalizedQuery,
+        searchFields: ["nome", "cognome", "email"],
+        select: [
+          "id",
+          "nome",
+          "cognome",
+          "email",
+          "data_di_nascita",
+          "provincia",
+        ],
+      })
+        .then((result) => {
+          if (cancelled) return;
+          setWorkerSearchResults(
+            Array.isArray(result.rows)
+              ? result.rows.filter(
+                  (row): row is Record<string, unknown> =>
+                    Boolean(row) && typeof row === "object",
+                )
+              : [],
+          );
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setWorkerSearchResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setIsWorkerSearchLoading(false);
+        });
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [isAddWorkerDialogOpen, workerSearchQuery]);
+
+  const handleRunSmartMatching = React.useCallback(async () => {
+    if (!processId) {
+      toast.error("Il processo non ha id");
+      return;
+    }
+    setIsRunningSmartMatching(true);
+    try {
+      await runAutomationWebhook("workflow-smart-matching", processId);
+      toast.success("Smart Matching avviato");
+      refresh();
+    } catch (caughtError) {
+      toast.error(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Errore avvio Smart Matching",
+      );
+    } finally {
+      setIsRunningSmartMatching(false);
+    }
+  }, [processId, refresh]);
+
+  const handleAddWorkerToSearch = React.useCallback(async () => {
+    const workerId =
+      typeof selectedWorkerToAdd?.id === "string" ||
+      typeof selectedWorkerToAdd?.id === "number"
+        ? String(selectedWorkerToAdd.id)
+        : null;
+    const reason = manualInsertReason.trim();
+
+    if (!processId || !workerId) {
+      toast.error("Seleziona un lavoratore");
+      return;
+    }
+    if (!reason) {
+      toast.error("La motivazione è obbligatoria");
+      return;
+    }
+
+    setIsSubmittingAddWorker(true);
+    try {
+      const existingSelections = await fetchSelezioniLavoratori({
+        limit: 1,
+        offset: 0,
+        select: ["id"],
+        filters: {
+          kind: "group",
+          id: "ricerca-workers-add-duplicate-check",
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: "ricerca-workers-add-process",
+              field: "processo_matching_id",
+              operator: "is",
+              value: processId,
+            },
+            {
+              kind: "condition",
+              id: "ricerca-workers-add-worker",
+              field: "lavoratore_id",
+              operator: "is",
+              value: workerId,
+            },
+          ],
+        },
+      });
+
+      if ((existingSelections.rows ?? []).length > 0) {
+        throw new Error("Lavoratore già presente in questa ricerca");
+      }
+
+      await createRecord("selezioni_lavoratori", {
+        processo_matching_id: processId,
+        lavoratore_id: workerId,
+        stato_selezione: "Prospetto",
+        motivo_inserimento_manuale: reason,
+        source: "manuale",
+      });
+
+      setIsAddWorkerDialogOpen(false);
+      refresh();
+      toast.success("Lavoratore aggiunto in Prospetto");
+    } catch (caughtError) {
+      toast.error(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Errore aggiungendo il lavoratore",
+      );
+    } finally {
+      setIsSubmittingAddWorker(false);
+    }
+  }, [processId, manualInsertReason, selectedWorkerToAdd, refresh]);
+
+  const totalWorkers = React.useMemo(
+    () =>
+      columns.reduce((sum, column) => sum + column.cards.length, 0),
+    [columns],
+  );
+
+  const filteredColumns = React.useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return columns;
+    return columns.map((column) => ({
+      ...column,
+      cards: column.cards.filter((cardItem) => {
+        const worker = cardItem.worker;
+        const haystack = [
+          worker.nomeCompleto,
+          worker.telefono ?? "",
+          worker.locationLabel ?? "",
+          worker.tipoRuolo ?? "",
+          worker.tipoLavoro ?? "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(normalizedQuery);
+      }),
+    }));
+  }, [columns, searchQuery]);
+
   return (
-    <div className={cn("relative flex min-h-0 flex-col gap-3", className)}>
+    <div className={cn("relative flex min-h-0 flex-col", className)}>
+      <SectionHeader className="px-0">
+        <SectionHeader.Title
+          size="nested"
+          subtitle={`${totalWorkers} ${
+            totalWorkers === 1 ? "lavoratore" : "lavoratori"
+          }`}
+        >
+          Lavoratori per questa ricerca
+        </SectionHeader.Title>
+        <SectionHeader.Actions>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isRunningSmartMatching}
+            onClick={() => void handleRunSmartMatching()}
+          >
+            {isRunningSmartMatching ? (
+              <LoaderCircleIcon className="animate-spin" />
+            ) : (
+              <SparklesIcon />
+            )}
+            Smart Matching
+          </Button>
+          <Button
+            type="button"
+            onClick={() => setIsAddWorkerDialogOpen(true)}
+          >
+            <PlusIcon />
+            Aggiungi
+          </Button>
+        </SectionHeader.Actions>
+        <SectionHeader.Toolbar>
+          <div className="min-w-0 flex-1 max-w-[420px]">
+            <SearchInput
+              placeholder="Cerca candidato..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onClear={() => setSearchQuery("")}
+            />
+          </div>
+        </SectionHeader.Toolbar>
+      </SectionHeader>
+
       {loading ? (
-        <span className="text-muted-foreground text-xs">Caricamento...</span>
+        <span className="text-muted-foreground px-4 pt-3 text-xs">
+          Caricamento...
+        </span>
       ) : null}
 
       {error ? (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+        <div className="mx-4 mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
           Errore caricamento pipeline lavoratori: {error}
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2">
+      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4">
         <div className="flex h-full min-h-0 min-w-max gap-4">
-              <div
-                className={cn(
-                  "flex h-full min-h-0 shrink-0 pt-2",
-                  isOnboardingCollapsed ? "w-10" : "w-105",
-            )}
-          >
-            {isOnboardingCollapsed ? (
-              <div className="bg-background/90 flex h-full w-10 shrink-0 items-start justify-center rounded-lg border">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Espandi onboarding"
-                  title="Espandi onboarding"
-                  onClick={() => setIsOnboardingCollapsed(false)}
-                >
-                  <ChevronRightIcon />
-                </Button>
-              </div>
-            ) : null}
-
-            {!isOnboardingCollapsed ? (
-              <div className="relative min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 pl-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="bg-background/95 absolute top-3 right-4 z-20 border shadow-sm"
-                  aria-label="Comprimi onboarding"
-                  title="Comprimi onboarding"
-                  onClick={() => setIsOnboardingCollapsed(true)}
-                >
-                  <ChevronLeftIcon />
-                </Button>
-
-                <FamigliaProcessoDetailShell
-                  mode="inline"
-                  card={card}
-                  lookupOptionsByField={lookupOptionsByField}
-                  editMode="toggle"
-                  showHeaderMeta={false}
-                  showPrimaryControls={false}
-                  showContextCard={false}
-                  showAnnuncio
-                  readOnly
-                  isActive
-                />
-              </div>
-            ) : null}
-          </div>
-
-          {columns.map((column) => (
+          {filteredColumns.map((column) => (
             <WorkerPipelineColumn
               key={column.id}
               column={column}
@@ -1558,41 +1877,27 @@ export function RicercaWorkersPipelineView({
         <div className="bg-background absolute inset-0 z-50 flex flex-col overflow-y-auto animate-in fade-in-0">
           <div className="bg-card flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
             <Breadcrumb className="min-w-0">
-              <BreadcrumbList className="text-xs">
-                <BreadcrumbItem>
-                  <BreadcrumbLink
-                    asChild
-                  >
-                    <button
-                      type="button"
-                      onClick={handleCloseWorkerOverlay}
-                      className="cursor-pointer"
-                    >
-                      Ricerca
-                    </button>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink
-                    asChild
-                  >
-                    <button
-                      type="button"
-                      onClick={handleCloseWorkerOverlay}
-                      className="cursor-pointer truncate"
-                    >
-                      {card.nomeFamiglia}
-                    </button>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>
-                    {selectedWorker?.nomeCompleto ?? "Lavoratore"}
-                  </BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
+              <BreadcrumbItem asChild>
+                <button
+                  type="button"
+                  onClick={handleCloseWorkerOverlay}
+                  className="cursor-pointer"
+                >
+                  Ricerca
+                </button>
+              </BreadcrumbItem>
+              <BreadcrumbItem asChild>
+                <button
+                  type="button"
+                  onClick={handleCloseWorkerOverlay}
+                  className="cursor-pointer truncate"
+                >
+                  {card.nomeFamiglia}
+                </button>
+              </BreadcrumbItem>
+              <BreadcrumbItem current>
+                {selectedWorker?.nomeCompleto ?? "Lavoratore"}
+              </BreadcrumbItem>
             </Breadcrumb>
             <Button
               type="button"
@@ -1611,43 +1916,17 @@ export function RicercaWorkersPipelineView({
           ) : null}
 
           {selectedCard && selectedWorkerRow && selectedSelectionRow ? (
-            <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,1fr)_minmax(640px,2fr)_minmax(340px,1fr)] overflow-hidden">
-              <div className="scrollbar-hidden min-w-0 overflow-y-auto border-r border-border">
-                <SideCardsPanel
-                  title=""
-                  className="h-full rounded-none border-0 shadow-none"
-                  headerClassName="hidden"
-                  contentClassName="px-4 pt-0 pb-4"
-                >
-                  <FamigliaProcessoDetailShell
-                    mode="inline"
-                    card={card}
-                    lookupOptionsByField={lookupOptionsByField}
-                    editMode="toggle"
-                    showHeaderMeta={false}
-                    showPrimaryControls={false}
-                    showContextCard={false}
-                    showAnnuncio
-                    readOnly
-                    isActive
-                    className="bg-transparent"
-                  />
-                </SideCardsPanel>
-              </div>
-
+            <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
               <div className="scrollbar-hidden min-w-0 overflow-y-auto border-r border-border">
                 <div className="space-y-4 p-4">
                   <DetailSectionBlock
                     title="Profilo lavoratore"
-                    showDefaultAction={false}
+                    icon={<UserIcon className="size-4" />}
                     collapsible
-                    className="space-y-2"
-                    contentClassName="space-y-0 px-1 pt-1"
                   >
                     <WorkerProfileHeader
                       worker={selectedWorker ?? selectedCard.worker}
                       workerRow={selectedWorkerRow}
-                      headerLayout="stacked"
                       statoLavoratoreOptions={
                         lookupOptionsByDomain.get("lavoratori.stato_lavoratore") ??
                         []
@@ -1692,20 +1971,51 @@ export function RicercaWorkersPipelineView({
 
                   <DetailSectionBlock
                     title="Scheda colloquio"
-                    showDefaultAction={false}
+                    icon={<ClipboardListIcon className="size-4" />}
                     collapsible
-                    className="space-y-2"
-                    contentClassName="space-y-0 px-1 pt-1"
-                  >
-                    <SchedaColloquioPanel
-                      selectionRow={selectedSelectionRow}
-                      statusOptions={
+                    action={(() => {
+                      const statoOptions =
                         lookupOptionsByDomain.get(
                           "selezioni_lavoratori.stato_selezione",
                         ) ??
-                        lookupOptionsByDomain.get("lavoratori.stato_selezione") ??
-                        []
-                      }
+                        lookupOptionsByDomain.get(
+                          "lavoratori.stato_selezione",
+                        ) ??
+                        [];
+                      const currentStato = asString(
+                        selectedSelectionRow.stato_selezione,
+                      );
+                      return (
+                        <Select
+                          value={currentStato || "none"}
+                          onValueChange={(value) => {
+                            if (!value || value === "none") return;
+                            void handleMoveSelectionStatus(value);
+                          }}
+                          disabled={updatingSelectionDetails}
+                        >
+                          <SelectTrigger className="h-8 w-[180px] text-xs">
+                            <SelectValue placeholder="Stato selezione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">
+                              Nessuno stato
+                            </SelectItem>
+                            {statoOptions.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+                    })()}
+                  >
+                    <SchedaColloquioPanel
+                      selectionRow={selectedSelectionRow}
                       nonSelezionatoOptions={
                         lookupOptionsByDomain.get(
                           "selezioni_lavoratori.motivo_non_selezionato",
@@ -1716,11 +2026,9 @@ export function RicercaWorkersPipelineView({
                           "selezioni_lavoratori.motivo_no_match",
                         ) ?? []
                       }
-                      lookupColorsByDomain={lookupColorsByDomain}
                       disabled={updatingSelectionDetails}
                       isGeneratingFeedback={generatingSelectionFeedback}
                       onGenerateFeedback={handleGenerateSelectionFeedback}
-                      onMoveStatus={handleMoveSelectionStatus}
                       onPatchField={patchSelectedSelectionField}
                     />
                   </DetailSectionBlock>
@@ -1955,6 +2263,135 @@ export function RicercaWorkersPipelineView({
           ) : null}
         </div>
       ) : null}
+
+      <Dialog
+        open={isAddWorkerDialogOpen}
+        onOpenChange={(nextOpen) => {
+          if (isSubmittingAddWorker) return;
+          setIsAddWorkerDialogOpen(nextOpen);
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Aggiungi lavoratore</DialogTitle>
+            <DialogDescription>
+              Cerca un lavoratore per nome o email e inseriscilo in Prospetto.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Cerca lavoratore</p>
+              <SearchInput
+                value={workerSearchQuery}
+                onChange={(event) => setWorkerSearchQuery(event.target.value)}
+                onClear={() => setWorkerSearchQuery("")}
+                placeholder="Nome, cognome o email"
+              />
+              {workerSearchQuery.trim().length < 2 ? (
+                <p className="text-muted-foreground text-xs">
+                  Inserisci almeno 2 caratteri.
+                </p>
+              ) : isWorkerSearchLoading ? (
+                <p className="text-muted-foreground text-xs">
+                  Caricamento risultati...
+                </p>
+              ) : workerSearchResults.length === 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  Nessun lavoratore trovato.
+                </p>
+              ) : (
+                <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-2">
+                  {workerSearchResults.map((workerRow) => {
+                    const workerId =
+                      typeof workerRow.id === "string" ||
+                      typeof workerRow.id === "number"
+                        ? String(workerRow.id)
+                        : "";
+                    const workerName =
+                      [
+                        typeof workerRow.nome === "string"
+                          ? workerRow.nome
+                          : null,
+                        typeof workerRow.cognome === "string"
+                          ? workerRow.cognome
+                          : null,
+                      ]
+                        .filter((value): value is string => Boolean(value))
+                        .join(" ")
+                        .trim() || "Lavoratore";
+                    const workerEmail =
+                      typeof workerRow.email === "string"
+                        ? workerRow.email
+                        : null;
+                    const isSelected =
+                      typeof selectedWorkerToAdd?.id === "string" ||
+                      typeof selectedWorkerToAdd?.id === "number"
+                        ? String(selectedWorkerToAdd.id) === workerId
+                        : false;
+
+                    return (
+                      <button
+                        key={workerId}
+                        type="button"
+                        onClick={() => setSelectedWorkerToAdd(workerRow)}
+                        className={cn(
+                          "w-full rounded-md border px-3 py-2 text-left text-sm transition",
+                          isSelected
+                            ? "border-emerald-400 bg-emerald-50"
+                            : "border-border hover:bg-muted/50",
+                        )}
+                      >
+                        <div className="font-medium">{workerName}</div>
+                        {workerEmail ? (
+                          <div className="text-muted-foreground text-xs">
+                            {workerEmail}
+                          </div>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Motivazione</p>
+              <Textarea
+                value={manualInsertReason}
+                onChange={(event) => setManualInsertReason(event.target.value)}
+                placeholder="Scrivi perché l'hai selezionato per questa ricerca"
+                className="min-h-28"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsAddWorkerDialogOpen(false)}
+              disabled={isSubmittingAddWorker}
+            >
+              Annulla
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleAddWorkerToSearch()}
+              disabled={
+                isSubmittingAddWorker ||
+                !selectedWorkerToAdd ||
+                !manualInsertReason.trim()
+              }
+            >
+              {isSubmittingAddWorker ? (
+                <LoaderCircleIcon className="animate-spin" />
+              ) : null}
+              Aggiungi lavoratore
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

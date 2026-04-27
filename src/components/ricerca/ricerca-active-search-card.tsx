@@ -5,10 +5,10 @@ import {
   MapPinIcon,
 } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui-next/badge"
+import { CardMetaRow } from "@/components/shared-next/card-meta-row"
+import { RecordCard } from "@/components/shared-next/record-card"
 import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board"
-import { cn } from "@/lib/utils"
 
 function formatBadgeLabel(value: string) {
   return value
@@ -103,66 +103,43 @@ export function RicercaActiveSearchCard({
 }) {
   const oreGiorni = formatOreGiorniLabel(data.oreSettimanali, data.giorniSettimanali)
   const hasUrgentDeadline = isUrgentDeadline(data.deadlineRaw)
+  const hasTags = Boolean(data.tipoLavoroBadge || data.tipoRapportoBadge)
 
   return (
     <div className={className} onClick={onClick}>
-      <Card className="border border-border/70 bg-white py-2 transition-shadow hover:shadow-md">
-        <CardContent className="space-y-2 px-3">
-          <p className="truncate text-sm font-semibold">{data.nomeFamiglia}</p>
-          <div className="flex min-h-4 flex-col gap-1.5">
-            {data.tipoLavoroBadge ? (
-              <Badge
-                variant="outline"
-                className={`h-5 px-2 text-[11px] font-medium ${getBadgeClassName(
-                  data.tipoLavoroColor
-                )}`}
-              >
-                <BriefcaseBusinessIcon data-icon="inline-start" />
-                {formatBadgeLabel(data.tipoLavoroBadge)}
-              </Badge>
-            ) : null}
-            {data.tipoRapportoBadge ? (
-              <Badge
-                variant="outline"
-                className={`h-5 px-2 text-[11px] font-medium ${getBadgeClassName(
-                  data.tipoRapportoColor
-                )}`}
-              >
-                <Clock3Icon data-icon="inline-start" />
-                {formatBadgeLabel(data.tipoRapportoBadge)}
-              </Badge>
-            ) : null}
-          </div>
-          <div className="border-t pt-2">
-            <div className="text-muted-foreground min-w-0 space-y-1 text-xs">
-              <p className="flex items-center gap-1.5 truncate">
-                <Clock3Icon className="size-3.5 shrink-0" />
-                <span className="truncate">{oreGiorni}</span>
-              </p>
-              <p className="flex items-center gap-1.5 truncate">
-                <CalendarIcon
-                  className={cn(
-                    "size-3.5 shrink-0",
-                    hasUrgentDeadline && "text-red-600"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "truncate",
-                    hasUrgentDeadline && "font-medium text-red-600"
-                  )}
-                >
-                  {data.deadline}
-                </span>
-              </p>
-              <p className="flex items-center gap-1.5 truncate">
-                <MapPinIcon className="size-3.5 shrink-0" />
-                <span className="truncate">{data.zona}</span>
-              </p>
+      <RecordCard>
+        <RecordCard.Header title={data.nomeFamiglia} />
+        <RecordCard.Body>
+          {hasTags ? (
+            <CardMetaRow>
+              {data.tipoLavoroBadge ? (
+                <Badge className={getBadgeClassName(data.tipoLavoroColor)}>
+                  <BriefcaseBusinessIcon data-icon="inline-start" />
+                  {formatBadgeLabel(data.tipoLavoroBadge)}
+                </Badge>
+              ) : null}
+              {data.tipoRapportoBadge ? (
+                <Badge className={getBadgeClassName(data.tipoRapportoColor)}>
+                  <Clock3Icon data-icon="inline-start" />
+                  {formatBadgeLabel(data.tipoRapportoBadge)}
+                </Badge>
+              ) : null}
+            </CardMetaRow>
+          ) : null}
+          <CardMetaRow icon={<Clock3Icon />}>{oreGiorni}</CardMetaRow>
+          {hasUrgentDeadline ? (
+            <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
+              <CalendarIcon className="size-3 shrink-0 text-red-600" />
+              <span className="min-w-0 truncate font-medium text-red-600">
+                {data.deadline}
+              </span>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          ) : (
+            <CardMetaRow icon={<CalendarIcon />}>{data.deadline}</CardMetaRow>
+          )}
+          <CardMetaRow icon={<MapPinIcon />}>{data.zona}</CardMetaRow>
+        </RecordCard.Body>
+      </RecordCard>
     </div>
   )
 }

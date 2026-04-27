@@ -64,6 +64,12 @@ type UseRicercaWorkersPipelineState = {
   error: string | null
   columns: RicercaWorkerSelectionColumn[]
   moveCard: (selectionId: string, targetStatusId: string) => Promise<void>
+  /**
+   * Forza un refetch della pipeline. Da chiamare dopo mutazioni esterne
+   * (aggiunta lavoratore, smart matching, ecc.) che alterano i dati
+   * server-side e che non sono state riflesse via `moveCard`.
+   */
+  refresh: () => void
 }
 
 const SELEZIONI_PAGE_SIZE = 500
@@ -1137,6 +1143,10 @@ export function useRicercaWorkersPipeline(
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [columns, setColumns] = React.useState<RicercaWorkerSelectionColumn[]>([])
+  const [refreshTick, setRefreshTick] = React.useState(0)
+  const refresh = React.useCallback(() => {
+    setRefreshTick((current) => current + 1)
+  }, [])
   const recruiterLabelsById = React.useMemo(
     () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
     [recruiterOptions]
@@ -1222,12 +1232,13 @@ export function useRicercaWorkersPipeline(
     return () => {
       cancelled = true
     }
-  }, [processId, recruiterLabelsById])
+  }, [processId, recruiterLabelsById, refreshTick])
 
   return {
     loading,
     error,
     columns,
     moveCard,
+    refresh,
   }
 }

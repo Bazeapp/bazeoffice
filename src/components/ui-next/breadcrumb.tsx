@@ -49,6 +49,11 @@ export function BreadcrumbItem({
 }: BreadcrumbItemProps) {
   const Inner: React.ElementType = asChild ? Slot : current ? "span" : href ? "a" : "span";
   const interactive = !current && (href || asChild);
+  // Quando `asChild`, Slot di Radix richiede esattamente UN children
+  // (React.Children.only). `{icon}{children}` produce un array (anche se
+  // icon e undefined) e fa esplodere SlotClone. Quindi in modalita asChild
+  // l'icona viene ignorata e deve essere posizionata dal consumer dentro
+  // l'elemento child.
   return (
     <>
       <li className={cn("inline-flex items-center gap-1.5", className)} {...props}>
@@ -62,8 +67,14 @@ export function BreadcrumbItem({
               : "text-[var(--foreground-subtle)] hover:text-[var(--foreground)]"
           )}
         >
-          {icon}
-          {children}
+          {asChild ? (
+            children
+          ) : (
+            <>
+              {icon}
+              {children}
+            </>
+          )}
         </Inner>
         {idBadge ? (
           <Badge variant="outline" shape="square" size="sm" className="font-mono">
