@@ -21,6 +21,7 @@ import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui-next/badge"
 import { Button } from "@/components/ui-next/button"
+import { SearchInput } from "@/components/ui-next/search-input"
 import { buildPathForRoute } from "@/routes/app-routes"
 import { cn } from "@/lib/utils"
 
@@ -209,10 +210,34 @@ export function AssunzioniBoardView() {
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCard, setSelectedCard] = React.useState<AssunzioniBoardCardData | null>(null)
+  const [searchValue, setSearchValue] = React.useState("")
+
+  const filteredColumns = React.useMemo(() => {
+    const query = searchValue.trim().toLowerCase()
+    if (!query) return columns
+    const tokens = query.split(/\s+/).filter(Boolean)
+    return columns.map((column) => ({
+      ...column,
+      cards: column.cards.filter((card) => {
+        const haystack = [
+          card.nomeFamiglia,
+          card.nomeLavoratore,
+          card.email,
+          card.telefono,
+          card.rapporto?.tipo_rapporto,
+          card.rapporto?.tipo_contratto,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+        return tokens.every((token) => haystack.includes(token))
+      }),
+    }))
+  }, [columns, searchValue])
 
   const totalProcesses = React.useMemo(
-    () => columns.reduce((sum, column) => sum + column.cards.length, 0),
-    [columns],
+    () => filteredColumns.reduce((sum, column) => sum + column.cards.length, 0),
+    [filteredColumns],
   )
 
   return (
@@ -223,6 +248,15 @@ export function AssunzioniBoardView() {
         >
           Assunzioni
         </SectionHeader.Title>
+        <SectionHeader.Toolbar>
+          <SearchInput
+            className="md:max-w-sm"
+            placeholder="Cerca per famiglia, lavoratore, email..."
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            onClear={() => setSearchValue("")}
+          />
+        </SectionHeader.Toolbar>
       </SectionHeader>
 
       {error ? (
@@ -235,7 +269,7 @@ export function AssunzioniBoardView() {
         <div className="flex h-full min-h-0 min-w-max gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, index) => <AssunzioniBoardSkeletonColumn key={index} />)
-            : columns.map((column) => (
+            : filteredColumns.map((column) => (
                 <AssunzioniBoardColumn
                   key={column.id}
                   column={column}

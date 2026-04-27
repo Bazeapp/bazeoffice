@@ -23,6 +23,7 @@ import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rappo
 import { RecordCard } from "@/components/shared-next/record-card";
 import { SectionHeader } from "@/components/shared-next/section-header";
 import { Badge } from "@/components/ui-next/badge";
+import { SearchInput } from "@/components/ui-next/search-input";
 import {
   Sheet,
   SheetContent,
@@ -368,10 +369,34 @@ export function VariazioniBoardView() {
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(
     null,
   );
+  const [searchValue, setSearchValue] = React.useState("");
+
+  const filteredColumns = React.useMemo(() => {
+    const query = searchValue.trim().toLowerCase();
+    if (!query) return columns;
+    const tokens = query.split(/\s+/).filter(Boolean);
+    return columns.map((column) => ({
+      ...column,
+      cards: column.cards.filter((card) => {
+        const haystack = [
+          card.nomeCompleto,
+          card.variazioneDaApplicare,
+          card.rapporto?.cognome_nome_datore_proper,
+          card.rapporto?.nome_lavoratore_per_url,
+          card.rapporto?.tipo_rapporto,
+          card.rapporto?.tipo_contratto,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return tokens.every((token) => haystack.includes(token));
+      }),
+    }));
+  }, [columns, searchValue]);
 
   const totalVariazioni = React.useMemo(
-    () => columns.reduce((sum, column) => sum + column.cards.length, 0),
-    [columns],
+    () => filteredColumns.reduce((sum, column) => sum + column.cards.length, 0),
+    [filteredColumns],
   );
 
   const selectedCard = React.useMemo(
@@ -393,6 +418,15 @@ export function VariazioniBoardView() {
           >
             Variazioni
           </SectionHeader.Title>
+          <SectionHeader.Toolbar>
+            <SearchInput
+              className="md:max-w-sm"
+              placeholder="Cerca per famiglia, lavoratore, tipo rapporto..."
+              value={searchValue}
+              onChange={(event) => setSearchValue(event.target.value)}
+              onClear={() => setSearchValue("")}
+            />
+          </SectionHeader.Toolbar>
         </SectionHeader>
 
         {error ? (
@@ -407,7 +441,7 @@ export function VariazioniBoardView() {
               ? Array.from({ length: 3 }).map((_, index) => (
                   <VariazioniBoardSkeletonColumn key={index} />
                 ))
-              : columns.map((column) => (
+              : filteredColumns.map((column) => (
                   <VariazioniBoardColumn
                     key={column.id}
                     column={column}

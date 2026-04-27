@@ -23,6 +23,7 @@ import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rappo
 import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui-next/badge"
+import { SearchInput } from "@/components/ui-next/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui-next/sheet"
 import { cn } from "@/lib/utils"
@@ -350,10 +351,36 @@ export function ChiusureBoardView() {
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
+  const [searchValue, setSearchValue] = React.useState("")
+
+  const filteredColumns = React.useMemo(() => {
+    const query = searchValue.trim().toLowerCase()
+    if (!query) return columns
+    const tokens = query.split(/\s+/).filter(Boolean)
+    return columns.map((column) => ({
+      ...column,
+      cards: column.cards.filter((card) => {
+        const haystack = [
+          card.nomeCompleto,
+          card.email,
+          card.motivazione,
+          card.tipoLabel,
+          card.rapporto?.cognome_nome_datore_proper,
+          card.rapporto?.nome_lavoratore_per_url,
+          card.rapporto?.tipo_rapporto,
+          card.rapporto?.tipo_contratto,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+        return tokens.every((token) => haystack.includes(token))
+      }),
+    }))
+  }, [columns, searchValue])
 
   const totalChiusure = React.useMemo(
-    () => columns.reduce((sum, column) => sum + column.cards.length, 0),
-    [columns],
+    () => filteredColumns.reduce((sum, column) => sum + column.cards.length, 0),
+    [filteredColumns],
   )
 
   const selectedCard = React.useMemo(
@@ -370,6 +397,15 @@ export function ChiusureBoardView() {
           >
             Chiusure
           </SectionHeader.Title>
+          <SectionHeader.Toolbar>
+            <SearchInput
+              className="md:max-w-sm"
+              placeholder="Cerca per famiglia, lavoratore, email, motivazione..."
+              value={searchValue}
+              onChange={(event) => setSearchValue(event.target.value)}
+              onClear={() => setSearchValue("")}
+            />
+          </SectionHeader.Toolbar>
         </SectionHeader>
 
         {error ? (
@@ -382,7 +418,7 @@ export function ChiusureBoardView() {
           <div className="flex h-full min-h-0 min-w-max gap-4">
             {loading
               ? Array.from({ length: 4 }).map((_, index) => <ChiusureBoardSkeletonColumn key={index} />)
-              : columns.map((column) => (
+              : filteredColumns.map((column) => (
                   <ChiusureBoardColumn
                     key={column.id}
                     column={column}
