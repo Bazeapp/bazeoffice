@@ -6,7 +6,6 @@ import {
   CircleCheckBigIcon,
   CreditCardIcon,
   FileTextIcon,
-  SearchIcon,
 } from "lucide-react"
 
 import {
@@ -17,23 +16,29 @@ import {
 import {
   AttachmentUploadSlot,
   type AttachmentLink,
-} from "@/components/shared/attachment-upload-slot"
-import { DetailSectionBlock } from "@/components/shared/detail-section-card"
+} from "@/components/shared-next/attachment-upload-slot"
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
   buildAttachmentPayload,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
-import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
-import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
-import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import {
+  KanbanColumnShell,
+  KanbanColumnSkeleton,
+  type KanbanColumnVisual,
+} from "@/components/shared-next/kanban"
+import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
+import { SectionHeader } from "@/components/shared-next/section-header"
+import { StatisticsMetricCard } from "@/components/shared-next/statistics-metric-card"
+import { Badge } from "@/components/ui-next/badge"
+import { Button } from "@/components/ui-next/button"
+import { Card, CardContent } from "@/components/ui-next/card"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui-next/dialog"
+import { Input } from "@/components/ui-next/input"
+import { SearchInput } from "@/components/ui-next/search-input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
+import { Separator } from "@/components/ui-next/separator"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui-next/sheet"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
@@ -138,39 +143,19 @@ function sanitizeFileName(name: string) {
     .replace(/-+/g, "-")
 }
 
-function getColumnClasses(color: string) {
+function getColumnVisual(color: string): KanbanColumnVisual {
   switch (color.toLowerCase()) {
     case "sky":
-      return {
-        columnClassName: "border-sky-300 bg-sky-50/70",
-        headerClassName: "border-b border-sky-200/70",
-        iconClassName: "text-sky-500",
-      }
+      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
     case "cyan":
-      return {
-        columnClassName: "border-cyan-300 bg-cyan-50/70",
-        headerClassName: "border-b border-cyan-200/70",
-        iconClassName: "text-cyan-500",
-      }
+      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" }
     case "amber":
     case "yellow":
-      return {
-        columnClassName: "border-amber-300 bg-amber-50/70",
-        headerClassName: "border-b border-amber-200/70",
-        iconClassName: "text-amber-500",
-      }
+      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
     case "green":
-      return {
-        columnClassName: "border-green-300 bg-green-50/70",
-        headerClassName: "border-b border-green-200/70",
-        iconClassName: "text-green-500",
-      }
+      return { columnClassName: "bg-green-400", headerClassName: "", iconClassName: "text-green-500" }
     default:
-      return {
-        columnClassName: "border-border bg-muted/40",
-        headerClassName: "border-b border-border/70",
-        iconClassName: "text-muted-foreground",
-      }
+      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
   }
 }
 
@@ -349,7 +334,7 @@ export function ContributoInpsDetailSheet({
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
-          <SheetHeader className="border-b bg-background px-5 py-5">
+          <SheetHeader className="border-b bg-white px-5 py-5">
             <div className="space-y-2">
               <SheetTitle className="truncate text-xl font-semibold">
                 {card?.nomeCompleto ?? "Dettaglio contributo INPS"}
@@ -367,7 +352,7 @@ export function ContributoInpsDetailSheet({
           </SheetHeader>
 
           {card ? (
-            <section className="h-full overflow-y-auto bg-muted/20 px-5 py-5">
+            <section className="h-full overflow-y-auto bg-[var(--neutral-150)] px-5 py-5">
               <div className="mx-auto max-w-5xl space-y-5">
                 <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} />
 
@@ -467,7 +452,6 @@ export function ContributoInpsDetailSheet({
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(nextOpen) => !nextOpen && setSelectedPreview(null)}>
         <DialogContent
           className="max-w-[min(96vw,72rem)] border-none bg-black/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
-          showCloseButton={true}
         >
           <DialogTitle className="sr-only">
             {selectedPreview?.label ?? "Anteprima allegato contributo"}
@@ -510,7 +494,7 @@ function ContributoInpsBoardColumn({
   onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void
   onDropToColumn: (columnId: string, recordId: string | null) => void
 }) {
-  const visual = getColumnClasses(column.color)
+  const visual = getColumnVisual(column.color)
 
   return (
     <KanbanColumnShell
@@ -616,14 +600,10 @@ export function ContributiInpsView() {
         {
           title: "Rapporti attivi",
           value: String(activeRapportiCount),
-          className:
-            "border-primary/30 [&_[data-slot=card-content]>p:first-child]:text-primary [&_[data-slot=card-content]>p:last-child]:text-primary/80",
         },
         {
           title: "Contributi totali",
           value: String(stats.totale),
-          className:
-            "border-primary/30 [&_[data-slot=card-content]>p:first-child]:text-primary [&_[data-slot=card-content]>p:last-child]:text-primary/80",
         },
       ],
       stages.map((stage) => ({
@@ -639,63 +619,82 @@ export function ContributiInpsView() {
     [cards, selectedCardId]
   )
 
+  const quarterSwitcher = (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        aria-label="Trimestre precedente"
+        onClick={() => setPeriod((current) => shiftQuarter(current, -1))}
+      >
+        <ChevronLeftIcon />
+      </Button>
+      <div className="text-foreground inline-flex h-8 min-w-[120px] items-center justify-center gap-2 rounded-md text-sm font-medium">
+        <CalendarDaysIcon className="text-muted-foreground size-4" />
+        {period.quarter} {period.year}
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        aria-label="Trimestre successivo"
+        onClick={() => setPeriod((current) => shiftQuarter(current, 1))}
+      >
+        <ChevronRightIcon />
+      </Button>
+    </div>
+  )
+
   return (
-    <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[240px] flex-1 sm:max-w-xs">
-            <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-            <Input
+    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+      <SectionHeader>
+        <SectionHeader.Title
+          subtitle={`${stats.totale} ${stats.totale === 1 ? "contributo" : "contributi"}`}
+        >
+          Contributi INPS
+        </SectionHeader.Title>
+        <SectionHeader.Actions>{quarterSwitcher}</SectionHeader.Actions>
+        <SectionHeader.Toolbar>
+          <div className="w-full md:max-w-sm">
+            <SearchInput
+              placeholder="Cerca famiglia o lavoratore..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="pl-8"
-              placeholder="Cerca famiglia o lavoratore"
+              onClear={() => setSearch("")}
             />
           </div>
-
-          <Select value={stageFilter} onValueChange={setStageFilter}>
-            <SelectTrigger className="min-w-[180px]">
-              <SelectValue placeholder="Tutti gli stati" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tutti gli stati</SelectItem>
-              {stages.map((stage) => (
-                <SelectItem key={stage.id} value={stage.id}>
-                  {stage.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {(search || stageFilter !== "all") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSearch("")
-                setStageFilter("all")
-              }}
-            >
-              Reset filtri
-            </Button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">Trimestre</span>
-          <Button variant="outline" size="icon-sm" onClick={() => setPeriod((current) => shiftQuarter(current, -1))}>
-            <ChevronLeftIcon className="size-3.5" />
-          </Button>
-          <div className="text-foreground min-w-[120px] text-center text-sm font-medium">
-            {period.quarter} {period.year}
+          <div className="ml-auto flex items-center gap-2">
+            {search || stageFilter !== "all" ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearch("")
+                  setStageFilter("all")
+                }}
+              >
+                Reset filtri
+              </Button>
+            ) : null}
+            <Select value={stageFilter} onValueChange={setStageFilter}>
+              <SelectTrigger className="min-w-[200px]">
+                <SelectValue placeholder="Tutti gli stati" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti gli stati</SelectItem>
+                {stages.map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    {stage.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Button variant="outline" size="icon-sm" onClick={() => setPeriod((current) => shiftQuarter(current, 1))}>
-            <ChevronRightIcon className="size-3.5" />
-          </Button>
-        </div>
-      </div>
+        </SectionHeader.Toolbar>
+      </SectionHeader>
 
-      <div className="min-h-0 pb-2">
+      <div className="px-4 pt-4">
         <div className="flex w-full items-stretch gap-3">
           {metricGroups.map((group, groupIndex) => (
             <React.Fragment key={groupIndex}>
@@ -726,12 +725,12 @@ export function ContributiInpsView() {
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mx-4 mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento contributi INPS: {error}
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2">
+      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4">
         <div className="flex h-full min-h-0 min-w-max gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, index) => <ContributoInpsBoardSkeletonColumn key={index} />)

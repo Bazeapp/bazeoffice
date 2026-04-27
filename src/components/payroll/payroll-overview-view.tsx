@@ -67,14 +67,10 @@ function buildPayrollMetrics(columns: PayrollBoardColumnData[]): PayrollMetric[]
     {
       title: "Rapporti attivi",
       value: String(rapportiAttivi),
-      className:
-        "border-primary/30 [&_[data-slot=card-content]>p:first-child]:text-primary [&_[data-slot=card-content]>p:last-child]:text-primary/80",
     },
     {
       title: "Cedolini totali",
       value: String(cedoliniTotali),
-      className:
-        "border-primary/30 [&_[data-slot=card-content]>p:first-child]:text-primary [&_[data-slot=card-content]>p:last-child]:text-primary/80",
     },
     {
       title: "Presenze da raccogliere",
