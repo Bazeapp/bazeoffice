@@ -2,6 +2,8 @@ import * as React from "react"
 import {
   BadgeCheckIcon,
   CalendarDaysIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CircleCheckBigIcon,
   ClipboardListIcon,
   CreditCardIcon,
@@ -15,27 +17,26 @@ import {
 
 import { usePayrollBoard, type PayrollBoardCardData, type PayrollBoardColumnData } from "@/hooks/use-payroll-board"
 import { ContributiInpsView } from "@/components/payroll/contributi-inps-view"
-import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared/kanban"
-import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card"
-import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card"
-import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot"
-import { DetailSectionBlock } from "@/components/shared/detail-section-card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Textarea } from "@/components/ui/textarea"
+  KanbanColumnShell,
+  KanbanColumnSkeleton,
+  type KanbanColumnVisual,
+} from "@/components/shared-next/kanban"
+import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
+import { SectionHeader } from "@/components/shared-next/section-header"
+import { StatisticsMetricCard } from "@/components/shared-next/statistics-metric-card"
+import { Badge } from "@/components/ui-next/badge"
+import { Button } from "@/components/ui-next/button"
+import { Card, CardContent } from "@/components/ui-next/card"
+import { Input } from "@/components/ui-next/input"
+import { SearchInput } from "@/components/ui-next/search-input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
+import { Separator } from "@/components/ui-next/separator"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui-next/sheet"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui-next/table"
+import { Textarea } from "@/components/ui-next/textarea"
 import { runAutomationWebhook } from "@/lib/anagrafiche-api"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -263,57 +264,25 @@ function EditableStars({
   )
 }
 
-function getColumnClasses(color: string) {
+function getColumnVisual(color: string): KanbanColumnVisual {
   switch (color.toLowerCase()) {
     case "sky":
-      return {
-        columnClassName: "border-sky-300 bg-sky-50/70",
-        headerClassName: "border-b border-sky-200/70",
-        iconClassName: "text-sky-500",
-      }
+      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
     case "cyan":
-      return {
-        columnClassName: "border-cyan-300 bg-cyan-50/70",
-        headerClassName: "border-b border-cyan-200/70",
-        iconClassName: "text-cyan-500",
-      }
+      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" }
     case "blue":
-      return {
-        columnClassName: "border-blue-300 bg-blue-50/70",
-        headerClassName: "border-b border-blue-200/70",
-        iconClassName: "text-blue-500",
-      }
+      return { columnClassName: "bg-blue-400", headerClassName: "", iconClassName: "text-blue-500" }
     case "orange":
-      return {
-        columnClassName: "border-orange-300 bg-orange-50/70",
-        headerClassName: "border-b border-orange-200/70",
-        iconClassName: "text-orange-500",
-      }
+      return { columnClassName: "bg-orange-400", headerClassName: "", iconClassName: "text-orange-500" }
     case "amber":
     case "yellow":
-      return {
-        columnClassName: "border-amber-300 bg-amber-50/70",
-        headerClassName: "border-b border-amber-200/70",
-        iconClassName: "text-amber-500",
-      }
+      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
     case "lime":
-      return {
-        columnClassName: "border-lime-300 bg-lime-50/70",
-        headerClassName: "border-b border-lime-200/70",
-        iconClassName: "text-lime-500",
-      }
+      return { columnClassName: "bg-lime-400", headerClassName: "", iconClassName: "text-lime-500" }
     case "green":
-      return {
-        columnClassName: "border-green-300 bg-green-50/70",
-        headerClassName: "border-b border-green-200/70",
-        iconClassName: "text-green-500",
-      }
+      return { columnClassName: "bg-green-400", headerClassName: "", iconClassName: "text-green-500" }
     default:
-      return {
-        columnClassName: "border-border bg-muted/40",
-        headerClassName: "border-b border-border/70",
-        iconClassName: "text-muted-foreground",
-      }
+      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
   }
 }
 
@@ -410,7 +379,7 @@ export function CedolinoDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
-        <SheetHeader className="border-b bg-background px-5 py-5">
+        <SheetHeader className="border-b bg-white px-5 py-5">
           <div className="space-y-2">
             <SheetTitle className="truncate text-xl font-semibold">
               {card?.nomeCompleto ?? "Dettaglio cedolino"}
@@ -428,7 +397,7 @@ export function CedolinoDetailSheet({
         </SheetHeader>
 
         {card ? (
-          <section className="h-full overflow-y-auto bg-muted/20 px-5 py-5">
+          <section className="h-full overflow-y-auto bg-[var(--neutral-150)] px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
               <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} status={statoServizio} />
 
@@ -664,7 +633,7 @@ export function CedolinoDetailSheet({
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
                     <p className="ui-type-label">Presenze</p>
-                    <div className="rounded-xl border bg-background p-4">
+                    <div className="rounded-xl border bg-white p-4">
                       <p className="truncate font-medium">{card.nomeCompleto}</p>
                       <div className="text-muted-foreground mt-2 grid gap-2 text-sm sm:grid-cols-2">
                         <div>
@@ -685,7 +654,7 @@ export function CedolinoDetailSheet({
                 </div>
 
                 {presenceRows.length > 0 ? (
-                  <div className="rounded-xl border bg-background">
+                  <div className="rounded-xl border bg-white">
                     <div className="max-h-80 overflow-auto">
                       <Table>
                         <TableHeader>
@@ -778,7 +747,7 @@ function PayrollBoardColumn({
   onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void
   onDropToColumn: (columnId: string, recordId: string | null) => void
 }) {
-  const visual = getColumnClasses(column.color)
+  const visual = getColumnVisual(column.color)
 
   return (
     <KanbanColumnShell
@@ -829,57 +798,103 @@ function PayrollBoardSkeletonColumn() {
 function CedoliniPayrollView() {
   const [selectedMonth, setSelectedMonth] = React.useState(getCurrentMonthValue)
   const { loading, error, columns, moveCard, patchCard } = usePayrollBoard(selectedMonth)
-  const payrollMetrics = React.useMemo(() => buildPayrollMetrics(columns), [columns])
-  const metricGroups = [payrollMetrics.slice(0, 2), payrollMetrics.slice(2, 5), payrollMetrics.slice(5)]
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
+  const [searchValue, setSearchValue] = React.useState("")
+
+  const filteredColumns = React.useMemo(() => {
+    const query = searchValue.trim().toLowerCase()
+    if (!query) return columns
+    const tokens = query.split(/\s+/).filter(Boolean)
+    return columns.map((column) => ({
+      ...column,
+      cards: column.cards.filter((card) => {
+        const haystack = [
+          card.nomeCompleto,
+          card.rapporto?.cognome_nome_datore_proper,
+          card.rapporto?.nome_lavoratore_per_url,
+          card.famiglia?.email,
+          card.famiglia?.customer_email,
+          card.rapporto?.tipo_rapporto,
+          card.rapporto?.tipo_contratto,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+        return tokens.every((token) => haystack.includes(token))
+      }),
+    }))
+  }, [columns, searchValue])
+
+  const payrollMetrics = React.useMemo(
+    () => buildPayrollMetrics(filteredColumns),
+    [filteredColumns],
+  )
+  const metricGroups = [
+    payrollMetrics.slice(0, 2),
+    payrollMetrics.slice(2, 5),
+    payrollMetrics.slice(5),
+  ]
+
+  const totalCedolini = React.useMemo(
+    () => filteredColumns.reduce((sum, column) => sum + column.cards.length, 0),
+    [filteredColumns],
+  )
+
   const selectedCard = React.useMemo(
     () => columns.flatMap((column) => column.cards).find((card) => card.id === selectedCardId) ?? null,
     [columns, selectedCardId]
   )
 
-  return (
-    <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
-      <div className="flex justify-end px-1">
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">Mese</span>
-          <Pagination className="mx-0 w-auto justify-end">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  text=""
-                  className="h-8 min-w-8 px-2"
-                  onClick={(event) => {
-                    event.preventDefault()
-                    setSelectedMonth((current) => shiftMonth(current, -1))
-                  }}
-                />
-              </PaginationItem>
-              <PaginationItem>
-                <div className="text-foreground flex h-8 min-w-[160px] items-center justify-center rounded-md px-3 text-sm font-medium capitalize">
-                  <CalendarDaysIcon className="text-muted-foreground mr-2 size-4" />
-                  {formatMonthLabel(selectedMonth)}
-                </div>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  text=""
-                  className="h-8 min-w-8 px-2"
-                  onClick={(event) => {
-                    event.preventDefault()
-                    setSelectedMonth((current) => shiftMonth(current, 1))
-                  }}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
+  const monthSwitcher = (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        aria-label="Mese precedente"
+        onClick={() => setSelectedMonth((current) => shiftMonth(current, -1))}
+      >
+        <ChevronLeftIcon />
+      </Button>
+      <div className="text-foreground inline-flex h-8 min-w-[160px] items-center justify-center gap-2 rounded-md text-sm font-medium capitalize">
+        <CalendarDaysIcon className="text-muted-foreground size-4" />
+        {formatMonthLabel(selectedMonth)}
       </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        aria-label="Mese successivo"
+        onClick={() => setSelectedMonth((current) => shiftMonth(current, 1))}
+      >
+        <ChevronRightIcon />
+      </Button>
+    </div>
+  )
 
-      <div className="min-h-0 pb-2">
+  return (
+    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+      <SectionHeader>
+        <SectionHeader.Title
+          subtitle={`${totalCedolini} ${totalCedolini === 1 ? "cedolino" : "cedolini"}`}
+        >
+          Cedolini
+        </SectionHeader.Title>
+        <SectionHeader.Actions>{monthSwitcher}</SectionHeader.Actions>
+        <SectionHeader.Toolbar>
+          <SearchInput
+            className="md:max-w-sm"
+            placeholder="Cerca per famiglia, lavoratore, email..."
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            onClear={() => setSearchValue("")}
+          />
+        </SectionHeader.Toolbar>
+      </SectionHeader>
+
+      <div className="px-4 pt-4">
         <div className="flex w-full items-stretch gap-3">
           {metricGroups.map((group, groupIndex) => (
             <React.Fragment key={groupIndex}>
@@ -887,7 +902,7 @@ function CedoliniPayrollView() {
                 className={cn(
                   "grid flex-1 items-stretch gap-3",
                   group.length === 2 && "grid-cols-2",
-                  group.length === 3 && "grid-cols-3"
+                  group.length === 3 && "grid-cols-3",
                 )}
               >
                 {group.map((metric) => (
@@ -905,16 +920,16 @@ function CedoliniPayrollView() {
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mx-4 mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento payroll: {error}
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2">
+      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4">
         <div className="flex h-full min-h-0 min-w-max gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, index) => <PayrollBoardSkeletonColumn key={index} />)
-            : columns.map((column) => (
+            : filteredColumns.map((column) => (
                 <PayrollBoardColumn
                   key={column.id}
                   column={column}
