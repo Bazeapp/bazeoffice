@@ -1362,10 +1362,11 @@ function orderRangeValues(value: string, valueTo: string | undefined) {
   return left <= right ? { from: left, to: right } : { from: right, to: left };
 }
 
-function applyServerCondition(
-  query: any,
-  condition: FilterCondition,
-) {
+// PostgrestFilterBuilder is generic over schema/table/result types we can't
+// thread through here without rewriting the call site; query operations are
+// chainable and return the same shape regardless.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyServerCondition(query: any, condition: FilterCondition) {
   const field = condition.field;
   const value = condition.value;
 

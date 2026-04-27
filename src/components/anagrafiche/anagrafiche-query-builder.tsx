@@ -16,6 +16,7 @@ import type {
   FieldSelectorProps,
   OperatorSelectorProps,
   RuleGroupType,
+  RuleType,
   ValueEditorProps,
 } from "react-querybuilder"
 import { QueryBuilder } from "react-querybuilder"
@@ -543,7 +544,7 @@ function ShadcnValueEditor(props: ValueEditorProps) {
   )
 }
 
-function translateRuleToCondition(rule: any, fieldsByName: Map<string, AnagraficheQueryBuilderField>): QueryFilterCondition | null {
+function translateRuleToCondition(rule: RuleType, fieldsByName: Map<string, AnagraficheQueryBuilderField>): QueryFilterCondition | null {
   const field = String(rule.field ?? "").trim()
   const operator = String(rule.operator ?? "").trim()
   const fieldMeta = fieldsByName.get(field)

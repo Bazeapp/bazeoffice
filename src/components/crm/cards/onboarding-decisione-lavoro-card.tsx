@@ -358,6 +358,8 @@ export function OnboardingDecisioneLavoroSection({
           ? "uomo"
           : "",
     );
+    // isChecked is a closure derived from checkboxDefaults (already in deps)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     checkboxDefaults,
     defaults?.richiestaTrasferte,

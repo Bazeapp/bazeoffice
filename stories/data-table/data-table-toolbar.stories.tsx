@@ -54,11 +54,13 @@ const meta = {
     compactControls: { control: "boolean" },
     hasPendingFilters: { control: "boolean" },
   },
-  render: (args) => {
-    const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
-    return <DataTableToolbar {...args} table={table} />;
-  },
+  render: (args) => <ToolbarHarness args={args} />,
 } satisfies Meta<typeof DataTableToolbar<Row>>;
+
+function ToolbarHarness({ args }: { args: React.ComponentProps<typeof DataTableToolbar<Row>> }) {
+  const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
+  return <DataTableToolbar {...args} table={table} />;
+}
 
 export default meta;
 

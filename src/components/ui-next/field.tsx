@@ -159,7 +159,7 @@ export function FieldSeparator({
   );
 }
 
-export interface FieldLabelProps extends React.ComponentProps<typeof Label> {}
+export type FieldLabelProps = React.ComponentProps<typeof Label>;
 
 export function FieldLabel({ children, htmlFor, ...props }: FieldLabelProps) {
   const ctx = useField();

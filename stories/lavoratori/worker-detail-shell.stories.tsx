@@ -247,8 +247,13 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {
-  render: ({ tabPreset, width, height, showTopBar, ...args }) => {
+function DefaultRender({
+  tabPreset,
+  width,
+  height,
+  showTopBar,
+  ...args
+}: StoryArgs) {
     const mobilityAnchor = React.useRef<HTMLDivElement | null>(null);
     const tabs = tabPresets[tabPreset];
     const activeSection = tabs.some((tab) => tab.id === args.activeSection)
@@ -603,5 +608,8 @@ export const Default: Story = {
         />
       </div>
     );
-  },
+}
+
+export const Default: Story = {
+  render: (args) => <DefaultRender {...args} />,
 };

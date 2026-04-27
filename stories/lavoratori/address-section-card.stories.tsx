@@ -38,11 +38,17 @@ const meta = {
     showEditAction: { control: "boolean" },
     showCap: { control: "boolean" },
   },
-  render: (args) => {
-    const mobilityAnchor = React.useRef<HTMLDivElement | null>(null);
-    return <AddressSectionCard {...args} mobilityAnchor={mobilityAnchor} />;
-  },
+  render: (args) => <AddressSectionCardHarness args={args} />,
 } satisfies Meta<typeof AddressSectionCard>;
+
+function AddressSectionCardHarness({
+  args,
+}: {
+  args: React.ComponentProps<typeof AddressSectionCard>;
+}) {
+  const mobilityAnchor = React.useRef<HTMLDivElement | null>(null);
+  return <AddressSectionCard {...args} mobilityAnchor={mobilityAnchor} />;
+}
 
 export default meta;
 

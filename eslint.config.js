@@ -19,5 +19,14 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Canonical shadcn/cva pattern: ship variants/types alongside the
+      // component in the same file. HMR still works for the component,
+      // constants invalidate cleanly.
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
+    },
   },
 ])

@@ -98,7 +98,7 @@ export const Default: Story = {
     ...args
   }) => {
     const groups = showGroups
-      ? GROUP_LABELS.slice(0, groupCount).map((label, index) => ({
+      ? GROUP_LABELS.slice(0, groupCount).map((label) => ({
           id: label,
           title: label,
           count: cardsPerGroup,

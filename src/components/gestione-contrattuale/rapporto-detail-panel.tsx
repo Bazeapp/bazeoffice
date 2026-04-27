@@ -448,6 +448,10 @@ export function RapportoDetailPanel({
       window.clearTimeout(autosaveTimeoutRef.current)
       autosaveTimeoutRef.current = null
     }
+    // We intentionally key the reset on rapporto?.id so the draft is rebuilt
+    // only when the selected rapporto changes — including the full `rapporto`
+    // object would re-run on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rapporto?.id])
 
   React.useEffect(() => {

@@ -12,7 +12,6 @@ interface CollapsibleTriggerProps extends Omit<ButtonProps, "variant"> {
   variant?: ButtonProps["variant"];
   showLabel?: React.ReactNode;
   hideLabel?: React.ReactNode;
-  open?: boolean;
 }
 
 const CollapsibleTrigger = React.forwardRef<HTMLButtonElement, CollapsibleTriggerProps>(
@@ -23,7 +22,6 @@ const CollapsibleTrigger = React.forwardRef<HTMLButtonElement, CollapsibleTrigge
       size = "sm",
       showLabel,
       hideLabel,
-      open,
       children,
       ...props
     },

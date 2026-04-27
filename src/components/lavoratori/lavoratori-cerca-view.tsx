@@ -1434,7 +1434,7 @@ export function LavoratoriCercaView({
     tabs.push({ id: "processi", label: "Ricerche", icon: MessageSquareTextIcon });
 
     return tabs;
-  }, [selectedWorkerIsNonIdoneo, selectedWorkerIsNonQualificato]);
+  }, [selectedWorkerIsNonQualificato]);
   const [activeWorkerSection, setActiveWorkerSection] =
     React.useState("profilo");
 

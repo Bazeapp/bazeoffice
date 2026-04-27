@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { WorkerProfileOverview } from "@/components/lavoratori/worker-profile-overview";
-import { lookupOptions, mockWorker, mockWorkerRow } from "../mocks";
+import { mockWorker, mockWorkerRow } from "../mocks";
 
 const meta = {
   title: "Lavoratori/Blocchi/WorkerProfileOverview",
