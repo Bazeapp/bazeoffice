@@ -1,11 +1,11 @@
 import { CalendarDaysIcon, PencilIcon } from "lucide-react"
 
-import { DetailSectionBlock } from "@/components/shared/detail-section-card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { FieldTitle } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
+import { Badge } from "@/components/ui-next/badge"
+import { Button } from "@/components/ui-next/button"
+import { FieldLabel } from "@/components/ui-next/field"
+import { Input } from "@/components/ui-next/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
 
 type LookupOption = {
   label: string
@@ -83,9 +83,9 @@ export function AvailabilityStatusCard({
     >
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-1">
-          <FieldTitle>
+          <FieldLabel>
             Stato disponibilita
-          </FieldTitle>
+          </FieldLabel>
           {isEditing ? (
             <div className="max-w-xs">
               <Select
@@ -93,7 +93,7 @@ export function AvailabilityStatusCard({
                 onValueChange={onDisponibilitaChange}
                 disabled={isUpdating}
               >
-                <SelectTrigger className="h-9">
+                <SelectTrigger>
                   <SelectValue placeholder="Seleziona stato" />
                 </SelectTrigger>
                 <SelectContent>
@@ -115,9 +115,9 @@ export function AvailabilityStatusCard({
         </div>
 
         <div className={isEditing && !isReturnDateEnabled ? "space-y-1 opacity-50" : "space-y-1"}>
-          <FieldTitle>
+          <FieldLabel>
             Ritorno disponibilita
-          </FieldTitle>
+          </FieldLabel>
           {isEditing ? (
             <div className="max-w-xs">
               <Input
@@ -126,7 +126,6 @@ export function AvailabilityStatusCard({
                 onChange={(event) => onDataRitornoChange(event.target.value)}
                 onBlur={onDataRitornoBlur}
                 disabled={isUpdating || !isReturnDateEnabled}
-                className="h-9 text-sm"
               />
             </div>
           ) : (

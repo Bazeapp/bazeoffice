@@ -557,7 +557,7 @@ export function DocumentsCard({
         </Button>
       ) : undefined}
       showDefaultAction={showEditAction}
-      contentClassName="space-y-5 pt-2"
+      contentClassName="space-y-5"
     >
       <FieldSet className="gap-5">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">

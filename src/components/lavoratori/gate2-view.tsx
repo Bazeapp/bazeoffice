@@ -21,6 +21,8 @@ export function Gate2View() {
       applyGate1BaseFilters={false}
       showCertificationReferente
       showFollowup={false}
+      showFollowupFilter={false}
+      allowCertifiedStatus
       showSelfCertification={false}
       showReferencesInWorkTypes
       showAdministrativeFields

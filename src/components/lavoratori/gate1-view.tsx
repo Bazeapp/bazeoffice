@@ -31,8 +31,8 @@ import { WorkerProfileOverview } from "@/components/lavoratori/worker-profile-ov
 import {
   DetailSectionBlock,
   DetailSectionCard,
-} from "@/components/shared/detail-section-card";
-import { SideCardsPanel } from "@/components/shared/side-cards-panel";
+} from "@/components/shared-next/detail-section-card";
+import { SideCardsPanel } from "@/components/shared-next/side-cards-panel";
 import {
   Combobox,
   ComboboxChip,
@@ -44,8 +44,8 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui/combobox";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui-next/combobox";
+import { Button } from "@/components/ui-next/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,37 +53,30 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui-next/alert-dialog";
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import { Input } from "@/components/ui/input";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+} from "@/components/ui-next/hover-card";
+import { Input } from "@/components/ui-next/input";
+import { Pagination } from "@/components/ui-next/pagination";
+import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/ui-next/select";
+import { Textarea } from "@/components/ui-next/textarea";
 import {
   formatAvailabilityComputedAt,
   type AvailabilityEditBandField,
   type AvailabilityEditDayField,
 } from "@/features/lavoratori/lib/availability-utils";
-import { FieldTitle } from "@/components/ui/field";
+import { FieldLabel } from "@/components/ui-next/field";
 import {
   asLavoratoreRecord,
   asInputValue,
@@ -161,6 +154,8 @@ type GateViewProps = {
   specificChecksEditMode?: "always" | "toggle";
   applyGate1BaseFilters?: boolean;
   showCertificationReferente?: boolean;
+  showFollowupFilter?: boolean;
+  allowCertifiedStatus?: boolean;
 };
 
 function includesBabysitterType(
@@ -191,7 +186,7 @@ function GateInfoCard({
       icon={icon}
       action={titleAction}
       showDefaultAction={false}
-      contentClassName="space-y-4 pt-1"
+      contentClassName="space-y-4"
     >
       {children}
     </DetailSectionBlock>
@@ -275,26 +270,23 @@ function GateContactsCard({
       icon={<PhoneIcon className="text-muted-foreground size-4" />}
     >
       <div className="flex items-start gap-3 text-sm">
-        <FieldTitle className="w-24 shrink-0">
+        <FieldLabel className="w-24 shrink-0">
           Follow-up chiamata idoneita
-        </FieldTitle>
+        </FieldLabel>
         <div className="min-w-0 flex-1 text-foreground">
           <RadioGroup
             value={followupStatus}
             onValueChange={onFollowupStatusChange}
-            className="gap-3 pt-1"
+            variant="card"
+            className="pt-1"
           >
             {options.map((option) => (
-              <label
+              <RadioGroupItem
                 key={option.value}
-                className="bg-background flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2"
-              >
-                <RadioGroupItem
-                  value={option.value}
-                  id={`followup-${option.value}`}
-                />
-                <span className="text-sm">{option.label}</span>
-              </label>
+                value={option.value}
+                id={`followup-${option.value}`}
+                title={option.label}
+              />
             ))}
           </RadioGroup>
         </div>
@@ -324,7 +316,7 @@ function GateReferenteCard({
       icon={<UsersIcon className="text-muted-foreground size-4" />}
     >
       <div className="flex items-start gap-3 text-sm">
-        <FieldTitle className="w-24 shrink-0">{label}</FieldTitle>
+        <FieldLabel className="w-24 shrink-0">{label}</FieldLabel>
         <div className="min-w-0 flex-1 text-foreground">
           <Select
             value={value || "none"}
@@ -333,7 +325,7 @@ function GateReferenteCard({
             }
             disabled={disabled}
           >
-            <SelectTrigger className="bg-background">
+            <SelectTrigger>
               <SelectValue placeholder="Seleziona referente" />
             </SelectTrigger>
             <SelectContent>
@@ -379,7 +371,7 @@ function GateCertificationReferenteCard({
     >
       <div className="grid gap-4 md:grid-cols-2">
         <div className="flex items-start gap-3 text-sm">
-          <FieldTitle className="w-24 shrink-0">Referente Gate 2</FieldTitle>
+          <FieldLabel className="w-24 shrink-0">Referente Gate 2</FieldLabel>
           <div className="min-w-0 flex-1 text-foreground">
             <Select
               value={referenteCertificazioneValue || "none"}
@@ -390,7 +382,7 @@ function GateCertificationReferenteCard({
               }
               disabled={disabled}
             >
-              <SelectTrigger className="bg-background">
+              <SelectTrigger>
                 <SelectValue placeholder="Seleziona referente Gate 2" />
               </SelectTrigger>
               <SelectContent>
@@ -406,9 +398,9 @@ function GateCertificationReferenteCard({
         </div>
 
         <div className="flex items-start gap-3 text-sm">
-          <FieldTitle className="w-24 shrink-0">Referente Gate 1</FieldTitle>
+          <FieldLabel className="w-24 shrink-0">Referente Gate 1</FieldLabel>
           <div className="min-w-0 flex-1 text-foreground">
-            <div className="bg-muted/40 text-foreground flex min-h-10 items-center rounded-md border px-3 text-sm">
+            <div className="text-foreground flex min-h-10 items-center rounded-md border bg-white px-3 text-sm">
               {resolveOperatorLabel(referenteIdoneitaValue, options)}
             </div>
           </div>
@@ -644,7 +636,7 @@ function GateAssessmentCard({
           onChange={(event) => onFeedbackChange(event.target.value)}
           onBlur={onFeedbackBlur}
           rows={4}
-          className="bg-background min-h-28 w-full"
+          className="min-h-28 w-full"
           placeholder="Aggiungi note di screening"
         />
       </div>
@@ -692,7 +684,7 @@ function GateAssessmentCard({
               onValueChange={onNonIdoneoReasonChange}
               disabled={!isNonIdoneo}
             >
-              <SelectTrigger className="bg-background">
+              <SelectTrigger>
                 <SelectValue placeholder="Seleziona motivazione" />
               </SelectTrigger>
               <SelectContent>
@@ -711,8 +703,8 @@ function GateAssessmentCard({
         open={isStatusConfirmOpen}
         onOpenChange={handleStatusConfirmOpenChange}
       >
-        <AlertDialogContent size="sm">
-          <AlertDialogHeader className="place-items-start text-left">
+        <AlertDialogContent>
+          <div className="space-y-2 text-left">
             <AlertDialogTitle className="text-left font-semibold">
               Confermi il cambio di stato?
             </AlertDialogTitle>
@@ -721,7 +713,7 @@ function GateAssessmentCard({
               <strong>{statusValue || "nessuno"}</strong> a{" "}
               <strong>{pendingStatusValue || "nessuno"}</strong>.
             </AlertDialogDescription>
-          </AlertDialogHeader>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Annulla</AlertDialogCancel>
             <AlertDialogAction onClick={handleStatusConfirm}>
@@ -902,7 +894,7 @@ function GateWorkTypesCard({
               value={haiReferenze || undefined}
               onValueChange={onReferenzeChange}
             >
-              <SelectTrigger className="bg-background">
+              <SelectTrigger>
                 <SelectValue placeholder="Seleziona referenze" />
               </SelectTrigger>
               <SelectContent>
@@ -914,7 +906,7 @@ function GateWorkTypesCard({
               </SelectContent>
             </Select>
           ) : (
-            <div className="bg-muted/30 rounded-lg border px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
               {getLookupDisplayOption(referenzeOptions, haiReferenze)?.label ||
                 haiReferenze ||
                 "-"}
@@ -931,10 +923,10 @@ function GateWorkTypesCard({
             onChange={(event) => onSituationChange(event.target.value)}
             onBlur={onSituationBlur}
             rows={4}
-            className="bg-background w-full min-h-28 text-sm"
+            className="w-full min-h-28"
           />
         ) : (
-          <div className="bg-muted/30 rounded-lg border px-3 py-3">
+          <div className="rounded-lg border bg-white px-3 py-3">
             <p className="text-muted-foreground whitespace-pre-wrap text-sm leading-6">
               {situationValue || "-"}
             </p>
@@ -985,10 +977,9 @@ function GateWorkTypesCard({
               value={experienceDraft.anni_esperienza_colf}
               onChange={(event) => onAnniEsperienzaColfChange(event.target.value)}
               onBlur={onAnniEsperienzaColfBlur}
-              className="bg-background h-9 text-sm"
             />
           ) : (
-            <div className="bg-muted/30 rounded-lg border px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
               {experienceDraft.anni_esperienza_colf || "-"}
             </div>
           )}
@@ -1007,10 +998,9 @@ function GateWorkTypesCard({
                 onAnniEsperienzaBabysitterChange(event.target.value)
               }
               onBlur={onAnniEsperienzaBabysitterBlur}
-              className="bg-background h-9 text-sm"
             />
           ) : (
-            <div className="bg-muted/30 rounded-lg border px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
               {experienceDraft.anni_esperienza_babysitter || "-"}
             </div>
           )}
@@ -1027,10 +1017,9 @@ function GateWorkTypesCard({
                 onAnniEsperienzaBadanteChange(event.target.value)
               }
               onBlur={onAnniEsperienzaBadanteBlur}
-              className="bg-background h-9 text-sm"
             />
           ) : (
-            <div className="bg-muted/30 rounded-lg border px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
               {experienceDraft.anni_esperienza_badante || "-"}
             </div>
           )}
@@ -1163,16 +1152,14 @@ function GateLookupBadge({
 
 function GateFieldLabelWithInfo({
   label,
-  className,
   helperLines,
 }: {
   label: string;
-  className: string;
   helperLines?: string[];
 }) {
   return (
     <div className="flex items-center gap-1.5">
-      <p className={className}>{label}</p>
+      <FieldLabel>{label}</FieldLabel>
       {helperLines?.length ? (
         <HoverCard openDelay={120}>
           <HoverCardTrigger asChild>
@@ -1229,38 +1216,27 @@ function GateLevelSegmentedField({
 
   return (
     <div className="space-y-2">
-      <GateFieldLabelWithInfo
-        label={label}
-        className="text-muted-foreground text-xs font-medium tracking-wide"
-        helperLines={helperLines}
-      />
+      <GateFieldLabelWithInfo label={label} helperLines={helperLines} />
       {isEditing ? (
-        <div className="bg-muted/40 inline-flex w-full flex-wrap rounded-xl p-1">
-          {options.map((option) => {
-            const nextValue =
-              persistMode === "value" ? option.value : option.label;
-            const isSelected = normalizedValue === nextValue;
-            const color = resolveLookupColor(
-              lookupColorsByDomain,
-              domain,
-              option.label,
-            );
-
-            return (
-              <Button
+        <Select
+          value={normalizedValue || undefined}
+          onValueChange={(nextValue) => onChange(nextValue)}
+          disabled={isUpdating}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Seleziona livello" />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((option) => (
+              <SelectItem
                 key={option.value}
-                type="button"
-                variant={isSelected ? "default" : "outline"}
-                size="lg"
-                disabled={isUpdating}
-                className={`min-w-20 flex-1 ${isSelected ? getTagClassName(color) : ""}`}
-                onClick={() => onChange(nextValue)}
+                value={persistMode === "value" ? option.value : option.label}
               >
-                <span>{option.label}</span>
-              </Button>
-            );
-          })}
-        </div>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ) : (
         <GateLookupBadge
           domain={domain}
@@ -1309,18 +1285,14 @@ function GateLookupConfirmationField({
 
   return (
     <div className="space-y-2">
-      <GateFieldLabelWithInfo
-        label={label}
-        className="text-sm"
-        helperLines={helperLines}
-      />
+      <GateFieldLabelWithInfo label={label} helperLines={helperLines} />
       {isEditing ? (
         <Select
           value={selectValue}
           onValueChange={(nextValue) => onChange(nextValue)}
           disabled={isUpdating}
         >
-          <SelectTrigger className="bg-background">
+          <SelectTrigger>
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
           <SelectContent>
@@ -1335,7 +1307,7 @@ function GateLookupConfirmationField({
           </SelectContent>
         </Select>
       ) : (
-        <div className="bg-muted/30 flex min-h-10 items-center rounded-lg border px-3 py-2">
+        <div className="flex min-h-10 items-center rounded-lg border bg-white px-3 py-2">
           {displayLabel ? (
             <span
               className={`inline-flex items-center rounded-4xl border px-2.5 py-0.5 text-xs ${getTagClassName(
@@ -1413,9 +1385,6 @@ function GateSkillConfirmationsCard({
   onToggleEdit,
   isUpdating,
   lookupColorsByDomain,
-  mobilityValue,
-  mobilityOptions,
-  onMobilityChange,
   livelloItalianoValue,
   livelloItalianoOptions,
   onLivelloItalianoChange,
@@ -1487,9 +1456,6 @@ function GateSkillConfirmationsCard({
   onToggleEdit?: () => void;
   isUpdating: boolean;
   lookupColorsByDomain: Map<string, string>;
-  mobilityValue: string;
-  mobilityOptions: Array<{ label: string; value: string }>;
-  onMobilityChange: (value: string) => void;
   livelloItalianoValue: string;
   livelloItalianoOptions: Array<{ label: string; value: string }>;
   onLivelloItalianoChange: (value: string) => void;
@@ -1576,31 +1542,8 @@ function GateSkillConfirmationsCard({
       }
     >
       <DetailSectionCard
-        title="Mobilita"
-        titleOnBorder
-        className="border-border/60 bg-background"
-        contentClassName="space-y-4"
-      >
-        <div className="max-w-xl">
-          <GateLookupConfirmationField
-            label="Conferma che abbia la macchina o la patente"
-            value={mobilityValue}
-            options={mobilityOptions}
-            domain="lavoratori.come_ti_sposti"
-            isEditing={isEditing}
-            isUpdating={isUpdating}
-            lookupColorsByDomain={lookupColorsByDomain}
-            onChange={onMobilityChange}
-            persistMode="label"
-            placeholder="Seleziona opzione"
-          />
-        </div>
-      </DetailSectionCard>
-
-      <DetailSectionCard
         title="Lingue"
-        titleOnBorder
-        className="border-border/60 bg-background"
+        className="border-border/60"
         contentClassName="space-y-4"
       >
         <div className="grid gap-4 md:grid-cols-2">
@@ -1630,8 +1573,7 @@ function GateSkillConfirmationsCard({
 
       <DetailSectionCard
         title="Casa"
-        titleOnBorder
-        className="border-border/60 bg-background"
+        className="border-border/60"
         contentClassName="space-y-4"
       >
         <div className="grid gap-4 md:grid-cols-3">
@@ -1680,8 +1622,7 @@ function GateSkillConfirmationsCard({
 
       <DetailSectionCard
         title="Servizi"
-        titleOnBorder
-        className="border-border/60 bg-background"
+        className="border-border/60"
         contentClassName="space-y-4"
       >
         <div className="grid gap-4 md:grid-cols-3">
@@ -1720,8 +1661,7 @@ function GateSkillConfirmationsCard({
 
       <DetailSectionCard
         title="Consigliata da Baze"
-        titleOnBorder
-        className="border-border/60 bg-background"
+        className="border-border/60"
         contentClassName="space-y-4"
       >
         <SkillsChoiceMatrix
@@ -1774,8 +1714,7 @@ function GateSkillConfirmationsCard({
 
       <DetailSectionCard
         title="Standing e colloquio"
-        titleOnBorder
-        className="border-border/60 bg-background"
+        className="border-border/60"
         contentClassName="space-y-4"
       >
         <GateStarRatingField
@@ -1824,8 +1763,7 @@ function GateSkillConfirmationsCard({
 
       <DetailSectionCard
         title="Contesti consigliati"
-        titleOnBorder
-        className="border-border/60 bg-background"
+        className="border-border/60"
         contentClassName="space-y-4"
       >
         <div className="text-muted-foreground space-y-3 text-sm leading-6">
@@ -2076,11 +2014,10 @@ function GateBazeChecksCard({
               }
               onBlur={onPagaOrariaRichiestaBlur}
               disabled={isPagaMinimaDisabled}
-              className="bg-background h-9 text-sm"
               placeholder="Inserisci paga oraria"
             />
           ) : (
-            <div className="bg-muted/30 rounded-lg border px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
               {pagaOrariaRichiesta || "-"}
             </div>
           )}
@@ -2115,10 +2052,9 @@ function GateBazeChecksCard({
             value={dataScadenzaNaspi}
             onChange={(event) => onDataScadenzaNaspiChange(event.target.value)}
             onBlur={onDataScadenzaNaspiBlur}
-            className="bg-background h-9 text-sm"
           />
         ) : (
-          <div className="bg-muted/30 rounded-lg border px-3 py-2 text-sm">
+          <div className="rounded-lg border bg-white px-3 py-2 text-sm">
             {dataScadenzaNaspi || "-"}
           </div>
         )}
@@ -2305,7 +2241,7 @@ function GateSelfCertificationCard({
             value={documentiInRegola || undefined}
             onValueChange={onDocumentiChange}
           >
-            <SelectTrigger className="bg-background">
+            <SelectTrigger>
               <SelectValue placeholder="Seleziona stato documenti" />
             </SelectTrigger>
             <SelectContent>
@@ -2324,7 +2260,7 @@ function GateSelfCertificationCard({
             value={haiReferenze || undefined}
             onValueChange={onReferenzeChange}
           >
-            <SelectTrigger className="bg-background">
+            <SelectTrigger>
               <SelectValue placeholder="Seleziona referenze" />
             </SelectTrigger>
             <SelectContent>
@@ -2371,11 +2307,10 @@ function GateAdministrativeFieldsCard({
               value={ibanValue}
               onChange={(event) => onIbanChange(event.target.value)}
               onBlur={onIbanBlur}
-              className="bg-background h-9 text-sm"
               placeholder="Inserisci IBAN"
             />
           ) : (
-            <div className="bg-muted/30 rounded-lg border px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
               {ibanValue || "-"}
             </div>
           )}
@@ -2388,11 +2323,10 @@ function GateAdministrativeFieldsCard({
               value={stripeAccountValue}
               onChange={(event) => onStripeAccountChange(event.target.value)}
               onBlur={onStripeAccountBlur}
-              className="bg-background h-9 text-sm"
               placeholder="Inserisci ID account Stripe"
             />
           ) : (
-            <div className="bg-muted/30 rounded-lg border px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
               {stripeAccountValue || "-"}
             </div>
           )}
@@ -2434,7 +2368,6 @@ function GateDocumentIdentityCard({
             value={headerDraft.nome}
             onChange={(event) => onHeaderChange("nome", event.target.value)}
             onBlur={() => onHeaderBlur("nome")}
-            className="bg-background h-9 text-sm"
             disabled={!isEditing}
           />
         </div>
@@ -2444,7 +2377,6 @@ function GateDocumentIdentityCard({
             value={headerDraft.cognome}
             onChange={(event) => onHeaderChange("cognome", event.target.value)}
             onBlur={() => onHeaderBlur("cognome")}
-            className="bg-background h-9 text-sm"
             disabled={!isEditing}
           />
         </div>
@@ -2457,7 +2389,6 @@ function GateDocumentIdentityCard({
               onHeaderChange("data_di_nascita", event.target.value)
             }
             onBlur={() => onHeaderBlur("data_di_nascita")}
-            className="bg-background h-9 text-sm"
             disabled={!isEditing}
           />
         </div>
@@ -2472,7 +2403,7 @@ function GateDocumentIdentityCard({
               }}
               disabled={!isEditing}
             >
-              <SelectTrigger className="bg-background h-9">
+              <SelectTrigger>
                 <SelectValue placeholder="Seleziona nazionalita" />
               </SelectTrigger>
               <SelectContent>
@@ -2490,7 +2421,6 @@ function GateDocumentIdentityCard({
                 onHeaderChange("nazionalita", event.target.value)
               }
               onBlur={() => onHeaderBlur("nazionalita")}
-              className="bg-background h-9 text-sm"
               disabled={!isEditing}
             />
           )}
@@ -2619,6 +2549,8 @@ export function Gate1View({
   specificChecksEditMode = "always",
   applyGate1BaseFilters = true,
   showCertificationReferente = false,
+  showFollowupFilter = true,
+  allowCertifiedStatus = false,
 }: GateViewProps) {
   const {
     workers,
@@ -2651,7 +2583,6 @@ export function Gate1View({
     saveCurrentView,
     applySavedView,
     deleteSavedView,
-    pageIndex,
     setPageIndex,
     pageCount,
     currentPage,
@@ -2859,17 +2790,31 @@ export function Gate1View({
     return Array.from(labels.values()).sort((a, b) => a.localeCompare(b, "it"));
   }, [baseGateWorkers, workerRowsById]);
 
+  const followupValueToLabel = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const option of lookupOptionsByDomain.get(
+      "lavoratori.followup_chiamata_idoneita",
+    ) ?? []) {
+      map.set(option.value, option.label);
+      map.set(option.label, option.label);
+    }
+    return map;
+  }, [lookupOptionsByDomain]);
+
   const gateFollowupOptions = React.useMemo(() => {
     const optionLabels = (
       lookupOptionsByDomain.get("lavoratori.followup_chiamata_idoneita") ?? []
     ).map((option) => option.label);
     const rowLabels = baseGateWorkers
-      .map((worker) =>
-        asString(workerRowsById.get(worker.id)?.followup_chiamata_idoneita),
-      )
+      .map((worker) => {
+        const raw = asString(
+          workerRowsById.get(worker.id)?.followup_chiamata_idoneita,
+        );
+        return followupValueToLabel.get(raw) ?? raw;
+      })
       .filter((value): value is string => Boolean(value));
     return Array.from(new Set([...optionLabels, ...rowLabels]));
-  }, [baseGateWorkers, lookupOptionsByDomain, workerRowsById]);
+  }, [baseGateWorkers, followupValueToLabel, lookupOptionsByDomain, workerRowsById]);
 
   const gateWorkers = React.useMemo(() => {
     return baseGateWorkers.filter((worker) => {
@@ -2879,14 +2824,16 @@ export function Gate1View({
       const matchesProvincia =
         gateProvinciaFilter === "all" ||
         asString(row.provincia) === gateProvinciaFilter;
+      const rawFollowup = asString(row.followup_chiamata_idoneita);
+      const followupLabel = followupValueToLabel.get(rawFollowup) ?? rawFollowup;
       const matchesFollowup =
-        gateFollowupFilter === "all" ||
-        asString(row.followup_chiamata_idoneita) === gateFollowupFilter;
+        gateFollowupFilter === "all" || followupLabel === gateFollowupFilter;
 
       return matchesProvincia && matchesFollowup;
     });
   }, [
     baseGateWorkers,
+    followupValueToLabel,
     gateFollowupFilter,
     gateProvinciaFilter,
     workerRowsById,
@@ -3190,10 +3137,16 @@ export function Gate1View({
       [],
     [lookupOptionsByDomain],
   );
-  const statoLavoratoreOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.stato_lavoratore") ?? [],
-    [lookupOptionsByDomain],
-  );
+  const statoLavoratoreOptions = React.useMemo(() => {
+    const options =
+      lookupOptionsByDomain.get("lavoratori.stato_lavoratore") ?? [];
+    if (allowCertifiedStatus) return options;
+    return options.filter(
+      (option) =>
+        option.label.trim().toLowerCase() !== "certificato" &&
+        option.value.trim().toLowerCase() !== "certificato",
+    );
+  }, [allowCertifiedStatus, lookupOptionsByDomain]);
   const motivazioniNonIdoneoOptions = React.useMemo(
     () => lookupOptionsByDomain.get("lavoratori.motivazione_non_idoneo") ?? [],
     [lookupOptionsByDomain],
@@ -3551,7 +3504,7 @@ export function Gate1View({
   ]);
 
   return (
-    <>
+    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <input
         ref={workerPhotoInputRef}
         type="file"
@@ -3570,14 +3523,8 @@ export function Gate1View({
       <div className="flex min-h-0 flex-col gap-2">
         <SideCardsPanel
           title={gateLabel}
-          icon={UsersIcon}
-          subtitle={
-            loading
-              ? "Caricamento..."
-              : `${gateWorkers.length} lavoratori ${workerCountLabel}`
-          }
-          headerClassName="px-5 pb-1"
-          contentClassName="space-y-3 px-5 pt-0 pb-3"
+          headerClassName="hidden"
+          contentClassName="space-y-3 px-5 pt-3 pb-3"
           className="h-full gap-2"
         >
           <DataTableToolbar
@@ -3603,41 +3550,37 @@ export function Gate1View({
             hasPendingFilters={hasPendingFilters}
           />
 
-          <div className="grid gap-2 rounded-xl border bg-muted/20 p-2">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="space-y-1">
-                <p className="text-muted-foreground text-[11px] font-medium">
-                  Provincia
-                </p>
-                <Select
-                  value={gateProvinciaFilter}
-                  onValueChange={setGateProvinciaFilter}
-                  disabled={loading}
-                >
-                  <SelectTrigger className="w-full bg-background">
-                    <SelectValue placeholder="Tutte le province" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutte le province</SelectItem>
-                    {gateProvinciaOptions.map((provincia) => (
-                      <SelectItem key={provincia} value={provincia}>
-                        {provincia}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="flex flex-col gap-3">
+            <div className="space-y-1">
+              <FieldLabel>Provincia</FieldLabel>
+              <Select
+                value={gateProvinciaFilter}
+                onValueChange={setGateProvinciaFilter}
+                disabled={loading}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Tutte le province" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte le province</SelectItem>
+                  {gateProvinciaOptions.map((provincia) => (
+                    <SelectItem key={provincia} value={provincia}>
+                      {provincia}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
+            {showFollowupFilter ? (
               <div className="space-y-1">
-                <p className="text-muted-foreground text-[11px] font-medium">
-                  Follow-up
-                </p>
+                <FieldLabel>Follow-up</FieldLabel>
                 <Select
                   value={gateFollowupFilter}
                   onValueChange={setGateFollowupFilter}
                   disabled={loading}
                 >
-                  <SelectTrigger className="w-full bg-background">
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Tutti i follow-up" />
                   </SelectTrigger>
                   <SelectContent>
@@ -3650,26 +3593,27 @@ export function Gate1View({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            {gateProvinciaFilter !== "all" || gateFollowupFilter !== "all" ? (
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-muted-foreground text-xs">
-                  {gateWorkers.length} di {baseGateWorkers.length} lavoratori
-                </p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setGateProvinciaFilter("all");
-                    setGateFollowupFilter("all");
-                  }}
-                >
-                  Reset filtri
-                </Button>
-              </div>
             ) : null}
           </div>
+
+          {gateProvinciaFilter !== "all" || gateFollowupFilter !== "all" ? (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-muted-foreground text-xs">
+                {gateWorkers.length} di {baseGateWorkers.length} lavoratori
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setGateProvinciaFilter("all");
+                  setGateFollowupFilter("all");
+                }}
+              >
+                Reset filtri
+              </Button>
+            </div>
+          ) : null}
 
           {loading ? (
             <p className="text-muted-foreground py-3 text-sm">
@@ -3687,6 +3631,11 @@ export function Gate1View({
             <div className="space-y-2">
               {gateWorkers.map((worker) => {
                 const row = workerRowsById.get(worker.id);
+                const followupRaw = asString(row?.followup_chiamata_idoneita);
+                const followupOption = followupStatusOptions.find(
+                  (option) =>
+                    option.value === followupRaw || option.label === followupRaw,
+                );
                 return (
                   <LavoratoreCard
                     key={worker.id}
@@ -3698,7 +3647,7 @@ export function Gate1View({
                       createdAt:
                         asString(row?.data_ora_di_creazione) ||
                         asString(row?.creato_il),
-                      followup: asString(row?.followup_chiamata_idoneita),
+                      followup: followupOption?.label ?? followupRaw,
                     }}
                     onClick={() =>
                       setSelectedWorkerId((previous) =>
@@ -3712,48 +3661,19 @@ export function Gate1View({
           )}
         </SideCardsPanel>
 
-        <div className="text-muted-foreground flex items-center justify-between px-1 text-xs">
-          <p>
-            Pagina {currentPage} di {pageCount} ({gateWorkers.length}{" "}
-            {workerCountLabel} in pagina)
-          </p>
-          <Pagination className="mx-0 w-auto justify-end">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  text="Prec"
-                  className={
-                    pageIndex <= 0 || loading
-                      ? "pointer-events-none opacity-50"
-                      : undefined
-                  }
-                  onClick={(event) => {
-                    event.preventDefault();
-                    if (pageIndex <= 0 || loading) return;
-                    setPageIndex((previous) => Math.max(previous - 1, 0));
-                  }}
-                />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  text="Succ"
-                  className={
-                    currentPage >= pageCount || loading
-                      ? "pointer-events-none opacity-50"
-                      : undefined
-                  }
-                  onClick={(event) => {
-                    event.preventDefault();
-                    if (currentPage >= pageCount || loading) return;
-                    setPageIndex((previous) => previous + 1);
-                  }}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
+        <Pagination className="px-1">
+          <Pagination.Pages
+            page={currentPage}
+            pageCount={pageCount}
+            onChange={(nextPage) => {
+              if (loading) return;
+              setPageIndex(Math.max(nextPage - 1, 0));
+            }}
+          />
+          <span className="text-muted-foreground tabular-nums">
+            {gateWorkers.length} {workerCountLabel}
+          </span>
+        </Pagination>
       </div>
 
       {selectedWorkerId ? (
@@ -3764,7 +3684,7 @@ export function Gate1View({
           onSectionChange={scrollToSection}
         >
           {selectedWorker && selectedWorkerRow ? (
-            <div className="space-y-6 pt-4 pb-4 text-sm">
+            <div className="space-y-6">
                 {showCertificationReferente ? (
                   <div
                     ref={(node) => {
@@ -4593,6 +4513,109 @@ export function Gate1View({
                   >
                     {specificChecksMode === "confirmation" ? (
                       <>
+                      <GateSpecificChecksCard
+                        isBabysitterEnabled={includesBabysitterType(
+                          jobSearchDraft.tipo_lavoro_domestico,
+                          tipoLavoroDomesticoOptions,
+                        )}
+                        neonatiValue={
+                          skillsDraft.check_accetta_babysitting_neonati
+                        }
+                        neonatiOptions={babysittingNeonatiOptions}
+                        multipliBambiniValue={
+                          skillsDraft.check_accetta_babysitting_multipli_bambini
+                        }
+                        multipliBambiniOptions={
+                          babysittingMultipliBambiniOptions
+                        }
+                        caniValue={skillsDraft.check_accetta_case_con_cani}
+                        caniOptions={caseConCaniOptions}
+                        caniGrandiValue={
+                          skillsDraft.check_accetta_case_con_cani_grandi
+                        }
+                        caniGrandiOptions={caseConCaniGrandiOptions}
+                        gattiValue={skillsDraft.check_accetta_case_con_gatti}
+                        gattiOptions={caseConGattiOptions}
+                        scaleValue={
+                          skillsDraft.check_accetta_salire_scale_o_soffitti_alti
+                        }
+                        scaleOptions={scaleSoffittiOptions}
+                        trasfertaValue={
+                          jobSearchDraft.check_accetta_lavori_con_trasferta
+                        }
+                        trasfertaOptions={trasfertaOptions}
+                        lookupColorsByDomain={lookupColorsByDomain}
+                        onNeonatiChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_babysitting_neonati: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_babysitting_neonati",
+                            value,
+                          );
+                        }}
+                        onMultipliBambiniChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_babysitting_multipli_bambini: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_babysitting_multipli_bambini",
+                            value,
+                          );
+                        }}
+                        onCaniChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_case_con_cani: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_case_con_cani",
+                            value,
+                          );
+                        }}
+                        onCaniGrandiChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_case_con_cani_grandi: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_case_con_cani_grandi",
+                            value,
+                          );
+                        }}
+                        onGattiChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_case_con_gatti: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_case_con_gatti",
+                            value,
+                          );
+                        }}
+                        onScaleChange={(value) => {
+                          setSkillsDraft((current) => ({
+                            ...current,
+                            check_accetta_salire_scale_o_soffitti_alti: value,
+                          }));
+                          void patchSkillsField(
+                            "check_accetta_salire_scale_o_soffitti_alti",
+                            value,
+                          );
+                        }}
+                        onTrasfertaChange={(value) => {
+                          setJobSearchDraft((current) => ({
+                            ...current,
+                            check_accetta_lavori_con_trasferta: value,
+                          }));
+                          void patchSelectedWorkerField(
+                            "check_accetta_lavori_con_trasferta",
+                            value || null,
+                          );
+                        }}
+                      />
                       <GateSkillConfirmationsCard
                         isEditing={gateSpecificChecksIsEditing}
                         showEditAction={specificChecksEditMode === "toggle"}
@@ -4601,19 +4624,6 @@ export function Gate1View({
                         }
                         isUpdating={updatingSkills}
                         lookupColorsByDomain={lookupColorsByDomain}
-                        mobilityValue={addressDraft.come_ti_sposti[0] ?? ""}
-                        mobilityOptions={mobilityLookupOptions}
-                        onMobilityChange={(value) => {
-                          const nextValues = value ? [value] : [];
-                          setAddressDraft((current) => ({
-                            ...current,
-                            come_ti_sposti: nextValues,
-                          }));
-                          void patchSelectedWorkerField(
-                            "come_ti_sposti",
-                            nextValues.length > 0 ? nextValues : null,
-                          );
-                        }}
                         livelloItalianoValue={gateDraft.livelloItaliano}
                         livelloItalianoOptions={livelloItalianoOptions}
                         onLivelloItalianoChange={(value) => {
@@ -4910,109 +4920,6 @@ export function Gate1View({
                           );
                         }}
                       />
-                      <GateSpecificChecksCard
-                        isBabysitterEnabled={includesBabysitterType(
-                          jobSearchDraft.tipo_lavoro_domestico,
-                          tipoLavoroDomesticoOptions,
-                        )}
-                        neonatiValue={
-                          skillsDraft.check_accetta_babysitting_neonati
-                        }
-                        neonatiOptions={babysittingNeonatiOptions}
-                        multipliBambiniValue={
-                          skillsDraft.check_accetta_babysitting_multipli_bambini
-                        }
-                        multipliBambiniOptions={
-                          babysittingMultipliBambiniOptions
-                        }
-                        caniValue={skillsDraft.check_accetta_case_con_cani}
-                        caniOptions={caseConCaniOptions}
-                        caniGrandiValue={
-                          skillsDraft.check_accetta_case_con_cani_grandi
-                        }
-                        caniGrandiOptions={caseConCaniGrandiOptions}
-                        gattiValue={skillsDraft.check_accetta_case_con_gatti}
-                        gattiOptions={caseConGattiOptions}
-                        scaleValue={
-                          skillsDraft.check_accetta_salire_scale_o_soffitti_alti
-                        }
-                        scaleOptions={scaleSoffittiOptions}
-                        trasfertaValue={
-                          jobSearchDraft.check_accetta_lavori_con_trasferta
-                        }
-                        trasfertaOptions={trasfertaOptions}
-                        lookupColorsByDomain={lookupColorsByDomain}
-                        onNeonatiChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_babysitting_neonati: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_babysitting_neonati",
-                            value,
-                          );
-                        }}
-                        onMultipliBambiniChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_babysitting_multipli_bambini: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_babysitting_multipli_bambini",
-                            value,
-                          );
-                        }}
-                        onCaniChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_case_con_cani: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_case_con_cani",
-                            value,
-                          );
-                        }}
-                        onCaniGrandiChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_case_con_cani_grandi: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_case_con_cani_grandi",
-                            value,
-                          );
-                        }}
-                        onGattiChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_case_con_gatti: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_case_con_gatti",
-                            value,
-                          );
-                        }}
-                        onScaleChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_salire_scale_o_soffitti_alti: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_salire_scale_o_soffitti_alti",
-                            value,
-                          );
-                        }}
-                        onTrasfertaChange={(value) => {
-                          setJobSearchDraft((current) => ({
-                            ...current,
-                            check_accetta_lavori_con_trasferta: value,
-                          }));
-                          void patchSelectedWorkerField(
-                            "check_accetta_lavori_con_trasferta",
-                            value || null,
-                          );
-                        }}
-                      />
                       </>
                     ) : (
                       <GateSpecificChecksCard
@@ -5303,6 +5210,6 @@ export function Gate1View({
         </WorkerDetailShell>
       ) : null}
       </div>
-    </>
+    </section>
   );
 }

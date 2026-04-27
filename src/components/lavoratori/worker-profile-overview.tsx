@@ -2,9 +2,9 @@ import {
   CakeIcon,
   CalendarDaysIcon,
   FlagIcon,
+  LanguagesIcon,
   MailIcon,
   PhoneIcon,
-  PizzaIcon,
   StarIcon,
   UploadIcon,
   VenusAndMarsIcon,
@@ -13,18 +13,33 @@ import {
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import { asString, getAgeFromBirthDate } from "@/features/lavoratori/lib/base-utils"
 import { getWorkerQualificationStatus } from "@/features/lavoratori/lib/status-utils"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Avatar } from "@/components/ui-next/avatar"
+import { Button } from "@/components/ui-next/button"
+import { Card, CardContent } from "@/components/ui-next/card"
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/components/ui/carousel"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui-next/carousel"
+import { Input } from "@/components/ui-next/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
+import { Textarea } from "@/components/ui-next/textarea"
+import { cn } from "@/lib/utils"
+
+function initialsFromName(name: string) {
+  const parts = name
+    .split(" ")
+    .map((part) => part.trim())
+    .filter(Boolean)
+  return (
+    parts
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  )
+}
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 
 type WorkerProfileOverviewProps = {
@@ -88,11 +103,14 @@ export function WorkerProfileOverview({
         : []
 
   return (
-    <div className="mb-6 flex items-start gap-5">
-      <div className="flex w-52 shrink-0 flex-col gap-2 self-start">
+    <div className="mb-6 flex items-start gap-4">
+      <div className="flex shrink-0 flex-col items-start gap-2 self-start">
         {isEditing && presentationPhotoSlots.length > 0 ? (
           <div
-            className={`relative h-80 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
+            className={cn(
+              "relative h-32 w-32 overflow-hidden rounded-lg border",
+              qualificationStatus.ringClassName,
+            )}
             title={qualificationStatus.label}
           >
             <Carousel
@@ -102,13 +120,10 @@ export function WorkerProfileOverview({
             >
               <CarouselContent className="ml-0 h-full">
                 {presentationPhotoSlots.map((photoUrl, index) => (
-                  <CarouselItem
-                    key={photoUrl}
-                    className="h-full basis-full pl-0"
-                  >
+                  <CarouselItem key={photoUrl} className="h-full basis-full pl-0">
                     <div className="h-full">
-                      <Card className="h-full rounded-none border-0 py-0 shadow-none">
-                        <CardContent className="bg-muted/20 relative flex h-full min-h-80 items-center justify-center p-0">
+                      <Card className="h-full rounded-none border-0 shadow-none">
+                        <CardContent className="bg-muted/20 relative flex h-full items-center justify-center p-0">
                           <img
                             src={photoUrl}
                             alt={`Foto profilo ${index + 1}`}
@@ -142,7 +157,10 @@ export function WorkerProfileOverview({
                             </Button>
                           ) : null}
                           <span
-                            className={`absolute left-2 bottom-2 inline-flex size-5 items-center justify-center rounded-full ${qualificationStatus.badgeClassName}`}
+                            className={cn(
+                              "absolute left-2 bottom-2 inline-flex size-5 items-center justify-center rounded-full",
+                              qualificationStatus.badgeClassName,
+                            )}
                           >
                             <StatusIcon className="size-3.5" />
                           </span>
@@ -157,25 +175,23 @@ export function WorkerProfileOverview({
             </Carousel>
           </div>
         ) : (
-          <div
-            className={`bg-muted relative flex h-80 overflow-hidden rounded-lg border ${qualificationStatus.ringClassName}`}
-            title={qualificationStatus.label}
-          >
-            {worker.immagineUrl ? (
-              <img
-                src={worker.immagineUrl}
-                alt={worker.nomeCompleto}
-                className="h-full w-full object-contain"
-              />
-            ) : (
-              <span className="text-muted-foreground px-2 text-center text-xs">
-                Nessuna immagine
-              </span>
-            )}
+          <div className="relative inline-block">
+            <Avatar
+              size="xl"
+              src={worker.immagineUrl ?? undefined}
+              alt={worker.nomeCompleto}
+              fallback={initialsFromName(worker.nomeCompleto)}
+              className={qualificationStatus.ringClassName}
+            />
             <span
-              className={`absolute right-1 bottom-1 inline-flex size-5 items-center justify-center rounded-full ${qualificationStatus.badgeClassName}`}
+              aria-hidden
+              title={qualificationStatus.label}
+              className={cn(
+                "absolute -bottom-0.5 -right-0.5 inline-flex size-5 items-center justify-center rounded-full ring-2 ring-white",
+                qualificationStatus.badgeClassName,
+              )}
             >
-              <StatusIcon className="size-3.5" />
+              <StatusIcon className="size-3" />
             </span>
           </div>
         )}
@@ -188,8 +204,8 @@ export function WorkerProfileOverview({
             onClick={onUploadPhoto}
             className="w-full justify-center"
           >
-            <UploadIcon className="size-4" />
-            {uploadingPhoto ? "Caricamento..." : "Carica foto"}
+            <UploadIcon className="size-3.5" />
+            {uploadingPhoto ? "Caricamento..." : "Carica"}
           </Button>
         ) : null}
       </div>
@@ -204,14 +220,14 @@ export function WorkerProfileOverview({
                   onChange={(event) => onFieldChange?.("nome", event.target.value)}
                   onBlur={() => onFieldBlur?.("nome")}
                   placeholder="Nome"
-                  className="h-8 w-full text-sm sm:max-w-52"
+                  className="w-full sm:max-w-52"
                 />
                 <Input
                   value={draft.cognome}
                   onChange={(event) => onFieldChange?.("cognome", event.target.value)}
                   onBlur={() => onFieldBlur?.("cognome")}
                   placeholder="Cognome"
-                  className="h-8 w-full text-sm sm:max-w-52"
+                  className="w-full sm:max-w-52"
                 />
               </div>
               <Textarea
@@ -221,7 +237,7 @@ export function WorkerProfileOverview({
                 }
                 onBlur={() => onFieldBlur?.("descrizione_pubblica")}
                 rows={3}
-                className="bg-background min-h-24 text-sm"
+                className="min-h-24"
               />
             </div>
           ) : (
@@ -247,7 +263,7 @@ export function WorkerProfileOverview({
                 onChange={(event) => onFieldChange?.("email", event.target.value)}
                 onBlur={() => onFieldBlur?.("email")}
                 type="email"
-                className="h-7 max-w-md text-sm"
+                className="max-w-md"
               />
             ) : (
               <span className="truncate">{asString(workerRow.email) || "-"}</span>
@@ -261,24 +277,21 @@ export function WorkerProfileOverview({
                 onChange={(event) => onFieldChange?.("telefono", event.target.value)}
                 onBlur={() => onFieldBlur?.("telefono")}
                 type="tel"
-                className="h-7 max-w-xs text-sm"
+                className="max-w-xs"
               />
             ) : (
               <span className="truncate">{asString(workerRow.telefono) || "-"}</span>
             )}
           </p>
-          <div className="text-muted-foreground flex items-center gap-2">
-            <PizzaIcon className="size-4 shrink-0" />
+          <div className="text-muted-foreground flex items-center gap-2" title="Livello italiano">
+            <LanguagesIcon className="size-4 shrink-0" />
             {isEditing && livelloItaliano !== undefined ? (
               <div className="w-full max-w-xs">
                 <Select
                   value={livelloItaliano || undefined}
                   onValueChange={onLivelloItalianoChange}
                 >
-                  <SelectTrigger
-                    className="bg-background h-7 text-sm"
-                    onBlur={onLivelloItalianoBlur}
-                  >
+                  <SelectTrigger onBlur={onLivelloItalianoBlur}>
                     <SelectValue placeholder="Seleziona livello" />
                   </SelectTrigger>
                   <SelectContent>
@@ -307,10 +320,7 @@ export function WorkerProfileOverview({
                     value={draft.sesso || undefined}
                     onValueChange={(value) => onFieldChange?.("sesso", value)}
                   >
-                    <SelectTrigger
-                      className="h-7 text-sm"
-                      onBlur={() => onFieldBlur?.("sesso")}
-                    >
+                    <SelectTrigger onBlur={() => onFieldBlur?.("sesso")}>
                       <SelectValue placeholder="Seleziona sesso" />
                     </SelectTrigger>
                     <SelectContent>
@@ -327,7 +337,7 @@ export function WorkerProfileOverview({
                   value={draft.sesso}
                   onChange={(event) => onFieldChange?.("sesso", event.target.value)}
                   onBlur={() => onFieldBlur?.("sesso")}
-                  className="h-7 max-w-xs text-sm"
+                  className="max-w-xs"
                 />
               )
             ) : (
@@ -344,10 +354,7 @@ export function WorkerProfileOverview({
                     onFieldChange?.("nazionalita", value)
                   }
                 >
-                  <SelectTrigger
-                    className="h-7 text-sm"
-                    onBlur={() => onFieldBlur?.("nazionalita")}
-                  >
+                  <SelectTrigger onBlur={() => onFieldBlur?.("nazionalita")}>
                     <SelectValue placeholder="Seleziona nazionalita" />
                   </SelectTrigger>
                   <SelectContent>
@@ -371,7 +378,7 @@ export function WorkerProfileOverview({
                 onChange={(event) => onFieldChange?.("data_di_nascita", event.target.value)}
                 onBlur={() => onFieldBlur?.("data_di_nascita")}
                 type="date"
-                className="h-7 max-w-xs text-sm"
+                className="max-w-xs"
               />
             ) : (
               <span className="truncate">{asString(workerRow.data_di_nascita) || "-"}</span>

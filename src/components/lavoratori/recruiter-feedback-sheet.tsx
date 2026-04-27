@@ -37,7 +37,7 @@ export function RecruiterFeedbackSheet({
           <DetailSectionBlock
             title="Storico feedback"
             showDefaultAction={false}
-            contentClassName="space-y-4 px-1 pt-1"
+            contentClassName="space-y-4"
           >
             {entries.length === 0 ? (
               <p className="text-muted-foreground text-sm">

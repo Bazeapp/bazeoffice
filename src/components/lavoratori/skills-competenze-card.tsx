@@ -665,7 +665,7 @@ export function SkillsCompetenzeCard({
       showDefaultAction={showEditAction}
       collapsible={collapsible}
       defaultOpen={defaultOpen}
-      contentClassName="space-y-5 pt-1"
+      contentClassName="space-y-5"
     >
       <div className="grid gap-5">
         {SKILL_SECTIONS.map((section) => (
