@@ -7,9 +7,11 @@ import { cn } from "@/lib/utils";
 
 /**
  * Label — three documented variants:
- *   field (default) — sentence-case 12px form label.
- *   eyebrow         — 10px uppercase section header.
- *   meta            — 11px uppercase muted, for inline metadata.
+ *   eyebrow (default) — 10px uppercase tracked muted, for form field labels
+ *                       and section headers (es. STATO ASSUNZIONE).
+ *   field             — sentence-case 14px medium, uso raro: form classici
+ *                       senza tono sectionato.
+ *   meta              — 11px uppercase muted, per metadata inline.
  *
  * Pass `required` to render the red asterisk and set aria-required on the field.
  */
@@ -22,7 +24,7 @@ const labelVariants = cva("inline-flex items-center gap-1.5 text-[var(--foregrou
       meta: "text-[var(--text-2xs)] font-semibold uppercase tracking-[0.06em] text-[var(--foreground-subtle)]",
     },
   },
-  defaultVariants: { variant: "field" },
+  defaultVariants: { variant: "eyebrow" },
 });
 
 export interface LabelProps
