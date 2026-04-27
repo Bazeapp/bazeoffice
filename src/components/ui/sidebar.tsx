@@ -100,7 +100,7 @@ export const SidebarProvider = React.forwardRef<
     );
 
     const toggleSidebar = React.useCallback(() => {
-      setOpen(open!);
+      setOpen(!open);
     }, [open, setOpen]);
 
     const state: SidebarState = open ? "expanded" : "collapsed";
@@ -401,8 +401,8 @@ export const SidebarMenuSubButton = React.forwardRef<
         "flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left",
         "text-sm text-foreground-muted",
         "outline-none transition-colors duration-(--duration-fast)",
-        "hover:bg-neutral-150 hover:text-foreground-strong",
-        "data-[active=true]:font-semibold data-[active=true]:text-foreground-strong",
+        "not-data-[active=true]:hover:bg-neutral-150 not-data-[active=true]:hover:text-foreground-strong",
+        "data-[active=true]:font-semibold",
         "[&_svg]:size-3.5 [&_svg]:shrink-0",
         className,
       )}
