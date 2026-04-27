@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Clock3Icon, PaperclipIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { Clock3Icon, PaperclipIcon, PlusIcon } from "lucide-react";
 
 import { SupportTicketCreateDialog } from "@/components/support/support-ticket-create-dialog";
 import { SupportTicketDetailSheet } from "@/components/support/support-ticket-detail-sheet";
@@ -16,18 +16,20 @@ import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
   KanbanDeferredColumnAction,
-} from "@/components/shared/kanban";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+  type KanbanColumnVisual,
+} from "@/components/shared-next/kanban";
+import { RecordCard } from "@/components/shared-next/record-card";
+import { SectionHeader } from "@/components/shared-next/section-header";
+import { Badge } from "@/components/ui-next/badge";
+import { Button } from "@/components/ui-next/button";
+import { SearchInput } from "@/components/ui-next/search-input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui-next/select";
 import { cn } from "@/lib/utils";
 
 type SupportColumnData = {
@@ -41,37 +43,42 @@ type SupportColumnData = {
   deferredActionLabel?: string;
 };
 
-function getColumnClasses(color: string) {
+const TICKET_TYPE_TITLE: Record<SupportTicketType, string> = {
+  Customer: "Ticket customer",
+  Payroll: "Ticket payroll",
+};
+
+function getColumnVisual(color: string): KanbanColumnVisual {
   switch (color.toLowerCase()) {
     case "sky":
       return {
-        columnClassName: "border-sky-300 bg-sky-50/70",
-        headerClassName: "border-b border-sky-200/70",
+        columnClassName: "bg-sky-400",
+        headerClassName: "",
         iconClassName: "text-sky-500",
       };
     case "amber":
       return {
-        columnClassName: "border-amber-300 bg-amber-50/70",
-        headerClassName: "border-b border-amber-200/70",
+        columnClassName: "bg-amber-400",
+        headerClassName: "",
         iconClassName: "text-amber-500",
       };
     case "orange":
       return {
-        columnClassName: "border-orange-300 bg-orange-50/70",
-        headerClassName: "border-b border-orange-200/70",
+        columnClassName: "bg-orange-400",
+        headerClassName: "",
         iconClassName: "text-orange-500",
       };
     case "green":
       return {
-        columnClassName: "border-green-300 bg-green-50/70",
-        headerClassName: "border-b border-green-200/70",
+        columnClassName: "bg-green-400",
+        headerClassName: "",
         iconClassName: "text-green-500",
       };
     default:
       return {
-        columnClassName: "border-border bg-muted/40",
-        headerClassName: "border-b border-border/70",
-        iconClassName: "text-muted-foreground",
+        columnClassName: "",
+        headerClassName: "",
+        iconClassName: "text-muted-foreground/80",
       };
   }
 }
@@ -82,23 +89,18 @@ function SupportTicketCard({ card }: { card: SupportTicketBoardCardData }) {
   const TagIcon = tagConfig.icon;
 
   return (
-    <Card className="border border-border/70 bg-white py-0 transition-shadow hover:shadow-md">
-      <CardContent className="space-y-3 px-3 py-3">
-        <div className="space-y-1">
-          <p className="line-clamp-2 text-sm font-semibold leading-tight">
-            {card.causale}
-          </p>
-          <p className="text-muted-foreground truncate text-xs">
-            {card.nomeCompleto}
-          </p>
-        </div>
-
+    <RecordCard>
+      <RecordCard.Header
+        title={card.causale}
+        subtitle={card.nomeCompleto}
+      />
+      <RecordCard.Body>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="secondary" className={tagConfig.colorClassName}>
-            <TagIcon className="mr-1 size-3.5" />
+          <Badge className={tagConfig.colorClassName}>
+            <TagIcon className="size-3" />
             {tagConfig.label}
           </Badge>
-          <Badge variant="secondary" className={urgencyConfig.badgeClassName}>
+          <Badge className={urgencyConfig.badgeClassName}>
             {urgencyConfig.label}
           </Badge>
         </div>
@@ -120,8 +122,8 @@ function SupportTicketCard({ card }: { card: SupportTicketBoardCardData }) {
             </span>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </RecordCard.Body>
+    </RecordCard>
   );
 }
 
@@ -150,7 +152,7 @@ function SupportTicketsBoardColumn({
   onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void;
   onDropToColumn: (columnId: string, ticketId: string | null) => void;
 }) {
-  const visual = getColumnClasses(column.color);
+  const visual = getColumnVisual(column.color);
 
   return (
     <KanbanColumnShell
@@ -161,11 +163,7 @@ function SupportTicketsBoardColumn({
       density="compact"
       widthClassName="w-[292px]"
       isDropTarget={isDropTarget}
-      emptyState={
-        <div className="text-muted-foreground rounded-lg border border-dashed border-border/60 p-3 text-xs">
-          Nessun ticket
-        </div>
-      }
+      emptyMessage="Nessun ticket"
       onDragEnter={onDragEnterColumn}
       onDragOver={onDragOverColumn}
       onDragLeave={onDragLeaveColumn}
@@ -279,37 +277,50 @@ export function SupportTicketsView({
     [cards, selectedTicketId],
   );
 
+  const totalTickets = filteredCards.length;
+
   return (
-    <section className="flex h-full min-h-0 w-full min-w-0 flex-col space-y-3 overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-60 flex-1 sm:max-w-xs">
-            <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-            <Input
+    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+      <SectionHeader>
+        <SectionHeader.Title
+          subtitle={`${totalTickets} ${totalTickets === 1 ? "ticket" : "ticket"}`}
+        >
+          {TICKET_TYPE_TITLE[ticketType]}
+        </SectionHeader.Title>
+        <SectionHeader.Actions>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <PlusIcon />
+            Apri ticket
+          </Button>
+        </SectionHeader.Actions>
+        <SectionHeader.Toolbar>
+          <div className="min-w-0 flex-1">
+            <SearchInput
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="pl-8"
+              onClear={() => setSearch("")}
               placeholder="Cerca causale, famiglia o lavoratore"
             />
           </div>
-
-          <Select value={stageFilter} onValueChange={setStageFilter}>
-            <SelectTrigger className="min-w-45">
-              <SelectValue placeholder="Tutti gli stati" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tutti gli stati</SelectItem>
-              {stages.map((stage) => (
-                <SelectItem key={stage.id} value={stage.id}>
-                  {stage.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {(search || stageFilter !== "all") && (
+          <div className="w-[200px] shrink-0">
+            <Select value={stageFilter} onValueChange={setStageFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tutti gli stati" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti gli stati</SelectItem>
+                {stages.map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    {stage.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {(search || stageFilter !== "all") ? (
             <Button
               variant="ghost"
+              className="shrink-0"
               onClick={() => {
                 setSearch("");
                 setStageFilter("all");
@@ -317,22 +328,17 @@ export function SupportTicketsView({
             >
               Reset filtri
             </Button>
-          )}
-        </div>
-
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <PlusIcon className="size-4" />
-          Apri ticket
-        </Button>
-      </div>
+          ) : null}
+        </SectionHeader.Toolbar>
+      </SectionHeader>
 
       {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mx-4 mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento ticket: {error}
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2">
+      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4">
         <div className="flex h-full min-h-0 min-w-max gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, index) => (

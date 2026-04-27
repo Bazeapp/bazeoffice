@@ -15,24 +15,25 @@ import {
 import {
   AttachmentUploadSlot,
   type AttachmentLink,
-} from "@/components/shared/attachment-upload-slot"
-import { DetailSectionBlock } from "@/components/shared/detail-section-card"
+} from "@/components/shared-next/attachment-upload-slot"
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { RapportoDetailPanel } from "@/components/gestione-contrattuale/rapporto-detail-panel"
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+} from "@/components/ui-next/accordion"
+import { Badge } from "@/components/ui-next/badge"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui-next/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui-next/sheet"
 import {
   buildAttachmentPayload,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"
+import { cn } from "@/lib/utils"
 import type { TicketRecord } from "@/types"
 
 function sanitizeFileName(name: string) {
@@ -71,6 +72,28 @@ function getStatusColor(value: string | null | undefined) {
   if (token.includes("todo") || token.includes("to do")) return "sky"
   if (token.includes("chius") || token.includes("annull") || token.includes("cess")) return "zinc"
   return "sky"
+}
+
+function getStageDotClass(color: string | null | undefined) {
+  switch ((color ?? "").toLowerCase()) {
+    case "sky":
+      return "bg-sky-500"
+    case "amber":
+      return "bg-amber-500"
+    case "orange":
+      return "bg-orange-500"
+    case "green":
+    case "emerald":
+      return "bg-emerald-500"
+    case "red":
+    case "rose":
+      return "bg-red-500"
+    case "zinc":
+    case "gray":
+      return "bg-zinc-400"
+    default:
+      return "bg-muted-foreground/60"
+  }
 }
 
 function normalizeAttachmentValue(value: unknown) {
@@ -139,7 +162,6 @@ export function SupportTicketDetailSheet({
     stages.find((stage) => stage.id === card?.stage) ?? resolveSupportTicketStatus(card?.stage)
   const tagConfig = resolveSupportTicketTag(card?.tag)
   const urgencyConfig = resolveSupportTicketUrgency(card?.urgenza)
-  const StatusIcon = statusConfig.icon
   const TagIconComponent = tagConfig.icon
   const UrgencyIcon = urgencyConfig.icon
   const rapportoStatusColor = card?.rapporto
@@ -187,40 +209,39 @@ export function SupportTicketDetailSheet({
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
-          <SheetHeader className="border-b bg-background px-5 py-5">
-            <div className="space-y-2">
+          <SheetHeader className="border-b bg-white px-5 py-5">
+            <div className="space-y-3">
               <SheetTitle className="truncate text-xl font-semibold">
                 {card?.causale ?? "Dettaglio ticket"}
               </SheetTitle>
               <SheetDescription className="text-sm">
                 {card?.nomeCompleto ?? "Dettaglio ticket di supporto"}
               </SheetDescription>
-              <div className="flex flex-wrap items-center gap-2">
-                {card ? (
-                  <Select value={card.stage} onValueChange={(value) => void onMoveTicket(card.id, value)}>
-                    <SelectTrigger className="min-w-[180px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stages.map((stage) => (
-                        <SelectItem key={stage.id} value={stage.id}>
-                          {stage.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : null}
-                <Badge variant="secondary" className={statusConfig.badgeClassName}>
-                  <StatusIcon className="mr-1 size-3.5" />
-                  {statusConfig.label}
-                </Badge>
-                {card?.tipo ? <Badge variant="outline">{card.tipo}</Badge> : null}
-              </div>
+              {card ? (
+                <Select value={card.stage} onValueChange={(value) => void onMoveTicket(card.id, value)}>
+                  <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full bg-white px-2.5 text-xs font-medium">
+                    <span
+                      className={cn(
+                        "size-2 shrink-0 rounded-full",
+                        getStageDotClass(statusConfig.color),
+                      )}
+                    />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stages.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>
+                        {stage.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
             </div>
           </SheetHeader>
 
           {card ? (
-            <section className="h-full overflow-y-auto bg-muted/20 px-5 py-5">
+            <section className="h-full overflow-y-auto bg-[var(--neutral-150)] px-5 py-5">
               <div className="mx-auto max-w-5xl space-y-5">
                 {card.rapporto ? (
                   <Accordion type="single" collapsible className="rounded-2xl border bg-background px-4">

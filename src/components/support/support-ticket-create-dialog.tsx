@@ -5,23 +5,22 @@ import {
   type SupportTicketTag,
   getSupportTicketTagsForType,
   resolveSupportTicketTag,
-  resolveSupportTicketUrgency,
   SUPPORT_TICKET_URGENCIES,
   type SupportTicketType,
   type SupportTicketUrgency,
 } from "@/components/support/support-ticket-config"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui-next/button"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui-next/dialog"
+import { Label } from "@/components/ui-next/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
+import { Textarea } from "@/components/ui-next/textarea"
 
 type SupportTicketCreateDialogProps = {
   open: boolean
@@ -122,19 +121,15 @@ export function SupportTicketCreateDialog({
             <RadioGroup
               value={ticketType}
               onValueChange={(value) => setTicketType(value as SupportTicketType)}
-              className="flex gap-3"
+              className="flex flex-wrap gap-4"
             >
               {(["Customer", "Payroll"] as SupportTicketType[]).map((item) => (
                 <label
                   key={item}
-                  className={`relative flex min-w-0 cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-xs font-medium transition-colors ${
-                    ticketType === item
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:border-muted-foreground/40"
-                  }`}
+                  className="flex cursor-pointer items-center gap-2 text-sm"
                 >
-                  <RadioGroupItem value={item} className="sr-only absolute" />
-                  <span className="block w-full text-center">{item}</span>
+                  <RadioGroupItem value={item} />
+                  <span>{item}</span>
                 </label>
               ))}
             </RadioGroup>
@@ -190,24 +185,17 @@ export function SupportTicketCreateDialog({
             <RadioGroup
               value={urgenza}
               onValueChange={(value) => setUrgenza(value as SupportTicketUrgency)}
-              className="flex gap-3"
+              className="flex flex-wrap gap-4"
             >
-              {SUPPORT_TICKET_URGENCIES.map((item) => {
-                const config = resolveSupportTicketUrgency(item.id)
-                return (
-                  <label
-                    key={item.id}
-                    className={`relative flex min-w-0 cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-xs font-medium transition-colors ${
-                      urgenza === item.id
-                        ? `${config.colorClassName} border-current`
-                        : "border-border text-muted-foreground hover:border-muted-foreground/40"
-                    }`}
-                  >
-                    <RadioGroupItem value={item.id} className="sr-only absolute" />
-                    <span className="block w-full text-center">{item.label}</span>
-                  </label>
-                )
-              })}
+              {SUPPORT_TICKET_URGENCIES.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex cursor-pointer items-center gap-2 text-sm"
+                >
+                  <RadioGroupItem value={item.id} />
+                  <span>{item.label}</span>
+                </label>
+              ))}
             </RadioGroup>
           </div>
 
