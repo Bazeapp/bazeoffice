@@ -16,25 +16,25 @@ import {
 } from "lucide-react"
 
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
-import { Avatar } from "@/components/ui-next/avatar"
-import { Button } from "@/components/ui-next/button"
-import { Card, CardContent } from "@/components/ui-next/card"
+import { Avatar } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/components/ui-next/carousel"
-import { Input } from "@/components/ui-next/input"
+} from "@/components/ui/carousel"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select"
-import { Textarea } from "@/components/ui-next/textarea"
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import {
   asString,
@@ -170,7 +170,7 @@ function getGateAvatarStateClass(isCompleted: boolean, variant: "idoneo" | "cert
   if (variant === "certificato") {
     return {
       ringClassName: "ring-2 ring-emerald-600/40",
-      badgeClassName: "bg-emerald-600 text-white",
+      badgeClassName: "bg-success text-foreground-on-accent",
     }
   }
 
@@ -346,7 +346,7 @@ export function WorkerProfileHeader({
         }
         disabled={isDisabled}
       >
-        <SelectTrigger className={cn("min-w-[140px]", triggerClassName)}>
+        <SelectTrigger className={cn("min-w-35", triggerClassName)}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
@@ -591,7 +591,7 @@ export function WorkerProfileHeader({
                     void onDataRitornoDisponibilitaChange?.(event.target.value)
                   }
                   disabled={resolvedDataRitornoDisponibilitaDisabled}
-                  className="min-w-[140px]"
+                  className="min-w-35"
                 />
               </div>
             ) : null}

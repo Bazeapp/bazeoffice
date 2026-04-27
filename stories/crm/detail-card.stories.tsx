@@ -27,7 +27,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {
   render: ({ content, showAction, ...args }) => (
-    <div className="w-[520px]">
+    <div className="w-130">
       <CrmDetailCard
         {...args}
         titleAction={showAction ? <Button variant="outline">Azione</Button> : undefined}

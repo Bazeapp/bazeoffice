@@ -4,35 +4,37 @@ import type { RuleGroupType } from "react-querybuilder"
 import { DownloadIcon, FunnelIcon, LayersIcon, PlusIcon, XIcon } from "lucide-react"
 
 import { AnagraficheAgGrid } from "@/components/anagrafiche/anagrafiche-ag-grid"
-import { formatCellValue, toReadableColumnLabel } from "@/components/anagrafiche/anagrafiche-ag-grid"
+import { formatCellValue, toReadableColumnLabel } from "@/components/anagrafiche/anagrafiche-formatters"
 import {
   AnagraficheQueryBuilder,
+} from "@/components/anagrafiche/anagrafiche-query-builder"
+import {
   emptyServerFilterGroup,
   makeEmptyRuleGroup,
   queryBuilderToFilterGroup,
   toQueryBuilderFields,
-} from "@/components/anagrafiche/anagrafiche-query-builder"
+} from "@/components/anagrafiche/anagrafiche-query-utils"
 import { createEmptyGroup } from "@/components/data-table/data-table-filters"
-import { Button } from "@/components/ui-next/button"
+import { Button } from "@/components/ui/button"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui-next/popover"
+} from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select"
+} from "@/components/ui/select"
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui-next/sheet"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-next/tabs"
+} from "@/components/ui/sheet"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import {
   type AnagraficaRow,
@@ -942,7 +944,7 @@ export function AnagraficheTablesView({
   }, [])
 
   return (
-    <section className="ui-next w-full min-w-0 space-y-4 px-4 pb-2 pt-4">
+    <section className="ui w-full min-w-0 space-y-4 px-4 pb-2 pt-4">
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento dati: {error}

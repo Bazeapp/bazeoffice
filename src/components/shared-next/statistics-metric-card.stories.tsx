@@ -7,7 +7,7 @@ const meta = {
   component: StatisticsMetricCard,
   decorators: [
     (Story) => (
-      <div className="ui-next w-[260px]">
+      <div className="ui w-65">
         <Story />
       </div>
     ),
@@ -55,8 +55,8 @@ export const LongTitle: Story = {
 export const Grid: Story = {
   decorators: [
     (Story) => (
-      <div className="ui-next">
-        <div className="grid grid-cols-3 gap-3 w-[820px]">
+      <div className="ui">
+        <div className="grid grid-cols-3 gap-3 w-205">
           <Story />
         </div>
       </div>

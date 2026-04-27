@@ -22,22 +22,22 @@ import {
   type FilterField,
   type FilterGroup,
 } from "@/components/data-table/data-table-filters";
-import { Button } from "@/components/ui-next/button";
-import { Input } from "@/components/ui-next/input";
-import { SearchInput } from "@/components/ui-next/search-input";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui-next/popover";
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
-import { Separator } from "@/components/ui-next/separator";
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
 type GroupOption = {
   label: string;
@@ -308,7 +308,7 @@ export function DataTableToolbar<TData>({
                     Nessuna vista salvata.
                   </p>
                 ) : (
-                  <div className="max-h-[260px] space-y-2 overflow-y-auto">
+                  <div className="max-h-65 space-y-2 overflow-y-auto">
                     {sortedSavedViews.map((view) => (
                       <div
                         key={view.id}
@@ -441,7 +441,7 @@ export function DataTableToolbar<TData>({
                           upsertSort(index, { desc: value === "desc" })
                         }
                       >
-                        <SelectTrigger className="h-10 w-[180px]">
+                        <SelectTrigger className="h-10 w-45">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

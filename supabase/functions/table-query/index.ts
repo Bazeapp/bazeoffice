@@ -1362,8 +1362,19 @@ function orderRangeValues(value: string, valueTo: string | undefined) {
   return left <= right ? { from: left, to: right } : { from: right, to: left };
 }
 
+type ServerFilterQuery = {
+  eq: (field: string, value: unknown) => ServerFilterQuery;
+  neq: (field: string, value: unknown) => ServerFilterQuery;
+  gte: (field: string, value: unknown) => ServerFilterQuery;
+  lte: (field: string, value: unknown) => ServerFilterQuery;
+  in: (field: string, value: unknown[]) => ServerFilterQuery;
+  gt: (field: string, value: unknown) => ServerFilterQuery;
+  lt: (field: string, value: unknown) => ServerFilterQuery;
+  ilike: (field: string, value: string) => ServerFilterQuery;
+}
+
 function applyServerCondition(
-  query: any,
+  query: ServerFilterQuery,
   condition: FilterCondition,
 ) {
   const field = condition.field;

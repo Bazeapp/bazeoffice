@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import type * as React from "react";
 import { FilterIcon, PlusIcon, UsersIcon } from "lucide-react";
 
-import { SideCardsPanel } from "@/components/shared/side-cards-panel";
+import { SideCardsPanel } from "@/components/shared-next/side-cards-panel";
 import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
 import { Button } from "@/components/ui/button";
 import { mockWorker } from "../mocks";
@@ -98,7 +98,7 @@ export const Default: Story = {
     ...args
   }) => {
     const groups = showGroups
-      ? GROUP_LABELS.slice(0, groupCount).map((label, index) => ({
+      ? GROUP_LABELS.slice(0, groupCount).map((label) => ({
           id: label,
           title: label,
           count: cardsPerGroup,
@@ -127,7 +127,7 @@ export const Default: Story = {
         groups={groups}
         searchValue={showSearch ? args.searchValue : undefined}
         toolbarActions={filterActions}
-        className="h-[520px] w-[340px]"
+        className="h-130 w-85"
         contentClassName="space-y-2 px-5 py-3"
       >
         {renderCards(cardCount)}

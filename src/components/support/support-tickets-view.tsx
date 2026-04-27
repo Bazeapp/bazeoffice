@@ -20,16 +20,16 @@ import {
 } from "@/components/shared-next/kanban";
 import { RecordCard } from "@/components/shared-next/record-card";
 import { SectionHeader } from "@/components/shared-next/section-header";
-import { Badge } from "@/components/ui-next/badge";
-import { Button } from "@/components/ui-next/button";
-import { SearchInput } from "@/components/ui-next/search-input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 type SupportColumnData = {
@@ -105,7 +105,7 @@ function SupportTicketCard({ card }: { card: SupportTicketBoardCardData }) {
           </Badge>
         </div>
 
-        <div className="flex items-center justify-between gap-3 text-[11px]">
+        <div className="flex items-center justify-between gap-3 text-2xs">
           <div className="text-muted-foreground flex items-center gap-1.5">
             <Clock3Icon className="size-3.5" />
             <span>{card.dataAperturaLabel}</span>
@@ -161,7 +161,7 @@ function SupportTicketsBoardColumn({
       countLabel={`${column.totalCount} ticket`}
       visual={visual}
       density="compact"
-      widthClassName="w-[292px]"
+      widthClassName="w-73"
       isDropTarget={isDropTarget}
       emptyMessage="Nessun ticket"
       onDragEnter={onDragEnterColumn}
@@ -203,7 +203,7 @@ function SupportTicketsBoardColumn({
 function SupportTicketsBoardSkeletonColumn() {
   return (
     <KanbanColumnSkeleton
-      widthClassName="w-[292px]"
+      widthClassName="w-73"
       density="compact"
       showBadgeRow
     />
@@ -280,7 +280,7 @@ export function SupportTicketsView({
   const totalTickets = filteredCards.length;
 
   return (
-    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+    <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <SectionHeader>
         <SectionHeader.Title
           subtitle={`${totalTickets} ${totalTickets === 1 ? "ticket" : "ticket"}`}
@@ -302,7 +302,7 @@ export function SupportTicketsView({
               placeholder="Cerca causale, famiglia o lavoratore"
             />
           </div>
-          <div className="w-[200px] shrink-0">
+          <div className="w-50 shrink-0">
             <Select value={stageFilter} onValueChange={setStageFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Tutti gli stati" />

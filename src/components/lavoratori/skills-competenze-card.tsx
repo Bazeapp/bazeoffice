@@ -16,16 +16,16 @@ import {
   SkillsChoiceMatrix,
   type SkillsChoiceMatrixRow,
 } from "@/components/lavoratori/skills-choice-matrix"
-import { Badge } from "@/components/ui-next/badge"
-import { Button } from "@/components/ui-next/button"
-import { FieldSet } from "@/components/ui-next/field"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { FieldSet } from "@/components/ui/field"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select"
+} from "@/components/ui/select"
 import { getTagClassName, resolveLookupColor, type LookupOption } from "@/features/lavoratori/lib/lookup-utils"
 import { cn } from "@/lib/utils"
 
@@ -420,7 +420,7 @@ function LevelReadOnlyValue({
   const levelMeta = getLevelMeta(value)
 
   return (
-    <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border/60 bg-white px-3 py-2.5">
+    <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border/60 bg-surface px-3 py-2.5">
       <Badge
         variant="outline"
         className={getTagClassName(resolveLookupColor(lookupColorsByDomain, domain, value))}

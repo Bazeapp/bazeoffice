@@ -26,13 +26,13 @@ import {
   useTableQueryState,
 } from "@/hooks/use-table-query-state";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
-import { Button } from "@/components/ui-next/button";
-import { Pagination } from "@/components/ui-next/pagination";
+import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui-next/popover";
+} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -40,8 +40,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui-next/table";
-import { Sheet, SheetContent } from "@/components/ui-next/sheet";
+} from "@/components/ui/table";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   SidebarContent,
   SidebarGroup,
@@ -49,7 +49,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarSeparator,
-} from "@/components/ui-next/sidebar";
+} from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 type GroupOption = {
@@ -313,6 +313,8 @@ export function DataTable<TData, TValue>({
     1,
   );
 
+  // TanStack Table intentionally returns function-heavy objects; React Compiler cannot memoize this hook safely.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: filteredData,
     columns,

@@ -9,18 +9,18 @@ import {
   type SupportTicketType,
   type SupportTicketUrgency,
 } from "@/components/support/support-ticket-config"
-import { Button } from "@/components/ui-next/button"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui-next/dialog"
-import { Label } from "@/components/ui-next/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
-import { Textarea } from "@/components/ui-next/textarea"
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 
 type SupportTicketCreateDialogProps = {
   open: boolean

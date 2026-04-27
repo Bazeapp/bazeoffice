@@ -10,7 +10,7 @@ import {
 import {
   DetailField,
   DetailSectionBlock,
-} from "@/components/shared/detail-section-card";
+} from "@/components/shared-next/detail-section-card";
 
 type DetailSectionBlockStoryArgs = React.ComponentProps<
   typeof DetailSectionBlock

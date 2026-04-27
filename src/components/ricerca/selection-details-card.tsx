@@ -13,16 +13,16 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui-next/combobox"
-import { FieldLabel } from "@/components/ui-next/field"
+} from "@/components/ui/combobox"
+import { FieldLabel } from "@/components/ui/field"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select"
-import { Textarea } from "@/components/ui-next/textarea"
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils"
 import {
   getTagClassName,

@@ -46,11 +46,11 @@ import {
   getTagClassName,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
-import { Button } from "@/components/ui-next/button";
+import { Button } from "@/components/ui/button";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board";
-import { Input } from "@/components/ui-next/input";
+import { Input } from "@/components/ui/input";
 import {
   fetchFamiglie,
   fetchLavoratori,
@@ -72,7 +72,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
+} from "@/components/ui/select";
 import {
   Combobox,
   ComboboxChip,
@@ -84,14 +84,14 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui-next/combobox";
+} from "@/components/ui/combobox";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui-next/accordion";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-next/tabs";
+} from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -99,8 +99,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui-next/dialog";
-import { Textarea } from "@/components/ui-next/textarea";
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 type NonQualificatoTipoLavoroFieldProps = {
   value: string[];
@@ -1434,7 +1434,7 @@ export function LavoratoriCercaView({
     tabs.push({ id: "processi", label: "Ricerche", icon: MessageSquareTextIcon });
 
     return tabs;
-  }, [selectedWorkerIsNonIdoneo, selectedWorkerIsNonQualificato]);
+  }, [selectedWorkerIsNonQualificato]);
   const [activeWorkerSection, setActiveWorkerSection] =
     React.useState("profilo");
 
@@ -1594,7 +1594,7 @@ export function LavoratoriCercaView({
   );
 
   return (
-    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+    <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <div
         className={
           selectedWorkerId
@@ -2434,7 +2434,7 @@ export function LavoratoriCercaView({
                                   <AccordionTrigger className="px-4 py-3 hover:no-underline">
                                     <div className="flex min-w-0 items-center gap-2 text-left">
                                       <div
-                                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getProcessStateClassName(groupLabel)}`}
+                                        className={`rounded-full border px-2 py-0.5 text-2xs font-medium ${getProcessStateClassName(groupLabel)}`}
                                       >
                                         {groupLabel}
                                       </div>
@@ -2477,7 +2477,7 @@ export function LavoratoriCercaView({
                                   <AccordionTrigger className="px-4 py-3 hover:no-underline">
                                     <div className="flex min-w-0 items-center gap-2 text-left">
                                       <div
-                                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getProcessStateClassName(groupLabel)}`}
+                                        className={`rounded-full border px-2 py-0.5 text-2xs font-medium ${getProcessStateClassName(groupLabel)}`}
                                       >
                                         {groupLabel}
                                       </div>

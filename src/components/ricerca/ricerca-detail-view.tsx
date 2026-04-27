@@ -20,23 +20,23 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui-next/accordion";
-import { Badge } from "@/components/ui-next/badge";
-import { Button } from "@/components/ui-next/button";
-import { Field, FieldLabel } from "@/components/ui-next/field";
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
+} from "@/components/ui/select";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui-next/tabs";
+} from "@/components/ui/tabs";
 import {
   type CrmPipelineCardData,
   useCrmPipelinePreview,
@@ -471,12 +471,12 @@ export function RicercaDetailView({
   );
 
   return (
-    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+    <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <Tabs
         defaultValue="pipeline"
         className="flex h-full min-h-0 flex-col gap-0"
       >
-        <header className="sticky top-0 z-20 shrink-0 border-b border-[var(--border-subtle)] bg-white px-6 py-3">
+        <header className="sticky top-0 z-20 shrink-0 border-b border-border-subtle bg-surface px-6 py-3">
           <div className="flex items-end justify-between gap-4">
             <div className="min-w-0">
               <button
@@ -528,7 +528,7 @@ export function RicercaDetailView({
             )}
           >
             {isSidebarCollapsed ? (
-              <div className="flex h-full min-h-0 shrink-0 items-start justify-center rounded-lg border border-[#ececea] bg-white p-1 shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]">
+              <div className="flex h-full min-h-0 shrink-0 items-start justify-center rounded-lg border border-border-subtle bg-surface p-1 shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]">
                 <Button
                   type="button"
                   variant="ghost"
@@ -541,7 +541,7 @@ export function RicercaDetailView({
                 </Button>
               </div>
             ) : (
-            <aside className="flex min-h-0 flex-col overflow-y-auto rounded-lg border border-[#ececea] bg-white p-4 shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]">
+            <aside className="flex min-h-0 flex-col overflow-y-auto rounded-lg border border-border-subtle bg-surface p-4 shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]">
               <div className="space-y-4">
                 <Field>
                   <div className="flex items-center justify-between gap-2">
@@ -704,7 +704,7 @@ export function RicercaDetailView({
                     <div
                       className={cn(
                         "flex min-w-0 items-center gap-2 text-[12.5px]",
-                        isDeadlineUrgent ? "text-red-600" : "text-[#76756f]",
+                        isDeadlineUrgent ? "text-red-600" : "text-foreground-muted",
                       )}
                     >
                       <CalendarIcon
@@ -712,7 +712,7 @@ export function RicercaDetailView({
                           "size-3 shrink-0",
                           isDeadlineUrgent
                             ? "text-red-600"
-                            : "text-[#a3a29b]",
+                            : "text-foreground-faint",
                         )}
                       />
                       <span
@@ -924,7 +924,7 @@ export function RicercaDetailView({
                                 Copia
                               </Button>
                             </div>
-                            <div className="rounded-md border bg-[#efeae2] p-3">
+                            <div className="rounded-md border bg-surface-muted p-3">
                               {hasBrief ? (
                                 <div className="ml-auto max-w-[92%] whitespace-pre-wrap rounded-xl rounded-br-sm border border-emerald-200 bg-emerald-100/80 px-3 py-2 text-sm leading-relaxed text-foreground shadow-sm">
                                   {brief}
@@ -964,7 +964,7 @@ export function RicercaDetailView({
                 value="mappa"
                 className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden"
               >
-                <div className="flex h-full min-h-0 flex-1 items-center justify-center rounded-lg border border-[#ececea] bg-white shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]">
+                <div className="flex h-full min-h-0 flex-1 items-center justify-center rounded-lg border border-border-subtle bg-surface shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]">
                   <div className="text-center">
                     <MapIcon className="text-muted-foreground/40 mx-auto mb-3 size-10" />
                     <p className="text-foreground text-sm font-medium">

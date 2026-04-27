@@ -44,8 +44,8 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui-next/combobox";
-import { Button } from "@/components/ui-next/button";
+} from "@/components/ui/combobox";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,29 +54,29 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogTitle,
-} from "@/components/ui-next/alert-dialog";
+} from "@/components/ui/alert-dialog";
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-} from "@/components/ui-next/hover-card";
-import { Input } from "@/components/ui-next/input";
-import { Pagination } from "@/components/ui-next/pagination";
-import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group";
+} from "@/components/ui/hover-card";
+import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
-import { Textarea } from "@/components/ui-next/textarea";
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   formatAvailabilityComputedAt,
   type AvailabilityEditBandField,
   type AvailabilityEditDayField,
 } from "@/features/lavoratori/lib/availability-utils";
-import { FieldLabel } from "@/components/ui-next/field";
+import { FieldLabel } from "@/components/ui/field";
 import {
   asLavoratoreRecord,
   asInputValue,
@@ -400,7 +400,7 @@ function GateCertificationReferenteCard({
         <div className="flex items-start gap-3 text-sm">
           <FieldLabel className="w-24 shrink-0">Referente Gate 1</FieldLabel>
           <div className="min-w-0 flex-1 text-foreground">
-            <div className="text-foreground flex min-h-10 items-center rounded-md border bg-white px-3 text-sm">
+            <div className="text-foreground flex min-h-10 items-center rounded-md border bg-surface px-3 text-sm">
               {resolveOperatorLabel(referenteIdoneitaValue, options)}
             </div>
           </div>
@@ -906,7 +906,7 @@ function GateWorkTypesCard({
               </SelectContent>
             </Select>
           ) : (
-            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
               {getLookupDisplayOption(referenzeOptions, haiReferenze)?.label ||
                 haiReferenze ||
                 "-"}
@@ -926,7 +926,7 @@ function GateWorkTypesCard({
             className="w-full min-h-28"
           />
         ) : (
-          <div className="rounded-lg border bg-white px-3 py-3">
+          <div className="rounded-lg border bg-surface px-3 py-3">
             <p className="text-muted-foreground whitespace-pre-wrap text-sm leading-6">
               {situationValue || "-"}
             </p>
@@ -979,7 +979,7 @@ function GateWorkTypesCard({
               onBlur={onAnniEsperienzaColfBlur}
             />
           ) : (
-            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
               {experienceDraft.anni_esperienza_colf || "-"}
             </div>
           )}
@@ -1000,7 +1000,7 @@ function GateWorkTypesCard({
               onBlur={onAnniEsperienzaBabysitterBlur}
             />
           ) : (
-            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
               {experienceDraft.anni_esperienza_babysitter || "-"}
             </div>
           )}
@@ -1019,7 +1019,7 @@ function GateWorkTypesCard({
               onBlur={onAnniEsperienzaBadanteBlur}
             />
           ) : (
-            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
               {experienceDraft.anni_esperienza_badante || "-"}
             </div>
           )}
@@ -1307,7 +1307,7 @@ function GateLookupConfirmationField({
           </SelectContent>
         </Select>
       ) : (
-        <div className="flex min-h-10 items-center rounded-lg border bg-white px-3 py-2">
+        <div className="flex min-h-10 items-center rounded-lg border bg-surface px-3 py-2">
           {displayLabel ? (
             <span
               className={`inline-flex items-center rounded-4xl border px-2.5 py-0.5 text-xs ${getTagClassName(
@@ -2017,7 +2017,7 @@ function GateBazeChecksCard({
               placeholder="Inserisci paga oraria"
             />
           ) : (
-            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
               {pagaOrariaRichiesta || "-"}
             </div>
           )}
@@ -2054,7 +2054,7 @@ function GateBazeChecksCard({
             onBlur={onDataScadenzaNaspiBlur}
           />
         ) : (
-          <div className="rounded-lg border bg-white px-3 py-2 text-sm">
+          <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
             {dataScadenzaNaspi || "-"}
           </div>
         )}
@@ -2310,7 +2310,7 @@ function GateAdministrativeFieldsCard({
               placeholder="Inserisci IBAN"
             />
           ) : (
-            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
               {ibanValue || "-"}
             </div>
           )}
@@ -2326,7 +2326,7 @@ function GateAdministrativeFieldsCard({
               placeholder="Inserisci ID account Stripe"
             />
           ) : (
-            <div className="rounded-lg border bg-white px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
               {stripeAccountValue || "-"}
             </div>
           )}
@@ -3504,7 +3504,7 @@ export function Gate1View({
   ]);
 
   return (
-    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+    <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <input
         ref={workerPhotoInputRef}
         type="file"

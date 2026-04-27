@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { KanbanColumnShell } from "@/components/shared/kanban";
+import { KanbanColumnShell } from "@/components/shared-next/kanban";
 import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
 import { mockWorker } from "../mocks";
 
@@ -28,7 +28,7 @@ const meta = {
     countLabel: "1 lavoratore",
     visual,
     isDropTarget: false,
-    widthClassName: "w-[340px]",
+    widthClassName: "w-85",
     density: "comfortable",
   },
 } satisfies Meta<typeof KanbanColumnShell>;

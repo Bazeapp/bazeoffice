@@ -23,9 +23,9 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui-next/accordion";
-import { Badge } from "@/components/ui-next/badge";
-import { Button } from "@/components/ui-next/button";
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Combobox,
   ComboboxChip,
@@ -37,9 +37,9 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui-next/combobox";
-import { ExperienceCardTitle } from "@/components/ui-next/experience-card-title";
-import { Checkbox } from "@/components/ui-next/checkbox";
+} from "@/components/ui/combobox";
+import { ExperienceCardTitle } from "@/components/ui/experience-card-title";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,7 +48,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogTitle,
-} from "@/components/ui-next/alert-dialog";
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -56,10 +56,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui-next/dialog";
-import { FieldDescription, FieldLabel } from "@/components/ui-next/field";
-import { Input } from "@/components/ui-next/input";
-import { Card, CardContent } from "@/components/ui-next/card";
+} from "@/components/ui/dialog";
+import { FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { formatDateOnly } from "@/features/lavoratori/lib/availability-utils";
 import {
   getTagClassName,
@@ -71,8 +71,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
-import { Textarea } from "@/components/ui-next/textarea";
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore";
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore";

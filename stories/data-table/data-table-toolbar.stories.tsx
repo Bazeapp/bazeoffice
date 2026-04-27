@@ -21,6 +21,13 @@ const data: Row[] = [
   { nome: "Alba Manganotti", stato: "Lead" },
 ];
 
+function DataTableToolbarDemo(args: React.ComponentProps<typeof DataTableToolbar<Row>>) {
+  // TanStack Table intentionally returns function-heavy objects; React Compiler cannot memoize this hook safely.
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
+  return <DataTableToolbar {...args} table={table} />;
+}
+
 const meta = {
   title: "DataTable/DataTableToolbar",
   component: DataTableToolbar<Row>,
@@ -54,10 +61,7 @@ const meta = {
     compactControls: { control: "boolean" },
     hasPendingFilters: { control: "boolean" },
   },
-  render: (args) => {
-    const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
-    return <DataTableToolbar {...args} table={table} />;
-  },
+  render: (args) => <DataTableToolbarDemo {...args} />,
 } satisfies Meta<typeof DataTableToolbar<Row>>;
 
 export default meta;
@@ -65,4 +69,3 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
-

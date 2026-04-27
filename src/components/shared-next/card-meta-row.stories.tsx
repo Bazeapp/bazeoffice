@@ -7,8 +7,8 @@ import {
   PhoneIcon,
 } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui-next/card";
-import { Badge } from "@/components/ui-next/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { CardMetaRow } from "@/components/shared-next/card-meta-row";
 
 const meta = {
@@ -16,7 +16,7 @@ const meta = {
   component: CardMetaRow,
   decorators: [
     (Story) => (
-      <div className="ui-next w-[320px]">
+      <div className="ui w-80">
         <Story />
       </div>
     ),
@@ -70,7 +70,7 @@ export const Stack: Story = {
 
 export const InsideCard: Story = {
   render: () => (
-    <Card className="bg-white">
+    <Card className="bg-surface">
       <CardContent className="space-y-2.5">
         <div className="flex items-start justify-between gap-2">
           <p className="text-base font-semibold leading-snug">Aria Bocelli</p>

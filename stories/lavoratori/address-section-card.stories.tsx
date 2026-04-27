@@ -4,6 +4,11 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AddressSectionCard } from "@/components/lavoratori/address-section-card";
 import { lookupOptions } from "../mocks";
 
+function AddressSectionCardDemo(args: React.ComponentProps<typeof AddressSectionCard>) {
+  const mobilityAnchor = React.useRef<HTMLDivElement | null>(null);
+  return <AddressSectionCard {...args} mobilityAnchor={mobilityAnchor} />;
+}
+
 const meta = {
   title: "Lavoratori/Blocchi/AddressSectionCard",
   component: AddressSectionCard,
@@ -38,10 +43,7 @@ const meta = {
     showEditAction: { control: "boolean" },
     showCap: { control: "boolean" },
   },
-  render: (args) => {
-    const mobilityAnchor = React.useRef<HTMLDivElement | null>(null);
-    return <AddressSectionCard {...args} mobilityAnchor={mobilityAnchor} />;
-  },
+  render: (args) => <AddressSectionCardDemo {...args} />,
 } satisfies Meta<typeof AddressSectionCard>;
 
 export default meta;

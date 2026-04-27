@@ -20,7 +20,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {
   render: (args) => (
-    <div className="w-[360px]">
+    <div className="w-90">
       <RicercaActiveSearchCard {...args} />
     </div>
   ),

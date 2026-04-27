@@ -1,8 +1,8 @@
 import { Link2Icon, ShieldCheckIcon, UserRoundIcon } from "lucide-react"
 
-import { Badge } from "@/components/ui-next/badge"
-import { Button } from "@/components/ui-next/button"
-import { Card, CardContent } from "@/components/ui-next/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { DetailField } from "@/components/shared-next/detail-section-card"
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles"
 import { cn } from "@/lib/utils"
@@ -50,8 +50,8 @@ function normalizeToken(value: string | null | undefined) {
 
 function getStatusColor(status: string | null | undefined) {
   const token = normalizeToken(status)
-  if (!token) return "zinc"
-  if (token.includes("attivo") && !token.includes("non")) return "emerald"
+  if (token!) return "zinc"
+  if (token.includes("attivo") && token!.includes("non")) return "emerald"
   if (token.includes("attesa") || token.includes("attivazione") || token.includes("corso")) return "amber"
   if (token.includes("chiuso") || token.includes("terminato") || token.includes("cessato")) return "orange"
   if (token.includes("sosp")) return "zinc"
@@ -101,7 +101,7 @@ export function LinkedRapportoSummaryCard({
           </Button>
         ) : null}
       </CardContent>
-      <CardContent className="space-y-3 border-t border-[var(--border-subtle)] px-4 py-4">
+      <CardContent className="space-y-3 border-t border-border-subtle px-4 py-4">
         <p className="truncate text-base font-semibold sm:text-[17px]">{title}</p>
         <div className="flex flex-wrap items-center gap-2">
           {resolvedStatus ? (

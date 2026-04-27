@@ -33,7 +33,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {
   render: (args) => (
-    <div className="w-[340px]">
+    <div className="w-85">
       <LavoratoreCard {...args} />
     </div>
   ),

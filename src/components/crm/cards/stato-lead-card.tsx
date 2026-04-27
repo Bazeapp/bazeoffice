@@ -2,16 +2,16 @@ import * as React from "react";
 import type { ReactNode } from "react";
 
 import { CrmDetailCard } from "@/components/crm/detail-card";
-import { Badge } from "@/components/ui-next/badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Field,
   FieldGroup,
   FieldLabel,
   FieldLegend,
   FieldSet,
-} from "@/components/ui-next/field";
-import { DatePicker } from "@/components/ui-next/date-picker";
-import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group";
+} from "@/components/ui/field";
+import { DatePicker } from "@/components/ui/date-picker";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -21,8 +21,8 @@ import {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
-import { Textarea } from "@/components/ui-next/textarea";
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,

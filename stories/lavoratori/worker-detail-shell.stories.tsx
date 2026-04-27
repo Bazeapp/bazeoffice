@@ -26,7 +26,7 @@ import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-
 import { WorkerDetailComposite } from "@/components/lavoratori/worker-detail-composite";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
-import { DetailSectionBlock } from "@/components/shared/detail-section-card";
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { Button } from "@/components/ui/button";
 import {
   lookupColorsByDomain,
@@ -247,8 +247,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {
-  render: ({ tabPreset, width, height, showTopBar, ...args }) => {
+function WorkerDetailShellDemo({ tabPreset, width, height, showTopBar, ...args }: StoryArgs) {
     const mobilityAnchor = React.useRef<HTMLDivElement | null>(null);
     const tabs = tabPresets[tabPreset];
     const activeSection = tabs.some((tab) => tab.id === args.activeSection)
@@ -603,5 +602,8 @@ export const Default: Story = {
         />
       </div>
     );
-  },
+}
+
+export const Default: Story = {
+  render: (args) => <WorkerDetailShellDemo {...args} />,
 };

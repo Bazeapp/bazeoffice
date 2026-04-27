@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { StatisticsMetricCard } from "@/components/shared/statistics-metric-card";
+import { StatisticsMetricCard } from "@/components/shared-next/statistics-metric-card";
 
 const meta = {
   title: "Shared/StatisticsMetricCard",

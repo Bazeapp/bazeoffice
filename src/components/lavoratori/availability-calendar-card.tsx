@@ -2,11 +2,11 @@ import * as React from "react"
 import { CalendarDaysIcon, PencilIcon } from "lucide-react"
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
-import { Button } from "@/components/ui-next/button"
-import { Checkbox } from "@/components/ui-next/checkbox"
-import { FieldLabel } from "@/components/ui-next/field"
-import { Label } from "@/components/ui-next/label"
-import { Textarea } from "@/components/ui-next/textarea"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { FieldLabel } from "@/components/ui/field"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 type AvailabilityEditDay = {
   field: string
@@ -126,7 +126,7 @@ export function AvailabilityCalendarCard({
               {editDays.map((dayConfig) => (
                 <div
                   key={`availability-edit-day-${dayConfig.field}`}
-                  className="text-muted-foreground px-2 py-1 text-center text-[11px] font-medium"
+                  className="text-muted-foreground px-2 py-1 text-center text-2xs font-medium"
                 >
                   {dayConfig.label}
                 </div>

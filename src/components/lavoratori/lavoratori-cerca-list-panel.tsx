@@ -4,7 +4,8 @@ import { DataTableToolbar } from "@/components/data-table/data-table-toolbar"
 import type { FilterField, FilterGroup } from "@/components/data-table/data-table-filters"
 import { LavoratoreCard, type LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import { SideCardsPanel } from "@/components/shared-next/side-cards-panel"
-import { Pagination } from "@/components/ui-next/pagination"
+import { Pagination } from "@/components/ui/pagination"
+import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 
 type SavedViewSummary = {
   id: string
@@ -19,7 +20,7 @@ type LavoratoriCercaListPanelProps = {
   setSelectedWorkerId: React.Dispatch<React.SetStateAction<string | null>>
   loading: boolean
   error: string | null
-  table: Table<any>
+  table: Table<LavoratoreRecord>
   searchValue: string
   setSearchValue: (value: string) => void
   filters: FilterGroup

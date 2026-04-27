@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui-next/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
 type StatisticsMetricCardProps = {
@@ -21,7 +21,7 @@ export function StatisticsMetricCard({
       <CardContent
         className={cn(
           "flex flex-col items-center justify-center text-center",
-          isCompact ? "h-[72px] gap-0.5 px-3 py-2" : "h-[92px] gap-1 px-3 py-3"
+          isCompact ? "h-18 gap-0.5 px-3 py-2" : "h-23 gap-1 px-3 py-3"
         )}
       >
         <p className={cn("font-semibold tracking-tight text-foreground", isCompact ? "text-2xl" : "text-3xl")}>

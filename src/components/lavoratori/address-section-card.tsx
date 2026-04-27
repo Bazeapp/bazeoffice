@@ -2,8 +2,8 @@ import * as React from "react"
 import { MapPinIcon, PencilIcon } from "lucide-react"
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
-import { Badge } from "@/components/ui-next/badge"
-import { Button } from "@/components/ui-next/button"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Combobox,
   ComboboxChip,
@@ -14,10 +14,10 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxValue,
-} from "@/components/ui-next/combobox"
-import { FieldLabel } from "@/components/ui-next/field"
-import { Input } from "@/components/ui-next/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
+} from "@/components/ui/combobox"
+import { FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type LookupOption = {
   label: string

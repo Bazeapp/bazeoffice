@@ -1,8 +1,8 @@
 import * as React from "react"
 import { CircleDotIcon, InboxIcon } from "lucide-react"
 
-import { Button } from "@/components/ui-next/button"
-import { Card, CardContent } from "@/components/ui-next/card"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
 export type KanbanColumnVisual = {
@@ -49,7 +49,7 @@ export function KanbanColumnShell({
   headerIcon,
   headerLayout = "inline",
   isDropTarget = false,
-  widthClassName = "w-[300px]",
+  widthClassName = "w-75",
   density = "comfortable",
   emptyMessage = "Nessun elemento",
   emptyState,
@@ -90,7 +90,7 @@ export function KanbanColumnShell({
   return (
     <div
       className={cn(
-        "relative overflow-hidden bg-white flex h-full shrink-0 flex-col rounded-xl border transition-all duration-150",
+        "relative overflow-hidden bg-surface flex h-full shrink-0 flex-col rounded-xl border transition-all duration-150",
         widthClassName,
         isDropTarget && "ring-primary/50 scale-[1.02] ring-2 shadow-md"
       )}
@@ -111,7 +111,7 @@ export function KanbanColumnShell({
         <span
           aria-hidden
           className={cn(
-            "pointer-events-none absolute top-0 left-0 right-0 h-[4px]",
+            "pointer-events-none absolute top-0 left-0 right-0 h-1",
             visual.columnClassName,
           )}
         />
@@ -136,7 +136,7 @@ export function KanbanColumnShell({
           <span
             className={cn(
               "bg-muted text-muted-foreground shrink-0 rounded-full px-2 py-0.5 font-medium",
-              isCompact ? "text-[10px]" : "text-[11px]",
+              isCompact ? "text-[10px]" : "text-2xs",
             )}
           >
             {countLabel}
@@ -160,7 +160,7 @@ export function KanbanColumnShell({
               {title}
             </h2>
           </div>
-          <p className={cn("text-muted-foreground", isCompact ? "text-[11px]" : "text-xs")}>{countLabel}</p>
+          <p className={cn("text-muted-foreground", isCompact ? "text-2xs" : "text-xs")}>{countLabel}</p>
         </div>
       )}
 
@@ -179,7 +179,7 @@ type KanbanColumnSkeletonProps = {
 }
 
 export function KanbanColumnSkeleton({
-  widthClassName = "w-[300px]",
+  widthClassName = "w-75",
   density = "comfortable",
   cardCount = 2,
   showBadgeRow = false,

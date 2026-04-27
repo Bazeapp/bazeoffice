@@ -19,8 +19,8 @@ import { FamigliaProcessoDetailShell } from "@/components/crm/famiglia-processo-
 import { FamigliaProcessoCard } from "@/components/crm/famiglia-processo-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared-next/kanban"
 import { SectionHeader } from "@/components/shared-next/section-header"
-import { Badge } from "@/components/ui-next/badge"
-import { SearchInput } from "@/components/ui-next/search-input"
+import { Badge } from "@/components/ui/badge"
+import { SearchInput } from "@/components/ui/search-input"
 import {
   type CrmPipelineCardData,
   type CrmPipelineColumnData,
@@ -203,7 +203,7 @@ function getStageIcon(stageId: string, iconClassName: string) {
 }
 
 function CrmPipelineSkeletonColumn() {
-  return <KanbanColumnSkeleton widthClassName="w-[292px]" showBadgeRow />
+  return <KanbanColumnSkeleton widthClassName="w-73" showBadgeRow />
 }
 
 type ColumnProps = {
@@ -240,7 +240,7 @@ function Column({
       countLabel={`${column.cards.length} ${column.cards.length === 1 ? "ricerca" : "ricerche"}`}
       visual={visual}
       headerIcon={getStageIcon(column.id, visual.iconClassName)}
-      widthClassName="w-[292px]"
+      widthClassName="w-73"
       isDropTarget={isDropTarget}
       emptyMessage="Nessuna ricerca"
       onDragEnter={onDragEnterColumn}
@@ -349,7 +349,7 @@ export function CrmPipelineFamiglieView() {
   )
 
   return (
-    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
+    <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
       <SectionHeader>
         <SectionHeader.Title
           badge={
@@ -361,7 +361,7 @@ export function CrmPipelineFamiglieView() {
           Sales Pipeline
         </SectionHeader.Title>
         <SectionHeader.Toolbar>
-          <div className="min-w-0 flex-1 max-w-[420px]">
+          <div className="min-w-0 flex-1 max-w-105">
             <SearchInput
               placeholder="Cerca famiglia, email, telefono..."
               value={searchQuery}

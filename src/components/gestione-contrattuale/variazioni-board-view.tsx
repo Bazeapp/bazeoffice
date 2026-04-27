@@ -22,15 +22,15 @@ import {
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card";
 import { RecordCard } from "@/components/shared-next/record-card";
 import { SectionHeader } from "@/components/shared-next/section-header";
-import { Badge } from "@/components/ui-next/badge";
-import { SearchInput } from "@/components/ui-next/search-input";
+import { Badge } from "@/components/ui/badge";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui-next/sheet";
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 function formatDate(value: string | null | undefined) {
@@ -105,7 +105,7 @@ function VariazioniDetailSheet({
         side="right"
         className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
       >
-        <SheetHeader className="border-b bg-white px-5 py-5">
+        <SheetHeader className="border-b bg-surface px-5 py-5">
           <div className="space-y-2">
             <SheetTitle className="truncate text-xl font-semibold">
               {card?.nomeCompleto ?? "Dettaglio variazione"}
@@ -124,7 +124,7 @@ function VariazioniDetailSheet({
         </SheetHeader>
 
         {card ? (
-          <section className="h-full overflow-y-auto bg-[var(--neutral-150)] px-5 py-5">
+          <section className="h-full overflow-y-auto bg-neutral-150 px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
               <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={card.rapporto} />
 
@@ -409,7 +409,7 @@ export function VariazioniBoardView() {
 
   return (
     <>
-      <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+      <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
         <SectionHeader>
           <SectionHeader.Title
             subtitle={`${totalVariazioni} ${

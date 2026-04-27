@@ -10,7 +10,7 @@ import {
   SquareIcon,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui-next/badge";
+import { Badge } from "@/components/ui/badge";
 import { CardMetaRow } from "@/components/shared-next/card-meta-row";
 import { RecordCard } from "@/components/shared-next/record-card";
 import type { CrmPipelineCardData } from "@/hooks/use-crm-pipeline-preview";
@@ -139,7 +139,7 @@ export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
         ) : null}
         {showTentativi ? (
           <CardMetaRow>
-            <Badge variant="outline" className="h-5 px-2 text-[11px] font-medium">
+            <Badge variant="outline" className="h-5 px-2 text-2xs font-medium">
               <PhoneForwardedIcon data-icon="inline-start" />
               {data.tentativiChiamataCount}/3 tentativi
             </Badge>
@@ -148,11 +148,11 @@ export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
       </RecordCard.Body>
       <RecordCard.Footer
         leftSlot={
-          <span className="flex items-center gap-1.5 text-[12.5px] text-[#76756f]">
+          <span className="flex items-center gap-1.5 text-[12.5px] text-foreground-muted">
             {data.preventivoAccettato ? (
               <CheckSquareIcon className="size-3 text-emerald-600" />
             ) : (
-              <SquareIcon className="size-3 text-[#a3a29b]" />
+              <SquareIcon className="size-3 text-foreground-faint" />
             )}
             Preventivo accettato
           </span>

@@ -20,17 +20,17 @@ import {
 import { CardMetaRow } from "@/components/shared-next/card-meta-row"
 import { RecordCard } from "@/components/shared-next/record-card"
 import { SideCardsPanel } from "@/components/shared-next/side-cards-panel"
-import { Badge } from "@/components/ui-next/badge"
-import { Button } from "@/components/ui-next/button"
-import { FieldLabel } from "@/components/ui-next/field"
-import { Pagination } from "@/components/ui-next/pagination"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { FieldLabel } from "@/components/ui/field"
+import { Pagination } from "@/components/ui/pagination"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select"
+} from "@/components/ui/select"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/lookup-utils"
 import { cn } from "@/lib/utils"
@@ -172,7 +172,7 @@ function RapportoCard({
           <Badge
             variant="outline"
             className={cn(
-              "h-5 shrink-0 px-2 text-[11px] font-medium",
+              "h-5 shrink-0 px-2 text-2xs font-medium",
               getTagClassName(
                 getStatusColor(
                   lookupColorsByDomain,
@@ -186,7 +186,7 @@ function RapportoCard({
           </Badge>
         }
       />
-      <RecordCard.Body className="gap-1 text-[11px]">
+      <RecordCard.Body className="gap-1 text-2xs">
         <CardMetaRow icon={<ClockIcon className="size-3 shrink-0" />}>
           <span>{rapporto.ore_a_settimana ?? 0}h/sett</span>
           {rapporto.distribuzione_ore_settimana ? (
@@ -372,6 +372,8 @@ export function RapportiListPanel({
     [],
   )
 
+  // TanStack Table intentionally returns function-heavy objects; React Compiler cannot memoize this hook safely.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: items,
     columns,

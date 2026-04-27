@@ -19,7 +19,7 @@ const meta = {
   component: SideCardsPanel,
   decorators: [
     (Story) => (
-      <div className="ui-next h-[560px] w-[360px]">
+      <div className="ui h-140 w-90">
         <Story />
       </div>
     ),
@@ -133,13 +133,13 @@ export const WithToolbarActions: Story = {
         onSearchValueChange={setSearch}
         toolbarActions={
           <>
-            <span className="rounded-full bg-background px-2 py-0.5 text-[11px] font-medium">
+            <span className="rounded-full bg-background px-2 py-0.5 text-2xs font-medium">
               Tutti
             </span>
-            <span className="rounded-full bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            <span className="rounded-full bg-background px-2 py-0.5 text-2xs font-medium text-muted-foreground">
               Senior
             </span>
-            <span className="rounded-full bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            <span className="rounded-full bg-background px-2 py-0.5 text-2xs font-medium text-muted-foreground">
               Mid
             </span>
           </>

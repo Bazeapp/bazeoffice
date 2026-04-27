@@ -18,7 +18,7 @@ const meta = {
   component: LinkedRapportoSummaryCard,
   decorators: [
     (Story) => (
-      <div className="ui-next w-[820px]">
+      <div className="ui w-205">
         <Story />
       </div>
     ),

@@ -26,17 +26,17 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui-next/combobox";
+} from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
-import { Textarea } from "@/components/ui-next/textarea";
-import { Input } from "@/components/ui-next/input";
-import { Button } from "@/components/ui-next/button";
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils";
 import { type LookupOption } from "@/features/lavoratori/lib/lookup-utils";
 
@@ -317,7 +317,7 @@ function LabeledTextarea({
         onChange={(event) => onChange(event.target.value)}
         onBlur={onBlur}
         disabled={disabled}
-        className="min-h-[108px] w-full resize-y text-sm leading-6"
+        className="min-h-27 w-full resize-y text-sm leading-6"
         placeholder="..."
       />
     </div>
@@ -351,7 +351,7 @@ function ScoreSelect({
         }}
         disabled={disabled}
       >
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-45">
           <SelectValue placeholder="—" />
         </SelectTrigger>
         <SelectContent>
@@ -817,7 +817,7 @@ export function SchedaColloquioPanel({
                 )
               }
               disabled={disabled}
-              className="min-h-[80px] resize-none text-xs"
+              className="min-h-20 resize-none text-xs"
               placeholder="Scrivi il feedback..."
             />
           </div>

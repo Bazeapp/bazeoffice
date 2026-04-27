@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { KanbanColumnSkeleton } from "@/components/shared/kanban";
+import { KanbanColumnSkeleton } from "@/components/shared-next/kanban";
 
 const meta = {
   title: "Shared/Kanban",
@@ -12,7 +12,7 @@ const meta = {
     showBadgeRow: { control: "boolean" },
   },
   args: {
-    widthClassName: "w-[340px]",
+    widthClassName: "w-85",
     density: "comfortable",
     cardCount: 2,
     showBadgeRow: true,

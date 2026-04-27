@@ -8,8 +8,8 @@ import {
   KanbanDeferredColumnAction,
   type KanbanColumnVisual,
 } from "@/components/shared-next/kanban";
-import { Badge } from "@/components/ui-next/badge";
-import { Card, CardContent } from "@/components/ui-next/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 const warmVisual: KanbanColumnVisual = {
   columnClassName: "bg-amber-400",
@@ -34,7 +34,7 @@ const meta = {
   component: KanbanColumnShell,
   decorators: [
     (Story) => (
-      <div className="ui-next h-[520px]">
+      <div className="ui h-130">
         <Story />
       </div>
     ),
@@ -54,7 +54,7 @@ const meta = {
     visual: warmVisual,
     headerLayout: "inline",
     isDropTarget: false,
-    widthClassName: "w-[320px]",
+    widthClassName: "w-80",
     density: "comfortable",
     onDragEnter: fn(),
     onDragOver: fn(),
@@ -101,7 +101,7 @@ function FamigliaPreviewCard({
         <p className="text-sm font-semibold">{name}</p>
         <div className="flex flex-wrap gap-1.5">
           {badges.map((b) => (
-            <Badge key={b.label} variant="outline" className={`rounded-md border-0 px-2 py-0.5 text-[11px] font-medium ${toneClass[b.tone]}`}>
+            <Badge key={b.label} variant="outline" className={`rounded-md border-0 px-2 py-0.5 text-2xs font-medium ${toneClass[b.tone]}`}>
               {b.label}
             </Badge>
           ))}
@@ -178,17 +178,17 @@ export const EmptyWithFallback: Story = {
 
 export const Skeleton: StoryObj = {
   render: () => (
-    <div className="ui-next flex gap-3">
-      <KanbanColumnSkeleton widthClassName="w-[320px]" />
-      <KanbanColumnSkeleton widthClassName="w-[320px]" cardCount={3} showBadgeRow />
-      <KanbanColumnSkeleton widthClassName="w-[320px]" density="compact" cardCount={2} />
+    <div className="ui flex gap-3">
+      <KanbanColumnSkeleton widthClassName="w-80" />
+      <KanbanColumnSkeleton widthClassName="w-80" cardCount={3} showBadgeRow />
+      <KanbanColumnSkeleton widthClassName="w-80" density="compact" cardCount={2} />
     </div>
   ),
 };
 
 export const DeferredAction: StoryObj = {
   render: () => (
-    <div className="ui-next flex w-[320px] flex-col gap-2">
+    <div className="ui flex w-80 flex-col gap-2">
       <KanbanDeferredColumnAction label="Carica più lavoratori" onClick={fn()} />
       <KanbanDeferredColumnAction
         label="Carica più lavoratori"
@@ -201,14 +201,14 @@ export const DeferredAction: StoryObj = {
 
 export const ThreeColumnBoard: StoryObj = {
   render: () => (
-    <div className="ui-next h-[640px]">
+    <div className="ui h-160">
       <div className="flex h-full gap-3">
         <KanbanColumnShell
           columnId="warm-lead"
           title="Warm · Lead"
           countLabel="15"
           visual={warmVisual}
-          widthClassName="w-[320px]"
+          widthClassName="w-80"
           onDragEnter={fn()}
           onDragOver={fn()}
           onDrop={fn()}
@@ -239,7 +239,7 @@ export const ThreeColumnBoard: StoryObj = {
           title="Hot · Ingresso"
           countLabel="10"
           visual={hotVisual}
-          widthClassName="w-[320px]"
+          widthClassName="w-80"
           onDragEnter={fn()}
           onDragOver={fn()}
           onDrop={fn()}
@@ -270,7 +270,7 @@ export const ThreeColumnBoard: StoryObj = {
           title="Hot · In attesa contatto"
           countLabel="10"
           visual={hotVisual}
-          widthClassName="w-[320px]"
+          widthClassName="w-80"
           onDragEnter={fn()}
           onDragOver={fn()}
           onDrop={fn()}

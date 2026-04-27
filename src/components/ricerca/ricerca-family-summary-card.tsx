@@ -7,14 +7,14 @@ import {
 } from "lucide-react";
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
-import { Badge } from "@/components/ui-next/badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
+} from "@/components/ui/select";
 import { getTagClassName } from "@/features/lavoratori/lib/lookup-utils";
 import type {
   CrmPipelineCardData,

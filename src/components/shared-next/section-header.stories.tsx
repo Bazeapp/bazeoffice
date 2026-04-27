@@ -7,9 +7,9 @@ import {
   SlidersHorizontalIcon,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui-next/badge";
-import { Button } from "@/components/ui-next/button";
-import { SearchInput } from "@/components/ui-next/search-input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
 
 import { SectionHeader } from "./section-header";
 
@@ -19,8 +19,8 @@ const meta = {
   parameters: { layout: "fullscreen" },
   decorators: [
     (Story) => (
-      <div className="ui-next bg-background min-h-[200px] w-full">
-        <div className="mx-auto w-full max-w-[1200px] px-6 pt-6">
+      <div className="ui bg-background min-h-50 w-full">
+        <div className="mx-auto w-full max-w-300 px-6 pt-6">
           <Story />
         </div>
       </div>
@@ -86,7 +86,7 @@ export const WithToolbar: Story = {
     <SectionHeader>
       <SectionHeader.Title>Titolo sezione</SectionHeader.Title>
       <SectionHeader.Toolbar>
-        <div className="min-w-0 flex-1 max-w-[420px]">
+        <div className="min-w-0 flex-1 max-w-105">
           <SearchInput placeholder="Cerca..." />
         </div>
         <Button variant="outline" onClick={fn()}>
@@ -139,7 +139,7 @@ export const AllSlots: Story = {
         </Button>
       </SectionHeader.Actions>
       <SectionHeader.Toolbar>
-        <div className="min-w-0 flex-1 max-w-[420px]">
+        <div className="min-w-0 flex-1 max-w-105">
           <SearchInput placeholder="Cerca..." />
         </div>
         <Button variant="outline" onClick={fn()}>

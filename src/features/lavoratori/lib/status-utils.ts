@@ -69,7 +69,7 @@ export function getWorkerQualificationStatus(worker: LavoratoreListItem): Worker
     return {
       label: "Certificato",
       ringClassName: "ring-2 ring-emerald-600/40",
-      badgeClassName: "bg-emerald-600 text-white",
+      badgeClassName: "bg-success text-foreground-on-accent",
       icon: BadgeCheckIcon,
     }
   }

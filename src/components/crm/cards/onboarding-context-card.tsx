@@ -14,9 +14,9 @@ import {
   UserRoundXIcon,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui-next/badge";
-import { Button } from "@/components/ui-next/button";
-import { Checkbox } from "@/components/ui-next/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import {
   Field,
@@ -24,8 +24,8 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSet,
-} from "@/components/ui-next/field";
-import { Input } from "@/components/ui-next/input";
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -33,8 +33,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
-import { Textarea } from "@/components/ui-next/textarea";
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,

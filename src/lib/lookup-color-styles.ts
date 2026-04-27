@@ -169,8 +169,8 @@ const COLOR_STYLE_MAP: Record<string, ColorStyleSet> = {
     dropZoneActive: "border-stone-500 bg-stone-100/70",
   },
   white: {
-    badgeSoft: "border-border bg-white text-foreground",
-    panel: "border-border bg-white",
+    badgeSoft: "border-border bg-surface text-foreground",
+    panel: "border-border bg-surface",
     text: "text-foreground",
     dropZone: "border-border/70 bg-background/45 text-foreground",
     dropZoneActive: "border-primary/70 bg-primary/12",

@@ -24,8 +24,8 @@ import {
   DetailFieldControl,
   DetailSectionBlock,
 } from "@/components/shared-next/detail-section-card";
-import { Badge } from "@/components/ui-next/badge";
-import { Button } from "@/components/ui-next/button";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Combobox,
   ComboboxChip,
@@ -37,15 +37,15 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui-next/combobox";
-import { DatePicker } from "@/components/ui-next/date-picker";
+} from "@/components/ui/combobox";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui-next/field";
-import { Input } from "@/components/ui-next/input";
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -53,8 +53,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
-import { Separator } from "@/components/ui-next/separator";
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
@@ -456,7 +456,7 @@ export function OnboardingCard({
                     key={day}
                     variant="outline"
                     className={cn(
-                      "h-5 px-2 text-[11px] font-medium",
+                      "h-5 px-2 text-2xs font-medium",
                       getTagClassName(getWeekdayColor(day)),
                     )}
                   >

@@ -17,17 +17,17 @@ import { ExperienceReferencesCard } from "@/components/lavoratori/experience-ref
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
 import { WorkerShiftPreferencesFields } from "@/components/lavoratori/worker-shift-preferences-fields";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
-import { Badge } from "@/components/ui-next/badge";
-import { Button } from "@/components/ui-next/button";
-import { Input } from "@/components/ui-next/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   AVAILABILITY_EDIT_BANDS,
@@ -336,7 +336,7 @@ export function RelatedActiveSearchCard({
           </div>
         ) : null}
         {item.appunti ? (
-          <p className="line-clamp-3 rounded-md bg-muted/50 px-2 py-1.5 text-[11px] leading-5 text-foreground/80">
+          <p className="line-clamp-3 rounded-md bg-muted/50 px-2 py-1.5 text-2xs leading-5 text-foreground/80">
             {item.appunti}
           </p>
         ) : null}

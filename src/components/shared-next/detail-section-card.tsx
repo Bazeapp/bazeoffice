@@ -2,10 +2,10 @@ import * as React from "react";
 import type { ReactNode } from "react";
 import { ChevronDownIcon, PencilIcon } from "lucide-react";
 
-import { Button } from "@/components/ui-next/button";
-import { Input } from "@/components/ui-next/input";
-import { Label } from "@/components/ui-next/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-next/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 type DetailSectionCardProps = {
@@ -184,7 +184,7 @@ export function DetailSectionBlock({
       {hasContent ? (
         <CardContent
           className={cn(
-            "space-y-4 border-t border-[var(--border-subtle)] px-4 py-4",
+            "space-y-4 border-t border-border-subtle px-4 py-4",
             contentClassName,
           )}
         >
@@ -230,8 +230,8 @@ export function DetailField({
       ) : multiline ? (
         <div
           className={cn(
-            "min-h-[var(--h-md)] w-full rounded-[var(--radius-md)] bg-[var(--surface)]",
-            "px-3 py-2 text-[var(--text-sm)] text-[var(--foreground-strong)]",
+            "min-h-(--h-md) w-full rounded-md bg-surface",
+            "px-3 py-2 text-sm text-foreground-strong",
             "shadow-[inset_0_0_0_1px_var(--border)]",
             "leading-snug whitespace-pre-wrap break-words",
             valueClassName,
@@ -242,7 +242,7 @@ export function DetailField({
       ) : (
         <div
           className={cn(
-            "flex min-h-[var(--h-md)] items-center text-[var(--text-sm)] text-[var(--foreground-strong)]",
+            "flex min-h-(--h-md) items-center text-sm text-foreground-strong",
             valueClassName,
           )}
         >

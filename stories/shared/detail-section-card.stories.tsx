@@ -5,7 +5,7 @@ import {
   DetailField,
   DetailFieldControl,
   DetailSectionCard,
-} from "@/components/shared/detail-section-card";
+} from "@/components/shared-next/detail-section-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";

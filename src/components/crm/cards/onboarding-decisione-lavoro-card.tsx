@@ -10,7 +10,7 @@ import {
 
 import { CrmDetailCard } from "@/components/crm/detail-card";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
-import { Checkbox } from "@/components/ui-next/checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldDescription,
@@ -18,9 +18,9 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSet,
-} from "@/components/ui-next/field";
-import { Input } from "@/components/ui-next/input";
-import { Textarea } from "@/components/ui-next/textarea";
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Combobox,
   ComboboxChip,
@@ -32,15 +32,15 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui-next/combobox";
+} from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group";
+} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { LookupOptionsByField } from "@/hooks/use-crm-pipeline-preview";
 
 export type OnboardingDecisioneLavoroCheckboxDefaults = Partial<
@@ -343,13 +343,13 @@ export function OnboardingDecisioneLavoroSection({
 
   React.useEffect(() => {
     setRichiestaTrasferte(
-      defaults?.richiestaTrasferte ?? isChecked("onboarding-trasferte-si"),
+      defaults?.richiestaTrasferte ?? checkboxDefaults?.["onboarding-trasferte-si"] ?? false,
     );
     setRichiestaFerie(
-      defaults?.richiestaFerie ?? isChecked("onboarding-ferie-si"),
+      defaults?.richiestaFerie ?? checkboxDefaults?.["onboarding-ferie-si"] ?? false,
     );
     setRichiestaPatente(
-      defaults?.richiestaPatente ?? isChecked("onboarding-patente-si"),
+      defaults?.richiestaPatente ?? checkboxDefaults?.["onboarding-patente-si"] ?? false,
     );
     setGenere(
       toInputValue(defaults?.sesso).toLowerCase() === "donna"

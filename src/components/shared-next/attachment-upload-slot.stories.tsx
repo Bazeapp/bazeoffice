@@ -8,7 +8,7 @@ const meta = {
   component: AttachmentUploadSlot,
   decorators: [
     (Story) => (
-      <div className="ui-next w-[480px]">
+      <div className="ui w-120">
         <Story />
       </div>
     ),
@@ -62,7 +62,7 @@ export const LongLabel: Story = {
 export const StackedList: Story = {
   decorators: [
     (Story) => (
-      <div className="ui-next w-[480px]">
+      <div className="ui w-120">
         <div className="flex flex-col gap-2">
           <Story />
         </div>

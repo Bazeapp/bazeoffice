@@ -24,19 +24,19 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
+} from "@/components/ui/select";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui-next/accordion";
-import { Badge } from "@/components/ui-next/badge";
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
-} from "@/components/ui-next/breadcrumb";
-import { Button } from "@/components/ui-next/button";
+} from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -44,9 +44,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui-next/dialog";
-import { SearchInput } from "@/components/ui-next/search-input";
-import { Textarea } from "@/components/ui-next/textarea";
+} from "@/components/ui/dialog";
+import { SearchInput } from "@/components/ui/search-input";
+import { Textarea } from "@/components/ui/textarea";
 import { formatAvailabilityComputedAt } from "@/features/lavoratori/lib/availability-utils";
 import {
   asString,
@@ -556,7 +556,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
   return (
     <div
       className={cn(
-        "relative overflow-hidden bg-white flex h-full w-[292px] shrink-0 flex-col rounded-xl border transition-all duration-150",
+        "relative overflow-hidden bg-surface flex h-full w-73 shrink-0 flex-col rounded-xl border transition-all duration-150",
         isDropTarget && "ring-primary/50 ring-2 shadow-md",
       )}
       onDragEnter={() => onDragEnterColumn(column.id)}
@@ -577,7 +577,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
         <span
           aria-hidden
           className={cn(
-            "pointer-events-none absolute top-0 left-0 right-0 h-[4px]",
+            "pointer-events-none absolute top-0 left-0 right-0 h-1",
             visual.columnClassName,
           )}
         />
@@ -654,7 +654,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
         <h2 className="text-foreground min-w-0 flex-1 truncate text-[15px] leading-5 font-semibold">
           {column.label}
         </h2>
-        <span className="bg-muted text-muted-foreground shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium">
+        <span className="bg-muted text-muted-foreground shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium">
           {countLabel}
         </span>
       </div>
@@ -1814,7 +1814,7 @@ export function RicercaWorkersPipelineView({
           </Button>
         </SectionHeader.Actions>
         <SectionHeader.Toolbar>
-          <div className="min-w-0 flex-1 max-w-[420px]">
+          <div className="min-w-0 flex-1 max-w-105">
             <SearchInput
               placeholder="Cerca candidato..."
               value={searchQuery}
@@ -1994,7 +1994,7 @@ export function RicercaWorkersPipelineView({
                           }}
                           disabled={updatingSelectionDetails}
                         >
-                          <SelectTrigger className="h-8 w-[180px] text-xs">
+                          <SelectTrigger className="h-8 w-45 text-xs">
                             <SelectValue placeholder="Stato selezione" />
                           </SelectTrigger>
                           <SelectContent>

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { AttachmentUploadSlot } from "@/components/shared/attachment-upload-slot";
+import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot";
 
 const meta = {
   title: "Shared/AttachmentUploadSlot",
@@ -24,7 +24,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: (args) => (
-    <div className="w-[420px]">
+    <div className="w-105">
       <AttachmentUploadSlot {...args} />
     </div>
   ),

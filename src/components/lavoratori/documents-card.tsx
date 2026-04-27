@@ -21,21 +21,23 @@ import {
 } from "@/components/shared-next/detail-section-card"
 import {
   AttachmentUploadSlot,
+} from "@/components/shared-next/attachment-upload-slot"
+import {
   hasAttachmentValue,
   type AttachmentLink,
-} from "@/components/shared-next/attachment-upload-slot"
-import { Badge } from "@/components/ui-next/badge"
-import { Button } from "@/components/ui-next/button"
-import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui-next/dialog"
-import { FieldDescription, FieldSet, FieldLabel } from "@/components/ui-next/field"
-import { Input } from "@/components/ui-next/input"
+} from "@/components/shared-next/attachment-utils"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { FieldDescription, FieldSet, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select"
+} from "@/components/ui/select"
 import { getTagClassName, resolveLookupColor, type LookupOption } from "@/features/lavoratori/lib/lookup-utils"
 import { createRecord, updateRecord } from "@/lib/anagrafiche-api"
 import {
@@ -189,7 +191,7 @@ function ReadOnlyAdminValue({
   value: string
 }) {
   return (
-    <div className="rounded-xl border bg-white px-3 py-3">
+    <div className="rounded-xl border bg-surface px-3 py-3">
       <FieldLabel>{label}</FieldLabel>
       <p
         className={cn(
@@ -241,7 +243,7 @@ function AdministrativeDataSection({
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {canEditIban ? (
-          <div className="rounded-xl border bg-white px-3 py-3">
+          <div className="rounded-xl border bg-surface px-3 py-3">
             <FieldLabel>IBAN</FieldLabel>
             <Input
               value={ibanValue}
@@ -256,7 +258,7 @@ function AdministrativeDataSection({
           <ReadOnlyAdminValue label="IBAN" value={values?.iban ?? ""} />
         )}
         {canEditStripeAccount ? (
-          <div className="rounded-xl border bg-white px-3 py-3">
+          <div className="rounded-xl border bg-surface px-3 py-3">
             <FieldLabel>ID account Stripe</FieldLabel>
             <Input
               value={stripeAccountValue}
@@ -376,7 +378,7 @@ function AttachmentPlaceholderSlot({
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">{label}</span>
         </div>
-        <p className="text-muted-foreground mt-0.5 text-[11px]">Nessun file allegato</p>
+        <p className="text-muted-foreground mt-0.5 text-2xs">Nessun file allegato</p>
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <Button
@@ -695,14 +697,14 @@ export function DocumentsCard({
       </FieldSet>
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(open) => !open && setSelectedPreview(null)}>
         <DialogContent
-          className="max-w-[min(96vw,72rem)] border-none bg-black/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
+          className="max-w-[min(96vw,72rem)] border-none bg-neutral-950/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
         >
           <DialogTitle className="sr-only">
             {selectedPreview?.label ?? "Anteprima documento"}
           </DialogTitle>
           <DialogClose
             aria-label="Chiudi anteprima"
-            className="absolute right-3 top-3 z-10 inline-flex size-8 items-center justify-center rounded-full bg-white/10 text-white outline-none transition-colors hover:bg-white/20 focus-visible:bg-white/20"
+            className="absolute right-3 top-3 z-10 inline-flex size-8 items-center justify-center rounded-full bg-surface/10 text-foreground-on-accent outline-none transition-colors hover:bg-surface/20 focus-visible:bg-surface/20"
           >
             <XIcon className="size-4" />
           </DialogClose>

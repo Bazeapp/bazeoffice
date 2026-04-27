@@ -20,7 +20,7 @@ import {
   type FilterGroup,
   type FilterNode,
 } from "@/components/data-table/data-table-filters"
-import { Button } from "@/components/ui-next/button"
+import { Button } from "@/components/ui/button"
 import {
   Combobox,
   ComboboxChip,
@@ -32,15 +32,15 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui-next/combobox"
-import { Input } from "@/components/ui-next/input"
+} from "@/components/ui/combobox"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select"
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 type DataTableFilterBuilderProps = {
@@ -189,7 +189,7 @@ function ValueControl({
     return (
       <Select value={node.value || undefined} onValueChange={onValueChange}>
         <SelectTrigger
-          className="h-9 rounded-none border-0 border-r text-sm md:max-w-[260px]"
+          className="h-9 rounded-none border-0 border-r text-sm md:max-w-65"
         >
           <SelectValue placeholder="Valore" />
         </SelectTrigger>
@@ -205,7 +205,7 @@ function ValueControl({
     return (
       <Select value={node.value || undefined} onValueChange={onValueChange}>
         <SelectTrigger
-          className="h-9 rounded-none border-0 border-r text-sm md:max-w-[260px]"
+          className="h-9 rounded-none border-0 border-r text-sm md:max-w-65"
         >
           <SelectValue placeholder="Valore" />
         </SelectTrigger>
@@ -235,7 +235,7 @@ function ValueControl({
       >
         <ComboboxChips
           ref={anchor}
-          className="h-9 min-h-9 rounded-none border-0 border-r px-2 md:max-w-[320px]"
+          className="h-9 min-h-9 rounded-none border-0 border-r px-2 md:max-w-80"
         >
           <ComboboxValue>
             {(values) => (
@@ -275,7 +275,7 @@ function ValueControl({
       <Input
         type={inputType}
         inputMode={fieldType === "number" ? "decimal" : undefined}
-        className="h-9 rounded-none border-0 border-r text-sm md:max-w-[220px]"
+        className="h-9 rounded-none border-0 border-r text-sm md:max-w-55"
         value={node.value}
         onChange={(event) => onValueChange(event.target.value)}
         placeholder={placeholder}
@@ -284,7 +284,7 @@ function ValueControl({
         <Input
           type={inputType}
           inputMode={fieldType === "number" ? "decimal" : undefined}
-          className="h-9 rounded-none border-0 border-r text-sm md:max-w-[220px]"
+          className="h-9 rounded-none border-0 border-r text-sm md:max-w-55"
           value={node.valueTo ?? ""}
           onChange={(event) => onValueToChange(event.target.value)}
           placeholder="E"
@@ -330,7 +330,7 @@ export function DataTableFilterBuilder({
               onChange({ ...group, logic: value as FilterGroup["logic"] })
             }}
           >
-            <SelectTrigger className="h-7 w-[92px]">
+            <SelectTrigger className="h-7 w-23">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -461,7 +461,7 @@ export function DataTableFilterBuilder({
                     }}
                   >
                     <SelectTrigger
-                      className="h-9 rounded-none border-0 border-r md:w-[160px]"
+                      className="h-9 rounded-none border-0 border-r md:w-40"
                     >
                       <SelectValue />
                     </SelectTrigger>

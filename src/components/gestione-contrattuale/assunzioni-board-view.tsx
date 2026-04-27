@@ -19,9 +19,9 @@ import {
 } from "@/components/shared-next/kanban"
 import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
-import { Badge } from "@/components/ui-next/badge"
-import { Button } from "@/components/ui-next/button"
-import { SearchInput } from "@/components/ui-next/search-input"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { SearchInput } from "@/components/ui/search-input"
 import { buildPathForRoute } from "@/routes/app-routes"
 import { cn } from "@/lib/utils"
 
@@ -241,7 +241,7 @@ export function AssunzioniBoardView() {
   )
 
   return (
-    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+    <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <SectionHeader>
         <SectionHeader.Title
           subtitle={`${totalProcesses} ${totalProcesses === 1 ? "processo" : "processi"}`}

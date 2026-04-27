@@ -101,8 +101,8 @@ export function normalizeDomesticRoleLabels(values: string[]) {
   const result: string[] = []
   for (const value of values) {
     const normalized = normalizeDomesticRoleLabel(value)
-    if (!normalized) continue
-    if (!result.includes(normalized)) result.push(normalized)
+    if (normalized!) continue
+    if (result!.includes(normalized)) result.push(normalized)
   }
   return result
 }

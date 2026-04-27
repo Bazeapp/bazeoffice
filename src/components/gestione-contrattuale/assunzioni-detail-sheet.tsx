@@ -17,12 +17,12 @@ import type { AssunzioniBoardCardData } from "@/hooks/use-assunzioni-board"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
-import { Field, FieldDescription, FieldLabel } from "@/components/ui-next/field"
-import { Input } from "@/components/ui-next/input"
-import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui-next/sheet"
-import { Textarea } from "@/components/ui-next/textarea"
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Textarea } from "@/components/ui/textarea"
 import { fetchLookupValues } from "@/lib/anagrafiche-api"
 import { cn } from "@/lib/utils"
 
@@ -830,7 +830,7 @@ export function AssunzioniDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
-        <SheetHeader className="border-b bg-white px-5 py-5">
+        <SheetHeader className="border-b bg-surface px-5 py-5">
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
@@ -857,7 +857,7 @@ export function AssunzioniDetailSheet({
         </SheetHeader>
 
         {card ? (
-          <section className="h-full overflow-y-auto bg-[var(--neutral-150)] px-5 py-5">
+          <section className="h-full overflow-y-auto bg-neutral-150 px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
               <LinkedRapportoSummaryCard
                 title={`${card.nomeFamiglia} – ${card.nomeLavoratore}`}

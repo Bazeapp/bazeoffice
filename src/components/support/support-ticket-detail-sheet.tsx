@@ -14,8 +14,8 @@ import {
 } from "@/components/support/support-ticket-config"
 import {
   AttachmentUploadSlot,
-  type AttachmentLink,
 } from "@/components/shared-next/attachment-upload-slot"
+import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { RapportoDetailPanel } from "@/components/gestione-contrattuale/rapporto-detail-panel"
 import {
@@ -23,11 +23,11 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui-next/accordion"
-import { Badge } from "@/components/ui-next/badge"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui-next/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui-next/sheet"
+} from "@/components/ui/accordion"
+import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import {
   buildAttachmentPayload,
   normalizeAttachmentArray,
@@ -209,7 +209,7 @@ export function SupportTicketDetailSheet({
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
-          <SheetHeader className="border-b bg-white px-5 py-5">
+          <SheetHeader className="border-b bg-surface px-5 py-5">
             <div className="space-y-3">
               <SheetTitle className="truncate text-xl font-semibold">
                 {card?.causale ?? "Dettaglio ticket"}
@@ -219,7 +219,7 @@ export function SupportTicketDetailSheet({
               </SheetDescription>
               {card ? (
                 <Select value={card.stage} onValueChange={(value) => void onMoveTicket(card.id, value)}>
-                  <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full bg-white px-2.5 text-xs font-medium">
+                  <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full bg-surface px-2.5 text-xs font-medium">
                     <span
                       className={cn(
                         "size-2 shrink-0 rounded-full",
@@ -241,7 +241,7 @@ export function SupportTicketDetailSheet({
           </SheetHeader>
 
           {card ? (
-            <section className="h-full overflow-y-auto bg-[var(--neutral-150)] px-5 py-5">
+            <section className="h-full overflow-y-auto bg-neutral-150 px-5 py-5">
               <div className="mx-auto max-w-5xl space-y-5">
                 {card.rapporto ? (
                   <Accordion type="single" collapsible className="rounded-2xl border bg-background px-4">
@@ -262,17 +262,17 @@ export function SupportTicketDetailSheet({
                               {card.rapporto.stato_rapporto ?? "Sconosciuto"}
                             </Badge>
                             {card.rapporto.stato_servizio ? (
-                              <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+                              <Badge variant="outline" className="h-6 rounded-full px-2.5 text-2xs font-medium">
                                 {card.rapporto.stato_servizio}
                               </Badge>
                             ) : null}
                             {card.rapporto.tipo_rapporto ? (
-                              <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+                              <Badge variant="outline" className="h-6 rounded-full px-2.5 text-2xs font-medium">
                                 {card.rapporto.tipo_rapporto}
                               </Badge>
                             ) : null}
                             {card.rapporto.tipo_contratto ? (
-                              <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+                              <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-2xs font-medium">
                                 {card.rapporto.tipo_contratto}
                               </Badge>
                             ) : null}
@@ -365,7 +365,7 @@ export function SupportTicketDetailSheet({
 
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(nextOpen) => !nextOpen && setSelectedPreview(null)}>
         <DialogContent
-          className="max-w-[min(96vw,72rem)] border-none bg-black/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
+          className="max-w-[min(96vw,72rem)] border-none bg-neutral-950/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
         >
           <DialogTitle className="sr-only">
             {selectedPreview?.label ?? "Anteprima allegato ticket"}

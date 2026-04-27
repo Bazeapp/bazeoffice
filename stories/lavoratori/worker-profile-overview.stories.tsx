@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { WorkerProfileOverview } from "@/components/lavoratori/worker-profile-overview";
-import { lookupOptions, mockWorker, mockWorkerRow } from "../mocks";
+import { mockWorker, mockWorkerRow } from "../mocks";
 
 const meta = {
   title: "Lavoratori/Blocchi/WorkerProfileOverview",
@@ -50,7 +50,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Playground: Story = {
   render: (args) => (
-    <div className="w-[760px] rounded-xl border bg-background p-4">
+    <div className="w-190 rounded-xl border bg-background p-4">
       <WorkerProfileOverview {...args} />
     </div>
   ),

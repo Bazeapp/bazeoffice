@@ -19,11 +19,11 @@ import { toast } from "sonner";
 import type { AssegnazioneCardData } from "@/hooks/use-crm-assegnazione";
 import { useCrmAssegnazione } from "@/hooks/use-crm-assegnazione";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
-import { Avatar } from "@/components/ui-next/avatar";
-import { Badge } from "@/components/ui-next/badge";
-import { Button } from "@/components/ui-next/button";
-import { Card, CardContent, CardHeader } from "@/components/ui-next/card";
-import { Input } from "@/components/ui-next/input";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { CardMetaRow } from "@/components/shared-next/card-meta-row";
 import { RecordCard } from "@/components/shared-next/record-card";
 import { SectionHeader } from "@/components/shared-next/section-header";
@@ -38,21 +38,21 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui-next/accordion";
+} from "@/components/ui/accordion";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select";
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetClose,
   SheetContent,
   SheetDescription,
   SheetTitle,
-} from "@/components/ui-next/sheet";
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 type AssigneeValue = string | "none";
@@ -502,8 +502,8 @@ function AssegnazioneDetailSheet({
         className="w-[min(96vw,760px)]! max-w-none! overflow-hidden p-0 sm:max-w-none!"
       >
         {card ? (
-          <section className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--neutral-150)]">
-            <header className="sticky top-0 z-20 shrink-0 border-b bg-white">
+          <section className="flex h-full min-h-0 flex-col overflow-hidden bg-neutral-150">
+            <header className="sticky top-0 z-20 shrink-0 border-b bg-surface">
               <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2">
                 <SheetTitle className="text-xl font-semibold">
                   {card.nomeFamiglia}
@@ -1054,7 +1054,7 @@ export function CrmAssegnazioneView({
   );
 
   return (
-    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col gap-4 overflow-hidden">
+    <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col gap-4 overflow-hidden">
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento assegnazione: {error}
@@ -1307,7 +1307,7 @@ export function CrmAssegnazioneView({
           )}
         </SideCardsPanel>
 
-        <Card className="flex h-full min-h-0 flex-col overflow-hidden bg-white">
+        <Card className="flex h-full min-h-0 flex-col overflow-hidden bg-surface">
           <CardHeader className="items-center">
             <div className="flex min-w-0 items-center gap-2">
               <CalendarIcon className="text-muted-foreground size-5 shrink-0" />
@@ -1361,7 +1361,7 @@ export function CrmAssegnazioneView({
           </CardHeader>
 
           <CardContent className="flex-1 overflow-hidden p-0">
-            <div className="grid h-full min-h-0 grid-cols-3 divide-x divide-[var(--border-subtle)]">
+            <div className="grid h-full min-h-0 grid-cols-3 divide-x divide-border-subtle">
               {visibleDays.map((day) => {
                 const dayCards = cardsByDate.get(day.key) ?? [];
                 const isToday = day.key === toDateKey(new Date());

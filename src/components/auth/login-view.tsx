@@ -1,16 +1,16 @@
 import * as React from "react"
 import { LogInIcon } from "lucide-react"
 
-import { Button } from "@/components/ui-next/button"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui-next/card"
-import { Input } from "@/components/ui-next/input"
-import { Label } from "@/components/ui-next/label"
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 type LoginViewProps = {
   onSignIn: (email: string, password: string) => Promise<void>

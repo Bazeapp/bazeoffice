@@ -27,16 +27,16 @@ import {
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { StatisticsMetricCard } from "@/components/shared-next/statistics-metric-card"
-import { Badge } from "@/components/ui-next/badge"
-import { Button } from "@/components/ui-next/button"
-import { Card, CardContent } from "@/components/ui-next/card"
-import { Input } from "@/components/ui-next/input"
-import { SearchInput } from "@/components/ui-next/search-input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
-import { Separator } from "@/components/ui-next/separator"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui-next/sheet"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui-next/table"
-import { Textarea } from "@/components/ui-next/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Textarea } from "@/components/ui/textarea"
 import { runAutomationWebhook } from "@/lib/anagrafiche-api"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -287,7 +287,7 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
   const lavoratore = card.rapporto?.nome_lavoratore_per_url?.trim() || "Lavoratore non disponibile"
 
   return (
-    <Card className="border border-border/70 bg-white py-0 transition-shadow hover:shadow-md">
+    <Card className="border border-border/70 bg-surface py-0 transition-shadow hover:shadow-md">
       <CardContent className="space-y-3 px-3 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -302,14 +302,14 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
         <div className="flex flex-wrap gap-1.5">
           <Badge
             variant="secondary"
-            className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] text-emerald-700 hover:bg-emerald-100"
+            className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-2xs text-emerald-700 hover:bg-emerald-100"
           >
             <CircleCheckBigIcon className="size-3" />
             <span>REG</span>
           </Badge>
           <Badge
             variant="secondary"
-            className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] text-emerald-700 hover:bg-emerald-100"
+            className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-2xs text-emerald-700 hover:bg-emerald-100"
           >
             <CircleCheckBigIcon className="size-3" />
             <span>Pagato</span>
@@ -375,7 +375,7 @@ export function CedolinoDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
-        <SheetHeader className="border-b bg-white px-5 py-5">
+        <SheetHeader className="border-b bg-surface px-5 py-5">
           <div className="space-y-2">
             <SheetTitle className="truncate text-xl font-semibold">
               {card?.nomeCompleto ?? "Dettaglio cedolino"}
@@ -393,7 +393,7 @@ export function CedolinoDetailSheet({
         </SheetHeader>
 
         {card ? (
-          <section className="h-full overflow-y-auto bg-[var(--neutral-150)] px-5 py-5">
+          <section className="h-full overflow-y-auto bg-neutral-150 px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
               <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} status={statoServizio} />
 
@@ -629,7 +629,7 @@ export function CedolinoDetailSheet({
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
                     <p className="ui-type-label">Presenze</p>
-                    <div className="rounded-xl border bg-white p-4">
+                    <div className="rounded-xl border bg-surface p-4">
                       <p className="truncate font-medium">{card.nomeCompleto}</p>
                       <div className="text-muted-foreground mt-2 grid gap-2 text-sm sm:grid-cols-2">
                         <div>
@@ -650,7 +650,7 @@ export function CedolinoDetailSheet({
                 </div>
 
                 {presenceRows.length > 0 ? (
-                  <div className="rounded-xl border bg-white">
+                  <div className="rounded-xl border bg-surface">
                     <div className="max-h-80 overflow-auto">
                       <Table>
                         <TableHeader>
@@ -668,7 +668,7 @@ export function CedolinoDetailSheet({
                             <TableRow key={row.day}>
                               <TableCell className="font-mono text-xs">{row.day}</TableCell>
                               <TableCell>
-                                <Badge variant="outline" className="rounded-full px-2 text-[11px]">
+                                <Badge variant="outline" className="rounded-full px-2 text-2xs">
                                   {row.type || "n/d"}
                                 </Badge>
                               </TableCell>
@@ -752,7 +752,7 @@ function PayrollBoardColumn({
       countLabel={`${column.cards.length} ${column.cards.length === 1 ? "cedolino" : "cedolini"}`}
       visual={visual}
       density="compact"
-      widthClassName="w-[280px]"
+      widthClassName="w-70"
       isDropTarget={isDropTarget}
       emptyState={
         <div className="text-muted-foreground rounded-lg border border-dashed border-border/60 p-3 text-xs">
@@ -788,7 +788,7 @@ function PayrollBoardColumn({
 }
 
 function PayrollBoardSkeletonColumn() {
-  return <KanbanColumnSkeleton widthClassName="w-[280px]" density="compact" />
+  return <KanbanColumnSkeleton widthClassName="w-70" density="compact" />
 }
 
 function CedoliniPayrollView() {
@@ -854,7 +854,7 @@ function CedoliniPayrollView() {
       >
         <ChevronLeftIcon />
       </Button>
-      <div className="text-foreground inline-flex h-8 min-w-[160px] items-center justify-center gap-2 rounded-md text-sm font-medium capitalize">
+      <div className="text-foreground inline-flex h-8 min-w-40 items-center justify-center gap-2 rounded-md text-sm font-medium capitalize">
         <CalendarDaysIcon className="text-muted-foreground size-4" />
         {formatMonthLabel(selectedMonth)}
       </div>
@@ -871,7 +871,7 @@ function CedoliniPayrollView() {
   )
 
   return (
-    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+    <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <SectionHeader>
         <SectionHeader.Title
           subtitle={`${totalCedolini} ${totalCedolini === 1 ? "cedolino" : "cedolini"}`}

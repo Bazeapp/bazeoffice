@@ -17,8 +17,8 @@ export interface CardMetaRowProps {
  * (mail, telefono, deadline, luogo, ore, etc.).
  *
  * Single source of truth per la coppia testo/icona delle metadata row:
- *   - testo  → 12.5px · #76756f
- *   - icona  → 12px · #a3a29b
+ *   - testo  → text-xs/text-sm · text-foreground-muted
+ *   - icona  → text-xs · text-foreground-faint
  *
  * Due modalità:
  *   - **icon + text** (default): icon prop + children = stringa.
@@ -37,13 +37,13 @@ export const CardMetaRow = React.forwardRef<HTMLDivElement, CardMetaRowProps>(
           ref={ref}
           data-slot="card-meta-row"
           className={cn(
-            "flex min-w-0 items-center gap-2 text-[12.5px] text-[#76756f]",
+            "flex min-w-0 items-center gap-2 text-[12.5px] text-foreground-muted",
             className,
           )}
         >
           <span
             aria-hidden
-            className="shrink-0 [&_svg]:size-3 [&_svg]:shrink-0 [&_svg]:text-[#a3a29b]"
+            className="shrink-0 [&_svg]:size-3 [&_svg]:shrink-0 [&_svg]:text-foreground-faint"
           >
             {icon}
           </span>

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { LinkedRapportoSummaryCard } from "@/components/shared/linked-rapporto-summary-card";
+import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card";
 import type { RapportoLavorativoRecord } from "@/types";
 
 const rapporto = {
@@ -42,7 +42,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: (args) => (
-    <div className="w-[560px]">
+    <div className="w-140">
       <LinkedRapportoSummaryCard {...args} />
     </div>
   ),

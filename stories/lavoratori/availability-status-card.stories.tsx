@@ -39,7 +39,7 @@ export const Playground: Story = {
   },
 
   render: (args) => (
-    <div className="w-[560px]">
+    <div className="w-140">
       <AvailabilityStatusCard {...args} />
     </div>
   )

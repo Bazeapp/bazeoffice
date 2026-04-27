@@ -22,9 +22,11 @@ import {
 import { getTagClassName } from "@/features/lavoratori/lib/lookup-utils"
 import {
   AttachmentUploadSlot,
+} from "@/components/shared-next/attachment-upload-slot"
+import {
   hasAttachmentValue,
   type AttachmentLink,
-} from "@/components/shared-next/attachment-upload-slot"
+} from "@/components/shared-next/attachment-utils"
 import {
   DetailField,
   DetailFieldControl,
@@ -39,13 +41,13 @@ import {
 import {
   CedolinoDetailSheet,
 } from "@/components/payroll/payroll-overview-view"
-import { Badge } from "@/components/ui-next/badge"
-import { Button } from "@/components/ui-next/button"
-import { Card, CardContent } from "@/components/ui-next/card"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui-next/dialog"
-import { Input } from "@/components/ui-next/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
-import { Separator } from "@/components/ui-next/separator"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { updateRecord } from "@/lib/anagrafiche-api"
 import {
@@ -334,7 +336,7 @@ function ListRowCard({
   return (
     <Card
       className={cn(
-        "bg-white py-0 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:bg-[var(--neutral-100)]",
+        "bg-surface py-0 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:bg-neutral-100",
         onClick ? "cursor-pointer" : "",
       )}
       onClick={onClick}
@@ -448,7 +450,7 @@ export function RapportoDetailPanel({
       window.clearTimeout(autosaveTimeoutRef.current)
       autosaveTimeoutRef.current = null
     }
-  }, [rapporto?.id])
+  }, [rapporto])
 
   React.useEffect(() => {
     const container = detailScrollRef.current
@@ -795,17 +797,17 @@ export function RapportoDetailPanel({
           {rapportoView.stato_rapporto ?? "Sconosciuto"}
         </Badge>
         {rapportoView.stato_servizio ? (
-          <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+          <Badge variant="outline" className="h-6 rounded-full px-2.5 text-2xs font-medium">
             {rapportoView.stato_servizio}
           </Badge>
         ) : null}
         {rapportoView.tipo_rapporto ? (
-          <Badge variant="outline" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+          <Badge variant="outline" className="h-6 rounded-full px-2.5 text-2xs font-medium">
             {rapportoView.tipo_rapporto}
           </Badge>
         ) : null}
         {rapportoView.tipo_contratto ? (
-          <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-[11px] font-medium">
+          <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-2xs font-medium">
             {rapportoView.tipo_contratto}
           </Badge>
         ) : null}
@@ -981,7 +983,7 @@ export function RapportoDetailPanel({
                   {distributionItems.map((item) => (
                     <div
                       key={item.day}
-                      className="flex min-w-14 flex-col items-center rounded-xl border bg-white px-2.5 py-2"
+                      className="flex min-w-14 flex-col items-center rounded-xl border bg-surface px-2.5 py-2"
                     >
                       <span className="ui-type-label normal-case tracking-normal">{item.day}</span>
                       <span className="ui-type-value mt-1">{item.value}</span>
@@ -1096,7 +1098,7 @@ export function RapportoDetailPanel({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <FileTextIcon className="text-muted-foreground size-4" />
-                        <span className="text-[11px] font-semibold">Accordo di lavoro</span>
+                        <span className="text-2xs font-semibold">Accordo di lavoro</span>
                         {hasAccordoDiLavoro ? (
                           <CheckCircle2Icon className="size-4 text-green-600" />
                         ) : (
@@ -1114,7 +1116,7 @@ export function RapportoDetailPanel({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <FileTextIcon className="text-muted-foreground size-4" />
-                        <span className="text-[11px] font-semibold">Ricevuta INPS</span>
+                        <span className="text-2xs font-semibold">Ricevuta INPS</span>
                         {hasRicevutaInps ? (
                           <CheckCircle2Icon className="size-4 text-green-600" />
                         ) : (
@@ -1132,7 +1134,7 @@ export function RapportoDetailPanel({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <FileTextIcon className="text-muted-foreground size-4" />
-                        <span className="text-[11px] font-semibold">Delega INPS</span>
+                        <span className="text-2xs font-semibold">Delega INPS</span>
                         {hasDelegaInps ? (
                           <CheckCircle2Icon className="size-4 text-green-600" />
                         ) : (
@@ -1376,7 +1378,7 @@ export function RapportoDetailPanel({
       />
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(open) => !open && setSelectedPreview(null)}>
         <DialogContent
-          className="max-w-[min(96vw,72rem)] border-none bg-black/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
+          className="max-w-[min(96vw,72rem)] border-none bg-neutral-950/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
         >
           <DialogTitle className="sr-only">
             {selectedPreview?.label ?? "Anteprima documento"}

@@ -8,8 +8,8 @@ import {
 import { toast } from "sonner";
 
 import { CrmDetailCard } from "@/components/crm/detail-card";
-import { Button } from "@/components/ui-next/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui-next/field";
+import { Button } from "@/components/ui/button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { runAutomationWebhook } from "@/lib/anagrafiche-api";
 
 const READONLY_BLOCK_CLASS =
@@ -168,7 +168,7 @@ export function CreazioneAnnuncioCard({
             ) : null}
             <div
               id="onboarding-testo-whatsapp"
-              className="rounded-md border bg-[#efeae2] p-3 dark:bg-muted/40"
+              className="rounded-md border bg-surface-muted p-3 dark:bg-muted/40"
             >
               {briefOnly ? (
                 <div className="ml-auto max-w-[92%] rounded-xl rounded-br-sm border border-emerald-200 bg-emerald-100/80 px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">

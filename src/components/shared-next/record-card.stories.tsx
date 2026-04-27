@@ -9,8 +9,8 @@ import {
   PhoneIcon,
 } from "lucide-react";
 
-import { Avatar } from "@/components/ui-next/avatar";
-import { Badge } from "@/components/ui-next/badge";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { CardMetaRow } from "@/components/shared-next/card-meta-row";
 import { RecordCard } from "@/components/shared-next/record-card";
 
@@ -19,7 +19,7 @@ const meta = {
   component: RecordCard,
   decorators: [
     (Story) => (
-      <div className="ui-next w-[340px]">
+      <div className="ui w-85">
         <Story />
       </div>
     ),
@@ -70,7 +70,7 @@ export const WithFooter: Story = {
       </RecordCard.Body>
       <RecordCard.Footer
         leftSlot={
-          <span className="flex items-center gap-1.5 text-[12.5px] text-[#76756f]">
+          <span className="flex items-center gap-1.5 text-[12.5px] text-foreground-muted">
             <CheckSquareIcon className="size-3 text-emerald-600" />
             Preventivo accettato
           </span>
@@ -112,7 +112,7 @@ export const PipelineStyle: Story = {
       </RecordCard.Body>
       <RecordCard.Footer
         leftSlot={
-          <span className="flex items-center gap-1.5 text-[12.5px] text-[#76756f]">
+          <span className="flex items-center gap-1.5 text-[12.5px] text-foreground-muted">
             <CheckSquareIcon className="size-3 text-emerald-600" />
             Preventivo accettato
           </span>

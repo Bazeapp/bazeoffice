@@ -15,7 +15,7 @@ import {
   TimerResetIcon,
 } from "lucide-react"
 
-import { Button } from "@/components/ui-next/button"
+import { Button } from "@/components/ui/button"
 import { OnboardingContextCard } from "@/components/crm/cards/onboarding-context-card"
 import { CreazioneAnnuncioCard } from "@/components/crm/cards/creazione-annuncio-card"
 import {
@@ -30,8 +30,8 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui-next/tabs"
+} from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import type {
   CrmPipelineCardData,
@@ -461,9 +461,9 @@ export function FamigliaProcessoDetailContent({
   return (
     <section
       ref={detailScrollRef}
-      className={cn("bg-[var(--neutral-150)] relative h-full min-h-0 overflow-y-auto", className)}
+      className={cn("bg-neutral-150 relative h-full min-h-0 overflow-y-auto", className)}
     >
-      <div className="bg-white sticky top-0 z-20 border-b">
+      <div className="bg-surface sticky top-0 z-20 border-b">
         <div className="space-y-3 px-4 pt-4">
           {showHeaderMeta || headerAction ? (
             <div className="flex items-start justify-between gap-3">
@@ -488,7 +488,7 @@ export function FamigliaProcessoDetailContent({
                 }}
                 disabled={!canEditStatoLead}
               >
-                <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full bg-white pl-2.5 pr-2 text-xs font-medium">
+                <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full bg-surface pl-2.5 pr-2 text-xs font-medium">
                   <span className={cn("size-2 shrink-0 rounded-full", getStageDotClass(card?.stage))} />
                   <SelectValue placeholder="Stato lead" />
                 </SelectTrigger>

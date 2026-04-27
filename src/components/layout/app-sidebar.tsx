@@ -9,7 +9,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui-next/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -25,7 +25,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarTrigger,
-} from "@/components/ui-next/sidebar";
+} from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import type { User } from "@supabase/supabase-js";
 import {
@@ -476,8 +476,8 @@ export function AppSidebar({
   }
 
   return (
-    <Sidebar className="border-r border-border/60 bg-[#FFF]">
-      <SidebarHeader className="gap-3 border-b border-border/60 bg-[#FFF] px-3 py-3 group-data-[state=collapsed]/sidebar:px-2">
+    <Sidebar className="border-r border-border/60 bg-surface">
+      <SidebarHeader className="gap-3 border-b border-border/60 bg-surface px-3 py-3 group-data-[state=collapsed]/sidebar:px-2">
         <div className="flex items-center gap-2 group-data-[state=collapsed]/sidebar:flex-col">
           <div className="flex min-w-0 flex-1 items-center gap-2 group-data-[state=collapsed]/sidebar:flex-none">
             <img
@@ -499,7 +499,7 @@ export function AppSidebar({
             <SidebarMenuButton
               isActive={activeMainSection === "anagrafiche"}
               tooltip="Home"
-              className="text-foreground hover:bg-white/60 hover:text-foreground data-[active=true]:bg-transparent data-[active=true]:text-foreground data-[active=true]:shadow-none data-[active=true]:[&_svg]:text-[var(--foreground-subtle)]"
+              className="text-foreground hover:bg-surface/60 hover:text-foreground data-[active=true]:bg-transparent data-[active=true]:text-foreground data-[active=true]:shadow-none data-[active=true]:[&_svg]:text-foreground-subtle"
               onClick={() => onOpenAnagraficheTab?.("famiglie")}
             >
               <HomeIcon className="size-4 shrink-0" />
@@ -552,7 +552,7 @@ export function AppSidebar({
                             <AccordionPrimitive.Header className="flex">
                               <AccordionPrimitive.Trigger
                                 className={cn(
-                                  "group/sidebar-cat flex h-9 w-full items-center gap-2 rounded-md px-2 text-sm text-foreground outline-none transition-colors hover:bg-white/60 focus-visible:bg-white/60",
+                                  "group/sidebar-cat flex h-9 w-full items-center gap-2 rounded-md px-2 text-sm text-foreground outline-none transition-colors hover:bg-surface/60 focus-visible:bg-surface/60",
                                   "group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0",
                                 )}
                                 title={category.name}
@@ -561,7 +561,7 @@ export function AppSidebar({
                                 <span className="flex-1 truncate text-left text-sm group-data-[state=collapsed]/sidebar:hidden">
                                   {category.name}
                                 </span>
-                                <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform duration-[var(--duration-fast)] group-data-[state=open]/sidebar-cat:rotate-180 group-data-[state=collapsed]/sidebar:hidden" />
+                                <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform duration-(--duration-fast) group-data-[state=open]/sidebar-cat:rotate-180 group-data-[state=collapsed]/sidebar:hidden" />
                               </AccordionPrimitive.Trigger>
                             </AccordionPrimitive.Header>
                             <AccordionPrimitive.Content className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
@@ -585,7 +585,7 @@ export function AppSidebar({
                                                 group.activeBgClassName,
                                                 "border-l-2 border-current font-semibold",
                                               )
-                                            : "text-muted-foreground hover:bg-white/60 hover:text-foreground"
+                                            : "text-muted-foreground hover:bg-surface/60 hover:text-foreground"
                                         }
                                       >
                                         <a
@@ -624,13 +624,13 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border/60 bg-[#FFF] p-3">
+      <SidebarFooter className="border-t border-border/60 bg-surface p-3">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
-                  className="h-11 rounded-lg bg-white/70 px-2.5 hover:bg-white"
+                  className="h-11 rounded-lg bg-surface/70 px-2.5 hover:bg-surface"
                   tooltip={userDisplayName}
                 >
                   <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10">

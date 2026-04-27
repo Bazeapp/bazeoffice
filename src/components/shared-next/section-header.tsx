@@ -136,7 +136,7 @@ function SectionHeader({ children, className }: SectionHeaderProps) {
   return (
     <header
       data-slot="section-header"
-      className={cn("bg-white text-foreground flex flex-col px-6", className)}
+      className={cn("bg-surface text-foreground flex flex-col px-6", className)}
     >
       {breadcrumb}
       <div className="border-border flex items-center justify-between gap-4 border-b py-4">

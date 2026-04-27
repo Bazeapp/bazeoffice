@@ -13,7 +13,7 @@ import {
 import {
   SidebarInset,
   SidebarProvider,
-} from "@/components/ui-next/sidebar"
+} from "@/components/ui/sidebar"
 
 type AppShellProps = {
   user: User
@@ -268,7 +268,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <React.Suspense
               fallback={
-                <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-2xl border border-border/60 bg-background/80 px-6 py-10 text-sm text-muted-foreground shadow-sm">
+                <div className="flex min-h-60 flex-1 items-center justify-center rounded-2xl border border-border/60 bg-background/80 px-6 py-10 text-sm text-muted-foreground shadow-sm">
                   Caricamento pagina...
                 </div>
               }

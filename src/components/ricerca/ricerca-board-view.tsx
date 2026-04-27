@@ -13,15 +13,15 @@ import {
   KanbanDeferredColumnAction,
 } from "@/components/shared-next/kanban"
 import { SectionHeader } from "@/components/shared-next/section-header"
-import { Avatar } from "@/components/ui-next/avatar"
-import { Badge } from "@/components/ui-next/badge"
-import { SearchInput } from "@/components/ui-next/search-input"
+import { Avatar } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { SearchInput } from "@/components/ui/search-input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-} from "@/components/ui-next/select"
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 type ColumnVisual = {
@@ -31,7 +31,7 @@ type ColumnVisual = {
 }
 
 function toAvatarRingClass(legacy: string) {
-  // Convert legacy `after:border-X-Y` -> new `ring-2 ring-X-Y` for ui-next Avatar.
+  // Convert legacy `after:border-X-Y` -> new `ring-2 ring-X-Y` for ui Avatar.
   return legacy.replace(/after:border-/g, "ring-2 ring-")
 }
 
@@ -115,7 +115,7 @@ function getColumnVisual(columnId: string, columnLabel: string, color: string | 
 }
 
 function RicercaBoardSkeletonColumn() {
-  return <KanbanColumnSkeleton widthClassName="w-[300px]" showBadgeRow />
+  return <KanbanColumnSkeleton widthClassName="w-75" showBadgeRow />
 }
 
 function RicercaBoardCard({
@@ -187,7 +187,7 @@ function RicercaBoardColumn({
       title={column.label}
       countLabel={`${count} ${count === 1 ? "ricerca" : "ricerche"}`}
       visual={visual}
-      widthClassName="w-[300px]"
+      widthClassName="w-75"
       isDropTarget={isDropTarget}
       emptyMessage="Nessuna ricerca"
       onDragEnter={onDragEnterColumn}
@@ -337,7 +337,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   )
 
   return (
-    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
+    <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden">
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento board ricerca: {error}
@@ -356,7 +356,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
         </SectionHeader.Title>
         <SectionHeader.Actions>
           <Select value={selectedOperatorId} onValueChange={setSelectedOperatorId}>
-            <SelectTrigger className="w-[240px]">
+            <SelectTrigger className="w-60">
               {selectedOperator ? (
                 <span className="inline-flex items-center gap-2">
                   <Avatar
@@ -390,7 +390,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
           </Select>
         </SectionHeader.Actions>
         <SectionHeader.Toolbar>
-          <div className="min-w-0 flex-1 max-w-[420px]">
+          <div className="min-w-0 flex-1 max-w-105">
             <SearchInput
               placeholder="Cerca per cognome, email o ID..."
               value={searchQuery}

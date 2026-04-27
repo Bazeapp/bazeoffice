@@ -17,14 +17,14 @@ import { cn } from "@/lib/utils"
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles"
 import { RelatedActiveSearchCard } from "@/components/ricerca/worker-pipeline-summary-cards"
 import { RecordCard } from "@/components/shared-next/record-card"
-import { Avatar } from "@/components/ui-next/avatar"
-import { Badge } from "@/components/ui-next/badge"
+import { Avatar } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui-next/popover"
-import { Separator } from "@/components/ui-next/separator"
+} from "@/components/ui/popover"
+import { Separator } from "@/components/ui/separator"
 
 type WorkerOtherSelectionSummaryItem = {
   id: string
@@ -111,7 +111,7 @@ function getWorkerQualificationStatus(worker: LavoratoreListItem): WorkerQualifi
     return {
       label: "Certificato",
       ringClassName: "ring-2 ring-emerald-600/40",
-      badgeClassName: "bg-emerald-600 text-white",
+      badgeClassName: "bg-success text-foreground-on-accent",
       icon: BadgeCheckIcon,
     }
   }
@@ -301,7 +301,7 @@ export function LavoratoreCard({
             <span className="text-sm font-semibold">{worker.nomeCompleto}</span>
           }
         />
-        <RecordCard.Body className="text-muted-foreground gap-1.5 text-[11px]">
+        <RecordCard.Body className="text-muted-foreground gap-1.5 text-2xs">
           <p className="flex min-w-0 items-center gap-1.5">
             <MapPinIcon className="size-3 shrink-0" />
             <span className="truncate">{gate1Summary?.provincia || "-"}</span>
@@ -344,7 +344,7 @@ export function LavoratoreCard({
         rightSlot={
           <Badge
             className={cn(
-              "h-5 px-2 text-[11px] font-medium",
+              "h-5 px-2 text-2xs font-medium",
               getStatusSoftClassName(worker.statoLavoratoreColor, workerStatusLabel),
             )}
           >
@@ -359,7 +359,7 @@ export function LavoratoreCard({
               <Badge
                 key={`${worker.id}-ruolo-${index}-${role}`}
                 className={cn(
-                  "h-5 px-2 text-[11px] font-medium",
+                  "h-5 px-2 text-2xs font-medium",
                   getBadgeClassName(worker.tipoRuoloColor),
                 )}
               >
@@ -368,12 +368,12 @@ export function LavoratoreCard({
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground text-[11px] leading-none">-</p>
+          <p className="text-muted-foreground text-2xs leading-none">-</p>
         )}
         {worker.tipoLavoro ? (
           <Badge
             className={cn(
-              "h-5 w-fit px-2 text-[11px] font-medium",
+              "h-5 w-fit px-2 text-2xs font-medium",
               getBadgeClassName(worker.tipoLavoroColor),
             )}
           >
@@ -381,7 +381,7 @@ export function LavoratoreCard({
             {worker.tipoLavoro}
           </Badge>
         ) : (
-          <p className="text-muted-foreground text-[11px] leading-none">-</p>
+          <p className="text-muted-foreground text-2xs leading-none">-</p>
         )}
 
         <Separator className="my-1" />
@@ -393,7 +393,7 @@ export function LavoratoreCard({
                 <button
                   type="button"
                   onClick={(event) => event.stopPropagation()}
-                  className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-[11px] leading-none transition-colors"
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-2xs leading-none transition-colors"
                 >
                   <div className="flex items-center gap-1">
                     {otherSelections.dots.map((dot) => (
@@ -437,19 +437,19 @@ export function LavoratoreCard({
             </Popover>
           ) : null}
           {travelTimeLabel ? (
-            <p className="text-muted-foreground flex items-center gap-1.5 text-[11px] leading-none">
+            <p className="text-muted-foreground flex items-center gap-1.5 text-2xs leading-none">
               <Clock3Icon className="size-3 shrink-0" />
               <span>{travelTimeLabel}</span>
             </p>
           ) : null}
-          <p className="text-muted-foreground flex items-center gap-1.5 text-[11px] leading-none">
+          <p className="text-muted-foreground flex items-center gap-1.5 text-2xs leading-none">
             <MapPinIcon className="size-3 shrink-0" />
             <span className="truncate">{worker.locationLabel ?? "-"}</span>
             <span className="mx-1">•</span>
             <PhoneIcon className="size-3 shrink-0" />
             <span className="truncate">{worker.telefono ?? "-"}</span>
           </p>
-          <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-[11px] leading-none">
+          <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-2xs leading-none">
             {experienceEntries.map((entry, index) => {
               const level = getExperienceLevel(entry.years)
               return (

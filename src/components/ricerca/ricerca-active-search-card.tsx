@@ -5,7 +5,7 @@ import {
   MapPinIcon,
 } from "lucide-react"
 
-import { Badge } from "@/components/ui-next/badge"
+import { Badge } from "@/components/ui/badge"
 import { CardMetaRow } from "@/components/shared-next/card-meta-row"
 import { RecordCard } from "@/components/shared-next/record-card"
 import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board"

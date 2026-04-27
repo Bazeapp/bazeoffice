@@ -13,19 +13,19 @@ import {
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import { asString, getAgeFromBirthDate } from "@/features/lavoratori/lib/base-utils"
 import { getWorkerQualificationStatus } from "@/features/lavoratori/lib/status-utils"
-import { Avatar } from "@/components/ui-next/avatar"
-import { Button } from "@/components/ui-next/button"
-import { Card, CardContent } from "@/components/ui-next/card"
+import { Avatar } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/components/ui-next/carousel"
-import { Input } from "@/components/ui-next/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
-import { Textarea } from "@/components/ui-next/textarea"
+} from "@/components/ui/carousel"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 function initialsFromName(name: string) {

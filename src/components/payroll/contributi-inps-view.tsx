@@ -15,8 +15,8 @@ import {
 } from "@/hooks/use-contributi-inps-board"
 import {
   AttachmentUploadSlot,
-  type AttachmentLink,
 } from "@/components/shared-next/attachment-upload-slot"
+import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
   buildAttachmentPayload,
@@ -30,15 +30,15 @@ import {
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { StatisticsMetricCard } from "@/components/shared-next/statistics-metric-card"
-import { Badge } from "@/components/ui-next/badge"
-import { Button } from "@/components/ui-next/button"
-import { Card, CardContent } from "@/components/ui-next/card"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui-next/dialog"
-import { Input } from "@/components/ui-next/input"
-import { SearchInput } from "@/components/ui-next/search-input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
-import { Separator } from "@/components/ui-next/separator"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui-next/sheet"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { SearchInput } from "@/components/ui/search-input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
@@ -163,7 +163,7 @@ function ContributoInpsCard({ card }: { card: ContributoInpsBoardCardData }) {
   const hasAttachment = Boolean(card.record.allegato)
 
   return (
-    <Card className="border border-border/70 bg-white py-0 transition-shadow hover:shadow-md">
+    <Card className="border border-border/70 bg-surface py-0 transition-shadow hover:shadow-md">
       <CardContent className="space-y-3 px-3 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -176,14 +176,14 @@ function ContributoInpsCard({ card }: { card: ContributoInpsBoardCardData }) {
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge
             variant="secondary"
-            className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] text-violet-700 hover:bg-violet-100"
+            className="rounded-full bg-violet-100 px-2.5 py-0.5 text-2xs text-violet-700 hover:bg-violet-100"
           >
             {card.trimestreLabel}
           </Badge>
           {card.pagopaLabel ? (
             <Badge
               variant="secondary"
-              className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] text-sky-700 hover:bg-sky-100"
+              className="rounded-full bg-sky-100 px-2.5 py-0.5 text-2xs text-sky-700 hover:bg-sky-100"
             >
               PagoPA {card.pagopaLabel}
             </Badge>
@@ -191,7 +191,7 @@ function ContributoInpsCard({ card }: { card: ContributoInpsBoardCardData }) {
           {hasAttachment ? (
             <Badge
               variant="secondary"
-              className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] text-emerald-700 hover:bg-emerald-100"
+              className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-2xs text-emerald-700 hover:bg-emerald-100"
             >
               <CircleCheckBigIcon className="size-3" />
               Allegato
@@ -334,7 +334,7 @@ export function ContributoInpsDetailSheet({
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
-          <SheetHeader className="border-b bg-white px-5 py-5">
+          <SheetHeader className="border-b bg-surface px-5 py-5">
             <div className="space-y-2">
               <SheetTitle className="truncate text-xl font-semibold">
                 {card?.nomeCompleto ?? "Dettaglio contributo INPS"}
@@ -352,7 +352,7 @@ export function ContributoInpsDetailSheet({
           </SheetHeader>
 
           {card ? (
-            <section className="h-full overflow-y-auto bg-[var(--neutral-150)] px-5 py-5">
+            <section className="h-full overflow-y-auto bg-neutral-150 px-5 py-5">
               <div className="mx-auto max-w-5xl space-y-5">
                 <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} />
 
@@ -451,7 +451,7 @@ export function ContributoInpsDetailSheet({
       </Sheet>
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(nextOpen) => !nextOpen && setSelectedPreview(null)}>
         <DialogContent
-          className="max-w-[min(96vw,72rem)] border-none bg-black/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
+          className="max-w-[min(96vw,72rem)] border-none bg-neutral-950/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"
         >
           <DialogTitle className="sr-only">
             {selectedPreview?.label ?? "Anteprima allegato contributo"}
@@ -503,7 +503,7 @@ function ContributoInpsBoardColumn({
       countLabel={`${column.cards.length} ${column.cards.length === 1 ? "contributo" : "contributi"}`}
       visual={visual}
       density="compact"
-      widthClassName="w-[292px]"
+      widthClassName="w-73"
       isDropTarget={isDropTarget}
       emptyState={
         <div className="text-muted-foreground rounded-lg border border-dashed border-border/60 p-3 text-xs">
@@ -539,7 +539,7 @@ function ContributoInpsBoardColumn({
 }
 
 function ContributoInpsBoardSkeletonColumn() {
-  return <KanbanColumnSkeleton widthClassName="w-[292px]" density="compact" showBadgeRow />
+  return <KanbanColumnSkeleton widthClassName="w-73" density="compact" showBadgeRow />
 }
 
 export function ContributiInpsView() {
@@ -630,7 +630,7 @@ export function ContributiInpsView() {
       >
         <ChevronLeftIcon />
       </Button>
-      <div className="text-foreground inline-flex h-8 min-w-[120px] items-center justify-center gap-2 rounded-md text-sm font-medium">
+      <div className="text-foreground inline-flex h-8 min-w-30 items-center justify-center gap-2 rounded-md text-sm font-medium">
         <CalendarDaysIcon className="text-muted-foreground size-4" />
         {period.quarter} {period.year}
       </div>
@@ -647,7 +647,7 @@ export function ContributiInpsView() {
   )
 
   return (
-    <section className="ui-next flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+    <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <SectionHeader>
         <SectionHeader.Title
           subtitle={`${stats.totale} ${stats.totale === 1 ? "contributo" : "contributi"}`}
@@ -678,7 +678,7 @@ export function ContributiInpsView() {
               </Button>
             ) : null}
             <Select value={stageFilter} onValueChange={setStageFilter}>
-              <SelectTrigger className="min-w-[200px]">
+              <SelectTrigger className="min-w-50">
                 <SelectValue placeholder="Tutti gli stati" />
               </SelectTrigger>
               <SelectContent>

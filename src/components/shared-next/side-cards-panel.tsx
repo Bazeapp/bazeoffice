@@ -2,8 +2,8 @@ import * as React from "react"
 import { SearchIcon, type LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-next/card"
-import { Input } from "@/components/ui-next/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 
 type SideCardsPanelGroup = {
   id: string
@@ -63,7 +63,7 @@ export function SideCardsPanel({
 
   return (
     <Card
-      className={cn("flex h-full flex-col overflow-hidden bg-white", className)}
+      className={cn("flex h-full flex-col overflow-hidden bg-surface", className)}
       {...props}
     >
       <CardHeader className={cn("flex-col items-start gap-1 pb-4", headerClassName)}>
@@ -72,7 +72,7 @@ export function SideCardsPanel({
           <CardTitle>{title}</CardTitle>
         </div>
         {subtitle ? (
-          <p className="text-muted-foreground text-[var(--text-sm)]">{subtitle}</p>
+          <p className="text-muted-foreground text-sm">{subtitle}</p>
         ) : null}
       </CardHeader>
       {hasToolbar ? (
@@ -124,11 +124,11 @@ export function SideCardsPanel({
                     group.headerClassName,
                   )}
                 >
-                  <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide">
+                  <p className="text-muted-foreground text-2xs font-semibold uppercase tracking-wide">
                     {group.title}
                   </p>
                   {typeof group.count === "number" ? (
-                    <span className="text-muted-foreground text-[11px]">
+                    <span className="text-muted-foreground text-2xs">
                       {group.count}
                     </span>
                   ) : null}

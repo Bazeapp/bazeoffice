@@ -14,9 +14,9 @@ import {
   DetailSectionBlock,
   DetailSectionCard,
 } from "@/components/shared-next/detail-section-card";
-import { Badge } from "@/components/ui-next/badge";
-import { Button } from "@/components/ui-next/button";
-import { Input } from "@/components/ui-next/input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 /* ============================================================
    DetailSectionCard
@@ -27,7 +27,7 @@ const cardMeta = {
   component: DetailSectionCard,
   decorators: [
     (Story) => (
-      <div className="ui-next w-[640px]">
+      <div className="ui w-160">
         <Story />
       </div>
     ),
@@ -116,7 +116,7 @@ export const TitleOnBorder: CardStory = {
 
 export const SectionBlockPrimary: StoryObj = {
   render: () => (
-    <div className="ui-next w-[640px]">
+    <div className="ui w-160">
       <DetailSectionBlock
         title="Orari e frequenza"
         icon={<CalendarIcon className="size-4" />}
@@ -144,7 +144,7 @@ export const SectionBlockPrimary: StoryObj = {
 
 export const SectionBlockMuted: StoryObj = {
   render: () => (
-    <div className="ui-next w-[640px]">
+    <div className="ui w-160">
       <DetailSectionBlock
         tone="muted"
         title="Famiglia"
@@ -158,7 +158,7 @@ export const SectionBlockMuted: StoryObj = {
 
 export const SectionBlockNeutral: StoryObj = {
   render: () => (
-    <div className="ui-next w-[640px]">
+    <div className="ui w-160">
       <DetailSectionBlock
         tone="neutral"
         title="Mansioni"
@@ -176,7 +176,7 @@ export const SectionBlockNeutral: StoryObj = {
 
 export const SectionBlockTransparent: StoryObj = {
   render: () => (
-    <div className="ui-next w-[640px]">
+    <div className="ui w-160">
       <DetailSectionBlock
         tone="transparent"
         title="Note operatore"
@@ -190,7 +190,7 @@ export const SectionBlockTransparent: StoryObj = {
 
 export const SectionBlockCollapsible: StoryObj = {
   render: () => (
-    <div className="ui-next w-[640px]">
+    <div className="ui w-160">
       <DetailSectionBlock
         title="Luogo di lavoro"
         icon={<HomeIcon className="size-4" />}
@@ -210,7 +210,7 @@ export const SectionBlockCollapsible: StoryObj = {
 
 export const SectionBlockCollapsedByDefault: StoryObj = {
   render: () => (
-    <div className="ui-next w-[640px]">
+    <div className="ui w-160">
       <DetailSectionBlock
         title="Animali domestici"
         icon={<HomeIcon className="size-4" />}
@@ -229,7 +229,7 @@ export const SectionBlockCollapsedByDefault: StoryObj = {
 
 export const FieldStates: StoryObj = {
   render: () => (
-    <div className="ui-next w-[640px] grid grid-cols-2 gap-4">
+    <div className="ui w-160 grid grid-cols-2 gap-4">
       <DetailField label="Stringa" value="Aria Bocelli" />
       <DetailField label="Numero" value={42} />
       <DetailField

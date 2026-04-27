@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { Badge } from "@/components/ui-next/badge"
+import { Badge } from "@/components/ui/badge"
 import {
   Combobox,
   ComboboxChip,
@@ -12,8 +12,8 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui-next/combobox"
-import { FieldLabel } from "@/components/ui-next/field"
+} from "@/components/ui/combobox"
+import { FieldLabel } from "@/components/ui/field"
 import {
   getTagClassName,
   normalizeLookupToken,

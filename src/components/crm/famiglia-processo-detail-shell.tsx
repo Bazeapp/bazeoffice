@@ -4,8 +4,8 @@ import {
   FamigliaProcessoDetailContent,
   type FamigliaProcessoDetailContentProps,
 } from "@/components/crm/famiglia-processo-detail-content"
-import { Button } from "@/components/ui-next/button"
-import { Sheet, SheetClose, SheetContent } from "@/components/ui-next/sheet"
+import { Button } from "@/components/ui/button"
+import { Sheet, SheetClose, SheetContent } from "@/components/ui/sheet"
 
 type FamigliaProcessoDetailShellProps = FamigliaProcessoDetailContentProps & {
   mode?: "inline" | "sheet"

@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui-next/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export type WorkerDetailSectionTab = {
   id: string;
@@ -35,13 +35,13 @@ export function WorkerDetailShell({
     <section
       ref={sectionRef}
       className={[
-        "bg-[var(--neutral-150)] relative min-h-0 overflow-y-auto rounded-xl border pb-4",
+        "bg-neutral-150 relative min-h-0 overflow-y-auto rounded-xl border pb-4",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
     >
-      <div className="sticky top-0 z-40 flex h-12 items-end gap-3 bg-white px-4">
+      <div className="sticky top-0 z-40 flex h-12 items-end gap-3 bg-surface px-4">
         <Tabs
           value={activeSection}
           onValueChange={onSectionChange}
@@ -74,7 +74,7 @@ export function WorkerDetailShell({
       {header ? (
         <div
           ref={headerRef}
-          className="sticky top-12 z-30 isolate border-b bg-white px-4 py-4 shadow-[0_8px_16px_-18px_rgba(15,23,42,0.45)]"
+          className="sticky top-12 z-30 isolate border-b bg-surface px-4 py-4 shadow-[0_8px_16px_-18px_rgba(15,23,42,0.45)]"
         >
           {header}
         </div>

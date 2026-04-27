@@ -1,17 +1,17 @@
 import * as React from "react"
 
-import { UiNextGallery } from "@/components/ui-next-gallery"
+import { UiGallery } from "@/components/ui-gallery"
 
-function isUiNextRoute() {
+function isUiRoute() {
   if (typeof window === "undefined") return false
-  return /(?:^|\/)ui-next(?:\/|$)/.test(window.location.pathname)
+  return /(?:^|\/)ui(?:\/|$)/.test(window.location.pathname)
 }
 
 const MainApp = React.lazy(() => import("@/main-app"))
 
 export function App() {
-  if (isUiNextRoute()) {
-    return <UiNextGallery />
+  if (isUiRoute()) {
+    return <UiGallery />
   }
 
   return (

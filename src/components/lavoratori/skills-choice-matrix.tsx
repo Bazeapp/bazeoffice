@@ -1,7 +1,7 @@
 import { CheckIcon, XIcon } from "lucide-react"
 
-import { Badge } from "@/components/ui-next/badge"
-import { RadioGroup, RadioGroupItem } from "@/components/ui-next/radio-group"
+import { Badge } from "@/components/ui/badge"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { getTagClassName, resolveLookupColor, type LookupOption } from "@/features/lavoratori/lib/lookup-utils"
 import { cn } from "@/lib/utils"
 
@@ -57,8 +57,8 @@ export function SkillsChoiceMatrix({
         {rows.map((row) => (
           <div
             key={row.field}
-            className="rounded-lg border border-border/60 bg-white px-3 py-3"
-            data-empty={!row.value}
+            className="rounded-lg border border-border/60 bg-surface px-3 py-3"
+            data-empty={row!.value}
           >
             <div
               className={cn(

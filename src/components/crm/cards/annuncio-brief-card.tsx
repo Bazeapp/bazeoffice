@@ -3,7 +3,7 @@ import { CopyIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { CrmDetailCard } from "@/components/crm/detail-card";
-import { Button } from "@/components/ui-next/button";
+import { Button } from "@/components/ui/button";
 
 const READONLY_BLOCK_CLASS =
   "rounded-md border bg-muted/40 px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words";

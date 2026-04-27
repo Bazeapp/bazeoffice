@@ -21,12 +21,10 @@ import type {
 import { QueryBuilder } from "react-querybuilder"
 
 import {
-  createEmptyGroup,
   getOperatorsForField,
   type FilterFieldType,
 } from "@/components/data-table/data-table-filters"
-import type { QueryFilterCondition, QueryFilterGroup } from "@/lib/anagrafiche-api"
-import { Button } from "@/components/ui-next/button"
+import { Button } from "@/components/ui/button"
 import {
   Combobox,
   ComboboxChip,
@@ -38,115 +36,18 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui-next/combobox"
-import { Card, CardContent } from "@/components/ui-next/card"
-import { Input } from "@/components/ui-next/input"
+} from "@/components/ui/combobox"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui-next/select"
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-
-const UPPERCASE_TOKENS = new Set([
-  "id",
-  "url",
-  "utm",
-  "otp",
-  "seo",
-  "wa",
-  "fbclid",
-  "gclid",
-  "cet",
-  "ai",
-  "inps",
-  "cud",
-  "json",
-  "jsonb",
-  "uuid",
-])
-const LOWERCASE_CONNECTORS = new Set([
-  "a",
-  "ad",
-  "al",
-  "alla",
-  "con",
-  "da",
-  "dal",
-  "dalla",
-  "dei",
-  "del",
-  "della",
-  "delle",
-  "di",
-  "e",
-  "il",
-  "in",
-  "la",
-  "le",
-  "nel",
-  "nella",
-  "o",
-  "per",
-  "su",
-  "tra",
-])
-const TOKEN_LABEL_OVERRIDES: Record<string, string> = {
-  whatsapp: "WhatsApp",
-  webflow: "Webflow",
-  looker: "Looker",
-  stripe: "Stripe",
-  hubspot: "HubSpot",
-  pipedrive: "Pipedrive",
-  typeform: "Typeform",
-  wized: "Wized",
-  klaaryo: "Klaaryo",
-}
-
-function createFilterId() {
-  return Math.random().toString(36).slice(2, 10)
-}
-
-function toReadableColumnLabel(key: string) {
-  const normalized = key.replace(/__+/g, "_").trim()
-  if (!normalized) return key
-
-  const parts = normalized
-    .split("_")
-    .map((part) => part.trim())
-    .filter(Boolean)
-
-  if (!parts.length) return key
-
-  return parts
-    .map((part, index) => {
-      const lower = part.toLowerCase()
-
-      if (TOKEN_LABEL_OVERRIDES[lower]) {
-        return TOKEN_LABEL_OVERRIDES[lower]
-      }
-
-      if (UPPERCASE_TOKENS.has(lower)) {
-        return lower.toUpperCase()
-      }
-
-      if (index > 0 && LOWERCASE_CONNECTORS.has(lower)) {
-        return lower
-      }
-
-      return lower.charAt(0).toUpperCase() + lower.slice(1)
-    })
-    .join(" ")
-}
-
-export type AnagraficheQueryBuilderField = {
-  name: string
-  label: string
-  type: FilterFieldType
-  values?: Array<{ name: string; label: string }>
-}
+import type { AnagraficheQueryBuilderField } from "./anagrafiche-query-utils"
 
 function getFieldTypeIcon(fieldType: FilterFieldType | undefined) {
   switch (fieldType) {
@@ -165,13 +66,6 @@ function getFieldTypeIcon(fieldType: FilterFieldType | undefined) {
     case "text":
     default:
       return TypeIcon
-  }
-}
-
-export function makeEmptyRuleGroup(): RuleGroupType {
-  return {
-    combinator: "and",
-    rules: [],
   }
 }
 
@@ -301,7 +195,7 @@ function ShadcnCombinatorSelector({
 
   return (
     <Select value={value} onValueChange={handleOnChange} disabled={disabled}>
-      <SelectTrigger className="h-8 w-[92px]">
+      <SelectTrigger className="h-8 w-23">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -331,7 +225,7 @@ function ShadcnFieldSelector({
 
   return (
     <Select value={value} onValueChange={handleOnChange} disabled={disabled}>
-      <SelectTrigger className="h-9 min-w-[220px]">
+      <SelectTrigger className="h-9 min-w-55">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -366,7 +260,7 @@ function ShadcnOperatorSelector({
 
   return (
     <Select value={value} onValueChange={handleOnChange} disabled={disabled}>
-      <SelectTrigger className="h-9 min-w-[180px]">
+      <SelectTrigger className="h-9 min-w-45">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -428,7 +322,7 @@ function ShadcnValueEditor(props: ValueEditorProps) {
             props.handleOnChange([event.target.value, betweenValue.to])
           }
           placeholder="Da"
-          className="h-9 min-w-[160px]"
+          className="h-9 min-w-40"
           disabled={props.disabled}
         />
         <Input
@@ -439,7 +333,7 @@ function ShadcnValueEditor(props: ValueEditorProps) {
             props.handleOnChange([betweenValue.from, event.target.value])
           }
           placeholder="A"
-          className="h-9 min-w-[160px]"
+          className="h-9 min-w-40"
           disabled={props.disabled}
         />
       </div>
@@ -453,7 +347,7 @@ function ShadcnValueEditor(props: ValueEditorProps) {
         onValueChange={props.handleOnChange}
         disabled={props.disabled}
       >
-        <SelectTrigger className="h-9 min-w-[180px]">
+        <SelectTrigger className="h-9 min-w-45">
           <SelectValue placeholder="Valore" />
         </SelectTrigger>
         <SelectContent>
@@ -471,7 +365,7 @@ function ShadcnValueEditor(props: ValueEditorProps) {
         onValueChange={props.handleOnChange}
         disabled={props.disabled}
       >
-        <SelectTrigger className="h-9 min-w-[220px]">
+        <SelectTrigger className="h-9 min-w-55">
           <SelectValue placeholder="Valore" />
         </SelectTrigger>
         <SelectContent>
@@ -498,7 +392,7 @@ function ShadcnValueEditor(props: ValueEditorProps) {
       >
         <ComboboxChips
           ref={anchor}
-          className="min-h-9 w-full min-w-[260px] rounded-md border bg-background px-2"
+          className="min-h-9 w-full min-w-65 rounded-md border bg-background px-2"
         >
           <ComboboxValue>
             {(values) => (
@@ -537,49 +431,10 @@ function ShadcnValueEditor(props: ValueEditorProps) {
           ? "Valori separati da virgola"
           : "Valore"
       }
-      className="h-9 min-w-[220px]"
+      className="h-9 min-w-55"
       disabled={props.disabled}
     />
   )
-}
-
-function translateRuleToCondition(rule: any, fieldsByName: Map<string, AnagraficheQueryBuilderField>): QueryFilterCondition | null {
-  const field = String(rule.field ?? "").trim()
-  const operator = String(rule.operator ?? "").trim()
-  const fieldMeta = fieldsByName.get(field)
-  if (!field || !operator || !fieldMeta) return null
-
-  const rawValue = rule.value
-  const normalizedValue = Array.isArray(rawValue) ? rawValue.join(",") : String(rawValue ?? "")
-  const betweenValue = operator === "between" ? readBetweenValue(rawValue) : null
-
-  return {
-    kind: "condition",
-    id: createFilterId(),
-    field,
-    operator: operator as QueryFilterCondition["operator"],
-    value: needsNoValue(operator) ? "" : betweenValue ? betweenValue.from : normalizedValue,
-    valueTo: betweenValue ? betweenValue.to : "",
-  }
-}
-
-export function queryBuilderToFilterGroup(
-  query: RuleGroupType,
-  fieldsByName: Map<string, AnagraficheQueryBuilderField>
-): QueryFilterGroup {
-  return {
-    kind: "group",
-    id: createFilterId(),
-    logic: query.combinator === "or" ? "or" : "and",
-    nodes: query.rules
-      .map((rule) => {
-        if ("rules" in rule) {
-          return queryBuilderToFilterGroup(rule as RuleGroupType, fieldsByName)
-        }
-        return translateRuleToCondition(rule, fieldsByName)
-      })
-      .filter((node): node is QueryFilterGroup | QueryFilterCondition => node !== null),
-  }
 }
 
 function countRules(group: RuleGroupType): number {
@@ -666,7 +521,7 @@ export function AnagraficheQueryBuilder({
                 "[&_.queryBuilder-rule]:grid [&_.queryBuilder-rule]:grid-cols-1 [&_.queryBuilder-rule]:items-start [&_.queryBuilder-rule]:gap-2 md:[&_.queryBuilder-rule]:grid-cols-[minmax(220px,1.15fr)_minmax(180px,0.9fr)_minmax(220px,1.25fr)_auto]",
                 "[&_.queryBuilder-rule_.rule-value]:min-w-0",
                 "[&_.queryBuilder-rule_.rule-value>*]:w-full",
-                "[&_.ruleGroup-combinators]:w-[92px]"
+                "[&_.ruleGroup-combinators]:w-23"
               )}
             >
               <QueryBuilder
@@ -714,47 +569,4 @@ export function AnagraficheQueryBuilder({
       ) : null}
     </div>
   )
-}
-
-type ToQueryBuilderFieldParams = {
-  keys: string[]
-  columnsByName: Map<string, { filterType: FilterFieldType }>
-  entityTable:
-    | "famiglie"
-    | "processi_matching"
-    | "lavoratori"
-    | "mesi_lavorati"
-    | "pagamenti"
-    | "selezioni_lavoratori"
-    | "rapporti_lavorativi"
-  lookupOptions: Record<string, Array<{ label: string; value: string }>>
-  lookupFilterTypes: Record<string, FilterFieldType | undefined>
-}
-
-export function toQueryBuilderFields({
-  keys,
-  columnsByName,
-  entityTable,
-  lookupOptions,
-  lookupFilterTypes,
-}: ToQueryBuilderFieldParams): AnagraficheQueryBuilderField[] {
-  return keys.map((key) => {
-    const lookupDomain = `${entityTable}.${key}`
-    const type = lookupFilterTypes[lookupDomain] ?? columnsByName.get(key)?.filterType ?? "text"
-    const values = (lookupOptions[lookupDomain] ?? []).map((option) => ({
-      name: option.value,
-      label: option.label,
-    }))
-
-    return {
-      name: key,
-      label: toReadableColumnLabel(key),
-      type,
-      values: values.length > 0 ? values : undefined,
-    }
-  })
-}
-
-export function emptyServerFilterGroup() {
-  return createEmptyGroup("and")
 }

@@ -1,13 +1,13 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui-next/card";
+import { Card } from "@/components/ui/card";
 
 /**
  * RecordCard — pattern di card "record in lista" usato dovunque ci sia
  * un elenco di entità (famiglia, ricerca, lavoratore, etc.).
  *
- * Compone visivamente `Card` di ui-next aggiungendo:
+ * Compone visivamente `Card` di ui aggiungendo:
  *   - struttura compound `Header / Body / Footer` con slot tipizzati
  *   - prop `accent` per il bordo laterale colorato
  *   - hover shadow + cursor-pointer quando `onClick` è passato
@@ -169,11 +169,11 @@ const RecordCardImpl = React.forwardRef<HTMLDivElement, RecordCardProps>(
         data-slot="record-card"
         className={cn(
           // Shape + chrome (CSS border invece della box-shadow ring di Card primitive)
-          "relative overflow-hidden rounded-[10px] border border-[#ececea] bg-white p-4 gap-1.5",
+          "relative overflow-hidden rounded-[10px] border border-border-subtle bg-surface p-4 gap-1.5",
           // 2-layer flat shadow @ 2-4% nero
           "shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]",
           // Hover: cambio solo colore del bordo
-          "transition-colors hover:border-[#dcdcd8]",
+          "transition-colors hover:border-border",
           onClick && "cursor-pointer",
           className,
         )}
@@ -184,7 +184,7 @@ const RecordCardImpl = React.forwardRef<HTMLDivElement, RecordCardProps>(
             aria-hidden
             className={cn(
               // Striscia accent assoluta, clippata dal border-radius del card (overflow-hidden)
-              "pointer-events-none absolute top-0 bottom-0 left-0 w-[4px]",
+              "pointer-events-none absolute top-0 bottom-0 left-0 w-1",
               accent && accentBgClasses[accent],
               accentClassName,
             )}

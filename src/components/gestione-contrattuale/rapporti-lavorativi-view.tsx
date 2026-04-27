@@ -31,7 +31,7 @@ export function RapportiLavorativiView() {
   } = useRapportiLavorativiData()
 
   return (
-    <section className="ui-next grid h-full w-full min-w-0 min-h-0 gap-3 overflow-hidden px-4 pb-2 pt-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
+    <section className="ui grid h-full w-full min-w-0 min-h-0 gap-3 overflow-hidden px-4 pb-2 pt-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
       <RapportiListPanel
         rapporti={rapporti}
         totalCount={rapportiTotal}

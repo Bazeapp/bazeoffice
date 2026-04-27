@@ -1,11 +1,11 @@
 import { CalendarDaysIcon, PencilIcon } from "lucide-react"
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
-import { Badge } from "@/components/ui-next/badge"
-import { Button } from "@/components/ui-next/button"
-import { FieldLabel } from "@/components/ui-next/field"
-import { Input } from "@/components/ui-next/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-next/select"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type LookupOption = {
   label: string
