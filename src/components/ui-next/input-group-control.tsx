@@ -4,9 +4,19 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui-next/button";
+import { Input } from "@/components/ui-next/input";
+import { Textarea } from "@/components/ui-next/textarea";
+
+/**
+ * Input group with embedded addons / buttons (shadcn-style).
+ *
+ * Distinct from the visual compound `InputGroup` in `./input-group.tsx`,
+ * which is for prefix / suffix / addon typography decorations.
+ *
+ * This file ships the trigger/clear container used by `Combobox` and other
+ * patterns that need an input wrapper hosting interactive controls.
+ */
 
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (

@@ -10,7 +10,7 @@ import {
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
-} from "@/components/ui/input-group";
+} from "@/components/ui-next/input-group-control";
 
 const Combobox = ComboboxPrimitive.Root;
 

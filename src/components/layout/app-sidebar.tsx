@@ -499,7 +499,7 @@ export function AppSidebar({
             <SidebarMenuButton
               isActive={activeMainSection === "anagrafiche"}
               tooltip="Home"
-              className="text-sm"
+              className="text-foreground hover:bg-white/60 hover:text-foreground data-[active=true]:bg-transparent data-[active=true]:text-foreground data-[active=true]:shadow-none data-[active=true]:[&_svg]:text-[var(--foreground-subtle)]"
               onClick={() => onOpenAnagraficheTab?.("famiglie")}
             >
               <HomeIcon className="size-4 shrink-0" />

@@ -20,7 +20,7 @@ import {
   type FilterGroup,
   type FilterNode,
 } from "@/components/data-table/data-table-filters"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui-next/button"
 import {
   Combobox,
   ComboboxChip,
@@ -32,15 +32,15 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui/combobox"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui-next/combobox"
+import { Input } from "@/components/ui-next/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui-next/select"
 import { cn } from "@/lib/utils"
 
 type DataTableFilterBuilderProps = {
@@ -190,7 +190,6 @@ function ValueControl({
       <Select value={node.value || undefined} onValueChange={onValueChange}>
         <SelectTrigger
           className="h-9 rounded-none border-0 border-r text-sm md:max-w-[260px]"
-          size="sm"
         >
           <SelectValue placeholder="Valore" />
         </SelectTrigger>
@@ -207,7 +206,6 @@ function ValueControl({
       <Select value={node.value || undefined} onValueChange={onValueChange}>
         <SelectTrigger
           className="h-9 rounded-none border-0 border-r text-sm md:max-w-[260px]"
-          size="sm"
         >
           <SelectValue placeholder="Valore" />
         </SelectTrigger>
@@ -332,7 +330,7 @@ export function DataTableFilterBuilder({
               onChange({ ...group, logic: value as FilterGroup["logic"] })
             }}
           >
-            <SelectTrigger className="h-7 w-[92px]" size="sm">
+            <SelectTrigger className="h-7 w-[92px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -429,7 +427,6 @@ export function DataTableFilterBuilder({
                       >
                         <SelectTrigger
                           className="h-9 rounded-none border-0 border-r md:w-[190px]"
-                          size="sm"
                         >
                           <SelectValue />
                         </SelectTrigger>
@@ -465,7 +462,6 @@ export function DataTableFilterBuilder({
                   >
                     <SelectTrigger
                       className="h-9 rounded-none border-0 border-r md:w-[160px]"
-                      size="sm"
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -529,7 +525,6 @@ export function DataTableFilterBuilder({
       <div className="flex flex-wrap gap-2">
         <Button
           variant="ghost"
-          size="sm"
           disabled={!availableForNewCondition}
           onClick={() =>
             onChange(
@@ -549,7 +544,6 @@ export function DataTableFilterBuilder({
         </Button>
         <Button
           variant="ghost"
-          size="sm"
           onClick={() => onChange(addGroupToGroup(group, group.id))}
         >
           <PlusIcon />

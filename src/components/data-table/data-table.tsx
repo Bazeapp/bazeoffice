@@ -26,21 +26,13 @@ import {
   useTableQueryState,
 } from "@/hooks/use-table-query-state";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
-import { Button } from "@/components/ui/button";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import { Button } from "@/components/ui-next/button";
+import { Pagination } from "@/components/ui-next/pagination";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui-next/popover";
 import {
   Table,
   TableBody,
@@ -48,8 +40,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+} from "@/components/ui-next/table";
+import { Sheet, SheetContent } from "@/components/ui-next/sheet";
 import {
   SidebarContent,
   SidebarGroup,
@@ -57,7 +49,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarSeparator,
-} from "@/components/ui/sidebar";
+} from "@/components/ui-next/sidebar";
 import { cn } from "@/lib/utils";
 
 type GroupOption = {
@@ -639,24 +631,6 @@ export function DataTable<TData, TValue>({
   }
 
   const currentPage = table.getState().pagination.pageIndex + 1;
-  const pageItems = React.useMemo(() => {
-    if (pageCount <= 7) {
-      return Array.from({ length: pageCount }, (_, index) => index + 1);
-    }
-
-    const items: Array<number | "ellipsis-left" | "ellipsis-right"> = [1];
-    const start = Math.max(2, currentPage - 1);
-    const end = Math.min(pageCount - 1, currentPage + 1);
-
-    if (start > 2) items.push("ellipsis-left");
-    for (let page = start; page <= end; page += 1) {
-      items.push(page);
-    }
-    if (end < pageCount - 1) items.push("ellipsis-right");
-    items.push(pageCount);
-
-    return items;
-  }, [currentPage, pageCount]);
 
   function renderDataRow(row: Row<TData>) {
     return (
@@ -892,63 +866,11 @@ export function DataTable<TData, TValue>({
           {manualPagination ? ` (${totalRows} record)` : ""}
         </p>
         <Pagination className="mx-0 w-auto justify-end">
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                href="#"
-                text="Indietro"
-                className={cn(
-                  !table.getCanPreviousPage() &&
-                    "pointer-events-none opacity-50",
-                )}
-                onClick={(event) => {
-                  event.preventDefault();
-                  if (!table.getCanPreviousPage()) return;
-                  table.previousPage();
-                }}
-              />
-            </PaginationItem>
-
-            {pageItems.map((item) => {
-              if (item === "ellipsis-left" || item === "ellipsis-right") {
-                return (
-                  <PaginationItem key={item}>
-                    <PaginationEllipsis />
-                  </PaginationItem>
-                );
-              }
-
-              return (
-                <PaginationItem key={item}>
-                  <PaginationLink
-                    href="#"
-                    isActive={item === currentPage}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      table.setPageIndex(item - 1);
-                    }}
-                  >
-                    {item}
-                  </PaginationLink>
-                </PaginationItem>
-              );
-            })}
-
-            <PaginationItem>
-              <PaginationNext
-                href="#"
-                text="Avanti"
-                className={cn(
-                  !table.getCanNextPage() && "pointer-events-none opacity-50",
-                )}
-                onClick={(event) => {
-                  event.preventDefault();
-                  if (!table.getCanNextPage()) return;
-                  table.nextPage();
-                }}
-              />
-            </PaginationItem>
-          </PaginationContent>
+          <Pagination.Pages
+            page={currentPage}
+            pageCount={pageCount}
+            onChange={(nextPage) => table.setPageIndex(Math.max(nextPage - 1, 0))}
+          />
         </Pagination>
       </div>
 

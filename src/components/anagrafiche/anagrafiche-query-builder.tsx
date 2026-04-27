@@ -26,7 +26,7 @@ import {
   type FilterFieldType,
 } from "@/components/data-table/data-table-filters"
 import type { QueryFilterCondition, QueryFilterGroup } from "@/lib/anagrafiche-api"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui-next/button"
 import {
   Combobox,
   ComboboxChip,
@@ -38,16 +38,16 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui/combobox"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui-next/combobox"
+import { Card, CardContent } from "@/components/ui-next/card"
+import { Input } from "@/components/ui-next/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui-next/select"
 import { cn } from "@/lib/utils"
 
 const UPPERCASE_TOKENS = new Set([
@@ -301,7 +301,7 @@ function ShadcnCombinatorSelector({
 
   return (
     <Select value={value} onValueChange={handleOnChange} disabled={disabled}>
-      <SelectTrigger className="h-8 w-[92px]" size="sm">
+      <SelectTrigger className="h-8 w-[92px]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -331,7 +331,7 @@ function ShadcnFieldSelector({
 
   return (
     <Select value={value} onValueChange={handleOnChange} disabled={disabled}>
-      <SelectTrigger className="h-9 min-w-[220px]" size="sm">
+      <SelectTrigger className="h-9 min-w-[220px]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -366,7 +366,7 @@ function ShadcnOperatorSelector({
 
   return (
     <Select value={value} onValueChange={handleOnChange} disabled={disabled}>
-      <SelectTrigger className="h-9 min-w-[180px]" size="sm">
+      <SelectTrigger className="h-9 min-w-[180px]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -453,7 +453,7 @@ function ShadcnValueEditor(props: ValueEditorProps) {
         onValueChange={props.handleOnChange}
         disabled={props.disabled}
       >
-        <SelectTrigger className="h-9 min-w-[180px]" size="sm">
+        <SelectTrigger className="h-9 min-w-[180px]">
           <SelectValue placeholder="Valore" />
         </SelectTrigger>
         <SelectContent>
@@ -471,7 +471,7 @@ function ShadcnValueEditor(props: ValueEditorProps) {
         onValueChange={props.handleOnChange}
         disabled={props.disabled}
       >
-        <SelectTrigger className="h-9 min-w-[220px]" size="sm">
+        <SelectTrigger className="h-9 min-w-[220px]">
           <SelectValue placeholder="Valore" />
         </SelectTrigger>
         <SelectContent>

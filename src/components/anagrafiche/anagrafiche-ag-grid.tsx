@@ -18,8 +18,8 @@ import type {
 } from "@/hooks/use-anagrafiche-data"
 import type { TableColumnMeta } from "@/lib/anagrafiche-api"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui-next/button"
+import { Input } from "@/components/ui-next/input"
 
 ModuleRegistry.registerModules([AllCommunityModule])
 

@@ -6,15 +6,15 @@ import {
   PhoneIcon,
 } from "lucide-react";
 
-import { DetailSectionBlock } from "@/components/shared/detail-section-card";
-import { Badge } from "@/components/ui/badge";
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
+import { Badge } from "@/components/ui-next/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui-next/select";
 import { getTagClassName } from "@/features/lavoratori/lib/lookup-utils";
 import type {
   CrmPipelineCardData,

@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react"
 
-import { DetailSectionCard } from "@/components/shared/detail-section-card"
+import { DetailSectionCard } from "@/components/shared-next/detail-section-card"
 
 type GestioneContrattualePlaceholderViewProps = {
   title: string

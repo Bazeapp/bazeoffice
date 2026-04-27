@@ -13,26 +13,26 @@ import {
   toQueryBuilderFields,
 } from "@/components/anagrafiche/anagrafiche-query-builder"
 import { createEmptyGroup } from "@/components/data-table/data-table-filters"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui-next/button"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
+} from "@/components/ui-next/popover"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui-next/select"
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "@/components/ui-next/sheet"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-next/tabs"
 import { toast } from "sonner"
 import {
   type AnagraficaRow,
@@ -942,7 +942,7 @@ export function AnagraficheTablesView({
   }, [])
 
   return (
-    <section className="w-full min-w-0 space-y-4">
+    <section className="ui-next w-full min-w-0 space-y-4 px-4 pb-2 pt-4">
       {error ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Errore caricamento dati: {error}
@@ -954,7 +954,10 @@ export function AnagraficheTablesView({
         onValueChange={(value) => setActiveTab(value as TabValue)}
         className="w-full min-w-0"
       >
-        <TabsList variant="default" className="h-auto flex-wrap justify-start">
+        <TabsList
+          variant="line"
+          className="h-auto justify-start overflow-x-auto whitespace-nowrap"
+        >
           <TabsTrigger value="famiglie">Famiglie</TabsTrigger>
           <TabsTrigger value="processi">Processi</TabsTrigger>
           <TabsTrigger value="lavoratori">Lavoratori</TabsTrigger>

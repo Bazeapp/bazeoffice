@@ -1,7 +1,7 @@
 import * as React from "react"
 import { ClipboardListIcon } from "lucide-react"
 
-import { DetailSectionBlock } from "@/components/shared/detail-section-card"
+import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
   Combobox,
   ComboboxChip,
@@ -13,16 +13,16 @@ import {
   ComboboxList,
   ComboboxValue,
   useComboboxAnchor,
-} from "@/components/ui/combobox"
-import { FieldTitle } from "@/components/ui/field"
+} from "@/components/ui-next/combobox"
+import { FieldLabel } from "@/components/ui-next/field"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui-next/select"
+import { Textarea } from "@/components/ui-next/textarea"
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils"
 import {
   getTagClassName,
@@ -169,9 +169,9 @@ export function SelectionDetailsCard({
       contentClassName="space-y-4"
     >
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-        <FieldTitle>
+        <FieldLabel>
           Stato selezione
-        </FieldTitle>
+        </FieldLabel>
         <div className="max-w-sm">
           <Select
             value={draft.stato_selezione || "none"}
@@ -202,9 +202,9 @@ export function SelectionDetailsCard({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-        <FieldTitle>
+        <FieldLabel>
           Appunti generali
-        </FieldTitle>
+        </FieldLabel>
         <Textarea
           value={draft.note_selezione}
           onChange={(event) =>
@@ -217,9 +217,9 @@ export function SelectionDetailsCard({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-        <FieldTitle>
+        <FieldLabel>
           Perché è stata inserita manualmente?
-        </FieldTitle>
+        </FieldLabel>
         <Textarea
           value={draft.motivo_inserimento_manuale}
           onChange={(event) =>
@@ -241,9 +241,9 @@ export function SelectionDetailsCard({
 
       {showFollowupSenzaRisposta ? (
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-          <FieldTitle>
+          <FieldLabel>
             Followup senza risposta
-          </FieldTitle>
+          </FieldLabel>
           <div className="max-w-sm">
             <Select
               value={draft.followup_senza_risposta || "none"}
@@ -272,9 +272,9 @@ export function SelectionDetailsCard({
 
       {showMotivazioneArchivio ? (
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-          <FieldTitle>
+          <FieldLabel>
             Motivazione archivio
-          </FieldTitle>
+          </FieldLabel>
           <div className="max-w-sm">
             <Select
               value={draft.motivo_archivio || "none"}
@@ -303,9 +303,9 @@ export function SelectionDetailsCard({
 
       {showMotivazioneNonSelezionato ? (
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-          <FieldTitle>
+          <FieldLabel>
             Motivazione non selezionato
-          </FieldTitle>
+          </FieldLabel>
           <MultiLookupField
             value={draft.motivo_non_selezionato}
             options={nonSelezionatoOptions}
@@ -320,9 +320,9 @@ export function SelectionDetailsCard({
 
       {showMotivazioneNoMatch ? (
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-          <FieldTitle>
+          <FieldLabel>
             Motivazione no match
-          </FieldTitle>
+          </FieldLabel>
           <div className="max-w-sm">
             <Select
               value={draft.motivo_no_match || "none"}
