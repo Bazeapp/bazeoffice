@@ -1,10 +1,7 @@
 import * as React from "react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { ChevronDownIcon } from "lucide-react";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +9,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui-next/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -27,9 +24,9 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarRail,
   SidebarTrigger,
-} from "@/components/ui/sidebar";
+} from "@/components/ui-next/sidebar";
+import { cn } from "@/lib/utils";
 import type { User } from "@supabase/supabase-js";
 import {
   BriefcaseBusinessIcon,
@@ -327,6 +324,38 @@ export function AppSidebar({
   const userEmail = user.email ?? user.id;
   const logoSrc = `${import.meta.env.BASE_URL}baze.png`;
 
+  /**
+   * Categoria del menu che contiene l'item attualmente attivo. Usata per
+   * tenere espansa solo la sezione di interesse: passando da una voce
+   * all'altra in gruppi diversi, l'accordion della categoria precedente
+   * collassa automaticamente.
+   */
+  const activeCategoryName = React.useMemo(() => {
+    for (const group of sidebarCategoryGroups) {
+      for (const category of group.categories) {
+        if (
+          category.children?.some((child) =>
+            isChildActive(child, activeMainSection, activeAnagraficheTab),
+          )
+        ) {
+          return category.name;
+        }
+      }
+    }
+    return null;
+  }, [activeMainSection, activeAnagraficheTab]);
+
+  const [expandedCategoryName, setExpandedCategoryName] = React.useState<
+    string | null
+  >(activeCategoryName);
+
+  // Sync controlled accordion state when the active route changes from outside.
+  React.useEffect(() => {
+    if (activeCategoryName) {
+      setExpandedCategoryName(activeCategoryName);
+    }
+  }, [activeCategoryName]);
+
   const handleChildClick = React.useCallback(
     (event: React.MouseEvent<HTMLAnchorElement>, child: SidebarCategoryChild) => {
       if (child.mainSection === "anagrafiche" && child.anagraficheTab) {
@@ -447,8 +476,8 @@ export function AppSidebar({
   }
 
   return (
-    <Sidebar className="border-r border-border/60 bg-surface-raised/95 shadow-elevation-sm">
-      <SidebarHeader className="gap-3 border-b border-border/60 bg-gradient-to-b from-surface-raised to-transparent px-3 py-3">
+    <Sidebar className="border-r border-border/60 bg-[#FFF]">
+      <SidebarHeader className="gap-3 border-b border-border/60 bg-[#FFF] px-3 py-3">
         <div className="flex items-center gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <img
@@ -486,75 +515,88 @@ export function AppSidebar({
             Menu
           </SidebarGroupLabel>
           <SidebarGroupContent className="space-y-3 pt-2">
-            {sidebarCategoryGroups.map((group, groupIndex) => (
-              <div key={groupIndex} className="relative ml-2 pl-2">
-                <div
-                  className={`absolute top-1 bottom-1 left-0 w-[3px] rounded-full ${group.accentClassName}`}
-                />
-                <SidebarMenu>
-                  {group.categories.map((category) => {
-                    const hasActiveChild = Boolean(
-                      category.children?.some((child) =>
-                        isChildActive(child, activeMainSection, activeAnagraficheTab),
-                      ),
-                    );
-
-                    return (
+            {/*
+              Single controlled Accordion across all category groups: only one
+              category can be open at a time. Switching to a child of a
+              different category collapses the previously open one (the effect
+              above syncs `expandedCategoryName` with the route).
+            */}
+            <AccordionPrimitive.Root
+              type="single"
+              collapsible
+              value={expandedCategoryName ?? ""}
+              onValueChange={(value) =>
+                setExpandedCategoryName(value || null)
+              }
+              className="space-y-3"
+            >
+              {sidebarCategoryGroups.map((group, groupIndex) => (
+                <div key={groupIndex} className="relative ml-2 pl-2">
+                  <div
+                    className={cn(
+                      "absolute top-1 bottom-1 left-0 w-[3px] rounded-full",
+                      group.accentClassName,
+                    )}
+                  />
+                  <SidebarMenu>
+                    {group.categories.map((category) => (
                       <SidebarMenuItem key={category.name}>
                         {category.children && category.children.length > 0 ? (
-                          <Accordion
-                            type="single"
-                            collapsible
-                            defaultValue={hasActiveChild ? category.name : undefined}
+                          <AccordionPrimitive.Item
+                            value={category.name}
+                            className="border-none"
                           >
-                            <AccordionItem value={category.name} className="border-none">
-                              <AccordionTrigger className="rounded-md py-0 hover:no-underline">
-                                <span className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-sm text-foreground transition-colors hover:bg-white/60">
-                                  <category.icon className="size-4 shrink-0" />
-                                  <span className="truncate text-sm">
-                                    {category.name}
-                                  </span>
+                            <AccordionPrimitive.Header className="flex">
+                              <AccordionPrimitive.Trigger className="group/sidebar-cat flex h-9 w-full items-center gap-2 rounded-md px-2 text-sm text-foreground outline-none transition-colors hover:bg-white/60 focus-visible:bg-white/60">
+                                <category.icon className="size-4 shrink-0" />
+                                <span className="flex-1 truncate text-left text-sm">
+                                  {category.name}
                                 </span>
-                              </AccordionTrigger>
-                              <AccordionContent className="pb-0 [&_a]:no-underline">
-                                <SidebarMenuSub className="ml-4 mt-1 space-y-0.5 border-l-0 px-0 py-0">
-                                  {category.children.map((child) => {
-                                    const isActive = isChildActive(
-                                      child,
-                                      activeMainSection,
-                                      activeAnagraficheTab,
-                                    );
+                                <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground transition-transform duration-[var(--duration-fast)] group-data-[state=open]/sidebar-cat:rotate-180" />
+                              </AccordionPrimitive.Trigger>
+                            </AccordionPrimitive.Header>
+                            <AccordionPrimitive.Content className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                              <SidebarMenuSub className="ml-4 mt-1 space-y-0.5 border-l-0 px-0 py-0">
+                                {category.children.map((child) => {
+                                  const isActive = isChildActive(
+                                    child,
+                                    activeMainSection,
+                                    activeAnagraficheTab,
+                                  );
 
-                                    return (
-                                      <SidebarMenuSubItem key={child.name}>
-                                        <SidebarMenuSubButton
-                                          asChild
-                                          isActive={isActive}
-                                          className={
-                                            isActive
-                                              ? `${group.activeTextClassName} ${group.activeBgClassName} border-l-2 border-current font-semibold shadow-elevation-xs`
-                                              : "text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                                  return (
+                                    <SidebarMenuSubItem key={child.name}>
+                                      <SidebarMenuSubButton
+                                        asChild
+                                        isActive={isActive}
+                                        className={
+                                          isActive
+                                            ? cn(
+                                                group.activeTextClassName,
+                                                group.activeBgClassName,
+                                                "border-l-2 border-current font-semibold",
+                                              )
+                                            : "text-muted-foreground hover:bg-white/60 hover:text-foreground"
+                                        }
+                                      >
+                                        <a
+                                          href={buildChildHref(
+                                            child,
+                                            activeAnagraficheTab,
+                                          )}
+                                          onClick={(event) =>
+                                            handleChildClick(event, child)
                                           }
                                         >
-                                          <a
-                                            href={buildChildHref(
-                                              child,
-                                              activeAnagraficheTab,
-                                            )}
-                                            onClick={(event) =>
-                                              handleChildClick(event, child)
-                                            }
-                                          >
-                                            <span>{child.name}</span>
-                                          </a>
-                                        </SidebarMenuSubButton>
-                                      </SidebarMenuSubItem>
-                                    );
-                                  })}
-                                </SidebarMenuSub>
-                              </AccordionContent>
-                            </AccordionItem>
-                          </Accordion>
+                                          <span>{child.name}</span>
+                                        </a>
+                                      </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                  );
+                                })}
+                              </SidebarMenuSub>
+                            </AccordionPrimitive.Content>
+                          </AccordionPrimitive.Item>
                         ) : (
                           <SidebarMenuButton asChild className="text-sm">
                             <a href={category.href}>
@@ -564,16 +606,16 @@ export function AppSidebar({
                           </SidebarMenuButton>
                         )}
                       </SidebarMenuItem>
-                    );
-                  })}
+                    ))}
                 </SidebarMenu>
               </div>
-            ))}
+              ))}
+            </AccordionPrimitive.Root>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border/60 bg-gradient-to-t from-surface-inset/50 to-transparent p-3">
+      <SidebarFooter className="border-t border-border/60 bg-[#FFF] p-3">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
@@ -602,7 +644,7 @@ export function AppSidebar({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  variant="destructive"
+                  destructive
                   disabled={isLoggingOut}
                   onSelect={(event) => {
                     event.preventDefault();
@@ -617,8 +659,6 @@ export function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-
-      <SidebarRail />
     </Sidebar>
   );
 }

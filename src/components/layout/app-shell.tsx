@@ -13,7 +13,7 @@ import {
 import {
   SidebarInset,
   SidebarProvider,
-} from "@/components/ui/sidebar"
+} from "@/components/ui-next/sidebar"
 
 type AppShellProps = {
   user: User
