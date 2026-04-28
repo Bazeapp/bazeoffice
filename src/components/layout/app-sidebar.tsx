@@ -36,13 +36,16 @@ import {
   HomeIcon,
   KanbanIcon,
   LogOutIcon,
+  MoonIcon,
   type LucideIcon,
   SearchIcon,
   SettingsIcon,
+  SunIcon,
   UserCircle2Icon,
   UsersIcon,
   WalletIcon,
 } from "lucide-react";
+import { useTheme } from "@/components/theme/theme-context";
 
 import {
   buildPathForRoute,
@@ -322,9 +325,11 @@ export function AppSidebar({
   onOpenCustomerSupportPayrollTicket,
 }: AppSidebarProps) {
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const { theme, toggleTheme } = useTheme();
   const userDisplayName = getUserDisplayName(user);
   const userEmail = user.email ?? user.id;
   const logoSrc = `${import.meta.env.BASE_URL}baze.png`;
+  const isDarkTheme = theme === "dark";
 
   /**
    * Categoria del menu che contiene l'item attualmente attivo. Usata per
@@ -539,7 +544,7 @@ export function AppSidebar({
                 >
                   <div
                     className={cn(
-                      "absolute top-1 bottom-1 left-0 w-[3px] rounded-full",
+                      "absolute top-1 bottom-1 left-0 w-0.75 rounded-full",
                       group.accentClassName,
                     )}
                   />
@@ -637,6 +642,24 @@ export function AppSidebar({
 
       <SidebarFooter className="border-t border-border/60 bg-surface p-3">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              type="button"
+              tooltip={isDarkTheme ? "Tema chiaro" : "Tema Davide"}
+              aria-pressed={isDarkTheme}
+              onClick={toggleTheme}
+              className="h-9 rounded-lg bg-surface/70 px-2.5 hover:bg-surface"
+            >
+              {isDarkTheme ? (
+                <SunIcon className="size-4 shrink-0" />
+              ) : (
+                <MoonIcon className="size-4 shrink-0" />
+              )}
+              <span className="text-sm">
+                {isDarkTheme ? "Tema chiaro" : "Tema Davide"}
+              </span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

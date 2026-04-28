@@ -48,6 +48,37 @@ type UseCrmAssegnazioneState = {
   patchCard: (processId: string, patch: Record<string, unknown>) => Promise<void>
 }
 
+const ASSEGNAZIONE_PROCESSI_SELECT = [
+  "id",
+  "famiglia_id",
+  "stato_res",
+  "data_assegnazione",
+  "deadline_mobile",
+  "data_limite_invio_selezione",
+  "luogo_id",
+  "tipo_lavoro",
+  "tipo_rapporto",
+  "numero_ricerca_attivata",
+  "recruiter_ricerca_e_selezione_id",
+  "ore_settimanale",
+  "numero_giorni_settimanali",
+  "frequenza_rapporto",
+  "orario_di_lavoro",
+  "mansioni_richieste",
+  "descrizione_lavoratore_ideale",
+  "aggiornato_il",
+]
+
+const ASSEGNAZIONE_FAMIGLIE_SELECT = [
+  "id",
+  "nome",
+  "cognome",
+  "email",
+  "telefono",
+  "creato_il",
+  "aggiornato_il",
+]
+
 function asRowArray(input: unknown): GenericRow[] {
   if (!Array.isArray(input)) return []
   return input.filter(
@@ -199,32 +230,27 @@ function extractFirstNumberToken(value: unknown) {
 async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
   const [processesResult, familiesResult, lookupResult] = await Promise.all([
     fetchProcessiMatching({
+      select: ASSEGNAZIONE_PROCESSI_SELECT,
       limit: 500,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
       filters: {
         kind: "group",
         id: "crm-assegnazione-status-root",
-        logic: "or",
+        logic: "and",
         nodes: [
           {
             kind: "condition",
-            id: "crm-assegnazione-status-da-assegnare-label",
+            id: "crm-assegnazione-status-values",
             field: "stato_res",
-            operator: "is",
-            value: "da assegnare",
-          },
-          {
-            kind: "condition",
-            id: "crm-assegnazione-status-fare-ricerca-label",
-            field: "stato_res",
-            operator: "is",
-            value: "fare ricerca",
+            operator: "in",
+            value: "da assegnare,fare ricerca",
           },
         ],
       },
     }),
     fetchFamiglie({
+      select: ASSEGNAZIONE_FAMIGLIE_SELECT,
       limit: 500,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],

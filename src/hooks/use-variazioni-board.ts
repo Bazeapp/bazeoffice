@@ -49,6 +49,27 @@ const DEFAULT_STAGE_DEFINITIONS: VariazioneStageDefinition[] = [
   { id: "documenti inviati", label: "documenti inviati", color: "teal" },
 ]
 
+const VARIAZIONI_RAPPORTI_SELECT = [
+  "id",
+  "stato_servizio",
+  "stato_rapporto",
+  "tipo_rapporto",
+  "tipo_contratto",
+  "ore_a_settimana",
+  "paga_oraria_lorda",
+  "data_inizio_rapporto",
+  "cognome_nome_datore_proper",
+  "nome_lavoratore_per_url",
+] satisfies string[]
+
+const VARIAZIONI_SELECT = [
+  "id",
+  "rapporto_lavorativo_id",
+  "stato",
+  "data_variazione",
+  "variazione_da_applicare",
+] satisfies string[]
+
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
     .trim()
@@ -139,11 +160,13 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
 async function fetchVariazioniBoardData(): Promise<VariazioniBoardColumnData[]> {
   const [variazioniResult, rapportiResult, lookupResult] = await Promise.all([
     fetchVariazioniContrattuali({
+      select: VARIAZIONI_SELECT,
       limit: 1000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
     fetchRapportiLavorativi({
+      select: VARIAZIONI_RAPPORTI_SELECT,
       limit: 1000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],

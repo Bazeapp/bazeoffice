@@ -71,6 +71,31 @@ const LEGACY_STAGE_ALIASES: Record<string, string> = {
 
 const QUARTER_ORDER: ContributoQuarterValue[] = ["Q1", "Q2", "Q3", "Q4"]
 
+const CONTRIBUTI_RAPPORTI_SELECT = [
+  "id",
+  "id_rapporto",
+  "ticket_id",
+  "stato_servizio",
+  "stato_rapporto",
+  "cognome_nome_datore_proper",
+  "nome_lavoratore_per_url",
+  "tipo_rapporto",
+  "tipo_contratto",
+] satisfies string[]
+
+const CONTRIBUTI_SELECT = [
+  "id",
+  "rapporto_lavorativo_id",
+  "ticket_id",
+  "trimestre_id",
+  "stato_contributi_inps",
+  "importo_contributi_inps",
+  "valore_pagopa",
+  "data_ora_creazione",
+  "creato_il",
+  "aggiornato_il",
+] satisfies string[]
+
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
     .trim()
@@ -416,6 +441,7 @@ async function fetchContributiBoardData(
 }> {
   const [contributiResult, mesiResult, rapportiResult, lookupResult] = await Promise.all([
     fetchContributiInps({
+      select: CONTRIBUTI_SELECT,
       limit: 3000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
@@ -427,6 +453,7 @@ async function fetchContributiBoardData(
       orderBy: [{ field: "data_inizio", ascending: false }],
     }),
     fetchRapportiLavorativi({
+      select: CONTRIBUTI_RAPPORTI_SELECT,
       limit: 3000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],

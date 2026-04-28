@@ -26,6 +26,70 @@ const STATO_SALES_COLUMN_ORDER = [
   "out_of_target",
 ] as const
 
+const CRM_PIPELINE_PROCESSI_SELECT = [
+  "id",
+  "famiglia_id",
+  "numero_ricerca_attivata",
+  "stato_sales",
+  "tipo_lavoro",
+  "tipo_rapporto",
+  "stato_res",
+  "qualificazione_lead",
+  "motivo_no_match",
+  "modello_smartmatching",
+  "ore_settimanale",
+  "numero_giorni_settimanali",
+  "frequenza_rapporto",
+  "preferenza_giorno",
+  "sales_cold_call_followup",
+  "sales_no_show_followup",
+  "motivazione_lost",
+  "motivazione_oot",
+  "appunti_chiamata_sales",
+  "data_per_ricerca_futura",
+  "preventivo_firmato",
+  "orario_di_lavoro",
+  "nucleo_famigliare",
+  "descrizione_casa",
+  "metratura_casa",
+  "descrizione_animali_in_casa",
+  "mansioni_richieste",
+  "informazioni_extra_riservate",
+  "eta_minima",
+  "eta_massima",
+  "indirizzo_prova_provincia",
+  "indirizzo_prova_cap",
+  "indirizzo_prova_note",
+  "indirizzo_prova_via",
+  "indirizzo_prova_civico",
+  "indirizzo_prova_comune",
+  "src_embed_maps_annucio",
+  "deadline_mobile",
+  "disponibilita_colloqui_in_presenza",
+  "family_availability_json",
+  "tipo_incontro_famiglia_lavoratore",
+  "richiesta_patente",
+  "richiesta_trasferte",
+  "richiesta_ferie",
+  "descrizione_richiesta_trasferte",
+  "descrizione_richiesta_ferie",
+  "patente",
+  "sesso",
+  "testo_annuncio_whatsapp",
+  "aggiornato_il",
+]
+
+const CRM_PIPELINE_FAMIGLIE_SELECT = [
+  "id",
+  "nome",
+  "cognome",
+  "email",
+  "telefono",
+  "creato_il",
+  "data_call_prenotata",
+  "aggiornato_il",
+]
+
 type LookupOption = {
   valueKey: string
   valueLabel: string
@@ -601,11 +665,13 @@ function emptyBoardData(): FetchBoardDataResult {
 async function fetchBoardData(): Promise<FetchBoardDataResult> {
   const [processesResult, familiesResult, lookupResult] = await Promise.all([
     fetchProcessiMatching({
+      select: CRM_PIPELINE_PROCESSI_SELECT,
       limit: 5000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
     fetchFamiglie({
+      select: CRM_PIPELINE_FAMIGLIE_SELECT,
       limit: 5000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],

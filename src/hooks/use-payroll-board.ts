@@ -83,6 +83,48 @@ const LEGACY_STAGE_ALIASES: Record<string, string> = {
   "cedolino pronto saf acli": "Cedolino Pronto",
 }
 
+const PAYROLL_RAPPORTI_SELECT = [
+  "id",
+  "famiglia_id",
+  "creata",
+  "cognome_nome_datore_proper",
+  "nome_lavoratore_per_url",
+  "tipo_rapporto",
+  "tipo_contratto",
+] satisfies string[]
+
+const PAYROLL_FAMIGLIE_SELECT = ["id", "nome", "cognome"] satisfies string[]
+
+const PAYROLL_MESI_LAVORATI_SELECT = [
+  "id",
+  "mese_id",
+  "rapporto_lavorativo_id",
+  "presenze_id",
+  "presenze_regolare_id",
+  "stato_mese_lavorativo",
+  "importo_busta_estratto",
+  "data_invio_famiglia",
+  "data_ora_creazione",
+  "caso_particolare",
+  "cedolino",
+  "ore_contratto_mese",
+  "ore_lavorate_estratte",
+  "cedolino_corretto",
+  "note",
+  "rating_feedback_famiglia",
+  "testo_feedback_famiglia",
+] satisfies string[]
+
+const PAYROLL_TRANSAZIONI_SELECT = ["id", "mese_lavorativo_id"] satisfies string[]
+
+const PAYROLL_PAGAMENTI_SELECT = ["id", "transazione_id"] satisfies string[]
+
+const PAYROLL_PRESENZE_SELECT = [
+  "id",
+  "presenze_mensili",
+  "data_ora_creazione",
+] satisfies string[]
+
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
     .trim()
@@ -260,11 +302,13 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
   const monthIds = getMonthIdsForSelectedMonth(mesiCalendarioResult.rows, selectedMonth)
   const [rapportiResult, famiglieResult, lookupResult] = await Promise.all([
     fetchRapportiLavorativi({
+      select: PAYROLL_RAPPORTI_SELECT,
       limit: 1000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
     fetchFamiglie({
+      select: PAYROLL_FAMIGLIE_SELECT,
       limit: 2000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
@@ -274,6 +318,7 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
   const mesiLavoratiResult =
     monthIds.length > 0
       ? await fetchMesiLavorati({
+          select: PAYROLL_MESI_LAVORATI_SELECT,
           limit: 3000,
           offset: 0,
           orderBy: [{ field: "creato_il", ascending: false }],
@@ -323,6 +368,7 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
           await Promise.all(
             chunkValues(Array.from(new Set(meseLavoratoIds)), 100).map((chunk) =>
               fetchTransazioniFinanziarie({
+                select: PAYROLL_TRANSAZIONI_SELECT,
                 limit: 500,
                 offset: 0,
                 orderBy: [{ field: "creato_il", ascending: false }],
@@ -342,6 +388,7 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
       ? Promise.all(
           chunkValues(Array.from(new Set(transazioneIds)), 100).map((chunk) =>
             fetchPagamenti({
+              select: PAYROLL_PAGAMENTI_SELECT,
               limit: 500,
               offset: 0,
               orderBy: [{ field: "creato_il", ascending: false }],
@@ -354,6 +401,7 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
       ? Promise.all(
           chunkValues(Array.from(new Set(presenzaIds)), 100).map((chunk) =>
             fetchPresenzeMensili({
+              select: PAYROLL_PRESENZE_SELECT,
               limit: 500,
               offset: 0,
               orderBy: [{ field: "creato_il", ascending: false }],

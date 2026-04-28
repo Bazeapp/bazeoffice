@@ -57,6 +57,32 @@ const DEFAULT_STAGE_DEFINITIONS: ChiusuraStageDefinition[] = [
   { id: "Chiusura terminata", label: "Chiusura terminata", color: "green" },
 ]
 
+const CHIUSURE_RAPPORTI_SELECT = [
+  "id",
+  "ticket_id",
+  "stato_servizio",
+  "stato_rapporto",
+  "tipo_rapporto",
+  "tipo_contratto",
+  "ore_a_settimana",
+  "data_inizio_rapporto",
+  "cognome_nome_datore_proper",
+  "nome_lavoratore_per_url",
+] satisfies string[]
+
+const CHIUSURE_SELECT = [
+  "id",
+  "ticket_id",
+  "stato",
+  "nome",
+  "cognome",
+  "email",
+  "motivazione_cessazione_rapporto",
+  "data_fine_rapporto",
+  "tipo_licenziamento",
+  "tipo_decesso",
+] satisfies string[]
+
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
     .trim()
@@ -179,11 +205,13 @@ function buildTipoMetadata(rows: LookupValueRecord[]): TipoMetadata {
 async function fetchChiusureBoardData(): Promise<ChiusureBoardColumnData[]> {
   const [chiusureResult, rapportiResult, lookupResult] = await Promise.all([
     fetchChiusureContratti({
+      select: CHIUSURE_SELECT,
       limit: 1000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
     fetchRapportiLavorativi({
+      select: CHIUSURE_RAPPORTI_SELECT,
       limit: 1000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],

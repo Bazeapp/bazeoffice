@@ -213,6 +213,19 @@ function buildRapportoIndex(rows: RapportoLavorativoRecord[]) {
   return { byId, byExternalId }
 }
 
+const SUPPORT_RAPPORTI_SELECT = [
+  "id",
+  "id_rapporto",
+  "ticket_id",
+  "stato_servizio",
+  "stato_rapporto",
+  "tipo_rapporto",
+  "tipo_contratto",
+  "data_inizio_rapporto",
+  "cognome_nome_datore_proper",
+  "nome_lavoratore_per_url",
+] satisfies string[]
+
 function getRapportoForTicket(
   record: TicketRecord,
   rapportoIndex: ReturnType<typeof buildRapportoIndex>
@@ -282,6 +295,7 @@ async function fetchSupportTicketsData(ticketType: SupportTicketType) {
       orderBy: [{ field: "data_apertura", ascending: false }],
     }),
     fetchRapportiLavorativi({
+      select: SUPPORT_RAPPORTI_SELECT,
       limit: 3000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],

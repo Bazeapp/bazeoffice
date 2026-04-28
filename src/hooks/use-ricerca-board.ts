@@ -293,38 +293,37 @@ function buildStageFilter(
 ) {
   if (stages.length === 0) return undefined
 
+  const values = Array.from(
+    new Set(
+      stages.flatMap((stage) =>
+        [stage.id, stage.label].filter((value): value is string =>
+          Boolean(toStringValue(value))
+        )
+      )
+    )
+  )
+
   return {
     kind: "group" as const,
     id: `${idPrefix}-stage-filter`,
-    logic: "or" as const,
-    nodes: stages.map((stage, stageIndex) => {
-      const values = Array.from(
-        new Set([stage.id, stage.label].filter((value) => Boolean(toStringValue(value))))
-      )
-
-      if (values.length <= 1) {
-        return {
-          kind: "condition" as const,
-          id: `${idPrefix}-stage-${stageIndex}-value-0`,
-          field: "stato_res",
-          operator: "is" as const,
-          value: values[0] ?? stage.id,
-        }
-      }
-
-      return {
-        kind: "group" as const,
-        id: `${idPrefix}-stage-${stageIndex}`,
-        logic: "or" as const,
-        nodes: values.map((value, valueIndex) => ({
-          kind: "condition" as const,
-          id: `${idPrefix}-stage-${stageIndex}-value-${valueIndex}`,
-          field: "stato_res",
-          operator: "is" as const,
-          value,
-        })),
-      }
-    }),
+    logic: "and" as const,
+    nodes: [
+      values.length <= 1
+        ? {
+            kind: "condition" as const,
+            id: `${idPrefix}-stage-value`,
+            field: "stato_res",
+            operator: "is" as const,
+            value: values[0] ?? stages[0]?.id ?? "",
+          }
+        : {
+            kind: "condition" as const,
+            id: `${idPrefix}-stage-values`,
+            field: "stato_res",
+            operator: "in" as const,
+            value: values.join(","),
+          },
+    ],
   }
 }
 

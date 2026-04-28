@@ -71,6 +71,40 @@ const DEFAULT_STAGE_DEFINITIONS: AssunzioniStageDefinition[] = [
   { id: "Non assume con Baze", label: "Non assume con Baze", color: "orange" },
 ]
 
+const ASSUNZIONI_PROCESSI_SELECT = [
+  "id",
+  "famiglia_id",
+  "titolo_annuncio",
+  "tipo_rapporto",
+  "data_limite_invio_selezione",
+] satisfies string[]
+
+const ASSUNZIONI_FAMIGLIE_SELECT = [
+  "id",
+  "nome",
+  "cognome",
+  "email",
+  "telefono",
+] satisfies string[]
+
+const ASSUNZIONI_RAPPORTI_SELECT = [
+  "id",
+  "id_rapporto",
+  "processo_res",
+  "famiglia_id",
+  "lavoratore_id",
+  "stato_assunzione",
+  "cognome_nome_datore_proper",
+  "nome_lavoratore_per_url",
+  "tipo_rapporto",
+] satisfies string[]
+
+const ASSUNZIONI_LAVORATORI_SELECT = [
+  "id",
+  "nome",
+  "cognome",
+] satisfies string[]
+
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
     .trim()
@@ -182,21 +216,25 @@ async function fetchAssunzioniBoardData(): Promise<AssunzioniBoardColumnData[]> 
   const [processesResult, familiesResult, rapportiResult, lavoratoriResult, lookupResult] =
     await Promise.all([
     fetchProcessiMatching({
+      select: ASSUNZIONI_PROCESSI_SELECT,
       limit: 1000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
     fetchFamiglie({
+      select: ASSUNZIONI_FAMIGLIE_SELECT,
       limit: 1000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
     fetchRapportiLavorativi({
+      select: ASSUNZIONI_RAPPORTI_SELECT,
       limit: 1000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
     fetchLavoratori({
+      select: ASSUNZIONI_LAVORATORI_SELECT,
       limit: 1000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],

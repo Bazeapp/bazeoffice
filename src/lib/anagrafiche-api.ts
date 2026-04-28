@@ -180,7 +180,7 @@ function normalizeTableResponse<TRecord>(
   return { rows, total, columns: response.columns ?? [], groups: response.groups ?? [] }
 }
 
-const TABLE_QUERY_CACHE_TTL_MS = 1500
+const TABLE_QUERY_CACHE_TTL_MS = 10_000
 const LOOKUP_VALUES_CACHE_TTL_MS = 5 * 60 * 1000
 
 type TableResponse<TRecord> = {
@@ -207,6 +207,10 @@ let lookupValuesCache:
 
 function makeTableQueryCacheKey(payload: TableQueryRequest) {
   return JSON.stringify(payload)
+}
+
+function clearTableQueryCache() {
+  tableQueryCache.clear()
 }
 
 async function queryTable<TRecord>(payload: TableQueryRequest) {
@@ -253,7 +257,7 @@ export async function fetchFamiglie(query: TablePageQuery) {
 export async function fetchChiusureContratti(query: TablePageQuery) {
   return queryTable<ChiusuraContrattoRecord>({
     table: "chiusure_contratti",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
@@ -268,7 +272,7 @@ export async function fetchChiusureContratti(query: TablePageQuery) {
 export async function fetchContributiInps(query: TablePageQuery) {
   return queryTable<ContributoInpsRecord>({
     table: "contributi_inps",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
@@ -313,7 +317,7 @@ export async function fetchLavoratori(query: TablePageQuery) {
 export async function fetchMesiCalendario(query: TablePageQuery) {
   return queryTable<MeseCalendarioRecord>({
     table: "mesi_calendario",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "data_inizio", ascending: false }],
@@ -328,7 +332,7 @@ export async function fetchMesiCalendario(query: TablePageQuery) {
 export async function fetchMesiLavorati(query: TablePageQuery) {
   return queryTable<MeseLavoratoRecord>({
     table: "mesi_lavorati",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
@@ -343,7 +347,7 @@ export async function fetchMesiLavorati(query: TablePageQuery) {
 export async function fetchPagamenti(query: TablePageQuery) {
   return queryTable<PagamentoRecord>({
     table: "pagamenti",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
@@ -358,7 +362,7 @@ export async function fetchPagamenti(query: TablePageQuery) {
 export async function fetchPresenzeMensili(query: TablePageQuery) {
   return queryTable<PresenzaMensileRecord>({
     table: "presenze_mensili",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
@@ -373,7 +377,7 @@ export async function fetchPresenzeMensili(query: TablePageQuery) {
 export async function fetchRapportiLavorativi(query: TablePageQuery) {
   return queryTable<RapportoLavorativoRecord>({
     table: "rapporti_lavorativi",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
@@ -388,7 +392,7 @@ export async function fetchRapportiLavorativi(query: TablePageQuery) {
 export async function fetchTickets(query: TablePageQuery) {
   return queryTable<TicketRecord>({
     table: "ticket",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "data_apertura", ascending: false }],
@@ -403,7 +407,7 @@ export async function fetchTickets(query: TablePageQuery) {
 export async function fetchTransazioniFinanziarie(query: TablePageQuery) {
   return queryTable<TransazioneFinanziariaRecord>({
     table: "transazioni_finanziarie",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
@@ -418,7 +422,7 @@ export async function fetchTransazioniFinanziarie(query: TablePageQuery) {
 export async function fetchVariazioniContrattuali(query: TablePageQuery) {
   return queryTable<VariazioneContrattualeRecord>({
     table: "variazioni_contrattuali",
-    select: ["*"],
+    select: query.select ?? ["*"],
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
@@ -599,28 +603,34 @@ export async function updateRecord(
   id: string,
   patch: Record<string, unknown>
 ) {
-  return invokeEdgeFunction<UpdateRecordResponse>("update-record", {
+  const response = await invokeEdgeFunction<UpdateRecordResponse>("update-record", {
     table,
     id,
     patch,
   })
+  clearTableQueryCache()
+  return response
 }
 
 export async function createRecord(
   table: CreateTableName,
   values: Record<string, unknown>
 ) {
-  return invokeEdgeFunction<CreateRecordResponse>("create-record", {
+  const response = await invokeEdgeFunction<CreateRecordResponse>("create-record", {
     table,
     values,
   })
+  clearTableQueryCache()
+  return response
 }
 
 export async function deleteRecord(table: UpdateTableName, id: string) {
-  return invokeEdgeFunction<DeleteRecordResponse>("delete-record", {
+  const response = await invokeEdgeFunction<DeleteRecordResponse>("delete-record", {
     table,
     id,
   })
+  clearTableQueryCache()
+  return response
 }
 
 export async function runAutomationWebhook(
@@ -628,11 +638,13 @@ export async function runAutomationWebhook(
   recordId: string,
   context?: Record<string, unknown>
 ) {
-  return invokeEdgeFunction<RunAutomationWebhookResponse>("run-automation-webhook", {
+  const response = await invokeEdgeFunction<RunAutomationWebhookResponse>("run-automation-webhook", {
     automationId,
     recordId,
     context,
   })
+  clearTableQueryCache()
+  return response
 }
 
 export async function updateProcessoMatchingStatoSales(

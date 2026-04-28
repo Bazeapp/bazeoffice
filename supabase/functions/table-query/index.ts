@@ -288,8 +288,6 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "rating_corporatura",
     "rating_cura_personale",
     "rating_precisione_puntualita",
-    "referente_idoneità",
-    "referente_certificazione",
     "riassunto_profilo_breve",
     "sesso",
     "situazione_lavorativa_attuale",
@@ -770,10 +768,11 @@ function inferColumnsFromRows(
     .slice(1)
     .flatMap((row) => Object.keys(row))
     .filter((key, index, array) => array.indexOf(key) === index && !firstRowKeys.includes(key));
-  const orderedKeys =
-    firstRowKeys.length > 0
-      ? [...firstRowKeys, ...additionalKeys]
-      : fallbackFields.filter((field, index, array) => array.indexOf(field) === index);
+  const rowKeys = [...firstRowKeys, ...additionalKeys];
+  const orderedKeys = [
+    ...rowKeys,
+    ...fallbackFields.filter((field) => !rowKeys.includes(field)),
+  ].filter((field, index, array) => array.indexOf(field) === index);
 
   return orderedKeys.map((name) => {
     const values = rows.map((row) => row[name]);
@@ -1417,6 +1416,7 @@ async function fetchAllRows(
   supabase: ReturnType<typeof createClient>,
   table: SupportedTable,
   selectClause: string,
+  serverConditions: FilterCondition[] = [],
 ): Promise<Record<string, unknown>[]> {
   const rows: Record<string, unknown>[] = [];
   let offset = 0;
@@ -1425,11 +1425,18 @@ async function fetchAllRows(
     const from = offset;
     const to = offset + BATCH_SIZE - 1;
 
-    const { data, error } = await supabase
+    let query = supabase
       .from(table)
       .select(selectClause)
-      .order("id", { ascending: true })
-      .range(from, to);
+      .order("id", { ascending: true });
+
+    for (const condition of serverConditions) {
+      const nextQuery = applyServerCondition(query, condition);
+      if (!nextQuery) continue;
+      query = nextQuery;
+    }
+
+    const { data, error } = await query.range(from, to);
 
     if (error) {
       throw new Error(error.message);
@@ -1452,6 +1459,57 @@ async function fetchAllRows(
   }
 
   return rows;
+}
+
+function collectLeadingAndServerConditions(
+  table: SupportedTable,
+  group: FilterGroup | undefined,
+): FilterCondition[] {
+  if (!group || group.logic !== "and") return [];
+
+  const conditions: FilterCondition[] = [];
+  const allowedFields = new Set(ALLOWED_FIELDS[table]);
+  for (const node of group.nodes ?? []) {
+    if (node.kind === "condition") {
+      if (allowedFields.has(node.field) && supportsServerCondition(node.operator)) {
+        conditions.push(node);
+      }
+      continue;
+    }
+
+    if (node.logic === "and") {
+      conditions.push(...collectLeadingAndServerConditions(table, node));
+      continue;
+    }
+
+    const orConditions = node.nodes.filter(
+      (child): child is FilterCondition => child.kind === "condition",
+    );
+    if (orConditions.length !== node.nodes.length || orConditions.length === 0) {
+      continue;
+    }
+
+    const [firstCondition] = orConditions;
+    if (!firstCondition) continue;
+    const field = firstCondition.field;
+    const canMergeAsIn =
+      allowedFields.has(field) &&
+      orConditions.every(
+        (condition) => condition.field === field && condition.operator === "is",
+      );
+
+    if (canMergeAsIn) {
+      conditions.push({
+        kind: "condition",
+        id: `${node.id}-server-in`,
+        field,
+        operator: "in",
+        value: orConditions.map((condition) => condition.value).join(","),
+      });
+    }
+  }
+
+  return conditions;
 }
 
 Deno.serve(async (req) => {
@@ -1486,8 +1544,10 @@ Deno.serve(async (req) => {
   const selectFields = wantsAllFields
     ? ALLOWED_FIELDS[payload.table]
     : sanitizeFields(payload.table, requestedFields);
-  const fallbackSchemaFields = selectFields;
   const includeSchema = payload.includeSchema ?? true;
+  const fallbackSchemaFields = includeSchema
+    ? ALLOWED_FIELDS[payload.table]
+    : selectFields;
 
   if (!wantsAllFields && selectFields.length === 0) {
     return badRequest("No valid fields in 'select'");
@@ -1516,10 +1576,12 @@ Deno.serve(async (req) => {
       [...collectFilterFields(filters), ...groupBy],
     );
     const flatConditions = collectFlatAndConditions(filters);
+    const allowedFields = new Set(ALLOWED_FIELDS[payload.table]);
     const canUseServerQuery =
       !search &&
       groupBy.length === 0 &&
       flatConditions !== null &&
+      flatConditions.every((condition) => allowedFields.has(condition.field)) &&
       flatConditions.every((condition) => supportsServerCondition(condition.operator)) &&
       flatConditions.every((condition) => !lookupMetadata.fieldTypes.has(condition.field));
 
@@ -1566,7 +1628,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const rows = await fetchAllRows(supabase, payload.table, selectFields.join(","));
+    const serverPrefilterConditions = collectLeadingAndServerConditions(payload.table, filters);
+    const rows = await fetchAllRows(
+      supabase,
+      payload.table,
+      selectFields.join(","),
+      serverPrefilterConditions,
+    );
     const columns = includeSchema ? inferColumnsFromRows(rows, fallbackSchemaFields) : [];
     const fieldTypes = new Map<string, FilterFieldType>(
       columns.map((column) => [column.name, column.filterType]),

@@ -160,6 +160,9 @@ export function formatWorkerAddressLine(address?: Record<string, unknown> | null
 }
 
 export function toAvatarUrl(row: Record<string, unknown>) {
+  const permalinkPhotoUrl = sanitizeWorkerImageUrl(row.permalink_foto)
+  if (permalinkPhotoUrl) return permalinkPhotoUrl
+
   for (const foto of normalizeAttachmentArray(row.foto)) {
     const resolved = attachmentPathToPublicUrl(foto.path)
     if (resolved) return resolved

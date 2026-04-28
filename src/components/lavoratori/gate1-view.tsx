@@ -2593,7 +2593,11 @@ export function Gate1View({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
     upsertSelectedWorkerDocument,
-  } = useLavoratoriData({ forcedWorkerStatus: workerStatus, applyGate1BaseFilters });
+  } = useLavoratoriData({
+    forcedWorkerStatus: workerStatus,
+    applyGate1BaseFilters,
+    includeRelatedSelectionDetails: false,
+  });
   const groupingOptions = React.useMemo(
     () => filterFields.map((field) => ({ label: field.label, value: field.value })),
     [filterFields],

@@ -55,6 +55,31 @@ const RELATED_SELECTIONS_PAGE_SIZE = 500
 const RELATED_WORKER_BATCH_SIZE = 50
 const RELATED_PROCESS_BATCH_SIZE = 150
 const RELATED_FAMILY_BATCH_SIZE = 150
+const WORKER_LIST_SELECT = [
+  "id",
+  "nome",
+  "cognome",
+  "email",
+  "telefono",
+  "permalink_foto",
+  "check_blacklist",
+  "stato_lavoratore",
+  "disponibilita",
+  "data_ritorno_disponibilita",
+  "tipo_lavoro_domestico",
+  "tipo_rapporto_lavorativo",
+  "data_di_nascita",
+  "anni_esperienza_colf",
+  "anni_esperienza_babysitter",
+  "provincia",
+  "cap",
+  "indirizzo_residenza_completo",
+  "followup_chiamata_idoneita",
+  "data_ora_di_creazione",
+  "data_ora_ultima_modifica",
+  "creato_il",
+  "aggiornato_il",
+]
 
 const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
   "selezionato",
@@ -78,6 +103,17 @@ const GATE1_BLOCKING_SELECTION_STATUS_TOKENS = new Set([
   "prova schedulata",
   "prova rimandata",
 ])
+const GATE1_BLOCKING_SELECTION_STATUS_FILTER_VALUES = [
+  "Selezionato",
+  "Inviato al cliente",
+  "Inviato al Cliente",
+  "Colloquio schedulato",
+  "Colloquio rimandato",
+  "Colloquio fatto",
+  "Prova schedulata",
+  "Prova rimandata",
+  ...GATE1_BLOCKING_SELECTION_STATUS_TOKENS,
+]
 const OTHER_SEARCH_GROUP_A_PROCESS_STATUS_TOKENS = new Set([
   "da assegnare",
   "raccolta candidature",
@@ -125,6 +161,7 @@ type GenericRow = Record<string, unknown>
 type UseLavoratoriDataOptions = {
   forcedWorkerStatus?: string | string[]
   applyGate1BaseFilters?: boolean
+  includeRelatedSelectionDetails?: boolean
 }
 
 function toCanonicalWorkerStatus(value: string) {
@@ -169,6 +206,10 @@ function mergeAndFilters(
     logic: "and" as const,
     nodes: [baseFilters, ...validNodes],
   }
+}
+
+function hasFilterNodes(filters: QueryFilterGroup | undefined) {
+  return Boolean(filters && Array.isArray(filters.nodes) && filters.nodes.length > 0)
 }
 
 function formatDateFilterValue(date: Date) {
@@ -587,10 +628,13 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
   return addressesByWorkerId
 }
 
-async function fetchSelectionsForWorkers(workerIds: string[]) {
+async function fetchSelectionsForWorkers(workerIds: string[], blockingOnly = false) {
   if (workerIds.length === 0) return []
 
   const rows: GenericRow[] = []
+  const blockingStatusValues = Array.from(
+    new Set(GATE1_BLOCKING_SELECTION_STATUS_FILTER_VALUES)
+  ).join(",")
 
   for (let index = 0; index < workerIds.length; index += RELATED_WORKER_BATCH_SIZE) {
     const batch = workerIds.slice(index, index + RELATED_WORKER_BATCH_SIZE)
@@ -622,6 +666,17 @@ async function fetchSelectionsForWorkers(workerIds: string[]) {
               operator: "in",
               value: batch.join(","),
             },
+            ...(blockingOnly
+              ? [
+                  {
+                    kind: "condition" as const,
+                    id: `lavoratori-related-blocking-status-${index}-${offset}`,
+                    field: "stato_selezione",
+                    operator: "in" as const,
+                    value: blockingStatusValues,
+                  },
+                ]
+              : []),
           ],
         },
       })
@@ -719,12 +774,34 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
   workerIds,
   lookupColorsByDomain,
   recruiterLabelsById,
+  includeDetails,
+  blockingOnly,
 }: {
   workerIds: string[]
   lookupColorsByDomain: Map<string, string>
   recruiterLabelsById: Map<string, string>
+  includeDetails: boolean
+  blockingOnly: boolean
 }) {
-  const selections = await fetchSelectionsForWorkers(workerIds)
+  const selections = await fetchSelectionsForWorkers(workerIds, blockingOnly)
+  const gate1BlockedWorkerIds = new Set<string>()
+
+  for (const selection of selections) {
+    if (!isGate1BlockingSelection(selection)) continue
+    const workerId = asString(selection.lavoratore_id)
+    if (workerId) gate1BlockedWorkerIds.add(workerId)
+  }
+
+  if (!includeDetails) {
+    return {
+      relatedSelectionsByWorkerId: new Map<
+        string,
+        NonNullable<LavoratoreListItem["otherActiveSelections"]>
+      >(),
+      gate1BlockedWorkerIds,
+    }
+  }
+
   const processIds = Array.from(
     new Set(
       selections
@@ -763,7 +840,6 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
     string,
     NonNullable<LavoratoreListItem["otherActiveSelections"]>
   >()
-  const gate1BlockedWorkerIds = new Set<string>()
 
   for (const workerId of workerIds) {
     const workerSelections = selections.filter(
@@ -774,10 +850,6 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
     const seenProcesses = new Set<string>()
 
     for (const selection of workerSelections) {
-      if (isGate1BlockingSelection(selection)) {
-        gate1BlockedWorkerIds.add(workerId)
-      }
-
       const processId = asString(selection.processo_matching_id)
       if (!processId || seenProcesses.has(processId)) continue
 
@@ -850,13 +922,22 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
 }
 
 export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
-  const { forcedWorkerStatus, applyGate1BaseFilters = false } = options
+  const {
+    forcedWorkerStatus,
+    applyGate1BaseFilters = false,
+    includeRelatedSelectionDetails = true,
+  } = options
   const { options: recruiterOptions } = useOperatoriOptions({
     role: "recruiter",
     activeOnly: true,
   })
   const [workers, setWorkers] = React.useState<LavoratoreListItem[]>([])
   const [workerRows, setWorkerRows] = React.useState<LavoratoreRecord[]>([])
+  const [selectedWorkerRow, setSelectedWorkerRow] =
+    React.useState<LavoratoreRecord | null>(null)
+  const [relatedSelectionsByWorkerId, setRelatedSelectionsByWorkerId] = React.useState<
+    Map<string, NonNullable<LavoratoreListItem["otherActiveSelections"]>>
+  >(new Map())
   const [workerAddressesById, setWorkerAddressesById] = React.useState<
     Map<string, Record<string, unknown>[]>
   >(new Map())
@@ -892,6 +973,9 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   const [pageIndex, setPageIndex] = React.useState(0)
   const [pageSize] = React.useState(DEFAULT_PAGE_SIZE)
   const requestIdRef = React.useRef(0)
+  const workersSchemaLoadedRef = React.useRef(false)
+  const lastLoadedListQueryKeyRef = React.useRef<string | null>(null)
+  const inFlightListQueryKeyRef = React.useRef<string | null>(null)
   const {
     searchValue,
     setSearchValue,
@@ -917,6 +1001,16 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
     [recruiterOptions]
   )
+  const lookupColorsByDomainRef = React.useRef(lookupColorsByDomain)
+  const recruiterLabelsByIdRef = React.useRef(recruiterLabelsById)
+
+  React.useEffect(() => {
+    lookupColorsByDomainRef.current = lookupColorsByDomain
+  }, [lookupColorsByDomain])
+
+  React.useEffect(() => {
+    recruiterLabelsByIdRef.current = recruiterLabelsById
+  }, [recruiterLabelsById])
 
   React.useEffect(() => {
     setPageIndex(0)
@@ -952,6 +1046,26 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     requestIdRef.current = requestId
 
     async function load() {
+      const queryKey = JSON.stringify({
+        applyGate1BaseFilters,
+        filters: debouncedQuery.filters ?? null,
+        forcedWorkerStatus,
+        includeRelatedSelectionDetails,
+        offset: pageIndex * pageSize,
+        pageSize,
+        search: debouncedQuery.searchValue.trim(),
+        sorting: debouncedQuery.sorting,
+      })
+      if (lastLoadedListQueryKeyRef.current === queryKey && workerRows.length > 0) {
+        setLoading(false)
+        return
+      }
+      if (inFlightListQueryKeyRef.current === queryKey) {
+        setLoading(true)
+        return
+      }
+
+      inFlightListQueryKeyRef.current = queryKey
       setLoading(true)
       setError(null)
       try {
@@ -963,10 +1077,13 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
                 { field: "data_ora_ultima_modifica", ascending: false },
                 { field: "creato_il", ascending: false },
               ]
+        const shouldLoadSchema = !workersSchemaLoadedRef.current
+        const hasUserFilters = hasFilterNodes(debouncedQuery.filters)
         const result = await fetchLavoratori({
+          select: hasUserFilters ? undefined : WORKER_LIST_SELECT,
           limit: pageSize,
           offset: pageIndex * pageSize,
-          includeSchema: true,
+          includeSchema: shouldLoadSchema,
           orderBy: sortOrderBy,
           search: debouncedQuery.searchValue.trim() || undefined,
           searchFields: ["nome", "cognome", "email", "telefono"],
@@ -979,27 +1096,40 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         if (requestId !== requestIdRef.current) return
 
         if (result.columns.length > 0) {
+          workersSchemaLoadedRef.current = true
           setWorkersColumns(result.columns)
-        } else {
+        } else if (shouldLoadSchema) {
           setWorkersColumns([])
           setError("Schema filtri lavoratori non disponibile (columns vuote da table-query).")
         }
 
         const rows = result.rows.map(asLavoratoreRecord)
         const workerIds = rows.map((row) => row.id)
+        const relatedSelectionsPromise =
+          includeRelatedSelectionDetails || applyGate1BaseFilters
+            ? fetchRelatedActiveSelectionsByWorkerIds({
+                workerIds,
+                lookupColorsByDomain: lookupColorsByDomainRef.current,
+                recruiterLabelsById: recruiterLabelsByIdRef.current,
+                includeDetails: includeRelatedSelectionDetails,
+                blockingOnly: applyGate1BaseFilters && !includeRelatedSelectionDetails,
+              }).catch(() => ({
+                relatedSelectionsByWorkerId: new Map<
+                  string,
+                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
+                >(),
+                gate1BlockedWorkerIds: new Set<string>(),
+              }))
+            : Promise.resolve({
+                relatedSelectionsByWorkerId: new Map<
+                  string,
+                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
+                >(),
+                gate1BlockedWorkerIds: new Set<string>(),
+              })
         const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
           fetchWorkerAddressesByIds(workerIds),
-          fetchRelatedActiveSelectionsByWorkerIds({
-            workerIds,
-            lookupColorsByDomain,
-            recruiterLabelsById,
-          }).catch(() => ({
-            relatedSelectionsByWorkerId: new Map<
-              string,
-              NonNullable<LavoratoreListItem["otherActiveSelections"]>
-            >(),
-            gate1BlockedWorkerIds: new Set<string>(),
-          })),
+          relatedSelectionsPromise,
         ])
         if (requestId !== requestIdRef.current) return
 
@@ -1009,18 +1139,13 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
 
         setWorkerRows(visibleRows)
         setWorkerAddressesById(addressesByWorkerId)
-        setWorkers(
-          visibleRows.map((row) => ({
-            ...buildWorkerListItem(row, lookupColorsByDomain, addressesByWorkerId),
-            otherActiveSelections:
-              relatedSelectionsResult.relatedSelectionsByWorkerId.get(row.id) ?? null,
-          }))
-        )
+        setRelatedSelectionsByWorkerId(relatedSelectionsResult.relatedSelectionsByWorkerId)
         setWorkersTotal(
           applyGate1BaseFilters
             ? Math.max(result.total - relatedSelectionsResult.gate1BlockedWorkerIds.size, visibleRows.length)
             : result.total
         )
+        lastLoadedListQueryKeyRef.current = queryKey
         setSelectedWorkerId((previous) => {
           if (previous && visibleRows.some((row) => row.id === previous)) return previous
           return visibleRows[0]?.id ?? null
@@ -1035,9 +1160,13 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         setWorkers([])
         setWorkerRows([])
         setWorkerAddressesById(new Map())
+        setRelatedSelectionsByWorkerId(new Map())
         setWorkersTotal(0)
         setWorkersColumns([])
       } finally {
+        if (inFlightListQueryKeyRef.current === queryKey) {
+          inFlightListQueryKeyRef.current = null
+        }
         if (requestId === requestIdRef.current) setLoading(false)
       }
     }
@@ -1047,11 +1176,68 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     applyGate1BaseFilters,
     debouncedQuery,
     forcedWorkerStatus,
-    lookupColorsByDomain,
+    includeRelatedSelectionDetails,
     pageIndex,
     pageSize,
-    recruiterLabelsById,
+    workerRows.length,
   ])
+
+  React.useEffect(() => {
+    setWorkers(
+      workerRows.map((row) => ({
+        ...buildWorkerListItem(row, lookupColorsByDomain, workerAddressesById),
+        otherActiveSelections: relatedSelectionsByWorkerId.get(row.id) ?? null,
+      }))
+    )
+  }, [lookupColorsByDomain, relatedSelectionsByWorkerId, workerAddressesById, workerRows])
+
+  React.useEffect(() => {
+    let isCancelled = false
+
+    async function loadSelectedWorkerRow() {
+      if (!selectedWorkerId) {
+        setSelectedWorkerRow(null)
+        return
+      }
+
+      const listRow = workerRows.find((row) => row.id === selectedWorkerId) ?? null
+      setSelectedWorkerRow(listRow)
+
+      try {
+        const result = await fetchLavoratori({
+          limit: 1,
+          offset: 0,
+          includeSchema: false,
+          filters: {
+            kind: "group",
+            id: "selected-worker-detail",
+            logic: "and",
+            nodes: [
+              {
+                kind: "condition",
+                id: "selected-worker-detail-id",
+                field: "id",
+                operator: "is",
+                value: selectedWorkerId,
+              },
+            ],
+          },
+        })
+        if (isCancelled) return
+        const detailRow = result.rows[0] ? asLavoratoreRecord(result.rows[0]) : listRow
+        setSelectedWorkerRow(detailRow ?? null)
+      } catch {
+        if (isCancelled) return
+        setSelectedWorkerRow(listRow)
+      }
+    }
+
+    void loadSelectedWorkerRow()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [selectedWorkerId, workerRows])
 
   const filterFields = React.useMemo<FilterField[]>(() => {
     return workersColumns.map((column) => {
@@ -1216,10 +1402,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     () => workers.find((worker) => worker.id === selectedWorkerId) ?? null,
     [selectedWorkerId, workers]
   )
-  const selectedWorkerRow = React.useMemo(
-    () => workerRows.find((row) => row.id === selectedWorkerId) ?? null,
-    [selectedWorkerId, workerRows]
-  )
   const selectedWorkerAddress = React.useMemo(
     () =>
       selectedWorkerId
@@ -1230,21 +1412,26 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
 
   const applyUpdatedWorkerRow = React.useCallback(
     (nextRow: LavoratoreRecord) => {
+      setSelectedWorkerRow((current) => (current?.id === nextRow.id ? nextRow : current))
       setWorkerRows((current) =>
-        current.map((row) => (row.id === nextRow.id ? nextRow : row))
+        current.map((row) => (row.id === nextRow.id ? { ...row, ...nextRow } : row))
       )
       setWorkers((current) =>
         current.map((worker) =>
           worker.id === nextRow.id
             ? {
-                ...buildWorkerListItem(nextRow, lookupColorsByDomain, workerAddressesById),
+                ...buildWorkerListItem(
+                  { ...(workerRows.find((row) => row.id === nextRow.id) ?? nextRow), ...nextRow },
+                  lookupColorsByDomain,
+                  workerAddressesById
+                ),
                 otherActiveSelections: worker.otherActiveSelections ?? null,
               }
             : worker
         )
       )
     },
-    [lookupColorsByDomain, workerAddressesById]
+    [lookupColorsByDomain, workerAddressesById, workerRows]
   )
 
   const applyUpdatedWorkerAddress = React.useCallback(

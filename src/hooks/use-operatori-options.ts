@@ -5,6 +5,16 @@ import { invokeEdgeFunction } from "@/lib/supabase-edge"
 type GenericRow = Record<string, unknown>
 type TableQueryResponse = GenericRow[] | { data?: GenericRow[]; rows?: GenericRow[] }
 
+const OPERATORI_OPTIONS_CACHE_TTL_MS = 5 * 60 * 1000
+
+const operatoriOptionsCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<OperatoreOption[]>
+  }
+>()
+
 export type OperatoreOption = {
   id: string
   label: string
@@ -79,6 +89,88 @@ function isActive(row: GenericRow, activeOnly: boolean) {
   return row.attivo === true
 }
 
+async function fetchOperatoriOptions(role: string | undefined, activeOnly: boolean) {
+  const cacheKey = `${role ?? "all"}:${activeOnly ? "active" : "all"}`
+  const now = Date.now()
+  const cached = operatoriOptionsCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = invokeEdgeFunction<TableQueryResponse>("table-query", {
+    table: "operatori",
+    select: ["id", "nome", "cognome", "ruolo", "attivo"],
+    orderBy: [
+      { field: "nome", ascending: true },
+      { field: "cognome", ascending: true },
+    ],
+    filters: {
+      kind: "group",
+      id: "operatori-options-root",
+      logic: "and",
+      nodes: [
+        ...(activeOnly
+          ? [
+              {
+                kind: "condition",
+                id: "operatori-options-attivo",
+                field: "attivo",
+                operator: "is_true",
+                value: "",
+              },
+            ]
+          : []),
+        ...(role
+          ? [
+              {
+                kind: "condition",
+                id: "operatori-options-role",
+                field: "ruolo",
+                operator: "has",
+                value: role,
+              },
+            ]
+          : []),
+      ],
+    },
+  }).then((rows) => {
+    const rawRows = Array.isArray(rows) ? rows : rows.data ?? rows.rows ?? []
+    let filteredRows = rawRows.filter((row) => isActive(row, activeOnly) && hasRole(row, role))
+
+    if (role && activeOnly && filteredRows.length === 0) {
+      filteredRows = rawRows.filter((row) => isActive(row, activeOnly))
+    }
+
+    return filteredRows
+      .map((row) => {
+        const id = toStringValue(row.id)
+        const nome = toStringValue(row.nome) ?? ""
+        const cognome = toStringValue(row.cognome) ?? ""
+        if (!id || !nome) return null
+
+        return {
+          id,
+          label: [nome, cognome].filter(Boolean).join(" "),
+          avatar: buildAvatar(nome, cognome),
+          avatarBorderClassName: getAvatarBorderClass(id),
+        } satisfies OperatoreOption
+      })
+      .filter((option): option is OperatoreOption => Boolean(option))
+  })
+
+  operatoriOptionsCache.set(cacheKey, {
+    expiresAt: now + OPERATORI_OPTIONS_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    operatoriOptionsCache.delete(cacheKey)
+    throw error
+  }
+}
+
 export function useOperatoriOptions(params: UseOperatoriOptionsParams = {}) {
   const role = params.role ? normalizeRole(params.role) : undefined
   const activeOnly = params.activeOnly ?? false
@@ -94,69 +186,7 @@ export function useOperatoriOptions(params: UseOperatoriOptionsParams = {}) {
       setError(null)
 
       try {
-        const rows = await invokeEdgeFunction<TableQueryResponse>("table-query", {
-          table: "operatori",
-          select: ["id", "nome", "cognome", "ruolo", "attivo"],
-          orderBy: [
-            { field: "nome", ascending: true },
-            { field: "cognome", ascending: true },
-          ],
-          filters: {
-            kind: "group",
-            id: "operatori-options-root",
-            logic: "and",
-            nodes: [
-              ...(activeOnly
-                ? [
-                    {
-                      kind: "condition",
-                      id: "operatori-options-attivo",
-                      field: "attivo",
-                      operator: "is_true",
-                      value: "",
-                    },
-                  ]
-                : []),
-              ...(role
-                ? [
-                    {
-                      kind: "condition",
-                      id: "operatori-options-role",
-                      field: "ruolo",
-                      operator: "has",
-                      value: role,
-                    },
-                  ]
-                : []),
-            ],
-          },
-        })
-
-        const rawRows = Array.isArray(rows) ? rows : rows.data ?? rows.rows ?? []
-        let filteredRows = rawRows.filter(
-          (row) => isActive(row, activeOnly) && hasRole(row, role)
-        )
-
-        if (role && activeOnly && filteredRows.length === 0) {
-          filteredRows = rawRows.filter((row) => isActive(row, activeOnly))
-        }
-
-        const nextOptions = filteredRows
-          .map((row) => {
-            const id = toStringValue(row.id)
-            const nome = toStringValue(row.nome) ?? ""
-            const cognome = toStringValue(row.cognome) ?? ""
-            if (!id || !nome) return null
-
-            return {
-              id,
-              label: [nome, cognome].filter(Boolean).join(" "),
-              avatar: buildAvatar(nome, cognome),
-              avatarBorderClassName: getAvatarBorderClass(id),
-            } satisfies OperatoreOption
-          })
-          .filter((option): option is OperatoreOption => Boolean(option))
-
+        const nextOptions = await fetchOperatoriOptions(role, activeOnly)
         if (cancelled) return
         setOptions(nextOptions)
       } catch (caughtError) {

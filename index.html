@@ -7,6 +7,21 @@
     <link rel="apple-touch-icon" href="./baze.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BazeOffice</title>
+    <script>
+      try {
+        const storedTheme = localStorage.getItem("bazeoffice:theme");
+        const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const theme = storedTheme === "light" || storedTheme === "dark"
+          ? storedTheme
+          : systemDark
+            ? "dark"
+            : "light";
+        document.documentElement.classList.toggle("dark", theme === "dark");
+        document.documentElement.dataset.theme = theme;
+      } catch {
+        document.documentElement.dataset.theme = "light";
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
