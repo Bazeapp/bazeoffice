@@ -28,7 +28,7 @@ const listVariants = cva("inline-flex items-center", {
       line: "gap-4 border-b border-border w-full",
       boxed: "gap-1",
       pills: "gap-1",
-      segmented: "p-0.5 bg-neutral-150 rounded-md gap-0",
+      segmented: "p-0.5 bg-surface-muted rounded-md gap-0",
     },
   },
   defaultVariants: { variant: "underline" },
@@ -85,13 +85,13 @@ const countVariants = cva(
     variants: {
       variant: {
         underline:
-          "h-[18px] min-w-[18px] px-1 bg-neutral-150 text-foreground-muted!",
+          "h-[18px] min-w-[18px] px-1 bg-surface-muted text-foreground-muted!",
         line:
-          "h-[18px] min-w-[18px] px-1 bg-neutral-150 text-foreground-muted!",
+          "h-[18px] min-w-[18px] px-1 bg-surface-muted text-foreground-muted!",
         boxed:
-          "h-[18px] min-w-[18px] px-1 bg-neutral-150 text-foreground-muted! group-data-[state=active]/tab-trigger:bg-neutral-200 group-data-[state=active]/tab-trigger:text-foreground-strong!",
+          "h-[18px] min-w-[18px] px-1 bg-surface-muted text-foreground-muted! group-data-[state=active]/tab-trigger:bg-neutral-200 group-data-[state=active]/tab-trigger:text-foreground-strong!",
         pills:
-          "h-4 min-w-4 px-1 bg-neutral-150 text-foreground-muted! group-data-[state=active]/tab-trigger:bg-accent-muted group-data-[state=active]/tab-trigger:text-accent-ink!",
+          "h-4 min-w-4 px-1 bg-surface-muted text-foreground-muted! group-data-[state=active]/tab-trigger:bg-accent-muted group-data-[state=active]/tab-trigger:text-accent-ink!",
         segmented:
           "h-4 min-w-4 px-1 bg-neutral-200 text-foreground-muted!",
       },

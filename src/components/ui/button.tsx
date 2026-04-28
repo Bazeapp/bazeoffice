@@ -39,7 +39,7 @@ const buttonVariants = cva(
           "hover:bg-neutral-800",
         ],
         secondary: [
-          "bg-neutral-150 text-foreground-strong!",
+          "bg-surface-muted text-foreground-strong!",
           "hover:bg-neutral-200",
         ],
         outline: [
@@ -49,7 +49,7 @@ const buttonVariants = cva(
         ],
         ghost: [
           "bg-transparent text-foreground-strong!",
-          "hover:bg-neutral-150",
+          "hover:bg-surface-muted",
         ],
         link: [
           "bg-transparent text-accent! px-0 h-auto",

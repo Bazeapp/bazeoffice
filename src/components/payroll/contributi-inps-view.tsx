@@ -352,7 +352,7 @@ export function ContributoInpsDetailSheet({
           </SheetHeader>
 
           {card ? (
-            <section className="h-full overflow-y-auto bg-neutral-150 px-5 py-5">
+            <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
               <div className="mx-auto max-w-5xl space-y-5">
                 <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} />
 
