@@ -34,11 +34,13 @@ import {
   CircleHelpIcon,
   FolderTreeIcon,
   HomeIcon,
+  KanbanIcon,
   LogOutIcon,
   type LucideIcon,
   SearchIcon,
   SettingsIcon,
   UserCircle2Icon,
+  UsersIcon,
   WalletIcon,
 } from "lucide-react";
 
@@ -72,8 +74,8 @@ type SidebarCategoryGroup = {
 const sidebarCategoryGroups: SidebarCategoryGroup[] = [
   {
     accentClassName: "bg-zinc-300",
-    activeTextClassName: "text-primary",
-    activeBgClassName: "bg-primary/5",
+    activeTextClassName: "text-foreground-strong",
+    activeBgClassName: "bg-surface-muted",
     categories: [
       {
         name: "Anagrafiche",
@@ -144,14 +146,14 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
     ],
   },
   {
-    accentClassName: "bg-primary",
-    activeTextClassName: "text-primary",
-    activeBgClassName: "bg-primary/5",
+    accentClassName: "bg-accent",
+    activeTextClassName: "text-accent",
+    activeBgClassName: "bg-accent-soft",
     categories: [
       {
         name: "CRM famiglie",
         href: "#",
-        icon: FolderTreeIcon,
+        icon: KanbanIcon,
         children: [
           {
             name: "Pipeline Famiglie",
@@ -176,7 +178,7 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
       {
         name: "Lavoratori",
         href: "#",
-        icon: FolderTreeIcon,
+        icon: UsersIcon,
         children: [
           { name: "Cerca Lavoratori", href: "#", mainSection: "lavoratori_cerca" },
           { name: "Gate 1", href: "#", mainSection: "gate_1" },
@@ -187,8 +189,8 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
   },
   {
     accentClassName: "bg-amber-400",
-    activeTextClassName: "text-[hsl(var(--state-warm))]",
-    activeBgClassName: "bg-[hsl(var(--state-warm)/0.08)]",
+    activeTextClassName: "text-amber-700",
+    activeBgClassName: "bg-amber-400/10",
     categories: [
       {
         name: "Gestione contrattuale",
@@ -542,7 +544,10 @@ export function AppSidebar({
                     )}
                   />
                   <SidebarMenu>
-                    {group.categories.map((category) => (
+                    {group.categories.map((category) => {
+                      const isCategoryActive =
+                        category.name === activeCategoryName;
+                      return (
                       <SidebarMenuItem key={category.name}>
                         {category.children && category.children.length > 0 ? (
                           <AccordionPrimitive.Item
@@ -557,7 +562,12 @@ export function AppSidebar({
                                 )}
                                 title={category.name}
                               >
-                                <category.icon className="size-4 shrink-0" />
+                                <category.icon
+                                  className={cn(
+                                    "size-4 shrink-0",
+                                    isCategoryActive && group.activeTextClassName,
+                                  )}
+                                />
                                 <span className="flex-1 truncate text-left text-sm group-data-[state=collapsed]/sidebar:hidden">
                                   {category.name}
                                 </span>
@@ -615,7 +625,8 @@ export function AppSidebar({
                           </SidebarMenuButton>
                         )}
                       </SidebarMenuItem>
-                    ))}
+                      );
+                    })}
                 </SidebarMenu>
               </div>
               ))}
