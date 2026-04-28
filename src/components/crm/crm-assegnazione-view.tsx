@@ -502,7 +502,7 @@ function AssegnazioneDetailSheet({
         className="w-[min(96vw,760px)]! max-w-none! overflow-hidden p-0 sm:max-w-none!"
       >
         {card ? (
-          <section className="flex h-full min-h-0 flex-col overflow-hidden bg-neutral-150">
+          <section className="flex h-full min-h-0 flex-col overflow-hidden bg-surface-muted">
             <header className="sticky top-0 z-20 shrink-0 border-b bg-surface">
               <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2">
                 <SheetTitle className="text-xl font-semibold">

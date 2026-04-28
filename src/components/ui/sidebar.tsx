@@ -227,10 +227,7 @@ export const SidebarSeparator = React.forwardRef<
   <div
     ref={ref}
     data-slot="sidebar-separator"
-    className={cn(
-      "mx-3 my-1 h-px bg-border-subtle",
-      className,
-    )}
+    className={cn("mx-3 my-1 h-px bg-border-subtle", className)}
     {...props}
   />
 ));
@@ -324,7 +321,8 @@ const sidebarMenuButtonVariants = cva(
 );
 
 interface SidebarMenuButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof sidebarMenuButtonVariants> {
   isActive?: boolean;
   asChild?: boolean;
@@ -381,8 +379,7 @@ export const SidebarMenuSubItem = React.forwardRef<
 ));
 SidebarMenuSubItem.displayName = "SidebarMenuSubItem";
 
-interface SidebarMenuSubButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface SidebarMenuSubButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   isActive?: boolean;
   asChild?: boolean;
 }
@@ -402,7 +399,7 @@ export const SidebarMenuSubButton = React.forwardRef<
         "text-sm text-foreground-muted",
         "outline-none transition-colors duration-(--duration-fast)",
         "not-data-[active=true]:hover:bg-surface-muted not-data-[active=true]:hover:text-foreground-strong",
-        "data-[active=true]:font-semibold",
+        "data-[active=true]:font-semibold data-[active=true]:text-foreground-strong",
         "[&_svg]:size-3.5 [&_svg]:shrink-0",
         className,
       )}
@@ -446,7 +443,11 @@ export const SidebarSection = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("flex flex-col gap-0.5", className)} {...props} />
+  <div
+    ref={ref}
+    className={cn("flex flex-col gap-0.5", className)}
+    {...props}
+  />
 ));
 SidebarSection.displayName = "SidebarSection";
 
@@ -466,40 +467,40 @@ export const SidebarLabel = React.forwardRef<
 ));
 SidebarLabel.displayName = "SidebarLabel";
 
-export interface SidebarItemProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface SidebarItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean;
   icon?: React.ReactNode;
   count?: React.ReactNode;
   asChild?: boolean;
 }
 
-export const SidebarItem = React.forwardRef<HTMLButtonElement, SidebarItemProps>(
-  ({ className, active, icon, count, children, ...props }, ref) => (
-    <button
-      ref={ref}
-      data-active={active || undefined}
-      className={cn(
-        "group flex h-7.5 items-center gap-2.5 rounded-sm px-2.5 text-left",
-        "text-sm text-foreground-muted cursor-pointer",
-        "transition-colors duration-(--duration-fast)",
-        "hover:bg-surface-muted hover:text-foreground-strong",
-        "data-[active=true]:bg-surface data-[active=true]:text-foreground-strong",
-        "data-[active=true]:shadow-[0_1px_2px_rgba(20,20,18,.04),0_0_0_1px_var(--border)]",
-        "[&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-foreground-subtle",
-        "data-[active=true]:[&_svg]:text-accent",
-        className,
-      )}
-      {...props}
-    >
-      {icon}
-      <span className="flex-1 truncate">{children}</span>
-      {count != null ? (
-        <span className="text-[10px] font-medium text-foreground-faint tabular-nums">
-          {count}
-        </span>
-      ) : null}
-    </button>
-  ),
-);
+export const SidebarItem = React.forwardRef<
+  HTMLButtonElement,
+  SidebarItemProps
+>(({ className, active, icon, count, children, ...props }, ref) => (
+  <button
+    ref={ref}
+    data-active={active || undefined}
+    className={cn(
+      "group flex h-7.5 items-center gap-2.5 rounded-sm px-2.5 text-left",
+      "text-sm text-foreground-muted cursor-pointer",
+      "transition-colors duration-(--duration-fast)",
+      "hover:bg-surface-muted hover:text-foreground-strong",
+      "data-[active=true]:bg-surface data-[active=true]:text-foreground-strong",
+      "data-[active=true]:shadow-[0_1px_2px_rgba(20,20,18,.04),0_0_0_1px_var(--border)]",
+      "[&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-foreground-subtle",
+      "data-[active=true]:[&_svg]:text-accent",
+      className,
+    )}
+    {...props}
+  >
+    {icon}
+    <span className="flex-1 truncate">{children}</span>
+    {count != null ? (
+      <span className="text-[10px] font-medium text-foreground-faint tabular-nums">
+        {count}
+      </span>
+    ) : null}
+  </button>
+));
 SidebarItem.displayName = "SidebarItem";

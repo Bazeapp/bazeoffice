@@ -17,7 +17,7 @@ const groupVariants = cva("", {
       plain: "flex flex-col gap-2",
       card: "flex flex-col gap-2",
       segmented:
-        "inline-flex p-0.5 bg-neutral-150 rounded-md gap-0",
+        "inline-flex p-0.5 bg-surface-muted rounded-md gap-0",
     },
   },
   defaultVariants: { variant: "plain" },

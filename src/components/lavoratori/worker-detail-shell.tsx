@@ -35,7 +35,7 @@ export function WorkerDetailShell({
     <section
       ref={sectionRef}
       className={[
-        "bg-neutral-150 relative min-h-0 overflow-y-auto rounded-xl border pb-4",
+        "bg-surface-muted relative min-h-0 overflow-y-auto rounded-xl border pb-4",
         className,
       ]
         .filter(Boolean)
