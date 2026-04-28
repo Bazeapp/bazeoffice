@@ -54,7 +54,7 @@ export const CheckboxChip = React.forwardRef<
       "border border-border-strong bg-surface text-foreground-muted",
       "transition-colors duration-(--duration-fast) ease-out",
       "outline-none focus-visible:shadow-(--shadow-ring)",
-      "hover:bg-neutral-50 hover:text-foreground-strong",
+      "hover:bg-surface-muted hover:text-foreground-strong",
       "data-[state=checked]:bg-accent-soft data-[state=checked]:border-accent",
       "data-[state=checked]:text-accent-ink data-[state=checked]:font-semibold",
       "disabled:cursor-not-allowed disabled:opacity-50",
