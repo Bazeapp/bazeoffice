@@ -134,7 +134,7 @@ function Stepper({ value, onChange, min = 0, max = 999, step = 1, className }: S
       <button
         type="button"
         onClick={dec}
-        className="bg-background-subtle border-r border-border px-3 text-md font-semibold text-foreground-muted hover:bg-neutral-150"
+        className="bg-background-subtle border-r border-border px-3 text-md font-semibold text-foreground-muted hover:bg-surface-muted"
         aria-label="Decrease"
       >
         −
@@ -151,7 +151,7 @@ function Stepper({ value, onChange, min = 0, max = 999, step = 1, className }: S
       <button
         type="button"
         onClick={inc}
-        className="bg-background-subtle border-l border-border px-3 text-md font-semibold text-foreground-muted hover:bg-neutral-150"
+        className="bg-background-subtle border-l border-border px-3 text-md font-semibold text-foreground-muted hover:bg-surface-muted"
         aria-label="Increase"
       >
         +

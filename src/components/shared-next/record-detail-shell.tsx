@@ -42,7 +42,7 @@ export function RecordDetailShell({
         "relative min-h-0 overflow-y-auto pb-4",
         embedded
           ? "bg-transparent"
-          : "rounded-xl border bg-neutral-150",
+          : "rounded-xl border bg-surface-muted",
         className,
       )}
     >

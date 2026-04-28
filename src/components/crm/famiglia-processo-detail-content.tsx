@@ -461,7 +461,7 @@ export function FamigliaProcessoDetailContent({
   return (
     <section
       ref={detailScrollRef}
-      className={cn("bg-neutral-150 relative h-full min-h-0 overflow-y-auto", className)}
+      className={cn("bg-surface-muted relative h-full min-h-0 overflow-y-auto", className)}
     >
       <div className="bg-surface sticky top-0 z-20 border-b">
         <div className="space-y-3 px-4 pt-4">
