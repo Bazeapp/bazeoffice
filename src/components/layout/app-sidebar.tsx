@@ -75,7 +75,7 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
   {
     accentClassName: "bg-zinc-300",
     activeTextClassName: "text-foreground-strong",
-    activeBgClassName: "bg-neutral-150",
+    activeBgClassName: "bg-surface-muted",
     categories: [
       {
         name: "Anagrafiche",
@@ -146,9 +146,9 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
     ],
   },
   {
-    accentClassName: "bg-[#0047a9]",
-    activeTextClassName: "text-[#0047a9]",
-    activeBgClassName: "bg-[#0047a9]/5",
+    accentClassName: "bg-accent",
+    activeTextClassName: "text-accent",
+    activeBgClassName: "bg-accent-soft",
     categories: [
       {
         name: "CRM famiglie",
