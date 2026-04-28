@@ -10,7 +10,7 @@ import {
 
 import { CrmDetailCard } from "@/components/crm/detail-card";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxChip } from "@/components/ui/checkbox";
 import {
   Field,
   FieldDescription,
@@ -108,20 +108,17 @@ function CheckboxRow({
 }) {
   const isControlled = typeof checked === "boolean";
   return (
-    <Field orientation="horizontal">
-      <Checkbox
-        id={id}
-        {...(isControlled
-          ? {
-              checked,
-              onCheckedChange: (value) => onCheckedChange?.(Boolean(value)),
-            }
-          : { defaultChecked })}
-      />
-      <FieldLabel htmlFor={id} className="font-normal">
-        {label}
-      </FieldLabel>
-    </Field>
+    <CheckboxChip
+      id={id}
+      {...(isControlled
+        ? {
+            checked,
+            onCheckedChange: (value) => onCheckedChange?.(Boolean(value)),
+          }
+        : { defaultChecked })}
+    >
+      {label}
+    </CheckboxChip>
   );
 }
 
@@ -138,7 +135,7 @@ function CheckboxGroupSet({
     <FieldSet>
       <FieldLegend variant="label">{legend}</FieldLegend>
       {description ? <FieldDescription>{description}</FieldDescription> : null}
-      <FieldGroup className="gap-3">{children}</FieldGroup>
+      <FieldGroup className="flex-row flex-wrap gap-2">{children}</FieldGroup>
     </FieldSet>
   );
 }
@@ -453,35 +450,25 @@ export function OnboardingDecisioneLavoroSection({
           />
         </Field>
 
-        <div className="space-y-3">
-          <FieldSet>
-            <FieldGroup className="gap-3">
-              <CheckboxRow
-                id="onboarding-neonati"
-                label="Sono presenti neonati"
-                defaultChecked={isChecked("onboarding-neonati")}
-              />
-            </FieldGroup>
-          </FieldSet>
-          <FieldSet>
-            <FieldGroup className="gap-3">
-              <CheckboxRow
-                id="onboarding-piu-bambini"
-                label="Deve accudire più di un bambino?"
-                defaultChecked={isChecked("onboarding-piu-bambini")}
-              />
-            </FieldGroup>
-          </FieldSet>
-          <FieldSet>
-            <FieldGroup className="gap-3">
-              <CheckboxRow
-                id="onboarding-famiglia-4"
-                label="Famiglia 4+ persone"
-                defaultChecked={isChecked("onboarding-famiglia-4")}
-              />
-            </FieldGroup>
-          </FieldSet>
-        </div>
+        <FieldSet>
+          <FieldGroup className="flex-row flex-wrap gap-2">
+            <CheckboxRow
+              id="onboarding-neonati"
+              label="Sono presenti neonati"
+              defaultChecked={isChecked("onboarding-neonati")}
+            />
+            <CheckboxRow
+              id="onboarding-piu-bambini"
+              label="Deve accudire più di un bambino?"
+              defaultChecked={isChecked("onboarding-piu-bambini")}
+            />
+            <CheckboxRow
+              id="onboarding-famiglia-4"
+              label="Famiglia 4+ persone"
+              defaultChecked={isChecked("onboarding-famiglia-4")}
+            />
+          </FieldGroup>
+        </FieldSet>
       </SectionWrapper>
       ) : null}
 
@@ -576,7 +563,7 @@ export function OnboardingDecisioneLavoroSection({
           </CheckboxGroupSet>
           <FieldSet>
             <FieldLegend variant="label">Ci sono dei gatti?</FieldLegend>
-            <FieldGroup className="gap-3">
+            <FieldGroup className="flex-row flex-wrap gap-2">
               <CheckboxRow
                 id="onboarding-gatti"
                 label="Si"
@@ -620,7 +607,7 @@ export function OnboardingDecisioneLavoroSection({
         <CheckboxGroupSet legend="Pulizie">
           <CheckboxRow
             id="onboarding-ripiani-alti-si"
-            label="Deve pulire ripiani alti usando se necessario scale?"
+            label="Pulire ripiani/soffitti alti con scala"
             defaultChecked={isChecked("onboarding-ripiani-alti-si")}
           />
         </CheckboxGroupSet>
@@ -628,12 +615,12 @@ export function OnboardingDecisioneLavoroSection({
         <CheckboxGroupSet legend="Deve stirare:">
           <CheckboxRow
             id="onboarding-stirare-si"
-            label="Si"
+            label="Sì"
             defaultChecked={isChecked("onboarding-stirare-si")}
           />
           <CheckboxRow
             id="onboarding-stirare-difficile"
-            label="Si e abiti difficile"
+            label="Sì, abiti difficili"
             defaultChecked={isChecked("onboarding-stirare-difficile")}
           />
         </CheckboxGroupSet>
@@ -641,12 +628,12 @@ export function OnboardingDecisioneLavoroSection({
         <CheckboxGroupSet legend="Deve cucinare:">
           <CheckboxRow
             id="onboarding-cucinare-si"
-            label="Si"
+            label="Sì"
             defaultChecked={isChecked("onboarding-cucinare-si")}
           />
           <CheckboxRow
             id="onboarding-cucinare-elaborati"
-            label="Si e piatti elaborati"
+            label="Sì, cucina elaborata"
             defaultChecked={isChecked("onboarding-cucinare-elaborati")}
           />
         </CheckboxGroupSet>
@@ -654,7 +641,7 @@ export function OnboardingDecisioneLavoroSection({
         <CheckboxGroupSet legend="Giardino">
           <CheckboxRow
             id="onboarding-giardino-si"
-            label="È richiesta la cura del giardino?"
+            label="Cura delle piante richiesta"
             defaultChecked={isChecked("onboarding-giardino-si")}
           />
         </CheckboxGroupSet>
@@ -691,25 +678,18 @@ export function OnboardingDecisioneLavoroSection({
           />
         </Field>
 
-        <FieldSet>
-          <FieldGroup className="gap-3">
-            <CheckboxRow
-              id="onboarding-italiano-si"
-              label="Deve comunicare spesso in italiano?"
-              defaultChecked={isChecked("onboarding-italiano-si")}
-            />
-          </FieldGroup>
-        </FieldSet>
-
-        <FieldSet>
-          <FieldGroup className="gap-3">
-            <CheckboxRow
-              id="onboarding-inglese-si"
-              label="Deve comunicare spesso in inglese?"
-              defaultChecked={isChecked("onboarding-inglese-si")}
-            />
-          </FieldGroup>
-        </FieldSet>
+        <CheckboxGroupSet legend="Lingue">
+          <CheckboxRow
+            id="onboarding-italiano-si"
+            label="Comunicare bene in italiano"
+            defaultChecked={isChecked("onboarding-italiano-si")}
+          />
+          <CheckboxRow
+            id="onboarding-inglese-si"
+            label="Comunicare bene in inglese"
+            defaultChecked={isChecked("onboarding-inglese-si")}
+          />
+        </CheckboxGroupSet>
 
         <FieldSet>
           <FieldLegend variant="label">Genere</FieldLegend>
@@ -747,10 +727,10 @@ export function OnboardingDecisioneLavoroSection({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <FieldSet>
-            <FieldGroup className="gap-3">
+            <FieldGroup className="flex-row flex-wrap gap-2">
               <CheckboxRow
                 id="onboarding-trasferte-si"
-                label="Chiedono trasferte?"
+                label="Trasferte richieste"
                 checked={richiestaTrasferte}
                 onCheckedChange={(checked) => {
                   setRichiestaTrasferte(checked);
@@ -781,10 +761,10 @@ export function OnboardingDecisioneLavoroSection({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <FieldSet>
-            <FieldGroup className="gap-3">
+            <FieldGroup className="flex-row flex-wrap gap-2">
               <CheckboxRow
                 id="onboarding-ferie-si"
-                label="Richieste specifiche su ferie?"
+                label="Ferie con richieste specifiche"
                 checked={richiestaFerie}
                 onCheckedChange={(checked) => {
                   setRichiestaFerie(checked);
@@ -814,10 +794,10 @@ export function OnboardingDecisioneLavoroSection({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <FieldSet>
-            <FieldGroup className="gap-3">
+            <FieldGroup className="flex-row flex-wrap gap-2">
               <CheckboxRow
                 id="onboarding-patente-si"
-                label="Chiedono patente?"
+                label="Patente richiesta"
                 checked={richiestaPatente}
                 onCheckedChange={(checked) => {
                   setRichiestaPatente(checked);

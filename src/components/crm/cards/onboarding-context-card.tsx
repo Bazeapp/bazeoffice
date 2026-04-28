@@ -16,7 +16,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxChip } from "@/components/ui/checkbox";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import {
   Field,
@@ -412,28 +412,23 @@ function MultiCheckboxField({
   return (
     <FieldSet>
       <FieldLegend variant="label">{title}</FieldLegend>
-      <FieldGroup className="gap-2">
+      <FieldGroup className="flex-row flex-wrap gap-2">
         {visibleOptions.map((option) => {
           const checked = value.includes(option.valueKey);
           return (
-            <Field key={option.valueKey} orientation="horizontal">
-              <Checkbox
-                id={`check-${title}-${option.valueKey}`}
-                checked={checked}
-                onCheckedChange={(nextChecked) => {
-                  const next = nextChecked
-                    ? [...value, option.valueKey]
-                    : value.filter((item) => item !== option.valueKey);
-                  onChange(next);
-                }}
-              />
-              <FieldLabel
-                htmlFor={`check-${title}-${option.valueKey}`}
-                className="font-normal"
-              >
-                {option.valueLabel}
-              </FieldLabel>
-            </Field>
+            <CheckboxChip
+              key={option.valueKey}
+              id={`check-${title}-${option.valueKey}`}
+              checked={checked}
+              onCheckedChange={(nextChecked) => {
+                const next = nextChecked
+                  ? [...value, option.valueKey]
+                  : value.filter((item) => item !== option.valueKey);
+                onChange(next);
+              }}
+            >
+              {option.valueLabel}
+            </CheckboxChip>
           );
         })}
       </FieldGroup>
