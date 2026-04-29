@@ -12,6 +12,7 @@ import {
   updateRecord,
   type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
+import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
 import type {
   FamigliaRecord,
   LookupValueRecord,
@@ -62,6 +63,7 @@ type UsePayrollBoardState = {
   columns: PayrollBoardColumnData[]
   moveCard: (recordId: string, targetStageId: string) => Promise<void>
   patchCard: (recordId: string, patch: Partial<MeseLavoratoRecord>) => Promise<void>
+  patchPresence: (recordId: string, patch: Partial<PresenzaMensileRecord>) => Promise<void>
 }
 
 const DEFAULT_STAGE_DEFINITIONS: PayrollStageDefinition[] = [
@@ -87,6 +89,8 @@ const PAYROLL_RAPPORTI_SELECT = [
   "id",
   "famiglia_id",
   "creata",
+  "codice_datore_webcolf",
+  "codice_dipendente_webcolf",
   "cognome_nome_datore_proper",
   "nome_lavoratore_per_url",
   "tipo_rapporto",
@@ -107,6 +111,7 @@ const PAYROLL_MESI_LAVORATI_SELECT = [
   "data_ora_creazione",
   "caso_particolare",
   "cedolino",
+  "cedolino_url",
   "ore_contratto_mese",
   "ore_lavorate_estratte",
   "cedolino_corretto",
@@ -117,7 +122,21 @@ const PAYROLL_MESI_LAVORATI_SELECT = [
 
 const PAYROLL_TRANSAZIONI_SELECT = ["id", "mese_lavorativo_id"] satisfies string[]
 
-const PAYROLL_PAGAMENTI_SELECT = ["id", "transazione_id"] satisfies string[]
+const PAYROLL_PAGAMENTI_SELECT = [
+  "id",
+  "amount",
+  "charge_id",
+  "data_ora_di_pagamento",
+  "famiglia_id",
+  "fattura_url",
+  "fee",
+  "numero_fattura",
+  "payment_intent_id",
+  "status",
+  "ticket_id",
+  "transazione_id",
+  "type_of_payment",
+] satisfies string[]
 
 const PAYROLL_PRESENZE_SELECT = [
   "id",
@@ -460,11 +479,7 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
       ? presenzeById.get(normalizeRecordKey(record.presenze_regolare_id) as string) ?? null
       : null
 
-    const nomeCompleto =
-      [rapporto?.cognome_nome_datore_proper, rapporto?.nome_lavoratore_per_url]
-        .filter(Boolean)
-        .join(" – ")
-        .trim() || "Rapporto non disponibile"
+    const nomeCompleto = rapporto ? getRapportoTitle(rapporto) : "Rapporto non disponibile"
 
     const card: PayrollBoardCardData = {
       id: record.id,
@@ -577,6 +592,32 @@ export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
     [columns]
   )
 
+  const patchPresence = React.useCallback(
+    async (recordId: string, patch: Partial<PresenzaMensileRecord>) => {
+      const previous = columns
+      setColumns((current) =>
+        current.map((column) => ({
+          ...column,
+          cards: column.cards.map((card) =>
+            card.presenze?.id === recordId
+              ? { ...card, presenze: { ...card.presenze, ...patch } }
+              : card
+          ),
+        }))
+      )
+
+      try {
+        await updateRecord("presenze_mensili", recordId, patch as Record<string, unknown>)
+      } catch (caughtError) {
+        setColumns(previous)
+        setError(
+          caughtError instanceof Error ? caughtError.message : "Errore aggiornando presenze"
+        )
+      }
+    },
+    [columns]
+  )
+
   React.useEffect(() => {
     let cancelled = false
 
@@ -611,5 +652,6 @@ export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
     columns,
     moveCard,
     patchCard,
+    patchPresence,
   }
 }

@@ -9,6 +9,7 @@ import {
   ExternalLinkIcon,
   FileTextIcon,
   MailIcon,
+  MessageSquareTextIcon,
   OctagonAlertIcon,
   PencilIcon,
   PhoneIcon,
@@ -20,6 +21,8 @@ import {
 } from "lucide-react"
 
 import { getTagClassName } from "@/features/lavoratori/lib/lookup-utils"
+import { getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
+import { getRapportoStatusColor, resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 import {
   AttachmentUploadSlot,
 } from "@/components/shared-next/attachment-upload-slot"
@@ -41,6 +44,7 @@ import {
 import {
   CedolinoDetailSheet,
 } from "@/components/payroll/payroll-overview-view"
+import { SupportTicketCreateDialog } from "@/components/support/support-ticket-create-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -67,10 +71,16 @@ import type {
   PresenzaMensileRecord,
   ProcessoMatchingRecord,
   RapportoLavorativoRecord,
+  TicketRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "@/hooks/use-payroll-board"
 import type { ContributoInpsBoardCardData } from "@/hooks/use-contributi-inps-board"
+import type {
+  SupportTicketTag,
+  SupportTicketType,
+  SupportTicketUrgency,
+} from "@/components/support/support-ticket-config"
 
 type RapportoDetailPanelProps = {
   rapporto: RapportoLavorativoRecord | null
@@ -84,8 +94,17 @@ type RapportoDetailPanelProps = {
   presenze: PresenzaMensileRecord[]
   variazioni: VariazioneContrattualeRecord[]
   chiusure: ChiusuraContrattoRecord[]
+  tickets?: TicketRecord[]
   loadingRelated: boolean
   lookupColorsByDomain: Map<string, string>
+  onCreateTicket?: (input: {
+    tipo: SupportTicketType
+    rapportoId: string
+    tag: SupportTicketTag
+    urgenza: SupportTicketUrgency
+    causale: string
+    note: string
+  }) => Promise<void>
   hideHeader?: boolean
 }
 
@@ -98,6 +117,7 @@ type SectionTab = {
 const SECTION_TABS: SectionTab[] = [
   { id: "contratto", label: "Contratto", icon: BriefcaseBusinessIcon },
   { id: "gestione", label: "Datore e Lavoratore", icon: UsersIcon },
+  { id: "tickets", label: "Tickets", icon: MessageSquareTextIcon },
   { id: "cedolini", label: "Cedolini", icon: CreditCardIcon },
   { id: "contributi", label: "Contributi", icon: CalendarDaysIcon },
   { id: "variazioni", label: "Variazioni", icon: RefreshCwIcon },
@@ -386,8 +406,10 @@ export function RapportoDetailPanel({
   presenze,
   variazioni,
   chiusure,
+  tickets = [],
   loadingRelated,
   lookupColorsByDomain,
+  onCreateTicket,
   hideHeader = false,
 }: RapportoDetailPanelProps) {
   const detailScrollRef = React.useRef<HTMLElement | null>(null)
@@ -401,6 +423,7 @@ export function RapportoDetailPanel({
   const [savingContratto, setSavingContratto] = React.useState(false)
   const [selectedCedolinoId, setSelectedCedolinoId] = React.useState<string | null>(null)
   const [selectedContributoId, setSelectedContributoId] = React.useState<string | null>(null)
+  const [isCreateTicketOpen, setIsCreateTicketOpen] = React.useState(false)
   const [rapportoState, setRapportoState] = React.useState<RapportoLavorativoRecord | null>(rapporto)
   const autosaveTimeoutRef = React.useRef<number | null>(null)
   const [rapportoDraft, setRapportoDraft] = React.useState(() => ({
@@ -669,15 +692,9 @@ export function RapportoDetailPanel({
   }
 
   const rapportoView = currentRapporto ?? rapporto
-  const familyName =
-    (famiglia ? [famiglia.nome, famiglia.cognome].filter(Boolean).join(" ").trim() : "") ||
-    rapportoView.cognome_nome_datore_proper ||
-    "Famiglia non trovata"
-  const workerName =
-    (lavoratore ? [lavoratore.nome, lavoratore.cognome].filter(Boolean).join(" ").trim() : "") ||
-    rapportoView.nome_lavoratore_per_url ||
-    "Lavoratore non trovato"
-  const relationshipTitle = `${familyName} – ${workerName}`
+  const familyName = getRapportoFamilyLabel(rapportoView, famiglia)
+  const workerName = getRapportoWorkerLabel(rapportoView, lavoratore)
+  const relationshipTitle = getRapportoTitle(rapportoView, { famiglia, lavoratore })
   const distributionItems = buildDistributionItems(
     rapportoView.distribuzione_ore_settimana,
     rapportoView.ore_a_settimana
@@ -694,10 +711,14 @@ export function RapportoDetailPanel({
   const hasRicevutaInps = hasAttachmentValue(rapportoView.ricevuta_inps_allegati)
   const hasDelegaInps = hasAttachmentValue(delegaInpsValue)
   const startDateLabel = formatDate(rapportoView.data_inizio_rapporto)
+  const rapportoStatus = resolveRapportoStatus(
+    rapportoView,
+    chiusure[0]?.data_fine_rapporto ?? rapportoView.data_fine_rapporto
+  )
   const statoRapportoColor =
     lookupColorsByDomain.get(
-      `rapporti_lavorativi.stato_rapporto:${normalizeToken(rapportoView.stato_rapporto)}`
-    ) ?? getStatusColor(rapportoView.stato_rapporto)
+      `rapporti_lavorativi.stato_rapporto:${normalizeToken(rapportoStatus)}`
+    ) ?? getRapportoStatusColor(rapportoStatus)
   const meseCalendarioById = new Map(mesiCalendario.map((item) => [item.id, item]))
   const pagamentiByTicketId = new Map(
     pagamenti
@@ -794,7 +815,7 @@ export function RapportoDetailPanel({
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         <Badge className={getTagClassName(statoRapportoColor)}>
-          {rapportoView.stato_rapporto ?? "Sconosciuto"}
+          {rapportoStatus}
         </Badge>
         {rapportoView.stato_servizio ? (
           <Badge variant="outline" className="h-6 rounded-full px-2.5 text-2xs font-medium">
@@ -870,6 +891,7 @@ export function RapportoDetailPanel({
                     <DetailFieldControl label="Tipo durata">
                       <Select
                         value={rapportoDraft.tipo_contratto_durata || "__empty__"}
+                        disabled
                         onValueChange={(value) =>
                           setDraftValue("tipo_contratto_durata", value === "__empty__" ? "" : value)
                         }
@@ -893,12 +915,14 @@ export function RapportoDetailPanel({
                     <DetailFieldControl label="Tipo contratto">
                       <Input
                         value={rapportoDraft.tipo_contratto}
+                        readOnly
                         onChange={(event) => setDraftValue("tipo_contratto", event.target.value)}
                       />
                     </DetailFieldControl>
                     <DetailFieldControl label="Tipo rapporto">
                       <Select
                         value={rapportoDraft.tipo_rapporto || "__empty__"}
+                        disabled
                         onValueChange={(value) =>
                           setDraftValue("tipo_rapporto", value === "__empty__" ? "" : value)
                         }
@@ -930,6 +954,7 @@ export function RapportoDetailPanel({
                       <Input
                         type="number"
                         value={rapportoDraft.ore_a_settimana}
+                        readOnly
                         onChange={(event) => setDraftValue("ore_a_settimana", event.target.value)}
                       />
                     </DetailFieldControl>
@@ -937,6 +962,7 @@ export function RapportoDetailPanel({
                       <Input
                         type="date"
                         value={rapportoDraft.data_inizio_rapporto.slice(0, 10)}
+                        readOnly
                         onChange={(event) => setDraftValue("data_inizio_rapporto", event.target.value)}
                       />
                     </DetailFieldControl>
@@ -944,12 +970,14 @@ export function RapportoDetailPanel({
                     <DetailFieldControl label="Stato assunzione">
                       <Input
                         value={rapportoDraft.stato_assunzione}
+                        readOnly
                         onChange={(event) => setDraftValue("stato_assunzione", event.target.value)}
                       />
                     </DetailFieldControl>
                     <DetailFieldControl label="Relazione lavorativa">
                       <Input
                         value={rapportoDraft.relazione_lavorativa}
+                        readOnly
                         onChange={(event) => setDraftValue("relazione_lavorativa", event.target.value)}
                       />
                     </DetailFieldControl>
@@ -1002,6 +1030,7 @@ export function RapportoDetailPanel({
                         type="number"
                         step="0.01"
                         value={rapportoDraft.paga_oraria_lorda}
+                        readOnly
                         onChange={(event) => setDraftValue("paga_oraria_lorda", event.target.value)}
                       />
                     </DetailFieldControl>
@@ -1010,6 +1039,7 @@ export function RapportoDetailPanel({
                         type="number"
                         step="0.01"
                         value={rapportoDraft.paga_mensile_lorda}
+                        readOnly
                         onChange={(event) => setDraftValue("paga_mensile_lorda", event.target.value)}
                       />
                     </DetailFieldControl>
@@ -1189,6 +1219,49 @@ export function RapportoDetailPanel({
             </DetailSectionBlock>
           </div>
 
+          <div ref={setSectionRef("tickets")} className="space-y-4">
+            <DetailSectionBlock
+              title="Tickets"
+              icon={<MessageSquareTextIcon className="size-5" />}
+              action={
+                onCreateTicket ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCreateTicketOpen(true)}
+                  >
+                    Apri un ticket
+                    <ArrowRightIcon className="size-4" />
+                  </Button>
+                ) : null
+              }
+              contentClassName="space-y-3 pt-2"
+            >
+              {tickets.length > 0 ? (
+                tickets.map((ticket) => (
+                  <ListRowCard
+                    key={ticket.id}
+                    title={ticket.causale ?? "Ticket senza causale"}
+                    subtitle={[
+                      ticket.tipo ? `Tipo ${ticket.tipo}` : null,
+                      ticket.data_apertura ? `Aperto il ${formatDate(ticket.data_apertura)}` : null,
+                      ticket.urgenza ? `Urgenza ${ticket.urgenza}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" • ")}
+                    rightBadge={ticket.stato ?? undefined}
+                  />
+                ))
+              ) : (
+                <EmptyLinkedState
+                  icon={<MessageSquareTextIcon className="size-8" />}
+                  label="Nessun ticket collegato"
+                />
+              )}
+            </DetailSectionBlock>
+          </div>
+
           <div ref={setSectionRef("cedolini")} className="space-y-4">
             <DetailSectionBlock
               title="Cedolini"
@@ -1344,6 +1417,16 @@ export function RapportoDetailPanel({
 
           <div className="h-8" />
         </div>
+      {onCreateTicket ? (
+        <SupportTicketCreateDialog
+          open={isCreateTicketOpen}
+          onOpenChange={setIsCreateTicketOpen}
+          defaultTicketType="Customer"
+          defaultRapportoId={rapportoView.id}
+          rapportoOptions={[{ id: rapportoView.id, label: relationshipTitle }]}
+          onCreateTicket={onCreateTicket}
+        />
+      ) : null}
       <CedolinoDetailSheet
         card={selectedCedolino}
         columns={cedolinoColumns}
@@ -1358,6 +1441,9 @@ export function RapportoDetailPanel({
         }}
         onPatchCard={(recordId, patch) => {
           void updateRecord("mesi_lavorati", recordId, patch as Record<string, unknown>)
+        }}
+        onPatchPresence={(recordId, patch) => {
+          void updateRecord("presenze_mensili", recordId, patch as Record<string, unknown>)
         }}
       />
       <ContributoInpsDetailSheet

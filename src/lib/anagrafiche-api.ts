@@ -41,6 +41,7 @@ export type TableGroupResult = {
 }
 
 type TableName =
+  | "assunzioni"
   | "famiglie"
   | "chiusure_contratti"
   | "contributi_inps"
@@ -62,12 +63,14 @@ type TableName =
   | "lookup_values"
 
 type UpdateTableName =
+  | "assunzioni"
   | "famiglie"
   | "chiusure_contratti"
   | "contributi_inps"
   | "lavoratori"
   | "indirizzi"
   | "mesi_lavorati"
+  | "presenze_mensili"
   | "rapporti_lavorativi"
   | "ticket"
   | "variazioni_contrattuali"
@@ -78,7 +81,9 @@ type UpdateTableName =
   | "processi_matching"
 
 type CreateTableName =
+  | "assunzioni"
   | "famiglie"
+  | "chiusure_contratti"
   | "lavoratori"
   | "indirizzi"
   | "selezioni_lavoratori"
@@ -87,6 +92,7 @@ type CreateTableName =
   | "referenze_lavoratori"
   | "processi_matching"
   | "ticket"
+  | "variazioni_contrattuali"
 
 type QuerySort = {
   field: string
@@ -560,6 +566,21 @@ export async function fetchLookupValues() {
     lookupValuesCache = null
     throw error
   }
+}
+
+export async function fetchAssunzioni(query: TablePageQuery) {
+  return queryTable<TableRow>({
+    table: "assunzioni",
+    select: query.select ?? ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+    groupBy: query.groupBy,
+  })
 }
 
 type UpdateProcessoStatoSalesResponse = {

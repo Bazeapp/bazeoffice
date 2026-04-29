@@ -13,6 +13,7 @@ export function RapportiLavorativiView() {
     setPageIndex,
     searchValue,
     setSearchValue,
+    retryRapporti,
     selectedRapportoId,
     setSelectedRapportoId,
     selectedRapporto,
@@ -26,8 +27,10 @@ export function RapportiLavorativiView() {
     selectedPresenze,
     selectedVariazioni,
     selectedChiusure,
+    selectedTickets,
     loadingRelated,
     lookupColorsByDomain,
+    createTicketForSelectedRapporto,
   } = useRapportiLavorativiData()
 
   return (
@@ -42,6 +45,7 @@ export function RapportiLavorativiView() {
         onPageChange={setPageIndex}
         searchValue={searchValue}
         onSearchValueChange={setSearchValue}
+        onRetry={retryRapporti}
         selectedRapportoId={selectedRapportoId}
         onSelect={setSelectedRapportoId}
         lookupColorsByDomain={lookupColorsByDomain}
@@ -59,8 +63,10 @@ export function RapportiLavorativiView() {
         presenze={selectedPresenze}
         variazioni={selectedVariazioni}
         chiusure={selectedChiusure}
+        tickets={selectedTickets}
         loadingRelated={loadingRelated}
         lookupColorsByDomain={lookupColorsByDomain}
+        onCreateTicket={createTicketForSelectedRapporto}
       />
     </section>
   )

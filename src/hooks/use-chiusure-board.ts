@@ -1,6 +1,7 @@
 import * as React from "react"
 
-import { fetchChiusureContratti, fetchLookupValues, fetchRapportiLavorativi, updateRecord } from "@/lib/anagrafiche-api"
+import { createRecord, fetchChiusureContratti, fetchLookupValues, fetchRapportiLavorativi, updateRecord } from "@/lib/anagrafiche-api"
+import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
 import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
 
 type ChiusuraStageDefinition = {
@@ -43,7 +44,18 @@ type UseChiusureBoardState = {
   loading: boolean
   error: string | null
   columns: ChiusureBoardColumnData[]
+  rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
+  createChiusura: (input: {
+    rapportoId: string
+    tipo: "licenziamento" | "dimissione" | "annullamento"
+    dataFineRapporto: string
+    note: string
+  }) => Promise<void>
   moveCard: (recordId: string, targetStageId: string) => Promise<void>
+  updateCard: (
+    recordId: string,
+    updater: (card: ChiusureBoardCardData) => ChiusureBoardCardData
+  ) => void
 }
 
 const DEFAULT_STAGE_DEFINITIONS: ChiusuraStageDefinition[] = [
@@ -60,8 +72,9 @@ const DEFAULT_STAGE_DEFINITIONS: ChiusuraStageDefinition[] = [
 const CHIUSURE_RAPPORTI_SELECT = [
   "id",
   "ticket_id",
+  "stato_assunzione",
   "stato_servizio",
-  "stato_rapporto",
+  "fine_rapporto_lavorativo_id",
   "tipo_rapporto",
   "tipo_contratto",
   "ore_a_settimana",
@@ -76,9 +89,16 @@ const CHIUSURE_SELECT = [
   "stato",
   "nome",
   "cognome",
+  "allegato_compilato",
+  "check_8_giorni_di_lavoro_svolti",
+  "check_chiusura_istantanea",
+  "data_creazione",
   "email",
+  "informazioni_aggiuntive",
   "motivazione_cessazione_rapporto",
   "data_fine_rapporto",
+  "documenti_chiusura_rapporto",
+  "presenze_ultimo_mese",
   "tipo_licenziamento",
   "tipo_decesso",
 ] satisfies string[]
@@ -202,7 +222,10 @@ function buildTipoMetadata(rows: LookupValueRecord[]): TipoMetadata {
   return { labels, colors }
 }
 
-async function fetchChiusureBoardData(): Promise<ChiusureBoardColumnData[]> {
+async function fetchChiusureBoardData(): Promise<{
+  columns: ChiusureBoardColumnData[]
+  rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
+}> {
   const [chiusureResult, rapportiResult, lookupResult] = await Promise.all([
     fetchChiusureContratti({
       select: CHIUSURE_SELECT,
@@ -228,6 +251,11 @@ async function fetchChiusureBoardData(): Promise<ChiusureBoardColumnData[]> {
       .filter((rapporto) => rapporto.ticket_id)
       .map((rapporto) => [rapporto.ticket_id as string, rapporto] as const)
   )
+  const rapportoByChiusuraId = new Map(
+    rapportiResult.rows
+      .filter((rapporto) => rapporto.fine_rapporto_lavorativo_id)
+      .map((rapporto) => [rapporto.fine_rapporto_lavorativo_id as string, rapporto] as const)
+  )
   const cardsByStage = new Map<string, ChiusureBoardCardData[]>(
     stages.map((stage) => [stage.id, []])
   )
@@ -236,9 +264,11 @@ async function fetchChiusureBoardData(): Promise<ChiusureBoardColumnData[]> {
     const stage = aliases.get(normalizeToken(record.stato))
     if (!stage) continue
 
-    const rapporto = record.ticket_id ? rapportoByTicketId.get(record.ticket_id) ?? null : null
+    const rapporto =
+      rapportoByChiusuraId.get(record.id) ??
+      (record.ticket_id ? rapportoByTicketId.get(record.ticket_id) ?? null : null)
     const nomeCompleto =
-      [rapporto?.cognome_nome_datore_proper, rapporto?.nome_lavoratore_per_url].filter(Boolean).join(" – ").trim() ||
+      (rapporto ? getRapportoTitle(rapporto) : null) ||
       [record.nome, record.cognome].filter(Boolean).join(" ").trim() ||
       "Nominativo non disponibile"
     const rawTipo = record.tipo_licenziamento ?? record.tipo_decesso ?? "-"
@@ -260,18 +290,39 @@ async function fetchChiusureBoardData(): Promise<ChiusureBoardColumnData[]> {
     cardsByStage.get(stage)?.push(card)
   }
 
-  return stages.map((stage) => ({
+  const columns = stages.map((stage) => ({
     id: stage.id,
     label: stage.label,
     color: stage.color,
     cards: cardsByStage.get(stage.id) ?? [],
   }))
+  const rapportoOptions = rapportiResult.rows
+    .map((rapporto) => ({ id: rapporto.id, label: getRapportoTitle(rapporto), rapporto }))
+    .sort((left, right) => left.label.localeCompare(right.label, "it"))
+
+  return { columns, rapportoOptions }
 }
 
 export function useChiusureBoard(): UseChiusureBoardState {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [columns, setColumns] = React.useState<ChiusureBoardColumnData[]>([])
+  const [rapportoOptions, setRapportoOptions] = React.useState<Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>>([])
+
+  const updateCard = React.useCallback(
+    (
+      recordId: string,
+      updater: (card: ChiusureBoardCardData) => ChiusureBoardCardData
+    ) => {
+      setColumns((current) =>
+        current.map((column) => ({
+          ...column,
+          cards: column.cards.map((card) => (card.id === recordId ? updater(card) : card)),
+        }))
+      )
+    },
+    []
+  )
 
   const moveCard = React.useCallback(
     async (recordId: string, targetStageId: string) => {
@@ -315,6 +366,61 @@ export function useChiusureBoard(): UseChiusureBoardState {
     [columns]
   )
 
+  const createChiusura = React.useCallback(
+    async (input: {
+      rapportoId: string
+      tipo: "licenziamento" | "dimissione" | "annullamento"
+      dataFineRapporto: string
+      note: string
+    }) => {
+      const rapporto =
+        rapportoOptions.find((option) => option.id === input.rapportoId)?.rapporto ?? null
+      const stage =
+        input.tipo === "dimissione"
+          ? "Lavoratore comunica dimissioni"
+          : input.tipo === "licenziamento"
+            ? "Datore comunica licenziamento"
+            : "Chiusura elaborata"
+      const response = await createRecord("chiusure_contratti", {
+        stato: stage,
+        data_fine_rapporto: input.dataFineRapporto || null,
+        tipo_licenziamento:
+          input.tipo === "licenziamento"
+            ? "Licenziamento"
+            : input.tipo === "annullamento"
+              ? "Annullamento"
+              : null,
+        motivazione_cessazione_rapporto:
+          input.tipo === "dimissione" ? "Dimissioni" : input.note || null,
+        informazioni_aggiuntive: input.note || null,
+      })
+      const record = response.row as ChiusuraContrattoRecord
+      await updateRecord("rapporti_lavorativi", input.rapportoId, {
+        fine_rapporto_lavorativo_id: record.id,
+      })
+
+      const card: ChiusureBoardCardData = {
+        id: record.id,
+        stage,
+        record,
+        rapporto,
+        nomeCompleto: rapporto ? getRapportoTitle(rapporto) : "Rapporto non disponibile",
+        email: record.email ?? "-",
+        motivazione: record.motivazione_cessazione_rapporto,
+        dataFineRapporto: formatItalianDate(record.data_fine_rapporto),
+        tipoLabel: record.tipo_licenziamento ?? record.tipo_decesso ?? "-",
+        tipoColor: null,
+      }
+
+      setColumns((current) =>
+        current.map((column) =>
+          column.id === stage ? { ...column, cards: [card, ...column.cards] } : column
+        )
+      )
+    },
+    [rapportoOptions]
+  )
+
   React.useEffect(() => {
     let cancelled = false
 
@@ -324,13 +430,15 @@ export function useChiusureBoard(): UseChiusureBoardState {
       try {
         const data = await fetchChiusureBoardData()
         if (cancelled) return
-        setColumns(data)
+        setColumns(data.columns)
+        setRapportoOptions(data.rapportoOptions)
       } catch (caughtError) {
         if (cancelled) return
         setError(
           caughtError instanceof Error ? caughtError.message : "Errore caricamento chiusure"
         )
         setColumns([])
+        setRapportoOptions([])
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -347,6 +455,9 @@ export function useChiusureBoard(): UseChiusureBoardState {
     loading,
     error,
     columns,
+    rapportoOptions,
+    createChiusura,
     moveCard,
+    updateCard,
   }
 }

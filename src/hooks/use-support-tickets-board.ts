@@ -20,6 +20,8 @@ import {
   type SupportTicketType,
   type SupportTicketUrgency,
 } from "@/components/support/support-ticket-config"
+import { getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
+import { resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 
 type SupportTicketStageMetadata = {
   definitions: SupportTicketStatusDefinition[]
@@ -217,8 +219,9 @@ const SUPPORT_RAPPORTI_SELECT = [
   "id",
   "id_rapporto",
   "ticket_id",
+  "stato_assunzione",
   "stato_servizio",
-  "stato_rapporto",
+  "fine_rapporto_lavorativo_id",
   "tipo_rapporto",
   "tipo_contratto",
   "data_inizio_rapporto",
@@ -265,8 +268,8 @@ function mapRecordToCard(
   if (!stage) {
     throw new Error(`Stato ticket non mappato per ticket ${record.id}: ${rawStage}`)
   }
-  const nomeFamiglia = rapporto?.cognome_nome_datore_proper?.trim() || "Famiglia non disponibile"
-  const nomeLavoratore = rapporto?.nome_lavoratore_per_url?.trim() || "Lavoratore non disponibile"
+  const nomeFamiglia = rapporto ? getRapportoFamilyLabel(rapporto) : "Famiglia non disponibile"
+  const nomeLavoratore = rapporto ? getRapportoWorkerLabel(rapporto) : "Lavoratore non disponibile"
 
   return {
     id: record.id,
@@ -277,7 +280,7 @@ function mapRecordToCard(
     causale: toStringValue(record.causale) ?? "Ticket senza causale",
     nomeFamiglia,
     nomeLavoratore,
-    nomeCompleto: `${nomeFamiglia} – ${nomeLavoratore}`,
+    nomeCompleto: rapporto ? getRapportoTitle(rapporto) : `${nomeFamiglia} – ${nomeLavoratore}`,
     dataAperturaLabel: formatDateLabel(record.data_apertura ?? record.creato_il),
     tag,
     urgenza,
@@ -313,18 +316,18 @@ async function fetchSupportTicketsData(ticketType: SupportTicketType) {
   })
 
   const activeRapportiCount = rapportiResult.rows.filter((rapporto) => {
-    const token = normalizeToken(rapporto.stato_servizio ?? rapporto.stato_rapporto)
-    return token === "attivo" || (token.includes("attivo") && !token.includes("non"))
+    const token = normalizeToken(resolveRapportoStatus(rapporto))
+    return token === "attivo"
   }).length
 
   const rapportoOptions = rapportiResult.rows
     .filter((rapporto) => {
-      const token = normalizeToken(rapporto.stato_servizio ?? rapporto.stato_rapporto)
-      return token === "attivo" || (token.includes("attivo") && !token.includes("non"))
+      const token = normalizeToken(resolveRapportoStatus(rapporto))
+      return token === "attivo"
     })
     .map((rapporto) => ({
       id: rapporto.id,
-      label: `${rapporto.cognome_nome_datore_proper ?? "Famiglia"} - ${rapporto.nome_lavoratore_per_url ?? "Lavoratore"}`,
+      label: getRapportoTitle(rapporto),
     }))
     .sort((left, right) => left.label.localeCompare(right.label, "it"))
 

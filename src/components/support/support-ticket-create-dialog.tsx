@@ -26,6 +26,7 @@ type SupportTicketCreateDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   defaultTicketType: SupportTicketType
+  defaultRapportoId?: string
   rapportoOptions: Array<{ id: string; label: string }>
   onCreateTicket: (input: {
     tipo: SupportTicketType
@@ -41,6 +42,7 @@ export function SupportTicketCreateDialog({
   open,
   onOpenChange,
   defaultTicketType,
+  defaultRapportoId,
   rapportoOptions,
   onCreateTicket,
 }: SupportTicketCreateDialogProps) {
@@ -56,12 +58,12 @@ export function SupportTicketCreateDialog({
 
   const reset = React.useCallback(() => {
     setTicketType(defaultTicketType)
-    setRapportoId("")
+    setRapportoId(defaultRapportoId ?? "")
     setTag("")
     setUrgenza("")
     setNote("")
     setIsSubmitting(false)
-  }, [defaultTicketType])
+  }, [defaultRapportoId, defaultTicketType])
 
   React.useEffect(() => {
     if (!open) {
@@ -70,7 +72,8 @@ export function SupportTicketCreateDialog({
     }
 
     setTicketType(defaultTicketType)
-  }, [defaultTicketType, open, reset])
+    setRapportoId(defaultRapportoId ?? "")
+  }, [defaultRapportoId, defaultTicketType, open, reset])
 
   React.useEffect(() => {
     if (!tag) return

@@ -5,6 +5,7 @@ import {
   FileTextIcon,
   MailIcon,
   PencilIcon,
+  PlusIcon,
 } from "lucide-react"
 
 import {
@@ -23,10 +24,25 @@ import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rappo
 import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Textarea } from "@/components/ui/textarea"
+import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
+import { updateRecord } from "@/lib/anagrafiche-api"
+import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
+
+type ChiusuraAttachmentSlot = "allegato_compilato" | "documenti_chiusura_rapporto"
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "-"
@@ -84,20 +100,55 @@ function getLookupBadgeClasses(color: string | null | undefined) {
   }
 }
 
+function sanitizeFileName(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+}
+
 function ChiusureDetailSheet({
   card,
   columns,
   open,
   onOpenChange,
   onStatusChange,
+  onCardChange,
 }: {
   card: ChiusureBoardCardData | null
   columns: ChiusureBoardColumnData[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onStatusChange: (recordId: string, targetStageId: string) => Promise<void>
+  onCardChange: (card: ChiusureBoardCardData) => void
 }) {
   const [updatingStatus, setUpdatingStatus] = React.useState(false)
+  const [editingDetails, setEditingDetails] = React.useState(false)
+  const [savingDetails, setSavingDetails] = React.useState(false)
+  const [uploadingSlot, setUploadingSlot] = React.useState<ChiusuraAttachmentSlot | null>(null)
+  const [detailsError, setDetailsError] = React.useState<string | null>(null)
+  const [detailsDraft, setDetailsDraft] = React.useState(() => ({
+    dataFineRapporto: card?.record.data_fine_rapporto ?? "",
+    tipoLicenziamento: card?.record.tipo_licenziamento ?? "",
+    tipoDecesso: card?.record.tipo_decesso ?? "",
+    presenzeUltimoMese: card?.record.presenze_ultimo_mese ?? "",
+    motivazione: card?.record.motivazione_cessazione_rapporto ?? "",
+    informazioniAggiuntive: card?.record.informazioni_aggiuntive ?? "",
+  }))
+
+  React.useEffect(() => {
+    setDetailsDraft({
+      dataFineRapporto: card?.record.data_fine_rapporto ?? "",
+      tipoLicenziamento: card?.record.tipo_licenziamento ?? "",
+      tipoDecesso: card?.record.tipo_decesso ?? "",
+      presenzeUltimoMese: card?.record.presenze_ultimo_mese ?? "",
+      motivazione: card?.record.motivazione_cessazione_rapporto ?? "",
+      informazioniAggiuntive: card?.record.informazioni_aggiuntive ?? "",
+    })
+    setEditingDetails(false)
+    setDetailsError(null)
+  }, [card?.id, card?.record.data_fine_rapporto, card?.record.informazioni_aggiuntive, card?.record.motivazione_cessazione_rapporto, card?.record.presenze_ultimo_mese, card?.record.tipo_decesso, card?.record.tipo_licenziamento])
 
   async function handleStatusChange(nextValue: string) {
     if (!card || nextValue === card.stage) return
@@ -106,6 +157,84 @@ function ChiusureDetailSheet({
       await onStatusChange(card.id, nextValue)
     } finally {
       setUpdatingStatus(false)
+    }
+  }
+
+  async function saveDetailsPatch(patch: Record<string, unknown>) {
+    if (!card || Object.keys(patch).length === 0) return
+
+    setSavingDetails(true)
+    setDetailsError(null)
+
+    try {
+      const response = await updateRecord("chiusure_contratti", card.id, patch)
+      const nextRecord = {
+        ...card.record,
+        ...response.row,
+      } as ChiusureBoardCardData["record"]
+      onCardChange({
+        ...card,
+        record: nextRecord,
+        motivazione: nextRecord.motivazione_cessazione_rapporto,
+        dataFineRapporto: formatDate(nextRecord.data_fine_rapporto),
+        tipoLabel: nextRecord.tipo_licenziamento ?? nextRecord.tipo_decesso ?? "-",
+      })
+    } catch (caughtError) {
+      setDetailsError(
+        caughtError instanceof Error ? caughtError.message : "Errore salvando chiusura"
+      )
+    } finally {
+      setSavingDetails(false)
+    }
+  }
+
+  async function handleUploadAttachment(slot: ChiusuraAttachmentSlot, file: File) {
+    if (!card) return
+
+    setUploadingSlot(slot)
+    setDetailsError(null)
+
+    try {
+      const safeName = sanitizeFileName(file.name || "documento")
+      const storagePath = [
+        "chiusure_contratti",
+        card.id,
+        slot,
+        `${Date.now()}-${safeName}`,
+      ].join("/")
+
+      const uploadResult = await supabase.storage
+        .from("baze-bucket")
+        .upload(storagePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type || undefined,
+        })
+
+      if (uploadResult.error) {
+        throw uploadResult.error
+      }
+
+      const payload = buildAttachmentPayload(file, storagePath)
+      const nextValue = [...normalizeAttachmentArray(card.record[slot]), payload]
+      const response = await updateRecord("chiusure_contratti", card.id, {
+        [slot]: nextValue,
+      })
+      const nextRecord = {
+        ...card.record,
+        ...response.row,
+      } as ChiusureBoardCardData["record"]
+
+      onCardChange({
+        ...card,
+        record: nextRecord,
+      })
+    } catch (caughtError) {
+      setDetailsError(
+        caughtError instanceof Error ? caughtError.message : "Errore caricando allegato chiusura"
+      )
+    } finally {
+      setUploadingSlot(null)
     }
   }
 
@@ -151,45 +280,181 @@ function ChiusureDetailSheet({
               <DetailSectionBlock
                 title="Dettagli chiusura"
                 icon={<FileTextIcon className="size-4" />}
-                action={<PencilIcon className="text-muted-foreground size-4" />}
+                action={
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => setEditingDetails((current) => !current)}
+                    aria-label="Modifica dettagli chiusura"
+                  >
+                    <PencilIcon className="size-4" />
+                  </button>
+                }
                 contentClassName="space-y-5"
               >
-                <div className="flex items-center gap-2 text-sm sm:text-base">
-                  <CalendarX2Icon className="text-muted-foreground size-5 shrink-0" />
-                  <span className="text-muted-foreground">Data fine rapporto:</span>
-                  <span className="font-semibold text-foreground">
-                    {formatDate(card.record.data_fine_rapporto)}
-                  </span>
-                </div>
+                {editingDetails ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="space-y-2">
+                      <span className="ui-type-label">Data fine rapporto</span>
+                      <Input
+                        type="date"
+                        value={detailsDraft.dataFineRapporto}
+                        onChange={(event) =>
+                          setDetailsDraft((current) => ({
+                            ...current,
+                            dataFineRapporto: event.target.value,
+                          }))
+                        }
+                        onBlur={() =>
+                          void saveDetailsPatch({
+                            data_fine_rapporto: detailsDraft.dataFineRapporto || null,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="ui-type-label">Tipo licenziamento/dimissione</span>
+                      <Input
+                        value={detailsDraft.tipoLicenziamento}
+                        onChange={(event) =>
+                          setDetailsDraft((current) => ({
+                            ...current,
+                            tipoLicenziamento: event.target.value,
+                          }))
+                        }
+                        onBlur={() =>
+                          void saveDetailsPatch({
+                            tipo_licenziamento: detailsDraft.tipoLicenziamento || null,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="ui-type-label">Tipo decesso</span>
+                      <Input
+                        value={detailsDraft.tipoDecesso}
+                        onChange={(event) =>
+                          setDetailsDraft((current) => ({
+                            ...current,
+                            tipoDecesso: event.target.value,
+                          }))
+                        }
+                        onBlur={() =>
+                          void saveDetailsPatch({
+                            tipo_decesso: detailsDraft.tipoDecesso || null,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="ui-type-label">Presenze ultimo mese</span>
+                      <Input
+                        value={detailsDraft.presenzeUltimoMese}
+                        onChange={(event) =>
+                          setDetailsDraft((current) => ({
+                            ...current,
+                            presenzeUltimoMese: event.target.value,
+                          }))
+                        }
+                        onBlur={() =>
+                          void saveDetailsPatch({
+                            presenze_ultimo_mese: detailsDraft.presenzeUltimoMese || null,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-2 md:col-span-2">
+                      <span className="ui-type-label">Motivazione</span>
+                      <Textarea
+                        value={detailsDraft.motivazione}
+                        onChange={(event) =>
+                          setDetailsDraft((current) => ({
+                            ...current,
+                            motivazione: event.target.value,
+                          }))
+                        }
+                        onBlur={() =>
+                          void saveDetailsPatch({
+                            motivazione_cessazione_rapporto: detailsDraft.motivazione || null,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-2 md:col-span-2">
+                      <span className="ui-type-label">Informazioni aggiuntive</span>
+                      <Textarea
+                        value={detailsDraft.informazioniAggiuntive}
+                        onChange={(event) =>
+                          setDetailsDraft((current) => ({
+                            ...current,
+                            informazioniAggiuntive: event.target.value,
+                          }))
+                        }
+                        onBlur={() =>
+                          void saveDetailsPatch({
+                            informazioni_aggiuntive:
+                              detailsDraft.informazioniAggiuntive || null,
+                          })
+                        }
+                      />
+                    </label>
+                    {savingDetails ? (
+                      <p className="text-muted-foreground text-xs md:col-span-2">
+                        Salvataggio in corso...
+                      </p>
+                    ) : null}
+                    {detailsError ? (
+                      <p className="text-xs font-medium text-red-600 md:col-span-2">
+                        {detailsError}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-sm sm:text-base">
+                      <CalendarX2Icon className="text-muted-foreground size-5 shrink-0" />
+                      <span className="text-muted-foreground">Data fine rapporto:</span>
+                      <span className="font-semibold text-foreground">
+                        {formatDate(card.record.data_fine_rapporto)}
+                      </span>
+                    </div>
 
-                <div className="flex flex-wrap items-center gap-3 text-sm sm:text-base">
-                  <span className="text-muted-foreground">Tipo:</span>
-                  <span
-                    className={cn(
-                      "inline-flex rounded-full px-3 py-1 text-sm font-medium",
-                      card.tipoColor
-                        ? getLookupBadgeClasses(card.tipoColor)
-                        : getLicenziamentoVariant(card.record.tipo_licenziamento),
-                    )}
-                  >
-                    {card.tipoLabel}
-                  </span>
-                </div>
+                    <div className="flex flex-wrap items-center gap-3 text-sm sm:text-base">
+                      <span className="text-muted-foreground">Tipo:</span>
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full px-3 py-1 text-sm font-medium",
+                          card.tipoColor
+                            ? getLookupBadgeClasses(card.tipoColor)
+                            : getLicenziamentoVariant(card.record.tipo_licenziamento),
+                        )}
+                      >
+                        {card.tipoLabel}
+                      </span>
+                    </div>
 
-                <div className="grid gap-4 border-t border-border/70 pt-5 text-sm sm:text-base">
-                  <p>
-                    <span className="text-muted-foreground">Presenze ultimo mese:</span>{" "}
-                    <span className="font-medium text-foreground">
-                      {card.record.presenze_ultimo_mese ?? "-"}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">Motivazione:</span>{" "}
-                    <span className="font-medium text-foreground">
-                      {card.record.motivazione_cessazione_rapporto ?? "-"}
-                    </span>
-                  </p>
-                </div>
+                    <div className="grid gap-4 border-t border-border/70 pt-5 text-sm sm:text-base">
+                      <p>
+                        <span className="text-muted-foreground">Presenze ultimo mese:</span>{" "}
+                        <span className="font-medium text-foreground">
+                          {card.record.presenze_ultimo_mese ?? "-"}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-muted-foreground">Motivazione:</span>{" "}
+                        <span className="font-medium text-foreground">
+                          {card.record.motivazione_cessazione_rapporto ?? "-"}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-muted-foreground">Informazioni aggiuntive:</span>{" "}
+                        <span className="font-medium text-foreground">
+                          {card.record.informazioni_aggiuntive ?? "-"}
+                        </span>
+                      </p>
+                    </div>
+                  </>
+                )}
               </DetailSectionBlock>
 
               <DetailSectionBlock
@@ -199,10 +464,17 @@ function ChiusureDetailSheet({
               >
                 <AttachmentUploadSlot
                   label="Lettera dimissioni / licenziamento"
-                  value={card.record.documenti_chiusura_rapporto ?? card.record.allegato_compilato ?? null}
-                  onAdd={() => {}}
+                  value={card.record.allegato_compilato ?? null}
+                  onAdd={(file) => void handleUploadAttachment("allegato_compilato", file)}
                   onPreviewOpen={() => {}}
-                  isUploading={false}
+                  isUploading={uploadingSlot === "allegato_compilato"}
+                />
+                <AttachmentUploadSlot
+                  label="Documenti finali di chiusura"
+                  value={card.record.documenti_chiusura_rapporto ?? null}
+                  onAdd={(file) => void handleUploadAttachment("documenti_chiusura_rapporto", file)}
+                  onPreviewOpen={() => {}}
+                  isUploading={uploadingSlot === "documenti_chiusura_rapporto"}
                 />
               </DetailSectionBlock>
             </div>
@@ -346,12 +618,152 @@ function ChiusureBoardSkeletonColumn() {
   return <KanbanColumnSkeleton />
 }
 
+type ChiusuraTipo = "licenziamento" | "dimissione" | "annullamento"
+
+function CreateChiusuraDialog({
+  open,
+  tipo,
+  rapportoOptions,
+  onOpenChange,
+  onCreate,
+}: {
+  open: boolean
+  tipo: ChiusuraTipo
+  rapportoOptions: Array<{ id: string; label: string }>
+  onOpenChange: (open: boolean) => void
+  onCreate: (input: {
+    rapportoId: string
+    tipo: ChiusuraTipo
+    dataFineRapporto: string
+    note: string
+  }) => Promise<void>
+}) {
+  const [query, setQuery] = React.useState("")
+  const [rapportoId, setRapportoId] = React.useState("")
+  const [dataFineRapporto, setDataFineRapporto] = React.useState("")
+  const [note, setNote] = React.useState("")
+  const [saving, setSaving] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const filteredOptions = React.useMemo(() => {
+    const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return rapportoOptions.slice(0, 20)
+    return rapportoOptions
+      .filter((option) => {
+        const haystack = option.label.toLowerCase()
+        return tokens.every((token) => haystack.includes(token))
+      })
+      .slice(0, 20)
+  }, [query, rapportoOptions])
+  const selectedRapporto = rapportoOptions.find((option) => option.id === rapportoId)
+
+  React.useEffect(() => {
+    if (!open) {
+      setQuery("")
+      setRapportoId("")
+      setDataFineRapporto("")
+      setNote("")
+      setSaving(false)
+      setError(null)
+    }
+  }, [open])
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!rapportoId) {
+      setError("Seleziona un rapporto.")
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+    try {
+      await onCreate({ rapportoId, tipo, dataFineRapporto, note })
+      onOpenChange(false)
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Errore creando chiusura")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>
+            Apri {tipo === "dimissione" ? "una dimissione" : tipo === "annullamento" ? "un annullamento" : "un licenziamento"}
+          </DialogTitle>
+          <DialogDescription>
+            Seleziona il rapporto e crea la pratica di chiusura collegata.
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <label className="block space-y-2">
+            <span className="ui-type-label">Rapporto di lavoro</span>
+            <SearchInput
+              placeholder="Cerca per famiglia o lavoratore..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onClear={() => setQuery("")}
+            />
+          </label>
+          <div className="max-h-60 space-y-2 overflow-y-auto rounded-xl border bg-surface p-2">
+            {filteredOptions.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className={cn(
+                  "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted",
+                  rapportoId === option.id && "bg-primary/10 text-primary",
+                )}
+                onClick={() => setRapportoId(option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
+            {filteredOptions.length === 0 ? (
+              <p className="text-muted-foreground px-3 py-4 text-sm">Nessun rapporto trovato.</p>
+            ) : null}
+          </div>
+          {selectedRapporto ? (
+            <p className="text-muted-foreground text-xs">
+              Selezionato: <span className="font-medium text-foreground">{selectedRapporto.label}</span>
+            </p>
+          ) : null}
+          <label className="block space-y-2">
+            <span className="ui-type-label">Data fine rapporto</span>
+            <Input
+              type="date"
+              value={dataFineRapporto}
+              onChange={(event) => setDataFineRapporto(event.target.value)}
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="ui-type-label">Note</span>
+            <Textarea value={note} onChange={(event) => setNote(event.target.value)} />
+          </label>
+          {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annulla
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Creazione..." : "Crea chiusura"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function ChiusureBoardView() {
-  const { loading, error, columns, moveCard } = useChiusureBoard()
+  const { loading, error, columns, rapportoOptions, createChiusura, moveCard, updateCard } = useChiusureBoard()
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
+  const [createTipo, setCreateTipo] = React.useState<ChiusuraTipo | null>(null)
 
   const filteredColumns = React.useMemo(() => {
     const query = searchValue.trim().toLowerCase()
@@ -398,6 +810,18 @@ export function ChiusureBoardView() {
             Chiusure
           </SectionHeader.Title>
           <SectionHeader.Toolbar>
+            <Button variant="outline" onClick={() => setCreateTipo("licenziamento")}>
+              <PlusIcon className="size-4" />
+              Apri un licenziamento
+            </Button>
+            <Button variant="outline" onClick={() => setCreateTipo("dimissione")}>
+              <PlusIcon className="size-4" />
+              Apri una dimissione
+            </Button>
+            <Button variant="outline" onClick={() => setCreateTipo("annullamento")}>
+              <PlusIcon className="size-4" />
+              Apri un annullamento
+            </Button>
             <SearchInput
               className="md:max-w-sm"
               placeholder="Cerca per famiglia, lavoratore, email, motivazione..."
@@ -459,6 +883,16 @@ export function ChiusureBoardView() {
           if (!open) setSelectedCardId(null)
         }}
         onStatusChange={moveCard}
+        onCardChange={(nextCard) => updateCard(nextCard.id, () => nextCard)}
+      />
+      <CreateChiusuraDialog
+        open={Boolean(createTipo)}
+        tipo={createTipo ?? "licenziamento"}
+        rapportoOptions={rapportoOptions}
+        onOpenChange={(open) => {
+          if (!open) setCreateTipo(null)
+        }}
+        onCreate={createChiusura}
       />
     </>
   )

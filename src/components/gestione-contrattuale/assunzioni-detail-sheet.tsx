@@ -23,7 +23,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
-import { fetchLookupValues } from "@/lib/anagrafiche-api"
+import { createRecord, fetchLookupValues, updateRecord } from "@/lib/anagrafiche-api"
 import { cn } from "@/lib/utils"
 
 function formatDate(value: string | null | undefined) {
@@ -42,6 +42,12 @@ type LookupOption = { value: string; label: string }
 
 function hasFilledValue(value: string | null | undefined) {
   return Boolean(value && value.trim())
+}
+
+function toNullableNumber(value: string) {
+  if (!value.trim()) return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 function buildLookupOptions(
@@ -157,9 +163,16 @@ function RelatedSubjectCard({
   )
 }
 
-function RapportoDetailSections({ card }: { card: AssunzioniBoardCardData }) {
+function RapportoDetailSections({
+  card,
+  onRapportoPatch,
+}: {
+  card: AssunzioniBoardCardData
+  onRapportoPatch: (patch: Record<string, unknown>) => Promise<void>
+}) {
   const rapporto = card.rapporto
   const [draft, setDraft] = React.useState(() => ({
+    tipologiaContratto: rapporto?.tipo_contratto ?? "",
     tipologiaRapporto: rapporto?.tipo_rapporto ?? card.tipoRapporto ?? "",
     regimeConvivenza: "Il lavoratore NON e convivente",
     totaleOreLavorative: rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : "",
@@ -180,6 +193,7 @@ function RapportoDetailSections({ card }: { card: AssunzioniBoardCardData }) {
 
   React.useEffect(() => {
     setDraft({
+      tipologiaContratto: rapporto?.tipo_contratto ?? "",
       tipologiaRapporto: rapporto?.tipo_rapporto ?? card.tipoRapporto ?? "",
       regimeConvivenza: "Il lavoratore NON e convivente",
       totaleOreLavorative: rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : "",
@@ -197,7 +211,7 @@ function RapportoDetailSections({ card }: { card: AssunzioniBoardCardData }) {
       dataAssunzione: rapporto?.data_inizio_rapporto ?? "",
       appuntiExtra: "",
     })
-  }, [card.tipoRapporto, rapporto?.data_inizio_rapporto, rapporto?.ore_a_settimana, rapporto?.paga_mensile_lorda, rapporto?.paga_oraria_lorda, rapporto?.tipo_rapporto])
+  }, [card.tipoRapporto, rapporto?.data_inizio_rapporto, rapporto?.ore_a_settimana, rapporto?.paga_mensile_lorda, rapporto?.paga_oraria_lorda, rapporto?.tipo_contratto, rapporto?.tipo_rapporto])
 
   const setValue = (key: keyof typeof draft, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }))
@@ -205,14 +219,22 @@ function RapportoDetailSections({ card }: { card: AssunzioniBoardCardData }) {
   return (
     <>
       <DetailSectionBlock
-        title="Tipologia di rapporto"
+        title="Tipologia contratto e rapporto"
         icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
         contentClassName="space-y-4"
       >
+        <EditableField label="Tipologia contratto">
+          <Input
+            value={draft.tipologiaContratto}
+            onChange={(event) => setValue("tipologiaContratto", event.target.value)}
+            onBlur={() => void onRapportoPatch({ tipo_contratto: draft.tipologiaContratto || null })}
+          />
+        </EditableField>
         <EditableField label="Tipologia di rapporto">
           <Input
             value={draft.tipologiaRapporto}
             onChange={(event) => setValue("tipologiaRapporto", event.target.value)}
+            onBlur={() => void onRapportoPatch({ tipo_rapporto: draft.tipologiaRapporto || null })}
           />
         </EditableField>
         <EditableField label="Regime di convivenza">
@@ -228,8 +250,14 @@ function RapportoDetailSections({ card }: { card: AssunzioniBoardCardData }) {
         </EditableField>
         <EditableField label="Totale ore lavorative">
           <Input
+            type="number"
             value={draft.totaleOreLavorative}
             onChange={(event) => setValue("totaleOreLavorative", event.target.value)}
+            onBlur={() =>
+              void onRapportoPatch({
+                ore_a_settimana: toNullableNumber(draft.totaleOreLavorative),
+              })
+            }
           />
         </EditableField>
         <div className="grid gap-4 md:grid-cols-3">
@@ -289,10 +317,30 @@ function RapportoDetailSections({ card }: { card: AssunzioniBoardCardData }) {
         </EditableField>
         <div className="grid gap-4 md:grid-cols-2">
           <EditableField label="Paga oraria">
-            <Input value={draft.pagaOraria} onChange={(event) => setValue("pagaOraria", event.target.value)} />
+            <Input
+              type="number"
+              step="0.01"
+              value={draft.pagaOraria}
+              onChange={(event) => setValue("pagaOraria", event.target.value)}
+              onBlur={() =>
+                void onRapportoPatch({
+                  paga_oraria_lorda: toNullableNumber(draft.pagaOraria),
+                })
+              }
+            />
           </EditableField>
           <EditableField label="Paga mensile">
-            <Input value={draft.pagaMensile} onChange={(event) => setValue("pagaMensile", event.target.value)} />
+            <Input
+              type="number"
+              step="0.01"
+              value={draft.pagaMensile}
+              onChange={(event) => setValue("pagaMensile", event.target.value)}
+              onBlur={() =>
+                void onRapportoPatch({
+                  paga_mensile_lorda: toNullableNumber(draft.pagaMensile),
+                })
+              }
+            />
           </EditableField>
         </div>
         <EditableField label="Ci sono telecamere sul posto di lavoro?">
@@ -310,7 +358,16 @@ function RapportoDetailSections({ card }: { card: AssunzioniBoardCardData }) {
           </Select>
         </EditableField>
         <EditableField label="Data di assunzione">
-          <Input type="date" value={draft.dataAssunzione} onChange={(event) => setValue("dataAssunzione", event.target.value)} />
+          <Input
+            type="date"
+            value={draft.dataAssunzione}
+            onChange={(event) => setValue("dataAssunzione", event.target.value)}
+            onBlur={() =>
+              void onRapportoPatch({
+                data_inizio_rapporto: draft.dataAssunzione || null,
+              })
+            }
+          />
         </EditableField>
         <EditableField label="Appunti extra">
           <Textarea
@@ -325,7 +382,15 @@ function RapportoDetailSections({ card }: { card: AssunzioniBoardCardData }) {
   )
 }
 
-function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
+function DatoreDetail({
+  card,
+  onFamigliaPatch,
+  onAssunzionePatch,
+}: {
+  card: AssunzioniBoardCardData
+  onFamigliaPatch: (patch: Record<string, unknown>) => Promise<void>
+  onAssunzionePatch: (patch: Record<string, unknown>) => Promise<void>
+}) {
   const rapporto = card.rapporto
   const famiglia = card.famiglia
   const makeDraft = React.useCallback(
@@ -345,6 +410,12 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
       civico: "",
       localita: "",
       cap: "",
+      rapportoCorrispondeResidenza:
+        card.assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
+      luogoLavoroIndirizzo: card.assunzione?.luogo_lavoro_se_diverso_da_residenza ?? "",
+      luogoLavoroCivico: card.assunzione?.civico_se_diverso_residenza ?? "",
+      luogoLavoroComune: card.assunzione?.comune_se_diverso_residenza ?? "",
+      luogoLavoroProvincia: card.assunzione?.provincia ?? "",
       tipoDocumento: "Carta d'identita",
       numeroDocumento: "",
       scadenzaDocumento: "",
@@ -358,7 +429,6 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
       oreGiovedi: "",
       oreVenerdi: "",
       oreSabato: "",
-      rapportoCorrispondeResidenza: "Si",
       tredicesimaRateizzata: "",
       pagaOraria: rapporto?.paga_oraria_lorda ? String(rapporto.paga_oraria_lorda) : "",
       pagaMensile: rapporto?.paga_mensile_lorda ? String(rapporto.paga_mensile_lorda) : "",
@@ -377,6 +447,11 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
       rapporto?.paga_mensile_lorda,
       rapporto?.paga_oraria_lorda,
       rapporto?.tipo_rapporto,
+      card.assunzione?.civico_se_diverso_residenza,
+      card.assunzione?.comune_se_diverso_residenza,
+      card.assunzione?.luogo_lavoro_se_diverso_da_residenza,
+      card.assunzione?.provincia,
+      card.assunzione?.rapporto_di_lavoro_residenza,
     ]
   )
   const [draft, setDraft] = React.useState(makeDraft)
@@ -396,16 +471,32 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
         contentClassName="grid gap-4 md:grid-cols-2"
       >
         <EditableField label="Nome">
-          <Input value={draft.nome} onChange={(event) => setValue("nome", event.target.value)} />
+          <Input
+            value={draft.nome}
+            onChange={(event) => setValue("nome", event.target.value)}
+            onBlur={() => void onFamigliaPatch({ nome: draft.nome || null })}
+          />
         </EditableField>
         <EditableField label="Cognome">
-          <Input value={draft.cognome} onChange={(event) => setValue("cognome", event.target.value)} />
+          <Input
+            value={draft.cognome}
+            onChange={(event) => setValue("cognome", event.target.value)}
+            onBlur={() => void onFamigliaPatch({ cognome: draft.cognome || null })}
+          />
         </EditableField>
         <EditableField label="Email">
-          <Input value={draft.email} onChange={(event) => setValue("email", event.target.value)} />
+          <Input
+            value={draft.email}
+            onChange={(event) => setValue("email", event.target.value)}
+            onBlur={() => void onFamigliaPatch({ email: draft.email || null })}
+          />
         </EditableField>
         <EditableField label="Cellulare">
-          <Input value={draft.cellulare} onChange={(event) => setValue("cellulare", event.target.value)} />
+          <Input
+            value={draft.cellulare}
+            onChange={(event) => setValue("cellulare", event.target.value)}
+            onBlur={() => void onFamigliaPatch({ telefono: draft.cellulare || null })}
+          />
         </EditableField>
       </DetailSectionBlock>
 
@@ -419,10 +510,18 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
         </EditableField>
         <div className="grid gap-4 md:grid-cols-2">
           <EditableField label="Nome">
-            <Input value={draft.nome} onChange={(event) => setValue("nome", event.target.value)} />
+            <Input
+              value={draft.nome}
+              onChange={(event) => setValue("nome", event.target.value)}
+              onBlur={() => void onFamigliaPatch({ nome: draft.nome || null })}
+            />
           </EditableField>
           <EditableField label="Cognome">
-            <Input value={draft.cognome} onChange={(event) => setValue("cognome", event.target.value)} />
+            <Input
+              value={draft.cognome}
+              onChange={(event) => setValue("cognome", event.target.value)}
+              onBlur={() => void onFamigliaPatch({ cognome: draft.cognome || null })}
+            />
           </EditableField>
           <EditableField label="Codice fiscale">
             <Input value={draft.codiceFiscale} onChange={(event) => setValue("codiceFiscale", event.target.value)} />
@@ -431,10 +530,18 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
             <Input value={draft.cittadinanza} onChange={(event) => setValue("cittadinanza", event.target.value)} />
           </EditableField>
           <EditableField label="Email">
-            <Input value={draft.email} onChange={(event) => setValue("email", event.target.value)} />
+            <Input
+              value={draft.email}
+              onChange={(event) => setValue("email", event.target.value)}
+              onBlur={() => void onFamigliaPatch({ email: draft.email || null })}
+            />
           </EditableField>
           <EditableField label="Cellulare">
-            <Input value={draft.cellulare} onChange={(event) => setValue("cellulare", event.target.value)} />
+            <Input
+              value={draft.cellulare}
+              onChange={(event) => setValue("cellulare", event.target.value)}
+              onBlur={() => void onFamigliaPatch({ telefono: draft.cellulare || null })}
+            />
           </EditableField>
           <EditableField label="Telefono fisso">
             <Input value={draft.telefonoFisso} onChange={(event) => setValue("telefonoFisso", event.target.value)} />
@@ -462,6 +569,71 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
           <EditableField label="CAP">
             <Input value={draft.cap} onChange={(event) => setValue("cap", event.target.value)} />
           </EditableField>
+          <EditableField label="Il luogo di residenza corrisponde al luogo di lavoro?">
+            <Select
+              value={draft.rapportoCorrispondeResidenza}
+              onValueChange={(value) => {
+                setValue("rapportoCorrispondeResidenza", value)
+                void onAssunzionePatch({ rapporto_di_lavoro_residenza: value === "Si" })
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Si">Si</SelectItem>
+                <SelectItem value="No">No</SelectItem>
+              </SelectContent>
+            </Select>
+          </EditableField>
+          {draft.rapportoCorrispondeResidenza === "No" ? (
+            <>
+              <EditableField label="Indirizzo luogo lavoro">
+                <Input
+                  value={draft.luogoLavoroIndirizzo}
+                  onChange={(event) => setValue("luogoLavoroIndirizzo", event.target.value)}
+                  onBlur={() =>
+                    void onAssunzionePatch({
+                      luogo_lavoro_se_diverso_da_residenza: draft.luogoLavoroIndirizzo || null,
+                    })
+                  }
+                />
+              </EditableField>
+              <EditableField label="Civico luogo lavoro">
+                <Input
+                  value={draft.luogoLavoroCivico}
+                  onChange={(event) => setValue("luogoLavoroCivico", event.target.value)}
+                  onBlur={() =>
+                    void onAssunzionePatch({
+                      civico_se_diverso_residenza: draft.luogoLavoroCivico || null,
+                    })
+                  }
+                />
+              </EditableField>
+              <EditableField label="Comune luogo lavoro">
+                <Input
+                  value={draft.luogoLavoroComune}
+                  onChange={(event) => setValue("luogoLavoroComune", event.target.value)}
+                  onBlur={() =>
+                    void onAssunzionePatch({
+                      comune_se_diverso_residenza: draft.luogoLavoroComune || null,
+                    })
+                  }
+                />
+              </EditableField>
+              <EditableField label="Provincia luogo lavoro">
+                <Input
+                  value={draft.luogoLavoroProvincia}
+                  onChange={(event) => setValue("luogoLavoroProvincia", event.target.value)}
+                  onBlur={() =>
+                    void onAssunzionePatch({
+                      provincia: draft.luogoLavoroProvincia || null,
+                    })
+                  }
+                />
+              </EditableField>
+            </>
+          ) : null}
           <EditableField label="Tipo documento">
             <Select value={draft.tipoDocumento} onValueChange={(value) => setValue("tipoDocumento", value)}>
               <SelectTrigger>
@@ -517,7 +689,13 @@ function DatoreDetail({ card }: { card: AssunzioniBoardCardData }) {
   )
 }
 
-function LavoratoreDetail({ card }: { card: AssunzioniBoardCardData }) {
+function LavoratoreDetail({
+  card,
+  onLavoratorePatch,
+}: {
+  card: AssunzioniBoardCardData
+  onLavoratorePatch: (patch: Record<string, unknown>) => Promise<void>
+}) {
   const rapporto = card.rapporto
   const lavoratore = card.lavoratore
   const fullName = card.nomeLavoratore
@@ -572,19 +750,39 @@ function LavoratoreDetail({ card }: { card: AssunzioniBoardCardData }) {
         contentClassName="grid gap-4 md:grid-cols-2"
       >
         <EditableField label="Nome">
-          <Input value={draft.nome} onChange={(event) => setValue("nome", event.target.value)} />
+          <Input
+            value={draft.nome}
+            onChange={(event) => setValue("nome", event.target.value)}
+            onBlur={() => void onLavoratorePatch({ nome: draft.nome || null })}
+          />
         </EditableField>
         <EditableField label="Cognome">
-          <Input value={draft.cognome} onChange={(event) => setValue("cognome", event.target.value)} />
+          <Input
+            value={draft.cognome}
+            onChange={(event) => setValue("cognome", event.target.value)}
+            onBlur={() => void onLavoratorePatch({ cognome: draft.cognome || null })}
+          />
         </EditableField>
         <EditableField label="Email">
-          <Input value={draft.email} onChange={(event) => setValue("email", event.target.value)} />
+          <Input
+            value={draft.email}
+            onChange={(event) => setValue("email", event.target.value)}
+            onBlur={() => void onLavoratorePatch({ email: draft.email || null })}
+          />
         </EditableField>
         <EditableField label="Cellulare">
-          <Input value={draft.cellulare} onChange={(event) => setValue("cellulare", event.target.value)} />
+          <Input
+            value={draft.cellulare}
+            onChange={(event) => setValue("cellulare", event.target.value)}
+            onBlur={() => void onLavoratorePatch({ telefono: draft.cellulare || null })}
+          />
         </EditableField>
         <EditableField label="Cittadinanza">
-          <Input value={draft.cittadinanza} onChange={(event) => setValue("cittadinanza", event.target.value)} />
+          <Input
+            value={draft.cittadinanza}
+            onChange={(event) => setValue("cittadinanza", event.target.value)}
+            onBlur={() => void onLavoratorePatch({ nazionalita: draft.cittadinanza || null })}
+          />
         </EditableField>
         <EditableField label="Data assunzione">
           <Input type="date" value={draft.dataAssunzione} onChange={(event) => setValue("dataAssunzione", event.target.value)} />
@@ -601,22 +799,42 @@ function LavoratoreDetail({ card }: { card: AssunzioniBoardCardData }) {
         </EditableField>
         <div className="grid gap-4 md:grid-cols-2">
           <EditableField label="Nome">
-            <Input value={draft.nome} onChange={(event) => setValue("nome", event.target.value)} />
+            <Input
+              value={draft.nome}
+              onChange={(event) => setValue("nome", event.target.value)}
+              onBlur={() => void onLavoratorePatch({ nome: draft.nome || null })}
+            />
           </EditableField>
           <EditableField label="Cognome">
-            <Input value={draft.cognome} onChange={(event) => setValue("cognome", event.target.value)} />
+            <Input
+              value={draft.cognome}
+              onChange={(event) => setValue("cognome", event.target.value)}
+              onBlur={() => void onLavoratorePatch({ cognome: draft.cognome || null })}
+            />
           </EditableField>
           <EditableField label="Codice fiscale">
             <Input value={draft.codiceFiscale} onChange={(event) => setValue("codiceFiscale", event.target.value)} />
           </EditableField>
           <EditableField label="Cittadinanza">
-            <Input value={draft.cittadinanza} onChange={(event) => setValue("cittadinanza", event.target.value)} />
+            <Input
+              value={draft.cittadinanza}
+              onChange={(event) => setValue("cittadinanza", event.target.value)}
+              onBlur={() => void onLavoratorePatch({ nazionalita: draft.cittadinanza || null })}
+            />
           </EditableField>
           <EditableField label="Email">
-            <Input value={draft.email} onChange={(event) => setValue("email", event.target.value)} />
+            <Input
+              value={draft.email}
+              onChange={(event) => setValue("email", event.target.value)}
+              onBlur={() => void onLavoratorePatch({ email: draft.email || null })}
+            />
           </EditableField>
           <EditableField label="Cellulare">
-            <Input value={draft.cellulare} onChange={(event) => setValue("cellulare", event.target.value)} />
+            <Input
+              value={draft.cellulare}
+              onChange={(event) => setValue("cellulare", event.target.value)}
+              onBlur={() => void onLavoratorePatch({ telefono: draft.cellulare || null })}
+            />
           </EditableField>
           <EditableField label="Telefono fisso">
             <Input value={draft.telefonoFisso} onChange={(event) => setValue("telefonoFisso", event.target.value)} />
@@ -728,51 +946,58 @@ function LavoratoreDetail({ card }: { card: AssunzioniBoardCardData }) {
 export function AssunzioniDetailSheet({
   card,
   open,
+  onCardChange,
   onOpenChange,
 }: {
   card: AssunzioniBoardCardData | null
   open: boolean
+  onCardChange: (card: AssunzioniBoardCardData) => void
   onOpenChange: (open: boolean) => void
 }) {
   const [target, setTarget] = React.useState<DetailTarget>("datore")
   const [statoAssunzioneOptions, setStatoAssunzioneOptions] = React.useState<LookupOption[]>([])
   const [tipoRapportoOptions, setTipoRapportoOptions] = React.useState<LookupOption[]>([])
+  const [savingPractice, setSavingPractice] = React.useState(false)
+  const [practiceError, setPracticeError] = React.useState<string | null>(null)
   const makePracticeDraft = React.useCallback(
     () => ({
       statoAssunzione: card?.stage ?? "",
       tipoRapporto: card?.tipoRapporto ?? "",
-      deadline: card?.rapporto?.data_inizio_rapporto ?? "",
+      tipoContratto: card?.rapporto?.tipo_contratto ?? "",
+      dataAssunzione: card?.rapporto?.data_inizio_rapporto ?? "",
+      idRapportoInps: card?.rapporto?.id_rapporto ?? "",
+      codiceRapportoWebcolf:
+        typeof card?.rapporto?.codice_datore_webcolf === "number"
+          ? String(card.rapporto.codice_datore_webcolf)
+          : "",
+      codiceLavoratoreWebcolf:
+        typeof card?.rapporto?.codice_dipendente_webcolf === "number"
+          ? String(card.rapporto.codice_dipendente_webcolf)
+          : "",
     }),
-    [card?.rapporto?.data_inizio_rapporto, card?.stage, card?.tipoRapporto]
+    [
+      card?.rapporto?.codice_datore_webcolf,
+      card?.rapporto?.codice_dipendente_webcolf,
+      card?.rapporto?.data_inizio_rapporto,
+      card?.rapporto?.id_rapporto,
+      card?.rapporto?.tipo_contratto,
+      card?.stage,
+      card?.tipoRapporto,
+    ]
   )
   const [practiceDraft, setPracticeDraft] = React.useState(makePracticeDraft)
-  const datoreIsComplete = React.useMemo(
+  const datoreIsLinked = React.useMemo(
     () =>
-      hasFilledValue(card?.famiglia?.nome ?? card?.nomeFamiglia.split(" ")[0] ?? "") &&
-      hasFilledValue(card?.famiglia?.cognome ?? card?.nomeFamiglia.split(" ").slice(1).join(" ") ?? "") &&
-      hasFilledValue(card?.famiglia?.email ?? "") &&
-      hasFilledValue(card?.famiglia?.telefono ?? "") &&
-      hasFilledValue(card?.rapporto?.tipo_rapporto ?? card?.tipoRapporto ?? "") &&
-      hasFilledValue(
-        typeof card?.rapporto?.ore_a_settimana === "number" ? String(card.rapporto.ore_a_settimana) : ""
-      ) &&
-      hasFilledValue(
-        typeof card?.rapporto?.paga_oraria_lorda === "number" ? String(card.rapporto.paga_oraria_lorda) : ""
-      ) &&
-      hasFilledValue(
-        typeof card?.rapporto?.paga_mensile_lorda === "number" ? String(card.rapporto.paga_mensile_lorda) : ""
-      ) &&
-      hasFilledValue(card?.rapporto?.data_inizio_rapporto ?? ""),
+      Boolean(card?.famigliaId) &&
+      hasFilledValue(card?.nomeFamiglia ?? "") &&
+      card?.nomeFamiglia !== "Famiglia non trovata",
     [card]
   )
-  const lavoratoreIsComplete = React.useMemo(
+  const lavoratoreIsLinked = React.useMemo(
     () =>
-      hasFilledValue(card?.lavoratore?.nome ?? card?.nomeLavoratore.split(" ")[0] ?? "") &&
-      hasFilledValue(card?.lavoratore?.cognome ?? card?.nomeLavoratore.split(" ").slice(1).join(" ") ?? "") &&
-      hasFilledValue(card?.lavoratore?.email ?? "") &&
-      hasFilledValue(card?.lavoratore?.telefono ?? "") &&
-      hasFilledValue(card?.lavoratore?.nazionalita ?? "") &&
-      hasFilledValue(card?.rapporto?.data_inizio_rapporto ?? ""),
+      Boolean(card?.lavoratore?.id ?? card?.rapporto?.lavoratore_id) &&
+      hasFilledValue(card?.nomeLavoratore ?? "") &&
+      card?.nomeLavoratore !== "Lavoratore non associato",
     [card]
   )
 
@@ -827,6 +1052,143 @@ export function AssunzioniDetailSheet({
     }
   }, [card?.stage, card?.tipoRapporto])
 
+  const saveRapportoPatch = React.useCallback(
+    async (patch: Record<string, unknown>) => {
+      if (!card || Object.keys(patch).length === 0) return
+
+      setPracticeError(null)
+      setSavingPractice(true)
+
+      try {
+        const response = await updateRecord("rapporti_lavorativi", card.id, patch)
+        const nextRapporto = {
+          ...(card.rapporto ?? {}),
+          ...response.row,
+        } as NonNullable<AssunzioniBoardCardData["rapporto"]>
+        const nextStage =
+          typeof nextRapporto.stato_assunzione === "string" && nextRapporto.stato_assunzione
+            ? nextRapporto.stato_assunzione
+            : card.stage
+        const nextTipoRapporto = nextRapporto.tipo_rapporto ?? card.tipoRapporto
+
+        onCardChange({
+          ...card,
+          stage: nextStage,
+          rapporto: nextRapporto,
+          tipoRapporto: nextTipoRapporto,
+          deadline: formatDate(nextRapporto.data_inizio_rapporto),
+        })
+      } catch (caughtError) {
+        setPracticeError(
+          caughtError instanceof Error ? caughtError.message : "Errore salvando assunzione"
+        )
+      } finally {
+        setSavingPractice(false)
+      }
+    },
+    [card, onCardChange]
+  )
+
+  const saveFamigliaPatch = React.useCallback(
+    async (patch: Record<string, unknown>) => {
+      if (!card?.famigliaId || Object.keys(patch).length === 0) return
+
+      setPracticeError(null)
+      setSavingPractice(true)
+
+      try {
+        const response = await updateRecord("famiglie", card.famigliaId, patch)
+        const nextFamiglia = {
+          ...(card.famiglia ?? {}),
+          ...response.row,
+        } as NonNullable<AssunzioniBoardCardData["famiglia"]>
+        const nextNomeFamiglia =
+          [nextFamiglia.cognome, nextFamiglia.nome].filter(Boolean).join(" ").trim() ||
+          card.nomeFamiglia
+
+        onCardChange({
+          ...card,
+          famiglia: nextFamiglia,
+          nomeFamiglia: nextNomeFamiglia,
+          email: nextFamiglia.email ?? card.email,
+          telefono: nextFamiglia.telefono ?? card.telefono,
+        })
+      } catch (caughtError) {
+        setPracticeError(
+          caughtError instanceof Error ? caughtError.message : "Errore salvando datore"
+        )
+      } finally {
+        setSavingPractice(false)
+      }
+    },
+    [card, onCardChange]
+  )
+
+  const saveAssunzionePatch = React.useCallback(
+    async (patch: Record<string, unknown>) => {
+      if (!card || Object.keys(patch).length === 0) return
+
+      setPracticeError(null)
+      setSavingPractice(true)
+
+      try {
+        const response = card.assunzione?.id
+          ? await updateRecord("assunzioni", card.assunzione.id, patch)
+          : await createRecord("assunzioni", {
+              ...patch,
+              rapporto_lavorativo_datore_lavoro_id: card.id,
+            })
+        onCardChange({
+          ...card,
+          assunzione: {
+            ...(card.assunzione ?? {}),
+            ...response.row,
+          } as AssunzioniBoardCardData["assunzione"],
+        })
+      } catch (caughtError) {
+        setPracticeError(
+          caughtError instanceof Error ? caughtError.message : "Errore salvando dati assunzione"
+        )
+      } finally {
+        setSavingPractice(false)
+      }
+    },
+    [card, onCardChange]
+  )
+
+  const saveLavoratorePatch = React.useCallback(
+    async (patch: Record<string, unknown>) => {
+      if (!card?.lavoratore?.id || Object.keys(patch).length === 0) return
+
+      setPracticeError(null)
+      setSavingPractice(true)
+
+      try {
+        const response = await updateRecord("lavoratori", card.lavoratore.id, patch)
+        const nextLavoratore = {
+          ...card.lavoratore,
+          ...response.row,
+        } as NonNullable<AssunzioniBoardCardData["lavoratore"]>
+        const nextNomeLavoratore =
+          [nextLavoratore.cognome, nextLavoratore.nome].filter(Boolean).join(" ").trim() ||
+          card.nomeLavoratore
+
+        onCardChange({
+          ...card,
+          lavoratore: nextLavoratore,
+          nomeLavoratore: nextNomeLavoratore,
+        })
+      } catch (caughtError) {
+        setPracticeError(
+          caughtError instanceof Error ? caughtError.message : "Errore salvando lavoratore"
+        )
+      } finally {
+        setSavingPractice(false)
+      }
+    },
+    [card, onCardChange]
+  )
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
@@ -868,64 +1230,149 @@ export function AssunzioniDetailSheet({
               <DetailSectionBlock
                 title="Contesto pratica"
                 icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
-                contentClassName="grid gap-4 md:grid-cols-3"
+                contentClassName="space-y-4"
               >
-                <EditableField label="Stato assunzione">
-                  <Select
-                    value={practiceDraft.statoAssunzione || undefined}
-                    onValueChange={(value) =>
-                      setPracticeDraft((current) => ({
-                        ...current,
-                        statoAssunzione: value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona stato" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statoAssunzioneOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </EditableField>
-                <EditableField label="Tipo rapporto">
-                  <Select
-                    value={practiceDraft.tipoRapporto || undefined}
-                    onValueChange={(value) =>
-                      setPracticeDraft((current) => ({
-                        ...current,
-                        tipoRapporto: value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona tipo rapporto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tipoRapportoOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </EditableField>
-                <EditableField label="Deadline">
-                  <Input
-                    type="date"
-                    value={practiceDraft.deadline}
-                    onChange={(event) =>
-                      setPracticeDraft((current) => ({
-                        ...current,
-                        deadline: event.target.value,
-                      }))
-                    }
-                  />
-                </EditableField>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <EditableField label="Stato assunzione">
+                    <Select
+                      value={practiceDraft.statoAssunzione || undefined}
+                      onValueChange={(value) => {
+                        setPracticeDraft((current) => ({
+                          ...current,
+                          statoAssunzione: value,
+                        }))
+                        void saveRapportoPatch({ stato_assunzione: value || null })
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona stato" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statoAssunzioneOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </EditableField>
+                  <EditableField label="Tipologia contratto">
+                    <Input
+                      value={practiceDraft.tipoContratto}
+                      onChange={(event) =>
+                        setPracticeDraft((current) => ({
+                          ...current,
+                          tipoContratto: event.target.value,
+                        }))
+                      }
+                      onBlur={() =>
+                        void saveRapportoPatch({
+                          tipo_contratto: practiceDraft.tipoContratto || null,
+                        })
+                      }
+                    />
+                  </EditableField>
+                  <EditableField label="Tipo rapporto">
+                    <Select
+                      value={practiceDraft.tipoRapporto || undefined}
+                      onValueChange={(value) => {
+                        setPracticeDraft((current) => ({
+                          ...current,
+                          tipoRapporto: value,
+                        }))
+                        void saveRapportoPatch({ tipo_rapporto: value || null })
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona tipo rapporto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tipoRapportoOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </EditableField>
+                  <EditableField label="Data di assunzione">
+                    <Input
+                      type="date"
+                      value={practiceDraft.dataAssunzione}
+                      onChange={(event) =>
+                        setPracticeDraft((current) => ({
+                          ...current,
+                          dataAssunzione: event.target.value,
+                        }))
+                      }
+                      onBlur={() =>
+                        void saveRapportoPatch({
+                          data_inizio_rapporto: practiceDraft.dataAssunzione || null,
+                        })
+                      }
+                    />
+                  </EditableField>
+                  <EditableField label="ID rapporto INPS">
+                    <Input
+                      value={practiceDraft.idRapportoInps}
+                      onChange={(event) =>
+                        setPracticeDraft((current) => ({
+                          ...current,
+                          idRapportoInps: event.target.value,
+                        }))
+                      }
+                      onBlur={() =>
+                        void saveRapportoPatch({
+                          id_rapporto: practiceDraft.idRapportoInps || null,
+                        })
+                      }
+                    />
+                  </EditableField>
+                  <EditableField label="Cod. Rapporto WebColf">
+                    <Input
+                      type="number"
+                      value={practiceDraft.codiceRapportoWebcolf}
+                      onChange={(event) =>
+                        setPracticeDraft((current) => ({
+                          ...current,
+                          codiceRapportoWebcolf: event.target.value,
+                        }))
+                      }
+                      onBlur={() =>
+                        void saveRapportoPatch({
+                          codice_datore_webcolf: toNullableNumber(
+                            practiceDraft.codiceRapportoWebcolf
+                          ),
+                        })
+                      }
+                    />
+                  </EditableField>
+                  <EditableField label="Cod. Lavoratore WebColf">
+                    <Input
+                      type="number"
+                      value={practiceDraft.codiceLavoratoreWebcolf}
+                      onChange={(event) =>
+                        setPracticeDraft((current) => ({
+                          ...current,
+                          codiceLavoratoreWebcolf: event.target.value,
+                        }))
+                      }
+                      onBlur={() =>
+                        void saveRapportoPatch({
+                          codice_dipendente_webcolf: toNullableNumber(
+                            practiceDraft.codiceLavoratoreWebcolf
+                          ),
+                        })
+                      }
+                    />
+                  </EditableField>
+                </div>
+                {savingPractice ? (
+                  <p className="text-muted-foreground text-xs">Salvataggio in corso...</p>
+                ) : null}
+                {practiceError ? (
+                  <p className="text-xs font-medium text-red-600">{practiceError}</p>
+                ) : null}
               </DetailSectionBlock>
 
               <DetailSectionBlock
@@ -958,7 +1405,7 @@ export function AssunzioniDetailSheet({
                 </div>
               </DetailSectionBlock>
 
-              <RapportoDetailSections card={card} />
+              <RapportoDetailSections card={card} onRapportoPatch={saveRapportoPatch} />
 
               <RadioGroup
                 value={target}
@@ -966,26 +1413,34 @@ export function AssunzioniDetailSheet({
                 className="grid gap-3 md:grid-cols-2"
               >
                 <RelatedSubjectCard
-                  role="Datore"
+                  role="Datore collegato"
                   name={card.nomeFamiglia}
                   email={card.email}
                   phone={card.telefono}
                   value="datore"
                   selected={target === "datore"}
-                  isComplete={datoreIsComplete}
+                  isComplete={datoreIsLinked}
                 />
                 <RelatedSubjectCard
-                  role="Lavoratore"
+                  role="Lavoratore collegato"
                   name={card.nomeLavoratore}
                   email={card.lavoratore?.email}
                   phone={card.lavoratore?.telefono}
                   value="lavoratore"
                   selected={target === "lavoratore"}
-                  isComplete={lavoratoreIsComplete}
+                  isComplete={lavoratoreIsLinked}
                 />
               </RadioGroup>
 
-              {target === "datore" ? <DatoreDetail card={card} /> : <LavoratoreDetail card={card} />}
+              {target === "datore" ? (
+                <DatoreDetail
+                  card={card}
+                  onFamigliaPatch={saveFamigliaPatch}
+                  onAssunzionePatch={saveAssunzionePatch}
+                />
+              ) : (
+                <LavoratoreDetail card={card} onLavoratorePatch={saveLavoratorePatch} />
+              )}
             </div>
           </section>
         ) : null}

@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 type SupportedTable =
+  | "assunzioni"
   | "famiglie"
   | "chiusure_contratti"
   | "contributi_inps"
@@ -29,6 +30,7 @@ type UpdateRecordPayload = {
 };
 
 const SUPPORTED_TABLES = new Set<SupportedTable>([
+  "assunzioni",
   "famiglie",
   "chiusure_contratti",
   "contributi_inps",
@@ -46,6 +48,7 @@ const SUPPORTED_TABLES = new Set<SupportedTable>([
 ]);
 
 const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
+  assunzioni: new Set(["id", "creato_il"]),
   famiglie: new Set(["id", "creato_il"]),
   chiusure_contratti: new Set(["id", "creato_il"]),
   contributi_inps: new Set(["id", "creato_il"]),
@@ -63,6 +66,7 @@ const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
 };
 
 const AUTO_UPDATED_AT_FIELD: Record<SupportedTable, string> = {
+  assunzioni: "aggiornato_il",
   famiglie: "aggiornato_il",
   chiusure_contratti: "aggiornato_il",
   contributi_inps: "aggiornato_il",

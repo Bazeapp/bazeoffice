@@ -1,6 +1,7 @@
 import * as React from "react"
 
 import {
+  fetchAssunzioni,
   fetchFamiglie,
   fetchLookupValues,
   fetchProcessiMatching,
@@ -22,11 +23,22 @@ type AssunzioniStageDefinition = {
   color: string
 }
 
+export type AssunzioneRecord = {
+  id: string
+  civico_se_diverso_residenza: string | null
+  comune_se_diverso_residenza: string | null
+  luogo_lavoro_se_diverso_da_residenza: string | null
+  provincia: string | null
+  rapporto_di_lavoro_residenza: boolean | null
+  rapporto_lavorativo_datore_lavoro_id: string | null
+}
+
 export type AssunzioniBoardCardData = {
   id: string
   processId: string | null
   stage: string
   process: ProcessoMatchingRecord | null
+  assunzione: AssunzioneRecord | null
   rapporto: RapportoLavorativoRecord | null
   lavoratore: LavoratoreRecord | null
   famiglia: FamigliaRecord | null
@@ -52,6 +64,10 @@ type UseAssunzioniBoardState = {
   error: string | null
   columns: AssunzioniBoardColumnData[]
   moveCard: (rapportoId: string, targetStageId: string) => Promise<void>
+  updateCard: (
+    rapportoId: string,
+    updater: (card: AssunzioniBoardCardData) => AssunzioniBoardCardData
+  ) => void
 }
 
 type StageMetadata = {
@@ -90,12 +106,19 @@ const ASSUNZIONI_FAMIGLIE_SELECT = [
 const ASSUNZIONI_RAPPORTI_SELECT = [
   "id",
   "id_rapporto",
+  "codice_datore_webcolf",
+  "codice_dipendente_webcolf",
   "processo_res",
   "famiglia_id",
   "lavoratore_id",
   "stato_assunzione",
   "cognome_nome_datore_proper",
   "nome_lavoratore_per_url",
+  "data_inizio_rapporto",
+  "ore_a_settimana",
+  "paga_mensile_lorda",
+  "paga_oraria_lorda",
+  "tipo_contratto",
   "tipo_rapporto",
 ] satisfies string[]
 
@@ -103,6 +126,19 @@ const ASSUNZIONI_LAVORATORI_SELECT = [
   "id",
   "nome",
   "cognome",
+  "email",
+  "telefono",
+  "nazionalita",
+] satisfies string[]
+
+const ASSUNZIONI_RECORD_SELECT = [
+  "id",
+  "civico_se_diverso_residenza",
+  "comune_se_diverso_residenza",
+  "luogo_lavoro_se_diverso_da_residenza",
+  "provincia",
+  "rapporto_di_lavoro_residenza",
+  "rapporto_lavorativo_datore_lavoro_id",
 ] satisfies string[]
 
 function normalizeToken(value: string | null | undefined) {
@@ -154,6 +190,31 @@ function getFirstArrayValue(value: unknown): string | null {
   }
 
   return toStringValue(value)
+}
+
+function formatFullName(firstName: string | null | undefined, lastName: string | null | undefined) {
+  return [lastName, firstName].filter(Boolean).join(" ").trim()
+}
+
+function resolveFamilyName(
+  family: FamigliaRecord | null,
+  rapporto: RapportoLavorativoRecord
+) {
+  const rapportoName = toStringValue(rapporto.cognome_nome_datore_proper)
+  if (rapportoName) return rapportoName
+
+  const familyName = family ? formatFullName(family.nome, family.cognome) : ""
+  return familyName || null
+}
+
+function resolveWorkerName(
+  worker: LavoratoreRecord | null,
+  rapporto: RapportoLavorativoRecord
+) {
+  const workerName = worker ? formatFullName(worker.nome, worker.cognome) : ""
+  if (workerName) return workerName
+
+  return toStringValue(rapporto.nome_lavoratore_per_url)
 }
 
 function parseProcessRapportoIds(value: string | null | undefined) {
@@ -213,7 +274,14 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
 }
 
 async function fetchAssunzioniBoardData(): Promise<AssunzioniBoardColumnData[]> {
-  const [processesResult, familiesResult, rapportiResult, lavoratoriResult, lookupResult] =
+  const [
+    processesResult,
+    familiesResult,
+    rapportiResult,
+    lavoratoriResult,
+    assunzioniResult,
+    lookupResult,
+  ] =
     await Promise.all([
     fetchProcessiMatching({
       select: ASSUNZIONI_PROCESSI_SELECT,
@@ -239,6 +307,12 @@ async function fetchAssunzioniBoardData(): Promise<AssunzioniBoardColumnData[]> 
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
+    fetchAssunzioni({
+      select: ASSUNZIONI_RECORD_SELECT,
+      limit: 1000,
+      offset: 0,
+      orderBy: [{ field: "aggiornato_il", ascending: false }],
+    }),
     fetchLookupValues(),
   ])
 
@@ -250,6 +324,11 @@ async function fetchAssunzioniBoardData(): Promise<AssunzioniBoardColumnData[]> 
   )
   const processById = new Map(
     processesResult.rows.map((process) => [process.id, process] as const)
+  )
+  const assunzioniByRapportoId = new Map(
+    (assunzioniResult.rows as AssunzioneRecord[])
+      .filter((record) => record.rapporto_lavorativo_datore_lavoro_id)
+      .map((record) => [record.rapporto_lavorativo_datore_lavoro_id as string, record] as const)
   )
 
   const stageMetadata = buildStageMetadata(lookupResult.rows)
@@ -276,24 +355,21 @@ async function fetchAssunzioniBoardData(): Promise<AssunzioniBoardColumnData[]> 
       (process?.famiglia_id ? familiesById.get(process.famiglia_id) ?? null : null)
     const lavoratore =
       linkedRapporto?.lavoratore_id ? lavoratoriById.get(linkedRapporto.lavoratore_id) ?? null : null
-    const nomeFamiglia = family
-      ? [family.nome, family.cognome].filter(Boolean).join(" ").trim()
-      : linkedRapporto?.cognome_nome_datore_proper || "Famiglia non trovata"
-    const nomeLavoratore = lavoratore
-      ? [lavoratore.nome, lavoratore.cognome].filter(Boolean).join(" ").trim()
-      : linkedRapporto?.nome_lavoratore_per_url || "Lavoratore non associato"
+    const nomeFamiglia = resolveFamilyName(family, linkedRapporto)
+    const nomeLavoratore = resolveWorkerName(lavoratore, linkedRapporto)
 
     const card: AssunzioniBoardCardData = {
       id: linkedRapporto.id,
       processId: process?.id ?? null,
       stage: processStage,
       process,
+      assunzione: assunzioniByRapportoId.get(linkedRapporto.id) ?? null,
       rapporto: linkedRapporto,
       lavoratore,
       famiglia: family,
       famigliaId: family?.id ?? process?.famiglia_id ?? null,
-      nomeFamiglia: nomeFamiglia || "Famiglia non trovata",
-      nomeLavoratore,
+      nomeFamiglia: nomeFamiglia ?? "Famiglia non trovata",
+      nomeLavoratore: nomeLavoratore ?? "Lavoratore non associato",
       email: family?.email ?? "-",
       telefono: family?.telefono ?? "-",
       titoloAnnuncio: process?.titolo_annuncio ?? null,
@@ -316,6 +392,35 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [columns, setColumns] = React.useState<AssunzioniBoardColumnData[]>([])
+
+  const updateCard = React.useCallback(
+    (
+      rapportoId: string,
+      updater: (card: AssunzioniBoardCardData) => AssunzioniBoardCardData
+    ) => {
+      setColumns((current) => {
+        let nextCard: AssunzioniBoardCardData | null = null
+
+        const columnsWithoutCard = current.map((column) => ({
+          ...column,
+          cards: column.cards.filter((card) => {
+            if (card.id !== rapportoId) return true
+            nextCard = updater(card)
+            return false
+          }),
+        }))
+
+        if (!nextCard) return current
+
+        return columnsWithoutCard.map((column) =>
+          column.id === nextCard?.stage
+            ? { ...column, cards: [nextCard, ...column.cards] }
+            : column
+        )
+      })
+    },
+    []
+  )
 
   const moveCard = React.useCallback(
     async (rapportoId: string, targetStageId: string) => {
@@ -394,5 +499,6 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
     error,
     columns,
     moveCard,
+    updateCard,
   }
 }

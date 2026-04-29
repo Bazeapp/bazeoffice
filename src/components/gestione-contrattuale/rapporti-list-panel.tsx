@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/select"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/lookup-utils"
+import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
+import { getRapportoStatusColor, resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 import { cn } from "@/lib/utils"
 import type { RapportoLavorativoRecord } from "@/types"
 
@@ -62,20 +64,13 @@ type RapportiListPanelProps = {
   onPageChange: (pageIndex: number) => void
   searchValue: string
   onSearchValueChange: (value: string) => void
+  onRetry: () => void
   selectedRapportoId: string | null
   onSelect: (id: string) => void
   lookupColorsByDomain: Map<string, string>
 }
 
 const VIEWS_STORAGE_KEY = "gestione-contrattuale.rapporti.saved-views"
-
-function getFamilyName(rapporto: RapportoLavorativoRecord) {
-  return rapporto.cognome_nome_datore_proper?.trim() || "Famiglia senza nome"
-}
-
-function getWorkerName(rapporto: RapportoLavorativoRecord) {
-  return rapporto.nome_lavoratore_per_url?.trim() || "Lavoratore non associato"
-}
 
 function normalizeSearchToken(value: string) {
   return value.trim().toLowerCase()
@@ -140,15 +135,6 @@ function getStatusBadgeLabel(value: string | null | undefined) {
   return normalized || "Sconosciuto"
 }
 
-function getFallbackColor(value: string | null | undefined) {
-  const token = String(value ?? "").trim().toLowerCase().replaceAll("_", " ")
-  if (!token) return null
-  if (token.includes("attivo")) return "emerald"
-  if (token.includes("attiv") || token.includes("in corso")) return "amber"
-  if (token.includes("chius") || token.includes("non attivo") || token.includes("cess")) return "zinc"
-  return "sky"
-}
-
 function RapportoCard({
   rapporto,
   isActive,
@@ -178,7 +164,7 @@ function RapportoCard({
                   lookupColorsByDomain,
                   "rapporti_lavorativi.stato_rapporto",
                   rapporto.stato_rapporto,
-                ) ?? getFallbackColor(getStatusBadgeLabel(rapporto.stato_rapporto)),
+                ) ?? getRapportoStatusColor(rapporto.stato_rapporto),
               ),
             )}
           >
@@ -296,6 +282,7 @@ export function RapportiListPanel({
   onPageChange,
   searchValue: externalSearchValue,
   onSearchValueChange,
+  onRetry,
   selectedRapportoId,
   onSelect,
   lookupColorsByDomain,
@@ -340,9 +327,9 @@ export function RapportiListPanel({
     () =>
       rapporti.map((rapporto) => ({
         id: rapporto.id,
-        famigliaLabel: getFamilyName(rapporto),
-        lavoratoreLabel: getWorkerName(rapporto),
-        stato_rapporto: rapporto.stato_rapporto,
+        famigliaLabel: getRapportoFamilyLabel(rapporto),
+        lavoratoreLabel: getRapportoWorkerLabel(rapporto),
+        stato_rapporto: resolveRapportoStatus(rapporto),
         stato_servizio: rapporto.stato_servizio,
         stato_assunzione: rapporto.stato_assunzione,
         stato_riattivazione: rapporto.stato_riattivazione,
@@ -567,7 +554,12 @@ export function RapportiListPanel({
         {loading ? (
           <p className="text-muted-foreground py-6 text-sm">Caricamento rapporti lavorativi...</p>
         ) : error ? (
-          <p className="py-6 text-sm text-red-600">{error}</p>
+          <div className="space-y-3 py-6">
+            <p className="text-sm text-red-600">{error}</p>
+            <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+              Riprova
+            </Button>
+          </div>
         ) : visibleItems.length === 0 ? (
           <p className="text-muted-foreground py-6 text-sm">Nessun rapporto lavorativo trovato.</p>
         ) : (

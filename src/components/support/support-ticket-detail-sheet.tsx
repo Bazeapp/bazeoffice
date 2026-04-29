@@ -2,6 +2,7 @@ import * as React from "react"
 import { FileTextIcon, StickyNoteIcon, TagIcon } from "lucide-react"
 
 import { getTagClassName } from "@/features/lavoratori/lib/lookup-utils"
+import { getRapportoStatusColor, resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 import {
   type SupportTicketBoardCardData,
 } from "@/hooks/use-support-tickets-board"
@@ -25,6 +26,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -57,21 +59,6 @@ function formatDate(value: string | null | undefined) {
     month: "2-digit",
     year: "numeric",
   }).format(date)
-}
-
-function getStatusColor(value: string | null | undefined) {
-  const token = normalizeToken(value)
-  if (!token) return "zinc"
-  if (token.includes("attivo")) return "emerald"
-  if (token.includes("attiv") || token.includes("in corso") || token.includes("presa in carico")) {
-    return "amber"
-  }
-  if (token.includes("pagato") || token.includes("effettuata") || token.includes("inviato")) {
-    return "emerald"
-  }
-  if (token.includes("todo") || token.includes("to do")) return "sky"
-  if (token.includes("chius") || token.includes("annull") || token.includes("cess")) return "zinc"
-  return "sky"
 }
 
 function getStageDotClass(color: string | null | undefined) {
@@ -117,6 +104,7 @@ function toAttachmentArray(value: TicketRecord["allegati"]) {
 type SupportTicketDetailSheetProps = {
   card: SupportTicketBoardCardData | null
   stages: SupportTicketStatusDefinition[]
+  rapportoOptions: Array<{ id: string; label: string }>
   open: boolean
   onOpenChange: (open: boolean) => void
   onMoveTicket: (ticketId: string, targetStageId: string) => Promise<void>
@@ -126,6 +114,7 @@ type SupportTicketDetailSheetProps = {
 export function SupportTicketDetailSheet({
   card,
   stages,
+  rapportoOptions,
   open,
   onOpenChange,
   onMoveTicket,
@@ -164,11 +153,27 @@ export function SupportTicketDetailSheet({
   const urgencyConfig = resolveSupportTicketUrgency(card?.urgenza)
   const TagIconComponent = tagConfig.icon
   const UrgencyIcon = urgencyConfig.icon
+  const rapportoStatus = card?.rapporto
+    ? resolveRapportoStatus(card.rapporto, chiusure[0]?.data_fine_rapporto ?? card.rapporto.data_fine_rapporto)
+    : "Sconosciuto"
   const rapportoStatusColor = card?.rapporto
     ? lookupColorsByDomain.get(
-        `rapporti_lavorativi.stato_rapporto:${normalizeToken(card.rapporto.stato_rapporto)}`
-      ) ?? getStatusColor(card.rapporto.stato_rapporto)
+        `rapporti_lavorativi.stato_rapporto:${normalizeToken(rapportoStatus)}`
+      ) ?? getRapportoStatusColor(rapportoStatus)
     : "zinc"
+  const linkedRapportoOptions = React.useMemo(() => {
+    if (!card?.rapporto || rapportoOptions.some((option) => option.id === card.rapporto?.id)) {
+      return rapportoOptions
+    }
+
+    return [
+      {
+        id: card.rapporto.id,
+        label: card.nomeCompleto,
+      },
+      ...rapportoOptions,
+    ]
+  }, [card?.nomeCompleto, card?.rapporto, rapportoOptions])
 
   const handleUploadAttachment = React.useCallback(
     async (file: File) => {
@@ -243,6 +248,43 @@ export function SupportTicketDetailSheet({
           {card ? (
             <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
               <div className="mx-auto max-w-5xl space-y-5">
+                <DetailSectionBlock
+                  title={card.rapporto ? "Rapporto collegato" : "Collega rapporto"}
+                  icon={<FileTextIcon className="text-muted-foreground size-5" />}
+                  contentClassName="space-y-3"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Select
+                      value={card.rapporto?.id ?? card.record.rapporto_id ?? "__none__"}
+                      onValueChange={(value) =>
+                        void onPatchTicket(card.id, {
+                          rapporto_id: value === "__none__" ? null : value,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="min-w-0 flex-1">
+                        <SelectValue placeholder="Seleziona rapporto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nessun rapporto collegato</SelectItem>
+                        {linkedRapportoOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!card.rapporto && !card.record.rapporto_id}
+                      onClick={() => void onPatchTicket(card.id, { rapporto_id: null })}
+                    >
+                      Rimuovi
+                    </Button>
+                  </div>
+                </DetailSectionBlock>
+
                 {card.rapporto ? (
                   <Accordion type="single" collapsible className="rounded-2xl border bg-background px-4">
                     <AccordionItem value="rapporto-dettaglio" className="border-none">
@@ -259,7 +301,7 @@ export function SupportTicketDetailSheet({
 
                           <div className="flex flex-wrap items-center gap-1.5">
                             <Badge className={getTagClassName(rapportoStatusColor)}>
-                              {card.rapporto.stato_rapporto ?? "Sconosciuto"}
+                              {rapportoStatus}
                             </Badge>
                             {card.rapporto.stato_servizio ? (
                               <Badge variant="outline" className="h-6 rounded-full px-2.5 text-2xs font-medium">

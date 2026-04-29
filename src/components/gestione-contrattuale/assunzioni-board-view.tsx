@@ -206,7 +206,7 @@ function AssunzioniBoardSkeletonColumn() {
 }
 
 export function AssunzioniBoardView() {
-  const { loading, error, columns, moveCard } = useAssunzioniBoard()
+  const { loading, error, columns, moveCard, updateCard } = useAssunzioniBoard()
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCard, setSelectedCard] = React.useState<AssunzioniBoardCardData | null>(null)
@@ -304,6 +304,10 @@ export function AssunzioniBoardView() {
       <AssunzioniDetailSheet
         card={selectedCard}
         open={Boolean(selectedCard)}
+        onCardChange={(nextCard) => {
+          setSelectedCard(nextCard)
+          updateCard(nextCard.id, () => nextCard)
+        }}
         onOpenChange={(open) => {
           if (!open) setSelectedCard(null)
         }}

@@ -399,6 +399,7 @@ export function SupportTicketsView({
         <SupportTicketDetailSheet
           card={selectedCard}
           stages={stages}
+          rapportoOptions={rapportoOptions}
           open={true}
           onOpenChange={(open) => {
             if (!open) setSelectedTicketId(null);

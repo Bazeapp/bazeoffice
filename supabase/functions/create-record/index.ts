@@ -7,7 +7,9 @@ const corsHeaders = {
 };
 
 type SupportedTable =
+  | "assunzioni"
   | "famiglie"
+  | "chiusure_contratti"
   | "lavoratori"
   | "indirizzi"
   | "selezioni_lavoratori"
@@ -15,7 +17,8 @@ type SupportedTable =
   | "esperienze_lavoratori"
   | "referenze_lavoratori"
   | "processi_matching"
-  | "ticket";
+  | "ticket"
+  | "variazioni_contrattuali";
 
 type CreateRecordPayload = {
   table?: SupportedTable;
@@ -23,7 +26,9 @@ type CreateRecordPayload = {
 };
 
 const SUPPORTED_TABLES = new Set<SupportedTable>([
+  "assunzioni",
   "famiglie",
+  "chiusure_contratti",
   "lavoratori",
   "indirizzi",
   "selezioni_lavoratori",
@@ -32,10 +37,13 @@ const SUPPORTED_TABLES = new Set<SupportedTable>([
   "referenze_lavoratori",
   "processi_matching",
   "ticket",
+  "variazioni_contrattuali",
 ]);
 
 const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
+  assunzioni: new Set(["id", "creato_il", "aggiornato_il"]),
   famiglie: new Set(["id", "creato_il", "aggiornato_il"]),
+  chiusure_contratti: new Set(["id", "creato_il", "aggiornato_il"]),
   lavoratori: new Set(["id", "creato_il", "aggiornato_il"]),
   indirizzi: new Set(["id", "creato_il", "aggiornato_il"]),
   selezioni_lavoratori: new Set(["id", "creato_il", "aggiornato_il"]),
@@ -44,6 +52,7 @@ const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
   referenze_lavoratori: new Set(["id", "creato_il", "aggiornato_il"]),
   processi_matching: new Set(["id", "creato_il", "aggiornato_il"]),
   ticket: new Set(["id", "creato_il", "aggiornato_il"]),
+  variazioni_contrattuali: new Set(["id", "creato_il", "aggiornato_il"]),
 };
 
 function badRequest(message: string) {

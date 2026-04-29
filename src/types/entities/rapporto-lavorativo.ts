@@ -8,6 +8,7 @@ export type RapportoLavorativoRecord = {
   cognome_nome_datore_proper: string | null
   creata: string | null
   data_inizio_rapporto: string | null
+  data_fine_rapporto?: string | null
   dichiarazione_ospitalita_allegati: JsonObject | JsonObject[] | null
   distribuzione_ore_settimana: string | null
   famiglia_id: string | null

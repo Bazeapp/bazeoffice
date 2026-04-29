@@ -5,11 +5,13 @@ import {
   FileTextIcon,
   MapPinIcon,
   PencilIcon,
+  PlusIcon,
 } from "lucide-react";
 
 import {
   type VariazioniBoardCardData,
   type VariazioniBoardColumnData,
+  type VariazioniRapportoOption,
   useVariazioniBoard,
 } from "@/hooks/use-variazioni-board";
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot";
@@ -23,6 +25,15 @@ import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rappo
 import { RecordCard } from "@/components/shared-next/record-card";
 import { SectionHeader } from "@/components/shared-next/section-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
 import {
   Sheet,
@@ -31,6 +42,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { updateRecord } from "@/lib/anagrafiche-api";
 import { cn } from "@/lib/utils";
 
 function formatDate(value: string | null | undefined) {
@@ -42,6 +55,10 @@ function formatDate(value: string | null | undefined) {
     month: "2-digit",
     year: "numeric",
   }).format(date);
+}
+
+function toDateInputValue(value: string | null | undefined) {
+  return value?.slice(0, 10) ?? "";
 }
 
 function formatCurrency(value: number | null | undefined) {
@@ -89,15 +106,61 @@ function VariazioniDetailSheet({
   card,
   open,
   onOpenChange,
+  onCardChange,
 }: {
   card: VariazioniBoardCardData | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCardChange: (card: VariazioniBoardCardData) => void;
 }) {
+  const [editingDetails, setEditingDetails] = React.useState(false);
+  const [savingDetails, setSavingDetails] = React.useState(false);
+  const [detailsError, setDetailsError] = React.useState<string | null>(null);
+  const [detailsDraft, setDetailsDraft] = React.useState(() => ({
+    dataVariazione: toDateInputValue(card?.record.data_variazione),
+    variazioneDaApplicare: card?.record.variazione_da_applicare ?? "",
+  }));
   const distributionItems = buildDistributionItems(
     card?.rapporto?.distribuzione_ore_settimana ?? null,
     card?.rapporto?.ore_a_settimana ?? null,
   );
+
+  React.useEffect(() => {
+    setDetailsDraft({
+      dataVariazione: toDateInputValue(card?.record.data_variazione),
+      variazioneDaApplicare: card?.record.variazione_da_applicare ?? "",
+    });
+    setEditingDetails(false);
+    setDetailsError(null);
+  }, [card?.id, card?.record.data_variazione, card?.record.variazione_da_applicare]);
+
+  async function saveDetailsPatch(patch: Record<string, unknown>) {
+    if (!card || Object.keys(patch).length === 0) return;
+
+    setSavingDetails(true);
+    setDetailsError(null);
+
+    try {
+      const response = await updateRecord("variazioni_contrattuali", card.id, patch);
+      const nextRecord = {
+        ...card.record,
+        ...response.row,
+      } as VariazioniBoardCardData["record"];
+
+      onCardChange({
+        ...card,
+        record: nextRecord,
+        dataVariazione: formatDate(nextRecord.data_variazione),
+        variazioneDaApplicare: nextRecord.variazione_da_applicare,
+      });
+    } catch (caughtError) {
+      setDetailsError(
+        caughtError instanceof Error ? caughtError.message : "Errore salvando variazione",
+      );
+    } finally {
+      setSavingDetails(false);
+    }
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -131,27 +194,84 @@ function VariazioniDetailSheet({
               <DetailSectionBlock
                 title="Dettagli variazione"
                 icon={<CalendarDaysIcon className="size-4" />}
-                action={<PencilIcon className="text-muted-foreground size-4" />}
+                action={
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => setEditingDetails((current) => !current)}
+                    aria-label="Modifica dettagli variazione"
+                  >
+                    <PencilIcon className="size-4" />
+                  </button>
+                }
                 contentClassName="space-y-5"
               >
-                <div className="flex items-center gap-2 text-sm sm:text-base">
-                  <CalendarDaysIcon className="text-muted-foreground size-5 shrink-0" />
-                  <span className="text-muted-foreground">
-                    Data di partenza:
-                  </span>
-                  <span className="font-semibold text-foreground">
-                    {formatDate(card.record.data_variazione)}
-                  </span>
-                </div>
+                {editingDetails ? (
+                  <div className="grid gap-4">
+                    <label className="space-y-2">
+                      <span className="ui-type-label">Data di partenza</span>
+                      <Input
+                        type="date"
+                        value={detailsDraft.dataVariazione}
+                        onChange={(event) =>
+                          setDetailsDraft((current) => ({
+                            ...current,
+                            dataVariazione: event.target.value,
+                          }))
+                        }
+                        onBlur={() =>
+                          void saveDetailsPatch({
+                            data_variazione: detailsDraft.dataVariazione || null,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="ui-type-label">Variazione da applicare</span>
+                      <Textarea
+                        value={detailsDraft.variazioneDaApplicare}
+                        onChange={(event) =>
+                          setDetailsDraft((current) => ({
+                            ...current,
+                            variazioneDaApplicare: event.target.value,
+                          }))
+                        }
+                        onBlur={() =>
+                          void saveDetailsPatch({
+                            variazione_da_applicare: detailsDraft.variazioneDaApplicare || null,
+                          })
+                        }
+                      />
+                    </label>
+                    {savingDetails ? (
+                      <p className="text-muted-foreground text-xs">Salvataggio in corso...</p>
+                    ) : null}
+                    {detailsError ? (
+                      <p className="text-xs font-medium text-red-600">{detailsError}</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-sm sm:text-base">
+                      <CalendarDaysIcon className="text-muted-foreground size-5 shrink-0" />
+                      <span className="text-muted-foreground">
+                        Data di partenza:
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {formatDate(card.record.data_variazione)}
+                      </span>
+                    </div>
 
-                <div className="border-t border-border/70 pt-5 text-sm sm:text-base">
-                  <span className="text-muted-foreground">
-                    Variazione da applicare:
-                  </span>{" "}
-                  <span className="font-medium text-foreground">
-                    {card.variazioneDaApplicare}
-                  </span>
-                </div>
+                    <div className="border-t border-border/70 pt-5 text-sm sm:text-base">
+                      <span className="text-muted-foreground">
+                        Variazione da applicare:
+                      </span>{" "}
+                      <span className="font-medium text-foreground">
+                        {card.variazioneDaApplicare ?? "-"}
+                      </span>
+                    </div>
+                  </>
+                )}
               </DetailSectionBlock>
 
               <DetailSectionBlock
@@ -358,8 +478,158 @@ function VariazioniBoardSkeletonColumn() {
   return <KanbanColumnSkeleton />;
 }
 
+function CreateVariazioneDialog({
+  open,
+  onOpenChange,
+  rapportoOptions,
+  onCreate,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  rapportoOptions: VariazioniRapportoOption[];
+  onCreate: (input: {
+    rapportoId: string;
+    variazioneDaApplicare: string;
+    dataVariazione: string;
+  }) => Promise<void>;
+}) {
+  const [query, setQuery] = React.useState("");
+  const [selectedRapportoId, setSelectedRapportoId] = React.useState("");
+  const [variazioneDaApplicare, setVariazioneDaApplicare] = React.useState("");
+  const [dataVariazione, setDataVariazione] = React.useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const filteredOptions = React.useMemo(() => {
+    const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return rapportoOptions.slice(0, 20);
+    return rapportoOptions
+      .filter((option) => {
+        const haystack = option.label.toLowerCase();
+        return tokens.every((token) => haystack.includes(token));
+      })
+      .slice(0, 20);
+  }, [query, rapportoOptions]);
+
+  const selectedRapporto = rapportoOptions.find((option) => option.id === selectedRapportoId);
+
+  React.useEffect(() => {
+    if (!open) {
+      setQuery("");
+      setSelectedRapportoId("");
+      setVariazioneDaApplicare("");
+      setDataVariazione(new Date().toISOString().slice(0, 10));
+      setError(null);
+      setSaving(false);
+    }
+  }, [open]);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedRapportoId || !variazioneDaApplicare.trim()) {
+      setError("Seleziona un rapporto e inserisci la descrizione della variazione.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await onCreate({
+        rapportoId: selectedRapportoId,
+        variazioneDaApplicare: variazioneDaApplicare.trim(),
+        dataVariazione,
+      });
+      onOpenChange(false);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error ? caughtError.message : "Errore creando variazione",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Apri una variazione</DialogTitle>
+          <DialogDescription>
+            Seleziona il rapporto e descrivi la variazione contrattuale da gestire.
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <label className="space-y-2 block">
+            <span className="ui-type-label">Rapporto di lavoro</span>
+            <SearchInput
+              placeholder="Cerca per famiglia o lavoratore..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onClear={() => setQuery("")}
+            />
+          </label>
+          <div className="max-h-60 space-y-2 overflow-y-auto rounded-xl border bg-surface p-2">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={cn(
+                    "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted",
+                    selectedRapportoId === option.id && "bg-primary/10 text-primary",
+                  )}
+                  onClick={() => setSelectedRapportoId(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))
+            ) : (
+              <p className="text-muted-foreground px-3 py-4 text-sm">
+                Nessun rapporto trovato.
+              </p>
+            )}
+          </div>
+          {selectedRapporto ? (
+            <p className="text-muted-foreground text-xs">
+              Selezionato: <span className="font-medium text-foreground">{selectedRapporto.label}</span>
+            </p>
+          ) : null}
+          <label className="space-y-2 block">
+            <span className="ui-type-label">Data variazione</span>
+            <Input
+              type="date"
+              value={dataVariazione}
+              onChange={(event) => setDataVariazione(event.target.value)}
+            />
+          </label>
+          <label className="space-y-2 block">
+            <span className="ui-type-label">Descrizione variazione</span>
+            <Textarea
+              value={variazioneDaApplicare}
+              onChange={(event) => setVariazioneDaApplicare(event.target.value)}
+              placeholder="Es. aumento ore, cambio paga, modifica luogo di lavoro..."
+              className="min-h-28"
+            />
+          </label>
+          {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annulla
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Creazione..." : "Crea variazione"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function VariazioniBoardView() {
-  const { loading, error, columns, moveCard } = useVariazioniBoard();
+  const { loading, error, columns, rapportoOptions, createVariazione, moveCard, updateCard } = useVariazioniBoard();
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(
     null,
   );
@@ -370,6 +640,7 @@ export function VariazioniBoardView() {
     null,
   );
   const [searchValue, setSearchValue] = React.useState("");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
 
   const filteredColumns = React.useMemo(() => {
     const query = searchValue.trim().toLowerCase();
@@ -419,6 +690,10 @@ export function VariazioniBoardView() {
             Variazioni
           </SectionHeader.Title>
           <SectionHeader.Toolbar>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <PlusIcon className="size-4" />
+              Apri una variazione
+            </Button>
             <SearchInput
               className="md:max-w-sm"
               placeholder="Cerca per famiglia, lavoratore, tipo rapporto..."
@@ -486,6 +761,13 @@ export function VariazioniBoardView() {
         onOpenChange={(open) => {
           if (!open) setSelectedCardId(null);
         }}
+        onCardChange={(nextCard) => updateCard(nextCard.id, () => nextCard)}
+      />
+      <CreateVariazioneDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        rapportoOptions={rapportoOptions}
+        onCreate={createVariazione}
       />
     </>
   );

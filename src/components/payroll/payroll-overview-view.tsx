@@ -27,6 +27,16 @@ import {
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { StatisticsMetricCard } from "@/components/shared-next/statistics-metric-card"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -161,8 +171,23 @@ function formatCurrencyAmount(value: number | null | undefined) {
 function normalizeCaseFlag(value: string | null | undefined) {
   const token = String(value ?? "").trim().toLowerCase()
   if (!token) return "no"
+  if (token === "chiusura rapporto") return "chiusura"
   if (["si", "sì", "yes", "true", "caso particolare"].includes(token)) return "si"
   return "no"
+}
+
+function getCedolinoTypeLabel(value: string | null | undefined) {
+  const normalized = normalizeCaseFlag(value)
+  if (normalized === "chiusura") return "Chiusura rapporto"
+  if (normalized === "si") return "Caso particolare"
+  return "Regolare"
+}
+
+function getCedolinoTypeClassName(value: string | null | undefined) {
+  const normalized = normalizeCaseFlag(value)
+  if (normalized === "chiusura") return "bg-rose-100 text-rose-700 hover:bg-rose-100"
+  if (normalized === "si") return "bg-amber-100 text-amber-700 hover:bg-amber-100"
+  return "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
 }
 
 function normalizeAttachmentValue(value: unknown) {
@@ -285,6 +310,7 @@ function getColumnVisual(color: string): KanbanColumnVisual {
 function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
   const famiglia = card.rapporto?.cognome_nome_datore_proper?.trim() || "Famiglia non disponibile"
   const lavoratore = card.rapporto?.nome_lavoratore_per_url?.trim() || "Lavoratore non disponibile"
+  const isPaid = card.stage === "Pagato" || card.pagamento?.status === "succeeded"
 
   return (
     <Card className="border border-border/70 bg-surface py-0 transition-shadow hover:shadow-md">
@@ -302,18 +328,23 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
         <div className="flex flex-wrap gap-1.5">
           <Badge
             variant="secondary"
-            className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-2xs text-emerald-700 hover:bg-emerald-100"
+            className={cn(
+              "gap-1 rounded-full px-2.5 py-0.5 text-2xs",
+              getCedolinoTypeClassName(card.record.caso_particolare)
+            )}
           >
             <CircleCheckBigIcon className="size-3" />
-            <span>REG</span>
+            <span>{getCedolinoTypeLabel(card.record.caso_particolare)}</span>
           </Badge>
-          <Badge
-            variant="secondary"
-            className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-2xs text-emerald-700 hover:bg-emerald-100"
-          >
-            <CircleCheckBigIcon className="size-3" />
-            <span>Pagato</span>
-          </Badge>
+          {isPaid ? (
+            <Badge
+              variant="secondary"
+              className="gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-2xs text-emerald-700 hover:bg-emerald-100"
+            >
+              <CircleCheckBigIcon className="size-3" />
+              <span>Pagato</span>
+            </Badge>
+          ) : null}
         </div>
       </CardContent>
     </Card>
@@ -327,6 +358,7 @@ export function CedolinoDetailSheet({
   onOpenChange,
   onStageChange,
   onPatchCard,
+  onPatchPresence,
 }: {
   card: PayrollBoardCardData | null
   columns: PayrollBoardColumnData[]
@@ -334,6 +366,7 @@ export function CedolinoDetailSheet({
   onOpenChange: (open: boolean) => void
   onStageChange: (recordId: string, targetStageId: string) => void
   onPatchCard: (recordId: string, patch: Partial<PayrollBoardCardData["record"]>) => void
+  onPatchPresence: (recordId: string, patch: Partial<NonNullable<PayrollBoardCardData["presenze"]>>) => void
 }) {
   const famiglia = card?.famiglia
   const pagamento = card?.pagamento
@@ -341,6 +374,10 @@ export function CedolinoDetailSheet({
   const rapporto = card?.rapporto
   const statoServizio = rapporto?.stato_servizio || "Non disponibile"
   const isRegularPresence = Boolean(card?.record.presenze_regolare_id)
+  const paymentIdentifier = pagamento?.payment_intent_id ?? pagamento?.charge_id ?? "Non ancora disponibile"
+  const paymentStatus = pagamento?.status ?? "Pagamento non ancora registrato"
+  const paymentAmount = pagamento?.amount ?? card?.record.importo_busta_estratto ?? null
+  const paymentFee = pagamento?.fee ?? null
   const [runningAutomationId, setRunningAutomationId] = React.useState<string | null>(null)
 
   const handleRunPagamentoAutomation = React.useCallback(
@@ -431,6 +468,10 @@ export function CedolinoDetailSheet({
                     <p className="font-medium">{rapporto?.codice_datore_webcolf ?? "Non disponibile"}</p>
                   </div>
                   <div className="space-y-2">
+                    <p className="ui-type-label">Codice Lavoratore Webcolf</p>
+                    <p className="font-medium">{rapporto?.codice_dipendente_webcolf ?? "Non disponibile"}</p>
+                  </div>
+                  <div className="space-y-2">
                     <label className="ui-type-label">Data invio famiglia</label>
                     <Input
                       type="date"
@@ -448,7 +489,12 @@ export function CedolinoDetailSheet({
                       value={normalizeCaseFlag(card.record.caso_particolare)}
                       onValueChange={(value) =>
                         onPatchCard(card.id, {
-                          caso_particolare: value === "si" ? "Caso particolare" : null,
+                          caso_particolare:
+                            value === "chiusura"
+                              ? "Chiusura rapporto"
+                              : value === "si"
+                                ? "Caso particolare"
+                                : null,
                         })
                       }
                     >
@@ -456,8 +502,9 @@ export function CedolinoDetailSheet({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="si">Caso particolare</SelectItem>
                         <SelectItem value="no">Regolare</SelectItem>
+                        <SelectItem value="si">Caso particolare</SelectItem>
+                        <SelectItem value="chiusura">Chiusura rapporto</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -503,6 +550,34 @@ export function CedolinoDetailSheet({
                   onPreviewOpen={() => {}}
                   isUploading={false}
                 />
+
+                <div className="space-y-2">
+                  <p className="ui-type-label">URL cedolino</p>
+                  <div className="flex gap-2">
+                    <Input
+                      type="url"
+                      value={card.record.cedolino_url ?? ""}
+                      placeholder="https://..."
+                      onChange={(event) =>
+                        onPatchCard(card.id, {
+                          cedolino_url: event.target.value || null,
+                        })
+                      }
+                    />
+                    {card.record.cedolino_url ? (
+                      <Button variant="outline" size="icon" asChild>
+                        <a
+                          href={card.record.cedolino_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Apri cedolino"
+                        >
+                          <ExternalLinkIcon className="size-4" />
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
 
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -551,69 +626,109 @@ export function CedolinoDetailSheet({
                 icon={<CreditCardIcon className="text-muted-foreground size-5" />}
                 contentClassName="space-y-5"
               >
-                {pagamento ? (
-                  <div className="space-y-5">
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <p className="ui-type-label">Transazione</p>
-                        <p className="font-medium">{pagamento.payment_intent_id ?? pagamento.charge_id ?? "Non disponibile"}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="ui-type-label">Stato pagamento</p>
-                        <Badge variant="secondary" className="w-fit rounded-full px-3">
-                          {pagamento.status ?? "Non disponibile"}
-                        </Badge>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="ui-type-label">Importo cedolino</p>
-                        <p className="font-medium">{formatCurrencyAmount(pagamento.amount)}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="ui-type-label">Application fee</p>
-                        <p className="font-medium">{formatCurrencyAmount(pagamento.fee)}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="ui-type-label">Tipo pagamento</p>
-                        <p className="font-medium">{pagamento.type_of_payment ?? "Non disponibile"}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="ui-type-label">Data pagamento</p>
-                        <p className="font-medium">{formatDateTime(pagamento.data_ora_di_pagamento)}</p>
-                      </div>
+                <div className="space-y-5">
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Transazione</p>
+                      <p className="font-medium">{paymentIdentifier}</p>
                     </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={runningAutomationId !== null}
-                        onClick={() =>
-                          void handleRunPagamentoAutomation("finance-request-invoice-data")
-                        }
-                      >
-                        {runningAutomationId === "finance-request-invoice-data" ? (
-                          <LoaderCircleIcon className="animate-spin" />
-                        ) : null}
-                        Chiedi dati
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={runningAutomationId !== null}
-                        onClick={() =>
-                          void handleRunPagamentoAutomation("finance-invoice-payment")
-                        }
-                      >
-                        {runningAutomationId === "finance-invoice-payment" ? (
-                          <LoaderCircleIcon className="animate-spin" />
-                        ) : null}
-                        Fatturare
-                      </Button>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Stato pagamento</p>
+                      <Badge variant="secondary" className="w-fit rounded-full px-3">
+                        {paymentStatus}
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Importo cedolino</p>
+                      <p className="font-medium">{formatCurrencyAmount(paymentAmount)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Application fee</p>
+                      <p className="font-medium">{formatCurrencyAmount(paymentFee)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Tipo pagamento</p>
+                      <p className="font-medium">{pagamento?.type_of_payment ?? "Non ancora disponibile"}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Data pagamento</p>
+                      <p className="font-medium">
+                        {pagamento?.data_ora_di_pagamento
+                          ? formatDateTime(pagamento.data_ora_di_pagamento)
+                          : "Non ancora pagato"}
+                      </p>
                     </div>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Nessun pagamento collegato a questo cedolino.</p>
-                )}
+
+                  {pagamento ? (
+                    <div className="flex flex-wrap gap-2">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={runningAutomationId !== null}
+                        >
+                          {runningAutomationId === "finance-request-invoice-data" ? (
+                            <LoaderCircleIcon className="animate-spin" />
+                          ) : null}
+                          Chiedi dati
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogTitle>Inviare richiesta dati fatturazione?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Partira il workflow automatico per chiedere alla famiglia i dati di fatturazione.
+                        </AlertDialogDescription>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() =>
+                              void handleRunPagamentoAutomation("finance-request-invoice-data")
+                            }
+                          >
+                            Conferma
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={runningAutomationId !== null}
+                        >
+                          {runningAutomationId === "finance-invoice-payment" ? (
+                            <LoaderCircleIcon className="animate-spin" />
+                          ) : null}
+                          Fatturare
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogTitle>Avviare fatturazione?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Partira il workflow automatico di fatturazione per questo pagamento.
+                        </AlertDialogDescription>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() =>
+                              void handleRunPagamentoAutomation("finance-invoice-payment")
+                            }
+                          >
+                            Conferma
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Nessun record pagamento collegato: importo mostrato dal cedolino.
+                    </p>
+                  )}
+                </div>
               </DetailSectionBlock>
 
               <DetailSectionBlock
@@ -668,14 +783,75 @@ export function CedolinoDetailSheet({
                             <TableRow key={row.day}>
                               <TableCell className="font-mono text-xs">{row.day}</TableCell>
                               <TableCell>
-                                <Badge variant="outline" className="rounded-full px-2 text-2xs">
-                                  {row.type || "n/d"}
-                                </Badge>
+                                <Input
+                                  value={row.type}
+                                  className="h-8 min-w-24"
+                                  placeholder="Tipo"
+                                  onChange={(event) =>
+                                    card.presenze
+                                      ? onPatchPresence(card.presenze.id, {
+                                          [`tipo_day_${row.day}`]: event.target.value || null,
+                                        })
+                                      : undefined
+                                  }
+                                />
                               </TableCell>
-                              <TableCell>{row.hours || "-"}</TableCell>
-                              <TableCell>{row.event || "-"}</TableCell>
-                              <TableCell>{row.sicknessCode || "-"}</TableCell>
-                              <TableCell className="max-w-72 truncate">{row.note || "-"}</TableCell>
+                              <TableCell>
+                                <Input
+                                  value={row.hours}
+                                  className="h-8 w-20"
+                                  placeholder="Ore"
+                                  onChange={(event) =>
+                                    card.presenze
+                                      ? onPatchPresence(card.presenze.id, {
+                                          [`ore_day_${row.day}`]: event.target.value || null,
+                                        })
+                                      : undefined
+                                  }
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  value={row.event}
+                                  className="h-8 min-w-40"
+                                  placeholder="Evento"
+                                  onChange={(event) =>
+                                    card.presenze
+                                      ? onPatchPresence(card.presenze.id, {
+                                          [`evento_day_${row.day}`]: event.target.value || null,
+                                        })
+                                      : undefined
+                                  }
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  value={row.sicknessCode}
+                                  className="h-8 w-24"
+                                  placeholder="PNR"
+                                  onChange={(event) =>
+                                    card.presenze
+                                      ? onPatchPresence(card.presenze.id, {
+                                          [`codice_malattia_day_${row.day}`]: event.target.value || null,
+                                        })
+                                      : undefined
+                                  }
+                                />
+                              </TableCell>
+                              <TableCell className="min-w-72">
+                                <Input
+                                  value={row.note}
+                                  className="h-8"
+                                  placeholder="Note"
+                                  onChange={(event) =>
+                                    card.presenze
+                                      ? onPatchPresence(card.presenze.id, {
+                                          [`note_day_${row.day}`]: event.target.value || null,
+                                        })
+                                      : undefined
+                                  }
+                                />
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -793,7 +969,7 @@ function PayrollBoardSkeletonColumn() {
 
 function CedoliniPayrollView() {
   const [selectedMonth, setSelectedMonth] = React.useState(getCurrentMonthValue)
-  const { loading, error, columns, moveCard, patchCard } = usePayrollBoard(selectedMonth)
+  const { loading, error, columns, moveCard, patchCard, patchPresence } = usePayrollBoard(selectedMonth)
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
@@ -969,6 +1145,9 @@ function CedoliniPayrollView() {
         }}
         onPatchCard={(recordId, patch) => {
           void patchCard(recordId, patch)
+        }}
+        onPatchPresence={(recordId, patch) => {
+          void patchPresence(recordId, patch)
         }}
       />
     </section>

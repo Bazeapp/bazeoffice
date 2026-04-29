@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 type SupportedTable =
+  | "assunzioni"
   | "famiglie"
   | "chiusure_contratti"
   | "contributi_inps"
@@ -117,6 +118,20 @@ const MAX_SERVER_SCAN_ROWS = 25000;
 const BATCH_SIZE = 1000;
 
 const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
+  assunzioni: [
+    "id",
+    "civico_se_diverso_residenza",
+    "comune_se_diverso_residenza",
+    "luogo_lavoro_se_diverso_da_residenza",
+    "provincia",
+    "rapporto_di_lavoro_residenza",
+    "rapporto_lavorativo_datore_lavoro_id",
+    "airtable_id",
+    "airtable_record_id",
+    "creato_il",
+    "aggiornato_il",
+    "metadati_migrazione",
+  ],
   famiglie: [
     "id",
     "nome",

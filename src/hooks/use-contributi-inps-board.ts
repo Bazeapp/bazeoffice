@@ -7,6 +7,8 @@ import {
   fetchRapportiLavorativi,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
+import { resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 import type {
   ContributoInpsRecord,
   LookupValueRecord,
@@ -75,8 +77,9 @@ const CONTRIBUTI_RAPPORTI_SELECT = [
   "id",
   "id_rapporto",
   "ticket_id",
+  "stato_assunzione",
   "stato_servizio",
-  "stato_rapporto",
+  "fine_rapporto_lavorativo_id",
   "cognome_nome_datore_proper",
   "nome_lavoratore_per_url",
   "tipo_rapporto",
@@ -140,16 +143,12 @@ function getStageColorFallback(value: string | null | undefined) {
 }
 
 function isActiveRapporto(
-  rapporto: Pick<RapportoLavorativoRecord, "stato_rapporto" | "stato_servizio">
+  rapporto: Pick<
+    RapportoLavorativoRecord,
+    "stato_assunzione" | "data_fine_rapporto"
+  >
 ) {
-  const token = normalizeToken(rapporto.stato_servizio ?? rapporto.stato_rapporto)
-  if (!token) return false
-  if (token === "attivo") return true
-  if (token.includes("non attivo")) return false
-  if (token.includes("attivo")) return true
-  if (token.includes("in attivazione")) return true
-  if (token.includes("in corso")) return true
-  return false
+  return normalizeToken(resolveRapportoStatus(rapporto)) === "attivo"
 }
 
 function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
@@ -523,8 +522,8 @@ async function fetchContributiBoardData(
         ? rapportoByExternalId.get(ticketKey) ?? null
       : null
 
-    const nomeFamiglia = rapporto?.cognome_nome_datore_proper?.trim() || "Famiglia non disponibile"
-    const nomeLavoratore = rapporto?.nome_lavoratore_per_url?.trim() || "Lavoratore non disponibile"
+    const nomeFamiglia = rapporto ? getRapportoFamilyLabel(rapporto) : "Famiglia non disponibile"
+    const nomeLavoratore = rapporto ? getRapportoWorkerLabel(rapporto) : "Lavoratore non disponibile"
     const quarterValue =
       recordQuarter ??
       getQuarterValueFromDate(resolvedQuarter?.data_inizio ?? null) ??

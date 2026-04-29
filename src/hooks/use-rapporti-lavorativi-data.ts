@@ -1,6 +1,7 @@
 import * as React from "react"
 
 import {
+  createRecord,
   fetchChiusureContratti,
   fetchContributiInps,
   fetchFamiglie,
@@ -12,10 +13,17 @@ import {
   fetchProcessiMatching,
   fetchPresenzeMensili,
   fetchRapportiLavorativi,
+  fetchTickets,
   fetchVariazioniContrattuali,
   type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
 import { normalizeLookupColors } from "@/features/lavoratori/lib/lookup-utils"
+import type {
+  SupportTicketMetadata,
+  SupportTicketTag,
+  SupportTicketType,
+  SupportTicketUrgency,
+} from "@/components/support/support-ticket-config"
 import type {
   ChiusuraContrattoRecord,
   ContributoInpsRecord,
@@ -27,11 +35,39 @@ import type {
   PresenzaMensileRecord,
   ProcessoMatchingRecord,
   RapportoLavorativoRecord,
+  TicketRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
 
+type CreateRapportoTicketInput = {
+  tipo: SupportTicketType
+  rapportoId: string
+  tag: SupportTicketTag
+  urgenza: SupportTicketUrgency
+  causale: string
+  note: string
+}
+
 const PAGE_SIZE = 50
 const SEARCH_FIELDS = ["nome_lavoratore_per_url", "cognome_nome_datore_proper", "id"]
+const TABLE_QUERY_RETRY_DELAYS_MS = [1000, 3000, 5000] as const
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function isTransientTableQueryError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  return /503|temporarily unavailable|SUPABASE_EDGE_RUNTIME_ERROR|edge function/i.test(message)
+}
+
+function getRapportiLoadErrorMessage(error: unknown) {
+  if (isTransientTableQueryError(error)) {
+    return "Impossibile caricare i rapporti lavorativi. Riprova tra qualche secondo."
+  }
+
+  return "Errore nel caricamento rapporti lavorativi. Riprova tra qualche secondo."
+}
 
 function buildSearchQuery(value: string) {
   const normalizedValue = value.trim()
@@ -104,11 +140,82 @@ function buildAnyOfFilter(field: string, values: string[]): QueryFilterGroup | u
   }
 }
 
+function buildNamePartsFilter(
+  label: string | null | undefined,
+  mode: "family" | "worker"
+): QueryFilterGroup | undefined {
+  const normalizedLabel = label?.trim().replace(/\s+/g, " ")
+  if (!normalizedLabel) return undefined
+
+  const [firstPart, ...restParts] = normalizedLabel.split(" ")
+  const restPart = restParts.join(" ").trim()
+  const nodes: QueryFilterGroup["nodes"] = []
+
+  if (firstPart && restPart) {
+    nodes.push(
+      {
+        kind: "group",
+        id: `${mode}-surname-first`,
+        logic: "and",
+        nodes: [
+          { kind: "condition", id: `${mode}-surname-first-cognome`, field: "cognome", operator: "is", value: firstPart },
+          { kind: "condition", id: `${mode}-surname-first-nome`, field: "nome", operator: "is", value: restPart },
+        ],
+      },
+      {
+        kind: "group",
+        id: `${mode}-name-first`,
+        logic: "and",
+        nodes: [
+          { kind: "condition", id: `${mode}-name-first-nome`, field: "nome", operator: "is", value: firstPart },
+          { kind: "condition", id: `${mode}-name-first-cognome`, field: "cognome", operator: "is", value: restPart },
+        ],
+      }
+    )
+  }
+
+  if (mode === "worker") {
+    nodes.push({
+      kind: "condition",
+      id: "worker-full-name-as-nome",
+      field: "nome",
+      operator: "is",
+      value: normalizedLabel,
+    })
+  }
+
+  if (nodes.length === 0) return undefined
+
+  return {
+    kind: "group",
+    id: `${mode}-name-fallback-root`,
+    logic: "or",
+    nodes,
+  }
+}
+
+async function fetchUniqueFamigliaByLabel(label: string | null | undefined) {
+  const filters = buildNamePartsFilter(label, "family")
+  if (!filters) return null
+
+  const response = await fetchFamiglie({ limit: 2, offset: 0, filters })
+  return response.rows.length === 1 ? (response.rows[0] as FamigliaRecord) : null
+}
+
+async function fetchUniqueLavoratoreByLabel(label: string | null | undefined) {
+  const filters = buildNamePartsFilter(label, "worker")
+  if (!filters) return null
+
+  const response = await fetchLavoratori({ limit: 2, offset: 0, filters })
+  return response.rows.length === 1 ? (response.rows[0] as LavoratoreRecord) : null
+}
+
 export function useRapportiLavorativiData() {
   const [rapporti, setRapporti] = React.useState<RapportoLavorativoRecord[]>([])
   const [rapportiTotal, setRapportiTotal] = React.useState(0)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [reloadToken, setReloadToken] = React.useState(0)
   const [pageIndex, setPageIndex] = React.useState(0)
   const [searchValue, setSearchValue] = React.useState("")
   const [selectedRapportoId, setSelectedRapportoId] = React.useState<string | null>(null)
@@ -122,11 +229,40 @@ export function useRapportiLavorativiData() {
   const [selectedPresenze, setSelectedPresenze] = React.useState<PresenzaMensileRecord[]>([])
   const [selectedVariazioni, setSelectedVariazioni] = React.useState<VariazioneContrattualeRecord[]>([])
   const [selectedChiusure, setSelectedChiusure] = React.useState<ChiusuraContrattoRecord[]>([])
+  const [selectedTickets, setSelectedTickets] = React.useState<TicketRecord[]>([])
   const [loadingRelated, setLoadingRelated] = React.useState(false)
   const [lookupColorsByDomain, setLookupColorsByDomain] = React.useState<Map<string, string>>(
     new Map()
   )
   const serverSearchQuery = React.useMemo(() => buildSearchQuery(searchValue), [searchValue])
+
+  const retryRapporti = React.useCallback(() => {
+    setReloadToken((current) => current + 1)
+  }, [])
+
+  const createTicketForSelectedRapporto = React.useCallback(
+    async (input: CreateRapportoTicketInput) => {
+      const metadata: SupportTicketMetadata = {
+        tag: input.tag,
+        note: input.note,
+        assegnatario: "",
+      }
+
+      const response = await createRecord("ticket", {
+        allegati: [],
+        causale: input.causale,
+        data_apertura: new Date().toISOString(),
+        rapporto_id: input.rapportoId,
+        stato: "aperto",
+        tipo: input.tipo,
+        urgenza: input.urgenza,
+        metadati_migrazione: metadata,
+      })
+
+      setSelectedTickets((current) => [response.row as TicketRecord, ...current])
+    },
+    []
+  )
 
   React.useEffect(() => {
     setPageIndex(0)
@@ -140,25 +276,72 @@ export function useRapportiLavorativiData() {
       setError(null)
 
       try {
-        const response = await fetchRapportiLavorativi({
-          limit: PAGE_SIZE,
-          offset: pageIndex * PAGE_SIZE,
-          orderBy: [
-            { field: "ultimo_aggiornamento", ascending: false },
-            { field: "aggiornato_il", ascending: false },
-          ],
-          search: serverSearchQuery,
-          searchFields: SEARCH_FIELDS,
-        })
+        let response: Awaited<ReturnType<typeof fetchRapportiLavorativi>> | null = null
+
+        for (let attempt = 0; attempt <= TABLE_QUERY_RETRY_DELAYS_MS.length; attempt += 1) {
+          try {
+            response = await fetchRapportiLavorativi({
+              limit: PAGE_SIZE,
+              offset: pageIndex * PAGE_SIZE,
+              orderBy: [
+                { field: "data_inizio_rapporto", ascending: false },
+                { field: "ultimo_aggiornamento", ascending: false },
+                { field: "aggiornato_il", ascending: false },
+              ],
+              search: serverSearchQuery,
+              searchFields: SEARCH_FIELDS,
+            })
+            break
+          } catch (caughtError) {
+            const shouldRetry =
+              isTransientTableQueryError(caughtError) &&
+              attempt < TABLE_QUERY_RETRY_DELAYS_MS.length
+
+            if (!shouldRetry) throw caughtError
+
+            await wait(TABLE_QUERY_RETRY_DELAYS_MS[attempt])
+            if (!isActive) return
+          }
+        }
+
+        if (!response) return
 
         if (!isActive) return
 
-        setRapporti(response.rows)
+        const chiusuraIds = response.rows
+          .map((rapporto) => rapporto.fine_rapporto_lavorativo_id)
+          .filter((chiusuraId): chiusuraId is string => Boolean(chiusuraId))
+        const chiusureById = new Map<string, string | null>()
+
+        if (chiusuraIds.length > 0) {
+          const chiusureResponse = await fetchChiusureContratti({
+            limit: chiusuraIds.length,
+            offset: 0,
+            select: ["id", "data_fine_rapporto"],
+            filters: buildAnyOfFilter("id", chiusuraIds),
+          })
+
+          for (const chiusura of chiusureResponse.rows) {
+            chiusureById.set(chiusura.id, chiusura.data_fine_rapporto)
+          }
+        }
+
+        if (!isActive) return
+
+        const rapportiWithFineDate = response.rows.map((rapporto) => ({
+          ...rapporto,
+          data_fine_rapporto: rapporto.fine_rapporto_lavorativo_id
+            ? chiusureById.get(rapporto.fine_rapporto_lavorativo_id) ?? null
+            : null,
+        }))
+
+        setRapporti(rapportiWithFineDate)
         setRapportiTotal(response.total)
-        setSelectedRapportoId((previous) => previous ?? response.rows[0]?.id ?? null)
+        setSelectedRapportoId((previous) => previous ?? rapportiWithFineDate[0]?.id ?? null)
       } catch (loadError) {
         if (!isActive) return
-        setError(loadError instanceof Error ? loadError.message : "Errore nel caricamento rapporti.")
+        console.error("Errore caricando rapporti lavorativi", loadError)
+        setError(getRapportiLoadErrorMessage(loadError))
         setRapporti([])
         setRapportiTotal(0)
       } finally {
@@ -171,7 +354,7 @@ export function useRapportiLavorativiData() {
     return () => {
       isActive = false
     }
-  }, [pageIndex, serverSearchQuery])
+  }, [pageIndex, reloadToken, serverSearchQuery])
 
   React.useEffect(() => {
     let isActive = true
@@ -224,6 +407,7 @@ export function useRapportiLavorativiData() {
         setSelectedPresenze([])
         setSelectedVariazioni([])
         setSelectedChiusure([])
+        setSelectedTickets([])
         return
       }
 
@@ -231,7 +415,7 @@ export function useRapportiLavorativiData() {
 
       try {
         const processiFilter = buildIdsFilter(selectedRapporto.processo_res ?? [])
-        const [famigliaResponse, lavoratoreResponse, processiResponse, contributiResponse, mesiResponse, variazioniResponse, chiusuraResponse] = await Promise.all([
+        const [famigliaResponse, lavoratoreResponse, processiResponse, contributiResponse, mesiResponse, variazioniResponse, chiusuraResponse, ticketsResponse] = await Promise.all([
           selectedRapporto.famiglia_id
             ? fetchFamiglie({
                 limit: 1,
@@ -279,6 +463,12 @@ export function useRapportiLavorativiData() {
                 filters: buildEqualsFilter("id", selectedRapporto.fine_rapporto_lavorativo_id),
               })
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
+          fetchTickets({
+            limit: 100,
+            offset: 0,
+            orderBy: [{ field: "data_apertura", ascending: false }],
+            filters: buildEqualsFilter("rapporto_id", selectedRapporto.id),
+          }),
         ])
 
         const meseIds = mesiResponse.rows
@@ -320,11 +510,46 @@ export function useRapportiLavorativiData() {
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
         ])
 
+        const processiRows = processiResponse.rows as ProcessoMatchingRecord[]
+        let nextFamiglia = (famigliaResponse.rows[0] as FamigliaRecord | undefined) ?? null
+        let nextLavoratore = (lavoratoreResponse.rows[0] as LavoratoreRecord | undefined) ?? null
+
+        if (!nextFamiglia) {
+          const fallbackFamigliaIds = Array.from(
+            new Set(
+              processiRows
+                .map((processo) => processo.famiglia_id)
+                .filter((famigliaId): famigliaId is string => Boolean(famigliaId))
+            )
+          )
+
+          if (fallbackFamigliaIds.length > 0) {
+            const fallbackFamiglieResponse = await fetchFamiglie({
+              limit: 1,
+              offset: 0,
+              filters: buildAnyOfFilter("id", fallbackFamigliaIds),
+            })
+            nextFamiglia = (fallbackFamiglieResponse.rows[0] as FamigliaRecord | undefined) ?? null
+          }
+        }
+
+        if (!nextFamiglia) {
+          nextFamiglia = await fetchUniqueFamigliaByLabel(
+            selectedRapporto.cognome_nome_datore_proper
+          )
+        }
+
+        if (!nextLavoratore) {
+          nextLavoratore = await fetchUniqueLavoratoreByLabel(
+            selectedRapporto.nome_lavoratore_per_url
+          )
+        }
+
         if (!isActive) return
 
-        setSelectedFamiglia((famigliaResponse.rows[0] as FamigliaRecord | undefined) ?? null)
-        setSelectedLavoratore((lavoratoreResponse.rows[0] as LavoratoreRecord | undefined) ?? null)
-        setSelectedProcessi(processiResponse.rows as ProcessoMatchingRecord[])
+        setSelectedFamiglia(nextFamiglia)
+        setSelectedLavoratore(nextLavoratore)
+        setSelectedProcessi(processiRows)
         setSelectedContributi(contributiResponse.rows as ContributoInpsRecord[])
         setSelectedMesi(mesiResponse.rows as MeseLavoratoRecord[])
         setSelectedMesiCalendario(mesiCalendarioResponse.rows as MeseCalendarioRecord[])
@@ -332,9 +557,11 @@ export function useRapportiLavorativiData() {
         setSelectedPresenze(presenzeResponse.rows as PresenzaMensileRecord[])
         setSelectedVariazioni(variazioniResponse.rows as VariazioneContrattualeRecord[])
         setSelectedChiusure(chiusuraResponse.rows as ChiusuraContrattoRecord[])
+        setSelectedTickets(ticketsResponse.rows as TicketRecord[])
       } catch (loadError) {
         if (!isActive) return
-        setError(loadError instanceof Error ? loadError.message : "Errore nel caricamento dei record collegati.")
+        console.error("Errore caricando record collegati al rapporto", loadError)
+        setError("Errore nel caricamento dei record collegati. Riprova tra qualche secondo.")
         setSelectedProcessi([])
         setSelectedContributi([])
         setSelectedMesi([])
@@ -343,6 +570,7 @@ export function useRapportiLavorativiData() {
         setSelectedPresenze([])
         setSelectedVariazioni([])
         setSelectedChiusure([])
+        setSelectedTickets([])
       } finally {
         if (isActive) setLoadingRelated(false)
       }
@@ -365,6 +593,7 @@ export function useRapportiLavorativiData() {
     setPageIndex,
     searchValue,
     setSearchValue,
+    retryRapporti,
     selectedRapportoId,
     setSelectedRapportoId,
     selectedRapporto,
@@ -378,7 +607,9 @@ export function useRapportiLavorativiData() {
     selectedPresenze,
     selectedVariazioni,
     selectedChiusure,
+    selectedTickets,
     loadingRelated,
     lookupColorsByDomain,
+    createTicketForSelectedRapporto,
   }
 }
