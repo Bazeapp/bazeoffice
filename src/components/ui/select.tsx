@@ -42,6 +42,44 @@ const SelectTrigger = React.forwardRef<
 ));
 SelectTrigger.displayName = "SelectTrigger";
 
+const SelectScrollUpButton = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.ScrollUpButton>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollUpButton>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.ScrollUpButton
+    ref={ref}
+    className={cn(
+      "flex cursor-default items-center justify-center py-1 text-foreground-subtle",
+      className
+    )}
+    {...props}
+  >
+    <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M4 10l4-4 4 4" />
+    </svg>
+  </SelectPrimitive.ScrollUpButton>
+));
+SelectScrollUpButton.displayName = "SelectScrollUpButton";
+
+const SelectScrollDownButton = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.ScrollDownButton>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollDownButton>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.ScrollDownButton
+    ref={ref}
+    className={cn(
+      "flex cursor-default items-center justify-center py-1 text-foreground-subtle",
+      className
+    )}
+    {...props}
+  >
+    <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M4 6l4 4 4-4" />
+    </svg>
+  </SelectPrimitive.ScrollDownButton>
+));
+SelectScrollDownButton.displayName = "SelectScrollDownButton";
+
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
@@ -51,7 +89,7 @@ const SelectContent = React.forwardRef<
       ref={ref}
       position={position}
       className={cn(
-        "ui relative z-50 min-w-32 overflow-hidden",
+        "ui relative z-50 min-w-32 max-h-(--radix-select-content-available-height) overflow-hidden",
         "rounded-md bg-surface p-1",
         "shadow-[0_0_0_1px_var(--border),var(--shadow-lg)]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
@@ -61,7 +99,9 @@ const SelectContent = React.forwardRef<
       )}
       {...props}
     >
+      <SelectScrollUpButton />
       <SelectPrimitive.Viewport className="p-0">{children}</SelectPrimitive.Viewport>
+      <SelectScrollDownButton />
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
 ));
@@ -130,4 +170,6 @@ export {
   SelectLabel,
   SelectItem,
   SelectSeparator,
+  SelectScrollUpButton,
+  SelectScrollDownButton,
 };
