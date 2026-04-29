@@ -60,7 +60,7 @@ function translateRuleToCondition(
   rule: QueryBuilderRule,
   fieldsByName: Map<string, AnagraficheQueryBuilderField>
 ): QueryFilterCondition | null {
-  if (rule! || typeof rule !== "object" || isRuleGroup(rule)) return null
+  if (!rule || typeof rule !== "object" || isRuleGroup(rule)) return null
 
   const ruleRecord = rule as unknown as Record<string, unknown>
   const field = String(ruleRecord.field ?? "").trim()
