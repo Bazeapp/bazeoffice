@@ -455,7 +455,8 @@ function buildLookupOptionsByField(rows: LookupValueRecord[]): LookupOptionsByFi
     .filter(
       (row) =>
         row.is_active &&
-        row.entity_table === "processi_matching" &&
+        (row.entity_table === "processi_matching" ||
+          (row.entity_table === "lavoratori" && row.entity_field === "provincia")) &&
         Boolean(toStringValue(row.value_key)) &&
         Boolean(toStringValue(row.value_label))
     )

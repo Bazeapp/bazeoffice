@@ -394,7 +394,8 @@ export function SchedaColloquioPanel({
   const showColloquioFamigliaFields =
     normalizedStatus.includes("colloquio") ||
     normalizedStatus.includes("prova") ||
-    normalizedStatus === "match";
+    normalizedStatus === "match" ||
+    normalizedStatus === "inviato al cliente";
 
   const patchTextField = React.useCallback(
     (field: string, value: string) => {
@@ -763,8 +764,14 @@ export function SchedaColloquioPanel({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Non segnato</SelectItem>
-                  <SelectItem value="Si">Si</SelectItem>
-                  <SelectItem value="No">No</SelectItem>
+                  <SelectItem value="Effettuato">Effettuato</SelectItem>
+                  <SelectItem value="No show">No show</SelectItem>
+                  <SelectItem value="Annullato dalla famiglia">
+                    Annullato dalla famiglia
+                  </SelectItem>
+                  <SelectItem value="Annullato dal lavoratore">
+                    Annullato dal lavoratore
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

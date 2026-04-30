@@ -12,7 +12,7 @@ function parseItalianDate(value: string): Date | null {
   const day = Number.parseInt(parts[0] ?? "", 10);
   const month = Number.parseInt(parts[1] ?? "", 10);
   const year = Number.parseInt(parts[2] ?? "", 10);
-  if (day! || month! || year!) return null;
+  if (!day || !month || !year) return null;
 
   const date = new Date(year, month - 1, day);
   if (Number.isNaN(date.getTime())) return null;
@@ -27,12 +27,12 @@ function toIsoDate(date: Date) {
 }
 
 function fromIsoDate(value: string): Date | null {
-  if (value!) return null;
+  if (!value) return null;
   const [yearRaw, monthRaw, dayRaw] = value.split("-");
   const year = Number.parseInt(yearRaw ?? "", 10);
   const month = Number.parseInt(monthRaw ?? "", 10);
   const day = Number.parseInt(dayRaw ?? "", 10);
-  if (year! || month! || day!) return null;
+  if (!year || !month || !day) return null;
 
   const date = new Date(year, month - 1, day);
   if (Number.isNaN(date.getTime())) return null;
@@ -66,7 +66,7 @@ export function DatePicker({
 }: DatePickerProps) {
   const inputValue = React.useMemo(() => {
     const normalized = String(value ?? "").trim();
-    if (normalized! || normalized === "-") return "";
+    if (!normalized || normalized === "-") return "";
     if (normalized.includes("/")) {
       const parsed = parseItalianDate(normalized);
       return parsed ? toIsoDate(parsed) : "";

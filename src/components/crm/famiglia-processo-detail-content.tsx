@@ -709,6 +709,7 @@ export function FamigliaProcessoDetailContent({
             ) : (
               <CreazioneAnnuncioCard
                 processId={card?.id ?? null}
+                brief={card?.testoAnnuncioWhatsapp}
                 containerProps={{ ref: bindSectionRef("creazione-annuncio") }}
                 titleAction={annuncioEditAction}
                 collapsible={blocksCollapsible}

@@ -31,9 +31,9 @@ export function ExperienceCardTitle({
   ...props
 }: ExperienceCardTitleProps) {
   return (
-    <div className={cn("flex flex-col gap-1", className)} {...props}>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-md font-semibold tracking-(--tracking-snug) text-foreground-strong">
+    <div className={cn("flex min-w-0 flex-col gap-1", className)} {...props}>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <span className="min-w-0 max-w-full truncate text-sm font-semibold tracking-(--tracking-snug) text-foreground-strong">
           {role}
         </span>
         {duration ? (

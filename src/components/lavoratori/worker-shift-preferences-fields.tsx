@@ -41,7 +41,12 @@ type WorkerShiftPreferencesFieldsProps = {
 }
 
 function sortValuesByOptionOrder(values: string[], options: LookupOption[]) {
-  const order = new Map(options.map((option, index) => [normalizeLookupToken(option.label), index]))
+  const order = new Map(
+    options.flatMap((option, index) => [
+      [normalizeLookupToken(option.value), index] as const,
+      [normalizeLookupToken(option.label), index] as const,
+    ]),
+  )
 
   return [...values].sort((left, right) => {
     const leftOrder = order.get(normalizeLookupToken(left)) ?? Number.MAX_SAFE_INTEGER
@@ -50,9 +55,44 @@ function sortValuesByOptionOrder(values: string[], options: LookupOption[]) {
   })
 }
 
+function getDomesticWorkKind(value: string) {
+  const token = normalizeLookupToken(value)
+  if (token.includes("badante") || token.includes("assistenza")) return "badante"
+  if (token.includes("babysitter") || token.includes("baby sitter") || token.includes("tata")) {
+    return "tata"
+  }
+  if (token.includes("colf") || token.includes("pulizie")) return "colf"
+  return null
+}
+
+function normalizeDomesticWorkValue(value: string, options: LookupOption[]) {
+  const valueKind = getDomesticWorkKind(value)
+  if (!valueKind) return value
+
+  return (
+    options.find(
+      (option) =>
+        getDomesticWorkKind(option.value) === valueKind ||
+        getDomesticWorkKind(option.label) === valueKind
+    )?.value ?? value
+  )
+}
+
+function normalizeValueForField(field: WorkerShiftPreferenceField, value: string) {
+  if (field.domain === "lavoratori.tipo_lavoro_domestico") {
+    return normalizeDomesticWorkValue(value, field.options)
+  }
+  return value
+}
+
 function normalizeValuesForField(field: WorkerShiftPreferenceField) {
-  if (!field.sortByOptionOrder) return field.value
-  return sortValuesByOptionOrder(field.value, field.options)
+  const normalizedValues = Array.from(new Set(field.value.map((value) => normalizeValueForField(field, value))))
+  if (!field.sortByOptionOrder) return normalizedValues
+  return sortValuesByOptionOrder(normalizedValues, field.options)
+}
+
+function getOptionLabel(options: LookupOption[], value: string) {
+  return options.find((option) => option.value === value)?.label ?? value
 }
 
 function MultiSelectField({
@@ -74,9 +114,11 @@ function MultiSelectField({
     <Combobox
       multiple
       autoHighlight
-      items={options.map((option) => option.label)}
+      items={options.map((option) => option.value)}
       value={value}
-      onValueChange={(nextValues) => onChange(nextValues as string[])}
+      onValueChange={(nextValues) =>
+        onChange(Array.from(new Set(nextValues as string[])))
+      }
       disabled={disabled}
     >
       <ComboboxChips ref={anchor} className="w-full">
@@ -84,7 +126,9 @@ function MultiSelectField({
           {(values) => (
             <>
               {values.map((item: string) => (
-                <ComboboxChip key={item}>{item}</ComboboxChip>
+                <ComboboxChip key={item}>
+                  {getOptionLabel(options, item)}
+                </ComboboxChip>
               ))}
               <ComboboxChipsInput placeholder={placeholder} />
             </>
@@ -96,7 +140,7 @@ function MultiSelectField({
         <ComboboxList className="max-h-72 overflow-y-auto">
           {(item) => (
             <ComboboxItem key={item} value={item}>
-              {item}
+              {getOptionLabel(options, item)}
             </ComboboxItem>
           )}
         </ComboboxList>
@@ -146,7 +190,7 @@ export function WorkerShiftPreferencesFields({
                       resolveLookupColor(lookupColorsByDomain, field.domain, value)
                     )}
                   >
-                    {value}
+                    {getOptionLabel(field.options, value)}
                   </Badge>
                 ))}
               </div>

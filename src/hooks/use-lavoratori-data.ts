@@ -94,6 +94,13 @@ const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
   "match",
 ])
 const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo"
+const DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS = new Set([
+  "no match",
+  "stand by",
+  "match",
+  "in prova col lavoratore",
+  "in prova con lavoratore",
+])
 const GATE1_BLOCKING_SELECTION_STATUS_TOKENS = new Set([
   "selezionato",
   "inviato al cliente",
@@ -114,46 +121,16 @@ const GATE1_BLOCKING_SELECTION_STATUS_FILTER_VALUES = [
   "Prova rimandata",
   ...GATE1_BLOCKING_SELECTION_STATUS_TOKENS,
 ]
-const OTHER_SEARCH_GROUP_A_PROCESS_STATUS_TOKENS = new Set([
-  "da assegnare",
-  "raccolta candidature",
-  "fare ricerca",
-  "in preparazione per invio",
-  "in preparazione per l invio",
-])
-const OTHER_SEARCH_GROUP_A_SELECTION_STATUS_TOKENS = new Set([
-  "prospetto",
-  "candidato poor fit",
-  "candidato good fit",
-  "da colloquiare",
-  "non risponde",
-  "invitato a colloquio",
-  "selezionato",
-  "inviato al cliente",
-])
 const OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS = new Set([
-  "inviare selezione",
-  "selezione inviata in attesa di feedback",
-  "selezione inviata ma in attesa di feedback",
-  "fase di colloquio",
-  "fase di colloqui",
   "in prova col lavoratore",
   "in prova con lavoratore",
   "match",
-  "no match",
 ])
 const OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS = new Set([
-  "selezionato",
-  "inviato al cliente",
-  "colloquio schedulato",
-  "colloquio rimandato",
-  "colloquio fatto",
   "prova schedulata",
   "prova rimandata",
   "prova in corso",
-  "prova con cliente",
   "match",
-  "no match",
 ])
 
 type GenericRow = Record<string, unknown>
@@ -217,6 +194,24 @@ function formatDateFilterValue(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0")
   const day = String(date.getDate()).padStart(2, "0")
   return `${year}-${month}-${day}`
+}
+
+function isGate1AvailabilityEligible(row: GenericRow) {
+  const disponibilita = asString(row.disponibilita)
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .trim()
+
+  if (disponibilita === "disponibile") return true
+  if (disponibilita !== "non disponibile") return false
+
+  const returnDate = asString(row.data_ritorno_disponibilita)
+  if (!returnDate) return false
+
+  const returnDateLimit = new Date()
+  returnDateLimit.setDate(returnDateLimit.getDate() + 2)
+
+  return returnDate <= formatDateFilterValue(returnDateLimit)
 }
 
 function buildGate1AvailabilityFilter(): QueryFilterGroup {
@@ -484,13 +479,19 @@ function resolveLookupColorByStatusToken(
   return null
 }
 
-function isDirectInvolvementSelection(selection: GenericRow) {
+function hasActiveWorkSituation(selection: GenericRow) {
+  return normalizeStatusToken(selection.stato_situazione_lavorativa) !== DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
+}
+
+function isDirectInvolvementSelection(selection: GenericRow, processRow: GenericRow) {
+  const processStatusToken = normalizeStatusToken(processRow.stato_res)
+
   return (
+    hasActiveWorkSituation(selection) &&
     DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS.has(
       normalizeStatusToken(selection.stato_selezione)
     ) &&
-    normalizeStatusToken(selection.stato_situazione_lavorativa) ===
-      DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
+    !DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS.has(processStatusToken)
   )
 }
 
@@ -498,15 +499,11 @@ function isOtherSearchSelection(selection: GenericRow, processRow: GenericRow) {
   const processStatusToken = normalizeStatusToken(processRow.stato_res)
   const selectionStatusToken = normalizeStatusToken(selection.stato_selezione)
 
-  const matchesGroupA =
-    OTHER_SEARCH_GROUP_A_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
-    OTHER_SEARCH_GROUP_A_SELECTION_STATUS_TOKENS.has(selectionStatusToken)
-
   const matchesGroupB =
     OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
     OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS.has(selectionStatusToken)
 
-  return matchesGroupA || matchesGroupB
+  return hasActiveWorkSituation(selection) && matchesGroupB
 }
 
 function getDotColorClassName(color: string | null | undefined) {
@@ -856,7 +853,7 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
       const processRow = processRowsById.get(processId)
       if (!processRow) continue
       if (
-        !isDirectInvolvementSelection(selection) &&
+        !isDirectInvolvementSelection(selection, processRow) &&
         !isOtherSearchSelection(selection, processRow)
       ) {
         continue
@@ -1134,7 +1131,11 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         if (requestId !== requestIdRef.current) return
 
         const visibleRows = applyGate1BaseFilters
-          ? rows.filter((row) => !relatedSelectionsResult.gate1BlockedWorkerIds.has(row.id))
+          ? rows.filter(
+              (row) =>
+                isGate1AvailabilityEligible(row) &&
+                !relatedSelectionsResult.gate1BlockedWorkerIds.has(row.id)
+            )
           : rows
 
         setWorkerRows(visibleRows)

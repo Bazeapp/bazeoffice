@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -102,6 +103,181 @@ function buildDistributionItems(
   }));
 }
 
+function buildVariazioneDetailsDraft(card: VariazioniBoardCardData | null) {
+  return {
+    dataVariazione: toDateInputValue(card?.record.data_variazione),
+    variazioneDaApplicare: card?.record.variazione_da_applicare ?? "",
+  };
+}
+
+function buildVariazioneRapportoDraft(card: VariazioniBoardCardData | null) {
+  return {
+    pagaOraria: card?.rapporto?.paga_oraria_lorda ? String(card.rapporto.paga_oraria_lorda) : "",
+    oreSettimanali: card?.rapporto?.ore_a_settimana ? String(card.rapporto.ore_a_settimana) : "",
+    tipoRapporto: card?.rapporto?.tipo_rapporto ?? "",
+    tipoContratto: card?.rapporto?.tipo_contratto ?? "",
+  };
+}
+
+type AnagraficaField = {
+  key: string;
+  label: string;
+  placeholder?: string;
+};
+
+function toDisplayValue(value: unknown) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+}
+
+function buildAnagraficaDraft(
+  row: Record<string, unknown> | null | undefined,
+  fields: AnagraficaField[],
+) {
+  return Object.fromEntries(
+    fields.map((field) => [field.key, toDisplayValue(row?.[field.key])]),
+  );
+}
+
+const VARIAZIONE_WORKER_FIELDS: AnagraficaField[] = [
+  { key: "email", label: "Email", placeholder: "email@dominio.it" },
+  { key: "telefono", label: "Telefono", placeholder: "+39..." },
+  { key: "iban", label: "IBAN" },
+  { key: "indirizzo_residenza_completo", label: "Indirizzo residenza" },
+  { key: "cap", label: "CAP" },
+  { key: "provincia", label: "Provincia" },
+  { key: "documenti_in_regola", label: "Documenti in regola" },
+  { key: "docs_scadenza_permesso_di_soggiorno", label: "Scadenza permesso" },
+];
+
+const VARIAZIONE_FAMILY_FIELDS: AnagraficaField[] = [
+  { key: "email", label: "Email", placeholder: "email@dominio.it" },
+  { key: "customer_email", label: "Email cliente" },
+  { key: "secondary_email", label: "Email secondaria" },
+  { key: "telefono", label: "Telefono" },
+  { key: "whatsapp", label: "WhatsApp" },
+];
+
+function EditableAnagraficaSection({
+  title,
+  table,
+  row,
+  fields,
+  onRowChange,
+}: {
+  title: string;
+  table: "lavoratori" | "famiglie";
+  row: Record<string, unknown> | null;
+  fields: AnagraficaField[];
+  onRowChange: (row: Record<string, unknown>) => void;
+}) {
+  const rowId = toDisplayValue(row?.id);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(() => buildAnagraficaDraft(row, fields));
+  const [savingField, setSavingField] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const previousRowIdRef = React.useRef(rowId);
+
+  React.useEffect(() => {
+    const nextDraft = buildAnagraficaDraft(row, fields);
+    const isDifferentRow = previousRowIdRef.current !== rowId;
+    previousRowIdRef.current = rowId;
+
+    if (isDifferentRow) {
+      setIsEditing(false);
+      setError(null);
+      setDraft(nextDraft);
+      return;
+    }
+
+    if (!isEditing) {
+      setDraft(nextDraft);
+    }
+  }, [fields, isEditing, row, rowId]);
+
+  async function saveField(field: AnagraficaField) {
+    if (!rowId) return;
+    const nextValue = draft[field.key]?.trim() ?? "";
+    const currentValue = toDisplayValue(row?.[field.key]).trim();
+    if (nextValue === currentValue) return;
+
+    setSavingField(field.key);
+    setError(null);
+    try {
+      const response = await updateRecord(table, rowId, {
+        [field.key]: nextValue || null,
+      });
+      onRowChange({
+        ...(row ?? {}),
+        ...response.row,
+      });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : `Errore salvando ${title}`);
+    } finally {
+      setSavingField(null);
+    }
+  }
+
+  return (
+    <DetailSectionBlock
+      title={title}
+      icon={<PencilIcon className="size-4" />}
+      action={
+        <button
+          type="button"
+          className="text-muted-foreground hover:text-foreground"
+          onClick={() => setIsEditing((current) => !current)}
+          aria-label={`Modifica ${title.toLowerCase()}`}
+          disabled={!rowId}
+        >
+          <PencilIcon className="size-4" />
+        </button>
+      }
+      contentClassName="space-y-4"
+    >
+      {rowId ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          {fields.map((field) => (
+            <label key={field.key} className="space-y-2">
+              <span className="ui-type-label">{field.label}</span>
+              {isEditing ? (
+                <Input
+                  value={draft[field.key] ?? ""}
+                  placeholder={field.placeholder}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      [field.key]: event.target.value,
+                    }))
+                  }
+                  onBlur={() => void saveField(field)}
+                  disabled={savingField === field.key}
+                />
+              ) : (
+                <p className="min-h-9 rounded-md bg-muted/50 px-3 py-2 text-sm">
+                  {toDisplayValue(row?.[field.key]) || "-"}
+                </p>
+              )}
+            </label>
+          ))}
+          {savingField ? (
+            <p className="text-muted-foreground text-xs md:col-span-2">
+              Salvataggio in corso...
+            </p>
+          ) : null}
+          {error ? (
+            <p className="text-xs font-medium text-red-600 md:col-span-2">{error}</p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-sm">Anagrafica non collegata.</p>
+      )}
+    </DetailSectionBlock>
+  );
+}
+
 function VariazioniDetailSheet({
   card,
   open,
@@ -114,25 +290,61 @@ function VariazioniDetailSheet({
   onCardChange: (card: VariazioniBoardCardData) => void;
 }) {
   const [editingDetails, setEditingDetails] = React.useState(false);
+  const [editingRapporto, setEditingRapporto] = React.useState(false);
   const [savingDetails, setSavingDetails] = React.useState(false);
+  const [savingRapporto, setSavingRapporto] = React.useState(false);
   const [detailsError, setDetailsError] = React.useState<string | null>(null);
-  const [detailsDraft, setDetailsDraft] = React.useState(() => ({
-    dataVariazione: toDateInputValue(card?.record.data_variazione),
-    variazioneDaApplicare: card?.record.variazione_da_applicare ?? "",
-  }));
+  const [rapportoError, setRapportoError] = React.useState<string | null>(null);
+  const previousCardIdRef = React.useRef<string | null>(card?.id ?? null);
+  const [detailsDraft, setDetailsDraft] = React.useState(() => buildVariazioneDetailsDraft(card));
+  const [rapportoDraft, setRapportoDraft] = React.useState(() => buildVariazioneRapportoDraft(card));
   const distributionItems = buildDistributionItems(
     card?.rapporto?.distribuzione_ore_settimana ?? null,
     card?.rapporto?.ore_a_settimana ?? null,
   );
 
   React.useEffect(() => {
-    setDetailsDraft({
+    const nextDetailsDraft = {
       dataVariazione: toDateInputValue(card?.record.data_variazione),
       variazioneDaApplicare: card?.record.variazione_da_applicare ?? "",
-    });
-    setEditingDetails(false);
-    setDetailsError(null);
-  }, [card?.id, card?.record.data_variazione, card?.record.variazione_da_applicare]);
+    };
+    const nextRapportoDraft = {
+      pagaOraria: card?.rapporto?.paga_oraria_lorda ? String(card.rapporto.paga_oraria_lorda) : "",
+      oreSettimanali: card?.rapporto?.ore_a_settimana ? String(card.rapporto.ore_a_settimana) : "",
+      tipoRapporto: card?.rapporto?.tipo_rapporto ?? "",
+      tipoContratto: card?.rapporto?.tipo_contratto ?? "",
+    };
+    const nextCardId = card?.id ?? null;
+    const isDifferentCard = previousCardIdRef.current !== nextCardId;
+    previousCardIdRef.current = nextCardId;
+
+    if (isDifferentCard) {
+      setEditingDetails(false);
+      setEditingRapporto(false);
+      setDetailsError(null);
+      setRapportoError(null);
+      setDetailsDraft(nextDetailsDraft);
+      setRapportoDraft(nextRapportoDraft);
+      return;
+    }
+
+    if (!editingDetails) {
+      setDetailsDraft(nextDetailsDraft);
+    }
+    if (!editingRapporto) {
+      setRapportoDraft(nextRapportoDraft);
+    }
+  }, [
+    card?.id,
+    card?.rapporto?.ore_a_settimana,
+    card?.rapporto?.paga_oraria_lorda,
+    card?.rapporto?.tipo_contratto,
+    card?.rapporto?.tipo_rapporto,
+    card?.record.data_variazione,
+    card?.record.variazione_da_applicare,
+    editingDetails,
+    editingRapporto,
+  ]);
 
   async function saveDetailsPatch(patch: Record<string, unknown>) {
     if (!card || Object.keys(patch).length === 0) return;
@@ -159,6 +371,30 @@ function VariazioniDetailSheet({
       );
     } finally {
       setSavingDetails(false);
+    }
+  }
+
+  async function saveRapportoPatch(patch: Record<string, unknown>) {
+    if (!card?.rapporto?.id || Object.keys(patch).length === 0) return;
+
+    setSavingRapporto(true);
+    setRapportoError(null);
+
+    try {
+      const response = await updateRecord("rapporti_lavorativi", card.rapporto.id, patch);
+      onCardChange({
+        ...card,
+        rapporto: {
+          ...card.rapporto,
+          ...response.row,
+        } as VariazioniBoardCardData["rapporto"],
+      });
+    } catch (caughtError) {
+      setRapportoError(
+        caughtError instanceof Error ? caughtError.message : "Errore salvando rapporto",
+      );
+    } finally {
+      setSavingRapporto(false);
     }
   }
 
@@ -190,6 +426,32 @@ function VariazioniDetailSheet({
           <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
               <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={card.rapporto} />
+
+              <EditableAnagraficaSection
+                title="Dati lavoratore"
+                table="lavoratori"
+                row={card.lavoratore}
+                fields={VARIAZIONE_WORKER_FIELDS}
+                onRowChange={(nextLavoratore) =>
+                  onCardChange({
+                    ...card,
+                    lavoratore: nextLavoratore,
+                  })
+                }
+              />
+
+              <EditableAnagraficaSection
+                title="Dati famiglia"
+                table="famiglie"
+                row={card.famiglia}
+                fields={VARIAZIONE_FAMILY_FIELDS}
+                onRowChange={(nextFamiglia) =>
+                  onCardChange({
+                    ...card,
+                    famiglia: nextFamiglia,
+                  })
+                }
+              />
 
               <DetailSectionBlock
                 title="Dettagli variazione"
@@ -277,34 +539,151 @@ function VariazioniDetailSheet({
               <DetailSectionBlock
                 title="Dati rapporto lavorativo"
                 icon={<PencilIcon className="size-4" />}
-                action={<PencilIcon className="text-muted-foreground size-4" />}
+                action={
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => setEditingRapporto((current) => !current)}
+                    aria-label="Modifica dati rapporto lavorativo"
+                  >
+                    <PencilIcon className="size-4" />
+                  </button>
+                }
                 contentClassName="space-y-5"
               >
                 <div className="grid gap-5 text-sm sm:text-base">
-                  <p>
-                    <span className="text-muted-foreground">
-                      Paga oraria lorda:
-                    </span>{" "}
-                    <span className="font-medium text-foreground">
-                      {formatCurrency(card.rapporto?.paga_oraria_lorda)}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">
-                      Ore settimanali:
-                    </span>{" "}
-                    <span className="font-medium text-foreground">
-                      {card.rapporto?.ore_a_settimana}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">
-                      Tipo rapporto:
-                    </span>{" "}
-                    <span className="font-medium text-foreground">
-                      {card.rapporto?.tipo_rapporto}
-                    </span>
-                  </p>
+                  {editingRapporto ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="space-y-2">
+                        <span className="ui-type-label">Paga oraria lorda</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={rapportoDraft.pagaOraria}
+                          onChange={(event) =>
+                            setRapportoDraft((current) => ({
+                              ...current,
+                              pagaOraria: event.target.value,
+                            }))
+                          }
+                          onBlur={() =>
+                            void saveRapportoPatch({
+                              paga_oraria_lorda: rapportoDraft.pagaOraria
+                                ? Number(rapportoDraft.pagaOraria)
+                                : null,
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="ui-type-label">Ore settimanali</span>
+                        <Input
+                          type="number"
+                          step="0.5"
+                          value={rapportoDraft.oreSettimanali}
+                          onChange={(event) =>
+                            setRapportoDraft((current) => ({
+                              ...current,
+                              oreSettimanali: event.target.value,
+                            }))
+                          }
+                          onBlur={() =>
+                            void saveRapportoPatch({
+                              ore_a_settimana: rapportoDraft.oreSettimanali
+                                ? Number(rapportoDraft.oreSettimanali)
+                                : null,
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="ui-type-label">Tipo rapporto</span>
+                        <Input
+                          value={rapportoDraft.tipoRapporto}
+                          onChange={(event) =>
+                            setRapportoDraft((current) => ({
+                              ...current,
+                              tipoRapporto: event.target.value,
+                            }))
+                          }
+                          onBlur={() =>
+                            void saveRapportoPatch({
+                              tipo_rapporto: rapportoDraft.tipoRapporto || null,
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="ui-type-label">Tipo contratto</span>
+                        <Select
+                          value={rapportoDraft.tipoContratto || undefined}
+                          onValueChange={(value) => {
+                            setRapportoDraft((current) => ({
+                              ...current,
+                              tipoContratto: value,
+                            }));
+                            void saveRapportoPatch({ tipo_contratto: value || null });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona tipo contratto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["A", "B", "C", "I"].map((option) => (
+                              <SelectItem key={option} value={option}>
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </label>
+                      {savingRapporto ? (
+                        <p className="text-muted-foreground text-xs md:col-span-2">
+                          Salvataggio rapporto in corso...
+                        </p>
+                      ) : null}
+                      {rapportoError ? (
+                        <p className="text-xs font-medium text-red-600 md:col-span-2">
+                          {rapportoError}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <>
+                      <p>
+                        <span className="text-muted-foreground">
+                          Paga oraria lorda:
+                        </span>{" "}
+                        <span className="font-medium text-foreground">
+                          {formatCurrency(card.rapporto?.paga_oraria_lorda)}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-muted-foreground">
+                          Ore settimanali:
+                        </span>{" "}
+                        <span className="font-medium text-foreground">
+                          {card.rapporto?.ore_a_settimana}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-muted-foreground">
+                          Tipo rapporto:
+                        </span>{" "}
+                        <span className="font-medium text-foreground">
+                          {card.rapporto?.tipo_rapporto}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-muted-foreground">
+                          Tipo contratto:
+                        </span>{" "}
+                        <span className="font-medium text-foreground">
+                          {card.rapporto?.tipo_contratto}
+                        </span>
+                      </p>
+                    </>
+                  )}
                   <div className="space-y-3">
                     <p className="text-muted-foreground">Distribuzione ore:</p>
                     <div className="flex flex-wrap gap-2">
@@ -689,11 +1068,13 @@ export function VariazioniBoardView() {
           >
             Variazioni
           </SectionHeader.Title>
-          <SectionHeader.Toolbar>
+          <SectionHeader.Actions>
             <Button onClick={() => setIsCreateDialogOpen(true)}>
               <PlusIcon className="size-4" />
               Apri una variazione
             </Button>
+          </SectionHeader.Actions>
+          <SectionHeader.Toolbar>
             <SearchInput
               className="md:max-w-sm"
               placeholder="Cerca per famiglia, lavoratore, tipo rapporto..."

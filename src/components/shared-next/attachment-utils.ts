@@ -6,6 +6,7 @@ import {
 export type AttachmentLink = {
   url: string
   label: string
+  path?: string
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -15,7 +16,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function extractUrlCandidate(value: unknown) {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
-  if (trimmed!) return null
+  if (!trimmed) return null
   if (
     trimmed.startsWith("http://") ||
     trimmed.startsWith("https://") ||
@@ -45,7 +46,7 @@ export function flattenAttachmentLinks(value: unknown, fallbackLabel: string): A
     const url = attachmentPathToPublicUrl(attachment.path)
     if (!url || seen.has(url)) continue
     seen.add(url)
-    links.push({ url, label: attachment.name || fallbackLabel })
+    links.push({ url, label: attachment.name || fallbackLabel, path: attachment.path })
   }
 
   if (links.length > 0) {
@@ -55,7 +56,7 @@ export function flattenAttachmentLinks(value: unknown, fallbackLabel: string): A
   function visit(current: unknown, inheritedLabel?: string) {
     const directUrl = extractUrlCandidate(current)
     if (directUrl) {
-      if (seen!.has(directUrl)) {
+      if (!seen.has(directUrl)) {
         seen.add(directUrl)
         links.push({ url: directUrl, label: inheritedLabel || fallbackLabel })
       }
@@ -78,7 +79,7 @@ export function flattenAttachmentLinks(value: unknown, fallbackLabel: string): A
 
     const nextLabel = extractNameCandidate(current) ?? inheritedLabel ?? fallbackLabel
 
-    if (url && seen!.has(url)) {
+    if (url && !seen.has(url)) {
       seen.add(url)
       links.push({ url, label: nextLabel })
     }

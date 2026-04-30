@@ -18,6 +18,7 @@ import {
   type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
 import { normalizeLookupColors } from "@/features/lavoratori/lib/lookup-utils"
+import { resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 import type {
   SupportTicketMetadata,
   SupportTicketTag,
@@ -49,8 +50,33 @@ type CreateRapportoTicketInput = {
 }
 
 const PAGE_SIZE = 50
-const SEARCH_FIELDS = ["nome_lavoratore_per_url", "cognome_nome_datore_proper", "id"]
+const STATUS_FILTER_FETCH_LIMIT = 5000
 const TABLE_QUERY_RETRY_DELAYS_MS = [1000, 3000, 5000] as const
+const ACTIVATION_HIRING_STATUSES = [
+  "Avviare pratica",
+  "Inviata richiesta dati",
+  "In attesa di dati famiglia",
+  "In attesa di dati lavoratore",
+  "Dati pronti per assunzione",
+]
+const ACTIVE_OR_TERMINATED_HIRING_STATUSES = [
+  "Assunzione fatta",
+  "Documenti assunzione inviati",
+  "Contratto firmato",
+]
+const KNOWN_HIRING_STATUSES = [
+  ...ACTIVATION_HIRING_STATUSES,
+  ...ACTIVE_OR_TERMINATED_HIRING_STATUSES,
+  "Non assume con Baze",
+]
+
+export type RapportoStatusFilter =
+  | "all"
+  | "In attivazione"
+  | "Attivo"
+  | "Terminato"
+  | "Sconosciuto"
+  | "Errore"
 
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
@@ -85,6 +111,100 @@ function buildSearchQuery(value: string) {
   return tokens.reduce((longest, current) =>
     current.length > longest.length ? current : longest
   )
+}
+
+async function resolveRelatedSearchIds(value: string): Promise<{
+  famigliaIds: string[]
+  lavoratoreIds: string[]
+}> {
+  const search = buildSearchQuery(value)
+  if (!search) return { famigliaIds: [], lavoratoreIds: [] }
+
+  const [famiglieResponse, lavoratoriResponse] = await Promise.all([
+    fetchFamiglie({
+      limit: 100,
+      offset: 0,
+      search,
+      searchFields: ["nome", "cognome", "email", "telefono"],
+      includeSchema: false,
+    }),
+    fetchLavoratori({
+      limit: 100,
+      offset: 0,
+      search,
+      searchFields: ["nome", "cognome", "email", "telefono"],
+      includeSchema: false,
+    }),
+  ])
+
+  return {
+    famigliaIds: famiglieResponse.rows
+      .map((row) => row.id)
+      .filter((id): id is string => typeof id === "string" && Boolean(id)),
+    lavoratoreIds: lavoratoriResponse.rows
+      .map((row) => row.id)
+      .filter((id): id is string => typeof id === "string" && Boolean(id)),
+  }
+}
+
+function buildRapportiSearchFilter(
+  value: string,
+  famigliaIds: string[],
+  lavoratoreIds: string[],
+): QueryFilterGroup | undefined {
+  const search = buildSearchQuery(value)
+  if (!search) return undefined
+
+  const nodes: QueryFilterGroup["nodes"] = [
+    {
+      kind: "condition",
+      id: "rapporti-search-family-label",
+      field: "cognome_nome_datore_proper",
+      operator: "has",
+      value: search,
+    },
+    {
+      kind: "condition",
+      id: "rapporti-search-worker-label",
+      field: "nome_lavoratore_per_url",
+      operator: "has",
+      value: search,
+    },
+    {
+      kind: "condition",
+      id: "rapporti-search-external-id",
+      field: "id_rapporto",
+      operator: "has",
+      value: search,
+    },
+  ]
+
+  if (famigliaIds.length > 0) {
+    nodes.push({
+      kind: "condition",
+      id: "rapporti-search-family-id",
+      field: "famiglia_id",
+      operator: "in",
+      value: famigliaIds.join(","),
+    })
+  }
+
+  if (lavoratoreIds.length > 0) {
+    nodes.push({
+      kind: "condition",
+      id: "rapporti-search-worker-id",
+      field: "lavoratore_id",
+      operator: "in",
+      value: lavoratoreIds.join(","),
+    })
+  }
+
+  return {
+    kind: "group",
+    id: "rapporti-search-root",
+    logic: "or",
+    nodes,
+  }
 }
 
 function buildEqualsFilter(field: string, value: string): QueryFilterGroup {
@@ -135,6 +255,74 @@ function buildAnyOfFilter(field: string, values: string[]): QueryFilterGroup | u
       id: `${field}-any-of-${index}`,
       field,
       operator: "is",
+      value,
+    })),
+  }
+}
+
+function combineFilterGroups(
+  ...groups: Array<QueryFilterGroup | undefined>
+): QueryFilterGroup | undefined {
+  const nodes = groups.filter((group): group is QueryFilterGroup => Boolean(group))
+  if (nodes.length === 0) return undefined
+  if (nodes.length === 1) return nodes[0]
+
+  return {
+    kind: "group",
+    id: "rapporti-combined-filter-root",
+    logic: "and",
+    nodes,
+  }
+}
+
+function buildHiringStatusFilterForRapportoStatus(
+  status: RapportoStatusFilter,
+): QueryFilterGroup | undefined {
+  if (status === "all") return undefined
+
+  if (status === "In attivazione") {
+    return {
+      kind: "group",
+      id: "rapporti-status-activation-root",
+      logic: "or",
+      nodes: ACTIVATION_HIRING_STATUSES.map((value, index) => ({
+        kind: "condition",
+        id: `status-activation-${index}`,
+        field: "stato_assunzione",
+        operator: "is",
+        value,
+      })),
+    }
+  }
+
+  if (status === "Attivo" || status === "Terminato") {
+    return {
+      kind: "group",
+      id: "rapporti-status-active-or-ended-root",
+      logic: "or",
+      nodes: ACTIVE_OR_TERMINATED_HIRING_STATUSES.map((value, index) => ({
+        kind: "condition",
+        id: `status-active-or-ended-${index}`,
+        field: "stato_assunzione",
+        operator: "is",
+        value,
+      })),
+    }
+  }
+
+  if (status === "Sconosciuto") {
+    return buildEqualsFilter("stato_assunzione", "Non assume con Baze")
+  }
+
+  return {
+    kind: "group",
+    id: "rapporti-status-error-root",
+    logic: "and",
+    nodes: KNOWN_HIRING_STATUSES.map((value, index) => ({
+      kind: "condition",
+      id: `status-error-${index}`,
+      field: "stato_assunzione",
+      operator: "is_not",
       value,
     })),
   }
@@ -218,6 +406,8 @@ export function useRapportiLavorativiData() {
   const [reloadToken, setReloadToken] = React.useState(0)
   const [pageIndex, setPageIndex] = React.useState(0)
   const [searchValue, setSearchValue] = React.useState("")
+  const [rapportoStatusFilter, setRapportoStatusFilter] =
+    React.useState<RapportoStatusFilter>("all")
   const [selectedRapportoId, setSelectedRapportoId] = React.useState<string | null>(null)
   const [selectedFamiglia, setSelectedFamiglia] = React.useState<FamigliaRecord | null>(null)
   const [selectedLavoratore, setSelectedLavoratore] = React.useState<LavoratoreRecord | null>(null)
@@ -266,7 +456,7 @@ export function useRapportiLavorativiData() {
 
   React.useEffect(() => {
     setPageIndex(0)
-  }, [serverSearchQuery])
+  }, [rapportoStatusFilter, serverSearchQuery])
 
   React.useEffect(() => {
     let isActive = true
@@ -276,20 +466,31 @@ export function useRapportiLavorativiData() {
       setError(null)
 
       try {
+        const relatedSearchIds = serverSearchQuery
+          ? await resolveRelatedSearchIds(searchValue)
+          : { famigliaIds: [] as string[], lavoratoreIds: [] as string[] }
+        const searchFilter = buildRapportiSearchFilter(
+          searchValue,
+          relatedSearchIds.famigliaIds,
+          relatedSearchIds.lavoratoreIds,
+        )
+        const statusPrefilter =
+          buildHiringStatusFilterForRapportoStatus(rapportoStatusFilter)
+        const filters = combineFilterGroups(searchFilter, statusPrefilter)
+        const shouldResolveStatusClientSide = rapportoStatusFilter !== "all"
         let response: Awaited<ReturnType<typeof fetchRapportiLavorativi>> | null = null
 
         for (let attempt = 0; attempt <= TABLE_QUERY_RETRY_DELAYS_MS.length; attempt += 1) {
           try {
             response = await fetchRapportiLavorativi({
-              limit: PAGE_SIZE,
-              offset: pageIndex * PAGE_SIZE,
+              limit: shouldResolveStatusClientSide ? STATUS_FILTER_FETCH_LIMIT : PAGE_SIZE,
+              offset: shouldResolveStatusClientSide ? 0 : pageIndex * PAGE_SIZE,
               orderBy: [
                 { field: "data_inizio_rapporto", ascending: false },
                 { field: "ultimo_aggiornamento", ascending: false },
                 { field: "aggiornato_il", ascending: false },
               ],
-              search: serverSearchQuery,
-              searchFields: SEARCH_FIELDS,
+              filters,
             })
             break
           } catch (caughtError) {
@@ -334,10 +535,21 @@ export function useRapportiLavorativiData() {
             ? chiusureById.get(rapporto.fine_rapporto_lavorativo_id) ?? null
             : null,
         }))
+        const resolvedRapporti =
+          rapportoStatusFilter === "all"
+            ? rapportiWithFineDate
+            : rapportiWithFineDate.filter(
+                (rapporto) => resolveRapportoStatus(rapporto) === rapportoStatusFilter,
+              )
+        const visibleRapporti = shouldResolveStatusClientSide
+          ? resolvedRapporti.slice(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE)
+          : resolvedRapporti
 
-        setRapporti(rapportiWithFineDate)
-        setRapportiTotal(response.total)
-        setSelectedRapportoId((previous) => previous ?? rapportiWithFineDate[0]?.id ?? null)
+        setRapporti(visibleRapporti)
+        setRapportiTotal(
+          shouldResolveStatusClientSide ? resolvedRapporti.length : response.total,
+        )
+        setSelectedRapportoId((previous) => previous ?? visibleRapporti[0]?.id ?? null)
       } catch (loadError) {
         if (!isActive) return
         console.error("Errore caricando rapporti lavorativi", loadError)
@@ -354,7 +566,7 @@ export function useRapportiLavorativiData() {
     return () => {
       isActive = false
     }
-  }, [pageIndex, reloadToken, serverSearchQuery])
+  }, [pageIndex, rapportoStatusFilter, reloadToken, searchValue, serverSearchQuery])
 
   React.useEffect(() => {
     let isActive = true
@@ -412,6 +624,17 @@ export function useRapportiLavorativiData() {
       }
 
       setLoadingRelated(true)
+      setSelectedFamiglia(null)
+      setSelectedLavoratore(null)
+      setSelectedProcessi([])
+      setSelectedContributi([])
+      setSelectedMesi([])
+      setSelectedMesiCalendario([])
+      setSelectedPagamenti([])
+      setSelectedPresenze([])
+      setSelectedVariazioni([])
+      setSelectedChiusure([])
+      setSelectedTickets([])
 
       try {
         const processiFilter = buildIdsFilter(selectedRapporto.processo_res ?? [])
@@ -593,6 +816,8 @@ export function useRapportiLavorativiData() {
     setPageIndex,
     searchValue,
     setSearchValue,
+    rapportoStatusFilter,
+    setRapportoStatusFilter,
     retryRapporti,
     selectedRapportoId,
     setSelectedRapportoId,

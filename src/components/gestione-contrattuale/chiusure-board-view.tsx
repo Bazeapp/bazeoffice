@@ -5,7 +5,6 @@ import {
   FileTextIcon,
   MailIcon,
   PencilIcon,
-  PlusIcon,
 } from "lucide-react"
 
 import {
@@ -25,13 +24,6 @@ import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -43,6 +35,12 @@ import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
 type ChiusuraAttachmentSlot = "allegato_compilato" | "documenti_chiusura_rapporto"
+
+const CHIUSURA_FORM_URLS = {
+  licenziamento: "https://airtable.com/appevZURCPFkSG3CJ/pagdH4TXtF2mRHrHb/form",
+  dimissione: "https://airtable.com/appevZURCPFkSG3CJ/pagC4sFam0eGz07Rh/form",
+  annullamento: "https://airtable.com/appevZURCPFkSG3CJ/pagW6G5AUa4tJOWYX/form",
+} as const
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "-"
@@ -108,6 +106,17 @@ function sanitizeFileName(name: string) {
     .replace(/-+/g, "-")
 }
 
+function buildChiusuraDetailsDraft(card: ChiusureBoardCardData | null) {
+  return {
+    dataFineRapporto: card?.record.data_fine_rapporto ?? "",
+    tipoLicenziamento: card?.record.tipo_licenziamento ?? "",
+    tipoDecesso: card?.record.tipo_decesso ?? "",
+    presenzeUltimoMese: card?.record.presenze_ultimo_mese ?? "",
+    motivazione: card?.record.motivazione_cessazione_rapporto ?? "",
+    informazioniAggiuntive: card?.record.informazioni_aggiuntive ?? "",
+  }
+}
+
 function ChiusureDetailSheet({
   card,
   columns,
@@ -128,27 +137,42 @@ function ChiusureDetailSheet({
   const [savingDetails, setSavingDetails] = React.useState(false)
   const [uploadingSlot, setUploadingSlot] = React.useState<ChiusuraAttachmentSlot | null>(null)
   const [detailsError, setDetailsError] = React.useState<string | null>(null)
-  const [detailsDraft, setDetailsDraft] = React.useState(() => ({
-    dataFineRapporto: card?.record.data_fine_rapporto ?? "",
-    tipoLicenziamento: card?.record.tipo_licenziamento ?? "",
-    tipoDecesso: card?.record.tipo_decesso ?? "",
-    presenzeUltimoMese: card?.record.presenze_ultimo_mese ?? "",
-    motivazione: card?.record.motivazione_cessazione_rapporto ?? "",
-    informazioniAggiuntive: card?.record.informazioni_aggiuntive ?? "",
-  }))
+  const previousCardIdRef = React.useRef<string | null>(card?.id ?? null)
+  const [detailsDraft, setDetailsDraft] = React.useState(() => buildChiusuraDetailsDraft(card))
 
   React.useEffect(() => {
-    setDetailsDraft({
+    const nextDetailsDraft = {
       dataFineRapporto: card?.record.data_fine_rapporto ?? "",
       tipoLicenziamento: card?.record.tipo_licenziamento ?? "",
       tipoDecesso: card?.record.tipo_decesso ?? "",
       presenzeUltimoMese: card?.record.presenze_ultimo_mese ?? "",
       motivazione: card?.record.motivazione_cessazione_rapporto ?? "",
       informazioniAggiuntive: card?.record.informazioni_aggiuntive ?? "",
-    })
-    setEditingDetails(false)
-    setDetailsError(null)
-  }, [card?.id, card?.record.data_fine_rapporto, card?.record.informazioni_aggiuntive, card?.record.motivazione_cessazione_rapporto, card?.record.presenze_ultimo_mese, card?.record.tipo_decesso, card?.record.tipo_licenziamento])
+    }
+    const nextCardId = card?.id ?? null
+    const isDifferentCard = previousCardIdRef.current !== nextCardId
+    previousCardIdRef.current = nextCardId
+
+    if (isDifferentCard) {
+      setEditingDetails(false)
+      setDetailsError(null)
+      setDetailsDraft(nextDetailsDraft)
+      return
+    }
+
+    if (!editingDetails) {
+      setDetailsDraft(nextDetailsDraft)
+    }
+  }, [
+    card?.id,
+    card?.record.data_fine_rapporto,
+    card?.record.informazioni_aggiuntive,
+    card?.record.motivazione_cessazione_rapporto,
+    card?.record.presenze_ultimo_mese,
+    card?.record.tipo_decesso,
+    card?.record.tipo_licenziamento,
+    editingDetails,
+  ])
 
   async function handleStatusChange(nextValue: string) {
     if (!card || nextValue === card.stage) return
@@ -618,152 +642,12 @@ function ChiusureBoardSkeletonColumn() {
   return <KanbanColumnSkeleton />
 }
 
-type ChiusuraTipo = "licenziamento" | "dimissione" | "annullamento"
-
-function CreateChiusuraDialog({
-  open,
-  tipo,
-  rapportoOptions,
-  onOpenChange,
-  onCreate,
-}: {
-  open: boolean
-  tipo: ChiusuraTipo
-  rapportoOptions: Array<{ id: string; label: string }>
-  onOpenChange: (open: boolean) => void
-  onCreate: (input: {
-    rapportoId: string
-    tipo: ChiusuraTipo
-    dataFineRapporto: string
-    note: string
-  }) => Promise<void>
-}) {
-  const [query, setQuery] = React.useState("")
-  const [rapportoId, setRapportoId] = React.useState("")
-  const [dataFineRapporto, setDataFineRapporto] = React.useState("")
-  const [note, setNote] = React.useState("")
-  const [saving, setSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const filteredOptions = React.useMemo(() => {
-    const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean)
-    if (tokens.length === 0) return rapportoOptions.slice(0, 20)
-    return rapportoOptions
-      .filter((option) => {
-        const haystack = option.label.toLowerCase()
-        return tokens.every((token) => haystack.includes(token))
-      })
-      .slice(0, 20)
-  }, [query, rapportoOptions])
-  const selectedRapporto = rapportoOptions.find((option) => option.id === rapportoId)
-
-  React.useEffect(() => {
-    if (!open) {
-      setQuery("")
-      setRapportoId("")
-      setDataFineRapporto("")
-      setNote("")
-      setSaving(false)
-      setError(null)
-    }
-  }, [open])
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!rapportoId) {
-      setError("Seleziona un rapporto.")
-      return
-    }
-
-    setSaving(true)
-    setError(null)
-    try {
-      await onCreate({ rapportoId, tipo, dataFineRapporto, note })
-      onOpenChange(false)
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Errore creando chiusura")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>
-            Apri {tipo === "dimissione" ? "una dimissione" : tipo === "annullamento" ? "un annullamento" : "un licenziamento"}
-          </DialogTitle>
-          <DialogDescription>
-            Seleziona il rapporto e crea la pratica di chiusura collegata.
-          </DialogDescription>
-        </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <label className="block space-y-2">
-            <span className="ui-type-label">Rapporto di lavoro</span>
-            <SearchInput
-              placeholder="Cerca per famiglia o lavoratore..."
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onClear={() => setQuery("")}
-            />
-          </label>
-          <div className="max-h-60 space-y-2 overflow-y-auto rounded-xl border bg-surface p-2">
-            {filteredOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={cn(
-                  "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted",
-                  rapportoId === option.id && "bg-primary/10 text-primary",
-                )}
-                onClick={() => setRapportoId(option.id)}
-              >
-                {option.label}
-              </button>
-            ))}
-            {filteredOptions.length === 0 ? (
-              <p className="text-muted-foreground px-3 py-4 text-sm">Nessun rapporto trovato.</p>
-            ) : null}
-          </div>
-          {selectedRapporto ? (
-            <p className="text-muted-foreground text-xs">
-              Selezionato: <span className="font-medium text-foreground">{selectedRapporto.label}</span>
-            </p>
-          ) : null}
-          <label className="block space-y-2">
-            <span className="ui-type-label">Data fine rapporto</span>
-            <Input
-              type="date"
-              value={dataFineRapporto}
-              onChange={(event) => setDataFineRapporto(event.target.value)}
-            />
-          </label>
-          <label className="block space-y-2">
-            <span className="ui-type-label">Note</span>
-            <Textarea value={note} onChange={(event) => setNote(event.target.value)} />
-          </label>
-          {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Annulla
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Creazione..." : "Crea chiusura"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 export function ChiusureBoardView() {
-  const { loading, error, columns, rapportoOptions, createChiusura, moveCard, updateCard } = useChiusureBoard()
+  const { loading, error, columns, moveCard, updateCard } = useChiusureBoard()
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
-  const [createTipo, setCreateTipo] = React.useState<ChiusuraTipo | null>(null)
 
   const filteredColumns = React.useMemo(() => {
     const query = searchValue.trim().toLowerCase()
@@ -809,19 +693,24 @@ export function ChiusureBoardView() {
           >
             Chiusure
           </SectionHeader.Title>
+          <SectionHeader.Actions>
+            <Button variant="outline" asChild>
+              <a href={CHIUSURA_FORM_URLS.licenziamento} target="_blank" rel="noreferrer">
+                Apri un licenziamento
+              </a>
+            </Button>
+            <Button variant="outline" asChild>
+              <a href={CHIUSURA_FORM_URLS.dimissione} target="_blank" rel="noreferrer">
+                Apri una dimissione
+              </a>
+            </Button>
+            <Button variant="outline" asChild>
+              <a href={CHIUSURA_FORM_URLS.annullamento} target="_blank" rel="noreferrer">
+                Apri un annullamento
+              </a>
+            </Button>
+          </SectionHeader.Actions>
           <SectionHeader.Toolbar>
-            <Button variant="outline" onClick={() => setCreateTipo("licenziamento")}>
-              <PlusIcon className="size-4" />
-              Apri un licenziamento
-            </Button>
-            <Button variant="outline" onClick={() => setCreateTipo("dimissione")}>
-              <PlusIcon className="size-4" />
-              Apri una dimissione
-            </Button>
-            <Button variant="outline" onClick={() => setCreateTipo("annullamento")}>
-              <PlusIcon className="size-4" />
-              Apri un annullamento
-            </Button>
             <SearchInput
               className="md:max-w-sm"
               placeholder="Cerca per famiglia, lavoratore, email, motivazione..."
@@ -884,15 +773,6 @@ export function ChiusureBoardView() {
         }}
         onStatusChange={moveCard}
         onCardChange={(nextCard) => updateCard(nextCard.id, () => nextCard)}
-      />
-      <CreateChiusuraDialog
-        open={Boolean(createTipo)}
-        tipo={createTipo ?? "licenziamento"}
-        rapportoOptions={rapportoOptions}
-        onOpenChange={(open) => {
-          if (!open) setCreateTipo(null)
-        }}
-        onCreate={createChiusura}
       />
     </>
   )

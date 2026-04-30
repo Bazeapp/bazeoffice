@@ -166,44 +166,23 @@ const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
   "match",
 ]);
 const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo";
-const OTHER_SEARCH_GROUP_A_PROCESS_STATUS_TOKENS = new Set([
-  "da assegnare",
-  "raccolta candidature",
-  "fare ricerca",
-  "in preparazione per invio",
-  "in preparazione per l invio",
-]);
-const OTHER_SEARCH_GROUP_A_SELECTION_STATUS_TOKENS = new Set([
-  "prospetto",
-  "candidato poor fit",
-  "candidato good fit",
-  "da colloquiare",
-  "non risponde",
-  "invitato a colloquio",
-  "selezionato",
-  "inviato al cliente",
+const DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS = new Set([
+  "no match",
+  "stand by",
+  "match",
+  "in prova col lavoratore",
+  "in prova con lavoratore",
 ]);
 const OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS = new Set([
-  "inviare selezione",
-  "selezione inviata in attesa di feedback",
-  "selezione inviata ma in attesa di feedback",
-  "fase di colloqui",
+  "in prova col lavoratore",
   "in prova con lavoratore",
   "match",
-  "no match",
 ]);
 const OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS = new Set([
-  "selezionato",
-  "inviato al cliente",
-  "colloquio schedulato",
-  "colloquio rimandato",
-  "colloquio fatto",
   "prova schedulata",
   "prova rimandata",
   "prova in corso",
-  "prova con cliente",
   "match",
-  "no match",
 ]);
 
 function normalizeLookupToken(value: string | null | undefined) {
@@ -217,13 +196,25 @@ function normalizeLookupToken(value: string | null | undefined) {
     .trim();
 }
 
-function isDirectInvolvementSelection(selection: Record<string, unknown>) {
+function hasActiveWorkSituation(selection: Record<string, unknown>) {
   return (
+    normalizeLookupToken(asString(selection.stato_situazione_lavorativa)) !==
+    DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
+  );
+}
+
+function isDirectInvolvementSelection(
+  selection: Record<string, unknown>,
+  processRow: Record<string, unknown>,
+) {
+  const processStatusToken = normalizeLookupToken(asString(processRow.stato_res));
+
+  return (
+    hasActiveWorkSituation(selection) &&
     DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS.has(
       normalizeLookupToken(asString(selection.stato_selezione)),
     ) &&
-    normalizeLookupToken(asString(selection.stato_situazione_lavorativa)) ===
-      DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
+    !DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS.has(processStatusToken)
   );
 }
 
@@ -236,15 +227,11 @@ function isOtherSearchSelection(
     asString(selection.stato_selezione),
   );
 
-  const matchesGroupA =
-    OTHER_SEARCH_GROUP_A_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
-    OTHER_SEARCH_GROUP_A_SELECTION_STATUS_TOKENS.has(selectionStatusToken);
-
   const matchesGroupB =
     OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
     OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS.has(selectionStatusToken);
 
-  return matchesGroupA || matchesGroupB;
+  return hasActiveWorkSituation(selection) && matchesGroupB;
 }
 
 function formatRelatedFamilyName(row: Record<string, unknown> | null | undefined) {
@@ -1073,7 +1060,7 @@ export function LavoratoriCercaView({
             },
           };
 
-          if (isDirectInvolvementSelection(selection)) {
+          if (isDirectInvolvementSelection(selection, processRow)) {
             nextDirectItems.push(nextItem);
             seenProcessIds.add(processId);
             continue;

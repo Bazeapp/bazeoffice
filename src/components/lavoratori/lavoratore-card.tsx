@@ -409,10 +409,10 @@ export function LavoratoreCard({
               </PopoverTrigger>
               <PopoverContent
                 align="start"
-                className="w-80 space-y-2 p-3"
+                className="w-80 p-3"
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="space-y-2">
+                <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
                   {otherSelections.details.map((detail) => (
                     <RelatedActiveSearchCard
                       key={detail.id}

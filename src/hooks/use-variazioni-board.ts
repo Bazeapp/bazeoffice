@@ -2,6 +2,8 @@ import * as React from "react"
 
 import {
   createRecord,
+  fetchFamiglie,
+  fetchLavoratori,
   fetchLookupValues,
   fetchRapportiLavorativi,
   fetchVariazioniContrattuali,
@@ -26,6 +28,8 @@ export type VariazioniBoardCardData = {
   stage: string
   record: VariazioneContrattualeRecord
   rapporto: RapportoLavorativoRecord | null
+  famiglia: GenericRow | null
+  lavoratore: GenericRow | null
   nomeCompleto: string
   dataVariazione: string
   variazioneDaApplicare: string | null
@@ -61,6 +65,8 @@ type UseVariazioniBoardState = {
   ) => void
 }
 
+type GenericRow = Record<string, unknown>
+
 const DEFAULT_STAGE_DEFINITIONS: VariazioneStageDefinition[] = [
   { id: "presa in carico", label: "presa in carico", color: "sky" },
   { id: "variazione effettuata", label: "variazione effettuata", color: "cyan" },
@@ -78,7 +84,34 @@ const VARIAZIONI_RAPPORTI_SELECT = [
   "paga_oraria_lorda",
   "data_inizio_rapporto",
   "cognome_nome_datore_proper",
+  "famiglia_id",
+  "lavoratore_id",
   "nome_lavoratore_per_url",
+] satisfies string[]
+
+const VARIAZIONI_FAMIGLIE_SELECT = [
+  "id",
+  "nome",
+  "cognome",
+  "email",
+  "customer_email",
+  "secondary_email",
+  "telefono",
+  "whatsapp",
+] satisfies string[]
+
+const VARIAZIONI_LAVORATORI_SELECT = [
+  "id",
+  "nome",
+  "cognome",
+  "email",
+  "telefono",
+  "iban",
+  "indirizzo_residenza_completo",
+  "cap",
+  "provincia",
+  "documenti_in_regola",
+  "docs_scadenza_permesso_di_soggiorno",
 ] satisfies string[]
 
 const VARIAZIONI_SELECT = [
@@ -205,6 +238,58 @@ async function fetchVariazioniBoardData(): Promise<{
     stages.map((stage) => [stage.id, []])
   )
   const rapportoById = new Map(rapportiResult.rows.map((rapporto) => [rapporto.id, rapporto]))
+  const famigliaIds = Array.from(
+    new Set(rapportiResult.rows.map((rapporto) => toStringValue(rapporto.famiglia_id)).filter(Boolean)),
+  ) as string[]
+  const lavoratoreIds = Array.from(
+    new Set(rapportiResult.rows.map((rapporto) => toStringValue(rapporto.lavoratore_id)).filter(Boolean)),
+  ) as string[]
+  const [famiglieResult, lavoratoriResult] = await Promise.all([
+    famigliaIds.length > 0
+      ? fetchFamiglie({
+          select: VARIAZIONI_FAMIGLIE_SELECT,
+          limit: famigliaIds.length,
+          offset: 0,
+          filters: {
+            kind: "group",
+            id: "variazioni-famiglie-root",
+            logic: "and",
+            nodes: [
+              {
+                kind: "condition",
+                id: "variazioni-famiglie-id",
+                field: "id",
+                operator: "in",
+                value: famigliaIds.join(","),
+              },
+            ],
+          },
+        })
+      : Promise.resolve({ rows: [] as GenericRow[], total: 0, columns: [], groups: [] }),
+    lavoratoreIds.length > 0
+      ? fetchLavoratori({
+          select: VARIAZIONI_LAVORATORI_SELECT,
+          limit: lavoratoreIds.length,
+          offset: 0,
+          filters: {
+            kind: "group",
+            id: "variazioni-lavoratori-root",
+            logic: "and",
+            nodes: [
+              {
+                kind: "condition",
+                id: "variazioni-lavoratori-id",
+                field: "id",
+                operator: "in",
+                value: lavoratoreIds.join(","),
+              },
+            ],
+          },
+        })
+      : Promise.resolve({ rows: [] as GenericRow[], total: 0, columns: [], groups: [] }),
+  ])
+  const famigliaById = new Map(famiglieResult.rows.map((famiglia) => [toStringValue(famiglia.id), famiglia]))
+  const lavoratoreById = new Map(lavoratoriResult.rows.map((lavoratore) => [toStringValue(lavoratore.id), lavoratore]))
 
   for (const record of variazioniResult.rows) {
     const stage = aliases.get(normalizeToken(record.stato))
@@ -214,6 +299,12 @@ async function fetchVariazioniBoardData(): Promise<{
     const rapporto = record.rapporto_lavorativo_id
       ? rapportoById.get(record.rapporto_lavorativo_id) ?? null
       : null
+    const famiglia = rapporto?.famiglia_id
+      ? famigliaById.get(toStringValue(rapporto.famiglia_id)) ?? null
+      : null
+    const lavoratore = rapporto?.lavoratore_id
+      ? lavoratoreById.get(toStringValue(rapporto.lavoratore_id)) ?? null
+      : null
     const nomeCompleto = rapporto ? getRapportoTitle(rapporto) : "Rapporto non disponibile"
 
     const card: VariazioniBoardCardData = {
@@ -221,6 +312,8 @@ async function fetchVariazioniBoardData(): Promise<{
       stage,
       record,
       rapporto,
+      famiglia,
+      lavoratore,
       nomeCompleto,
       dataVariazione: formatItalianDate(record.data_variazione),
       variazioneDaApplicare: record.variazione_da_applicare,
@@ -331,6 +424,8 @@ export function useVariazioniBoard(): UseVariazioniBoardState {
         stage: record.stato ?? initialStage,
         record,
         rapporto,
+        famiglia: null,
+        lavoratore: null,
         nomeCompleto: rapporto ? getRapportoTitle(rapporto) : "Rapporto non disponibile",
         dataVariazione: formatItalianDate(record.data_variazione),
         variazioneDaApplicare: record.variazione_da_applicare,

@@ -785,20 +785,6 @@ export function RicercaDetailView({
                         "Indirizzo completo",
                         resolvedCard.indirizzoCompleto,
                       )}
-                      {resolvedCard.srcEmbedMapsAnnucio &&
-                      resolvedCard.srcEmbedMapsAnnucio !== "-" ? (
-                        <Field>
-                          <FieldLabel variant="eyebrow">SRC Maps</FieldLabel>
-                          <a
-                            href={resolvedCard.srcEmbedMapsAnnucio}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-primary block break-all text-sm underline underline-offset-2"
-                          >
-                            {resolvedCard.srcEmbedMapsAnnucio}
-                          </a>
-                        </Field>
-                      ) : null}
                     </AccordionContent>
                   </AccordionItem>
 

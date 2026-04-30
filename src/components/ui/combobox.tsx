@@ -202,14 +202,14 @@ function ComboboxItem({
           "inline-flex size-4 shrink-0 items-center justify-center rounded-sm",
           "border-[1.5px] border-border-strong bg-surface",
           "transition-colors duration-(--duration-fast) ease-out",
-          "group-data-selected/combobox-item:bg-accent",
-          "group-data-selected/combobox-item:border-accent",
+          "group-data-[selected]/combobox-item:bg-accent",
+          "group-data-[selected]/combobox-item:border-accent",
         )}
       >
         <CheckIcon
           className={cn(
             "size-3 text-foreground-on-accent opacity-0",
-            "group-data-selected/combobox-item:opacity-100",
+            "group-data-[selected]/combobox-item:opacity-100",
           )}
         />
       </span>

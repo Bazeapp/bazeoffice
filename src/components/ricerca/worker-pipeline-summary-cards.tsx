@@ -19,6 +19,18 @@ import { WorkerShiftPreferencesFields } from "@/components/lavoratori/worker-shi
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -433,6 +445,7 @@ function TravelTimeCard({
   familyProvince,
   familyAddressNote,
   provinceOptions = [],
+  mobilityOptions = [],
   updatingProcessAddress = false,
 }: {
   workerRow: LavoratoreRecord;
@@ -455,6 +468,7 @@ function TravelTimeCard({
   familyProvince?: string | null;
   familyAddressNote?: string | null;
   provinceOptions?: LookupOption[];
+  mobilityOptions?: LookupOption[];
   updatingProcessAddress?: boolean;
 }) {
   const travelMinutes = toNumber(
@@ -477,6 +491,7 @@ function TravelTimeCard({
     indirizzo: asString(familyAddress),
     note: asString(familyAddressNote),
   });
+  const mobilityAnchor = useComboboxAnchor();
 
   React.useEffect(() => {
     setAddressDraft({
@@ -548,19 +563,20 @@ function TravelTimeCard({
     ],
   );
 
-  const commitMobilita = React.useCallback(async () => {
+  const handleMobilitaChange = React.useCallback(async (values: string[]) => {
+    const nextValues = values.map((item) => item.trim()).filter(Boolean);
+    setAddressDraft((current) => ({
+      ...current,
+      mobilita: nextValues.join(", "),
+    }));
     if (!onPatchWorkerField) return;
-    const nextValues = addressDraft.mobilita
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
     const currentValues = readArrayStrings(workerRow.come_ti_sposti);
     if (JSON.stringify(nextValues) === JSON.stringify(currentValues)) return;
     await onPatchWorkerField(
       "come_ti_sposti",
       nextValues.length > 0 ? nextValues : null,
     );
-  }, [addressDraft.mobilita, onPatchWorkerField, workerRow.come_ti_sposti]);
+  }, [onPatchWorkerField, setAddressDraft, workerRow.come_ti_sposti]);
 
   const travelTone = getTravelTimeTone(travelMinutes);
   const mobility = readArrayStrings(workerRow.come_ti_sposti);
@@ -797,18 +813,41 @@ function TravelTimeCard({
           Mobilita
         </p>
         {isEditing ? (
-          <Input
-            value={addressDraft.mobilita}
-            onChange={(event) =>
-              setAddressDraft((current) => ({
-                ...current,
-                mobilita: event.target.value,
-              }))
-            }
-            onBlur={() => void commitMobilita()}
-            className="h-9 text-sm"
-            placeholder="Es. Auto, Mezzi, Bici"
-          />
+          <Combobox
+            multiple
+            autoHighlight
+            items={mobilityOptions.map((option) => option.label)}
+            value={addressDraft.mobilita
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean)}
+            onValueChange={(nextValues) => {
+              void handleMobilitaChange(nextValues as string[]);
+            }}
+          >
+            <ComboboxChips ref={mobilityAnchor} className="w-full">
+              <ComboboxValue>
+                {(values) => (
+                  <React.Fragment>
+                    {values.map((value: string) => (
+                      <ComboboxChip key={value}>{value}</ComboboxChip>
+                    ))}
+                    <ComboboxChipsInput placeholder="Seleziona opzioni" />
+                  </React.Fragment>
+                )}
+              </ComboboxValue>
+            </ComboboxChips>
+            <ComboboxContent anchor={mobilityAnchor} className="max-h-80">
+              <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
+              <ComboboxList className="max-h-72 overflow-y-auto">
+                {(item) => (
+                  <ComboboxItem key={item} value={item}>
+                    {item}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
         ) : mobility.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {mobility.map((value) => (
@@ -1511,6 +1550,7 @@ export function WorkerPipelineSummaryCards({
         familyProvince={familyProvince}
         familyAddressNote={familyAddressNote}
         provinceOptions={provinceOptions}
+        mobilityOptions={lookupOptionsByDomain.get("lavoratori.come_ti_sposti") ?? []}
         updatingProcessAddress={updatingProcessAddress}
       />
       <ExperienceBlock

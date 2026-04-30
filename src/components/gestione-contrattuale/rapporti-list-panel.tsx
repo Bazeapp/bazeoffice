@@ -36,6 +36,7 @@ import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/l
 import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
 import { getRapportoStatusColor, resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 import { cn } from "@/lib/utils"
+import type { RapportoStatusFilter } from "@/hooks/use-rapporti-lavorativi-data"
 import type { RapportoLavorativoRecord } from "@/types"
 
 type RapportiListItem = {
@@ -64,6 +65,8 @@ type RapportiListPanelProps = {
   onPageChange: (pageIndex: number) => void
   searchValue: string
   onSearchValueChange: (value: string) => void
+  rapportoStatusFilter: RapportoStatusFilter
+  onRapportoStatusFilterChange: (value: RapportoStatusFilter) => void
   onRetry: () => void
   selectedRapportoId: string | null
   onSelect: (id: string) => void
@@ -124,6 +127,35 @@ function sortItems(items: RapportiListItem[], sorting: Array<{ id: string; desc:
   })
 
   return nextItems
+}
+
+const RAPPORTO_STATUS_OPTIONS = ["In attivazione", "Attivo", "Terminato", "Sconosciuto", "Errore"] as const
+
+const RAPPORTO_STATUS_WEIGHT = new Map<string, number>(
+  RAPPORTO_STATUS_OPTIONS.map((status, index) => [status, index])
+)
+
+function getStatusWeight(value: string | null | undefined) {
+  return RAPPORTO_STATUS_WEIGHT.get(value ?? "") ?? RAPPORTO_STATUS_OPTIONS.length
+}
+
+function getTimeValue(value: string | null | undefined) {
+  if (!value) return Number.NEGATIVE_INFINITY
+  const time = new Date(value).getTime()
+  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
+}
+
+function sortByOperationalStatus(items: RapportiListItem[]) {
+  return [...items].sort((left, right) => {
+    const statusDelta = getStatusWeight(left.stato_rapporto) - getStatusWeight(right.stato_rapporto)
+    if (statusDelta !== 0) return statusDelta
+
+    const dateDelta =
+      getTimeValue(right.data_inizio_rapporto) - getTimeValue(left.data_inizio_rapporto)
+    if (dateDelta !== 0) return dateDelta
+
+    return left.famigliaLabel.localeCompare(right.famigliaLabel)
+  })
 }
 
 function getStatusColor(lookupColorsByDomain: Map<string, string>, domain: string, value: string | null) {
@@ -282,17 +314,18 @@ export function RapportiListPanel({
   onPageChange,
   searchValue: externalSearchValue,
   onSearchValueChange,
+  rapportoStatusFilter,
+  onRapportoStatusFilterChange,
   onRetry,
   selectedRapportoId,
   onSelect,
   lookupColorsByDomain,
 }: RapportiListPanelProps) {
-  const [filterAssunzione, setFilterAssunzione] = React.useState("all")
   const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({})
   const initialQuery = React.useMemo(
     () => ({
       grouping: [],
-      sorting: [{ id: "data_inizio_rapporto", desc: true }],
+      sorting: [],
     }),
     [],
   )
@@ -325,21 +358,24 @@ export function RapportiListPanel({
 
   const items = React.useMemo<RapportiListItem[]>(
     () =>
-      rapporti.map((rapporto) => ({
-        id: rapporto.id,
-        famigliaLabel: getRapportoFamilyLabel(rapporto),
-        lavoratoreLabel: getRapportoWorkerLabel(rapporto),
-        stato_rapporto: resolveRapportoStatus(rapporto),
-        stato_servizio: rapporto.stato_servizio,
-        stato_assunzione: rapporto.stato_assunzione,
-        stato_riattivazione: rapporto.stato_riattivazione,
-        tipo_contratto: rapporto.tipo_contratto,
-        tipo_rapporto: rapporto.tipo_rapporto,
-        ore_a_settimana: rapporto.ore_a_settimana,
-        data_inizio_rapporto: rapporto.data_inizio_rapporto,
-        distribuzione_ore_settimana: rapporto.distribuzione_ore_settimana,
-        raw: rapporto,
-      })),
+      rapporti.map((rapporto) => {
+        const statoRapporto = resolveRapportoStatus(rapporto)
+        return {
+          id: rapporto.id,
+          famigliaLabel: getRapportoFamilyLabel(rapporto),
+          lavoratoreLabel: getRapportoWorkerLabel(rapporto),
+          stato_rapporto: statoRapporto,
+          stato_servizio: rapporto.stato_servizio,
+          stato_assunzione: rapporto.stato_assunzione,
+          stato_riattivazione: rapporto.stato_riattivazione,
+          tipo_contratto: rapporto.tipo_contratto,
+          tipo_rapporto: rapporto.tipo_rapporto,
+          ore_a_settimana: rapporto.ore_a_settimana,
+          data_inizio_rapporto: rapporto.data_inizio_rapporto,
+          distribuzione_ore_settimana: rapporto.distribuzione_ore_settimana,
+          raw: { ...rapporto, stato_rapporto: statoRapporto },
+        }
+      }),
     [rapporti],
   )
 
@@ -406,7 +442,7 @@ export function RapportiListPanel({
     [rapporti],
   )
 
-  const activeFilterCount = filterAssunzione !== "all" ? 1 : 0
+  const activeFilterCount = rapportoStatusFilter !== "all" ? 1 : 0
 
   const filterFields = React.useMemo<FilterField[]>(
     () => [
@@ -457,15 +493,11 @@ export function RapportiListPanel({
           matchesSearchCandidate(rapporto.id, searchValue)
         )
       })
-      .filter((rapporto) =>
-        filterAssunzione === "all" ? true : rapporto.stato_assunzione === filterAssunzione,
-      )
       .filter((rapporto) => evaluateGroup(rapporto as unknown as Record<string, unknown>, filters, filterFields))
 
-    return sortItems(filtered, sorting)
+    return sorting.length > 0 ? sortItems(filtered, sorting) : sortByOperationalStatus(filtered)
   }, [
     filterFields,
-    filterAssunzione,
     filters,
     items,
     searchValue,
@@ -473,7 +505,7 @@ export function RapportiListPanel({
   ])
 
   function clearFilters() {
-    setFilterAssunzione("all")
+    onRapportoStatusFilterChange("all")
   }
 
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -518,14 +550,19 @@ export function RapportiListPanel({
         />
 
         <div className="space-y-1">
-          <FieldLabel>Stato assunzione</FieldLabel>
-          <Select value={filterAssunzione} onValueChange={setFilterAssunzione}>
+          <FieldLabel>Stato rapporto</FieldLabel>
+          <Select
+            value={rapportoStatusFilter}
+            onValueChange={(value) =>
+              onRapportoStatusFilterChange(value as RapportoStatusFilter)
+            }
+          >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Tutti" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tutti</SelectItem>
-              {uniqueAssunzioni.map((value) => (
+              {RAPPORTO_STATUS_OPTIONS.map((value) => (
                 <SelectItem key={value} value={value}>
                   {value}
                 </SelectItem>

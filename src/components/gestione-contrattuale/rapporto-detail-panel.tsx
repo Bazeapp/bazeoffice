@@ -281,6 +281,10 @@ function copyToClipboard(value: string | null | undefined) {
   void navigator.clipboard?.writeText(value)
 }
 
+function firstAvailableText(...values: Array<string | null | undefined>) {
+  return values.find((value) => value?.trim())?.trim() ?? null
+}
+
 function RelatedPersonCard({
   role,
   name,
@@ -322,7 +326,7 @@ function RelatedPersonCard({
             className="text-muted-foreground hover:text-foreground flex w-full items-center gap-2 text-left transition-colors"
           >
             <MailIcon className="size-4" />
-            <span className="truncate">{email ?? "-"}</span>
+            <span className="truncate">{email ?? "Record non collegato"}</span>
             {email ? <CopyIcon className="size-3.5 opacity-50" /> : null}
           </button>
           <button
@@ -331,7 +335,7 @@ function RelatedPersonCard({
             className="text-muted-foreground hover:text-foreground flex w-full items-center gap-2 text-left transition-colors"
           >
             <PhoneIcon className="size-4" />
-            <span>{phone ?? "-"}</span>
+            <span>{phone ?? "Record non collegato"}</span>
             {phone ? <CopyIcon className="size-3.5 opacity-50" /> : null}
           </button>
         </div>
@@ -394,6 +398,27 @@ function EmptyLinkedState({
   )
 }
 
+function buildRapportoDraft(rapporto: RapportoLavorativoRecord | null | undefined) {
+  return {
+    tipo_contratto_durata: rapporto?.tipo_contratto_durata ?? "",
+    tipo_contratto: rapporto?.tipo_contratto ?? "",
+    tipo_rapporto: rapporto?.tipo_rapporto ?? "",
+    ore_a_settimana:
+      typeof rapporto?.ore_a_settimana === "number" ? String(rapporto.ore_a_settimana) : "",
+    data_inizio_rapporto: rapporto?.data_inizio_rapporto ?? "",
+    stato_assunzione: rapporto?.stato_assunzione ?? "",
+    relazione_lavorativa: rapporto?.relazione_lavorativa ?? "",
+    paga_oraria_lorda:
+      typeof rapporto?.paga_oraria_lorda === "number" ? String(rapporto.paga_oraria_lorda) : "",
+    paga_mensile_lorda:
+      typeof rapporto?.paga_mensile_lorda === "number" ? String(rapporto.paga_mensile_lorda) : "",
+    codice_datore_webcolf:
+      typeof rapporto?.codice_datore_webcolf === "number" ? String(rapporto.codice_datore_webcolf) : "",
+    codice_dipendente_webcolf:
+      typeof rapporto?.codice_dipendente_webcolf === "number" ? String(rapporto.codice_dipendente_webcolf) : "",
+  }
+}
+
 export function RapportoDetailPanel({
   rapporto,
   famiglia,
@@ -423,57 +448,38 @@ export function RapportoDetailPanel({
   const [savingContratto, setSavingContratto] = React.useState(false)
   const [selectedCedolinoId, setSelectedCedolinoId] = React.useState<string | null>(null)
   const [selectedContributoId, setSelectedContributoId] = React.useState<string | null>(null)
+  const [selectedTicket, setSelectedTicket] = React.useState<TicketRecord | null>(null)
   const [isCreateTicketOpen, setIsCreateTicketOpen] = React.useState(false)
   const [rapportoState, setRapportoState] = React.useState<RapportoLavorativoRecord | null>(rapporto)
   const autosaveTimeoutRef = React.useRef<number | null>(null)
-  const [rapportoDraft, setRapportoDraft] = React.useState(() => ({
-    tipo_contratto_durata: rapporto?.tipo_contratto_durata ?? "",
-    tipo_contratto: rapporto?.tipo_contratto ?? "",
-    tipo_rapporto: rapporto?.tipo_rapporto ?? "",
-    ore_a_settimana:
-      typeof rapporto?.ore_a_settimana === "number" ? String(rapporto.ore_a_settimana) : "",
-    data_inizio_rapporto: rapporto?.data_inizio_rapporto ?? "",
-    stato_assunzione: rapporto?.stato_assunzione ?? "",
-    relazione_lavorativa: rapporto?.relazione_lavorativa ?? "",
-    paga_oraria_lorda:
-      typeof rapporto?.paga_oraria_lorda === "number" ? String(rapporto.paga_oraria_lorda) : "",
-    paga_mensile_lorda:
-      typeof rapporto?.paga_mensile_lorda === "number" ? String(rapporto.paga_mensile_lorda) : "",
-    codice_datore_webcolf:
-      typeof rapporto?.codice_datore_webcolf === "number" ? String(rapporto.codice_datore_webcolf) : "",
-    codice_dipendente_webcolf:
-      typeof rapporto?.codice_dipendente_webcolf === "number" ? String(rapporto.codice_dipendente_webcolf) : "",
-  }))
+  const previousRapportoIdRef = React.useRef<string | null>(rapporto?.id ?? null)
+  const [rapportoDraft, setRapportoDraft] = React.useState(() => buildRapportoDraft(rapporto))
 
   React.useEffect(() => {
+    const nextRapportoId = rapporto?.id ?? null
+    const isDifferentRapporto = previousRapportoIdRef.current !== nextRapportoId
+    previousRapportoIdRef.current = nextRapportoId
+
     setRapportoState(rapporto)
+
+    if (!isDifferentRapporto) {
+      if (editingSection === null) {
+        setRapportoDraft(buildRapportoDraft(rapporto))
+      }
+      return
+    }
+
     setSelectedCedolinoId(null)
     setSelectedContributoId(null)
-    setRapportoDraft({
-      tipo_contratto_durata: rapporto?.tipo_contratto_durata ?? "",
-      tipo_contratto: rapporto?.tipo_contratto ?? "",
-      tipo_rapporto: rapporto?.tipo_rapporto ?? "",
-      ore_a_settimana:
-        typeof rapporto?.ore_a_settimana === "number" ? String(rapporto.ore_a_settimana) : "",
-      data_inizio_rapporto: rapporto?.data_inizio_rapporto ?? "",
-      stato_assunzione: rapporto?.stato_assunzione ?? "",
-      relazione_lavorativa: rapporto?.relazione_lavorativa ?? "",
-      paga_oraria_lorda:
-        typeof rapporto?.paga_oraria_lorda === "number" ? String(rapporto.paga_oraria_lorda) : "",
-      paga_mensile_lorda:
-        typeof rapporto?.paga_mensile_lorda === "number" ? String(rapporto.paga_mensile_lorda) : "",
-      codice_datore_webcolf:
-        typeof rapporto?.codice_datore_webcolf === "number" ? String(rapporto.codice_datore_webcolf) : "",
-      codice_dipendente_webcolf:
-        typeof rapporto?.codice_dipendente_webcolf === "number" ? String(rapporto.codice_dipendente_webcolf) : "",
-    })
+    setSelectedTicket(null)
+    setRapportoDraft(buildRapportoDraft(rapporto))
     setEditingSection(null)
     setSavingContratto(false)
     if (autosaveTimeoutRef.current) {
       window.clearTimeout(autosaveTimeoutRef.current)
       autosaveTimeoutRef.current = null
     }
-  }, [rapporto])
+  }, [editingSection, rapporto])
 
   React.useEffect(() => {
     const container = detailScrollRef.current
@@ -694,6 +700,14 @@ export function RapportoDetailPanel({
   const rapportoView = currentRapporto ?? rapporto
   const familyName = getRapportoFamilyLabel(rapportoView, famiglia)
   const workerName = getRapportoWorkerLabel(rapportoView, lavoratore)
+  const familyEmail = firstAvailableText(
+    famiglia?.email,
+    famiglia?.customer_email,
+    famiglia?.secondary_email,
+  )
+  const familyPhone = firstAvailableText(famiglia?.telefono, famiglia?.whatsapp)
+  const workerEmail = firstAvailableText(lavoratore?.email)
+  const workerPhone = firstAvailableText(lavoratore?.telefono)
   const relationshipTitle = getRapportoTitle(rapportoView, { famiglia, lavoratore })
   const distributionItems = buildDistributionItems(
     rapportoView.distribuzione_ore_settimana,
@@ -1093,8 +1107,8 @@ export function RapportoDetailPanel({
                     <RelatedPersonCard
                       role="Datore"
                       name={familyName}
-                      email={famiglia?.email}
-                      phone={famiglia?.telefono}
+                      email={familyEmail}
+                      phone={familyPhone}
                       href={
                         famiglia
                           ? buildPathForRoute({
@@ -1108,8 +1122,8 @@ export function RapportoDetailPanel({
                     <RelatedPersonCard
                       role="Lavoratore"
                       name={workerName}
-                      email={lavoratore?.email}
-                      phone={lavoratore?.telefono}
+                      email={workerEmail}
+                      phone={workerPhone}
                       href={
                         lavoratore
                           ? buildPathForRoute({
@@ -1251,6 +1265,7 @@ export function RapportoDetailPanel({
                       .filter(Boolean)
                       .join(" • ")}
                     rightBadge={ticket.stato ?? undefined}
+                    onClick={() => setSelectedTicket(ticket)}
                   />
                 ))
               ) : (
@@ -1462,6 +1477,31 @@ export function RapportoDetailPanel({
           await updateRecord("contributi_inps", recordId, patch as Record<string, unknown>)
         }}
       />
+      <Dialog open={Boolean(selectedTicket)} onOpenChange={(open) => !open && setSelectedTicket(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogTitle>{selectedTicket?.causale ?? "Dettaglio ticket"}</DialogTitle>
+          {selectedTicket ? (
+            <div className="grid gap-4 pt-2 sm:grid-cols-2">
+              <DetailField label="Stato" value={selectedTicket.stato ?? "-"} />
+              <DetailField label="Tipo" value={selectedTicket.tipo ?? "-"} />
+              <DetailField label="Urgenza" value={selectedTicket.urgenza ?? "-"} />
+              <DetailField label="Data apertura" value={formatDate(selectedTicket.data_apertura)} />
+              <DetailField label="Creato da" value={selectedTicket.created_by ?? "-"} />
+              <DetailField label="ID ticket" value={selectedTicket.id} />
+              <div className="sm:col-span-2">
+                <DetailField
+                  label="Metadati"
+                  value={
+                    selectedTicket.metadati_migrazione
+                      ? JSON.stringify(selectedTicket.metadati_migrazione)
+                      : "-"
+                  }
+                />
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(open) => !open && setSelectedPreview(null)}>
         <DialogContent
           className="max-w-[min(96vw,72rem)] border-none bg-neutral-950/90 p-2 shadow-none sm:max-w-[min(96vw,72rem)]"

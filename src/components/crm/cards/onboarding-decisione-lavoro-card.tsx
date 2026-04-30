@@ -93,6 +93,14 @@ function clampNumberInRange(value: string, min: number, max: number) {
   return String(Math.max(min, Math.min(parsed, max)));
 }
 
+function normalizeGenderValue(value: string | null | undefined): "donna" | "uomo" | "indifferente" | "" {
+  const normalized = toInputValue(value).toLowerCase();
+  if (normalized === "donna" || normalized === "uomo" || normalized === "indifferente") {
+    return normalized;
+  }
+  return "";
+}
+
 function CheckboxRow({
   id,
   label,
@@ -330,12 +338,8 @@ export function OnboardingDecisioneLavoroSection({
   const [etaMax, setEtaMax] = React.useState(
     clampNumberInRange(toInputValue(defaults?.etaMassima), 20, 80),
   );
-  const [genere, setGenere] = React.useState<"donna" | "uomo" | "">(
-    toInputValue(defaults?.sesso).toLowerCase() === "donna"
-      ? "donna"
-      : toInputValue(defaults?.sesso).toLowerCase() === "uomo"
-        ? "uomo"
-        : "",
+  const [genere, setGenere] = React.useState<"donna" | "uomo" | "indifferente" | "">(
+    normalizeGenderValue(defaults?.sesso),
   );
 
   React.useEffect(() => {
@@ -348,13 +352,7 @@ export function OnboardingDecisioneLavoroSection({
     setRichiestaPatente(
       defaults?.richiestaPatente ?? checkboxDefaults?.["onboarding-patente-si"] ?? false,
     );
-    setGenere(
-      toInputValue(defaults?.sesso).toLowerCase() === "donna"
-        ? "donna"
-        : toInputValue(defaults?.sesso).toLowerCase() === "uomo"
-          ? "uomo"
-          : "",
-    );
+    setGenere(normalizeGenderValue(defaults?.sesso));
   }, [
     checkboxDefaults,
     defaults?.richiestaTrasferte,
@@ -696,7 +694,7 @@ export function OnboardingDecisioneLavoroSection({
           <RadioGroup
             value={genere}
             onValueChange={(value) => {
-              const next = value === "donna" || value === "uomo" ? value : "";
+              const next = normalizeGenderValue(value);
               setGenere(next);
               void patchProcess({ sesso: next || null });
             }}
@@ -718,6 +716,15 @@ export function OnboardingDecisioneLavoroSection({
                 className="font-normal"
               >
                 Uomo
+              </FieldLabel>
+            </Field>
+            <Field orientation="horizontal">
+              <RadioGroupItem id="onboarding-genere-indifferente" value="indifferente" />
+              <FieldLabel
+                htmlFor="onboarding-genere-indifferente"
+                className="font-normal"
+              >
+                Indifferente
               </FieldLabel>
             </Field>
           </RadioGroup>

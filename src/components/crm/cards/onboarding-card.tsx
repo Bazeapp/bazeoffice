@@ -227,6 +227,25 @@ function displayText(value: string | null | undefined) {
   return normalized || "-";
 }
 
+function prioritizeProvinceOptions(options: LookupOption[]) {
+  const priorityLabels = ["Milano", "Monza e della Brianza", "Torino"];
+  const byToken = new Map(
+    options.map((option) => [normalizeLookupToken(option.valueLabel), option]),
+  );
+  const priority = priorityLabels
+    .map((label) => byToken.get(normalizeLookupToken(label)))
+    .filter((option): option is LookupOption => Boolean(option));
+  const priorityTokens = new Set(
+    priority.map((option) => normalizeLookupToken(option.valueLabel)),
+  );
+  return [
+    ...priority,
+    ...options.filter(
+      (option) => !priorityTokens.has(normalizeLookupToken(option.valueLabel)),
+    ),
+  ];
+}
+
 export function OnboardingCard({
   card,
   lookupOptionsByField,
@@ -397,6 +416,27 @@ export function OnboardingCard({
       },
     ] as LookupOption[];
   }, [lookupOptionsByField]);
+  const provinciaOptions = React.useMemo(() => {
+    const fromLookup =
+      lookupOptionsByField?.indirizzo_prova_provincia ??
+      lookupOptionsByField?.provincia ??
+      [];
+    if (fromLookup.length > 0) return fromLookup;
+    return [
+      { valueKey: "milano", valueLabel: "Milano", color: null, sortOrder: 1 },
+      {
+        valueKey: "monza_e_della_brianza",
+        valueLabel: "Monza e della Brianza",
+        color: null,
+        sortOrder: 2,
+      },
+      { valueKey: "torino", valueLabel: "Torino", color: null, sortOrder: 3 },
+    ] as LookupOption[];
+  }, [lookupOptionsByField]);
+  const orderedProvinciaOptions = React.useMemo(
+    () => prioritizeProvinceOptions(provinciaOptions),
+    [provinciaOptions],
+  );
 
   const lookupLabel = React.useCallback(
     (field: string, rawValue: string | null | undefined) => {
@@ -780,9 +820,11 @@ export function OnboardingCard({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="mi">Milano</SelectItem>
-                  <SelectItem value="rm">Roma</SelectItem>
-                  <SelectItem value="to">Torino</SelectItem>
+                  {orderedProvinciaOptions.map((option) => (
+                    <SelectItem key={option.valueKey} value={option.valueLabel}>
+                      {option.valueLabel}
+                    </SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -838,18 +880,7 @@ export function OnboardingCard({
         </div>
 
         <Field>
-          <div className="mb-1 flex items-center gap-2">
-            <FieldLabel>SRC Maps</FieldLabel>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => copyToClipboard(srcMapsUrl, "SRC Maps")}
-              aria-label="Copia SRC Maps"
-            >
-              <CopyIcon className="size-4" />
-            </Button>
-          </div>
+          <FieldLabel>SRC Maps</FieldLabel>
           <FieldDescription>
             <a
               href={srcMapsUrl}
@@ -1174,9 +1205,11 @@ export function OnboardingCard({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="mi">Milano</SelectItem>
-                    <SelectItem value="rm">Roma</SelectItem>
-                    <SelectItem value="to">Torino</SelectItem>
+                    {orderedProvinciaOptions.map((option) => (
+                      <SelectItem key={option.valueKey} value={option.valueLabel}>
+                        {option.valueLabel}
+                      </SelectItem>
+                    ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -1231,18 +1264,7 @@ export function OnboardingCard({
             </Field>
           </div>
           <Field>
-            <div className="mb-1 flex items-center gap-2">
-              <FieldLabel>SRC Maps</FieldLabel>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => copyToClipboard(srcMapsUrl, "SRC Maps")}
-                aria-label="Copia SRC Maps"
-              >
-                <CopyIcon className="size-4" />
-              </Button>
-            </div>
+            <FieldLabel>SRC Maps</FieldLabel>
             <FieldDescription>
               <a
                 href={srcMapsUrl}

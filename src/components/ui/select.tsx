@@ -52,6 +52,7 @@ const SelectContent = React.forwardRef<
       position={position}
       className={cn(
         "ui relative z-50 min-w-32 overflow-hidden",
+        "max-h-[min(20rem,var(--radix-select-content-available-height))]",
         "rounded-md bg-surface p-1",
         "shadow-[0_0_0_1px_var(--border),var(--shadow-lg)]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
@@ -61,7 +62,9 @@ const SelectContent = React.forwardRef<
       )}
       {...props}
     >
-      <SelectPrimitive.Viewport className="p-0">{children}</SelectPrimitive.Viewport>
+      <SelectPrimitive.Viewport className="max-h-[inherit] overflow-y-auto p-0">
+        {children}
+      </SelectPrimitive.Viewport>
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
 ));

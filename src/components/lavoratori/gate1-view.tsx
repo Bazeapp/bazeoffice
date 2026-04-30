@@ -156,7 +156,23 @@ type GateViewProps = {
   showCertificationReferente?: boolean;
   showFollowupFilter?: boolean;
   allowCertifiedStatus?: boolean;
+  showInPersonBookingLinks?: boolean;
 };
+
+const GATE1_IN_PERSON_BOOKING_LINKS = [
+  {
+    label: "Colloquio Milano",
+    href: "https://cal.com/baze-lavoro/colloquio-in-presenza-lavoratori-di-milano",
+  },
+  {
+    label: "Colloquio Torino",
+    href: "https://cal.com/baze-lavoro/colloquio-in-presenza-lavoratori-di-torino",
+  },
+  {
+    label: "Colloquio Monza",
+    href: "https://cal.com/baze-lavoro/colloquio-monza",
+  },
+] as const;
 
 function includesBabysitterType(
   values: string[],
@@ -2283,16 +2299,12 @@ function GateAdministrativeFieldsCard({
   isEditing,
   onIbanChange,
   onIbanBlur,
-  onStripeAccountChange,
-  onStripeAccountBlur,
 }: {
   ibanValue: string;
   stripeAccountValue: string;
   isEditing: boolean;
   onIbanChange: (value: string) => void;
   onIbanBlur: () => void;
-  onStripeAccountChange: (value: string) => void;
-  onStripeAccountBlur: () => void;
 }) {
   return (
     <GateInfoCard
@@ -2318,18 +2330,9 @@ function GateAdministrativeFieldsCard({
 
         <div className="space-y-1">
           <p className="text-sm">ID account Stripe</p>
-          {isEditing ? (
-            <Input
-              value={stripeAccountValue}
-              onChange={(event) => onStripeAccountChange(event.target.value)}
-              onBlur={onStripeAccountBlur}
-              placeholder="Inserisci ID account Stripe"
-            />
-          ) : (
-            <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
-              {stripeAccountValue || "-"}
-            </div>
-          )}
+          <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
+            {stripeAccountValue || "-"}
+          </div>
         </div>
       </div>
     </GateInfoCard>
@@ -2551,6 +2554,7 @@ export function Gate1View({
   showCertificationReferente = false,
   showFollowupFilter = true,
   allowCertifiedStatus = false,
+  showInPersonBookingLinks = false,
 }: GateViewProps) {
   const {
     workers,
@@ -3339,9 +3343,9 @@ export function Gate1View({
 
   React.useEffect(() => {
     setGateDraft({
-      referenteIdoneita: asString(selectedWorkerRow?.["referente_idoneità"]),
+      referenteIdoneita: asString(selectedWorkerRow?.referente_idoneita_id),
       referenteCertificazione: asString(
-        selectedWorkerRow?.referente_certificazione,
+        selectedWorkerRow?.referente_certificazione_id,
       ),
       followupStatus: asString(selectedWorkerRow?.followup_chiamata_idoneita),
       descrizionePubblica: asString(selectedWorkerRow?.descrizione_pubblica),
@@ -3517,6 +3521,18 @@ export function Gate1View({
         className="hidden"
         onChange={handleWorkerPhotoInputChange}
       />
+      {showInPersonBookingLinks ? (
+        <div className="flex flex-wrap items-center justify-end gap-2 px-4 pt-4">
+          {GATE1_IN_PERSON_BOOKING_LINKS.map((link) => (
+            <Button key={link.href} asChild variant="outline" size="sm">
+              <a href={link.href} target="_blank" rel="noreferrer">
+                <CalendarDaysIcon className="size-4" />
+                {link.label}
+              </a>
+            </Button>
+          ))}
+        </div>
+      ) : null}
       <div
       className={
         selectedWorkerId
@@ -3714,7 +3730,7 @@ export function Gate1View({
                             referenteCertificazione: value ?? "",
                           }));
                           void patchSelectedWorkerField(
-                            "referente_certificazione",
+                            "referente_certificazione_id",
                             value,
                           );
                         }}
@@ -3745,7 +3761,7 @@ export function Gate1View({
                             referenteIdoneita: value ?? "",
                           }));
                           void patchSelectedWorkerField(
-                            "referente_idoneità",
+                            "referente_idoneita_id",
                             value,
                           );
                         }}
@@ -5131,7 +5147,7 @@ export function Gate1View({
                         <GateAdministrativeFieldsCard
                           ibanValue={documentsDraft.iban}
                           stripeAccountValue={documentsDraft.id_stripe_account}
-                          isEditing={gateDocumentsIsEditing}
+                          isEditing={showAdministrativeFields || gateDocumentsIsEditing}
                           onIbanChange={(value) =>
                             setDocumentsDraft((current) => ({
                               ...current,
@@ -5139,15 +5155,6 @@ export function Gate1View({
                             }))
                           }
                           onIbanBlur={() => void commitDocumentField("iban")}
-                          onStripeAccountChange={(value) =>
-                            setDocumentsDraft((current) => ({
-                              ...current,
-                              id_stripe_account: value,
-                            }))
-                          }
-                          onStripeAccountBlur={() =>
-                            void commitDocumentField("id_stripe_account")
-                          }
                         />
                       ) : null}
                     </GateStepSection>

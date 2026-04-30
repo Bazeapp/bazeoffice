@@ -303,6 +303,8 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "rating_corporatura",
     "rating_cura_personale",
     "rating_precisione_puntualita",
+    "referente_certificazione_id",
+    "referente_idoneita_id",
     "riassunto_profilo_breve",
     "sesso",
     "situazione_lavorativa_attuale",

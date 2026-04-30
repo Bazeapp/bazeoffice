@@ -42,6 +42,7 @@ import { getTagClassName, resolveLookupColor, type LookupOption } from "@/featur
 import { createRecord, updateRecord } from "@/lib/anagrafiche-api"
 import {
   buildAttachmentPayload,
+  normalizeAttachmentArray,
 } from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
@@ -286,12 +287,14 @@ function AttachmentGroupCard({
   group,
   documents,
   onAdd,
+  onRemove,
   onPreviewOpen,
   uploadingField,
 }: {
   group: AttachmentGroupConfig
   documents: DocumentoLavoratoreRecord[]
-  onAdd: (field: keyof DocumentoLavoratoreRecord, file: File) => void
+  onAdd: (field: keyof DocumentoLavoratoreRecord, file: File) => void | Promise<void>
+  onRemove: (field: keyof DocumentoLavoratoreRecord, link: AttachmentLink) => void | Promise<void>
   onPreviewOpen: (link: AttachmentLink) => void
   uploadingField: keyof DocumentoLavoratoreRecord | null
 }) {
@@ -331,8 +334,10 @@ function AttachmentGroupCard({
               label={slot.label}
               value={slot.value}
               onAdd={(file) => onAdd(slot.field, file)}
+              onRemove={(link) => onRemove(slot.field, link)}
               onPreviewOpen={onPreviewOpen}
               isUploading={uploadingField === slot.field}
+              multiple={false}
             />
           </div>
         ))}
@@ -349,15 +354,17 @@ function AttachmentPlaceholderSlot({
 }: {
   field: keyof DocumentoLavoratoreRecord
   label: string
-  onAdd: (field: keyof DocumentoLavoratoreRecord, file: File) => void
+  onAdd: (field: keyof DocumentoLavoratoreRecord, file: File) => void | Promise<void>
   isUploading: boolean
 }) {
   const inputRef = React.useRef<HTMLInputElement | null>(null)
 
-  function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (file) {
-      onAdd(field, file)
+  async function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? [])
+    if (files.length > 0) {
+      for (const file of files) {
+        await onAdd(field, file)
+      }
     }
     event.target.value = ""
   }
@@ -407,7 +414,7 @@ function AttachmentPlaceholderGroupCard({
   uploadingField,
 }: {
   group: AttachmentGroupConfig
-  onAdd: (field: keyof DocumentoLavoratoreRecord, file: File) => void
+  onAdd: (field: keyof DocumentoLavoratoreRecord, file: File) => void | Promise<void>
   uploadingField: keyof DocumentoLavoratoreRecord | null
 }) {
   return (
@@ -512,7 +519,9 @@ export function DocumentsCard({
         const payload = buildAttachmentPayload(file, storagePath)
 
         const targetDocument =
-          documents.find((document) => hasAttachmentValue(document[field])) ?? documents[0] ?? null
+          documents.find((document) => hasAttachmentValue(document[field])) ??
+          documents[0] ??
+          null
         const nextValue = [payload]
 
         if (targetDocument) {
@@ -531,6 +540,46 @@ export function DocumentsCard({
       } catch (caughtError) {
         onUploadError(
           caughtError instanceof Error ? caughtError.message : "Errore caricando documento"
+        )
+      } finally {
+        setUploadingField(null)
+      }
+    },
+    [documents, onDocumentUpsert, onUploadError, workerId]
+  )
+
+  const handleRemove = React.useCallback(
+    async (field: keyof DocumentoLavoratoreRecord, link: AttachmentLink) => {
+      const targetDocument = documents.find((document) =>
+        hasAttachmentValue(document[field])
+      )
+      if (!targetDocument) return
+
+      onUploadError(null)
+      setUploadingField(field)
+
+      try {
+        const nextValue = normalizeAttachmentArray(targetDocument[field]).filter(
+          (attachment) => {
+            if (link.path && attachment.path === link.path) return false
+            return attachment.name !== link.label
+          }
+        )
+
+        if (link.path?.startsWith("baze-bucket/")) {
+          await supabase.storage
+            .from("baze-bucket")
+            .remove([link.path.replace(/^baze-bucket\//, "")])
+        }
+
+        const response = await updateRecord("documenti_lavoratori", targetDocument.id, {
+          [field]: nextValue.length > 0 ? nextValue : null,
+          ...(workerId ? { lavoratore_id: workerId } : {}),
+        })
+        onDocumentUpsert(response.row as DocumentoLavoratoreRecord)
+      } catch (caughtError) {
+        onUploadError(
+          caughtError instanceof Error ? caughtError.message : "Errore rimuovendo documento"
         )
       } finally {
         setUploadingField(null)
@@ -650,6 +699,7 @@ export function DocumentsCard({
                   group={group}
                   documents={documents}
                   onAdd={handleUpload}
+                  onRemove={handleRemove}
                   onPreviewOpen={setSelectedPreview}
                   uploadingField={uploadingField}
                 />

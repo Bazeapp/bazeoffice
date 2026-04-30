@@ -81,43 +81,32 @@ const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
   "selezionato",
   "inviato al cliente",
   "colloquio schedulato",
+  "colloquio rimandato",
   "colloquio fatto",
   "prova schedulata",
+  "prova rimandata",
+  "prova in corso",
   "prova con cliente",
   "match",
 ])
 const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo"
-const OTHER_SEARCH_GROUP_A_PROCESS_STATUS_TOKENS = new Set([
-  "da assegnare",
-  "fare ricerca",
-  "in preparazione per invio",
-])
-const OTHER_SEARCH_GROUP_A_SELECTION_STATUS_TOKENS = new Set([
-  "prospetto",
-  "candidato poor fit",
-  "candidato good fit",
-  "da colloquiare",
-  "non risponde",
-  "invitato a colloquio",
-  "selezionato",
-  "inviato al cliente",
+const DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS = new Set([
+  "no match",
+  "stand by",
+  "match",
+  "in prova col lavoratore",
+  "in prova con lavoratore",
 ])
 const OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS = new Set([
-  "selezione inviata in attesa di feedback",
-  "fase di colloqui",
+  "in prova col lavoratore",
   "in prova con lavoratore",
   "match",
-  "no match",
 ])
 const OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS = new Set([
-  "selezionato",
-  "inviato al cliente",
-  "colloquio schedulato",
-  "colloquio fatto",
   "prova schedulata",
-  "prova con cliente",
+  "prova rimandata",
+  "prova in corso",
   "match",
-  "no match",
 ])
 
 function asRowArray(input: unknown): GenericRow[] {
@@ -430,13 +419,25 @@ function resolveLookupColorByStatusToken(
   return null
 }
 
-function isDirectInvolvementSelection(selection: Record<string, unknown>) {
+function hasActiveWorkSituation(selection: Record<string, unknown>) {
   return (
+    normalizeStatusToken(toStringValue(selection.stato_situazione_lavorativa)) !==
+    DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
+  )
+}
+
+function isDirectInvolvementSelection(
+  selection: Record<string, unknown>,
+  processRow: Record<string, unknown>
+) {
+  const processStatusToken = normalizeStatusToken(toStringValue(processRow.stato_res))
+
+  return (
+    hasActiveWorkSituation(selection) &&
     DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS.has(
       normalizeStatusToken(toStringValue(selection.stato_selezione))
     ) &&
-    normalizeStatusToken(toStringValue(selection.stato_situazione_lavorativa)) ===
-      DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
+    !DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS.has(processStatusToken)
   )
 }
 
@@ -447,15 +448,11 @@ function isOtherSearchSelection(
   const processStatusToken = normalizeStatusToken(toStringValue(processRow.stato_res))
   const selectionStatusToken = normalizeStatusToken(toStringValue(selection.stato_selezione))
 
-  const matchesGroupA =
-    OTHER_SEARCH_GROUP_A_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
-    OTHER_SEARCH_GROUP_A_SELECTION_STATUS_TOKENS.has(selectionStatusToken)
-
   const matchesGroupB =
     OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
     OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS.has(selectionStatusToken)
 
-  return matchesGroupA || matchesGroupB
+  return hasActiveWorkSituation(selection) && matchesGroupB
 }
 
 function getDotColorClassName(color: string | null | undefined) {
@@ -868,7 +865,7 @@ async function fetchWorkersPipelineData(
       if (!processRow) continue
 
       if (
-        !isDirectInvolvementSelection(selection) &&
+        !isDirectInvolvementSelection(selection, processRow) &&
         !isOtherSearchSelection(selection, processRow)
       ) {
         continue

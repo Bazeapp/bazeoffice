@@ -14,16 +14,6 @@ import { runAutomationWebhook } from "@/lib/anagrafiche-api";
 
 const READONLY_BLOCK_CLASS =
   "rounded-md bg-muted/60 px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words";
-const WHATSAPP_TEXT = `**Offerta di Lavoro - Colf Part-Time a Milano**
-
-🕒 **Orario**: Lun-Ven, 9:00-13:00 o 10:00-14:00 (20h/settimana)
-💰 **Retribuzione**: 9€/ora netti, con contratto
-📍 **Luogo**: Arco della Pace, Milano
-
-Mansioni: pulizie, pasti, lavanderia, stiro. Famiglia con 2 adulti, 2 ragazze e 2 gatti.
-
-Pensi di essere la persona giusta? Candidati qui sotto
-https://go.Bazeapp.com/HBT`;
 
 export function CreazioneAnnuncioCard({
   titleAction,
@@ -45,17 +35,24 @@ export function CreazioneAnnuncioCard({
   defaultOpen?: boolean;
 }) {
   const [isGenerating, setIsGenerating] = React.useState(false);
-  const [isGenerated, setIsGenerated] = React.useState(true);
   const [isGeneratingSeo, setIsGeneratingSeo] = React.useState(false);
+  const [hasRequestedSeo, setHasRequestedSeo] = React.useState(false);
   const normalizedBrief = brief?.trim() || "";
 
   const handleGenerate = React.useCallback(() => {
+    if (!processId) {
+      toast.error("Il processo non ha un id associato");
+      return;
+    }
     setIsGenerating(true);
-    window.setTimeout(() => {
+    try {
+      toast.error(
+        "Webhook creazione annuncio non configurato: serve l'automazione Webflow/WhatsApp lato backend.",
+      );
+    } finally {
       setIsGenerating(false);
-      setIsGenerated(true);
-    }, 1200);
-  }, []);
+    }
+  }, [processId]);
 
   const handleGenerateSeo = React.useCallback(async () => {
     if (!processId) {
@@ -66,6 +63,7 @@ export function CreazioneAnnuncioCard({
     setIsGeneratingSeo(true);
     try {
       await runAutomationWebhook("workflow-create-job-offer-seo", processId);
+      setHasRequestedSeo(true);
       toast.success("Workflow SEO e slug avviato");
     } catch (error) {
       toast.error(
@@ -100,29 +98,6 @@ export function CreazioneAnnuncioCard({
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">Workflow annuncio</p>
-                    <p className="text-muted-foreground text-sm">
-                      Un solo step per generare annuncio e testo WhatsApp finale.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    type="button"
-                    disabled={isGenerating}
-                    onClick={handleGenerate}
-                  >
-                    {isGenerating ? (
-                      <LoaderCircleIcon className="animate-spin" />
-                    ) : (
-                      <WandSparklesIcon />
-                    )}
-                    {isGenerating ? "Creazione in corso..." : "Crea annuncio"}
-                  </Button>
-                </div>
-
-                <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1">
                     <p className="text-sm font-medium">SEO e slug Webflow</p>
                     <p className="text-muted-foreground text-sm">
                       Genera titolo SEO, descrizione SEO e slug della job offer.
@@ -143,6 +118,29 @@ export function CreazioneAnnuncioCard({
                     {isGeneratingSeo ? "Generazione in corso..." : "Crea SEO e slug"}
                   </Button>
                 </div>
+
+                <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Workflow annuncio</p>
+                    <p className="text-muted-foreground text-sm">
+                      Pubblica su Webflow e genera il testo WhatsApp finale dopo SEO e slug.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    disabled={isGenerating || !hasRequestedSeo}
+                    onClick={handleGenerate}
+                  >
+                    {isGenerating ? (
+                      <LoaderCircleIcon className="animate-spin" />
+                    ) : (
+                      <WandSparklesIcon />
+                    )}
+                    {isGenerating ? "Creazione in corso..." : "Crea annuncio"}
+                  </Button>
+                </div>
               </div>
             </div>
           ) : null}
@@ -150,7 +148,7 @@ export function CreazioneAnnuncioCard({
           <Field>
             <FieldLabel htmlFor="onboarding-testo-whatsapp">Testo per whatsapp</FieldLabel>
             <FieldDescription>
-              Compare solo l’output finale pronto da copiare e inviare ai lavoratori.
+              Compare solo l’output finale salvato sul processo, pronto da copiare e inviare ai lavoratori.
             </FieldDescription>
             {briefOnly ? (
               <div className="mb-2 flex justify-end">
@@ -174,9 +172,9 @@ export function CreazioneAnnuncioCard({
                 <div className="ml-auto max-w-[92%] rounded-xl rounded-br-sm border border-emerald-200 bg-emerald-100/80 px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">
                   {normalizedBrief || "Nessun brief disponibile."}
                 </div>
-              ) : isGenerated ? (
+              ) : normalizedBrief ? (
                 <div className="ml-auto max-w-[92%] rounded-xl rounded-br-sm border border-emerald-200 bg-emerald-100/80 px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">
-                  {WHATSAPP_TEXT}
+                  {normalizedBrief}
                 </div>
               ) : (
                 <div className={READONLY_BLOCK_CLASS}>

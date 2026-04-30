@@ -1,7 +1,6 @@
 import * as React from "react"
 import {
   CalendarIcon,
-  ExternalLinkIcon,
   UserCheckIcon,
   UsersIcon,
 } from "lucide-react"
@@ -20,9 +19,7 @@ import {
 import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/ui/search-input"
-import { buildPathForRoute } from "@/routes/app-routes"
 import { cn } from "@/lib/utils"
 
 function getColumnVisual(color: string): KanbanColumnVisual {
@@ -82,35 +79,6 @@ function AssunzioniBoardCard({
       <RecordCard>
         <RecordCard.Header
           title={`${card.nomeFamiglia} – ${card.nomeLavoratore}`}
-          rightSlot={
-            <Button
-              asChild
-              variant="ghost"
-              size="icon-sm"
-              className="-mr-1 -mt-1 shrink-0"
-            >
-              <a
-                href={
-                  card.processId
-                    ? buildPathForRoute({
-                        mainSection: "ricerca_pipeline",
-                        anagraficheTab: "famiglie",
-                        ricercaProcessId: card.processId,
-                      })
-                    : "#"
-                }
-                title="Apri processo"
-                aria-disabled={!card.processId}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  if (card.processId) return
-                  event.preventDefault()
-                }}
-              >
-                <ExternalLinkIcon className="size-4" />
-              </a>
-            </Button>
-          }
         />
         <RecordCard.Body>
           <div className="flex flex-wrap gap-1.5">

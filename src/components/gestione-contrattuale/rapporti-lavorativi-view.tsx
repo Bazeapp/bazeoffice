@@ -13,6 +13,8 @@ export function RapportiLavorativiView() {
     setPageIndex,
     searchValue,
     setSearchValue,
+    rapportoStatusFilter,
+    setRapportoStatusFilter,
     retryRapporti,
     selectedRapportoId,
     setSelectedRapportoId,
@@ -45,6 +47,8 @@ export function RapportiLavorativiView() {
         onPageChange={setPageIndex}
         searchValue={searchValue}
         onSearchValueChange={setSearchValue}
+        rapportoStatusFilter={rapportoStatusFilter}
+        onRapportoStatusFilterChange={setRapportoStatusFilter}
         onRetry={retryRapporti}
         selectedRapportoId={selectedRapportoId}
         onSelect={setSelectedRapportoId}

@@ -40,6 +40,39 @@ function formatDate(value: string | null | undefined) {
 type DetailTarget = "datore" | "lavoratore"
 type LookupOption = { value: string; label: string }
 
+const TIPO_CONTRATTO_OPTIONS = ["A", "B", "C", "I"] as const
+const TIPO_RAPPORTO_OPTIONS = ["CS", "B", "BS", "A", "C"] as const
+const TIPO_UTENTE_OPTIONS = ["DATORE LAVORO", "LAVORATORE"] as const
+
+function SingleSelectField({
+  value,
+  placeholder,
+  options,
+  onValueChange,
+}: {
+  value: string
+  placeholder: string
+  options: readonly string[]
+  onValueChange: (value: string) => void
+}) {
+  const optionValues = value && !options.includes(value) ? [value, ...options] : options
+
+  return (
+    <Select value={value || undefined} onValueChange={onValueChange}>
+      <SelectTrigger>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {optionValues.map((option) => (
+          <SelectItem key={option} value={option}>
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 function hasFilledValue(value: string | null | undefined) {
   return Boolean(value && value.trim())
 }
@@ -224,17 +257,25 @@ function RapportoDetailSections({
         contentClassName="space-y-4"
       >
         <EditableField label="Tipologia contratto">
-          <Input
+          <SingleSelectField
             value={draft.tipologiaContratto}
-            onChange={(event) => setValue("tipologiaContratto", event.target.value)}
-            onBlur={() => void onRapportoPatch({ tipo_contratto: draft.tipologiaContratto || null })}
+            placeholder="Seleziona tipologia contratto"
+            options={TIPO_CONTRATTO_OPTIONS}
+            onValueChange={(value) => {
+              setValue("tipologiaContratto", value)
+              void onRapportoPatch({ tipo_contratto: value || null })
+            }}
           />
         </EditableField>
         <EditableField label="Tipologia di rapporto">
-          <Input
+          <SingleSelectField
             value={draft.tipologiaRapporto}
-            onChange={(event) => setValue("tipologiaRapporto", event.target.value)}
-            onBlur={() => void onRapportoPatch({ tipo_rapporto: draft.tipologiaRapporto || null })}
+            placeholder="Seleziona tipologia rapporto"
+            options={TIPO_RAPPORTO_OPTIONS}
+            onValueChange={(value) => {
+              setValue("tipologiaRapporto", value)
+              void onRapportoPatch({ tipo_rapporto: value || null })
+            }}
           />
         </EditableField>
         <EditableField label="Regime di convivenza">
@@ -506,7 +547,12 @@ function DatoreDetail({
         contentClassName="space-y-4"
       >
         <EditableField label="Tipo utente">
-          <Input value={draft.tipoUtente} onChange={(event) => setValue("tipoUtente", event.target.value)} />
+          <SingleSelectField
+            value={draft.tipoUtente}
+            placeholder="Seleziona tipo utente"
+            options={TIPO_UTENTE_OPTIONS}
+            onValueChange={(value) => setValue("tipoUtente", value)}
+          />
         </EditableField>
         <div className="grid gap-4 md:grid-cols-2">
           <EditableField label="Nome">
@@ -795,7 +841,12 @@ function LavoratoreDetail({
         contentClassName="space-y-4"
       >
         <EditableField label="Tipo utente">
-          <Input value={draft.tipoUtente} onChange={(event) => setValue("tipoUtente", event.target.value)} />
+          <SingleSelectField
+            value={draft.tipoUtente}
+            placeholder="Seleziona tipo utente"
+            options={TIPO_UTENTE_OPTIONS}
+            onValueChange={(value) => setValue("tipoUtente", value)}
+          />
         </EditableField>
         <div className="grid gap-4 md:grid-cols-2">
           <EditableField label="Nome">
@@ -1257,19 +1308,19 @@ export function AssunzioniDetailSheet({
                     </Select>
                   </EditableField>
                   <EditableField label="Tipologia contratto">
-                    <Input
+                    <SingleSelectField
                       value={practiceDraft.tipoContratto}
-                      onChange={(event) =>
+                      placeholder="Seleziona tipologia contratto"
+                      options={TIPO_CONTRATTO_OPTIONS}
+                      onValueChange={(value) => {
                         setPracticeDraft((current) => ({
                           ...current,
-                          tipoContratto: event.target.value,
+                          tipoContratto: value,
                         }))
-                      }
-                      onBlur={() =>
                         void saveRapportoPatch({
-                          tipo_contratto: practiceDraft.tipoContratto || null,
+                          tipo_contratto: value || null,
                         })
-                      }
+                      }}
                     />
                   </EditableField>
                   <EditableField label="Tipo rapporto">
