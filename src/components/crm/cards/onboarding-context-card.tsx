@@ -396,12 +396,14 @@ function MultiCheckboxField({
   options,
   value,
   maxVisibleOptions,
+  sequential = false,
   onChange,
 }: {
   title: string;
   options: LookupOption[];
   value: string[];
   maxVisibleOptions?: number;
+  sequential?: boolean;
   onChange: (next: string[]) => void;
 }) {
   const visibleOptions =
@@ -413,14 +415,41 @@ function MultiCheckboxField({
     <FieldSet>
       <FieldLegend variant="label">{title}</FieldLegend>
       <FieldGroup className="flex-row flex-wrap gap-2">
-        {visibleOptions.map((option) => {
+        {visibleOptions.map((option, index) => {
           const checked = value.includes(option.valueKey);
+          const previousAllChecked =
+            !sequential ||
+            visibleOptions
+              .slice(0, index)
+              .every((previous) => value.includes(previous.valueKey));
+          const disabled = sequential && !checked && !previousAllChecked;
           return (
             <CheckboxChip
               key={option.valueKey}
               id={`check-${title}-${option.valueKey}`}
               checked={checked}
+              disabled={disabled}
               onCheckedChange={(nextChecked) => {
+                if (sequential) {
+                  if (nextChecked) {
+                    onChange(
+                      visibleOptions
+                        .slice(0, index + 1)
+                        .map((item) => item.valueKey)
+                    );
+                  } else {
+                    onChange(
+                      value.filter(
+                        (item) =>
+                          visibleOptions.findIndex(
+                            (entry) => entry.valueKey === item
+                          ) < index
+                      )
+                    );
+                  }
+                  return;
+                }
+
                 const next = nextChecked
                   ? [...value, option.valueKey]
                   : value.filter((item) => item !== option.valueKey);
@@ -492,6 +521,7 @@ export function OnboardingContextCard({
           options={lookupOptionsByField.sales_cold_call_followup ?? []}
           value={coldAttempts}
           maxVisibleOptions={3}
+          sequential
           onChange={(next) => {
             setColdAttempts(next);
             void onPatchProcess?.(card.id, {
@@ -539,6 +569,7 @@ export function OnboardingContextCard({
           options={lookupOptionsByField.sales_no_show_followup ?? []}
           value={noShowAttempts}
           maxVisibleOptions={2}
+          sequential
           onChange={(next) => {
             setNoShowAttempts(next);
             void onPatchProcess?.(card.id, {
