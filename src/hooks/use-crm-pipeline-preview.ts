@@ -26,6 +26,8 @@ const STATO_SALES_COLUMN_ORDER = [
   "out_of_target",
 ] as const
 
+const CRM_PIPELINE_CARD_LIMIT = 5000
+
 const CRM_PIPELINE_PROCESSI_SELECT = [
   "id",
   "famiglia_id",
@@ -163,6 +165,7 @@ export type CrmPipelineColumnData = {
   id: string
   label: string
   color: string | null
+  totalCount: number
   cards: CrmPipelineCardData[]
 }
 
@@ -663,19 +666,41 @@ function emptyBoardData(): FetchBoardDataResult {
   }
 }
 
+function buildSalesStageCounts(
+  groups: Array<{ value: string; count: number }>,
+  tokenToStageId: Map<string, string>
+) {
+  const counts = new Map<string, number>()
+
+  for (const group of groups) {
+    const token = normalizeLookupToken(group.value)
+    const stageId = tokenToStageId.get(token) ?? token
+    if (!stageId) continue
+    counts.set(stageId, (counts.get(stageId) ?? 0) + group.count)
+  }
+
+  return counts
+}
+
 async function fetchBoardData(): Promise<FetchBoardDataResult> {
-  const [processesResult, familiesResult, lookupResult] = await Promise.all([
+  const [processesResult, familiesResult, stageCountsResult, lookupResult] = await Promise.all([
     fetchProcessiMatching({
       select: CRM_PIPELINE_PROCESSI_SELECT,
-      limit: 5000,
+      limit: CRM_PIPELINE_CARD_LIMIT,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
     fetchFamiglie({
       select: CRM_PIPELINE_FAMIGLIE_SELECT,
-      limit: 5000,
+      limit: CRM_PIPELINE_CARD_LIMIT,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
+    }),
+    fetchProcessiMatching({
+      select: ["stato_sales"],
+      limit: 1,
+      offset: 0,
+      groupBy: ["stato_sales"],
     }),
     fetchLookupValues(),
   ])
@@ -686,6 +711,10 @@ async function fetchBoardData(): Promise<FetchBoardDataResult> {
   const lookupColors = buildLookupColorMap(lookupRows)
   const lookupOptionsByField = buildLookupOptionsByField(lookupRows)
   const { stages, tokenToStageId } = buildStageDefinitions(lookupRows)
+  const salesStageCounts = buildSalesStageCounts(
+    stageCountsResult.groups,
+    tokenToStageId
+  )
 
   if (stages.length === 0) {
     return {
@@ -726,6 +755,7 @@ async function fetchBoardData(): Promise<FetchBoardDataResult> {
       id: stage.id,
       label: stage.label,
       color: stage.color,
+      totalCount: salesStageCounts.get(stage.id) ?? cardsByStage.get(stage.id)?.length ?? 0,
       cards: sortCardsForStage(cardsByStage.get(stage.id) ?? [], stage.id),
     })),
     lookupOptionsByField,
@@ -777,10 +807,18 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
       const previousColumns = columns
       const optimisticColumns = columns.map((column) => {
         if (column.id === sourceColumn.id) {
-          return { ...column, cards: sortCardsForStage(updatedSourceCards, sourceColumn.id) }
+          return {
+            ...column,
+            totalCount: Math.max(0, column.totalCount - 1),
+            cards: sortCardsForStage(updatedSourceCards, sourceColumn.id),
+          }
         }
         if (column.id === targetStageId) {
-          return { ...column, cards: sortCardsForStage(updatedTargetCards, targetStageId) }
+          return {
+            ...column,
+            totalCount: column.totalCount + 1,
+            cards: sortCardsForStage(updatedTargetCards, targetStageId),
+          }
         }
         return column
       })

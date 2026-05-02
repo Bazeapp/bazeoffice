@@ -52,6 +52,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { updateRecord } from "@/lib/anagrafiche-api"
 import {
@@ -341,6 +342,82 @@ function RelatedPersonCard({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+const ATTACHMENT_SKELETON_KEYS = ["accordo", "ricevuta", "delega"] as const
+const LINKED_ROW_SKELETON_KEYS = ["first", "second", "third"] as const
+
+function RelatedPersonCardSkeleton() {
+  return (
+    <Card className="py-0 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <CardContent className="px-4 py-3">
+        <div className="flex items-start gap-3">
+          <Skeleton className="size-8 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-5 w-40 max-w-full" />
+          </div>
+        </div>
+        <div className="mt-3 space-y-2 pl-11">
+          <Skeleton className="h-4 w-56 max-w-full" />
+          <Skeleton className="h-4 w-36 max-w-full" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function AttachmentSkeletonGrid() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      {ATTACHMENT_SKELETON_KEYS.map((key) => (
+        <div key={key} className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-4 rounded-full" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border border-dashed p-4">
+            <Skeleton className="size-11 rounded-lg" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-32 max-w-full" />
+              <Skeleton className="h-3 w-24 max-w-full" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function RelatedRecordsSkeleton() {
+  return (
+    <>
+      <div className="grid gap-3 md:grid-cols-2">
+        <RelatedPersonCardSkeleton />
+        <RelatedPersonCardSkeleton />
+      </div>
+      <Separator className="bg-border/60" />
+      <AttachmentSkeletonGrid />
+    </>
+  )
+}
+
+function LinkedRowsSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-2">
+      {LINKED_ROW_SKELETON_KEYS.slice(0, rows).map((key) => (
+        <Card key={key} className="bg-surface py-0 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+          <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-48 max-w-full" />
+              <Skeleton className="h-3 w-72 max-w-full" />
+            </div>
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   )
 }
 
@@ -1100,7 +1177,7 @@ export function RapportoDetailPanel({
               icon={<UsersIcon className="size-5" />}
             >
               {loadingRelated ? (
-                <p className="text-muted-foreground text-sm">Caricamento record collegati...</p>
+                <RelatedRecordsSkeleton />
               ) : (
                 <>
                   <div className="grid gap-3 md:grid-cols-2">
@@ -1252,7 +1329,9 @@ export function RapportoDetailPanel({
               }
               contentClassName="space-y-3 pt-2"
             >
-              {tickets.length > 0 ? (
+              {loadingRelated ? (
+                <LinkedRowsSkeleton />
+              ) : tickets.length > 0 ? (
                 tickets.map((ticket) => (
                   <ListRowCard
                     key={ticket.id}
@@ -1283,7 +1362,9 @@ export function RapportoDetailPanel({
               icon={<FileTextIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
-              {sortedMesi.length > 0 ? (
+              {loadingRelated ? (
+                <LinkedRowsSkeleton />
+              ) : sortedMesi.length > 0 ? (
                 sortedMesi.map((mese) => {
                   const meseCalendario = mese.mese_id ? meseCalendarioById.get(mese.mese_id) ?? null : null
                   const pagamento = mese.ticket_id ? pagamentiByTicketId.get(mese.ticket_id) ?? null : null
@@ -1327,7 +1408,9 @@ export function RapportoDetailPanel({
               icon={<CalendarDaysIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
-              {contributi.length > 0 ? (
+              {loadingRelated ? (
+                <LinkedRowsSkeleton />
+              ) : contributi.length > 0 ? (
                 contributi.map((contributo) => (
                   <ListRowCard
                     key={contributo.id}
@@ -1370,7 +1453,9 @@ export function RapportoDetailPanel({
               icon={<RefreshCwIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
-              {variazioni.length > 0 ? (
+              {loadingRelated ? (
+                <LinkedRowsSkeleton rows={2} />
+              ) : variazioni.length > 0 ? (
                 variazioni.map((variazione) => (
                   <ListRowCard
                     key={variazione.id}
@@ -1401,7 +1486,9 @@ export function RapportoDetailPanel({
               icon={<ShieldAlertIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
-              {chiusure.length > 0 ? (
+              {loadingRelated ? (
+                <LinkedRowsSkeleton rows={2} />
+              ) : chiusure.length > 0 ? (
                 chiusure.map((chiusura) => (
                   <ListRowCard
                     key={chiusura.id}

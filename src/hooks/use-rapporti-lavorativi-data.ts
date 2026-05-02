@@ -18,6 +18,7 @@ import {
   type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
 import { normalizeLookupColors } from "@/features/lavoratori/lib/lookup-utils"
+import { formatPersonName } from "@/features/rapporti/rapporti-labels"
 import { resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 import type {
   SupportTicketMetadata,
@@ -49,9 +50,22 @@ type CreateRapportoTicketInput = {
   note: string
 }
 
+type PersonNameRecord = Pick<FamigliaRecord, "id" | "nome" | "cognome">
+
 const PAGE_SIZE = 50
-const STATUS_FILTER_FETCH_LIMIT = 5000
+const TABLE_QUERY_MAX_LIMIT = 500
+const RELATED_IDS_BATCH_SIZE = 100
 const TABLE_QUERY_RETRY_DELAYS_MS = [1000, 3000, 5000] as const
+const RAPPORTO_STATUS_SORT_ORDER: RapportoStatusFilter[] = [
+  "In attivazione",
+  "Attivo",
+  "Terminato",
+  "Sconosciuto",
+  "Errore",
+]
+const RAPPORTO_STATUS_WEIGHT = new Map<string, number>(
+  RAPPORTO_STATUS_SORT_ORDER.map((status, index) => [status, index]),
+)
 const ACTIVATION_HIRING_STATUSES = [
   "Avviare pratica",
   "Inviata richiesta dati",
@@ -93,6 +107,38 @@ function getRapportiLoadErrorMessage(error: unknown) {
   }
 
   return "Errore nel caricamento rapporti lavorativi. Riprova tra qualche secondo."
+}
+
+function getStatusWeight(value: string | null | undefined) {
+  return RAPPORTO_STATUS_WEIGHT.get(value ?? "") ?? RAPPORTO_STATUS_SORT_ORDER.length
+}
+
+function getTimeValue(value: string | null | undefined) {
+  if (!value) return Number.NEGATIVE_INFINITY
+  const time = new Date(value).getTime()
+  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
+}
+
+function sortRapportiByOperationalStatus(items: RapportoLavorativoRecord[]) {
+  return [...items].sort((left, right) => {
+    const statusDelta =
+      getStatusWeight(resolveRapportoStatus(left)) -
+      getStatusWeight(resolveRapportoStatus(right))
+    if (statusDelta !== 0) return statusDelta
+
+    const dateDelta =
+      getTimeValue(right.data_inizio_rapporto) -
+      getTimeValue(left.data_inizio_rapporto)
+    if (dateDelta !== 0) return dateDelta
+
+    const familyDelta = String(left.cognome_nome_datore_proper ?? "").localeCompare(
+      String(right.cognome_nome_datore_proper ?? ""),
+      "it",
+    )
+    if (familyDelta !== 0) return familyDelta
+
+    return String(left.id).localeCompare(String(right.id))
+  })
 }
 
 function buildSearchQuery(value: string) {
@@ -257,6 +303,98 @@ function buildAnyOfFilter(field: string, values: string[]): QueryFilterGroup | u
       operator: "is",
       value,
     })),
+  }
+}
+
+function buildInFilter(field: string, values: string[]): QueryFilterGroup | undefined {
+  const normalizedValues = Array.from(new Set(values.filter(Boolean)))
+  if (normalizedValues.length === 0) return undefined
+
+  return {
+    kind: "group",
+    id: `${field}-in-root`,
+    logic: "and",
+    nodes: [
+      {
+        kind: "condition",
+        id: `${field}-in-condition`,
+        field,
+        operator: "in",
+        value: normalizedValues.join(","),
+      },
+    ],
+  }
+}
+
+function getUniqueIds(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value))))
+}
+
+async function fetchFamiglieByIds(ids: string[]) {
+  const rows: PersonNameRecord[] = []
+
+  for (let index = 0; index < ids.length; index += RELATED_IDS_BATCH_SIZE) {
+    const batch = ids.slice(index, index + RELATED_IDS_BATCH_SIZE)
+    const response = await fetchFamiglie({
+      limit: batch.length,
+      offset: 0,
+      select: ["id", "nome", "cognome"],
+      filters: buildInFilter("id", batch),
+    })
+    rows.push(...response.rows as PersonNameRecord[])
+  }
+
+  return new Map(rows.map((row) => [row.id, row]))
+}
+
+async function fetchLavoratoriByIds(ids: string[]) {
+  const rows: PersonNameRecord[] = []
+
+  for (let index = 0; index < ids.length; index += RELATED_IDS_BATCH_SIZE) {
+    const batch = ids.slice(index, index + RELATED_IDS_BATCH_SIZE)
+    const response = await fetchLavoratori({
+      limit: batch.length,
+      offset: 0,
+      select: ["id", "nome", "cognome"],
+      filters: buildInFilter("id", batch),
+    })
+    rows.push(...response.rows as PersonNameRecord[])
+  }
+
+  return new Map(rows.map((row) => [row.id, row]))
+}
+
+async function fetchChiusureEndDatesByIds(ids: string[]) {
+  const rows: ChiusuraContrattoRecord[] = []
+
+  for (let index = 0; index < ids.length; index += RELATED_IDS_BATCH_SIZE) {
+    const batch = ids.slice(index, index + RELATED_IDS_BATCH_SIZE)
+    const response = await fetchChiusureContratti({
+      limit: batch.length,
+      offset: 0,
+      select: ["id", "data_fine_rapporto"],
+      filters: buildInFilter("id", batch),
+    })
+    rows.push(...response.rows)
+  }
+
+  return new Map(rows.map((row) => [row.id, row.data_fine_rapporto]))
+}
+
+function hydrateRapportoLabels(
+  rapporto: RapportoLavorativoRecord,
+  familiesById: Map<string, PersonNameRecord>,
+  workersById: Map<string, PersonNameRecord>,
+) {
+  const famiglia = rapporto.famiglia_id ? familiesById.get(rapporto.famiglia_id) ?? null : null
+  const lavoratore = rapporto.lavoratore_id ? workersById.get(rapporto.lavoratore_id) ?? null : null
+
+  return {
+    ...rapporto,
+    cognome_nome_datore_proper:
+      formatPersonName(famiglia) ?? rapporto.cognome_nome_datore_proper,
+    nome_lavoratore_per_url:
+      formatPersonName(lavoratore) ?? rapporto.nome_lavoratore_per_url,
   }
 }
 
@@ -477,78 +615,78 @@ export function useRapportiLavorativiData() {
         const statusPrefilter =
           buildHiringStatusFilterForRapportoStatus(rapportoStatusFilter)
         const filters = combineFilterGroups(searchFilter, statusPrefilter)
-        const shouldResolveStatusClientSide = rapportoStatusFilter !== "all"
-        let response: Awaited<ReturnType<typeof fetchRapportiLavorativi>> | null = null
+        const allRows: RapportoLavorativoRecord[] = []
+        let totalRows = 0
 
-        for (let attempt = 0; attempt <= TABLE_QUERY_RETRY_DELAYS_MS.length; attempt += 1) {
-          try {
-            response = await fetchRapportiLavorativi({
-              limit: shouldResolveStatusClientSide ? STATUS_FILTER_FETCH_LIMIT : PAGE_SIZE,
-              offset: shouldResolveStatusClientSide ? 0 : pageIndex * PAGE_SIZE,
-              orderBy: [
-                { field: "data_inizio_rapporto", ascending: false },
-                { field: "ultimo_aggiornamento", ascending: false },
-                { field: "aggiornato_il", ascending: false },
-              ],
-              filters,
-            })
-            break
-          } catch (caughtError) {
-            const shouldRetry =
-              isTransientTableQueryError(caughtError) &&
-              attempt < TABLE_QUERY_RETRY_DELAYS_MS.length
+        for (let offset = 0; ; offset += TABLE_QUERY_MAX_LIMIT) {
+          let response: Awaited<ReturnType<typeof fetchRapportiLavorativi>> | null = null
 
-            if (!shouldRetry) throw caughtError
+          for (let attempt = 0; attempt <= TABLE_QUERY_RETRY_DELAYS_MS.length; attempt += 1) {
+            try {
+              response = await fetchRapportiLavorativi({
+                limit: TABLE_QUERY_MAX_LIMIT,
+                offset,
+                orderBy: [
+                  { field: "data_inizio_rapporto", ascending: false },
+                  { field: "ultimo_aggiornamento", ascending: false },
+                  { field: "aggiornato_il", ascending: false },
+                ],
+                filters,
+              })
+              break
+            } catch (caughtError) {
+              const shouldRetry =
+                isTransientTableQueryError(caughtError) &&
+                attempt < TABLE_QUERY_RETRY_DELAYS_MS.length
 
-            await wait(TABLE_QUERY_RETRY_DELAYS_MS[attempt])
-            if (!isActive) return
+              if (!shouldRetry) throw caughtError
+
+              await wait(TABLE_QUERY_RETRY_DELAYS_MS[attempt])
+              if (!isActive) return
+            }
           }
-        }
 
-        if (!response) return
+          if (!response) return
+          allRows.push(...response.rows)
+          totalRows = response.total
 
-        if (!isActive) return
-
-        const chiusuraIds = response.rows
-          .map((rapporto) => rapporto.fine_rapporto_lavorativo_id)
-          .filter((chiusuraId): chiusuraId is string => Boolean(chiusuraId))
-        const chiusureById = new Map<string, string | null>()
-
-        if (chiusuraIds.length > 0) {
-          const chiusureResponse = await fetchChiusureContratti({
-            limit: chiusuraIds.length,
-            offset: 0,
-            select: ["id", "data_fine_rapporto"],
-            filters: buildAnyOfFilter("id", chiusuraIds),
-          })
-
-          for (const chiusura of chiusureResponse.rows) {
-            chiusureById.set(chiusura.id, chiusura.data_fine_rapporto)
-          }
+          if (allRows.length >= totalRows || response.rows.length < TABLE_QUERY_MAX_LIMIT) break
         }
 
         if (!isActive) return
 
-        const rapportiWithFineDate = response.rows.map((rapporto) => ({
-          ...rapporto,
-          data_fine_rapporto: rapporto.fine_rapporto_lavorativo_id
-            ? chiusureById.get(rapporto.fine_rapporto_lavorativo_id) ?? null
-            : null,
-        }))
+        const familyIds = getUniqueIds(allRows.map((rapporto) => rapporto.famiglia_id))
+        const workerIds = getUniqueIds(allRows.map((rapporto) => rapporto.lavoratore_id))
+        const chiusuraIds = getUniqueIds(allRows.map((rapporto) => rapporto.fine_rapporto_lavorativo_id))
+        const [familiesById, workersById, chiusureById] = await Promise.all([
+          fetchFamiglieByIds(familyIds),
+          fetchLavoratoriByIds(workerIds),
+          fetchChiusureEndDatesByIds(chiusuraIds),
+        ])
+
+        if (!isActive) return
+
+        const rapportiWithFineDate = allRows.map((rapporto) => {
+          const hydratedRapporto = hydrateRapportoLabels(rapporto, familiesById, workersById)
+
+          return {
+            ...hydratedRapporto,
+            data_fine_rapporto: hydratedRapporto.fine_rapporto_lavorativo_id
+              ? chiusureById.get(hydratedRapporto.fine_rapporto_lavorativo_id) ?? null
+              : null,
+          }
+        })
         const resolvedRapporti =
           rapportoStatusFilter === "all"
             ? rapportiWithFineDate
             : rapportiWithFineDate.filter(
                 (rapporto) => resolveRapportoStatus(rapporto) === rapportoStatusFilter,
               )
-        const visibleRapporti = shouldResolveStatusClientSide
-          ? resolvedRapporti.slice(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE)
-          : resolvedRapporti
+        const sortedRapporti = sortRapportiByOperationalStatus(resolvedRapporti)
+        const visibleRapporti = sortedRapporti.slice(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE)
 
         setRapporti(visibleRapporti)
-        setRapportiTotal(
-          shouldResolveStatusClientSide ? resolvedRapporti.length : response.total,
-        )
+        setRapportiTotal(sortedRapporti.length)
         setSelectedRapportoId((previous) => previous ?? visibleRapporti[0]?.id ?? null)
       } catch (loadError) {
         if (!isActive) return

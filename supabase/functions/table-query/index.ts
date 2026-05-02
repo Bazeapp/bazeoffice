@@ -115,6 +115,7 @@ type LookupFilterMetadata = {
 };
 
 const MAX_SERVER_SCAN_ROWS = 25000;
+const MAX_QUERY_LIMIT = 5000;
 const BATCH_SIZE = 1000;
 
 const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
@@ -1570,7 +1571,7 @@ Deno.serve(async (req) => {
     return badRequest("No valid fields in 'select'");
   }
 
-  const limit = Math.max(1, Math.min(payload.limit ?? 200, 500));
+  const limit = Math.max(1, Math.min(payload.limit ?? 200, MAX_QUERY_LIMIT));
   const offset = Math.max(0, payload.offset ?? 0);
   const orderBy = Array.isArray(payload.orderBy) ? payload.orderBy : [];
   const search = String(payload.search ?? "").trim();

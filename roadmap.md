@@ -587,11 +587,11 @@ Fonte aggiornata da `ISSUES (1).txt`.
 - **Stato:** Fatto
 - **Tag:** [BUG] | **Severity:** medium | **Area:** src/pages/RapportiLavorativi — gestione errori della query lista | **Effort:** S (<1h)
 
-#### ❌ [RAP-012] Caricamento del detail rapporto lavorativo lento (20+ secondi) con dati stale del rapporto precedente durante il loading
+#### ✅ [RAP-012] Caricamento del detail rapporto lavorativo lento (20+ secondi) con dati stale del rapporto precedente durante il loading
 
-- **Stato:** Non chiuso
+- **Stato:** Fatto lato FE
 - **Tag:** [BUG] [PERFORMANCE] | **Severity:** high | **Area:** Rapporti lavorativi → detail rapporto — sezione "Datore / Lavoratore" e sezioni downstream (Cedolini, Contributi, ecc.) | **Effort:** M-L
-- **Nota:** Parziale: risolto reset dati stale al cambio rapporto e ridotte alcune ricerche; resta da validare/profilare il target performance <3s.
+- **Nota:** Il detail resetta i dati collegati al cambio rapporto e mostra skeleton nelle sezioni dipendenti durante il caricamento, evitando stale data e flash di empty state. Il target backend <3s resta da profilare separatamente se il tempo reale delle Edge Function resta alto.
 
 #### ✅ [RAP-013] Click sui ticket nella sezione "Tickets" del detail rapporto non apre il modale del ticket
 
@@ -613,6 +613,7 @@ Fonte aggiornata da `ISSUES (1).txt`.
 
 - **Stato:** Fatto
 - **Tag:** [MISSING] | **Severity:** medium | **Area:** Rapporti lavorativi → lista rapporti (colonna sinistra) — ordinamento default | **Effort:** S
+- **Nota:** Il sort operativo viene applicato sul dataset fetchato prima della paginazione, così la pagina non ordina solo i 50 record già caricati.
 
 
 ### Assunzioni

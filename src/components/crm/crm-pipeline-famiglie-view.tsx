@@ -237,7 +237,7 @@ function Column({
     <KanbanColumnShell
       columnId={column.id}
       title={column.label}
-      countLabel={`${column.cards.length} ${column.cards.length === 1 ? "ricerca" : "ricerche"}`}
+      countLabel={`${column.totalCount} ${column.totalCount === 1 ? "ricerca" : "ricerche"}`}
       visual={visual}
       headerIcon={getStageIcon(column.id, visual.iconClassName)}
       widthClassName="w-73"
@@ -297,19 +297,24 @@ export function CrmPipelineFamiglieView() {
   const filteredColumns = React.useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) return columns
-    return columns.map((column) => ({
-      ...column,
-      cards: column.cards.filter((card) =>
+    return columns.map((column) => {
+      const filteredCards = column.cards.filter((card) =>
         [card.nomeFamiglia, card.email, card.telefono].some((field) =>
           field?.toLowerCase().includes(q)
         )
-      ),
-    }))
+      )
+
+      return {
+        ...column,
+        totalCount: filteredCards.length,
+        cards: filteredCards,
+      }
+    })
   }, [columns, searchQuery])
 
   const totalRicerche = React.useMemo(
     () =>
-      filteredColumns.reduce((sum, column) => sum + column.cards.length, 0),
+      filteredColumns.reduce((sum, column) => sum + column.totalCount, 0),
     [filteredColumns]
   )
 
