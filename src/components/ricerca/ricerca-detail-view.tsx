@@ -67,6 +67,14 @@ type ExtendedCardData = CrmPipelineCardData &
     richiestaPatente: boolean;
     richiestaTrasferte: boolean;
     richiestaFerie: boolean;
+    comunicaItaliano: string;
+    comunicaInglese: string;
+    famigliaMoltoEsigente: string;
+    nazionalitaEscluse: string;
+    nazionalitaObbligatorie: string;
+    richiestaAutonomia: string;
+    datoreSpessoPresente: string;
+    richiestaDiscrezione: string;
     descrizioneRichiestaTrasferte: string;
     descrizioneRichiestaFerie: string;
     indirizzoCompleto: string;
@@ -117,6 +125,36 @@ function getStringArrayValue(value: unknown): string[] {
   }
   const single = toStringValue(value);
   return single ? [single] : [];
+}
+
+function getFirstPresentValue(
+  row: Record<string, unknown>,
+  fields: string[],
+) {
+  for (const field of fields) {
+    const value = row[field];
+    if (value !== null && value !== undefined) return value;
+  }
+  return undefined;
+}
+
+function displayBooleanValue(value: unknown) {
+  const parsed = toBooleanValue(value);
+  if (parsed === true) return "Sì";
+  if (parsed === false) return "No";
+  return "Non richiesto";
+}
+
+function displayItalianRequirementValue(value: unknown) {
+  const parsed = toBooleanValue(value);
+  if (parsed === false) return "No";
+  return "Sì";
+}
+
+function displayListValue(value: unknown) {
+  const values = getStringArrayValue(value);
+  if (values.length > 0) return values.join(", ");
+  return displayValue(value);
 }
 
 function toBooleanValue(value: unknown): boolean | null {
@@ -302,7 +340,7 @@ export function RicercaDetailView({
           extractFirstNumberToken(processRow.frequenza_rapporto) ??
           "-";
 
-        const mapped: CrmPipelineCardData = {
+        const mapped: ExtendedCardData = {
           id: displayValue(processRow.id),
           famigliaId: famigliaId ?? "-",
           numeroRicercaAttivata: toStringValue(
@@ -384,6 +422,63 @@ export function RicercaDetailView({
           richiestaTrasferte:
             toBooleanValue(processRow.richiesta_trasferte) ?? false,
           richiestaFerie: toBooleanValue(processRow.richiesta_ferie) ?? false,
+          comunicaItaliano: displayItalianRequirementValue(
+            getFirstPresentValue(processRow, [
+              "comunica_in_italiano",
+              "comunicare_bene_italiano",
+              "comunicare_in_italiano",
+              "richiesta_italiano",
+            ]),
+          ),
+          comunicaInglese: displayBooleanValue(
+            getFirstPresentValue(processRow, [
+              "comunica_in_inglese",
+              "comunicare_bene_inglese",
+              "comunicare_in_inglese",
+              "richiesta_inglese",
+            ]),
+          ),
+          famigliaMoltoEsigente: displayBooleanValue(
+            getFirstPresentValue(processRow, [
+              "famiglia_molto_esigente",
+              "molto_esigente",
+              "cliente_molto_esigente",
+            ]),
+          ),
+          nazionalitaEscluse: displayListValue(
+            getFirstPresentValue(processRow, [
+              "nazionalita_escluse",
+              "nazionalita_esclusa",
+              "nazionalita_non_accettate",
+            ]),
+          ),
+          nazionalitaObbligatorie: displayListValue(
+            getFirstPresentValue(processRow, [
+              "nazionalita_obbligatorie",
+              "nazionalita_richieste",
+              "nazionalita_preferite",
+            ]),
+          ),
+          richiestaAutonomia: displayBooleanValue(
+            getFirstPresentValue(processRow, [
+              "richiesta_autonomia",
+              "richiesta_elevata_autonomia",
+              "elevata_autonomia_richiesta",
+            ]),
+          ),
+          datoreSpessoPresente: displayBooleanValue(
+            getFirstPresentValue(processRow, [
+              "datore_spesso_presente",
+              "datore_presente",
+              "cliente_spesso_presente",
+            ]),
+          ),
+          richiestaDiscrezione: displayBooleanValue(
+            getFirstPresentValue(processRow, [
+              "richiesta_discrezione",
+              "discrezione_richiesta",
+            ]),
+          ),
           descrizioneRichiestaTrasferte: displayValue(
             processRow.descrizione_richiesta_trasferte,
           ),
@@ -852,6 +947,44 @@ export function RicercaDetailView({
                           resolvedCard.patenteDettaglio,
                         )}
                       </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderField(
+                          "Comunica in italiano",
+                          resolvedCard.comunicaItaliano,
+                        )}
+                        {renderField(
+                          "Comunica in inglese",
+                          resolvedCard.comunicaInglese,
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderField(
+                          "Famiglia molto esigente",
+                          resolvedCard.famigliaMoltoEsigente,
+                        )}
+                        {renderField(
+                          "Richiesta autonomia",
+                          resolvedCard.richiestaAutonomia,
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderField(
+                          "Datore spesso presente",
+                          resolvedCard.datoreSpessoPresente,
+                        )}
+                        {renderField(
+                          "Richiesta discrezione",
+                          resolvedCard.richiestaDiscrezione,
+                        )}
+                      </div>
+                      {renderField(
+                        "Nazionalità escluse",
+                        resolvedCard.nazionalitaEscluse,
+                      )}
+                      {renderField(
+                        "Nazionalità obbligatorie",
+                        resolvedCard.nazionalitaObbligatorie,
+                      )}
                       {renderField(
                         "Descrizione trasferte",
                         resolvedCard.descrizioneRichiestaTrasferte,

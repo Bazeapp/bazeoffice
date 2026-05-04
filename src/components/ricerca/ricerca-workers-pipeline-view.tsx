@@ -89,7 +89,7 @@ import {
   fetchProcessiMatching,
   fetchReferenzeLavoratoriByWorker,
   fetchSelezioniLavoratori,
-  runAutomationWebhook,
+  runSmartMatchingForwardPreview,
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore";
@@ -1729,8 +1729,17 @@ export function RicercaWorkersPipelineView({
     }
     setIsRunningSmartMatching(true);
     try {
-      await runAutomationWebhook("workflow-smart-matching", processId);
-      toast.success("Smart Matching avviato");
+      const result = await runSmartMatchingForwardPreview(processId);
+      const selectedCount =
+        typeof result.selected_count === "number"
+          ? result.selected_count
+          : result.selected_workers?.length ?? 0;
+
+      toast.success(
+        `Smart Matching completato: ${selectedCount} ${
+          selectedCount === 1 ? "lavoratore trovato" : "lavoratori trovati"
+        }`,
+      );
       refresh();
     } catch (caughtError) {
       toast.error(
@@ -1865,7 +1874,7 @@ export function RicercaWorkersPipelineView({
             ) : (
               <SparklesIcon />
             )}
-            Smart Matching
+            {isRunningSmartMatching ? "Calcolo in corso..." : "Smart Matching"}
           </Button>
           <Button
             type="button"
