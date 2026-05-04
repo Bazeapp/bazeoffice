@@ -1,3 +1,4 @@
+import * as React from "react";
 import {
   ArrowRightIcon,
   BriefcaseBusinessIcon,
@@ -9,15 +10,52 @@ import {
 } from "lucide-react";
 
 import { Gate1View } from "@/components/lavoratori/gate1-view";
+import { FieldLabel } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const GATE2_WORKER_STATUSES = ["idoneo", "qualificato"];
+const GATE2_IDONEO_STATUS = "idoneo";
+
+type Gate2StatusFilter = "idonei" | "idonei_qualificati";
 
 export function Gate2View() {
+  const [statusFilter, setStatusFilter] =
+    React.useState<Gate2StatusFilter>("idonei");
+  const workerStatus =
+    statusFilter === "idonei" ? GATE2_IDONEO_STATUS : GATE2_WORKER_STATUSES;
+  const workerCountLabel =
+    statusFilter === "idonei" ? "idonei" : "idonei o qualificati";
+
   return (
     <Gate1View
       gateLabel="Gate 2"
-      workerStatus={GATE2_WORKER_STATUSES}
-      workerCountLabel="idonei o qualificati"
+      workerStatus={workerStatus}
+      workerCountLabel={workerCountLabel}
+      listControlsSlot={
+        <div className="space-y-1">
+          <FieldLabel>Stato Gate 2</FieldLabel>
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as Gate2StatusFilter)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Seleziona stato" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="idonei">Solo idonei</SelectItem>
+              <SelectItem value="idonei_qualificati">
+                Idonei + qualificati
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      }
       applyGate1BaseFilters={false}
       showCertificationReferente
       showFollowup={false}

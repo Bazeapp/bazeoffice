@@ -101,6 +101,8 @@ import { supabase } from "@/lib/supabase-client";
 import { normalizeWorkerStatus } from "@/features/lavoratori/lib/status-utils";
 import type { LavoratoreRecord } from "@/types/entities/lavoratore";
 
+const EMPTY_SELECT_VALUE = "none";
+
 type GateTab = {
   id: string;
   label: string;
@@ -135,6 +137,7 @@ type GateViewProps = {
   gateLabel?: string;
   workerStatus?: string | string[];
   workerCountLabel?: string;
+  listControlsSlot?: React.ReactNode;
   showFollowup?: boolean;
   showSelfCertification?: boolean;
   showReferencesInWorkTypes?: boolean;
@@ -604,9 +607,9 @@ function GateAssessmentCard({
     });
   }, [statusOptions]);
   const isNonIdoneo = statusValue === "Non idoneo";
-  const [pendingStatusValue, setPendingStatusValue] = React.useState<string | null>(
-    null,
-  );
+  const [pendingStatusValue, setPendingStatusValue] = React.useState<
+    string | null
+  >(null);
   const [isStatusConfirmOpen, setIsStatusConfirmOpen] = React.useState(false);
 
   const handleStatusSelection = React.useCallback(
@@ -696,14 +699,17 @@ function GateAssessmentCard({
           </p>
           <div className="max-w-md">
             <Select
-              value={nonIdoneoReasonValue || undefined}
-              onValueChange={onNonIdoneoReasonChange}
+              value={nonIdoneoReasonValue || EMPTY_SELECT_VALUE}
+              onValueChange={(value) =>
+                onNonIdoneoReasonChange(value === EMPTY_SELECT_VALUE ? "" : value)
+              }
               disabled={!isNonIdoneo}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona motivazione" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
                 {nonIdoneoReasonOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -878,7 +884,8 @@ function GateWorkTypesCard({
     () =>
       allowedWorks.map(
         (value) =>
-          allowedWorkOptions.find((option) => option.value === value)?.label ?? value,
+          allowedWorkOptions.find((option) => option.value === value)?.label ??
+          value,
       ),
     [allowedWorkOptions, allowedWorks],
   );
@@ -893,8 +900,16 @@ function GateWorkTypesCard({
             type="button"
             variant="ghost"
             size="icon-sm"
-            aria-label={isEditing ? "Termina modifica tipologia lavori" : "Modifica tipologia lavori"}
-            title={isEditing ? "Termina modifica tipologia lavori" : "Modifica tipologia lavori"}
+            aria-label={
+              isEditing
+                ? "Termina modifica tipologia lavori"
+                : "Modifica tipologia lavori"
+            }
+            title={
+              isEditing
+                ? "Termina modifica tipologia lavori"
+                : "Modifica tipologia lavori"
+            }
             onClick={onToggleEdit}
           >
             <PencilIcon />
@@ -907,13 +922,16 @@ function GateWorkTypesCard({
           <p className="text-sm">Referenze verificabili</p>
           {isEditing ? (
             <Select
-              value={haiReferenze || undefined}
-              onValueChange={onReferenzeChange}
+              value={haiReferenze || EMPTY_SELECT_VALUE}
+              onValueChange={(value) =>
+                onReferenzeChange(value === EMPTY_SELECT_VALUE ? "" : value)
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona referenze" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
                 {referenzeOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -991,7 +1009,9 @@ function GateWorkTypesCard({
               min="0"
               step="1"
               value={experienceDraft.anni_esperienza_colf}
-              onChange={(event) => onAnniEsperienzaColfChange(event.target.value)}
+              onChange={(event) =>
+                onAnniEsperienzaColfChange(event.target.value)
+              }
               onBlur={onAnniEsperienzaColfBlur}
             />
           ) : (
@@ -1062,7 +1082,9 @@ function GateWorkTypesCard({
         referenceStatusOptions={referenceStatusOptions}
         selectedAnniEsperienzaColf={experienceDraft.anni_esperienza_colf}
         selectedAnniEsperienzaBadante={experienceDraft.anni_esperienza_badante}
-        selectedAnniEsperienzaBabysitter={experienceDraft.anni_esperienza_babysitter}
+        selectedAnniEsperienzaBabysitter={
+          experienceDraft.anni_esperienza_babysitter
+        }
         selectedSituazioneLavorativaAttuale={situationValue}
         onToggleEdit={onToggleEdit ?? (() => {})}
         onAnniEsperienzaColfChange={onAnniEsperienzaColfChange}
@@ -1134,7 +1156,9 @@ function getLookupDisplayOption(
   options: Array<{ label: string; value: string }>,
   value: string,
 ) {
-  return options.find((option) => option.label === value || option.value === value);
+  return options.find(
+    (option) => option.label === value || option.value === value,
+  );
 }
 
 function GateLookupBadge({
@@ -1235,14 +1259,17 @@ function GateLevelSegmentedField({
       <GateFieldLabelWithInfo label={label} helperLines={helperLines} />
       {isEditing ? (
         <Select
-          value={normalizedValue || undefined}
-          onValueChange={(nextValue) => onChange(nextValue)}
+          value={normalizedValue || EMPTY_SELECT_VALUE}
+          onValueChange={(nextValue) =>
+            onChange(nextValue === EMPTY_SELECT_VALUE ? "" : nextValue)
+          }
           disabled={isUpdating}
         >
           <SelectTrigger>
             <SelectValue placeholder="Seleziona livello" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
             {options.map((option) => (
               <SelectItem
                 key={option.value}
@@ -1292,12 +1319,11 @@ function GateLookupConfirmationField({
 }) {
   const activeOption = getLookupDisplayOption(options, value);
   const displayLabel = activeOption?.label ?? value;
-  const selectValue =
-    activeOption
-      ? persistMode === "value"
-        ? activeOption.value
-        : activeOption.label
-      : value || undefined;
+  const selectValue = activeOption
+    ? persistMode === "value"
+      ? activeOption.value
+      : activeOption.label
+    : value || undefined;
 
   return (
     <div className="space-y-2">
@@ -1374,9 +1400,7 @@ function GateStarRatingField({
                 className={isEditing ? "disabled:opacity-50" : "cursor-default"}
                 disabled={!isEditing}
                 onClick={() =>
-                  onChange(
-                    normalizedRatingScore === score ? "" : String(score),
-                  )
+                  onChange(normalizedRatingScore === score ? "" : String(score))
                 }
               >
                 <StarIcon
@@ -1520,7 +1544,10 @@ function GateSkillConfirmationsCard({
   compatibilitaFamiglieNumeroseOptions: Array<{ label: string; value: string }>;
   onCompatibilitaFamiglieNumeroseChange: (value: string) => void;
   compatibilitaFamiglieMoltoEsigentiValue: string;
-  compatibilitaFamiglieMoltoEsigentiOptions: Array<{ label: string; value: string }>;
+  compatibilitaFamiglieMoltoEsigentiOptions: Array<{
+    label: string;
+    value: string;
+  }>;
   onCompatibilitaFamiglieMoltoEsigentiChange: (value: string) => void;
   compatibilitaDatorePresenteValue: string;
   compatibilitaDatorePresenteOptions: Array<{ label: string; value: string }>;
@@ -1548,8 +1575,12 @@ function GateSkillConfirmationsCard({
             type="button"
             variant="ghost"
             size="icon-sm"
-            aria-label={isEditing ? "Termina modifica competenze" : "Modifica competenze"}
-            title={isEditing ? "Termina modifica competenze" : "Modifica competenze"}
+            aria-label={
+              isEditing ? "Termina modifica competenze" : "Modifica competenze"
+            }
+            title={
+              isEditing ? "Termina modifica competenze" : "Modifica competenze"
+            }
             onClick={onToggleEdit}
           >
             <PencilIcon />
@@ -2254,13 +2285,16 @@ function GateSelfCertificationCard({
         <div className="space-y-2">
           <p className="text-sm">Documenti (Autocertificazione)</p>
           <Select
-            value={documentiInRegola || undefined}
-            onValueChange={onDocumentiChange}
+            value={documentiInRegola || EMPTY_SELECT_VALUE}
+            onValueChange={(value) =>
+              onDocumentiChange(value === EMPTY_SELECT_VALUE ? "" : value)
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="Seleziona stato documenti" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
               {documentiOptions.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -2273,13 +2307,16 @@ function GateSelfCertificationCard({
         <div className="space-y-2">
           <p className="text-sm">Referenze verificabili (Autocertificazione)</p>
           <Select
-            value={haiReferenze || undefined}
-            onValueChange={onReferenzeChange}
+            value={haiReferenze || EMPTY_SELECT_VALUE}
+            onValueChange={(value) =>
+              onReferenzeChange(value === EMPTY_SELECT_VALUE ? "" : value)
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="Seleziona referenze" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
               {referenzeOptions.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -2399,9 +2436,12 @@ function GateDocumentIdentityCard({
           <p className="text-sm">Verifica la nazionalita</p>
           {canUseNazionalitaSelect ? (
             <Select
-              value={headerDraft.nazionalita || undefined}
+              value={headerDraft.nazionalita || EMPTY_SELECT_VALUE}
               onValueChange={(value) => {
-                onHeaderChange("nazionalita", value);
+                onHeaderChange(
+                  "nazionalita",
+                  value === EMPTY_SELECT_VALUE ? "" : value,
+                );
                 onHeaderBlur("nazionalita");
               }}
               disabled={!isEditing}
@@ -2410,6 +2450,7 @@ function GateDocumentIdentityCard({
                 <SelectValue placeholder="Seleziona nazionalita" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
                 {nazionalitaOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -2533,6 +2574,7 @@ export function Gate1View({
   gateLabel = "Gate 1",
   workerStatus = "qualificato",
   workerCountLabel = "qualificati",
+  listControlsSlot,
   showFollowup = true,
   showSelfCertification = true,
   showReferencesInWorkTypes = false,
@@ -2556,6 +2598,8 @@ export function Gate1View({
   allowCertifiedStatus = false,
   showInPersonBookingLinks = false,
 }: GateViewProps) {
+  const [gateProvinciaFilter, setGateProvinciaFilter] = React.useState("all");
+  const [gateFollowupFilter, setGateFollowupFilter] = React.useState("all");
   const {
     workers,
     workerRows,
@@ -2601,9 +2645,12 @@ export function Gate1View({
     forcedWorkerStatus: workerStatus,
     applyGate1BaseFilters,
     includeRelatedSelectionDetails: false,
+    gate1ProvinciaFilter: gateProvinciaFilter,
+    gate1FollowupFilter: gateFollowupFilter,
   });
   const groupingOptions = React.useMemo(
-    () => filterFields.map((field) => ({ label: field.label, value: field.value })),
+    () =>
+      filterFields.map((field) => ({ label: field.label, value: field.value })),
     [filterFields],
   );
 
@@ -2711,7 +2758,8 @@ export function Gate1View({
   }, []);
 
   const resolvedDocumentSectionMode =
-    documentSectionMode ?? (showSelfCertification ? "self_certification" : "hidden");
+    documentSectionMode ??
+    (showSelfCertification ? "self_certification" : "hidden");
   const showDocumentSection = resolvedDocumentSectionMode !== "hidden";
   const documentSectionAfterSpecificChecks =
     resolvedDocumentSectionMode === "documents";
@@ -2721,7 +2769,8 @@ export function Gate1View({
     : showFollowup
       ? "contatti"
       : "presentazione";
-  const [activeGateSection, setActiveGateSection] = React.useState(firstGateSection);
+  const [activeGateSection, setActiveGateSection] =
+    React.useState(firstGateSection);
   const detailScrollRef = React.useRef<HTMLElement | null>(null);
   const sectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
   const addressMobilityAnchor = useComboboxAnchor();
@@ -2730,8 +2779,6 @@ export function Gate1View({
   const [isEditingBazeChecks, setIsEditingBazeChecks] = React.useState(false);
   const workerPhotoInputRef = React.useRef<HTMLInputElement | null>(null);
   const [uploadingWorkerPhoto, setUploadingWorkerPhoto] = React.useState(false);
-  const [gateProvinciaFilter, setGateProvinciaFilter] = React.useState("all");
-  const [gateFollowupFilter, setGateFollowupFilter] = React.useState("all");
   const [statusChangeRetainedWorkerId, setStatusChangeRetainedWorkerId] =
     React.useState<string | null>(null);
   const statusChangeRetainTimeoutRef = React.useRef<number | null>(null);
@@ -2788,6 +2835,15 @@ export function Gate1View({
   }, [workerRows]);
 
   const gateProvinciaOptions = React.useMemo(() => {
+    const lookupLabels = (
+      lookupOptionsByDomain.get("lavoratori.provincia") ?? []
+    ).map((option) => option.label);
+    if (lookupLabels.length > 0) {
+      return Array.from(new Set(lookupLabels)).sort((a, b) =>
+        a.localeCompare(b, "it"),
+      );
+    }
+
     const labels = new Map<string, string>();
     for (const worker of baseGateWorkers) {
       const value = asString(workerRowsById.get(worker.id)?.provincia);
@@ -2796,7 +2852,7 @@ export function Gate1View({
       if (!labels.has(key)) labels.set(key, value);
     }
     return Array.from(labels.values()).sort((a, b) => a.localeCompare(b, "it"));
-  }, [baseGateWorkers, workerRowsById]);
+  }, [baseGateWorkers, lookupOptionsByDomain, workerRowsById]);
 
   const followupValueToLabel = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -2822,30 +2878,16 @@ export function Gate1View({
       })
       .filter((value): value is string => Boolean(value));
     return Array.from(new Set([...optionLabels, ...rowLabels]));
-  }, [baseGateWorkers, followupValueToLabel, lookupOptionsByDomain, workerRowsById]);
-
-  const gateWorkers = React.useMemo(() => {
-    return baseGateWorkers.filter((worker) => {
-      const row = workerRowsById.get(worker.id);
-      if (!row) return false;
-
-      const matchesProvincia =
-        gateProvinciaFilter === "all" ||
-        asString(row.provincia) === gateProvinciaFilter;
-      const rawFollowup = asString(row.followup_chiamata_idoneita);
-      const followupLabel = followupValueToLabel.get(rawFollowup) ?? rawFollowup;
-      const matchesFollowup =
-        gateFollowupFilter === "all" || followupLabel === gateFollowupFilter;
-
-      return matchesProvincia && matchesFollowup;
-    });
   }, [
     baseGateWorkers,
     followupValueToLabel,
-    gateFollowupFilter,
-    gateProvinciaFilter,
+    lookupOptionsByDomain,
     workerRowsById,
   ]);
+
+  const gateWorkers = React.useMemo(() => {
+    return baseGateWorkers;
+  }, [baseGateWorkers]);
 
   const {
     presentationStep,
@@ -2917,7 +2959,8 @@ export function Gate1View({
     [lookupOptionsByDomain],
   );
   const documentiVerificatiOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.stato_verifica_documenti") ?? [],
+    () =>
+      lookupOptionsByDomain.get("lavoratori.stato_verifica_documenti") ?? [],
     [lookupOptionsByDomain],
   );
   const haiReferenzeOptions = React.useMemo(
@@ -3043,8 +3086,9 @@ export function Gate1View({
   );
   const compatibilitaStiroOptions = React.useMemo(
     () =>
-      lookupOptionsByDomain.get("lavoratori.compatibilita_con_stiro_esigente") ??
-      [],
+      lookupOptionsByDomain.get(
+        "lavoratori.compatibilita_con_stiro_esigente",
+      ) ?? [],
     [lookupOptionsByDomain],
   );
   const compatibilitaCucinaOptions = React.useMemo(
@@ -3056,8 +3100,9 @@ export function Gate1View({
   );
   const compatibilitaNeonatiOptions = React.useMemo(
     () =>
-      lookupOptionsByDomain.get("lavoratori.compatibilita_babysitting_neonati") ??
-      [],
+      lookupOptionsByDomain.get(
+        "lavoratori.compatibilita_babysitting_neonati",
+      ) ?? [],
     [lookupOptionsByDomain],
   );
   const compatibilitaFamiglieNumeroseOptions = React.useMemo(
@@ -3089,8 +3134,9 @@ export function Gate1View({
   );
   const compatibilitaAnimaliOptions = React.useMemo(
     () =>
-      lookupOptionsByDomain.get("lavoratori.compatibilita_con_animali_in_casa") ??
-      [],
+      lookupOptionsByDomain.get(
+        "lavoratori.compatibilita_con_animali_in_casa",
+      ) ?? [],
     [lookupOptionsByDomain],
   );
   const compatibilitaAutonomiaOptions = React.useMemo(
@@ -3102,8 +3148,9 @@ export function Gate1View({
   );
   const compatibilitaContestiPacatiOptions = React.useMemo(
     () =>
-      lookupOptionsByDomain.get("lavoratori.compatibilita_con_contesti_pacati") ??
-      [],
+      lookupOptionsByDomain.get(
+        "lavoratori.compatibilita_con_contesti_pacati",
+      ) ?? [],
     [lookupOptionsByDomain],
   );
   const ratingCorporaturaOptions = React.useMemo(
@@ -3225,7 +3272,10 @@ export function Gate1View({
       { id: "disponibilita", label: "Disponibilita", icon: CalendarDaysIcon },
       {
         id: "aspetti",
-        label: specificChecksMode === "confirmation" ? "Competenze" : "Aspetti specifici",
+        label:
+          specificChecksMode === "confirmation"
+            ? "Competenze"
+            : "Aspetti specifici",
         icon: ShieldCheckIcon,
       },
       ...(showDocumentSection && documentSectionAfterSpecificChecks
@@ -3303,9 +3353,13 @@ export function Gate1View({
     if (!selectedWorkerRow) return null;
 
     if (selectedWorkerIsNonIdoneo) {
-      const fallbackReasons = readArrayStrings(selectedWorkerRow.motivazione_non_idoneo);
+      const fallbackReasons = readArrayStrings(
+        selectedWorkerRow.motivazione_non_idoneo,
+      );
       const reasonValues =
-        nonIdoneoReasonValues.length > 0 ? nonIdoneoReasonValues : fallbackReasons;
+        nonIdoneoReasonValues.length > 0
+          ? nonIdoneoReasonValues
+          : fallbackReasons;
       const reasonLabel = reasonValues
         .map(getMotivazioneLabel)
         .filter((value) => value.trim().length > 0)
@@ -3350,8 +3404,12 @@ export function Gate1View({
       followupStatus: asString(selectedWorkerRow?.followup_chiamata_idoneita),
       descrizionePubblica: asString(selectedWorkerRow?.descrizione_pubblica),
       livelloItaliano: asString(selectedWorkerRow?.livello_italiano),
-      ratingAtteggiamento: asInputValue(selectedWorkerRow?.rating_atteggiamento),
-      ratingCuraPersonale: asInputValue(selectedWorkerRow?.rating_cura_personale),
+      ratingAtteggiamento: asInputValue(
+        selectedWorkerRow?.rating_atteggiamento,
+      ),
+      ratingCuraPersonale: asInputValue(
+        selectedWorkerRow?.rating_cura_personale,
+      ),
       ratingPrecisionePuntualita: asInputValue(
         selectedWorkerRow?.rating_precisione_puntualita,
       ),
@@ -3435,7 +3493,12 @@ export function Gate1View({
         setUploadingWorkerPhoto(false);
       }
     },
-    [applyUpdatedWorkerRow, selectedWorkerId, selectedWorkerRow?.foto, setError],
+    [
+      applyUpdatedWorkerRow,
+      selectedWorkerId,
+      selectedWorkerRow?.foto,
+      setError,
+    ],
   );
 
   const handlePrimaryWorkerPhotoChange = React.useCallback(
@@ -3534,177 +3597,177 @@ export function Gate1View({
         </div>
       ) : null}
       <div
-      className={
-        selectedWorkerId
-          ? "grid min-h-0 flex-1 gap-3 px-4 pb-2 pt-4 lg:grid-cols-[332px_minmax(0,1fr)]"
-          : "grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-2 pt-4"
-      }
-    >
-      <div className="flex min-h-0 flex-col gap-2">
-        <SideCardsPanel
-          title={gateLabel}
-          headerClassName="hidden"
-          contentClassName="space-y-3 px-5 pt-3 pb-3"
-          className="h-full gap-2"
-        >
-          <DataTableToolbar
-            table={table}
-            searchValue={searchValue}
-            onSearchValueChange={setSearchValue}
-            filters={filters}
-            onFiltersChange={setFilters}
-            filterFields={filterFields}
-            searchPlaceholder="Cerca lavoratori..."
-            groupOptions={groupingOptions}
-            compactControls
-            savedViews={savedViews.map((view) => ({
-              id: view.id,
-              name: view.name,
-              updatedAt: view.updatedAt,
-            }))}
-            activeViewId={activeViewId}
-            onSaveCurrentView={saveCurrentView}
-            onApplySavedView={applySavedView}
-            onDeleteSavedView={deleteSavedView}
-            onApplyFilters={applyFilters}
-            hasPendingFilters={hasPendingFilters}
-          />
+        className={
+          selectedWorkerId
+            ? "grid min-h-0 flex-1 gap-3 px-4 pb-2 pt-4 lg:grid-cols-[332px_minmax(0,1fr)]"
+            : "grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-2 pt-4"
+        }
+      >
+        <div className="flex min-h-0 flex-col gap-2">
+          <SideCardsPanel
+            title={gateLabel}
+            headerClassName="hidden"
+            contentClassName="space-y-3 px-5 pt-3 pb-3"
+            className="h-full gap-2"
+          >
+            <DataTableToolbar
+              table={table}
+              searchValue={searchValue}
+              onSearchValueChange={setSearchValue}
+              filters={filters}
+              onFiltersChange={setFilters}
+              filterFields={filterFields}
+              searchPlaceholder="Cerca lavoratori..."
+              groupOptions={groupingOptions}
+              compactControls
+              savedViews={savedViews.map((view) => ({
+                id: view.id,
+                name: view.name,
+                updatedAt: view.updatedAt,
+              }))}
+              activeViewId={activeViewId}
+              onSaveCurrentView={saveCurrentView}
+              onApplySavedView={applySavedView}
+              onDeleteSavedView={deleteSavedView}
+              onApplyFilters={applyFilters}
+              hasPendingFilters={hasPendingFilters}
+            />
 
-          <div className="flex flex-col gap-3">
-            <div className="space-y-1">
-              <FieldLabel>Provincia</FieldLabel>
-              <Select
-                value={gateProvinciaFilter}
-                onValueChange={setGateProvinciaFilter}
-                disabled={loading}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Tutte le province" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tutte le province</SelectItem>
-                  {gateProvinciaOptions.map((provincia) => (
-                    <SelectItem key={provincia} value={provincia}>
-                      {provincia}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <div className="flex flex-col gap-3">
+              {listControlsSlot}
 
-            {showFollowupFilter ? (
               <div className="space-y-1">
-                <FieldLabel>Follow-up</FieldLabel>
+                <FieldLabel>Provincia</FieldLabel>
                 <Select
-                  value={gateFollowupFilter}
-                  onValueChange={setGateFollowupFilter}
+                  value={gateProvinciaFilter}
+                  onValueChange={setGateProvinciaFilter}
                   disabled={loading}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Tutti i follow-up" />
+                    <SelectValue placeholder="Tutte le province" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tutti i follow-up</SelectItem>
-                    {gateFollowupOptions.map((followup) => (
-                      <SelectItem key={followup} value={followup}>
-                        {followup}
+                    <SelectItem value="all">Tutte le province</SelectItem>
+                    {gateProvinciaOptions.map((provincia) => (
+                      <SelectItem key={provincia} value={provincia}>
+                        {provincia}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              {showFollowupFilter ? (
+                <div className="space-y-1">
+                  <FieldLabel>Follow-up</FieldLabel>
+                  <Select
+                    value={gateFollowupFilter}
+                    onValueChange={setGateFollowupFilter}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Tutti i follow-up" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tutti i follow-up</SelectItem>
+                      {gateFollowupOptions.map((followup) => (
+                        <SelectItem key={followup} value={followup}>
+                          {followup}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+            </div>
+
+            {gateProvinciaFilter !== "all" || gateFollowupFilter !== "all" ? (
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setGateProvinciaFilter("all");
+                    setGateFollowupFilter("all");
+                  }}
+                >
+                  Reset filtri
+                </Button>
+              </div>
             ) : null}
-          </div>
 
-          {gateProvinciaFilter !== "all" || gateFollowupFilter !== "all" ? (
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-muted-foreground text-xs">
-                {gateWorkers.length} di {baseGateWorkers.length} lavoratori
+            {loading ? (
+              <p className="text-muted-foreground py-3 text-sm">
+                Caricamento lavoratori...
               </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setGateProvinciaFilter("all");
-                  setGateFollowupFilter("all");
-                }}
-              >
-                Reset filtri
-              </Button>
-            </div>
-          ) : null}
+            ) : error ? (
+              <p className="py-3 text-sm text-red-600">{error}</p>
+            ) : gateWorkers.length === 0 ? (
+              <p className="text-muted-foreground py-3 text-sm">
+                {gateProvinciaFilter !== "all" || gateFollowupFilter !== "all"
+                  ? "Nessun lavoratore corrisponde ai filtri selezionati."
+                  : "Nessun lavoratore trovato."}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {gateWorkers.map((worker) => {
+                  const row = workerRowsById.get(worker.id);
+                  const followupRaw = asString(row?.followup_chiamata_idoneita);
+                  const followupOption = followupStatusOptions.find(
+                    (option) =>
+                      option.value === followupRaw ||
+                      option.label === followupRaw,
+                  );
+                  return (
+                    <LavoratoreCard
+                      key={worker.id}
+                      worker={worker}
+                      isActive={worker.id === selectedWorkerId}
+                      variant="gate1"
+                      gate1Summary={{
+                        provincia: asString(row?.provincia),
+                        createdAt:
+                          asString(row?.data_ora_di_creazione) ||
+                          asString(row?.creato_il),
+                        followup: followupOption?.label ?? followupRaw,
+                      }}
+                      onClick={() =>
+                        setSelectedWorkerId((previous) =>
+                          previous === worker.id ? null : worker.id,
+                        )
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </SideCardsPanel>
 
-          {loading ? (
-            <p className="text-muted-foreground py-3 text-sm">
-              Caricamento lavoratori...
-            </p>
-          ) : error ? (
-            <p className="py-3 text-sm text-red-600">{error}</p>
-          ) : gateWorkers.length === 0 ? (
-            <p className="text-muted-foreground py-3 text-sm">
-              {gateProvinciaFilter !== "all" || gateFollowupFilter !== "all"
-                ? "Nessun lavoratore corrisponde ai filtri selezionati."
-                : "Nessun lavoratore trovato."}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {gateWorkers.map((worker) => {
-                const row = workerRowsById.get(worker.id);
-                const followupRaw = asString(row?.followup_chiamata_idoneita);
-                const followupOption = followupStatusOptions.find(
-                  (option) =>
-                    option.value === followupRaw || option.label === followupRaw,
-                );
-                return (
-                  <LavoratoreCard
-                    key={worker.id}
-                    worker={worker}
-                    isActive={worker.id === selectedWorkerId}
-                    variant="gate1"
-                    gate1Summary={{
-                      provincia: asString(row?.provincia),
-                      createdAt:
-                        asString(row?.data_ora_di_creazione) ||
-                        asString(row?.creato_il),
-                      followup: followupOption?.label ?? followupRaw,
-                    }}
-                    onClick={() =>
-                      setSelectedWorkerId((previous) =>
-                        previous === worker.id ? null : worker.id,
-                      )
-                    }
-                  />
-                );
-              })}
-            </div>
-          )}
-        </SideCardsPanel>
+          <Pagination className="px-1">
+            <Pagination.Pages
+              page={currentPage}
+              pageCount={pageCount}
+              onChange={(nextPage) => {
+                if (loading) return;
+                setPageIndex(Math.max(nextPage - 1, 0));
+              }}
+            />
+            <span className="text-muted-foreground tabular-nums">
+              {gateWorkers.length} {workerCountLabel}
+            </span>
+          </Pagination>
+        </div>
 
-        <Pagination className="px-1">
-          <Pagination.Pages
-            page={currentPage}
-            pageCount={pageCount}
-            onChange={(nextPage) => {
-              if (loading) return;
-              setPageIndex(Math.max(nextPage - 1, 0));
-            }}
-          />
-          <span className="text-muted-foreground tabular-nums">
-            {gateWorkers.length} {workerCountLabel}
-          </span>
-        </Pagination>
-      </div>
-
-      {selectedWorkerId ? (
-        <WorkerDetailShell
-          sectionRef={detailScrollRef}
-          tabs={gateTabs}
-          activeSection={activeGateSection}
-          onSectionChange={scrollToSection}
-        >
-          {selectedWorker && selectedWorkerRow ? (
-            <div className="space-y-6">
+        {selectedWorkerId ? (
+          <WorkerDetailShell
+            sectionRef={detailScrollRef}
+            tabs={gateTabs}
+            activeSection={activeGateSection}
+            onSectionChange={scrollToSection}
+          >
+            {selectedWorker && selectedWorkerRow ? (
+              <div className="space-y-6">
                 {showCertificationReferente ? (
                   <div
                     ref={(node) => {
@@ -4533,413 +4596,431 @@ export function Gate1View({
                   >
                     {specificChecksMode === "confirmation" ? (
                       <>
-                      <GateSpecificChecksCard
-                        isBabysitterEnabled={includesBabysitterType(
-                          jobSearchDraft.tipo_lavoro_domestico,
-                          tipoLavoroDomesticoOptions,
-                        )}
-                        neonatiValue={
-                          skillsDraft.check_accetta_babysitting_neonati
-                        }
-                        neonatiOptions={babysittingNeonatiOptions}
-                        multipliBambiniValue={
-                          skillsDraft.check_accetta_babysitting_multipli_bambini
-                        }
-                        multipliBambiniOptions={
-                          babysittingMultipliBambiniOptions
-                        }
-                        caniValue={skillsDraft.check_accetta_case_con_cani}
-                        caniOptions={caseConCaniOptions}
-                        caniGrandiValue={
-                          skillsDraft.check_accetta_case_con_cani_grandi
-                        }
-                        caniGrandiOptions={caseConCaniGrandiOptions}
-                        gattiValue={skillsDraft.check_accetta_case_con_gatti}
-                        gattiOptions={caseConGattiOptions}
-                        scaleValue={
-                          skillsDraft.check_accetta_salire_scale_o_soffitti_alti
-                        }
-                        scaleOptions={scaleSoffittiOptions}
-                        trasfertaValue={
-                          jobSearchDraft.check_accetta_lavori_con_trasferta
-                        }
-                        trasfertaOptions={trasfertaOptions}
-                        lookupColorsByDomain={lookupColorsByDomain}
-                        onNeonatiChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_babysitting_neonati: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_babysitting_neonati",
-                            value,
-                          );
-                        }}
-                        onMultipliBambiniChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_babysitting_multipli_bambini: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_babysitting_multipli_bambini",
-                            value,
-                          );
-                        }}
-                        onCaniChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_case_con_cani: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_case_con_cani",
-                            value,
-                          );
-                        }}
-                        onCaniGrandiChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_case_con_cani_grandi: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_case_con_cani_grandi",
-                            value,
-                          );
-                        }}
-                        onGattiChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_case_con_gatti: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_case_con_gatti",
-                            value,
-                          );
-                        }}
-                        onScaleChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            check_accetta_salire_scale_o_soffitti_alti: value,
-                          }));
-                          void patchSkillsField(
-                            "check_accetta_salire_scale_o_soffitti_alti",
-                            value,
-                          );
-                        }}
-                        onTrasfertaChange={(value) => {
-                          setJobSearchDraft((current) => ({
-                            ...current,
-                            check_accetta_lavori_con_trasferta: value,
-                          }));
-                          void patchSelectedWorkerField(
-                            "check_accetta_lavori_con_trasferta",
-                            value || null,
-                          );
-                        }}
-                      />
-                      <GateSkillConfirmationsCard
-                        isEditing={gateSpecificChecksIsEditing}
-                        showEditAction={specificChecksEditMode === "toggle"}
-                        onToggleEdit={() =>
-                          setIsEditingSkills((current) => !current)
-                        }
-                        isUpdating={updatingSkills}
-                        lookupColorsByDomain={lookupColorsByDomain}
-                        livelloItalianoValue={gateDraft.livelloItaliano}
-                        livelloItalianoOptions={livelloItalianoOptions}
-                        onLivelloItalianoChange={(value) => {
-                          setGateDraft((current) => ({
-                            ...current,
-                            livelloItaliano: value,
-                          }));
-                          void patchSelectedWorkerField(
-                            "livello_italiano",
-                            value || null,
-                          );
-                        }}
-                        livelloIngleseValue={skillsDraft.livello_inglese}
-                        livelloIngleseOptions={livelloIngleseOptions}
-                        onLivelloIngleseChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            livello_inglese: value,
-                          }));
-                          void patchSkillsField("livello_inglese", value);
-                        }}
-                        livelloCucinaValue={skillsDraft.livello_cucina}
-                        livelloCucinaOptions={livelloCucinaOptions}
-                        onLivelloCucinaChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            livello_cucina: value,
-                          }));
-                          void patchSkillsField("livello_cucina", value);
-                        }}
-                        livelloStiroValue={skillsDraft.livello_stiro}
-                        livelloStiroOptions={livelloStiroOptions}
-                        onLivelloStiroChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            livello_stiro: value,
-                          }));
-                          void patchSkillsField("livello_stiro", value);
-                        }}
-                        livelloPulizieValue={skillsDraft.livello_pulizie}
-                        livelloPulizieOptions={livelloPulizieOptions}
-                        onLivelloPulizieChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            livello_pulizie: value,
-                          }));
-                          void patchSkillsField("livello_pulizie", value);
-                        }}
-                        livelloBabysittingValue={
-                          skillsDraft.livello_babysitting
-                        }
-                        livelloBabysittingOptions={livelloBabysittingOptions}
-                        onLivelloBabysittingChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            livello_babysitting: value,
-                          }));
-                          void patchSkillsField("livello_babysitting", value);
-                        }}
-                        livelloDogsittingValue={skillsDraft.livello_dogsitting}
-                        livelloDogsittingOptions={livelloDogsittingOptions}
-                        onLivelloDogsittingChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            livello_dogsitting: value,
-                          }));
-                          void patchSkillsField("livello_dogsitting", value);
-                        }}
-                        livelloGiardinaggioValue={
-                          skillsDraft.livello_giardinaggio
-                        }
-                        livelloGiardinaggioOptions={livelloGiardinaggioOptions}
-                        onLivelloGiardinaggioChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            livello_giardinaggio: value,
-                          }));
-                          void patchSkillsField("livello_giardinaggio", value);
-                        }}
-                        compatibilitaStiroValue={
-                          skillsDraft.compatibilita_con_stiro_esigente
-                        }
-                        compatibilitaStiroOptions={compatibilitaStiroOptions}
-                        onCompatibilitaStiroChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            compatibilita_con_stiro_esigente: value,
-                          }));
-                          void patchSkillsField(
-                            "compatibilita_con_stiro_esigente",
-                            value,
-                          );
-                        }}
-                        compatibilitaCucinaValue={
-                          skillsDraft.compatibilita_con_cucina_strutturata
-                        }
-                        compatibilitaCucinaOptions={compatibilitaCucinaOptions}
-                        onCompatibilitaCucinaChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            compatibilita_con_cucina_strutturata: value,
-                          }));
-                          void patchSkillsField(
-                            "compatibilita_con_cucina_strutturata",
-                            value,
-                          );
-                        }}
-                        compatibilitaNeonatiValue={
-                          skillsDraft.compatibilita_babysitting_neonati
-                        }
-                        compatibilitaNeonatiOptions={compatibilitaNeonatiOptions}
-                        onCompatibilitaNeonatiChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            compatibilita_babysitting_neonati: value,
-                          }));
-                          void patchSkillsField(
-                            "compatibilita_babysitting_neonati",
-                            value,
-                          );
-                        }}
-                        ratingAtteggiamentoValue={gateDraft.ratingAtteggiamento}
-                        onRatingAtteggiamentoChange={(value) => {
-                          setGateDraft((current) => ({
-                            ...current,
-                            ratingAtteggiamento: value,
-                          }));
-                          void patchSelectedWorkerField(
-                            "rating_atteggiamento",
-                            parseNumberValue(value),
-                          );
-                        }}
-                        ratingCuraPersonaleValue={gateDraft.ratingCuraPersonale}
-                        onRatingCuraPersonaleChange={(value) => {
-                          setGateDraft((current) => ({
-                            ...current,
-                            ratingCuraPersonale: value,
-                          }));
-                          void patchSelectedWorkerField(
-                            "rating_cura_personale",
-                            parseNumberValue(value),
-                          );
-                        }}
-                        ratingPrecisionePuntualitaValue={
-                          gateDraft.ratingPrecisionePuntualita
-                        }
-                        onRatingPrecisionePuntualitaChange={(value) => {
-                          setGateDraft((current) => ({
-                            ...current,
-                            ratingPrecisionePuntualita: value,
-                          }));
-                          void patchSelectedWorkerField(
-                            "rating_precisione_puntualita",
-                            parseNumberValue(value),
-                          );
-                        }}
-                        ratingCapacitaComunicativeValue={
-                          gateDraft.ratingCapacitaComunicative
-                        }
-                        onRatingCapacitaComunicativeChange={(value) => {
-                          setGateDraft((current) => ({
-                            ...current,
-                            ratingCapacitaComunicative: value,
-                          }));
-                          void patchSelectedWorkerField(
-                            "rating_capacita_comunicative",
-                            parseNumberValue(value),
-                          );
-                        }}
-                        ratingCorporaturaValue={gateDraft.ratingCorporatura}
-                        ratingCorporaturaOptions={ratingCorporaturaOptions}
-                        onRatingCorporaturaChange={(value) => {
-                          setGateDraft((current) => ({
-                            ...current,
-                            ratingCorporatura: value,
-                          }));
-                          void patchSelectedWorkerField(
-                            "rating_corporatura",
-                            value || null,
-                          );
-                        }}
-                        compatibilitaFamiglieNumeroseValue={
-                          skillsDraft.compatibilita_famiglie_numerose
-                        }
-                        compatibilitaFamiglieNumeroseOptions={
-                          compatibilitaFamiglieNumeroseOptions
-                        }
-                        onCompatibilitaFamiglieNumeroseChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            compatibilita_famiglie_numerose: value,
-                          }));
-                          void patchSkillsField(
-                            "compatibilita_famiglie_numerose",
-                            value,
-                          );
-                        }}
-                        compatibilitaFamiglieMoltoEsigentiValue={
-                          skillsDraft.compatibilita_famiglie_molto_esigenti
-                        }
-                        compatibilitaFamiglieMoltoEsigentiOptions={
-                          compatibilitaFamiglieMoltoEsigentiOptions
-                        }
-                        onCompatibilitaFamiglieMoltoEsigentiChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            compatibilita_famiglie_molto_esigenti: value,
-                          }));
-                          void patchSkillsField(
-                            "compatibilita_famiglie_molto_esigenti",
-                            value,
-                          );
-                        }}
-                        compatibilitaDatorePresenteValue={
-                          skillsDraft.compatibilita_lavoro_con_datore_presente_in_casa
-                        }
-                        compatibilitaDatorePresenteOptions={
-                          compatibilitaDatorePresenteOptions
-                        }
-                        onCompatibilitaDatorePresenteChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            compatibilita_lavoro_con_datore_presente_in_casa:
+                        <GateSpecificChecksCard
+                          isBabysitterEnabled={includesBabysitterType(
+                            jobSearchDraft.tipo_lavoro_domestico,
+                            tipoLavoroDomesticoOptions,
+                          )}
+                          neonatiValue={
+                            skillsDraft.check_accetta_babysitting_neonati
+                          }
+                          neonatiOptions={babysittingNeonatiOptions}
+                          multipliBambiniValue={
+                            skillsDraft.check_accetta_babysitting_multipli_bambini
+                          }
+                          multipliBambiniOptions={
+                            babysittingMultipliBambiniOptions
+                          }
+                          caniValue={skillsDraft.check_accetta_case_con_cani}
+                          caniOptions={caseConCaniOptions}
+                          caniGrandiValue={
+                            skillsDraft.check_accetta_case_con_cani_grandi
+                          }
+                          caniGrandiOptions={caseConCaniGrandiOptions}
+                          gattiValue={skillsDraft.check_accetta_case_con_gatti}
+                          gattiOptions={caseConGattiOptions}
+                          scaleValue={
+                            skillsDraft.check_accetta_salire_scale_o_soffitti_alti
+                          }
+                          scaleOptions={scaleSoffittiOptions}
+                          trasfertaValue={
+                            jobSearchDraft.check_accetta_lavori_con_trasferta
+                          }
+                          trasfertaOptions={trasfertaOptions}
+                          lookupColorsByDomain={lookupColorsByDomain}
+                          onNeonatiChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              check_accetta_babysitting_neonati: value,
+                            }));
+                            void patchSkillsField(
+                              "check_accetta_babysitting_neonati",
                               value,
-                          }));
-                          void patchSkillsField(
-                            "compatibilita_lavoro_con_datore_presente_in_casa",
-                            value,
-                          );
-                        }}
-                        compatibilitaCaseGrandiValue={
-                          skillsDraft.compatibilita_con_case_di_grandi_dimensioni
-                        }
-                        compatibilitaCaseGrandiOptions={
-                          compatibilitaCaseGrandiOptions
-                        }
-                        onCompatibilitaCaseGrandiChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            compatibilita_con_case_di_grandi_dimensioni: value,
-                          }));
-                          void patchSkillsField(
-                            "compatibilita_con_case_di_grandi_dimensioni",
-                            value,
-                          );
-                        }}
-                        compatibilitaAnimaliValue={
-                          skillsDraft.compatibilita_con_animali_in_casa
-                        }
-                        compatibilitaAnimaliOptions={
-                          compatibilitaAnimaliOptions
-                        }
-                        onCompatibilitaAnimaliChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            compatibilita_con_animali_in_casa: value,
-                          }));
-                          void patchSkillsField(
-                            "compatibilita_con_animali_in_casa",
-                            value,
-                          );
-                        }}
-                        compatibilitaAutonomiaValue={
-                          skillsDraft.compatibilita_con_elevata_autonomia_richiesta
-                        }
-                        compatibilitaAutonomiaOptions={
-                          compatibilitaAutonomiaOptions
-                        }
-                        onCompatibilitaAutonomiaChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            compatibilita_con_elevata_autonomia_richiesta:
+                            );
+                          }}
+                          onMultipliBambiniChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              check_accetta_babysitting_multipli_bambini: value,
+                            }));
+                            void patchSkillsField(
+                              "check_accetta_babysitting_multipli_bambini",
                               value,
-                          }));
-                          void patchSkillsField(
-                            "compatibilita_con_elevata_autonomia_richiesta",
+                            );
+                          }}
+                          onCaniChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              check_accetta_case_con_cani: value,
+                            }));
+                            void patchSkillsField(
+                              "check_accetta_case_con_cani",
+                              value,
+                            );
+                          }}
+                          onCaniGrandiChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              check_accetta_case_con_cani_grandi: value,
+                            }));
+                            void patchSkillsField(
+                              "check_accetta_case_con_cani_grandi",
+                              value,
+                            );
+                          }}
+                          onGattiChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              check_accetta_case_con_gatti: value,
+                            }));
+                            void patchSkillsField(
+                              "check_accetta_case_con_gatti",
+                              value,
+                            );
+                          }}
+                          onScaleChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              check_accetta_salire_scale_o_soffitti_alti: value,
+                            }));
+                            void patchSkillsField(
+                              "check_accetta_salire_scale_o_soffitti_alti",
+                              value,
+                            );
+                          }}
+                          onTrasfertaChange={(value) => {
+                            setJobSearchDraft((current) => ({
+                              ...current,
+                              check_accetta_lavori_con_trasferta: value,
+                            }));
+                            void patchSelectedWorkerField(
+                              "check_accetta_lavori_con_trasferta",
+                              value || null,
+                            );
+                          }}
+                        />
+                        <GateSkillConfirmationsCard
+                          isEditing={gateSpecificChecksIsEditing}
+                          showEditAction={specificChecksEditMode === "toggle"}
+                          onToggleEdit={() =>
+                            setIsEditingSkills((current) => !current)
+                          }
+                          isUpdating={updatingSkills}
+                          lookupColorsByDomain={lookupColorsByDomain}
+                          livelloItalianoValue={gateDraft.livelloItaliano}
+                          livelloItalianoOptions={livelloItalianoOptions}
+                          onLivelloItalianoChange={(value) => {
+                            setGateDraft((current) => ({
+                              ...current,
+                              livelloItaliano: value,
+                            }));
+                            void patchSelectedWorkerField(
+                              "livello_italiano",
+                              value || null,
+                            );
+                          }}
+                          livelloIngleseValue={skillsDraft.livello_inglese}
+                          livelloIngleseOptions={livelloIngleseOptions}
+                          onLivelloIngleseChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              livello_inglese: value,
+                            }));
+                            void patchSkillsField("livello_inglese", value);
+                          }}
+                          livelloCucinaValue={skillsDraft.livello_cucina}
+                          livelloCucinaOptions={livelloCucinaOptions}
+                          onLivelloCucinaChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              livello_cucina: value,
+                            }));
+                            void patchSkillsField("livello_cucina", value);
+                          }}
+                          livelloStiroValue={skillsDraft.livello_stiro}
+                          livelloStiroOptions={livelloStiroOptions}
+                          onLivelloStiroChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              livello_stiro: value,
+                            }));
+                            void patchSkillsField("livello_stiro", value);
+                          }}
+                          livelloPulizieValue={skillsDraft.livello_pulizie}
+                          livelloPulizieOptions={livelloPulizieOptions}
+                          onLivelloPulizieChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              livello_pulizie: value,
+                            }));
+                            void patchSkillsField("livello_pulizie", value);
+                          }}
+                          livelloBabysittingValue={
+                            skillsDraft.livello_babysitting
+                          }
+                          livelloBabysittingOptions={livelloBabysittingOptions}
+                          onLivelloBabysittingChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              livello_babysitting: value,
+                            }));
+                            void patchSkillsField("livello_babysitting", value);
+                          }}
+                          livelloDogsittingValue={
+                            skillsDraft.livello_dogsitting
+                          }
+                          livelloDogsittingOptions={livelloDogsittingOptions}
+                          onLivelloDogsittingChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              livello_dogsitting: value,
+                            }));
+                            void patchSkillsField("livello_dogsitting", value);
+                          }}
+                          livelloGiardinaggioValue={
+                            skillsDraft.livello_giardinaggio
+                          }
+                          livelloGiardinaggioOptions={
+                            livelloGiardinaggioOptions
+                          }
+                          onLivelloGiardinaggioChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              livello_giardinaggio: value,
+                            }));
+                            void patchSkillsField(
+                              "livello_giardinaggio",
+                              value,
+                            );
+                          }}
+                          compatibilitaStiroValue={
+                            skillsDraft.compatibilita_con_stiro_esigente
+                          }
+                          compatibilitaStiroOptions={compatibilitaStiroOptions}
+                          onCompatibilitaStiroChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              compatibilita_con_stiro_esigente: value,
+                            }));
+                            void patchSkillsField(
+                              "compatibilita_con_stiro_esigente",
+                              value,
+                            );
+                          }}
+                          compatibilitaCucinaValue={
+                            skillsDraft.compatibilita_con_cucina_strutturata
+                          }
+                          compatibilitaCucinaOptions={
+                            compatibilitaCucinaOptions
+                          }
+                          onCompatibilitaCucinaChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              compatibilita_con_cucina_strutturata: value,
+                            }));
+                            void patchSkillsField(
+                              "compatibilita_con_cucina_strutturata",
+                              value,
+                            );
+                          }}
+                          compatibilitaNeonatiValue={
+                            skillsDraft.compatibilita_babysitting_neonati
+                          }
+                          compatibilitaNeonatiOptions={
+                            compatibilitaNeonatiOptions
+                          }
+                          onCompatibilitaNeonatiChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              compatibilita_babysitting_neonati: value,
+                            }));
+                            void patchSkillsField(
+                              "compatibilita_babysitting_neonati",
+                              value,
+                            );
+                          }}
+                          ratingAtteggiamentoValue={
+                            gateDraft.ratingAtteggiamento
+                          }
+                          onRatingAtteggiamentoChange={(value) => {
+                            setGateDraft((current) => ({
+                              ...current,
+                              ratingAtteggiamento: value,
+                            }));
+                            void patchSelectedWorkerField(
+                              "rating_atteggiamento",
+                              parseNumberValue(value),
+                            );
+                          }}
+                          ratingCuraPersonaleValue={
+                            gateDraft.ratingCuraPersonale
+                          }
+                          onRatingCuraPersonaleChange={(value) => {
+                            setGateDraft((current) => ({
+                              ...current,
+                              ratingCuraPersonale: value,
+                            }));
+                            void patchSelectedWorkerField(
+                              "rating_cura_personale",
+                              parseNumberValue(value),
+                            );
+                          }}
+                          ratingPrecisionePuntualitaValue={
+                            gateDraft.ratingPrecisionePuntualita
+                          }
+                          onRatingPrecisionePuntualitaChange={(value) => {
+                            setGateDraft((current) => ({
+                              ...current,
+                              ratingPrecisionePuntualita: value,
+                            }));
+                            void patchSelectedWorkerField(
+                              "rating_precisione_puntualita",
+                              parseNumberValue(value),
+                            );
+                          }}
+                          ratingCapacitaComunicativeValue={
+                            gateDraft.ratingCapacitaComunicative
+                          }
+                          onRatingCapacitaComunicativeChange={(value) => {
+                            setGateDraft((current) => ({
+                              ...current,
+                              ratingCapacitaComunicative: value,
+                            }));
+                            void patchSelectedWorkerField(
+                              "rating_capacita_comunicative",
+                              parseNumberValue(value),
+                            );
+                          }}
+                          ratingCorporaturaValue={gateDraft.ratingCorporatura}
+                          ratingCorporaturaOptions={ratingCorporaturaOptions}
+                          onRatingCorporaturaChange={(value) => {
+                            setGateDraft((current) => ({
+                              ...current,
+                              ratingCorporatura: value,
+                            }));
+                            void patchSelectedWorkerField(
+                              "rating_corporatura",
+                              value || null,
+                            );
+                          }}
+                          compatibilitaFamiglieNumeroseValue={
+                            skillsDraft.compatibilita_famiglie_numerose
+                          }
+                          compatibilitaFamiglieNumeroseOptions={
+                            compatibilitaFamiglieNumeroseOptions
+                          }
+                          onCompatibilitaFamiglieNumeroseChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              compatibilita_famiglie_numerose: value,
+                            }));
+                            void patchSkillsField(
+                              "compatibilita_famiglie_numerose",
+                              value,
+                            );
+                          }}
+                          compatibilitaFamiglieMoltoEsigentiValue={
+                            skillsDraft.compatibilita_famiglie_molto_esigenti
+                          }
+                          compatibilitaFamiglieMoltoEsigentiOptions={
+                            compatibilitaFamiglieMoltoEsigentiOptions
+                          }
+                          onCompatibilitaFamiglieMoltoEsigentiChange={(
                             value,
-                          );
-                        }}
-                        compatibilitaContestiPacatiValue={
-                          skillsDraft.compatibilita_con_contesti_pacati
-                        }
-                        compatibilitaContestiPacatiOptions={
-                          compatibilitaContestiPacatiOptions
-                        }
-                        onCompatibilitaContestiPacatiChange={(value) => {
-                          setSkillsDraft((current) => ({
-                            ...current,
-                            compatibilita_con_contesti_pacati: value,
-                          }));
-                          void patchSkillsField(
-                            "compatibilita_con_contesti_pacati",
-                            value,
-                          );
-                        }}
-                      />
+                          ) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              compatibilita_famiglie_molto_esigenti: value,
+                            }));
+                            void patchSkillsField(
+                              "compatibilita_famiglie_molto_esigenti",
+                              value,
+                            );
+                          }}
+                          compatibilitaDatorePresenteValue={
+                            skillsDraft.compatibilita_lavoro_con_datore_presente_in_casa
+                          }
+                          compatibilitaDatorePresenteOptions={
+                            compatibilitaDatorePresenteOptions
+                          }
+                          onCompatibilitaDatorePresenteChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              compatibilita_lavoro_con_datore_presente_in_casa:
+                                value,
+                            }));
+                            void patchSkillsField(
+                              "compatibilita_lavoro_con_datore_presente_in_casa",
+                              value,
+                            );
+                          }}
+                          compatibilitaCaseGrandiValue={
+                            skillsDraft.compatibilita_con_case_di_grandi_dimensioni
+                          }
+                          compatibilitaCaseGrandiOptions={
+                            compatibilitaCaseGrandiOptions
+                          }
+                          onCompatibilitaCaseGrandiChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              compatibilita_con_case_di_grandi_dimensioni:
+                                value,
+                            }));
+                            void patchSkillsField(
+                              "compatibilita_con_case_di_grandi_dimensioni",
+                              value,
+                            );
+                          }}
+                          compatibilitaAnimaliValue={
+                            skillsDraft.compatibilita_con_animali_in_casa
+                          }
+                          compatibilitaAnimaliOptions={
+                            compatibilitaAnimaliOptions
+                          }
+                          onCompatibilitaAnimaliChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              compatibilita_con_animali_in_casa: value,
+                            }));
+                            void patchSkillsField(
+                              "compatibilita_con_animali_in_casa",
+                              value,
+                            );
+                          }}
+                          compatibilitaAutonomiaValue={
+                            skillsDraft.compatibilita_con_elevata_autonomia_richiesta
+                          }
+                          compatibilitaAutonomiaOptions={
+                            compatibilitaAutonomiaOptions
+                          }
+                          onCompatibilitaAutonomiaChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              compatibilita_con_elevata_autonomia_richiesta:
+                                value,
+                            }));
+                            void patchSkillsField(
+                              "compatibilita_con_elevata_autonomia_richiesta",
+                              value,
+                            );
+                          }}
+                          compatibilitaContestiPacatiValue={
+                            skillsDraft.compatibilita_con_contesti_pacati
+                          }
+                          compatibilitaContestiPacatiOptions={
+                            compatibilitaContestiPacatiOptions
+                          }
+                          onCompatibilitaContestiPacatiChange={(value) => {
+                            setSkillsDraft((current) => ({
+                              ...current,
+                              compatibilita_con_contesti_pacati: value,
+                            }));
+                            void patchSkillsField(
+                              "compatibilita_con_contesti_pacati",
+                              value,
+                            );
+                          }}
+                        />
                       </>
                     ) : (
                       <GateSpecificChecksCard
@@ -5147,7 +5228,9 @@ export function Gate1View({
                         <GateAdministrativeFieldsCard
                           ibanValue={documentsDraft.iban}
                           stripeAccountValue={documentsDraft.id_stripe_account}
-                          isEditing={showAdministrativeFields || gateDocumentsIsEditing}
+                          isEditing={
+                            showAdministrativeFields || gateDocumentsIsEditing
+                          }
                           onIbanChange={(value) =>
                             setDocumentsDraft((current) => ({
                               ...current,
@@ -5216,10 +5299,10 @@ export function Gate1View({
                     </GateStepSection>
                   </div>
                 ) : null}
-            </div>
-          ) : null}
-        </WorkerDetailShell>
-      ) : null}
+              </div>
+            ) : null}
+          </WorkerDetailShell>
+        ) : null}
       </div>
     </section>
   );

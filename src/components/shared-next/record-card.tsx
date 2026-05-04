@@ -61,6 +61,8 @@ export interface RecordCardProps
    * Esempio: `bg-emerald-500`, `bg-rose-500`.
    */
   accentClassName?: string;
+  /** Stato selezionato della card nella lista. Applica feedback visivo centralizzato. */
+  selected?: boolean;
   children?: React.ReactNode;
 }
 
@@ -158,7 +160,7 @@ RecordCardFooter.displayName = "RecordCardFooter";
 
 const RecordCardImpl = React.forwardRef<HTMLDivElement, RecordCardProps>(
   (
-    { accent, accentClassName, onClick, children, className, ...rest },
+    { accent, accentClassName, selected = false, onClick, children, className, ...rest },
     ref,
   ) => {
     const hasAccent = Boolean(accent || accentClassName);
@@ -174,9 +176,12 @@ const RecordCardImpl = React.forwardRef<HTMLDivElement, RecordCardProps>(
           "shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]",
           // Hover: cambio solo colore del bordo
           "transition-colors hover:border-border",
+          selected &&
+            "border-accent/70 bg-accent/5 ring-accent/40 ring-2 ring-offset-1 ring-offset-background shadow-md",
           onClick && "cursor-pointer",
           className,
         )}
+        data-selected={selected || undefined}
         {...rest}
       >
         {hasAccent ? (

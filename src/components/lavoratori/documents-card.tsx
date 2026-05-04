@@ -48,6 +48,8 @@ import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
 
+const EMPTY_SELECT_VALUE = "none"
+
 type DocumentsDraft = {
   stato_verifica_documenti: string
   documenti_in_regola: string
@@ -618,14 +620,17 @@ export function DocumentsCard({
             </FieldLabel>
             {isEditing ? (
               <Select
-                value={draft.stato_verifica_documenti || undefined}
-                onValueChange={onVerificationChange}
+                value={draft.stato_verifica_documenti || EMPTY_SELECT_VALUE}
+                onValueChange={(value) =>
+                  onVerificationChange(value === EMPTY_SELECT_VALUE ? "" : value)
+                }
                 disabled={isUpdating}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona stato verifica" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
                   {verificationOptions.map((option) => (
                     <SelectItem key={option.value} value={option.label}>
                       {option.label}
@@ -650,14 +655,17 @@ export function DocumentsCard({
             </FieldLabel>
             {isEditing ? (
               <Select
-                value={draft.documenti_in_regola || undefined}
-                onValueChange={onStatoDocumentiChange}
+                value={draft.documenti_in_regola || EMPTY_SELECT_VALUE}
+                onValueChange={(value) =>
+                  onStatoDocumentiChange(value === EMPTY_SELECT_VALUE ? "" : value)
+                }
                 disabled={isUpdating}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona stato documenti" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
                   {statoDocumentiOptions.map((option) => (
                     <SelectItem key={option.value} value={option.label}>
                       {option.label}

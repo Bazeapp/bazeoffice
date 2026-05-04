@@ -28,6 +28,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
+const EMPTY_SELECT_VALUE = "none"
+
 function initialsFromName(name: string) {
   const parts = name
     .split(" ")
@@ -255,7 +257,7 @@ export function WorkerProfileOverview({
         </div>
 
         <div className="space-y-2 pt-3">
-          <p className="text-muted-foreground flex items-center gap-2">
+          <div className="text-muted-foreground flex items-center gap-2">
             <MailIcon className="size-4 shrink-0" />
             {isEditing && draft ? (
               <Input
@@ -268,8 +270,8 @@ export function WorkerProfileOverview({
             ) : (
               <span className="truncate">{asString(workerRow.email) || "-"}</span>
             )}
-          </p>
-          <p className="text-muted-foreground flex items-center gap-2">
+          </div>
+          <div className="text-muted-foreground flex items-center gap-2">
             <PhoneIcon className="size-4 shrink-0" />
             {isEditing && draft ? (
               <Input
@@ -282,19 +284,24 @@ export function WorkerProfileOverview({
             ) : (
               <span className="truncate">{asString(workerRow.telefono) || "-"}</span>
             )}
-          </p>
+          </div>
           <div className="text-muted-foreground flex items-center gap-2" title="Livello italiano">
             <LanguagesIcon className="size-4 shrink-0" />
             {isEditing && livelloItaliano !== undefined ? (
               <div className="w-full max-w-xs">
                 <Select
-                  value={livelloItaliano || undefined}
-                  onValueChange={onLivelloItalianoChange}
+                  value={livelloItaliano || EMPTY_SELECT_VALUE}
+                  onValueChange={(value) =>
+                    onLivelloItalianoChange?.(
+                      value === EMPTY_SELECT_VALUE ? "" : value
+                    )
+                  }
                 >
                   <SelectTrigger onBlur={onLivelloItalianoBlur}>
                     <SelectValue placeholder="Seleziona livello" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
                     {livelloItalianoOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
@@ -311,19 +318,25 @@ export function WorkerProfileOverview({
               </span>
             )}
           </div>
-          <p className="text-muted-foreground flex items-center gap-2">
+          <div className="text-muted-foreground flex items-center gap-2">
             <VenusAndMarsIcon className="size-4 shrink-0" />
             {isEditing && draft ? (
               canUseSessoSelect ? (
                 <div className="w-full max-w-xs">
                   <Select
-                    value={draft.sesso || undefined}
-                    onValueChange={(value) => onFieldChange?.("sesso", value)}
+                    value={draft.sesso || EMPTY_SELECT_VALUE}
+                    onValueChange={(value) =>
+                      onFieldChange?.(
+                        "sesso",
+                        value === EMPTY_SELECT_VALUE ? "" : value
+                      )
+                    }
                   >
                     <SelectTrigger onBlur={() => onFieldBlur?.("sesso")}>
                       <SelectValue placeholder="Seleziona sesso" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
                       {sessoOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
@@ -343,21 +356,25 @@ export function WorkerProfileOverview({
             ) : (
               <span className="truncate">{asString(workerRow.sesso) || "-"}</span>
             )}
-          </p>
-          <p className="text-muted-foreground flex items-center gap-2">
+          </div>
+          <div className="text-muted-foreground flex items-center gap-2">
             <FlagIcon className="size-4 shrink-0" />
             {isEditing && draft ? (
               <div className="w-full max-w-xs">
                 <Select
-                  value={draft.nazionalita || undefined}
+                  value={draft.nazionalita || EMPTY_SELECT_VALUE}
                   onValueChange={(value) =>
-                    onFieldChange?.("nazionalita", value)
+                    onFieldChange?.(
+                      "nazionalita",
+                      value === EMPTY_SELECT_VALUE ? "" : value
+                    )
                   }
                 >
                   <SelectTrigger onBlur={() => onFieldBlur?.("nazionalita")}>
                     <SelectValue placeholder="Seleziona nazionalita" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
                     {resolvedNazionalitaOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
@@ -369,8 +386,8 @@ export function WorkerProfileOverview({
             ) : (
               <span className="truncate">{asString(workerRow.nazionalita) || "-"}</span>
             )}
-          </p>
-          <p className="text-muted-foreground flex items-center gap-2">
+          </div>
+          <div className="text-muted-foreground flex items-center gap-2">
             <CalendarDaysIcon className="size-4 shrink-0" />
             {isEditing && draft ? (
               <Input
@@ -383,11 +400,11 @@ export function WorkerProfileOverview({
             ) : (
               <span className="truncate">{asString(workerRow.data_di_nascita) || "-"}</span>
             )}
-          </p>
-          <p className="text-muted-foreground flex items-center gap-2">
+          </div>
+          <div className="text-muted-foreground flex items-center gap-2">
             <CakeIcon className="size-4 shrink-0" />
             <span className="truncate">{getAgeFromBirthDate(workerRow.data_di_nascita) ?? "-"}</span>
-          </p>
+          </div>
         </div>
       </div>
     </div>

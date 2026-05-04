@@ -19,6 +19,8 @@ import { FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+const EMPTY_SELECT_VALUE = "none"
+
 type LookupOption = {
   label: string
   value: string
@@ -110,14 +112,17 @@ export function AddressSectionCard({
           <FieldLabel>Provincia</FieldLabel>
           {isEditing ? (
             <Select
-              value={addressDraft.provincia || undefined}
-              onValueChange={onProvinciaChange}
+              value={addressDraft.provincia || EMPTY_SELECT_VALUE}
+              onValueChange={(value) =>
+                onProvinciaChange(value === EMPTY_SELECT_VALUE ? "" : value)
+              }
               disabled={isUpdating}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Provincia" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
                 {provinciaOptions.map((option) => (
                   <SelectItem key={option.value} value={option.label}>
                     {option.label}

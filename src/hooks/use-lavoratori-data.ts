@@ -28,12 +28,16 @@ import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import {
+  type Gate1RpcFilter,
   type QueryFilterCondition,
   type QueryFilterGroup,
   type TableColumnMeta,
+  fetchCercaLavoratori,
   fetchDocumentiLavoratoriByWorker,
   fetchEsperienzeLavoratoriByWorker,
   fetchFamiglie,
+  fetchGate1Lavoratori,
+  fetchGate2Lavoratori,
   fetchIndirizzi,
   fetchLookupValues,
   fetchLavoratori,
@@ -51,6 +55,8 @@ const DEFAULT_PAGE_SIZE = 50
 const SERVER_QUERY_DEBOUNCE_MS = 700
 const VIEWS_STORAGE_KEY = "lavoratori.cerca.saved-views"
 const ADDRESS_BATCH_SIZE = 120
+const GATE1_BASE_FETCH_PAGE_SIZE = 500
+const GATE1_BLOCKING_SELECTIONS_CACHE_TTL_MS = 60_000
 const RELATED_SELECTIONS_PAGE_SIZE = 500
 const RELATED_WORKER_BATCH_SIZE = 50
 const RELATED_PROCESS_BATCH_SIZE = 150
@@ -135,10 +141,19 @@ const OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS = new Set([
 
 type GenericRow = Record<string, unknown>
 
+let gate1BlockingWorkerIdsCache:
+  | {
+      expiresAt: number
+      promise: Promise<Set<string>>
+    }
+  | null = null
+
 type UseLavoratoriDataOptions = {
   forcedWorkerStatus?: string | string[]
   applyGate1BaseFilters?: boolean
   includeRelatedSelectionDetails?: boolean
+  gate1ProvinciaFilter?: string
+  gate1FollowupFilter?: string
 }
 
 function toCanonicalWorkerStatus(value: string) {
@@ -187,6 +202,98 @@ function mergeAndFilters(
 
 function hasFilterNodes(filters: QueryFilterGroup | undefined) {
   return Boolean(filters && Array.isArray(filters.nodes) && filters.nodes.length > 0)
+}
+
+function collectGate1RpcFilters(
+  group: QueryFilterGroup | undefined
+): Gate1RpcFilter[] | null {
+  if (!group || !Array.isArray(group.nodes) || group.nodes.length === 0) return []
+  if (group.logic !== "and") return null
+
+  const filters: Gate1RpcFilter[] = []
+  for (const node of group.nodes) {
+    if (node.kind === "condition") {
+      filters.push({
+        field: node.field,
+        operator: node.operator,
+        value: node.value,
+        valueTo: node.valueTo,
+      })
+      continue
+    }
+
+    const nestedFilters = collectGate1RpcFilters(node)
+    if (!nestedFilters) return null
+    filters.push(...nestedFilters)
+  }
+
+  return filters
+}
+
+function buildGate1RpcFilters({
+  filters,
+  gate1ProvinciaFilter,
+  gate1FollowupFilter,
+}: {
+  filters: QueryFilterGroup | undefined
+  gate1ProvinciaFilter: string
+  gate1FollowupFilter: string
+}) {
+  const rpcFilters = collectGate1RpcFilters(filters)
+  if (!rpcFilters) return null
+
+  if (gate1ProvinciaFilter !== "all") {
+    rpcFilters.push({
+      field: "provincia",
+      operator: "is",
+      value: gate1ProvinciaFilter,
+    })
+  }
+
+  if (gate1FollowupFilter !== "all") {
+    rpcFilters.push({
+      field: "followup_chiamata_idoneita",
+      operator: "is",
+      value: gate1FollowupFilter,
+    })
+  }
+
+  return rpcFilters
+}
+
+function buildGate2RpcStatusFilters(
+  forcedWorkerStatus: string | string[] | undefined
+): Gate1RpcFilter[] | null {
+  const statuses = (Array.isArray(forcedWorkerStatus) ? forcedWorkerStatus : [forcedWorkerStatus ?? ""])
+    .map((status) => toCanonicalWorkerStatus(status))
+    .filter(Boolean)
+  const uniqueStatuses = Array.from(new Set(statuses)).sort()
+
+  if (uniqueStatuses.length === 1 && uniqueStatuses[0] === "Idoneo") {
+    return [
+      {
+        field: "stato_lavoratore",
+        operator: "is",
+        value: "Idoneo",
+      },
+    ]
+  }
+
+  if (
+    uniqueStatuses.length === 2 &&
+    uniqueStatuses[0] === "Idoneo" &&
+    uniqueStatuses[1] === "Qualificato"
+  ) {
+    return []
+  }
+
+  return null
+}
+
+function hasForcedWorkerStatus(forcedWorkerStatus: string | string[] | undefined) {
+  return Array.isArray(forcedWorkerStatus)
+    ? forcedWorkerStatus.some((status) => Boolean(status?.trim()))
+    : Boolean(forcedWorkerStatus?.trim())
 }
 
 function formatDateFilterValue(date: Date) {
@@ -259,10 +366,14 @@ function buildWorkerBaseFilter({
   baseFilters,
   forcedWorkerStatus,
   applyGate1BaseFilters,
+  gate1ProvinciaFilter,
+  gate1FollowupFilter,
 }: {
   baseFilters: QueryFilterGroup | undefined
   forcedWorkerStatus: string | string[] | undefined
   applyGate1BaseFilters: boolean
+  gate1ProvinciaFilter?: string
+  gate1FollowupFilter?: string
 }) {
   const normalizedStatuses = (
     Array.isArray(forcedWorkerStatus) ? forcedWorkerStatus : [forcedWorkerStatus ?? ""]
@@ -299,6 +410,26 @@ function buildWorkerBaseFilter({
 
   if (applyGate1BaseFilters) {
     forcedNodes.push(buildGate1AvailabilityFilter())
+
+    if (gate1ProvinciaFilter && gate1ProvinciaFilter !== "all") {
+      forcedNodes.push({
+        kind: "condition",
+        id: "gate1-provincia-filter",
+        field: "provincia",
+        operator: "is",
+        value: gate1ProvinciaFilter,
+      })
+    }
+
+    if (gate1FollowupFilter && gate1FollowupFilter !== "all") {
+      forcedNodes.push({
+        kind: "condition",
+        id: "gate1-followup-filter",
+        field: "followup_chiamata_idoneita",
+        operator: "is",
+        value: gate1FollowupFilter,
+      })
+    }
   }
 
   return mergeAndFilters(baseFilters, forcedNodes, "worker-base-filter")
@@ -689,6 +820,75 @@ async function fetchSelectionsForWorkers(workerIds: string[], blockingOnly = fal
   return rows
 }
 
+async function fetchGate1BlockingWorkerIds() {
+  const now = Date.now()
+  if (gate1BlockingWorkerIdsCache && gate1BlockingWorkerIdsCache.expiresAt > now) {
+    return gate1BlockingWorkerIdsCache.promise
+  }
+
+  const promise = fetchGate1BlockingWorkerIdsUncached()
+  gate1BlockingWorkerIdsCache = {
+    expiresAt: now + GATE1_BLOCKING_SELECTIONS_CACHE_TTL_MS,
+    promise,
+  }
+
+  try {
+    return await promise
+  } catch (error) {
+    gate1BlockingWorkerIdsCache = null
+    throw error
+  }
+}
+
+async function fetchGate1BlockingWorkerIdsUncached() {
+  const blockingStatusValues = Array.from(
+    new Set([
+      "Selezionato",
+      "Inviato al cliente",
+      "Colloquio schedulato",
+      "Colloquio rimandato",
+      "Colloquio fatto",
+      "Prova schedulata",
+      "Prova rimandata",
+    ])
+  )
+
+  const results = await Promise.all(
+    blockingStatusValues.map((status, index) =>
+      fetchSelezioniLavoratori({
+        select: ["lavoratore_id", "stato_selezione"],
+        limit: RELATED_SELECTIONS_PAGE_SIZE,
+        offset: 0,
+        includeSchema: false,
+        filters: {
+          kind: "group",
+          id: `gate1-blocking-selection-${index}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition" as const,
+              id: `gate1-blocking-status-${index}`,
+              field: "stato_selezione",
+              operator: "is" as const,
+              value: status,
+            },
+          ],
+        },
+      })
+    )
+  )
+  const rows = results.flatMap((result) =>
+    (Array.isArray(result.rows) ? result.rows : []) as GenericRow[]
+  )
+
+  return new Set(
+    rows
+      .filter((row) => isGate1BlockingSelection(row))
+      .map((row) => asString(row.lavoratore_id))
+      .filter((workerId): workerId is string => Boolean(workerId))
+  )
+}
+
 async function fetchRelatedProcessesByIds(processIds: string[]) {
   if (processIds.length === 0) return []
 
@@ -923,6 +1123,8 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     forcedWorkerStatus,
     applyGate1BaseFilters = false,
     includeRelatedSelectionDetails = true,
+    gate1ProvinciaFilter = "all",
+    gate1FollowupFilter = "all",
   } = options
   const { options: recruiterOptions } = useOperatoriOptions({
     role: "recruiter",
@@ -1011,7 +1213,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
 
   React.useEffect(() => {
     setPageIndex(0)
-  }, [filters, searchValue, sorting])
+  }, [filters, gate1FollowupFilter, gate1ProvinciaFilter, searchValue, sorting])
 
   React.useEffect(() => {
     let isCancelled = false
@@ -1047,6 +1249,8 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         applyGate1BaseFilters,
         filters: debouncedQuery.filters ?? null,
         forcedWorkerStatus,
+        gate1FollowupFilter,
+        gate1ProvinciaFilter,
         includeRelatedSelectionDetails,
         offset: pageIndex * pageSize,
         pageSize,
@@ -1076,6 +1280,365 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
               ]
         const shouldLoadSchema = !workersSchemaLoadedRef.current
         const hasUserFilters = hasFilterNodes(debouncedQuery.filters)
+        const workerBaseFilter = buildWorkerBaseFilter({
+          baseFilters: debouncedQuery.filters,
+          forcedWorkerStatus,
+          applyGate1BaseFilters,
+          gate1ProvinciaFilter,
+          gate1FollowupFilter,
+        })
+
+        if (applyGate1BaseFilters) {
+          const forcedStatuses = Array.isArray(forcedWorkerStatus)
+            ? forcedWorkerStatus
+            : [forcedWorkerStatus ?? ""]
+          const gate1RpcFilters = buildGate1RpcFilters({
+            filters: debouncedQuery.filters,
+            gate1ProvinciaFilter,
+            gate1FollowupFilter,
+          })
+          const canUseGate1Rpc =
+            gate1RpcFilters !== null &&
+            debouncedQuery.sorting.length === 0 &&
+            forcedStatuses.length === 1 &&
+            toCanonicalWorkerStatus(forcedStatuses[0] ?? "") === "Qualificato"
+          const fetchedRows: GenericRow[] = []
+          let offset = 0
+          let expectedTotal = 0
+
+          const loadGate1SchemaInBackground = () => {
+            if (!shouldLoadSchema) return
+
+            void fetchLavoratori({
+              select: ["id"],
+              limit: 1,
+              offset: 0,
+              includeSchema: true,
+              orderBy: sortOrderBy,
+              search: debouncedQuery.searchValue.trim() || undefined,
+              searchFields: ["nome", "cognome", "email", "telefono"],
+              filters: workerBaseFilter,
+            })
+              .then((schemaResult) => {
+                if (requestId !== requestIdRef.current) return
+                if (schemaResult.columns.length === 0) return
+                workersSchemaLoadedRef.current = true
+                setWorkersColumns(schemaResult.columns)
+              })
+              .catch(() => {
+                // Non blocchiamo Gate 1 se lo schema filtri arriva in ritardo.
+              })
+          }
+
+          if (canUseGate1Rpc) {
+            loadGate1SchemaInBackground()
+
+            const result = await fetchGate1Lavoratori({
+              limit: pageSize,
+              offset: pageIndex * pageSize,
+              search: debouncedQuery.searchValue.trim() || undefined,
+              filters: gate1RpcFilters,
+            })
+            if (requestId !== requestIdRef.current) return
+
+            const pageRows = result.rows.map(asLavoratoreRecord)
+            const pageWorkerIds = pageRows.map((row) => row.id)
+            const relatedSelectionsPromise = includeRelatedSelectionDetails
+              ? fetchRelatedActiveSelectionsByWorkerIds({
+                  workerIds: pageWorkerIds,
+                  lookupColorsByDomain: lookupColorsByDomainRef.current,
+                  recruiterLabelsById: recruiterLabelsByIdRef.current,
+                  includeDetails: true,
+                  blockingOnly: false,
+                }).catch(() => ({
+                  relatedSelectionsByWorkerId: new Map<
+                    string,
+                    NonNullable<LavoratoreListItem["otherActiveSelections"]>
+                  >(),
+                  gate1BlockedWorkerIds: new Set<string>(),
+                }))
+              : Promise.resolve({
+                  relatedSelectionsByWorkerId: new Map<
+                    string,
+                    NonNullable<LavoratoreListItem["otherActiveSelections"]>
+                  >(),
+                  gate1BlockedWorkerIds: new Set<string>(),
+                })
+
+            const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
+              fetchWorkerAddressesByIds(pageWorkerIds),
+              relatedSelectionsPromise,
+            ])
+            if (requestId !== requestIdRef.current) return
+
+            setWorkerRows(pageRows)
+            setWorkerAddressesById(addressesByWorkerId)
+            setRelatedSelectionsByWorkerId(relatedSelectionsResult.relatedSelectionsByWorkerId)
+            setWorkersTotal(result.total)
+            lastLoadedListQueryKeyRef.current = queryKey
+            setSelectedWorkerId((previous) => {
+              if (previous && pageRows.some((row) => row.id === previous)) return previous
+              return pageRows[0]?.id ?? null
+            })
+            return
+          }
+
+          while (true) {
+            const pageResult = await fetchLavoratori({
+              select: hasUserFilters ? undefined : WORKER_LIST_SELECT,
+              limit: GATE1_BASE_FETCH_PAGE_SIZE,
+              offset,
+              includeSchema: false,
+              orderBy: sortOrderBy,
+              search: debouncedQuery.searchValue.trim() || undefined,
+              searchFields: ["nome", "cognome", "email", "telefono"],
+              filters: workerBaseFilter,
+            })
+
+            if (requestId !== requestIdRef.current) return
+
+            fetchedRows.push(...pageResult.rows)
+            expectedTotal = pageResult.total
+
+            if (
+              pageResult.rows.length < GATE1_BASE_FETCH_PAGE_SIZE ||
+              fetchedRows.length >= expectedTotal
+            ) {
+              break
+            }
+
+            offset += GATE1_BASE_FETCH_PAGE_SIZE
+          }
+
+          loadGate1SchemaInBackground()
+
+          const allRows = fetchedRows.map(asLavoratoreRecord)
+          const gate1BlockedWorkerIds = await fetchGate1BlockingWorkerIds().catch(
+            () => new Set<string>()
+          )
+          if (requestId !== requestIdRef.current) return
+
+          const visibleRows = allRows.filter(
+            (row) =>
+              isGate1AvailabilityEligible(row) &&
+              !gate1BlockedWorkerIds.has(row.id)
+          )
+          const pageStart = pageIndex * pageSize
+          const pageRows = visibleRows.slice(pageStart, pageStart + pageSize)
+          const pageWorkerIds = pageRows.map((row) => row.id)
+
+          const relatedSelectionsPromise = includeRelatedSelectionDetails
+            ? fetchRelatedActiveSelectionsByWorkerIds({
+                workerIds: pageWorkerIds,
+                lookupColorsByDomain: lookupColorsByDomainRef.current,
+                recruiterLabelsById: recruiterLabelsByIdRef.current,
+                includeDetails: true,
+                blockingOnly: false,
+              }).catch(() => ({
+                relatedSelectionsByWorkerId: new Map<
+                  string,
+                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
+                >(),
+                gate1BlockedWorkerIds: new Set<string>(),
+              }))
+            : Promise.resolve({
+                relatedSelectionsByWorkerId: new Map<
+                  string,
+                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
+                >(),
+                gate1BlockedWorkerIds: new Set<string>(),
+              })
+
+          const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
+            fetchWorkerAddressesByIds(pageWorkerIds),
+            relatedSelectionsPromise,
+          ])
+          if (requestId !== requestIdRef.current) return
+
+          setWorkerRows(pageRows)
+          setWorkerAddressesById(addressesByWorkerId)
+          setRelatedSelectionsByWorkerId(relatedSelectionsResult.relatedSelectionsByWorkerId)
+          setWorkersTotal(visibleRows.length)
+          lastLoadedListQueryKeyRef.current = queryKey
+          setSelectedWorkerId((previous) => {
+            if (previous && pageRows.some((row) => row.id === previous)) return previous
+            return pageRows[0]?.id ?? null
+          })
+          return
+        }
+
+        const gate2UserRpcFilters = buildGate1RpcFilters({
+          filters: debouncedQuery.filters,
+          gate1ProvinciaFilter,
+          gate1FollowupFilter,
+        })
+        const gate2StatusRpcFilters = buildGate2RpcStatusFilters(forcedWorkerStatus)
+        const gate2RpcFilters =
+          gate2UserRpcFilters && gate2StatusRpcFilters
+            ? [...gate2UserRpcFilters, ...gate2StatusRpcFilters]
+            : null
+        const canUseGate2Rpc =
+          !applyGate1BaseFilters &&
+          gate2RpcFilters !== null &&
+          debouncedQuery.sorting.length === 0
+
+        if (canUseGate2Rpc) {
+          if (shouldLoadSchema) {
+            void fetchLavoratori({
+              select: ["id"],
+              limit: 1,
+              offset: 0,
+              includeSchema: true,
+              orderBy: sortOrderBy,
+              search: debouncedQuery.searchValue.trim() || undefined,
+              searchFields: ["nome", "cognome", "email", "telefono"],
+              filters: workerBaseFilter,
+            })
+              .then((schemaResult) => {
+                if (requestId !== requestIdRef.current) return
+                if (schemaResult.columns.length === 0) return
+                workersSchemaLoadedRef.current = true
+                setWorkersColumns(schemaResult.columns)
+              })
+              .catch(() => {
+                // Non blocchiamo Gate 2 se lo schema filtri arriva in ritardo.
+              })
+          }
+
+          const result = await fetchGate2Lavoratori({
+            limit: pageSize,
+            offset: pageIndex * pageSize,
+            search: debouncedQuery.searchValue.trim() || undefined,
+            filters: gate2RpcFilters,
+          })
+          if (requestId !== requestIdRef.current) return
+
+          const pageRows = result.rows.map(asLavoratoreRecord)
+          const pageWorkerIds = pageRows.map((row) => row.id)
+          const relatedSelectionsPromise = includeRelatedSelectionDetails
+            ? fetchRelatedActiveSelectionsByWorkerIds({
+                workerIds: pageWorkerIds,
+                lookupColorsByDomain: lookupColorsByDomainRef.current,
+                recruiterLabelsById: recruiterLabelsByIdRef.current,
+                includeDetails: true,
+                blockingOnly: false,
+              }).catch(() => ({
+                relatedSelectionsByWorkerId: new Map<
+                  string,
+                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
+                >(),
+                gate1BlockedWorkerIds: new Set<string>(),
+              }))
+            : Promise.resolve({
+                relatedSelectionsByWorkerId: new Map<
+                  string,
+                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
+                >(),
+                gate1BlockedWorkerIds: new Set<string>(),
+              })
+
+          const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
+            fetchWorkerAddressesByIds(pageWorkerIds),
+            relatedSelectionsPromise,
+          ])
+          if (requestId !== requestIdRef.current) return
+
+          setWorkerRows(pageRows)
+          setWorkerAddressesById(addressesByWorkerId)
+          setRelatedSelectionsByWorkerId(relatedSelectionsResult.relatedSelectionsByWorkerId)
+          setWorkersTotal(result.total)
+          lastLoadedListQueryKeyRef.current = queryKey
+          setSelectedWorkerId((previous) => {
+            if (previous && pageRows.some((row) => row.id === previous)) return previous
+            return pageRows[0]?.id ?? null
+          })
+          return
+        }
+
+        const cercaRpcFilters = buildGate1RpcFilters({
+          filters: debouncedQuery.filters,
+          gate1ProvinciaFilter: "all",
+          gate1FollowupFilter: "all",
+        })
+        const canUseCercaRpc =
+          !applyGate1BaseFilters &&
+          !hasForcedWorkerStatus(forcedWorkerStatus) &&
+          cercaRpcFilters !== null &&
+          debouncedQuery.sorting.length === 0
+
+        if (canUseCercaRpc) {
+          if (shouldLoadSchema) {
+            void fetchLavoratori({
+              select: ["id"],
+              limit: 1,
+              offset: 0,
+              includeSchema: true,
+              orderBy: sortOrderBy,
+              search: debouncedQuery.searchValue.trim() || undefined,
+              searchFields: ["nome", "cognome", "email", "telefono"],
+              filters: workerBaseFilter,
+            })
+              .then((schemaResult) => {
+                if (requestId !== requestIdRef.current) return
+                if (schemaResult.columns.length === 0) return
+                workersSchemaLoadedRef.current = true
+                setWorkersColumns(schemaResult.columns)
+              })
+              .catch(() => {
+                // La lista resta usabile anche se lo schema filtri arriva in ritardo.
+              })
+          }
+
+          const result = await fetchCercaLavoratori({
+            limit: pageSize,
+            offset: pageIndex * pageSize,
+            search: debouncedQuery.searchValue.trim() || undefined,
+            filters: cercaRpcFilters,
+          })
+          if (requestId !== requestIdRef.current) return
+
+          const pageRows = result.rows.map(asLavoratoreRecord)
+          const pageWorkerIds = pageRows.map((row) => row.id)
+          const relatedSelectionsPromise = includeRelatedSelectionDetails
+            ? fetchRelatedActiveSelectionsByWorkerIds({
+                workerIds: pageWorkerIds,
+                lookupColorsByDomain: lookupColorsByDomainRef.current,
+                recruiterLabelsById: recruiterLabelsByIdRef.current,
+                includeDetails: true,
+                blockingOnly: false,
+              }).catch(() => ({
+                relatedSelectionsByWorkerId: new Map<
+                  string,
+                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
+                >(),
+                gate1BlockedWorkerIds: new Set<string>(),
+              }))
+            : Promise.resolve({
+                relatedSelectionsByWorkerId: new Map<
+                  string,
+                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
+                >(),
+                gate1BlockedWorkerIds: new Set<string>(),
+              })
+
+          const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
+            fetchWorkerAddressesByIds(pageWorkerIds),
+            relatedSelectionsPromise,
+          ])
+          if (requestId !== requestIdRef.current) return
+
+          setWorkerRows(pageRows)
+          setWorkerAddressesById(addressesByWorkerId)
+          setRelatedSelectionsByWorkerId(relatedSelectionsResult.relatedSelectionsByWorkerId)
+          setWorkersTotal(result.total)
+          lastLoadedListQueryKeyRef.current = queryKey
+          setSelectedWorkerId((previous) => {
+            if (previous && pageRows.some((row) => row.id === previous)) return previous
+            return pageRows[0]?.id ?? null
+          })
+          return
+        }
+
         const result = await fetchLavoratori({
           select: hasUserFilters ? undefined : WORKER_LIST_SELECT,
           limit: pageSize,
@@ -1084,11 +1647,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           orderBy: sortOrderBy,
           search: debouncedQuery.searchValue.trim() || undefined,
           searchFields: ["nome", "cognome", "email", "telefono"],
-          filters: buildWorkerBaseFilter({
-            baseFilters: debouncedQuery.filters,
-            forcedWorkerStatus,
-            applyGate1BaseFilters,
-          }),
+          filters: workerBaseFilter,
         })
         if (requestId !== requestIdRef.current) return
 
@@ -1177,6 +1736,8 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     applyGate1BaseFilters,
     debouncedQuery,
     forcedWorkerStatus,
+    gate1FollowupFilter,
+    gate1ProvinciaFilter,
     includeRelatedSelectionDetails,
     pageIndex,
     pageSize,

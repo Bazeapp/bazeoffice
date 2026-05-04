@@ -1,4 +1,5 @@
 import { invokeEdgeFunction } from "@/lib/supabase-edge"
+import { supabase } from "@/lib/supabase-client"
 import type { LookupValueRecord } from "@/types"
 import type { ChiusuraContrattoRecord } from "@/types/entities/chiusura-contratto"
 import type { ContributoInpsRecord } from "@/types/entities/contributo-inps"
@@ -151,6 +152,13 @@ type TableQueryRequest = {
   groupBy?: string[]
 }
 
+export type Gate1RpcFilter = {
+  field: string
+  operator: QueryFilterOperator
+  value?: string
+  valueTo?: string
+}
+
 type TablePageQuery = {
   limit: number
   offset: number
@@ -187,6 +195,7 @@ function normalizeTableResponse<TRecord>(
 }
 
 const TABLE_QUERY_CACHE_TTL_MS = 10_000
+const GATE_QUERY_CACHE_TTL_MS = 10_000
 const LOOKUP_VALUES_CACHE_TTL_MS = 5 * 60 * 1000
 
 type TableResponse<TRecord> = {
@@ -197,6 +206,13 @@ type TableResponse<TRecord> = {
 }
 
 const tableQueryCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<TableResponse<TableRow>>
+  }
+>()
+const gateQueryCache = new Map<
   string,
   {
     expiresAt: number
@@ -542,6 +558,77 @@ export async function fetchSelezioniLavoratori(query: TablePageQuery) {
     filters: query.filters,
     groupBy: query.groupBy,
   })
+}
+
+export async function fetchGate1Lavoratori(query: {
+  limit: number
+  offset: number
+  search?: string
+  filters?: Gate1RpcFilter[]
+}) {
+  return fetchGateLavoratoriRpc("gate1_lavoratori", query)
+}
+
+export async function fetchGate2Lavoratori(query: {
+  limit: number
+  offset: number
+  search?: string
+  filters?: Gate1RpcFilter[]
+}) {
+  return fetchGateLavoratoriRpc("gate2_lavoratori", query)
+}
+
+export async function fetchCercaLavoratori(query: {
+  limit: number
+  offset: number
+  search?: string
+  filters?: Gate1RpcFilter[]
+}) {
+  return fetchGateLavoratoriRpc("cerca_lavoratori", query)
+}
+
+async function fetchGateLavoratoriRpc(
+  functionName: "gate1_lavoratori" | "gate2_lavoratori" | "cerca_lavoratori",
+  query: {
+    limit: number
+    offset: number
+    search?: string
+    filters?: Gate1RpcFilter[]
+  }
+) {
+  const cacheKey = JSON.stringify({ functionName, ...query })
+  const now = Date.now()
+  const cached = gateQueryCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc(functionName, {
+      p_limit: query.limit,
+      p_offset: query.offset,
+      p_search: query.search ?? null,
+      p_filters: query.filters ?? [],
+    })
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(`${functionName} failed: ${error.message}`)
+    }
+
+    return normalizeTableResponse(data as TableQueryResponse<TableRow>)
+  })
+
+  gateQueryCache.set(cacheKey, {
+    expiresAt: now + GATE_QUERY_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    gateQueryCache.delete(cacheKey)
+    throw error
+  }
 }
 
 export async function fetchLookupValues() {

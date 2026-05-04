@@ -283,12 +283,11 @@ export function LavoratoreCard({
 
   const cardClassName = cn(
     worker.isBlacklisted && "opacity-55 saturate-0",
-    isActive && "ring-primary/35 ring-2",
   )
 
   if (variant === "gate1") {
     return (
-      <RecordCard onClick={onClick} className={cardClassName}>
+      <RecordCard onClick={onClick} selected={isActive} className={cardClassName}>
         <RecordCard.Header
           media={
             <WorkerAvatarMedia
@@ -326,7 +325,7 @@ export function LavoratoreCard({
   }
 
   return (
-    <RecordCard onClick={onClick} className={cardClassName}>
+    <RecordCard onClick={onClick} selected={isActive} className={cardClassName}>
       <RecordCard.Header
         media={
           <WorkerAvatarMedia

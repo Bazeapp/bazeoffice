@@ -181,7 +181,7 @@ function RapportoCard({
   return (
     <RecordCard
       onClick={onClick}
-      className={cn(isActive && "ring-primary/35 ring-2")}
+      selected={isActive}
     >
       <RecordCard.Header
         title={<span className="text-sm font-semibold">{rapporto.famigliaLabel}</span>}

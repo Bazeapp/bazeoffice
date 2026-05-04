@@ -7,6 +7,8 @@ import { FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+const EMPTY_SELECT_VALUE = "none"
+
 type LookupOption = {
   label: string
   value: string
@@ -89,14 +91,17 @@ export function AvailabilityStatusCard({
           {isEditing ? (
             <div className="max-w-xs">
               <Select
-                value={draft.disponibilita || undefined}
-                onValueChange={onDisponibilitaChange}
+                value={draft.disponibilita || EMPTY_SELECT_VALUE}
+                onValueChange={(value) =>
+                  onDisponibilitaChange(value === EMPTY_SELECT_VALUE ? "" : value)
+                }
                 disabled={isUpdating}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona stato" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
                   {disponibilitaOptions.map((option) => (
                     <SelectItem key={option.value} value={option.label}>
                       {option.label}

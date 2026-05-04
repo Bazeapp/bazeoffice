@@ -77,6 +77,8 @@ import { cn } from "@/lib/utils";
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore";
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore";
 
+const EMPTY_SELECT_VALUE = "none";
+
 type ExperienceDraft = {
   anni_esperienza_colf: string;
   anni_esperienza_badante: string;
@@ -520,9 +522,12 @@ function AddExperienceAction({
             <div className="space-y-2">
               <FieldLabel>Tipo rapporto</FieldLabel>
               <Select
-                value={draft.tipo_rapporto || undefined}
+                value={draft.tipo_rapporto || EMPTY_SELECT_VALUE}
                 onValueChange={(value) =>
-                  setDraft((current) => ({ ...current, tipo_rapporto: value }))
+                  setDraft((current) => ({
+                    ...current,
+                    tipo_rapporto: value === EMPTY_SELECT_VALUE ? "" : value,
+                  }))
                 }
                 disabled={disabled}
               >
@@ -530,6 +535,7 @@ function AddExperienceAction({
                   <SelectValue placeholder="Seleziona tipo rapporto" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
                   {experienceTipoRapportoOptions.map((option) => (
                     <SelectItem key={option.value} value={option.label}>
                       {option.label}
@@ -764,13 +770,14 @@ function EditableReferenceCard({
           </FieldLabel>
           <div className="max-w-sm">
             <Select
-              value={draft.referenza_verificata || undefined}
+              value={draft.referenza_verificata || EMPTY_SELECT_VALUE}
               onValueChange={(value) => {
+                const nextValue = value === EMPTY_SELECT_VALUE ? "" : value;
                 setDraft((current) => ({
                   ...current,
-                  referenza_verificata: value,
+                  referenza_verificata: nextValue,
                 }));
-                void onPatch(reference.id, { referenza_verificata: value });
+                void onPatch(reference.id, { referenza_verificata: nextValue });
               }}
               disabled={disabled}
             >
@@ -778,6 +785,7 @@ function EditableReferenceCard({
                 <SelectValue placeholder="Seleziona stato" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
                 {referenceStatusOptions.map((option) => (
                   <SelectItem key={option.value} value={option.label}>
                     {option.label}
@@ -1041,11 +1049,12 @@ function EditableExperienceCard({
                 Tipo rapporto
               </FieldLabel>
               <Select
-                value={draft.tipo_rapporto || undefined}
+                value={draft.tipo_rapporto || EMPTY_SELECT_VALUE}
                 onValueChange={(value) => {
-                  setDraft((current) => ({ ...current, tipo_rapporto: value }));
+                  const nextValue = value === EMPTY_SELECT_VALUE ? "" : value;
+                  setDraft((current) => ({ ...current, tipo_rapporto: nextValue }));
                   void onExperiencePatch(experience.id, {
-                    tipo_rapporto: value || null,
+                    tipo_rapporto: nextValue || null,
                   });
                 }}
                 disabled={disabled}
@@ -1054,6 +1063,7 @@ function EditableExperienceCard({
                   <SelectValue placeholder="Seleziona tipo rapporto" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
                   {experienceTipoRapportoOptions.map((option) => (
                     <SelectItem key={option.value} value={option.label}>
                       {option.label}
