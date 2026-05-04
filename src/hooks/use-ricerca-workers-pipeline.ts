@@ -259,6 +259,15 @@ function toNumberValue(value: unknown): number | null {
   return null
 }
 
+function parseAddressCoordinates(address: GenericRow | undefined) {
+  if (!address) return null
+  const lat = toNumberValue(address.latitudine)
+  const lng = toNumberValue(address.longitudine)
+  if (lat === null || lng === null) return null
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null
+  return { lat, lng }
+}
+
 function formatAddressLabel(address: GenericRow | undefined) {
   if (!address) return null
 
@@ -357,6 +366,7 @@ function buildWorkerListItem(
       "lavoratori.disponibilita",
       disponibilita
     ),
+    coordinates: parseAddressCoordinates(workerAddress),
     isDisponibile,
     isQualified: statusFlags.isQualified,
     isIdoneo: statusFlags.isIdoneo,
@@ -726,6 +736,8 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
         "cap",
         "citta",
         "note",
+        "latitudine",
+        "longitudine",
       ],
       limit: Math.max(batch.length * 2, batch.length),
       offset: 0,
@@ -969,6 +981,7 @@ async function fetchWorkersPipelineData(
           statoLavoratoreColor: null,
           disponibilita: null,
           disponibilitaColor: null,
+          coordinates: null,
           isDisponibile: null,
           isQualified: false,
           isIdoneo: false,

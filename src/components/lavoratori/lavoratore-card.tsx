@@ -66,6 +66,10 @@ export type LavoratoreListItem = {
   statoLavoratoreColor: string | null
   disponibilita: string | null
   disponibilitaColor: string | null
+  coordinates?: {
+    lat: number
+    lng: number
+  } | null
   isDisponibile: boolean | null
   isQualified: boolean
   isIdoneo: boolean

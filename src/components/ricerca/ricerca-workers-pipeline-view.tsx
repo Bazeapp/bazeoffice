@@ -732,7 +732,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
           <Accordion
             type="multiple"
             defaultValue={groups.map((group) => group.key)}
-            className="gap-1.5"
+            className="-mx-3 gap-1.5"
           >
             {groups.map((group) => {
               const groupStatusId = resolveGroupDropStatusId(column, group);
@@ -748,11 +748,11 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
                 <AccordionItem
                   key={group.key}
                   value={group.key}
-                  className="not-last:border-0 bg-transparent"
+                  className="not-last:border-0 rounded-none bg-transparent shadow-none data-[state=open]:shadow-none"
                 >
                   <AccordionTrigger
                     className={cn(
-                      "py-1.5 text-sm font-semibold no-underline hover:no-underline",
+                      "px-1.5 py-1.5 text-sm font-semibold no-underline hover:bg-transparent hover:no-underline",
                       getLookupToneTextClassName(groupColor),
                     )}
                   >
@@ -768,7 +768,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
                       </span>
                     </span>
                   </AccordionTrigger>
-                  <AccordionContent className="space-y-2 pt-1">
+                  <AccordionContent className="space-y-2 border-t-0 px-1.5 pt-1">
                     {groupCards.length === 0 ? (
                       <div className="text-muted-foreground rounded-md border border-dashed border-border/60 p-2 text-xs">
                         Nessun lavoratore

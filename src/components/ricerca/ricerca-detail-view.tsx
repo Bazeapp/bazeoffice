@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { RicercaWorkersPipelineView } from "@/components/ricerca/ricerca-workers-pipeline-view";
+import { RicercaWorkersMapView } from "@/components/ricerca/ricerca-workers-map-view";
 import { CardMetaRow } from "@/components/shared-next/card-meta-row";
 import {
   Accordion,
@@ -75,6 +76,7 @@ type ExtendedCardData = CrmPipelineCardData &
     richiestaAutonomia: string;
     datoreSpessoPresente: string;
     richiestaDiscrezione: string;
+    geocode: string;
     descrizioneRichiestaTrasferte: string;
     descrizioneRichiestaFerie: string;
     indirizzoCompleto: string;
@@ -409,6 +411,7 @@ export function RicercaDetailView({
           ]
             .filter((item): item is string => Boolean(item))
             .join(", "),
+          geocode: displayValue(processRow.geocode),
           srcEmbedMapsAnnucio: displayValue(processRow.src_embed_maps_annucio),
           deadlineMobile: formatItalianDate(processRow.deadline_mobile),
           disponibilitaColloquiInPresenza: displayValue(
@@ -1083,17 +1086,12 @@ export function RicercaDetailView({
                 value="mappa"
                 className="m-0 flex min-h-0 flex-1 flex-col overflow-hidden"
               >
-                <div className="flex h-full min-h-0 flex-1 items-center justify-center rounded-lg border border-border-subtle bg-surface shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]">
-                  <div className="text-center">
-                    <MapIcon className="text-muted-foreground/40 mx-auto mb-3 size-10" />
-                    <p className="text-foreground text-sm font-medium">
-                      Vista mappa
-                    </p>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      Disponibile prossimamente
-                    </p>
-                  </div>
-                </div>
+                <RicercaWorkersMapView
+                  className="min-h-0 flex-1 shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]"
+                  processId={currentProcessId}
+                  searchGeocode={resolvedCard.geocode}
+                  searchMapsEmbed={resolvedCard.srcEmbedMapsAnnucio}
+                />
               </TabsContent>
             </div>
           </div>
