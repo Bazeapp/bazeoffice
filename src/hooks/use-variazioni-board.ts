@@ -124,6 +124,8 @@ const VARIAZIONI_SELECT = [
   "variazione_da_applicare",
 ] satisfies string[]
 
+const RELATED_RECORDS_BATCH_SIZE = 100
+
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
     .trim()
@@ -162,6 +164,78 @@ function formatItalianDate(value: unknown) {
     month: "2-digit",
     year: "numeric",
   }).format(parsed)
+}
+
+function uniqueStrings(values: Array<string | null>) {
+  return Array.from(new Set(values.filter(Boolean))) as string[]
+}
+
+function chunkArray<T>(values: T[], size: number) {
+  const chunks: T[][] = []
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size))
+  }
+  return chunks
+}
+
+async function fetchFamiglieByIds(ids: string[]) {
+  if (ids.length === 0) return [] as GenericRow[]
+
+  const results = await Promise.all(
+    chunkArray(ids, RELATED_RECORDS_BATCH_SIZE).map((chunk, index) =>
+      fetchFamiglie({
+        select: VARIAZIONI_FAMIGLIE_SELECT,
+        limit: chunk.length,
+        offset: 0,
+        filters: {
+          kind: "group",
+          id: `variazioni-famiglie-root-${index}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `variazioni-famiglie-id-${index}`,
+              field: "id",
+              operator: "in",
+              value: chunk.join(","),
+            },
+          ],
+        },
+      })
+    )
+  )
+
+  return results.flatMap((result) => result.rows as GenericRow[])
+}
+
+async function fetchLavoratoriByIds(ids: string[]) {
+  if (ids.length === 0) return [] as GenericRow[]
+
+  const results = await Promise.all(
+    chunkArray(ids, RELATED_RECORDS_BATCH_SIZE).map((chunk, index) =>
+      fetchLavoratori({
+        select: VARIAZIONI_LAVORATORI_SELECT,
+        limit: chunk.length,
+        offset: 0,
+        filters: {
+          kind: "group",
+          id: `variazioni-lavoratori-root-${index}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `variazioni-lavoratori-id-${index}`,
+              field: "id",
+              operator: "in",
+              value: chunk.join(","),
+            },
+          ],
+        },
+      })
+    )
+  )
+
+  return results.flatMap((result) => result.rows as GenericRow[])
 }
 
 function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
@@ -238,58 +312,24 @@ async function fetchVariazioniBoardData(): Promise<{
     stages.map((stage) => [stage.id, []])
   )
   const rapportoById = new Map(rapportiResult.rows.map((rapporto) => [rapporto.id, rapporto]))
-  const famigliaIds = Array.from(
-    new Set(rapportiResult.rows.map((rapporto) => toStringValue(rapporto.famiglia_id)).filter(Boolean)),
-  ) as string[]
-  const lavoratoreIds = Array.from(
-    new Set(rapportiResult.rows.map((rapporto) => toStringValue(rapporto.lavoratore_id)).filter(Boolean)),
-  ) as string[]
-  const [famiglieResult, lavoratoriResult] = await Promise.all([
-    famigliaIds.length > 0
-      ? fetchFamiglie({
-          select: VARIAZIONI_FAMIGLIE_SELECT,
-          limit: famigliaIds.length,
-          offset: 0,
-          filters: {
-            kind: "group",
-            id: "variazioni-famiglie-root",
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: "variazioni-famiglie-id",
-                field: "id",
-                operator: "in",
-                value: famigliaIds.join(","),
-              },
-            ],
-          },
-        })
-      : Promise.resolve({ rows: [] as GenericRow[], total: 0, columns: [], groups: [] }),
-    lavoratoreIds.length > 0
-      ? fetchLavoratori({
-          select: VARIAZIONI_LAVORATORI_SELECT,
-          limit: lavoratoreIds.length,
-          offset: 0,
-          filters: {
-            kind: "group",
-            id: "variazioni-lavoratori-root",
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: "variazioni-lavoratori-id",
-                field: "id",
-                operator: "in",
-                value: lavoratoreIds.join(","),
-              },
-            ],
-          },
-        })
-      : Promise.resolve({ rows: [] as GenericRow[], total: 0, columns: [], groups: [] }),
+  const variationRapportoIds = uniqueStrings(
+    variazioniResult.rows.map((record) => toStringValue(record.rapporto_lavorativo_id))
+  )
+  const variationRapporti = variationRapportoIds
+    .map((id) => rapportoById.get(id))
+    .filter(Boolean) as RapportoLavorativoRecord[]
+  const famigliaIds = uniqueStrings(
+    variationRapporti.map((rapporto) => toStringValue(rapporto.famiglia_id))
+  )
+  const lavoratoreIds = uniqueStrings(
+    variationRapporti.map((rapporto) => toStringValue(rapporto.lavoratore_id))
+  )
+  const [famiglieRows, lavoratoriRows] = await Promise.all([
+    fetchFamiglieByIds(famigliaIds),
+    fetchLavoratoriByIds(lavoratoreIds),
   ])
-  const famigliaById = new Map(famiglieResult.rows.map((famiglia) => [toStringValue(famiglia.id), famiglia]))
-  const lavoratoreById = new Map(lavoratoriResult.rows.map((lavoratore) => [toStringValue(lavoratore.id), lavoratore]))
+  const famigliaById = new Map(famiglieRows.map((famiglia) => [toStringValue(famiglia.id), famiglia]))
+  const lavoratoreById = new Map(lavoratoriRows.map((lavoratore) => [toStringValue(lavoratore.id), lavoratore]))
 
   for (const record of variazioniResult.rows) {
     const stage = aliases.get(normalizeToken(record.stato))
