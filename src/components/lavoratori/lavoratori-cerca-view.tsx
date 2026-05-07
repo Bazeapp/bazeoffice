@@ -40,6 +40,8 @@ import {
   asInputValue,
   asString,
   formatWorkerAddressLine,
+  normalizeDomesticRoleDbLabels,
+  normalizeDomesticRoleLookupValues,
   readArrayStrings,
 } from "@/features/lavoratori/lib/base-utils";
 import {
@@ -550,14 +552,20 @@ function NonQualificatoTipoLavoroField({
   onChange,
 }: NonQualificatoTipoLavoroFieldProps) {
   const anchor = useComboboxAnchor();
+  const normalizedValue = React.useMemo(
+    () => normalizeDomesticRoleLookupValues(value, options),
+    [options, value],
+  );
 
   return (
     <Combobox
       multiple
       autoHighlight
       items={options.map((option) => option.value)}
-      value={value}
-      onValueChange={(nextValues) => onChange(nextValues as string[])}
+      value={normalizedValue}
+      onValueChange={(nextValues) =>
+        onChange(normalizeDomesticRoleDbLabels(nextValues as string[]))
+      }
       disabled={disabled}
     >
       <ComboboxChips ref={anchor} className="w-full">
@@ -616,6 +624,7 @@ export function LavoratoriCercaView({
     lookupOptionsByDomain,
     lookupColorsByDomain,
     filterFields,
+    loadWorkersSchema,
     table,
     searchValue,
     setSearchValue,
@@ -1617,6 +1626,7 @@ export function LavoratoriCercaView({
         deleteSavedView={deleteSavedView}
         applyFilters={applyFilters}
         hasPendingFilters={hasPendingFilters}
+        onRequestSchema={loadWorkersSchema}
         currentPage={currentPage}
         pageCount={pageCount}
         setPageIndex={setPageIndex}

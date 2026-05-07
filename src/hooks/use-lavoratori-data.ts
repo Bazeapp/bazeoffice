@@ -67,7 +67,7 @@ const WORKER_LIST_SELECT = [
   "cognome",
   "email",
   "telefono",
-  "permalink_foto",
+  "foto",
   "check_blacklist",
   "stato_lavoratore",
   "disponibilita",
@@ -86,6 +86,7 @@ const WORKER_LIST_SELECT = [
   "creato_il",
   "aggiornato_il",
 ]
+const WORKER_LIST_DATA_VERSION = "worker-list-foto-v1"
 
 const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
   "selezionato",
@@ -470,6 +471,7 @@ function buildWorkerListItem(
   const baseItem = toListItem(row, {
     isBlacklisted: isBlacklistValue(row.check_blacklist),
     statusFlags,
+    useThumbnailAvatar: true,
   })
   const workerAddress = resolveWorkerAddress(row.id, addressesByWorkerId)
   const statoLavoratore = asString(row.stato_lavoratore) || null
@@ -1132,6 +1134,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   })
   const [workers, setWorkers] = React.useState<LavoratoreListItem[]>([])
   const [workerRows, setWorkerRows] = React.useState<LavoratoreRecord[]>([])
+  const workerRowsRef = React.useRef<LavoratoreRecord[]>([])
   const [selectedWorkerRow, setSelectedWorkerRow] =
     React.useState<LavoratoreRecord | null>(null)
   const [relatedSelectionsByWorkerId, setRelatedSelectionsByWorkerId] = React.useState<
@@ -1173,6 +1176,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   const [pageSize] = React.useState(DEFAULT_PAGE_SIZE)
   const requestIdRef = React.useRef(0)
   const workersSchemaLoadedRef = React.useRef(false)
+  const workersSchemaLoadingRef = React.useRef(false)
   const lastLoadedListQueryKeyRef = React.useRef<string | null>(null)
   const inFlightListQueryKeyRef = React.useRef<string | null>(null)
   const {
@@ -1212,8 +1216,36 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   }, [recruiterLabelsById])
 
   React.useEffect(() => {
+    workerRowsRef.current = workerRows
+  }, [workerRows])
+
+  React.useEffect(() => {
     setPageIndex(0)
   }, [filters, gate1FollowupFilter, gate1ProvinciaFilter, searchValue, sorting])
+
+  const loadWorkersSchema = React.useCallback(() => {
+    if (workersSchemaLoadedRef.current || workersSchemaLoadingRef.current) return
+
+    workersSchemaLoadingRef.current = true
+    void fetchLavoratori({
+      select: ["id"],
+      limit: 1,
+      offset: 0,
+      includeSchema: true,
+      orderBy: [{ field: "id", ascending: true }],
+    })
+      .then((schemaResult) => {
+        if (schemaResult.columns.length === 0) return
+        workersSchemaLoadedRef.current = true
+        setWorkersColumns(schemaResult.columns)
+      })
+      .catch(() => {
+        // I filtri avanzati restano apribili anche se lo schema arriva in ritardo.
+      })
+      .finally(() => {
+        workersSchemaLoadingRef.current = false
+      })
+  }, [])
 
   React.useEffect(() => {
     let isCancelled = false
@@ -1252,6 +1284,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         gate1FollowupFilter,
         gate1ProvinciaFilter,
         includeRelatedSelectionDetails,
+        listDataVersion: WORKER_LIST_DATA_VERSION,
         offset: pageIndex * pageSize,
         pageSize,
         search: debouncedQuery.searchValue.trim(),
@@ -1331,8 +1364,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           }
 
           if (canUseGate1Rpc) {
-            loadGate1SchemaInBackground()
-
             const result = await fetchGate1Lavoratori({
               limit: pageSize,
               offset: pageIndex * pageSize,
@@ -1483,28 +1514,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           debouncedQuery.sorting.length === 0
 
         if (canUseGate2Rpc) {
-          if (shouldLoadSchema) {
-            void fetchLavoratori({
-              select: ["id"],
-              limit: 1,
-              offset: 0,
-              includeSchema: true,
-              orderBy: sortOrderBy,
-              search: debouncedQuery.searchValue.trim() || undefined,
-              searchFields: ["nome", "cognome", "email", "telefono"],
-              filters: workerBaseFilter,
-            })
-              .then((schemaResult) => {
-                if (requestId !== requestIdRef.current) return
-                if (schemaResult.columns.length === 0) return
-                workersSchemaLoadedRef.current = true
-                setWorkersColumns(schemaResult.columns)
-              })
-              .catch(() => {
-                // Non blocchiamo Gate 2 se lo schema filtri arriva in ritardo.
-              })
-          }
-
           const result = await fetchGate2Lavoratori({
             limit: pageSize,
             offset: pageIndex * pageSize,
@@ -1567,28 +1576,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           debouncedQuery.sorting.length === 0
 
         if (canUseCercaRpc) {
-          if (shouldLoadSchema) {
-            void fetchLavoratori({
-              select: ["id"],
-              limit: 1,
-              offset: 0,
-              includeSchema: true,
-              orderBy: sortOrderBy,
-              search: debouncedQuery.searchValue.trim() || undefined,
-              searchFields: ["nome", "cognome", "email", "telefono"],
-              filters: workerBaseFilter,
-            })
-              .then((schemaResult) => {
-                if (requestId !== requestIdRef.current) return
-                if (schemaResult.columns.length === 0) return
-                workersSchemaLoadedRef.current = true
-                setWorkersColumns(schemaResult.columns)
-              })
-              .catch(() => {
-                // La lista resta usabile anche se lo schema filtri arriva in ritardo.
-              })
-          }
-
           const result = await fetchCercaLavoratori({
             limit: pageSize,
             offset: pageIndex * pageSize,
@@ -1762,7 +1749,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         return
       }
 
-      const listRow = workerRows.find((row) => row.id === selectedWorkerId) ?? null
+      const listRow = workerRowsRef.current.find((row) => row.id === selectedWorkerId) ?? null
       setSelectedWorkerRow(listRow)
 
       try {
@@ -1799,7 +1786,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     return () => {
       isCancelled = true
     }
-  }, [selectedWorkerId, workerRows])
+  }, [selectedWorkerId])
 
   const filterFields = React.useMemo<FilterField[]>(() => {
     return workersColumns.map((column) => {
@@ -2109,6 +2096,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     lookupFilterTypeByDomain,
     lookupColorsByDomain,
     filterFields,
+    loadWorkersSchema,
     table,
     searchValue,
     setSearchValue,

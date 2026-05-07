@@ -116,3 +116,28 @@ export function attachmentPathToPublicUrl(path: string) {
 
   return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/${normalizedPath}`
 }
+
+export function attachmentPathToPublicImageRenderUrl(
+  path: string,
+  options: {
+    width?: number
+    height?: number
+    quality?: number
+    resize?: "cover" | "contain" | "fill"
+  } = {},
+) {
+  const normalizedPath = path.trim().replace(/^\/+/, "")
+  if (!normalizedPath) return null
+
+  const supabaseUrl = asTrimmedString(import.meta.env.VITE_SUPABASE_URL)
+  if (!supabaseUrl) return null
+
+  const params = new URLSearchParams({
+    width: String(options.width ?? 96),
+    height: String(options.height ?? 96),
+    resize: options.resize ?? "cover",
+    quality: String(options.quality ?? 60),
+  })
+
+  return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/render/image/public/${normalizedPath}?${params.toString()}`
+}

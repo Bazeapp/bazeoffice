@@ -9,6 +9,7 @@ import {
   getDefaultWorkerAvatar,
   normalizeDomesticRoleLabels,
   readArrayStrings,
+  toAvatarThumbnailUrl,
   toAvatarUrl,
 } from "@/features/lavoratori/lib/base-utils"
 import {
@@ -333,7 +334,7 @@ function buildWorkerListItem(
   return {
     id: workerId,
     nomeCompleto: `${nome} ${cognome}`.trim() || workerId,
-    immagineUrl: toAvatarUrl(worker) ?? getDefaultWorkerAvatar(workerId),
+    immagineUrl: toAvatarThumbnailUrl(worker) ?? toAvatarUrl(worker) ?? getDefaultWorkerAvatar(workerId),
     travelTimeMinutes: null,
     locationLabel: formatAddressLabel(workerAddress) ?? asString(worker.cap) ?? null,
     telefono: asString(worker.telefono) || null,

@@ -18,6 +18,7 @@ import {
   readAvailabilitySlots,
 } from "@/features/lavoratori/lib/availability-utils"
 import {
+  attachmentPathToPublicImageRenderUrl,
   attachmentPathToPublicUrl,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
@@ -30,6 +31,7 @@ import {
   getAgeFromBirthDate,
   parseNumberValue,
   readArrayStrings,
+  shouldDisableWorkerImages,
   toPublicAssetUrl,
 } from "@/features/lavoratori/lib/base-utils"
 import { parseRecruiterFeedback } from "@/features/lavoratori/lib/feedback-utils"
@@ -387,15 +389,28 @@ export function useSelectedWorkerEditor({
     [availabilityPayload]
   )
   const presentationPhotoSlots = React.useMemo(() => {
+    const defaults = DEFAULT_WORKER_AVATARS.map((fileName) => toPublicAssetUrl(fileName))
+
+    if (shouldDisableWorkerImages()) {
+      return defaults
+    }
+
     const uploadedPhotoUrls = normalizeAttachmentArray(selectedWorkerRow?.foto)
-      .map((item) => attachmentPathToPublicUrl(item.path))
+      .map(
+        (item) =>
+          attachmentPathToPublicImageRenderUrl(item.path, {
+            width: 480,
+            height: 480,
+            quality: 65,
+            resize: "contain",
+          }) ?? attachmentPathToPublicUrl(item.path)
+      )
       .filter((value): value is string => Boolean(value))
 
     if (uploadedPhotoUrls.length > 0) {
       return uploadedPhotoUrls
     }
 
-    const defaults = DEFAULT_WORKER_AVATARS.map((fileName) => toPublicAssetUrl(fileName))
     if (selectedWorker?.immagineUrl) {
       return [
         selectedWorker.immagineUrl,

@@ -138,10 +138,22 @@ const PAYROLL_PAGAMENTI_SELECT = [
   "type_of_payment",
 ] satisfies string[]
 
+const PRESENZE_DAY_SELECT = Array.from({ length: 31 }, (_, index) => {
+  const day = index + 1
+  return [
+    `tipo_day_${day}`,
+    `ore_day_${day}`,
+    `evento_day_${day}`,
+    `codice_malattia_day_${day}`,
+    `note_day_${day}`,
+  ]
+}).flat()
+
 const PAYROLL_PRESENZE_SELECT = [
   "id",
   "presenze_mensili",
   "data_ora_creazione",
+  ...PRESENZE_DAY_SELECT,
 ] satisfies string[]
 
 function normalizeToken(value: string | null | undefined) {

@@ -33,6 +33,7 @@ type LavoratoriCercaListPanelProps = {
   deleteSavedView: (viewId: string) => void
   applyFilters: () => void
   hasPendingFilters: boolean
+  onRequestSchema: () => void
   currentPage: number
   pageCount: number
   setPageIndex: React.Dispatch<React.SetStateAction<number>>
@@ -58,6 +59,7 @@ export function LavoratoriCercaListPanel({
   deleteSavedView,
   applyFilters,
   hasPendingFilters,
+  onRequestSchema,
   currentPage,
   pageCount,
   setPageIndex,
@@ -92,6 +94,7 @@ export function LavoratoriCercaListPanel({
           onDeleteSavedView={deleteSavedView}
           onApplyFilters={applyFilters}
           hasPendingFilters={hasPendingFilters}
+          onRequestSchema={onRequestSchema}
         />
 
         {loading ? (

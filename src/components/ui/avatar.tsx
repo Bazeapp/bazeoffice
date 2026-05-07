@@ -73,7 +73,13 @@ export const Avatar = React.forwardRef<
         {...props}
       >
         {src ? (
-          <AvatarPrimitive.Image src={src} alt={alt ?? ""} className="h-full w-full object-cover" />
+          <AvatarPrimitive.Image
+            src={src}
+            alt={alt ?? ""}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
         ) : null}
         <AvatarPrimitive.Fallback
           className={cn(

@@ -386,6 +386,8 @@ export function WorkerProfileHeader({
                           <img
                             src={photoUrl}
                             alt={`Foto profilo ${index + 1}`}
+                            loading={index === 0 ? "eager" : "lazy"}
+                            decoding="async"
                             className="h-full w-full object-contain"
                           />
                           {onSelectedPresentationPhotoIndexChange ? (

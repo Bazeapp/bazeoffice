@@ -81,6 +81,9 @@ import {
   asLavoratoreRecord,
   asInputValue,
   asString,
+  normalizeDomesticRoleDbLabels,
+  normalizeDomesticRoleLabels,
+  normalizeDomesticRoleLookupValues,
   parseNumberValue,
   readArrayStrings,
 } from "@/features/lavoratori/lib/base-utils";
@@ -181,11 +184,12 @@ function includesBabysitterType(
   values: string[],
   options: Array<{ label: string; value: string }>,
 ) {
-  return values.some((value) => {
-    const label =
-      options.find((option) => option.value === value)?.label ?? value;
-    return label.toLowerCase().includes("babysitter");
-  });
+  return normalizeDomesticRoleLabels(values).some((label) => label === "Tata")
+    || normalizeDomesticRoleLookupValues(values, options).some((value) => {
+      const label =
+        options.find((option) => option.value === value)?.label ?? value;
+      return label.toLowerCase().includes("babysitter");
+    });
 }
 
 function GateInfoCard({
@@ -758,14 +762,20 @@ function GateAllowedWorkField({
   onChange: (values: string[]) => void;
 }) {
   const anchor = useComboboxAnchor();
+  const normalizedValue = React.useMemo(
+    () => normalizeDomesticRoleLookupValues(value, options),
+    [options, value],
+  );
 
   return (
     <Combobox
       multiple
       autoHighlight
       items={options.map((option) => option.value)}
-      value={value}
-      onValueChange={(nextValues) => onChange(nextValues as string[])}
+      value={normalizedValue}
+      onValueChange={(nextValues) =>
+        onChange(normalizeDomesticRoleDbLabels(nextValues as string[]))
+      }
     >
       <ComboboxChips ref={anchor} className="w-full">
         <ComboboxValue>
@@ -881,13 +891,8 @@ function GateWorkTypesCard({
   >[0]["onReferenceCreate"];
 }) {
   const allowedWorkLabels = React.useMemo(
-    () =>
-      allowedWorks.map(
-        (value) =>
-          allowedWorkOptions.find((option) => option.value === value)?.label ??
-          value,
-      ),
-    [allowedWorkOptions, allowedWorks],
+    () => normalizeDomesticRoleLabels(allowedWorks),
+    [allowedWorks],
   );
 
   return (
@@ -2619,6 +2624,7 @@ export function Gate1View({
     lookupOptionsByDomain,
     lookupColorsByDomain,
     filterFields,
+    loadWorkersSchema,
     table,
     searchValue,
     setSearchValue,
@@ -3631,6 +3637,7 @@ export function Gate1View({
               onDeleteSavedView={deleteSavedView}
               onApplyFilters={applyFilters}
               hasPendingFilters={hasPendingFilters}
+              onRequestSchema={loadWorkersSchema}
             />
 
             <div className="flex flex-col gap-3">

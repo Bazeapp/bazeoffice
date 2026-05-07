@@ -1,6 +1,7 @@
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import { type LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import {
+  attachmentPathToPublicImageRenderUrl,
   attachmentPathToPublicUrl,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
@@ -97,10 +98,65 @@ export function normalizeDomesticRoleLabel(value: string) {
   return value.trim()
 }
 
+function getDomesticRoleKind(value: string) {
+  const label = normalizeDomesticRoleLabel(value)
+  if (label === "Badante") return "badante"
+  if (label === "Tata") return "tata"
+  if (label === "Colf") return "colf"
+  return null
+}
+
 export function normalizeDomesticRoleLabels(values: string[]) {
   const result: string[] = []
   for (const value of values) {
     const normalized = normalizeDomesticRoleLabel(value)
+    if (!normalized) continue
+    if (!result.includes(normalized)) result.push(normalized)
+  }
+  return result
+}
+
+export function normalizeDomesticRoleLookupValue(
+  value: string,
+  options: Array<{ label: string; value: string }>
+) {
+  const valueKind = getDomesticRoleKind(value)
+  if (!valueKind) return value.trim()
+
+  return (
+    options.find(
+      (option) =>
+        getDomesticRoleKind(option.value) === valueKind ||
+        getDomesticRoleKind(option.label) === valueKind
+    )?.value ?? value.trim()
+  )
+}
+
+export function normalizeDomesticRoleLookupValues(
+  values: string[],
+  options: Array<{ label: string; value: string }>
+) {
+  const result: string[] = []
+  for (const value of values) {
+    const normalized = normalizeDomesticRoleLookupValue(value, options)
+    if (!normalized) continue
+    if (!result.includes(normalized)) result.push(normalized)
+  }
+  return result
+}
+
+export function normalizeDomesticRoleDbLabel(value: string) {
+  const normalized = normalizeDomesticRoleLabel(value)
+  if (normalized === "Badante") return "Assistenza Domestica / Badante"
+  if (normalized === "Tata") return "Babysitter / Tata-Colf"
+  if (normalized === "Colf") return "Colf / Pulizie"
+  return value.trim()
+}
+
+export function normalizeDomesticRoleDbLabels(values: string[]) {
+  const result: string[] = []
+  for (const value of values) {
+    const normalized = normalizeDomesticRoleDbLabel(value)
     if (!normalized) continue
     if (!result.includes(normalized)) result.push(normalized)
   }
@@ -178,6 +234,25 @@ export function toAvatarUrl(row: Record<string, unknown>) {
   )
 }
 
+export function toAvatarThumbnailUrl(row: Record<string, unknown>) {
+  for (const foto of normalizeAttachmentArray(row.foto)) {
+    const resolved = attachmentPathToPublicImageRenderUrl(foto.path, {
+      width: 72,
+      height: 72,
+      quality: 50,
+      resize: "cover",
+    })
+    if (resolved) return resolved
+  }
+
+  return toAvatarUrl(row)
+}
+
+export function shouldDisableWorkerImages() {
+  if (typeof window === "undefined") return false
+  return new URLSearchParams(window.location.search).get("noWorkerImages") === "1"
+}
+
 function hashString(input: string) {
   let hash = 0
   for (let index = 0; index < input.length; index += 1) {
@@ -247,10 +322,15 @@ export function toListItem(
   options: {
     isBlacklisted: boolean
     statusFlags: Pick<LavoratoreListItem, "isQualified" | "isIdoneo" | "isCertificato">
+    useThumbnailAvatar?: boolean
   }
 ): LavoratoreListItem {
   const workerId = asString(row.id)
-  const imageUrl = toAvatarUrl(row)
+  const imageUrl = shouldDisableWorkerImages()
+    ? null
+    : options.useThumbnailAvatar
+      ? toAvatarThumbnailUrl(row)
+      : toAvatarUrl(row)
   const normalizedDomesticRoles = normalizeDomesticRoleLabels(readArrayStrings(row.tipo_lavoro_domestico))
   const firstDomesticRole = normalizedDomesticRoles[0] ?? null
 

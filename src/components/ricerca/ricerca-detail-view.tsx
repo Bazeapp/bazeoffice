@@ -1091,6 +1091,8 @@ export function RicercaDetailView({
                   processId={currentProcessId}
                   searchGeocode={resolvedCard.geocode}
                   searchMapsEmbed={resolvedCard.srcEmbedMapsAnnucio}
+                  jobRole={resolvedCard.tipoLavoroBadge}
+                  weeklyDays={resolvedCard.giorniSettimana}
                 />
               </TabsContent>
             </div>

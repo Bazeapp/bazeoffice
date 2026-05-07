@@ -15,6 +15,10 @@ import {
 } from "@/components/ui/combobox"
 import { FieldLabel } from "@/components/ui/field"
 import {
+  normalizeDomesticRoleDbLabels,
+  normalizeDomesticRoleLookupValue,
+} from "@/features/lavoratori/lib/base-utils"
+import {
   getTagClassName,
   normalizeLookupToken,
   resolveLookupColor,
@@ -55,32 +59,9 @@ function sortValuesByOptionOrder(values: string[], options: LookupOption[]) {
   })
 }
 
-function getDomesticWorkKind(value: string) {
-  const token = normalizeLookupToken(value)
-  if (token.includes("badante") || token.includes("assistenza")) return "badante"
-  if (token.includes("babysitter") || token.includes("baby sitter") || token.includes("tata")) {
-    return "tata"
-  }
-  if (token.includes("colf") || token.includes("pulizie")) return "colf"
-  return null
-}
-
-function normalizeDomesticWorkValue(value: string, options: LookupOption[]) {
-  const valueKind = getDomesticWorkKind(value)
-  if (!valueKind) return value
-
-  return (
-    options.find(
-      (option) =>
-        getDomesticWorkKind(option.value) === valueKind ||
-        getDomesticWorkKind(option.label) === valueKind
-    )?.value ?? value
-  )
-}
-
 function normalizeValueForField(field: WorkerShiftPreferenceField, value: string) {
   if (field.domain === "lavoratori.tipo_lavoro_domestico") {
-    return normalizeDomesticWorkValue(value, field.options)
+    return normalizeDomesticRoleLookupValue(value, field.options)
   }
   return value
 }
@@ -93,6 +74,13 @@ function normalizeValuesForField(field: WorkerShiftPreferenceField) {
 
 function getOptionLabel(options: LookupOption[], value: string) {
   return options.find((option) => option.value === value)?.label ?? value
+}
+
+function normalizeChangeValuesForField(field: WorkerShiftPreferenceField, values: string[]) {
+  if (field.domain === "lavoratori.tipo_lavoro_domestico") {
+    return normalizeDomesticRoleDbLabels(values)
+  }
+  return values
 }
 
 function MultiSelectField({
@@ -174,9 +162,12 @@ export function WorkerShiftPreferencesFields({
                 placeholder={field.placeholder}
                 onChange={(nextValues) =>
                   field.onChange(
-                    field.sortByOptionOrder
-                      ? sortValuesByOptionOrder(nextValues, field.options)
-                      : nextValues
+                    normalizeChangeValuesForField(
+                      field,
+                      field.sortByOptionOrder
+                        ? sortValuesByOptionOrder(nextValues, field.options)
+                        : nextValues
+                    )
                   )
                 }
               />

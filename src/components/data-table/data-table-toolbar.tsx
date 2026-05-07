@@ -66,6 +66,7 @@ type DataTableToolbarProps<TData> = {
   compactControls?: boolean;
   onApplyFilters?: () => void;
   hasPendingFilters?: boolean;
+  onRequestSchema?: () => void;
 };
 
 function getColumnLabel(column: {
@@ -124,6 +125,7 @@ export function DataTableToolbar<TData>({
   compactControls = false,
   onApplyFilters,
   hasPendingFilters = false,
+  onRequestSchema,
 }: DataTableToolbarProps<TData>) {
   const [viewName, setViewName] = React.useState("");
   const [localSearchValue, setLocalSearchValue] = React.useState(searchValue);
@@ -227,6 +229,11 @@ export function DataTableToolbar<TData>({
     table.setGrouping(
       grouping.filter((_, currentIndex) => currentIndex !== index),
     );
+  }
+
+  function requestSchemaOnOpen(open: boolean) {
+    if (!open) return;
+    onRequestSchema?.();
   }
 
   return (
@@ -356,7 +363,7 @@ export function DataTableToolbar<TData>({
 
           <Separator orientation="vertical" className="mx-1 hidden h-6 md:block" />
 
-          <Popover>
+          <Popover onOpenChange={requestSchemaOnOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -475,7 +482,7 @@ export function DataTableToolbar<TData>({
           </Popover>
 
           {enableGrouping ? (
-            <Popover>
+            <Popover onOpenChange={requestSchemaOnOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline">Group by ({grouping.length})</Button>
               </PopoverTrigger>
@@ -567,7 +574,7 @@ export function DataTableToolbar<TData>({
             </Popover>
           ) : null}
 
-          <Popover>
+          <Popover onOpenChange={requestSchemaOnOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
