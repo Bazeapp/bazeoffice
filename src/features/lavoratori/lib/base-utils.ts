@@ -1,7 +1,6 @@
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import { type LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import {
-  attachmentPathToPublicImageRenderUrl,
   attachmentPathToPublicUrl,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
@@ -235,16 +234,8 @@ export function toAvatarUrl(row: Record<string, unknown>) {
 }
 
 export function toAvatarThumbnailUrl(row: Record<string, unknown>) {
-  for (const foto of normalizeAttachmentArray(row.foto)) {
-    const resolved = attachmentPathToPublicImageRenderUrl(foto.path, {
-      width: 72,
-      height: 72,
-      quality: 50,
-      resize: "cover",
-    })
-    if (resolved) return resolved
-  }
-
+  // Do not use Supabase Image Transformations here: they are billed per
+  // original image transformed in the period. Lists use the original public URL.
   return toAvatarUrl(row)
 }
 

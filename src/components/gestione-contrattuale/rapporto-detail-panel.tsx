@@ -292,12 +292,17 @@ function RelatedPersonCard({
   email,
   phone,
   href,
+  details,
 }: {
   role: string
   name: string
   email: string | null | undefined
   phone: string | null | undefined
   href?: string
+  details?: Array<{
+    label: string
+    value: string | null | undefined
+  }>
 }) {
   return (
     <Card className="py-0 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -339,6 +344,21 @@ function RelatedPersonCard({
             <span>{phone ?? "Record non collegato"}</span>
             {phone ? <CopyIcon className="size-3.5 opacity-50" /> : null}
           </button>
+          {details?.map((detail) => (
+            <button
+              key={detail.label}
+              type="button"
+              onClick={() => copyToClipboard(detail.value)}
+              className="text-muted-foreground hover:text-foreground flex w-full items-center gap-2 text-left transition-colors"
+            >
+              <CreditCardIcon className="size-4" />
+              <span className="w-16 shrink-0 text-xs font-medium uppercase tracking-wide">
+                {detail.label}
+              </span>
+              <span className="truncate">{detail.value ?? "-"}</span>
+              {detail.value ? <CopyIcon className="size-3.5 opacity-50" /> : null}
+            </button>
+          ))}
         </div>
       </CardContent>
     </Card>
@@ -1201,6 +1221,18 @@ export function RapportoDetailPanel({
                       name={workerName}
                       email={workerEmail}
                       phone={workerPhone}
+                      details={[
+                        {
+                          label: "IBAN",
+                          value: firstAvailableText(lavoratore?.iban),
+                        },
+                        {
+                          label: "Stripe",
+                          value: firstAvailableText(
+                            lavoratore?.id_stripe_account,
+                          ),
+                        },
+                      ]}
                       href={
                         lavoratore
                           ? buildPathForRoute({

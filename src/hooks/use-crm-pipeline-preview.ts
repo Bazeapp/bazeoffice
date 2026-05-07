@@ -2,6 +2,7 @@ import * as React from "react"
 
 import {
   fetchFamiglie,
+  fetchIndirizzi,
   fetchLookupValues,
   fetchProcessiMatching,
   updateRecord,
@@ -91,6 +92,18 @@ const CRM_PIPELINE_FAMIGLIE_SELECT = [
   "data_call_prenotata",
   "aggiornato_il",
 ]
+const CRM_PIPELINE_ADDRESS_SELECT = [
+  "entita_id",
+  "tipo_indirizzo",
+  "via",
+  "civico",
+  "cap",
+  "citta",
+  "provincia",
+  "indirizzo_formattato",
+  "note",
+] as const
+const ADDRESS_BATCH_SIZE = 150
 
 type LookupOption = {
   valueKey: string
@@ -287,6 +300,32 @@ function displayValue(value: unknown): string {
   return toStringValue(value) ?? "-"
 }
 
+function firstText(...values: unknown[]) {
+  for (const value of values) {
+    const normalized = toStringValue(value)
+    if (normalized) return normalized
+  }
+  return null
+}
+
+function buildAddressLine(address: GenericRow | undefined) {
+  if (!address) return null
+
+  const formatted = toStringValue(address.indirizzo_formattato)
+  if (formatted) return formatted
+
+  return (
+    [
+      toStringValue(address.via),
+      toStringValue(address.civico),
+      toStringValue(address.citta),
+      toStringValue(address.cap),
+    ]
+      .filter((item): item is string => Boolean(item))
+      .join(", ") || null
+  )
+}
+
 function getFlexibleStringArrayValue(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
@@ -355,6 +394,63 @@ function sortCardsForStage(cards: CrmPipelineCardData[], stageId: string) {
   })
 
   return sorted
+}
+
+async function fetchProcessAddressesByIds(processIds: string[]) {
+  const uniqueProcessIds = Array.from(new Set(processIds.filter(Boolean)))
+  const addressesByProcessId = new Map<string, GenericRow>()
+  if (uniqueProcessIds.length === 0) return addressesByProcessId
+
+  for (let index = 0; index < uniqueProcessIds.length; index += ADDRESS_BATCH_SIZE) {
+    const batch = uniqueProcessIds.slice(index, index + ADDRESS_BATCH_SIZE)
+    const result = await fetchIndirizzi({
+      select: [...CRM_PIPELINE_ADDRESS_SELECT],
+      limit: Math.max(batch.length * 3, batch.length),
+      offset: 0,
+      orderBy: [{ field: "aggiornato_il", ascending: false }],
+      filters: {
+        kind: "group",
+        id: `crm-pipeline-addresses-${index}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `crm-pipeline-addresses-table-${index}`,
+            field: "entita_tabella",
+            operator: "is",
+            value: "processi_matching",
+          },
+          {
+            kind: "condition",
+            id: `crm-pipeline-addresses-id-${index}`,
+            field: "entita_id",
+            operator: "in",
+            value: batch.join(","),
+          },
+          {
+            kind: "condition",
+            id: `crm-pipeline-addresses-type-${index}`,
+            field: "tipo_indirizzo",
+            operator: "in",
+            value: "luogo,prova",
+          },
+        ],
+      },
+    })
+
+    for (const row of asRowArray(result.rows)) {
+      const processId = toStringValue(row.entita_id)
+      if (!processId) continue
+      const current = addressesByProcessId.get(processId)
+      const currentType = normalizeLookupToken(toStringValue(current?.tipo_indirizzo))
+      const nextType = normalizeLookupToken(toStringValue(row.tipo_indirizzo))
+      if (!current || (currentType !== "luogo" && nextType === "luogo")) {
+        addressesByProcessId.set(processId, row)
+      }
+    }
+  }
+
+  return addressesByProcessId
 }
 
 function extractFirstNumberToken(value: unknown) {
@@ -556,7 +652,8 @@ function mapCardData(
   family: GenericRow,
   process: GenericRow,
   stageId: string,
-  lookupColors: LookupColorMap
+  lookupColors: LookupColorMap,
+  processAddress?: GenericRow
 ): CrmPipelineCardData {
   const familyName = [toStringValue(family.nome), toStringValue(family.cognome)]
     .filter((value): value is string => Boolean(value))
@@ -628,17 +725,24 @@ function mapCardData(
     informazioniExtraRiservate: displayValue(process.informazioni_extra_riservate),
     etaMinima: displayValue(process.eta_minima),
     etaMassima: displayValue(process.eta_massima),
-    indirizzoProvincia: displayValue(process.indirizzo_prova_provincia),
-    indirizzoCap: displayValue(process.indirizzo_prova_cap),
-    indirizzoNote: displayValue(process.indirizzo_prova_note),
-    indirizzoCompleto: [
-      toStringValue(process.indirizzo_prova_via),
-      toStringValue(process.indirizzo_prova_civico),
-      toStringValue(process.indirizzo_prova_comune),
-      toStringValue(process.indirizzo_prova_cap),
-    ]
-      .filter((item): item is string => Boolean(item))
-      .join(", "),
+    indirizzoProvincia: displayValue(
+      firstText(process.indirizzo_prova_provincia, processAddress?.provincia)
+    ),
+    indirizzoCap: displayValue(
+      firstText(process.indirizzo_prova_cap, processAddress?.cap)
+    ),
+    indirizzoNote: displayValue(
+      firstText(process.indirizzo_prova_note, processAddress?.note)
+    ),
+    indirizzoCompleto:
+      [
+        toStringValue(process.indirizzo_prova_via),
+        toStringValue(process.indirizzo_prova_civico),
+        toStringValue(process.indirizzo_prova_comune),
+        toStringValue(process.indirizzo_prova_cap),
+      ]
+        .filter((item): item is string => Boolean(item))
+        .join(", ") || displayValue(buildAddressLine(processAddress)),
     srcEmbedMapsAnnucio: displayValue(process.src_embed_maps_annucio),
     deadlineMobile: formatItalianDate(process.deadline_mobile),
     disponibilitaColloquiInPresenza: displayValue(
@@ -707,6 +811,11 @@ async function fetchBoardData(): Promise<FetchBoardDataResult> {
 
   const processRows = asRowArray(processesResult.rows)
   const familyRows = asRowArray(familiesResult.rows)
+  const addressesByProcessId = await fetchProcessAddressesByIds(
+    processRows
+      .map((process) => toStringValue(process.id))
+      .filter((id): id is string => Boolean(id))
+  )
   const lookupRows = lookupResult.rows
   const lookupColors = buildLookupColorMap(lookupRows)
   const lookupOptionsByField = buildLookupOptionsByField(lookupRows)
@@ -746,7 +855,14 @@ async function fetchBoardData(): Promise<FetchBoardDataResult> {
     const stageId = tokenToStageId.get(statusToken)
     if (!stageId) continue
 
-    const card = mapCardData(family, process, stageId, lookupColors)
+    const processId = toStringValue(process.id)
+    const card = mapCardData(
+      family,
+      process,
+      stageId,
+      lookupColors,
+      processId ? addressesByProcessId.get(processId) : undefined
+    )
     cardsByStage.get(stageId)?.push(card)
   }
 

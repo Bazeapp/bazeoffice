@@ -18,7 +18,6 @@ import {
   readAvailabilitySlots,
 } from "@/features/lavoratori/lib/availability-utils"
 import {
-  attachmentPathToPublicImageRenderUrl,
   attachmentPathToPublicUrl,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
@@ -397,13 +396,7 @@ export function useSelectedWorkerEditor({
 
     const uploadedPhotoUrls = normalizeAttachmentArray(selectedWorkerRow?.foto)
       .map(
-        (item) =>
-          attachmentPathToPublicImageRenderUrl(item.path, {
-            width: 480,
-            height: 480,
-            quality: 65,
-            resize: "contain",
-          }) ?? attachmentPathToPublicUrl(item.path)
+        (item) => attachmentPathToPublicUrl(item.path)
       )
       .filter((value): value is string => Boolean(value))
 

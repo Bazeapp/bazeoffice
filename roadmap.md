@@ -1,6 +1,6 @@
 # Roadmap
 
-Fonte aggiornata da `ISSUES (1).txt`.
+Fonte aggiornata da `ISSUES (1).txt` + feedback QA `Test BazeOffice - Beta.pdf`.
 
 ## Legenda
 
@@ -10,16 +10,98 @@ Fonte aggiornata da `ISSUES (1).txt`.
 
 ## Stato Sintetico
 
-- `✅ Fatto`: 115
-- `❌ Non chiuso`: 9
-- `⬜ Backlog`: 13
+- `✅ Fatto`: 122
+- `❌ Non chiuso`: 11
+- `⬜ Backlog`: 17
 
 ## Sequenza Consigliata
 
-1. Chiudere i parziali dati/payroll: `RAP-005`, `RAP-012`, `CED-001`, `CED-005`, `CED-008`.
-2. Rifinire flussi contrattuali già avviati: `ASN-008`, `CHI-005`, `VAR-004`, `VAR-005`.
-3. Proseguire sui backlog Ricerca/Lavoratori ancora aperti: `RIC-030`, `RIC-031`.
-4. Riprendere CRM backlog: `CRM-013`, `CRM-014`, `CRM-016`, `CRM-017`.
+1. Chiudere i parziali QA/data cleanup: `ISS-008`, `ISS-009`, `ISS-010`, `ISS-011`.
+2. Chiudere i parziali dati/payroll: `RAP-005`, `CED-001`, `CED-005`, `CED-008`.
+3. Rifinire comportamento prodotto su liste lavoratori: `ISS-012`, `ISS-013`.
+4. Riprendere CRM backlog: `CRM-017`.
+
+## Feedback QA Beta (ISS)
+
+Task derivati dai feedback ricorrenti del test piattaforma e dalle investigazioni DB/FE successive.
+
+#### ✅ [ISS-001] Foto lavoratori visibili già nella lista card di Cerca Lavoratori, Gate 1 e Gate 2
+
+- **Stato:** Fatto
+- **Tag:** [BUG] [PERFORMANCE] | **Severity:** high | **Area:** Lavoratori → Cerca/Gate — card lista lavoratori | **Effort:** M
+- **Nota:** RPC aggiornate per restituire il riferimento foto; FE usa thumbnail nella lista senza attendere apertura scheda.
+
+#### ✅ [ISS-002] Ridurre il peso immagini lavoratori ed evitare freeze nelle pagine Cerca/Gate
+
+- **Stato:** Fatto
+- **Tag:** [PERFORMANCE] | **Severity:** blocker | **Area:** Lavoratori → Cerca/Gate — immagini card/detail | **Effort:** M
+- **Nota:** Introdotti URL render/thumbnail e guardrail `noWorkerImages`; il caricamento immagini non blocca più la pagina.
+
+#### ✅ [ISS-003] Eliminare chiamate `table-query` ridondanti nelle pagine Cerca/Gate quando sono disponibili le RPC
+
+- **Stato:** Fatto
+- **Tag:** [PERFORMANCE] [BUG] | **Severity:** blocker | **Area:** Lavoratori → Cerca/Gate — hook dati lavoratori | **Effort:** M
+- **Nota:** Lo schema viene caricato lazy solo quando serve; il dettaglio lavoratore non refetcha più in loop il record selezionato.
+
+#### ✅ [ISS-004] Normalizzare `Colf / Pulizie` come `Colf` nel FE per evitare duplicati nei combobox
+
+- **Stato:** Fatto
+- **Tag:** [BUG] [UX] | **Severity:** high | **Area:** combobox multi-select lavori domestici | **Effort:** S
+- **Nota:** Il DB resta invariato; la normalizzazione è applicata lato FE sui campi di lavoro domestico.
+
+#### ✅ [ISS-005] Mostrare indirizzo/luogo di lavoro nelle viste CRM e Ricerca usando la tabella `indirizzi`
+
+- **Stato:** Fatto
+- **Tag:** [BUG] [DATA-FETCH] | **Severity:** high | **Area:** CRM Pipeline + Ricerca detail — sezione luogo di lavoro | **Effort:** M
+- **Nota:** Verificato via Supabase: esistono `6585` indirizzi `processi_matching/luogo`. Aggiunto fallback da `indirizzi` oltre ai vecchi campi legacy `indirizzo_prova_*`.
+
+#### ✅ [ISS-006] Travel time: usare anche l'indirizzo residenza lavoratore da `indirizzi`
+
+- **Stato:** Fatto
+- **Tag:** [BUG] [DATA-FETCH] | **Severity:** high | **Area:** Ricerca detail lavoratore — blocco Travel time | **Effort:** M
+- **Nota:** Verificato via Supabase: esistono `10508` indirizzi `lavoratori/residenza|domicilio`. Il detail lavoratore ora fonde quei dati se i campi legacy sul record lavoratore sono vuoti.
+
+#### ✅ [ISS-007] Rapporti lavorativi: mostrare IBAN e ID Stripe nel blocco Datore e Lavoratore
+
+- **Stato:** Fatto
+- **Tag:** [MISSING] | **Severity:** medium | **Area:** Rapporti lavorativi → detail rapporto — blocco Datore e Lavoratore | **Effort:** S
+- **Nota:** I campi sono mostrati se presenti sul record `lavoratori`; se assenti viene mostrato `-`.
+
+#### ❌ [ISS-008] Bonifica dati: processi matching senza indirizzo luogo/prova collegato
+
+- **Stato:** Non chiuso
+- **Tag:** [DATA-CLEANUP] | **Severity:** high | **Area:** DB — `processi_matching` + `indirizzi` | **Effort:** M
+- **Nota:** Alcuni esempi QA hanno proprio campi indirizzo nulli e nessun indirizzo collegato. Non è un problema FE: serve backfill o regola prodotto su fallback.
+
+#### ❌ [ISS-009] Bonifica dati: IBAN e ID Stripe incompleti sui lavoratori
+
+- **Stato:** Non chiuso
+- **Tag:** [DATA-CLEANUP] | **Severity:** medium | **Area:** DB — `lavoratori` | **Effort:** M
+- **Nota:** Verificato via Supabase: su `22387` lavoratori, `35` hanno IBAN e `417` hanno `id_stripe_account`; molte assenze sono dato mancante, non fetch/UI.
+
+#### ⬜ [ISS-010] Ricerche: completare metadati operativi mancanti nel detail ricerca
+
+- **Stato:** Backlog
+- **Tag:** [MISSING] | **Severity:** medium | **Area:** Ricerca detail — orari, deadline, recruiter, restart/riattivazione | **Effort:** M
+- **Nota:** I campi esistono in parte su `processi_matching`; va deciso quali esporre e dove.
+
+#### ⬜ [ISS-011] Assunzioni/preventivo/famiglia anonima: investigare associazioni e fallback
+
+- **Stato:** Backlog
+- **Tag:** [BUG] [DATA-FETCH] | **Severity:** high | **Area:** Assunzioni + CRM/Preventivi | **Effort:** M
+- **Nota:** Da verificare se il problema è record non collegato, join incompleto o fallback FE insufficiente.
+
+#### ⬜ [ISS-012] Cerca/Gate: chiarire comportamento per lavoratori non visibili perché non qualificati
+
+- **Stato:** Backlog
+- **Tag:** [PRODUCT] [DATA-FILTER] | **Severity:** medium | **Area:** Lavoratori → Cerca/Gate — filtri stato lavoratore | **Effort:** S
+- **Nota:** Gate 1 filtra sui qualificati; diversi esempi QA risultano `Non qualificato`. Serve decisione prodotto prima di cambiare il filtro.
+
+#### ⬜ [ISS-013] QA UI: testi tagliati, leggibilità e scroll/popover nelle viste dense
+
+- **Stato:** Backlog
+- **Tag:** [UX] | **Severity:** medium | **Area:** Ricerca/Lavoratori/Rapporti — card, popover, availability, filtri | **Effort:** M
+- **Nota:** Raggruppa feedback ricorrenti di leggibilità non ancora trasformati in singoli ticket puntuali.
 
 ## Roadmap Per Area
 

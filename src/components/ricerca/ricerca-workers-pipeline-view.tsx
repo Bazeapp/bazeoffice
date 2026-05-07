@@ -84,6 +84,7 @@ import {
   fetchEsperienzeLavoratoriByWorker,
   fetchDocumentiLavoratoriByWorker,
   fetchFamiglie,
+  fetchIndirizzi,
   fetchLavoratori,
   fetchLookupValues,
   fetchProcessiMatching,
@@ -117,6 +118,44 @@ function normalizeToken(value: string | null | undefined) {
     .replaceAll("-", " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function buildWorkerResidenceAddress(row: Record<string, unknown> | undefined) {
+  if (!row) return null;
+
+  const formatted = asString(row.indirizzo_formattato);
+  const address =
+    formatted ||
+    [
+      asString(row.via),
+      asString(row.civico),
+      asString(row.citta),
+      asString(row.cap),
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+  return {
+    address: address || null,
+    cap: asString(row.cap) || null,
+    province: asString(row.provincia) || null,
+  };
+}
+
+function mergeWorkerResidenceAddress(
+  worker: LavoratoreRecord,
+  addressRow: Record<string, unknown> | undefined,
+) {
+  const address = buildWorkerResidenceAddress(addressRow);
+  if (!address) return worker;
+
+  return {
+    ...worker,
+    cap: asString(worker.cap) || address.cap,
+    provincia: asString(worker.provincia) || address.province,
+    indirizzo_residenza_completo:
+      asString(worker.indirizzo_residenza_completo) || address.address,
+  } as LavoratoreRecord;
 }
 
 type GroupedColumnGroup = {
@@ -1181,6 +1220,7 @@ export function RicercaWorkersPipelineView({
           documentsResult,
           referencesResult,
           selectionResult,
+          addressResult,
         ] = await Promise.all([
           fetchLavoratori({
             limit: 1,
@@ -1222,6 +1262,48 @@ export function RicercaWorkersPipelineView({
               ],
             },
           }),
+          fetchIndirizzi({
+            select: [
+              "tipo_indirizzo",
+              "via",
+              "civico",
+              "cap",
+              "citta",
+              "provincia",
+              "indirizzo_formattato",
+            ],
+            limit: 3,
+            offset: 0,
+            orderBy: [{ field: "aggiornato_il", ascending: false }],
+            filters: {
+              kind: "group",
+              id: "pipeline-selected-worker-address",
+              logic: "and",
+              nodes: [
+                {
+                  kind: "condition",
+                  id: "pipeline-selected-worker-address-table",
+                  field: "entita_tabella",
+                  operator: "is",
+                  value: "lavoratori",
+                },
+                {
+                  kind: "condition",
+                  id: "pipeline-selected-worker-address-id",
+                  field: "entita_id",
+                  operator: "is",
+                  value: workerId,
+                },
+                {
+                  kind: "condition",
+                  id: "pipeline-selected-worker-address-type",
+                  field: "tipo_indirizzo",
+                  operator: "in",
+                  value: "residenza,domicilio",
+                },
+              ],
+            },
+          }),
         ]);
 
         const row = Array.isArray(workerResult.rows)
@@ -1230,8 +1312,24 @@ export function RicercaWorkersPipelineView({
         const selectionRow = Array.isArray(selectionResult.rows)
           ? selectionResult.rows[0]
           : null;
+        const addressRows = Array.isArray(addressResult.rows)
+          ? (addressResult.rows as Record<string, unknown>[])
+          : [];
+        const residenceAddressRow =
+          addressRows.find(
+            (address) =>
+              normalizeToken(asString(address.tipo_indirizzo)) === "residenza",
+          ) ??
+          addressRows[0];
         if (isCancelled) return;
-        setSelectedWorkerRow((row as LavoratoreRecord | undefined) ?? null);
+        setSelectedWorkerRow(
+          row
+            ? mergeWorkerResidenceAddress(
+                row as LavoratoreRecord,
+                residenceAddressRow,
+              )
+            : null,
+        );
         setSelectedSelectionRow(selectionRow ?? null);
         setLookupOptionsByDomain(normalizeLookupOptions(lookupResult.rows));
         setLookupColorsByDomain(normalizeLookupColors(lookupResult.rows));
