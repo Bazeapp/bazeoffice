@@ -38,7 +38,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils";
-import { type LookupOption } from "@/features/lavoratori/lib/lookup-utils";
+import {
+  getLookupOptionLabel,
+  normalizeLookupDbLabels,
+  normalizeLookupOptionValues,
+  type LookupOption,
+} from "@/features/lavoratori/lib/lookup-utils";
 
 type SelectionRow = Record<string, unknown>;
 
@@ -154,14 +159,20 @@ function MultiLookupField({
   onChange: (values: string[]) => void;
 }) {
   const anchor = useComboboxAnchor();
+  const normalizedValue = React.useMemo(
+    () => normalizeLookupOptionValues(value, options),
+    [options, value],
+  );
 
   return (
     <Combobox
       multiple
       autoHighlight
       items={options.map((option) => option.value)}
-      value={value}
-      onValueChange={(nextValues) => onChange(nextValues as string[])}
+      value={normalizedValue}
+      onValueChange={(nextValues) =>
+        onChange(normalizeLookupDbLabels(nextValues as string[], options))
+      }
       disabled={disabled}
     >
       <ComboboxChips ref={anchor} className="w-full">
@@ -169,10 +180,11 @@ function MultiLookupField({
           {(values) => (
             <React.Fragment>
               {values.map((itemValue: string) => {
-                const label =
-                  options.find((option) => option.value === itemValue)?.label ??
-                  itemValue;
-                return <ComboboxChip key={itemValue}>{label}</ComboboxChip>;
+                return (
+                  <ComboboxChip key={itemValue}>
+                    {getLookupOptionLabel(options, itemValue)}
+                  </ComboboxChip>
+                );
               })}
               <ComboboxChipsInput placeholder="Seleziona motivazioni" />
             </React.Fragment>
@@ -184,7 +196,7 @@ function MultiLookupField({
         <ComboboxList className="max-h-72 overflow-y-auto">
           {(item) => (
             <ComboboxItem key={item} value={item}>
-              {options.find((option) => option.value === item)?.label ?? item}
+              {getLookupOptionLabel(options, item)}
             </ComboboxItem>
           )}
         </ComboboxList>

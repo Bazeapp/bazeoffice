@@ -41,6 +41,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  getLookupOptionLabel,
+  normalizeLookupOptionValues,
+} from "@/features/lavoratori/lib/lookup-utils"
 import { cn } from "@/lib/utils"
 
 type DataTableFilterBuilderProps = {
@@ -174,7 +178,6 @@ function ValueControl({
 }: ValueControlProps) {
   const anchor = useComboboxAnchor()
   const valueOptions = field?.options ?? []
-  const valueLabelByValue = new Map(valueOptions.map((option) => [option.value, option.label]))
   const useSingleSelect =
     (fieldType === "enum" ||
       (fieldType === "multi_enum" &&
@@ -221,7 +224,10 @@ function ValueControl({
   }
 
   if (useMultiEnumLookupSelect) {
-    const selectedValues = splitFilterList(node.value)
+    const selectedValues = normalizeLookupOptionValues(
+      splitFilterList(node.value),
+      valueOptions,
+    )
 
     return (
       <Combobox
@@ -230,7 +236,12 @@ function ValueControl({
         items={valueOptions.map((option) => option.value)}
         value={selectedValues}
         onValueChange={(nextValues) => {
-          onValueChange((nextValues as string[]).join(","))
+          onValueChange(
+            normalizeLookupOptionValues(
+              nextValues as string[],
+              valueOptions,
+            ).join(","),
+          )
         }}
       >
         <ComboboxChips
@@ -241,7 +252,9 @@ function ValueControl({
             {(values) => (
               <>
                 {values.map((value: string) => (
-                  <ComboboxChip key={value}>{valueLabelByValue.get(value) ?? value}</ComboboxChip>
+                  <ComboboxChip key={value}>
+                    {getLookupOptionLabel(valueOptions, value)}
+                  </ComboboxChip>
                 ))}
                 <ComboboxChipsInput />
               </>
@@ -253,7 +266,7 @@ function ValueControl({
           <ComboboxList className="max-h-72 overflow-y-auto">
             {(item) => (
               <ComboboxItem key={item} value={item}>
-                {valueLabelByValue.get(item) ?? item}
+                {getLookupOptionLabel(valueOptions, item)}
               </ComboboxItem>
             )}
           </ComboboxList>

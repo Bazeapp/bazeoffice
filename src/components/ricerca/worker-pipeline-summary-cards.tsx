@@ -59,7 +59,10 @@ import {
   readArrayStrings,
 } from "@/features/lavoratori/lib/base-utils";
 import {
+  getLookupOptionLabel,
   getTagClassName,
+  normalizeLookupDbLabels,
+  normalizeLookupOptionValues,
   resolveLookupColor,
   type LookupOption,
 } from "@/features/lavoratori/lib/lookup-utils";
@@ -816,13 +819,18 @@ function TravelTimeCard({
           <Combobox
             multiple
             autoHighlight
-            items={mobilityOptions.map((option) => option.label)}
-            value={addressDraft.mobilita
-              .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean)}
+            items={mobilityOptions.map((option) => option.value)}
+            value={normalizeLookupOptionValues(
+              addressDraft.mobilita
+                .split(",")
+                .map((item) => item.trim())
+                .filter(Boolean),
+              mobilityOptions,
+            )}
             onValueChange={(nextValues) => {
-              void handleMobilitaChange(nextValues as string[]);
+              void handleMobilitaChange(
+                normalizeLookupDbLabels(nextValues as string[], mobilityOptions),
+              );
             }}
           >
             <ComboboxChips ref={mobilityAnchor} className="w-full">
@@ -830,7 +838,9 @@ function TravelTimeCard({
                 {(values) => (
                   <React.Fragment>
                     {values.map((value: string) => (
-                      <ComboboxChip key={value}>{value}</ComboboxChip>
+                      <ComboboxChip key={value}>
+                        {getLookupOptionLabel(mobilityOptions, value)}
+                      </ComboboxChip>
                     ))}
                     <ComboboxChipsInput placeholder="Seleziona opzioni" />
                   </React.Fragment>
@@ -842,7 +852,7 @@ function TravelTimeCard({
               <ComboboxList className="max-h-72 overflow-y-auto">
                 {(item) => (
                   <ComboboxItem key={item} value={item}>
-                    {item}
+                    {getLookupOptionLabel(mobilityOptions, item)}
                   </ComboboxItem>
                 )}
               </ComboboxList>

@@ -19,8 +19,11 @@ import {
   normalizeDomesticRoleLookupValue,
 } from "@/features/lavoratori/lib/base-utils"
 import {
+  getLookupOptionLabel,
   getTagClassName,
-  normalizeLookupToken,
+  normalizeLookupComparableToken,
+  normalizeLookupDbLabels,
+  normalizeLookupOptionValue,
   resolveLookupColor,
   type LookupOption,
 } from "@/features/lavoratori/lib/lookup-utils"
@@ -47,14 +50,17 @@ type WorkerShiftPreferencesFieldsProps = {
 function sortValuesByOptionOrder(values: string[], options: LookupOption[]) {
   const order = new Map(
     options.flatMap((option, index) => [
-      [normalizeLookupToken(option.value), index] as const,
-      [normalizeLookupToken(option.label), index] as const,
+      [normalizeLookupComparableToken(option.value), index] as const,
+      [normalizeLookupComparableToken(option.label), index] as const,
     ]),
   )
 
   return [...values].sort((left, right) => {
-    const leftOrder = order.get(normalizeLookupToken(left)) ?? Number.MAX_SAFE_INTEGER
-    const rightOrder = order.get(normalizeLookupToken(right)) ?? Number.MAX_SAFE_INTEGER
+    const leftOrder =
+      order.get(normalizeLookupComparableToken(left)) ?? Number.MAX_SAFE_INTEGER
+    const rightOrder =
+      order.get(normalizeLookupComparableToken(right)) ??
+      Number.MAX_SAFE_INTEGER
     return leftOrder - rightOrder || left.localeCompare(right)
   })
 }
@@ -63,24 +69,32 @@ function normalizeValueForField(field: WorkerShiftPreferenceField, value: string
   if (field.domain === "lavoratori.tipo_lavoro_domestico") {
     return normalizeDomesticRoleLookupValue(value, field.options)
   }
-  return value
+  return normalizeLookupOptionValue(value, field.options)
 }
 
 function normalizeValuesForField(field: WorkerShiftPreferenceField) {
-  const normalizedValues = Array.from(new Set(field.value.map((value) => normalizeValueForField(field, value))))
+  const normalizedValues: string[] = []
+  const seen = new Set<string>()
+  for (const value of field.value) {
+    const normalized = normalizeValueForField(field, value)
+    const token = normalizeLookupComparableToken(normalized)
+    if (!normalized || seen.has(token)) continue
+    normalizedValues.push(normalized)
+    seen.add(token)
+  }
   if (!field.sortByOptionOrder) return normalizedValues
   return sortValuesByOptionOrder(normalizedValues, field.options)
 }
 
 function getOptionLabel(options: LookupOption[], value: string) {
-  return options.find((option) => option.value === value)?.label ?? value
+  return getLookupOptionLabel(options, value)
 }
 
 function normalizeChangeValuesForField(field: WorkerShiftPreferenceField, values: string[]) {
   if (field.domain === "lavoratori.tipo_lavoro_domestico") {
     return normalizeDomesticRoleDbLabels(values)
   }
-  return values
+  return normalizeLookupDbLabels(values, field.options)
 }
 
 function MultiSelectField({

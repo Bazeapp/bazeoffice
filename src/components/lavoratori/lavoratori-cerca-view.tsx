@@ -45,6 +45,7 @@ import {
   readArrayStrings,
 } from "@/features/lavoratori/lib/base-utils";
 import {
+  getLookupOptionLabel,
   getTagClassName,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
@@ -573,10 +574,11 @@ function NonQualificatoTipoLavoroField({
           {(values) => (
             <React.Fragment>
               {values.map((itemValue: string) => {
-                const label =
-                  options.find((option) => option.value === itemValue)?.label ??
-                  itemValue;
-                return <ComboboxChip key={itemValue}>{label}</ComboboxChip>;
+                return (
+                  <ComboboxChip key={itemValue}>
+                    {getLookupOptionLabel(options, itemValue)}
+                  </ComboboxChip>
+                );
               })}
               <ComboboxChipsInput />
             </React.Fragment>
@@ -588,7 +590,7 @@ function NonQualificatoTipoLavoroField({
         <ComboboxList className="max-h-72 overflow-y-auto">
           {(item) => (
             <ComboboxItem key={item} value={item}>
-              {options.find((option) => option.value === item)?.label ?? item}
+              {getLookupOptionLabel(options, item)}
             </ComboboxItem>
           )}
         </ComboboxList>
@@ -1770,10 +1772,7 @@ export function LavoratoriCercaView({
                     mobilityOptions={mobilityLookupOptions}
                     selectedProvincia={asString(selectedWorkerRow?.provincia)}
                     selectedCap={asString(selectedWorkerAddress?.cap)}
-                    selectedAddress={
-                      formatWorkerAddressLine(selectedWorkerAddress) ||
-                      asString(selectedWorkerRow?.indirizzo_residenza_completo)
-                    }
+                    selectedAddress={formatWorkerAddressLine(selectedWorkerAddress)}
                     selectedMobility={readArrayStrings(
                       selectedWorkerRow?.come_ti_sposti,
                     )}

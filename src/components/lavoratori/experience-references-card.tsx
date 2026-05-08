@@ -62,7 +62,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateOnly } from "@/features/lavoratori/lib/availability-utils";
 import {
+  getLookupOptionLabel,
   getTagClassName,
+  normalizeLookupDbLabels,
+  normalizeLookupOptionValues,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
 import {
@@ -221,14 +224,20 @@ function ExperienceRoleField({
   onChange,
 }: ExperienceRoleFieldProps) {
   const anchor = useComboboxAnchor();
+  const normalizedValue = React.useMemo(
+    () => normalizeLookupOptionValues(value, options),
+    [options, value],
+  );
 
   return (
     <Combobox
       multiple
       autoHighlight
-      items={options.map((option) => option.label)}
-      value={value}
-      onValueChange={(nextValues) => onChange(nextValues as string[])}
+      items={options.map((option) => option.value)}
+      value={normalizedValue}
+      onValueChange={(nextValues) =>
+        onChange(normalizeLookupDbLabels(nextValues as string[], options))
+      }
       disabled={disabled}
     >
       <ComboboxChips ref={anchor} className="w-full">
@@ -236,7 +245,9 @@ function ExperienceRoleField({
           {(values) => (
             <React.Fragment>
               {values.map((item: string) => (
-                <ComboboxChip key={item}>{item}</ComboboxChip>
+                <ComboboxChip key={item}>
+                  {getLookupOptionLabel(options, item)}
+                </ComboboxChip>
               ))}
               <ComboboxChipsInput placeholder="Seleziona ruoli" />
             </React.Fragment>
@@ -248,7 +259,7 @@ function ExperienceRoleField({
         <ComboboxList className="max-h-72 overflow-y-auto">
           {(item) => (
             <ComboboxItem key={item} value={item}>
-              {item}
+              {getLookupOptionLabel(options, item)}
             </ComboboxItem>
           )}
         </ComboboxList>

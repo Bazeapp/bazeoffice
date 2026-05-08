@@ -18,6 +18,11 @@ import {
 import { FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  getLookupOptionLabel,
+  normalizeLookupDbLabels,
+  normalizeLookupOptionValues,
+} from "@/features/lavoratori/lib/lookup-utils"
 
 const EMPTY_SELECT_VALUE = "none"
 
@@ -179,9 +184,16 @@ export function AddressSectionCard({
             <Combobox
               multiple
               autoHighlight
-              items={mobilityOptions.map((option) => option.label)}
-              value={addressDraft.come_ti_sposti}
-              onValueChange={(nextValues) => onMobilityChange(nextValues as string[])}
+              items={mobilityOptions.map((option) => option.value)}
+              value={normalizeLookupOptionValues(
+                addressDraft.come_ti_sposti,
+                mobilityOptions,
+              )}
+              onValueChange={(nextValues) =>
+                onMobilityChange(
+                  normalizeLookupDbLabels(nextValues as string[], mobilityOptions),
+                )
+              }
               disabled={isUpdating}
             >
               <ComboboxChips ref={mobilityAnchor} className="w-full">
@@ -189,7 +201,9 @@ export function AddressSectionCard({
                   {(values) => (
                     <React.Fragment>
                       {values.map((value: string) => (
-                        <ComboboxChip key={value}>{value}</ComboboxChip>
+                        <ComboboxChip key={value}>
+                          {getLookupOptionLabel(mobilityOptions, value)}
+                        </ComboboxChip>
                       ))}
                       <ComboboxChipsInput placeholder="Seleziona opzioni" />
                     </React.Fragment>
@@ -201,7 +215,7 @@ export function AddressSectionCard({
                 <ComboboxList className="max-h-72 overflow-y-auto">
                   {(item) => (
                     <ComboboxItem key={item} value={item}>
-                      {item}
+                      {getLookupOptionLabel(mobilityOptions, item)}
                     </ComboboxItem>
                   )}
                 </ComboboxList>

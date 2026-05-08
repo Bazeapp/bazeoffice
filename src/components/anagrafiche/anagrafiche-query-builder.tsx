@@ -46,6 +46,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  getLookupOptionLabel,
+  normalizeLookupOptionValues,
+} from "@/features/lavoratori/lib/lookup-utils"
 import { cn } from "@/lib/utils"
 import type { AnagraficheQueryBuilderField } from "./anagrafiche-query-utils"
 
@@ -289,7 +293,6 @@ function ShadcnValueEditor(props: ValueEditorProps) {
       label: option.label ?? value,
     }
   })
-  const valueLabelByValue = new Map(normalizedOptions.map((option) => [option.value, option.label]))
   const stringValue = Array.isArray(props.value) ? props.value.join(",") : String(props.value ?? "")
   const useSingleSelect =
     (fieldType === "boolean" ||
@@ -380,7 +383,10 @@ function ShadcnValueEditor(props: ValueEditorProps) {
   }
 
   if (useEnumLookupMultiSelect || useMultiEnumLookupSelect) {
-    const selectedValues = splitFilterList(stringValue)
+    const selectedValues = normalizeLookupOptionValues(
+      splitFilterList(stringValue),
+      normalizedOptions,
+    )
 
     return (
       <Combobox
@@ -388,7 +394,14 @@ function ShadcnValueEditor(props: ValueEditorProps) {
         autoHighlight
         items={normalizedOptions.map((option) => option.value)}
         value={selectedValues}
-        onValueChange={(nextValues) => props.handleOnChange((nextValues as string[]).join(","))}
+        onValueChange={(nextValues) =>
+          props.handleOnChange(
+            normalizeLookupOptionValues(
+              nextValues as string[],
+              normalizedOptions,
+            ).join(","),
+          )
+        }
       >
         <ComboboxChips
           ref={anchor}
@@ -398,7 +411,9 @@ function ShadcnValueEditor(props: ValueEditorProps) {
             {(values) => (
               <>
                 {values.map((value: string) => (
-                  <ComboboxChip key={value}>{valueLabelByValue.get(value) ?? value}</ComboboxChip>
+                  <ComboboxChip key={value}>
+                    {getLookupOptionLabel(normalizedOptions, value)}
+                  </ComboboxChip>
                 ))}
                 <ComboboxChipsInput />
               </>
@@ -410,7 +425,7 @@ function ShadcnValueEditor(props: ValueEditorProps) {
           <ComboboxList className="max-h-72 overflow-y-auto">
             {(item) => (
               <ComboboxItem key={item} value={item}>
-                {valueLabelByValue.get(item) ?? item}
+                {getLookupOptionLabel(normalizedOptions, item)}
               </ComboboxItem>
             )}
           </ComboboxList>

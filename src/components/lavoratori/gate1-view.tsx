@@ -88,6 +88,7 @@ import {
   readArrayStrings,
 } from "@/features/lavoratori/lib/base-utils";
 import {
+  getLookupOptionLabel,
   getTagClassName,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
@@ -186,8 +187,7 @@ function includesBabysitterType(
 ) {
   return normalizeDomesticRoleLabels(values).some((label) => label === "Tata")
     || normalizeDomesticRoleLookupValues(values, options).some((value) => {
-      const label =
-        options.find((option) => option.value === value)?.label ?? value;
+      const label = getLookupOptionLabel(options, value);
       return label.toLowerCase().includes("babysitter");
     });
 }
@@ -782,10 +782,11 @@ function GateAllowedWorkField({
           {(values) => (
             <React.Fragment>
               {values.map((itemValue: string) => {
-                const label =
-                  options.find((option) => option.value === itemValue)?.label ??
-                  itemValue;
-                return <ComboboxChip key={itemValue}>{label}</ComboboxChip>;
+                return (
+                  <ComboboxChip key={itemValue}>
+                    {getLookupOptionLabel(options, itemValue)}
+                  </ComboboxChip>
+                );
               })}
               <ComboboxChipsInput placeholder="Seleziona lavori" />
             </React.Fragment>
@@ -797,7 +798,7 @@ function GateAllowedWorkField({
         <ComboboxList className="max-h-72 overflow-y-auto">
           {(item) => (
             <ComboboxItem key={item} value={item}>
-              {options.find((option) => option.value === item)?.label ?? item}
+              {getLookupOptionLabel(options, item)}
             </ComboboxItem>
           )}
         </ComboboxList>

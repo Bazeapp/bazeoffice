@@ -10,6 +10,81 @@ export function normalizeLookupToken(value: unknown) {
   return String(value ?? "").trim().toLowerCase()
 }
 
+export function normalizeLookupComparableToken(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replaceAll("_", " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+export function findLookupOption(
+  options: LookupOption[],
+  value: string | null | undefined,
+) {
+  const token = normalizeLookupComparableToken(value)
+  if (!token) return null
+
+  return (
+    options.find(
+      (option) =>
+        normalizeLookupComparableToken(option.value) === token ||
+        normalizeLookupComparableToken(option.label) === token,
+    ) ?? null
+  )
+}
+
+export function normalizeLookupOptionValue(
+  value: string,
+  options: LookupOption[],
+) {
+  return findLookupOption(options, value)?.value ?? value.trim()
+}
+
+export function normalizeLookupOptionValues(
+  values: string[],
+  options: LookupOption[],
+) {
+  const result: string[] = []
+  const seen = new Set<string>()
+
+  for (const value of values) {
+    const normalized = normalizeLookupOptionValue(value, options)
+    const token = normalizeLookupComparableToken(normalized)
+    if (!normalized || seen.has(token)) continue
+    result.push(normalized)
+    seen.add(token)
+  }
+
+  return result
+}
+
+export function getLookupOptionLabel(options: LookupOption[], value: string) {
+  return findLookupOption(options, value)?.label ?? value
+}
+
+export function normalizeLookupDbLabels(
+  values: string[],
+  options: LookupOption[],
+) {
+  const result: string[] = []
+  const seen = new Set<string>()
+
+  for (const value of values) {
+    const label = findLookupOption(options, value)?.label ?? value.trim()
+    const token = normalizeLookupComparableToken(label)
+    if (!label || seen.has(token)) continue
+    result.push(label)
+    seen.add(token)
+  }
+
+  return result
+}
+
 export function normalizeLookupOptions(rows: LookupValueRecord[]) {
   const grouped = new Map<
     string,
