@@ -165,7 +165,6 @@ const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
   "prova schedulata",
   "prova rimandata",
   "prova in corso",
-  "prova con cliente",
   "match",
 ]);
 const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo";
@@ -1154,6 +1153,7 @@ export function LavoratoriCercaView({
     setSkillsDraft,
     documentsDraft,
     setDocumentsDraft,
+    resolvedIban,
     handleNonIdoneoReasonsChange,
     handleBlacklistChange,
     patchSelectedWorkerField,
@@ -2095,7 +2095,7 @@ export function LavoratoriCercaView({
                     statoDocumentiOptions={documentiInRegolaOptions}
                     lookupColorsByDomain={lookupColorsByDomain}
                     administrativeValues={{
-                      iban: asString(selectedWorkerRow?.iban),
+                      iban: resolvedIban,
                       id_stripe_account: asString(
                         selectedWorkerRow?.id_stripe_account,
                       ),

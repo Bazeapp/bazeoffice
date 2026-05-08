@@ -97,7 +97,6 @@ const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
   "prova schedulata",
   "prova rimandata",
   "prova in corso",
-  "prova con cliente",
   "match",
 ])
 const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo"
@@ -1221,7 +1220,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
 
   React.useEffect(() => {
     setPageIndex(0)
-  }, [filters, gate1FollowupFilter, gate1ProvinciaFilter, searchValue, sorting])
+  }, [debouncedQuery.searchValue, filters, gate1FollowupFilter, gate1ProvinciaFilter, sorting])
 
   const loadWorkersSchema = React.useCallback(() => {
     if (workersSchemaLoadedRef.current || workersSchemaLoadingRef.current) return

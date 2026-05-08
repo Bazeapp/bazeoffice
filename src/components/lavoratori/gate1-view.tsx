@@ -3621,6 +3621,7 @@ export function Gate1View({
               table={table}
               searchValue={searchValue}
               onSearchValueChange={setSearchValue}
+              searchCommitDebounceMs={500}
               filters={filters}
               onFiltersChange={setFilters}
               filterFields={filterFields}

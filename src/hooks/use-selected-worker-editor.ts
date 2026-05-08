@@ -44,7 +44,13 @@ import {
   isNonIdoneoStatus,
   normalizeWorkerStatus,
 } from "@/features/lavoratori/lib/status-utils"
-import { createRecord, deleteRecord, updateRecord } from "@/lib/anagrafiche-api"
+import {
+  createRecord,
+  deleteRecord,
+  fetchAssunzioni,
+  fetchRapportiLavorativi,
+  updateRecord,
+} from "@/lib/anagrafiche-api"
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
@@ -127,6 +133,12 @@ type WorkerDocumentsDraft = {
   data_scadenza_naspi: string
   iban: string
   id_stripe_account: string
+}
+
+function extractIban(value: unknown) {
+  const raw = asString(value)
+  const match = raw.match(/[A-Z]{2}\d{2}[A-Z0-9]{11,30}/i)
+  return match?.[0]?.replace(/\s+/g, "").toUpperCase() ?? ""
 }
 
 type PatchLoadingKey =
@@ -334,6 +346,9 @@ export function useSelectedWorkerEditor({
   const [documentsDraft, setDocumentsDraft] = React.useState<WorkerDocumentsDraft>(() =>
     buildDocumentsDraft(selectedWorkerRow)
   )
+  const [assunzioneIban, setAssunzioneIban] = React.useState("")
+  const [assunzioneIbanRecordId, setAssunzioneIbanRecordId] = React.useState("")
+  const resolvedIban = assunzioneIban
   const availabilityPayload = React.useMemo(
     () =>
       parseAvailabilityPayload(selectedWorkerRow?.availability_final_json) ??
@@ -424,8 +439,105 @@ export function useSelectedWorkerEditor({
     setJobSearchDraft(buildJobSearchDraft(selectedWorkerRow))
     setExperienceDraft(buildExperienceDraft(selectedWorkerRow))
     setSkillsDraft(buildSkillsDraft(selectedWorkerRow))
-    setDocumentsDraft(buildDocumentsDraft(selectedWorkerRow))
+    setDocumentsDraft({
+      ...buildDocumentsDraft(selectedWorkerRow),
+      iban: "",
+    })
   }, [selectedWorkerRow, selectedWorkerAddress, availabilityPayload])
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    async function loadAssunzioneIban() {
+      if (!selectedWorkerId) {
+        setAssunzioneIban("")
+        setAssunzioneIbanRecordId("")
+        return
+      }
+
+      try {
+        const rapportiResult = await fetchRapportiLavorativi({
+          select: ["id"],
+          limit: 100,
+          offset: 0,
+          filters: {
+            kind: "group",
+            id: "worker-iban-rapporti-by-worker",
+            logic: "and",
+            nodes: [
+              {
+                kind: "condition",
+                id: "worker-iban-rapporti-worker-id",
+                field: "lavoratore_id",
+                operator: "is",
+                value: selectedWorkerId,
+              },
+            ],
+          },
+        })
+        const rapportoIds = (rapportiResult.rows ?? [])
+          .map((row) => asString(row.id))
+          .filter(Boolean)
+
+        if (rapportoIds.length === 0) {
+          if (!cancelled) {
+            setAssunzioneIban("")
+            setAssunzioneIbanRecordId("")
+          }
+          return
+        }
+
+        const assunzioniResult = await fetchAssunzioni({
+          select: ["id", "dati_bancari_lavoratore", "aggiornato_il"],
+          limit: 20,
+          offset: 0,
+          orderBy: [{ field: "aggiornato_il", ascending: false }],
+          filters: {
+            kind: "group",
+            id: "worker-iban-assunzioni-by-rapporti",
+            logic: "and",
+            nodes: [
+              {
+                kind: "condition",
+                id: "worker-iban-assunzioni-rapporto-id",
+                field: "rapporto_lavorativo_lavoratore_id",
+                operator: "in",
+                value: rapportoIds.join(","),
+              },
+            ],
+          },
+        })
+
+        const sourceRow =
+          (assunzioniResult.rows ?? []).find((row) =>
+            Boolean(extractIban(row.dati_bancari_lavoratore))
+          ) ??
+          assunzioniResult.rows?.[0] ??
+          null
+        const iban = extractIban(sourceRow?.dati_bancari_lavoratore)
+
+        if (!cancelled) {
+          setAssunzioneIban(iban)
+          setAssunzioneIbanRecordId(asString(sourceRow?.id))
+          setDocumentsDraft((current) => ({
+            ...current,
+            iban,
+          }))
+        }
+      } catch {
+        if (!cancelled) {
+          setAssunzioneIban("")
+          setAssunzioneIbanRecordId("")
+        }
+      }
+    }
+
+    void loadAssunzioneIban()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedWorkerId])
 
   React.useEffect(() => {
     setSelectedPresentationPhotoIndex(0)
@@ -880,23 +992,47 @@ export function useSelectedWorkerEditor({
       field: keyof WorkerDocumentsDraft,
       value: string | null
     ) => {
+      if (field === "iban") {
+        if (!assunzioneIbanRecordId) {
+          setError("Nessuna assunzione collegata su cui salvare l'IBAN")
+          return
+        }
+
+        setUpdatingDocuments(true)
+        try {
+          await updateRecord("assunzioni", assunzioneIbanRecordId, {
+            dati_bancari_lavoratore: value,
+          })
+          setAssunzioneIban(extractIban(value))
+        } catch (caughtError) {
+          setError(formatEditorError("Errore aggiornando IBAN assunzione", caughtError))
+          throw caughtError
+        } finally {
+          setUpdatingDocuments(false)
+        }
+        return
+      }
+
       await patchWorkerField(field, value, {
         loadingKey: "documents",
         errorMessage: "Errore aggiornando documenti",
       })
     },
-    [patchWorkerField]
+    [assunzioneIbanRecordId, patchWorkerField, setError]
   )
 
   const commitDocumentField = React.useCallback(
     async (field: "data_scadenza_naspi" | "iban" | "id_stripe_account") => {
-      const currentValue = asString(selectedWorkerRow?.[field])
+      const currentValue =
+        field === "iban"
+          ? assunzioneIban
+          : asString(selectedWorkerRow?.[field])
       const nextValue = documentsDraft[field]
       if (nextValue === currentValue) return
 
       await patchDocumentField(field, nextValue || null)
     },
-    [documentsDraft, patchDocumentField, selectedWorkerRow]
+    [assunzioneIban, documentsDraft, patchDocumentField, selectedWorkerRow]
   )
 
   return {
@@ -952,6 +1088,7 @@ export function useSelectedWorkerEditor({
     setSkillsDraft,
     documentsDraft,
     setDocumentsDraft,
+    resolvedIban,
     handleNonIdoneoReasonsChange,
     handleBlacklistChange,
     patchSelectedWorkerField,

@@ -2,7 +2,7 @@
 
 ## Ricerche
 
-### [QA-RIC-001] Mostrare luogo di lavoro nelle ricerche attive
+### ✅ [QA-RIC-001] Mostrare luogo di lavoro nelle ricerche attive
 **Urgenza:** alta  
 **Fonte:** Giulia  
 **Pagina/area:** Ricerche attive  
@@ -13,7 +13,7 @@
 
 ---
 
-### [QA-RIC-002] Spostare eta e sesso lavoratore fuori dalla sezione Famiglia
+### ✅ [QA-RIC-002] Spostare eta e sesso lavoratore fuori dalla sezione Famiglia
 **Urgenza:** bassa  
 **Fonte:** Giulia  
 **Pagina/area:** Ricerche attive, sezione Famiglia  
@@ -24,7 +24,7 @@
 
 ---
 
-### [QA-RIC-003] Gestire scroll orizzontale nella sezione lavoratori della ricerca
+### ✅ [QA-RIC-003] Gestire scroll orizzontale nella sezione lavoratori della ricerca
 **Urgenza:** media  
 **Fonte:** Giulia  
 **Pagina/area:** Ricerche attive, sezione Lavoratori per questa ricerca  
@@ -35,7 +35,7 @@
 
 ---
 
-### [QA-RIC-004] Mostrare indirizzo lavoratrice nel travel time
+### ✅ [QA-RIC-004] Mostrare indirizzo lavoratrice nel travel time
 **Urgenza:** alta  
 **Fonte:** Giulia  
 **Pagina/area:** Ricerche attive, profilo lavoratore, Travel time  
@@ -46,7 +46,7 @@
 
 ---
 
-### [QA-RIC-005] Rendere piu stretta o ridimensionabile la Scheda colloquio
+### ❌ [QA-RIC-005] Rendere piu stretta o ridimensionabile la Scheda colloquio
 **Urgenza:** media  
 **Fonte:** Giulia  
 **Pagina/area:** Ricerche attive, profilo lavoratore  
@@ -57,7 +57,7 @@
 
 ---
 
-### [QA-RIC-006] Mostrare numero di telefono lavoratore nel profilo
+### ✅ [QA-RIC-006] Mostrare numero di telefono lavoratore nel profilo
 **Urgenza:** alta  
 **Fonte:** Giulia  
 **Pagina/area:** Ricerche attive, profilo lavoratore  
@@ -114,7 +114,7 @@
 
 ## Lavoratori
 
-### [QA-LAV-001] Verificare/importare IBAN lavoratori
+### ✅ [QA-LAV-001] Verificare/importare IBAN lavoratori
 **Urgenza:** non indicata  
 **Fonte:** Ivana  
 **Pagina/area:** Lavoratori  

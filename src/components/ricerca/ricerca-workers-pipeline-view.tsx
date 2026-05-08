@@ -235,9 +235,9 @@ const COLLOQUI_MATCH_GROUPS: GroupedColumnGroup[] = [
     dropStatusId: "Colloquio fatto",
   },
   {
-    key: "prova con cliente",
-    label: "Prova con cliente",
-    dropStatusId: "Prova con cliente",
+    key: "prova in corso",
+    label: "Prova in corso",
+    dropStatusId: "Prova in corso",
   },
   {
     key: "match",
@@ -268,7 +268,6 @@ const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
   "prova schedulata",
   "prova rimandata",
   "prova in corso",
-  "prova con cliente",
   "match",
 ]);
 const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo";
@@ -1103,6 +1102,7 @@ export function RicercaWorkersPipelineView({
     setSkillsDraft,
     documentsDraft,
     setDocumentsDraft,
+    resolvedIban,
     handleAvailabilityMatrixChange,
     commitAvailabilityField,
     patchJobSearchField,
@@ -2006,7 +2006,7 @@ export function RicercaWorkersPipelineView({
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4">
+      <div className="scrollbar-visible min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-4 pt-4 [scrollbar-gutter:stable]">
         <div className="flex h-full min-h-0 min-w-max gap-4">
           {filteredColumns.map((column) => (
             <WorkerPipelineColumn
@@ -2372,6 +2372,7 @@ export function RicercaWorkersPipelineView({
                     }
                     updatingDocuments={updatingDocuments}
                     documentsDraft={documentsDraft}
+                    resolvedIban={resolvedIban}
                     documentiVerificatiOptions={
                       lookupOptionsByDomain.get(
                         "lavoratori.stato_verifica_documenti",

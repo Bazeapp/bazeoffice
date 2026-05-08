@@ -87,7 +87,6 @@ const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
   "prova schedulata",
   "prova rimandata",
   "prova in corso",
-  "prova con cliente",
   "match",
 ])
 const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo"
@@ -194,16 +193,29 @@ function isDaColloquiareStatus(value: string | null | undefined) {
 const COLLOQUI_GROUP_KEYS = {
   colloquioSchedulato: "colloquio schedulato",
   colloquioFatto: "colloquio fatto",
-  provaConCliente: "prova con cliente",
+  provaInCorso: "prova in corso",
   match: "match",
 } as const
+const LEGACY_PROVA_CON_CLIENTE_STATUS = "prova con cliente"
+
+function isLegacyProvaConClienteStatus(value: string | null | undefined) {
+  return (
+    normalizeStatusToken(value) ===
+    normalizeStatusToken(LEGACY_PROVA_CON_CLIENTE_STATUS)
+  )
+}
+
+function canonicalizeSelectionStatus(value: string) {
+  return isLegacyProvaConClienteStatus(value) ? "Prova in corso" : value
+}
 
 function isColloquiStatus(value: string | null | undefined) {
   const token = normalizeStatusToken(value)
   return (
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.colloquioSchedulato) ||
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.colloquioFatto) ||
-    token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.provaConCliente) ||
+    token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.provaInCorso) ||
+    token === normalizeStatusToken(LEGACY_PROVA_CON_CLIENTE_STATUS) ||
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.match)
   )
 }
@@ -954,6 +966,7 @@ async function fetchWorkersPipelineData(
 
     const stage =
       stageMetadata.aliases.get(normalizeLookupToken(statusRaw)) ?? statusRaw
+    const canonicalStage = canonicalizeSelectionStatus(stage)
     const worker = workerById.get(workerId)
 
     const workerCard = worker
@@ -992,26 +1005,26 @@ async function fetchWorkersPipelineData(
 
     const card: RicercaWorkerSelectionCard = {
       id,
-      status: stage,
+      status: canonicalStage,
       punteggio: toStringValue(selection.punteggio) ?? "-",
       worker: workerCard,
     }
 
-    const knownColumn = cardsByStageId.get(stage)
+    const knownColumn = cardsByStageId.get(canonicalStage)
     if (knownColumn) {
       knownColumn.push(card)
       continue
     }
 
-    if (!unknownStages.has(stage)) {
-      unknownStages.set(stage, {
-        id: stage,
-        label: stage,
+    if (!unknownStages.has(canonicalStage)) {
+      unknownStages.set(canonicalStage, {
+        id: canonicalStage,
+        label: canonicalStage,
         color: null,
         cards: [],
       })
     }
-    unknownStages.get(stage)?.cards.push(card)
+    unknownStages.get(canonicalStage)?.cards.push(card)
   }
 
   const baseColumns: RicercaWorkerSelectionColumn[] = [

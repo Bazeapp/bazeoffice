@@ -76,6 +76,7 @@ export function LavoratoriCercaListPanel({
           table={table}
           searchValue={searchValue}
           onSearchValueChange={setSearchValue}
+          searchCommitDebounceMs={500}
           filters={filters}
           onFiltersChange={setFilters}
           filterFields={filterFields}

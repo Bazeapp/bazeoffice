@@ -190,10 +190,14 @@ function displayValue(value: unknown): string {
   return toStringValue(value) ?? "-";
 }
 
-function firstText(...values: unknown[]) {
+function isPlaceholderText(value: string) {
+  return value === "-" || value === "—";
+}
+
+function firstMeaningfulText(...values: unknown[]) {
   for (const value of values) {
     const normalized = toStringValue(value);
-    if (normalized) return normalized;
+    if (normalized && !isPlaceholderText(normalized)) return normalized;
   }
   return null;
 }
@@ -211,7 +215,26 @@ function buildAddressLine(address: Record<string, unknown> | null | undefined) {
       toStringValue(address.citta),
       toStringValue(address.cap),
     ]
-      .filter((item): item is string => Boolean(item))
+      .filter(
+        (item): item is string =>
+          typeof item === "string" && !isPlaceholderText(item),
+      )
+      .join(", ") || null
+  );
+}
+
+function buildLegacyProcessAddressLine(process: Record<string, unknown>) {
+  return (
+    [
+      toStringValue(process.indirizzo_prova_via),
+      toStringValue(process.indirizzo_prova_civico),
+      toStringValue(process.indirizzo_prova_comune),
+      toStringValue(process.indirizzo_prova_cap),
+    ]
+      .filter(
+        (item): item is string =>
+          typeof item === "string" && !isPlaceholderText(item),
+      )
       .join(", ") || null
   );
 }
@@ -409,6 +432,11 @@ export function RicercaDetailView({
               normalizeLookupToken(toStringValue(row.tipo_indirizzo)) ===
               "luogo",
           ) ??
+          addressRows.find(
+            (row) =>
+              normalizeLookupToken(toStringValue(row.tipo_indirizzo)) ===
+              "prova",
+          ) ??
           addressRows[0] ??
           null;
 
@@ -481,26 +509,23 @@ export function RicercaDetailView({
           etaMinima: displayValue(processRow.eta_minima),
           etaMassima: displayValue(processRow.eta_massima),
           indirizzoProvincia: displayValue(
-            firstText(
-              processRow.indirizzo_prova_provincia,
+            firstMeaningfulText(
               processAddress?.provincia,
+              processRow.indirizzo_prova_provincia,
             ),
           ),
           indirizzoCap: displayValue(
-            firstText(processRow.indirizzo_prova_cap, processAddress?.cap),
+            firstMeaningfulText(processAddress?.cap, processRow.indirizzo_prova_cap),
           ),
           indirizzoNote: displayValue(
-            firstText(processRow.indirizzo_prova_note, processAddress?.note),
+            firstMeaningfulText(processAddress?.note, processRow.indirizzo_prova_note),
           ),
-          indirizzoCompleto:
-            [
-              toStringValue(processRow.indirizzo_prova_via),
-              toStringValue(processRow.indirizzo_prova_civico),
-              toStringValue(processRow.indirizzo_prova_comune),
-              toStringValue(processRow.indirizzo_prova_cap),
-            ]
-              .filter((item): item is string => Boolean(item))
-              .join(", ") || displayValue(buildAddressLine(processAddress)),
+          indirizzoCompleto: displayValue(
+            firstMeaningfulText(
+              buildAddressLine(processAddress),
+              buildLegacyProcessAddressLine(processRow),
+            ),
+          ),
           geocode: displayValue(processRow.geocode),
           srcEmbedMapsAnnucio: displayValue(processRow.src_embed_maps_annucio),
           deadlineMobile: formatItalianDate(processRow.deadline_mobile),
@@ -984,10 +1009,6 @@ export function RicercaDetailView({
                           "Nucleo famigliare",
                           resolvedCard.nucleoFamigliare,
                         )}
-                        {renderField(
-                          "Età lavoratore",
-                          `${resolvedCard.etaMinima ?? "-"} - ${resolvedCard.etaMassima ?? "-"}`,
-                        )}
                       </div>
                       {renderField(
                         "Descrizione casa",
@@ -998,7 +1019,6 @@ export function RicercaDetailView({
                           "Metratura casa",
                           resolvedCard.metraturaCasa,
                         )}
-                        {renderField("Sesso", resolvedCard.sesso)}
                       </div>
                       {renderField(
                         "Animali in casa",
@@ -1039,6 +1059,13 @@ export function RicercaDetailView({
                           "Dettaglio patente",
                           resolvedCard.patenteDettaglio,
                         )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderField(
+                          "Età lavoratore",
+                          `${resolvedCard.etaMinima ?? "-"} - ${resolvedCard.etaMassima ?? "-"}`,
+                        )}
+                        {renderField("Sesso", resolvedCard.sesso)}
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         {renderField(

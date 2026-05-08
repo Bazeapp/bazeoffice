@@ -225,6 +225,7 @@ type WorkerPipelineSummaryCardsProps = {
     iban: string;
     id_stripe_account: string;
   };
+  resolvedIban: string;
   documentiVerificatiOptions: LookupOption[];
   documentiInRegolaOptions: LookupOption[];
   onDocumentVerificationChange: (value: string) => void;
@@ -1529,6 +1530,7 @@ export function WorkerPipelineSummaryCards({
   onToggleDocumentsEdit,
   updatingDocuments,
   documentsDraft,
+  resolvedIban,
   documentiVerificatiOptions,
   documentiInRegolaOptions,
   onDocumentVerificationChange,
@@ -1675,7 +1677,7 @@ export function WorkerPipelineSummaryCards({
         statoDocumentiOptions={documentiInRegolaOptions}
         lookupColorsByDomain={lookupColorsByDomain}
         administrativeValues={{
-          iban: asString(workerRow.iban),
+          iban: resolvedIban,
           id_stripe_account: asString(workerRow.id_stripe_account),
         }}
         onToggleEdit={onToggleDocumentsEdit}

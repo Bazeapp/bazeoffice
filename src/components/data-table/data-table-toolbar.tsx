@@ -67,6 +67,7 @@ type DataTableToolbarProps<TData> = {
   onApplyFilters?: () => void;
   hasPendingFilters?: boolean;
   onRequestSchema?: () => void;
+  searchCommitDebounceMs?: number;
 };
 
 function getColumnLabel(column: {
@@ -126,6 +127,7 @@ export function DataTableToolbar<TData>({
   onApplyFilters,
   hasPendingFilters = false,
   onRequestSchema,
+  searchCommitDebounceMs = 120,
 }: DataTableToolbarProps<TData>) {
   const [viewName, setViewName] = React.useState("");
   const [localSearchValue, setLocalSearchValue] = React.useState(searchValue);
@@ -165,12 +167,12 @@ export function DataTableToolbar<TData>({
       React.startTransition(() => {
         onSearchValueChange(localSearchValue);
       });
-    }, 120);
+    }, Math.max(0, searchCommitDebounceMs));
 
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [localSearchValue, onSearchValueChange, searchValue]);
+  }, [localSearchValue, onSearchValueChange, searchCommitDebounceMs, searchValue]);
 
   function upsertSort(index: number, partial: { id?: string; desc?: boolean }) {
     const next: SortingState = [...sorting];
