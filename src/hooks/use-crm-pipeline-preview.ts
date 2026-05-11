@@ -66,6 +66,7 @@ const CRM_PIPELINE_PROCESSI_SELECT = [
   "indirizzo_prova_via",
   "indirizzo_prova_civico",
   "indirizzo_prova_comune",
+  "indirizzo_prova_citofono",
   "src_embed_maps_annucio",
   "deadline_mobile",
   "disponibilita_colloqui_in_presenza",
@@ -159,6 +160,10 @@ export type CrmPipelineCardData = {
   indirizzoCap: string
   indirizzoNote: string
   indirizzoCompleto: string
+  indirizzoVia: string
+  indirizzoCivico: string
+  indirizzoComune: string
+  indirizzoCitofono: string
   srcEmbedMapsAnnucio: string
   deadlineMobile: string
   disponibilitaColloquiInPresenza: string
@@ -743,6 +748,10 @@ function mapCardData(
       ]
         .filter((item): item is string => Boolean(item))
         .join(", ") || displayValue(buildAddressLine(processAddress)),
+    indirizzoVia: displayValue(process.indirizzo_prova_via),
+    indirizzoCivico: displayValue(process.indirizzo_prova_civico),
+    indirizzoComune: displayValue(process.indirizzo_prova_comune),
+    indirizzoCitofono: displayValue(process.indirizzo_prova_citofono),
     srcEmbedMapsAnnucio: displayValue(process.src_embed_maps_annucio),
     deadlineMobile: formatItalianDate(process.deadline_mobile),
     disponibilitaColloquiInPresenza: displayValue(

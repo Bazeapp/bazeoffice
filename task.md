@@ -77,9 +77,11 @@
 
 **Atteso:** La pagina Ricerche deve mostrare informazioni temporali operative per colloqui, ultimo colloquio e selezione inviata.
 
+**Nota analisi:** La parte colloquio/prova usa i campi `selezioni_lavoratori.data_ora_colloquio_famiglia_lavoratore` e `selezioni_lavoratori.data_ora_fine_colloquio_famiglia_lavoratore` ed e stata coperta da `QA-RIC-010`. Per "selezione inviata" non risulta un campo dedicato di invio; `data_ora_creazione` e popolato ma non va usato come data invio senza conferma prodotto/DB.
+
 ---
 
-### [QA-RIC-008] Mostrare link area privata e codice OTP nella scheda famiglia
+### ✅ [QA-RIC-008] Mostrare link area privata e codice OTP nella scheda famiglia
 **Urgenza:** media  
 **Fonte:** Sabrina  
 **Pagina/area:** Ricerche, scheda Famiglia  
@@ -87,6 +89,8 @@
 **Problema:** Nella scheda famiglia non sono riportati il link dell'area privata e il codice OTP di accesso.
 
 **Atteso:** Link area privata e codice OTP devono essere visibili nella scheda famiglia quando disponibili.
+
+**Nota implementazione:** Il link area privata replica la formula Airtable `entry_point_area_privata`: `https://app.bazeapp.com/auth/entry-point?email={email}&sort={base_codice_otp}&utm_source=entry_point`. Il codice OTP replica `codice_otp`: `100000 - base_codice_otp`.
 
 ---
 
@@ -101,7 +105,7 @@
 
 ---
 
-### [QA-RIC-010] Mostrare data colloquio/prova nella scheda lavoratore
+### ✅ [QA-RIC-010] Mostrare data colloquio/prova nella scheda lavoratore
 **Urgenza:** alta  
 **Fonte:** Sabrina  
 **Pagina/area:** Ricerche, fase colloqui/prova  
@@ -109,6 +113,8 @@
 **Problema:** Nella scheda lavoratore non e visibile la data del colloquio o della prova.
 
 **Atteso:** La scheda lavoratore deve mostrare la data del colloquio/prova quando presente.
+
+**Nota implementazione:** Nella pipeline lavoratori della ricerca, le card mostrano la data da `selezioni_lavoratori.data_ora_colloquio_famiglia_lavoratore`; se lo stato contiene "Prova" viene etichettata come prova, se contiene "Colloquio" come colloquio. Usa anche `data_ora_fine_colloquio_famiglia_lavoratore` per il riferimento temporale di fine quando presente.
 
 ---
 

@@ -1,5 +1,15 @@
 import { RapportiLavorativiView } from "@/components/gestione-contrattuale/rapporti-lavorativi-view"
 
-export function RapportiLavorativiPage() {
-  return <RapportiLavorativiView />
+type RapportiLavorativiPageProps = {
+  initialSelectedRapportoId?: string | null
+}
+
+export function RapportiLavorativiPage({
+  initialSelectedRapportoId = null,
+}: RapportiLavorativiPageProps) {
+  return (
+    <RapportiLavorativiView
+      initialSelectedRapportoId={initialSelectedRapportoId}
+    />
+  )
 }

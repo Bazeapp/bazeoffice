@@ -536,7 +536,14 @@ async function fetchUniqueLavoratoreByLabel(label: string | null | undefined) {
   return response.rows.length === 1 ? (response.rows[0] as LavoratoreRecord) : null
 }
 
-export function useRapportiLavorativiData() {
+type UseRapportiLavorativiDataOptions = {
+  initialSelectedRapportoId?: string | null
+}
+
+export function useRapportiLavorativiData(
+  options: UseRapportiLavorativiDataOptions = {}
+) {
+  const { initialSelectedRapportoId = null } = options
   const [rapporti, setRapporti] = React.useState<RapportoLavorativoRecord[]>([])
   const [rapportiTotal, setRapportiTotal] = React.useState(0)
   const [loading, setLoading] = React.useState(true)
@@ -546,7 +553,9 @@ export function useRapportiLavorativiData() {
   const [searchValue, setSearchValue] = React.useState("")
   const [rapportoStatusFilter, setRapportoStatusFilter] =
     React.useState<RapportoStatusFilter>("all")
-  const [selectedRapportoId, setSelectedRapportoId] = React.useState<string | null>(null)
+  const [selectedRapportoId, setSelectedRapportoId] = React.useState<string | null>(
+    initialSelectedRapportoId
+  )
   const [selectedFamiglia, setSelectedFamiglia] = React.useState<FamigliaRecord | null>(null)
   const [selectedLavoratore, setSelectedLavoratore] = React.useState<LavoratoreRecord | null>(null)
   const [selectedProcessi, setSelectedProcessi] = React.useState<ProcessoMatchingRecord[]>([])
@@ -683,7 +692,14 @@ export function useRapportiLavorativiData() {
                 (rapporto) => resolveRapportoStatus(rapporto) === rapportoStatusFilter,
               )
         const sortedRapporti = sortRapportiByOperationalStatus(resolvedRapporti)
-        const visibleRapporti = sortedRapporti.slice(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE)
+        const pageRapporti = sortedRapporti.slice(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE)
+        const routeSelectedRapporto = initialSelectedRapportoId
+          ? sortedRapporti.find((rapporto) => rapporto.id === initialSelectedRapportoId) ?? null
+          : null
+        const visibleRapporti =
+          routeSelectedRapporto && !pageRapporti.some((rapporto) => rapporto.id === routeSelectedRapporto.id)
+            ? [routeSelectedRapporto, ...pageRapporti]
+            : pageRapporti
 
         setRapporti(visibleRapporti)
         setRapportiTotal(sortedRapporti.length)
@@ -704,7 +720,7 @@ export function useRapportiLavorativiData() {
     return () => {
       isActive = false
     }
-  }, [pageIndex, rapportoStatusFilter, reloadToken, searchValue, serverSearchQuery])
+  }, [initialSelectedRapportoId, pageIndex, rapportoStatusFilter, reloadToken, searchValue, serverSearchQuery])
 
   React.useEffect(() => {
     let isActive = true
@@ -740,6 +756,11 @@ export function useRapportiLavorativiData() {
       return rapporti[0]?.id ?? null
     })
   }, [rapporti])
+
+  React.useEffect(() => {
+    if (!initialSelectedRapportoId) return
+    setSelectedRapportoId(initialSelectedRapportoId)
+  }, [initialSelectedRapportoId])
 
   React.useEffect(() => {
     let isActive = true

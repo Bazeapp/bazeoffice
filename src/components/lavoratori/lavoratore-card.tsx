@@ -93,6 +93,7 @@ type LavoratoreCardProps = {
   isActive: boolean
   onClick: () => void
   variant?: "default" | "gate1"
+  bottomSlot?: React.ReactNode
   gate1Summary?: {
     provincia: string | null
     createdAt: string | null
@@ -249,6 +250,7 @@ export function LavoratoreCard({
   isActive,
   onClick,
   variant = "default",
+  bottomSlot,
   gate1Summary,
 }: LavoratoreCardProps) {
   const qualificationStatus = getWorkerQualificationStatus(worker)
@@ -482,6 +484,12 @@ export function LavoratoreCard({
               )
             })}
           </div>
+          {bottomSlot ? (
+            <>
+              <Separator className="my-1" />
+              {bottomSlot}
+            </>
+          ) : null}
         </div>
       </RecordCard.Body>
     </RecordCard>

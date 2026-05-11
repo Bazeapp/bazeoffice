@@ -87,6 +87,9 @@ type WorkerPipelineSummaryCardsProps = {
       | "indirizzo_prova_provincia"
       | "indirizzo_prova_cap"
       | "indirizzo_prova_via"
+      | "indirizzo_prova_civico"
+      | "indirizzo_prova_comune"
+      | "indirizzo_prova_citofono"
       | "indirizzo_prova_note",
     value: unknown,
   ) => Promise<void> | void;
@@ -94,6 +97,10 @@ type WorkerPipelineSummaryCardsProps = {
   familyAddress?: string | null;
   familyCap?: string | null;
   familyProvince?: string | null;
+  familyStreet?: string | null;
+  familyCivicNumber?: string | null;
+  familyCity?: string | null;
+  familyIntercom?: string | null;
   familyAddressNote?: string | null;
   familyAvailabilityJson?: string | null;
   familyWorkSchedule?: string | null;
@@ -447,6 +454,10 @@ function TravelTimeCard({
   familyAddress,
   familyCap,
   familyProvince,
+  familyStreet,
+  familyCivicNumber,
+  familyCity,
+  familyIntercom,
   familyAddressNote,
   provinceOptions = [],
   mobilityOptions = [],
@@ -463,6 +474,9 @@ function TravelTimeCard({
       | "indirizzo_prova_provincia"
       | "indirizzo_prova_cap"
       | "indirizzo_prova_via"
+      | "indirizzo_prova_civico"
+      | "indirizzo_prova_comune"
+      | "indirizzo_prova_citofono"
       | "indirizzo_prova_note",
     value: unknown,
   ) => Promise<void> | void;
@@ -470,6 +484,10 @@ function TravelTimeCard({
   familyAddress?: string | null;
   familyCap?: string | null;
   familyProvince?: string | null;
+  familyStreet?: string | null;
+  familyCivicNumber?: string | null;
+  familyCity?: string | null;
+  familyIntercom?: string | null;
   familyAddressNote?: string | null;
   provinceOptions?: LookupOption[];
   mobilityOptions?: LookupOption[];
@@ -493,6 +511,10 @@ function TravelTimeCard({
     provincia: asString(familyProvince),
     cap: asString(familyCap),
     indirizzo: asString(familyAddress),
+    via: asString(familyStreet),
+    civico: asString(familyCivicNumber),
+    comune: asString(familyCity),
+    citofono: asString(familyIntercom),
     note: asString(familyAddressNote),
   });
   const mobilityAnchor = useComboboxAnchor();
@@ -518,9 +540,22 @@ function TravelTimeCard({
       provincia: asString(familyProvince),
       cap: asString(familyCap),
       indirizzo: asString(familyAddress),
+      via: asString(familyStreet),
+      civico: asString(familyCivicNumber),
+      comune: asString(familyCity),
+      citofono: asString(familyIntercom),
       note: asString(familyAddressNote),
     });
-  }, [familyAddress, familyAddressNote, familyCap, familyProvince]);
+  }, [
+    familyAddress,
+    familyAddressNote,
+    familyCap,
+    familyCivicNumber,
+    familyCity,
+    familyIntercom,
+    familyProvince,
+    familyStreet,
+  ]);
 
   const commitAddressField = React.useCallback(
     async (
@@ -542,6 +577,9 @@ function TravelTimeCard({
         | "indirizzo_prova_provincia"
         | "indirizzo_prova_cap"
         | "indirizzo_prova_via"
+        | "indirizzo_prova_civico"
+        | "indirizzo_prova_comune"
+        | "indirizzo_prova_citofono"
         | "indirizzo_prova_note",
       rawValue: string,
     ) => {
@@ -552,8 +590,14 @@ function TravelTimeCard({
           ? asString(familyProvince)
           : field === "indirizzo_prova_cap"
             ? asString(familyCap)
-            : field === "indirizzo_prova_via"
-              ? asString(familyAddress)
+          : field === "indirizzo_prova_via"
+            ? asString(familyAddress)
+            : field === "indirizzo_prova_civico"
+              ? asString(familyCivicNumber)
+              : field === "indirizzo_prova_comune"
+                ? asString(familyCity)
+                : field === "indirizzo_prova_citofono"
+                  ? asString(familyIntercom)
               : asString(familyAddressNote);
       if (nextValue === currentValue) return;
       await onPatchProcessField(field, nextValue || null);
@@ -562,6 +606,9 @@ function TravelTimeCard({
       familyAddress,
       familyAddressNote,
       familyCap,
+      familyCivicNumber,
+      familyCity,
+      familyIntercom,
       familyProvince,
       onPatchProcessField,
     ],
@@ -764,21 +811,75 @@ function TravelTimeCard({
               disabled={updatingProcessAddress}
             />
             <Input
-              value={familyAddressDraft.indirizzo}
+              value={familyAddressDraft.via || familyAddressDraft.indirizzo}
               onChange={(event) =>
                 setFamilyAddressDraft((current) => ({
                   ...current,
-                  indirizzo: event.target.value,
+                  via: event.target.value,
                 }))
               }
               onBlur={() =>
                 void commitFamilyAddressField(
                   "indirizzo_prova_via",
-                  familyAddressDraft.indirizzo,
+                  familyAddressDraft.via || familyAddressDraft.indirizzo,
                 )
               }
               className="h-9 text-sm"
-              placeholder="Indirizzo"
+              placeholder="Via"
+              disabled={updatingProcessAddress}
+            />
+            <Input
+              value={familyAddressDraft.civico}
+              onChange={(event) =>
+                setFamilyAddressDraft((current) => ({
+                  ...current,
+                  civico: event.target.value,
+                }))
+              }
+              onBlur={() =>
+                void commitFamilyAddressField(
+                  "indirizzo_prova_civico",
+                  familyAddressDraft.civico,
+                )
+              }
+              className="h-9 text-sm"
+              placeholder="Civico"
+              disabled={updatingProcessAddress}
+            />
+            <Input
+              value={familyAddressDraft.comune}
+              onChange={(event) =>
+                setFamilyAddressDraft((current) => ({
+                  ...current,
+                  comune: event.target.value,
+                }))
+              }
+              onBlur={() =>
+                void commitFamilyAddressField(
+                  "indirizzo_prova_comune",
+                  familyAddressDraft.comune,
+                )
+              }
+              className="h-9 text-sm"
+              placeholder="Comune"
+              disabled={updatingProcessAddress}
+            />
+            <Input
+              value={familyAddressDraft.citofono}
+              onChange={(event) =>
+                setFamilyAddressDraft((current) => ({
+                  ...current,
+                  citofono: event.target.value,
+                }))
+              }
+              onBlur={() =>
+                void commitFamilyAddressField(
+                  "indirizzo_prova_citofono",
+                  familyAddressDraft.citofono,
+                )
+              }
+              className="h-9 text-sm"
+              placeholder="Citofono"
               disabled={updatingProcessAddress}
             />
             <Input
@@ -802,12 +903,18 @@ function TravelTimeCard({
           </div>
         ) : (
           <p>
-            {familyProvince && familyProvince !== "-" ? familyProvince : "-"} •{" "}
-            {familyCap && familyCap !== "-" ? familyCap : "-"} •{" "}
-            {familyAddress && familyAddress !== "-" ? familyAddress : "-"}
-            {familyAddressNote && familyAddressNote !== "-"
-              ? ` • ${familyAddressNote}`
-              : ""}
+            {[
+              familyProvince,
+              familyCap,
+              familyStreet || familyAddress,
+              familyCivicNumber,
+              familyCity,
+              familyIntercom ? `Citofono ${familyIntercom}` : null,
+              familyAddressNote,
+            ]
+              .map((value) => (typeof value === "string" ? value.trim() : ""))
+              .filter((value) => value && value !== "-")
+              .join(" • ") || "-"}
           </p>
         )}
       </div>
@@ -1465,6 +1572,10 @@ export function WorkerPipelineSummaryCards({
   familyAddress,
   familyCap,
   familyProvince,
+  familyStreet,
+  familyCivicNumber,
+  familyCity,
+  familyIntercom,
   familyAddressNote,
   familyAvailabilityJson,
   familyWorkSchedule,
@@ -1560,6 +1671,10 @@ export function WorkerPipelineSummaryCards({
         familyAddress={familyAddress}
         familyCap={familyCap}
         familyProvince={familyProvince}
+        familyStreet={familyStreet}
+        familyCivicNumber={familyCivicNumber}
+        familyCity={familyCity}
+        familyIntercom={familyIntercom}
         familyAddressNote={familyAddressNote}
         provinceOptions={provinceOptions}
         mobilityOptions={lookupOptionsByDomain.get("lavoratori.come_ti_sposti") ?? []}

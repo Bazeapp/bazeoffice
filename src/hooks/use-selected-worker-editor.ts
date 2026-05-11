@@ -1,4 +1,5 @@
 import * as React from "react"
+import { toast } from "sonner"
 
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import {
@@ -51,6 +52,7 @@ import {
   fetchRapportiLavorativi,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { createStripeConnectAccount } from "@/lib/stripe-connect-api"
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
@@ -281,7 +283,7 @@ function buildDocumentsDraft(row: LavoratoreRecord | null): WorkerDocumentsDraft
     stato_verifica_documenti: asString(row?.stato_verifica_documenti),
     documenti_in_regola: asString(row?.documenti_in_regola),
     data_scadenza_naspi: asString(row?.data_scadenza_naspi),
-    iban: asString(row?.iban),
+    iban: "",
     id_stripe_account: asString(row?.id_stripe_account),
   }
 }
@@ -348,6 +350,7 @@ export function useSelectedWorkerEditor({
   )
   const [assunzioneIban, setAssunzioneIban] = React.useState("")
   const [assunzioneIbanRecordId, setAssunzioneIbanRecordId] = React.useState("")
+  const [hasLinkedRapportoForIban, setHasLinkedRapportoForIban] = React.useState(false)
   const resolvedIban = assunzioneIban
   const availabilityPayload = React.useMemo(
     () =>
@@ -452,6 +455,7 @@ export function useSelectedWorkerEditor({
       if (!selectedWorkerId) {
         setAssunzioneIban("")
         setAssunzioneIbanRecordId("")
+        setHasLinkedRapportoForIban(false)
         return
       }
 
@@ -478,6 +482,9 @@ export function useSelectedWorkerEditor({
         const rapportoIds = (rapportiResult.rows ?? [])
           .map((row) => asString(row.id))
           .filter(Boolean)
+        if (!cancelled) {
+          setHasLinkedRapportoForIban(rapportoIds.length > 0)
+        }
 
         if (rapportoIds.length === 0) {
           if (!cancelled) {
@@ -528,6 +535,7 @@ export function useSelectedWorkerEditor({
         if (!cancelled) {
           setAssunzioneIban("")
           setAssunzioneIbanRecordId("")
+          setHasLinkedRapportoForIban(false)
         }
       }
     }
@@ -1035,6 +1043,33 @@ export function useSelectedWorkerEditor({
     [assunzioneIban, documentsDraft, patchDocumentField, selectedWorkerRow]
   )
 
+  const generateStripeAccount = React.useCallback(async () => {
+    if (!selectedWorkerId) return
+
+    setUpdatingDocuments(true)
+    try {
+      const result = await createStripeConnectAccount(selectedWorkerId)
+      if (result.row) {
+        applyUpdatedWorkerRow(asLavoratoreRecord(result.row))
+      }
+      setDocumentsDraft((current) => ({
+        ...current,
+        id_stripe_account: result.id_stripe_account,
+      }))
+      toast.success(
+        result.created
+          ? "Account Stripe creato"
+          : "Account Stripe gia presente"
+      )
+      return result
+    } catch (caughtError) {
+      setError(formatEditorError("Errore creazione account Stripe", caughtError))
+      throw caughtError
+    } finally {
+      setUpdatingDocuments(false)
+    }
+  }, [applyUpdatedWorkerRow, selectedWorkerId, setError])
+
   return {
     selectedWorkerIsNonIdoneo,
     selectedWorkerNonQualificatoIssues,
@@ -1089,6 +1124,7 @@ export function useSelectedWorkerEditor({
     documentsDraft,
     setDocumentsDraft,
     resolvedIban,
+    hasLinkedRapportoForIban,
     handleNonIdoneoReasonsChange,
     handleBlacklistChange,
     patchSelectedWorkerField,
@@ -1108,6 +1144,7 @@ export function useSelectedWorkerEditor({
     patchSkillsField,
     patchDocumentField,
     commitDocumentField,
+    generateStripeAccount,
     formatDateOnly,
     getAgeFromBirthDate,
     parseNumberValue,

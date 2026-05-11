@@ -254,9 +254,11 @@ function PresenceBadge({ isRegular }: { isRegular: boolean }) {
 function EditableStars({
   value,
   onChange,
+  readOnly = false,
 }: {
   value: number | null | undefined
-  onChange: (value: number) => void
+  onChange?: (value: number) => void
+  readOnly?: boolean
 }) {
   const rating = typeof value === "number" ? Math.max(0, Math.min(5, Math.round(value))) : 0
 
@@ -268,8 +270,9 @@ function EditableStars({
           <button
             key={nextValue}
             type="button"
-            className="cursor-pointer"
-            onClick={() => onChange(nextValue)}
+            className={readOnly ? "cursor-default" : "cursor-pointer"}
+            disabled={readOnly}
+            onClick={() => onChange?.(nextValue)}
             aria-label={`Imposta rating ${nextValue}`}
           >
             <StarIcon
@@ -308,8 +311,7 @@ function getColumnVisual(color: string): KanbanColumnVisual {
 }
 
 function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
-  const famiglia = card.rapporto?.cognome_nome_datore_proper?.trim() || "Famiglia non disponibile"
-  const lavoratore = card.rapporto?.nome_lavoratore_per_url?.trim() || "Lavoratore non disponibile"
+  const [famiglia, lavoratore] = card.nomeCompleto.split(" – ")
   const isPaid = card.stage === "Pagato" || card.pagamento?.status === "succeeded"
 
   return (
@@ -317,8 +319,12 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
       <CardContent className="space-y-3 px-3 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold leading-tight">{famiglia}</p>
-            <p className="text-muted-foreground mt-0.5 truncate text-xs">{lavoratore}</p>
+            <p className="truncate text-sm font-semibold leading-tight">
+              {famiglia || "Rapporto non disponibile"}
+            </p>
+            <p className="text-muted-foreground mt-0.5 truncate text-xs">
+              {lavoratore || "Dettagli rapporto non disponibili"}
+            </p>
           </div>
           {card.importoLabel ? (
             <p className="shrink-0 text-sm font-semibold">{card.importoLabel}</p>
@@ -873,7 +879,7 @@ export function CedolinoDetailSheet({
                     <p className="ui-type-label">Feedback rating</p>
                     <EditableStars
                       value={card.record.rating_feedback_famiglia}
-                      onChange={(value) => onPatchCard(card.id, { rating_feedback_famiglia: value })}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -881,9 +887,7 @@ export function CedolinoDetailSheet({
                     <Textarea
                       value={card.record.testo_feedback_famiglia ?? ""}
                       className="min-h-24"
-                      onChange={(event) =>
-                        onPatchCard(card.id, { testo_feedback_famiglia: event.target.value || null })
-                      }
+                      readOnly
                     />
                   </div>
                 </div>

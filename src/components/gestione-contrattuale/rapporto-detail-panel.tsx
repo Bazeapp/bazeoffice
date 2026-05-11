@@ -1239,6 +1239,7 @@ export function RapportoDetailPanel({
                               mainSection: "lavoratori_cerca",
                               anagraficheTab: "famiglie",
                               ricercaProcessId: null,
+                              selectedWorkerId: lavoratore.id,
                             })
                           : undefined
                       }

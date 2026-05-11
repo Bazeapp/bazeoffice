@@ -47,6 +47,8 @@ export type RicercaWorkerSelectionCard = {
   id: string
   status: string
   punteggio: string
+  scheduledAt: string | null
+  endedAt: string | null
   worker: LavoratoreListItem
 }
 
@@ -191,8 +193,13 @@ function isDaColloquiareStatus(value: string | null | undefined) {
 }
 
 const COLLOQUI_GROUP_KEYS = {
+  inPreparazionePerInvio: "in preparazione per invio",
+  inviaSelezione: "invia selezione",
   colloquioSchedulato: "colloquio schedulato",
+  colloquioRimandato: "colloquio rimandato",
   colloquioFatto: "colloquio fatto",
+  provaSchedulata: "prova schedulata",
+  provaRimandata: "prova rimandata",
   provaInCorso: "prova in corso",
   match: "match",
 } as const
@@ -212,8 +219,13 @@ function canonicalizeSelectionStatus(value: string) {
 function isColloquiStatus(value: string | null | undefined) {
   const token = normalizeStatusToken(value)
   return (
+    token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.inPreparazionePerInvio) ||
+    token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.inviaSelezione) ||
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.colloquioSchedulato) ||
+    token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.colloquioRimandato) ||
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.colloquioFatto) ||
+    token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.provaSchedulata) ||
+    token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.provaRimandata) ||
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.provaInCorso) ||
     token === normalizeStatusToken(LEGACY_PROVA_CON_CLIENTE_STATUS) ||
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.match)
@@ -1007,6 +1019,8 @@ async function fetchWorkersPipelineData(
       id,
       status: canonicalStage,
       punteggio: toStringValue(selection.punteggio) ?? "-",
+      scheduledAt: toStringValue(selection.data_ora_colloquio_famiglia_lavoratore),
+      endedAt: toStringValue(selection.data_ora_fine_colloquio_famiglia_lavoratore),
       worker: workerCard,
     }
 

@@ -28,12 +28,16 @@ export type AppRoute = {
   mainSection: MainSection
   anagraficheTab: AnagraficheSidebarTab
   ricercaProcessId: string | null
+  selectedRapportoId?: string | null
+  selectedWorkerId?: string | null
 }
 
 export const DEFAULT_ROUTE: AppRoute = {
   mainSection: "anagrafiche",
   anagraficheTab: "famiglie",
   ricercaProcessId: null,
+  selectedRapportoId: null,
+  selectedWorkerId: null,
 }
 
 function getBasePrefix() {
@@ -74,11 +78,12 @@ export function resolveRouteStateFromPath(pathname: string): AppRoute {
     }
   }
 
-  if (slug === "cerca-lavoratori") {
+  if (section === "cerca-lavoratori") {
     return {
       mainSection: "lavoratori_cerca",
       anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
       ricercaProcessId: null,
+      selectedWorkerId: detailId,
     }
   }
 
@@ -106,11 +111,12 @@ export function resolveRouteStateFromPath(pathname: string): AppRoute {
     }
   }
 
-  if (slug === "gestione-contrattuale/rapporti-lavorativi") {
+  if (section === "gestione-contrattuale" && parts[1] === "rapporti-lavorativi") {
     return {
       mainSection: "gestione_contrattuale_rapporti",
       anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
       ricercaProcessId: null,
+      selectedRapportoId: parts[2] ? decodeURIComponent(parts[2]) : null,
     }
   }
 
@@ -199,11 +205,17 @@ export function buildPathForRoute(route: AppRoute) {
         ? `ricerca/${encodeURIComponent(route.ricercaProcessId)}`
         : "ricerca"
     }
-    if (route.mainSection === "lavoratori_cerca") return "cerca-lavoratori"
+    if (route.mainSection === "lavoratori_cerca") {
+      return route.selectedWorkerId
+        ? `cerca-lavoratori/${encodeURIComponent(route.selectedWorkerId)}`
+        : "cerca-lavoratori"
+    }
     if (route.mainSection === "gate_1") return "gate-1"
     if (route.mainSection === "gate_2") return "gate-2"
     if (route.mainSection === "gestione_contrattuale_rapporti") {
-      return "gestione-contrattuale/rapporti-lavorativi"
+      return route.selectedRapportoId
+        ? `gestione-contrattuale/rapporti-lavorativi/${encodeURIComponent(route.selectedRapportoId)}`
+        : "gestione-contrattuale/rapporti-lavorativi"
     }
     if (route.mainSection === "gestione_contrattuale_assunzioni") {
       return "gestione-contrattuale/assunzioni"

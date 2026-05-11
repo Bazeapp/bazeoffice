@@ -12,6 +12,7 @@ import {
   PencilIcon,
   PlusIcon,
   ShieldCheckIcon,
+  CircleSlashIcon,
   XIcon,
 } from "lucide-react"
 
@@ -67,6 +68,7 @@ type DocumentsSelectedValues = {
 type AdministrativeValues = {
   iban: string
   id_stripe_account: string
+  missingStripeRequirements?: string[]
 }
 
 type DocumentsCardProps = {
@@ -93,6 +95,7 @@ type DocumentsCardProps = {
   onIbanBlur?: () => void
   onStripeAccountChange?: (value: string) => void
   onStripeAccountBlur?: () => void
+  onGenerateStripeAccount?: () => void | Promise<unknown>
   onDocumentUpsert: (row: DocumentoLavoratoreRecord) => void
   onUploadError: React.Dispatch<React.SetStateAction<string | null>>
 }
@@ -218,6 +221,7 @@ function AdministrativeDataSection({
   stripeAccountValue,
   onStripeAccountChange,
   onStripeAccountBlur,
+  onGenerateStripeAccount,
 }: {
   values?: AdministrativeValues
   ibanValue: string
@@ -228,10 +232,23 @@ function AdministrativeDataSection({
   onIbanBlur?: () => void
   onStripeAccountChange?: (value: string) => void
   onStripeAccountBlur?: () => void
+  onGenerateStripeAccount?: () => void | Promise<unknown>
 }) {
   const canEditIban = isEditing && Boolean(onIbanChange && onIbanBlur)
   const canEditStripeAccount =
     isEditing && Boolean(onStripeAccountChange && onStripeAccountBlur)
+  const resolvedIbanValue = ibanValue.trim()
+  const resolvedStripeAccountValue =
+    stripeAccountValue.trim() || values?.id_stripe_account?.trim() || ""
+  const canGenerateStripeAccount =
+    Boolean(onGenerateStripeAccount) &&
+    !resolvedStripeAccountValue
+  const missingStripeRequirements = [
+    ...(resolvedIbanValue ? [] : ["IBAN"]),
+    ...(values?.missingStripeRequirements ?? []),
+  ]
+  const isGenerateStripeAccountDisabled =
+    isUpdating || missingStripeRequirements.length > 0
 
   return (
     <div className="space-y-3 rounded-2xl border bg-background p-4">
@@ -281,6 +298,37 @@ function AdministrativeDataSection({
           />
         )}
       </div>
+      {canGenerateStripeAccount ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-dashed bg-surface px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium">Account Stripe mancante</p>
+            {missingStripeRequirements.length > 0 ? (
+              <div className="mt-1 flex flex-wrap gap-2">
+                {missingStripeRequirements.map((requirement) => (
+                  <span
+                    key={requirement}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-red-600"
+                  >
+                    <CircleSlashIcon className="size-3.5" />
+                    {requirement}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void onGenerateStripeAccount?.()}
+            disabled={isGenerateStripeAccountDisabled}
+          >
+            {isUpdating ? (
+              <LoaderCircleIcon className="mr-2 size-4 animate-spin" />
+            ) : null}
+            {isUpdating ? "Creazione..." : "Genera account Stripe"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -476,6 +524,7 @@ export function DocumentsCard({
   onIbanBlur,
   onStripeAccountChange,
   onStripeAccountBlur,
+  onGenerateStripeAccount,
   onDocumentUpsert,
   onUploadError,
 }: DocumentsCardProps) {
@@ -751,6 +800,7 @@ export function DocumentsCard({
           onIbanBlur={onIbanBlur}
           onStripeAccountChange={onStripeAccountChange}
           onStripeAccountBlur={onStripeAccountBlur}
+          onGenerateStripeAccount={onGenerateStripeAccount}
         />
       </FieldSet>
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(open) => !open && setSelectedPreview(null)}>

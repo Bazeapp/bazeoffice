@@ -599,10 +599,12 @@ function NonQualificatoTipoLavoroField({
 }
 
 type LavoratoriCercaViewProps = {
+  initialSelectedWorkerId?: string | null;
   onOpenRicercaDetail?: (processId: string) => void;
 };
 
 export function LavoratoriCercaView({
+  initialSelectedWorkerId = null,
   onOpenRicercaDetail,
 }: LavoratoriCercaViewProps = {}) {
   const {
@@ -649,7 +651,7 @@ export function LavoratoriCercaView({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
     upsertSelectedWorkerDocument,
-  } = useLavoratoriData();
+  } = useLavoratoriData({ initialSelectedWorkerId });
   const motivazioniNonIdoneoOptions = React.useMemo(
     () => lookupOptionsByDomain.get("lavoratori.motivazione_non_idoneo") ?? [],
     [lookupOptionsByDomain],
@@ -1154,6 +1156,7 @@ export function LavoratoriCercaView({
     documentsDraft,
     setDocumentsDraft,
     resolvedIban,
+    hasLinkedRapportoForIban,
     handleNonIdoneoReasonsChange,
     handleBlacklistChange,
     patchSelectedWorkerField,
@@ -1171,6 +1174,7 @@ export function LavoratoriCercaView({
     patchSkillsField,
     patchDocumentField,
     commitDocumentField,
+    generateStripeAccount,
     AVAILABILITY_EDIT_DAYS,
     AVAILABILITY_EDIT_BANDS,
     AVAILABILITY_HOUR_LABELS,
@@ -2099,6 +2103,18 @@ export function LavoratoriCercaView({
                       id_stripe_account: asString(
                         selectedWorkerRow?.id_stripe_account,
                       ),
+                      missingStripeRequirements: [
+                        ...(!hasLinkedRapportoForIban ? ["Rapporto"] : []),
+                        ...(!formatWorkerAddressLine(selectedWorkerAddress)
+                          ? ["Indirizzo"]
+                          : []),
+                        ...(!asString(selectedWorkerAddress?.cap)
+                          ? ["CAP"]
+                          : []),
+                        ...(!asString(selectedWorkerRow?.provincia)
+                          ? ["Provincia"]
+                          : []),
+                      ],
                     }}
                     onToggleEdit={() =>
                       setIsEditingDocuments((current) => !current)
@@ -2148,6 +2164,7 @@ export function LavoratoriCercaView({
                     onStripeAccountBlur={() =>
                       void commitDocumentField("id_stripe_account")
                     }
+                    onGenerateStripeAccount={generateStripeAccount}
                     onDocumentUpsert={upsertSelectedWorkerDocument}
                     onUploadError={setError}
                   />

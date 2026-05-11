@@ -104,7 +104,12 @@ export function AppPageContent({
   }
 
   if (route.mainSection === "lavoratori_cerca") {
-    return <LavoratoriCercaPage onOpenRicercaDetail={onOpenRicercaDetail} />
+    return (
+      <LavoratoriCercaPage
+        initialSelectedWorkerId={route.selectedWorkerId ?? null}
+        onOpenRicercaDetail={onOpenRicercaDetail}
+      />
+    )
   }
 
   if (route.mainSection === "gate_1") {
@@ -116,7 +121,11 @@ export function AppPageContent({
   }
 
   if (route.mainSection === "gestione_contrattuale_rapporti") {
-    return <RapportiLavorativiPage />
+    return (
+      <RapportiLavorativiPage
+        initialSelectedRapportoId={route.selectedRapportoId ?? null}
+      />
+    )
   }
 
   if (route.mainSection === "gestione_contrattuale_assunzioni") {

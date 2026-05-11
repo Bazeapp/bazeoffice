@@ -2,7 +2,13 @@ import { RapportiListPanel } from "@/components/gestione-contrattuale/rapporti-l
 import { RapportoDetailPanel } from "@/components/gestione-contrattuale/rapporto-detail-panel"
 import { useRapportiLavorativiData } from "@/hooks/use-rapporti-lavorativi-data"
 
-export function RapportiLavorativiView() {
+type RapportiLavorativiViewProps = {
+  initialSelectedRapportoId?: string | null
+}
+
+export function RapportiLavorativiView({
+  initialSelectedRapportoId = null,
+}: RapportiLavorativiViewProps) {
   const {
     rapporti,
     rapportiTotal,
@@ -33,7 +39,7 @@ export function RapportiLavorativiView() {
     loadingRelated,
     lookupColorsByDomain,
     createTicketForSelectedRapporto,
-  } = useRapportiLavorativiData()
+  } = useRapportiLavorativiData({ initialSelectedRapportoId })
 
   return (
     <section className="ui grid h-full w-full min-w-0 min-h-0 gap-3 overflow-hidden px-4 pb-2 pt-4 xl:grid-cols-[22rem_minmax(0,1fr)]">

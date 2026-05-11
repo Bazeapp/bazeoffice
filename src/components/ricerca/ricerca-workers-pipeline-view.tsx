@@ -1,6 +1,7 @@
 import * as React from "react";
 import { toast } from "sonner";
 import {
+  CalendarDaysIcon,
   ClipboardListIcon,
   LoaderCircleIcon,
   PlusIcon,
@@ -120,6 +121,58 @@ function normalizeToken(value: string | null | undefined) {
     .trim();
 }
 
+function formatCardDateTime(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatRelativeTime(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const diffMs = date.getTime() - Date.now();
+  const absMs = Math.abs(diffMs);
+  const formatter = new Intl.RelativeTimeFormat("it-IT", { numeric: "auto" });
+
+  if (absMs < 60 * 60 * 1000) {
+    return formatter.format(Math.round(diffMs / (60 * 1000)), "minute");
+  }
+  if (absMs < 48 * 60 * 60 * 1000) {
+    return formatter.format(Math.round(diffMs / (60 * 60 * 1000)), "hour");
+  }
+  return formatter.format(Math.round(diffMs / (24 * 60 * 60 * 1000)), "day");
+}
+
+function getCardOperationalTiming(card: RicercaWorkerSelectionCard) {
+  const statusToken = normalizeToken(card.status);
+  const isTrial = statusToken.includes("prova");
+  const isInterview = statusToken.includes("colloquio");
+  if (!isTrial && !isInterview) return null;
+
+  const scheduledAt = formatCardDateTime(card.scheduledAt);
+  if (!scheduledAt) return null;
+
+  const eventLabel = isTrial ? "Prova" : "Colloquio";
+  const relativeValue = card.endedAt ?? card.scheduledAt;
+  const relativeLabel = formatRelativeTime(relativeValue);
+  const relativePrefix = card.endedAt ? "fine" : "inizio";
+
+  return {
+    label: `${eventLabel}: ${scheduledAt}`,
+    relativeLabel: relativeLabel ? `${relativePrefix} ${relativeLabel}` : null,
+  };
+}
+
 function buildWorkerResidenceAddress(row: Record<string, unknown> | undefined) {
   if (!row) return null;
 
@@ -225,14 +278,39 @@ const DA_COLLOQUIARE_GROUPS: GroupedColumnGroup[] = [
 
 const COLLOQUI_MATCH_GROUPS: GroupedColumnGroup[] = [
   {
+    key: "in preparazione per invio",
+    label: "In preparazione per invio",
+    dropStatusId: "In preparazione per invio",
+  },
+  {
+    key: "invia selezione",
+    label: "Invia selezione",
+    dropStatusId: "Invia selezione",
+  },
+  {
     key: "colloquio schedulato",
     label: "Colloquio schedulato",
     dropStatusId: "Colloquio schedulato",
   },
   {
+    key: "colloquio rimandato",
+    label: "Colloquio rimandato",
+    dropStatusId: "Colloquio rimandato",
+  },
+  {
     key: "colloquio fatto",
     label: "Colloquio fatto",
     dropStatusId: "Colloquio fatto",
+  },
+  {
+    key: "prova schedulata",
+    label: "Prova schedulata",
+    dropStatusId: "Prova schedulata",
+  },
+  {
+    key: "prova rimandata",
+    label: "Prova rimandata",
+    dropStatusId: "Prova rimandata",
   },
   {
     key: "prova in corso",
@@ -617,6 +695,37 @@ function getWorkerColumnVisual(
   }
 }
 
+function PipelineWorkerCard({
+  card,
+  onOpenWorker,
+}: {
+  card: RicercaWorkerSelectionCard;
+  onOpenWorker: (card: RicercaWorkerSelectionCard) => void;
+}) {
+  const timing = getCardOperationalTiming(card);
+
+  return (
+    <LavoratoreCard
+      worker={card.worker}
+      isActive={false}
+      onClick={() => onOpenWorker(card)}
+      bottomSlot={
+        timing ? (
+        <div className="text-muted-foreground flex min-w-0 items-start gap-1.5 text-2xs leading-snug">
+          <CalendarDaysIcon className="size-3 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium">{timing.label}</span>
+            {timing.relativeLabel ? (
+              <span className="block">{timing.relativeLabel}</span>
+            ) : null}
+          </span>
+        </div>
+        ) : null
+      }
+    />
+  );
+}
+
 const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
   column,
   isDropTarget,
@@ -827,10 +936,9 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
                             draggingSelectionId === card.id && "opacity-40",
                           )}
                         >
-                          <LavoratoreCard
-                            worker={card.worker}
-                            isActive={false}
-                            onClick={() => onOpenWorker(card)}
+                          <PipelineWorkerCard
+                            card={card}
+                            onOpenWorker={onOpenWorker}
                           />
                         </div>
                       ))
@@ -856,11 +964,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
                 draggingSelectionId === card.id && "opacity-40",
               )}
             >
-              <LavoratoreCard
-                worker={card.worker}
-                isActive={false}
-                onClick={() => onOpenWorker(card)}
-              />
+              <PipelineWorkerCard card={card} onOpenWorker={onOpenWorker} />
             </div>
           ))
         )}
@@ -951,6 +1055,10 @@ export function RicercaWorkersPipelineView({
     province: card.indirizzoProvincia,
     cap: card.indirizzoCap,
     address: card.indirizzoCompleto,
+    street: card.indirizzoVia,
+    civicNumber: card.indirizzoCivico,
+    city: card.indirizzoComune,
+    intercom: card.indirizzoCitofono,
     note: card.indirizzoNote,
   });
   const [selectedWorkerError, setSelectedWorkerError] = React.useState<
@@ -1506,9 +1614,22 @@ export function RicercaWorkersPipelineView({
       province: card.indirizzoProvincia,
       cap: card.indirizzoCap,
       address: card.indirizzoCompleto,
+      street: card.indirizzoVia,
+      civicNumber: card.indirizzoCivico,
+      city: card.indirizzoComune,
+      intercom: card.indirizzoCitofono,
       note: card.indirizzoNote,
     });
-  }, [card.indirizzoProvincia, card.indirizzoCap, card.indirizzoCompleto, card.indirizzoNote]);
+  }, [
+    card.indirizzoCap,
+    card.indirizzoCitofono,
+    card.indirizzoCivico,
+    card.indirizzoComune,
+    card.indirizzoCompleto,
+    card.indirizzoNote,
+    card.indirizzoProvincia,
+    card.indirizzoVia,
+  ]);
 
   const handleDropToColumn = React.useCallback(
     (columnId: string, droppedSelectionId: string | null) => {
@@ -1728,6 +1849,9 @@ export function RicercaWorkersPipelineView({
         | "indirizzo_prova_provincia"
         | "indirizzo_prova_cap"
         | "indirizzo_prova_via"
+        | "indirizzo_prova_civico"
+        | "indirizzo_prova_comune"
+        | "indirizzo_prova_citofono"
         | "indirizzo_prova_note",
       value: unknown,
     ) => {
@@ -1746,6 +1870,15 @@ export function RicercaWorkersPipelineView({
           }
           if (field === "indirizzo_prova_via") {
             return { ...current, address: String(value ?? "").trim() || "-" };
+          }
+          if (field === "indirizzo_prova_civico") {
+            return { ...current, civicNumber: String(value ?? "").trim() || "-" };
+          }
+          if (field === "indirizzo_prova_comune") {
+            return { ...current, city: String(value ?? "").trim() || "-" };
+          }
+          if (field === "indirizzo_prova_citofono") {
+            return { ...current, intercom: String(value ?? "").trim() || "-" };
           }
           return { ...current, note: String(value ?? "").trim() || "-" };
         });
@@ -2218,6 +2351,10 @@ export function RicercaWorkersPipelineView({
                     familyAddress={familyAddressDraft.address}
                     familyCap={familyAddressDraft.cap}
                     familyProvince={familyAddressDraft.province}
+                    familyStreet={familyAddressDraft.street}
+                    familyCivicNumber={familyAddressDraft.civicNumber}
+                    familyCity={familyAddressDraft.city}
+                    familyIntercom={familyAddressDraft.intercom}
                     familyAddressNote={familyAddressDraft.note}
                     familyAvailabilityJson={card.familyAvailabilityJson}
                     familyWorkSchedule={card.orarioDiLavoro}

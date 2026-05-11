@@ -76,10 +76,11 @@ export function LinkedRapportoSummaryCard({
   const resolvedWorkerName = toTextValue(rapporto?.nome_lavoratore_per_url) ?? "Lavoratore non disponibile"
   const statusBadgeClassName = getLookupBadgeSoftClassName(getStatusColor(resolvedStatus))
   const rapportoPath = rapporto?.id
-    ? buildPathForRoute({
+      ? buildPathForRoute({
         mainSection: "gestione_contrattuale_rapporti",
         anagraficheTab: "famiglie",
         ricercaProcessId: null,
+        selectedRapportoId: rapporto.id,
       })
     : null
 

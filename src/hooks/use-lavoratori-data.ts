@@ -149,6 +149,7 @@ let gate1BlockingWorkerIdsCache:
   | null = null
 
 type UseLavoratoriDataOptions = {
+  initialSelectedWorkerId?: string | null
   forcedWorkerStatus?: string | string[]
   applyGate1BaseFilters?: boolean
   includeRelatedSelectionDetails?: boolean
@@ -1121,6 +1122,7 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
 
 export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   const {
+    initialSelectedWorkerId = null,
     forcedWorkerStatus,
     applyGate1BaseFilters = false,
     includeRelatedSelectionDetails = true,
@@ -1143,7 +1145,9 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     Map<string, Record<string, unknown>[]>
   >(new Map())
   const [workersTotal, setWorkersTotal] = React.useState(0)
-  const [selectedWorkerId, setSelectedWorkerId] = React.useState<string | null>(null)
+  const [selectedWorkerId, setSelectedWorkerId] = React.useState<string | null>(
+    initialSelectedWorkerId
+  )
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [workersColumns, setWorkersColumns] = React.useState<TableColumnMeta[]>([])
@@ -1407,7 +1411,9 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
             setWorkersTotal(result.total)
             lastLoadedListQueryKeyRef.current = queryKey
             setSelectedWorkerId((previous) => {
-              if (previous && pageRows.some((row) => row.id === previous)) return previous
+              if (previous && (previous === initialSelectedWorkerId || pageRows.some((row) => row.id === previous))) {
+                return previous
+              }
               return pageRows[0]?.id ?? null
             })
             return
@@ -1491,7 +1497,9 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           setWorkersTotal(visibleRows.length)
           lastLoadedListQueryKeyRef.current = queryKey
           setSelectedWorkerId((previous) => {
-            if (previous && pageRows.some((row) => row.id === previous)) return previous
+            if (previous && (previous === initialSelectedWorkerId || pageRows.some((row) => row.id === previous))) {
+              return previous
+            }
             return pageRows[0]?.id ?? null
           })
           return
@@ -1557,7 +1565,9 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           setWorkersTotal(result.total)
           lastLoadedListQueryKeyRef.current = queryKey
           setSelectedWorkerId((previous) => {
-            if (previous && pageRows.some((row) => row.id === previous)) return previous
+            if (previous && (previous === initialSelectedWorkerId || pageRows.some((row) => row.id === previous))) {
+              return previous
+            }
             return pageRows[0]?.id ?? null
           })
           return
@@ -1619,7 +1629,9 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           setWorkersTotal(result.total)
           lastLoadedListQueryKeyRef.current = queryKey
           setSelectedWorkerId((previous) => {
-            if (previous && pageRows.some((row) => row.id === previous)) return previous
+            if (previous && (previous === initialSelectedWorkerId || pageRows.some((row) => row.id === previous))) {
+              return previous
+            }
             return pageRows[0]?.id ?? null
           })
           return
@@ -1693,7 +1705,9 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         )
         lastLoadedListQueryKeyRef.current = queryKey
         setSelectedWorkerId((previous) => {
-          if (previous && visibleRows.some((row) => row.id === previous)) return previous
+          if (previous && (previous === initialSelectedWorkerId || visibleRows.some((row) => row.id === previous))) {
+            return previous
+          }
           return visibleRows[0]?.id ?? null
         })
       } catch (caughtError) {
@@ -1725,6 +1739,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     gate1FollowupFilter,
     gate1ProvinciaFilter,
     includeRelatedSelectionDetails,
+    initialSelectedWorkerId,
     pageIndex,
     pageSize,
     workerRows.length,
@@ -1829,10 +1844,17 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
 
   React.useEffect(() => {
     setSelectedWorkerId((previous) => {
-      if (previous && workers.some((worker) => worker.id === previous)) return previous
+      if (previous && (previous === initialSelectedWorkerId || workers.some((worker) => worker.id === previous))) {
+        return previous
+      }
       return workers[0]?.id ?? null
     })
-  }, [workers])
+  }, [initialSelectedWorkerId, workers])
+
+  React.useEffect(() => {
+    if (!initialSelectedWorkerId) return
+    setSelectedWorkerId(initialSelectedWorkerId)
+  }, [initialSelectedWorkerId])
 
   React.useEffect(() => {
     let isCancelled = false
@@ -1946,10 +1968,16 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
 
   const pageCount = Math.max(1, Math.ceil(workersTotal / pageSize))
   const currentPage = pageIndex + 1
-  const selectedWorker = React.useMemo(
-    () => workers.find((worker) => worker.id === selectedWorkerId) ?? null,
-    [selectedWorkerId, workers]
-  )
+  const selectedWorker = React.useMemo(() => {
+    const listWorker = workers.find((worker) => worker.id === selectedWorkerId) ?? null
+    if (listWorker) return listWorker
+    if (!selectedWorkerRow) return null
+
+    return toListItem(selectedWorkerRow, {
+      isBlacklisted: isBlacklistValue(selectedWorkerRow.check_blacklist),
+      statusFlags: toWorkerStatusFlags(selectedWorkerRow.stato_lavoratore),
+    })
+  }, [selectedWorkerId, selectedWorkerRow, workers])
   const selectedWorkerAddress = React.useMemo(
     () =>
       selectedWorkerId
