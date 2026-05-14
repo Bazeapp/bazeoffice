@@ -9,12 +9,14 @@ import {
   fetchLavoratori,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { fetchRichiesteAttivazioneByProcessIds } from "@/features/richieste-attivazione/api"
 import type {
   FamigliaRecord,
   LookupValueRecord,
   LavoratoreRecord,
   ProcessoMatchingRecord,
   RapportoLavorativoRecord,
+  RichiestaAttivazioneRecord,
 } from "@/types"
 
 type AssunzioniStageDefinition = {
@@ -27,10 +29,14 @@ export type AssunzioneRecord = {
   id: string
   civico_se_diverso_residenza: string | null
   comune_se_diverso_residenza: string | null
+  info_anagrafiche_cognome: string | null
+  info_anagrafiche_email: string | null
+  info_anagrafiche_nome: string | null
   luogo_lavoro_se_diverso_da_residenza: string | null
   provincia: string | null
   rapporto_di_lavoro_residenza: boolean | null
   rapporto_lavorativo_datore_lavoro_id: string | null
+  rapporto_lavorativo_lavoratore_id: string | null
 }
 
 export type AssunzioniBoardCardData = {
@@ -39,6 +45,8 @@ export type AssunzioniBoardCardData = {
   stage: string
   process: ProcessoMatchingRecord | null
   assunzione: AssunzioneRecord | null
+  lavoratoreAssunzione: AssunzioneRecord | null
+  richiestaAttivazione: RichiestaAttivazioneRecord | null
   rapporto: RapportoLavorativoRecord | null
   lavoratore: LavoratoreRecord | null
   famiglia: FamigliaRecord | null
@@ -57,12 +65,17 @@ export type AssunzioniBoardColumnData = {
   label: string
   color: string
   cards: AssunzioniBoardCardData[]
+  deferred: boolean
+  loadError: string | null
+  loaded: boolean
+  loading: boolean
 }
 
 type UseAssunzioniBoardState = {
   loading: boolean
   error: string | null
   columns: AssunzioniBoardColumnData[]
+  loadDeferredColumn: (stageId: string) => Promise<void>
   moveCard: (rapportoId: string, targetStageId: string) => Promise<void>
   updateCard: (
     rapportoId: string,
@@ -87,12 +100,16 @@ const DEFAULT_STAGE_DEFINITIONS: AssunzioniStageDefinition[] = [
   { id: "Non assume con Baze", label: "Non assume con Baze", color: "orange" },
 ]
 
+const DEFERRED_STAGE_IDS = new Set(["Contratto firmato", "Non assume con Baze"])
+
 const ASSUNZIONI_PROCESSI_SELECT = [
   "id",
   "famiglia_id",
   "titolo_annuncio",
   "tipo_rapporto",
   "data_limite_invio_selezione",
+  "source_url",
+  "offerta",
 ] satisfies string[]
 
 const ASSUNZIONI_FAMIGLIE_SELECT = [
@@ -109,6 +126,8 @@ const ASSUNZIONI_RAPPORTI_SELECT = [
   "codice_datore_webcolf",
   "codice_dipendente_webcolf",
   "processo_res",
+  "preventivo_id",
+  "richiesta_attivazione_id",
   "famiglia_id",
   "lavoratore_id",
   "stato_assunzione",
@@ -135,11 +154,22 @@ const ASSUNZIONI_RECORD_SELECT = [
   "id",
   "civico_se_diverso_residenza",
   "comune_se_diverso_residenza",
+  "info_anagrafiche_cognome",
+  "info_anagrafiche_email",
+  "info_anagrafiche_nome",
   "luogo_lavoro_se_diverso_da_residenza",
   "provincia",
   "rapporto_di_lavoro_residenza",
   "rapporto_lavorativo_datore_lavoro_id",
+  "rapporto_lavorativo_lavoratore_id",
 ] satisfies string[]
+
+const RELATED_RECORDS_BATCH_SIZE = 100
+
+type FetchAssunzioniBoardDataOptions = {
+  deferredLoadedStageIds?: Set<string>
+  onlyStageId?: string
+}
 
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
@@ -196,10 +226,42 @@ function formatFullName(firstName: string | null | undefined, lastName: string |
   return [lastName, firstName].filter(Boolean).join(" ").trim()
 }
 
+function compactUnique(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => toStringValue(value))
+        .filter((value): value is string => Boolean(value))
+    )
+  )
+}
+
+function chunkValues<T>(values: T[], size: number) {
+  const chunks: T[][] = []
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size))
+  }
+  return chunks
+}
+
+function resolveAssunzioneName(assunzione: AssunzioneRecord | null) {
+  if (!assunzione) return null
+
+  const fullName = formatFullName(
+    toStringValue(assunzione.info_anagrafiche_nome),
+    toStringValue(assunzione.info_anagrafiche_cognome)
+  )
+  return fullName || null
+}
+
 function resolveFamilyName(
+  assunzione: AssunzioneRecord | null,
   family: FamigliaRecord | null,
   rapporto: RapportoLavorativoRecord
 ) {
+  const assunzioneName = resolveAssunzioneName(assunzione)
+  if (assunzioneName) return assunzioneName
+
   const rapportoName = toStringValue(rapporto.cognome_nome_datore_proper)
   if (rapportoName) return rapportoName
 
@@ -208,9 +270,13 @@ function resolveFamilyName(
 }
 
 function resolveWorkerName(
+  assunzione: AssunzioneRecord | null,
   worker: LavoratoreRecord | null,
   rapporto: RapportoLavorativoRecord
 ) {
+  const assunzioneName = resolveAssunzioneName(assunzione)
+  if (assunzioneName) return assunzioneName
+
   const workerName = worker ? formatFullName(worker.nome, worker.cognome) : ""
   if (workerName) return workerName
 
@@ -273,12 +339,105 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
   }
 }
 
-async function fetchAssunzioniBoardData(): Promise<AssunzioniBoardColumnData[]> {
+async function fetchFamiglieByIds(ids: string[]) {
+  if (ids.length === 0) return [] as FamigliaRecord[]
+
+  const results = await Promise.all(
+    chunkValues(ids, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
+      fetchFamiglie({
+        select: ASSUNZIONI_FAMIGLIE_SELECT,
+        limit: batch.length,
+        offset: 0,
+        orderBy: [{ field: "id", ascending: true }],
+        filters: {
+          kind: "group",
+          id: `assunzioni-famiglie-${index}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `assunzioni-famiglie-id-${index}`,
+              field: "id",
+              operator: "in",
+              value: batch.join(","),
+            },
+          ],
+        },
+      })
+    )
+  )
+
+  return results.flatMap((result) => result.rows as FamigliaRecord[])
+}
+
+async function fetchLavoratoriByIds(ids: string[]) {
+  if (ids.length === 0) return [] as LavoratoreRecord[]
+
+  const results = await Promise.all(
+    chunkValues(ids, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
+      fetchLavoratori({
+        select: ASSUNZIONI_LAVORATORI_SELECT,
+        limit: batch.length,
+        offset: 0,
+        orderBy: [{ field: "id", ascending: true }],
+        filters: {
+          kind: "group",
+          id: `assunzioni-lavoratori-${index}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `assunzioni-lavoratori-id-${index}`,
+              field: "id",
+              operator: "in",
+              value: batch.join(","),
+            },
+          ],
+        },
+      })
+    )
+  )
+
+  return results.flatMap((result) => result.rows as LavoratoreRecord[])
+}
+
+async function fetchAssunzioniBoardData({
+  deferredLoadedStageIds = new Set<string>(),
+  onlyStageId,
+}: FetchAssunzioniBoardDataOptions = {}): Promise<AssunzioniBoardColumnData[]> {
+  const rapportiFilters = onlyStageId
+    ? {
+        kind: "group" as const,
+        id: `assunzioni-rapporti-stage-${normalizeToken(onlyStageId)}`,
+        logic: "and" as const,
+        nodes: [
+          {
+            kind: "condition" as const,
+            id: `assunzioni-rapporti-stage-value-${normalizeToken(onlyStageId)}`,
+            field: "stato_assunzione",
+            operator: "is" as const,
+            value: onlyStageId,
+          },
+        ],
+      }
+    : {
+        kind: "group" as const,
+        id: "assunzioni-rapporti-active-stages",
+        logic: "and" as const,
+        nodes: [
+          {
+            kind: "condition" as const,
+            id: "assunzioni-rapporti-exclude-deferred-stages",
+            field: "stato_assunzione",
+            operator: "not_has_any" as const,
+            value: Array.from(DEFERRED_STAGE_IDS).join(","),
+          },
+        ],
+      }
+
   const [
     processesResult,
-    familiesResult,
     rapportiResult,
-    lavoratoriResult,
     assunzioniResult,
     lookupResult,
   ] =
@@ -289,23 +448,12 @@ async function fetchAssunzioniBoardData(): Promise<AssunzioniBoardColumnData[]> 
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
-    fetchFamiglie({
-      select: ASSUNZIONI_FAMIGLIE_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
     fetchRapportiLavorativi({
       select: ASSUNZIONI_RAPPORTI_SELECT,
       limit: 1000,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
-    fetchLavoratori({
-      select: ASSUNZIONI_LAVORATORI_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
+      filters: rapportiFilters,
     }),
     fetchAssunzioni({
       select: ASSUNZIONI_RECORD_SELECT,
@@ -316,19 +464,42 @@ async function fetchAssunzioniBoardData(): Promise<AssunzioniBoardColumnData[]> 
     fetchLookupValues(),
   ])
 
+  const rapportiRows = rapportiResult.rows as RapportoLavorativoRecord[]
+  const processRows = processesResult.rows as ProcessoMatchingRecord[]
+  const processById = new Map(processRows.map((process) => [process.id, process] as const))
+  const familyIds = compactUnique([
+    ...rapportiRows.map((rapporto) => rapporto.famiglia_id),
+    ...processRows.map((process) => process.famiglia_id),
+  ])
+  const workerIds = compactUnique(rapportiRows.map((rapporto) => rapporto.lavoratore_id))
+  const [familiesRows, lavoratoriRows] = await Promise.all([
+    fetchFamiglieByIds(familyIds),
+    fetchLavoratoriByIds(workerIds),
+  ])
+  const richiesteAttivazioneByProcessId = await fetchRichiesteAttivazioneByProcessIds(
+    compactUnique([
+      ...processRows.map((process) => process.id),
+      ...rapportiRows.flatMap((rapporto) => rapporto.processo_res ?? []),
+    ])
+  )
+
   const familiesById = new Map(
-    (familiesResult.rows as FamigliaRecord[]).map((family) => [family.id, family] as const)
+    familiesRows.map((family) => [family.id, family] as const)
   )
   const lavoratoriById = new Map(
-    (lavoratoriResult.rows as LavoratoreRecord[]).map((worker) => [worker.id, worker] as const)
+    lavoratoriRows.map((worker) => [worker.id, worker] as const)
   )
-  const processById = new Map(
-    processesResult.rows.map((process) => [process.id, process] as const)
-  )
-  const assunzioniByRapportoId = new Map(
+  const assunzioniByDatoreRapportoId = new Map(
     (assunzioniResult.rows as AssunzioneRecord[])
       .filter((record) => record.rapporto_lavorativo_datore_lavoro_id)
       .map((record) => [record.rapporto_lavorativo_datore_lavoro_id as string, record] as const)
+  )
+  const assunzioniByLavoratoreRapportoId = new Map(
+    (assunzioniResult.rows as AssunzioneRecord[])
+      .filter((record) => record.rapporto_lavorativo_lavoratore_id)
+      .map(
+        (record) => [record.rapporto_lavorativo_lavoratore_id as string, record] as const
+      )
   )
 
   const stageMetadata = buildStageMetadata(lookupResult.rows)
@@ -338,7 +509,7 @@ async function fetchAssunzioniBoardData(): Promise<AssunzioniBoardColumnData[]> 
     stages.map((stage) => [stage.id, []])
   )
 
-  for (const linkedRapporto of rapportiResult.rows) {
+  for (const linkedRapporto of rapportiRows) {
     const processStage = aliases.get(normalizeToken(linkedRapporto.stato_assunzione))
     if (!processStage) continue
 
@@ -355,15 +526,20 @@ async function fetchAssunzioniBoardData(): Promise<AssunzioniBoardColumnData[]> 
       (process?.famiglia_id ? familiesById.get(process.famiglia_id) ?? null : null)
     const lavoratore =
       linkedRapporto?.lavoratore_id ? lavoratoriById.get(linkedRapporto.lavoratore_id) ?? null : null
-    const nomeFamiglia = resolveFamilyName(family, linkedRapporto)
-    const nomeLavoratore = resolveWorkerName(lavoratore, linkedRapporto)
+    const datoreAssunzione = assunzioniByDatoreRapportoId.get(linkedRapporto.id) ?? null
+    const lavoratoreAssunzione = assunzioniByLavoratoreRapportoId.get(linkedRapporto.id) ?? null
+    const nomeFamiglia = resolveFamilyName(datoreAssunzione, family, linkedRapporto)
+    const nomeLavoratore = resolveWorkerName(lavoratoreAssunzione, lavoratore, linkedRapporto)
 
     const card: AssunzioniBoardCardData = {
       id: linkedRapporto.id,
       processId: process?.id ?? null,
       stage: processStage,
       process,
-      assunzione: assunzioniByRapportoId.get(linkedRapporto.id) ?? null,
+      assunzione: datoreAssunzione,
+      lavoratoreAssunzione,
+      richiestaAttivazione:
+        process?.id ? richiesteAttivazioneByProcessId.get(process.id) ?? null : null,
       rapporto: linkedRapporto,
       lavoratore,
       famiglia: family,
@@ -385,6 +561,10 @@ async function fetchAssunzioniBoardData(): Promise<AssunzioniBoardColumnData[]> 
     label: stage.label,
     color: stage.color,
     cards: cardsByStage.get(stage.id) ?? [],
+    deferred: DEFERRED_STAGE_IDS.has(stage.id),
+    loadError: null,
+    loaded: !DEFERRED_STAGE_IDS.has(stage.id) || deferredLoadedStageIds.has(stage.id),
+    loading: false,
   }))
 }
 
@@ -392,6 +572,9 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [columns, setColumns] = React.useState<AssunzioniBoardColumnData[]>([])
+  const [loadedDeferredStageIds, setLoadedDeferredStageIds] = React.useState<Set<string>>(
+    () => new Set()
+  )
 
   const updateCard = React.useCallback(
     (
@@ -466,6 +649,56 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
     [columns]
   )
 
+  const loadDeferredColumn = React.useCallback(
+    async (stageId: string) => {
+      if (!DEFERRED_STAGE_IDS.has(stageId) || loadedDeferredStageIds.has(stageId)) return
+
+      setColumns((current) =>
+        current.map((column) =>
+          column.id === stageId ? { ...column, loadError: null, loading: true } : column
+        )
+      )
+
+      try {
+        const loadedColumns = await fetchAssunzioniBoardData({
+          deferredLoadedStageIds: new Set([stageId]),
+          onlyStageId: stageId,
+        })
+        const loadedColumn = loadedColumns.find((column) => column.id === stageId)
+
+        setLoadedDeferredStageIds((current) => {
+          const next = new Set(current)
+          next.add(stageId)
+          return next
+        })
+        setColumns((current) =>
+          current.map((column) =>
+            column.id === stageId
+              ? {
+                  ...column,
+                  cards: loadedColumn?.cards ?? [],
+                  loadError: null,
+                  loaded: true,
+                  loading: false,
+                }
+              : column
+          )
+        )
+      } catch (caughtError) {
+        const message =
+          caughtError instanceof Error ? caughtError.message : "Errore caricamento colonna"
+        setColumns((current) =>
+          current.map((column) =>
+            column.id === stageId
+              ? { ...column, loadError: message, loaded: false, loading: false }
+              : column
+          )
+        )
+      }
+    },
+    [loadedDeferredStageIds]
+  )
+
   React.useEffect(() => {
     let cancelled = false
 
@@ -498,6 +731,7 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
     loading,
     error,
     columns,
+    loadDeferredColumn,
     moveCard,
     updateCard,
   }

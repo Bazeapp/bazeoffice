@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils";
 import { cn } from "@/lib/utils";
 
 type SupportColumnData = {
@@ -240,35 +241,43 @@ export function SupportTicketsView({
   } = useSupportTicketsBoard(ticketType);
 
   const filteredCards = React.useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
     return cards.filter((card) => {
       if (!showClosedTickets && card.stage === "chiuso") return false;
       if (stageFilter !== "all" && card.stage !== stageFilter) return false;
-      if (!normalizedSearch) return true;
-
-      return (
-        card.causale.toLowerCase().includes(normalizedSearch) ||
-        card.nomeFamiglia.toLowerCase().includes(normalizedSearch) ||
-        card.nomeLavoratore.toLowerCase().includes(normalizedSearch) ||
-        card.tag.toLowerCase().includes(normalizedSearch)
+      return matchesSearchQuery(
+        [
+          card.id,
+          card.causale,
+          card.nomeFamiglia,
+          card.nomeLavoratore,
+          card.tag,
+          card.rapporto?.id,
+          card.rapporto?.id_rapporto,
+          card.rapporto?.cognome_nome_datore_proper,
+          card.rapporto?.nome_lavoratore_per_url,
+          card.rapporto?.tipo_rapporto,
+          card.rapporto?.tipo_contratto,
+        ],
+        search,
       );
     });
   }, [cards, search, showClosedTickets, stageFilter]);
 
   const columns = React.useMemo<SupportColumnData[]>(
     () =>
-      stages.map((stage) => ({
-        id: stage.id,
-        label: stage.label,
-        color: stage.color,
-        totalCount: cards.filter((card) => card.stage === stage.id).length,
-        cards: filteredCards.filter((card) => card.stage === stage.id),
-        deferred: stage.id === "chiuso",
-        isLoaded: stage.id !== "chiuso" || showClosedTickets,
-        deferredActionLabel:
-          stage.id === "chiuso" ? "Mostra chiusi" : undefined,
-      })),
+      hideEmptyKanbanGroups(
+        stages.map((stage) => ({
+          id: stage.id,
+          label: stage.label,
+          color: stage.color,
+          totalCount: cards.filter((card) => card.stage === stage.id).length,
+          cards: filteredCards.filter((card) => card.stage === stage.id),
+          deferred: stage.id === "chiuso",
+          isLoaded: stage.id !== "chiuso" || showClosedTickets,
+          deferredActionLabel:
+            stage.id === "chiuso" ? "Mostra chiusi" : undefined,
+        })),
+      ),
     [cards, filteredCards, showClosedTickets, stages],
   );
 
@@ -338,7 +347,7 @@ export function SupportTicketsView({
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4">
+      <div className="scrollbar-visible min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4 [scrollbar-gutter:stable]">
         <div className="flex h-full min-h-0 min-w-max gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, index) => (

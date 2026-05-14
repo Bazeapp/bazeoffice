@@ -1,8 +1,9 @@
 import { LavoratoriCercaView } from "@/components/lavoratori/lavoratori-cerca-view"
+import type { OpenRicercaDetailOptions } from "@/routes/app-routes"
 
 type LavoratoriCercaPageProps = {
   initialSelectedWorkerId?: string | null
-  onOpenRicercaDetail?: (processId: string) => void
+  onOpenRicercaDetail?: (processId: string, options?: OpenRicercaDetailOptions) => void
 }
 
 export function LavoratoriCercaPage({

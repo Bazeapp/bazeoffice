@@ -48,6 +48,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { runAutomationWebhook } from "@/lib/anagrafiche-api"
+import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -980,27 +981,37 @@ function CedoliniPayrollView() {
   const [searchValue, setSearchValue] = React.useState("")
 
   const filteredColumns = React.useMemo(() => {
-    const query = searchValue.trim().toLowerCase()
-    if (!query) return columns
-    const tokens = query.split(/\s+/).filter(Boolean)
-    return columns.map((column) => ({
+    const mappedColumns = columns.map((column) => ({
       ...column,
       cards: column.cards.filter((card) => {
-        const haystack = [
-          card.nomeCompleto,
-          card.rapporto?.cognome_nome_datore_proper,
-          card.rapporto?.nome_lavoratore_per_url,
-          card.famiglia?.email,
-          card.famiglia?.customer_email,
-          card.rapporto?.tipo_rapporto,
-          card.rapporto?.tipo_contratto,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-        return tokens.every((token) => haystack.includes(token))
+        return matchesSearchQuery(
+          [
+            card.id,
+            card.nomeCompleto,
+            card.importoLabel,
+            card.dataInvioLabel,
+            card.mese?.mese_lavorativo_copy,
+            card.mese?.data_inizio,
+            card.mese?.data_fine,
+            card.rapporto?.id,
+            card.rapporto?.id_rapporto,
+            card.rapporto?.codice_datore_webcolf,
+            card.rapporto?.codice_dipendente_webcolf,
+            card.rapporto?.cognome_nome_datore_proper,
+            card.rapporto?.nome_lavoratore_per_url,
+            card.famiglia?.nome,
+            card.famiglia?.cognome,
+            card.famiglia?.email,
+            card.famiglia?.customer_email,
+            card.rapporto?.tipo_rapporto,
+            card.rapporto?.tipo_contratto,
+          ],
+          searchValue,
+        )
       }),
     }))
+
+    return mappedColumns
   }, [columns, searchValue])
 
   const payrollMetrics = React.useMemo(
@@ -1101,7 +1112,7 @@ function CedoliniPayrollView() {
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4">
+      <div className="scrollbar-visible min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4 [scrollbar-gutter:stable]">
         <div className="flex h-full min-h-0 min-w-max gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, index) => <PayrollBoardSkeletonColumn key={index} />)

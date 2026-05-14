@@ -12,6 +12,7 @@ import type { PresenzaMensileRecord } from "@/types/entities/presenza-mensile"
 import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
 import type { RapportoLavorativoRecord } from "@/types/entities/rapporto-lavorativo"
+import type { RichiestaAttivazioneRecord } from "@/types/entities/richiesta-attivazione"
 import type { TicketRecord } from "@/types/entities/ticket"
 import type { TransazioneFinanziariaRecord } from "@/types/entities/transazione-finanziaria"
 import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-contrattuale"
@@ -53,6 +54,7 @@ type TableName =
   | "pagamenti"
   | "presenze_mensili"
   | "rapporti_lavorativi"
+  | "richieste_attivazione"
   | "ticket"
   | "transazioni_finanziarie"
   | "variazioni_contrattuali"
@@ -73,6 +75,7 @@ type UpdateTableName =
   | "mesi_lavorati"
   | "presenze_mensili"
   | "rapporti_lavorativi"
+  | "richieste_attivazione"
   | "ticket"
   | "variazioni_contrattuali"
   | "selezioni_lavoratori"
@@ -182,6 +185,17 @@ type TableQueryResponse<TRecord> =
     }
   | TRecord[]
 
+export type CrmPipelineBoardRpcRow = {
+  process: TableRow
+  family: TableRow | null
+  address: TableRow | null
+}
+
+export type CrmPipelineBoardRpcResponse = {
+  rows?: CrmPipelineBoardRpcRow[]
+  stage_counts?: Array<{ value: string; count: number }>
+}
+
 function normalizeTableResponse<TRecord>(
   response: TableQueryResponse<TRecord>
 ): { rows: TRecord[]; total: number; columns: TableColumnMeta[]; groups: TableGroupResult[] } {
@@ -217,6 +231,16 @@ const gateQueryCache = new Map<
   {
     expiresAt: number
     promise: Promise<TableResponse<TableRow>>
+  }
+>()
+const crmPipelineBoardCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<{
+      rows: CrmPipelineBoardRpcRow[]
+      stageCounts: Array<{ value: string; count: number }>
+    }>
   }
 >()
 
@@ -411,6 +435,21 @@ export async function fetchRapportiLavorativi(query: TablePageQuery) {
   })
 }
 
+export async function fetchRichiesteAttivazione(query: TablePageQuery) {
+  return queryTable<RichiestaAttivazioneRecord>({
+    table: "richieste_attivazione",
+    select: query.select ?? ["*"],
+    limit: query.limit,
+    offset: query.offset,
+    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
+    includeSchema: query.includeSchema,
+    search: query.search,
+    searchFields: query.searchFields,
+    filters: query.filters,
+    groupBy: query.groupBy,
+  })
+}
+
 export async function fetchTickets(query: TablePageQuery) {
   return queryTable<TicketRecord>({
     table: "ticket",
@@ -543,6 +582,47 @@ export async function fetchProcessiMatching(query: TablePageQuery) {
     filters: query.filters,
     groupBy: query.groupBy,
   })
+}
+
+export async function fetchCrmPipelineFamiglieBoard(query: {
+  limit: number
+  offset: number
+}) {
+  const cacheKey = JSON.stringify({ functionName: "crm_pipeline_famiglie_board", ...query })
+  const now = Date.now()
+  const cached = crmPipelineBoardCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc("crm_pipeline_famiglie_board", {
+      p_limit: query.limit,
+      p_offset: query.offset,
+    })
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(`crm_pipeline_famiglie_board failed: ${error.message}`)
+    }
+
+    const response = data as CrmPipelineBoardRpcResponse | null
+    return {
+      rows: Array.isArray(response?.rows) ? response.rows : [],
+      stageCounts: Array.isArray(response?.stage_counts) ? response.stage_counts : [],
+    }
+  })
+
+  crmPipelineBoardCache.set(cacheKey, {
+    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    crmPipelineBoardCache.delete(cacheKey)
+    throw error
+  }
 }
 
 export async function fetchSelezioniLavoratori(query: TablePageQuery) {

@@ -22,6 +22,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select"
+import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
 type ColumnVisual = {
@@ -270,24 +271,31 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   }, [columns, operatorFilterAllowedStages, operatorOptions])
 
   const filteredColumns = React.useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-
-    return columns.map((column) => ({
+    const mappedColumns = columns.map((column) => ({
       ...column,
       cards: column.cards.filter((card) => {
         if (selectedOperatorId !== "all" && card.operatorId !== selectedOperatorId) {
           return false
         }
-        if (q) {
-          const matches =
-            card.cognomeFamiglia.toLowerCase().includes(q) ||
-            card.email.toLowerCase().includes(q) ||
-            card.id.toLowerCase().includes(q)
-          if (!matches) return false
-        }
-        return true
+        return matchesSearchQuery(
+          [
+            card.id,
+            card.nomeFamiglia,
+            card.cognomeFamiglia,
+            card.email,
+            card.telefono,
+            card.zona,
+            card.tipoLavoroBadge,
+            card.tipoRapportoBadge,
+            card.oreSettimanali,
+            card.giorniSettimanali,
+          ],
+          searchQuery,
+        )
       }),
     }))
+
+    return hideEmptyKanbanGroups(mappedColumns)
   }, [columns, searchQuery, selectedOperatorId])
   const selectedOperator = React.useMemo(
     () =>
@@ -401,7 +409,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
         </SectionHeader.Toolbar>
       </SectionHeader>
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2">
+      <div className="scrollbar-visible min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-2 [scrollbar-gutter:stable]">
         <div className="flex h-full min-h-0 min-w-max gap-4 px-6">
           {loading
             ? Array.from({ length: 5 }).map((_, index) => (

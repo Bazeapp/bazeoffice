@@ -17,6 +17,7 @@ import {
   fetchVariazioniContrattuali,
   type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
+import { fetchRichiesteAttivazioneByProcessIds } from "@/features/richieste-attivazione/api"
 import { normalizeLookupColors } from "@/features/lavoratori/lib/lookup-utils"
 import { formatPersonName } from "@/features/rapporti/rapporti-labels"
 import { resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
@@ -37,6 +38,7 @@ import type {
   PresenzaMensileRecord,
   ProcessoMatchingRecord,
   RapportoLavorativoRecord,
+  RichiestaAttivazioneRecord,
   TicketRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
@@ -567,6 +569,9 @@ export function useRapportiLavorativiData(
   const [selectedVariazioni, setSelectedVariazioni] = React.useState<VariazioneContrattualeRecord[]>([])
   const [selectedChiusure, setSelectedChiusure] = React.useState<ChiusuraContrattoRecord[]>([])
   const [selectedTickets, setSelectedTickets] = React.useState<TicketRecord[]>([])
+  const [selectedRichiesteAttivazione, setSelectedRichiesteAttivazione] = React.useState<
+    RichiestaAttivazioneRecord[]
+  >([])
   const [loadingRelated, setLoadingRelated] = React.useState(false)
   const [lookupColorsByDomain, setLookupColorsByDomain] = React.useState<Map<string, string>>(
     new Map()
@@ -779,6 +784,7 @@ export function useRapportiLavorativiData(
         setSelectedVariazioni([])
         setSelectedChiusure([])
         setSelectedTickets([])
+        setSelectedRichiesteAttivazione([])
         return
       }
 
@@ -794,6 +800,7 @@ export function useRapportiLavorativiData(
       setSelectedVariazioni([])
       setSelectedChiusure([])
       setSelectedTickets([])
+      setSelectedRichiesteAttivazione([])
 
       try {
         const processiFilter = buildIdsFilter(selectedRapporto.processo_res ?? [])
@@ -893,6 +900,9 @@ export function useRapportiLavorativiData(
         ])
 
         const processiRows = processiResponse.rows as ProcessoMatchingRecord[]
+        const richiesteByProcessId = await fetchRichiesteAttivazioneByProcessIds(
+          (selectedRapporto.processo_res ?? []).filter(Boolean)
+        )
         let nextFamiglia = (famigliaResponse.rows[0] as FamigliaRecord | undefined) ?? null
         let nextLavoratore = (lavoratoreResponse.rows[0] as LavoratoreRecord | undefined) ?? null
 
@@ -940,6 +950,7 @@ export function useRapportiLavorativiData(
         setSelectedVariazioni(variazioniResponse.rows as VariazioneContrattualeRecord[])
         setSelectedChiusure(chiusuraResponse.rows as ChiusuraContrattoRecord[])
         setSelectedTickets(ticketsResponse.rows as TicketRecord[])
+        setSelectedRichiesteAttivazione(Array.from(richiesteByProcessId.values()))
       } catch (loadError) {
         if (!isActive) return
         console.error("Errore caricando record collegati al rapporto", loadError)
@@ -953,6 +964,7 @@ export function useRapportiLavorativiData(
         setSelectedVariazioni([])
         setSelectedChiusure([])
         setSelectedTickets([])
+        setSelectedRichiesteAttivazione([])
       } finally {
         if (isActive) setLoadingRelated(false)
       }
@@ -992,6 +1004,7 @@ export function useRapportiLavorativiData(
     selectedVariazioni,
     selectedChiusure,
     selectedTickets,
+    selectedRichiesteAttivazione,
     loadingRelated,
     lookupColorsByDomain,
     createTicketForSelectedRapporto,

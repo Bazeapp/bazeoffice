@@ -35,6 +35,7 @@ import { RicercaActiveSearchCard } from "@/components/ricerca/ricerca-active-sea
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { RecruiterFeedbackSheet } from "@/components/lavoratori/recruiter-feedback-sheet";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
+import type { OpenRicercaDetailOptions } from "@/routes/app-routes";
 import {
   asLavoratoreRecord,
   asInputValue,
@@ -600,7 +601,7 @@ function NonQualificatoTipoLavoroField({
 
 type LavoratoriCercaViewProps = {
   initialSelectedWorkerId?: string | null;
-  onOpenRicercaDetail?: (processId: string) => void;
+  onOpenRicercaDetail?: (processId: string, options?: OpenRicercaDetailOptions) => void;
 };
 
 export function LavoratoriCercaView({
@@ -912,6 +913,13 @@ export function LavoratoriCercaView({
       return true;
     });
   }, [lookupOptionsByDomain]);
+
+  const openRicercaDetailFromWorker = React.useCallback(
+    (processId: string) => {
+      onOpenRicercaDetail?.(processId, { returnToWorkerId: selectedWorkerId });
+    },
+    [onOpenRicercaDetail, selectedWorkerId],
+  );
 
   React.useEffect(() => {
     if (!isAddSearchDialogOpen) {
@@ -1297,7 +1305,7 @@ export function LavoratoriCercaView({
           action: onOpenRicercaDetail
             ? {
                 label: "Apri ricerca",
-                onClick: () => onOpenRicercaDetail(processId),
+                onClick: () => openRicercaDetailFromWorker(processId),
               }
             : undefined,
         });
@@ -1318,7 +1326,7 @@ export function LavoratoriCercaView({
         action: onOpenRicercaDetail
           ? {
               label: "Apri ricerca",
-              onClick: () => onOpenRicercaDetail(processId),
+              onClick: () => openRicercaDetailFromWorker(processId),
             }
           : undefined,
       });
@@ -1334,6 +1342,7 @@ export function LavoratoriCercaView({
   }, [
     manualSearchInsertReason,
     onOpenRicercaDetail,
+    openRicercaDetailFromWorker,
     selectedSearchToAdd,
     selectedWorkerId,
   ]);
@@ -2461,6 +2470,8 @@ export function LavoratoriCercaView({
                                       <RicercaActiveSearchCard
                                         key={item.selectionId}
                                         data={item.boardCard}
+                                        className="cursor-pointer"
+                                        onClick={() => openRicercaDetailFromWorker(item.processId)}
                                       />
                                     ))}
                                   </AccordionContent>
@@ -2504,6 +2515,8 @@ export function LavoratoriCercaView({
                                       <RicercaActiveSearchCard
                                         key={item.selectionId}
                                         data={item.boardCard}
+                                        className="cursor-pointer"
+                                        onClick={() => openRicercaDetailFromWorker(item.processId)}
                                       />
                                     ))}
                                   </AccordionContent>
@@ -2638,7 +2651,7 @@ export function LavoratoriCercaView({
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => onOpenRicercaDetail(selectedSearchToAdd.processId)}
+                  onClick={() => openRicercaDetailFromWorker(selectedSearchToAdd.processId)}
                   disabled={isSubmittingAddSearch}
                 >
                   <ExternalLinkIcon className="size-4" />

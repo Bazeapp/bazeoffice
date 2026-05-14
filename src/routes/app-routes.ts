@@ -21,8 +21,10 @@ export type MainSection =
   | "gestione_contrattuale_variazioni"
   | "payroll_cedolini"
   | "payroll_contributi_inps"
+  | "prove_colloqui"
   | "customer_support_customer_ticket"
   | "customer_support_payroll_ticket"
+  | "customer_support_riattivazioni"
 
 export type AppRoute = {
   mainSection: MainSection
@@ -30,6 +32,10 @@ export type AppRoute = {
   ricercaProcessId: string | null
   selectedRapportoId?: string | null
   selectedWorkerId?: string | null
+}
+
+export type OpenRicercaDetailOptions = {
+  returnToWorkerId?: string | null
 }
 
 export const DEFAULT_ROUTE: AppRoute = {
@@ -136,6 +142,14 @@ export function resolveRouteStateFromPath(pathname: string): AppRoute {
     }
   }
 
+  if (slug === "customer-support/riattivazioni" || slug === "gestione-contrattuale/riattivazioni") {
+    return {
+      mainSection: "customer_support_riattivazioni",
+      anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+      ricercaProcessId: null,
+    }
+  }
+
   if (slug === "gestione-contrattuale/variazioni") {
     return {
       mainSection: "gestione_contrattuale_variazioni",
@@ -163,6 +177,14 @@ export function resolveRouteStateFromPath(pathname: string): AppRoute {
   if (slug === "customer-support/ticket-customer") {
     return {
       mainSection: "customer_support_customer_ticket",
+      anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
+      ricercaProcessId: null,
+    }
+  }
+
+  if (slug === "customer-support/prove-e-colloqui") {
+    return {
+      mainSection: "prove_colloqui",
       anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
       ricercaProcessId: null,
     }
@@ -231,8 +253,14 @@ export function buildPathForRoute(route: AppRoute) {
     if (route.mainSection === "customer_support_customer_ticket") {
       return "customer-support/ticket-customer"
     }
+    if (route.mainSection === "prove_colloqui") {
+      return "customer-support/prove-e-colloqui"
+    }
     if (route.mainSection === "customer_support_payroll_ticket") {
       return "customer-support/ticket-payroll"
+    }
+    if (route.mainSection === "customer_support_riattivazioni") {
+      return "customer-support/riattivazioni"
     }
     return route.anagraficheTab
   })()

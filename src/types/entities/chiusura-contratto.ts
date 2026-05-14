@@ -8,13 +8,17 @@ export type ChiusuraContrattoRecord = {
   cognome: string | null
   data_creazione: string | null
   data_fine_rapporto: string | null
+  data_per_riattivazione: string | null
   documenti_chiusura_rapporto: JsonObject | null
   email: string | null
   informazioni_aggiuntive: string | null
   motivazione_cessazione_rapporto: string | null
+  motivazione_lost: string | null
   nome: string | null
   presenze_ultimo_mese: string | null
   stato: string | null
+  stato_riattivazione_famiglia: string | null
+  sconto_proposto_riattivazione: string | null
   ticket_id: string | null
   tipo_decesso: string | null
   tipo_licenziamento: string | null

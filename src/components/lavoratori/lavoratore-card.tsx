@@ -93,6 +93,10 @@ type LavoratoreCardProps = {
   isActive: boolean
   onClick: () => void
   variant?: "default" | "gate1"
+  subtitle?: React.ReactNode
+  rightSlot?: React.ReactNode
+  bodySlot?: React.ReactNode
+  showQualificationStatus?: boolean
   bottomSlot?: React.ReactNode
   gate1Summary?: {
     provincia: string | null
@@ -215,10 +219,12 @@ function formatCreatedAtLabel(value: string | null | undefined) {
 function WorkerAvatarMedia({
   worker,
   qualificationStatus,
+  showQualificationStatus = true,
   size = "lg",
 }: {
   worker: LavoratoreListItem
   qualificationStatus: WorkerQualificationStatus
+  showQualificationStatus?: boolean
   size?: "md" | "lg"
 }) {
   const StatusIcon = qualificationStatus.icon
@@ -231,16 +237,18 @@ function WorkerAvatarMedia({
         fallback={initialsFromName(worker.nomeCompleto)}
         className={qualificationStatus.ringClassName}
       />
-      <span
-        aria-hidden
-        title={qualificationStatus.label}
-        className={cn(
-          "absolute -bottom-0.5 -left-0.5 flex size-4 items-center justify-center rounded-full ring-2 ring-white",
-          qualificationStatus.badgeClassName,
-        )}
-      >
-        <StatusIcon className="size-2.5" />
-      </span>
+      {showQualificationStatus ? (
+        <span
+          aria-hidden
+          title={qualificationStatus.label}
+          className={cn(
+            "absolute -bottom-0.5 -left-0.5 flex size-4 items-center justify-center rounded-full ring-2 ring-white",
+            qualificationStatus.badgeClassName,
+          )}
+        >
+          <StatusIcon className="size-2.5" />
+        </span>
+      ) : null}
     </span>
   )
 }
@@ -250,6 +258,10 @@ export function LavoratoreCard({
   isActive,
   onClick,
   variant = "default",
+  subtitle,
+  rightSlot,
+  bodySlot,
+  showQualificationStatus = true,
   bottomSlot,
   gate1Summary,
 }: LavoratoreCardProps) {
@@ -299,6 +311,7 @@ export function LavoratoreCard({
             <WorkerAvatarMedia
               worker={worker}
               qualificationStatus={qualificationStatus}
+              showQualificationStatus={showQualificationStatus}
               size="md"
             />
           }
@@ -334,29 +347,41 @@ export function LavoratoreCard({
     <RecordCard onClick={onClick} selected={isActive} className={cardClassName}>
       <RecordCard.Header
         media={
-          <WorkerAvatarMedia
-            worker={worker}
-            qualificationStatus={qualificationStatus}
-            size="lg"
-          />
+            <WorkerAvatarMedia
+              worker={worker}
+              qualificationStatus={qualificationStatus}
+              showQualificationStatus={showQualificationStatus}
+              size="lg"
+            />
         }
         title={
           <span className="text-sm font-semibold">{worker.nomeCompleto}</span>
         }
         subtitle={
-          typeof worker.eta === "number" ? `${worker.eta} anni` : "Età n.d."
+          subtitle !== undefined
+            ? subtitle
+            : typeof worker.eta === "number"
+              ? `${worker.eta} anni`
+              : "Età n.d."
         }
         rightSlot={
-          <Badge
-            className={cn(
-              "h-5 px-2 text-2xs font-medium",
-              getStatusSoftClassName(worker.statoLavoratoreColor, workerStatusLabel),
-            )}
-          >
-            {workerStatusLabel}
-          </Badge>
+          rightSlot !== undefined ? (
+            rightSlot
+          ) : (
+            <Badge
+              className={cn(
+                "h-5 px-2 text-2xs font-medium",
+                getStatusSoftClassName(worker.statoLavoratoreColor, workerStatusLabel),
+              )}
+            >
+              {workerStatusLabel}
+            </Badge>
+          )
         }
       />
+      {bodySlot !== undefined ? (
+        <RecordCard.Body className="gap-2">{bodySlot}</RecordCard.Body>
+      ) : (
       <RecordCard.Body className="gap-2">
         {displayRoles.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
@@ -492,6 +517,7 @@ export function LavoratoreCard({
           ) : null}
         </div>
       </RecordCard.Body>
+      )}
     </RecordCard>
   )
 }

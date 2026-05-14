@@ -9,6 +9,7 @@ import {
   resolveRouteStateFromPath,
   type AnagraficheSidebarTab,
   type AppRoute,
+  type OpenRicercaDetailOptions,
 } from "@/routes/app-routes"
 import {
   SidebarInset,
@@ -42,6 +43,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
   }, [])
 
   const [route, setRoute] = React.useState<AppRoute>(initialRoute)
+  const ricercaDetailReturnRouteRef = React.useRef<AppRoute | null>(null)
 
   React.useEffect(() => {
     syncBrowserUrl(route, "replace")
@@ -117,7 +119,18 @@ export function AppShell({ user, onLogout }: AppShellProps) {
   }, [route.anagraficheTab])
 
   const handleOpenRicercaDetail = React.useCallback(
-    (processId: string) => {
+    (processId: string, options?: OpenRicercaDetailOptions) => {
+      if (route.mainSection === "lavoratori_cerca" || options?.returnToWorkerId) {
+        ricercaDetailReturnRouteRef.current = {
+          mainSection: "lavoratori_cerca",
+          anagraficheTab: route.anagraficheTab,
+          ricercaProcessId: null,
+          selectedWorkerId: options?.returnToWorkerId ?? route.selectedWorkerId ?? null,
+        }
+      } else {
+        ricercaDetailReturnRouteRef.current = null
+      }
+
       const nextRoute: AppRoute = {
         mainSection: "ricerca_pipeline",
         anagraficheTab: route.anagraficheTab,
@@ -127,8 +140,21 @@ export function AppShell({ user, onLogout }: AppShellProps) {
       setRoute(nextRoute)
       syncBrowserUrl(nextRoute)
     },
-    [route.anagraficheTab]
+    [route.anagraficheTab, route.mainSection, route.selectedWorkerId]
   )
+
+  const handleBackFromRicercaDetail = React.useCallback(() => {
+    const returnRoute = ricercaDetailReturnRouteRef.current
+    ricercaDetailReturnRouteRef.current = null
+
+    if (returnRoute) {
+      setRoute(returnRoute)
+      syncBrowserUrl(returnRoute)
+      return
+    }
+
+    handleOpenRicercaPipeline()
+  }, [handleOpenRicercaPipeline])
 
   const handleOpenGate1 = React.useCallback(() => {
     const nextRoute: AppRoute = {
@@ -229,9 +255,31 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     syncBrowserUrl(nextRoute)
   }, [route.anagraficheTab])
 
+  const handleOpenProveColloqui = React.useCallback(() => {
+    const nextRoute: AppRoute = {
+      mainSection: "prove_colloqui",
+      anagraficheTab: route.anagraficheTab,
+      ricercaProcessId: null,
+    }
+
+    setRoute(nextRoute)
+    syncBrowserUrl(nextRoute)
+  }, [route.anagraficheTab])
+
   const handleOpenCustomerSupportPayrollTicket = React.useCallback(() => {
     const nextRoute: AppRoute = {
       mainSection: "customer_support_payroll_ticket",
+      anagraficheTab: route.anagraficheTab,
+      ricercaProcessId: null,
+    }
+
+    setRoute(nextRoute)
+    syncBrowserUrl(nextRoute)
+  }, [route.anagraficheTab])
+
+  const handleOpenCustomerSupportRiattivazioni = React.useCallback(() => {
+    const nextRoute: AppRoute = {
+      mainSection: "customer_support_riattivazioni",
       anagraficheTab: route.anagraficheTab,
       ricercaProcessId: null,
     }
@@ -260,8 +308,10 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onOpenGestioneContrattualeVariazioni={handleOpenGestioneContrattualeVariazioni}
         onOpenPayrollCedolini={handleOpenPayrollCedolini}
         onOpenPayrollContributiInps={handleOpenPayrollContributiInps}
+        onOpenProveColloqui={handleOpenProveColloqui}
         onOpenCustomerSupportCustomerTicket={handleOpenCustomerSupportCustomerTicket}
         onOpenCustomerSupportPayrollTicket={handleOpenCustomerSupportPayrollTicket}
+        onOpenCustomerSupportRiattivazioni={handleOpenCustomerSupportRiattivazioni}
       />
       <SidebarInset className="h-svh min-h-0 overflow-hidden">
         <main className="scrollbar-hidden flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
@@ -277,7 +327,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
                 route={route}
                 onOpenAnagraficheTab={handleOpenAnagraficheTab}
                 onOpenRicercaDetail={handleOpenRicercaDetail}
-                onOpenRicercaPipeline={handleOpenRicercaPipeline}
+                onBackFromRicercaDetail={handleBackFromRicercaDetail}
               />
             </React.Suspense>
           </div>

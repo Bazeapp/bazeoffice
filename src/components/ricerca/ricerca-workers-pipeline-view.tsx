@@ -70,6 +70,7 @@ import {
   getLookupDropZoneClassName,
   getLookupToneTextClassName,
 } from "@/lib/lookup-color-styles";
+import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils";
 import { cn } from "@/lib/utils";
 import { invokeAiGenerationFunction } from "@/lib/ai-generation";
 import { type CrmPipelineCardData } from "@/hooks/use-crm-pipeline-preview";
@@ -277,16 +278,6 @@ const DA_COLLOQUIARE_GROUPS: GroupedColumnGroup[] = [
 ];
 
 const COLLOQUI_MATCH_GROUPS: GroupedColumnGroup[] = [
-  {
-    key: "in preparazione per invio",
-    label: "In preparazione per invio",
-    dropStatusId: "In preparazione per invio",
-  },
-  {
-    key: "invia selezione",
-    label: "Invia selezione",
-    dropStatusId: "Invia selezione",
-  },
   {
     key: "colloquio schedulato",
     label: "Colloquio schedulato",
@@ -763,6 +754,27 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
   const countLabel = `${column.cards.length} ${
     column.cards.length === 1 ? "lavoratore" : "lavoratori"
   }`;
+  const visibleGroups = React.useMemo(() => {
+    if (!groups) return [];
+
+    return groups
+      .map((group) => {
+        const groupStatusId = resolveGroupDropStatusId(column, group);
+        const groupCards = column.cards.filter(
+          (card) =>
+            normalizeToken(card.status) === normalizeToken(groupStatusId) ||
+            normalizeToken(card.status) === normalizeToken(group.key),
+        );
+
+        return {
+          group,
+          groupCards,
+          groupColor: resolveGroupColor(column, group),
+          groupStatusId,
+        };
+      })
+      .filter((entry) => entry.groupCards.length > 0);
+  }, [column, groups]);
 
   return (
     <div
@@ -878,19 +890,10 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
         ) : groups ? (
           <Accordion
             type="multiple"
-            defaultValue={groups.map((group) => group.key)}
+            defaultValue={visibleGroups.map(({ group }) => group.key)}
             className="-mx-3 gap-1.5"
           >
-            {groups.map((group) => {
-              const groupStatusId = resolveGroupDropStatusId(column, group);
-              const groupCards = column.cards.filter(
-                (card) =>
-                  normalizeToken(card.status) ===
-                    normalizeToken(groupStatusId) ||
-                  normalizeToken(card.status) === normalizeToken(group.key),
-              );
-              const groupColor = resolveGroupColor(column, group);
-
+            {visibleGroups.map(({ group, groupCards, groupColor }) => {
               return (
                 <AccordionItem
                   key={group.key}
@@ -916,33 +919,27 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="space-y-2 border-t-0 px-1.5 pt-1">
-                    {groupCards.length === 0 ? (
-                      <div className="text-muted-foreground rounded-md border border-dashed border-border/60 p-2 text-xs">
-                        Nessun lavoratore
+                    {groupCards.map((card) => (
+                      <div
+                        key={card.id}
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData("text/plain", card.id);
+                          event.dataTransfer.effectAllowed = "move";
+                          onDragStartCard(card.id, column.id);
+                        }}
+                        onDragEnd={onDragEndCard}
+                        className={cn(
+                          "cursor-grab transition-opacity active:cursor-grabbing",
+                          draggingSelectionId === card.id && "opacity-40",
+                        )}
+                      >
+                        <PipelineWorkerCard
+                          card={card}
+                          onOpenWorker={onOpenWorker}
+                        />
                       </div>
-                    ) : (
-                      groupCards.map((card) => (
-                        <div
-                          key={card.id}
-                          draggable
-                          onDragStart={(event) => {
-                            event.dataTransfer.setData("text/plain", card.id);
-                            event.dataTransfer.effectAllowed = "move";
-                            onDragStartCard(card.id, column.id);
-                          }}
-                          onDragEnd={onDragEndCard}
-                          className={cn(
-                            "cursor-grab transition-opacity active:cursor-grabbing",
-                            draggingSelectionId === card.id && "opacity-40",
-                          )}
-                        >
-                          <PipelineWorkerCard
-                            card={card}
-                            onOpenWorker={onOpenWorker}
-                          />
-                        </div>
-                      ))
-                    )}
+                    ))}
                   </AccordionContent>
                 </AccordionItem>
               );
@@ -2062,24 +2059,27 @@ export function RicercaWorkersPipelineView({
   );
 
   const filteredColumns = React.useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    if (!normalizedQuery) return columns;
-    return columns.map((column) => ({
+    const mappedColumns = columns.map((column) => ({
       ...column,
       cards: column.cards.filter((cardItem) => {
         const worker = cardItem.worker;
-        const haystack = [
-          worker.nomeCompleto,
-          worker.telefono ?? "",
-          worker.locationLabel ?? "",
-          worker.tipoRuolo ?? "",
-          worker.tipoLavoro ?? "",
-        ]
-          .join(" ")
-          .toLowerCase();
-        return haystack.includes(normalizedQuery);
+        return matchesSearchQuery(
+          [
+            cardItem.id,
+            worker.id,
+            worker.nomeCompleto,
+            worker.telefono,
+            worker.locationLabel,
+            worker.tipoRuolo,
+            worker.tipoLavoro,
+            cardItem.status,
+          ],
+          searchQuery,
+        );
       }),
     }));
+
+    return hideEmptyKanbanGroups(mappedColumns);
   }, [columns, searchQuery]);
 
   return (
@@ -2218,8 +2218,8 @@ export function RicercaWorkersPipelineView({
           ) : null}
 
           {selectedCard && selectedWorkerRow && selectedSelectionRow ? (
-            <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
-              <div className="scrollbar-hidden min-w-0 overflow-y-auto border-r border-border">
+            <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.75fr)]">
+              <div className="scrollbar-hidden min-w-0 overflow-y-auto xl:border-r xl:border-border">
                 <div className="space-y-4 p-4">
                   <DetailSectionBlock
                     title="Profilo lavoratore"
@@ -2337,7 +2337,7 @@ export function RicercaWorkersPipelineView({
                 </div>
               </div>
 
-              <div className="scrollbar-hidden min-w-0 overflow-y-auto">
+              <div className="scrollbar-hidden min-w-0 overflow-y-auto border-t border-border xl:border-t-0">
                 <div className="space-y-6 p-4">
                   <WorkerPipelineSummaryCards
                     workerRow={selectedWorkerRow}

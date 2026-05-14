@@ -18,6 +18,7 @@ type SupportedTable =
   | "pagamenti"
   | "presenze_mensili"
   | "rapporti_lavorativi"
+  | "richieste_attivazione"
   | "ticket"
   | "transazioni_finanziarie"
   | "variazioni_contrattuali"
@@ -123,10 +124,14 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "id",
     "civico_se_diverso_residenza",
     "comune_se_diverso_residenza",
+    "info_anagrafiche_cognome",
+    "info_anagrafiche_email",
+    "info_anagrafiche_nome",
     "luogo_lavoro_se_diverso_da_residenza",
     "provincia",
     "rapporto_di_lavoro_residenza",
     "rapporto_lavorativo_datore_lavoro_id",
+    "rapporto_lavorativo_lavoratore_id",
     "airtable_id",
     "airtable_record_id",
     "creato_il",
@@ -155,13 +160,17 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "cognome",
     "data_creazione",
     "data_fine_rapporto",
+    "data_per_riattivazione",
     "documenti_chiusura_rapporto",
     "email",
     "informazioni_aggiuntive",
     "motivazione_cessazione_rapporto",
+    "motivazione_lost",
     "nome",
     "presenze_ultimo_mese",
     "stato",
+    "stato_riattivazione_famiglia",
+    "sconto_proposto_riattivazione",
     "ticket_id",
     "tipo_decesso",
     "tipo_licenziamento",
@@ -456,10 +465,19 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "paga_oraria_lorda",
     "preventivo_id",
     "processo_res",
+    "prova_data_checkin",
+    "prova_feedback_famiglia",
+    "prova_feedback_lavoratore",
+    "prova_note_cs_famiglia",
+    "prova_note_cs_lavoratore",
+    "prova_priorita_famiglia",
+    "prova_ramo_d2",
+    "prova_stato_cs",
     "relazione_lavorativa",
     "request_lavoratore_referenza",
     "request_trustpilot_review",
     "ricevuta_inps_allegati",
+    "richiesta_attivazione_id",
     "richiedere_trustpilot_temp",
     "stato_assunzione",
     "stato_riattivazione",
@@ -476,6 +494,23 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "metadati_migrazione",
     "creato_il",
     "aggiornato_il",
+  ],
+  richieste_attivazione: [
+    "id",
+    "data_submission",
+    "document_id",
+    "email",
+    "fee_concordata",
+    "firmatario",
+    "processo_res_id",
+    "signed_document_id",
+    "signed_document_title",
+    "signed_document_url",
+    "airtable_id",
+    "airtable_record_id",
+    "creato_il",
+    "aggiornato_il",
+    "metadati_migrazione",
   ],
   ticket: [
     "id",
@@ -542,6 +577,7 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "stato_selezione",
     "colloquio_effettuato",
     "data_ora_colloquio_famiglia_lavoratore",
+    "data_ora_fine_colloquio_famiglia_lavoratore",
     "data_ora_colloquio_recruiter",
     "disponibilita_colloquio_lavoratore_slot1_fine",
     "disponibilita_colloquio_lavoratore_slot1_inizio",
@@ -662,6 +698,7 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "nucleo_famigliare",
     "numero_giorni_settimanali",
     "numero_ricerca_attivata",
+    "offerta",
     "orario_di_lavoro",
     "ore_settimanale",
     "paga_mensile",
@@ -1358,6 +1395,7 @@ function supportsServerCondition(operator: FilterOperator) {
     operator === "lte" ||
     operator === "is_true" ||
     operator === "is_false" ||
+    operator === "is_not_empty" ||
     operator === "starts_with" ||
     operator === "ends_with"
   );
@@ -1388,6 +1426,7 @@ type ServerFilterQuery = {
   gt: (field: string, value: unknown) => ServerFilterQuery;
   lt: (field: string, value: unknown) => ServerFilterQuery;
   ilike: (field: string, value: string) => ServerFilterQuery;
+  not: (field: string, operator: string, value: unknown) => ServerFilterQuery;
 }
 
 function applyServerCondition(
@@ -1421,6 +1460,8 @@ function applyServerCondition(
       return query.eq(field, true);
     case "is_false":
       return query.eq(field, false);
+    case "is_not_empty":
+      return query.not(field, "is", null);
     case "starts_with":
       return query.ilike(field, `${escapeLikeValue(value)}%`);
     case "ends_with":

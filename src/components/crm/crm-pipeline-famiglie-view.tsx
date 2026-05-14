@@ -26,6 +26,7 @@ import {
   type CrmPipelineColumnData,
   useCrmPipelinePreview,
 } from "@/hooks/use-crm-pipeline-preview"
+import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
 type ColumnVisual = {
@@ -295,21 +296,27 @@ export function CrmPipelineFamiglieView() {
   const [searchQuery, setSearchQuery] = React.useState("")
 
   const filteredColumns = React.useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q) return columns
-    return columns.map((column) => {
+    const mappedColumns = columns.map((column) => {
       const filteredCards = column.cards.filter((card) =>
-        [card.nomeFamiglia, card.email, card.telefono].some((field) =>
-          field?.toLowerCase().includes(q)
+        matchesSearchQuery(
+          [
+            card.id,
+            card.nomeFamiglia,
+            card.email,
+            card.telefono,
+            card.tipoLavoroBadge,
+            card.tipoRapportoBadge,
+            card.stage,
+            card.statoRes,
+          ],
+          searchQuery,
         )
       )
 
-      return {
-        ...column,
-        totalCount: filteredCards.length,
-        cards: filteredCards,
-      }
+      return { ...column, totalCount: filteredCards.length, cards: filteredCards }
     })
+
+    return hideEmptyKanbanGroups(mappedColumns)
   }, [columns, searchQuery])
 
   const totalRicerche = React.useMemo(
@@ -383,7 +390,7 @@ export function CrmPipelineFamiglieView() {
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+      <div className="scrollbar-visible min-h-0 flex-1 overflow-x-auto overflow-y-hidden [scrollbar-gutter:stable]">
         <div className="flex h-full min-w-max gap-4 px-6">
               {loading
                 ? Array.from({ length: 5 }).map((_, index) => (

@@ -50,6 +50,7 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { matchesSearchQuery } from "@/lib/search-utils";
 import { cn } from "@/lib/utils";
 
 type GroupOption = {
@@ -270,20 +271,12 @@ export function DataTable<TData, TValue>({
   const filteredData = React.useMemo(() => {
     if (serverQueryMode) return data;
 
-    const searchToken = searchValue.trim().toLowerCase();
-
     return data.filter((row) => {
       const record = row as Record<string, unknown>;
       const matchesComplexFilters = evaluateGroup(record, filters, filterFields);
 
       if (!matchesComplexFilters) return false;
-      if (!searchToken) return true;
-
-      return Object.values(record).some((value) =>
-        String(value ?? "")
-          .toLowerCase()
-          .includes(searchToken),
-      );
+      return matchesSearchQuery(Object.values(record), searchValue);
     });
   }, [data, filterFields, filters, searchValue, serverQueryMode]);
 

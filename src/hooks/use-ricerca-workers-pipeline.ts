@@ -193,8 +193,6 @@ function isDaColloquiareStatus(value: string | null | undefined) {
 }
 
 const COLLOQUI_GROUP_KEYS = {
-  inPreparazionePerInvio: "in preparazione per invio",
-  inviaSelezione: "invia selezione",
   colloquioSchedulato: "colloquio schedulato",
   colloquioRimandato: "colloquio rimandato",
   colloquioFatto: "colloquio fatto",
@@ -219,8 +217,6 @@ function canonicalizeSelectionStatus(value: string) {
 function isColloquiStatus(value: string | null | undefined) {
   const token = normalizeStatusToken(value)
   return (
-    token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.inPreparazionePerInvio) ||
-    token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.inviaSelezione) ||
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.colloquioSchedulato) ||
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.colloquioRimandato) ||
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.colloquioFatto) ||

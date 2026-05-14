@@ -36,6 +36,7 @@ export function RapportiLavorativiView({
     selectedVariazioni,
     selectedChiusure,
     selectedTickets,
+    selectedRichiesteAttivazione,
     loadingRelated,
     lookupColorsByDomain,
     createTicketForSelectedRapporto,
@@ -74,6 +75,7 @@ export function RapportiLavorativiView({
         variazioni={selectedVariazioni}
         chiusure={selectedChiusure}
         tickets={selectedTickets}
+        richiesteAttivazione={selectedRichiesteAttivazione}
         loadingRelated={loadingRelated}
         lookupColorsByDomain={lookupColorsByDomain}
         onCreateTicket={createTicketForSelectedRapporto}

@@ -1,5 +1,5 @@
 import * as React from "react"
-import type { AppRoute } from "@/routes/app-routes"
+import type { AppRoute, OpenRicercaDetailOptions } from "@/routes/app-routes"
 
 const AnagrafichePage = React.lazy(async () => {
   const module = await import("@/pages/anagrafiche-page")
@@ -46,6 +46,11 @@ const PayrollPage = React.lazy(async () => {
   return { default: module.PayrollPage }
 })
 
+const ProveColloquiPage = React.lazy(async () => {
+  const module = await import("@/pages/prove-colloqui-page")
+  return { default: module.ProveColloquiPage }
+})
+
 const RapportiLavorativiPage = React.lazy(async () => {
   const module = await import("@/pages/rapporti-lavorativi-page")
   return { default: module.RapportiLavorativiPage }
@@ -61,6 +66,11 @@ const RicercaDetailPage = React.lazy(async () => {
   return { default: module.RicercaDetailPage }
 })
 
+const RiattivazioniPage = React.lazy(async () => {
+  const module = await import("@/pages/riattivazioni-page")
+  return { default: module.RiattivazioniPage }
+})
+
 const SupportTicketsPage = React.lazy(async () => {
   const module = await import("@/pages/support-tickets-page")
   return { default: module.SupportTicketsPage }
@@ -74,15 +84,15 @@ const VariazioniPage = React.lazy(async () => {
 type AppPageContentProps = {
   route: AppRoute
   onOpenAnagraficheTab: (tab: AppRoute["anagraficheTab"]) => void
-  onOpenRicercaDetail: (processId: string) => void
-  onOpenRicercaPipeline: () => void
+  onOpenRicercaDetail: (processId: string, options?: OpenRicercaDetailOptions) => void
+  onBackFromRicercaDetail: () => void
 }
 
 export function AppPageContent({
   route,
   onOpenAnagraficheTab,
   onOpenRicercaDetail,
-  onOpenRicercaPipeline,
+  onBackFromRicercaDetail,
 }: AppPageContentProps) {
   if (route.mainSection === "crm_pipeline_famiglie") {
     return <CrmPipelineFamigliePage />
@@ -96,7 +106,7 @@ export function AppPageContent({
     return route.ricercaProcessId ? (
       <RicercaDetailPage
         processId={route.ricercaProcessId}
-        onBack={onOpenRicercaPipeline}
+        onBack={onBackFromRicercaDetail}
       />
     ) : (
       <RicercaBoardPage onOpenDetail={onOpenRicercaDetail} />
@@ -148,12 +158,20 @@ export function AppPageContent({
     return <PayrollPage defaultTab="contributi-inps" />
   }
 
+  if (route.mainSection === "prove_colloqui") {
+    return <ProveColloquiPage onOpenRicercaDetail={onOpenRicercaDetail} />
+  }
+
   if (route.mainSection === "customer_support_customer_ticket") {
     return <SupportTicketsPage ticketType="Customer" />
   }
 
   if (route.mainSection === "customer_support_payroll_ticket") {
     return <SupportTicketsPage ticketType="Payroll" />
+  }
+
+  if (route.mainSection === "customer_support_riattivazioni") {
+    return <RiattivazioniPage />
   }
 
   return (

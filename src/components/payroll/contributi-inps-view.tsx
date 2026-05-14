@@ -39,6 +39,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
@@ -558,24 +559,39 @@ export function ContributiInpsView() {
     return cards.filter((card) => {
       if (stageFilter !== "all" && card.stage !== stageFilter) return false
 
-      const normalizedSearch = search.trim().toLowerCase()
-      if (!normalizedSearch) return true
-
-      return (
-        card.nomeFamiglia.toLowerCase().includes(normalizedSearch) ||
-        card.nomeLavoratore.toLowerCase().includes(normalizedSearch)
+      return matchesSearchQuery(
+        [
+          card.id,
+          card.nomeFamiglia,
+          card.nomeLavoratore,
+          card.nomeCompleto,
+          card.trimestreLabel,
+          card.importoLabel,
+          card.pagopaLabel,
+          card.rapporto?.id,
+          card.rapporto?.id_rapporto,
+          card.rapporto?.codice_datore_webcolf,
+          card.rapporto?.codice_dipendente_webcolf,
+          card.rapporto?.cognome_nome_datore_proper,
+          card.rapporto?.nome_lavoratore_per_url,
+          card.rapporto?.tipo_rapporto,
+          card.rapporto?.tipo_contratto,
+        ],
+        search,
       )
     })
   }, [cards, search, stageFilter])
 
   const columns = React.useMemo<ContributiColumnData[]>(
     () =>
-      stages.map((stage) => ({
-        id: stage.id,
-        label: stage.label,
-        color: stage.color,
-        cards: filteredCards.filter((card) => card.stage === stage.id),
-      })),
+      hideEmptyKanbanGroups(
+        stages.map((stage) => ({
+          id: stage.id,
+          label: stage.label,
+          color: stage.color,
+          cards: filteredCards.filter((card) => card.stage === stage.id),
+        })),
+      ),
     [filteredCards, stages]
   )
 
@@ -730,7 +746,7 @@ export function ContributiInpsView() {
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4">
+      <div className="scrollbar-visible min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4 [scrollbar-gutter:stable]">
         <div className="flex h-full min-h-0 min-w-max gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, index) => <ContributoInpsBoardSkeletonColumn key={index} />)

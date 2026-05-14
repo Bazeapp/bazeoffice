@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { updateRecord } from "@/lib/anagrafiche-api";
+import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils";
 import { cn } from "@/lib/utils";
 
 function formatDate(value: string | null | undefined) {
@@ -1022,26 +1023,36 @@ export function VariazioniBoardView() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
 
   const filteredColumns = React.useMemo(() => {
-    const query = searchValue.trim().toLowerCase();
-    if (!query) return columns;
-    const tokens = query.split(/\s+/).filter(Boolean);
-    return columns.map((column) => ({
+    const mappedColumns = columns.map((column) => ({
       ...column,
       cards: column.cards.filter((card) => {
-        const haystack = [
-          card.nomeCompleto,
-          card.variazioneDaApplicare,
-          card.rapporto?.cognome_nome_datore_proper,
-          card.rapporto?.nome_lavoratore_per_url,
-          card.rapporto?.tipo_rapporto,
-          card.rapporto?.tipo_contratto,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return tokens.every((token) => haystack.includes(token));
+        return matchesSearchQuery(
+          [
+            card.id,
+            card.nomeCompleto,
+            card.variazioneDaApplicare,
+            card.dataVariazione,
+            card.famiglia?.nome,
+            card.famiglia?.cognome,
+            card.famiglia?.email,
+            card.famiglia?.telefono,
+            card.lavoratore?.nome,
+            card.lavoratore?.cognome,
+            card.lavoratore?.email,
+            card.lavoratore?.telefono,
+            card.rapporto?.id,
+            card.rapporto?.id_rapporto,
+            card.rapporto?.cognome_nome_datore_proper,
+            card.rapporto?.nome_lavoratore_per_url,
+            card.rapporto?.tipo_rapporto,
+            card.rapporto?.tipo_contratto,
+          ],
+          searchValue,
+        );
       }),
     }));
+
+    return hideEmptyKanbanGroups(mappedColumns);
   }, [columns, searchValue]);
 
   const totalVariazioni = React.useMemo(
@@ -1091,7 +1102,7 @@ export function VariazioniBoardView() {
           </div>
         ) : null}
 
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4">
+        <div className="scrollbar-visible min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4 [scrollbar-gutter:stable]">
           <div className="flex h-full min-h-0 min-w-max gap-4">
             {loading
               ? Array.from({ length: 3 }).map((_, index) => (

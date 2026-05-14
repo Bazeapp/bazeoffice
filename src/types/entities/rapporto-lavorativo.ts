@@ -22,10 +22,19 @@ export type RapportoLavorativoRecord = {
   paga_oraria_lorda: number | null
   preventivo_id: string | null
   processo_res: string[] | null
+  prova_data_checkin: string | null
+  prova_feedback_famiglia: string | null
+  prova_feedback_lavoratore: string | null
+  prova_note_cs_famiglia: string | null
+  prova_note_cs_lavoratore: string | null
+  prova_priorita_famiglia: string | null
+  prova_ramo_d2: string | null
+  prova_stato_cs: string | null
   relazione_lavorativa: string | null
   request_lavoratore_referenza: string | null
   request_trustpilot_review: boolean | null
   ricevuta_inps_allegati: JsonObject | JsonObject[] | null
+  richiesta_attivazione_id: string | null
   richiedere_trustpilot_temp: boolean | null
   stato_assunzione: string | null
   stato_rapporto: string | null

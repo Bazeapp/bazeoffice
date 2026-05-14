@@ -19,7 +19,9 @@ import {
 import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/ui/search-input"
+import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
 function getColumnVisual(color: string): KanbanColumnVisual {
@@ -84,9 +86,9 @@ function AssunzioniBoardCard({
           <div className="flex flex-wrap gap-1.5">
             <Badge
               className={cn(
-                card.famiglia
+                card.assunzione
                   ? "border-green-200 bg-green-100 text-green-700"
-                  : "border-zinc-200 bg-zinc-100 text-zinc-600",
+                  : "border-red-200 bg-red-100 text-red-700",
               )}
             >
               <UsersIcon />
@@ -94,9 +96,9 @@ function AssunzioniBoardCard({
             </Badge>
             <Badge
               className={cn(
-                card.lavoratore
+                card.lavoratoreAssunzione
                   ? "border-green-200 bg-green-100 text-green-700"
-                  : "border-zinc-200 bg-zinc-100 text-zinc-600",
+                  : "border-red-200 bg-red-100 text-red-700",
               )}
             >
               <UserCheckIcon />
@@ -124,6 +126,7 @@ function AssunzioniBoardColumn({
   onDragLeaveColumn,
   onDropToColumn,
   onCardClick,
+  onLoadDeferredColumn,
 }: {
   column: AssunzioniBoardColumnData
   draggingProcessId: string | null
@@ -135,6 +138,7 @@ function AssunzioniBoardColumn({
   onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void
   onDropToColumn: (columnId: string, processId: string | null) => void
   onCardClick: (card: AssunzioniBoardCardData) => void
+  onLoadDeferredColumn: (columnId: string) => void
 }) {
   const visual = getColumnVisual(column.color)
 
@@ -151,6 +155,22 @@ function AssunzioniBoardColumn({
       onDragLeave={onDragLeaveColumn}
       onDrop={onDropToColumn}
     >
+      {column.deferred && !column.loaded ? (
+        <div className="rounded-lg border border-dashed bg-surface p-3 text-sm">
+          <Button
+            className="w-full"
+            disabled={column.loading}
+            size="sm"
+            variant="outline"
+            onClick={() => onLoadDeferredColumn(column.id)}
+          >
+            {column.loading ? "Caricamento..." : "Carica processi"}
+          </Button>
+          {column.loadError ? (
+            <p className="mt-2 text-xs text-red-600">{column.loadError}</p>
+          ) : null}
+        </div>
+      ) : null}
       {column.cards.map((card) => (
         <AssunzioniBoardCard
           key={card.id}
@@ -174,33 +194,38 @@ function AssunzioniBoardSkeletonColumn() {
 }
 
 export function AssunzioniBoardView() {
-  const { loading, error, columns, moveCard, updateCard } = useAssunzioniBoard()
+  const { loading, error, columns, loadDeferredColumn, moveCard, updateCard } = useAssunzioniBoard()
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCard, setSelectedCard] = React.useState<AssunzioniBoardCardData | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
 
   const filteredColumns = React.useMemo(() => {
-    const query = searchValue.trim().toLowerCase()
-    if (!query) return columns
-    const tokens = query.split(/\s+/).filter(Boolean)
-    return columns.map((column) => ({
+    const mappedColumns = columns.map((column) => ({
       ...column,
       cards: column.cards.filter((card) => {
-        const haystack = [
-          card.nomeFamiglia,
-          card.nomeLavoratore,
-          card.email,
-          card.telefono,
-          card.rapporto?.tipo_rapporto,
-          card.rapporto?.tipo_contratto,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-        return tokens.every((token) => haystack.includes(token))
+        return matchesSearchQuery(
+          [
+            card.id,
+            card.processId,
+            card.nomeFamiglia,
+            card.nomeLavoratore,
+            card.email,
+            card.telefono,
+            card.titoloAnnuncio,
+            card.tipoRapporto,
+            card.rapporto?.id_rapporto,
+            card.rapporto?.tipo_rapporto,
+            card.rapporto?.tipo_contratto,
+            card.rapporto?.codice_datore_webcolf,
+            card.rapporto?.codice_dipendente_webcolf,
+          ],
+          searchValue,
+        )
       }),
     }))
+
+    return hideEmptyKanbanGroups(mappedColumns)
   }, [columns, searchValue])
 
   const totalProcesses = React.useMemo(
@@ -233,7 +258,7 @@ export function AssunzioniBoardView() {
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4">
+      <div className="scrollbar-visible min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4 [scrollbar-gutter:stable]">
         <div className="flex h-full min-h-0 min-w-max gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, index) => <AssunzioniBoardSkeletonColumn key={index} />)
@@ -264,6 +289,9 @@ export function AssunzioniBoardView() {
                     void moveCard(processId, columnId)
                   }}
                   onCardClick={setSelectedCard}
+                  onLoadDeferredColumn={(columnId) => {
+                    void loadDeferredColumn(columnId)
+                  }}
                 />
               ))}
         </div>

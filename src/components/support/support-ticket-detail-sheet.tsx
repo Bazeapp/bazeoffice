@@ -134,6 +134,7 @@ export function SupportTicketDetailSheet({
     presenze,
     variazioni,
     chiusure,
+    richiesteAttivazione,
     loadingRelated,
     lookupColorsByDomain,
     error: rapportoError,
@@ -340,6 +341,7 @@ export function SupportTicketDetailSheet({
                               presenze={presenze}
                               variazioni={variazioni}
                               chiusure={chiusure}
+                              richiesteAttivazione={richiesteAttivazione}
                               loadingRelated={loadingRelated}
                               lookupColorsByDomain={lookupColorsByDomain}
                               hideHeader={true}

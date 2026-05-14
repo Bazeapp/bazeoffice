@@ -15,6 +15,7 @@ type SupportedTable =
   | "indirizzi"
   | "mesi_lavorati"
   | "rapporti_lavorativi"
+  | "richieste_attivazione"
   | "ticket"
   | "variazioni_contrattuali"
   | "selezioni_lavoratori"
@@ -38,6 +39,7 @@ const SUPPORTED_TABLES = new Set<SupportedTable>([
   "indirizzi",
   "mesi_lavorati",
   "rapporti_lavorativi",
+  "richieste_attivazione",
   "ticket",
   "variazioni_contrattuali",
   "selezioni_lavoratori",
@@ -56,6 +58,7 @@ const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
   indirizzi: new Set(["id", "creato_il"]),
   mesi_lavorati: new Set(["id", "creato_il"]),
   rapporti_lavorativi: new Set(["id", "creato_il"]),
+  richieste_attivazione: new Set(["id", "creato_il"]),
   ticket: new Set(["id", "creato_il"]),
   variazioni_contrattuali: new Set(["id", "creato_il"]),
   selezioni_lavoratori: new Set(["id", "creato_il"]),
@@ -74,6 +77,7 @@ const AUTO_UPDATED_AT_FIELD: Record<SupportedTable, string> = {
   indirizzi: "aggiornato_il",
   mesi_lavorati: "aggiornato_il",
   rapporti_lavorativi: "aggiornato_il",
+  richieste_attivazione: "aggiornato_il",
   ticket: "aggiornato_il",
   variazioni_contrattuali: "aggiornato_il",
   selezioni_lavoratori: "aggiornato_il",
@@ -83,7 +87,7 @@ const AUTO_UPDATED_AT_FIELD: Record<SupportedTable, string> = {
   processi_matching: "aggiornato_il",
 };
 
-const MATCH_WORKFLOW_TARGET_STATUSES = new Set(["match", "prova con cliente"]);
+const MATCH_WORKFLOW_TARGET_STATUSES = new Set(["match", "prova in corso"]);
 const CREATE_RAPPORTO_AFTER_MATCH_WEBHOOK_URL =
   "https://hook.eu1.make.com/aq1sq4aa3tc6ujccbqq9dodx9pt3uxni";
 
@@ -121,6 +125,10 @@ async function runCreateRapportoAfterMatchAutomation(
   supabase: ReturnType<typeof createClient>,
   row: Record<string, unknown>
 ) {
+  const recordId =
+    typeof row.id === "string" && row.id.trim()
+      ? row.id.trim()
+      : null;
   const processoMatchingId =
     typeof row.processo_matching_id === "string" && row.processo_matching_id.trim()
       ? row.processo_matching_id.trim()
@@ -129,6 +137,14 @@ async function runCreateRapportoAfterMatchAutomation(
     typeof row.lavoratore_id === "string" && row.lavoratore_id.trim()
       ? row.lavoratore_id.trim()
       : null;
+  const statoSelezione =
+    typeof row.stato_selezione === "string" && row.stato_selezione.trim()
+      ? row.stato_selezione.trim()
+      : null;
+
+  if (!recordId) {
+    throw new Error("Missing record_id for post-match workflow");
+  }
 
   if (!processoMatchingId) {
     throw new Error("Missing processo_matching_id for post-match workflow");
@@ -136,6 +152,10 @@ async function runCreateRapportoAfterMatchAutomation(
 
   if (!lavoratoreId) {
     throw new Error("Missing lavoratore_id for post-match workflow");
+  }
+
+  if (!statoSelezione) {
+    throw new Error("Missing stato_selezione for post-match workflow");
   }
 
   const { data: processRow, error: processError } = await supabase
@@ -164,12 +184,13 @@ async function runCreateRapportoAfterMatchAutomation(
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify([
-      {
-        famigliaId: [famigliaId],
-        lavoratoreId: [lavoratoreId],
-      },
-    ]),
+    body: JSON.stringify({
+      record_id: recordId,
+      lavoratore_id: lavoratoreId,
+      famiglia_id: famigliaId,
+      stato_selezione: statoSelezione,
+      processo_matching_id: processoMatchingId,
+    }),
   });
 
   if (!response.ok) {

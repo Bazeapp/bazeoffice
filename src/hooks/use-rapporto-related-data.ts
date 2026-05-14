@@ -13,6 +13,7 @@ import {
   fetchProcessiMatching,
   type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
+import { fetchRichiesteAttivazioneByProcessIds } from "@/features/richieste-attivazione/api"
 import { normalizeLookupColors } from "@/features/lavoratori/lib/lookup-utils"
 import type {
   ChiusuraContrattoRecord,
@@ -25,6 +26,7 @@ import type {
   PresenzaMensileRecord,
   ProcessoMatchingRecord,
   RapportoLavorativoRecord,
+  RichiestaAttivazioneRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
 import { fetchVariazioniContrattuali } from "@/lib/anagrafiche-api"
@@ -93,6 +95,7 @@ type UseRapportoRelatedDataState = {
   presenze: PresenzaMensileRecord[]
   variazioni: VariazioneContrattualeRecord[]
   chiusure: ChiusuraContrattoRecord[]
+  richiesteAttivazione: RichiestaAttivazioneRecord[]
   loadingRelated: boolean
   lookupColorsByDomain: Map<string, string>
   error: string | null
@@ -111,6 +114,9 @@ export function useRapportoRelatedData(
   const [presenze, setPresenze] = React.useState<PresenzaMensileRecord[]>([])
   const [variazioni, setVariazioni] = React.useState<VariazioneContrattualeRecord[]>([])
   const [chiusure, setChiusure] = React.useState<ChiusuraContrattoRecord[]>([])
+  const [richiesteAttivazione, setRichiesteAttivazione] = React.useState<
+    RichiestaAttivazioneRecord[]
+  >([])
   const [loadingRelated, setLoadingRelated] = React.useState(false)
   const [lookupColorsByDomain, setLookupColorsByDomain] = React.useState<Map<string, string>>(
     new Map()
@@ -155,6 +161,7 @@ export function useRapportoRelatedData(
         setPresenze([])
         setVariazioni([])
         setChiusure([])
+        setRichiesteAttivazione([])
         return
       }
 
@@ -233,7 +240,7 @@ export function useRapportoRelatedData(
           )
         )
 
-        const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse] = await Promise.all([
+        const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse, richiesteByProcessId] = await Promise.all([
           meseIds.length > 0
             ? fetchMesiCalendario({
                 limit: 200,
@@ -258,6 +265,7 @@ export function useRapportoRelatedData(
                 filters: buildAnyOfFilter("id", presenzaIds),
               })
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
+          fetchRichiesteAttivazioneByProcessIds((rapporto.processo_res ?? []).filter(Boolean)),
         ])
 
         if (!isActive) return
@@ -272,6 +280,7 @@ export function useRapportoRelatedData(
         setPresenze(presenzeResponse.rows as PresenzaMensileRecord[])
         setVariazioni(variazioniResponse.rows as VariazioneContrattualeRecord[])
         setChiusure(chiusuraResponse.rows as ChiusuraContrattoRecord[])
+        setRichiesteAttivazione(Array.from(richiesteByProcessId.values()))
       } catch (loadError) {
         if (!isActive) return
         setError(
@@ -289,6 +298,7 @@ export function useRapportoRelatedData(
         setPresenze([])
         setVariazioni([])
         setChiusure([])
+        setRichiesteAttivazione([])
       } finally {
         if (isActive) setLoadingRelated(false)
       }
@@ -312,6 +322,7 @@ export function useRapportoRelatedData(
     presenze,
     variazioni,
     chiusure,
+    richiesteAttivazione,
     loadingRelated,
     lookupColorsByDomain,
     error,

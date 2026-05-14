@@ -10,16 +10,17 @@ Fonte aggiornata da `ISSUES (1).txt` + feedback QA `Test BazeOffice - Beta.pdf`.
 
 ## Stato Sintetico
 
-- `✅ Fatto`: 122
+- `✅ Fatto`: 146
 - `❌ Non chiuso`: 11
-- `⬜ Backlog`: 17
+- `⬜ Backlog`: 10
 
 ## Sequenza Consigliata
 
-1. Chiudere i parziali QA/data cleanup: `ISS-008`, `ISS-009`, `ISS-010`, `ISS-011`.
-2. Chiudere i parziali dati/payroll: `RAP-005`, `CED-001`, `CED-005`, `CED-008`.
-3. Rifinire comportamento prodotto su liste lavoratori: `ISS-012`, `ISS-013`.
-4. Riprendere CRM backlog: `CRM-017`.
+1. Profilare e chiudere il tema performance globale: `G-002`.
+2. Rifinire il detail ricerca e lavoratore: `RIC-042`, `RIC-043`, `RIC-044`, `RIC-045`.
+3. Chiudere i parziali QA/data cleanup: `ISS-008`, `ISS-009`, `ISS-010`, `ISS-011`.
+4. Chiudere i parziali dati/payroll: `RAP-005`, `CED-001`, `CED-005`, `CED-008`.
+5. Riprendere CRM backlog: `CRM-017`.
 
 ## Feedback QA Beta (ISS)
 
@@ -111,6 +112,39 @@ Task derivati dai feedback ricorrenti del test piattaforma e dalle investigazion
 
 - **Stato:** Fatto
 - **Tag:** [MISSING] | **Severity:** medium | **Area:** schema DB — tabella operatori (nome esatto da verificare); prerequisito per filtri utenti in tutte le pagine che assegnano/filtrano per utente interno | **Effort:** S
+
+#### ⬜ [G-002] Migliorare le prestazioni lente su tutto il back office
+
+- **Stato:** Backlog
+- **Tag:** [PERFORMANCE] [INVESTIGATION] | **Severity:** high | **Area:** globale — routing, data fetching, Edge Functions, render FE, immagini e tabelle dense | **Effort:** L
+- **Nota:** Prima fase: profilare pagine lente, query Supabase/Edge Functions, bundle e rerender. Output atteso: lista cause per priorità con fix misurabili.
+
+#### ✅ [G-003] Agganciare il preventivo al processo matching tramite ID processo e fee concordata
+
+- **Stato:** Done
+- **Tag:** [DATA-FETCH] [FEATURE] | **Severity:** high | **Area:** Assunzioni + Rapporti lavorativi + CRM — tab `richieste_attivazione`, preventivo e processo matching | **Effort:** M-L
+- **Nota:** Nelle pagine Assunzioni, Rapporti lavorativi e CRM agganciare il preventivo al processo matching usando l'ID del processo match e la fee concordata dentro la tab `richieste_attivazione`. Verificare join/sorgente dati e fallback nelle tre aree.
+- **Esito:** `richieste_attivazione` viene letta via `processo_res_id`; CRM, Assunzioni e Rapporti mostrano fee concordata e documento firmato collegati al processo matching.
+
+#### ✅ [G-004] Uniformare il comportamento di tutte le barre di ricerca
+
+- **Stato:** Fatto
+- **Tag:** [BUG] [UX] | **Severity:** medium | **Area:** globale — search bar in Ricerca, CRM, Lavoratori, Rapporti, Assunzioni, Payroll e Support | **Effort:** M
+- **Nota:** La barra ricerche oggi sembra cercare solo per cognome. Controllare anche tutte le altre barre di ricerca e uniformare il comportamento: nome, cognome, email, telefono, ID, famiglia/lavoratore e campi operativi rilevanti.
+- **Esito:** Introdotto e riusato `matchesSearchQuery` con normalizzazione token/diacritici. Le board principali e la tabella generica ora condividono lo stesso comportamento; Rapporti cerca anche stati, tipo rapporto/contratto e codici operativi.
+
+#### ✅ [G-005] Nascondere i grouping vuoti nelle Kanban
+
+- **Stato:** Fatto
+- **Tag:** [UX] | **Severity:** medium | **Area:** globale — grouping interni delle Kanban | **Effort:** S-M
+- **Nota:** I gruppi interni senza card non devono occupare spazio. Verificare tutte le Kanban con grouping, incluse Ricerca, Assegnazione e pipeline lavoratori.
+- **Esito:** Introdotto e applicato `hideEmptyKanbanGroups` alle Kanban principali, inclusi CRM, Ricerca, Assunzioni, Payroll, Support, Chiusure, Variazioni, Prove colloqui e Riattivazioni; preservate le colonne lazy/deferred non ancora caricate.
+
+#### ✅ [G-006] Assicurare la scrollbar orizzontale visibile nelle board con scroll laterale
+
+- **Stato:** Fatto
+- **Tag:** [BUG] [UX] | **Severity:** medium | **Area:** globale — board orizzontali e viste Kanban | **Effort:** S
+- **Nota:** Aggiunta `scrollbar-visible` sui principali container `overflow-x-auto` delle board. Da completare con QA browser appena il dev server è disponibile nel runtime locale.
 
 
 ### Anagrafiche
@@ -254,6 +288,13 @@ Task derivati dai feedback ricorrenti del test piattaforma e dalle investigazion
 - **Stato:** Non chiuso
 - **Tag:** [FEATURE] [REFACTOR] | **Severity:** medium | **Area:** Pipeline Famiglie — detail sheet, sezione "Creazione annuncio" (/crm/pipeline-famiglie) | **Effort:** M
 - **Nota:** Frontend riordinato e mock rimosso, ma manca ancora il webhook backend per pubblicare su Webflow/generare annuncio. Configurato solo `workflow-create-job-offer-seo`.
+
+#### ✅ [CRM-018] Aggiungere URL di provenienza e select sconto nella richiesta di attivazione
+
+- **Stato:** Fatto
+- **Tag:** [MISSING] [DATA-FETCH] | **Severity:** high | **Area:** CRM — richiesta di attivazione su Supabase / tab `richieste_attivazione` | **Effort:** M
+- **Nota:** Esporre l'URL di provenienza nella pagina CRM usando la richiesta di attivazione su Supabase e aggiungere una select per la scontistica, così Sabri/operatore può impostare lo sconto durante la gestione della richiesta.
+- **Esito:** CRM mostra `source_url`, `offerta` e `fee_concordata`; la RPC `crm_pipeline_famiglie_board` restituisce i campi necessari e la select sconto aggiorna `processi_matching.offerta`.
 
 
 ### Assegnazione
@@ -495,6 +536,44 @@ Task derivati dai feedback ricorrenti del test piattaforma e dalle investigazion
 
 - **Stato:** Fatto
 - **Tag:** [BUG] | **Severity:** high | **Area:** Ricerca → Ricerche attive → detail lavoratore — sezione "Altre ricerche attive" (introdotta da RIC-013) | **Effort:** M
+
+#### ✅ [RIC-040] Migliorare i breakpoint della scheda famiglia/lavoratore nel detail ricerca
+
+- **Stato:** Fatto
+- **Tag:** [UX] [RESPONSIVE] | **Severity:** medium | **Area:** Ricerca → detail ricerca — layout scheda famiglia e scheda lavoratore | **Effort:** M
+- **Nota:** Nella pagina Ricerca, scheda famiglia e lavoratore, lavorare meglio sui breakpoint: su alcune dimensioni schermo le colonne non sono distribuite in modo equilibrato e la colonna centrale prende troppo spazio. Rivedere grid/breakpoint e vincoli min/max.
+- **Esito:** Il detail ricerca usa una sidebar famiglia con larghezza `clamp`; nel detail lavoratore la griglia centrale/destra è proporzionale e passa a una colonna sola sotto breakpoint desktop.
+
+#### ✅ [RIC-041] Tornando indietro dal detail lavoratore restare nell'elenco lavoratori della ricerca
+
+- **Stato:** Fatto
+- **Tag:** [BUG] [NAVIGATION] | **Severity:** high | **Area:** Ricerca → detail ricerca → detail lavoratore | **Effort:** S-M
+- **Nota:** Quando si torna indietro dal detail lavoratore, deve tornare alla lista/kanban dei lavoratori della ricerca associata, non alla pagina generale Ricerca.
+- **Esito:** Aprendo una ricerca dalla scheda lavoratore, la navigazione conserva il lavoratore come destinazione di ritorno; le card "Ricerche coinvolte" sono cliccabili e il back torna alla scheda lavoratore.
+
+#### ⬜ [RIC-042] Aggiungere lo stato "Da assegnare" nella Kanban della ricerca
+
+- **Stato:** Backlog
+- **Tag:** [MISSING] | **Severity:** medium | **Area:** Ricerca → Kanban ricerche / stati ricerca | **Effort:** S-M
+- **Nota:** Verificare sorgente stato su `processi_matching` e mapping FE degli stati per includere "Da assegnare" come stato/colonna visibile.
+
+#### ⬜ [RIC-043] Valutare toggle Kanban/lista mantenendo lo stesso contenuto
+
+- **Stato:** Backlog
+- **Tag:** [PRODUCT] [UX] | **Severity:** medium | **Area:** Ricerca → viste contenuto lavoratori/ricerche | **Effort:** M
+- **Nota:** Capire se aggiungere un toggle vista Kanban/lista. Il contenuto deve restare lo stesso, cambia solo la rappresentazione.
+
+#### ⬜ [RIC-044] Aggiungere matita per editare le informazioni della ricerca nella scheda ricerca
+
+- **Stato:** Backlog
+- **Tag:** [MISSING] [EDITING] | **Severity:** medium | **Area:** Ricerca → detail ricerca — scheda info ricerca/famiglia | **Effort:** M
+- **Nota:** Applicare il pattern esistente matita → edit fields alle informazioni ricerca editabili, con salvataggio coerente su `processi_matching` e dati collegati.
+
+#### ⬜ [RIC-045] Mostrare data colloquio dentro la scheda del lavoratore
+
+- **Stato:** Backlog
+- **Tag:** [MISSING] | **Severity:** medium | **Area:** Ricerca → detail lavoratore — scheda lavoratore | **Effort:** S
+- **Nota:** La data colloquio oggi è visibile solo nella card lavoratore. Va esposta anche dentro la scheda/detail del lavoratore.
 
 
 ### Lavoratori
@@ -749,6 +828,13 @@ Task derivati dai feedback ricorrenti del test piattaforma e dalle investigazion
 
 - **Stato:** Fatto
 - **Tag:** [BUG] | **Severity:** medium | **Area:** Assunzioni → modale detail — sezione "Informazioni generali" (riepilogo, dopo i blocchi datore e lavoratore) | **Effort:** S
+
+#### ✅ [ASN-011] Aggiungere form lavoratore e form famiglia nella pagina Assunzioni
+
+- **Stato:** Fatto
+- **Tag:** [MISSING] [EDITING] | **Severity:** high | **Area:** Assunzioni → detail/modale assunzione — dati lavoratore e dati famiglia | **Effort:** M-L
+- **Nota:** Aggiungere il form lavoratore e il form famiglia nella pagina Assunzioni/detail pratica, riusando pattern edit/salvataggio già presenti dove possibile.
+- **Esito:** Il detail Assunzioni include tab Datore/Lavoratore con riepiloghi e campi editabili; salva su `famiglie`, `assunzioni`, `lavoratori`, `rapporti_lavorativi`, `richieste_attivazione` e `processi_matching` secondo il campo modificato.
 
 
 ### Chiusure

@@ -1,6 +1,7 @@
 import * as React from "react"
 
 import {
+  fetchCrmPipelineFamiglieBoard,
   fetchFamiglie,
   fetchIndirizzi,
   fetchLookupValues,
@@ -8,7 +9,8 @@ import {
   updateRecord,
   updateProcessoMatchingStatoSales,
 } from "@/lib/anagrafiche-api"
-import type { LookupValueRecord } from "@/types"
+import { fetchRichiesteAttivazioneByProcessIds } from "@/features/richieste-attivazione/api"
+import type { LookupValueRecord, RichiestaAttivazioneRecord } from "@/types"
 
 const STATO_SALES_COLUMN_ORDER = [
   "warm_lead",
@@ -27,7 +29,7 @@ const STATO_SALES_COLUMN_ORDER = [
   "out_of_target",
 ] as const
 
-const CRM_PIPELINE_CARD_LIMIT = 5000
+const CRM_PIPELINE_CARD_LIMIT = 1000
 
 const CRM_PIPELINE_PROCESSI_SELECT = [
   "id",
@@ -51,6 +53,8 @@ const CRM_PIPELINE_PROCESSI_SELECT = [
   "appunti_chiamata_sales",
   "data_per_ricerca_futura",
   "preventivo_firmato",
+  "source_url",
+  "offerta",
   "orario_di_lavoro",
   "nucleo_famigliare",
   "descrizione_casa",
@@ -147,6 +151,13 @@ export type CrmPipelineCardData = {
   dataCallPrenotataRaw: string | null
   tentativiChiamataCount: number
   preventivoAccettato: boolean
+  richiestaAttivazioneId: string | null
+  preventivoUrl: string | null
+  preventivoTitolo: string | null
+  feeConcordata: number | null
+  origineUrl: string | null
+  scontoApplicatoRaw: string | null
+  scontoApplicato: string
   orarioDiLavoro: string
   nucleoFamigliare: string
   descrizioneCasa: string
@@ -215,6 +226,17 @@ type StageDefinition = {
 type FetchBoardDataResult = {
   columns: CrmPipelineColumnData[]
   lookupOptionsByField: LookupOptionsByField
+}
+
+type BoardRecordEntry = {
+  process: GenericRow
+  family: GenericRow | null
+  address: GenericRow | null
+}
+
+type BoardRecordBundle = {
+  entries: BoardRecordEntry[]
+  stageGroups: Array<{ value: string; count: number }>
 }
 
 function asRowArray(input: unknown): GenericRow[] {
@@ -406,43 +428,54 @@ async function fetchProcessAddressesByIds(processIds: string[]) {
   const addressesByProcessId = new Map<string, GenericRow>()
   if (uniqueProcessIds.length === 0) return addressesByProcessId
 
+  const chunks = []
   for (let index = 0; index < uniqueProcessIds.length; index += ADDRESS_BATCH_SIZE) {
-    const batch = uniqueProcessIds.slice(index, index + ADDRESS_BATCH_SIZE)
-    const result = await fetchIndirizzi({
-      select: [...CRM_PIPELINE_ADDRESS_SELECT],
-      limit: Math.max(batch.length * 3, batch.length),
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: `crm-pipeline-addresses-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `crm-pipeline-addresses-table-${index}`,
-            field: "entita_tabella",
-            operator: "is",
-            value: "processi_matching",
-          },
-          {
-            kind: "condition",
-            id: `crm-pipeline-addresses-id-${index}`,
-            field: "entita_id",
-            operator: "in",
-            value: batch.join(","),
-          },
-          {
-            kind: "condition",
-            id: `crm-pipeline-addresses-type-${index}`,
-            field: "tipo_indirizzo",
-            operator: "in",
-            value: "luogo,prova",
-          },
-        ],
-      },
+    chunks.push({
+      index,
+      batch: uniqueProcessIds.slice(index, index + ADDRESS_BATCH_SIZE),
     })
+  }
 
+  const results = await Promise.all(
+    chunks.map(({ index, batch }) =>
+      fetchIndirizzi({
+        select: [...CRM_PIPELINE_ADDRESS_SELECT],
+        limit: Math.max(batch.length * 3, batch.length),
+        offset: 0,
+        orderBy: [{ field: "aggiornato_il", ascending: false }],
+        filters: {
+          kind: "group",
+          id: `crm-pipeline-addresses-${index}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `crm-pipeline-addresses-table-${index}`,
+              field: "entita_tabella",
+              operator: "is",
+              value: "processi_matching",
+            },
+            {
+              kind: "condition",
+              id: `crm-pipeline-addresses-id-${index}`,
+              field: "entita_id",
+              operator: "in",
+              value: batch.join(","),
+            },
+            {
+              kind: "condition",
+              id: `crm-pipeline-addresses-type-${index}`,
+              field: "tipo_indirizzo",
+              operator: "in",
+              value: "luogo,prova",
+            },
+          ],
+        },
+      })
+    )
+  )
+
+  for (const result of results) {
     for (const row of asRowArray(result.rows)) {
       const processId = toStringValue(row.entita_id)
       if (!processId) continue
@@ -658,7 +691,8 @@ function mapCardData(
   process: GenericRow,
   stageId: string,
   lookupColors: LookupColorMap,
-  processAddress?: GenericRow
+  processAddress?: GenericRow,
+  richiestaAttivazione?: RichiestaAttivazioneRecord | null
 ): CrmPipelineCardData {
   const familyName = [toStringValue(family.nome), toStringValue(family.cognome)]
     .filter((value): value is string => Boolean(value))
@@ -721,6 +755,13 @@ function mapCardData(
     dataCallPrenotataRaw: toStringValue(family.data_call_prenotata),
     tentativiChiamataCount: getFlexibleStringArrayValue(process.sales_cold_call_followup).length,
     preventivoAccettato: toBooleanValue(process.preventivo_firmato) ?? false,
+    richiestaAttivazioneId: richiestaAttivazione?.id ?? null,
+    preventivoUrl: richiestaAttivazione?.signed_document_url ?? null,
+    preventivoTitolo: richiestaAttivazione?.signed_document_title ?? null,
+    feeConcordata: richiestaAttivazione?.fee_concordata ?? null,
+    origineUrl: toStringValue(process.source_url),
+    scontoApplicatoRaw: toStringValue(process.offerta),
+    scontoApplicato: displayValue(process.offerta),
     orarioDiLavoro: displayValue(process.orario_di_lavoro),
     nucleoFamigliare: displayValue(process.nucleo_famigliare),
     descrizioneCasa: displayValue(process.descrizione_casa),
@@ -795,8 +836,26 @@ function buildSalesStageCounts(
   return counts
 }
 
-async function fetchBoardData(): Promise<FetchBoardDataResult> {
-  const [processesResult, familiesResult, stageCountsResult, lookupResult] = await Promise.all([
+async function fetchBoardRecordsWithRpc(): Promise<BoardRecordBundle> {
+  const result = await fetchCrmPipelineFamiglieBoard({
+    limit: CRM_PIPELINE_CARD_LIMIT,
+    offset: 0,
+  })
+
+  return {
+    entries: result.rows
+      .map((row) => ({
+        process: row.process,
+        family: row.family,
+        address: row.address,
+      }))
+      .filter((entry) => Boolean(entry.process)),
+    stageGroups: result.stageCounts,
+  }
+}
+
+async function fetchBoardRecordsWithTableQueries(): Promise<BoardRecordBundle> {
+  const [processesResult, familiesResult, stageCountsResult] = await Promise.all([
     fetchProcessiMatching({
       select: CRM_PIPELINE_PROCESSI_SELECT,
       limit: CRM_PIPELINE_CARD_LIMIT,
@@ -815,7 +874,6 @@ async function fetchBoardData(): Promise<FetchBoardDataResult> {
       offset: 0,
       groupBy: ["stato_sales"],
     }),
-    fetchLookupValues(),
   ])
 
   const processRows = asRowArray(processesResult.rows)
@@ -825,13 +883,58 @@ async function fetchBoardData(): Promise<FetchBoardDataResult> {
       .map((process) => toStringValue(process.id))
       .filter((id): id is string => Boolean(id))
   )
+
+  const familyById = new Map<string, GenericRow>()
+  for (const family of familyRows) {
+    const id = toStringValue(family.id)
+    if (!id) continue
+    familyById.set(id, family)
+  }
+
+  const entries = processRows
+    .map((process) => {
+      const famigliaId = toStringValue(process.famiglia_id)
+      const processId = toStringValue(process.id)
+      return {
+        process,
+        family: famigliaId ? familyById.get(famigliaId) ?? null : null,
+        address: processId ? addressesByProcessId.get(processId) ?? null : null,
+      }
+    })
+    .filter((entry) => Boolean(entry.family))
+
+  return {
+    entries,
+    stageGroups: stageCountsResult.groups,
+  }
+}
+
+async function fetchBoardRecords(): Promise<BoardRecordBundle> {
+  try {
+    return await fetchBoardRecordsWithRpc()
+  } catch {
+    return fetchBoardRecordsWithTableQueries()
+  }
+}
+
+async function fetchBoardData(): Promise<FetchBoardDataResult> {
+  const [boardRecords, lookupResult] = await Promise.all([
+    fetchBoardRecords(),
+    fetchLookupValues(),
+  ])
+
   const lookupRows = lookupResult.rows
   const lookupColors = buildLookupColorMap(lookupRows)
   const lookupOptionsByField = buildLookupOptionsByField(lookupRows)
   const { stages, tokenToStageId } = buildStageDefinitions(lookupRows)
   const salesStageCounts = buildSalesStageCounts(
-    stageCountsResult.groups,
+    boardRecords.stageGroups,
     tokenToStageId
+  )
+  const richiesteByProcessId = await fetchRichiesteAttivazioneByProcessIds(
+    boardRecords.entries
+      .map((entry) => toStringValue(entry.process.id))
+      .filter((id): id is string => Boolean(id))
   )
 
   if (stages.length === 0) {
@@ -841,36 +944,25 @@ async function fetchBoardData(): Promise<FetchBoardDataResult> {
     }
   }
 
-  const familyById = new Map<string, GenericRow>()
-  for (const family of familyRows) {
-    const id = toStringValue(family.id)
-    if (!id) continue
-    familyById.set(id, family)
-  }
-
   const cardsByStage = new Map<string, CrmPipelineCardData[]>()
   for (const stage of stages) {
     cardsByStage.set(stage.id, [])
   }
 
-  for (const process of processRows) {
-    const famigliaId = toStringValue(process.famiglia_id)
-    if (!famigliaId) continue
-
-    const family = familyById.get(famigliaId)
+  for (const { process, family, address } of boardRecords.entries) {
     if (!family) continue
 
     const statusToken = normalizeLookupToken(toStringValue(process.stato_sales))
     const stageId = tokenToStageId.get(statusToken)
     if (!stageId) continue
 
-    const processId = toStringValue(process.id)
     const card = mapCardData(
       family,
       process,
       stageId,
       lookupColors,
-      processId ? addressesByProcessId.get(processId) : undefined
+      address ?? undefined,
+      richiesteByProcessId.get(toStringValue(process.id) ?? "") ?? null
     )
     cardsByStage.get(stageId)?.push(card)
   }
@@ -1093,6 +1185,13 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
           if ("preventivo_firmato" in patch) {
             nextCard.preventivoAccettato =
               toBooleanValue(patch.preventivo_firmato) ?? false
+          }
+          if ("offerta" in patch) {
+            nextCard.scontoApplicatoRaw = toStringValue(patch.offerta)
+            nextCard.scontoApplicato = displayValue(patch.offerta)
+          }
+          if ("source_url" in patch) {
+            nextCard.origineUrl = toStringValue(patch.source_url)
           }
           if ("descrizione_richiesta_trasferte" in patch) {
             nextCard.descrizioneRichiestaTrasferte = displayValue(

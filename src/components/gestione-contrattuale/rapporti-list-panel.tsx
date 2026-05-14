@@ -35,6 +35,7 @@ import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/lookup-utils"
 import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
 import { getRapportoStatusColor, resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
+import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 import type { RapportoStatusFilter } from "@/hooks/use-rapporti-lavorativi-data"
 import type { RapportoLavorativoRecord } from "@/types"
@@ -74,22 +75,6 @@ type RapportiListPanelProps = {
 }
 
 const VIEWS_STORAGE_KEY = "gestione-contrattuale.rapporti.saved-views"
-
-function normalizeSearchToken(value: string) {
-  return value.trim().toLowerCase()
-}
-
-function matchesSearchCandidate(candidate: string, searchValue: string) {
-  const normalizedCandidate = normalizeSearchToken(candidate)
-  const normalizedSearch = normalizeSearchToken(searchValue)
-  if (!normalizedSearch) return true
-  if (normalizedCandidate.includes(normalizedSearch)) return true
-
-  const searchTokens = normalizedSearch.split(/\s+/).filter(Boolean)
-  if (searchTokens.length <= 1) return false
-
-  return searchTokens.every((token) => normalizedCandidate.includes(token))
-}
 
 function formatCompactDate(value: string | null) {
   if (!value) return "-"
@@ -487,10 +472,22 @@ export function RapportiListPanel({
   const visibleItems = React.useMemo(() => {
     const filtered = items
       .filter((rapporto) => {
-        return (
-          matchesSearchCandidate(rapporto.famigliaLabel, searchValue) ||
-          matchesSearchCandidate(rapporto.lavoratoreLabel, searchValue) ||
-          matchesSearchCandidate(rapporto.id, searchValue)
+        return matchesSearchQuery(
+          [
+            rapporto.id,
+            rapporto.famigliaLabel,
+            rapporto.lavoratoreLabel,
+            rapporto.stato_rapporto,
+            rapporto.stato_servizio,
+            rapporto.stato_assunzione,
+            rapporto.stato_riattivazione,
+            rapporto.tipo_contratto,
+            rapporto.tipo_rapporto,
+            rapporto.raw.id_rapporto,
+            rapporto.raw.codice_datore_webcolf,
+            rapporto.raw.codice_dipendente_webcolf,
+          ],
+          searchValue,
         )
       })
       .filter((rapporto) => evaluateGroup(rapporto as unknown as Record<string, unknown>, filters, filterFields))

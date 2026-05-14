@@ -38,14 +38,16 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import {
-  type CrmPipelineCardData,
-  useCrmPipelinePreview,
+import type {
+  CrmPipelineCardData,
+  LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
 import {
   fetchFamiglie,
   fetchIndirizzi,
+  fetchLookupValues,
   fetchProcessiMatching,
+  updateRecord,
 } from "@/lib/anagrafiche-api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -301,6 +303,90 @@ function selectedLookupOptionValue(
   return match?.valueKey ?? "";
 }
 
+function buildLookupOptionsByField(rows: Array<Record<string, unknown>>): LookupOptionsByField {
+  return rows.reduce<LookupOptionsByField>((acc, row) => {
+    if (row.is_active === false) return acc;
+    if (toStringValue(row.entity_table) !== "processi_matching") return acc;
+
+    const field = toStringValue(row.entity_field);
+    const valueKey = toStringValue(row.value_key);
+    const valueLabel = toStringValue(row.value_label);
+    if (!field || !valueKey || !valueLabel) return acc;
+
+    const sortOrder =
+      typeof row.sort_order === "number" && Number.isFinite(row.sort_order)
+        ? row.sort_order
+        : null;
+    const color =
+      row.metadata &&
+      typeof row.metadata === "object" &&
+      "color" in row.metadata
+        ? toStringValue((row.metadata as Record<string, unknown>).color)
+        : null;
+    const options = acc[field] ?? [];
+    options.push({ valueKey, valueLabel, color, sortOrder });
+    options.sort((left, right) => {
+      const leftOrder = left.sortOrder ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = right.sortOrder ?? Number.MAX_SAFE_INTEGER;
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+      return left.valueLabel.localeCompare(right.valueLabel, "it");
+    });
+    acc[field] = options;
+    return acc;
+  }, {});
+}
+
+function applyProcessPatchToCard(
+  card: ExtendedCardData,
+  patch: Record<string, unknown>,
+): ExtendedCardData {
+  const nextCard = { ...card };
+
+  if ("stato_res" in patch) {
+    nextCard.statoRes = displayValue(patch.stato_res);
+  }
+  if ("tipo_incontro_famiglia_lavoratore" in patch) {
+    nextCard.tipoIncontroFamigliaLavoratore = displayValue(
+      patch.tipo_incontro_famiglia_lavoratore,
+    );
+  }
+  if ("motivo_no_match" in patch) {
+    nextCard.motivoNoMatch = displayValue(patch.motivo_no_match);
+  }
+  if ("orario_di_lavoro" in patch) {
+    nextCard.orarioDiLavoro = displayValue(patch.orario_di_lavoro);
+  }
+  if ("mansioni_richieste" in patch) {
+    nextCard.mansioniRichieste = displayValue(patch.mansioni_richieste);
+  }
+  if ("deadline_mobile" in patch) {
+    nextCard.deadlineMobile = formatItalianDate(patch.deadline_mobile);
+  }
+  if ("indirizzo_prova_provincia" in patch) {
+    nextCard.indirizzoProvincia = displayValue(patch.indirizzo_prova_provincia);
+  }
+  if ("indirizzo_prova_cap" in patch) {
+    nextCard.indirizzoCap = displayValue(patch.indirizzo_prova_cap);
+  }
+  if ("indirizzo_prova_note" in patch) {
+    nextCard.indirizzoNote = displayValue(patch.indirizzo_prova_note);
+  }
+  if ("indirizzo_prova_via" in patch) {
+    nextCard.indirizzoVia = displayValue(patch.indirizzo_prova_via);
+  }
+  if ("indirizzo_prova_civico" in patch) {
+    nextCard.indirizzoCivico = displayValue(patch.indirizzo_prova_civico);
+  }
+  if ("indirizzo_prova_comune" in patch) {
+    nextCard.indirizzoComune = displayValue(patch.indirizzo_prova_comune);
+  }
+  if ("indirizzo_prova_citofono" in patch) {
+    nextCard.indirizzoCitofono = displayValue(patch.indirizzo_prova_citofono);
+  }
+
+  return nextCard;
+}
+
 export function RicercaDetailView({
   processId,
   onBack,
@@ -309,11 +395,11 @@ export function RicercaDetailView({
   const [focusedSelectionId, setFocusedSelectionId] = React.useState<
     string | null
   >(null);
-  const { loading, error, columns, lookupOptionsByField, updateProcessCard } =
-    useCrmPipelinePreview();
-  const [fallbackCard, setFallbackCard] =
-    React.useState<ExtendedCardData | null>(null);
-  const [isFallbackLoading, setIsFallbackLoading] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [card, setCard] = React.useState<ExtendedCardData | null>(null);
+  const [lookupOptionsByField, setLookupOptionsByField] =
+    React.useState<LookupOptionsByField>({});
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
 
   React.useEffect(() => {
@@ -321,13 +407,6 @@ export function RicercaDetailView({
     setFocusedSelectionId(null);
   }, [processId]);
 
-  const card = React.useMemo(() => {
-    for (const column of columns) {
-      const match = column.cards.find((item) => item.id === currentProcessId);
-      if (match) return match;
-    }
-    return null;
-  }, [columns, currentProcessId]);
   const resolveLookupValueKey = React.useCallback(
     (field: string, rawValue: string) => {
       const options = lookupOptionsByField[field] ?? [];
@@ -344,46 +423,48 @@ export function RicercaDetailView({
     [lookupOptionsByField],
   );
   const isNoMatchState = React.useMemo(() => {
-    const token = normalizeLookupToken((card ?? fallbackCard)?.statoRes);
+    const token = normalizeLookupToken(card?.statoRes);
     return token === "no_match" || token === "no match";
-  }, [card, fallbackCard]);
+  }, [card]);
 
   React.useEffect(() => {
-    if (loading) {
-      setIsFallbackLoading(false);
-      return;
-    }
-
     let cancelled = false;
-    setIsFallbackLoading(true);
 
-    const loadFallback = async () => {
+    const loadDetail = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const processResult = await fetchProcessiMatching({
-          limit: 1,
-          offset: 0,
-          filters: {
-            kind: "group",
-            id: "ricerca-detail-by-id",
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: "ricerca-detail-id-condition",
-                field: "id",
-                operator: "is",
-                value: currentProcessId,
-              },
-            ],
-          },
-        });
+        const [processResult, lookupResult] = await Promise.all([
+          fetchProcessiMatching({
+            limit: 1,
+            offset: 0,
+            filters: {
+              kind: "group",
+              id: "ricerca-detail-by-id",
+              logic: "and",
+              nodes: [
+                {
+                  kind: "condition",
+                  id: "ricerca-detail-id-condition",
+                  field: "id",
+                  operator: "is",
+                  value: currentProcessId,
+                },
+              ],
+            },
+          }),
+          fetchLookupValues(),
+        ]);
 
         const processRow = Array.isArray(processResult.rows)
           ? (processResult.rows[0] as Record<string, unknown> | undefined)
           : undefined;
 
         if (!processRow) {
-          if (!cancelled) setFallbackCard(null);
+          if (!cancelled) {
+            setCard(null);
+            setLookupOptionsByField(buildLookupOptionsByField(lookupResult.rows));
+          }
           return;
         }
 
@@ -536,6 +617,13 @@ export function RicercaDetailView({
           ).length,
           preventivoAccettato:
             toBooleanValue(processRow.preventivo_firmato) ?? false,
+          richiestaAttivazioneId: null,
+          preventivoUrl: null,
+          preventivoTitolo: null,
+          feeConcordata: null,
+          origineUrl: null,
+          scontoApplicatoRaw: null,
+          scontoApplicato: "-",
           orarioDiLavoro: displayValue(processRow.orario_di_lavoro),
           nucleoFamigliare: displayValue(processRow.nucleo_famigliare),
           descrizioneCasa: displayValue(processRow.descrizione_casa),
@@ -657,28 +745,61 @@ export function RicercaDetailView({
           ),
         };
 
-        if (!cancelled) setFallbackCard(mapped);
+        if (!cancelled) {
+          setCard(mapped);
+          setLookupOptionsByField(buildLookupOptionsByField(lookupResult.rows));
+        }
+      } catch (caughtError) {
+        if (cancelled) return;
+        setCard(null);
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore caricamento dettaglio ricerca",
+        );
       } finally {
-        if (!cancelled) setIsFallbackLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    void loadFallback();
+    void loadDetail();
 
     return () => {
       cancelled = true;
     };
-  }, [card, loading, currentProcessId]);
+  }, [currentProcessId]);
+
+  const updateProcessCard = React.useCallback(
+    async (targetProcessId: string, patch: Record<string, unknown>) => {
+      setError(null);
+      const previousCard = card;
+
+      if (targetProcessId === currentProcessId) {
+        setCard((current) =>
+          current ? applyProcessPatchToCard(current, patch) : current,
+        );
+      }
+
+      try {
+        await updateRecord("processi_matching", targetProcessId, patch);
+      } catch (caughtError) {
+        if (targetProcessId === currentProcessId) {
+          setCard(previousCard);
+        }
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore aggiornando ricerca",
+        );
+        throw caughtError;
+      }
+    },
+    [card, currentProcessId],
+  );
 
   const resolvedCard = React.useMemo<ExtendedCardData | null>(() => {
-    if (!card && !fallbackCard) return null;
-    // Fallback (caricato via fetchProcessiMatching) ha i campi extra; quando
-    // disponibile vince sui campi base condivisi e aggiunge gli extra.
-    return {
-      ...(card ?? ({} as Partial<ExtendedCardData>)),
-      ...(fallbackCard ?? ({} as Partial<ExtendedCardData>)),
-    } as ExtendedCardData;
-  }, [card, fallbackCard]);
+    return card;
+  }, [card]);
   const statoRicercaOptions = lookupOptionsByField.stato_res ?? [];
   const selectedStatoRicercaValue = selectedLookupOptionValue(
     resolvedCard?.statoRes ?? null,
@@ -768,7 +889,7 @@ export function RicercaDetailView({
           </div>
         ) : null}
 
-        {loading || isFallbackLoading ? (
+        {loading ? (
           <div className="shrink-0 m-6 text-muted-foreground rounded-lg border p-4 text-sm">
             Caricamento dettaglio ricerca...
           </div>
@@ -782,7 +903,7 @@ export function RicercaDetailView({
               "grid min-h-0 flex-1 gap-3 overflow-hidden p-3",
               isSidebarCollapsed
                 ? "grid-cols-[40px_minmax(0,1fr)]"
-                : "grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)]",
+                : "grid-cols-1 xl:grid-cols-[clamp(300px,18vw,360px)_minmax(0,1fr)]",
             )}
           >
             {isSidebarCollapsed ? (

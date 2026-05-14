@@ -31,6 +31,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Textarea } from "@/components/ui/textarea"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import { updateRecord } from "@/lib/anagrafiche-api"
+import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
@@ -650,28 +651,30 @@ export function ChiusureBoardView() {
   const [searchValue, setSearchValue] = React.useState("")
 
   const filteredColumns = React.useMemo(() => {
-    const query = searchValue.trim().toLowerCase()
-    if (!query) return columns
-    const tokens = query.split(/\s+/).filter(Boolean)
-    return columns.map((column) => ({
+    const mappedColumns = columns.map((column) => ({
       ...column,
       cards: column.cards.filter((card) => {
-        const haystack = [
-          card.nomeCompleto,
-          card.email,
-          card.motivazione,
-          card.tipoLabel,
-          card.rapporto?.cognome_nome_datore_proper,
-          card.rapporto?.nome_lavoratore_per_url,
-          card.rapporto?.tipo_rapporto,
-          card.rapporto?.tipo_contratto,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-        return tokens.every((token) => haystack.includes(token))
+        return matchesSearchQuery(
+          [
+            card.id,
+            card.nomeCompleto,
+            card.email,
+            card.motivazione,
+            card.tipoLabel,
+            card.dataFineRapporto,
+            card.rapporto?.id,
+            card.rapporto?.id_rapporto,
+            card.rapporto?.cognome_nome_datore_proper,
+            card.rapporto?.nome_lavoratore_per_url,
+            card.rapporto?.tipo_rapporto,
+            card.rapporto?.tipo_contratto,
+          ],
+          searchValue,
+        )
       }),
     }))
+
+    return hideEmptyKanbanGroups(mappedColumns)
   }, [columns, searchValue])
 
   const totalChiusure = React.useMemo(
@@ -727,7 +730,7 @@ export function ChiusureBoardView() {
           </div>
         ) : null}
 
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4">
+        <div className="scrollbar-visible min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4 [scrollbar-gutter:stable]">
           <div className="flex h-full min-h-0 min-w-max gap-4">
             {loading
               ? Array.from({ length: 4 }).map((_, index) => <ChiusureBoardSkeletonColumn key={index} />)

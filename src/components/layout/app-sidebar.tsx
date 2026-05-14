@@ -135,7 +135,7 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
         icon: CircleHelpIcon,
         children: [
           {
-            name: "Ticket Customer",
+            name: "Ticket colloqui",
             href: "#",
             mainSection: "customer_support_customer_ticket",
           },
@@ -143,6 +143,16 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
             name: "Ticket Payroll",
             href: "#",
             mainSection: "customer_support_payroll_ticket",
+          },
+          {
+            name: "Prove e Colloqui",
+            href: "#",
+            mainSection: "prove_colloqui",
+          },
+          {
+            name: "Riattivazioni",
+            href: "#",
+            mainSection: "customer_support_riattivazioni",
           },
         ],
       },
@@ -253,8 +263,10 @@ type AppSidebarProps = {
   onOpenGestioneContrattualeVariazioni?: () => void;
   onOpenPayrollCedolini?: () => void;
   onOpenPayrollContributiInps?: () => void;
+  onOpenProveColloqui?: () => void;
   onOpenCustomerSupportCustomerTicket?: () => void;
   onOpenCustomerSupportPayrollTicket?: () => void;
+  onOpenCustomerSupportRiattivazioni?: () => void;
 };
 
 function getUserDisplayName(user: User) {
@@ -321,8 +333,10 @@ export function AppSidebar({
   onOpenGestioneContrattualeVariazioni,
   onOpenPayrollCedolini,
   onOpenPayrollContributiInps,
+  onOpenProveColloqui,
   onOpenCustomerSupportCustomerTicket,
   onOpenCustomerSupportPayrollTicket,
+  onOpenCustomerSupportRiattivazioni,
 }: AppSidebarProps) {
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -449,9 +463,21 @@ export function AppSidebar({
         return;
       }
 
+      if (child.mainSection === "prove_colloqui") {
+        event.preventDefault();
+        onOpenProveColloqui?.();
+        return;
+      }
+
       if (child.mainSection === "customer_support_payroll_ticket") {
         event.preventDefault();
         onOpenCustomerSupportPayrollTicket?.();
+        return;
+      }
+
+      if (child.mainSection === "customer_support_riattivazioni") {
+        event.preventDefault();
+        onOpenCustomerSupportRiattivazioni?.();
       }
     },
     [
@@ -469,6 +495,8 @@ export function AppSidebar({
       onOpenLavoratoriCerca,
       onOpenPayrollCedolini,
       onOpenPayrollContributiInps,
+      onOpenProveColloqui,
+      onOpenCustomerSupportRiattivazioni,
       onOpenRicercaPipeline,
     ],
   );

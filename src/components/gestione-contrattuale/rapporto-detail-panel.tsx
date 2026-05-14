@@ -72,6 +72,7 @@ import type {
   PresenzaMensileRecord,
   ProcessoMatchingRecord,
   RapportoLavorativoRecord,
+  RichiestaAttivazioneRecord,
   TicketRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
@@ -96,6 +97,7 @@ type RapportoDetailPanelProps = {
   variazioni: VariazioneContrattualeRecord[]
   chiusure: ChiusuraContrattoRecord[]
   tickets?: TicketRecord[]
+  richiesteAttivazione?: RichiestaAttivazioneRecord[]
   loadingRelated: boolean
   lookupColorsByDomain: Map<string, string>
   onCreateTicket?: (input: {
@@ -117,6 +119,7 @@ type SectionTab = {
 
 const SECTION_TABS: SectionTab[] = [
   { id: "contratto", label: "Contratto", icon: BriefcaseBusinessIcon },
+  { id: "preventivo", label: "Preventivo", icon: FileTextIcon },
   { id: "gestione", label: "Datore e Lavoratore", icon: UsersIcon },
   { id: "tickets", label: "Tickets", icon: MessageSquareTextIcon },
   { id: "cedolini", label: "Cedolini", icon: CreditCardIcon },
@@ -124,6 +127,8 @@ const SECTION_TABS: SectionTab[] = [
   { id: "variazioni", label: "Variazioni", icon: RefreshCwIcon },
   { id: "chiusure", label: "Chiusure", icon: TriangleAlertIcon },
 ]
+
+const SCONTO_APPLICATO_OPTIONS = ["50%", "prova_gratuita", "100€"] as const
 
 const PAYROLL_STAGE_OPTIONS = [
   "TODO",
@@ -529,6 +534,7 @@ export function RapportoDetailPanel({
   variazioni,
   chiusure,
   tickets = [],
+  richiesteAttivazione = [],
   loadingRelated,
   lookupColorsByDomain,
   onCreateTicket,
@@ -702,6 +708,25 @@ export function RapportoDetailPanel({
   )
 
   const currentRapporto = rapportoState ?? rapporto
+  const currentProcesso =
+    processi.find((processo) =>
+      richiesteAttivazione.some((richiesta) => richiesta.processo_res_id === processo.id)
+    ) ??
+    processi[0] ??
+    null
+  const richiestaAttivazione =
+    (currentProcesso
+      ? richiesteAttivazione.find(
+          (richiesta) => richiesta.processo_res_id === currentProcesso.id
+        )
+      : null) ??
+    richiesteAttivazione[0] ??
+    null
+  const [processOfferta, setProcessOfferta] = React.useState(currentProcesso?.offerta ?? "")
+
+  React.useEffect(() => {
+    setProcessOfferta(currentProcesso?.offerta ?? "")
+  }, [currentProcesso?.offerta])
 
   const buildContrattoPatch = React.useCallback(
     () => ({
@@ -1188,6 +1213,94 @@ export function RapportoDetailPanel({
                   </div>
                 )}
               </div>
+            </DetailSectionBlock>
+          </div>
+
+          <div ref={setSectionRef("preventivo")}>
+            <DetailSectionBlock
+              title="Preventivo collegato"
+              icon={<FileTextIcon className="size-5" />}
+            >
+              {loadingRelated ? (
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Skeleton className="h-16 rounded-lg" />
+                  <Skeleton className="h-16 rounded-lg" />
+                  <Skeleton className="h-16 rounded-lg" />
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-3">
+                  <DetailFieldControl label="Fee concordata">
+                    <Input
+                      key={richiestaAttivazione?.id ?? "no-richiesta"}
+                      type="number"
+                      step="0.01"
+                      defaultValue={richiestaAttivazione?.fee_concordata ?? ""}
+                      disabled={!richiestaAttivazione?.id}
+                      placeholder="-"
+                      onBlur={(event) => {
+                        if (!richiestaAttivazione?.id) return
+                        const rawValue = event.target.value.trim()
+                        const nextValue = rawValue ? Number(rawValue) : null
+                        if (rawValue && Number.isNaN(nextValue)) return
+                        void updateRecord("richieste_attivazione", richiestaAttivazione.id, {
+                          fee_concordata: nextValue,
+                        })
+                      }}
+                    />
+                  </DetailFieldControl>
+                  <div className="rounded-lg border bg-surface px-3 py-2">
+                    <p className="ui-type-label mb-2">URL origine</p>
+                    {currentProcesso?.source_url ? (
+                      <Button type="button" variant="outline" size="sm" asChild>
+                        <a
+                          href={currentProcesso.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Apri URL origine
+                          <ExternalLinkIcon className="ml-2 size-4" />
+                        </a>
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">
+                        -
+                      </span>
+                    )}
+                  </div>
+                  <DetailFieldControl label="Sconto applicato">
+                    <Select
+                      value={processOfferta || undefined}
+                      disabled={!currentProcesso?.id}
+                      onValueChange={(value) => {
+                        setProcessOfferta(value)
+                        if (!currentProcesso?.id) return
+                        void updateRecord("processi_matching", currentProcesso.id, {
+                          offerta: value || null,
+                        })
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona sconto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[
+                          ...SCONTO_APPLICATO_OPTIONS,
+                          ...(processOfferta &&
+                          !SCONTO_APPLICATO_OPTIONS.includes(
+                            processOfferta as (typeof SCONTO_APPLICATO_OPTIONS)[number]
+                          )
+                            ? [processOfferta]
+                            : []),
+                        ].map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </DetailFieldControl>
+                </div>
+              )}
             </DetailSectionBlock>
           </div>
 

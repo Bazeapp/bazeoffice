@@ -60,6 +60,7 @@ import type {
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
 import { cn } from "@/lib/utils";
+import { updateRecord } from "@/lib/anagrafiche-api";
 
 type OnboardingCardProps = {
   card: CrmPipelineCardData | null;
@@ -96,6 +97,12 @@ export type OnboardingFlatSectionKey =
   | "tempistiche";
 
 type LookupOption = LookupOptionsByField[string][number];
+
+const SCONTO_APPLICATO_OPTIONS: LookupOption[] = [
+  { valueKey: "50%", valueLabel: "50%", color: null, sortOrder: 1 },
+  { valueKey: "prova_gratuita", valueLabel: "prova_gratuita", color: null, sortOrder: 2 },
+  { valueKey: "100€", valueLabel: "100€", color: null, sortOrder: 3 },
+];
 
 function toInputValue(value: string | null | undefined) {
   if (!value) return "";
@@ -160,6 +167,20 @@ function normalizeLookupToken(value: string | null | undefined) {
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .replace(/\s+/g, " ");
+}
+
+function getSelectedLookupValue(
+  rawValue: string | null | undefined,
+  options: LookupOption[],
+) {
+  const token = normalizeLookupToken(rawValue);
+  if (!token || token === "-") return "";
+  const match = options.find(
+    (option) =>
+      normalizeLookupToken(option.valueKey) === token ||
+      normalizeLookupToken(option.valueLabel) === token,
+  );
+  return match?.valueKey ?? rawValue ?? "";
 }
 
 function getTagClassName(color: string | null | undefined) {
@@ -291,8 +312,8 @@ export function OnboardingCard({
   const [disponibilitaColloqui, setDisponibilitaColloqui] = React.useState(
     toInputValue(card?.disponibilitaColloquiInPresenza),
   );
-  const [preventivoUrl, setPreventivoUrl] = React.useState(
-    "https://app.bazeapp.com/checkout/accettare-preventivo?utm_source=whatsapp&utm_medium=organic&utm_campaign=whatsapp&utm_content=reminder1&session_id=rechnKFsmhqbiQP4D",
+  const [feeConcordata, setFeeConcordata] = React.useState(
+    card?.feeConcordata != null ? String(card.feeConcordata) : "",
   );
   const anchor = useComboboxAnchor();
   const [oreSettimanali, setOreSettimanali] = React.useState(
@@ -328,6 +349,10 @@ export function OnboardingCard({
   );
 
   React.useEffect(() => {
+    setFeeConcordata(card?.feeConcordata != null ? String(card.feeConcordata) : "");
+  }, [card?.feeConcordata]);
+
+  React.useEffect(() => {
     setOreSettimanali(toInputValue(card?.oreSettimana));
     setGiorniSettimanali(toInputValue(card?.giorniSettimana));
     setOrarioDiLavoro(toInputValue(card?.orarioDiLavoro));
@@ -360,6 +385,7 @@ export function OnboardingCard({
   }, [card?.id, card?.deadlineMobile, card?.tipoIncontroFamigliaLavoratore]);
 
   const cardId = card?.id;
+  const richiestaAttivazioneId = card?.richiestaAttivazioneId;
 
   const patchProcess = React.useCallback(
     async (patch: Record<string, unknown>) => {
@@ -368,6 +394,25 @@ export function OnboardingCard({
     },
     [cardId, onPatchProcess],
   );
+
+  const saveFeeConcordata = React.useCallback(async () => {
+    if (!richiestaAttivazioneId) return;
+    const normalized = feeConcordata.trim().replace(",", ".");
+    const nextValue = normalized ? Number(normalized) : null;
+    if (normalized && Number.isNaN(nextValue)) {
+      toast.error("Fee concordata non valida");
+      return;
+    }
+
+    try {
+      await updateRecord("richieste_attivazione", richiestaAttivazioneId, {
+        fee_concordata: nextValue,
+      });
+      toast.success("Fee concordata salvata");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Errore salvando fee concordata");
+    }
+  }, [feeConcordata, richiestaAttivazioneId]);
 
   const copyToClipboard = React.useCallback(async (value: string, label: string) => {
     try {
@@ -436,6 +481,14 @@ export function OnboardingCard({
   const orderedProvinciaOptions = React.useMemo(
     () => prioritizeProvinceOptions(provinciaOptions),
     [provinciaOptions],
+  );
+  const scontoApplicatoOptions = React.useMemo(() => {
+    const fromLookup = lookupOptionsByField?.offerta ?? [];
+    return fromLookup.length > 0 ? fromLookup : SCONTO_APPLICATO_OPTIONS;
+  }, [lookupOptionsByField]);
+  const selectedScontoApplicato = getSelectedLookupValue(
+    card?.scontoApplicatoRaw ?? card?.scontoApplicato,
+    scontoApplicatoOptions,
   );
 
   const lookupLabel = React.useCallback(
@@ -658,6 +711,14 @@ export function OnboardingCard({
               <DetailField label="Deadline" value={displayText(card?.deadlineMobile)} />
               <DetailField label="Disponibilita colloqui" value={displayText(card?.disponibilitaColloquiInPresenza)} />
               <DetailField label="Tipologia primo incontro" value={tipoIncontroLabel} />
+              <div className={compactGridClassName}>
+                <DetailField
+                  label="Fee concordata"
+                  value={card?.feeConcordata != null ? String(card.feeConcordata) : "-"}
+                />
+                <DetailField label="Sconto applicato" value={lookupLabel("offerta", card?.scontoApplicatoRaw ?? card?.scontoApplicato)} />
+              </div>
+              <DetailField label="URL origine" value={displayText(card?.origineUrl)} />
             </DetailSectionBlock>
           </div>
         ) : null}
@@ -1019,23 +1080,54 @@ export function OnboardingCard({
           </Field>
 
           <Field>
+            <FieldLabel>Fee concordata</FieldLabel>
+            <Input
+              type="number"
+              step="0.01"
+              value={feeConcordata}
+              disabled={!card?.richiestaAttivazioneId}
+              onChange={(event) => setFeeConcordata(event.target.value)}
+              onBlur={() => void saveFeeConcordata()}
+              placeholder="-"
+            />
+          </Field>
+          <Field>
             <div className="mb-1 flex items-center gap-2">
-              <FieldLabel>Preventivo da inviare</FieldLabel>
+              <FieldLabel>URL origine</FieldLabel>
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
-                onClick={() => copyToClipboard(preventivoUrl, "Preventivo")}
-                aria-label="Copia link preventivo"
+                disabled={!card?.origineUrl}
+                onClick={() => copyToClipboard(card?.origineUrl ?? "", "URL origine")}
+                aria-label="Copia URL origine"
               >
                 <CopyIcon className="size-4" />
               </Button>
             </div>
-            <Input
-              id="onboarding-preventivo-url"
-              value={preventivoUrl}
-              onChange={(event) => setPreventivoUrl(event.target.value)}
-            />
+            <Input value={card?.origineUrl ?? "-"} readOnly />
+          </Field>
+          <Field>
+            <FieldLabel>Sconto applicato</FieldLabel>
+            <Select
+              value={selectedScontoApplicato || undefined}
+              onValueChange={(value) => {
+                void patchProcess({ offerta: value || null });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona sconto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {scontoApplicatoOptions.map((option) => (
+                    <SelectItem key={option.valueKey} value={option.valueKey}>
+                      {option.valueLabel}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </Field>
           </DetailSectionBlock>
         </div>
@@ -1355,23 +1447,54 @@ export function OnboardingCard({
               </Field>
 
               <Field>
+                <FieldLabel>Fee concordata</FieldLabel>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={feeConcordata}
+                  disabled={!card?.richiestaAttivazioneId}
+                  onChange={(event) => setFeeConcordata(event.target.value)}
+                  onBlur={() => void saveFeeConcordata()}
+                  placeholder="-"
+                />
+              </Field>
+              <Field>
                 <div className="mb-1 flex items-center gap-2">
-                  <FieldLabel>Preventivo da inviare</FieldLabel>
+                  <FieldLabel>URL origine</FieldLabel>
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
-                    onClick={() => copyToClipboard(preventivoUrl, "Preventivo")}
-                    aria-label="Copia link preventivo"
+                    disabled={!card?.origineUrl}
+                    onClick={() => copyToClipboard(card?.origineUrl ?? "", "URL origine")}
+                    aria-label="Copia URL origine"
                   >
                     <CopyIcon className="size-4" />
                   </Button>
                 </div>
-                <Input
-                  id="onboarding-preventivo-url"
-                  value={preventivoUrl}
-                  onChange={(event) => setPreventivoUrl(event.target.value)}
-                />
+                <Input value={card?.origineUrl ?? "-"} readOnly />
+              </Field>
+              <Field>
+                <FieldLabel>Sconto applicato</FieldLabel>
+                <Select
+                  value={selectedScontoApplicato || undefined}
+                  onValueChange={(value) => {
+                    void patchProcess({ offerta: value || null });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona sconto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {scontoApplicatoOptions.map((option) => (
+                        <SelectItem key={option.valueKey} value={option.valueKey}>
+                          {option.valueLabel}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </Field>
             </div>
           </>

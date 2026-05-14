@@ -4,6 +4,7 @@ import {
   CalendarDaysIcon,
   CheckCircle2Icon,
   CreditCardIcon,
+  ExternalLinkIcon,
   FileTextIcon,
   MailIcon,
   OctagonAlertIcon,
@@ -17,6 +18,7 @@ import type { AssunzioniBoardCardData } from "@/hooks/use-assunzioni-board"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
+import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -43,6 +45,11 @@ type LookupOption = { value: string; label: string }
 const TIPO_CONTRATTO_OPTIONS = ["A", "B", "C", "I"] as const
 const TIPO_RAPPORTO_OPTIONS = ["CS", "B", "BS", "A", "C"] as const
 const TIPO_UTENTE_OPTIONS = ["DATORE LAVORO", "LAVORATORE"] as const
+const SCONTO_APPLICATO_OPTIONS: LookupOption[] = [
+  { value: "50%", label: "50%" },
+  { value: "prova_gratuita", label: "prova_gratuita" },
+  { value: "100€", label: "100€" },
+]
 
 function SingleSelectField({
   value,
@@ -71,10 +78,6 @@ function SingleSelectField({
       </SelectContent>
     </Select>
   )
-}
-
-function hasFilledValue(value: string | null | undefined) {
-  return Boolean(value && value.trim())
 }
 
 function toNullableNumber(value: string) {
@@ -1008,6 +1011,7 @@ export function AssunzioniDetailSheet({
   const [target, setTarget] = React.useState<DetailTarget>("datore")
   const [statoAssunzioneOptions, setStatoAssunzioneOptions] = React.useState<LookupOption[]>([])
   const [tipoRapportoOptions, setTipoRapportoOptions] = React.useState<LookupOption[]>([])
+  const [offertaOptions, setOffertaOptions] = React.useState<LookupOption[]>(SCONTO_APPLICATO_OPTIONS)
   const [savingPractice, setSavingPractice] = React.useState(false)
   const [practiceError, setPracticeError] = React.useState<string | null>(null)
   const makePracticeDraft = React.useCallback(
@@ -1038,19 +1042,10 @@ export function AssunzioniDetailSheet({
   )
   const [practiceDraft, setPracticeDraft] = React.useState(makePracticeDraft)
   const datoreIsLinked = React.useMemo(
-    () =>
-      Boolean(card?.famigliaId) &&
-      hasFilledValue(card?.nomeFamiglia ?? "") &&
-      card?.nomeFamiglia !== "Famiglia non trovata",
+    () => Boolean(card?.assunzione?.id),
     [card]
   )
-  const lavoratoreIsLinked = React.useMemo(
-    () =>
-      Boolean(card?.lavoratore?.id ?? card?.rapporto?.lavoratore_id) &&
-      hasFilledValue(card?.nomeLavoratore ?? "") &&
-      card?.nomeLavoratore !== "Lavoratore non associato",
-    [card]
-  )
+  const lavoratoreIsLinked = React.useMemo(() => Boolean(card?.lavoratoreAssunzione?.id), [card])
 
   React.useEffect(() => {
     if (!open) return
@@ -1085,6 +1080,13 @@ export function AssunzioniDetailSheet({
             card?.tipoRapporto ?? null
           )
         )
+        const nextOffertaOptions = buildLookupOptions(
+          response.rows,
+          "processi_matching",
+          "offerta",
+          card?.process?.offerta ?? null
+        )
+        setOffertaOptions(nextOffertaOptions.length > 0 ? nextOffertaOptions : SCONTO_APPLICATO_OPTIONS)
       } catch {
         if (!isActive) return
         setStatoAssunzioneOptions(
@@ -1093,6 +1095,7 @@ export function AssunzioniDetailSheet({
         setTipoRapportoOptions(
           card?.tipoRapporto ? [{ value: card.tipoRapporto, label: card.tipoRapporto }] : []
         )
+        setOffertaOptions(SCONTO_APPLICATO_OPTIONS)
       }
     }
 
@@ -1101,7 +1104,7 @@ export function AssunzioniDetailSheet({
     return () => {
       isActive = false
     }
-  }, [card?.stage, card?.tipoRapporto])
+  }, [card?.process?.offerta, card?.stage, card?.tipoRapporto])
 
   const saveRapportoPatch = React.useCallback(
     async (patch: Record<string, unknown>) => {
@@ -1135,6 +1138,28 @@ export function AssunzioniDetailSheet({
         )
       } finally {
         setSavingPractice(false)
+      }
+    },
+    [card, onCardChange]
+  )
+
+  const saveProcessPatch = React.useCallback(
+    async (patch: Record<string, unknown>) => {
+      if (!card?.process?.id || Object.keys(patch).length === 0) return
+
+      try {
+        const response = await updateRecord("processi_matching", card.process.id, patch)
+        onCardChange({
+          ...card,
+          process: {
+            ...card.process,
+            ...response.row,
+          },
+        })
+      } catch (caughtError) {
+        setPracticeError(
+          caughtError instanceof Error ? caughtError.message : "Errore salvando processo"
+        )
       }
     },
     [card, onCardChange]
@@ -1397,6 +1422,68 @@ export function AssunzioniDetailSheet({
                         })
                       }
                     />
+                  </EditableField>
+                  <EditableField label="Fee concordata">
+                    <Input
+                      key={card.richiestaAttivazione?.id ?? "no-richiesta"}
+                      type="number"
+                      step="0.01"
+                      defaultValue={card.richiestaAttivazione?.fee_concordata ?? ""}
+                      disabled={!card.richiestaAttivazione?.id}
+                      placeholder="-"
+                      onBlur={(event) => {
+                        const richiestaId = card.richiestaAttivazione?.id
+                        if (!richiestaId) return
+                        const rawValue = event.target.value.trim()
+                        const nextValue = rawValue ? Number(rawValue) : null
+                        if (rawValue && Number.isNaN(nextValue)) return
+                        void updateRecord("richieste_attivazione", richiestaId, {
+                          fee_concordata: nextValue,
+                        })
+                      }}
+                    />
+                  </EditableField>
+                  <EditableField label="URL origine">
+                    {card.process?.source_url ? (
+                      <Button type="button" variant="outline" className="w-full justify-between" asChild>
+                        <a
+                          href={card.process.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Apri URL origine
+                          <ExternalLinkIcon className="size-4" />
+                        </a>
+                      </Button>
+                    ) : (
+                      <Input value="-" readOnly />
+                    )}
+                  </EditableField>
+                  <EditableField label="Sconto applicato">
+                    <Select
+                      value={card.process?.offerta || undefined}
+                      onValueChange={(value) => {
+                        void saveProcessPatch({ offerta: value || null })
+                      }}
+                      disabled={!card.process?.id}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona sconto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[
+                          ...offertaOptions,
+                          ...(card.process?.offerta &&
+                          !offertaOptions.some((option) => option.value === card.process?.offerta)
+                            ? [{ value: card.process.offerta, label: card.process.offerta }]
+                            : []),
+                        ].map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </EditableField>
                   <EditableField label="Cod. Lavoratore WebColf">
                     <Input
