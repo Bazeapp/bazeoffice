@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils";
+import { matchesSearchQuery } from "@/lib/search-utils";
 import { cn } from "@/lib/utils";
 
 type SupportColumnData = {
@@ -265,19 +265,17 @@ export function SupportTicketsView({
 
   const columns = React.useMemo<SupportColumnData[]>(
     () =>
-      hideEmptyKanbanGroups(
-        stages.map((stage) => ({
-          id: stage.id,
-          label: stage.label,
-          color: stage.color,
-          totalCount: cards.filter((card) => card.stage === stage.id).length,
-          cards: filteredCards.filter((card) => card.stage === stage.id),
-          deferred: stage.id === "chiuso",
-          isLoaded: stage.id !== "chiuso" || showClosedTickets,
-          deferredActionLabel:
-            stage.id === "chiuso" ? "Mostra chiusi" : undefined,
-        })),
-      ),
+      stages.map((stage) => ({
+        id: stage.id,
+        label: stage.label,
+        color: stage.color,
+        totalCount: cards.filter((card) => card.stage === stage.id).length,
+        cards: filteredCards.filter((card) => card.stage === stage.id),
+        deferred: stage.id === "chiuso",
+        isLoaded: stage.id !== "chiuso" || showClosedTickets,
+        deferredActionLabel:
+          stage.id === "chiuso" ? "Mostra chiusi" : undefined,
+      })),
     [cards, filteredCards, showClosedTickets, stages],
   );
 

@@ -45,7 +45,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { updateRecord } from "@/lib/anagrafiche-api";
-import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils";
+import { matchesSearchQuery } from "@/lib/search-utils";
 import { cn } from "@/lib/utils";
 
 function formatDate(value: string | null | undefined) {
@@ -1052,7 +1052,7 @@ export function VariazioniBoardView() {
       }),
     }));
 
-    return hideEmptyKanbanGroups(mappedColumns);
+    return mappedColumns;
   }, [columns, searchValue]);
 
   const totalVariazioni = React.useMemo(

@@ -39,7 +39,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils"
+import { matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
@@ -584,14 +584,12 @@ export function ContributiInpsView() {
 
   const columns = React.useMemo<ContributiColumnData[]>(
     () =>
-      hideEmptyKanbanGroups(
-        stages.map((stage) => ({
-          id: stage.id,
-          label: stage.label,
-          color: stage.color,
-          cards: filteredCards.filter((card) => card.stage === stage.id),
-        })),
-      ),
+      stages.map((stage) => ({
+        id: stage.id,
+        label: stage.label,
+        color: stage.color,
+        cards: filteredCards.filter((card) => card.stage === stage.id),
+      })),
     [filteredCards, stages]
   )
 

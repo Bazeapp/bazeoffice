@@ -26,7 +26,7 @@ import {
   type CrmPipelineColumnData,
   useCrmPipelinePreview,
 } from "@/hooks/use-crm-pipeline-preview"
-import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils"
+import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
 type ColumnVisual = {
@@ -316,7 +316,7 @@ export function CrmPipelineFamiglieView() {
       return { ...column, totalCount: filteredCards.length, cards: filteredCards }
     })
 
-    return hideEmptyKanbanGroups(mappedColumns)
+    return mappedColumns
   }, [columns, searchQuery])
 
   const totalRicerche = React.useMemo(

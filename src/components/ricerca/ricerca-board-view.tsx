@@ -22,7 +22,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select"
-import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils"
+import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
 type ColumnVisual = {
@@ -295,7 +295,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
       }),
     }))
 
-    return hideEmptyKanbanGroups(mappedColumns)
+    return mappedColumns
   }, [columns, searchQuery, selectedOperatorId])
   const selectedOperator = React.useMemo(
     () =>

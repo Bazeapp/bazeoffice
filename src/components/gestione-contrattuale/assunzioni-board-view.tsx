@@ -21,7 +21,7 @@ import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/ui/search-input"
-import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils"
+import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
 function getColumnVisual(color: string): KanbanColumnVisual {
@@ -225,7 +225,7 @@ export function AssunzioniBoardView() {
       }),
     }))
 
-    return hideEmptyKanbanGroups(mappedColumns)
+    return mappedColumns
   }, [columns, searchValue])
 
   const totalProcesses = React.useMemo(

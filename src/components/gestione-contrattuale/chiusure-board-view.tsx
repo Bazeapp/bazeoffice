@@ -31,7 +31,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Textarea } from "@/components/ui/textarea"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import { updateRecord } from "@/lib/anagrafiche-api"
-import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils"
+import { matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
@@ -674,7 +674,7 @@ export function ChiusureBoardView() {
       }),
     }))
 
-    return hideEmptyKanbanGroups(mappedColumns)
+    return mappedColumns
   }, [columns, searchValue])
 
   const totalChiusure = React.useMemo(

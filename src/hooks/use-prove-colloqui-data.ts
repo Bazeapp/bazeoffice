@@ -82,6 +82,7 @@ const RAPPORTO_FIELDS = [
   "id",
   "famiglia_id",
   "lavoratore_id",
+  "processo_res",
   "cognome_nome_datore_proper",
   "nome_lavoratore_per_url",
   "data_inizio_rapporto",
@@ -242,6 +243,56 @@ function hasDateOnly(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value.trim())
 }
 
+function getCalendarDateKey(value: string | null | undefined) {
+  if (!value) return null
+  const directDate = value.trim().match(/^(\d{4}-\d{2}-\d{2})/)
+  if (directDate) return directDate[1]
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : toDateRangeValue(date)
+}
+
+function getStringArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map(toStringValue).filter((item): item is string => Boolean(item))
+  }
+  const singleValue = toStringValue(value)
+  return singleValue ? [singleValue] : []
+}
+
+function getProvaDedupKeys(card: ProvaCardData) {
+  const dateKey = getCalendarDateKey(card.rapporto.data_inizio_rapporto)
+  const workerId = toStringValue(card.rapporto.lavoratore_id) ?? toStringValue(card.lavoratore?.id)
+  if (!dateKey || !workerId) return []
+
+  const keys = getStringArray(card.rapporto.processo_res).map(
+    (processId) => `process:${processId}:worker:${workerId}:date:${dateKey}`,
+  )
+  const familyId = toStringValue(card.rapporto.famiglia_id) ?? toStringValue(card.famiglia?.id)
+  if (familyId) {
+    keys.push(`family:${familyId}:worker:${workerId}:date:${dateKey}`)
+  }
+
+  return keys
+}
+
+function getColloquioDedupKeys(event: Extract<ColloquioCalendarEvent, { type: "colloquio" }>) {
+  const dateKey = getCalendarDateKey(event.start)
+  const workerId = toStringValue(event.selection.lavoratore_id) ?? toStringValue(event.lavoratore?.id)
+  if (!dateKey || !workerId) return []
+
+  const keys: string[] = []
+  const processId = toStringValue(event.selection.processo_matching_id) ?? toStringValue(event.process?.id)
+  if (processId) {
+    keys.push(`process:${processId}:worker:${workerId}:date:${dateKey}`)
+  }
+  const familyId = toStringValue(event.process?.famiglia_id) ?? toStringValue(event.famiglia?.id)
+  if (familyId) {
+    keys.push(`family:${familyId}:worker:${workerId}:date:${dateKey}`)
+  }
+
+  return keys
+}
+
 function isPastDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return false
@@ -372,6 +423,21 @@ export function useProveColloquiData(calendarRange?: CalendarDateRange) {
     return updated
   }, [reload])
 
+  const patchProcess = React.useCallback(async (processId: string, patch: Partial<ProcessoMatchingRecord>) => {
+    const response = await updateRecord("processi_matching", processId, patch)
+    const updated = response.row as ProcessoMatchingRecord
+
+    setCalendarEvents((current) =>
+      current.map((event) =>
+        event.type === "colloquio" && event.process?.id === processId
+          ? { ...event, process: { ...event.process, ...updated } }
+          : event,
+      ),
+    )
+
+    return updated
+  }, [])
+
   React.useEffect(() => {
     let isActive = true
 
@@ -480,7 +546,7 @@ export function useProveColloquiData(calendarRange?: CalendarDateRange) {
           }
         })
 
-        const colloquioEvents: ColloquioCalendarEvent[] = selections
+        const colloquioEvents: Array<Extract<ColloquioCalendarEvent, { type: "colloquio" }>> = selections
           .map((selection) => {
             const start = toStringValue(selection.data_ora_colloquio_famiglia_lavoratore)
             const processId = toStringValue(selection.processo_matching_id)
@@ -515,7 +581,7 @@ export function useProveColloquiData(calendarRange?: CalendarDateRange) {
           })
           .filter((event): event is Extract<ColloquioCalendarEvent, { type: "colloquio" }> => event !== null)
 
-        const provaEvents: ColloquioCalendarEvent[] = cards
+        const provaEvents: Array<Extract<ColloquioCalendarEvent, { type: "prova" }>> = cards
           .filter((card) => Boolean(card.rapporto.data_inizio_rapporto))
           .map((card) => {
             const start = card.rapporto.data_inizio_rapporto ?? ""
@@ -531,12 +597,17 @@ export function useProveColloquiData(calendarRange?: CalendarDateRange) {
               tone: isNegativeStatus(status) || (isPastDate(start) && !isOpenStatus(status)) ? "warning" : "ok",
             }
           })
+        const provaDedupKeys = new Set(provaEvents.flatMap((event) => getProvaDedupKeys(event.card)))
+        const dedupedColloquioEvents = colloquioEvents.filter((event) => {
+          const keys = getColloquioDedupKeys(event)
+          return !keys.some((key) => provaDedupKeys.has(key))
+        })
 
         setLookupOptionsByDomain(optionsByDomain)
         setLookupColorsByDomain(colorsByDomain)
         setProvaCards(cards)
         setProvaColumns([...columns, ...dynamicColumns])
-        setCalendarEvents([...colloquioEvents, ...provaEvents])
+        setCalendarEvents([...dedupedColloquioEvents, ...provaEvents])
       } catch (caughtError) {
         if (!isActive) return
         console.error("Errore caricando prove e colloqui", caughtError)
@@ -563,6 +634,7 @@ export function useProveColloquiData(calendarRange?: CalendarDateRange) {
     lookupOptionsByDomain,
     lookupColorsByDomain,
     patchRapporto,
+    patchProcess,
     getInitials,
   }
 }

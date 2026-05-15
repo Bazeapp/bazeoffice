@@ -70,7 +70,7 @@ import {
   getLookupDropZoneClassName,
   getLookupToneTextClassName,
 } from "@/lib/lookup-color-styles";
-import { hideEmptyKanbanGroups, matchesSearchQuery } from "@/lib/search-utils";
+import { matchesSearchQuery } from "@/lib/search-utils";
 import { cn } from "@/lib/utils";
 import { invokeAiGenerationFunction } from "@/lib/ai-generation";
 import { type CrmPipelineCardData } from "@/hooks/use-crm-pipeline-preview";
@@ -2079,7 +2079,7 @@ export function RicercaWorkersPipelineView({
       }),
     }));
 
-    return hideEmptyKanbanGroups(mappedColumns);
+    return mappedColumns;
   }, [columns, searchQuery]);
 
   return (
@@ -2218,7 +2218,7 @@ export function RicercaWorkersPipelineView({
           ) : null}
 
           {selectedCard && selectedWorkerRow && selectedSelectionRow ? (
-            <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.75fr)]">
+            <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] 2xl:grid-cols-[minmax(0,1fr)_minmax(480px,0.85fr)]">
               <div className="scrollbar-hidden min-w-0 overflow-y-auto xl:border-r xl:border-border">
                 <div className="space-y-4 p-4">
                   <DetailSectionBlock

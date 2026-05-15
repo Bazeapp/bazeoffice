@@ -20,7 +20,7 @@ import { SectionHeader } from "@/components/shared-next/section-header"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog"
+import { CheckboxChip } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -39,15 +39,28 @@ import {
   type ProvaColumnData,
   useProveColloquiData,
 } from "@/hooks/use-prove-colloqui-data"
-import type { RapportoLavorativoRecord } from "@/types"
+import type { ProcessoMatchingRecord, RapportoLavorativoRecord } from "@/types"
 
 type ProveColloquiViewProps = {
   onOpenRicercaDetail: (processId: string) => void
 }
 
 type ViewTab = "prove" | "colloqui"
+type CalendarEventKind = "colloquio" | "prova"
+type CalendarStatusKey = "match" | "no-match" | "prova" | "colloquio" | "standby"
 
 const DAY_LABELS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]
+const CALENDAR_KIND_OPTIONS: Array<{ value: CalendarEventKind; label: string }> = [
+  { value: "colloquio", label: "Colloquio" },
+  { value: "prova", label: "Prova" },
+]
+const CALENDAR_STATUS_OPTIONS: Array<{ value: CalendarStatusKey; label: string }> = [
+  { value: "match", label: "Match" },
+  { value: "no-match", label: "No match" },
+  { value: "prova", label: "In prova" },
+  { value: "colloquio", label: "Colloquio" },
+  { value: "standby", label: "Standby" },
+]
 
 function toStringValue(value: unknown): string | null {
   if (value === null || value === undefined) return null
@@ -172,6 +185,39 @@ function getEventDate(event: ColloquioCalendarEvent) {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
+function getCalendarEventStatusToken(event: ColloquioCalendarEvent) {
+  return normalizeToken(
+    event.type === "colloquio"
+      ? [event.status, event.process?.stato_res, event.selection.stato_selezione].filter(Boolean).join(" ")
+      : event.status,
+  )
+}
+
+function getCalendarEventStatusKey(event: ColloquioCalendarEvent): CalendarStatusKey {
+  const statusToken = getCalendarEventStatusToken(event)
+  if (statusToken.includes("no match") || statusToken.includes("nomatch")) return "no-match"
+  if (statusToken.includes("match")) return "match"
+  if (event.type === "prova" || statusToken.includes("prova")) return "prova"
+  if (statusToken.includes("colloquio")) return "colloquio"
+  return "standby"
+}
+
+function getCalendarStatusRailClassName(statusKey: CalendarStatusKey) {
+  switch (statusKey) {
+    case "match":
+      return "bg-emerald-800"
+    case "prova":
+      return "bg-emerald-500"
+    case "no-match":
+      return "bg-red-500"
+    case "colloquio":
+      return "bg-emerald-200"
+    case "standby":
+    default:
+      return "bg-zinc-400"
+  }
+}
+
 function getColumnVisual(color: string | null): KanbanColumnVisual {
   switch (normalizeToken(color)) {
     case "red":
@@ -219,15 +265,6 @@ function buildDistributionItems(source: string | null, totalHours: number | null
     day,
     value: `${base + (index < remainder ? 1 : 0)}h`,
   }))
-}
-
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-2xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="mt-1 min-w-0 truncate text-sm text-foreground">{value}</dd>
-    </div>
-  )
 }
 
 function EditableTextarea({
@@ -390,7 +427,7 @@ function ProvaDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[min(96vw,900px)]! max-w-none! p-0 sm:max-w-none">
+      <SheetContent side="right" className="w-[min(96vw,720px)]! max-w-none! p-0 sm:max-w-none">
         <SheetHeader className="border-b bg-surface px-5 py-5">
           <div className="min-w-0 flex-1 space-y-3">
             <div className="min-w-0">
@@ -708,20 +745,7 @@ function CalendarEventButton({
     ? [event.famiglia?.nome, event.famiglia?.cognome].filter(Boolean).join(" ") || event.famiglia?.email || "Famiglia"
     : event.card.famigliaLabel
   const timeLabel = formatTime(event.start)
-  const statusToken = normalizeToken(
-    event.type === "colloquio"
-      ? [event.status, event.process?.stato_res, event.selection.stato_selezione].filter(Boolean).join(" ")
-      : event.status,
-  )
-  const statusRailClassName = statusToken.includes("match") && !statusToken.includes("no match") && !statusToken.includes("nomatch")
-    ? "bg-emerald-800"
-    : event.type === "prova" || statusToken.includes("prova")
-      ? "bg-emerald-500"
-    : statusToken.includes("no match") || statusToken.includes("nomatch")
-      ? "bg-red-500"
-      : statusToken.includes("colloquio")
-        ? "bg-emerald-200"
-        : "bg-zinc-400"
+  const statusRailClassName = getCalendarStatusRailClassName(getCalendarEventStatusKey(event))
 
   return (
     <button
@@ -770,10 +794,40 @@ function CalendarView({
   onVisibleRangeChange: (range: CalendarDateRange) => void
 }) {
   const [cursor, setCursor] = React.useState(() => new Date())
+  const [selectedKinds, setSelectedKinds] = React.useState<Set<CalendarEventKind>>(
+    () => new Set(CALENDAR_KIND_OPTIONS.map((option) => option.value)),
+  )
+  const [selectedStatuses, setSelectedStatuses] = React.useState<Set<CalendarStatusKey>>(
+    () => new Set(CALENDAR_STATUS_OPTIONS.map((option) => option.value)),
+  )
+  const toggleKind = React.useCallback((value: CalendarEventKind) => {
+    setSelectedKinds((current) => {
+      const next = new Set(current)
+      if (next.has(value)) {
+        next.delete(value)
+      } else {
+        next.add(value)
+      }
+      return next
+    })
+  }, [])
+  const toggleStatus = React.useCallback((value: CalendarStatusKey) => {
+    setSelectedStatuses((current) => {
+      const next = new Set(current)
+      if (next.has(value)) {
+        next.delete(value)
+      } else {
+        next.add(value)
+      }
+      return next
+    })
+  }, [])
   const filteredEvents = React.useMemo(
     () =>
-      events.filter((event) =>
-        matchesSearchQuery(
+      events.filter((event) => {
+        if (!selectedKinds.has(event.type)) return false
+        if (!selectedStatuses.has(getCalendarEventStatusKey(event))) return false
+        return matchesSearchQuery(
           [
             event.title,
             event.status,
@@ -782,9 +836,9 @@ function CalendarView({
             event.type === "colloquio" ? event.lavoratore?.email : event.card.lavoratore?.email,
           ],
           searchQuery,
-        ),
-      ),
-    [events, searchQuery],
+        )
+      }),
+    [events, searchQuery, selectedKinds, selectedStatuses],
   )
 
   const visibleDays = React.useMemo(() => {
@@ -842,6 +896,32 @@ function CalendarView({
         </Button>
         <div className="min-w-0 flex-1 text-sm font-semibold capitalize text-foreground">{title}</div>
       </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Tipo</span>
+          {CALENDAR_KIND_OPTIONS.map((option) => (
+            <CheckboxChip
+              key={option.value}
+              checked={selectedKinds.has(option.value)}
+              onCheckedChange={() => toggleKind(option.value)}
+            >
+              {option.label}
+            </CheckboxChip>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Stato</span>
+          {CALENDAR_STATUS_OPTIONS.map((option) => (
+            <CheckboxChip
+              key={option.value}
+              checked={selectedStatuses.has(option.value)}
+              onCheckedChange={() => toggleStatus(option.value)}
+            >
+              {option.label}
+            </CheckboxChip>
+          ))}
+        </div>
+      </div>
 
       {!visibleEvents.length ? (
         <div className="flex min-h-80 flex-1 items-center justify-center rounded-lg border border-dashed bg-muted/10 text-sm text-muted-foreground">
@@ -891,55 +971,112 @@ function CalendarView({
   )
 }
 
-function ColloquioDialog({
+function ColloquioSheet({
   event,
+  tipoIncontroOptions,
   open,
   onOpenChange,
   onOpenRicercaDetail,
+  patchProcess,
 }: {
   event: Extract<ColloquioCalendarEvent, { type: "colloquio" }> | null
+  tipoIncontroOptions: LookupOption[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onOpenRicercaDetail: (processId: string) => void
+  patchProcess: (processId: string, patch: Partial<ProcessoMatchingRecord>) => Promise<ProcessoMatchingRecord>
 }) {
   const processId = toStringValue(event?.process?.id)
+  const workerLabel = [event?.lavoratore?.nome, event?.lavoratore?.cognome].filter(Boolean).join(" ") || "Lavoratore"
+  const familyLabel = [event?.famiglia?.nome, event?.famiglia?.cognome].filter(Boolean).join(" ") || event?.famiglia?.email || "Famiglia"
+  const address = [event?.process?.indirizzo_prova_via, event?.process?.indirizzo_prova_civico].filter(Boolean).join(" ") || "-"
+  const tipoIncontroValue = event?.process?.tipo_incontro_famiglia_lavoratore ?? "none"
+  const hasCurrentTipoIncontro =
+    tipoIncontroValue === "none" || tipoIncontroOptions.some((option) => option.value === tipoIncontroValue)
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogTitle>
-          {event ? `${event.lavoratore?.nome ?? "Lavoratore"} in res. ${event.famiglia?.nome ?? event.famiglia?.email ?? "Famiglia"}` : "Colloquio"}
-        </DialogTitle>
-        {event ? (
-          <div className="grid gap-3 py-2 text-sm sm:grid-cols-2">
-            <DetailRow label="Famiglia" value={event.famiglia?.email ?? "-"} />
-            <DetailRow label="Stato processo" value={event.process?.stato_res ?? "-"} />
-            <DetailRow label="Lavoratore" value={[event.lavoratore?.nome, event.lavoratore?.cognome].filter(Boolean).join(" ") || "-"} />
-            <DetailRow label="Colloquio effettuato" value={toStringValue(event.selection.colloquio_effettuato) ?? "-"} />
-            <DetailRow label="Tipo incontro" value={event.process?.tipo_incontro_famiglia_lavoratore ?? "-"} />
-            <DetailRow label="Data e ora colloquio" value={formatDateTime(event.start)} />
-            <DetailRow label="Indirizzo prova" value={[event.process?.indirizzo_prova_via, event.process?.indirizzo_prova_civico].filter(Boolean).join(" ") || "-"} />
-            <DetailRow label="Comune" value={event.process?.indirizzo_prova_comune ?? "-"} />
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-[min(96vw,720px)]! max-w-none! p-0 sm:max-w-none">
+        <SheetHeader className="border-b bg-surface px-5 py-5">
+          <div className="flex min-w-0 items-start justify-between gap-4">
+            <div className="min-w-0">
+              <SheetTitle className="truncate text-xl font-semibold">
+                {event ? `${workerLabel} in res. ${familyLabel}` : "Colloquio"}
+              </SheetTitle>
+              <SheetDescription className="mt-1">
+                Dettaglio colloquio collegato al processo di ricerca.
+              </SheetDescription>
+            </div>
+            <Button
+              type="button"
+              disabled={!processId}
+              onClick={() => {
+                if (!processId) return
+                onOpenChange(false)
+                onOpenRicercaDetail(processId)
+              }}
+            >
+              Apri scheda completa
+            </Button>
           </div>
+        </SheetHeader>
+        {event ? (
+          <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
+            <div className="space-y-5">
+              <DetailSectionBlock
+                title="Colloquio"
+                icon={<CalendarIcon className="size-4" />}
+                contentClassName="grid gap-4 md:grid-cols-2"
+              >
+                <DetailField label="Famiglia" value={event.famiglia?.email ?? "-"} />
+                <DetailField label="Stato processo" value={event.process?.stato_res ?? "-"} />
+                <DetailField label="Lavoratore" value={workerLabel} />
+                <DetailField label="Colloquio effettuato" value={toStringValue(event.selection.colloquio_effettuato) ?? "-"} />
+                <DetailField label="Data e ora colloquio" value={formatDateTime(event.start)} />
+                <DetailField label="Indirizzo prova" value={address} />
+                <DetailField label="Comune" value={event.process?.indirizzo_prova_comune ?? "-"} />
+              </DetailSectionBlock>
+
+              <DetailSectionBlock
+                title="Esito colloquio"
+                icon={<ClipboardListIcon className="size-4" />}
+                contentClassName="space-y-4"
+              >
+                <DetailFieldControl label="prova_colloquio_res" className="max-w-sm">
+                  <Select
+                    value={tipoIncontroValue}
+                    disabled={!processId}
+                    onValueChange={(next) => {
+                      if (!processId) return
+                      void patchProcess(processId, {
+                        tipo_incontro_famiglia_lavoratore: next === "none" ? null : next,
+                      }).catch((caughtError) => {
+                        toast.error(caughtError instanceof Error ? caughtError.message : "Errore aggiornando colloquio")
+                      })
+                    }}
+                  >
+                    <SelectTrigger className="bg-surface">
+                      <SelectValue placeholder="Seleziona..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Non segnato</SelectItem>
+                      {!hasCurrentTipoIncontro ? (
+                        <SelectItem value={tipoIncontroValue}>{tipoIncontroValue}</SelectItem>
+                      ) : null}
+                      {tipoIncontroOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </DetailFieldControl>
+              </DetailSectionBlock>
+            </div>
+          </section>
         ) : null}
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Chiudi
-          </Button>
-          <Button
-            type="button"
-            disabled={!processId}
-            onClick={() => {
-              if (!processId) return
-              onOpenChange(false)
-              onOpenRicercaDetail(processId)
-            }}
-          >
-            Apri scheda completa
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -955,6 +1092,7 @@ export function ProveColloquiView({ onOpenRicercaDetail }: ProveColloquiViewProp
     lookupOptionsByDomain,
     lookupColorsByDomain,
     patchRapporto,
+    patchProcess,
   } = useProveColloquiData(calendarRange)
   const [activeTab, setActiveTab] = React.useState<ViewTab>("prove")
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -970,6 +1108,7 @@ export function ProveColloquiView({ onOpenRicercaDetail }: ProveColloquiViewProp
   const feedbackFamigliaOptions = lookupOptionsByDomain.get("rapporti_lavorativi.prova_feedback_famiglia") ?? []
   const feedbackLavoratoreOptions = lookupOptionsByDomain.get("rapporti_lavorativi.prova_feedback_lavoratore") ?? []
   const ramoD2Options = lookupOptionsByDomain.get("rapporti_lavorativi.prova_ramo_d2") ?? []
+  const tipoIncontroOptions = lookupOptionsByDomain.get("processi_matching.tipo_incontro_famiglia_lavoratore") ?? []
   const totalProve = provaColumns.reduce((sum, column) => sum + column.totalCount, 0)
   const handleVisibleRangeChange = React.useCallback((nextRange: CalendarDateRange) => {
     setCalendarRange((currentRange) =>
@@ -1056,13 +1195,15 @@ export function ProveColloquiView({ onOpenRicercaDetail }: ProveColloquiViewProp
         patchRapporto={patchRapporto}
       />
 
-      <ColloquioDialog
+      <ColloquioSheet
         event={selectedColloquio}
+        tipoIncontroOptions={tipoIncontroOptions}
         open={Boolean(selectedColloquio)}
         onOpenChange={(open) => {
           if (!open) setSelectedColloquio(null)
         }}
         onOpenRicercaDetail={onOpenRicercaDetail}
+        patchProcess={patchProcess}
       />
     </section>
   )
