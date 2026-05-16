@@ -214,6 +214,48 @@ type PresenceDayRow = {
   note: string
 }
 
+type PresenceSelectOption = {
+  value: string
+  label: string
+}
+
+const EMPTY_PRESENCE_SELECT_VALUE = "__empty__"
+const PRESENCE_SELECT_TRIGGER_CLASS =
+  "h-8 justify-between text-left [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left"
+
+const PRESENCE_DAY_TYPE_OPTIONS: PresenceSelectOption[] = [
+  { value: "festivo", label: "Festivo" },
+  { value: "lavorativo", label: "Lavorativo" },
+  { value: "non-lavorativo", label: "Non lavorativo" },
+]
+
+const PRESENCE_EVENT_OPTIONS: PresenceSelectOption[] = [
+  { value: "unpaidLeave", label: "Permesso non retribuito" },
+  { value: "paidLeave", label: "Permesso retribuito" },
+  { value: "medicalVisit", label: "Visita medica" },
+  { value: "training", label: "Formazione" },
+  { value: "bereavement", label: "Lutto" },
+  { value: "marriage", label: "Matrimonio" },
+  { value: "maternityPaternity", label: "Maternita/Paternita" },
+  { value: "overtime", label: "Straordinario" },
+  { value: "vacation", label: "Ferie" },
+  { value: "sickness", label: "Malattia" },
+]
+
+function withCurrentPresenceOption(options: PresenceSelectOption[], currentValue: string) {
+  if (!currentValue || options.some((option) => option.value === currentValue)) {
+    return options
+  }
+
+  return [
+    ...options,
+    {
+      value: currentValue,
+      label: currentValue,
+    },
+  ]
+}
+
 function buildPresenceDayRows(record: PayrollBoardCardData["presenze"]): PresenceDayRow[] {
   if (!record) return []
 
@@ -790,18 +832,29 @@ export function CedolinoDetailSheet({
                             <TableRow key={row.day}>
                               <TableCell className="font-mono text-xs">{row.day}</TableCell>
                               <TableCell>
-                                <Input
-                                  value={row.type}
-                                  className="h-8 min-w-24"
-                                  placeholder="Tipo"
-                                  onChange={(event) =>
+                                <Select
+                                  value={row.type || EMPTY_PRESENCE_SELECT_VALUE}
+                                  onValueChange={(value) =>
                                     card.presenze
                                       ? onPatchPresence(card.presenze.id, {
-                                          [`tipo_day_${row.day}`]: event.target.value || null,
+                                          [`tipo_day_${row.day}`]:
+                                            value === EMPTY_PRESENCE_SELECT_VALUE ? null : value,
                                         })
                                       : undefined
                                   }
-                                />
+                                >
+                                  <SelectTrigger className={cn(PRESENCE_SELECT_TRIGGER_CLASS, "w-40")}>
+                                    <SelectValue placeholder="Tipo" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={EMPTY_PRESENCE_SELECT_VALUE}>Nessuno</SelectItem>
+                                    {withCurrentPresenceOption(PRESENCE_DAY_TYPE_OPTIONS, row.type).map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </TableCell>
                               <TableCell>
                                 <Input
@@ -818,18 +871,29 @@ export function CedolinoDetailSheet({
                                 />
                               </TableCell>
                               <TableCell>
-                                <Input
-                                  value={row.event}
-                                  className="h-8 min-w-40"
-                                  placeholder="Evento"
-                                  onChange={(event) =>
+                                <Select
+                                  value={row.event || EMPTY_PRESENCE_SELECT_VALUE}
+                                  onValueChange={(value) =>
                                     card.presenze
                                       ? onPatchPresence(card.presenze.id, {
-                                          [`evento_day_${row.day}`]: event.target.value || null,
+                                          [`evento_day_${row.day}`]:
+                                            value === EMPTY_PRESENCE_SELECT_VALUE ? null : value,
                                         })
                                       : undefined
                                   }
-                                />
+                                >
+                                  <SelectTrigger className={cn(PRESENCE_SELECT_TRIGGER_CLASS, "w-56")}>
+                                    <SelectValue placeholder="Evento" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={EMPTY_PRESENCE_SELECT_VALUE}>Nessuno</SelectItem>
+                                    {withCurrentPresenceOption(PRESENCE_EVENT_OPTIONS, row.event).map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </TableCell>
                               <TableCell>
                                 <Input
