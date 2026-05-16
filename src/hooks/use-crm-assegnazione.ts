@@ -48,6 +48,8 @@ type UseCrmAssegnazioneState = {
   patchCard: (processId: string, patch: Record<string, unknown>) => Promise<void>
 }
 
+const ASSEGNAZIONE_QUERY_LIMIT = 5000
+
 const ASSEGNAZIONE_PROCESSI_SELECT = [
   "id",
   "famiglia_id",
@@ -196,8 +198,9 @@ function resolveLabel(
 function toAssegnazioneStatus(
   rawStatus: string | null
 ): "da_assegnare" | "fare_ricerca" | null {
-  if (rawStatus === "fare ricerca") return "fare_ricerca"
-  if (rawStatus === "da assegnare") return "da_assegnare"
+  const normalizedStatus = rawStatus?.replace(/_/g, " ")
+  if (normalizedStatus === "fare ricerca") return "fare_ricerca"
+  if (normalizedStatus === "da assegnare") return "da_assegnare"
   return null
 }
 
@@ -228,10 +231,10 @@ function extractFirstNumberToken(value: unknown) {
 }
 
 async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
-  const [processesResult, familiesResult, lookupResult] = await Promise.all([
+  const [processesResult, lookupResult] = await Promise.all([
     fetchProcessiMatching({
       select: ASSEGNAZIONE_PROCESSI_SELECT,
-      limit: 500,
+      limit: ASSEGNAZIONE_QUERY_LIMIT,
       offset: 0,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
       filters: {
@@ -244,21 +247,44 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
             id: "crm-assegnazione-status-values",
             field: "stato_res",
             operator: "in",
-            value: "da assegnare,fare ricerca",
+            value: "da assegnare,fare ricerca,da_assegnare,fare_ricerca",
           },
         ],
       },
-    }),
-    fetchFamiglie({
-      select: ASSEGNAZIONE_FAMIGLIE_SELECT,
-      limit: 500,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
     }),
     fetchLookupValues(),
   ])
 
   const processRows = asRowArray(processesResult.rows)
+  const famigliaIds = Array.from(
+    new Set(
+      processRows
+        .map((process) => toStringValue(process.famiglia_id))
+        .filter((id): id is string => Boolean(id))
+    )
+  )
+  const familiesResult =
+    famigliaIds.length > 0
+      ? await fetchFamiglie({
+          select: ASSEGNAZIONE_FAMIGLIE_SELECT,
+          limit: famigliaIds.length,
+          offset: 0,
+          filters: {
+            kind: "group",
+            id: "crm-assegnazione-families-root",
+            logic: "and",
+            nodes: [
+              {
+                kind: "condition",
+                id: "crm-assegnazione-family-ids",
+                field: "id",
+                operator: "in",
+                value: famigliaIds.join(","),
+              },
+            ],
+          },
+        })
+      : { rows: [] }
   const familyRows = asRowArray(familiesResult.rows)
   const lookupRows = lookupResult.rows
 
