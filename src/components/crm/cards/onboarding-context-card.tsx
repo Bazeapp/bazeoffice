@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { CheckboxChip } from "@/components/ui/checkbox";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import {
@@ -39,7 +38,6 @@ import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
-import { cn } from "@/lib/utils";
 
 type OnboardingContextCardProps = {
   card: CrmPipelineCardData | null;
@@ -59,6 +57,8 @@ type OnboardingContextCardProps = {
 };
 
 type LookupOption = LookupOptionsByField[string][number];
+
+const EMPTY_SELECT_VALUE = "__empty__";
 
 type StageMeta = {
   title: string;
@@ -366,40 +366,50 @@ function ChoiceFieldSet({
   title,
   selected,
   options,
+  placeholder = "Seleziona motivazione",
   onValueChange,
 }: {
   title: string;
   selected: string;
   options: LookupOption[];
+  placeholder?: string;
   onValueChange?: (nextValue: string) => void;
 }) {
   const resolved = resolveOptions(selected, options);
-  const selectedValue = selectedOptionValue(selected, resolved);
+  const selectedValue =
+    selectedOptionValue(selected, resolved) || EMPTY_SELECT_VALUE;
 
   if (resolved.length === 0) return null;
 
   return (
-    <FieldSet>
-      <FieldLegend variant="label">{title}</FieldLegend>
-      <FieldGroup className="gap-2">
-        {resolved.map((option) => (
-          <Button
-            key={option.valueKey}
-            type="button"
-            variant="outline"
-            className={cn(
-              "justify-start rounded-xl",
-              selectedValue === option.valueKey && "border-foreground"
-            )}
-            onClick={() => onValueChange?.(option.valueKey)}
-          >
-            <Badge className={getBadgeClassName(option.color)}>
-              {option.valueLabel}
-            </Badge>
-          </Button>
-        ))}
-      </FieldGroup>
-    </FieldSet>
+    <Field>
+      <FieldLabel>{title}</FieldLabel>
+      <Select
+        value={selectedValue}
+        disabled={!onValueChange}
+        onValueChange={(nextValue) => {
+          onValueChange?.(
+            nextValue === EMPTY_SELECT_VALUE ? "" : nextValue
+          );
+        }}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem value={EMPTY_SELECT_VALUE}>
+              Nessuna motivazione
+            </SelectItem>
+            {resolved.map((option) => (
+              <SelectItem key={option.valueKey} value={option.valueKey}>
+                {option.valueLabel}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </Field>
   );
 }
 

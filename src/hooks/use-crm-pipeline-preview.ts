@@ -439,6 +439,14 @@ function sortCardsForStage(cards: CrmPipelineCardData[], stageId: string) {
   return sorted
 }
 
+function getProcessAddressTypePriority(value: unknown) {
+  const type = normalizeLookupToken(toStringValue(value))
+  if (type === "luogo") return 0
+  if (type === "prova") return 1
+  if (!type) return 2
+  return null
+}
+
 async function fetchProcessAddressesByIds(processIds: string[]) {
   const uniqueProcessIds = Array.from(new Set(processIds.filter(Boolean)))
   const addressesByProcessId = new Map<string, GenericRow>()
@@ -478,13 +486,6 @@ async function fetchProcessAddressesByIds(processIds: string[]) {
               operator: "in",
               value: batch.join(","),
             },
-            {
-              kind: "condition",
-              id: `crm-pipeline-addresses-type-${index}`,
-              field: "tipo_indirizzo",
-              operator: "in",
-              value: "luogo,prova",
-            },
           ],
         },
       })
@@ -496,9 +497,12 @@ async function fetchProcessAddressesByIds(processIds: string[]) {
       const processId = toStringValue(row.entita_id)
       if (!processId) continue
       const current = addressesByProcessId.get(processId)
-      const currentType = normalizeLookupToken(toStringValue(current?.tipo_indirizzo))
-      const nextType = normalizeLookupToken(toStringValue(row.tipo_indirizzo))
-      if (!current || (currentType !== "luogo" && nextType === "luogo")) {
+      const currentPriority = current
+        ? getProcessAddressTypePriority(current.tipo_indirizzo)
+        : null
+      const nextPriority = getProcessAddressTypePriority(row.tipo_indirizzo)
+      if (nextPriority === null) continue
+      if (currentPriority === null || nextPriority < currentPriority) {
         addressesByProcessId.set(processId, row)
       }
     }

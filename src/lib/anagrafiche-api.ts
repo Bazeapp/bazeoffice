@@ -197,6 +197,11 @@ export type CrmPipelineBoardRpcResponse = {
   stage_counts?: Array<{ value: string; count: number }>
 }
 
+export type RapportiLavorativiBoardRpcResponse = {
+  rows?: RapportoLavorativoRecord[]
+  total?: number
+}
+
 function normalizeTableResponse<TRecord>(
   response: TableQueryResponse<TRecord>
 ): { rows: TRecord[]; total: number; columns: TableColumnMeta[]; groups: TableGroupResult[] } {
@@ -249,6 +254,13 @@ const crmPipelineDetailCache = new Map<
   {
     expiresAt: number
     promise: Promise<CrmPipelineBoardRpcRow | null>
+  }
+>()
+const rapportiLavorativiBoardCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<{ rows: RapportoLavorativoRecord[]; total: number }>
   }
 >()
 
@@ -441,6 +453,53 @@ export async function fetchRapportiLavorativi(query: TablePageQuery) {
     filters: query.filters,
     groupBy: query.groupBy,
   })
+}
+
+export async function fetchRapportiLavorativiBoard(query: {
+  limit: number
+  offset: number
+  search?: string
+  statusFilter?: string
+}) {
+  const cacheKey = JSON.stringify({ functionName: "rapporti_lavorativi_board", ...query })
+  const now = Date.now()
+  const cached = rapportiLavorativiBoardCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc("rapporti_lavorativi_board", {
+      p_limit: query.limit,
+      p_offset: query.offset,
+      p_search: query.search ?? null,
+      p_status_filter: query.statusFilter && query.statusFilter !== "all"
+        ? query.statusFilter
+        : null,
+    })
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(`rapporti_lavorativi_board failed: ${error.message}`)
+    }
+
+    const response = data as RapportiLavorativiBoardRpcResponse | null
+    return {
+      rows: Array.isArray(response?.rows) ? response.rows : [],
+      total: typeof response?.total === "number" ? response.total : 0,
+    }
+  })
+
+  rapportiLavorativiBoardCache.set(cacheKey, {
+    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    rapportiLavorativiBoardCache.delete(cacheKey)
+    throw error
+  }
 }
 
 export async function fetchRichiesteAttivazione(query: TablePageQuery) {

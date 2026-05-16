@@ -99,7 +99,9 @@ type RapportoDetailPanelProps = {
   tickets?: TicketRecord[]
   richiesteAttivazione?: RichiestaAttivazioneRecord[]
   loadingRelated: boolean
+  loadingSections?: Partial<Record<string, boolean>>
   lookupColorsByDomain: Map<string, string>
+  onSectionActive?: (sectionId: string) => void
   onCreateTicket?: (input: {
     tipo: SupportTicketType
     rapportoId: string
@@ -560,7 +562,9 @@ export function RapportoDetailPanel({
   tickets = [],
   richiesteAttivazione = [],
   loadingRelated,
+  loadingSections = {},
   lookupColorsByDomain,
+  onSectionActive,
   onCreateTicket,
   hideHeader = false,
 }: RapportoDetailPanelProps) {
@@ -602,6 +606,7 @@ export function RapportoDetailPanel({
     setRapportoDraft(buildRapportoDraft(rapporto))
     setEditingSection(null)
     setSavingContratto(false)
+    setActiveSection("contratto")
     if (autosaveTimeoutRef.current) {
       window.clearTimeout(autosaveTimeoutRef.current)
       autosaveTimeoutRef.current = null
@@ -620,7 +625,10 @@ export function RapportoDetailPanel({
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
         if (visible.length > 0) {
           const sectionId = visible[0].target.getAttribute("data-section-id")
-          if (sectionId) setActiveSection(sectionId)
+          if (sectionId) {
+            setActiveSection(sectionId)
+            onSectionActive?.(sectionId)
+          }
         }
       },
       { root: container, rootMargin: "-120px 0px -60% 0px", threshold: 0 }
@@ -631,7 +639,7 @@ export function RapportoDetailPanel({
     })
 
     return () => observer.disconnect()
-  }, [rapporto])
+  }, [onSectionActive, rapporto])
 
   const setSectionRef = React.useCallback(
     (sectionId: string) => (element: HTMLDivElement | null) => {
@@ -647,12 +655,13 @@ export function RapportoDetailPanel({
 
   const scrollToSection = React.useCallback((sectionId: string) => {
     setActiveSection(sectionId)
+    onSectionActive?.(sectionId)
     isScrollingByClickRef.current = true
     sectionRefs.current[sectionId]?.scrollIntoView({ behavior: "smooth", block: "start" })
     window.setTimeout(() => {
       isScrollingByClickRef.current = false
     }, 700)
-  }, [])
+  }, [onSectionActive])
 
   const handleUploadRapportoAttachment = React.useCallback(
     async (
@@ -963,6 +972,7 @@ export function RapportoDetailPanel({
   }))
   const selectedContributo =
     contributoCards.find((card) => card.id === selectedContributoId) ?? null
+  const isSectionLoading = (sectionId: string) => Boolean(loadingSections[sectionId])
 
   const headerContent = (
     <div className="space-y-3">
@@ -1500,7 +1510,7 @@ export function RapportoDetailPanel({
               }
               contentClassName="space-y-3 pt-2"
             >
-              {loadingRelated ? (
+              {isSectionLoading("tickets") ? (
                 <LinkedRowsSkeleton />
               ) : tickets.length > 0 ? (
                 tickets.map((ticket) => (
@@ -1533,7 +1543,7 @@ export function RapportoDetailPanel({
               icon={<FileTextIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
-              {loadingRelated ? (
+              {isSectionLoading("cedolini") ? (
                 <LinkedRowsSkeleton />
               ) : sortedMesi.length > 0 ? (
                 sortedMesi.map((mese) => {
@@ -1579,7 +1589,7 @@ export function RapportoDetailPanel({
               icon={<CalendarDaysIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
-              {loadingRelated ? (
+              {isSectionLoading("contributi") ? (
                 <LinkedRowsSkeleton />
               ) : contributi.length > 0 ? (
                 contributi.map((contributo) => (
@@ -1624,7 +1634,7 @@ export function RapportoDetailPanel({
               icon={<RefreshCwIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
-              {loadingRelated ? (
+              {isSectionLoading("variazioni") ? (
                 <LinkedRowsSkeleton rows={2} />
               ) : variazioni.length > 0 ? (
                 variazioni.map((variazione) => (

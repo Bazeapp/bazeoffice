@@ -178,15 +178,18 @@ function buildWorkerResidenceAddress(row: Record<string, unknown> | undefined) {
   if (!row) return null;
 
   const formatted = asString(row.indirizzo_formattato);
+  const street = [asString(row.via), asString(row.civico)]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const locality = [asString(row.cap), asString(row.citta)]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
   const address =
     formatted ||
-    [
-      asString(row.via),
-      asString(row.civico),
-      asString(row.citta),
-      asString(row.cap),
-    ]
-      .filter(Boolean)
+    [street, locality, asString(row.provincia), asString(row.paese)]
+      .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index)
       .join(", ");
 
   return {
@@ -1375,6 +1378,7 @@ export function RicercaWorkersPipelineView({
               "cap",
               "citta",
               "provincia",
+              "paese",
               "indirizzo_formattato",
             ],
             limit: 3,

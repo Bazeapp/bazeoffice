@@ -482,6 +482,10 @@ export function OnboardingCard({
     () => prioritizeProvinceOptions(provinciaOptions),
     [provinciaOptions],
   );
+  const selectedIndirizzoProvincia = getSelectedLookupValue(
+    indirizzoProvincia,
+    orderedProvinciaOptions,
+  );
   const scontoApplicatoOptions = React.useMemo(() => {
     const fromLookup = lookupOptionsByField?.offerta ?? [];
     return fromLookup.length > 0 ? fromLookup : SCONTO_APPLICATO_OPTIONS;
@@ -870,10 +874,13 @@ export function OnboardingCard({
           <Field>
             <FieldLabel htmlFor="onboarding-provincia">Provincia</FieldLabel>
             <Select
-              value={indirizzoProvincia}
+              value={selectedIndirizzoProvincia}
               onValueChange={(next) => {
-                setIndirizzoProvincia(next);
-                void patchProcess({ indirizzo_prova_provincia: next || null });
+                const label =
+                  orderedProvinciaOptions.find((option) => option.valueKey === next)
+                    ?.valueLabel ?? next;
+                setIndirizzoProvincia(label);
+                void patchProcess({ indirizzo_prova_provincia: label || null });
               }}
             >
               <SelectTrigger id="onboarding-provincia" className="w-full">
@@ -882,7 +889,7 @@ export function OnboardingCard({
               <SelectContent>
                 <SelectGroup>
                   {orderedProvinciaOptions.map((option) => (
-                    <SelectItem key={option.valueKey} value={option.valueLabel}>
+                    <SelectItem key={option.valueKey} value={option.valueKey}>
                       {option.valueLabel}
                     </SelectItem>
                   ))}
@@ -1286,10 +1293,13 @@ export function OnboardingCard({
             <Field>
               <FieldLabel htmlFor="onboarding-provincia">Provincia</FieldLabel>
               <Select
-                value={indirizzoProvincia}
+                value={selectedIndirizzoProvincia}
                 onValueChange={(next) => {
-                  setIndirizzoProvincia(next);
-                  void patchProcess({ indirizzo_prova_provincia: next || null });
+                  const label =
+                    orderedProvinciaOptions.find((option) => option.valueKey === next)
+                      ?.valueLabel ?? next;
+                  setIndirizzoProvincia(label);
+                  void patchProcess({ indirizzo_prova_provincia: label || null });
                 }}
               >
                 <SelectTrigger id="onboarding-provincia" className="w-full">
@@ -1298,7 +1308,7 @@ export function OnboardingCard({
                 <SelectContent>
                   <SelectGroup>
                     {orderedProvinciaOptions.map((option) => (
-                      <SelectItem key={option.valueKey} value={option.valueLabel}>
+                      <SelectItem key={option.valueKey} value={option.valueKey}>
                         {option.valueLabel}
                       </SelectItem>
                     ))}

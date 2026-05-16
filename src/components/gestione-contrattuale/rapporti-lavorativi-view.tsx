@@ -38,6 +38,8 @@ export function RapportiLavorativiView({
     selectedTickets,
     selectedRichiesteAttivazione,
     loadingRelated,
+    loadingRelatedSections,
+    ensureRelatedSectionLoaded,
     lookupColorsByDomain,
     createTicketForSelectedRapporto,
   } = useRapportiLavorativiData({ initialSelectedRapportoId })
@@ -77,7 +79,9 @@ export function RapportiLavorativiView({
         tickets={selectedTickets}
         richiesteAttivazione={selectedRichiesteAttivazione}
         loadingRelated={loadingRelated}
+        loadingSections={loadingRelatedSections}
         lookupColorsByDomain={lookupColorsByDomain}
+        onSectionActive={ensureRelatedSectionLoaded}
         onCreateTicket={createTicketForSelectedRapporto}
       />
     </section>

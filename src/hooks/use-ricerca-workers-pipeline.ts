@@ -320,13 +320,20 @@ function parseAddressCoordinates(address: GenericRow | undefined) {
 function formatAddressLabel(address: GenericRow | undefined) {
   if (!address) return null
 
+  const formatted = toStringValue(address.indirizzo_formattato)
+  if (formatted) return formatted
+
+  const street = [toStringValue(address.via), toStringValue(address.civico)]
+    .filter(Boolean)
+    .join(" ")
+    .trim()
   const note = toStringValue(address.note)
   const citta = toStringValue(address.citta)
   const cap = toStringValue(address.cap)
   const shortNote = note?.split("-")[0]?.trim() || null
 
   return (
-    [shortNote, citta, cap]
+    [street || shortNote, citta, cap]
       .filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index)
       .join(" • ") || null
   )
@@ -975,8 +982,12 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
       select: [
         "entita_id",
         "tipo_indirizzo",
+        "via",
+        "civico",
         "cap",
         "citta",
+        "provincia",
+        "indirizzo_formattato",
         "note",
         "latitudine",
         "longitudine",

@@ -35,7 +35,6 @@ import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/lookup-utils"
 import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
 import { getRapportoStatusColor, resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
-import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 import type { RapportoStatusFilter } from "@/hooks/use-rapporti-lavorativi-data"
 import type { RapportoLavorativoRecord } from "@/types"
@@ -332,7 +331,7 @@ export function RapportiListPanel({
     applyFilters,
   } = useTableQueryState({
     viewsStorageKey: VIEWS_STORAGE_KEY,
-    debounceMs: 0,
+    debounceMs: 350,
     initialQuery,
   })
 
@@ -471,25 +470,6 @@ export function RapportiListPanel({
 
   const visibleItems = React.useMemo(() => {
     const filtered = items
-      .filter((rapporto) => {
-        return matchesSearchQuery(
-          [
-            rapporto.id,
-            rapporto.famigliaLabel,
-            rapporto.lavoratoreLabel,
-            rapporto.stato_rapporto,
-            rapporto.stato_servizio,
-            rapporto.stato_assunzione,
-            rapporto.stato_riattivazione,
-            rapporto.tipo_contratto,
-            rapporto.tipo_rapporto,
-            rapporto.raw.id_rapporto,
-            rapporto.raw.codice_datore_webcolf,
-            rapporto.raw.codice_dipendente_webcolf,
-          ],
-          searchValue,
-        )
-      })
       .filter((rapporto) => evaluateGroup(rapporto as unknown as Record<string, unknown>, filters, filterFields))
 
     return sorting.length > 0 ? sortItems(filtered, sorting) : sortByOperationalStatus(filtered)
@@ -497,7 +477,6 @@ export function RapportiListPanel({
     filterFields,
     filters,
     items,
-    searchValue,
     sorting,
   ])
 

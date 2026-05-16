@@ -471,9 +471,9 @@ export function WorkerProfileHeader({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+        <div className="min-w-0">
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-start gap-2">
               {isEditing ? (
                 <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
                   <Input
@@ -494,7 +494,7 @@ export function WorkerProfileHeader({
                   />
                 </div>
               ) : (
-                <h2 className="truncate text-2xl leading-tight font-semibold">
+                <h2 className="line-clamp-2 min-w-0 text-2xl leading-tight font-semibold break-words">
                   {worker.nomeCompleto}
                 </h2>
               )}
@@ -548,7 +548,7 @@ export function WorkerProfileHeader({
             )}
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-start gap-3">
+          <div className="mt-3 flex flex-wrap items-start gap-3">
             {showMotivazioneSelect
               ? renderInlineLookupSelect(
                   "Motivazione",
