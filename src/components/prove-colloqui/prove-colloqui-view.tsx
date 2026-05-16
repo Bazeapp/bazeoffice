@@ -14,6 +14,8 @@ import {
 import { toast } from "sonner"
 
 import { LavoratoreCard, type LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
+import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
+import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailField, DetailFieldControl, DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { KanbanColumnShell, KanbanColumnSkeleton, type KanbanColumnVisual } from "@/components/shared-next/kanban"
 import { SectionHeader } from "@/components/shared-next/section-header"
@@ -29,6 +31,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/lookup-utils"
 import { matchesSearchQuery } from "@/lib/search-utils"
+import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
+import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { buildPathForRoute } from "@/routes/app-routes"
 import {
@@ -61,6 +65,8 @@ const CALENDAR_STATUS_OPTIONS: Array<{ value: CalendarStatusKey; label: string }
   { value: "colloquio", label: "Colloquio" },
   { value: "standby", label: "Standby" },
 ]
+const AUDIO_ACCEPT = "audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/ogg,audio/opus,audio/aac,.mp3,.m4a,.wav,.ogg,.opus,.aac"
+type TrialRecordingSlot = "registrazioni_chiamate_lavoratore" | "registrazioni_chiamate_famiglia"
 
 function toStringValue(value: unknown): string | null {
   if (value === null || value === undefined) return null
@@ -74,6 +80,14 @@ function toStringValue(value: unknown): string | null {
 
 function normalizeToken(value: unknown) {
   return String(value ?? "").trim().toLowerCase()
+}
+
+function sanitizeFileName(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
 }
 
 function formatDate(value: string | null | undefined) {
@@ -419,10 +433,102 @@ function ProvaDetailSheet({
         selectedRapportoId: rapporto.id,
       })
     : null
+  const [uploadingSlot, setUploadingSlot] = React.useState<TrialRecordingSlot | null>(null)
+  const [recordingError, setRecordingError] = React.useState<string | null>(null)
+  const rapportoRef = React.useRef(rapporto)
+
+  React.useEffect(() => {
+    rapportoRef.current = rapporto
+  }, [rapporto])
 
   async function updateRapporto(patch: Partial<RapportoLavorativoRecord>) {
     if (!rapporto) return
     await patchRapporto(rapporto.id, patch)
+  }
+
+  async function handleUploadRecording(slot: TrialRecordingSlot, file: File) {
+    const currentRapporto = rapportoRef.current
+    if (!currentRapporto) return
+    if (!file.type.startsWith("audio/") && !/\.(mp3|m4a|wav|ogg|opus|aac)$/i.test(file.name)) {
+      setRecordingError("Formato non supportato. Carica file audio mp3, m4a, wav, ogg, opus o aac.")
+      return
+    }
+
+    setRecordingError(null)
+    setUploadingSlot(slot)
+
+    try {
+      const safeName = sanitizeFileName(file.name || "registrazione-audio")
+      const storagePath = [
+        "rapporti_lavorativi",
+        currentRapporto.id,
+        slot,
+        `${Date.now()}-${safeName}`,
+      ].join("/")
+
+      const uploadResult = await supabase.storage
+        .from("baze-bucket")
+        .upload(storagePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type || undefined,
+        })
+
+      if (uploadResult.error) {
+        throw uploadResult.error
+      }
+
+      const payload = buildAttachmentPayload(file, storagePath)
+      const updated = await patchRapporto(currentRapporto.id, {
+        [slot]: [...normalizeAttachmentArray(currentRapporto[slot]), payload],
+      } as Partial<RapportoLavorativoRecord>)
+      rapportoRef.current = { ...currentRapporto, ...updated }
+      toast.success("Registrazione caricata")
+    } catch (caughtError) {
+      setRecordingError(
+        caughtError instanceof Error ? caughtError.message : "Errore caricando registrazione",
+      )
+    } finally {
+      setUploadingSlot(null)
+    }
+  }
+
+  async function handleRemoveRecording(slot: TrialRecordingSlot, link: AttachmentLink) {
+    const currentRapporto = rapportoRef.current
+    if (!currentRapporto) return
+    if (!window.confirm(`Rimuovere la registrazione "${link.label}"?`)) return
+
+    setRecordingError(null)
+    setUploadingSlot(slot)
+
+    try {
+      const nextValue = normalizeAttachmentArray(currentRapporto[slot]).filter((attachment) => {
+        if (link.path && attachment.path === link.path) return false
+        return attachment.name !== link.label
+      })
+
+      if (link.path?.startsWith("baze-bucket/")) {
+        const removeResult = await supabase.storage
+          .from("baze-bucket")
+          .remove([link.path.replace(/^baze-bucket\//, "")])
+
+        if (removeResult.error) {
+          throw removeResult.error
+        }
+      }
+
+      const updated = await patchRapporto(currentRapporto.id, {
+        [slot]: nextValue.length > 0 ? nextValue : null,
+      } as Partial<RapportoLavorativoRecord>)
+      rapportoRef.current = { ...currentRapporto, ...updated }
+      toast.success("Registrazione rimossa")
+    } catch (caughtError) {
+      setRecordingError(
+        caughtError instanceof Error ? caughtError.message : "Errore rimuovendo registrazione",
+      )
+    } finally {
+      setUploadingSlot(null)
+    }
   }
 
   return (
@@ -642,6 +748,36 @@ function ProvaDetailSheet({
                     className="bg-surface"
                   />
                 </DetailFieldControl>
+              </DetailSectionBlock>
+
+              <DetailSectionBlock
+                title="Registrazioni chiamate"
+                icon={<PhoneCallIcon className="size-4" />}
+                contentClassName="space-y-4"
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <AttachmentUploadSlot
+                    label="Chiamate lavoratore"
+                    value={rapporto.registrazioni_chiamate_lavoratore}
+                    accept={AUDIO_ACCEPT}
+                    emptyText="Nessuna registrazione caricata"
+                    onAdd={(file) => void handleUploadRecording("registrazioni_chiamate_lavoratore", file)}
+                    onRemove={(link) => void handleRemoveRecording("registrazioni_chiamate_lavoratore", link)}
+                    onPreviewOpen={() => {}}
+                    isUploading={uploadingSlot === "registrazioni_chiamate_lavoratore"}
+                  />
+                  <AttachmentUploadSlot
+                    label="Chiamate famiglie"
+                    value={rapporto.registrazioni_chiamate_famiglia}
+                    accept={AUDIO_ACCEPT}
+                    emptyText="Nessuna registrazione caricata"
+                    onAdd={(file) => void handleUploadRecording("registrazioni_chiamate_famiglia", file)}
+                    onRemove={(link) => void handleRemoveRecording("registrazioni_chiamate_famiglia", link)}
+                    onPreviewOpen={() => {}}
+                    isUploading={uploadingSlot === "registrazioni_chiamate_famiglia"}
+                  />
+                </div>
+                {recordingError ? <p className="text-sm text-red-600">{recordingError}</p> : null}
               </DetailSectionBlock>
             </div>
           </section>

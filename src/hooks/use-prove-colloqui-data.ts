@@ -96,6 +96,8 @@ const RAPPORTO_FIELDS = [
   "prova_priorita_famiglia",
   "prova_ramo_d2",
   "prova_stato_cs",
+  "registrazioni_chiamate_famiglia",
+  "registrazioni_chiamate_lavoratore",
   "stato_assunzione",
   "stato_rapporto",
   "aggiornato_il",

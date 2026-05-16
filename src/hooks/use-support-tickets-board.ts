@@ -1,13 +1,31 @@
 import * as React from "react"
 
 import {
+  fetchAssunzioni,
   createRecord,
+  fetchChiusureContratti,
+  fetchContributiInps,
   fetchLookupValues,
+  fetchMesiLavorati,
+  fetchPagamenti,
+  fetchPresenzeMensili,
   fetchRapportiLavorativi,
   fetchTickets,
+  fetchVariazioniContrattuali,
   updateRecord,
 } from "@/lib/anagrafiche-api"
-import type { LookupValueRecord, RapportoLavorativoRecord, TicketRecord } from "@/types"
+import type {
+  ChiusuraContrattoRecord,
+  ContributoInpsRecord,
+  LookupValueRecord,
+  MeseLavoratoRecord,
+  PagamentoRecord,
+  PresenzaMensileRecord,
+  RapportoLavorativoRecord,
+  TicketRecord,
+  VariazioneContrattualeRecord,
+} from "@/types"
+import type { AssunzioneRecord } from "@/hooks/use-assunzioni-board"
 import {
   SUPPORT_TICKET_STATUSES,
   getSupportTicketMetadata,
@@ -28,11 +46,43 @@ type SupportTicketStageMetadata = {
   aliases: Map<string, string>
 }
 
+export type SupportTicketLinkedRecordType =
+  | "assunzione"
+  | "cedolino"
+  | "chiusura"
+  | "contributi"
+  | "pagamento"
+  | "presenze"
+  | "variazione"
+
+type SupportTicketLinkedRecordAccent = "rose" | "amber" | "emerald" | "sky" | "violet" | "zinc"
+
+export type SupportTicketLinkedRecord = {
+  type: SupportTicketLinkedRecordType
+  id: string
+  label: string
+  title: string
+  subtitle: string | null
+  status: string | null
+  dateLabel: string | null
+  accent: SupportTicketLinkedRecordAccent
+  record:
+    | AssunzioneRecord
+    | ChiusuraContrattoRecord
+    | ContributoInpsRecord
+    | MeseLavoratoRecord
+    | PagamentoRecord
+    | PresenzaMensileRecord
+    | VariazioneContrattualeRecord
+    | null
+}
+
 export type SupportTicketBoardCardData = {
   id: string
   stage: string
   record: TicketRecord
   rapporto: RapportoLavorativoRecord | null
+  linkedRecords: SupportTicketLinkedRecord[]
   tipo: SupportTicketType
   causale: string
   nomeFamiglia: string
@@ -109,6 +159,24 @@ function formatDateLabel(value: string | null | undefined) {
     month: "2-digit",
     year: "numeric",
   }).format(parsed)
+}
+
+function formatOptionalDateLabel(value: string | null | undefined) {
+  if (!value) return null
+  return formatDateLabel(value)
+}
+
+function formatCurrencyLabel(value: number | null | undefined, currency: string | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null
+
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: currency?.toUpperCase() || "EUR",
+  }).format(value / 100)
+}
+
+function joinTitleParts(parts: Array<string | null | undefined>) {
+  return parts.map(toStringValue).filter(Boolean).join(" ").trim()
 }
 
 function normalizeTicketType(value: string | null | undefined): SupportTicketType | null {
@@ -198,9 +266,14 @@ function buildStageMetadata(rows: LookupValueRecord[], ticketRows: TicketRecord[
 function buildRapportoIndex(rows: RapportoLavorativoRecord[]) {
   const byId = new Map<string, RapportoLavorativoRecord>()
   const byExternalId = new Map<string, RapportoLavorativoRecord>()
+  const byChiusuraId = new Map<string, RapportoLavorativoRecord>()
 
   for (const rapporto of rows) {
     byId.set(rapporto.id, rapporto)
+
+    if (rapporto.fine_rapporto_lavorativo_id) {
+      byChiusuraId.set(rapporto.fine_rapporto_lavorativo_id, rapporto)
+    }
 
     for (const key of [
       rapporto.id,
@@ -212,7 +285,39 @@ function buildRapportoIndex(rows: RapportoLavorativoRecord[]) {
     }
   }
 
-  return { byId, byExternalId }
+  return { byId, byExternalId, byChiusuraId }
+}
+
+function buildChiusuraIndex(rows: ChiusuraContrattoRecord[]) {
+  return new Map(rows.map((row) => [row.id, row]))
+}
+
+function buildRecordIndex<TRecord extends { id: string }>(rows: TRecord[]) {
+  return new Map(rows.map((row) => [row.id, row] as const))
+}
+
+function buildTicketRecordIndex<TRecord extends { id: string; ticket_id?: string | null }>(rows: TRecord[]) {
+  const byId = buildRecordIndex(rows)
+  const byTicketId = new Map<string, TRecord>()
+
+  for (const row of rows) {
+    if (row.ticket_id) byTicketId.set(row.ticket_id, row)
+  }
+
+  return { byId, byTicketId }
+}
+
+function getIndexedRecord<TRecord extends { id: string; ticket_id?: string | null }>(
+  recordId: string | null | undefined,
+  ticketId: string,
+  index: ReturnType<typeof buildTicketRecordIndex<TRecord>>
+) {
+  if (recordId) {
+    const record = index.byId.get(recordId)
+    if (record) return record
+  }
+
+  return index.byTicketId.get(ticketId) ?? null
 }
 
 const SUPPORT_RAPPORTI_SELECT = [
@@ -229,25 +334,271 @@ const SUPPORT_RAPPORTI_SELECT = [
   "nome_lavoratore_per_url",
 ] satisfies string[]
 
+const SUPPORT_CHIUSURE_SELECT = [
+  "id",
+  "ticket_id",
+  "stato",
+  "nome",
+  "cognome",
+  "data_creazione",
+  "data_fine_rapporto",
+  "email",
+  "informazioni_aggiuntive",
+  "motivazione_cessazione_rapporto",
+  "presenze_ultimo_mese",
+  "tipo_licenziamento",
+  "tipo_decesso",
+] satisfies string[]
+
+const SUPPORT_ASSUNZIONI_SELECT = [
+  "id",
+  "info_anagrafiche_nome",
+  "info_anagrafiche_cognome",
+  "info_anagrafiche_email",
+  "type_of_compilazione_form",
+] satisfies string[]
+
+const SUPPORT_CONTRIBUTI_SELECT = [
+  "id",
+  "data_invio_famiglia",
+  "data_ora_creazione",
+  "importo_contributi_inps",
+  "rapporto_lavorativo_id",
+  "stato_contributi_inps",
+  "ticket_id",
+  "trimestre_id",
+] satisfies string[]
+
+const SUPPORT_CEDOLINI_SELECT = [
+  "id",
+  "caso_particolare",
+  "data_invio_famiglia",
+  "data_ora_creazione",
+  "importo_busta_estratto",
+  "mese_id",
+  "rapporto_lavorativo_id",
+  "stato_mese_lavorativo",
+  "ticket_id",
+] satisfies string[]
+
+const SUPPORT_PAGAMENTI_SELECT = [
+  "id",
+  "amount",
+  "currency",
+  "customer_email",
+  "data_ora_di_pagamento",
+  "numero_fattura",
+  "status",
+  "ticket_id",
+  "type_of_payment",
+] satisfies string[]
+
+const SUPPORT_PRESENZE_SELECT = [
+  "id",
+  "presenze_mensili",
+  "data_ora_creazione",
+  "note_interne",
+  "ticket_id",
+] satisfies string[]
+
+const SUPPORT_VARIAZIONI_SELECT = [
+  "id",
+  "data_variazione",
+  "rapporto_lavorativo_id",
+  "stato",
+  "ticket_id",
+  "variazione_da_applicare",
+] satisfies string[]
+
 function getRapportoForTicket(
   record: TicketRecord,
-  rapportoIndex: ReturnType<typeof buildRapportoIndex>
+  rapportoIndex: ReturnType<typeof buildRapportoIndex>,
+  chiusuraIndex: ReturnType<typeof buildChiusuraIndex>
 ) {
-  return record.rapporto_id
-    ? rapportoIndex.byId.get(record.rapporto_id) ?? rapportoIndex.byExternalId.get(record.rapporto_id) ?? null
-    : null
+  for (const key of [
+    record.rapporto_id,
+    record.id,
+    record.airtable_id,
+    record.airtable_record_id,
+  ]) {
+    if (!key) continue
+
+    const rapporto = rapportoIndex.byId.get(key) ?? rapportoIndex.byExternalId.get(key)
+    if (rapporto) return rapporto
+  }
+
+  if (record.chiusura_id) {
+    const chiusura = chiusuraIndex.get(record.chiusura_id)
+    const rapporto =
+      rapportoIndex.byChiusuraId.get(record.chiusura_id) ??
+      (chiusura?.ticket_id ? rapportoIndex.byExternalId.get(chiusura.ticket_id) : null)
+
+    if (rapporto) return rapporto
+  }
+
+  return null
+}
+
+type LinkedRecordIndexes = {
+  assunzioni: Map<string, AssunzioneRecord>
+  cedolini: ReturnType<typeof buildTicketRecordIndex<MeseLavoratoRecord>>
+  chiusure: ReturnType<typeof buildTicketRecordIndex<ChiusuraContrattoRecord>>
+  contributi: ReturnType<typeof buildTicketRecordIndex<ContributoInpsRecord>>
+  pagamenti: ReturnType<typeof buildTicketRecordIndex<PagamentoRecord>>
+  presenze: ReturnType<typeof buildTicketRecordIndex<PresenzaMensileRecord>>
+  variazioni: ReturnType<typeof buildTicketRecordIndex<VariazioneContrattualeRecord>>
+}
+
+function buildEmptyLinkedRecordIndexes(): LinkedRecordIndexes {
+  return {
+    assunzioni: buildRecordIndex([]),
+    cedolini: buildTicketRecordIndex([]),
+    chiusure: buildTicketRecordIndex([]),
+    contributi: buildTicketRecordIndex([]),
+    pagamenti: buildTicketRecordIndex([]),
+    presenze: buildTicketRecordIndex([]),
+    variazioni: buildTicketRecordIndex([]),
+  }
+}
+
+function buildLinkedRecords(
+  record: TicketRecord,
+  indexes: LinkedRecordIndexes
+) {
+  const linkedRecords: SupportTicketLinkedRecord[] = []
+
+  if (record.chiusura_id || indexes.chiusure.byTicketId.has(record.id)) {
+    const chiusura = getIndexedRecord(record.chiusura_id, record.id, indexes.chiusure)
+    const titleBase = "Chiusura rapporto"
+
+    linkedRecords.push({
+      type: "chiusura",
+      id: record.chiusura_id ?? chiusura?.id ?? record.id,
+      label: "Chiusura",
+      title: chiusura?.data_fine_rapporto
+        ? `${titleBase} | ${formatDateLabel(chiusura.data_fine_rapporto)}`
+        : titleBase,
+      subtitle: chiusura?.motivazione_cessazione_rapporto ?? chiusura?.tipo_licenziamento ?? chiusura?.tipo_decesso ?? null,
+      status: chiusura?.stato ?? null,
+      dateLabel: formatOptionalDateLabel(chiusura?.data_fine_rapporto ?? chiusura?.data_creazione),
+      accent: "rose",
+      record: chiusura,
+    })
+  }
+
+  if (record.assunzione_id) {
+    const assunzione = indexes.assunzioni.get(record.assunzione_id) ?? null
+    const nominativo = joinTitleParts([assunzione?.info_anagrafiche_cognome, assunzione?.info_anagrafiche_nome])
+
+    linkedRecords.push({
+      type: "assunzione",
+      id: record.assunzione_id,
+      label: "Assunzione",
+      title: nominativo || "Assunzione collegata",
+      subtitle: assunzione?.info_anagrafiche_email ?? null,
+      status: assunzione?.type_of_compilazione_form ?? null,
+      dateLabel: null,
+      accent: "sky",
+      record: assunzione,
+    })
+  }
+
+  if (record.variazione_id || indexes.variazioni.byTicketId.has(record.id)) {
+    const variazione = getIndexedRecord(record.variazione_id, record.id, indexes.variazioni)
+
+    linkedRecords.push({
+      type: "variazione",
+      id: record.variazione_id ?? variazione?.id ?? record.id,
+      label: "Variazione",
+      title: variazione?.variazione_da_applicare ?? "Variazione collegata",
+      subtitle: variazione?.rapporto_lavorativo_id ? `Rapporto ${variazione.rapporto_lavorativo_id}` : null,
+      status: variazione?.stato ?? null,
+      dateLabel: formatOptionalDateLabel(variazione?.data_variazione),
+      accent: "violet",
+      record: variazione,
+    })
+  }
+
+  if (record.contributi_id || indexes.contributi.byTicketId.has(record.id)) {
+    const contributo = getIndexedRecord(record.contributi_id, record.id, indexes.contributi)
+
+    linkedRecords.push({
+      type: "contributi",
+      id: record.contributi_id ?? contributo?.id ?? record.id,
+      label: "Contributi",
+      title: contributo?.trimestre_id ? `Contributi INPS ${contributo.trimestre_id}` : "Contributi INPS collegati",
+      subtitle: contributo?.importo_contributi_inps ? `${contributo.importo_contributi_inps} euro` : null,
+      status: contributo?.stato_contributi_inps ?? null,
+      dateLabel: formatOptionalDateLabel(contributo?.data_invio_famiglia ?? contributo?.data_ora_creazione),
+      accent: "violet",
+      record: contributo,
+    })
+  }
+
+  if (record.cedolino_id || indexes.cedolini.byTicketId.has(record.id)) {
+    const cedolino = getIndexedRecord(record.cedolino_id, record.id, indexes.cedolini)
+
+    linkedRecords.push({
+      type: "cedolino",
+      id: record.cedolino_id ?? cedolino?.id ?? record.id,
+      label: "Cedolino",
+      title: cedolino?.mese_id ? `Cedolino ${cedolino.mese_id}` : "Cedolino collegato",
+      subtitle: cedolino?.caso_particolare ?? null,
+      status: cedolino?.stato_mese_lavorativo ?? null,
+      dateLabel: formatOptionalDateLabel(cedolino?.data_invio_famiglia ?? cedolino?.data_ora_creazione),
+      accent: "amber",
+      record: cedolino,
+    })
+  }
+
+  if (record.pagamenti_id || indexes.pagamenti.byTicketId.has(record.id)) {
+    const pagamento = getIndexedRecord(record.pagamenti_id, record.id, indexes.pagamenti)
+
+    linkedRecords.push({
+      type: "pagamento",
+      id: record.pagamenti_id ?? pagamento?.id ?? record.id,
+      label: "Pagamento",
+      title: formatCurrencyLabel(pagamento?.amount, pagamento?.currency) ?? "Pagamento collegato",
+      subtitle: pagamento?.numero_fattura ?? pagamento?.customer_email ?? pagamento?.type_of_payment ?? null,
+      status: pagamento?.status ?? null,
+      dateLabel: formatOptionalDateLabel(pagamento?.data_ora_di_pagamento),
+      accent: "emerald",
+      record: pagamento,
+    })
+  }
+
+  if (record.presenze_id || indexes.presenze.byTicketId.has(record.id)) {
+    const presenza = getIndexedRecord(record.presenze_id, record.id, indexes.presenze)
+
+    linkedRecords.push({
+      type: "presenze",
+      id: record.presenze_id ?? presenza?.id ?? record.id,
+      label: "Presenze",
+      title: presenza?.presenze_mensili ? `Presenze mensili: ${presenza.presenze_mensili} ore` : "Presenze collegate",
+      subtitle: presenza?.note_interne ?? null,
+      status: null,
+      dateLabel: formatOptionalDateLabel(presenza?.data_ora_creazione),
+      accent: "zinc",
+      record: presenza,
+    })
+  }
+
+  return linkedRecords
 }
 
 function mapRecordToCard(
   record: TicketRecord,
   ticketType: SupportTicketType,
   rapportoIndex: ReturnType<typeof buildRapportoIndex>,
+  chiusuraIndex: ReturnType<typeof buildChiusuraIndex>,
+  linkedRecordIndexes: LinkedRecordIndexes,
   aliases: Map<string, string>
 ): SupportTicketBoardCardData | null {
   const normalizedType = normalizeTicketType(record.tipo)
   if (normalizedType !== ticketType) return null
 
-  const rapporto = getRapportoForTicket(record, rapportoIndex)
+  const rapporto = getRapportoForTicket(record, rapportoIndex, chiusuraIndex)
+  const linkedRecords = buildLinkedRecords(record, linkedRecordIndexes)
   const metadata = getSupportTicketMetadata(record)
   const tag = toStringValue(metadata.tag) ?? inferSupportTicketTag(record)
   const note = toStringValue(metadata.note)
@@ -276,6 +627,7 @@ function mapRecordToCard(
     stage,
     record,
     rapporto,
+    linkedRecords,
     tipo: ticketType,
     causale: toStringValue(record.causale) ?? "Ticket senza causale",
     nomeFamiglia,
@@ -288,6 +640,53 @@ function mapRecordToCard(
     note,
     attachmentCount: countAttachments(record.allegati),
   }
+}
+
+function collectIds(rows: TicketRecord[], field: keyof TicketRecord) {
+  return Array.from(
+    new Set(
+      rows
+        .map((row) => toStringValue(row[field]))
+        .filter((value): value is string => Boolean(value))
+    )
+  )
+}
+
+function linkedRecordFilter(ids: string[], ticketIds: string[], includeTicketId = true) {
+  const nodes = []
+
+  if (ids.length > 0) {
+    nodes.push({
+      kind: "condition" as const,
+      id: "linked-record-id",
+      field: "id",
+      operator: "in" as const,
+      value: JSON.stringify(ids),
+    })
+  }
+
+  if (includeTicketId && ticketIds.length > 0) {
+    nodes.push({
+      kind: "condition" as const,
+      id: "linked-record-ticket-id",
+      field: "ticket_id",
+      operator: "in" as const,
+      value: JSON.stringify(ticketIds),
+    })
+  }
+
+  if (nodes.length === 0) return null
+
+  return {
+    kind: "group" as const,
+    id: "linked-record-root",
+    logic: "or" as const,
+    nodes,
+  }
+}
+
+function emptyTableResponse<TRecord>() {
+  return { rows: [] as TRecord[], total: 0, columns: [], groups: [] }
 }
 
 async function fetchSupportTicketsData(ticketType: SupportTicketType) {
@@ -306,12 +705,112 @@ async function fetchSupportTicketsData(ticketType: SupportTicketType) {
     fetchLookupValues(),
   ])
 
-  const rapportoIndex = buildRapportoIndex(rapportiResult.rows)
   const filteredTicketRows = ticketsResult.rows.filter((row) => normalizeTicketType(row.tipo) === ticketType)
+  const ticketIds = filteredTicketRows.map((row) => row.id)
+  const chiusuraFilter = linkedRecordFilter(collectIds(filteredTicketRows, "chiusura_id"), ticketIds)
+  const assunzioneFilter = linkedRecordFilter(collectIds(filteredTicketRows, "assunzione_id"), ticketIds, false)
+  const contributiFilter = linkedRecordFilter(collectIds(filteredTicketRows, "contributi_id"), ticketIds)
+  const cedolinoFilter = linkedRecordFilter(collectIds(filteredTicketRows, "cedolino_id"), ticketIds)
+  const pagamentiFilter = linkedRecordFilter(collectIds(filteredTicketRows, "pagamenti_id"), ticketIds)
+  const presenzeFilter = linkedRecordFilter(collectIds(filteredTicketRows, "presenze_id"), ticketIds)
+  const variazioniFilter = linkedRecordFilter(collectIds(filteredTicketRows, "variazione_id"), ticketIds)
+
+  const [
+    chiusureResult,
+    assunzioniResult,
+    contributiResult,
+    cedoliniResult,
+    pagamentiResult,
+    presenzeResult,
+    variazioniResult,
+  ] = await Promise.all([
+    chiusuraFilter
+      ? fetchChiusureContratti({
+          select: SUPPORT_CHIUSURE_SELECT,
+          limit: 5000,
+          offset: 0,
+          orderBy: [{ field: "aggiornato_il", ascending: false }],
+          filters: chiusuraFilter,
+        })
+      : emptyTableResponse<ChiusuraContrattoRecord>(),
+    assunzioneFilter
+      ? fetchAssunzioni({
+          select: SUPPORT_ASSUNZIONI_SELECT,
+          limit: 5000,
+          offset: 0,
+          orderBy: [{ field: "aggiornato_il", ascending: false }],
+          filters: assunzioneFilter,
+        })
+      : emptyTableResponse<AssunzioneRecord>(),
+    contributiFilter
+      ? fetchContributiInps({
+          select: SUPPORT_CONTRIBUTI_SELECT,
+          limit: 5000,
+          offset: 0,
+          orderBy: [{ field: "aggiornato_il", ascending: false }],
+          filters: contributiFilter,
+        })
+      : emptyTableResponse<ContributoInpsRecord>(),
+    cedolinoFilter
+      ? fetchMesiLavorati({
+          select: SUPPORT_CEDOLINI_SELECT,
+          limit: 5000,
+          offset: 0,
+          orderBy: [{ field: "aggiornato_il", ascending: false }],
+          filters: cedolinoFilter,
+        })
+      : emptyTableResponse<MeseLavoratoRecord>(),
+    pagamentiFilter
+      ? fetchPagamenti({
+          select: SUPPORT_PAGAMENTI_SELECT,
+          limit: 5000,
+          offset: 0,
+          orderBy: [{ field: "aggiornato_il", ascending: false }],
+          filters: pagamentiFilter,
+        })
+      : emptyTableResponse<PagamentoRecord>(),
+    presenzeFilter
+      ? fetchPresenzeMensili({
+          select: SUPPORT_PRESENZE_SELECT,
+          limit: 5000,
+          offset: 0,
+          orderBy: [{ field: "aggiornato_il", ascending: false }],
+          filters: presenzeFilter,
+        })
+      : emptyTableResponse<PresenzaMensileRecord>(),
+    variazioniFilter
+      ? fetchVariazioniContrattuali({
+          select: SUPPORT_VARIAZIONI_SELECT,
+          limit: 5000,
+          offset: 0,
+          orderBy: [{ field: "aggiornato_il", ascending: false }],
+          filters: variazioniFilter,
+        })
+      : emptyTableResponse<VariazioneContrattualeRecord>(),
+  ])
+
+  const rapportoIndex = buildRapportoIndex(rapportiResult.rows)
+  const chiusuraIndex = buildChiusuraIndex(chiusureResult.rows)
+  const linkedRecordIndexes: LinkedRecordIndexes = {
+    assunzioni: buildRecordIndex(assunzioniResult.rows as AssunzioneRecord[]),
+    cedolini: buildTicketRecordIndex(cedoliniResult.rows),
+    chiusure: buildTicketRecordIndex(chiusureResult.rows),
+    contributi: buildTicketRecordIndex(contributiResult.rows),
+    pagamenti: buildTicketRecordIndex(pagamentiResult.rows),
+    presenze: buildTicketRecordIndex(presenzeResult.rows),
+    variazioni: buildTicketRecordIndex(variazioniResult.rows),
+  }
   const stageMetadata = buildStageMetadata(lookupResult.rows, filteredTicketRows)
 
   const cards = filteredTicketRows.flatMap((record) => {
-    const card = mapRecordToCard(record, ticketType, rapportoIndex, stageMetadata.aliases)
+    const card = mapRecordToCard(
+      record,
+      ticketType,
+      rapportoIndex,
+      chiusuraIndex,
+      linkedRecordIndexes,
+      stageMetadata.aliases
+    )
     return card ? [card] : []
   })
 
@@ -337,6 +836,8 @@ async function fetchSupportTicketsData(ticketType: SupportTicketType) {
     activeRapportiCount,
     rapportoOptions,
     rapportoIndex,
+    chiusuraIndex,
+    linkedRecordIndexes,
     stageAliases: stageMetadata.aliases,
   }
 }
@@ -349,6 +850,8 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
   const [activeRapportiCount, setActiveRapportiCount] = React.useState(0)
   const [rapportoOptions, setRapportoOptions] = React.useState<Array<{ id: string; label: string }>>([])
   const rapportoIndexRef = React.useRef<ReturnType<typeof buildRapportoIndex>>(buildRapportoIndex([]))
+  const chiusuraIndexRef = React.useRef<ReturnType<typeof buildChiusuraIndex>>(buildChiusuraIndex([]))
+  const linkedRecordIndexesRef = React.useRef<LinkedRecordIndexes>(buildEmptyLinkedRecordIndexes())
   const stageAliasesRef = React.useRef<Map<string, string>>(new Map())
 
   React.useEffect(() => {
@@ -367,6 +870,8 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
         setActiveRapportiCount(data.activeRapportiCount)
         setRapportoOptions(data.rapportoOptions)
         rapportoIndexRef.current = data.rapportoIndex
+        chiusuraIndexRef.current = data.chiusuraIndex
+        linkedRecordIndexesRef.current = data.linkedRecordIndexes
         stageAliasesRef.current = data.stageAliases
       } catch (caughtError) {
         if (cancelled) return
@@ -376,6 +881,8 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
         setActiveRapportiCount(0)
         setRapportoOptions([])
         rapportoIndexRef.current = buildRapportoIndex([])
+        chiusuraIndexRef.current = buildChiusuraIndex([])
+        linkedRecordIndexesRef.current = buildEmptyLinkedRecordIndexes()
         stageAliasesRef.current = new Map()
       } finally {
         if (!cancelled) setLoading(false)
@@ -433,6 +940,8 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
             nextRecord,
             ticketType,
             rapportoIndexRef.current,
+            chiusuraIndexRef.current,
+            linkedRecordIndexesRef.current,
             stageAliasesRef.current
           )
 
@@ -475,6 +984,8 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
           createdRecord,
           ticketType,
           rapportoIndexRef.current,
+          chiusuraIndexRef.current,
+          linkedRecordIndexesRef.current,
           stageAliasesRef.current
         )
 

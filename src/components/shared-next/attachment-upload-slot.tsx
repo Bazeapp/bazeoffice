@@ -19,6 +19,18 @@ function isImageUrl(url: string) {
   return /\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?.*)?$/i.test(url)
 }
 
+function isAudioLink(link: AttachmentLink) {
+  if (link.type?.startsWith("audio/")) return true
+  return /\.(mp3|m4a|wav|ogg|opus|aac)(\?.*)?$/i.test(link.url)
+}
+
+function formatFileSize(size: number | undefined) {
+  if (typeof size !== "number" || !Number.isFinite(size) || size <= 0) return null
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`
+  return `${(size / (1024 * 1024)).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} MB`
+}
+
 export function AttachmentUploadSlot({
   label,
   value,
@@ -27,6 +39,8 @@ export function AttachmentUploadSlot({
   onPreviewOpen,
   isUploading,
   multiple = true,
+  accept = "image/*,application/pdf",
+  emptyText = "Nessun file allegato",
 }: {
   label: string
   value: unknown
@@ -35,19 +49,26 @@ export function AttachmentUploadSlot({
   onPreviewOpen: (link: AttachmentLink) => void
   isUploading: boolean
   multiple?: boolean
+  accept?: string
+  emptyText?: string
 }) {
   const inputRef = React.useRef<HTMLInputElement | null>(null)
+  const [isDragActive, setIsDragActive] = React.useState(false)
   const links = React.useMemo(() => flattenAttachmentLinks(value, label), [label, value])
   const hasValue = hasAttachmentValue(value)
   const previewLink = links.find((link) => isImageUrl(link.url)) ?? null
+  const audioLinks = links.filter(isAudioLink)
 
-  async function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? [])
+  async function addFiles(files: File[]) {
     if (files.length > 0) {
       for (const file of files) {
         await onAdd(file)
       }
     }
+  }
+
+  async function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+    await addFiles(Array.from(event.target.files ?? []))
     event.target.value = ""
   }
 
@@ -57,13 +78,36 @@ export function AttachmentUploadSlot({
   }
 
   return (
-    <div className="space-y-2 rounded-xl border-dashed border bg-muted/10 px-3 py-2.5">
+    <div
+      className={
+        "space-y-2 rounded-xl border border-dashed bg-muted/10 px-3 py-2.5 transition-colors " +
+        (isDragActive ? "border-primary bg-primary/5" : "")
+      }
+      onDragEnter={(event) => {
+        event.preventDefault()
+        if (!isUploading) setIsDragActive(true)
+      }}
+      onDragOver={(event) => {
+        event.preventDefault()
+      }}
+      onDragLeave={(event) => {
+        event.preventDefault()
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+        setIsDragActive(false)
+      }}
+      onDrop={(event) => {
+        event.preventDefault()
+        setIsDragActive(false)
+        if (isUploading) return
+        void addFiles(Array.from(event.dataTransfer.files ?? []))
+      }}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <input
           ref={inputRef}
           type="file"
           multiple={multiple}
-          accept="image/*,application/pdf"
+          accept={accept}
           className="hidden"
           onChange={handleInputChange}
         />
@@ -86,8 +130,16 @@ export function AttachmentUploadSlot({
           <p className="text-muted-foreground mt-0.5 truncate text-2xs">
             {links.length > 1
               ? `${links.length} file caricati`
-              : links[0]?.label ?? (hasValue ? "Documento caricato" : "Nessun file allegato")}
+              : links[0]?.label ?? (hasValue ? "Documento caricato" : emptyText)}
           </p>
+          <button
+            type="button"
+            className="mt-1 text-left text-2xs text-primary underline-offset-2 hover:underline"
+            onClick={openFilePicker}
+            disabled={isUploading}
+          >
+            Drop files here or browse
+          </button>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {previewLink ? (
@@ -152,7 +204,10 @@ export function AttachmentUploadSlot({
               key={link.url}
               className="flex min-w-0 items-center gap-2 text-2xs text-muted-foreground"
             >
-              <span className="min-w-0 flex-1 truncate">{link.label}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {link.label}
+                {formatFileSize(link.size) ? ` · ${formatFileSize(link.size)}` : ""}
+              </span>
               <Button type="button" variant="ghost" size="icon-sm" asChild>
                 <a href={link.url} target="_blank" rel="noreferrer">
                   <ExternalLinkIcon className="size-3" />
@@ -167,6 +222,23 @@ export function AttachmentUploadSlot({
               >
                 <Trash2Icon className="size-3" />
               </Button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {audioLinks.length > 0 ? (
+        <div className="space-y-2 border-t border-border/60 pt-2">
+          {audioLinks.map((link) => (
+            <div key={`audio-${link.url}`} className="space-y-1">
+              <div className="flex min-w-0 items-center gap-2 text-2xs text-muted-foreground">
+                <span className="min-w-0 flex-1 truncate">{link.label}</span>
+                {formatFileSize(link.size) ? <span className="shrink-0">{formatFileSize(link.size)}</span> : null}
+              </div>
+              <audio controls src={link.url} className="h-9 w-full" preload="metadata">
+                <a href={link.url} target="_blank" rel="noreferrer">
+                  Apri audio
+                </a>
+              </audio>
             </div>
           ))}
         </div>

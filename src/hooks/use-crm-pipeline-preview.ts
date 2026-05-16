@@ -1,6 +1,7 @@
 import * as React from "react"
 
 import {
+  fetchCrmPipelineFamigliaDetail,
   fetchCrmPipelineFamiglieBoard,
   fetchFamiglie,
   fetchIndirizzi,
@@ -9,7 +10,6 @@ import {
   updateRecord,
   updateProcessoMatchingStatoSales,
 } from "@/lib/anagrafiche-api"
-import { fetchRichiesteAttivazioneByProcessIds } from "@/features/richieste-attivazione/api"
 import type { LookupValueRecord, RichiestaAttivazioneRecord } from "@/types"
 
 const STATO_SALES_COLUMN_ORDER = [
@@ -24,12 +24,23 @@ const STATO_SALES_COLUMN_ORDER = [
   "hot_follow_up_post_call",
   "hot_no_show",
   "cold_ricerca_futura",
+  "won_in_attesa_di_conferma",
   "won_ricerca_attivata",
   "lost",
   "out_of_target",
 ] as const
 
-const CRM_PIPELINE_CARD_LIMIT = 1000
+const FALLBACK_STATO_SALES_STAGES = [
+  {
+    id: "won_in_attesa_di_conferma",
+    label: "WON - In attesa di conferma",
+    color: "emerald",
+    sortOrder: null,
+  },
+] satisfies StageDefinition[]
+
+const CRM_PIPELINE_CARD_LIMIT = 5000
+const CLOSED_STAGE_IDS = new Set(["won_ricerca_attivata", "lost", "out_of_target"])
 
 const CRM_PIPELINE_PROCESSI_SELECT = [
   "id",
@@ -203,6 +214,9 @@ type UseCrmPipelinePreviewState = {
   error: string | null
   columns: CrmPipelineColumnData[]
   lookupOptionsByField: LookupOptionsByField
+  loadedClosedStageIds: Set<string>
+  loadClosedStage: (stageId: string) => void
+  loadProcessDetail: (processId: string) => Promise<void>
   moveCard: (processId: string, targetStageId: string) => Promise<void>
   updateProcessCard: (
     processId: string,
@@ -221,6 +235,7 @@ type StageDefinition = {
   id: string
   label: string
   color: string | null
+  sortOrder: number | null
 }
 
 type FetchBoardDataResult = {
@@ -232,6 +247,7 @@ type BoardRecordEntry = {
   process: GenericRow
   family: GenericRow | null
   address: GenericRow | null
+  richiestaAttivazione: RichiestaAttivazioneRecord | null
 }
 
 type BoardRecordBundle = {
@@ -502,6 +518,14 @@ function normalizeLookupToken(value: string | null | undefined) {
   return String(value ?? "").trim().toLowerCase()
 }
 
+function normalizeStatoSalesStageId(value: string | null | undefined) {
+  const token = normalizeLookupToken(value)
+  if (token === "won - in attesa di conferma") {
+    return "won_in_attesa_di_conferma"
+  }
+  return token
+}
+
 function canonicalizeLookupValue(
   field: string | null | undefined,
   value: string | null | undefined
@@ -634,6 +658,27 @@ function buildLookupOptionsByField(rows: LookupValueRecord[]): LookupOptionsByFi
     })
   }
 
+  for (const fallbackStage of FALLBACK_STATO_SALES_STAGES) {
+    const options = map.stato_sales ?? []
+    const alreadyPresent = options.some(
+      (option) =>
+        normalizeStatoSalesStageId(option.valueKey) === fallbackStage.id ||
+        normalizeStatoSalesStageId(option.valueLabel) === fallbackStage.id
+    )
+
+    if (!alreadyPresent) {
+      map.stato_sales = [
+        ...options,
+        {
+          valueKey: fallbackStage.id,
+          valueLabel: fallbackStage.label,
+          color: fallbackStage.color,
+          sortOrder: fallbackStage.sortOrder,
+        },
+      ]
+    }
+  }
+
   return map
 }
 
@@ -660,28 +705,52 @@ function buildStageDefinitions(lookupRows: LookupValueRecord[]) {
   const tokenToStageId = new Map<string, string>()
 
   for (const row of stageRows) {
-    const id = normalizeLookupToken(row.value_key)
+    const id = normalizeStatoSalesStageId(row.value_key)
     if (!id) continue
 
     const label = toStringValue(row.value_label) ?? id
     const color = readLookupColor(row.metadata)
+    const stage = {
+      id,
+      label,
+      color,
+      sortOrder: row.sort_order,
+    }
 
-    byId.set(id, { id, label, color })
+    byId.set(id, stage)
     tokenToStageId.set(normalizeLookupToken(row.value_key), id)
     tokenToStageId.set(normalizeLookupToken(row.value_label), id)
   }
 
+  for (const fallbackStage of FALLBACK_STATO_SALES_STAGES) {
+    if (!byId.has(fallbackStage.id)) {
+      byId.set(fallbackStage.id, fallbackStage)
+    }
+    tokenToStageId.set(normalizeLookupToken(fallbackStage.id), fallbackStage.id)
+    tokenToStageId.set(normalizeLookupToken(fallbackStage.label), fallbackStage.id)
+  }
+
   const orderedIds: string[] = []
   for (const rawId of STATO_SALES_COLUMN_ORDER) {
-    const normalizedId = normalizeLookupToken(rawId)
+    const normalizedId = normalizeStatoSalesStageId(rawId)
     if (byId.has(normalizedId)) {
       orderedIds.push(normalizedId)
     }
   }
 
-  const stages = orderedIds
+  const orderedIdSet = new Set(orderedIds)
+  const orderedStages = orderedIds
     .map((id) => byId.get(id))
     .filter((item): item is StageDefinition => Boolean(item))
+  const unorderedStages = Array.from(byId.values())
+    .filter((stage) => !orderedIdSet.has(stage.id))
+    .sort((left, right) => {
+      const leftOrder = left.sortOrder ?? Number.MAX_SAFE_INTEGER
+      const rightOrder = right.sortOrder ?? Number.MAX_SAFE_INTEGER
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder
+      return left.label.localeCompare(right.label, "it")
+    })
+  const stages = [...orderedStages, ...unorderedStages]
 
   return { stages, tokenToStageId }
 }
@@ -813,6 +882,23 @@ function mapCardData(
   }
 }
 
+function mapBoardEntryToCard(
+  entry: BoardRecordEntry,
+  stageId: string,
+  lookupColors: LookupColorMap
+) {
+  if (!entry.family) return null
+
+  return mapCardData(
+    entry.family,
+    entry.process,
+    stageId,
+    lookupColors,
+    entry.address ?? undefined,
+    entry.richiestaAttivazione
+  )
+}
+
 function emptyBoardData(): FetchBoardDataResult {
   return {
     columns: [],
@@ -836,10 +922,28 @@ function buildSalesStageCounts(
   return counts
 }
 
-async function fetchBoardRecordsWithRpc(): Promise<BoardRecordBundle> {
+function getStageFilterValues(
+  stages: StageDefinition[],
+  loadedClosedStageIds: Set<string>
+) {
+  const values: string[] = []
+
+  for (const stage of stages) {
+    if (CLOSED_STAGE_IDS.has(stage.id) && !loadedClosedStageIds.has(stage.id)) {
+      continue
+    }
+
+    values.push(stage.id, stage.label)
+  }
+
+  return Array.from(new Set(values.filter(Boolean)))
+}
+
+async function fetchBoardRecordsWithRpc(stageFilter: string[]): Promise<BoardRecordBundle> {
   const result = await fetchCrmPipelineFamiglieBoard({
     limit: CRM_PIPELINE_CARD_LIMIT,
     offset: 0,
+    stageFilter,
   })
 
   return {
@@ -848,6 +952,7 @@ async function fetchBoardRecordsWithRpc(): Promise<BoardRecordBundle> {
         process: row.process,
         family: row.family,
         address: row.address,
+        richiestaAttivazione: (row.richiesta_attivazione ?? null) as RichiestaAttivazioneRecord | null,
       }))
       .filter((entry) => Boolean(entry.process)),
     stageGroups: result.stageCounts,
@@ -899,6 +1004,7 @@ async function fetchBoardRecordsWithTableQueries(): Promise<BoardRecordBundle> {
         process,
         family: famigliaId ? familyById.get(famigliaId) ?? null : null,
         address: processId ? addressesByProcessId.get(processId) ?? null : null,
+        richiestaAttivazione: null,
       }
     })
     .filter((entry) => Boolean(entry.family))
@@ -909,34 +1015,29 @@ async function fetchBoardRecordsWithTableQueries(): Promise<BoardRecordBundle> {
   }
 }
 
-async function fetchBoardRecords(): Promise<BoardRecordBundle> {
+async function fetchBoardRecordsForStages(stageFilter: string[]): Promise<BoardRecordBundle> {
   try {
-    return await fetchBoardRecordsWithRpc()
+    return await fetchBoardRecordsWithRpc(stageFilter)
   } catch {
     return fetchBoardRecordsWithTableQueries()
   }
 }
 
-async function fetchBoardData(): Promise<FetchBoardDataResult> {
-  const [boardRecords, lookupResult] = await Promise.all([
-    fetchBoardRecords(),
-    fetchLookupValues(),
-  ])
-
+async function fetchBoardData(
+  loadedClosedStageIds: Set<string>
+): Promise<FetchBoardDataResult> {
+  const lookupResult = await fetchLookupValues()
   const lookupRows = lookupResult.rows
   const lookupColors = buildLookupColorMap(lookupRows)
   const lookupOptionsByField = buildLookupOptionsByField(lookupRows)
   const { stages, tokenToStageId } = buildStageDefinitions(lookupRows)
+  const boardRecords = await fetchBoardRecordsForStages(
+    getStageFilterValues(stages, loadedClosedStageIds)
+  )
   const salesStageCounts = buildSalesStageCounts(
     boardRecords.stageGroups,
     tokenToStageId
   )
-  const richiesteByProcessId = await fetchRichiesteAttivazioneByProcessIds(
-    boardRecords.entries
-      .map((entry) => toStringValue(entry.process.id))
-      .filter((id): id is string => Boolean(id))
-  )
-
   if (stages.length === 0) {
     return {
       columns: [],
@@ -949,21 +1050,19 @@ async function fetchBoardData(): Promise<FetchBoardDataResult> {
     cardsByStage.set(stage.id, [])
   }
 
-  for (const { process, family, address } of boardRecords.entries) {
+  for (const { process, family, address, richiestaAttivazione } of boardRecords.entries) {
     if (!family) continue
 
     const statusToken = normalizeLookupToken(toStringValue(process.stato_sales))
     const stageId = tokenToStageId.get(statusToken)
     if (!stageId) continue
 
-    const card = mapCardData(
-      family,
-      process,
+    const card = mapBoardEntryToCard(
+      { process, family, address, richiestaAttivazione },
       stageId,
-      lookupColors,
-      address ?? undefined,
-      richiesteByProcessId.get(toStringValue(process.id) ?? "") ?? null
+      lookupColors
     )
+    if (!card) continue
     cardsByStage.get(stageId)?.push(card)
   }
 
@@ -985,6 +1084,68 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
   const [columns, setColumns] = React.useState<CrmPipelineColumnData[]>([])
   const [lookupOptionsByField, setLookupOptionsByField] =
     React.useState<LookupOptionsByField>({})
+  const [loadedClosedStageIds, setLoadedClosedStageIds] = React.useState<Set<string>>(
+    () => new Set()
+  )
+
+  const loadClosedStage = React.useCallback((stageId: string) => {
+    if (!CLOSED_STAGE_IDS.has(stageId)) return
+    setLoadedClosedStageIds((current) => {
+      if (current.has(stageId)) return current
+      const next = new Set(current)
+      next.add(stageId)
+      return next
+    })
+  }, [])
+
+  const loadProcessDetail = React.useCallback(async (processId: string) => {
+    setError(null)
+
+    try {
+      const [detailRow, lookupResult] = await Promise.all([
+        fetchCrmPipelineFamigliaDetail(processId),
+        fetchLookupValues(),
+      ])
+      if (!detailRow?.process) return
+
+      const lookupColors = buildLookupColorMap(lookupResult.rows)
+      const statusToken = normalizeLookupToken(toStringValue(detailRow.process.stato_sales))
+      const { tokenToStageId } = buildStageDefinitions(lookupResult.rows)
+      const stageId = tokenToStageId.get(statusToken)
+      if (!stageId) return
+
+      const card = mapBoardEntryToCard(
+        {
+          process: detailRow.process,
+          family: detailRow.family,
+          address: detailRow.address,
+          richiestaAttivazione:
+            (detailRow.richiesta_attivazione ?? null) as RichiestaAttivazioneRecord | null,
+        },
+        stageId,
+        lookupColors
+      )
+      if (!card) return
+
+      setColumns((current) =>
+        current.map((column) => ({
+          ...column,
+          cards: sortCardsForStage(
+            column.cards.map((currentCard) =>
+              currentCard.id === processId ? card : currentCard
+            ),
+            column.id
+          ),
+        }))
+      )
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Errore caricando dettaglio ricerca"
+      setError(message)
+    }
+  }, [])
 
   const moveCard = React.useCallback(
     async (processId: string, targetStageId: string) => {
@@ -1326,7 +1487,7 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
       setError(null)
 
       try {
-        const boardData = await fetchBoardData()
+        const boardData = await fetchBoardData(loadedClosedStageIds)
         if (cancelled) return
         setColumns(boardData.columns)
         setLookupOptionsByField(boardData.lookupOptionsByField)
@@ -1351,13 +1512,16 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [loadedClosedStageIds])
 
   return {
     loading,
     error,
     columns,
     lookupOptionsByField,
+    loadedClosedStageIds,
+    loadClosedStage,
+    loadProcessDetail,
     moveCard,
     updateProcessCard,
     updateFamilyCard,

@@ -249,7 +249,30 @@ function toArrayTokens(value: unknown): string[] {
   return [normalized]
 }
 
+function parseJsonStringList(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return null
+
+  try {
+    const parsed: unknown = JSON.parse(trimmed)
+    if (!Array.isArray(parsed)) return null
+    return parsed
+      .filter(
+        (item): item is string | number | boolean =>
+          typeof item === "string" ||
+          typeof item === "number" ||
+          typeof item === "boolean"
+      )
+      .map((item) => String(item))
+  } catch {
+    return null
+  }
+}
+
 function parseFilterList(value: string) {
+  const parsed = parseJsonStringList(value)
+  if (parsed) return parsed.map((part) => part.trim().toLowerCase()).filter(Boolean)
+
   return value
     .split(",")
     .map((part) => part.trim().toLowerCase())

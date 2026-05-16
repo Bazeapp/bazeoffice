@@ -239,42 +239,19 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedOperatorId, setSelectedOperatorId] = React.useState("all")
-  const operatorFilterAllowedStages = React.useMemo(
-    () =>
-      new Set([
-        "fare_ricerca",
-        "selezione_inviata",
-        "selezione_inviata,_in_attesa_di_feedback",
-        "fase_di_colloqui",
-        "in_prova_con_lavoratore",
-      ]),
-    []
-  )
-  const selectableOperatorOptions = React.useMemo(() => {
-    const operatorIdsWithEligibleSearch = new Set<string>()
-
-    for (const column of columns) {
-      const columnStageId = String(column.id || "")
-        .trim()
-        .toLowerCase()
-      if (!operatorFilterAllowedStages.has(columnStageId)) continue
-
-      for (const card of column.cards) {
-        if (!card.operatorId) continue
-        operatorIdsWithEligibleSearch.add(card.operatorId)
-      }
-    }
-
-    return operatorOptions.filter((operator) =>
-      operatorIdsWithEligibleSearch.has(operator.id)
-    )
-  }, [columns, operatorFilterAllowedStages, operatorOptions])
 
   const filteredColumns = React.useMemo(() => {
     const mappedColumns = columns.map((column) => ({
       ...column,
       cards: column.cards.filter((card) => {
-        if (selectedOperatorId !== "all" && card.operatorId !== selectedOperatorId) {
+        if (selectedOperatorId === "unassigned" && card.operatorId) {
+          return false
+        }
+        if (
+          selectedOperatorId !== "all" &&
+          selectedOperatorId !== "unassigned" &&
+          card.operatorId !== selectedOperatorId
+        ) {
           return false
         }
         return matchesSearchQuery(
@@ -299,20 +276,19 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   }, [columns, searchQuery, selectedOperatorId])
   const selectedOperator = React.useMemo(
     () =>
-      selectableOperatorOptions.find((operator) => operator.id === selectedOperatorId) ??
-      null,
-    [selectableOperatorOptions, selectedOperatorId]
+      operatorOptions.find((operator) => operator.id === selectedOperatorId) ?? null,
+    [operatorOptions, selectedOperatorId]
   )
   React.useEffect(() => {
-    if (selectedOperatorId === "all") return
+    if (selectedOperatorId === "all" || selectedOperatorId === "unassigned") return
 
-    const isSelectable = selectableOperatorOptions.some(
+    const isSelectable = operatorOptions.some(
       (operator) => operator.id === selectedOperatorId
     )
     if (!isSelectable) {
       setSelectedOperatorId("all")
     }
-  }, [selectableOperatorOptions, selectedOperatorId])
+  }, [operatorOptions, selectedOperatorId])
   const handleDropToColumn = React.useCallback(
     (columnId: string, droppedProcessId: string | null) => {
       const processId = droppedProcessId || draggingProcessId
@@ -377,12 +353,17 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
                   <span>{selectedOperator.label}</span>
                 </span>
               ) : (
-                <span>Tutti gli operatori</span>
+                <span>
+                  {selectedOperatorId === "unassigned"
+                    ? "Senza recruiter"
+                    : "Tutti i recruiter"}
+                </span>
               )}
             </SelectTrigger>
             <SelectContent align="start">
-              <SelectItem value="all">Tutti gli operatori</SelectItem>
-              {selectableOperatorOptions.map((operator) => (
+              <SelectItem value="all">Tutti i recruiter</SelectItem>
+              <SelectItem value="unassigned">Senza recruiter</SelectItem>
+              {operatorOptions.map((operator) => (
                 <SelectItem key={operator.id} value={operator.id}>
                   <span className="inline-flex items-center gap-2">
                     <Avatar

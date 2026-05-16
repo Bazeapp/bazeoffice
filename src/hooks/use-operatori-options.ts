@@ -73,14 +73,23 @@ function normalizeRole(value: string) {
   return value.trim().toLowerCase().replaceAll(" ", "_")
 }
 
+function getRoleTokens(role: string | undefined) {
+  if (!role) return []
+  const normalizedRole = normalizeRole(role)
+  if (normalizedRole === "recruiter_ricerca_e_selezione") {
+    return ["recruiter_ricerca_e_selezione", "recruiter"]
+  }
+  return [normalizedRole]
+}
+
 function hasRole(row: GenericRow, role: string | undefined) {
   if (!role) return true
   const rawRole = row.ruolo
   if (!Array.isArray(rawRole)) return false
-  const normalizedRole = normalizeRole(role)
+  const roleTokens = getRoleTokens(role)
   return rawRole.some(
     (item) =>
-      typeof item === "string" && normalizeRole(item) === normalizedRole
+      typeof item === "string" && roleTokens.includes(normalizeRole(item))
   )
 }
 
@@ -96,6 +105,8 @@ async function fetchOperatoriOptions(role: string | undefined, activeOnly: boole
   if (cached && cached.expiresAt > now) {
     return cached.promise
   }
+
+  const roleTokens = getRoleTokens(role)
 
   const promise = invokeEdgeFunction<TableQueryResponse>("table-query", {
     table: "operatori",
@@ -120,14 +131,14 @@ async function fetchOperatoriOptions(role: string | undefined, activeOnly: boole
               },
             ]
           : []),
-        ...(role
+        ...(roleTokens.length > 0
           ? [
               {
                 kind: "condition",
                 id: "operatori-options-role",
                 field: "ruolo",
-                operator: "has",
-                value: role,
+                operator: "has_any",
+                value: roleTokens.join(","),
               },
             ]
           : []),
@@ -135,11 +146,7 @@ async function fetchOperatoriOptions(role: string | undefined, activeOnly: boole
     },
   }).then((rows) => {
     const rawRows = Array.isArray(rows) ? rows : rows.data ?? rows.rows ?? []
-    let filteredRows = rawRows.filter((row) => isActive(row, activeOnly) && hasRole(row, role))
-
-    if (role && activeOnly && filteredRows.length === 0) {
-      filteredRows = rawRows.filter((row) => isActive(row, activeOnly))
-    }
+    const filteredRows = rawRows.filter((row) => isActive(row, activeOnly) && hasRole(row, role))
 
     return filteredRows
       .map((row) => {

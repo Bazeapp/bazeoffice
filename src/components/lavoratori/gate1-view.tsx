@@ -70,6 +70,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Avatar } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatAvailabilityComputedAt,
@@ -81,6 +82,7 @@ import {
   asLavoratoreRecord,
   asInputValue,
   asString,
+  formatWorkerAddressLine,
   normalizeDomesticRoleDbLabels,
   normalizeDomesticRoleLabels,
   normalizeDomesticRoleLookupValues,
@@ -93,7 +95,10 @@ import {
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
 import { useLavoratoriData } from "@/hooks/use-lavoratori-data";
-import { useOperatoriOptions } from "@/hooks/use-operatori-options";
+import {
+  type OperatoreOption,
+  useOperatoriOptions,
+} from "@/hooks/use-operatori-options";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import { updateRecord } from "@/lib/anagrafiche-api";
 import {
@@ -106,6 +111,23 @@ import { normalizeWorkerStatus } from "@/features/lavoratori/lib/status-utils";
 import type { LavoratoreRecord } from "@/types/entities/lavoratore";
 
 const EMPTY_SELECT_VALUE = "none";
+
+function toAvatarRingClass(legacyClassName: string) {
+  return legacyClassName.replace(/^after:border-/, "ring-2 ring-");
+}
+
+function OperatorSelectOption({ operator }: { operator: OperatoreOption }) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <Avatar
+        size="sm"
+        fallback={operator.avatar}
+        className={toAvatarRingClass(operator.avatarBorderClassName)}
+      />
+      <span className="truncate">{operator.label}</span>
+    </span>
+  );
+}
 
 type GateTab = {
   id: string;
@@ -329,10 +351,14 @@ function GateReferenteCard({
   title?: string;
   label?: string;
   value: string;
-  options: Array<{ id: string; label: string }>;
+  options: OperatoreOption[];
   disabled?: boolean;
   onChange: (value: string | null) => void;
 }) {
+  const selectedOperator = value
+    ? options.find((option) => option.id === value) ?? null
+    : null;
+
   return (
     <GateInfoCard
       title={title}
@@ -349,13 +375,17 @@ function GateReferenteCard({
             disabled={disabled}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Seleziona referente" />
+              {selectedOperator ? (
+                <OperatorSelectOption operator={selectedOperator} />
+              ) : (
+                <SelectValue placeholder="Seleziona referente" />
+              )}
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Nessun referente</SelectItem>
               {options.map((option) => (
                 <SelectItem key={option.id} value={option.id}>
-                  {option.label}
+                  <OperatorSelectOption operator={option} />
                 </SelectItem>
               ))}
             </SelectContent>
@@ -368,7 +398,7 @@ function GateReferenteCard({
 
 function resolveOperatorLabel(
   value: string,
-  options: Array<{ id: string; label: string }>,
+  options: OperatoreOption[],
 ) {
   if (!value) return "—";
   return options.find((option) => option.id === value)?.label ?? value;
@@ -383,10 +413,17 @@ function GateCertificationReferenteCard({
 }: {
   referenteCertificazioneValue: string;
   referenteIdoneitaValue: string;
-  options: Array<{ id: string; label: string }>;
+  options: OperatoreOption[];
   disabled?: boolean;
   onReferenteCertificazioneChange: (value: string | null) => void;
 }) {
+  const selectedCertificationOperator = referenteCertificazioneValue
+    ? options.find((option) => option.id === referenteCertificazioneValue) ?? null
+    : null;
+  const selectedIdoneitaOperator = referenteIdoneitaValue
+    ? options.find((option) => option.id === referenteIdoneitaValue) ?? null
+    : null;
+
   return (
     <GateInfoCard
       title="Referente"
@@ -406,13 +443,17 @@ function GateCertificationReferenteCard({
               disabled={disabled}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Seleziona referente Gate 2" />
+                {selectedCertificationOperator ? (
+                  <OperatorSelectOption operator={selectedCertificationOperator} />
+                ) : (
+                  <SelectValue placeholder="Seleziona referente Gate 2" />
+                )}
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Nessun referente Gate 2</SelectItem>
                 {options.map((option) => (
                   <SelectItem key={option.id} value={option.id}>
-                    {option.label}
+                    <OperatorSelectOption operator={option} />
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -424,7 +465,11 @@ function GateCertificationReferenteCard({
           <FieldLabel className="w-24 shrink-0">Referente Gate 1</FieldLabel>
           <div className="min-w-0 flex-1 text-foreground">
             <div className="text-foreground flex min-h-10 items-center rounded-md border bg-surface px-3 text-sm">
-              {resolveOperatorLabel(referenteIdoneitaValue, options)}
+              {selectedIdoneitaOperator ? (
+                <OperatorSelectOption operator={selectedIdoneitaOperator} />
+              ) : (
+                resolveOperatorLabel(referenteIdoneitaValue, options)
+              )}
             </div>
           </div>
         </div>
@@ -2613,6 +2658,7 @@ export function Gate1View({
     setSelectedWorkerId,
     selectedWorker,
     selectedWorkerRow,
+    selectedWorkerAddress,
     selectedWorkerDocuments,
     loadingSelectedWorkerDocuments,
     selectedWorkerExperiences,
@@ -2642,6 +2688,7 @@ export function Gate1View({
     pageCount,
     currentPage,
     applyUpdatedWorkerRow,
+    applyUpdatedWorkerAddress,
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
     removeWorkerExperience,
@@ -2727,11 +2774,11 @@ export function Gate1View({
     selectedWorkerId,
     selectedWorker,
     selectedWorkerRow,
-    selectedWorkerAddress: null,
+    selectedWorkerAddress,
     lookupColorsByDomain,
     setError,
     applyUpdatedWorkerRow,
-    applyUpdatedWorkerAddress: () => {},
+    applyUpdatedWorkerAddress,
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
     removeWorkerExperience,
@@ -3949,10 +3996,14 @@ export function Gate1View({
                       provinciaOptions={provinciaLookupOptions}
                       mobilityOptions={mobilityLookupOptions}
                       selectedProvincia={asString(selectedWorkerRow.provincia)}
-                      selectedCap={asString(selectedWorkerRow.cap)}
-                      selectedAddress={asString(
-                        selectedWorkerRow.indirizzo_residenza_completo,
-                      )}
+                      selectedCap={
+                        asString(selectedWorkerAddress?.cap) ||
+                        asString(selectedWorkerRow.cap)
+                      }
+                      selectedAddress={
+                        formatWorkerAddressLine(selectedWorkerAddress) ||
+                        asString(selectedWorkerRow.indirizzo_residenza_completo)
+                      }
                       selectedMobility={readArrayStrings(
                         selectedWorkerRow.come_ti_sposti,
                       )}

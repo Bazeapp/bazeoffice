@@ -30,6 +30,8 @@ export type RapportoLavorativoRecord = {
   prova_priorita_famiglia: string | null
   prova_ramo_d2: string | null
   prova_stato_cs: string | null
+  registrazioni_chiamate_famiglia: JsonObject | JsonObject[] | null
+  registrazioni_chiamate_lavoratore: JsonObject | JsonObject[] | null
   relazione_lavorativa: string | null
   request_lavoratore_referenza: string | null
   request_trustpilot_review: boolean | null

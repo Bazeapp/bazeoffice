@@ -1,12 +1,10 @@
 import * as React from "react"
-import { FileTextIcon, StickyNoteIcon, TagIcon } from "lucide-react"
+import { CalendarIcon, FileTextIcon, Link2Icon, Loader2Icon, StickyNoteIcon, TagIcon } from "lucide-react"
 
-import { getTagClassName } from "@/features/lavoratori/lib/lookup-utils"
-import { getRapportoStatusColor, resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 import {
   type SupportTicketBoardCardData,
+  type SupportTicketLinkedRecord,
 } from "@/hooks/use-support-tickets-board"
-import { useRapportoRelatedData } from "@/hooks/use-rapporto-related-data"
 import {
   resolveSupportTicketStatus,
   resolveSupportTicketTag,
@@ -18,7 +16,6 @@ import {
 } from "@/components/shared-next/attachment-upload-slot"
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
-import { RapportoDetailPanel } from "@/components/gestione-contrattuale/rapporto-detail-panel"
 import {
   Accordion,
   AccordionContent,
@@ -34,9 +31,10 @@ import {
   buildAttachmentPayload,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
+import { updateRecord } from "@/lib/anagrafiche-api"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
-import type { TicketRecord } from "@/types"
+import type { ChiusuraContrattoRecord, TicketRecord } from "@/types"
 
 function sanitizeFileName(name: string) {
   return name
@@ -44,10 +42,6 @@ function sanitizeFileName(name: string) {
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/-+/g, "-")
-}
-
-function normalizeToken(value: string | null | undefined) {
-  return (value ?? "").trim().toLowerCase().replaceAll("_", " ")
 }
 
 function formatDate(value: string | null | undefined) {
@@ -101,6 +95,170 @@ function toAttachmentArray(value: TicketRecord["allegati"]) {
   return normalizeAttachmentArray(value)
 }
 
+function getLinkedRecordKey(record: SupportTicketLinkedRecord) {
+  return `${record.type}:${record.id}`
+}
+
+function isChiusuraRecord(record: SupportTicketLinkedRecord["record"]): record is ChiusuraContrattoRecord {
+  if (!record) return false
+  return "data_fine_rapporto" in record && "motivazione_cessazione_rapporto" in record
+}
+
+function getLinkedRecordAccentClassName(accent: SupportTicketLinkedRecord["accent"]) {
+  switch (accent) {
+    case "rose":
+      return "bg-rose-500"
+    case "amber":
+      return "bg-amber-500"
+    case "emerald":
+      return "bg-emerald-500"
+    case "sky":
+      return "bg-sky-500"
+    case "violet":
+      return "bg-violet-500"
+    case "zinc":
+      return "bg-zinc-400"
+  }
+}
+
+function LinkedRecordAccordionItem({
+  record,
+  rapportoOptions,
+  currentRapportoId,
+  linkingRapporto,
+  linkError,
+  onLinkChiusuraRapporto,
+}: {
+  record: SupportTicketLinkedRecord
+  rapportoOptions: Array<{ id: string; label: string }>
+  currentRapportoId: string | null
+  linkingRapporto: boolean
+  linkError: string | null
+  onLinkChiusuraRapporto: (record: SupportTicketLinkedRecord, rapportoId: string) => Promise<void>
+}) {
+  const [selectedRapportoId, setSelectedRapportoId] = React.useState(currentRapportoId ?? "")
+  const linkedRecordValue = record.record
+  const chiusura: ChiusuraContrattoRecord | null = isChiusuraRecord(linkedRecordValue) ? linkedRecordValue : null
+
+  React.useEffect(() => {
+    setSelectedRapportoId(currentRapportoId ?? "")
+  }, [currentRapportoId, record?.id])
+
+  return (
+    <AccordionItem
+      value={getLinkedRecordKey(record)}
+      className="overflow-hidden rounded-xl border border-border-subtle bg-surface"
+    >
+      <AccordionTrigger className="relative px-4 py-3 hover:no-underline">
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute top-0 bottom-0 left-0 w-1",
+            getLinkedRecordAccentClassName(record.accent)
+          )}
+        />
+        <div className="min-w-0 flex-1 space-y-2 pr-3 text-left">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-base leading-tight font-semibold">{record.title}</p>
+              <p className="text-muted-foreground mt-1 truncate text-sm">{record.subtitle ?? record.id}</p>
+            </div>
+            <Badge variant="outline" className="shrink-0">
+              {record.label}
+            </Badge>
+          </div>
+          <div className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-2 text-xs">
+            {record.status ? (
+              <Badge variant="secondary" className="rounded-full px-2.5">
+                {record.status}
+              </Badge>
+            ) : null}
+            {record.dateLabel ? (
+              <span className="flex items-center gap-1.5">
+                <CalendarIcon className="size-3.5" />
+                {record.dateLabel}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="px-4 pb-4">
+        <div className="space-y-4 border-t border-border-subtle pt-4">
+          <div className="grid gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <p className="ui-type-label">ID</p>
+              <p className="font-medium break-all">{record.id}</p>
+            </div>
+            <div>
+              <p className="ui-type-label">Stato</p>
+              <p className="font-medium">{record.status ?? "-"}</p>
+            </div>
+            <div>
+              <p className="ui-type-label">Data</p>
+              <p className="font-medium">{record.dateLabel ?? "-"}</p>
+            </div>
+            <div>
+              <p className="ui-type-label">Riferimento</p>
+              <p className="font-medium">{record.subtitle ?? "-"}</p>
+            </div>
+          </div>
+
+          {chiusura ? (
+            <>
+              <div className="grid gap-3 border-t border-border-subtle pt-4 text-sm sm:grid-cols-2">
+                <div>
+                  <p className="ui-type-label">Data fine rapporto</p>
+                  <p className="font-medium">{formatDate(chiusura.data_fine_rapporto)}</p>
+                </div>
+                <div>
+                  <p className="ui-type-label">Tipo</p>
+                  <p className="font-medium">{chiusura.tipo_licenziamento ?? chiusura.tipo_decesso ?? "-"}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="ui-type-label">Motivazione</p>
+                  <p className="font-medium">{chiusura.motivazione_cessazione_rapporto ?? "-"}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="ui-type-label">Informazioni aggiuntive</p>
+                  <p className="font-medium whitespace-pre-wrap">{chiusura.informazioni_aggiuntive ?? "-"}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 border-t border-border-subtle pt-4">
+                <p className="ui-type-label">Collega rapporto alla chiusura</p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Select value={selectedRapportoId || "__none__"} onValueChange={setSelectedRapportoId}>
+                    <SelectTrigger className="min-w-0 flex-1">
+                      <SelectValue placeholder="Seleziona rapporto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Nessun rapporto selezionato</SelectItem>
+                      {rapportoOptions.map((option) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    disabled={!selectedRapportoId || selectedRapportoId === "__none__" || linkingRapporto}
+                    onClick={() => void onLinkChiusuraRapporto(record, selectedRapportoId)}
+                  >
+                    {linkingRapporto ? <Loader2Icon className="animate-spin" /> : <Link2Icon />}
+                    Collega
+                  </Button>
+                </div>
+                {linkError ? <p className="text-sm font-medium text-red-600">{linkError}</p> : null}
+              </div>
+            </>
+          ) : null}
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  )
+}
+
 type SupportTicketDetailSheetProps = {
   card: SupportTicketBoardCardData | null
   stages: SupportTicketStatusDefinition[]
@@ -123,28 +281,16 @@ export function SupportTicketDetailSheet({
   const [selectedPreview, setSelectedPreview] = React.useState<AttachmentLink | null>(null)
   const [isUploadingAttachment, setIsUploadingAttachment] = React.useState(false)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
-  const {
-    famiglia,
-    lavoratore,
-    processi,
-    contributi,
-    mesi,
-    mesiCalendario,
-    pagamenti,
-    presenze,
-    variazioni,
-    chiusure,
-    richiesteAttivazione,
-    loadingRelated,
-    lookupColorsByDomain,
-    error: rapportoError,
-  } = useRapportoRelatedData(card?.rapporto ?? null)
+  const [linkingChiusuraRapporto, setLinkingChiusuraRapporto] = React.useState(false)
+  const [linkChiusuraError, setLinkChiusuraError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (!open) {
       setSelectedPreview(null)
       setIsUploadingAttachment(false)
       setUploadError(null)
+      setLinkingChiusuraRapporto(false)
+      setLinkChiusuraError(null)
     }
   }, [open])
 
@@ -154,14 +300,6 @@ export function SupportTicketDetailSheet({
   const urgencyConfig = resolveSupportTicketUrgency(card?.urgenza)
   const TagIconComponent = tagConfig.icon
   const UrgencyIcon = urgencyConfig.icon
-  const rapportoStatus = card?.rapporto
-    ? resolveRapportoStatus(card.rapporto, chiusure[0]?.data_fine_rapporto ?? card.rapporto.data_fine_rapporto)
-    : "Sconosciuto"
-  const rapportoStatusColor = card?.rapporto
-    ? lookupColorsByDomain.get(
-        `rapporti_lavorativi.stato_rapporto:${normalizeToken(rapportoStatus)}`
-      ) ?? getRapportoStatusColor(rapportoStatus)
-    : "zinc"
   const linkedRapportoOptions = React.useMemo(() => {
     if (!card?.rapporto || rapportoOptions.some((option) => option.id === card.rapporto?.id)) {
       return rapportoOptions
@@ -211,17 +349,43 @@ export function SupportTicketDetailSheet({
     [card, onPatchTicket]
   )
 
+  const handleLinkChiusuraRapporto = React.useCallback(
+    async (linkedRecord: SupportTicketLinkedRecord, rapportoId: string) => {
+      if (!card || linkedRecord.type !== "chiusura" || !rapportoId || rapportoId === "__none__") return
+
+      setLinkingChiusuraRapporto(true)
+      setLinkChiusuraError(null)
+
+      try {
+        await updateRecord("rapporti_lavorativi", rapportoId, {
+          fine_rapporto_lavorativo_id: linkedRecord.id,
+        })
+        await onPatchTicket(card.id, {
+          chiusura_id: linkedRecord.id,
+          rapporto_id: rapportoId,
+        })
+      } catch (caughtError) {
+        setLinkChiusuraError(
+          caughtError instanceof Error ? caughtError.message : "Errore collegando rapporto alla chiusura"
+        )
+      } finally {
+        setLinkingChiusuraRapporto(false)
+      }
+    },
+    [card, onPatchTicket]
+  )
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
           <SheetHeader className="border-b bg-surface px-5 py-5">
-            <div className="space-y-3">
-              <SheetTitle className="truncate text-xl font-semibold">
+            <div className="min-w-0 space-y-3">
+              <SheetTitle className="max-w-full text-xl leading-snug font-semibold whitespace-normal break-words">
                 {card?.causale ?? "Dettaglio ticket"}
               </SheetTitle>
               <SheetDescription className="text-sm">
-                {card?.nomeCompleto ?? "Dettaglio ticket di supporto"}
+                {card ? `${tagConfig.label} · aperto il ${card.dataAperturaLabel}` : "Dettaglio ticket di supporto"}
               </SheetDescription>
               {card ? (
                 <Select value={card.stage} onValueChange={(value) => void onMoveTicket(card.id, value)}>
@@ -249,6 +413,28 @@ export function SupportTicketDetailSheet({
           {card ? (
             <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
               <div className="mx-auto max-w-5xl space-y-5">
+                {card.linkedRecords.length > 0 ? (
+                  <DetailSectionBlock
+                    title={card.linkedRecords.length === 1 ? "Record collegato" : "Record collegati"}
+                    icon={<Link2Icon className="text-muted-foreground size-5" />}
+                    contentClassName="space-y-3"
+                  >
+                    <Accordion type="single" collapsible className="space-y-3">
+                      {card.linkedRecords.map((linkedRecord) => (
+                        <LinkedRecordAccordionItem
+                          key={getLinkedRecordKey(linkedRecord)}
+                          record={linkedRecord}
+                          rapportoOptions={linkedRapportoOptions}
+                          currentRapportoId={card.rapporto?.id ?? card.record.rapporto_id ?? null}
+                          linkingRapporto={linkingChiusuraRapporto}
+                          linkError={linkChiusuraError}
+                          onLinkChiusuraRapporto={handleLinkChiusuraRapporto}
+                        />
+                      ))}
+                    </Accordion>
+                  </DetailSectionBlock>
+                ) : null}
+
                 <DetailSectionBlock
                   title={card.rapporto ? "Rapporto collegato" : "Collega rapporto"}
                   icon={<FileTextIcon className="text-muted-foreground size-5" />}
@@ -285,73 +471,6 @@ export function SupportTicketDetailSheet({
                     </Button>
                   </div>
                 </DetailSectionBlock>
-
-                {card.rapporto ? (
-                  <Accordion type="single" collapsible className="rounded-2xl border bg-background px-4">
-                    <AccordionItem value="rapporto-dettaglio" className="border-none">
-                      <AccordionTrigger className="py-4 hover:no-underline">
-                        <div className="min-w-0 space-y-3 text-left">
-                          <div>
-                            <p className="truncate text-base leading-tight font-semibold">
-                              {card.nomeCompleto}
-                            </p>
-                            <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                              <span>dal {formatDate(card.rapporto.data_inizio_rapporto)}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <Badge className={getTagClassName(rapportoStatusColor)}>
-                              {rapportoStatus}
-                            </Badge>
-                            {card.rapporto.stato_servizio ? (
-                              <Badge variant="outline" className="h-6 rounded-full px-2.5 text-2xs font-medium">
-                                {card.rapporto.stato_servizio}
-                              </Badge>
-                            ) : null}
-                            {card.rapporto.tipo_rapporto ? (
-                              <Badge variant="outline" className="h-6 rounded-full px-2.5 text-2xs font-medium">
-                                {card.rapporto.tipo_rapporto}
-                              </Badge>
-                            ) : null}
-                            {card.rapporto.tipo_contratto ? (
-                              <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-2xs font-medium">
-                                {card.rapporto.tipo_contratto}
-                              </Badge>
-                            ) : null}
-                          </div>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pb-4">
-                        {rapportoError ? (
-                          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                            Errore caricamento rapporto: {rapportoError}
-                          </div>
-                        ) : (
-                          <div className="overflow-hidden rounded-2xl border border-border/70 bg-background">
-                            <RapportoDetailPanel
-                              rapporto={card.rapporto}
-                              famiglia={famiglia}
-                              lavoratore={lavoratore}
-                              processi={processi}
-                              contributi={contributi}
-                              mesi={mesi}
-                              mesiCalendario={mesiCalendario}
-                              pagamenti={pagamenti}
-                              presenze={presenze}
-                              variazioni={variazioni}
-                              chiusure={chiusure}
-                              richiesteAttivazione={richiesteAttivazione}
-                              loadingRelated={loadingRelated}
-                              lookupColorsByDomain={lookupColorsByDomain}
-                              hideHeader={true}
-                            />
-                          </div>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                ) : null}
 
                 <DetailSectionBlock
                   title="Categoria e urgenza"

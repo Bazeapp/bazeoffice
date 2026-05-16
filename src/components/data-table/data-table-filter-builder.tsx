@@ -162,10 +162,26 @@ type ValueControlProps = {
 }
 
 function splitFilterList(value: string) {
+  const trimmed = value.trim()
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed.map((part) => String(part).trim()).filter(Boolean)
+      }
+    } catch {
+      // Fall through to the legacy comma-separated format.
+    }
+  }
+
   return value
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean)
+}
+
+function serializeFilterList(values: string[]) {
+  return JSON.stringify(values)
 }
 
 function ValueControl({
@@ -237,10 +253,10 @@ function ValueControl({
         value={selectedValues}
         onValueChange={(nextValues) => {
           onValueChange(
-            normalizeLookupOptionValues(
+            serializeFilterList(normalizeLookupOptionValues(
               nextValues as string[],
               valueOptions,
-            ).join(","),
+            )),
           )
         }}
       >

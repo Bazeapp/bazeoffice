@@ -7,6 +7,8 @@ export type AttachmentLink = {
   url: string
   label: string
   path?: string
+  type?: string
+  size?: number
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -46,7 +48,13 @@ export function flattenAttachmentLinks(value: unknown, fallbackLabel: string): A
     const url = attachmentPathToPublicUrl(attachment.path)
     if (!url || seen.has(url)) continue
     seen.add(url)
-    links.push({ url, label: attachment.name || fallbackLabel, path: attachment.path })
+    links.push({
+      url,
+      label: attachment.name || fallbackLabel,
+      path: attachment.path,
+      type: attachment.type,
+      size: attachment.size,
+    })
   }
 
   if (links.length > 0) {

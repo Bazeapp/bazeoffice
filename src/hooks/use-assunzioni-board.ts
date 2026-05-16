@@ -28,15 +28,34 @@ type AssunzioniStageDefinition = {
 export type AssunzioneRecord = {
   id: string
   civico_se_diverso_residenza: string | null
+  codice_fiscale_allegati: Record<string, unknown> | Record<string, unknown>[] | null
   comune_se_diverso_residenza: string | null
+  dati_bancari_lavoratore: string | null
+  documento_identita_allegati: Record<string, unknown> | Record<string, unknown>[] | null
+  documento_identita_numero: string | null
+  documento_identita_scadenza: string | null
+  documento_identita_tipo: string | null
+  info_anagrafiche_cap: string | null
+  info_anagrafiche_cittadidanza: string | null
+  info_anagrafiche_civico: string | null
+  info_anagrafiche_codice_fiscale: string | null
   info_anagrafiche_cognome: string | null
+  info_anagrafiche_data_di_nascita: string | null
   info_anagrafiche_email: string | null
+  info_anagrafiche_indirizzo: string | null
+  info_anagrafiche_localita: string | null
+  info_anagrafiche_luogo_di_nascita: string | null
   info_anagrafiche_nome: string | null
+  info_anagrafiche_numero_fisso: string | null
+  info_anagrafiche_numero_mobile: string | null
   luogo_lavoro_se_diverso_da_residenza: string | null
   provincia: string | null
+  permesso_di_soggiorno_allegati: Record<string, unknown> | Record<string, unknown>[] | null
   rapporto_di_lavoro_residenza: boolean | null
   rapporto_lavorativo_datore_lavoro_id: string | null
   rapporto_lavorativo_lavoratore_id: string | null
+  ricevuta_rinnovo_permesso_allegati: Record<string, unknown> | Record<string, unknown>[] | null
+  type_of_compilazione_form: string | null
 }
 
 export type AssunzioniBoardCardData = {
@@ -153,15 +172,34 @@ const ASSUNZIONI_LAVORATORI_SELECT = [
 const ASSUNZIONI_RECORD_SELECT = [
   "id",
   "civico_se_diverso_residenza",
+  "codice_fiscale_allegati",
   "comune_se_diverso_residenza",
+  "dati_bancari_lavoratore",
+  "documento_identita_allegati",
+  "documento_identita_numero",
+  "documento_identita_scadenza",
+  "documento_identita_tipo",
+  "info_anagrafiche_cap",
+  "info_anagrafiche_cittadidanza",
+  "info_anagrafiche_civico",
+  "info_anagrafiche_codice_fiscale",
   "info_anagrafiche_cognome",
+  "info_anagrafiche_data_di_nascita",
   "info_anagrafiche_email",
+  "info_anagrafiche_indirizzo",
+  "info_anagrafiche_localita",
+  "info_anagrafiche_luogo_di_nascita",
   "info_anagrafiche_nome",
+  "info_anagrafiche_numero_fisso",
+  "info_anagrafiche_numero_mobile",
   "luogo_lavoro_se_diverso_da_residenza",
   "provincia",
+  "permesso_di_soggiorno_allegati",
   "rapporto_di_lavoro_residenza",
   "rapporto_lavorativo_datore_lavoro_id",
   "rapporto_lavorativo_lavoratore_id",
+  "ricevuta_rinnovo_permesso_allegati",
+  "type_of_compilazione_form",
 ] satisfies string[]
 
 const RELATED_RECORDS_BATCH_SIZE = 100
@@ -401,6 +439,57 @@ async function fetchLavoratoriByIds(ids: string[]) {
   return results.flatMap((result) => result.rows as LavoratoreRecord[])
 }
 
+async function fetchAssunzioniByRapportoIds(ids: string[]) {
+  if (ids.length === 0) return [] as AssunzioneRecord[]
+
+  const results = await Promise.all(
+    chunkValues(ids, RELATED_RECORDS_BATCH_SIZE).flatMap((batch, index) => [
+      fetchAssunzioni({
+        select: ASSUNZIONI_RECORD_SELECT,
+        limit: batch.length,
+        offset: 0,
+        orderBy: [{ field: "created", ascending: false }],
+        filters: {
+          kind: "group",
+          id: `assunzioni-records-datore-${index}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `assunzioni-records-datore-id-${index}`,
+              field: "rapporto_lavorativo_datore_lavoro_id",
+              operator: "in",
+              value: batch.join(","),
+            },
+          ],
+        },
+      }),
+      fetchAssunzioni({
+        select: ASSUNZIONI_RECORD_SELECT,
+        limit: batch.length,
+        offset: 0,
+        orderBy: [{ field: "created", ascending: false }],
+        filters: {
+          kind: "group",
+          id: `assunzioni-records-lavoratore-${index}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `assunzioni-records-lavoratore-id-${index}`,
+              field: "rapporto_lavorativo_lavoratore_id",
+              operator: "in",
+              value: batch.join(","),
+            },
+          ],
+        },
+      }),
+    ])
+  )
+
+  return results.flatMap((result) => result.rows as AssunzioneRecord[])
+}
+
 async function fetchAssunzioniBoardData({
   deferredLoadedStageIds = new Set<string>(),
   onlyStageId,
@@ -438,7 +527,6 @@ async function fetchAssunzioniBoardData({
   const [
     processesResult,
     rapportiResult,
-    assunzioniResult,
     lookupResult,
   ] =
     await Promise.all([
@@ -455,12 +543,6 @@ async function fetchAssunzioniBoardData({
       orderBy: [{ field: "aggiornato_il", ascending: false }],
       filters: rapportiFilters,
     }),
-    fetchAssunzioni({
-      select: ASSUNZIONI_RECORD_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
     fetchLookupValues(),
   ])
 
@@ -472,9 +554,11 @@ async function fetchAssunzioniBoardData({
     ...processRows.map((process) => process.famiglia_id),
   ])
   const workerIds = compactUnique(rapportiRows.map((rapporto) => rapporto.lavoratore_id))
-  const [familiesRows, lavoratoriRows] = await Promise.all([
+  const rapportoIds = compactUnique(rapportiRows.map((rapporto) => rapporto.id))
+  const [familiesRows, lavoratoriRows, assunzioniRows] = await Promise.all([
     fetchFamiglieByIds(familyIds),
     fetchLavoratoriByIds(workerIds),
+    fetchAssunzioniByRapportoIds(rapportoIds),
   ])
   const richiesteAttivazioneByProcessId = await fetchRichiesteAttivazioneByProcessIds(
     compactUnique([
@@ -490,12 +574,12 @@ async function fetchAssunzioniBoardData({
     lavoratoriRows.map((worker) => [worker.id, worker] as const)
   )
   const assunzioniByDatoreRapportoId = new Map(
-    (assunzioniResult.rows as AssunzioneRecord[])
+    assunzioniRows
       .filter((record) => record.rapporto_lavorativo_datore_lavoro_id)
       .map((record) => [record.rapporto_lavorativo_datore_lavoro_id as string, record] as const)
   )
   const assunzioniByLavoratoreRapportoId = new Map(
-    (assunzioniResult.rows as AssunzioneRecord[])
+    assunzioniRows
       .filter((record) => record.rapporto_lavorativo_lavoratore_id)
       .map(
         (record) => [record.rapporto_lavorativo_lavoratore_id as string, record] as const

@@ -93,11 +93,14 @@ const PAYROLL_RAPPORTI_SELECT = [
   "codice_dipendente_webcolf",
   "cognome_nome_datore_proper",
   "nome_lavoratore_per_url",
+  "ore_a_settimana",
+  "data_inizio_rapporto",
+  "stato_servizio",
   "tipo_rapporto",
   "tipo_contratto",
 ] satisfies string[]
 
-const PAYROLL_FAMIGLIE_SELECT = ["id", "nome", "cognome"] satisfies string[]
+const PAYROLL_FAMIGLIE_SELECT = ["id", "nome", "cognome", "email", "customer_email"] satisfies string[]
 
 const PAYROLL_MESI_LAVORATI_SELECT = [
   "id",
@@ -331,21 +334,7 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
     orderBy: [{ field: "data_inizio", ascending: false }],
   })
   const monthIds = getMonthIdsForSelectedMonth(mesiCalendarioResult.rows, selectedMonth)
-  const [rapportiResult, famiglieResult, lookupResult] = await Promise.all([
-    fetchRapportiLavorativi({
-      select: PAYROLL_RAPPORTI_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
-    fetchFamiglie({
-      select: PAYROLL_FAMIGLIE_SELECT,
-      limit: 2000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
-    fetchLookupValues(),
-  ])
+  const lookupResult = await fetchLookupValues()
   const mesiLavoratiResult =
     monthIds.length > 0
       ? await fetchMesiLavorati({
@@ -357,6 +346,53 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
         })
       : { rows: [], total: 0, columns: [], groups: [] }
   const selectedRows = mesiLavoratiResult.rows
+  const rapportoIds = Array.from(
+    new Set(
+      selectedRows
+        .map((record) => normalizeRecordKey(record.rapporto_lavorativo_id))
+        .filter((value): value is string => Boolean(value))
+    )
+  )
+
+  const rapportiRows =
+    rapportoIds.length > 0
+      ? (
+          await Promise.all(
+            chunkValues(rapportoIds, 100).map((chunk) =>
+              fetchRapportiLavorativi({
+                select: PAYROLL_RAPPORTI_SELECT,
+                limit: 500,
+                offset: 0,
+                orderBy: [{ field: "aggiornato_il", ascending: false }],
+                filters: buildInFilter("id", chunk),
+              })
+            )
+          )
+        ).flatMap((result) => result.rows)
+      : []
+  const famigliaIds = Array.from(
+    new Set(
+      rapportiRows
+        .map((rapporto) => normalizeRecordKey(rapporto.famiglia_id))
+        .filter((value): value is string => Boolean(value))
+    )
+  )
+  const famiglieRows =
+    famigliaIds.length > 0
+      ? (
+          await Promise.all(
+            chunkValues(famigliaIds, 100).map((chunk) =>
+              fetchFamiglie({
+                select: PAYROLL_FAMIGLIE_SELECT,
+                limit: 500,
+                offset: 0,
+                orderBy: [{ field: "aggiornato_il", ascending: false }],
+                filters: buildInFilter("id", chunk),
+              })
+            )
+          )
+        ).flatMap((result) => result.rows)
+      : []
 
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
@@ -373,7 +409,7 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
       .filter(Boolean) as Array<readonly [string, MeseCalendarioRecord]>
   )
   const rapportoById = new Map(
-    rapportiResult.rows
+    rapportiRows
       .map((rapporto) => {
         const key = normalizeRecordKey(rapporto.id)
         return key ? ([key, rapporto] as const) : null
@@ -381,7 +417,7 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
       .filter(Boolean) as Array<readonly [string, RapportoLavorativoRecord]>
   )
   const famigliaById = new Map(
-    famiglieResult.rows
+    famiglieRows
       .map((famiglia) => {
         const key = normalizeRecordKey(famiglia.id)
         return key ? ([key, famiglia as FamigliaRecord] as const) : null

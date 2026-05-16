@@ -4,6 +4,7 @@ export type MinimalAttachment = {
   name: string
   path: string
   type: string
+  size?: number
 }
 
 function asTrimmedString(value: unknown) {
@@ -62,6 +63,7 @@ export function buildAttachmentPayload(
     name: file.name || "file",
     path,
     type: file.type || "application/octet-stream",
+    size: file.size,
   }
 }
 
@@ -90,6 +92,7 @@ export function normalizeAttachmentItem(
       asTrimmedString(source.type) ||
       asTrimmedString(source.content_type) ||
       "application/octet-stream",
+    size: typeof source.size === "number" && Number.isFinite(source.size) ? source.size : undefined,
   }
 }
 

@@ -14,6 +14,7 @@ type SupportedTable =
   | "lavoratori"
   | "indirizzi"
   | "mesi_lavorati"
+  | "presenze_mensili"
   | "rapporti_lavorativi"
   | "richieste_attivazione"
   | "ticket"
@@ -38,6 +39,7 @@ const SUPPORTED_TABLES = new Set<SupportedTable>([
   "lavoratori",
   "indirizzi",
   "mesi_lavorati",
+  "presenze_mensili",
   "rapporti_lavorativi",
   "richieste_attivazione",
   "ticket",
@@ -57,6 +59,7 @@ const PROTECTED_FIELDS_BY_TABLE: Record<SupportedTable, Set<string>> = {
   lavoratori: new Set(["id", "creato_il"]),
   indirizzi: new Set(["id", "creato_il"]),
   mesi_lavorati: new Set(["id", "creato_il"]),
+  presenze_mensili: new Set(["id", "creato_il"]),
   rapporti_lavorativi: new Set(["id", "creato_il"]),
   richieste_attivazione: new Set(["id", "creato_il"]),
   ticket: new Set(["id", "creato_il"]),
@@ -76,6 +79,7 @@ const AUTO_UPDATED_AT_FIELD: Record<SupportedTable, string> = {
   lavoratori: "aggiornato_il",
   indirizzi: "aggiornato_il",
   mesi_lavorati: "aggiornato_il",
+  presenze_mensili: "aggiornato_il",
   rapporti_lavorativi: "aggiornato_il",
   richieste_attivazione: "aggiornato_il",
   ticket: "aggiornato_il",

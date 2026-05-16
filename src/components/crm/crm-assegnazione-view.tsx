@@ -18,7 +18,10 @@ import { toast } from "sonner";
 
 import type { AssegnazioneCardData } from "@/hooks/use-crm-assegnazione";
 import { useCrmAssegnazione } from "@/hooks/use-crm-assegnazione";
-import { useOperatoriOptions } from "@/hooks/use-operatori-options";
+import {
+  type OperatoreOption,
+  useOperatoriOptions,
+} from "@/hooks/use-operatori-options";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,6 +66,23 @@ function getInitials(name: string) {
   if (parts.length === 0) return "-";
   if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
+
+function toAvatarRingClass(legacyClassName: string) {
+  return legacyClassName.replace(/^after:border-/, "ring-2 ring-");
+}
+
+function OperatorSelectOption({ operator }: { operator: OperatoreOption }) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <Avatar
+        size="sm"
+        fallback={operator.avatar}
+        className={toAvatarRingClass(operator.avatarBorderClassName)}
+      />
+      <span className="truncate">{operator.label}</span>
+    </span>
+  );
 }
 
 function formatBadgeLabel(value: string) {
@@ -316,7 +336,7 @@ function AssegnazioneSearchCard({
   assigneeId: AssigneeValue;
   assigneeLabel: string;
   assigneeAvatar: string;
-  assigneeOptions: Array<{ id: string; label: string }>;
+  assigneeOptions: OperatoreOption[];
   accentClassName: string;
   onAssigneeChange: (assigneeId: AssigneeValue) => void;
 }) {
@@ -390,7 +410,7 @@ function AssegnazioneSearchCard({
               <SelectItem value="none">Nessuno</SelectItem>
               {assigneeOptions.map((option) => (
                 <SelectItem key={option.id} value={option.id}>
-                  {option.label}
+                  <OperatorSelectOption operator={option} />
                 </SelectItem>
               ))}
             </SelectContent>
@@ -412,7 +432,7 @@ function AssegnazioneDetailSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   card: AssegnazioneCardData | null;
-  operatorOptions: Array<{ id: string; label: string }>;
+  operatorOptions: OperatoreOption[];
   onPatchCard: (patch: Record<string, unknown>) => Promise<void>;
   onOpenRicerca: (processId: string) => void;
 }) {
@@ -494,6 +514,10 @@ function AssegnazioneDetailSheet({
     ? (operatorOptions.find((op) => op.id === card.recruiterId)?.label ??
       "Sconosciuto")
     : null;
+  const selectedSchedulingOperator =
+    schedulingDraft.recruiterId && schedulingDraft.recruiterId !== "none"
+      ? operatorOptions.find((op) => op.id === schedulingDraft.recruiterId) ?? null
+      : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -666,13 +690,17 @@ function AssegnazioneDetailSheet({
                           }
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Seleziona recruiter" />
+                            {selectedSchedulingOperator ? (
+                              <OperatorSelectOption operator={selectedSchedulingOperator} />
+                            ) : (
+                              <SelectValue placeholder="Seleziona recruiter" />
+                            )}
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">Non assegnato</SelectItem>
                             {operatorOptions.map((option) => (
                               <SelectItem key={option.id} value={option.id}>
-                                {option.label}
+                                <OperatorSelectOption operator={option} />
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -882,6 +910,13 @@ export function CrmAssegnazioneView({
     }
     return map;
   }, [operatorOptions]);
+  const selectedAssigneeFilterOperator = React.useMemo(
+    () =>
+      assigneeFilter !== "all" && assigneeFilter !== "none"
+        ? operatorOptions.find((operator) => operator.id === assigneeFilter) ?? null
+        : null,
+    [assigneeFilter, operatorOptions],
+  );
 
   const compareByAssigneeName = React.useCallback(
     (first: AssegnazioneCardData, second: AssegnazioneCardData) => {
@@ -1080,15 +1115,21 @@ export function CrmAssegnazioneView({
             }
           >
             <SelectTrigger className="w-55">
-              <UsersIcon className="size-4" />
-              <SelectValue placeholder="Tutti i recruiter" />
+              {selectedAssigneeFilterOperator ? (
+                <OperatorSelectOption operator={selectedAssigneeFilterOperator} />
+              ) : (
+                <>
+                  <UsersIcon className="size-4" />
+                  <SelectValue placeholder="Tutti i recruiter" />
+                </>
+              )}
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tutti i recruiter</SelectItem>
               <SelectItem value="none">Non assegnato</SelectItem>
               {operatorOptions.map((operator) => (
                 <SelectItem key={operator.id} value={operator.id}>
-                  {operator.label}
+                  <OperatorSelectOption operator={operator} />
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1230,10 +1271,7 @@ export function CrmAssegnazioneView({
                           accentClassName={getDeadlineAccentClass(
                             card.deadlineMobile,
                           )}
-                          assigneeOptions={operatorOptions.map((option) => ({
-                            id: option.id,
-                            label: option.label,
-                          }))}
+                          assigneeOptions={operatorOptions}
                           onAssigneeChange={(nextAssigneeId) => {
                             void applyAssigneeChange(card, nextAssigneeId);
                           }}
@@ -1290,10 +1328,7 @@ export function CrmAssegnazioneView({
                           accentClassName={getDeadlineAccentClass(
                             card.deadlineMobile,
                           )}
-                          assigneeOptions={operatorOptions.map((option) => ({
-                            id: option.id,
-                            label: option.label,
-                          }))}
+                          assigneeOptions={operatorOptions}
                           onAssigneeChange={(nextAssigneeId) => {
                             void applyAssigneeChange(card, nextAssigneeId);
                           }}
@@ -1462,12 +1497,7 @@ export function CrmAssegnazioneView({
                                 accentClassName={getAssigneeAccentClass(
                                   assigneeId,
                                 )}
-                                assigneeOptions={operatorOptions.map(
-                                  (option) => ({
-                                    id: option.id,
-                                    label: option.label,
-                                  }),
-                                )}
+                                assigneeOptions={operatorOptions}
                                 onAssigneeChange={(nextAssigneeId) => {
                                   void applyAssigneeChange(
                                     card,
@@ -1492,10 +1522,7 @@ export function CrmAssegnazioneView({
         open={isSheetOpen}
         onOpenChange={setIsSheetOpen}
         card={selectedCardFromState}
-        operatorOptions={operatorOptions.map((operator) => ({
-          id: operator.id,
-          label: operator.label,
-        }))}
+        operatorOptions={operatorOptions}
         onPatchCard={async (patch) => {
           if (!selectedCardFromState?.id) return;
           await patchCard(selectedCardFromState.id, patch);

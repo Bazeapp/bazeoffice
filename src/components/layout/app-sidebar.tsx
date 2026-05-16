@@ -135,7 +135,7 @@ const sidebarCategoryGroups: SidebarCategoryGroup[] = [
         icon: CircleHelpIcon,
         children: [
           {
-            name: "Ticket colloqui",
+            name: "Ticket customer",
             href: "#",
             mainSection: "customer_support_customer_ticket",
           },

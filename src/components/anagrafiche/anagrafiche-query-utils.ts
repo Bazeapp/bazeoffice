@@ -56,6 +56,10 @@ function readBetweenValue(value: unknown) {
   return { from, to }
 }
 
+function serializeFilterList(values: string[]) {
+  return JSON.stringify(values)
+}
+
 function translateRuleToCondition(
   rule: QueryBuilderRule,
   fieldsByName: Map<string, AnagraficheQueryBuilderField>
@@ -69,7 +73,7 @@ function translateRuleToCondition(
   if (!field || !operator || !fieldMeta) return null
 
   const rawValue = ruleRecord.value
-  const normalizedValue = Array.isArray(rawValue) ? rawValue.join(",") : String(rawValue ?? "")
+  const normalizedValue = Array.isArray(rawValue) ? serializeFilterList(rawValue.map(String)) : String(rawValue ?? "")
   const betweenValue = operator === "between" ? readBetweenValue(rawValue) : null
 
   return {

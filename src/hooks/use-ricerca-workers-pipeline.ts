@@ -18,10 +18,9 @@ import {
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils"
 import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
-import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import {
-  fetchIndirizzi,
   fetchFamiglie,
+  fetchIndirizzi,
   fetchLavoratori,
   fetchLookupValues,
   fetchProcessiMatching,
@@ -75,11 +74,41 @@ type UseRicercaWorkersPipelineState = {
   refresh: () => void
 }
 
+const EMPTY_RECRUITER_LABELS_BY_ID = new Map<string, string>()
 const SELEZIONI_PAGE_SIZE = 500
 const WORKER_BATCH_SIZE = 250
 const ADDRESS_BATCH_SIZE = 120
+const RELATED_WORKER_BATCH_SIZE = 50
 const RELATED_PROCESS_BATCH_SIZE = 150
 const RELATED_FAMILY_BATCH_SIZE = 150
+const PIPELINE_SELECTIONS_SELECT = [
+  "id",
+  "lavoratore_id",
+  "stato_selezione",
+  "punteggio",
+  "travel_time_tra_cap",
+  "data_ora_colloquio_famiglia_lavoratore",
+  "data_ora_fine_colloquio_famiglia_lavoratore",
+  "aggiornato_il",
+] satisfies string[]
+const PIPELINE_WORKERS_SELECT = [
+  "id",
+  "nome",
+  "cognome",
+  "foto",
+  "immagine",
+  "avatar_url",
+  "cap",
+  "telefono",
+  "check_blacklist",
+  "tipo_lavoro_domestico",
+  "tipo_rapporto_lavorativo",
+  "data_di_nascita",
+  "anni_esperienza_colf",
+  "anni_esperienza_babysitter",
+  "stato_lavoratore",
+  "disponibilita",
+] satisfies string[]
 const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
   "selezionato",
   "inviato al cliente",
@@ -110,7 +139,6 @@ const OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS = new Set([
   "prova in corso",
   "match",
 ])
-
 function asRowArray(input: unknown): GenericRow[] {
   if (!Array.isArray(input)) return []
   return input.filter(
@@ -322,6 +350,431 @@ function resolveWorkerAddress(
   )
 }
 
+function hasActiveWorkSituation(selection: GenericRow) {
+  return (
+    normalizeStatusToken(toStringValue(selection.stato_situazione_lavorativa)) !==
+    DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
+  )
+}
+
+function isDirectInvolvementSelection(selection: GenericRow, processRow: GenericRow) {
+  const processStatusToken = normalizeStatusToken(toStringValue(processRow.stato_res))
+
+  return (
+    hasActiveWorkSituation(selection) &&
+    DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS.has(
+      normalizeStatusToken(toStringValue(selection.stato_selezione))
+    ) &&
+    !DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS.has(processStatusToken)
+  )
+}
+
+function isOtherSearchSelection(selection: GenericRow, processRow: GenericRow) {
+  const processStatusToken = normalizeStatusToken(toStringValue(processRow.stato_res))
+  const selectionStatusToken = normalizeStatusToken(
+    toStringValue(selection.stato_selezione)
+  )
+
+  const matchesGroupB =
+    OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
+    OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS.has(selectionStatusToken)
+
+  return hasActiveWorkSituation(selection) && matchesGroupB
+}
+
+function isPotentialConflictingSearch(selection: GenericRow, processRow: GenericRow) {
+  return (
+    isDirectInvolvementSelection(selection, processRow) ||
+    isOtherSearchSelection(selection, processRow)
+  )
+}
+
+function formatRelatedFamilyName(row: GenericRow | null | undefined) {
+  const familyName = [
+    toStringValue(row?.nome),
+    toStringValue(row?.cognome),
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .trim()
+
+  return familyName || "Famiglia senza nome"
+}
+
+function formatRelatedSearchLabel(processRow: GenericRow) {
+  const searchNumber = toStringValue(processRow.numero_ricerca_attivata)
+  if (searchNumber) return `Ricerca #${searchNumber}`
+
+  const processId = toStringValue(processRow.id)
+  return processId ? `Ricerca ${processId.slice(0, 8)}` : "Ricerca"
+}
+
+function formatRelatedZona(processRow: GenericRow) {
+  const parts = [
+    toStringValue(processRow.indirizzo_prova_via),
+    toStringValue(processRow.indirizzo_prova_comune),
+    toStringValue(processRow.indirizzo_prova_provincia),
+    toStringValue(processRow.indirizzo_prova_cap),
+    toStringValue(processRow.indirizzo_prova_note),
+  ].filter(
+    (value, index, values): value is string =>
+      Boolean(value) && values.indexOf(value) === index
+  )
+
+  return parts.join(" • ")
+}
+
+function getDotColorClassName(color: string | null | undefined) {
+  switch ((color ?? "").toLowerCase()) {
+    case "red":
+      return "bg-red-500"
+    case "rose":
+      return "bg-rose-500"
+    case "orange":
+      return "bg-orange-500"
+    case "amber":
+      return "bg-amber-500"
+    case "yellow":
+      return "bg-yellow-500"
+    case "lime":
+      return "bg-lime-500"
+    case "green":
+      return "bg-green-500"
+    case "emerald":
+      return "bg-emerald-500"
+    case "teal":
+      return "bg-teal-500"
+    case "cyan":
+      return "bg-cyan-500"
+    case "sky":
+      return "bg-sky-500"
+    case "blue":
+      return "bg-blue-500"
+    case "indigo":
+      return "bg-indigo-500"
+    case "violet":
+      return "bg-violet-500"
+    case "purple":
+      return "bg-purple-500"
+    case "fuchsia":
+      return "bg-fuchsia-500"
+    case "pink":
+      return "bg-pink-500"
+    case "slate":
+    case "gray":
+    case "zinc":
+    case "neutral":
+    case "stone":
+      return "bg-zinc-500"
+    default:
+      return "bg-sky-500"
+  }
+}
+
+function resolveLookupColorByStatusToken(
+  lookupColors: Map<string, string>,
+  domain: string,
+  value: string | null | undefined
+) {
+  const direct = resolveLookupColor(lookupColors, domain, value ?? null)
+  if (direct) return direct
+
+  const normalizedValue = normalizeStatusToken(value)
+  if (!normalizedValue) return null
+
+  for (const [key, color] of lookupColors.entries()) {
+    if (!key.startsWith(`${domain}:`)) continue
+    const rawValue = key.slice(domain.length + 1)
+    if (normalizeStatusToken(rawValue) === normalizedValue) {
+      return color
+    }
+  }
+
+  return null
+}
+
+async function fetchSelectionsForWorkers(workerIds: string[]) {
+  if (workerIds.length === 0) return []
+
+  const rows: GenericRow[] = []
+
+  for (let index = 0; index < workerIds.length; index += RELATED_WORKER_BATCH_SIZE) {
+    const batch = workerIds.slice(index, index + RELATED_WORKER_BATCH_SIZE)
+    let offset = 0
+
+    while (true) {
+      const result = await fetchSelezioniLavoratori({
+        select: [
+          "id",
+          "lavoratore_id",
+          "processo_matching_id",
+          "stato_selezione",
+          "stato_situazione_lavorativa",
+          "note_selezione",
+          "aggiornato_il",
+        ],
+        limit: SELEZIONI_PAGE_SIZE,
+        offset,
+        orderBy: [{ field: "aggiornato_il", ascending: false }],
+        filters: {
+          kind: "group",
+          id: `pipeline-related-selections-${index}-${offset}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `pipeline-related-worker-ids-${index}-${offset}`,
+              field: "lavoratore_id",
+              operator: "in",
+              value: batch.join(","),
+            },
+          ],
+        },
+      }).catch((error) => {
+        const message = error instanceof Error ? error.message : String(error)
+        throw new Error(`selezioni_lavoratori correlate(batch ${index}): ${message}`)
+      })
+
+      const pageRows = asRowArray(result.rows)
+      rows.push(...pageRows)
+
+      if (pageRows.length < SELEZIONI_PAGE_SIZE) break
+      offset += SELEZIONI_PAGE_SIZE
+    }
+  }
+
+  return rows
+}
+
+async function fetchRelatedProcessesByIds(processIds: string[]) {
+  if (processIds.length === 0) return []
+
+  const rows: GenericRow[] = []
+
+  for (
+    let index = 0;
+    index < processIds.length;
+    index += RELATED_PROCESS_BATCH_SIZE
+  ) {
+    const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE)
+    const result = await fetchProcessiMatching({
+      select: [
+        "id",
+        "famiglia_id",
+        "numero_ricerca_attivata",
+        "stato_res",
+        "recruiter_ricerca_e_selezione_id",
+        "orario_di_lavoro",
+        "indirizzo_prova_via",
+        "indirizzo_prova_comune",
+        "indirizzo_prova_provincia",
+        "indirizzo_prova_cap",
+        "indirizzo_prova_note",
+      ],
+      limit: batch.length,
+      offset: 0,
+      filters: {
+        kind: "group",
+        id: `pipeline-related-processes-${index}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `pipeline-related-process-ids-${index}`,
+            field: "id",
+            operator: "in",
+            value: batch.join(","),
+          },
+        ],
+      },
+    }).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`processi_matching correlati(batch ${index}): ${message}`)
+    })
+
+    rows.push(...asRowArray(result.rows))
+  }
+
+  return rows
+}
+
+async function fetchRelatedFamiliesByIds(familyIds: string[]) {
+  if (familyIds.length === 0) return []
+
+  const rows: GenericRow[] = []
+
+  for (
+    let index = 0;
+    index < familyIds.length;
+    index += RELATED_FAMILY_BATCH_SIZE
+  ) {
+    const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE)
+    const result = await fetchFamiglie({
+      select: ["id", "nome", "cognome"],
+      limit: batch.length,
+      offset: 0,
+      filters: {
+        kind: "group",
+        id: `pipeline-related-families-${index}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `pipeline-related-family-ids-${index}`,
+            field: "id",
+            operator: "in",
+            value: batch.join(","),
+          },
+        ],
+      },
+    }).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`famiglie correlate(batch ${index}): ${message}`)
+    })
+
+    rows.push(...asRowArray(result.rows))
+  }
+
+  return rows
+}
+
+async function fetchRelatedActiveSelectionsByWorkerIds({
+  workerIds,
+  currentProcessId,
+  lookupColorsByDomain,
+  recruiterLabelsById,
+}: {
+  workerIds: string[]
+  currentProcessId: string
+  lookupColorsByDomain: Map<string, string>
+  recruiterLabelsById: Map<string, string>
+}) {
+  const selections = (await fetchSelectionsForWorkers(workerIds)).filter((selection) => {
+    const processId = toStringValue(selection.processo_matching_id)
+    return Boolean(processId) && processId !== currentProcessId
+  })
+
+  const processIds = Array.from(
+    new Set(
+      selections
+        .map((selection) => toStringValue(selection.processo_matching_id))
+        .filter((value): value is string => Boolean(value))
+    )
+  )
+  const processRows = await fetchRelatedProcessesByIds(processIds)
+  const processRowsById = new Map(
+    processRows
+      .map((row) => {
+        const rowId = toStringValue(row.id)
+        if (!rowId) return null
+        return [rowId, row] as const
+      })
+      .filter((entry): entry is readonly [string, GenericRow] => Boolean(entry))
+  )
+  const familyIds = Array.from(
+    new Set(
+      processRows
+        .map((row) => toStringValue(row.famiglia_id))
+        .filter((value): value is string => Boolean(value))
+    )
+  )
+  const familyRows = await fetchRelatedFamiliesByIds(familyIds)
+  const familyRowsById = new Map(
+    familyRows
+      .map((row) => {
+        const rowId = toStringValue(row.id)
+        if (!rowId) return null
+        return [rowId, row] as const
+      })
+      .filter((entry): entry is readonly [string, GenericRow] => Boolean(entry))
+  )
+  const selectionsByWorkerId = new Map<string, GenericRow[]>()
+
+  for (const selection of selections) {
+    const workerId = toStringValue(selection.lavoratore_id)
+    if (!workerId) continue
+    const current = selectionsByWorkerId.get(workerId) ?? []
+    current.push(selection)
+    selectionsByWorkerId.set(workerId, current)
+  }
+
+  const relatedSelectionsByWorkerId = new Map<
+    string,
+    NonNullable<LavoratoreListItem["otherActiveSelections"]>
+  >()
+
+  for (const workerId of workerIds) {
+    const workerSelections = selectionsByWorkerId.get(workerId) ?? []
+    const details: NonNullable<LavoratoreListItem["otherActiveSelections"]>["details"] = []
+    const dots: NonNullable<LavoratoreListItem["otherActiveSelections"]>["dots"] = []
+    const seenProcesses = new Set<string>()
+
+    for (const selection of workerSelections) {
+      const processId = toStringValue(selection.processo_matching_id)
+      if (!processId || seenProcesses.has(processId)) continue
+
+      const processRow = processRowsById.get(processId)
+      if (!processRow || !isPotentialConflictingSearch(selection, processRow)) {
+        continue
+      }
+
+      const statoSelezione = toStringValue(selection.stato_selezione) ?? "-"
+      const statoRicerca = toStringValue(processRow.stato_res) ?? "-"
+      const selectionColor =
+        resolveLookupColorByStatusToken(
+          lookupColorsByDomain,
+          "selezioni_lavoratori.stato_selezione",
+          statoSelezione
+        ) ??
+        resolveLookupColorByStatusToken(
+          lookupColorsByDomain,
+          "lavoratori.stato_selezione",
+          statoSelezione
+        )
+      const processColor = resolveLookupColorByStatusToken(
+        lookupColorsByDomain,
+        "processi_matching.stato_res",
+        statoRicerca
+      )
+      const recruiterId = toStringValue(processRow.recruiter_ricerca_e_selezione_id)
+      const familyRow = familyRowsById.get(toStringValue(processRow.famiglia_id) ?? "")
+
+      details.push({
+        id: processId,
+        familyName: formatRelatedFamilyName(familyRow),
+        ricercaLabel: formatRelatedSearchLabel(processRow),
+        recruiterLabel: recruiterId ? recruiterLabelsById.get(recruiterId) ?? "" : "",
+        statoSelezione,
+        statoSelezioneColor: selectionColor,
+        statoRicerca,
+        statoRicercaColor: processColor,
+        orarioDiLavoro: toStringValue(processRow.orario_di_lavoro) ?? "",
+        zona: formatRelatedZona(processRow),
+        appunti: toStringValue(selection.note_selezione) ?? "",
+      })
+
+      if (dots.length < 4) {
+        dots.push({
+          key: `${processId}-${statoSelezione}`,
+          colorClassName: getDotColorClassName(selectionColor),
+          label: statoSelezione,
+        })
+      }
+      seenProcesses.add(processId)
+    }
+
+    if (details.length > 0) {
+      relatedSelectionsByWorkerId.set(workerId, {
+        count: details.length,
+        dots,
+        details,
+      })
+    }
+  }
+
+  return relatedSelectionsByWorkerId
+}
+
 function buildWorkerListItem(
   worker: GenericRow,
   lookupColorsByDomain: Map<string, string>,
@@ -396,240 +849,6 @@ function buildWorkerListItem(
   }
 }
 
-function formatRelatedFamilyName(row: Record<string, unknown> | null | undefined) {
-  const familyName = [toStringValue(row?.nome), toStringValue(row?.cognome)]
-    .filter((value): value is string => Boolean(value))
-    .join(" ")
-    .trim()
-
-  return familyName || "Famiglia senza nome"
-}
-
-function formatRelatedSearchLabel(processRow: Record<string, unknown>) {
-  const searchNumber = toStringValue(processRow.numero_ricerca_attivata)
-  if (searchNumber) return `Ricerca #${searchNumber}`
-
-  const relatedProcessId = toStringValue(processRow.id)
-  return relatedProcessId ? `Ricerca ${relatedProcessId.slice(0, 8)}` : "Ricerca"
-}
-
-function formatRelatedZona(processRow: Record<string, unknown>) {
-  const parts = [
-    toStringValue(processRow.indirizzo_prova_via),
-    toStringValue(processRow.indirizzo_prova_comune),
-    toStringValue(processRow.indirizzo_prova_provincia),
-    toStringValue(processRow.indirizzo_prova_cap),
-    toStringValue(processRow.indirizzo_prova_note),
-  ].filter(
-    (value, index, values): value is string =>
-      Boolean(value) && values.indexOf(value) === index
-  )
-
-  return parts.join(" • ")
-}
-
-function resolveLookupColorByStatusToken(
-  lookupColors: Map<string, string>,
-  domain: string,
-  value: string | null | undefined
-) {
-  const direct = resolveLookupColor(lookupColors, domain, value ?? null)
-  if (direct) return direct
-
-  const normalizedValue = normalizeStatusToken(value)
-  if (!normalizedValue) return null
-
-  for (const [key, color] of lookupColors.entries()) {
-    if (!key.startsWith(`${domain}:`)) continue
-    const rawValue = key.slice(domain.length + 1)
-    if (normalizeStatusToken(rawValue) === normalizedValue) {
-      return color
-    }
-  }
-
-  return null
-}
-
-function hasActiveWorkSituation(selection: Record<string, unknown>) {
-  return (
-    normalizeStatusToken(toStringValue(selection.stato_situazione_lavorativa)) !==
-    DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
-  )
-}
-
-function isDirectInvolvementSelection(
-  selection: Record<string, unknown>,
-  processRow: Record<string, unknown>
-) {
-  const processStatusToken = normalizeStatusToken(toStringValue(processRow.stato_res))
-
-  return (
-    hasActiveWorkSituation(selection) &&
-    DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS.has(
-      normalizeStatusToken(toStringValue(selection.stato_selezione))
-    ) &&
-    !DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS.has(processStatusToken)
-  )
-}
-
-function isOtherSearchSelection(
-  selection: Record<string, unknown>,
-  processRow: Record<string, unknown>
-) {
-  const processStatusToken = normalizeStatusToken(toStringValue(processRow.stato_res))
-  const selectionStatusToken = normalizeStatusToken(toStringValue(selection.stato_selezione))
-
-  const matchesGroupB =
-    OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
-    OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS.has(selectionStatusToken)
-
-  return hasActiveWorkSituation(selection) && matchesGroupB
-}
-
-function getDotColorClassName(color: string | null | undefined) {
-  switch ((color ?? "").toLowerCase()) {
-    case "red":
-      return "bg-red-500"
-    case "rose":
-      return "bg-rose-500"
-    case "orange":
-      return "bg-orange-500"
-    case "amber":
-      return "bg-amber-500"
-    case "yellow":
-      return "bg-yellow-500"
-    case "lime":
-      return "bg-lime-500"
-    case "green":
-      return "bg-green-500"
-    case "emerald":
-      return "bg-emerald-500"
-    case "teal":
-      return "bg-teal-500"
-    case "cyan":
-      return "bg-cyan-500"
-    case "sky":
-      return "bg-sky-500"
-    case "blue":
-      return "bg-blue-500"
-    case "indigo":
-      return "bg-indigo-500"
-    case "violet":
-      return "bg-violet-500"
-    case "purple":
-      return "bg-purple-500"
-    case "fuchsia":
-      return "bg-fuchsia-500"
-    case "pink":
-      return "bg-pink-500"
-    case "slate":
-    case "gray":
-    case "zinc":
-    case "neutral":
-    case "stone":
-      return "bg-zinc-500"
-    default:
-      return "bg-sky-500"
-  }
-}
-
-async function fetchSelectionsForWorkers(workerIds: string[]) {
-  if (workerIds.length === 0) return []
-
-  const rows: GenericRow[] = []
-
-  for (let index = 0; index < workerIds.length; index += WORKER_BATCH_SIZE) {
-    const batch = workerIds.slice(index, index + WORKER_BATCH_SIZE)
-    const result = await fetchSelezioniLavoratori({
-      limit: SELEZIONI_PAGE_SIZE,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: `ricerca-worker-related-selections-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `ricerca-worker-related-worker-ids-${index}`,
-            field: "lavoratore_id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    })
-
-    rows.push(...asRowArray(result.rows))
-  }
-
-  return rows
-}
-
-async function fetchProcessesByIds(processIds: string[]) {
-  if (processIds.length === 0) return []
-
-  const rows: GenericRow[] = []
-
-  for (let index = 0; index < processIds.length; index += RELATED_PROCESS_BATCH_SIZE) {
-    const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE)
-    const result = await fetchProcessiMatching({
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `ricerca-worker-related-processes-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `ricerca-worker-related-process-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    })
-
-    rows.push(...asRowArray(result.rows))
-  }
-
-  return rows
-}
-
-async function fetchFamiliesByIds(familyIds: string[]) {
-  if (familyIds.length === 0) return []
-
-  const rows: GenericRow[] = []
-
-  for (let index = 0; index < familyIds.length; index += RELATED_FAMILY_BATCH_SIZE) {
-    const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE)
-    const result = await fetchFamiglie({
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `ricerca-worker-related-families-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `ricerca-worker-related-family-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    })
-
-    rows.push(...asRowArray(result.rows))
-  }
-
-  return rows
-}
-
 function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
   const stageRows = rows
     .filter(
@@ -676,6 +895,7 @@ async function fetchAllSelectionsForProcess(processId: string) {
 
   while (true) {
     const result = await fetchSelezioniLavoratori({
+      select: PIPELINE_SELECTIONS_SELECT,
       limit: SELEZIONI_PAGE_SIZE,
       offset,
       orderBy: [{ field: "aggiornato_il", ascending: false }],
@@ -716,6 +936,7 @@ async function fetchWorkersByIds(workerIds: string[]) {
   for (let index = 0; index < workerIds.length; index += WORKER_BATCH_SIZE) {
     const batch = workerIds.slice(index, index + WORKER_BATCH_SIZE)
     const result = await fetchLavoratori({
+      select: PIPELINE_WORKERS_SELECT,
       limit: batch.length,
       offset: 0,
       filters: {
@@ -824,12 +1045,20 @@ async function fetchWorkersPipelineData(
     )
   )
 
-  const [workerRows, addressesByWorkerId] = await Promise.all([
+  const [
+    workerRows,
+    addressesByWorkerId,
+    relatedSelectionsByWorkerId,
+  ] = await Promise.all([
     fetchWorkersByIds(workerIds),
     fetchWorkerAddressesByIds(workerIds),
+    fetchRelatedActiveSelectionsByWorkerIds({
+      workerIds,
+      currentProcessId: processId,
+      lookupColorsByDomain,
+      recruiterLabelsById,
+    }).catch(() => new Map<string, NonNullable<LavoratoreListItem["otherActiveSelections"]>>()),
   ])
-  const allSelectionsForWorkers = await fetchSelectionsForWorkers(workerIds)
-
   const stageMetadata = buildStageMetadata(lookupRows)
   const stageDefinitions = stageMetadata.definitions
 
@@ -838,125 +1067,6 @@ async function fetchWorkersPipelineData(
     const workerId = toStringValue(worker.id)
     if (!workerId) continue
     workerById.set(workerId, worker)
-  }
-
-  const relatedProcessIds = Array.from(
-    new Set(
-      allSelectionsForWorkers
-        .map((selection) => toStringValue(selection.processo_matching_id))
-        .filter((value): value is string => Boolean(value) && value !== processId)
-    )
-  )
-  const relatedProcessRows = await fetchProcessesByIds(relatedProcessIds)
-  const relatedProcessRowsById = new Map(
-    relatedProcessRows
-      .map((row) => {
-        const rowId = toStringValue(row.id)
-        if (!rowId) return null
-        return [rowId, row] as const
-      })
-      .filter((entry): entry is readonly [string, GenericRow] => Boolean(entry))
-  )
-  const relatedFamilyIds = Array.from(
-    new Set(
-      relatedProcessRows
-        .map((row) => toStringValue(row.famiglia_id))
-        .filter((value): value is string => Boolean(value))
-    )
-  )
-  const relatedFamilyRows = await fetchFamiliesByIds(relatedFamilyIds)
-  const relatedFamilyRowsById = new Map(
-    relatedFamilyRows
-      .map((row) => {
-        const rowId = toStringValue(row.id)
-        if (!rowId) return null
-        return [rowId, row] as const
-      })
-      .filter((entry): entry is readonly [string, GenericRow] => Boolean(entry))
-  )
-  const relatedSelectionsByWorkerId = new Map<
-    string,
-    NonNullable<LavoratoreListItem["otherActiveSelections"]>
-  >()
-
-  for (const workerId of workerIds) {
-    const selections = allSelectionsForWorkers.filter(
-      (selection) =>
-        toStringValue(selection.lavoratore_id) === workerId &&
-        toStringValue(selection.processo_matching_id) !== processId
-    )
-
-    const details: NonNullable<LavoratoreListItem["otherActiveSelections"]>["details"] = []
-    const dots: NonNullable<LavoratoreListItem["otherActiveSelections"]>["dots"] = []
-    const seenProcesses = new Set<string>()
-
-    for (const selection of selections) {
-      const relatedProcessId = toStringValue(selection.processo_matching_id)
-      if (!relatedProcessId || seenProcesses.has(relatedProcessId)) continue
-
-      const processRow = relatedProcessRowsById.get(relatedProcessId)
-      if (!processRow) continue
-
-      if (
-        !isDirectInvolvementSelection(selection, processRow) &&
-        !isOtherSearchSelection(selection, processRow)
-      ) {
-        continue
-      }
-
-      const familyRow = relatedFamilyRowsById.get(toStringValue(processRow.famiglia_id) ?? "")
-      const familyName = formatRelatedFamilyName(familyRow)
-      const ricercaLabel = formatRelatedSearchLabel(processRow)
-      const statoSelezione = toStringValue(selection.stato_selezione) ?? "-"
-      const statoRicerca = toStringValue(processRow.stato_res) ?? "-"
-      const recruiterId = toStringValue(processRow.recruiter_ricerca_e_selezione_id)
-      const selectionColor =
-        resolveLookupColorByStatusToken(
-          lookupColorsByDomain,
-          "selezioni_lavoratori.stato_selezione",
-          statoSelezione
-        ) ??
-        resolveLookupColorByStatusToken(
-          lookupColorsByDomain,
-          "lavoratori.stato_selezione",
-          statoSelezione
-        )
-      const processColor = resolveLookupColorByStatusToken(
-        lookupColorsByDomain,
-        "processi_matching.stato_res",
-        statoRicerca
-      )
-
-      details.push({
-        id: relatedProcessId,
-        familyName,
-        ricercaLabel,
-        recruiterLabel: recruiterId ? recruiterLabelsById.get(recruiterId) ?? "" : "",
-        statoSelezione,
-        statoSelezioneColor: selectionColor,
-        statoRicerca,
-        statoRicercaColor: processColor,
-        orarioDiLavoro: toStringValue(processRow.orario_di_lavoro) ?? "",
-        zona: formatRelatedZona(processRow),
-        appunti: toStringValue(selection.note_selezione) ?? "",
-      })
-      if (dots.length < 4) {
-        dots.push({
-          key: `${relatedProcessId}-${statoSelezione}`,
-          colorClassName: getDotColorClassName(selectionColor),
-          label: statoSelezione,
-        })
-      }
-      seenProcesses.add(relatedProcessId)
-    }
-
-    if (details.length > 0) {
-      relatedSelectionsByWorkerId.set(workerId, {
-        count: details.length,
-        dots,
-        details,
-      })
-    }
   }
 
   const cardsByStageId = new Map<string, RicercaWorkerSelectionCard[]>()
@@ -1008,7 +1118,7 @@ async function fetchWorkersPipelineData(
           isQualified: false,
           isIdoneo: false,
           isCertificato: false,
-          otherActiveSelections: null,
+          otherActiveSelections: relatedSelectionsByWorkerId.get(workerId) ?? null,
         }
 
     const card: RicercaWorkerSelectionCard = {
@@ -1168,12 +1278,9 @@ async function fetchWorkersPipelineData(
 }
 
 export function useRicercaWorkersPipeline(
-  processId: string
+  processId: string,
+  recruiterLabelsById: Map<string, string> = EMPTY_RECRUITER_LABELS_BY_ID
 ): UseRicercaWorkersPipelineState {
-  const { options: recruiterOptions } = useOperatoriOptions({
-    role: "recruiter",
-    activeOnly: true,
-  })
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [columns, setColumns] = React.useState<RicercaWorkerSelectionColumn[]>([])
@@ -1181,10 +1288,6 @@ export function useRicercaWorkersPipeline(
   const refresh = React.useCallback(() => {
     setRefreshTick((current) => current + 1)
   }, [])
-  const recruiterLabelsById = React.useMemo(
-    () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
-    [recruiterOptions]
-  )
 
   const moveCard = React.useCallback(
     async (selectionId: string, targetStatusId: string) => {

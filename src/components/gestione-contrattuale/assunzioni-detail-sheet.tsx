@@ -14,7 +14,7 @@ import {
   UsersIcon,
 } from "lucide-react"
 
-import type { AssunzioniBoardCardData } from "@/hooks/use-assunzioni-board"
+import type { AssunzioneRecord, AssunzioniBoardCardData } from "@/hooks/use-assunzioni-board"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
@@ -25,8 +25,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
-import { createRecord, fetchLookupValues, updateRecord } from "@/lib/anagrafiche-api"
+import {
+  createRecord,
+  fetchAssunzioni,
+  fetchDocumentiLavoratoriByWorker,
+  fetchLookupValues,
+  updateRecord,
+} from "@/lib/anagrafiche-api"
 import { cn } from "@/lib/utils"
+import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "-"
@@ -50,6 +57,39 @@ const SCONTO_APPLICATO_OPTIONS: LookupOption[] = [
   { value: "prova_gratuita", label: "prova_gratuita" },
   { value: "100€", label: "100€" },
 ]
+
+const ASSUNZIONE_DETAIL_SELECT = [
+  "id",
+  "civico_se_diverso_residenza",
+  "codice_fiscale_allegati",
+  "comune_se_diverso_residenza",
+  "dati_bancari_lavoratore",
+  "documento_identita_allegati",
+  "documento_identita_numero",
+  "documento_identita_scadenza",
+  "documento_identita_tipo",
+  "info_anagrafiche_cap",
+  "info_anagrafiche_cittadidanza",
+  "info_anagrafiche_civico",
+  "info_anagrafiche_codice_fiscale",
+  "info_anagrafiche_cognome",
+  "info_anagrafiche_data_di_nascita",
+  "info_anagrafiche_email",
+  "info_anagrafiche_indirizzo",
+  "info_anagrafiche_localita",
+  "info_anagrafiche_luogo_di_nascita",
+  "info_anagrafiche_nome",
+  "info_anagrafiche_numero_fisso",
+  "info_anagrafiche_numero_mobile",
+  "luogo_lavoro_se_diverso_da_residenza",
+  "provincia",
+  "permesso_di_soggiorno_allegati",
+  "rapporto_di_lavoro_residenza",
+  "rapporto_lavorativo_datore_lavoro_id",
+  "rapporto_lavorativo_lavoratore_id",
+  "ricevuta_rinnovo_permesso_allegati",
+  "type_of_compilazione_form",
+] satisfies string[]
 
 function SingleSelectField({
   value,
@@ -117,6 +157,32 @@ function buildLookupOptions(
     return [{ value: fallbackValue, label: fallbackValue }]
   }
   return []
+}
+
+function hasAssunzioneCoreDetails(assunzione: AssunzioneRecord | null | undefined) {
+  return Boolean(
+    assunzione?.info_anagrafiche_codice_fiscale ||
+      assunzione?.info_anagrafiche_data_di_nascita ||
+      assunzione?.info_anagrafiche_luogo_di_nascita ||
+      assunzione?.info_anagrafiche_indirizzo ||
+      assunzione?.info_anagrafiche_cap ||
+      assunzione?.documento_identita_numero ||
+      assunzione?.dati_bancari_lavoratore
+  )
+}
+
+function pickDocumentAttachment(
+  documents: DocumentoLavoratoreRecord[],
+  fields: Array<keyof DocumentoLavoratoreRecord>
+) {
+  for (const document of documents) {
+    for (const field of fields) {
+      const value = document[field]
+      if (value) return value
+    }
+  }
+
+  return null
 }
 
 function EditableField({
@@ -437,32 +503,33 @@ function DatoreDetail({
 }) {
   const rapporto = card.rapporto
   const famiglia = card.famiglia
+  const assunzione = card.assunzione
   const makeDraft = React.useCallback(
     () => ({
       appuntiExtra: "",
       tipoUtente: "DATORE LAVORO",
-      nome: famiglia?.nome ?? card.nomeFamiglia.split(" ")[0] ?? "",
-      cognome: famiglia?.cognome ?? card.nomeFamiglia.split(" ").slice(1).join(" ") ?? "",
-      codiceFiscale: "",
-      cittadinanza: "Italiana",
-      email: famiglia?.email ?? "",
-      cellulare: famiglia?.telefono ?? "",
-      telefonoFisso: "",
-      dataNascita: "",
-      luogoNascita: "",
-      indirizzoResidenza: "",
-      civico: "",
-      localita: "",
-      cap: "",
+      nome: assunzione?.info_anagrafiche_nome ?? famiglia?.nome ?? card.nomeFamiglia.split(" ")[0] ?? "",
+      cognome: assunzione?.info_anagrafiche_cognome ?? famiglia?.cognome ?? card.nomeFamiglia.split(" ").slice(1).join(" ") ?? "",
+      codiceFiscale: assunzione?.info_anagrafiche_codice_fiscale ?? "",
+      cittadinanza: assunzione?.info_anagrafiche_cittadidanza ?? "Italiana",
+      email: assunzione?.info_anagrafiche_email ?? famiglia?.email ?? "",
+      cellulare: assunzione?.info_anagrafiche_numero_mobile ?? famiglia?.telefono ?? "",
+      telefonoFisso: assunzione?.info_anagrafiche_numero_fisso ?? "",
+      dataNascita: assunzione?.info_anagrafiche_data_di_nascita ?? "",
+      luogoNascita: assunzione?.info_anagrafiche_luogo_di_nascita ?? "",
+      indirizzoResidenza: assunzione?.info_anagrafiche_indirizzo ?? "",
+      civico: assunzione?.info_anagrafiche_civico ?? "",
+      localita: assunzione?.info_anagrafiche_localita ?? "",
+      cap: assunzione?.info_anagrafiche_cap ?? "",
       rapportoCorrispondeResidenza:
-        card.assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
-      luogoLavoroIndirizzo: card.assunzione?.luogo_lavoro_se_diverso_da_residenza ?? "",
-      luogoLavoroCivico: card.assunzione?.civico_se_diverso_residenza ?? "",
-      luogoLavoroComune: card.assunzione?.comune_se_diverso_residenza ?? "",
-      luogoLavoroProvincia: card.assunzione?.provincia ?? "",
-      tipoDocumento: "Carta d'identita",
-      numeroDocumento: "",
-      scadenzaDocumento: "",
+        assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
+      luogoLavoroIndirizzo: assunzione?.luogo_lavoro_se_diverso_da_residenza ?? "",
+      luogoLavoroCivico: assunzione?.civico_se_diverso_residenza ?? "",
+      luogoLavoroComune: assunzione?.comune_se_diverso_residenza ?? "",
+      luogoLavoroProvincia: assunzione?.provincia ?? "",
+      tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
+      numeroDocumento: assunzione?.documento_identita_numero ?? "",
+      scadenzaDocumento: assunzione?.documento_identita_scadenza ?? "",
       cittadinoExtracomunitario: "No",
       tipologiaRapporto: rapporto?.tipo_rapporto ?? card.tipoRapporto ?? "",
       regimeConvivenza: "Il lavoratore NON e convivente",
@@ -482,6 +549,27 @@ function DatoreDetail({
     [
       card.nomeFamiglia,
       card.tipoRapporto,
+      assunzione?.civico_se_diverso_residenza,
+      assunzione?.comune_se_diverso_residenza,
+      assunzione?.documento_identita_numero,
+      assunzione?.documento_identita_scadenza,
+      assunzione?.documento_identita_tipo,
+      assunzione?.info_anagrafiche_cap,
+      assunzione?.info_anagrafiche_cittadidanza,
+      assunzione?.info_anagrafiche_civico,
+      assunzione?.info_anagrafiche_codice_fiscale,
+      assunzione?.info_anagrafiche_cognome,
+      assunzione?.info_anagrafiche_data_di_nascita,
+      assunzione?.info_anagrafiche_email,
+      assunzione?.info_anagrafiche_indirizzo,
+      assunzione?.info_anagrafiche_localita,
+      assunzione?.info_anagrafiche_luogo_di_nascita,
+      assunzione?.info_anagrafiche_nome,
+      assunzione?.info_anagrafiche_numero_fisso,
+      assunzione?.info_anagrafiche_numero_mobile,
+      assunzione?.luogo_lavoro_se_diverso_da_residenza,
+      assunzione?.provincia,
+      assunzione?.rapporto_di_lavoro_residenza,
       famiglia?.cognome,
       famiglia?.email,
       famiglia?.nome,
@@ -491,11 +579,6 @@ function DatoreDetail({
       rapporto?.paga_mensile_lorda,
       rapporto?.paga_oraria_lorda,
       rapporto?.tipo_rapporto,
-      card.assunzione?.civico_se_diverso_residenza,
-      card.assunzione?.comune_se_diverso_residenza,
-      card.assunzione?.luogo_lavoro_se_diverso_da_residenza,
-      card.assunzione?.provincia,
-      card.assunzione?.rapporto_di_lavoro_residenza,
     ]
   )
   const [draft, setDraft] = React.useState(makeDraft)
@@ -730,9 +813,34 @@ function DatoreDetail({
         icon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
         contentClassName="grid gap-3 md:grid-cols-3"
       >
-        <AttachmentUploadSlot label="Documento identita" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
-        <AttachmentUploadSlot label="Codice fiscale" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
-        <AttachmentUploadSlot label="Permesso di soggiorno" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
+        <AttachmentUploadSlot
+          label="Documento identita"
+          value={assunzione?.documento_identita_allegati ?? null}
+          onAdd={() => {}}
+          onPreviewOpen={() => {}}
+          isUploading={false}
+          multiple={false}
+        />
+        <AttachmentUploadSlot
+          label="Codice fiscale"
+          value={assunzione?.codice_fiscale_allegati ?? null}
+          onAdd={() => {}}
+          onPreviewOpen={() => {}}
+          isUploading={false}
+          multiple={false}
+        />
+        <AttachmentUploadSlot
+          label="Permesso di soggiorno"
+          value={
+            assunzione?.permesso_di_soggiorno_allegati ??
+            assunzione?.ricevuta_rinnovo_permesso_allegati ??
+            null
+          }
+          onAdd={() => {}}
+          onPreviewOpen={() => {}}
+          isUploading={false}
+          multiple={false}
+        />
       </DetailSectionBlock>
     </div>
   )
@@ -740,39 +848,59 @@ function DatoreDetail({
 
 function LavoratoreDetail({
   card,
+  documents,
   onLavoratorePatch,
 }: {
   card: AssunzioniBoardCardData
+  documents: DocumentoLavoratoreRecord[]
   onLavoratorePatch: (patch: Record<string, unknown>) => Promise<void>
 }) {
   const rapporto = card.rapporto
   const lavoratore = card.lavoratore
+  const assunzione = card.lavoratoreAssunzione
   const fullName = card.nomeLavoratore
   const makeDraft = React.useCallback(
     () => ({
       appuntiExtra: "",
       tipoUtente: "LAVORATORE",
-      nome: lavoratore?.nome ?? fullName.split(" ")[0] ?? "",
-      cognome: lavoratore?.cognome ?? fullName.split(" ").slice(1).join(" ") ?? "",
-      email: lavoratore?.email ?? "",
-      cellulare: lavoratore?.telefono ?? "",
-      telefonoFisso: "",
-      cittadinanza: lavoratore?.nazionalita ?? "",
-      codiceFiscale: "",
-      dataNascita: "",
-      luogoNascita: "",
-      indirizzoResidenza: "",
-      civico: "",
-      localita: "",
-      cap: "",
-      tipoDocumento: "Carta d'identita",
-      datiBancari: "",
-      numeroDocumento: "",
-      scadenzaDocumento: "",
+      nome: assunzione?.info_anagrafiche_nome ?? lavoratore?.nome ?? fullName.split(" ")[0] ?? "",
+      cognome: assunzione?.info_anagrafiche_cognome ?? lavoratore?.cognome ?? fullName.split(" ").slice(1).join(" ") ?? "",
+      email: assunzione?.info_anagrafiche_email ?? lavoratore?.email ?? "",
+      cellulare: assunzione?.info_anagrafiche_numero_mobile ?? lavoratore?.telefono ?? "",
+      telefonoFisso: assunzione?.info_anagrafiche_numero_fisso ?? "",
+      cittadinanza: assunzione?.info_anagrafiche_cittadidanza ?? lavoratore?.nazionalita ?? "",
+      codiceFiscale: assunzione?.info_anagrafiche_codice_fiscale ?? "",
+      dataNascita: assunzione?.info_anagrafiche_data_di_nascita ?? "",
+      luogoNascita: assunzione?.info_anagrafiche_luogo_di_nascita ?? "",
+      indirizzoResidenza: assunzione?.info_anagrafiche_indirizzo ?? "",
+      civico: assunzione?.info_anagrafiche_civico ?? "",
+      localita: assunzione?.info_anagrafiche_localita ?? "",
+      cap: assunzione?.info_anagrafiche_cap ?? "",
+      tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
+      datiBancari: assunzione?.dati_bancari_lavoratore ?? "",
+      numeroDocumento: assunzione?.documento_identita_numero ?? "",
+      scadenzaDocumento: assunzione?.documento_identita_scadenza ?? "",
       cittadinoExtracomunitario: "No",
       dataAssunzione: rapporto?.data_inizio_rapporto ?? "",
     }),
     [
+      assunzione?.dati_bancari_lavoratore,
+      assunzione?.documento_identita_numero,
+      assunzione?.documento_identita_scadenza,
+      assunzione?.documento_identita_tipo,
+      assunzione?.info_anagrafiche_cap,
+      assunzione?.info_anagrafiche_cittadidanza,
+      assunzione?.info_anagrafiche_civico,
+      assunzione?.info_anagrafiche_codice_fiscale,
+      assunzione?.info_anagrafiche_cognome,
+      assunzione?.info_anagrafiche_data_di_nascita,
+      assunzione?.info_anagrafiche_email,
+      assunzione?.info_anagrafiche_indirizzo,
+      assunzione?.info_anagrafiche_localita,
+      assunzione?.info_anagrafiche_luogo_di_nascita,
+      assunzione?.info_anagrafiche_nome,
+      assunzione?.info_anagrafiche_numero_fisso,
+      assunzione?.info_anagrafiche_numero_mobile,
       fullName,
       lavoratore?.cognome,
       lavoratore?.email,
@@ -988,9 +1116,40 @@ function LavoratoreDetail({
         icon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
         contentClassName="grid gap-3 md:grid-cols-3"
       >
-        <AttachmentUploadSlot label="Documento identità" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
-        <AttachmentUploadSlot label="Codice fiscale" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
-        <AttachmentUploadSlot label="Permesso di soggiorno" value={null} onAdd={() => {}} onPreviewOpen={() => {}} isUploading={false} />
+        <AttachmentUploadSlot
+          label="Documento identità"
+          value={pickDocumentAttachment(documents, [
+            "allegato_documento_identita_fronte",
+            "allegato_documento_identita_retro",
+          ])}
+          onAdd={() => {}}
+          onPreviewOpen={() => {}}
+          isUploading={false}
+          multiple={false}
+        />
+        <AttachmentUploadSlot
+          label="Codice fiscale"
+          value={pickDocumentAttachment(documents, [
+            "allegato_codice_fiscale_fronte",
+            "allegato_codice_fiscale_retro",
+          ])}
+          onAdd={() => {}}
+          onPreviewOpen={() => {}}
+          isUploading={false}
+          multiple={false}
+        />
+        <AttachmentUploadSlot
+          label="Permesso di soggiorno"
+          value={pickDocumentAttachment(documents, [
+            "allegato_permesso_di_soggiorno_fronte",
+            "allegato_permesso_di_soggiorno_retro",
+            "allegato_ricevuta_rinnovo_permesso",
+          ])}
+          onAdd={() => {}}
+          onPreviewOpen={() => {}}
+          isUploading={false}
+          multiple={false}
+        />
       </DetailSectionBlock>
 
     </div>
@@ -1012,8 +1171,10 @@ export function AssunzioniDetailSheet({
   const [statoAssunzioneOptions, setStatoAssunzioneOptions] = React.useState<LookupOption[]>([])
   const [tipoRapportoOptions, setTipoRapportoOptions] = React.useState<LookupOption[]>([])
   const [offertaOptions, setOffertaOptions] = React.useState<LookupOption[]>(SCONTO_APPLICATO_OPTIONS)
+  const [workerDocuments, setWorkerDocuments] = React.useState<DocumentoLavoratoreRecord[]>([])
   const [savingPractice, setSavingPractice] = React.useState(false)
   const [practiceError, setPracticeError] = React.useState<string | null>(null)
+  const hydratedAssunzioniRef = React.useRef<Set<string>>(new Set())
   const makePracticeDraft = React.useCallback(
     () => ({
       statoAssunzione: card?.stage ?? "",
@@ -1051,6 +1212,148 @@ export function AssunzioniDetailSheet({
     if (!open) return
     setTarget("datore")
   }, [open, card?.id])
+
+  React.useEffect(() => {
+    if (!open || !card?.lavoratore?.id) {
+      setWorkerDocuments([])
+      return
+    }
+
+    let isActive = true
+    const workerId = card.lavoratore.id
+
+    async function loadWorkerDocuments() {
+      try {
+        const response = await fetchDocumentiLavoratoriByWorker(workerId)
+        if (!isActive) return
+        setWorkerDocuments(response.rows)
+      } catch {
+        if (!isActive) return
+        setWorkerDocuments([])
+      }
+    }
+
+    void loadWorkerDocuments()
+
+    return () => {
+      isActive = false
+    }
+  }, [card?.lavoratore?.id, open])
+
+  React.useEffect(() => {
+    if (!open || !card?.id) return
+    const currentCard = card
+    if (
+      hasAssunzioneCoreDetails(currentCard.assunzione) &&
+      hasAssunzioneCoreDetails(currentCard.lavoratoreAssunzione)
+    ) {
+      return
+    }
+    const hydrationKey = `assunzioni-detail-v2:${currentCard.id}`
+    if (hydratedAssunzioniRef.current.has(hydrationKey)) return
+    hydratedAssunzioniRef.current.add(hydrationKey)
+
+    let isActive = true
+
+    async function hydrateLinkedAssunzioni() {
+      try {
+        const [datoreResponse, lavoratoreResponse] = await Promise.all([
+          fetchAssunzioni({
+            select: ASSUNZIONE_DETAIL_SELECT,
+            limit: 1,
+            offset: 0,
+            orderBy: [{ field: "created", ascending: false }],
+            filters: {
+              kind: "group",
+              id: `assunzioni-detail-datore-${currentCard.id}`,
+              logic: "and",
+              nodes: [
+                {
+                  kind: "condition",
+                  id: `assunzioni-detail-datore-id-${currentCard.id}`,
+                  field: "rapporto_lavorativo_datore_lavoro_id",
+                  operator: "in",
+                  value: currentCard.id,
+                },
+              ],
+            },
+          }),
+          fetchAssunzioni({
+            select: ASSUNZIONE_DETAIL_SELECT,
+            limit: 1,
+            offset: 0,
+            orderBy: [{ field: "created", ascending: false }],
+            filters: {
+              kind: "group",
+              id: `assunzioni-detail-lavoratore-${currentCard.id}`,
+              logic: "and",
+              nodes: [
+                {
+                  kind: "condition",
+                  id: `assunzioni-detail-lavoratore-id-${currentCard.id}`,
+                  field: "rapporto_lavorativo_lavoratore_id",
+                  operator: "in",
+                  value: currentCard.id,
+                },
+              ],
+            },
+          }),
+        ])
+
+        if (!isActive) return
+
+        const rows = [
+          ...(datoreResponse.rows as AssunzioneRecord[]),
+          ...(lavoratoreResponse.rows as AssunzioneRecord[]),
+        ]
+        if (rows.length === 0) return
+
+        let nextCard: AssunzioniBoardCardData = currentCard
+        let changed = false
+
+        for (const row of rows) {
+          if (row.rapporto_lavorativo_datore_lavoro_id === currentCard.id) {
+            nextCard = {
+              ...nextCard,
+              assunzione: {
+                ...(nextCard.assunzione ?? {}),
+                ...row,
+              },
+            }
+            changed = true
+          }
+
+          if (row.rapporto_lavorativo_lavoratore_id === currentCard.id) {
+            nextCard = {
+              ...nextCard,
+              lavoratoreAssunzione: {
+                ...(nextCard.lavoratoreAssunzione ?? {}),
+                ...row,
+              },
+            }
+            changed = true
+          }
+        }
+
+        if (changed) {
+          onCardChange(nextCard)
+        }
+      } catch (caughtError) {
+        if (!isActive) return
+        setPracticeError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore caricando dati assunzione"
+        )
+      }
+    }
+
+    void hydrateLinkedAssunzioni()
+
+    return () => {
+      isActive = false
+    }
+  }, [card, onCardChange, open])
 
   React.useEffect(() => {
     setPracticeDraft(makePracticeDraft())
@@ -1577,7 +1880,11 @@ export function AssunzioniDetailSheet({
                   onAssunzionePatch={saveAssunzionePatch}
                 />
               ) : (
-                <LavoratoreDetail card={card} onLavoratorePatch={saveLavoratorePatch} />
+                <LavoratoreDetail
+                  card={card}
+                  documents={workerDocuments}
+                  onLavoratorePatch={saveLavoratorePatch}
+                />
               )}
             </div>
           </section>

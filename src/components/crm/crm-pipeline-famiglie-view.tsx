@@ -17,7 +17,11 @@ import {
 
 import { FamigliaProcessoDetailShell } from "@/components/crm/famiglia-processo-detail-shell"
 import { FamigliaProcessoCard } from "@/components/crm/famiglia-processo-card"
-import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared-next/kanban"
+import {
+  KanbanColumnShell,
+  KanbanColumnSkeleton,
+  KanbanDeferredColumnAction,
+} from "@/components/shared-next/kanban"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui/badge"
 import { SearchInput } from "@/components/ui/search-input"
@@ -28,6 +32,8 @@ import {
 } from "@/hooks/use-crm-pipeline-preview"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
+
+const DEFERRED_STAGE_IDS = new Set(["won_ricerca_attivata", "lost", "out_of_target"])
 
 type ColumnVisual = {
   columnClassName: string
@@ -192,6 +198,8 @@ function getStageIcon(stageId: string, iconClassName: string) {
       return <UserRoundXIcon className={className} />
     case "cold_ricerca_futura":
       return <SnowflakeIcon className={className} />
+    case "won_in_attesa_di_conferma":
+      return <CheckCircle2Icon className={className} />
     case "won_ricerca_attivata":
       return <TrophyIcon className={className} />
     case "lost":
@@ -218,6 +226,8 @@ type ColumnProps = {
   onDragStartCard: (processId: string) => void
   onDragEndCard: () => void
   onCardClick: (card: CrmPipelineCardData) => void
+  isDeferred: boolean
+  onLoadDeferred: (columnId: string) => void
 }
 
 function Column({
@@ -231,8 +241,21 @@ function Column({
   onDragStartCard,
   onDragEndCard,
   onCardClick,
+  isDeferred,
+  onLoadDeferred,
 }: ColumnProps) {
   const visual = getColumnVisual(column.color)
+  const emptyState = isDeferred ? (
+    <div className="space-y-3 rounded-lg border border-dashed border-border/60 px-4 py-6">
+      <p className="text-sm text-muted-foreground/80">
+        Colonna non caricata di default.
+      </p>
+      <KanbanDeferredColumnAction
+        label={`Carica ${column.totalCount} ${column.totalCount === 1 ? "ricerca" : "ricerche"}`}
+        onClick={() => onLoadDeferred(column.id)}
+      />
+    </div>
+  ) : undefined
 
   return (
     <KanbanColumnShell
@@ -244,6 +267,7 @@ function Column({
       widthClassName="w-73"
       isDropTarget={isDropTarget}
       emptyMessage="Nessuna ricerca"
+      emptyState={emptyState}
       onDragEnter={onDragEnterColumn}
       onDragOver={onDragOverColumn}
       onDragLeave={onDragLeaveColumn}
@@ -280,6 +304,9 @@ export function CrmPipelineFamiglieView() {
     error,
     columns,
     lookupOptionsByField,
+    loadedClosedStageIds,
+    loadClosedStage,
+    loadProcessDetail,
     moveCard,
     updateProcessCard,
     updateFamilyCard,
@@ -313,7 +340,13 @@ export function CrmPipelineFamiglieView() {
         )
       )
 
-      return { ...column, totalCount: filteredCards.length, cards: filteredCards }
+      const isSearchActive = searchQuery.trim().length > 0
+
+      return {
+        ...column,
+        totalCount: isSearchActive ? filteredCards.length : column.totalCount,
+        cards: filteredCards,
+      }
     })
 
     return mappedColumns
@@ -333,6 +366,11 @@ export function CrmPipelineFamiglieView() {
     }
     return null
   }, [columns, selectedCardId])
+
+  React.useEffect(() => {
+    if (!isDetailOpen || !selectedCardId) return
+    void loadProcessDetail(selectedCardId)
+  }, [isDetailOpen, loadProcessDetail, selectedCardId])
 
   const handleDropToColumn = React.useCallback(
     (columnId: string, droppedProcessId: string | null) => {
@@ -417,6 +455,11 @@ export function CrmPipelineFamiglieView() {
                         setSelectedCardId(card.id)
                         setIsDetailOpen(true)
                       }}
+                      isDeferred={
+                        DEFERRED_STAGE_IDS.has(column.id) &&
+                        !loadedClosedStageIds.has(column.id)
+                      }
+                      onLoadDeferred={loadClosedStage}
                     />
                   ))}
         </div>

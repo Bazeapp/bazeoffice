@@ -104,10 +104,26 @@ function normalizeOptionValue(value: unknown) {
 }
 
 function splitFilterList(value: string) {
+  const trimmed = value.trim()
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed.map((part) => String(part).trim()).filter(Boolean)
+      }
+    } catch {
+      // Fall through to the legacy comma-separated format.
+    }
+  }
+
   return value
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean)
+}
+
+function serializeFilterList(values: string[]) {
+  return JSON.stringify(values)
 }
 
 function readBetweenValue(value: unknown) {
@@ -293,7 +309,9 @@ function ShadcnValueEditor(props: ValueEditorProps) {
       label: option.label ?? value,
     }
   })
-  const stringValue = Array.isArray(props.value) ? props.value.join(",") : String(props.value ?? "")
+  const stringValue = Array.isArray(props.value)
+    ? serializeFilterList(props.value.map(String))
+    : String(props.value ?? "")
   const useSingleSelect =
     (fieldType === "boolean" ||
       (fieldType === "enum" && !["has_any", "not_has_any"].includes(props.operator))) &&
@@ -396,10 +414,10 @@ function ShadcnValueEditor(props: ValueEditorProps) {
         value={selectedValues}
         onValueChange={(nextValues) =>
           props.handleOnChange(
-            normalizeLookupOptionValues(
+            serializeFilterList(normalizeLookupOptionValues(
               nextValues as string[],
               normalizedOptions,
-            ).join(","),
+            )),
           )
         }
       >

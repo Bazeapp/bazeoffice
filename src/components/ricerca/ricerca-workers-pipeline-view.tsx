@@ -977,12 +977,16 @@ export function RicercaWorkersPipelineView({
   onOpenRelatedSearch,
   className,
 }: RicercaWorkersPipelineViewProps) {
-  const { loading, error, columns, moveCard, refresh } =
-    useRicercaWorkersPipeline(processId);
   const { options: recruiterOptions } = useOperatoriOptions({
     role: "recruiter",
     activeOnly: true,
   });
+  const recruiterLabelsById = React.useMemo(
+    () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
+    [recruiterOptions],
+  );
+  const { loading, error, columns, moveCard, refresh } =
+    useRicercaWorkersPipeline(processId, recruiterLabelsById);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isRunningSmartMatching, setIsRunningSmartMatching] =
     React.useState(false);
@@ -1070,10 +1074,6 @@ export function RicercaWorkersPipelineView({
   const [loadingRelatedActiveSearches, setLoadingRelatedActiveSearches] =
     React.useState(false);
   const selectedWorkerId = selectedWorkerRow?.id ?? null;
-  const recruiterLabelsById = React.useMemo(
-    () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
-    [recruiterOptions],
-  );
   const selectedWorker = React.useMemo(() => {
     if (!selectedCard) return null;
     if (!selectedWorkerRow) return selectedCard.worker;

@@ -123,15 +123,34 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
   assunzioni: [
     "id",
     "civico_se_diverso_residenza",
+    "codice_fiscale_allegati",
     "comune_se_diverso_residenza",
+    "dati_bancari_lavoratore",
+    "documento_identita_allegati",
+    "documento_identita_numero",
+    "documento_identita_scadenza",
+    "documento_identita_tipo",
+    "info_anagrafiche_cap",
+    "info_anagrafiche_cittadidanza",
+    "info_anagrafiche_civico",
+    "info_anagrafiche_codice_fiscale",
     "info_anagrafiche_cognome",
+    "info_anagrafiche_data_di_nascita",
     "info_anagrafiche_email",
+    "info_anagrafiche_indirizzo",
+    "info_anagrafiche_localita",
+    "info_anagrafiche_luogo_di_nascita",
     "info_anagrafiche_nome",
+    "info_anagrafiche_numero_fisso",
+    "info_anagrafiche_numero_mobile",
     "luogo_lavoro_se_diverso_da_residenza",
     "provincia",
+    "permesso_di_soggiorno_allegati",
     "rapporto_di_lavoro_residenza",
     "rapporto_lavorativo_datore_lavoro_id",
     "rapporto_lavorativo_lavoratore_id",
+    "ricevuta_rinnovo_permesso_allegati",
+    "type_of_compilazione_form",
     "airtable_id",
     "airtable_record_id",
     "creato_il",
@@ -473,6 +492,8 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "prova_priorita_famiglia",
     "prova_ramo_d2",
     "prova_stato_cs",
+    "registrazioni_chiamate_famiglia",
+    "registrazioni_chiamate_lavoratore",
     "relazione_lavorativa",
     "request_lavoratore_referenza",
     "request_trustpilot_review",
@@ -780,14 +801,37 @@ function isIsoLikeDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}/.test(normalizedValue);
 }
 
+function isDateLikeFieldName(fieldName: string) {
+  const normalizedField = fieldName.trim().toLowerCase();
+  if (!normalizedField || normalizedField.endsWith("_id")) return false;
+
+  return (
+    normalizedField.startsWith("data_") ||
+    normalizedField.includes("deadline") ||
+    normalizedField.includes("scadenza") ||
+    normalizedField === "creata" ||
+    normalizedField === "creato_il" ||
+    normalizedField === "aggiornato_il" ||
+    normalizedField === "ultimo_aggiornamento"
+  );
+}
+
 function inferColumnMeta(
   fieldName: string,
   values: unknown[],
 ): Pick<ColumnMeta, "dataType" | "udtName" | "filterType"> {
-  const sample = values.find((value) => value !== null && value !== undefined);
+  const sample = values.find((value) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string" && value.trim().length === 0) return false;
+    return true;
+  });
 
   if (fieldName === "id") {
     return { dataType: "uuid", udtName: "uuid", filterType: "id" };
+  }
+
+  if (!sample && isDateLikeFieldName(fieldName)) {
+    return { dataType: "timestamp with time zone", udtName: "timestamptz", filterType: "date" };
   }
 
   if (Array.isArray(sample)) {
@@ -809,6 +853,10 @@ function inferColumnMeta(
     if (isIsoLikeDate(sample)) {
       return { dataType: "timestamp with time zone", udtName: "timestamptz", filterType: "date" };
     }
+  }
+
+  if (isDateLikeFieldName(fieldName)) {
+    return { dataType: "timestamp with time zone", udtName: "timestamptz", filterType: "date" };
   }
 
   return { dataType: "text", udtName: null, filterType: "text" };
@@ -914,6 +962,9 @@ function toArrayTokens(value: unknown): string[] {
 }
 
 function parseFilterList(value: string) {
+  const parsed = parseJsonStringList(value);
+  if (parsed) return parsed.map((part) => part.trim().toLowerCase()).filter(Boolean);
+
   return value
     .split(",")
     .map((part) => part.trim().toLowerCase())
@@ -921,10 +972,30 @@ function parseFilterList(value: string) {
 }
 
 function parseRawFilterList(value: string) {
+  const parsed = parseJsonStringList(value);
+  if (parsed) return parsed.map((part) => part.trim()).filter(Boolean);
+
   return value
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
+}
+
+function parseJsonStringList(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return null;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (!Array.isArray(parsed)) return null;
+    return parsed
+      .filter((item): item is string | number | boolean => {
+        return typeof item === "string" || typeof item === "number" || typeof item === "boolean";
+      })
+      .map((item) => String(item));
+  } catch {
+    return null;
+  }
 }
 
 function readLookupFilterType(metadata: unknown): FilterFieldType | null {
@@ -997,10 +1068,16 @@ async function fetchLookupFilterMetadata(
 function getLookupFilterValueGroups(
   field: string,
   value: string,
+  operator: FilterOperator,
   lookupMetadata: LookupFilterMetadata,
 ) {
   const fieldAliases = lookupMetadata.aliasesByField.get(field);
-  const rawValues = parseRawFilterList(value);
+  const usesListValue =
+    operator === "in" ||
+    operator === "has_any" ||
+    operator === "has_all" ||
+    operator === "not_has_any";
+  const rawValues = usesListValue ? parseRawFilterList(value) : [value];
   const values = rawValues.length > 0 ? rawValues : [value];
 
   return values.map((currentValue) => {
@@ -1008,6 +1085,10 @@ function getLookupFilterValueGroups(
     const aliases = fieldAliases?.get(token) ?? [currentValue];
     return Array.from(new Set(aliases.map((alias) => normalize(alias)).filter(Boolean)));
   });
+}
+
+function hasLookupFilterMetadata(field: string, lookupMetadata: LookupFilterMetadata) {
+  return lookupMetadata.fieldTypes.has(field) || lookupMetadata.aliasesByField.has(field);
 }
 
 function matchesAnyLookupValue(tokens: string[], groups: string[][]) {
@@ -1028,7 +1109,12 @@ function evaluateCondition(
   const fieldType = fieldTypes.get(condition.field) ?? "text";
   const left = normalize(raw);
   const right = normalize(condition.value);
-  const lookupGroups = getLookupFilterValueGroups(condition.field, condition.value, lookupMetadata);
+  const lookupGroups = getLookupFilterValueGroups(
+    condition.field,
+    condition.value,
+    condition.operator,
+    lookupMetadata,
+  );
   const lookupValues = lookupGroups.flat();
 
   if (condition.operator === "is_empty") return isEmptyValue(raw);
@@ -1523,6 +1609,7 @@ async function fetchAllRows(
 function collectLeadingAndServerConditions(
   table: SupportedTable,
   group: FilterGroup | undefined,
+  lookupMetadata: LookupFilterMetadata,
 ): FilterCondition[] {
   if (!group || group.logic !== "and") return [];
 
@@ -1530,14 +1617,18 @@ function collectLeadingAndServerConditions(
   const allowedFields = new Set(ALLOWED_FIELDS[table]);
   for (const node of group.nodes ?? []) {
     if (node.kind === "condition") {
-      if (allowedFields.has(node.field) && supportsServerCondition(node.operator)) {
+      if (
+        allowedFields.has(node.field) &&
+        supportsServerCondition(node.operator) &&
+        !hasLookupFilterMetadata(node.field, lookupMetadata)
+      ) {
         conditions.push(node);
       }
       continue;
     }
 
     if (node.logic === "and") {
-      conditions.push(...collectLeadingAndServerConditions(table, node));
+      conditions.push(...collectLeadingAndServerConditions(table, node, lookupMetadata));
       continue;
     }
 
@@ -1553,6 +1644,7 @@ function collectLeadingAndServerConditions(
     const field = firstCondition.field;
     const canMergeAsIn =
       allowedFields.has(field) &&
+      !hasLookupFilterMetadata(field, lookupMetadata) &&
       orConditions.every(
         (condition) => condition.field === field && condition.operator === "is",
       );
@@ -1563,7 +1655,7 @@ function collectLeadingAndServerConditions(
         id: `${node.id}-server-in`,
         field,
         operator: "in",
-        value: orConditions.map((condition) => condition.value).join(","),
+        value: JSON.stringify(orConditions.map((condition) => condition.value)),
       });
     }
   }
@@ -1642,7 +1734,7 @@ Deno.serve(async (req) => {
       flatConditions !== null &&
       flatConditions.every((condition) => allowedFields.has(condition.field)) &&
       flatConditions.every((condition) => supportsServerCondition(condition.operator)) &&
-      flatConditions.every((condition) => !lookupMetadata.fieldTypes.has(condition.field));
+      flatConditions.every((condition) => !hasLookupFilterMetadata(condition.field, lookupMetadata));
 
     if (canUseServerQuery) {
       let serverQuery = supabase
@@ -1687,7 +1779,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const serverPrefilterConditions = collectLeadingAndServerConditions(payload.table, filters);
+    const serverPrefilterConditions = collectLeadingAndServerConditions(
+      payload.table,
+      filters,
+      lookupMetadata,
+    );
     const rows = await fetchAllRows(
       supabase,
       payload.table,

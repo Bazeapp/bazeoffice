@@ -189,6 +189,7 @@ export type CrmPipelineBoardRpcRow = {
   process: TableRow
   family: TableRow | null
   address: TableRow | null
+  richiesta_attivazione?: TableRow | null
 }
 
 export type CrmPipelineBoardRpcResponse = {
@@ -241,6 +242,13 @@ const crmPipelineBoardCache = new Map<
       rows: CrmPipelineBoardRpcRow[]
       stageCounts: Array<{ value: string; count: number }>
     }>
+  }
+>()
+const crmPipelineDetailCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<CrmPipelineBoardRpcRow | null>
   }
 >()
 
@@ -587,6 +595,7 @@ export async function fetchProcessiMatching(query: TablePageQuery) {
 export async function fetchCrmPipelineFamiglieBoard(query: {
   limit: number
   offset: number
+  stageFilter?: string[]
 }) {
   const cacheKey = JSON.stringify({ functionName: "crm_pipeline_famiglie_board", ...query })
   const now = Date.now()
@@ -599,6 +608,7 @@ export async function fetchCrmPipelineFamiglieBoard(query: {
     supabase.rpc("crm_pipeline_famiglie_board", {
       p_limit: query.limit,
       p_offset: query.offset,
+      p_stage_filter: query.stageFilter?.length ? query.stageFilter : null,
     })
   ).then(({ data, error }) => {
     if (error) {
@@ -621,6 +631,43 @@ export async function fetchCrmPipelineFamiglieBoard(query: {
     return await promise
   } catch (error) {
     crmPipelineBoardCache.delete(cacheKey)
+    throw error
+  }
+}
+
+export async function fetchCrmPipelineFamigliaDetail(processId: string) {
+  const cacheKey = JSON.stringify({ functionName: "crm_pipeline_famiglia_detail", processId })
+  const now = Date.now()
+  const cached = crmPipelineDetailCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc("crm_pipeline_famiglia_detail", {
+      p_process_id: processId,
+    })
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(`crm_pipeline_famiglia_detail failed: ${error.message}`)
+    }
+
+    if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+      return null
+    }
+
+    return data as CrmPipelineBoardRpcRow
+  })
+
+  crmPipelineDetailCache.set(cacheKey, {
+    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    crmPipelineDetailCache.delete(cacheKey)
     throw error
   }
 }

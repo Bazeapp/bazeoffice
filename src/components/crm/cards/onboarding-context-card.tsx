@@ -139,7 +139,7 @@ const STAGE_META: Record<string, StageMeta> = {
     icon: CheckCircle2Icon,
     toneClassName: "border-lime-200 bg-lime-50 text-lime-700",
     transitions: [
-      "1. Tutto confermato -> WON - Ricerca avviata",
+      "1. Preventivo accettato -> WON - In attesa di conferma",
       "2. Serve un passaggio successivo -> HOT - Follow-up post call",
       "3. La famiglia rimanda la decisione -> HOT - Decisione rimandata",
       "4. La famiglia interrompe -> Lost",
@@ -176,7 +176,7 @@ const STAGE_META: Record<string, StageMeta> = {
     icon: CalendarClockIcon,
     toneClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
     transitions: [
-      "1. Conferma finale -> WON - Ricerca avviata",
+      "1. Conferma finale -> WON - In attesa di conferma",
       "2. Rimanda la decisione -> HOT - Decisione rimandata",
       "3. Chiede nuovo contatto -> HOT - Callback programmato",
       "4. Interrompe -> Lost",
@@ -203,6 +203,18 @@ const STAGE_META: Record<string, StageMeta> = {
     transitions: [
       "1. Torna attiva sulla ricerca -> HOT - Ingresso",
       "2. Non è più lavorabile -> Lost",
+    ],
+  },
+  won_in_attesa_di_conferma: {
+    title: "Won - In attesa di conferma",
+    description:
+      "Il preventivo è accettato ma manca la conferma finale per avviare la ricerca. Tieni visibile il gate fino allo sblocco operativo.",
+    icon: CheckCircle2Icon,
+    toneClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    transitions: [
+      "1. Conferma completata -> WON - Ricerca avviata",
+      "2. Serve un follow-up -> HOT - Follow-up post call",
+      "3. Blocco definitivo -> Lost",
     ],
   },
   won_ricerca_attivata: {

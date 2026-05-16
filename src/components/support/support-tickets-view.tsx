@@ -257,6 +257,13 @@ export function SupportTicketsView({
           card.rapporto?.nome_lavoratore_per_url,
           card.rapporto?.tipo_rapporto,
           card.rapporto?.tipo_contratto,
+          ...card.linkedRecords.flatMap((record) => [
+            record.id,
+            record.label,
+            record.title,
+            record.subtitle,
+            record.status,
+          ]),
         ],
         search,
       );
