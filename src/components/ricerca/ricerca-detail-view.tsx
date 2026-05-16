@@ -50,7 +50,9 @@ import {
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import { cn } from "@/lib/utils";
+import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { toast } from "sonner";
+import { Avatar } from "@/components/ui/avatar";
 
 type RicercaDetailViewProps = {
   processId: string;
@@ -98,6 +100,7 @@ type ExtendedCardData = CrmPipelineCardData &
     informazioniExtraRiservate: string;
     etaMinima: string;
     etaMassima: string;
+    recruiterId: string;
   }>;
 
 function normalizeLookupToken(value: string | null | undefined) {
@@ -224,6 +227,10 @@ function formatItalianDate(value: unknown): string {
 
 function displayValue(value: unknown): string {
   return toStringValue(value) ?? "-";
+}
+
+function toAvatarRingClass(legacyClassName: string) {
+  return legacyClassName.replace(/after:border-/g, "ring-2 ring-");
 }
 
 function isPlaceholderText(value: string) {
@@ -383,6 +390,10 @@ function applyProcessPatchToCard(
   if ("indirizzo_prova_citofono" in patch) {
     nextCard.indirizzoCitofono = displayValue(patch.indirizzo_prova_citofono);
   }
+  if ("recruiter_ricerca_e_selezione_id" in patch) {
+    nextCard.recruiterId =
+      toStringValue(patch.recruiter_ricerca_e_selezione_id) ?? "";
+  }
 
   return nextCard;
 }
@@ -401,6 +412,12 @@ export function RicercaDetailView({
   const [lookupOptionsByField, setLookupOptionsByField] =
     React.useState<LookupOptionsByField>({});
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  const { options: operatorOptions, loading: operatorOptionsLoading } =
+    useOperatoriOptions();
+  const { options: recruiterOptions } = useOperatoriOptions({
+    role: "recruiter",
+    activeOnly: true,
+  });
 
   React.useEffect(() => {
     setCurrentProcessId(processId);
@@ -426,6 +443,23 @@ export function RicercaDetailView({
     const token = normalizeLookupToken(card?.statoRes);
     return token === "no_match" || token === "no match";
   }, [card]);
+  const assignedRecruiter = React.useMemo(() => {
+    const recruiterId = toStringValue(card?.recruiterId);
+    if (!recruiterId) return null;
+    return (
+      operatorOptions.find((operator) => operator.id === recruiterId) ?? null
+    );
+  }, [card?.recruiterId, operatorOptions]);
+  const recruiterSelectOptions = React.useMemo(() => {
+    if (
+      !assignedRecruiter ||
+      recruiterOptions.some((operator) => operator.id === assignedRecruiter.id)
+    ) {
+      return recruiterOptions;
+    }
+
+    return [assignedRecruiter, ...recruiterOptions];
+  }, [assignedRecruiter, recruiterOptions]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -590,6 +624,7 @@ export function RicercaDetailView({
           tipoRapportoBadge: getFirstArrayValue(processRow.tipo_rapporto),
           tipoRapportoColor: null,
           statoRes: displayValue(processRow.stato_res),
+          recruiterId: toStringValue(processRow.recruiter_ricerca_e_selezione_id) ?? "",
           qualificazioneLead: displayValue(processRow.qualificazione_lead),
           motivoNoMatch: displayValue(processRow.motivo_no_match),
           modelloSmartmatching: displayValue(processRow.modello_smartmatching),
@@ -943,30 +978,88 @@ export function RicercaDetailView({
 
                 <Field>
                   <FieldLabel variant="eyebrow">Stato</FieldLabel>
-                  <Select
-                    value={selectedStatoRicercaValue}
-                    onValueChange={(next) => {
-                      if (!next || !resolvedCard.id) return;
-                      void updateProcessCard?.(resolvedCard.id, {
-                        stato_res: next || null,
-                      });
-                    }}
-                    disabled={!resolvedCard.id}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Seleziona stato" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statoRicercaOptions.map((option) => (
-                        <SelectItem
-                          key={option.valueKey}
-                          value={option.valueKey}
-                        >
-                          {option.valueLabel}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                    <Select
+                      value={selectedStatoRicercaValue}
+                      onValueChange={(next) => {
+                        if (!next || !resolvedCard.id) return;
+                        void updateProcessCard?.(resolvedCard.id, {
+                          stato_res: next || null,
+                        });
+                      }}
+                      disabled={!resolvedCard.id}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Seleziona stato" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statoRicercaOptions.map((option) => (
+                          <SelectItem
+                            key={option.valueKey}
+                            value={option.valueKey}
+                          >
+                            {option.valueLabel}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={card?.recruiterId || "none"}
+                      onValueChange={(next) => {
+                        if (!resolvedCard.id) return;
+                        void updateProcessCard?.(resolvedCard.id, {
+                          recruiter_ricerca_e_selezione_id:
+                            next === "none" ? null : next,
+                        });
+                      }}
+                      disabled={!resolvedCard.id}
+	                    >
+	                      <SelectTrigger
+	                        className="h-10 w-10 min-w-10 rounded-full border-border-subtle bg-surface-muted p-0 shadow-none [&>svg]:hidden"
+	                        aria-label="Cambia recruiter assegnato"
+	                        title={
+	                          assignedRecruiter
+	                            ? `Recruiter: ${assignedRecruiter.label}`
+	                            : "Non assegnata"
+	                        }
+	                      >
+	                        <Avatar
+	                          size="md"
+	                          fallback={
+	                            assignedRecruiter
+	                              ? assignedRecruiter.avatar
+	                              : card?.recruiterId && operatorOptionsLoading
+	                                ? "..."
+	                                : "-"
+	                          }
+	                          className={
+	                            assignedRecruiter
+	                              ? toAvatarRingClass(
+	                                  assignedRecruiter.avatarBorderClassName,
+	                                )
+	                              : "ring-1 ring-zinc-300"
+	                          }
+	                        />
+	                      </SelectTrigger>
+                      <SelectContent align="end">
+                        <SelectItem value="none">Non assegnata</SelectItem>
+                        {recruiterSelectOptions.map((operator) => (
+                          <SelectItem key={operator.id} value={operator.id}>
+                            <span className="inline-flex min-w-0 items-center gap-2">
+                              <Avatar
+                                size="sm"
+                                fallback={operator.avatar}
+                                className={toAvatarRingClass(
+                                  operator.avatarBorderClassName,
+                                )}
+                              />
+                              <span className="truncate">{operator.label}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </Field>
 
                 <Field>
