@@ -5224,6 +5224,7 @@ export function Gate1View({
                         verificationOptions={documentiVerificatiOptions}
                         statoDocumentiOptions={documentiInRegolaOptions}
                         lookupColorsByDomain={lookupColorsByDomain}
+                        showAdministrativeData={!showAdministrativeFields}
                         onToggleEdit={() =>
                           setIsEditingDocuments((current) => !current)
                         }

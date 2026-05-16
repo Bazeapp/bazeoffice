@@ -85,6 +85,7 @@ type DocumentsCardProps = {
   verificationOptions: LookupOption[]
   statoDocumentiOptions: LookupOption[]
   lookupColorsByDomain: Map<string, string>
+  showAdministrativeData?: boolean
   administrativeValues?: AdministrativeValues
   onToggleEdit: () => void
   onVerificationChange: (value: string) => void
@@ -514,6 +515,7 @@ export function DocumentsCard({
   verificationOptions,
   statoDocumentiOptions,
   lookupColorsByDomain,
+  showAdministrativeData = true,
   administrativeValues,
   onToggleEdit,
   onVerificationChange,
@@ -790,18 +792,20 @@ export function DocumentsCard({
           )}
         </div>
 
-        <AdministrativeDataSection
-          values={administrativeValues}
-          ibanValue={draft.iban}
-          stripeAccountValue={draft.id_stripe_account}
-          isEditing={isEditing}
-          isUpdating={isUpdating}
-          onIbanChange={onIbanChange}
-          onIbanBlur={onIbanBlur}
-          onStripeAccountChange={onStripeAccountChange}
-          onStripeAccountBlur={onStripeAccountBlur}
-          onGenerateStripeAccount={onGenerateStripeAccount}
-        />
+        {showAdministrativeData ? (
+          <AdministrativeDataSection
+            values={administrativeValues}
+            ibanValue={draft.iban}
+            stripeAccountValue={draft.id_stripe_account}
+            isEditing={isEditing}
+            isUpdating={isUpdating}
+            onIbanChange={onIbanChange}
+            onIbanBlur={onIbanBlur}
+            onStripeAccountChange={onStripeAccountChange}
+            onStripeAccountBlur={onStripeAccountBlur}
+            onGenerateStripeAccount={onGenerateStripeAccount}
+          />
+        ) : null}
       </FieldSet>
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(open) => !open && setSelectedPreview(null)}>
         <DialogContent
