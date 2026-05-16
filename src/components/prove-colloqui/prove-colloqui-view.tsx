@@ -66,7 +66,7 @@ const CALENDAR_STATUS_OPTIONS: Array<{ value: CalendarStatusKey; label: string }
   { value: "standby", label: "Standby" },
 ]
 const AUDIO_ACCEPT = "audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/ogg,audio/opus,audio/aac,.mp3,.m4a,.wav,.ogg,.opus,.aac"
-type TrialRecordingSlot = "registrazioni_chiamate_lavoratore" | "registrazioni_chiamate_famiglia"
+type TrialRecordingSlot = "registrazione_chiamate_lavoratori" | "registrazione_chiamate_famiglia"
 
 function toStringValue(value: unknown): string | null {
   if (value === null || value === undefined) return null
@@ -758,23 +758,23 @@ function ProvaDetailSheet({
                 <div className="grid gap-4 md:grid-cols-2">
                   <AttachmentUploadSlot
                     label="Chiamate lavoratore"
-                    value={rapporto.registrazioni_chiamate_lavoratore}
+                    value={rapporto.registrazione_chiamate_lavoratori}
                     accept={AUDIO_ACCEPT}
                     emptyText="Nessuna registrazione caricata"
-                    onAdd={(file) => void handleUploadRecording("registrazioni_chiamate_lavoratore", file)}
-                    onRemove={(link) => void handleRemoveRecording("registrazioni_chiamate_lavoratore", link)}
+                    onAdd={(file) => void handleUploadRecording("registrazione_chiamate_lavoratori", file)}
+                    onRemove={(link) => void handleRemoveRecording("registrazione_chiamate_lavoratori", link)}
                     onPreviewOpen={() => {}}
-                    isUploading={uploadingSlot === "registrazioni_chiamate_lavoratore"}
+                    isUploading={uploadingSlot === "registrazione_chiamate_lavoratori"}
                   />
                   <AttachmentUploadSlot
                     label="Chiamate famiglie"
-                    value={rapporto.registrazioni_chiamate_famiglia}
+                    value={rapporto.registrazione_chiamate_famiglia}
                     accept={AUDIO_ACCEPT}
                     emptyText="Nessuna registrazione caricata"
-                    onAdd={(file) => void handleUploadRecording("registrazioni_chiamate_famiglia", file)}
-                    onRemove={(link) => void handleRemoveRecording("registrazioni_chiamate_famiglia", link)}
+                    onAdd={(file) => void handleUploadRecording("registrazione_chiamate_famiglia", file)}
+                    onRemove={(link) => void handleRemoveRecording("registrazione_chiamate_famiglia", link)}
                     onPreviewOpen={() => {}}
-                    isUploading={uploadingSlot === "registrazioni_chiamate_famiglia"}
+                    isUploading={uploadingSlot === "registrazione_chiamate_famiglia"}
                   />
                 </div>
                 {recordingError ? <p className="text-sm text-red-600">{recordingError}</p> : null}
