@@ -65,6 +65,7 @@ const LEGACY_STAGE_ALIASES: Record<string, string> = {
   "to do": "Da richiedere",
   inviato: "Inviato alla famiglia",
   "inviato alla famiglia": "Inviato alla famiglia",
+  "inviato pagopa": "Inviato alla famiglia",
   inviati: "Inviato alla famiglia",
   pagopa: "PagoPA ricevuto",
   "pagopa ricevuto": "PagoPA ricevuto",

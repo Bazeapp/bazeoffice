@@ -151,8 +151,32 @@ const CONTRIBUTI_STAGE_OPTIONS = [
   { id: "Pagato", label: "Pagato", color: "green" },
 ] as const
 
+const CONTRIBUTI_LEGACY_STAGE_ALIASES: Record<string, string> = {
+  todo: "Da richiedere",
+  "to do": "Da richiedere",
+  inviato: "Inviato alla famiglia",
+  "inviato alla famiglia": "Inviato alla famiglia",
+  "inviato pagopa": "Inviato alla famiglia",
+  inviati: "Inviato alla famiglia",
+  pagopa: "PagoPA ricevuto",
+  "pagopa ricevuto": "PagoPA ricevuto",
+  done: "Pagato",
+  pagato: "Pagato",
+}
+
 function normalizeToken(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase().replaceAll("_", " ")
+}
+
+function resolveContributoStage(value: string | null | undefined) {
+  const token = normalizeToken(value)
+  if (!token) return CONTRIBUTI_STAGE_OPTIONS[0].id
+
+  const canonicalStage = CONTRIBUTI_STAGE_OPTIONS.find(
+    (stage) => normalizeToken(stage.id) === token || normalizeToken(stage.label) === token
+  )
+
+  return canonicalStage?.id ?? CONTRIBUTI_LEGACY_STAGE_ALIASES[token] ?? CONTRIBUTI_STAGE_OPTIONS[0].id
 }
 
 function formatDate(value: string | null) {
@@ -911,10 +935,11 @@ export function RapportoDetailPanel({
   const contributoCards: ContributoInpsBoardCardData[] = contributi.map((contributo) => {
     const nomeFamiglia = rapportoView.cognome_nome_datore_proper?.trim() || "Famiglia non disponibile"
     const nomeLavoratore = rapportoView.nome_lavoratore_per_url?.trim() || "Lavoratore non disponibile"
+    const stage = resolveContributoStage(contributo.stato_contributi_inps)
 
     return {
       id: contributo.id,
-      stage: contributo.stato_contributi_inps ?? CONTRIBUTI_STAGE_OPTIONS[0].id,
+      stage,
       record: contributo,
       rapporto: rapportoView,
       trimestre: null,
@@ -1573,7 +1598,7 @@ export function RapportoDetailPanel({
                     ]
                       .filter(Boolean)
                       .join(" • ")}
-                    rightBadge={contributo.stato_contributi_inps ?? undefined}
+                    rightBadge={resolveContributoStage(contributo.stato_contributi_inps)}
                     trailing={
                       <span className="text-xs font-semibold whitespace-nowrap">
                         {typeof contributo.importo_contributi_inps === "number"
