@@ -1,6 +1,7 @@
 import * as React from "react"
 import {
   CalendarIcon,
+  FileTextIcon,
   UserCheckIcon,
   UsersIcon,
 } from "lucide-react"
@@ -24,6 +25,11 @@ import { SearchInput } from "@/components/ui/search-input"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
+const ASSUNZIONI_FORM_URLS = {
+  datore: "",
+  lavoratore: "",
+} as const
+
 function getColumnVisual(color: string): KanbanColumnVisual {
   switch (color.toLowerCase()) {
     case "sky":
@@ -41,6 +47,37 @@ function getColumnVisual(color: string): KanbanColumnVisual {
     default:
       return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
   }
+}
+
+function AssunzioniFormButton({
+  href,
+  children,
+}: {
+  href: string
+  children: React.ReactNode
+}) {
+  if (!href) {
+    return (
+      <Button
+        className="gap-2"
+        disabled
+        title="Link form da configurare"
+        variant="outline"
+      >
+        <FileTextIcon className="size-4" />
+        {children}
+      </Button>
+    )
+  }
+
+  return (
+    <Button className="gap-2" variant="outline" asChild>
+      <a href={href} target="_blank" rel="noreferrer">
+        <FileTextIcon className="size-4" />
+        {children}
+      </a>
+    </Button>
+  )
 }
 
 function formatItalianDate(value: string) {
@@ -241,6 +278,14 @@ export function AssunzioniBoardView() {
         >
           Assunzioni
         </SectionHeader.Title>
+        <SectionHeader.Actions className="flex-wrap justify-end">
+          <AssunzioniFormButton href={ASSUNZIONI_FORM_URLS.datore}>
+            Form assunzione datore
+          </AssunzioniFormButton>
+          <AssunzioniFormButton href={ASSUNZIONI_FORM_URLS.lavoratore}>
+            Form assunzione lavoratore
+          </AssunzioniFormButton>
+        </SectionHeader.Actions>
         <SectionHeader.Toolbar>
           <SearchInput
             className="md:max-w-sm"

@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
     );
   });
 
-  if (!matchedStatus?.value_key) {
+  if (!matchedStatus?.value_label) {
     return badRequest("Invalid stato_sales");
   }
 
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
     .from("processi_matching")
     .update({
       old_stato_sales: processRow.stato_sales ?? null,
-      stato_sales: matchedStatus.value_key,
+      stato_sales: matchedStatus.value_label,
       aggiornato_il: new Date().toISOString(),
     })
     .eq("id", processId)

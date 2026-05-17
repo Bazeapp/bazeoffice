@@ -73,6 +73,99 @@ function isSafeColumnName(field: string) {
   return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field);
 }
 
+type LookupValueRow = {
+  entity_field: string;
+  value_key: string | null;
+  value_label: string | null;
+};
+
+function normalizeToken(value: unknown) {
+  if (typeof value !== "string") return "";
+  return value.trim().toLowerCase();
+}
+
+function groupLookupRows(rows: LookupValueRow[]) {
+  const byField = new Map<string, LookupValueRow[]>();
+
+  for (const row of rows) {
+    const current = byField.get(row.entity_field) ?? [];
+    current.push(row);
+    byField.set(row.entity_field, current);
+  }
+
+  return byField;
+}
+
+function findLookupLabel(rows: LookupValueRow[] | undefined, value: unknown) {
+  if (typeof value !== "string") return null;
+  const requestedToken = normalizeToken(value);
+  if (!requestedToken) return null;
+
+  const matchedRow = rows?.find((row) => {
+    return (
+      normalizeToken(row.value_key) === requestedToken ||
+      normalizeToken(row.value_label) === requestedToken
+    );
+  });
+
+  return matchedRow?.value_label?.trim() || null;
+}
+
+function normalizeLookupBackedValue(
+  rows: LookupValueRow[] | undefined,
+  value: unknown
+) {
+  if (!rows?.length || value == null) return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => findLookupLabel(rows, item) ?? item);
+  }
+
+  if (typeof value !== "string") return value;
+
+  const directLabel = findLookupLabel(rows, value);
+  if (directLabel) return directLabel;
+
+  if (!value.includes(",")) return value;
+
+  return value
+    .split(",")
+    .map((item) => {
+      const trimmed = item.trim();
+      return findLookupLabel(rows, trimmed) ?? trimmed;
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
+async function normalizeLookupBackedValues(
+  supabase: ReturnType<typeof createClient>,
+  table: SupportedTable,
+  values: Record<string, unknown>
+) {
+  const fields = Object.keys(values);
+  if (fields.length === 0) return { values, error: null as string | null };
+
+  const { data: lookupRows, error } = await supabase
+    .from("lookup_values")
+    .select("entity_field, value_key, value_label")
+    .eq("entity_table", table)
+    .eq("is_active", true)
+    .in("entity_field", fields);
+
+  if (error) {
+    return { values, error: error.message };
+  }
+
+  const lookupRowsByField = groupLookupRows((lookupRows ?? []) as LookupValueRow[]);
+
+  for (const [field, value] of Object.entries(values)) {
+    values[field] = normalizeLookupBackedValue(lookupRowsByField.get(field), value);
+  }
+
+  return { values, error: null };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -126,6 +219,15 @@ Deno.serve(async (req) => {
   const supabase = createClient(url, serviceRole, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+
+  const normalizedValuesResult = await normalizeLookupBackedValues(
+    supabase,
+    table,
+    sanitizedValues
+  );
+  if (normalizedValuesResult.error) {
+    return serverError(normalizedValuesResult.error);
+  }
 
   const { data: createdRecord, error: createError } = await supabase
     .from(table)

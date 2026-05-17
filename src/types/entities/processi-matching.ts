@@ -131,7 +131,19 @@ export type ProcessoMatchingRecord = {
   pipeline: string | null
   preferenza_giorno: string[] | null
   presenza_animali_in_casa: boolean | null
+  presenza_neonati: boolean | null
   presenza_informazioni_riservate: boolean | null
+  piu_bambini: boolean | null
+  famiglia_4_persone: boolean | null
+  cani_piccoli: boolean | null
+  cani_grandi: boolean | null
+  gatti: boolean | null
+  pulire_ripiani_alti: boolean | null
+  stirare: boolean | null
+  stirare_abiti_difficili: boolean | null
+  cucinare: boolean | null
+  cucinare_elaborato: boolean | null
+  cura_piante: boolean | null
   preventivo_firmato: boolean | null
   prima_scelta_pagamento_webapp: string | null
   prodotto_stripe_custom_id: string | null
@@ -143,6 +155,14 @@ export type ProcessoMatchingRecord = {
   richiesta_ferie: boolean | null
   richiesta_patente: boolean | null
   richiesta_trasferte: boolean | null
+  richiesta_autonomia: boolean | null
+  richiesta_discrezione: boolean | null
+  famiglia_molto_esigente: boolean | null
+  datore_spesso_presente: boolean | null
+  comunicare_bene_italiano: boolean | null
+  comunicare_bene_inglese: boolean | null
+  nazionalita_escluse: string[] | null
+  nazionalita_obbligatorie: string[] | null
   sales_cold_call_followup: string | null
   sales_no_show_followup: string | null
   sesso: string | null

@@ -40,6 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
   AVAILABILITY_EDIT_BANDS,
@@ -75,7 +76,7 @@ import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles";
 type WorkerPipelineSummaryCardsProps = {
   workerRow: LavoratoreRecord;
   selectionRow?: Record<string, unknown> | null;
-  relatedActiveSearches: RelatedActiveSearchItem[];
+  relatedActiveSearches: RelatedSearchGroups;
   relatedActiveSearchesLoading?: boolean;
   onOpenRelatedSearch?: (processId: string, selectionId: string) => void;
   onPatchWorkerField?: (
@@ -287,6 +288,11 @@ export type RelatedActiveSearchItem = {
   orarioDiLavoro: string;
   zona: string;
   appunti: string;
+};
+
+export type RelatedSearchGroups = {
+  direct: RelatedActiveSearchItem[];
+  other: RelatedActiveSearchItem[];
 };
 
 function getRelatedSearchBadgeClassName(color: string | null | undefined) {
@@ -1500,61 +1506,106 @@ function PreferencesConstraintsCard({
 }
 
 function RelatedActiveSearchesBlock({
-  items,
+  groups,
   loading = false,
   onOpenSearch,
 }: {
-  items: RelatedActiveSearchItem[];
+  groups: RelatedSearchGroups;
   loading?: boolean;
   onOpenSearch?: (processId: string, selectionId: string) => void;
 }) {
-  const groupedItems = React.useMemo(() => {
-    const groups = new Map<string, RelatedActiveSearchItem[]>();
+  const groupedDirectItems = React.useMemo(() => {
+    const grouped = new Map<string, RelatedActiveSearchItem[]>();
 
-    for (const item of items) {
+    for (const item of groups.direct) {
       const groupKey = item.statoRicerca || "Senza stato";
-      const currentItems = groups.get(groupKey) ?? [];
+      const currentItems = grouped.get(groupKey) ?? [];
       currentItems.push(item);
-      groups.set(groupKey, currentItems);
+      grouped.set(groupKey, currentItems);
     }
 
-    return Array.from(groups.entries());
-  }, [items]);
+    return Array.from(grouped.entries());
+  }, [groups.direct]);
+
+  const groupedOtherItems = React.useMemo(() => {
+    const grouped = new Map<string, RelatedActiveSearchItem[]>();
+
+    for (const item of groups.other) {
+      const groupKey = item.statoRicerca || "Senza stato";
+      const currentItems = grouped.get(groupKey) ?? [];
+      currentItems.push(item);
+      grouped.set(groupKey, currentItems);
+    }
+
+    return Array.from(grouped.entries());
+  }, [groups.other]);
+
+  const renderGroups = (
+    groupedItems: Array<[string, RelatedActiveSearchItem[]]>,
+    emptyLabel: string,
+  ) => {
+    if (groupedItems.length === 0) {
+      return <p className="text-muted-foreground text-sm">{emptyLabel}</p>;
+    }
+
+    return groupedItems.map(([groupLabel, groupItems]) => (
+      <div key={groupLabel} className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="bg-muted/40 text-foreground">
+            {groupLabel}
+          </Badge>
+          <span className="text-muted-foreground text-xs">
+            {groupItems.length} {groupItems.length === 1 ? "ricerca" : "ricerche"}
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          {groupItems.map((item) => (
+            <RelatedActiveSearchCard
+              key={item.selectionId}
+              item={item}
+              onOpenSearch={onOpenSearch}
+            />
+          ))}
+        </div>
+      </div>
+    ));
+  };
 
   return (
     <DetailSectionBlock
-      title="Altre ricerche attive"
+      title="Ricerche coinvolte"
       icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
       collapsible
       contentClassName="space-y-3"
     >
       {loading ? (
-        <p className="text-muted-foreground text-sm">Caricamento ricerche attive...</p>
-      ) : items.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Nessun'altra ricerca attiva.</p>
+        <p className="text-muted-foreground text-sm">Caricamento ricerche coinvolte...</p>
+      ) : groups.direct.length === 0 && groups.other.length === 0 ? (
+        <p className="text-muted-foreground text-sm">Nessuna ricerca coinvolta.</p>
       ) : (
-        groupedItems.map(([groupLabel, groupItems]) => (
-          <div key={groupLabel} className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-muted/40 text-foreground">
-                {groupLabel}
-              </Badge>
-              <span className="text-muted-foreground text-xs">
-                {groupItems.length} {groupItems.length === 1 ? "ricerca" : "ricerche"}
+        <Tabs defaultValue="direct" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="direct" className="gap-2">
+              Coinvolto direttamente
+              <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-[10px]">
+                {groups.direct.length}
               </span>
-            </div>
-
-            <div className="space-y-3">
-              {groupItems.map((item) => (
-                <RelatedActiveSearchCard
-                  key={item.selectionId}
-                  item={item}
-                  onOpenSearch={onOpenSearch}
-                />
-              ))}
-            </div>
-          </div>
-        ))
+            </TabsTrigger>
+            <TabsTrigger value="other" className="gap-2">
+              Tutte le altre ricerche
+              <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-[10px]">
+                {groups.other.length}
+              </span>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="direct" className="mt-0 space-y-3">
+            {renderGroups(groupedDirectItems, "Nessun coinvolgimento diretto.")}
+          </TabsContent>
+          <TabsContent value="other" className="mt-0 space-y-3">
+            {renderGroups(groupedOtherItems, "Nessuna altra ricerca.")}
+          </TabsContent>
+        </Tabs>
       )}
     </DetailSectionBlock>
   );
@@ -1711,7 +1762,7 @@ export function WorkerPipelineSummaryCards({
         onReferenceCreate={onReferenceCreate}
       />
       <RelatedActiveSearchesBlock
-        items={relatedActiveSearches}
+        groups={relatedActiveSearches}
         loading={relatedActiveSearchesLoading}
         onOpenSearch={onOpenRelatedSearch}
       />

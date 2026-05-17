@@ -15,6 +15,7 @@ import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-head
 import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
 import {
   type RelatedActiveSearchItem,
+  type RelatedSearchGroups,
   WorkerPipelineSummaryCards,
 } from "@/components/ricerca/worker-pipeline-summary-cards";
 import { SectionHeader } from "@/components/shared-next/section-header";
@@ -58,6 +59,7 @@ import {
   readArrayStrings,
   toAvatarUrl,
 } from "@/features/lavoratori/lib/base-utils";
+import { isDirectInvolvementSelection } from "@/features/lavoratori/lib/involvement-utils";
 import {
   isBlacklistValue,
   normalizeLookupColors,
@@ -331,82 +333,6 @@ const DEFAULT_BLUE_BADGE_CLASS_NAME =
 const RELATED_SELECTIONS_PAGE_SIZE = 500;
 const RELATED_PROCESS_BATCH_SIZE = 150;
 const RELATED_FAMILY_BATCH_SIZE = 150;
-const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
-  "selezionato",
-  "inviato al cliente",
-  "colloquio schedulato",
-  "colloquio rimandato",
-  "colloquio fatto",
-  "prova schedulata",
-  "prova rimandata",
-  "prova in corso",
-  "match",
-]);
-const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo";
-const DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS = new Set([
-  "no match",
-  "stand by",
-  "match",
-  "in prova col lavoratore",
-  "in prova con lavoratore",
-]);
-const OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS = new Set([
-  "in prova col lavoratore",
-  "in prova con lavoratore",
-  "match",
-]);
-const OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS = new Set([
-  "prova schedulata",
-  "prova rimandata",
-  "prova in corso",
-  "match",
-]);
-
-function hasActiveWorkSituation(selection: Record<string, unknown>) {
-  return (
-    normalizeToken(asString(selection.stato_situazione_lavorativa)) !==
-    DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
-  );
-}
-
-function isDirectInvolvementSelection(
-  selection: Record<string, unknown>,
-  processRow: Record<string, unknown>,
-) {
-  const processStatusToken = normalizeToken(asString(processRow.stato_res));
-
-  return (
-    hasActiveWorkSituation(selection) &&
-    DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS.has(
-      normalizeToken(asString(selection.stato_selezione)),
-    ) &&
-    !DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS.has(processStatusToken)
-  );
-}
-
-function isOtherSearchSelection(
-  selection: Record<string, unknown>,
-  processRow: Record<string, unknown>,
-) {
-  const processStatusToken = normalizeToken(asString(processRow.stato_res));
-  const selectionStatusToken = normalizeToken(asString(selection.stato_selezione));
-
-  const matchesGroupB =
-    OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
-    OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS.has(selectionStatusToken);
-
-  return hasActiveWorkSituation(selection) && matchesGroupB;
-}
-
-function isPotentialConflictingSearch(
-  selection: Record<string, unknown>,
-  processRow: Record<string, unknown>,
-) {
-  return (
-    isDirectInvolvementSelection(selection, processRow) ||
-    isOtherSearchSelection(selection, processRow)
-  );
-}
 
 function formatRelatedFamilyName(row: Record<string, unknown> | null | undefined) {
   const familyName = [asString(row?.nome), asString(row?.cognome)]
@@ -1071,9 +997,8 @@ export function RicercaWorkersPipelineView({
   const selectedWorkerLoadingToastIdRef = React.useRef<string | number | null>(
     null,
   );
-  const [relatedActiveSearches, setRelatedActiveSearches] = React.useState<
-    RelatedActiveSearchItem[]
-  >([]);
+  const [relatedActiveSearches, setRelatedActiveSearches] =
+    React.useState<RelatedSearchGroups>({ direct: [], other: [] });
   const [loadingRelatedActiveSearches, setLoadingRelatedActiveSearches] =
     React.useState(false);
   const selectedWorkerId = selectedWorkerRow?.id ?? null;
@@ -1473,7 +1398,7 @@ export function RicercaWorkersPipelineView({
 
   React.useEffect(() => {
     if (!selectedWorkerId || !isWorkerOverlayOpen) {
-      setRelatedActiveSearches([]);
+      setRelatedActiveSearches({ direct: [], other: [] });
       setLoadingRelatedActiveSearches(false);
       return;
     }
@@ -1546,7 +1471,8 @@ export function RicercaWorkersPipelineView({
         );
 
         const seenProcessIds = new Set<string>();
-        const nextItems: RelatedActiveSearchItem[] = [];
+        const nextDirectItems: RelatedActiveSearchItem[] = [];
+        const nextOtherItems: RelatedActiveSearchItem[] = [];
 
         for (const selection of filteredSelections) {
           const selectionId = asString(selection.id);
@@ -1556,12 +1482,11 @@ export function RicercaWorkersPipelineView({
 
           const processRow = processRowsById.get(selectionProcessId);
           if (!processRow) continue;
-          if (!isPotentialConflictingSearch(selection, processRow)) continue;
 
           const familyRow = familyRowsById.get(asString(processRow.famiglia_id) ?? "");
           const recruiterId = asString(processRow.recruiter_ricerca_e_selezione_id);
 
-          nextItems.push({
+          const nextItem: RelatedActiveSearchItem = {
             selectionId,
             processId: selectionProcessId,
             familyName: formatRelatedFamilyName(familyRow),
@@ -1574,15 +1499,21 @@ export function RicercaWorkersPipelineView({
             orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
             zona: formatRelatedZona(processRow),
             appunti: asString(selection.note_selezione) || "",
-          });
+          };
+
+          if (isDirectInvolvementSelection(selection)) {
+            nextDirectItems.push(nextItem);
+          } else {
+            nextOtherItems.push(nextItem);
+          }
           seenProcessIds.add(selectionProcessId);
         }
 
         if (isCancelled) return;
-        setRelatedActiveSearches(nextItems);
+        setRelatedActiveSearches({ direct: nextDirectItems, other: nextOtherItems });
       } catch {
         if (isCancelled) return;
-        setRelatedActiveSearches([]);
+        setRelatedActiveSearches({ direct: [], other: [] });
       } finally {
         if (!isCancelled) {
           setLoadingRelatedActiveSearches(false);

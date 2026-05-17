@@ -81,17 +81,18 @@ interface AccordionTriggerProps
   extends React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger> {
   icon?: React.ReactNode;
   plain?: boolean;
+  titleAction?: React.ReactNode;
 }
 
 const AccordionTrigger = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Trigger>,
   AccordionTriggerProps
->(({ className, children, icon, plain, ...props }, ref) => (
-  <AccordionPrimitive.Header className="flex">
+>(({ className, children, icon, plain, titleAction, ...props }, ref) => (
+  <AccordionPrimitive.Header className="flex items-center">
     <AccordionPrimitive.Trigger
       ref={ref}
       className={cn(
-        "group flex flex-1 items-center gap-3 px-4 py-3 text-left",
+        "group flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left",
         "outline-none focus-visible:shadow-[var(--shadow-ring),inset_0_0_0_1px_var(--accent)]",
         "transition-colors duration-(--duration-fast)",
         "hover:bg-neutral-50",
@@ -121,6 +122,21 @@ const AccordionTrigger = React.forwardRef<
       >
         {children}
       </span>
+    </AccordionPrimitive.Trigger>
+    {titleAction ? (
+      <span className="flex shrink-0 items-center gap-2">
+        {titleAction}
+      </span>
+    ) : null}
+    <AccordionPrimitive.Trigger
+      className={cn(
+        "group flex h-10 w-9 shrink-0 items-center justify-center",
+        "outline-none focus-visible:shadow-[var(--shadow-ring),inset_0_0_0_1px_var(--accent)]",
+        "transition-colors duration-(--duration-fast)",
+        "hover:bg-neutral-50"
+      )}
+      aria-label="Apri o chiudi sezione"
+    >
       <ChevronDownIcon
         className={cn(
           "size-4 shrink-0 text-foreground-faint!",

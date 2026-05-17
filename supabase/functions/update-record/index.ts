@@ -121,6 +121,94 @@ function normalizeToken(value: unknown) {
   return value.trim().toLowerCase();
 }
 
+type LookupValueRow = {
+  entity_field: string;
+  value_key: string | null;
+  value_label: string | null;
+};
+
+function groupLookupRows(rows: LookupValueRow[]) {
+  const byField = new Map<string, LookupValueRow[]>();
+
+  for (const row of rows) {
+    const current = byField.get(row.entity_field) ?? [];
+    current.push(row);
+    byField.set(row.entity_field, current);
+  }
+
+  return byField;
+}
+
+function findLookupLabel(rows: LookupValueRow[] | undefined, value: unknown) {
+  if (typeof value !== "string") return null;
+  const requestedToken = normalizeToken(value);
+  if (!requestedToken) return null;
+
+  const matchedRow = rows?.find((row) => {
+    return (
+      normalizeToken(row.value_key) === requestedToken ||
+      normalizeToken(row.value_label) === requestedToken
+    );
+  });
+
+  return matchedRow?.value_label?.trim() || null;
+}
+
+function normalizeLookupBackedValue(
+  rows: LookupValueRow[] | undefined,
+  value: unknown
+) {
+  if (!rows?.length || value == null) return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => findLookupLabel(rows, item) ?? item);
+  }
+
+  if (typeof value !== "string") return value;
+
+  const directLabel = findLookupLabel(rows, value);
+  if (directLabel) return directLabel;
+
+  if (!value.includes(",")) return value;
+
+  return value
+    .split(",")
+    .map((item) => {
+      const trimmed = item.trim();
+      return findLookupLabel(rows, trimmed) ?? trimmed;
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
+async function normalizeLookupBackedPatch(
+  supabase: ReturnType<typeof createClient>,
+  table: SupportedTable,
+  patch: Record<string, unknown>
+) {
+  const fields = Object.keys(patch);
+  if (fields.length === 0) return { patch, error: null as string | null };
+
+  const { data: lookupRows, error } = await supabase
+    .from("lookup_values")
+    .select("entity_field, value_key, value_label")
+    .eq("entity_table", table)
+    .eq("is_active", true)
+    .in("entity_field", fields);
+
+  if (error) {
+    return { patch, error: error.message };
+  }
+
+  const lookupRowsByField = groupLookupRows((lookupRows ?? []) as LookupValueRow[]);
+
+  for (const [field, value] of Object.entries(patch)) {
+    patch[field] = normalizeLookupBackedValue(lookupRowsByField.get(field), value);
+  }
+
+  return { patch, error: null };
+}
+
 function isSafeColumnName(field: string) {
   return /^[\p{L}_][\p{L}\p{N}_]*$/u.test(field);
 }
@@ -275,6 +363,15 @@ Deno.serve(async (req) => {
     return notFound("Record not found");
   }
 
+  const normalizedPatchResult = await normalizeLookupBackedPatch(
+    supabase,
+    table,
+    sanitizedPatch
+  );
+  if (normalizedPatchResult.error) {
+    return serverError(normalizedPatchResult.error);
+  }
+
   // Process-level validation/derivations:
   if (table === "processi_matching" && "stato_sales" in sanitizedPatch) {
     const requestedToken = normalizeToken(sanitizedPatch.stato_sales);
@@ -300,13 +397,13 @@ Deno.serve(async (req) => {
       );
     });
 
-    if (!matchedStatus?.value_key) {
+    if (!matchedStatus?.value_label) {
       return badRequest("Invalid stato_sales");
     }
 
     sanitizedPatch.old_stato_sales =
       (currentRecord as { stato_sales?: string | null }).stato_sales ?? null;
-    sanitizedPatch.stato_sales = matchedStatus.value_key;
+    sanitizedPatch.stato_sales = matchedStatus.value_label;
   }
 
   const updatedAtField = AUTO_UPDATED_AT_FIELD[table];

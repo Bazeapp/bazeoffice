@@ -18,6 +18,7 @@ import {
 import { usePayrollBoard, type PayrollBoardCardData, type PayrollBoardColumnData } from "@/hooks/use-payroll-board"
 import { ContributiInpsView } from "@/components/payroll/contributi-inps-view"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
+import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
   KanbanColumnShell,
@@ -47,8 +48,10 @@ import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { runAutomationWebhook } from "@/lib/anagrafiche-api"
+import { runAutomationWebhook, updateRecord } from "@/lib/anagrafiche-api"
+import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import { matchesSearchQuery } from "@/lib/search-utils"
+import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -203,6 +206,13 @@ function normalizeAttachmentValue(value: unknown) {
     }
   }
   return value
+}
+
+function sanitizeFileName(name: string) {
+  return name
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "cedolino"
 }
 
 type PresenceDayRow = {
@@ -428,6 +438,8 @@ export function CedolinoDetailSheet({
   const paymentAmount = pagamento?.amount ?? card?.record.importo_busta_estratto ?? null
   const paymentFee = pagamento?.fee ?? null
   const [runningAutomationId, setRunningAutomationId] = React.useState<string | null>(null)
+  const [uploadingCedolino, setUploadingCedolino] = React.useState(false)
+  const [uploadError, setUploadError] = React.useState<string | null>(null)
 
   const handleRunPagamentoAutomation = React.useCallback(
     async (
@@ -457,6 +469,56 @@ export function CedolinoDetailSheet({
     },
     [pagamento]
   )
+
+  const handleUploadCedolino = React.useCallback(
+    async (file: File) => {
+      if (!card) return
+
+      setUploadingCedolino(true)
+      setUploadError(null)
+
+      try {
+        const safeName = sanitizeFileName(file.name || "cedolino")
+        const storagePath = [
+          "mesi_lavorati",
+          card.id,
+          "cedolino",
+          `${Date.now()}-${safeName}`,
+        ].join("/")
+
+        const uploadResult = await supabase.storage.from("baze-bucket").upload(storagePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type || undefined,
+        })
+
+        if (uploadResult.error) {
+          throw uploadResult.error
+        }
+
+        const payload = buildAttachmentPayload(file, storagePath)
+        const nextCedolino = [...normalizeAttachmentArray(card.record.cedolino), payload]
+        const response = await updateRecord("mesi_lavorati", card.id, {
+          cedolino: nextCedolino,
+        })
+
+        onPatchCard(card.id, {
+          cedolino: response.row.cedolino as PayrollBoardCardData["record"]["cedolino"],
+        })
+      } catch (caughtError) {
+        setUploadError(
+          caughtError instanceof Error ? caughtError.message : "Errore caricando cedolino"
+        )
+      } finally {
+        setUploadingCedolino(false)
+      }
+    },
+    [card, onPatchCard]
+  )
+
+  function openAttachmentPreview(link: AttachmentLink) {
+    window.open(link.url, "_blank", "noopener,noreferrer")
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -595,10 +657,13 @@ export function CedolinoDetailSheet({
                 <AttachmentUploadSlot
                   label="Cedolino"
                   value={normalizeAttachmentValue(card.record.cedolino)}
-                  onAdd={() => {}}
-                  onPreviewOpen={() => {}}
-                  isUploading={false}
+                  onAdd={handleUploadCedolino}
+                  onPreviewOpen={openAttachmentPreview}
+                  isUploading={uploadingCedolino}
                 />
+                {uploadError ? (
+                  <p className="text-xs font-medium text-red-600">{uploadError}</p>
+                ) : null}
 
                 <div className="space-y-2">
                   <p className="ui-type-label">URL cedolino</p>

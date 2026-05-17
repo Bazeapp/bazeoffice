@@ -197,7 +197,7 @@ export function AttachmentUploadSlot({
           </Button>
         </div>
       </div>
-      {links.length > 1 && onRemove ? (
+      {links.length > 1 ? (
         <div className="space-y-1 border-t border-border/60 pt-2">
           {links.map((link) => (
             <div
@@ -213,15 +213,17 @@ export function AttachmentUploadSlot({
                   <ExternalLinkIcon className="size-3" />
                 </a>
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => void onRemove(link)}
-                disabled={isUploading}
-              >
-                <Trash2Icon className="size-3" />
-              </Button>
+              {onRemove ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => void onRemove(link)}
+                  disabled={isUploading}
+                >
+                  <Trash2Icon className="size-3" />
+                </Button>
+              ) : null}
             </div>
           ))}
         </div>

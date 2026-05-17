@@ -94,6 +94,26 @@ const CRM_PIPELINE_PROCESSI_SELECT = [
   "descrizione_richiesta_ferie",
   "patente",
   "sesso",
+  "nazionalita_escluse",
+  "nazionalita_obbligatorie",
+  "famiglia_molto_esigente",
+  "richiesta_autonomia",
+  "datore_spesso_presente",
+  "richiesta_discrezione",
+  "comunicare_bene_italiano",
+  "comunicare_bene_inglese",
+  "presenza_neonati",
+  "piu_bambini",
+  "famiglia_4_persone",
+  "cani_piccoli",
+  "cani_grandi",
+  "gatti",
+  "pulire_ripiani_alti",
+  "stirare",
+  "stirare_abiti_difficili",
+  "cucinare",
+  "cucinare_elaborato",
+  "cura_piante",
   "testo_annuncio_whatsapp",
   "aggiornato_il",
 ]
@@ -198,6 +218,26 @@ export type CrmPipelineCardData = {
   descrizioneRichiestaFerie: string
   patenteDettaglio: string
   sesso: string | null
+  nazionalitaEscluse: string[]
+  nazionalitaObbligatorie: string[]
+  famigliaMoltoEsigente: boolean
+  richiestaAutonomia: boolean
+  datoreSpessoPresente: boolean
+  richiestaDiscrezione: boolean
+  comunicareBeneItaliano: boolean
+  comunicareBeneInglese: boolean
+  presenzaNeonati: boolean
+  piuBambini: boolean
+  famiglia4Persone: boolean
+  caniPiccoli: boolean
+  caniGrandi: boolean
+  gatti: boolean
+  pulireRipianiAlti: boolean
+  stirare: boolean
+  stirareAbitiDifficili: boolean
+  cucinare: boolean
+  cucinareElaborato: boolean
+  curaPiante: boolean
   testoAnnuncioWhatsapp: string
 }
 
@@ -399,6 +439,62 @@ function resolveLookupOptionColor(
       normalizeLookupToken(option.valueLabel) === token
   )
   return matched?.color ?? null
+}
+
+function resolveLookupLabel(
+  lookupOptionsByField: LookupOptionsByField,
+  field: string,
+  value: string
+) {
+  const token = normalizeLookupToken(value)
+  if (!token) return value
+
+  const matched = lookupOptionsByField[field]?.find(
+    (option) =>
+      normalizeLookupToken(option.valueKey) === token ||
+      normalizeLookupToken(option.valueLabel) === token
+  )
+
+  return matched?.valueLabel ?? value
+}
+
+function normalizeLookupPatchValue(
+  lookupOptionsByField: LookupOptionsByField,
+  field: string,
+  value: unknown
+) {
+  if (!lookupOptionsByField[field]?.length || value == null) return value
+
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      typeof item === "string"
+        ? resolveLookupLabel(lookupOptionsByField, field, item)
+        : item
+    )
+  }
+
+  if (typeof value !== "string") return value
+
+  const directLabel = resolveLookupLabel(lookupOptionsByField, field, value)
+  if (directLabel !== value || !value.includes(",")) return directLabel
+
+  return value
+    .split(",")
+    .map((item) => resolveLookupLabel(lookupOptionsByField, field, item.trim()))
+    .filter(Boolean)
+    .join(", ")
+}
+
+export function normalizeLookupPatchLabels(
+  patch: Record<string, unknown>,
+  lookupOptionsByField: LookupOptionsByField
+) {
+  return Object.fromEntries(
+    Object.entries(patch).map(([field, value]) => [
+      field,
+      normalizeLookupPatchValue(lookupOptionsByField, field, value),
+    ])
+  )
 }
 
 function parseIsoTime(value: string | null) {
@@ -882,6 +978,26 @@ function mapCardData(
     descrizioneRichiestaFerie: displayValue(process.descrizione_richiesta_ferie),
     patenteDettaglio: getFirstArrayValue(process.patente) ?? displayValue(process.patente),
     sesso: toStringValue(process.sesso),
+    nazionalitaEscluse: getStringArrayValue(process.nazionalita_escluse),
+    nazionalitaObbligatorie: getStringArrayValue(process.nazionalita_obbligatorie),
+    famigliaMoltoEsigente: toBooleanValue(process.famiglia_molto_esigente) ?? false,
+    richiestaAutonomia: toBooleanValue(process.richiesta_autonomia) ?? false,
+    datoreSpessoPresente: toBooleanValue(process.datore_spesso_presente) ?? false,
+    richiestaDiscrezione: toBooleanValue(process.richiesta_discrezione) ?? false,
+    comunicareBeneItaliano: toBooleanValue(process.comunicare_bene_italiano) ?? false,
+    comunicareBeneInglese: toBooleanValue(process.comunicare_bene_inglese) ?? false,
+    presenzaNeonati: toBooleanValue(process.presenza_neonati) ?? false,
+    piuBambini: toBooleanValue(process.piu_bambini) ?? false,
+    famiglia4Persone: toBooleanValue(process.famiglia_4_persone) ?? false,
+    caniPiccoli: toBooleanValue(process.cani_piccoli) ?? false,
+    caniGrandi: toBooleanValue(process.cani_grandi) ?? false,
+    gatti: toBooleanValue(process.gatti) ?? false,
+    pulireRipianiAlti: toBooleanValue(process.pulire_ripiani_alti) ?? false,
+    stirare: toBooleanValue(process.stirare) ?? false,
+    stirareAbitiDifficili: toBooleanValue(process.stirare_abiti_difficili) ?? false,
+    cucinare: toBooleanValue(process.cucinare) ?? false,
+    cucinareElaborato: toBooleanValue(process.cucinare_elaborato) ?? false,
+    curaPiante: toBooleanValue(process.cura_piante) ?? false,
     testoAnnuncioWhatsapp: displayValue(process.testo_annuncio_whatsapp),
   }
 }
@@ -1225,6 +1341,10 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
   const updateProcessCard = React.useCallback(
     async (processId: string, patch: Record<string, unknown>) => {
       setError(null)
+      const normalizedPatch = normalizeLookupPatchLabels(
+        patch,
+        lookupOptionsByField
+      )
 
       const previousColumns = columns
 
@@ -1238,8 +1358,8 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
           if (typeof patch.stato_sales === "string" && patch.stato_sales.trim()) {
             nextCard.stage = patch.stato_sales.trim()
           }
-          if ("tipo_lavoro" in patch) {
-            const nextTipoLavoro = getFirstArrayValue(patch.tipo_lavoro)
+          if ("tipo_lavoro" in normalizedPatch) {
+            const nextTipoLavoro = getFirstArrayValue(normalizedPatch.tipo_lavoro)
             nextCard.tipoLavoroBadge = nextTipoLavoro
             nextCard.tipoLavoroColor = resolveLookupOptionColor(
               lookupOptionsByField,
@@ -1247,8 +1367,8 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
               nextTipoLavoro
             )
           }
-          if ("tipo_rapporto" in patch) {
-            const nextTipoRapporto = getFirstArrayValue(patch.tipo_rapporto)
+          if ("tipo_rapporto" in normalizedPatch) {
+            const nextTipoRapporto = getFirstArrayValue(normalizedPatch.tipo_rapporto)
             nextCard.tipoRapportoBadge = nextTipoRapporto
             nextCard.tipoRapportoColor = resolveLookupOptionColor(
               lookupOptionsByField,
@@ -1256,24 +1376,24 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
               nextTipoRapporto
             )
           }
-          if ("sales_cold_call_followup" in patch) {
+          if ("sales_cold_call_followup" in normalizedPatch) {
             nextCard.salesColdCallFollowup = displayValue(
-              patch.sales_cold_call_followup
+              normalizedPatch.sales_cold_call_followup
             )
             nextCard.tentativiChiamataCount = getFlexibleStringArrayValue(
-              patch.sales_cold_call_followup
+              normalizedPatch.sales_cold_call_followup
             ).length
           }
-          if ("sales_no_show_followup" in patch) {
+          if ("sales_no_show_followup" in normalizedPatch) {
             nextCard.salesNoShowFollowup = displayValue(
-              patch.sales_no_show_followup
+              normalizedPatch.sales_no_show_followup
             )
           }
-          if ("motivazione_lost" in patch) {
-            nextCard.motivazioneLost = displayValue(patch.motivazione_lost)
+          if ("motivazione_lost" in normalizedPatch) {
+            nextCard.motivazioneLost = displayValue(normalizedPatch.motivazione_lost)
           }
-          if ("motivazione_oot" in patch) {
-            nextCard.motivazioneOot = displayValue(patch.motivazione_oot)
+          if ("motivazione_oot" in normalizedPatch) {
+            nextCard.motivazioneOot = displayValue(normalizedPatch.motivazione_oot)
           }
           if ("appunti_chiamata_sales" in patch) {
             nextCard.appuntiChiamataSales = displayValue(
@@ -1291,14 +1411,14 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
           if ("orario_di_lavoro" in patch) {
             nextCard.orarioDiLavoro = displayValue(patch.orario_di_lavoro)
           }
-          if ("stato_res" in patch) {
-            nextCard.statoRes = displayValue(patch.stato_res)
+          if ("stato_res" in normalizedPatch) {
+            nextCard.statoRes = displayValue(normalizedPatch.stato_res)
           }
-          if ("qualificazione_lead" in patch) {
-            nextCard.qualificazioneLead = displayValue(patch.qualificazione_lead)
+          if ("qualificazione_lead" in normalizedPatch) {
+            nextCard.qualificazioneLead = displayValue(normalizedPatch.qualificazione_lead)
           }
-          if ("motivo_no_match" in patch) {
-            nextCard.motivoNoMatch = displayValue(patch.motivo_no_match)
+          if ("motivo_no_match" in normalizedPatch) {
+            nextCard.motivoNoMatch = displayValue(normalizedPatch.motivo_no_match)
           }
           if ("modello_smartmatching" in patch) {
             nextCard.modelloSmartmatching = displayValue(
@@ -1313,8 +1433,8 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
               patch.numero_giorni_settimanali
             )
           }
-          if ("preferenza_giorno" in patch) {
-            nextCard.giornatePreferite = getStringArrayValue(patch.preferenza_giorno)
+          if ("preferenza_giorno" in normalizedPatch) {
+            nextCard.giornatePreferite = getStringArrayValue(normalizedPatch.preferenza_giorno)
           }
           if ("nucleo_famigliare" in patch) {
             nextCard.nucleoFamigliare = displayValue(patch.nucleo_famigliare)
@@ -1335,6 +1455,78 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
           }
           if ("sesso" in patch) {
             nextCard.sesso = toStringValue(patch.sesso)
+          }
+          if ("nazionalita_escluse" in patch) {
+            nextCard.nazionalitaEscluse = getStringArrayValue(patch.nazionalita_escluse)
+          }
+          if ("nazionalita_obbligatorie" in patch) {
+            nextCard.nazionalitaObbligatorie = getStringArrayValue(
+              patch.nazionalita_obbligatorie
+            )
+          }
+          if ("famiglia_molto_esigente" in patch) {
+            nextCard.famigliaMoltoEsigente =
+              toBooleanValue(patch.famiglia_molto_esigente) ?? false
+          }
+          if ("richiesta_autonomia" in patch) {
+            nextCard.richiestaAutonomia =
+              toBooleanValue(patch.richiesta_autonomia) ?? false
+          }
+          if ("datore_spesso_presente" in patch) {
+            nextCard.datoreSpessoPresente =
+              toBooleanValue(patch.datore_spesso_presente) ?? false
+          }
+          if ("richiesta_discrezione" in patch) {
+            nextCard.richiestaDiscrezione =
+              toBooleanValue(patch.richiesta_discrezione) ?? false
+          }
+          if ("comunicare_bene_italiano" in patch) {
+            nextCard.comunicareBeneItaliano =
+              toBooleanValue(patch.comunicare_bene_italiano) ?? false
+          }
+          if ("comunicare_bene_inglese" in patch) {
+            nextCard.comunicareBeneInglese =
+              toBooleanValue(patch.comunicare_bene_inglese) ?? false
+          }
+          if ("presenza_neonati" in patch) {
+            nextCard.presenzaNeonati = toBooleanValue(patch.presenza_neonati) ?? false
+          }
+          if ("piu_bambini" in patch) {
+            nextCard.piuBambini = toBooleanValue(patch.piu_bambini) ?? false
+          }
+          if ("famiglia_4_persone" in patch) {
+            nextCard.famiglia4Persone =
+              toBooleanValue(patch.famiglia_4_persone) ?? false
+          }
+          if ("cani_piccoli" in patch) {
+            nextCard.caniPiccoli = toBooleanValue(patch.cani_piccoli) ?? false
+          }
+          if ("cani_grandi" in patch) {
+            nextCard.caniGrandi = toBooleanValue(patch.cani_grandi) ?? false
+          }
+          if ("gatti" in patch) {
+            nextCard.gatti = toBooleanValue(patch.gatti) ?? false
+          }
+          if ("pulire_ripiani_alti" in patch) {
+            nextCard.pulireRipianiAlti =
+              toBooleanValue(patch.pulire_ripiani_alti) ?? false
+          }
+          if ("stirare" in patch) {
+            nextCard.stirare = toBooleanValue(patch.stirare) ?? false
+          }
+          if ("stirare_abiti_difficili" in patch) {
+            nextCard.stirareAbitiDifficili =
+              toBooleanValue(patch.stirare_abiti_difficili) ?? false
+          }
+          if ("cucinare" in patch) {
+            nextCard.cucinare = toBooleanValue(patch.cucinare) ?? false
+          }
+          if ("cucinare_elaborato" in patch) {
+            nextCard.cucinareElaborato =
+              toBooleanValue(patch.cucinare_elaborato) ?? false
+          }
+          if ("cura_piante" in patch) {
+            nextCard.curaPiante = toBooleanValue(patch.cura_piante) ?? false
           }
           if ("richiesta_patente" in patch) {
             nextCard.richiestaPatente =
@@ -1423,7 +1615,7 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
       setColumns(optimisticColumns)
 
       try {
-        await updateRecord("processi_matching", processId, patch)
+        await updateRecord("processi_matching", processId, normalizedPatch)
       } catch (caughtError) {
         setColumns(previousColumns)
         const message =

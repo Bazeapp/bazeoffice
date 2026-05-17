@@ -91,7 +91,9 @@ import {
 } from "@/features/lavoratori/lib/base-utils";
 import {
   getLookupOptionLabel,
+  getLookupSelectValue,
   getTagClassName,
+  resolveLookupSingleValueOptions,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
 import { useLavoratoriData } from "@/hooks/use-lavoratori-data";
@@ -973,7 +975,11 @@ function GateWorkTypesCard({
           <p className="text-sm">Referenze verificabili</p>
           {isEditing ? (
             <Select
-              value={haiReferenze || EMPTY_SELECT_VALUE}
+              value={getLookupSelectValue(
+                haiReferenze,
+                referenzeOptions,
+                EMPTY_SELECT_VALUE,
+              )}
               onValueChange={(value) =>
                 onReferenzeChange(value === EMPTY_SELECT_VALUE ? "" : value)
               }
@@ -983,7 +989,7 @@ function GateWorkTypesCard({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                {referenzeOptions.map((option) => (
+                {resolveLookupSingleValueOptions(haiReferenze, referenzeOptions).map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -1053,7 +1059,9 @@ function GateWorkTypesCard({
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="space-y-1">
-          <p className="text-sm">Quanti anni di esperienza ha come Colf?</p>
+          <p className="min-h-10 text-sm leading-5">
+            Quanti anni di esperienza ha come Colf?
+          </p>
           {isEditing ? (
             <Input
               type="number"
@@ -1072,7 +1080,7 @@ function GateWorkTypesCard({
           )}
         </div>
         <div className="space-y-1">
-          <p className="text-sm">
+          <p className="min-h-10 text-sm leading-5">
             Quanti anni di esperienza ha come Babysitter?
           </p>
           {isEditing ? (
@@ -1093,7 +1101,9 @@ function GateWorkTypesCard({
           )}
         </div>
         <div className="space-y-1">
-          <p className="text-sm">Quanti anni di esperienza ha come Badante?</p>
+          <p className="min-h-10 text-sm leading-5">
+            Quanti anni di esperienza ha come Badante?
+          </p>
           {isEditing ? (
             <Input
               type="number"
@@ -2336,7 +2346,11 @@ function GateSelfCertificationCard({
         <div className="space-y-2">
           <p className="text-sm">Documenti (Autocertificazione)</p>
           <Select
-            value={documentiInRegola || EMPTY_SELECT_VALUE}
+            value={getLookupSelectValue(
+              documentiInRegola,
+              documentiOptions,
+              EMPTY_SELECT_VALUE,
+            )}
             onValueChange={(value) =>
               onDocumentiChange(value === EMPTY_SELECT_VALUE ? "" : value)
             }
@@ -2346,7 +2360,7 @@ function GateSelfCertificationCard({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-              {documentiOptions.map((option) => (
+              {resolveLookupSingleValueOptions(documentiInRegola, documentiOptions).map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -2358,7 +2372,11 @@ function GateSelfCertificationCard({
         <div className="space-y-2">
           <p className="text-sm">Referenze verificabili (Autocertificazione)</p>
           <Select
-            value={haiReferenze || EMPTY_SELECT_VALUE}
+            value={getLookupSelectValue(
+              haiReferenze,
+              referenzeOptions,
+              EMPTY_SELECT_VALUE,
+            )}
             onValueChange={(value) =>
               onReferenzeChange(value === EMPTY_SELECT_VALUE ? "" : value)
             }
@@ -2368,7 +2386,7 @@ function GateSelfCertificationCard({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-              {referenzeOptions.map((option) => (
+              {resolveLookupSingleValueOptions(haiReferenze, referenzeOptions).map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -2445,7 +2463,11 @@ function GateDocumentIdentityCard({
   onHeaderChange: (field: string, value: string) => void;
   onHeaderBlur: (field: string) => void;
 }) {
-  const canUseNazionalitaSelect = nazionalitaOptions.length > 0;
+  const resolvedNazionalitaOptions = resolveLookupSingleValueOptions(
+    headerDraft.nazionalita,
+    nazionalitaOptions,
+  );
+  const canUseNazionalitaSelect = resolvedNazionalitaOptions.length > 0;
 
   return (
     <GateInfoCard
@@ -2487,7 +2509,11 @@ function GateDocumentIdentityCard({
           <p className="text-sm">Verifica la nazionalita</p>
           {canUseNazionalitaSelect ? (
             <Select
-              value={headerDraft.nazionalita || EMPTY_SELECT_VALUE}
+              value={getLookupSelectValue(
+                headerDraft.nazionalita,
+                resolvedNazionalitaOptions,
+                EMPTY_SELECT_VALUE,
+              )}
               onValueChange={(value) => {
                 onHeaderChange(
                   "nazionalita",
@@ -2502,7 +2528,7 @@ function GateDocumentIdentityCard({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
-                {nazionalitaOptions.map((option) => (
+                {resolvedNazionalitaOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>

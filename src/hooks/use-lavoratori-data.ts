@@ -24,6 +24,7 @@ import {
   normalizeLookupOptions,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils"
+import { isDirectInvolvementSelection } from "@/features/lavoratori/lib/involvement-utils"
 import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
@@ -107,27 +108,66 @@ const WORKER_LIST_SELECT = [
   "creato_il",
   "aggiornato_il",
 ]
+const WORKER_DETAIL_SELECT = Array.from(new Set([
+  ...WORKER_LIST_SELECT.filter((field) => field !== "cap"),
+  "anni_esperienza_badante",
+  "availability_final_json",
+  "check_accetta_babysitting_multipli_bambini",
+  "check_accetta_babysitting_neonati",
+  "check_accetta_case_con_cani",
+  "check_accetta_case_con_cani_grandi",
+  "check_accetta_case_con_gatti",
+  "check_accetta_lavori_con_trasferta",
+  "check_accetta_salire_scale_o_soffitti_alti",
+  "check_lavori_accettabili",
+  "compatibilita_babysitting_neonati",
+  "compatibilita_con_animali_in_casa",
+  "compatibilita_con_case_di_grandi_dimensioni",
+  "compatibilita_con_contesti_pacati",
+  "compatibilita_con_cucina_strutturata",
+  "compatibilita_con_elevata_autonomia_richiesta",
+  "compatibilita_con_stiro_esigente",
+  "compatibilita_famiglie_molto_esigenti",
+  "compatibilita_famiglie_numerose",
+  "compatibilita_lavoro_con_datore_presente_in_casa",
+  "disponibilita_domenica_mattina",
+  "disponibilita_domenica_pomeriggio",
+  "disponibilita_domenica_sera",
+  "disponibilita_giovedi_mattina",
+  "disponibilita_giovedi_pomeriggio",
+  "disponibilita_giovedi_sera",
+  "disponibilita_lunedi_mattina",
+  "disponibilita_lunedi_pomeriggio",
+  "disponibilita_lunedi_sera",
+  "disponibilita_martedi_mattina",
+  "disponibilita_martedi_pomeriggio",
+  "disponibilita_martedi_sera",
+  "disponibilita_mercoledi_mattina",
+  "disponibilita_mercoledi_pomeriggio",
+  "disponibilita_mercoledi_sera",
+  "disponibilita_nel_giorno",
+  "disponibilita_per_json",
+  "disponibilita_sabato_mattina",
+  "disponibilita_sabato_pomeriggio",
+  "disponibilita_sabato_sera",
+  "disponibilita_venerdi_mattina",
+  "disponibilita_venerdi_pomeriggio",
+  "disponibilita_venerdi_sera",
+  "iban",
+  "id_stripe_account",
+  "livello_babysitting",
+  "livello_cucina",
+  "livello_dogsitting",
+  "livello_giardinaggio",
+  "livello_inglese",
+  "livello_pulizie",
+  "livello_stiro",
+  "motivazione_non_idoneo",
+  "situazione_lavorativa_attuale",
+  "vincoli_orari_disponibilita",
+]))
 const WORKER_LIST_DATA_VERSION = "worker-list-gate-detail-v1"
 
-const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
-  "selezionato",
-  "inviato al cliente",
-  "colloquio schedulato",
-  "colloquio rimandato",
-  "colloquio fatto",
-  "prova schedulata",
-  "prova rimandata",
-  "prova in corso",
-  "match",
-])
-const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo"
-const DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS = new Set([
-  "no match",
-  "stand by",
-  "match",
-  "in prova col lavoratore",
-  "in prova con lavoratore",
-])
 const GATE1_BLOCKING_SELECTION_STATUS_TOKENS = new Set([
   "selezionato",
   "inviato al cliente",
@@ -148,17 +188,6 @@ const GATE1_BLOCKING_SELECTION_STATUS_FILTER_VALUES = [
   "Prova rimandata",
   ...GATE1_BLOCKING_SELECTION_STATUS_TOKENS,
 ]
-const OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS = new Set([
-  "in prova col lavoratore",
-  "in prova con lavoratore",
-  "match",
-])
-const OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS = new Set([
-  "prova schedulata",
-  "prova rimandata",
-  "prova in corso",
-  "match",
-])
 
 type GenericRow = Record<string, unknown>
 
@@ -483,6 +512,32 @@ function buildLookupFilterTypeMap(rows: LookupValueRecord[]) {
   return filterTypeMap
 }
 
+async function fetchLavoratoriNazionalitaOptions(): Promise<LookupOption[]> {
+  const result = await fetchLavoratori({
+    select: ["nazionalita"],
+    limit: 1,
+    offset: 0,
+    includeSchema: false,
+    groupBy: ["nazionalita"],
+  })
+  const optionsByToken = new Map<string, LookupOption>()
+
+  for (const group of result.groups) {
+    const label = asString(group.label)
+    const value = asString(group.value) || label
+    if (!value || label === "Senza valore") continue
+
+    const token = value.toLowerCase()
+    if (!optionsByToken.has(token)) {
+      optionsByToken.set(token, { label: label || value, value })
+    }
+  }
+
+  return Array.from(optionsByToken.values()).sort((left, right) =>
+    left.label.localeCompare(right.label, "it")
+  )
+}
+
 function buildWorkerListItem(
   row: LavoratoreRecord,
   lookupColorsByDomain: Map<string, string>,
@@ -633,33 +688,6 @@ function resolveLookupColorByStatusToken(
   return null
 }
 
-function hasActiveWorkSituation(selection: GenericRow) {
-  return normalizeStatusToken(selection.stato_situazione_lavorativa) !== DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
-}
-
-function isDirectInvolvementSelection(selection: GenericRow, processRow: GenericRow) {
-  const processStatusToken = normalizeStatusToken(processRow.stato_res)
-
-  return (
-    hasActiveWorkSituation(selection) &&
-    DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS.has(
-      normalizeStatusToken(selection.stato_selezione)
-    ) &&
-    !DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS.has(processStatusToken)
-  )
-}
-
-function isOtherSearchSelection(selection: GenericRow, processRow: GenericRow) {
-  const processStatusToken = normalizeStatusToken(processRow.stato_res)
-  const selectionStatusToken = normalizeStatusToken(selection.stato_selezione)
-
-  const matchesGroupB =
-    OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
-    OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS.has(selectionStatusToken)
-
-  return hasActiveWorkSituation(selection) && matchesGroupB
-}
-
 function getDotColorClassName(color: string | null | undefined) {
   switch ((color ?? "").toLowerCase()) {
     case "red":
@@ -729,50 +757,60 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
 
   for (let index = 0; index < workerIds.length; index += ADDRESS_BATCH_SIZE) {
     const batch = workerIds.slice(index, index + ADDRESS_BATCH_SIZE)
-    const result = await fetchIndirizzi({
-      select: [
-        "entita_id",
-        "tipo_indirizzo",
-        "via",
-        "civico",
-        "cap",
-        "citta",
-        "provincia",
-        "indirizzo_formattato",
-        "note",
-      ],
-      limit: Math.max(batch.length * 2, batch.length),
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: `lavoratori-addresses-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `lavoratori-addresses-table-${index}`,
-            field: "entita_tabella",
-            operator: "is",
-            value: "lavoratori",
-          },
-          {
-            kind: "condition",
-            id: `lavoratori-addresses-id-${index}`,
-            field: "entita_id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    })
+    let offset = 0
 
-    for (const row of result.rows) {
-      const workerId = asString(row.entita_id)
-      if (!workerId) continue
-      const current = addressesByWorkerId.get(workerId) ?? []
-      current.push(row)
-      addressesByWorkerId.set(workerId, current)
+    while (true) {
+      const result = await fetchIndirizzi({
+        select: [
+          "entita_id",
+          "tipo_indirizzo",
+          "via",
+          "civico",
+          "cap",
+          "citta",
+          "provincia",
+          "indirizzo_formattato",
+          "note",
+        ],
+        limit: ADDRESS_BATCH_SIZE,
+        offset,
+        orderBy: [{ field: "aggiornato_il", ascending: false }],
+        filters: {
+          kind: "group",
+          id: `lavoratori-addresses-${index}-${offset}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `lavoratori-addresses-table-${index}-${offset}`,
+              field: "entita_tabella",
+              operator: "is",
+              value: "lavoratori",
+            },
+            {
+              kind: "condition",
+              id: `lavoratori-addresses-id-${index}-${offset}`,
+              field: "entita_id",
+              operator: "in",
+              value: batch.join(","),
+            },
+          ],
+        },
+      })
+
+      for (const row of result.rows) {
+        const workerId = asString(row.entita_id)
+        if (!workerId) continue
+        const current = addressesByWorkerId.get(workerId) ?? []
+        current.push(row)
+        addressesByWorkerId.set(workerId, current)
+      }
+
+      if (result.rows.length < ADDRESS_BATCH_SIZE || offset + ADDRESS_BATCH_SIZE >= result.total) {
+        break
+      }
+
+      offset += ADDRESS_BATCH_SIZE
     }
   }
 
@@ -1075,10 +1113,7 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
 
       const processRow = processRowsById.get(processId)
       if (!processRow) continue
-      if (
-        !isDirectInvolvementSelection(selection, processRow) &&
-        !isOtherSearchSelection(selection, processRow)
-      ) {
+      if (!isDirectInvolvementSelection(selection)) {
         continue
       }
 
@@ -1201,6 +1236,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   const requestIdRef = React.useRef(0)
   const workersSchemaLoadedRef = React.useRef(false)
   const workersSchemaLoadingRef = React.useRef(false)
+  const selectedWorkerAddressLoadAttemptsRef = React.useRef(new Set<string>())
   const lastLoadedListQueryKeyRef = React.useRef<string | null>(null)
   const inFlightListQueryKeyRef = React.useRef<string | null>(null)
   const {
@@ -1277,8 +1313,15 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     async function loadLookupOptions() {
       try {
         const lookup = await fetchLookupValues()
+        const lookupOptions = normalizeLookupOptions(lookup.rows)
+        if (!lookupOptions.has("lavoratori.nazionalita")) {
+          const nazionalitaOptions = await fetchLavoratoriNazionalitaOptions()
+          if (nazionalitaOptions.length > 0) {
+            lookupOptions.set("lavoratori.nazionalita", nazionalitaOptions)
+          }
+        }
         if (isCancelled) return
-        setLookupOptionsByDomain(normalizeLookupOptions(lookup.rows))
+        setLookupOptionsByDomain(lookupOptions)
         setLookupFilterTypeByDomain(buildLookupFilterTypeMap(lookup.rows))
         setLookupColorsByDomain(normalizeLookupColors(lookup.rows))
       } catch {
@@ -1789,6 +1832,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
 
       try {
         const result = await fetchLavoratori({
+          select: WORKER_DETAIL_SELECT,
           limit: 1,
           offset: 0,
           includeSchema: false,
@@ -2006,6 +2050,36 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         : null,
     [selectedWorkerId, workerAddressesById]
   )
+
+  React.useEffect(() => {
+    if (!selectedWorkerId || selectedWorkerAddress) return
+    if (selectedWorkerAddressLoadAttemptsRef.current.has(selectedWorkerId)) return
+
+    let isCancelled = false
+    const workerId = selectedWorkerId
+    selectedWorkerAddressLoadAttemptsRef.current.add(workerId)
+
+    async function loadSelectedWorkerAddress() {
+      const result = await fetchWorkerAddressesByIds([workerId])
+      if (isCancelled) return
+      const addresses = result.get(workerId)
+      if (!addresses || addresses.length === 0) return
+
+      setWorkerAddressesById((current) => {
+        const next = new Map(current)
+        next.set(workerId, addresses)
+        return next
+      })
+    }
+
+    void loadSelectedWorkerAddress().catch(() => {
+      if (!isCancelled) selectedWorkerAddressLoadAttemptsRef.current.delete(workerId)
+    })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [selectedWorkerAddress, selectedWorkerId])
 
   const applyUpdatedWorkerRow = React.useCallback(
     (nextRow: LavoratoreRecord) => {

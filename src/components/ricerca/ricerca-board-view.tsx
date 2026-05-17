@@ -50,9 +50,16 @@ function getColumnVisual(columnId: string, columnLabel: string, color: string | 
   // Stage-specific shades — preserva la progressione di intensità del legacy:
   // selezione_inviata (chiaro) → match (intenso) sull'asse emerald.
   switch (token) {
+    case "da assegnare":
+      return { columnClassName: "bg-amber-300", headerClassName: "", iconClassName: "text-amber-400" }
     case "fare ricerca":
       return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
+    case "in preparazione per invio":
+      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" }
+    case "inviare selezione":
+      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
     case "selezione inviata":
+    case "selezione inviata in attesa di feedback":
       return { columnClassName: "bg-emerald-300", headerClassName: "", iconClassName: "text-emerald-400" }
     case "fase di colloqui":
       return { columnClassName: "bg-emerald-400", headerClassName: "", iconClassName: "text-emerald-500" }

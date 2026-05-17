@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getTagClassName } from "@/features/lavoratori/lib/lookup-utils";
+import { STATI_RICERCA_CANONICI } from "@/features/ricerca/stati-ricerca";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
@@ -61,12 +62,42 @@ function selectedOptionValue(
   return match?.valueKey ?? "";
 }
 
+function normalizeToken(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function buildCanonicalStatoOptions(
+  options: LookupOptionsByField[string] | undefined,
+) {
+  const optionsByIdOrLabel = new Map(
+    (options ?? []).flatMap((option) => [
+      [normalizeToken(option.valueKey), option],
+      [normalizeToken(option.valueLabel), option],
+    ]),
+  );
+
+  return STATI_RICERCA_CANONICI.map((stato) => {
+    const lookupOption =
+      optionsByIdOrLabel.get(normalizeToken(stato.id)) ??
+      optionsByIdOrLabel.get(normalizeToken(stato.label));
+
+    return {
+      valueKey: lookupOption?.valueKey ?? stato.id,
+      valueLabel: lookupOption?.valueLabel ?? stato.label,
+      color: lookupOption?.color ?? stato.color,
+      sortOrder: stato.sortOrder,
+    };
+  });
+}
+
 export function RicercaFamilySummaryCard({
   card,
   lookupOptionsByField,
   onPatchProcess,
 }: RicercaFamilySummaryCardProps) {
-  const statoOperativoOptions = lookupOptionsByField?.stato_res ?? [];
+  const statoOperativoOptions = buildCanonicalStatoOptions(
+    lookupOptionsByField?.stato_res,
+  );
 
   return (
     <DetailSectionBlock

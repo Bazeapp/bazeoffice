@@ -15,6 +15,7 @@ import {
   useVariazioniBoard,
 } from "@/hooks/use-variazioni-board";
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot";
+import type { AttachmentLink } from "@/components/shared-next/attachment-utils";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import {
   KanbanColumnShell,
@@ -45,7 +46,9 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { updateRecord } from "@/lib/anagrafiche-api";
+import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments";
 import { matchesSearchQuery } from "@/lib/search-utils";
+import { supabase } from "@/lib/supabase-client";
 import { cn } from "@/lib/utils";
 
 function formatDate(value: string | null | undefined) {
@@ -132,6 +135,17 @@ function toDisplayValue(value: unknown) {
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   return "";
 }
+
+function sanitizeFileName(name: string) {
+  return name
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "documento";
+}
+
+type VariazioneAttachmentSlot =
+  | "accordo_variazione_contrattuale"
+  | "ricevuta_inps_variazione_rapporto";
 
 function buildAnagraficaDraft(
   row: Record<string, unknown> | null | undefined,
@@ -296,6 +310,8 @@ function VariazioniDetailSheet({
   const [savingRapporto, setSavingRapporto] = React.useState(false);
   const [detailsError, setDetailsError] = React.useState<string | null>(null);
   const [rapportoError, setRapportoError] = React.useState<string | null>(null);
+  const [uploadingSlot, setUploadingSlot] = React.useState<VariazioneAttachmentSlot | null>(null);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
   const previousCardIdRef = React.useRef<string | null>(card?.id ?? null);
   const [detailsDraft, setDetailsDraft] = React.useState(() => buildVariazioneDetailsDraft(card));
   const [rapportoDraft, setRapportoDraft] = React.useState(() => buildVariazioneRapportoDraft(card));
@@ -324,6 +340,7 @@ function VariazioniDetailSheet({
       setEditingRapporto(false);
       setDetailsError(null);
       setRapportoError(null);
+      setUploadError(null);
       setDetailsDraft(nextDetailsDraft);
       setRapportoDraft(nextRapportoDraft);
       return;
@@ -397,6 +414,57 @@ function VariazioniDetailSheet({
     } finally {
       setSavingRapporto(false);
     }
+  }
+
+  async function handleUploadAttachment(slot: VariazioneAttachmentSlot, file: File) {
+    if (!card) return;
+
+    setUploadingSlot(slot);
+    setUploadError(null);
+
+    try {
+      const safeName = sanitizeFileName(file.name || "documento");
+      const storagePath = [
+        "variazioni_contrattuali",
+        card.id,
+        slot,
+        `${Date.now()}-${safeName}`,
+      ].join("/");
+
+      const uploadResult = await supabase.storage.from("baze-bucket").upload(storagePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type || undefined,
+      });
+
+      if (uploadResult.error) {
+        throw uploadResult.error;
+      }
+
+      const payload = buildAttachmentPayload(file, storagePath);
+      const response = await updateRecord("variazioni_contrattuali", card.id, {
+        [slot]: [...normalizeAttachmentArray(card.record[slot]), payload],
+      });
+      const nextRecord = {
+        ...card.record,
+        ...response.row,
+      } as VariazioniBoardCardData["record"];
+
+      onCardChange({
+        ...card,
+        record: nextRecord,
+      });
+    } catch (caughtError) {
+      setUploadError(
+        caughtError instanceof Error ? caughtError.message : "Errore caricando documento",
+      );
+    } finally {
+      setUploadingSlot(null);
+    }
+  }
+
+  function openAttachmentPreview(link: AttachmentLink) {
+    window.open(link.url, "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -630,7 +698,7 @@ function VariazioniDetailSheet({
                             <SelectValue placeholder="Seleziona tipo contratto" />
                           </SelectTrigger>
                           <SelectContent>
-                            {["A", "B", "C", "I"].map((option) => (
+                            {["A", "B", "BS", "C", "CS", "D", "DS"].map((option) => (
                               <SelectItem key={option} value={option}>
                                 {option}
                               </SelectItem>
@@ -719,17 +787,20 @@ function VariazioniDetailSheet({
                 <AttachmentUploadSlot
                   label="Accordo Variazione"
                   value={card.record.accordo_variazione_contrattuale ?? null}
-                  onAdd={() => {}}
-                  onPreviewOpen={() => {}}
-                  isUploading={false}
+                  onAdd={(file) => handleUploadAttachment("accordo_variazione_contrattuale", file)}
+                  onPreviewOpen={openAttachmentPreview}
+                  isUploading={uploadingSlot === "accordo_variazione_contrattuale"}
                 />
                 <AttachmentUploadSlot
                   label="Ricevuta INPS Variazione"
                   value={card.record.ricevuta_inps_variazione_rapporto ?? null}
-                  onAdd={() => {}}
-                  onPreviewOpen={() => {}}
-                  isUploading={false}
+                  onAdd={(file) => handleUploadAttachment("ricevuta_inps_variazione_rapporto", file)}
+                  onPreviewOpen={openAttachmentPreview}
+                  isUploading={uploadingSlot === "ricevuta_inps_variazione_rapporto"}
                 />
+                {uploadError ? (
+                  <p className="text-xs font-medium text-red-600">{uploadError}</p>
+                ) : null}
               </DetailSectionBlock>
             </div>
           </section>

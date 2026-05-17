@@ -17,6 +17,7 @@ import {
   normalizeLookupColors,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils"
+import { isDirectInvolvementSelection } from "@/features/lavoratori/lib/involvement-utils"
 import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
 import {
   fetchFamiglie,
@@ -109,36 +110,6 @@ const PIPELINE_WORKERS_SELECT = [
   "stato_lavoratore",
   "disponibilita",
 ] satisfies string[]
-const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
-  "selezionato",
-  "inviato al cliente",
-  "colloquio schedulato",
-  "colloquio rimandato",
-  "colloquio fatto",
-  "prova schedulata",
-  "prova rimandata",
-  "prova in corso",
-  "match",
-])
-const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo"
-const DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS = new Set([
-  "no match",
-  "stand by",
-  "match",
-  "in prova col lavoratore",
-  "in prova con lavoratore",
-])
-const OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS = new Set([
-  "in prova col lavoratore",
-  "in prova con lavoratore",
-  "match",
-])
-const OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS = new Set([
-  "prova schedulata",
-  "prova rimandata",
-  "prova in corso",
-  "match",
-])
 function asRowArray(input: unknown): GenericRow[] {
   if (!Array.isArray(input)) return []
   return input.filter(
@@ -354,45 +325,6 @@ function resolveWorkerAddress(
       (address) => normalizeLookupToken(toStringValue(address.tipo_indirizzo)) === "domicilio"
     ) ??
     addresses[0]
-  )
-}
-
-function hasActiveWorkSituation(selection: GenericRow) {
-  return (
-    normalizeStatusToken(toStringValue(selection.stato_situazione_lavorativa)) !==
-    DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
-  )
-}
-
-function isDirectInvolvementSelection(selection: GenericRow, processRow: GenericRow) {
-  const processStatusToken = normalizeStatusToken(toStringValue(processRow.stato_res))
-
-  return (
-    hasActiveWorkSituation(selection) &&
-    DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS.has(
-      normalizeStatusToken(toStringValue(selection.stato_selezione))
-    ) &&
-    !DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS.has(processStatusToken)
-  )
-}
-
-function isOtherSearchSelection(selection: GenericRow, processRow: GenericRow) {
-  const processStatusToken = normalizeStatusToken(toStringValue(processRow.stato_res))
-  const selectionStatusToken = normalizeStatusToken(
-    toStringValue(selection.stato_selezione)
-  )
-
-  const matchesGroupB =
-    OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
-    OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS.has(selectionStatusToken)
-
-  return hasActiveWorkSituation(selection) && matchesGroupB
-}
-
-function isPotentialConflictingSearch(selection: GenericRow, processRow: GenericRow) {
-  return (
-    isDirectInvolvementSelection(selection, processRow) ||
-    isOtherSearchSelection(selection, processRow)
   )
 }
 
@@ -721,7 +653,7 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
       if (!processId || seenProcesses.has(processId)) continue
 
       const processRow = processRowsById.get(processId)
-      if (!processRow || !isPotentialConflictingSearch(selection, processRow)) {
+      if (!processRow || !isDirectInvolvementSelection(selection)) {
         continue
       }
 
@@ -1089,9 +1021,9 @@ async function fetchWorkersPipelineData(
 
   for (const selection of selezioniRows) {
     const id = toStringValue(selection.id)
-    const statusRaw = toStringValue(selection.stato_selezione)
+    const statusRaw = toStringValue(selection.stato_selezione) ?? "Prospetto"
     const workerId = toStringValue(selection.lavoratore_id)
-    if (!id || !statusRaw || !workerId) continue
+    if (!id || !workerId) continue
 
     const stage =
       stageMetadata.aliases.get(normalizeLookupToken(statusRaw)) ?? statusRaw

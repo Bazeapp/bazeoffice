@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+  AlertTriangleIcon,
   BriefcaseBusinessIcon,
   CalendarDaysIcon,
   CalendarIcon,
@@ -10,7 +11,9 @@ import {
   FilterIcon,
   FilterXIcon,
   LinkIcon,
+  MailIcon,
   MapPinIcon,
+  PhoneIcon,
   UsersIcon,
   XIcon,
 } from "lucide-react";
@@ -91,6 +94,11 @@ function formatBadgeLabel(value: string) {
     .replaceAll("/", " / ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function hasDisplayValue(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return Boolean(normalized && normalized !== "-");
 }
 
 function formatRoleBadgeLabel(value: string) {
@@ -299,6 +307,17 @@ function formatDateForView(value: string | null | undefined) {
   return raw;
 }
 
+function buildSchedulingDraft(card: AssegnazioneCardData | null) {
+  return {
+    statoRes: card?.statoRes ?? "da_assegnare",
+    recruiterId: card?.recruiterId ?? "",
+    deadlineMobile: card?.deadlineMobile
+      ? toIsoDateInput(card.deadlineMobile)
+      : "",
+    dataAssegnazione: card?.dataAssegnazione ?? "",
+  };
+}
+
 function formatOreGiorniLabel(
   oreSettimanali: string,
   giorniSettimanali: string,
@@ -341,6 +360,10 @@ function AssegnazioneSearchCard({
   onAssigneeChange: (assigneeId: AssigneeValue) => void;
 }) {
   const hasTags = Boolean(data.tipoLavoroBadge || data.tipoRapportoBadge);
+  const hasInconsistentAssignment =
+    (data.statoRes === "da_assegnare" &&
+      (Boolean(data.recruiterId) || Boolean(data.dataAssegnazione))) ||
+    (data.statoRes === "fare_ricerca" && !data.dataAssegnazione);
 
   return (
     <RecordCard accentClassName={accentClassName}>
@@ -373,6 +396,14 @@ function AssegnazioneSearchCard({
                 {formatBadgeLabel(data.tipoRapportoBadge)}
               </Badge>
             ) : null}
+          </CardMetaRow>
+        ) : null}
+        {hasInconsistentAssignment ? (
+          <CardMetaRow>
+            <Badge className="border-orange-200 bg-orange-100 text-orange-700">
+              <AlertTriangleIcon data-icon="inline-start" />
+              Stato incoerente
+            </Badge>
           </CardMetaRow>
         ) : null}
         <CardMetaRow icon={<Clock3Icon />}>
@@ -438,35 +469,61 @@ function AssegnazioneDetailSheet({
 }) {
   const [isEditingScheduling, setIsEditingScheduling] = React.useState(false);
   const [isSavingScheduling, setIsSavingScheduling] = React.useState(false);
-  const [schedulingDraft, setSchedulingDraft] = React.useState({
-    statoRes: card?.statoRes ?? "da_assegnare",
-    recruiterId: card?.recruiterId ?? "",
-    deadlineMobile: card?.deadlineMobile
-      ? toIsoDateInput(card.deadlineMobile)
-      : "",
-    dataAssegnazione: card?.dataAssegnazione ?? "",
-  });
+  const [schedulingDraft, setSchedulingDraft] = React.useState(() =>
+    buildSchedulingDraft(card),
+  );
   const initializedCardIdRef = React.useRef<string | null>(card?.id ?? null);
 
   React.useEffect(() => {
     const currentCardId = card?.id ?? null;
-    if (initializedCardIdRef.current === currentCardId) return;
+    if (initializedCardIdRef.current === currentCardId) {
+      if (!isEditingScheduling) {
+        setSchedulingDraft(buildSchedulingDraft(card));
+      } else {
+        setSchedulingDraft((current) => ({
+          ...current,
+          recruiterId: card?.recruiterId ?? "",
+        }));
+      }
+      return;
+    }
     initializedCardIdRef.current = currentCardId;
 
     setIsEditingScheduling(false);
     setIsSavingScheduling(false);
-    setSchedulingDraft({
-      statoRes: card?.statoRes ?? "da_assegnare",
-      recruiterId: card?.recruiterId ?? "",
-      deadlineMobile: card?.deadlineMobile
-        ? toIsoDateInput(card.deadlineMobile)
-        : "",
-      dataAssegnazione: card?.dataAssegnazione ?? "",
-    });
-  }, [card]);
+    setSchedulingDraft(buildSchedulingDraft(card));
+  }, [card, isEditingScheduling]);
 
-  React.useEffect(() => {
-    if (!isEditingScheduling || !card) return;
+  const recruiterLabel = card?.recruiterId
+    ? (operatorOptions.find((op) => op.id === card.recruiterId)?.label ??
+      "Sconosciuto")
+    : null;
+  const selectedSchedulingOperator =
+    schedulingDraft.recruiterId && schedulingDraft.recruiterId !== "none"
+      ? operatorOptions.find((op) => op.id === schedulingDraft.recruiterId) ?? null
+      : null;
+  const hasInconsistentAssignment =
+    Boolean(
+      card &&
+        ((card.statoRes === "da_assegnare" &&
+          (Boolean(card.recruiterId) || Boolean(card.dataAssegnazione))) ||
+          (card.statoRes === "fare_ricerca" && !card.dataAssegnazione)),
+    );
+  const hasEmail = hasDisplayValue(card?.email);
+  const hasTelefono = hasDisplayValue(card?.telefono);
+
+  const commitSchedulingDraft = React.useCallback(async () => {
+    if (!card) return;
+
+    let nextStatoRes =
+      schedulingDraft.statoRes === "da_assegnare" &&
+      schedulingDraft.recruiterId &&
+      schedulingDraft.dataAssegnazione
+        ? "fare_ricerca"
+        : schedulingDraft.statoRes;
+    if (nextStatoRes === "fare_ricerca" && !schedulingDraft.dataAssegnazione) {
+      nextStatoRes = "da_assegnare";
+    }
 
     const currentDraft = {
       statoRes: card.statoRes,
@@ -478,46 +535,43 @@ function AssegnazioneDetailSheet({
     };
 
     const hasChanges =
-      schedulingDraft.statoRes !== currentDraft.statoRes ||
+      nextStatoRes !== currentDraft.statoRes ||
       schedulingDraft.recruiterId !== currentDraft.recruiterId ||
       schedulingDraft.deadlineMobile !== currentDraft.deadlineMobile ||
       schedulingDraft.dataAssegnazione !== currentDraft.dataAssegnazione;
 
     if (!hasChanges) return;
 
-    const timeoutId = window.setTimeout(() => {
-      setIsSavingScheduling(true);
-      void onPatchCard({
+    setIsSavingScheduling(true);
+    try {
+      await onPatchCard({
         stato_res:
-          schedulingDraft.statoRes === "fare_ricerca"
+          nextStatoRes === "fare_ricerca"
             ? "fare ricerca"
             : "da assegnare",
         recruiter_ricerca_e_selezione_id: schedulingDraft.recruiterId || null,
         data_assegnazione: schedulingDraft.dataAssegnazione || null,
         deadline_mobile: schedulingDraft.deadlineMobile || null,
         data_limite_invio_selezione: schedulingDraft.deadlineMobile || null,
-      })
-        .catch(() => {
-          toast.error("Errore salvataggio stato e assegnazione");
-        })
-        .finally(() => {
-          setIsSavingScheduling(false);
-        });
+      });
+    } catch {
+      toast.error("Errore salvataggio stato e assegnazione");
+    } finally {
+      setIsSavingScheduling(false);
+    }
+  }, [card, onPatchCard, schedulingDraft]);
+
+  React.useEffect(() => {
+    if (!isEditingScheduling) return;
+
+    const timeoutId = window.setTimeout(() => {
+      void commitSchedulingDraft();
     }, 700);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [card, isEditingScheduling, onPatchCard, schedulingDraft]);
-
-  const recruiterLabel = card?.recruiterId
-    ? (operatorOptions.find((op) => op.id === card.recruiterId)?.label ??
-      "Sconosciuto")
-    : null;
-  const selectedSchedulingOperator =
-    schedulingDraft.recruiterId && schedulingDraft.recruiterId !== "none"
-      ? operatorOptions.find((op) => op.id === schedulingDraft.recruiterId) ?? null
-      : null;
+  }, [commitSchedulingDraft, isEditingScheduling]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -555,6 +609,12 @@ function AssegnazioneDetailSheet({
                 >
                   {card.statoResLabel}
                 </Badge>
+                {hasInconsistentAssignment ? (
+                  <Badge className="border-orange-200 bg-orange-100 text-orange-700">
+                    <AlertTriangleIcon data-icon="inline-start" />
+                    Stato incoerente
+                  </Badge>
+                ) : null}
                 <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
                   <CalendarIcon className="size-3.5" />
                   Deadline{" "}
@@ -604,6 +664,24 @@ function AssegnazioneDetailSheet({
                     <p className="text-base font-semibold">
                       {card.nomeFamiglia}
                     </p>
+                    {hasEmail ? (
+                      <a
+                        href={`mailto:${card.email}`}
+                        className="text-foreground inline-flex max-w-full items-center gap-1.5 text-sm hover:underline"
+                      >
+                        <MailIcon className="text-muted-foreground size-3.5 shrink-0" />
+                        <span className="truncate">{card.email}</span>
+                      </a>
+                    ) : null}
+                    {hasTelefono ? (
+                      <a
+                        href={`tel:${card.telefono}`}
+                        className="text-muted-foreground inline-flex max-w-full items-center gap-1.5 text-sm hover:underline"
+                      >
+                        <PhoneIcon className="size-3.5 shrink-0" />
+                        <span className="truncate">{card.telefono}</span>
+                      </a>
+                    ) : null}
                     <p className="text-muted-foreground text-xs">
                       ID ricerca: {card.id}
                     </p>
@@ -614,9 +692,15 @@ function AssegnazioneDetailSheet({
                   icon={<CheckCircle2Icon className="size-4" />}
                   title="Stato e assegnazione"
                   showDefaultAction
-                  onActionClick={() =>
-                    setIsEditingScheduling((current) => !current)
-                  }
+                  onActionClick={() => {
+                    if (isEditingScheduling) {
+                      setIsEditingScheduling(false);
+                      void commitSchedulingDraft();
+                      return;
+                    }
+                    setSchedulingDraft(buildSchedulingDraft(card));
+                    setIsEditingScheduling(true);
+                  }}
                   actionLabel={
                     isEditingScheduling
                       ? "Termina modifica stato e assegnazione"
@@ -853,9 +937,6 @@ export function CrmAssegnazioneView({
   const [selectedCard, setSelectedCard] =
     React.useState<AssegnazioneCardData | null>(null);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
-  const [assigneesByProcessId, setAssigneesByProcessId] = React.useState<
-    Record<string, AssigneeValue>
-  >({});
   const [assigneeFilter, setAssigneeFilter] = React.useState<
     AssigneeValue | "all"
   >("all");
@@ -866,26 +947,14 @@ export function CrmAssegnazioneView({
     Map<string, { x: number; y: number; exceededThreshold: boolean }>
   >(new Map());
 
-  React.useEffect(() => {
-    setAssigneesByProcessId((current) => {
-      const next = { ...current };
-      for (const card of cards) {
-        if (next[card.id]) continue;
-        next[card.id] = card.recruiterId ?? "none";
-      }
-      return next;
-    });
-  }, [cards]);
-
   const visibleDays = React.useMemo(
     () => buildVisibleDays(visibleWindowStart),
     [visibleWindowStart],
   );
 
   const getCardAssigneeId = React.useCallback(
-    (card: AssegnazioneCardData): AssigneeValue =>
-      assigneesByProcessId[card.id] ?? card.recruiterId ?? "none",
-    [assigneesByProcessId],
+    (card: AssegnazioneCardData): AssigneeValue => card.recruiterId ?? "none",
+    [],
   );
 
   const filteredCards = React.useMemo(() => {
@@ -937,6 +1006,7 @@ export function CrmAssegnazioneView({
       map.set(day.key, []);
     }
     for (const card of filteredCards) {
+      if (card.statoRes !== "fare_ricerca") continue;
       if (!card.dataAssegnazione) continue;
       if (!map.has(card.dataAssegnazione)) continue;
       map.get(card.dataAssegnazione)?.push(card);
@@ -951,7 +1021,9 @@ export function CrmAssegnazioneView({
     () =>
       filteredCards
         .filter(
-          (card) => card.statoRes === "da_assegnare" && !card.dataAssegnazione,
+          (card) =>
+            card.statoRes === "da_assegnare" ||
+            (card.statoRes === "fare_ricerca" && !card.dataAssegnazione),
         )
         .sort(compareByDeadlineAsc),
     [filteredCards],
@@ -968,21 +1040,17 @@ export function CrmAssegnazioneView({
 
   const applyAssigneeChange = React.useCallback(
     async (card: AssegnazioneCardData, nextAssigneeId: AssigneeValue) => {
-      setAssigneesByProcessId((current) => ({
-        ...current,
-        [card.id]: nextAssigneeId,
-      }));
-
       try {
         await patchCard(card.id, {
           recruiter_ricerca_e_selezione_id:
             nextAssigneeId === "none" ? null : nextAssigneeId,
         });
-      } catch {
-        setAssigneesByProcessId((current) => ({
-          ...current,
-          [card.id]: card.recruiterId ?? "none",
-        }));
+      } catch (caughtError) {
+        const message =
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore aggiornando assegnatario";
+        toast.error(message);
       }
     },
     [patchCard],

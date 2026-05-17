@@ -7,6 +7,7 @@ import {
   fetchProcessiMatching,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { STATI_RICERCA_CANONICI } from "@/features/ricerca/stati-ricerca"
 import type { LookupValueRecord } from "@/types"
 
 type GenericRow = Record<string, unknown>
@@ -59,17 +60,6 @@ const ADDRESS_BOARD_SELECT_FIELDS = [
   "provincia",
   "indirizzo_formattato",
   "note",
-] as const
-
-const VISIBLE_STAGE_ORDER = [
-  "fare ricerca",
-  "selezione inviata",
-  "selezione inviata in attesa di feedback",
-  "fase di colloqui",
-  "in prova con lavoratore",
-  "match",
-  "no match",
-  "stand by",
 ] as const
 
 export type RicercaBoardCardData = {
@@ -203,7 +193,7 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
       return a.value_label.localeCompare(b.value_label, "it")
     })
 
-  const definitions: StageDefinition[] = []
+  const definitionsById = new Map<string, StageDefinition>()
   const aliases = new Map<string, string>()
 
   for (const row of stageRows) {
@@ -211,7 +201,7 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
     const label = toStringValue(row.value_label)
     if (!id || !label) continue
 
-    definitions.push({
+    definitionsById.set(id, {
       id,
       label,
       color: readLookupColor(row.metadata),
@@ -221,8 +211,20 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
     aliases.set(normalizeLookupToken(label), id)
   }
 
+  for (const stage of STATI_RICERCA_CANONICI) {
+    definitionsById.set(stage.id, {
+      id: stage.id,
+      label: stage.label,
+      color: definitionsById.get(stage.id)?.color ?? stage.color,
+    })
+    aliases.set(normalizeLookupToken(stage.id), stage.id)
+    aliases.set(normalizeLookupToken(stage.label), stage.id)
+  }
+
   return {
-    definitions,
+    definitions: STATI_RICERCA_CANONICI.map((stage) => definitionsById.get(stage.id)).filter(
+      (stage): stage is StageDefinition => Boolean(stage)
+    ),
     aliases,
   }
 }
@@ -321,7 +323,7 @@ function buildStageFilter(
             id: `${idPrefix}-stage-values`,
             field: "stato_res",
             operator: "in" as const,
-            value: values.join(","),
+            value: JSON.stringify(values),
           },
     ],
   }
@@ -576,12 +578,7 @@ async function fetchRicercaBoardData(): Promise<RicercaBoardColumnData[]> {
   const lookupRows = lookupResult.rows
   const stageMetadata = buildStageMetadata(lookupRows)
 
-  const visibleStageNames = new Set(VISIBLE_STAGE_ORDER.map(normalizeStageName))
-  const visibleStageDefinitions = stageMetadata.definitions.filter(
-    (stage) =>
-      visibleStageNames.has(normalizeStageName(stage.label)) ||
-      visibleStageNames.has(normalizeStageName(stage.id))
-  )
+  const visibleStageDefinitions = stageMetadata.definitions
 
   const eagerStages = visibleStageDefinitions.filter(
     (stage) => !isDeferredStage(stage.label) && !isDeferredStage(stage.id)
@@ -614,7 +611,10 @@ async function fetchRicercaBoardData(): Promise<RicercaBoardColumnData[]> {
   ]
 
   const sortOrder = new Map(
-    VISIBLE_STAGE_ORDER.map((stage, index) => [normalizeStageName(stage), index])
+    STATI_RICERCA_CANONICI.flatMap((stage, index) => [
+      [normalizeStageName(stage.id), index] as const,
+      [normalizeStageName(stage.label), index] as const,
+    ])
   )
 
   orderedColumns.sort((left, right) => {

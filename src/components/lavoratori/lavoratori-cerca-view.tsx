@@ -45,6 +45,7 @@ import {
   normalizeDomesticRoleLookupValues,
   readArrayStrings,
 } from "@/features/lavoratori/lib/base-utils";
+import { isDirectInvolvementSelection } from "@/features/lavoratori/lib/involvement-utils";
 import {
   getLookupOptionLabel,
   getTagClassName,
@@ -157,85 +158,6 @@ type SearchProcessResult = {
 const RELATED_SELECTIONS_PAGE_SIZE = 500;
 const RELATED_PROCESS_BATCH_SIZE = 150;
 const RELATED_FAMILY_BATCH_SIZE = 150;
-const DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS = new Set([
-  "selezionato",
-  "inviato al cliente",
-  "colloquio schedulato",
-  "colloquio rimandato",
-  "colloquio fatto",
-  "prova schedulata",
-  "prova rimandata",
-  "prova in corso",
-  "match",
-]);
-const DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN = "non attivo";
-const DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS = new Set([
-  "no match",
-  "stand by",
-  "match",
-  "in prova col lavoratore",
-  "in prova con lavoratore",
-]);
-const OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS = new Set([
-  "in prova col lavoratore",
-  "in prova con lavoratore",
-  "match",
-]);
-const OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS = new Set([
-  "prova schedulata",
-  "prova rimandata",
-  "prova in corso",
-  "match",
-]);
-
-function normalizeLookupToken(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replaceAll(",", " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function hasActiveWorkSituation(selection: Record<string, unknown>) {
-  return (
-    normalizeLookupToken(asString(selection.stato_situazione_lavorativa)) !==
-    DIRECT_INVOLVEMENT_WORK_STATUS_TOKEN
-  );
-}
-
-function isDirectInvolvementSelection(
-  selection: Record<string, unknown>,
-  processRow: Record<string, unknown>,
-) {
-  const processStatusToken = normalizeLookupToken(asString(processRow.stato_res));
-
-  return (
-    hasActiveWorkSituation(selection) &&
-    DIRECT_INVOLVEMENT_SELECTION_STATUS_TOKENS.has(
-      normalizeLookupToken(asString(selection.stato_selezione)),
-    ) &&
-    !DIRECT_INVOLVEMENT_EXCLUDED_PROCESS_STATUS_TOKENS.has(processStatusToken)
-  );
-}
-
-function isOtherSearchSelection(
-  selection: Record<string, unknown>,
-  processRow: Record<string, unknown>,
-) {
-  const processStatusToken = normalizeLookupToken(asString(processRow.stato_res));
-  const selectionStatusToken = normalizeLookupToken(
-    asString(selection.stato_selezione),
-  );
-
-  const matchesGroupB =
-    OTHER_SEARCH_GROUP_B_PROCESS_STATUS_TOKENS.has(processStatusToken) &&
-    OTHER_SEARCH_GROUP_B_SELECTION_STATUS_TOKENS.has(selectionStatusToken);
-
-  return hasActiveWorkSituation(selection) && matchesGroupB;
-}
 
 function formatRelatedFamilyName(row: Record<string, unknown> | null | undefined) {
   const familyName = [asString(row?.nome), asString(row?.cognome)]
@@ -1080,16 +1002,14 @@ export function LavoratoriCercaView({
             },
           };
 
-          if (isDirectInvolvementSelection(selection, processRow)) {
+          if (isDirectInvolvementSelection(selection)) {
             nextDirectItems.push(nextItem);
             seenProcessIds.add(processId);
             continue;
           }
 
-          if (isOtherSearchSelection(selection, processRow)) {
-            nextOtherItems.push(nextItem);
-            seenProcessIds.add(processId);
-          }
+          nextOtherItems.push(nextItem);
+          seenProcessIds.add(processId);
         }
 
         if (isCancelled) return;

@@ -39,7 +39,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { getTagClassName, resolveLookupColor, type LookupOption } from "@/features/lavoratori/lib/lookup-utils"
+import {
+  getLookupSelectValue,
+  getTagClassName,
+  resolveLookupColor,
+  resolveLookupSingleValueOptions,
+  type LookupOption,
+} from "@/features/lavoratori/lib/lookup-utils"
 import { createRecord, updateRecord } from "@/lib/anagrafiche-api"
 import {
   buildAttachmentPayload,
@@ -671,7 +677,11 @@ export function DocumentsCard({
             </FieldLabel>
             {isEditing ? (
               <Select
-                value={draft.stato_verifica_documenti || EMPTY_SELECT_VALUE}
+                value={getLookupSelectValue(
+                  draft.stato_verifica_documenti,
+                  verificationOptions,
+                  EMPTY_SELECT_VALUE,
+                )}
                 onValueChange={(value) =>
                   onVerificationChange(value === EMPTY_SELECT_VALUE ? "" : value)
                 }
@@ -682,8 +692,11 @@ export function DocumentsCard({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                  {verificationOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.label}>
+                  {resolveLookupSingleValueOptions(
+                    draft.stato_verifica_documenti,
+                    verificationOptions,
+                  ).map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
                   ))}
@@ -706,7 +719,11 @@ export function DocumentsCard({
             </FieldLabel>
             {isEditing ? (
               <Select
-                value={draft.documenti_in_regola || EMPTY_SELECT_VALUE}
+                value={getLookupSelectValue(
+                  draft.documenti_in_regola,
+                  statoDocumentiOptions,
+                  EMPTY_SELECT_VALUE,
+                )}
                 onValueChange={(value) =>
                   onStatoDocumentiChange(value === EMPTY_SELECT_VALUE ? "" : value)
                 }
@@ -717,8 +734,11 @@ export function DocumentsCard({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                  {statoDocumentiOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.label}>
+                  {resolveLookupSingleValueOptions(
+                    draft.documenti_in_regola,
+                    statoDocumentiOptions,
+                  ).map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
                   ))}

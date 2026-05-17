@@ -833,6 +833,7 @@ export function RapportoDetailPanel({
       if (autosaveTimeoutRef.current) {
         window.clearTimeout(autosaveTimeoutRef.current)
         autosaveTimeoutRef.current = null
+        void persistContrattoChanges()
       }
     }
   }, [editingSection, getChangedContrattoPatch, persistContrattoChanges])

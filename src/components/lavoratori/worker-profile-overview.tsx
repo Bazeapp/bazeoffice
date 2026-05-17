@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
+import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import { asString, getAgeFromBirthDate } from "@/features/lavoratori/lib/base-utils"
 import { getWorkerQualificationStatus } from "@/features/lavoratori/lib/status-utils"
 import { Avatar } from "@/components/ui/avatar"
@@ -27,6 +28,11 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import {
+  getLookupOptionLabel,
+  getLookupSelectValue,
+  resolveLookupSingleValueOptions,
+} from "@/features/lavoratori/lib/lookup-utils"
 
 const EMPTY_SELECT_VALUE = "none"
 
@@ -42,7 +48,6 @@ function initialsFromName(name: string) {
       .join("") || "?"
   )
 }
-import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 
 type WorkerProfileOverviewProps = {
   worker: LavoratoreListItem
@@ -97,12 +102,18 @@ export function WorkerProfileOverview({
   const qualificationStatus = getWorkerQualificationStatus(worker)
   const StatusIcon = qualificationStatus.icon
   const canUseSessoSelect = sessoOptions.length > 0
-  const resolvedNazionalitaOptions =
-    nazionalitaOptions.length > 0
-      ? nazionalitaOptions
-      : draft?.nazionalita
-        ? [{ label: draft.nazionalita, value: draft.nazionalita }]
-        : []
+  const resolvedLivelloItalianoOptions = resolveLookupSingleValueOptions(
+    livelloItaliano,
+    livelloItalianoOptions,
+  )
+  const resolvedSessoOptions = resolveLookupSingleValueOptions(
+    draft?.sesso ?? workerRow.sesso,
+    sessoOptions,
+  )
+  const resolvedNazionalitaOptions = resolveLookupSingleValueOptions(
+    draft?.nazionalita ?? workerRow.nazionalita,
+    nazionalitaOptions,
+  )
 
   return (
     <div className="mb-6 flex items-start gap-4">
@@ -292,7 +303,11 @@ export function WorkerProfileOverview({
             {isEditing && livelloItaliano !== undefined ? (
               <div className="w-full max-w-xs">
                 <Select
-                  value={livelloItaliano || EMPTY_SELECT_VALUE}
+                  value={getLookupSelectValue(
+                    livelloItaliano,
+                    resolvedLivelloItalianoOptions,
+                    EMPTY_SELECT_VALUE,
+                  )}
                   onValueChange={(value) =>
                     onLivelloItalianoChange?.(
                       value === EMPTY_SELECT_VALUE ? "" : value
@@ -304,7 +319,7 @@ export function WorkerProfileOverview({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                    {livelloItalianoOptions.map((option) => (
+                    {resolvedLivelloItalianoOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -314,9 +329,15 @@ export function WorkerProfileOverview({
               </div>
             ) : (
               <span className="truncate">
-                {livelloItalianoOptions.find(
-                  (option) => option.value === asString(workerRow.livello_italiano)
-                )?.label || asString(workerRow.livello_italiano) || "-"}
+                {asString(workerRow.livello_italiano)
+                  ? getLookupOptionLabel(
+                      resolveLookupSingleValueOptions(
+                        asString(workerRow.livello_italiano),
+                        livelloItalianoOptions,
+                      ),
+                      asString(workerRow.livello_italiano),
+                    )
+                  : "-"}
               </span>
             )}
           </div>
@@ -326,7 +347,11 @@ export function WorkerProfileOverview({
               canUseSessoSelect ? (
                 <div className="w-full max-w-xs">
                   <Select
-                    value={draft.sesso || EMPTY_SELECT_VALUE}
+                    value={getLookupSelectValue(
+                      draft.sesso,
+                      resolvedSessoOptions,
+                      EMPTY_SELECT_VALUE,
+                    )}
                     onValueChange={(value) =>
                       onFieldChange?.(
                         "sesso",
@@ -339,7 +364,7 @@ export function WorkerProfileOverview({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                      {sessoOptions.map((option) => (
+                      {resolvedSessoOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>
@@ -364,7 +389,11 @@ export function WorkerProfileOverview({
             {isEditing && draft ? (
               <div className="w-full max-w-xs">
                 <Select
-                  value={draft.nazionalita || EMPTY_SELECT_VALUE}
+                  value={getLookupSelectValue(
+                    draft.nazionalita,
+                    resolvedNazionalitaOptions,
+                    EMPTY_SELECT_VALUE,
+                  )}
                   onValueChange={(value) =>
                     onFieldChange?.(
                       "nazionalita",

@@ -38,6 +38,25 @@ export function findLookupOption(
   )
 }
 
+export function resolveLookupSingleValueOptions(
+  value: string | null | undefined,
+  options: LookupOption[],
+) {
+  const normalizedValue = String(value ?? "").trim()
+  if (!normalizedValue || findLookupOption(options, normalizedValue)) return options
+  return [{ label: normalizedValue, value: normalizedValue }, ...options]
+}
+
+export function getLookupSelectValue(
+  value: string | null | undefined,
+  options: LookupOption[],
+  emptyValue = "none",
+) {
+  const normalizedValue = String(value ?? "").trim()
+  if (!normalizedValue) return emptyValue
+  return findLookupOption(options, normalizedValue)?.value ?? normalizedValue
+}
+
 export function normalizeLookupOptionValue(
   value: string,
   options: LookupOption[],

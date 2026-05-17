@@ -275,8 +275,13 @@ function makeTableQueryCacheKey(payload: TableQueryRequest) {
   return JSON.stringify(payload)
 }
 
-function clearTableQueryCache() {
+function clearReadCaches() {
   tableQueryCache.clear()
+  gateQueryCache.clear()
+  crmPipelineBoardCache.clear()
+  crmPipelineDetailCache.clear()
+  rapportiLavorativiBoardCache.clear()
+  lookupValuesCache = null
 }
 
 async function queryTable<TRecord>(payload: TableQueryRequest) {
@@ -930,7 +935,7 @@ export async function updateRecord(
     id,
     patch,
   })
-  clearTableQueryCache()
+  clearReadCaches()
   return response
 }
 
@@ -942,7 +947,7 @@ export async function createRecord(
     table,
     values,
   })
-  clearTableQueryCache()
+  clearReadCaches()
   return response
 }
 
@@ -951,7 +956,7 @@ export async function deleteRecord(table: UpdateTableName, id: string) {
     table,
     id,
   })
-  clearTableQueryCache()
+  clearReadCaches()
   return response
 }
 
@@ -965,7 +970,7 @@ export async function runAutomationWebhook(
     recordId,
     context,
   })
-  clearTableQueryCache()
+  clearReadCaches()
   return response
 }
 

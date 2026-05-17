@@ -65,6 +65,26 @@ type OnboardingDecisioneLavoroDefaults = {
   richiestaPatente?: boolean;
   richiestaTrasferte?: boolean;
   richiestaFerie?: boolean;
+  nazionalitaEscluse?: string[];
+  nazionalitaObbligatorie?: string[];
+  famigliaMoltoEsigente?: boolean;
+  richiestaAutonomia?: boolean;
+  datoreSpessoPresente?: boolean;
+  richiestaDiscrezione?: boolean;
+  comunicareBeneItaliano?: boolean;
+  comunicareBeneInglese?: boolean;
+  presenzaNeonati?: boolean;
+  piuBambini?: boolean;
+  famiglia4Persone?: boolean;
+  caniPiccoli?: boolean;
+  caniGrandi?: boolean;
+  gatti?: boolean;
+  pulireRipianiAlti?: boolean;
+  stirare?: boolean;
+  stirareAbitiDifficili?: boolean;
+  cucinare?: boolean;
+  cucinareElaborato?: boolean;
+  curaPiante?: boolean;
 };
 
 export type OnboardingDecisioneLavoroSectionKey =
@@ -99,6 +119,10 @@ function normalizeGenderValue(value: string | null | undefined): "donna" | "uomo
     return normalized;
   }
   return "";
+}
+
+function normalizeStringArray(value: string[] | null | undefined) {
+  return Array.isArray(value) ? value.filter(Boolean) : [];
 }
 
 function CheckboxRow({
@@ -152,10 +176,14 @@ function LookupMultiComboboxField({
   id,
   label,
   options,
+  value,
+  onValueChange,
 }: {
   id: string;
   label: string;
   options: LookupOption[];
+  value: string[];
+  onValueChange: (nextValues: string[]) => void;
 }) {
   const anchor = useComboboxAnchor();
 
@@ -174,7 +202,19 @@ function LookupMultiComboboxField({
   return (
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Combobox multiple autoHighlight items={labels}>
+      <Combobox
+        multiple
+        autoHighlight
+        items={labels}
+        value={value}
+        onValueChange={(nextValues) => {
+          onValueChange(
+            Array.isArray(nextValues)
+              ? nextValues.filter((item): item is string => typeof item === "string")
+              : [],
+          );
+        }}
+      >
         <ComboboxChips ref={anchor} id={id} className="w-full">
           <ComboboxValue>
             {(values) => (
@@ -341,6 +381,41 @@ export function OnboardingDecisioneLavoroSection({
   const [genere, setGenere] = React.useState<"donna" | "uomo" | "indifferente" | "">(
     normalizeGenderValue(defaults?.sesso),
   );
+  const [nazionalitaEscluse, setNazionalitaEscluse] = React.useState(
+    normalizeStringArray(defaults?.nazionalitaEscluse),
+  );
+  const [nazionalitaObbligatorie, setNazionalitaObbligatorie] = React.useState(
+    normalizeStringArray(defaults?.nazionalitaObbligatorie),
+  );
+  const [persistedCheckboxes, setPersistedCheckboxes] = React.useState(() => ({
+    presenza_neonati: defaults?.presenzaNeonati ?? isChecked("onboarding-neonati"),
+    piu_bambini: defaults?.piuBambini ?? isChecked("onboarding-piu-bambini"),
+    famiglia_4_persone: defaults?.famiglia4Persone ?? isChecked("onboarding-famiglia-4"),
+    cani_piccoli: defaults?.caniPiccoli ?? isChecked("onboarding-cani-piccoli"),
+    cani_grandi: defaults?.caniGrandi ?? isChecked("onboarding-cani-grandi"),
+    gatti: defaults?.gatti ?? isChecked("onboarding-gatti"),
+    pulire_ripiani_alti:
+      defaults?.pulireRipianiAlti ?? isChecked("onboarding-ripiani-alti-si"),
+    stirare: defaults?.stirare ?? isChecked("onboarding-stirare-si"),
+    stirare_abiti_difficili:
+      defaults?.stirareAbitiDifficili ?? isChecked("onboarding-stirare-difficile"),
+    cucinare: defaults?.cucinare ?? isChecked("onboarding-cucinare-si"),
+    cucinare_elaborato:
+      defaults?.cucinareElaborato ?? isChecked("onboarding-cucinare-elaborati"),
+    cura_piante: defaults?.curaPiante ?? isChecked("onboarding-giardino-si"),
+    comunicare_bene_italiano:
+      defaults?.comunicareBeneItaliano ?? isChecked("onboarding-italiano-si"),
+    comunicare_bene_inglese:
+      defaults?.comunicareBeneInglese ?? isChecked("onboarding-inglese-si"),
+    famiglia_molto_esigente:
+      defaults?.famigliaMoltoEsigente ?? isChecked("onboarding-esigente-si"),
+    richiesta_autonomia:
+      defaults?.richiestaAutonomia ?? isChecked("onboarding-autonomia-si"),
+    datore_spesso_presente:
+      defaults?.datoreSpessoPresente ?? isChecked("onboarding-datore-presente-si"),
+    richiesta_discrezione:
+      defaults?.richiestaDiscrezione ?? isChecked("onboarding-discrezione-si"),
+  }));
 
   React.useEffect(() => {
     setRichiestaTrasferte(
@@ -353,12 +428,59 @@ export function OnboardingDecisioneLavoroSection({
       defaults?.richiestaPatente ?? checkboxDefaults?.["onboarding-patente-si"] ?? false,
     );
     setGenere(normalizeGenderValue(defaults?.sesso));
+    setPersistedCheckboxes({
+      presenza_neonati: defaults?.presenzaNeonati ?? checkboxDefaults?.["onboarding-neonati"] ?? false,
+      piu_bambini: defaults?.piuBambini ?? checkboxDefaults?.["onboarding-piu-bambini"] ?? false,
+      famiglia_4_persone: defaults?.famiglia4Persone ?? checkboxDefaults?.["onboarding-famiglia-4"] ?? false,
+      cani_piccoli: defaults?.caniPiccoli ?? checkboxDefaults?.["onboarding-cani-piccoli"] ?? false,
+      cani_grandi: defaults?.caniGrandi ?? checkboxDefaults?.["onboarding-cani-grandi"] ?? false,
+      gatti: defaults?.gatti ?? checkboxDefaults?.["onboarding-gatti"] ?? false,
+      pulire_ripiani_alti:
+        defaults?.pulireRipianiAlti ?? checkboxDefaults?.["onboarding-ripiani-alti-si"] ?? false,
+      stirare: defaults?.stirare ?? checkboxDefaults?.["onboarding-stirare-si"] ?? false,
+      stirare_abiti_difficili:
+        defaults?.stirareAbitiDifficili ?? checkboxDefaults?.["onboarding-stirare-difficile"] ?? false,
+      cucinare: defaults?.cucinare ?? checkboxDefaults?.["onboarding-cucinare-si"] ?? false,
+      cucinare_elaborato:
+        defaults?.cucinareElaborato ?? checkboxDefaults?.["onboarding-cucinare-elaborati"] ?? false,
+      cura_piante: defaults?.curaPiante ?? checkboxDefaults?.["onboarding-giardino-si"] ?? false,
+      comunicare_bene_italiano:
+        defaults?.comunicareBeneItaliano ?? checkboxDefaults?.["onboarding-italiano-si"] ?? false,
+      comunicare_bene_inglese:
+        defaults?.comunicareBeneInglese ?? checkboxDefaults?.["onboarding-inglese-si"] ?? false,
+      famiglia_molto_esigente:
+        defaults?.famigliaMoltoEsigente ?? checkboxDefaults?.["onboarding-esigente-si"] ?? false,
+      richiesta_autonomia:
+        defaults?.richiestaAutonomia ?? checkboxDefaults?.["onboarding-autonomia-si"] ?? false,
+      datore_spesso_presente:
+        defaults?.datoreSpessoPresente ?? checkboxDefaults?.["onboarding-datore-presente-si"] ?? false,
+      richiesta_discrezione:
+        defaults?.richiestaDiscrezione ?? checkboxDefaults?.["onboarding-discrezione-si"] ?? false,
+    });
   }, [
     checkboxDefaults,
     defaults?.richiestaTrasferte,
     defaults?.richiestaFerie,
     defaults?.richiestaPatente,
     defaults?.sesso,
+    defaults?.presenzaNeonati,
+    defaults?.piuBambini,
+    defaults?.famiglia4Persone,
+    defaults?.caniPiccoli,
+    defaults?.caniGrandi,
+    defaults?.gatti,
+    defaults?.pulireRipianiAlti,
+    defaults?.stirare,
+    defaults?.stirareAbitiDifficili,
+    defaults?.cucinare,
+    defaults?.cucinareElaborato,
+    defaults?.curaPiante,
+    defaults?.comunicareBeneItaliano,
+    defaults?.comunicareBeneInglese,
+    defaults?.famigliaMoltoEsigente,
+    defaults?.richiestaAutonomia,
+    defaults?.datoreSpessoPresente,
+    defaults?.richiestaDiscrezione,
   ]);
 
   React.useEffect(() => {
@@ -377,6 +499,10 @@ export function OnboardingDecisioneLavoroSection({
     );
     setEtaMin(clampNumberInRange(toInputValue(defaults?.etaMinima), 20, 80));
     setEtaMax(clampNumberInRange(toInputValue(defaults?.etaMassima), 20, 80));
+    setNazionalitaEscluse(normalizeStringArray(defaults?.nazionalitaEscluse));
+    setNazionalitaObbligatorie(
+      normalizeStringArray(defaults?.nazionalitaObbligatorie),
+    );
   }, [
     defaults?.descrizioneRichiestaTrasferte,
     defaults?.descrizioneRichiestaFerie,
@@ -389,6 +515,8 @@ export function OnboardingDecisioneLavoroSection({
     defaults?.informazioniExtraRiservate,
     defaults?.etaMinima,
     defaults?.etaMassima,
+    defaults?.nazionalitaEscluse,
+    defaults?.nazionalitaObbligatorie,
   ]);
 
   const patchProcess = React.useCallback(
@@ -396,6 +524,13 @@ export function OnboardingDecisioneLavoroSection({
       await onPatchProcess?.(patch);
     },
     [onPatchProcess],
+  );
+  const patchCheckbox = React.useCallback(
+    (field: keyof typeof persistedCheckboxes, checked: boolean) => {
+      setPersistedCheckboxes((current) => ({ ...current, [field]: checked }));
+      void patchProcess({ [field]: checked });
+    },
+    [patchProcess],
   );
   const shouldCollapseSections = sectionsCollapsible ?? useSectionBlocks;
 
@@ -453,17 +588,20 @@ export function OnboardingDecisioneLavoroSection({
             <CheckboxRow
               id="onboarding-neonati"
               label="Sono presenti neonati"
-              defaultChecked={isChecked("onboarding-neonati")}
+              checked={persistedCheckboxes.presenza_neonati}
+              onCheckedChange={(checked) => patchCheckbox("presenza_neonati", checked)}
             />
             <CheckboxRow
               id="onboarding-piu-bambini"
               label="Deve accudire più di un bambino?"
-              defaultChecked={isChecked("onboarding-piu-bambini")}
+              checked={persistedCheckboxes.piu_bambini}
+              onCheckedChange={(checked) => patchCheckbox("piu_bambini", checked)}
             />
             <CheckboxRow
               id="onboarding-famiglia-4"
               label="Famiglia 4+ persone"
-              defaultChecked={isChecked("onboarding-famiglia-4")}
+              checked={persistedCheckboxes.famiglia_4_persone}
+              onCheckedChange={(checked) => patchCheckbox("famiglia_4_persone", checked)}
             />
           </FieldGroup>
         </FieldSet>
@@ -551,12 +689,14 @@ export function OnboardingDecisioneLavoroSection({
             <CheckboxRow
               id="onboarding-cani-piccoli"
               label="Si, di taglia media o inferiore"
-              defaultChecked={isChecked("onboarding-cani-piccoli")}
+              checked={persistedCheckboxes.cani_piccoli}
+              onCheckedChange={(checked) => patchCheckbox("cani_piccoli", checked)}
             />
             <CheckboxRow
               id="onboarding-cani-grandi"
               label="Si, di taglia grande"
-              defaultChecked={isChecked("onboarding-cani-grandi")}
+              checked={persistedCheckboxes.cani_grandi}
+              onCheckedChange={(checked) => patchCheckbox("cani_grandi", checked)}
             />
           </CheckboxGroupSet>
           <FieldSet>
@@ -565,7 +705,8 @@ export function OnboardingDecisioneLavoroSection({
               <CheckboxRow
                 id="onboarding-gatti"
                 label="Si"
-                defaultChecked={isChecked("onboarding-gatti")}
+                checked={persistedCheckboxes.gatti}
+                onCheckedChange={(checked) => patchCheckbox("gatti", checked)}
               />
             </FieldGroup>
           </FieldSet>
@@ -606,7 +747,8 @@ export function OnboardingDecisioneLavoroSection({
           <CheckboxRow
             id="onboarding-ripiani-alti-si"
             label="Pulire ripiani/soffitti alti con scala"
-            defaultChecked={isChecked("onboarding-ripiani-alti-si")}
+            checked={persistedCheckboxes.pulire_ripiani_alti}
+            onCheckedChange={(checked) => patchCheckbox("pulire_ripiani_alti", checked)}
           />
         </CheckboxGroupSet>
 
@@ -614,12 +756,16 @@ export function OnboardingDecisioneLavoroSection({
           <CheckboxRow
             id="onboarding-stirare-si"
             label="Sì"
-            defaultChecked={isChecked("onboarding-stirare-si")}
+            checked={persistedCheckboxes.stirare}
+            onCheckedChange={(checked) => patchCheckbox("stirare", checked)}
           />
           <CheckboxRow
             id="onboarding-stirare-difficile"
             label="Sì, abiti difficili"
-            defaultChecked={isChecked("onboarding-stirare-difficile")}
+            checked={persistedCheckboxes.stirare_abiti_difficili}
+            onCheckedChange={(checked) =>
+              patchCheckbox("stirare_abiti_difficili", checked)
+            }
           />
         </CheckboxGroupSet>
 
@@ -627,12 +773,14 @@ export function OnboardingDecisioneLavoroSection({
           <CheckboxRow
             id="onboarding-cucinare-si"
             label="Sì"
-            defaultChecked={isChecked("onboarding-cucinare-si")}
+            checked={persistedCheckboxes.cucinare}
+            onCheckedChange={(checked) => patchCheckbox("cucinare", checked)}
           />
           <CheckboxRow
             id="onboarding-cucinare-elaborati"
             label="Sì, cucina elaborata"
-            defaultChecked={isChecked("onboarding-cucinare-elaborati")}
+            checked={persistedCheckboxes.cucinare_elaborato}
+            onCheckedChange={(checked) => patchCheckbox("cucinare_elaborato", checked)}
           />
         </CheckboxGroupSet>
 
@@ -640,7 +788,8 @@ export function OnboardingDecisioneLavoroSection({
           <CheckboxRow
             id="onboarding-giardino-si"
             label="Cura delle piante richiesta"
-            defaultChecked={isChecked("onboarding-giardino-si")}
+            checked={persistedCheckboxes.cura_piante}
+            onCheckedChange={(checked) => patchCheckbox("cura_piante", checked)}
           />
         </CheckboxGroupSet>
       </SectionWrapper>
@@ -680,12 +829,18 @@ export function OnboardingDecisioneLavoroSection({
           <CheckboxRow
             id="onboarding-italiano-si"
             label="Comunicare bene in italiano"
-            defaultChecked={isChecked("onboarding-italiano-si")}
+            checked={persistedCheckboxes.comunicare_bene_italiano}
+            onCheckedChange={(checked) =>
+              patchCheckbox("comunicare_bene_italiano", checked)
+            }
           />
           <CheckboxRow
             id="onboarding-inglese-si"
             label="Comunicare bene in inglese"
-            defaultChecked={isChecked("onboarding-inglese-si")}
+            checked={persistedCheckboxes.comunicare_bene_inglese}
+            onCheckedChange={(checked) =>
+              patchCheckbox("comunicare_bene_inglese", checked)
+            }
           />
         </CheckboxGroupSet>
 
@@ -845,12 +1000,26 @@ export function OnboardingDecisioneLavoroSection({
             id="onboarding-nazionalita-escluse"
             label="Nazionalità escluse"
             options={nazionalitaEscluseOptions}
+            value={nazionalitaEscluse}
+            onValueChange={(nextValues) => {
+              setNazionalitaEscluse(nextValues);
+              void patchProcess({
+                nazionalita_escluse: nextValues.length > 0 ? nextValues : null,
+              });
+            }}
           />
 
           <LookupMultiComboboxField
             id="onboarding-nazionalita-obbligatorie"
             label="Nazionalità obbligatorie"
             options={nazionalitaObbligatorieOptions}
+            value={nazionalitaObbligatorie}
+            onValueChange={(nextValues) => {
+              setNazionalitaObbligatorie(nextValues);
+              void patchProcess({
+                nazionalita_obbligatorie: nextValues.length > 0 ? nextValues : null,
+              });
+            }}
           />
         </div>
 
@@ -897,22 +1066,30 @@ export function OnboardingDecisioneLavoroSection({
           <CheckboxRow
             id="onboarding-esigente-si"
             label="Famiglia molto esigente"
-            defaultChecked={isChecked("onboarding-esigente-si")}
+            checked={persistedCheckboxes.famiglia_molto_esigente}
+            onCheckedChange={(checked) =>
+              patchCheckbox("famiglia_molto_esigente", checked)
+            }
           />
           <CheckboxRow
             id="onboarding-autonomia-si"
             label="Richiesta autonomia"
-            defaultChecked={isChecked("onboarding-autonomia-si")}
+            checked={persistedCheckboxes.richiesta_autonomia}
+            onCheckedChange={(checked) => patchCheckbox("richiesta_autonomia", checked)}
           />
           <CheckboxRow
             id="onboarding-datore-presente-si"
             label="Datore spesso presente"
-            defaultChecked={isChecked("onboarding-datore-presente-si")}
+            checked={persistedCheckboxes.datore_spesso_presente}
+            onCheckedChange={(checked) =>
+              patchCheckbox("datore_spesso_presente", checked)
+            }
           />
           <CheckboxRow
             id="onboarding-discrezione-si"
             label="Richiesta discrezione"
-            defaultChecked={isChecked("onboarding-discrezione-si")}
+            checked={persistedCheckboxes.richiesta_discrezione}
+            onCheckedChange={(checked) => patchCheckbox("richiesta_discrezione", checked)}
           />
         </CheckboxGroupSet>
       </SectionWrapper>

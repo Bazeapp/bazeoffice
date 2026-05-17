@@ -22,6 +22,9 @@ export type AssegnazioneCardData = {
   deadlineMobile: string
   deadlineSales: string
   zona: string
+  zonaQuartiere: string | null
+  zonaCap: string | null
+  zonaComune: string | null
   tipoLavoroBadge: string | null
   tipoLavoroColor: string | null
   tipoRapportoBadge: string | null
@@ -58,6 +61,9 @@ const ASSEGNAZIONE_PROCESSI_SELECT = [
   "deadline_mobile",
   "data_limite_invio_selezione",
   "luogo_id",
+  "indirizzo_prova_note",
+  "indirizzo_prova_cap",
+  "indirizzo_prova_comune",
   "tipo_lavoro",
   "tipo_rapporto",
   "numero_ricerca_attivata",
@@ -230,6 +236,19 @@ function extractFirstNumberToken(value: unknown) {
   return match?.[0] ?? null
 }
 
+function formatAssegnazioneZona(process: GenericRow) {
+  const quartiere = toStringValue(process.indirizzo_prova_note)
+  const comune = toStringValue(process.indirizzo_prova_comune)
+  const cap = toStringValue(process.indirizzo_prova_cap)
+
+  if (quartiere && comune) return `${comune} · ${quartiere}`
+  if (quartiere) return quartiere
+  if (comune && cap) return `${comune} · ${cap}`
+  if (cap) return cap
+
+  return "-"
+}
+
 async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
   const [processesResult, lookupResult] = await Promise.all([
     fetchProcessiMatching({
@@ -332,11 +351,7 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
     const statoRes = toAssegnazioneStatus(toStringValue(process.stato_res))
     if (!statoRes) continue
 
-    if (statoRes === "da_assegnare" && rawDataAssegnazione) continue
-    if (statoRes === "fare_ricerca" && !rawDataAssegnazione) continue
-
-    const dataAssegnazione =
-      statoRes === "da_assegnare" ? null : rawDataAssegnazione
+    const dataAssegnazione = rawDataAssegnazione
     const statoResLabel = toReadableStatusLabel(statoRes)
 
     const numeroRicercaAttivata = toNumberValue(process.numero_ricerca_attivata)
@@ -356,7 +371,10 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
       deadlineSales: formatItalianDate(
         process.deadline_mobile ?? process.data_limite_invio_selezione
       ),
-      zona: toStringValue(process.luogo_id) ?? "-",
+      zona: formatAssegnazioneZona(process),
+      zonaQuartiere: toStringValue(process.indirizzo_prova_note),
+      zonaCap: toStringValue(process.indirizzo_prova_cap),
+      zonaComune: toStringValue(process.indirizzo_prova_comune),
       tipoLavoroBadge,
       tipoLavoroColor: resolveColor(
         lookupColors,
@@ -419,15 +437,9 @@ export function useCrmAssegnazione(): UseCrmAssegnazioneState {
           if (patchedStatus) {
             nextCard.statoRes = patchedStatus
             nextCard.statoResLabel = toReadableStatusLabel(patchedStatus)
-            if (patchedStatus === "da_assegnare") {
-              nextCard.dataAssegnazione = null
-            }
           }
           if ("data_assegnazione" in patch) {
-            nextCard.dataAssegnazione =
-              nextCard.statoRes === "da_assegnare"
-                ? null
-                : toIsoDate(patch.data_assegnazione)
+            nextCard.dataAssegnazione = toIsoDate(patch.data_assegnazione)
           }
           if ("recruiter_ricerca_e_selezione_id" in patch) {
             nextCard.recruiterId = toStringValue(patch.recruiter_ricerca_e_selezione_id)
@@ -459,6 +471,26 @@ export function useCrmAssegnazione(): UseCrmAssegnazioneState {
           }
           if ("luogo_id" in patch) {
             nextCard.zona = toStringValue(patch.luogo_id) ?? "-"
+          }
+          if (
+            "indirizzo_prova_note" in patch ||
+            "indirizzo_prova_cap" in patch ||
+            "indirizzo_prova_comune" in patch
+          ) {
+            if ("indirizzo_prova_note" in patch) {
+              nextCard.zonaQuartiere = toStringValue(patch.indirizzo_prova_note)
+            }
+            if ("indirizzo_prova_cap" in patch) {
+              nextCard.zonaCap = toStringValue(patch.indirizzo_prova_cap)
+            }
+            if ("indirizzo_prova_comune" in patch) {
+              nextCard.zonaComune = toStringValue(patch.indirizzo_prova_comune)
+            }
+            nextCard.zona = formatAssegnazioneZona({
+              indirizzo_prova_note: nextCard.zonaQuartiere,
+              indirizzo_prova_cap: nextCard.zonaCap,
+              indirizzo_prova_comune: nextCard.zonaComune,
+            })
           }
           if ("mansioni_richieste" in patch) {
             nextCard.overview = toStringValue(patch.mansioni_richieste) ?? "-"
