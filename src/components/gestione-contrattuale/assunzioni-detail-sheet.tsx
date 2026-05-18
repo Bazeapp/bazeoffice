@@ -10,6 +10,7 @@ import {
   OctagonAlertIcon,
   PhoneIcon,
   ShieldCheckIcon,
+  Trash2Icon,
   UserIcon,
   UsersIcon,
 } from "lucide-react"
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
@@ -204,6 +206,20 @@ function resolveAssunzioneDisplayName(record: AssunzioneRecord) {
       .join(" ")
       .trim() || null
   )
+}
+
+function matchesAssunzioneSearch(record: AssunzioneRecord, query: string) {
+  const normalizedQuery = query.trim().toLowerCase()
+  if (!normalizedQuery) return true
+
+  return [
+    record.id,
+    record.info_anagrafiche_nome,
+    record.info_anagrafiche_cognome,
+    record.info_anagrafiche_email,
+    record.info_anagrafiche_numero_mobile,
+    record.info_anagrafiche_codice_fiscale,
+  ].some((value) => compactText(value)?.toLowerCase().includes(normalizedQuery))
 }
 
 function mergeAssunzioneOptions(
@@ -1642,6 +1658,7 @@ export function AssunzioniDetailSheet({
       datore: [],
       lavoratore: [],
     })
+  const [assunzioneSearchQuery, setAssunzioneSearchQuery] = React.useState("")
   const [loadingAssunzioneCandidates, setLoadingAssunzioneCandidates] = React.useState(false)
   const [savingPractice, setSavingPractice] = React.useState(false)
   const [practiceError, setPracticeError] = React.useState<string | null>(null)
@@ -1691,11 +1708,31 @@ export function AssunzioniDetailSheet({
     target === "datore" ? datoreAssunzioneOptions : lavoratoreAssunzioneOptions
   const selectedAssunzioneId =
     target === "datore" ? card?.assunzione?.id : card?.lavoratoreAssunzione?.id
+  const selectedAssunzioneRecord = React.useMemo(
+    () =>
+      selectedAssunzioneId
+        ? selectedAssunzioneOptions.find((record) => record.id === selectedAssunzioneId) ?? null
+        : null,
+    [selectedAssunzioneId, selectedAssunzioneOptions]
+  )
+  const filteredAssunzioneOptions = React.useMemo(() => {
+    const query = assunzioneSearchQuery.trim()
+    if (query.length < 2) return []
+    return selectedAssunzioneOptions
+      .filter((record) => matchesAssunzioneSearch(record, query))
+      .slice(0, 80)
+  }, [assunzioneSearchQuery, selectedAssunzioneOptions])
 
   React.useEffect(() => {
     if (!open) return
     setTarget("datore")
   }, [open, card?.id])
+
+  React.useEffect(() => {
+    setAssunzioneSearchQuery(
+      selectedAssunzioneRecord ? formatAssunzioneOptionLabel(selectedAssunzioneRecord) : ""
+    )
+  }, [card?.id, selectedAssunzioneRecord, target])
 
   React.useEffect(() => {
     if (!open || !card?.id) {
@@ -2239,6 +2276,7 @@ export function AssunzioniDetailSheet({
             record.id === assunzioneId ? nextRecord : record
           ),
         }))
+        setAssunzioneSearchQuery(formatAssunzioneOptionLabel(nextRecord))
 
         onCardChange(
           target === "datore"
@@ -2273,6 +2311,63 @@ export function AssunzioniDetailSheet({
       target,
     ]
   )
+
+  const unlinkAssunzioneRecord = React.useCallback(async () => {
+    if (!card) return
+
+    const currentRecord = target === "datore" ? card.assunzione : card.lavoratoreAssunzione
+    if (!currentRecord?.id) return
+
+    setPracticeError(null)
+    setSavingPractice(true)
+
+    try {
+      const patch =
+        target === "datore"
+          ? {
+              rapporto_lavorativo_datore_lavoro_id: null,
+              famiglia_id: null,
+            }
+          : {
+              rapporto_lavorativo_lavoratore_id: null,
+              lavoratore_id: null,
+            }
+
+      const response = await updateRecord("assunzioni", currentRecord.id, patch)
+      const nextRecord = {
+        ...currentRecord,
+        ...response.row,
+      } as AssunzioneRecord
+
+      setAssunzioneCandidates((current) => ({
+        ...current,
+        [target]: current[target].map((record) =>
+          record.id === currentRecord.id ? nextRecord : record
+        ),
+      }))
+      setAssunzioneSearchQuery("")
+
+      onCardChange(
+        target === "datore"
+          ? {
+              ...card,
+              assunzione: null,
+            }
+          : {
+              ...card,
+              lavoratoreAssunzione: null,
+            }
+      )
+    } catch (caughtError) {
+      setPracticeError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Errore scollegando form assunzione"
+      )
+    } finally {
+      setSavingPractice(false)
+    }
+  }, [card, onCardChange, target])
 
   const uploadAssunzioneAttachment = React.useCallback(
     async (
@@ -2718,45 +2813,74 @@ export function AssunzioniDetailSheet({
                       : "Form assunzione lavoratore"
                   }
                 >
-                  <Select
-                    value={selectedAssunzioneId || undefined}
-                    disabled={
-                      loadingAssunzioneCandidates ||
-                      savingPractice ||
-                      selectedAssunzioneOptions.length === 0
-                    }
-                    onValueChange={(value) => {
-                      void linkAssunzioneRecord(value)
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
+                  <div className="space-y-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <SearchInput
+                        className="min-w-0 flex-1"
+                        value={assunzioneSearchQuery}
+                        onChange={(event) => setAssunzioneSearchQuery(event.target.value)}
+                        onClear={() => setAssunzioneSearchQuery("")}
+                        disabled={loadingAssunzioneCandidates || savingPractice}
                         placeholder={
                           loadingAssunzioneCandidates
                             ? "Caricamento form..."
-                            : "Seleziona form da associare"
+                            : "Nome, cognome o email"
                         }
                       />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectedAssunzioneOptions.length === 0 ? (
-                        <SelectItem value="no-assunzione-records" disabled>
-                          Nessun form disponibile
-                        </SelectItem>
-                      ) : (
-                        selectedAssunzioneOptions.map((record) => {
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        disabled={!selectedAssunzioneId || savingPractice}
+                        title="Scollega form"
+                        aria-label="Scollega form"
+                        onClick={() => void unlinkAssunzioneRecord()}
+                      >
+                        <Trash2Icon className="size-4" />
+                      </Button>
+                    </div>
+                    {assunzioneSearchQuery.trim().length < 2 ? (
+                      <p className="text-muted-foreground text-xs">
+                        Inserisci almeno 2 caratteri.
+                      </p>
+                    ) : loadingAssunzioneCandidates ? (
+                      <p className="text-muted-foreground text-xs">
+                        Caricamento risultati...
+                      </p>
+                    ) : filteredAssunzioneOptions.length === 0 ? (
+                      <p className="text-muted-foreground text-xs">
+                        Nessun form trovato.
+                      </p>
+                    ) : (
+                      <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-2">
+                        {filteredAssunzioneOptions.map((record) => {
+                          const isSelected = selectedAssunzioneId === record.id
+
                           return (
-                            <SelectItem
+                            <button
                               key={record.id}
-                              value={record.id}
+                              type="button"
+                              onClick={() => void linkAssunzioneRecord(record.id)}
+                              disabled={savingPractice}
+                              className={cn(
+                                "w-full rounded-md border px-3 py-2 text-left text-sm transition",
+                                isSelected
+                                  ? "border-emerald-400 bg-emerald-50"
+                                  : "border-border hover:bg-muted/50",
+                              )}
                             >
-                              {formatAssunzioneOptionLabel(record)}
-                            </SelectItem>
+                              <div className="font-medium">
+                                {resolveAssunzioneDisplayName(record) ?? "Senza nome"}
+                              </div>
+                              <div className="text-muted-foreground text-xs">
+                                {compactText(record.info_anagrafiche_email) ?? "-"}
+                              </div>
+                            </button>
                           )
-                        })
-                      )}
-                    </SelectContent>
-                  </Select>
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </EditableField>
               </DetailSectionBlock>
 
