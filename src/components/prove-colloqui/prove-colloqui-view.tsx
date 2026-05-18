@@ -144,17 +144,13 @@ function getTrialElapsedDays(startValue: string | null | undefined) {
   if (Number.isNaN(start.getTime())) return null
   const startDay = startOfLocalDay(start)
   const today = startOfLocalDay(new Date())
-  return Math.floor((today.getTime() - startDay.getTime()) / 86_400_000)
+  return Math.floor((today.getTime() - startDay.getTime()) / 86_400_000) + 1
 }
 
 function getTrialDayLabel(days: number | null) {
   if (days === null) return "Giorno prova non disponibile"
   if (days < 0) return `Inizia tra ${Math.abs(days)} ${Math.abs(days) === 1 ? "giorno" : "giorni"}`
   return `D${days}`
-}
-
-function getSectionEnabledClassName(enabled: boolean) {
-  return enabled ? "ring-1 ring-primary/15" : "opacity-55"
 }
 
 function toDateRangeValue(date: Date) {
@@ -358,7 +354,7 @@ function ProvaCard({
   const elapsedDaysLabel =
     elapsedDays === null
       ? "-"
-      : `${Math.max(0, elapsedDays)} ${Math.max(0, elapsedDays) === 1 ? "giorno" : "giorni"}`
+      : `${elapsedDays} ${elapsedDays === 1 ? "giorno" : "giorni"}`
   const worker = React.useMemo(() => buildProvaWorkerCardItem(card), [card])
 
   return (
@@ -421,10 +417,6 @@ function ProvaDetailSheet({
   const statusColor = resolveLookupColor(lookupColorsByDomain, "rapporti_lavorativi.prova_stato_cs", rapporto?.prova_stato_cs ?? null)
   const distribution = buildDistributionItems(rapporto?.distribuzione_ore_settimana ?? null, rapporto?.ore_a_settimana ?? null)
   const trialElapsedDays = getTrialElapsedDays(rapporto?.data_inizio_rapporto)
-  const isD0Enabled = true
-  const isD1Enabled = trialElapsedDays !== null && trialElapsedDays >= 1
-  const isD2Enabled = trialElapsedDays !== null && trialElapsedDays >= 2
-  const isD7Enabled = trialElapsedDays !== null && trialElapsedDays >= 7
   const rapportoPath = rapporto
     ? buildPathForRoute({
         mainSection: "gestione_contrattuale_rapporti",
@@ -623,7 +615,7 @@ function ProvaDetailSheet({
               <DetailSectionBlock
                 title="D0 - Pre-prova"
                 icon={<PhoneCallIcon className="size-4" />}
-                cardClassName={getSectionEnabledClassName(isD0Enabled)}
+                cardClassName="ring-1 ring-primary/15"
                 contentClassName="space-y-4"
               >
                 <p className="text-sm text-muted-foreground">
@@ -632,7 +624,6 @@ function ProvaDetailSheet({
                 <DetailFieldControl label="Priorità famiglia">
                   <EditableTextarea
                     value={rapporto.prova_priorita_famiglia}
-                    disabled={!isD0Enabled}
                     placeholder="Pulizia, organizzazione, rapporto con il lavoratore..."
                     onCommit={async (next) => {
                       await updateRapporto({ prova_priorita_famiglia: next })
@@ -644,13 +635,12 @@ function ProvaDetailSheet({
               <DetailSectionBlock
                 title="D1 - Feedback"
                 icon={<BarChart3Icon className="size-4" />}
-                cardClassName={getSectionEnabledClassName(isD1Enabled)}
+                cardClassName="ring-1 ring-primary/15"
                 contentClassName="grid gap-4 md:grid-cols-2"
               >
                 <DetailFieldControl label="Feedback Famiglia">
                   <Select
                     value={rapporto.prova_feedback_famiglia ?? "none"}
-                    disabled={!isD1Enabled}
                     onValueChange={(next) => void updateRapporto({ prova_feedback_famiglia: next === "none" ? null : next })}
                   >
                     <SelectTrigger className="bg-surface">
@@ -667,7 +657,6 @@ function ProvaDetailSheet({
                 <DetailFieldControl label="Feedback Lavoratore">
                   <Select
                     value={rapporto.prova_feedback_lavoratore ?? "none"}
-                    disabled={!isD1Enabled}
                     onValueChange={(next) => void updateRapporto({ prova_feedback_lavoratore: next === "none" ? null : next })}
                   >
                     <SelectTrigger className="bg-surface">
@@ -684,7 +673,6 @@ function ProvaDetailSheet({
                 <DetailFieldControl label="Ramificazione D2">
                   <Select
                     value={rapporto.prova_ramo_d2 ?? "none"}
-                    disabled={!isD1Enabled}
                     onValueChange={(next) => void updateRapporto({ prova_ramo_d2: next === "none" ? null : next })}
                   >
                     <SelectTrigger className="bg-surface">
@@ -703,13 +691,12 @@ function ProvaDetailSheet({
               <DetailSectionBlock
                 title="D2 - Feedback"
                 icon={<RefreshCwIcon className="size-4" />}
-                cardClassName={getSectionEnabledClassName(isD2Enabled)}
+                cardClassName="ring-1 ring-primary/15"
                 contentClassName="space-y-4"
               >
                 <DetailFieldControl label="Note CS Lavoratore">
                   <EditableTextarea
                     value={rapporto.prova_note_cs_lavoratore}
-                    disabled={!isD2Enabled}
                     placeholder="Appunti CS sul lavoratore al D2"
                     onCommit={async (next) => {
                       await updateRapporto({ prova_note_cs_lavoratore: next })
@@ -719,7 +706,6 @@ function ProvaDetailSheet({
                 <DetailFieldControl label="Note CS Famiglia">
                   <EditableTextarea
                     value={rapporto.prova_note_cs_famiglia}
-                    disabled={!isD2Enabled}
                     placeholder="Appunti CS sulla famiglia al D2"
                     onCommit={async (next) => {
                       await updateRapporto({ prova_note_cs_famiglia: next })
@@ -731,7 +717,7 @@ function ProvaDetailSheet({
               <DetailSectionBlock
                 title="D7 - Check-in"
                 icon={<FileTextIcon className="size-4" />}
-                cardClassName={getSectionEnabledClassName(isD7Enabled)}
+                cardClassName="ring-1 ring-primary/15"
                 contentClassName="space-y-4"
               >
                 <p className="text-sm text-muted-foreground">
@@ -741,7 +727,6 @@ function ProvaDetailSheet({
                   <Input
                     type="date"
                     value={toIsoDateInput(rapporto.prova_data_checkin)}
-                    disabled={!isD7Enabled}
                     onChange={(event) => {
                       void updateRapporto({ prova_data_checkin: event.target.value || null })
                     }}

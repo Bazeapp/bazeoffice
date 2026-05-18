@@ -361,8 +361,9 @@ function GateContactsCard({
 
 function GateReferenteCard({
   title = "Referente idoneità",
-  label = "Referente",
+  label = "Referente Gate 1",
   value,
+  referenteCertificazioneValue,
   options,
   disabled,
   onChange,
@@ -370,6 +371,7 @@ function GateReferenteCard({
   title?: string;
   label?: string;
   value: string;
+  referenteCertificazioneValue?: string;
   options: OperatoreOption[];
   disabled?: boolean;
   onChange: (value: string | null) => void;
@@ -377,39 +379,64 @@ function GateReferenteCard({
   const selectedOperator = value
     ? options.find((option) => option.id === value) ?? null
     : null;
+  const selectedCertificationOperator = referenteCertificazioneValue
+    ? options.find((option) => option.id === referenteCertificazioneValue) ?? null
+    : null;
+  const showCertificationAssignment = referenteCertificazioneValue !== undefined;
 
   return (
     <GateInfoCard
       title={title}
       icon={<UsersIcon className="text-muted-foreground size-4" />}
     >
-      <div className="flex items-start gap-3 text-sm">
-        <FieldLabel className="w-24 shrink-0">{label}</FieldLabel>
-        <div className="min-w-0 flex-1 text-foreground">
-          <Select
-            value={value || "none"}
-            onValueChange={(nextValue) =>
-              onChange(nextValue === "none" ? null : nextValue)
-            }
-            disabled={disabled}
-          >
-            <SelectTrigger>
-              {selectedOperator ? (
-                <OperatorSelectOption operator={selectedOperator} />
-              ) : (
-                <SelectValue placeholder="Seleziona referente" />
-              )}
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Nessun referente</SelectItem>
-              {options.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  <OperatorSelectOption operator={option} />
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div
+        className={
+          showCertificationAssignment ? "grid gap-4 md:grid-cols-2" : "space-y-4"
+        }
+      >
+        <div className="flex items-start gap-3 text-sm">
+          <FieldLabel className="w-24 shrink-0">{label}</FieldLabel>
+          <div className="min-w-0 flex-1 text-foreground">
+            <Select
+              value={value || "none"}
+              onValueChange={(nextValue) =>
+                onChange(nextValue === "none" ? null : nextValue)
+              }
+              disabled={disabled}
+            >
+              <SelectTrigger>
+                {selectedOperator ? (
+                  <OperatorSelectOption operator={selectedOperator} />
+                ) : (
+                  <SelectValue placeholder="Seleziona referente Gate 1" />
+                )}
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nessun referente Gate 1</SelectItem>
+                {options.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    <OperatorSelectOption operator={option} />
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+
+        {showCertificationAssignment ? (
+          <div className="flex items-start gap-3 text-sm">
+            <FieldLabel className="w-24 shrink-0">Referente Gate 2</FieldLabel>
+            <div className="min-w-0 flex-1 text-foreground">
+              <div className="text-foreground flex min-h-10 items-center rounded-md border bg-surface px-3 text-sm">
+                {selectedCertificationOperator ? (
+                  <OperatorSelectOption operator={selectedCertificationOperator} />
+                ) : (
+                  resolveOperatorLabel(referenteCertificazioneValue ?? "", options)
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </GateInfoCard>
   );
@@ -4053,6 +4080,9 @@ export function Gate1View({
                     >
                       <GateReferenteCard
                         value={gateDraft.referenteIdoneita}
+                        referenteCertificazioneValue={
+                          gateDraft.referenteCertificazione
+                        }
                         options={referenteIdoneitaOptions}
                         disabled={referenteIdoneitaOptionsLoading}
                         onChange={(value) => {

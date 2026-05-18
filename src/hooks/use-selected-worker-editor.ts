@@ -283,7 +283,7 @@ function buildDocumentsDraft(row: LavoratoreRecord | null): WorkerDocumentsDraft
     stato_verifica_documenti: asString(row?.stato_verifica_documenti),
     documenti_in_regola: asString(row?.documenti_in_regola),
     data_scadenza_naspi: asString(row?.data_scadenza_naspi),
-    iban: "",
+    iban: asString(row?.iban),
     id_stripe_account: asString(row?.id_stripe_account),
   }
 }
@@ -349,9 +349,9 @@ export function useSelectedWorkerEditor({
     buildDocumentsDraft(selectedWorkerRow)
   )
   const [assunzioneIban, setAssunzioneIban] = React.useState("")
-  const [assunzioneIbanRecordId, setAssunzioneIbanRecordId] = React.useState("")
   const [hasLinkedRapportoForIban, setHasLinkedRapportoForIban] = React.useState(false)
-  const resolvedIban = assunzioneIban
+  const workerIban = asString(selectedWorkerRow?.iban)
+  const resolvedIban = workerIban || assunzioneIban
   const availabilityPayload = React.useMemo(
     () =>
       parseAvailabilityPayload(selectedWorkerRow?.availability_final_json) ??
@@ -442,10 +442,7 @@ export function useSelectedWorkerEditor({
     setJobSearchDraft(buildJobSearchDraft(selectedWorkerRow))
     setExperienceDraft(buildExperienceDraft(selectedWorkerRow))
     setSkillsDraft(buildSkillsDraft(selectedWorkerRow))
-    setDocumentsDraft({
-      ...buildDocumentsDraft(selectedWorkerRow),
-      iban: "",
-    })
+    setDocumentsDraft(buildDocumentsDraft(selectedWorkerRow))
   }, [selectedWorkerRow, selectedWorkerAddress, availabilityPayload])
 
   React.useEffect(() => {
@@ -454,7 +451,6 @@ export function useSelectedWorkerEditor({
     async function loadAssunzioneIban() {
       if (!selectedWorkerId) {
         setAssunzioneIban("")
-        setAssunzioneIbanRecordId("")
         setHasLinkedRapportoForIban(false)
         return
       }
@@ -489,7 +485,6 @@ export function useSelectedWorkerEditor({
         if (rapportoIds.length === 0) {
           if (!cancelled) {
             setAssunzioneIban("")
-            setAssunzioneIbanRecordId("")
           }
           return
         }
@@ -525,16 +520,14 @@ export function useSelectedWorkerEditor({
 
         if (!cancelled) {
           setAssunzioneIban(iban)
-          setAssunzioneIbanRecordId(asString(sourceRow?.id))
           setDocumentsDraft((current) => ({
             ...current,
-            iban,
+            iban: asString(selectedWorkerRow?.iban) || iban,
           }))
         }
       } catch {
         if (!cancelled) {
           setAssunzioneIban("")
-          setAssunzioneIbanRecordId("")
           setHasLinkedRapportoForIban(false)
         }
       }
@@ -545,7 +538,7 @@ export function useSelectedWorkerEditor({
     return () => {
       cancelled = true
     }
-  }, [selectedWorkerId])
+  }, [selectedWorkerId, selectedWorkerRow?.iban])
 
   React.useEffect(() => {
     setSelectedPresentationPhotoIndex(0)
@@ -1001,23 +994,10 @@ export function useSelectedWorkerEditor({
       value: string | null
     ) => {
       if (field === "iban") {
-        if (!assunzioneIbanRecordId) {
-          setError("Nessuna assunzione collegata su cui salvare l'IBAN")
-          return
-        }
-
-        setUpdatingDocuments(true)
-        try {
-          await updateRecord("assunzioni", assunzioneIbanRecordId, {
-            dati_bancari_lavoratore: value,
-          })
-          setAssunzioneIban(extractIban(value))
-        } catch (caughtError) {
-          setError(formatEditorError("Errore aggiornando IBAN assunzione", caughtError))
-          throw caughtError
-        } finally {
-          setUpdatingDocuments(false)
-        }
+        await patchWorkerField("iban", value, {
+          loadingKey: "documents",
+          errorMessage: "Errore aggiornando IBAN lavoratore",
+        })
         return
       }
 
@@ -1026,21 +1006,21 @@ export function useSelectedWorkerEditor({
         errorMessage: "Errore aggiornando documenti",
       })
     },
-    [assunzioneIbanRecordId, patchWorkerField, setError]
+    [patchWorkerField]
   )
 
   const commitDocumentField = React.useCallback(
     async (field: "data_scadenza_naspi" | "iban" | "id_stripe_account") => {
       const currentValue =
         field === "iban"
-          ? assunzioneIban
+          ? resolvedIban
           : asString(selectedWorkerRow?.[field])
       const nextValue = documentsDraft[field]
       if (nextValue === currentValue) return
 
       await patchDocumentField(field, nextValue || null)
     },
-    [assunzioneIban, documentsDraft, patchDocumentField, selectedWorkerRow]
+    [documentsDraft, patchDocumentField, resolvedIban, selectedWorkerRow]
   )
 
   const generateStripeAccount = React.useCallback(async () => {
