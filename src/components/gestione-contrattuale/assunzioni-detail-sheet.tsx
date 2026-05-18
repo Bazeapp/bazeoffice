@@ -73,6 +73,7 @@ const SCONTO_APPLICATO_OPTIONS: LookupOption[] = [
 
 const ASSUNZIONE_DETAIL_SELECT = [
   "id",
+  "creato_il",
   "civico_se_diverso_residenza",
   "codice_fiscale_allegati",
   "comune_se_diverso_residenza",
@@ -212,14 +213,22 @@ function matchesAssunzioneSearch(record: AssunzioneRecord, query: string) {
   const normalizedQuery = query.trim().toLowerCase()
   if (!normalizedQuery) return true
 
-  return [
+  const values = [
     record.id,
     record.info_anagrafiche_nome,
     record.info_anagrafiche_cognome,
+    [record.info_anagrafiche_nome, record.info_anagrafiche_cognome].filter(Boolean).join(" "),
+    [record.info_anagrafiche_cognome, record.info_anagrafiche_nome].filter(Boolean).join(" "),
     record.info_anagrafiche_email,
     record.info_anagrafiche_numero_mobile,
     record.info_anagrafiche_codice_fiscale,
-  ].some((value) => compactText(value)?.toLowerCase().includes(normalizedQuery))
+  ]
+    .map((value) => compactText(value)?.toLowerCase())
+    .filter((value): value is string => Boolean(value))
+
+  const haystack = values.join(" ")
+  const tokens = normalizedQuery.split(/\s+/).filter(Boolean)
+  return tokens.every((token) => haystack.includes(token))
 }
 
 function mergeAssunzioneOptions(
@@ -1226,7 +1235,7 @@ function LavoratoreDetail({
       localita: assunzione?.info_anagrafiche_localita ?? "",
       cap: assunzione?.info_anagrafiche_cap ?? "",
       tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
-      datiBancari: assunzione?.dati_bancari_lavoratore ?? "",
+      datiBancari: lavoratore?.iban ?? assunzione?.dati_bancari_lavoratore ?? "",
       numeroDocumento: assunzione?.documento_identita_numero ?? "",
       scadenzaDocumento: assunzione?.documento_identita_scadenza ?? "",
       cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
@@ -1254,6 +1263,7 @@ function LavoratoreDetail({
       fullName,
       lavoratore?.cognome,
       lavoratore?.email,
+      lavoratore?.iban,
       lavoratore?.nazionalita,
       lavoratore?.nome,
       lavoratore?.telefono,
@@ -1548,9 +1558,12 @@ function LavoratoreDetail({
             value={draft.datiBancari}
             onChange={(event) => setValue("datiBancari", event.target.value)}
             onBlur={() =>
-              void onLavoratoreAssunzionePatch({
-                dati_bancari_lavoratore: draft.datiBancari || null,
-              })
+              void Promise.all([
+                onLavoratorePatch({ iban: draft.datiBancari || null }),
+                onLavoratoreAssunzionePatch({
+                  dati_bancari_lavoratore: draft.datiBancari || null,
+                }),
+              ])
             }
             className="min-h-24 font-mono"
             placeholder="IBAN..."
@@ -1754,7 +1767,7 @@ export function AssunzioniDetailSheet({
             select: ASSUNZIONE_DETAIL_SELECT,
             limit: 1000,
             offset: 0,
-            orderBy: [{ field: "created", ascending: false }],
+            orderBy: [{ field: "creato_il", ascending: false }],
             filters: {
               kind: "group",
               id: `assunzioni-candidates-datore-root-${currentCard.id}`,
@@ -1774,7 +1787,7 @@ export function AssunzioniDetailSheet({
             select: ASSUNZIONE_DETAIL_SELECT,
             limit: 1000,
             offset: 0,
-            orderBy: [{ field: "created", ascending: false }],
+            orderBy: [{ field: "creato_il", ascending: false }],
             filters: {
               kind: "group",
               id: `assunzioni-candidates-lavoratore-root-${currentCard.id}`,

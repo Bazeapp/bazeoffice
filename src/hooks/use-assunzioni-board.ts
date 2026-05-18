@@ -30,6 +30,7 @@ type AssunzioniStageDefinition = {
 
 export type AssunzioneRecord = {
   id: string
+  creato_il?: string | null
   civico_se_diverso_residenza: string | null
   codice_fiscale_allegati: Record<string, unknown> | Record<string, unknown>[] | null
   comune_se_diverso_residenza: string | null
@@ -186,6 +187,7 @@ const ASSUNZIONI_LAVORATORI_SELECT = [
   "email",
   "telefono",
   "nazionalita",
+  "iban",
 ] satisfies string[]
 
 const ASSUNZIONI_RECORD_SELECT = [
