@@ -86,6 +86,12 @@ function getBadgeClassName(color: string | null | undefined) {
 export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
   const oreValue = renderValue(data.oreSettimana);
   const giorniValue = renderValue(data.giorniSettimana);
+  const tipoLavoroBadges =
+    data.tipoLavoroBadges && data.tipoLavoroBadges.length > 0
+      ? data.tipoLavoroBadges
+      : data.tipoLavoroBadge
+        ? [data.tipoLavoroBadge]
+        : [];
   const oreGiorni =
     oreValue === "-" && giorniValue === "-"
       ? "-"
@@ -93,7 +99,7 @@ export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
           giorniValue === "-" ? "-" : `${giorniValue}g`
         }`;
 
-  const hasTags = Boolean(data.tipoLavoroBadge || data.tipoRapportoBadge);
+  const hasTags = Boolean(tipoLavoroBadges.length > 0 || data.tipoRapportoBadge);
   const showTentativi =
     data.stage === "hot_in_attesa_di_primo_contatto" &&
     data.tentativiChiamataCount > 0;
@@ -104,12 +110,17 @@ export function FamigliaProcessoCard({ data }: FamigliaProcessoCardProps) {
       <RecordCard.Body>
         {hasTags ? (
           <CardMetaRow>
-            {data.tipoLavoroBadge ? (
-              <Badge className={getBadgeClassName(data.tipoLavoroColor)}>
+            {tipoLavoroBadges.map((tipoLavoro) => (
+              <Badge
+                key={tipoLavoro}
+                className={getBadgeClassName(
+                  data.tipoLavoroColors?.[tipoLavoro] ?? data.tipoLavoroColor
+                )}
+              >
                 <BriefcaseBusinessIcon data-icon="inline-start" />
-                {formatBadgeLabel(data.tipoLavoroBadge)}
+                {formatBadgeLabel(tipoLavoro)}
               </Badge>
-            ) : null}
+            ))}
             {data.tipoRapportoBadge ? (
               <Badge className={getBadgeClassName(data.tipoRapportoColor)}>
                 <Clock3Icon data-icon="inline-start" />

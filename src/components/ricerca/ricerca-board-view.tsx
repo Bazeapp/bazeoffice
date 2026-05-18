@@ -248,9 +248,11 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   const [selectedOperatorId, setSelectedOperatorId] = React.useState("all")
 
   const filteredColumns = React.useMemo(() => {
-    const mappedColumns = columns.map((column) => ({
-      ...column,
-      cards: column.cards.filter((card) => {
+    const hasActiveFilters =
+      selectedOperatorId !== "all" || searchQuery.trim().length > 0
+
+    const mappedColumns = columns.map((column) => {
+      const filteredCards = column.cards.filter((card) => {
         if (selectedOperatorId === "unassigned" && card.operatorId) {
           return false
         }
@@ -276,8 +278,17 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
           ],
           searchQuery,
         )
-      }),
-    }))
+      })
+
+      return {
+        ...column,
+        totalCount:
+          column.deferred && !column.isLoaded && !hasActiveFilters
+            ? column.totalCount
+            : filteredCards.length,
+        cards: filteredCards,
+      }
+    })
 
     return mappedColumns
   }, [columns, searchQuery, selectedOperatorId])

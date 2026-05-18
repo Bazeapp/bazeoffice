@@ -5,6 +5,7 @@ import {
   CalendarDaysIcon,
   CatIcon,
   CopyIcon,
+  ExternalLinkIcon,
   HomeIcon,
   MapPinnedIcon,
   ShieldCheckIcon,
@@ -246,6 +247,60 @@ function normalizeWeekdayList(values: string[] | null | undefined): string[] {
 function displayText(value: string | null | undefined) {
   const normalized = toInputValue(value);
   return normalized || "-";
+}
+
+type CopyableUrlFieldProps = {
+  label: string;
+  value: string;
+  copyLabel: string;
+  copyButtonLabel: string;
+  openButtonLabel: string;
+  onCopy: (value: string, label: string) => void;
+};
+
+function CopyableUrlField({
+  label,
+  value,
+  copyLabel,
+  copyButtonLabel,
+  openButtonLabel,
+  onCopy,
+}: CopyableUrlFieldProps) {
+  const hasValue = value.trim().length > 0;
+
+  return (
+    <Field>
+      <div className="flex flex-col items-start gap-2">
+        <FieldLabel>{label}</FieldLabel>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!hasValue}
+            onClick={() => onCopy(value, copyLabel)}
+            aria-label={copyButtonLabel}
+          >
+            <CopyIcon className="size-4" />
+            {copyButtonLabel}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!hasValue}
+            onClick={() => {
+              window.open(value, "_blank", "noopener,noreferrer");
+            }}
+            aria-label={openButtonLabel}
+          >
+            <ExternalLinkIcon className="size-4" />
+            {openButtonLabel}
+          </Button>
+        </div>
+      </div>
+    </Field>
+  );
 }
 
 function prioritizeProvinceOptions(options: LookupOption[]) {
@@ -494,6 +549,7 @@ export function OnboardingCard({
     card?.scontoApplicatoRaw ?? card?.scontoApplicato,
     scontoApplicatoOptions,
   );
+  const preventivoAcceptanceUrl = card?.preventivoAcceptanceUrl ?? "";
 
   const lookupLabel = React.useCallback(
     (field: string, rawValue: string | null | undefined) => {
@@ -722,6 +778,14 @@ export function OnboardingCard({
                 />
                 <DetailField label="Sconto applicato" value={lookupLabel("offerta", card?.scontoApplicatoRaw ?? card?.scontoApplicato)} />
               </div>
+              <CopyableUrlField
+                label="Link preventivo"
+                value={preventivoAcceptanceUrl}
+                copyLabel="Link preventivo"
+                copyButtonLabel="Copia link"
+                openButtonLabel="Vai al link"
+                onCopy={copyToClipboard}
+              />
               <DetailField label="URL origine" value={displayText(card?.origineUrl)} />
             </DetailSectionBlock>
           </div>
@@ -1118,6 +1182,14 @@ export function OnboardingCard({
               placeholder="-"
             />
           </Field>
+          <CopyableUrlField
+            label="Link preventivo"
+            value={preventivoAcceptanceUrl}
+            copyLabel="Link preventivo"
+            copyButtonLabel="Copia link"
+            openButtonLabel="Vai al link"
+            onCopy={copyToClipboard}
+          />
           <Field>
             <div className="mb-1 flex items-center gap-2">
               <FieldLabel>URL origine</FieldLabel>
@@ -1508,6 +1580,14 @@ export function OnboardingCard({
                   placeholder="-"
                 />
               </Field>
+              <CopyableUrlField
+                label="Link preventivo"
+                value={preventivoAcceptanceUrl}
+                copyLabel="Link preventivo"
+                copyButtonLabel="Copia link"
+                openButtonLabel="Vai al link"
+                onCopy={copyToClipboard}
+              />
               <Field>
                 <div className="mb-1 flex items-center gap-2">
                   <FieldLabel>URL origine</FieldLabel>

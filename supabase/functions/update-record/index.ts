@@ -213,6 +213,55 @@ function isSafeColumnName(field: string) {
   return /^[\p{L}_][\p{L}\p{N}_]*$/u.test(field);
 }
 
+function toTrimmedText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeContactPhone(value: string) {
+  const compact = value.replace(/[\s().-]/g, "");
+  if (!compact) return "";
+  if (compact.startsWith("00")) return `+${compact.slice(2)}`;
+  if (compact.startsWith("+")) return compact;
+  return `+39${compact}`;
+}
+
+function normalizePersonName(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function validateAndNormalizeFamilyContactPatch(patch: Record<string, unknown>) {
+  if ("email" in patch) {
+    const email = toTrimmedText(patch.email).toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return "Invalid famiglia email";
+    }
+    patch.email = email;
+  }
+
+  if ("telefono" in patch) {
+    const telefono = normalizeContactPhone(toTrimmedText(patch.telefono));
+    if (!telefono || !/^\+[1-9]\d{7,14}$/.test(telefono)) {
+      return "Invalid famiglia telefono";
+    }
+    patch.telefono = telefono;
+  }
+
+  if ("nome" in patch) {
+    const nome = normalizePersonName(toTrimmedText(patch.nome));
+    if (!nome) {
+      return "Invalid famiglia nome";
+    }
+    patch.nome = nome;
+  }
+
+  if ("cognome" in patch) {
+    const cognome = normalizePersonName(toTrimmedText(patch.cognome));
+    patch.cognome = cognome || null;
+  }
+
+  return null;
+}
+
 async function runCreateRapportoAfterMatchAutomation(
   supabase: ReturnType<typeof createClient>,
   row: Record<string, unknown>
@@ -342,6 +391,13 @@ Deno.serve(async (req) => {
       return badRequest(`Field '${field}' is protected`);
     }
     sanitizedPatch[field] = value;
+  }
+
+  if (table === "famiglie") {
+    const familyContactError = validateAndNormalizeFamilyContactPatch(sanitizedPatch);
+    if (familyContactError) {
+      return badRequest(familyContactError);
+    }
   }
 
   const supabase = createClient(url, serviceRole, {

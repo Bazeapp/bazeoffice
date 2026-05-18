@@ -2,6 +2,7 @@ import * as React from "react"
 import {
   BriefcaseBusinessIcon,
   CalendarIcon,
+  CheckIcon,
   Clock3Icon,
   MailIcon,
   MapPinnedIcon,
@@ -14,14 +15,29 @@ import {
   SparklesIcon,
   TimerResetIcon,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { OnboardingContextCard } from "@/components/crm/cards/onboarding-context-card"
 import { CreazioneAnnuncioCard } from "@/components/crm/cards/creazione-annuncio-card"
 import {
   OnboardingCard,
   type OnboardingFlatSectionKey,
 } from "@/components/crm/cards/onboarding-card"
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxChipsTrigger,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox"
 import {
   Select,
   SelectContent,
@@ -68,6 +84,147 @@ function renderValue(value: string | null | undefined) {
   if (!value) return "-"
   const normalized = value.trim()
   return normalized ? normalized : "-"
+}
+
+function editableValue(value: string | null | undefined) {
+  const normalized = renderValue(value)
+  return normalized === "-" ? "" : normalized
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function normalizePhoneValue(value: string) {
+  const compact = value.replace(/[\s().-]/g, "")
+  if (!compact) return ""
+  if (compact.startsWith("00")) return `+${compact.slice(2)}`
+  if (compact.startsWith("+")) return compact
+  return `+39${compact}`
+}
+
+function validatePhoneValue(value: string) {
+  return /^\+[1-9]\d{7,14}$/.test(value)
+}
+
+function splitReferenteName(value: string) {
+  const parts = value.split(/\s+/).map((part) => part.trim()).filter(Boolean)
+  if (parts.length === 0) return { nome: null, cognome: null }
+  if (parts.length === 1) return { nome: parts[0], cognome: null }
+  return {
+    nome: parts[0],
+    cognome: parts.slice(1).join(" "),
+  }
+}
+
+type HeaderInlineFieldProps = {
+  label: string
+  value: string | null | undefined
+  icon: React.ComponentType<{ className?: string }>
+  editing: boolean
+  autoFocus?: boolean
+  inputType?: React.HTMLInputTypeAttribute
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]
+  onSave: (nextValue: string) => void | Promise<void>
+  normalize?: (value: string) => string
+  validate?: (value: string) => string | null
+}
+
+function HeaderInlineField({
+  label,
+  value,
+  icon: Icon,
+  editing,
+  autoFocus = false,
+  inputType = "text",
+  inputMode,
+  onSave,
+  normalize,
+  validate,
+}: HeaderInlineFieldProps) {
+  const inputRef = React.useRef<HTMLInputElement | null>(null)
+  const [draft, setDraft] = React.useState(editableValue(value))
+  const [saving, setSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!editing) {
+      setDraft(editableValue(value))
+    }
+  }, [editing, value])
+
+  React.useEffect(() => {
+    if (!editing || !autoFocus) return
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [autoFocus, editing])
+
+  const cancel = React.useCallback(() => {
+    setDraft(editableValue(value))
+  }, [value])
+
+  const commit = React.useCallback(async () => {
+    const normalized = normalize ? normalize(draft.trim()) : draft.trim()
+    const currentValue = editableValue(value)
+    if (normalized === currentValue) {
+      return
+    }
+
+    const errorMessage = validate?.(normalized) ?? null
+    if (errorMessage) {
+      toast.error(errorMessage)
+      window.setTimeout(() => inputRef.current?.focus(), 0)
+      return
+    }
+
+    setSaving(true)
+    try {
+      await onSave(normalized)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Errore salvataggio campo")
+      window.setTimeout(() => inputRef.current?.focus(), 0)
+    } finally {
+      setSaving(false)
+    }
+  }, [draft, normalize, onSave, validate, value])
+
+  if (editing) {
+    return (
+      <span className="inline-flex min-w-44 items-center gap-1.5">
+        <Icon className="text-muted-foreground size-3.5 shrink-0" />
+        <Input
+          ref={inputRef}
+          type={inputType}
+          inputMode={inputMode}
+          aria-label={label}
+          value={draft}
+          disabled={saving}
+          className="h-7 min-w-0 px-2 text-xs"
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => void commit()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault()
+              event.currentTarget.blur()
+            }
+            if (event.key === "Escape") {
+              event.preventDefault()
+              cancel()
+            }
+          }}
+        />
+        {saving ? (
+          <CheckIcon className="text-muted-foreground size-3.5 shrink-0" />
+        ) : null}
+      </span>
+    )
+  }
+
+  return (
+    <span className="text-muted-foreground inline-flex min-w-0 items-center gap-1.5 text-xs">
+      <Icon className="size-3.5 shrink-0" />
+      <span className="truncate">{renderValue(value)}</span>
+    </span>
+  )
 }
 
 function getBadgeClassName(color: string | null | undefined) {
@@ -196,6 +353,140 @@ function getSelectedLookupValue(
   return matched?.valueKey ?? selected ?? ""
 }
 
+function getLookupOptionLabel(
+  options: LookupOptionsByField[string],
+  value: string
+) {
+  const token = normalizeToken(value)
+  const matched = options.find(
+    (option) =>
+      normalizeToken(option.valueKey) === token ||
+      normalizeToken(option.valueLabel) === token
+  )
+  return matched?.valueLabel ?? value
+}
+
+function normalizeLookupMultiValues(
+  values: string[],
+  options: LookupOptionsByField[string]
+) {
+  const result: string[] = []
+  const seen = new Set<string>()
+
+  for (const value of values) {
+    const label = getLookupOptionLabel(options, value).trim()
+    const token = normalizeToken(label)
+    if (!label || seen.has(token)) continue
+    result.push(label)
+    seen.add(token)
+  }
+
+  return result
+}
+
+type HeaderLookupMultiSelectProps = {
+  value: string[]
+  options: LookupOptionsByField[string]
+  colorsByValue: Record<string, string | null>
+  disabled: boolean
+  placeholder: string
+  icon: React.ComponentType<{ className?: string }>
+  onChange: (values: string[]) => void
+}
+
+function HeaderLookupMultiSelect({
+  value,
+  options,
+  colorsByValue,
+  disabled,
+  placeholder,
+  icon: Icon,
+  onChange,
+}: HeaderLookupMultiSelectProps) {
+  const anchor = useComboboxAnchor()
+  const normalizedValue = React.useMemo(
+    () => normalizeLookupMultiValues(value, options),
+    [options, value]
+  )
+  const selectedTokens = React.useMemo(
+    () => new Set(normalizedValue.map((item) => normalizeToken(item))),
+    [normalizedValue]
+  )
+  const availableItems = React.useMemo(
+    () =>
+      options
+        .map((option) => option.valueLabel)
+        .filter((label) => !selectedTokens.has(normalizeToken(label))),
+    [options, selectedTokens]
+  )
+  const selectedTone = getBadgeClassName(colorsByValue[normalizedValue[0]])
+
+  return (
+    <Combobox
+      multiple
+      autoHighlight
+      items={availableItems}
+      value={normalizedValue}
+      onValueChange={(nextValues) => {
+        onChange(normalizeLookupMultiValues(nextValues as string[], options))
+      }}
+      disabled={disabled}
+    >
+      <ComboboxChips
+        ref={anchor}
+        className={cn(
+          "inline-flex min-h-8 w-fit max-w-full flex-none items-center gap-1 rounded-full border py-0 pl-2 pr-1 shadow-none",
+          "focus-within:shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_45%,transparent)]",
+          normalizedValue.length > 0
+            ? selectedTone
+            : "border-border bg-surface text-muted-foreground"
+        )}
+      >
+        <Icon className="size-3.5 shrink-0" />
+        <ComboboxValue>
+          {(values) => (
+            <React.Fragment>
+              {values.map((item: string) => (
+                <ComboboxChip
+                  key={item}
+                  className={cn(
+                    "h-7 rounded-full bg-transparent px-1 pr-0.5 text-sm font-medium text-current shadow-none"
+                  )}
+                >
+                  {item}
+                </ComboboxChip>
+              ))}
+              <ComboboxChipsInput
+                placeholder={values.length > 0 ? "" : placeholder}
+                className={cn(
+                  "h-7 px-1 text-sm",
+                  values.length > 0
+                    ? "w-px min-w-0 max-w-px flex-none p-0 opacity-0"
+                    : "min-w-24"
+                )}
+              />
+            </React.Fragment>
+          )}
+        </ComboboxValue>
+        <ComboboxChipsTrigger
+          aria-label={`Apri opzioni ${placeholder}`}
+          className="size-7 rounded-full text-current hover:bg-black/5"
+        />
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor} className="max-h-80">
+        <ComboboxEmpty>Nessuna opzione disponibile.</ComboboxEmpty>
+        <ComboboxList className="max-h-72 overflow-y-auto">
+          {(item) => (
+            <ComboboxItem key={item} value={item}>
+              {getLookupOptionLabel(options, item)}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  )
+}
+
 export type FamigliaProcessoDetailContentProps = {
   card: CrmPipelineCardData | null
   lookupOptionsByField: LookupOptionsByField
@@ -298,6 +589,7 @@ export function FamigliaProcessoDetailContent({
   const [isEditingAnnuncio, setIsEditingAnnuncio] = React.useState(
     editMode === "always"
   )
+  const [isEditingFamilyHeader, setIsEditingFamilyHeader] = React.useState(false)
   const [activeSection, setActiveSection] = React.useState<SidebarSectionTab["id"]>(
     visibleTabs[0]?.id ?? "orari-frequenza"
   )
@@ -307,6 +599,7 @@ export function FamigliaProcessoDetailContent({
       setIsEditingStatoLead(false)
       setIsEditingOnboarding(false)
       setIsEditingAnnuncio(false)
+      setIsEditingFamilyHeader(false)
       return
     }
 
@@ -321,6 +614,7 @@ export function FamigliaProcessoDetailContent({
       setIsEditingStatoLead(false)
       setIsEditingOnboarding(false)
       setIsEditingAnnuncio(false)
+      setIsEditingFamilyHeader(false)
     }
   }, [editMode, isActive, card?.id, readOnly])
 
@@ -406,6 +700,31 @@ export function FamigliaProcessoDetailContent({
   ].filter((groupKey) => (groupedStageOptions[groupKey] ?? []).length > 0)
   const tipoLavoroOptions = lookupOptionsByField.tipo_lavoro ?? []
   const tipoRapportoOptions = lookupOptionsByField.tipo_rapporto ?? []
+  const canEditFamilyHeader =
+    !readOnly &&
+    Boolean(onPatchFamily) &&
+    Boolean(card?.famigliaId) &&
+    card?.famigliaId !== "-"
+  const familyHeaderEditAction = canEditFamilyHeader ? (
+    <Button
+      type="button"
+      variant={isEditingFamilyHeader ? "outline" : "ghost"}
+      size="icon-sm"
+      aria-label={
+        isEditingFamilyHeader
+          ? "Termina modifica contatti famiglia"
+          : "Modifica contatti famiglia"
+      }
+      title={
+        isEditingFamilyHeader
+          ? "Termina modifica contatti famiglia"
+          : "Modifica contatti famiglia"
+      }
+      onClick={() => setIsEditingFamilyHeader((current) => !current)}
+    >
+      {isEditingFamilyHeader ? <CheckIcon /> : <PencilIcon />}
+    </Button>
+  ) : null
 
   const bindSectionRef = React.useCallback(
     (sectionId: SidebarSectionTab["id"]) => (node: HTMLDivElement | null) => {
@@ -474,7 +793,12 @@ export function FamigliaProcessoDetailContent({
               ) : (
                 <div />
               )}
-              {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
+              {familyHeaderEditAction || headerAction ? (
+                <div className="flex shrink-0 items-center gap-1">
+                  {familyHeaderEditAction}
+                  {headerAction}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -506,14 +830,57 @@ export function FamigliaProcessoDetailContent({
                 </SelectContent>
               </Select>
 
-              <span className="text-muted-foreground inline-flex min-w-0 items-center gap-1.5 text-xs">
-                <MailIcon className="size-3.5 shrink-0" />
-                <span className="truncate">{renderValue(card?.email)}</span>
-              </span>
-              <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
-                <PhoneIcon className="size-3.5 shrink-0" />
-                <span>{renderValue(card?.telefono)}</span>
-              </span>
+              <HeaderInlineField
+                label="referente famiglia"
+                value={card?.nomeFamiglia}
+                icon={UsersIcon}
+                editing={isEditingFamilyHeader}
+                autoFocus
+                normalize={(nextValue) => nextValue.replace(/\s+/g, " ").trim()}
+                validate={(nextValue) =>
+                  nextValue ? null : "Il nome referente non puo essere vuoto"
+                }
+                onSave={async (nextValue) => {
+                  if (!card?.famigliaId || card.famigliaId === "-") return
+                  await onPatchFamily?.(card.famigliaId, splitReferenteName(nextValue))
+                }}
+              />
+              <HeaderInlineField
+                label="email famiglia"
+                value={card?.email}
+                icon={MailIcon}
+                editing={isEditingFamilyHeader}
+                inputType="email"
+                inputMode="email"
+                normalize={(nextValue) => nextValue.trim().toLowerCase()}
+                validate={(nextValue) => {
+                  if (!nextValue) return "L'email famiglia non puo essere vuota"
+                  return isValidEmail(nextValue) ? null : "Email famiglia non valida"
+                }}
+                onSave={async (nextValue) => {
+                  if (!card?.famigliaId || card.famigliaId === "-") return
+                  await onPatchFamily?.(card.famigliaId, { email: nextValue })
+                }}
+              />
+              <HeaderInlineField
+                label="telefono famiglia"
+                value={card?.telefono}
+                icon={PhoneIcon}
+                editing={isEditingFamilyHeader}
+                inputType="tel"
+                inputMode="tel"
+                normalize={normalizePhoneValue}
+                validate={(nextValue) => {
+                  if (!nextValue) return "Il telefono famiglia non puo essere vuoto"
+                  return validatePhoneValue(nextValue)
+                    ? null
+                    : "Telefono famiglia non valido: usa formato internazionale, es. +393331234567"
+                }}
+                onSave={async (nextValue) => {
+                  if (!card?.famigliaId || card.famigliaId === "-") return
+                  await onPatchFamily?.(card.famigliaId, { telefono: nextValue })
+                }}
+              />
               <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
                 <MapPinnedIcon className="size-3.5 shrink-0" />
                 <span>{renderValue(card?.indirizzoProvincia)}</span>
@@ -527,35 +894,18 @@ export function FamigliaProcessoDetailContent({
 
           {showPrimaryControls ? (
             <div className="flex flex-wrap items-center gap-2">
-              <Select
-                value={getSelectedLookupValue(card?.tipoLavoroBadge, tipoLavoroOptions)}
-                onValueChange={(nextValue) => {
-                  if (!card || !nextValue) return
-                  const label =
-                    tipoLavoroOptions.find((o) => o.valueKey === nextValue)
-                      ?.valueLabel ?? nextValue
-                  void onPatchProcess?.(card.id, { tipo_lavoro: [label] })
+              <HeaderLookupMultiSelect
+                value={card?.tipoLavoroBadges ?? []}
+                options={tipoLavoroOptions}
+                colorsByValue={card?.tipoLavoroColors ?? {}}
+                placeholder="Tipo lavoro"
+                icon={BriefcaseBusinessIcon}
+                onChange={(nextValues) => {
+                  if (!card) return
+                  void onPatchProcess?.(card.id, { tipo_lavoro: nextValues })
                 }}
                 disabled={!canEditStatoLead}
-              >
-                <SelectTrigger
-                  className={cn(
-                    "h-7 w-auto gap-1.5 rounded-full pl-2.5 pr-1.5 text-xs font-medium shadow-none",
-                    "[&_svg]:!text-current",
-                    getBadgeClassName(card?.tipoLavoroColor)
-                  )}
-                >
-                  <BriefcaseBusinessIcon className="size-3.5 shrink-0" />
-                  <SelectValue placeholder="Tipo lavoro" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tipoLavoroOptions.map((option) => (
-                    <SelectItem key={option.valueKey} value={option.valueKey}>
-                      {option.valueLabel}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
 
               <Select
                 value={getSelectedLookupValue(card?.tipoRapportoBadge, tipoRapportoOptions)}

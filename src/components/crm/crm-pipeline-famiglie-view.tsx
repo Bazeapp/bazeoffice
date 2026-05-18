@@ -331,6 +331,7 @@ export function CrmPipelineFamiglieView() {
             card.nomeFamiglia,
             card.email,
             card.telefono,
+            ...(card.tipoLavoroBadges ?? []),
             card.tipoLavoroBadge,
             card.tipoRapportoBadge,
             card.stage,

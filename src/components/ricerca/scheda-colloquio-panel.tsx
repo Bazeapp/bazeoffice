@@ -110,31 +110,31 @@ function toDateInputParts(value: unknown): { date: string; time: string } {
 
 function toTimestampValue(date: string, time: string) {
   if (!date || !time) return null;
-  const parsed = new Date(`${date}T${time}:00`);
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const timeMatch = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!dateMatch || !timeMatch) return null;
+
+  const parsed = new Date(
+    Number(dateMatch[1]),
+    Number(dateMatch[2]) - 1,
+    Number(dateMatch[3]),
+    Number(timeMatch[1]),
+    Number(timeMatch[2]),
+    0,
+  );
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString();
 }
 
 function toDatetimeLocalValue(value: unknown) {
-  const raw = asString(value);
-  if (!raw) return "";
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return "";
-
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getDate()).padStart(2, "0");
-  const hours = String(parsed.getHours()).padStart(2, "0");
-  const minutes = String(parsed.getMinutes()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  const parts = toDateInputParts(value);
+  if (!parts.date || !parts.time) return "";
+  return `${parts.date}T${parts.time}`;
 }
 
 function datetimeLocalToTimestampValue(value: string) {
-  if (!value) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString();
+  const [date = "", time = ""] = value.split("T");
+  return toTimestampValue(date, time);
 }
 
 function normalizeStatusToken(value: string) {
@@ -391,9 +391,12 @@ export function SchedaColloquioPanel({
   const [draft, setDraft] = React.useState<SchedaColloquioDraft>(() =>
     buildDraft(selectionRow),
   );
+  const slotColloquioRef = React.useRef(draft.slotColloquio);
 
   React.useEffect(() => {
-    setDraft(buildDraft(selectionRow));
+    const nextDraft = buildDraft(selectionRow);
+    slotColloquioRef.current = nextDraft.slotColloquio;
+    setDraft(nextDraft);
   }, [selectionRow]);
 
   const normalizedStatus = React.useMemo(
@@ -416,18 +419,43 @@ export function SchedaColloquioPanel({
     [onPatchField],
   );
 
+  const updateSlotDraft = React.useCallback(
+    (slotIndex: number, patch: Partial<SchedaSlotDraft>) => {
+      const nextSlots = [...slotColloquioRef.current] as [
+        SchedaSlotDraft,
+        SchedaSlotDraft,
+        SchedaSlotDraft,
+      ];
+      nextSlots[slotIndex] = {
+        ...nextSlots[slotIndex],
+        ...patch,
+      };
+      slotColloquioRef.current = nextSlots;
+      setDraft((current) => ({ ...current, slotColloquio: nextSlots }));
+    },
+    [],
+  );
+
   const patchSlotField = React.useCallback(
-    (slotIndex: number, boundary: "inizio" | "fine") => {
-      const slot = draft.slotColloquio[slotIndex];
+    (
+      slotIndex: number,
+      boundary: "inizio" | "fine",
+      latestPatch: Partial<SchedaSlotDraft> = {},
+    ) => {
+      const slot = {
+        ...slotColloquioRef.current[slotIndex],
+        ...latestPatch,
+      };
       const field =
         boundary === "inizio"
           ? (`disponibilita_colloquio_lavoratore_slot${slotIndex + 1}_inizio` as const)
           : (`disponibilita_colloquio_lavoratore_slot${slotIndex + 1}_fine` as const);
       const date = boundary === "inizio" ? slot.inizioData : slot.fineData;
       const time = boundary === "inizio" ? slot.inizioOra : slot.fineOra;
+      if (!date || !time) return;
       void onPatchField(field, toTimestampValue(date, time));
     },
-    [draft.slotColloquio, onPatchField],
+    [onPatchField],
   );
 
   return (
@@ -633,20 +661,13 @@ export function SchedaColloquioPanel({
                       value={slot.inizioData}
                       disabled={disabled}
                       onChange={(event) =>
-                        setDraft((current) => {
-                          const nextSlots = [...current.slotColloquio] as [
-                            SchedaSlotDraft,
-                            SchedaSlotDraft,
-                            SchedaSlotDraft,
-                          ];
-                          nextSlots[index] = {
-                            ...nextSlots[index],
-                            inizioData: event.target.value,
-                          };
-                          return { ...current, slotColloquio: nextSlots };
+                        updateSlotDraft(index, { inizioData: event.target.value })
+                      }
+                      onBlur={(event) =>
+                        patchSlotField(index, "inizio", {
+                          inizioData: event.currentTarget.value,
                         })
                       }
-                      onBlur={() => patchSlotField(index, "inizio")}
                     />
                     <Input
                       type="time"
@@ -654,20 +675,13 @@ export function SchedaColloquioPanel({
                       value={slot.inizioOra}
                       disabled={disabled}
                       onChange={(event) =>
-                        setDraft((current) => {
-                          const nextSlots = [...current.slotColloquio] as [
-                            SchedaSlotDraft,
-                            SchedaSlotDraft,
-                            SchedaSlotDraft,
-                          ];
-                          nextSlots[index] = {
-                            ...nextSlots[index],
-                            inizioOra: event.target.value,
-                          };
-                          return { ...current, slotColloquio: nextSlots };
+                        updateSlotDraft(index, { inizioOra: event.target.value })
+                      }
+                      onBlur={(event) =>
+                        patchSlotField(index, "inizio", {
+                          inizioOra: event.currentTarget.value,
                         })
                       }
-                      onBlur={() => patchSlotField(index, "inizio")}
                     />
                   </div>
                 </div>
@@ -682,20 +696,13 @@ export function SchedaColloquioPanel({
                       value={slot.fineData}
                       disabled={disabled}
                       onChange={(event) =>
-                        setDraft((current) => {
-                          const nextSlots = [...current.slotColloquio] as [
-                            SchedaSlotDraft,
-                            SchedaSlotDraft,
-                            SchedaSlotDraft,
-                          ];
-                          nextSlots[index] = {
-                            ...nextSlots[index],
-                            fineData: event.target.value,
-                          };
-                          return { ...current, slotColloquio: nextSlots };
+                        updateSlotDraft(index, { fineData: event.target.value })
+                      }
+                      onBlur={(event) =>
+                        patchSlotField(index, "fine", {
+                          fineData: event.currentTarget.value,
                         })
                       }
-                      onBlur={() => patchSlotField(index, "fine")}
                     />
                     <Input
                       type="time"
@@ -703,20 +710,13 @@ export function SchedaColloquioPanel({
                       value={slot.fineOra}
                       disabled={disabled}
                       onChange={(event) =>
-                        setDraft((current) => {
-                          const nextSlots = [...current.slotColloquio] as [
-                            SchedaSlotDraft,
-                            SchedaSlotDraft,
-                            SchedaSlotDraft,
-                          ];
-                          nextSlots[index] = {
-                            ...nextSlots[index],
-                            fineOra: event.target.value,
-                          };
-                          return { ...current, slotColloquio: nextSlots };
+                        updateSlotDraft(index, { fineOra: event.target.value })
+                      }
+                      onBlur={(event) =>
+                        patchSlotField(index, "fine", {
+                          fineOra: event.currentTarget.value,
                         })
                       }
-                      onBlur={() => patchSlotField(index, "fine")}
                     />
                   </div>
                 </div>

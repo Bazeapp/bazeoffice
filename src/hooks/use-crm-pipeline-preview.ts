@@ -41,6 +41,8 @@ const FALLBACK_STATO_SALES_STAGES = [
 
 const CRM_PIPELINE_CARD_LIMIT = 5000
 const CLOSED_STAGE_IDS = new Set(["won_ricerca_attivata", "lost", "out_of_target"])
+const PREVENTIVO_ACCEPTANCE_BASE_URL =
+  "https://app.bazeapp.com/v2/checkout/accettare-preventivo"
 
 const CRM_PIPELINE_PROCESSI_SELECT = [
   "id",
@@ -159,6 +161,8 @@ export type CrmPipelineCardData = {
   email: string
   telefono: string
   dataLead: string
+  tipoLavoroBadges?: string[]
+  tipoLavoroColors?: Record<string, string | null>
   tipoLavoroBadge: string | null
   tipoLavoroColor: string | null
   tipoRapportoBadge: string | null
@@ -185,6 +189,8 @@ export type CrmPipelineCardData = {
   richiestaAttivazioneId: string | null
   preventivoUrl: string | null
   preventivoTitolo: string | null
+  preventivoSessionId: string | null
+  preventivoAcceptanceUrl: string | null
   feeConcordata: number | null
   origineUrl: string | null
   scontoApplicatoRaw: string | null
@@ -389,6 +395,20 @@ function firstText(...values: unknown[]) {
     if (normalized) return normalized
   }
   return null
+}
+
+function buildPreventivoAcceptanceUrl(sessionId: string | null) {
+  if (!sessionId) return null
+
+  const params = new URLSearchParams({
+    utm_source: "whatsapp",
+    utm_medium: "organic",
+    utm_campaign: "whatsapp",
+    utm_content: "reminder1",
+    session_id: sessionId,
+  })
+
+  return `${PREVENTIVO_ACCEPTANCE_BASE_URL}?${params.toString()}`
 }
 
 function buildAddressLine(address: GenericRow | undefined) {
@@ -638,14 +658,15 @@ function canonicalizeLookupValue(
       return "Colf / Pulizie"
     }
     if (
-      ["assistenza domestica / badante", "assistenza domiciliare / badante"].includes(
-        token
-      )
+      [
+        "assistenza domestica / badante",
+        "assistenza domiciliare / badante",
+      ].includes(token)
     ) {
       return "Assistenza domiciliare / Badante"
     }
-    if (["tata colf", "babysitter / tata-colf"].includes(token)) {
-      return "Babysitter / Tata-Colf"
+    if (["tata colf", "tata - colf", "babysitter / tata-colf"].includes(token)) {
+      return "Tata - Colf"
     }
   }
 
@@ -869,6 +890,11 @@ function mapCardData(
 
   const processId = displayValue(process.id)
   const famigliaId = displayValue(process.famiglia_id)
+  const preventivoSessionId =
+    toStringValue(richiestaAttivazione?.id) ?? toStringValue(process.id)
+  const tipoLavoroBadges = getStringArrayValue(process.tipo_lavoro)
+    .map((value) => canonicalizeLookupValue("tipo_lavoro", value))
+    .filter((value): value is string => Boolean(value))
   const tipoLavoroBadge = canonicalizeLookupValue(
     "tipo_lavoro",
     getFirstArrayValue(process.tipo_lavoro)
@@ -891,6 +917,18 @@ function mapCardData(
     email: displayValue(family.email),
     telefono: displayValue(family.telefono),
     dataLead: formatItalianDate(family.creato_il),
+    tipoLavoroBadges,
+    tipoLavoroColors: Object.fromEntries(
+      tipoLavoroBadges.map((value) => [
+        value,
+        resolveBadgeColor(
+          lookupColors,
+          "processi_matching",
+          "tipo_lavoro",
+          value
+        ),
+      ])
+    ),
     tipoLavoroBadge,
     tipoLavoroColor: resolveBadgeColor(
       lookupColors,
@@ -927,6 +965,8 @@ function mapCardData(
     richiestaAttivazioneId: richiestaAttivazione?.id ?? null,
     preventivoUrl: richiestaAttivazione?.signed_document_url ?? null,
     preventivoTitolo: richiestaAttivazione?.signed_document_title ?? null,
+    preventivoSessionId,
+    preventivoAcceptanceUrl: buildPreventivoAcceptanceUrl(preventivoSessionId),
     feeConcordata: richiestaAttivazione?.fee_concordata ?? null,
     origineUrl: toStringValue(process.source_url),
     scontoApplicatoRaw: toStringValue(process.offerta),
@@ -1359,7 +1399,19 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
             nextCard.stage = patch.stato_sales.trim()
           }
           if ("tipo_lavoro" in normalizedPatch) {
+            const nextTipoLavori = getStringArrayValue(normalizedPatch.tipo_lavoro)
             const nextTipoLavoro = getFirstArrayValue(normalizedPatch.tipo_lavoro)
+            nextCard.tipoLavoroBadges = nextTipoLavori
+            nextCard.tipoLavoroColors = Object.fromEntries(
+              nextTipoLavori.map((value) => [
+                value,
+                resolveLookupOptionColor(
+                  lookupOptionsByField,
+                  "tipo_lavoro",
+                  value
+                ),
+              ])
+            )
             nextCard.tipoLavoroBadge = nextTipoLavoro
             nextCard.tipoLavoroColor = resolveLookupOptionColor(
               lookupOptionsByField,
@@ -1650,6 +1702,19 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
               nextCard.dataCallPrenotataRaw = toStringValue(
                 patch.data_call_prenotata
               )
+            }
+            if ("email" in patch) {
+              nextCard.email = displayValue(patch.email)
+            }
+            if ("telefono" in patch) {
+              nextCard.telefono = displayValue(patch.telefono)
+            }
+            if ("nome" in patch || "cognome" in patch) {
+              const nome = toStringValue(patch.nome)
+              const cognome = toStringValue(patch.cognome)
+              nextCard.nomeFamiglia = [nome, cognome]
+                .filter((value): value is string => Boolean(value))
+                .join(" ") || "-"
             }
 
             return nextCard

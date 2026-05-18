@@ -991,6 +991,8 @@ export function RicercaDetailView({
           richiestaAttivazioneId: null,
           preventivoUrl: null,
           preventivoTitolo: null,
+          preventivoSessionId: null,
+          preventivoAcceptanceUrl: null,
           feeConcordata: null,
           origineUrl: null,
           scontoApplicatoRaw: null,

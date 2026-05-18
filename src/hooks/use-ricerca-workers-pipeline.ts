@@ -279,6 +279,40 @@ function toNumberValue(value: unknown): number | null {
   return null
 }
 
+function getWorkerCertificationRank(worker: LavoratoreListItem) {
+  if (worker.isCertificato) return 0
+  if (worker.isIdoneo) return 1
+  return 2
+}
+
+function getTravelTimeSortValue(worker: LavoratoreListItem) {
+  const travelTime = worker.travelTimeMinutes
+  return typeof travelTime === "number" && Number.isFinite(travelTime)
+    ? travelTime
+    : Number.MAX_SAFE_INTEGER
+}
+
+function sortWorkerSelectionCards(cards: RicercaWorkerSelectionCard[]) {
+  return [...cards].sort((a, b) => {
+    const certificationDelta =
+      getWorkerCertificationRank(a.worker) - getWorkerCertificationRank(b.worker)
+    if (certificationDelta !== 0) return certificationDelta
+
+    const travelTimeDelta =
+      getTravelTimeSortValue(a.worker) - getTravelTimeSortValue(b.worker)
+    if (travelTimeDelta !== 0) return travelTimeDelta
+
+    return a.worker.nomeCompleto.localeCompare(b.worker.nomeCompleto, "it")
+  })
+}
+
+function sortWorkerSelectionColumns(columns: RicercaWorkerSelectionColumn[]) {
+  return columns.map((column) => ({
+    ...column,
+    cards: sortWorkerSelectionCards(column.cards),
+  }))
+}
+
 function parseAddressCoordinates(address: GenericRow | undefined) {
   if (!address) return null
   const lat = toNumberValue(address.latitudine)
@@ -1217,7 +1251,7 @@ async function fetchWorkersPipelineData(
     nextColumns.splice(Math.max(0, firstColloquiIndex), 0, mergedColloquiColumn)
   }
 
-  return nextColumns
+  return sortWorkerSelectionColumns(nextColumns)
 }
 
 export function useRicercaWorkersPipeline(
@@ -1254,15 +1288,17 @@ export function useRicercaWorkersPipeline(
 
         if (!movedCard) return current
 
-        return nextColumns.map((column) =>
-          column.id === targetStatusId ||
-          (column.id === "__candidati__" && isCandidatiStatus(targetStatusId)) ||
-          (column.id === "__da_colloquiare__" &&
-            isDaColloquiareStatus(targetStatusId)) ||
-          (column.id === "__archivio__" && isArchivioStatus(targetStatusId)) ||
-          (column.id === "__colloqui_match__" && isColloquiStatus(targetStatusId))
-            ? { ...column, cards: [movedCard as RicercaWorkerSelectionCard, ...column.cards] }
-            : column
+        return sortWorkerSelectionColumns(
+          nextColumns.map((column) =>
+            column.id === targetStatusId ||
+            (column.id === "__candidati__" && isCandidatiStatus(targetStatusId)) ||
+            (column.id === "__da_colloquiare__" &&
+              isDaColloquiareStatus(targetStatusId)) ||
+            (column.id === "__archivio__" && isArchivioStatus(targetStatusId)) ||
+            (column.id === "__colloqui_match__" && isColloquiStatus(targetStatusId))
+              ? { ...column, cards: [movedCard as RicercaWorkerSelectionCard, ...column.cards] }
+              : column
+          )
         )
       })
 
