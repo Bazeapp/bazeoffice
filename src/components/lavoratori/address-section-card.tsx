@@ -45,6 +45,7 @@ type AddressSectionCardProps = {
   collapsible?: boolean
   defaultOpen?: boolean
   showCap?: boolean
+  showMobility?: boolean
   addressDraft: AddressDraft
   provinciaOptions: LookupOption[]
   mobilityOptions: LookupOption[]
@@ -69,6 +70,7 @@ export function AddressSectionCard({
   collapsible = true,
   defaultOpen = true,
   showCap = true,
+  showMobility = true,
   addressDraft,
   provinciaOptions,
   mobilityOptions,
@@ -109,8 +111,12 @@ export function AddressSectionCard({
       <div
         className={
           showCap
-            ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[130px_100px_minmax(0,2fr)_minmax(240px,1fr)]"
-            : "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[130px_minmax(0,2fr)_minmax(240px,1fr)]"
+            ? showMobility
+              ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[130px_100px_minmax(0,2fr)_minmax(240px,1fr)]"
+              : "grid grid-cols-1 gap-3 sm:grid-cols-[130px_100px_minmax(0,1fr)]"
+            : showMobility
+              ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[130px_minmax(0,2fr)_minmax(240px,1fr)]"
+              : "grid grid-cols-1 gap-3 sm:grid-cols-[130px_minmax(0,1fr)]"
         }
       >
         <div className="space-y-1">
@@ -178,61 +184,63 @@ export function AddressSectionCard({
           )}
         </div>
 
-        <div className="space-y-1">
-          <FieldLabel>Mobilita</FieldLabel>
-          {isEditing ? (
-            <Combobox
-              multiple
-              autoHighlight
-              items={mobilityOptions.map((option) => option.value)}
-              value={normalizeLookupOptionValues(
-                addressDraft.come_ti_sposti,
-                mobilityOptions,
-              )}
-              onValueChange={(nextValues) =>
-                onMobilityChange(
-                  normalizeLookupDbLabels(nextValues as string[], mobilityOptions),
-                )
-              }
-              disabled={isUpdating}
-            >
-              <ComboboxChips ref={mobilityAnchor} className="w-full">
-                <ComboboxValue>
-                  {(values) => (
-                    <React.Fragment>
-                      {values.map((value: string) => (
-                        <ComboboxChip key={value}>
-                          {getLookupOptionLabel(mobilityOptions, value)}
-                        </ComboboxChip>
-                      ))}
-                      <ComboboxChipsInput placeholder="Seleziona opzioni" />
-                    </React.Fragment>
-                  )}
-                </ComboboxValue>
-              </ComboboxChips>
-              <ComboboxContent anchor={mobilityAnchor} className="max-h-80">
-                <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
-                <ComboboxList className="max-h-72 overflow-y-auto">
-                  {(item) => (
-                    <ComboboxItem key={item} value={item}>
-                      {getLookupOptionLabel(mobilityOptions, item)}
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
-          ) : selectedMobility.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {selectedMobility.map((value) => (
-                <Badge key={value} variant="outline">
-                  {value}
-                </Badge>
-              ))}
+        {showMobility ? (
+          <div className="space-y-1">
+            <FieldLabel>Mobilita</FieldLabel>
+            {isEditing ? (
+              <Combobox
+                multiple
+                autoHighlight
+                items={mobilityOptions.map((option) => option.value)}
+                value={normalizeLookupOptionValues(
+                  addressDraft.come_ti_sposti,
+                  mobilityOptions,
+                )}
+                onValueChange={(nextValues) =>
+                  onMobilityChange(
+                    normalizeLookupDbLabels(nextValues as string[], mobilityOptions),
+                  )
+                }
+                disabled={isUpdating}
+              >
+                <ComboboxChips ref={mobilityAnchor} className="w-full">
+                  <ComboboxValue>
+                    {(values) => (
+                      <React.Fragment>
+                        {values.map((value: string) => (
+                          <ComboboxChip key={value}>
+                            {getLookupOptionLabel(mobilityOptions, value)}
+                          </ComboboxChip>
+                        ))}
+                        <ComboboxChipsInput placeholder="Seleziona opzioni" />
+                      </React.Fragment>
+                    )}
+                  </ComboboxValue>
+                </ComboboxChips>
+                <ComboboxContent anchor={mobilityAnchor} className="max-h-80">
+                  <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
+                  <ComboboxList className="max-h-72 overflow-y-auto">
+                    {(item) => (
+                      <ComboboxItem key={item} value={item}>
+                        {getLookupOptionLabel(mobilityOptions, item)}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+            ) : selectedMobility.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {selectedMobility.map((value) => (
+                  <Badge key={value} variant="outline">
+                    {value}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="truncate text-sm">-</p>
+            )}
             </div>
-          ) : (
-            <p className="truncate text-sm">-</p>
-          )}
-        </div>
+        ) : null}
       </div>
     </DetailSectionBlock>
   )

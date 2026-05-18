@@ -93,6 +93,8 @@ import {
   getLookupOptionLabel,
   getLookupSelectValue,
   getTagClassName,
+  normalizeLookupDbLabels,
+  normalizeLookupOptionValues,
   resolveLookupSingleValueOptions,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
@@ -149,6 +151,7 @@ type GateSectionId =
   | "referente"
   | "contatti"
   | "presentazione"
+  | "indirizzo"
   | "documenti"
   | "tipologia"
   | "disponibilita"
@@ -188,6 +191,7 @@ type GateViewProps = {
   showFollowupFilter?: boolean;
   allowCertifiedStatus?: boolean;
   showInPersonBookingLinks?: boolean;
+  stepLayout?: "default" | "gate1_reordered";
 };
 
 const GATE1_IN_PERSON_BOOKING_LINKS = [
@@ -245,6 +249,7 @@ function GateStepSection({
   isFirst = false,
   isLast = false,
   showStepper = true,
+  reserveStepperSpace = false,
   info,
   children,
 }: {
@@ -252,6 +257,7 @@ function GateStepSection({
   isFirst?: boolean;
   isLast?: boolean;
   showStepper?: boolean;
+  reserveStepperSpace?: boolean;
   info?: {
     title: React.ReactNode;
     content: React.ReactNode;
@@ -259,6 +265,15 @@ function GateStepSection({
   children: React.ReactNode;
 }) {
   if (!showStepper) {
+    if (reserveStepperSpace) {
+      return (
+        <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-4">
+          <div aria-hidden="true" />
+          <div className="min-w-0 space-y-4">{children}</div>
+        </div>
+      );
+    }
+
     return <div className="min-w-0 space-y-4">{children}</div>;
   }
 
@@ -858,7 +873,6 @@ function GateWorkTypesCard({
   workerId,
   haiReferenze,
   referenzeOptions,
-  situationValue,
   allowedWorks,
   allowedWorkOptions,
   isEditing,
@@ -876,8 +890,6 @@ function GateWorkTypesCard({
   experienceTipoRapportoOptions,
   referenceStatusOptions,
   isUpdatingExperience,
-  onSituationChange,
-  onSituationBlur,
   onAllowedWorksChange,
   onAnniEsperienzaColfChange,
   onAnniEsperienzaBadanteChange,
@@ -893,7 +905,6 @@ function GateWorkTypesCard({
   workerId: string | null;
   haiReferenze: string;
   referenzeOptions: Array<{ label: string; value: string }>;
-  situationValue: string;
   allowedWorks: string[];
   allowedWorkOptions: Array<{ label: string; value: string }>;
   isEditing: boolean;
@@ -916,8 +927,6 @@ function GateWorkTypesCard({
   experienceTipoRapportoOptions: Array<{ label: string; value: string }>;
   referenceStatusOptions: Array<{ label: string; value: string }>;
   isUpdatingExperience: boolean;
-  onSituationChange: (value: string) => void;
-  onSituationBlur: () => void;
   onAllowedWorksChange: (values: string[]) => void;
   onAnniEsperienzaColfChange: (value: string) => void;
   onAnniEsperienzaBadanteChange: (value: string) => void;
@@ -1005,25 +1014,6 @@ function GateWorkTypesCard({
           )}
         </div>
       ) : null}
-
-      <div className="space-y-2">
-        <p className="text-sm">Che lavori attivi sta svolgendo al momento?</p>
-        {isEditing ? (
-          <Textarea
-            value={situationValue}
-            onChange={(event) => onSituationChange(event.target.value)}
-            onBlur={onSituationBlur}
-            rows={4}
-            className="w-full min-h-28"
-          />
-        ) : (
-          <div className="rounded-lg border bg-surface px-3 py-3">
-            <p className="text-muted-foreground whitespace-pre-wrap text-sm leading-6">
-              {situationValue || "-"}
-            </p>
-          </div>
-        )}
-      </div>
 
       <div className="space-y-2">
         <p className="text-sm">
@@ -1146,7 +1136,9 @@ function GateWorkTypesCard({
         selectedAnniEsperienzaBabysitter={
           experienceDraft.anni_esperienza_babysitter
         }
-        selectedSituazioneLavorativaAttuale={situationValue}
+        selectedSituazioneLavorativaAttuale={
+          experienceDraft.situazione_lavorativa_attuale
+        }
         onToggleEdit={onToggleEdit ?? (() => {})}
         onAnniEsperienzaColfChange={onAnniEsperienzaColfChange}
         onAnniEsperienzaBadanteChange={onAnniEsperienzaBadanteChange}
@@ -2172,6 +2164,10 @@ function GateBazeChecksCard({
 }
 
 function GateSpecificChecksCard({
+  mobilityValue,
+  mobilityOptions,
+  mobilityAnchor,
+  isUpdatingMobility = false,
   isBabysitterEnabled,
   neonatiValue,
   neonatiOptions,
@@ -2188,6 +2184,7 @@ function GateSpecificChecksCard({
   trasfertaValue,
   trasfertaOptions,
   lookupColorsByDomain,
+  onMobilityChange,
   onNeonatiChange,
   onMultipliBambiniChange,
   onCaniChange,
@@ -2196,6 +2193,10 @@ function GateSpecificChecksCard({
   onScaleChange,
   onTrasfertaChange,
 }: {
+  mobilityValue?: string[];
+  mobilityOptions?: Array<{ label: string; value: string }>;
+  mobilityAnchor?: React.RefObject<HTMLDivElement | null>;
+  isUpdatingMobility?: boolean;
   isBabysitterEnabled: boolean;
   neonatiValue: string;
   neonatiOptions: Array<{ label: string; value: string }>;
@@ -2212,6 +2213,7 @@ function GateSpecificChecksCard({
   trasfertaValue: string;
   trasfertaOptions: Array<{ label: string; value: string }>;
   lookupColorsByDomain: Map<string, string>;
+  onMobilityChange?: (values: string[]) => void;
   onNeonatiChange: (value: string) => void;
   onMultipliBambiniChange: (value: string) => void;
   onCaniChange: (value: string) => void;
@@ -2220,11 +2222,56 @@ function GateSpecificChecksCard({
   onScaleChange: (value: string) => void;
   onTrasfertaChange: (value: string) => void;
 }) {
+  const showMobility = mobilityValue && mobilityOptions && mobilityAnchor && onMobilityChange;
+
   return (
     <GateInfoCard
       title="Check disponibilita aspetti specifici"
       icon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
     >
+      {showMobility ? (
+        <div className="space-y-2">
+          <p className="text-sm">Mobilita</p>
+          <Combobox
+            multiple
+            autoHighlight
+            items={mobilityOptions.map((option) => option.value)}
+            value={normalizeLookupOptionValues(mobilityValue, mobilityOptions)}
+            onValueChange={(nextValues) =>
+              onMobilityChange(
+                normalizeLookupDbLabels(nextValues as string[], mobilityOptions),
+              )
+            }
+            disabled={isUpdatingMobility}
+          >
+            <ComboboxChips ref={mobilityAnchor} className="w-full">
+              <ComboboxValue>
+                {(values) => (
+                  <React.Fragment>
+                    {values.map((value: string) => (
+                      <ComboboxChip key={value}>
+                        {getLookupOptionLabel(mobilityOptions, value)}
+                      </ComboboxChip>
+                    ))}
+                    <ComboboxChipsInput placeholder="Seleziona opzioni" />
+                  </React.Fragment>
+                )}
+              </ComboboxValue>
+            </ComboboxChips>
+            <ComboboxContent anchor={mobilityAnchor} className="max-h-80">
+              <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
+              <ComboboxList className="max-h-72 overflow-y-auto">
+                {(item) => (
+                  <ComboboxItem key={item} value={item}>
+                    {getLookupOptionLabel(mobilityOptions, item)}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </div>
+      ) : null}
+
       <div className="space-y-2">
         <p className={isBabysitterEnabled ? "text-sm" : "text-sm opacity-50"}>
           Accetta lavori di babysitting con neonati?
@@ -2674,6 +2721,7 @@ export function Gate1View({
   showFollowupFilter = true,
   allowCertifiedStatus = false,
   showInPersonBookingLinks = false,
+  stepLayout = "default",
 }: GateViewProps) {
   const [gateProvinciaFilter, setGateProvinciaFilter] = React.useState("all");
   const [gateFollowupFilter, setGateFollowupFilter] = React.useState("all");
@@ -2843,6 +2891,33 @@ export function Gate1View({
   const showDocumentSection = resolvedDocumentSectionMode !== "hidden";
   const documentSectionAfterSpecificChecks =
     resolvedDocumentSectionMode === "documents";
+  const useGate1ReorderedSteps = stepLayout === "gate1_reordered";
+  const getGateSectionOrderClass = React.useCallback(
+    (step: number) => {
+      if (!useGate1ReorderedSteps) return undefined;
+      switch (step) {
+        case 1:
+          return "order-1";
+        case 2:
+          return "order-2";
+        case 3:
+          return "order-3";
+        case 4:
+          return "order-4";
+        case 5:
+          return "order-5";
+        case 6:
+          return "order-6";
+        case 7:
+          return "order-7";
+        case 8:
+          return "order-8";
+        default:
+          return undefined;
+      }
+    },
+    [useGate1ReorderedSteps],
+  );
 
   const firstGateSection = showCertificationReferente
     ? "referente"
@@ -2971,6 +3046,7 @@ export function Gate1View({
 
   const {
     presentationStep,
+    addressStep,
     documentiStep,
     tipologiaStep,
     disponibilitaStep,
@@ -2978,6 +3054,19 @@ export function Gate1View({
     aspettiStep,
     assessmentStep,
   } = React.useMemo(() => {
+    if (useGate1ReorderedSteps) {
+      return {
+        presentationStep: 1,
+        addressStep: 3,
+        documentiStep: showDocumentSection ? 4 : null,
+        tipologiaStep: 5,
+        disponibilitaStep: 6,
+        bazeChecksStep: 2,
+        aspettiStep: 7,
+        assessmentStep: showAssessment ? 8 : null,
+      };
+    }
+
     let currentStep = 0;
 
     if (showCertificationReferente) currentStep += 1;
@@ -3000,6 +3089,7 @@ export function Gate1View({
 
     return {
       presentationStep: nextPresentationStep,
+      addressStep: nextPresentationStep,
       documentiStep: nextDocumentiStep ?? lateDocumentiStep,
       tipologiaStep: nextTipologiaStep,
       disponibilitaStep: nextDisponibilitaStep,
@@ -3014,6 +3104,7 @@ export function Gate1View({
     showFollowup,
     showAssessment,
     splitBazeChecksStep,
+    useGate1ReorderedSteps,
   ]);
   const gatePresentationIsEditing =
     presentationEditMode === "always" ? true : isEditingHeader;
@@ -3327,50 +3418,105 @@ export function Gate1View({
     [lookupOptionsByDomain],
   );
   const gateTabs = React.useMemo<GateTab[]>(
-    () => [
-      ...(showCertificationReferente
-        ? [{ id: "referente", label: "Referente", icon: UsersIcon }]
-        : []),
-      ...(showFollowup
-        ? [{ id: "contatti", label: "Follow-up", icon: PhoneIcon }]
-        : []),
-      {
-        id: "presentazione",
-        label: "Presentazione",
-        icon: CircleUserRoundIcon,
-      },
-      ...(showDocumentSection && !documentSectionAfterSpecificChecks
-        ? [
-            {
-              id: "documenti",
-              label: "Autocertificazioni",
-              icon: FileSearchIcon,
-            },
-          ]
-        : []),
-      { id: "tipologia", label: "Tipologia lavori", icon: BadgeCheckIcon },
-      { id: "disponibilita", label: "Disponibilita", icon: CalendarDaysIcon },
-      {
-        id: "aspetti",
-        label:
-          specificChecksMode === "confirmation"
-            ? "Competenze"
-            : "Aspetti specifici",
-        icon: ShieldCheckIcon,
-      },
-      ...(showDocumentSection && documentSectionAfterSpecificChecks
-        ? [
-            {
-              id: "documenti",
-              label: "Documenti",
-              icon: NotebookPenIcon,
-            },
-          ]
-        : []),
-      ...(showAssessment
-        ? [{ id: "assessment", label: "Assessment", icon: StarIcon }]
-        : []),
-    ],
+    () => {
+      if (useGate1ReorderedSteps) {
+        return [
+          ...(showFollowup
+            ? [
+                {
+                  id: "contatti" as const,
+                  label: "Referente e presentazione",
+                  icon: PhoneIcon,
+                },
+              ]
+            : [
+                {
+                  id: "presentazione" as const,
+                  label: "Presentazione",
+                  icon: CircleUserRoundIcon,
+                },
+              ]),
+          {
+            id: "check_baze" as const,
+            label: "Check Baze",
+            icon: ShieldCheckIcon,
+          },
+          {
+            id: "indirizzo" as const,
+            label: "Indirizzo",
+            icon: CircleUserRoundIcon,
+          },
+          ...(showDocumentSection
+            ? [
+                {
+                  id: "documenti" as const,
+                  label: "Autocertificazioni",
+                  icon: FileSearchIcon,
+                },
+              ]
+            : []),
+          { id: "tipologia" as const, label: "Tipologia lavori", icon: BadgeCheckIcon },
+          {
+            id: "disponibilita" as const,
+            label: "Disponibilita",
+            icon: CalendarDaysIcon,
+          },
+          {
+            id: "aspetti" as const,
+            label: "Check disponibilita",
+            icon: ShieldCheckIcon,
+          },
+          ...(showAssessment
+            ? [{ id: "assessment" as const, label: "Assessment", icon: StarIcon }]
+            : []),
+        ];
+      }
+
+      return [
+        ...(showCertificationReferente
+          ? [{ id: "referente" as const, label: "Referente", icon: UsersIcon }]
+          : []),
+        ...(showFollowup
+          ? [{ id: "contatti" as const, label: "Follow-up", icon: PhoneIcon }]
+          : []),
+        {
+          id: "presentazione" as const,
+          label: "Presentazione",
+          icon: CircleUserRoundIcon,
+        },
+        ...(showDocumentSection && !documentSectionAfterSpecificChecks
+          ? [
+              {
+                id: "documenti" as const,
+                label: "Autocertificazioni",
+                icon: FileSearchIcon,
+              },
+            ]
+          : []),
+        { id: "tipologia" as const, label: "Tipologia lavori", icon: BadgeCheckIcon },
+        { id: "disponibilita" as const, label: "Disponibilita", icon: CalendarDaysIcon },
+        {
+          id: "aspetti" as const,
+          label:
+            specificChecksMode === "confirmation"
+              ? "Competenze"
+              : "Aspetti specifici",
+          icon: ShieldCheckIcon,
+        },
+        ...(showDocumentSection && documentSectionAfterSpecificChecks
+          ? [
+              {
+                id: "documenti" as const,
+                label: "Documenti",
+                icon: NotebookPenIcon,
+              },
+            ]
+          : []),
+        ...(showAssessment
+          ? [{ id: "assessment" as const, label: "Assessment", icon: StarIcon }]
+          : []),
+      ];
+    },
     [
       documentSectionAfterSpecificChecks,
       showCertificationReferente,
@@ -3378,6 +3524,7 @@ export function Gate1View({
       showDocumentSection,
       showFollowup,
       specificChecksMode,
+      useGate1ReorderedSteps,
     ],
   );
 
@@ -3849,9 +3996,14 @@ export function Gate1View({
             onSectionChange={scrollToSection}
           >
             {selectedWorker && selectedWorkerRow ? (
-              <div className="space-y-6">
+              <div
+                className={
+                  useGate1ReorderedSteps ? "flex flex-col gap-6" : "space-y-6"
+                }
+              >
                 {showCertificationReferente ? (
                   <div
+                    className={getGateSectionOrderClass(1)}
                     ref={(node) => {
                       sectionRefs.current.referente = node;
                     }}
@@ -3886,6 +4038,7 @@ export function Gate1View({
 
                 {showFollowup ? (
                   <div
+                    className={getGateSectionOrderClass(1)}
                     ref={(node) => {
                       sectionRefs.current.contatti = node;
                     }}
@@ -3930,6 +4083,7 @@ export function Gate1View({
                 ) : null}
 
                 <div
+                  className={getGateSectionOrderClass(presentationStep)}
                   ref={(node) => {
                     sectionRefs.current.presentazione = node;
                   }}
@@ -3937,7 +4091,10 @@ export function Gate1View({
                   <GateStepSection
                     step={presentationStep}
                     isFirst={!showFollowup && !showCertificationReferente}
-                    showStepper={showStepper}
+                    showStepper={
+                      showStepper && !(useGate1ReorderedSteps && showFollowup)
+                    }
+                    reserveStepperSpace={useGate1ReorderedSteps && showFollowup}
                     info={stepInfoBySection.presentazione}
                   >
                     <GatePresentationCard
@@ -4013,11 +4170,26 @@ export function Gate1View({
                       }
                     />
 
+                  </GateStepSection>
+                </div>
+
+                <div
+                  className={getGateSectionOrderClass(addressStep)}
+                  ref={(node) => {
+                    sectionRefs.current.indirizzo = node;
+                  }}
+                >
+                  <GateStepSection
+                    step={addressStep}
+                    showStepper={showStepper}
+                    info={stepInfoBySection.indirizzo}
+                  >
                     <AddressSectionCard
                       isEditing={gateAddressIsEditing}
                       isUpdating={updatingNonQualificato}
                       showEditAction={addressEditMode === "toggle"}
                       showCap={false}
+                      showMobility={false}
                       addressDraft={addressDraft}
                       provinciaOptions={provinciaLookupOptions}
                       mobilityOptions={mobilityLookupOptions}
@@ -4079,6 +4251,7 @@ export function Gate1View({
 
                 {showDocumentSection && !documentSectionAfterSpecificChecks ? (
                   <div
+                    className={getGateSectionOrderClass(documentiStep ?? 0)}
                     ref={(node) => {
                       sectionRefs.current.documenti = node;
                     }}
@@ -4113,6 +4286,7 @@ export function Gate1View({
                 ) : null}
 
                 <div
+                  className={getGateSectionOrderClass(tipologiaStep)}
                   ref={(node) => {
                     sectionRefs.current.tipologia = node;
                   }}
@@ -4126,9 +4300,6 @@ export function Gate1View({
                       workerId={selectedWorkerId}
                       haiReferenze={asString(selectedWorkerRow.hai_referenze)}
                       referenzeOptions={haiReferenzeOptions}
-                      situationValue={
-                        experienceDraft.situazione_lavorativa_attuale
-                      }
                       allowedWorks={jobSearchDraft.tipo_lavoro_domestico}
                       allowedWorkOptions={tipoLavoroDomesticoOptions}
                       isEditing={gateWorkTypesIsEditing}
@@ -4155,17 +4326,6 @@ export function Gate1View({
                       }
                       referenceStatusOptions={referenceStatusOptions}
                       isUpdatingExperience={updatingExperience}
-                      onSituationChange={(value) =>
-                        setExperienceDraft((current) => ({
-                          ...current,
-                          situazione_lavorativa_attuale: value,
-                        }))
-                      }
-                      onSituationBlur={() =>
-                        void commitExperienceField(
-                          "situazione_lavorativa_attuale",
-                        )
-                      }
                       onAllowedWorksChange={(values) => {
                         setJobSearchDraft((current) => ({
                           ...current,
@@ -4220,155 +4380,182 @@ export function Gate1View({
                 </div>
 
                 <div
+                  className={
+                    useGate1ReorderedSteps && splitBazeChecksStep
+                      ? "contents"
+                      : getGateSectionOrderClass(disponibilitaStep)
+                  }
                   ref={(node) => {
-                    sectionRefs.current.disponibilita = node;
+                    if (!useGate1ReorderedSteps || !splitBazeChecksStep) {
+                      sectionRefs.current.disponibilita = node;
+                    }
                   }}
                 >
                   {splitBazeChecksStep ? (
                     <>
-                      <GateStepSection
-                        step={disponibilitaStep}
-                        showStepper={showStepper}
-                        info={stepInfoBySection.disponibilita}
+                      <div
+                        className={getGateSectionOrderClass(disponibilitaStep)}
+                        ref={(node) => {
+                          if (useGate1ReorderedSteps) {
+                            sectionRefs.current.disponibilita = node;
+                          }
+                        }}
                       >
-                        <AvailabilityStatusCard
-                          isEditing={gateAvailabilityStatusIsEditing}
-                          showEditAction={availabilityEditMode === "toggle"}
-                          isUpdating={updatingAvailabilityStatus}
-                          disponibilitaOptions={disponibilitaLookupOptions}
-                          draft={availabilityStatusDraft}
-                          selectedDisponibilita={asString(
-                            selectedWorkerRow.disponibilita,
-                          )}
-                          selectedDisponibilitaBadgeClassName={
-                            disponibilitaBadgeClassName
-                          }
-                          selectedDataRitorno={asString(
-                            selectedWorkerRow.data_ritorno_disponibilita,
-                          )}
-                          onToggleEdit={() =>
-                            setIsEditingAvailabilityStep((current) => !current)
-                          }
-                          onDisponibilitaChange={(value) => {
-                            setAvailabilityStatusDraft((current) => ({
-                              ...current,
-                              disponibilita: value,
-                            }));
-                            void patchAvailabilityStatusValue(
-                              "disponibilita",
-                              value,
-                            );
-                          }}
-                          onDataRitornoChange={(value) =>
-                            setAvailabilityStatusDraft((current) => ({
-                              ...current,
-                              data_ritorno_disponibilita: value,
-                            }))
-                          }
-                          onDataRitornoBlur={() =>
-                            void commitAvailabilityStatusField(
-                              "data_ritorno_disponibilita",
-                            )
-                          }
-                        />
-                        <GateShiftPreferencesCard
-                          isEditing={gateShiftPreferencesIsEditing}
-                          showEditAction={availabilityEditMode === "toggle"}
-                          onToggleEdit={() =>
-                            setIsEditingAvailabilityStep((current) => !current)
-                          }
-                          lookupColorsByDomain={lookupColorsByDomain}
-                          tipoRapportoLavorativo={
-                            jobSearchDraft.tipo_rapporto_lavorativo
-                          }
-                          tipoRapportoOptions={tipoRapportoLavorativoOptions}
-                          lavoriAccettabili={
-                            jobSearchDraft.check_lavori_accettabili
-                          }
-                          lavoriAccettabiliOptions={lavoriAccettabiliOptions}
-                          disponibilitaNelGiorno={
-                            availabilityDraft.disponibilita_nel_giorno
-                          }
-                          disponibilitaNelGiornoOptions={
-                            disponibilitaNelGiornoOptions
-                          }
-                          onTipoRapportoChange={(values) => {
-                            setJobSearchDraft((current) => ({
-                              ...current,
-                              tipo_rapporto_lavorativo: values,
-                            }));
-                            void patchSelectedWorkerField(
-                              "tipo_rapporto_lavorativo",
-                              values.length > 0 ? values : null,
-                            );
-                          }}
-                          onLavoriAccettabiliChange={(values) => {
-                            setJobSearchDraft((current) => ({
-                              ...current,
-                              check_lavori_accettabili: values,
-                            }));
-                            void patchSelectedWorkerField(
-                              "check_lavori_accettabili",
-                              values.length > 0 ? values : null,
-                            );
-                          }}
-                          onDisponibilitaNelGiornoChange={(values) => {
-                            setAvailabilityDraft((current) => ({
-                              ...current,
-                              disponibilita_nel_giorno: values,
-                            }));
-                            void patchSelectedWorkerField(
-                              "disponibilita_nel_giorno",
-                              values.length > 0 ? values : null,
-                            );
-                          }}
-                        />
-                        <AvailabilityCalendarCard
-                          titleMeta={
-                            formatAvailabilityComputedAt(
-                              availabilityPayload?.computed_at,
-                            ) ?? "-"
-                          }
-                          isEditing={gateAvailabilityCalendarIsEditing}
-                          showEditAction={availabilityEditMode === "toggle"}
-                          isUpdating={updatingAvailability}
-                          editDays={AVAILABILITY_EDIT_DAYS.map(
-                            ({ field, label }) => ({ field, label }),
-                          )}
-                          editBands={AVAILABILITY_EDIT_BANDS.map(
-                            ({ field, label }) => ({ field, label }),
-                          )}
-                          hourLabels={AVAILABILITY_HOUR_LABELS}
-                          readOnlyRows={availabilityReadOnlyRows}
-                          matrix={availabilityDraft.matrix}
-                          vincoliOrari={
-                            availabilityDraft.vincoli_orari_disponibilita
-                          }
-                          onToggleEdit={() =>
-                            setIsEditingAvailabilityStep((current) => !current)
-                          }
-                          onMatrixChange={(dayField, bandField, checked) =>
-                            void handleAvailabilityMatrixChange(
-                              dayField as AvailabilityEditDayField,
-                              bandField as AvailabilityEditBandField,
-                              checked,
-                            )
-                          }
-                          onVincoliChange={(value) =>
-                            setAvailabilityDraft((current) => ({
-                              ...current,
-                              vincoli_orari_disponibilita: value,
-                            }))
-                          }
-                          onVincoliBlur={() =>
-                            void commitAvailabilityField(
-                              "vincoli_orari_disponibilita",
-                            )
-                          }
-                        />
-                      </GateStepSection>
+                        <GateStepSection
+                          step={disponibilitaStep}
+                          showStepper={showStepper}
+                          info={stepInfoBySection.disponibilita}
+                        >
+                          <AvailabilityStatusCard
+                            isEditing={gateAvailabilityStatusIsEditing}
+                            showEditAction={availabilityEditMode === "toggle"}
+                            isUpdating={updatingAvailabilityStatus}
+                            disponibilitaOptions={disponibilitaLookupOptions}
+                            draft={availabilityStatusDraft}
+                            selectedDisponibilita={asString(
+                              selectedWorkerRow.disponibilita,
+                            )}
+                            selectedDisponibilitaBadgeClassName={
+                              disponibilitaBadgeClassName
+                            }
+                            selectedDataRitorno={asString(
+                              selectedWorkerRow.data_ritorno_disponibilita,
+                            )}
+                            onToggleEdit={() =>
+                              setIsEditingAvailabilityStep((current) => !current)
+                            }
+                            onDisponibilitaChange={(value) => {
+                              setAvailabilityStatusDraft((current) => ({
+                                ...current,
+                                disponibilita: value,
+                              }));
+                              void patchAvailabilityStatusValue(
+                                "disponibilita",
+                                value,
+                              );
+                            }}
+                            onDataRitornoChange={(value) =>
+                              setAvailabilityStatusDraft((current) => ({
+                                ...current,
+                                data_ritorno_disponibilita: value,
+                              }))
+                            }
+                            onDataRitornoBlur={() =>
+                              void commitAvailabilityStatusField(
+                                "data_ritorno_disponibilita",
+                              )
+                            }
+                          />
+                          <GateShiftPreferencesCard
+                            isEditing={gateShiftPreferencesIsEditing}
+                            showEditAction={availabilityEditMode === "toggle"}
+                            onToggleEdit={() =>
+                              setIsEditingAvailabilityStep((current) => !current)
+                            }
+                            lookupColorsByDomain={lookupColorsByDomain}
+                            tipoRapportoLavorativo={
+                              jobSearchDraft.tipo_rapporto_lavorativo
+                            }
+                            tipoRapportoOptions={tipoRapportoLavorativoOptions}
+                            lavoriAccettabili={
+                              jobSearchDraft.check_lavori_accettabili
+                            }
+                            lavoriAccettabiliOptions={lavoriAccettabiliOptions}
+                            disponibilitaNelGiorno={
+                              availabilityDraft.disponibilita_nel_giorno
+                            }
+                            disponibilitaNelGiornoOptions={
+                              disponibilitaNelGiornoOptions
+                            }
+                            onTipoRapportoChange={(values) => {
+                              setJobSearchDraft((current) => ({
+                                ...current,
+                                tipo_rapporto_lavorativo: values,
+                              }));
+                              void patchSelectedWorkerField(
+                                "tipo_rapporto_lavorativo",
+                                values.length > 0 ? values : null,
+                              );
+                            }}
+                            onLavoriAccettabiliChange={(values) => {
+                              setJobSearchDraft((current) => ({
+                                ...current,
+                                check_lavori_accettabili: values,
+                              }));
+                              void patchSelectedWorkerField(
+                                "check_lavori_accettabili",
+                                values.length > 0 ? values : null,
+                              );
+                            }}
+                            onDisponibilitaNelGiornoChange={(values) => {
+                              setAvailabilityDraft((current) => ({
+                                ...current,
+                                disponibilita_nel_giorno: values,
+                              }));
+                              void patchSelectedWorkerField(
+                                "disponibilita_nel_giorno",
+                                values.length > 0 ? values : null,
+                              );
+                            }}
+                          />
+                          <AvailabilityCalendarCard
+                            titleMeta={
+                              formatAvailabilityComputedAt(
+                                availabilityPayload?.computed_at,
+                              ) ?? "-"
+                            }
+                            isEditing={gateAvailabilityCalendarIsEditing}
+                            showEditAction={availabilityEditMode === "toggle"}
+                            isUpdating={updatingAvailability}
+                            editDays={AVAILABILITY_EDIT_DAYS.map(
+                              ({ field, label }) => ({ field, label }),
+                            )}
+                            editBands={AVAILABILITY_EDIT_BANDS.map(
+                              ({ field, label }) => ({ field, label }),
+                            )}
+                            hourLabels={AVAILABILITY_HOUR_LABELS}
+                            readOnlyRows={availabilityReadOnlyRows}
+                            matrix={availabilityDraft.matrix}
+                            vincoliOrari={
+                              availabilityDraft.vincoli_orari_disponibilita
+                            }
+                            onToggleEdit={() =>
+                              setIsEditingAvailabilityStep((current) => !current)
+                            }
+                            onMatrixChange={(dayField, bandField, checked) =>
+                              void handleAvailabilityMatrixChange(
+                                dayField as AvailabilityEditDayField,
+                                bandField as AvailabilityEditBandField,
+                                checked,
+                              )
+                            }
+                            onVincoliChange={(value) =>
+                              setAvailabilityDraft((current) => ({
+                                ...current,
+                                vincoli_orari_disponibilita: value,
+                              }))
+                            }
+                            onVincoliBlur={() =>
+                              void commitAvailabilityField(
+                                "vincoli_orari_disponibilita",
+                              )
+                            }
+                          />
+                        </GateStepSection>
+                      </div>
 
-                      <div className="pt-6">
+                      <div
+                        className={
+                          useGate1ReorderedSteps
+                            ? getGateSectionOrderClass(bazeChecksStep ?? 0)
+                            : "pt-6"
+                        }
+                        ref={(node) => {
+                          if (useGate1ReorderedSteps) {
+                            sectionRefs.current.check_baze = node;
+                          }
+                        }}
+                      >
                         <GateStepSection
                           step={bazeChecksStep ?? 0}
                           showStepper={showStepper}
@@ -4671,6 +4858,7 @@ export function Gate1View({
                 </div>
 
                 <div
+                  className={getGateSectionOrderClass(aspettiStep)}
                   ref={(node) => {
                     sectionRefs.current.aspetti = node;
                   }}
@@ -4683,6 +4871,22 @@ export function Gate1View({
                     {specificChecksMode === "confirmation" ? (
                       <>
                         <GateSpecificChecksCard
+                          mobilityValue={
+                            useGate1ReorderedSteps
+                              ? readArrayStrings(selectedWorkerRow.come_ti_sposti)
+                              : undefined
+                          }
+                          mobilityOptions={
+                            useGate1ReorderedSteps
+                              ? mobilityLookupOptions
+                              : undefined
+                          }
+                          mobilityAnchor={
+                            useGate1ReorderedSteps
+                              ? addressMobilityAnchor
+                              : undefined
+                          }
+                          isUpdatingMobility={updatingNonQualificato}
                           isBabysitterEnabled={includesBabysitterType(
                             jobSearchDraft.tipo_lavoro_domestico,
                             tipoLavoroDomesticoOptions,
@@ -4714,6 +4918,20 @@ export function Gate1View({
                           }
                           trasfertaOptions={trasfertaOptions}
                           lookupColorsByDomain={lookupColorsByDomain}
+                          onMobilityChange={
+                            useGate1ReorderedSteps
+                              ? (values) => {
+                                  setAddressDraft((current) => ({
+                                    ...current,
+                                    come_ti_sposti: values,
+                                  }));
+                                  void patchSelectedWorkerField(
+                                    "come_ti_sposti",
+                                    values.length > 0 ? values : null,
+                                  );
+                                }
+                              : undefined
+                          }
                           onNeonatiChange={(value) => {
                             setSkillsDraft((current) => ({
                               ...current,
@@ -5110,6 +5328,22 @@ export function Gate1View({
                       </>
                     ) : (
                       <GateSpecificChecksCard
+                        mobilityValue={
+                          useGate1ReorderedSteps
+                            ? readArrayStrings(selectedWorkerRow.come_ti_sposti)
+                            : undefined
+                        }
+                        mobilityOptions={
+                          useGate1ReorderedSteps
+                            ? mobilityLookupOptions
+                            : undefined
+                        }
+                        mobilityAnchor={
+                          useGate1ReorderedSteps
+                            ? addressMobilityAnchor
+                            : undefined
+                        }
+                        isUpdatingMobility={updatingNonQualificato}
                         isBabysitterEnabled={includesBabysitterType(
                           jobSearchDraft.tipo_lavoro_domestico,
                           tipoLavoroDomesticoOptions,
@@ -5141,6 +5375,20 @@ export function Gate1View({
                         }
                         trasfertaOptions={trasfertaOptions}
                         lookupColorsByDomain={lookupColorsByDomain}
+                        onMobilityChange={
+                          useGate1ReorderedSteps
+                            ? (values) => {
+                                setAddressDraft((current) => ({
+                                  ...current,
+                                  come_ti_sposti: values,
+                                }));
+                                void patchSelectedWorkerField(
+                                  "come_ti_sposti",
+                                  values.length > 0 ? values : null,
+                                );
+                              }
+                            : undefined
+                        }
                         onNeonatiChange={(value) => {
                           setSkillsDraft((current) => ({
                             ...current,
@@ -5218,6 +5466,7 @@ export function Gate1View({
 
                 {showDocumentSection && documentSectionAfterSpecificChecks ? (
                   <div
+                    className={getGateSectionOrderClass(documentiStep ?? 0)}
                     ref={(node) => {
                       sectionRefs.current.documenti = node;
                     }}
@@ -5333,6 +5582,7 @@ export function Gate1View({
 
                 {showAssessment ? (
                   <div
+                    className={getGateSectionOrderClass(assessmentStep ?? 0)}
                     ref={(node) => {
                       sectionRefs.current.assessment = node;
                     }}
