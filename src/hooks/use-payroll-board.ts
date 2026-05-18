@@ -41,6 +41,7 @@ export type PayrollBoardCardData = {
   record: MeseLavoratoRecord
   famiglia: FamigliaRecord | null
   pagamento: PagamentoRecord | null
+  transazione: TransazioneFinanziariaRecord | null
   presenze: PresenzaMensileRecord | null
   presenzeRegolari: PresenzaMensileRecord | null
   rapporto: RapportoLavorativoRecord | null
@@ -535,6 +536,7 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
       record,
       famiglia,
       pagamento,
+      transazione,
       presenze,
       presenzeRegolari,
       rapporto,

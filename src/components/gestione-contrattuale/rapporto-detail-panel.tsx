@@ -926,6 +926,7 @@ export function RapportoDetailPanel({
       record: mese,
       famiglia,
       pagamento,
+      transazione: null,
       presenze: presenzeMese,
       presenzeRegolari,
       rapporto: rapportoView,

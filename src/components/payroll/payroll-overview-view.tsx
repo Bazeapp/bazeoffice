@@ -6,6 +6,7 @@ import {
   ChevronRightIcon,
   CircleCheckBigIcon,
   ClipboardListIcon,
+  CopyIcon,
   CreditCardIcon,
   ExternalLinkIcon,
   FileTextIcon,
@@ -60,6 +61,8 @@ type PayrollMetric = {
   value: string
   className?: string
 }
+
+const MAKE_TRANSACTION_WEBHOOK_URL = "https://hook.eu1.make.com/wp7qdoft5vc11zbgh91trjm7d17zj4jm"
 
 function buildPayrollMetrics(columns: PayrollBoardColumnData[]): PayrollMetric[] {
   const cards = columns.flatMap((column) => column.cards)
@@ -288,6 +291,23 @@ function buildPresenceDayRows(record: PayrollBoardCardData["presenze"]): Presenc
   }).filter((row) => row.type || row.hours || row.event || row.sicknessCode || row.note)
 }
 
+function sumPresenceHours(record: PayrollBoardCardData["presenzeRegolari"]): number | null {
+  if (!record) return null
+
+  return Array.from({ length: 31 }).reduce<number>((total, _, index) => {
+    const day = index + 1
+    const value = Number(record[`ore_day_${day}`])
+    return Number.isFinite(value) ? total + value : total
+  }, 0)
+}
+
+function formatHoursValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "Non disponibile"
+  const numericValue = Number(value)
+  if (!Number.isFinite(numericValue)) return String(value)
+  return Number.isInteger(numericValue) ? String(numericValue) : String(numericValue)
+}
+
 function PresenceBadge({ isRegular }: { isRegular: boolean }) {
   return (
     <Badge
@@ -429,14 +449,22 @@ export function CedolinoDetailSheet({
 }) {
   const famiglia = card?.famiglia
   const pagamento = card?.pagamento
+  const transazione = card?.transazione
   const presenceRows = React.useMemo(() => buildPresenceDayRows(card?.presenze ?? null), [card?.presenze])
   const rapporto = card?.rapporto
   const statoServizio = rapporto?.stato_servizio || "Non disponibile"
   const isRegularPresence = Boolean(card?.record.presenze_regolare_id)
-  const paymentIdentifier = pagamento?.payment_intent_id ?? pagamento?.charge_id ?? "Non ancora disponibile"
   const paymentStatus = pagamento?.status ?? "Pagamento non ancora registrato"
   const paymentAmount = pagamento?.amount ?? card?.record.importo_busta_estratto ?? null
   const paymentFee = pagamento?.fee ?? null
+  const makeTransactionUrl = transazione?.id
+    ? `${MAKE_TRANSACTION_WEBHOOK_URL}?recordId=${encodeURIComponent(transazione.id)}`
+    : null
+  const actualPresenceHours = React.useMemo(
+    () => sumPresenceHours(card?.presenze ?? null),
+    [card?.presenze]
+  )
+  const workedHours = card?.record.ore_lavorate_estratte ?? actualPresenceHours
   const [runningAutomationId, setRunningAutomationId] = React.useState<string | null>(null)
   const [uploadingCedolino, setUploadingCedolino] = React.useState(false)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
@@ -469,6 +497,20 @@ export function CedolinoDetailSheet({
     },
     [pagamento]
   )
+
+  const handleCopyMakeTransactionUrl = React.useCallback(async () => {
+    if (!makeTransactionUrl) {
+      toast.error("Nessuna transazione collegata al cedolino")
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(makeTransactionUrl)
+      toast.success("Link Make copiato")
+    } catch {
+      toast.error("Impossibile copiare il link Make")
+    }
+  }, [makeTransactionUrl])
 
   const handleUploadCedolino = React.useCallback(
     async (file: File) => {
@@ -700,7 +742,7 @@ export function CedolinoDetailSheet({
                   </div>
                   <div className="space-y-2">
                     <p className="ui-type-label">Ore svolte</p>
-                    <p className="font-medium">{card.record.ore_lavorate_estratte ?? "Non disponibile"}</p>
+                    <p className="font-medium">{formatHoursValue(workedHours)}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="ui-type-label">Importo busta paga</p>
@@ -744,7 +786,15 @@ export function CedolinoDetailSheet({
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-2">
                       <p className="ui-type-label">Transazione</p>
-                      <p className="font-medium">{paymentIdentifier}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!makeTransactionUrl}
+                        onClick={() => void handleCopyMakeTransactionUrl()}
+                      >
+                        <CopyIcon />
+                        Copia link pagamento
+                      </Button>
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Stato pagamento</p>
@@ -774,8 +824,9 @@ export function CedolinoDetailSheet({
                     </div>
                   </div>
 
-                  {pagamento ? (
-                    <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {pagamento ? (
+                      <>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
@@ -836,12 +887,21 @@ export function CedolinoDetailSheet({
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                      </>
+                    ) : null}
                     </div>
-                  ) : (
+
+                  {!pagamento && transazione ? (
                     <p className="text-sm text-muted-foreground">
-                      Nessun record pagamento collegato: importo mostrato dal cedolino.
+                      Transazione collegata: pagamento Stripe non ancora registrato.
                     </p>
-                  )}
+                  ) : null}
+
+                  {!pagamento && !transazione ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nessuna transazione o pagamento collegato: importo mostrato dal cedolino.
+                    </p>
+                  ) : null}
                 </div>
               </DetailSectionBlock>
 
