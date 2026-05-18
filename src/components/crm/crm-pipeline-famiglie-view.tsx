@@ -310,6 +310,7 @@ export function CrmPipelineFamiglieView() {
     moveCard,
     updateProcessCard,
     updateFamilyCard,
+    updateAddressCard,
   } =
     useCrmPipelinePreview()
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(
@@ -483,6 +484,9 @@ export function CrmPipelineFamiglieView() {
         }}
         onPatchFamily={async (familyId, patch) => {
           await updateFamilyCard(familyId, patch)
+        }}
+        onPatchAddress={async (processId, addressId, patch) => {
+          await updateAddressCard(processId, addressId, patch)
         }}
       />
     </section>

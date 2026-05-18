@@ -500,6 +500,11 @@ export type FamigliaProcessoDetailContentProps = {
     familyId: string,
     patch: Record<string, unknown>
   ) => void | Promise<void>
+  onPatchAddress?: (
+    processId: string,
+    addressId: string | null,
+    patch: Record<string, unknown>
+  ) => void | Promise<void>
   showTempistiche?: boolean
   showAnnuncio?: boolean
   showHeaderMeta?: boolean
@@ -529,6 +534,7 @@ export function FamigliaProcessoDetailContent({
   onChangeStatoSales,
   onPatchProcess,
   onPatchFamily,
+  onPatchAddress,
   showTempistiche = true,
   showAnnuncio = true,
   showHeaderMeta = true,
@@ -1035,6 +1041,7 @@ export function FamigliaProcessoDetailContent({
             firstSectionDefaultOpen={firstBlockDefaultOpen}
             sectionsDefaultOpen={blocksDefaultOpen}
             onPatchProcess={canEditOnboarding ? onPatchProcess : undefined}
+            onPatchAddress={canEditOnboarding ? onPatchAddress : undefined}
             readOnly={!canEditOnboarding}
           />
         </div>

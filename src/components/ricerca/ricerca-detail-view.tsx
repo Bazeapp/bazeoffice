@@ -1019,10 +1019,11 @@ export function RicercaDetailView({
           indirizzoCap: displayValue(
             firstMeaningfulText(processAddress?.cap, processRow.indirizzo_prova_cap),
           ),
-          indirizzoNote: displayValue(
-            firstMeaningfulText(processAddress?.note, processRow.indirizzo_prova_note),
-          ),
-          indirizzoCompleto: displayValue(
+	          indirizzoNote: displayValue(
+	            firstMeaningfulText(processAddress?.note, processRow.indirizzo_prova_note),
+	          ),
+	          indirizzoId: toStringValue(processAddress?.id),
+	          indirizzoCompleto: displayValue(
             firstMeaningfulText(
               buildAddressLine(processAddress),
               buildLegacyProcessAddressLine(processRow),

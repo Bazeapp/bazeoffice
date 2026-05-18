@@ -7,6 +7,7 @@ import {
   fetchIndirizzi,
   fetchLookupValues,
   fetchProcessiMatching,
+  createRecord,
   updateRecord,
   updateProcessoMatchingStatoSales,
 } from "@/lib/anagrafiche-api"
@@ -131,6 +132,7 @@ const CRM_PIPELINE_FAMIGLIE_SELECT = [
   "aggiornato_il",
 ]
 const CRM_PIPELINE_ADDRESS_SELECT = [
+  "id",
   "entita_id",
   "tipo_indirizzo",
   "via",
@@ -139,6 +141,7 @@ const CRM_PIPELINE_ADDRESS_SELECT = [
   "citta",
   "provincia",
   "indirizzo_formattato",
+  "citofono",
   "note",
 ] as const
 const ADDRESS_BATCH_SIZE = 150
@@ -207,6 +210,7 @@ export type CrmPipelineCardData = {
   indirizzoProvincia: string
   indirizzoCap: string
   indirizzoNote: string
+  indirizzoId: string | null
   indirizzoCompleto: string
   indirizzoVia: string
   indirizzoCivico: string
@@ -270,6 +274,11 @@ type UseCrmPipelinePreviewState = {
   ) => Promise<void>
   updateFamilyCard: (
     familyId: string,
+    patch: Record<string, unknown>
+  ) => Promise<void>
+  updateAddressCard: (
+    processId: string,
+    addressId: string | null,
     patch: Record<string, unknown>
   ) => Promise<void>
 }
@@ -387,14 +396,6 @@ function formatItalianDateTime(value: unknown): string {
 
 function displayValue(value: unknown): string {
   return toStringValue(value) ?? "-"
-}
-
-function firstText(...values: unknown[]) {
-  for (const value of values) {
-    const normalized = toStringValue(value)
-    if (normalized) return normalized
-  }
-  return null
 }
 
 function buildPreventivoAcceptanceUrl(sessionId: string | null) {
@@ -979,28 +980,15 @@ function mapCardData(
     informazioniExtraRiservate: displayValue(process.informazioni_extra_riservate),
     etaMinima: displayValue(process.eta_minima),
     etaMassima: displayValue(process.eta_massima),
-    indirizzoProvincia: displayValue(
-      firstText(process.indirizzo_prova_provincia, processAddress?.provincia)
-    ),
-    indirizzoCap: displayValue(
-      firstText(process.indirizzo_prova_cap, processAddress?.cap)
-    ),
-    indirizzoNote: displayValue(
-      firstText(process.indirizzo_prova_note, processAddress?.note)
-    ),
-    indirizzoCompleto:
-      [
-        toStringValue(process.indirizzo_prova_via),
-        toStringValue(process.indirizzo_prova_civico),
-        toStringValue(process.indirizzo_prova_comune),
-        toStringValue(process.indirizzo_prova_cap),
-      ]
-        .filter((item): item is string => Boolean(item))
-        .join(", ") || displayValue(buildAddressLine(processAddress)),
-    indirizzoVia: displayValue(process.indirizzo_prova_via),
-    indirizzoCivico: displayValue(process.indirizzo_prova_civico),
-    indirizzoComune: displayValue(process.indirizzo_prova_comune),
-    indirizzoCitofono: displayValue(process.indirizzo_prova_citofono),
+    indirizzoProvincia: displayValue(processAddress?.provincia),
+    indirizzoCap: displayValue(processAddress?.cap),
+    indirizzoNote: displayValue(processAddress?.note),
+    indirizzoId: toStringValue(processAddress?.id),
+    indirizzoCompleto: displayValue(buildAddressLine(processAddress)),
+    indirizzoVia: displayValue(processAddress?.via),
+    indirizzoCivico: displayValue(processAddress?.civico),
+    indirizzoComune: displayValue(processAddress?.citta),
+    indirizzoCitofono: displayValue(processAddress?.citofono),
     srcEmbedMapsAnnucio: displayValue(process.src_embed_maps_annucio),
     deadlineMobile: formatItalianDate(process.deadline_mobile),
     disponibilitaColloquiInPresenza: displayValue(
@@ -1273,11 +1261,16 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
       const stageId = tokenToStageId.get(statusToken)
       if (!stageId) return
 
+      let address = detailRow.address
+      if (!toStringValue(address?.id)) {
+        address = (await fetchProcessAddressesByIds([processId])).get(processId) ?? address
+      }
+
       const card = mapBoardEntryToCard(
         {
           process: detailRow.process,
           family: detailRow.family,
-          address: detailRow.address,
+          address,
           richiestaAttivazione:
             (detailRow.richiesta_attivazione ?? null) as RichiestaAttivazioneRecord | null,
         },
@@ -1739,6 +1732,89 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
     [columns]
   )
 
+  const updateAddressCard = React.useCallback(
+    async (
+      processId: string,
+      addressId: string | null,
+      patch: Record<string, unknown>
+    ) => {
+      setError(null)
+
+      if (!addressId && !Object.values(patch).some((value) => toStringValue(value))) {
+        return
+      }
+
+      const previousColumns = columns
+
+      const optimisticColumns = columns.map((column) => ({
+        ...column,
+        cards: sortCardsForStage(
+          column.cards.map((card) => {
+            if (card.id !== processId) return card
+
+            const nextCard = { ...card }
+            if (addressId) {
+              nextCard.indirizzoId = addressId
+            }
+            if ("provincia" in patch) {
+              nextCard.indirizzoProvincia = displayValue(patch.provincia)
+            }
+            if ("cap" in patch) {
+              nextCard.indirizzoCap = displayValue(patch.cap)
+            }
+            if ("note" in patch) {
+              nextCard.indirizzoNote = displayValue(patch.note)
+            }
+            if ("via" in patch) {
+              nextCard.indirizzoVia = displayValue(patch.via)
+            }
+
+            return nextCard
+          }),
+          column.id
+        ),
+      }))
+
+      setColumns(optimisticColumns)
+
+      try {
+        if (addressId) {
+          await updateRecord("indirizzi", addressId, patch)
+          return
+        }
+
+        const response = await createRecord("indirizzi", {
+          entita_tabella: "processi_matching",
+          entita_id: processId,
+          tipo_indirizzo: "luogo",
+          ...patch,
+        })
+        const createdAddressId = toStringValue(response.row.id)
+        if (!createdAddressId) return
+
+        setColumns((current) =>
+          current.map((column) => ({
+            ...column,
+            cards: column.cards.map((card) =>
+              card.id === processId
+                ? { ...card, indirizzoId: createdAddressId }
+                : card
+            ),
+          }))
+        )
+      } catch (caughtError) {
+        setColumns(previousColumns)
+        const message =
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore aggiornando indirizzo su Supabase"
+        setError(message)
+        throw caughtError
+      }
+    },
+    [columns]
+  )
+
   React.useEffect(() => {
     let cancelled = false
 
@@ -1785,5 +1861,6 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
     moveCard,
     updateProcessCard,
     updateFamilyCard,
+    updateAddressCard,
   }
 }

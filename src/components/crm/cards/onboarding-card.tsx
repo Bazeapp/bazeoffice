@@ -89,6 +89,11 @@ type OnboardingCardProps = {
     processId: string,
     patch: Record<string, unknown>,
   ) => void | Promise<void>;
+  onPatchAddress?: (
+    processId: string,
+    addressId: string | null,
+    patch: Record<string, unknown>,
+  ) => void | Promise<void>;
 };
 
 export type OnboardingFlatSectionKey =
@@ -343,6 +348,7 @@ export function OnboardingCard({
   flattenSections = false,
   sectionContainerProps,
   onPatchProcess,
+  onPatchAddress,
 }: OnboardingCardProps) {
   const [orarioDiLavoro, setOrarioDiLavoro] = React.useState(
     toInputValue(card?.orarioDiLavoro),
@@ -358,8 +364,8 @@ export function OnboardingCard({
   const [indirizzoNote, setIndirizzoNote] = React.useState(
     toInputValue(card?.indirizzoNote),
   );
-  const [indirizzoCompleto, setIndirizzoCompleto] = React.useState(
-    toInputValue(card?.indirizzoCompleto),
+  const [indirizzoVia, setIndirizzoVia] = React.useState(
+    toInputValue(card?.indirizzoVia),
   );
   const [srcMapsUrl, setSrcMapsUrl] = React.useState(
     toInputValue(card?.srcEmbedMapsAnnucio),
@@ -414,7 +420,7 @@ export function OnboardingCard({
     setIndirizzoProvincia(toInputValue(card?.indirizzoProvincia));
     setIndirizzoCap(toInputValue(card?.indirizzoCap));
     setIndirizzoNote(toInputValue(card?.indirizzoNote));
-    setIndirizzoCompleto(toInputValue(card?.indirizzoCompleto));
+    setIndirizzoVia(toInputValue(card?.indirizzoVia));
     setSrcMapsUrl(toInputValue(card?.srcEmbedMapsAnnucio));
     setDisponibilitaColloqui(
       toInputValue(card?.disponibilitaColloquiInPresenza),
@@ -428,7 +434,7 @@ export function OnboardingCard({
     card?.indirizzoProvincia,
     card?.indirizzoCap,
     card?.indirizzoNote,
-    card?.indirizzoCompleto,
+    card?.indirizzoVia,
     card?.srcEmbedMapsAnnucio,
     card?.disponibilitaColloquiInPresenza,
     card?.giornatePreferite,
@@ -440,6 +446,7 @@ export function OnboardingCard({
   }, [card?.id, card?.deadlineMobile, card?.tipoIncontroFamigliaLavoratore]);
 
   const cardId = card?.id;
+  const addressId = card?.indirizzoId ?? null;
   const richiestaAttivazioneId = card?.richiestaAttivazioneId;
 
   const patchProcess = React.useCallback(
@@ -448,6 +455,14 @@ export function OnboardingCard({
       await onPatchProcess?.(cardId, patch);
     },
     [cardId, onPatchProcess],
+  );
+
+  const patchAddress = React.useCallback(
+    async (patch: Record<string, unknown>) => {
+      if (!cardId) return;
+      await onPatchAddress?.(cardId, addressId, patch);
+    },
+    [addressId, cardId, onPatchAddress],
   );
 
   const saveFeeConcordata = React.useCallback(async () => {
@@ -640,8 +655,10 @@ export function OnboardingCard({
             <DetailField label="Provincia" value={displayText(card?.indirizzoProvincia)} />
             <DetailField label="CAP" value={displayText(card?.indirizzoCap)} />
           </div>
-          <DetailField label="Quartiere" value={displayText(card?.indirizzoNote)} />
-          <DetailField label="Indirizzo completo" value={displayText(card?.indirizzoCompleto)} />
+          <div className={compactGridClassName}>
+            <DetailField label="Via" value={displayText(card?.indirizzoVia)} />
+            <DetailField label="Quartiere" value={displayText(card?.indirizzoNote)} />
+          </div>
           <DetailFieldControl label="SRC Maps">
             {hasMapsUrl ? (
               <a
@@ -917,8 +934,32 @@ export function OnboardingCard({
                 </ComboboxList>
               </ComboboxContent>
             </Combobox>
-          </Field>
-        </div>
+		          </Field>
+		        </div>
+        <Field>
+          <FieldLabel>SRC Maps</FieldLabel>
+          <FieldDescription>
+            <a
+              href={srcMapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary underline underline-offset-2"
+            >
+              {srcMapsUrl}
+            </a>
+          </FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
+          <Input
+            id="onboarding-src-maps-edit"
+            value={srcMapsUrl}
+            onChange={(event) => setSrcMapsUrl(event.target.value)}
+            onBlur={() => {
+              void patchProcess({ src_embed_maps_annucio: srcMapsUrl || null });
+            }}
+          />
+        </Field>
         </DetailSectionBlock>
       </div>
       ) : null}
@@ -944,7 +985,7 @@ export function OnboardingCard({
                   orderedProvinciaOptions.find((option) => option.valueKey === next)
                     ?.valueLabel ?? next;
                 setIndirizzoProvincia(label);
-                void patchProcess({ indirizzo_prova_provincia: label || null });
+                void patchAddress({ provincia: label || null });
               }}
             >
               <SelectTrigger id="onboarding-provincia" className="w-full">
@@ -969,72 +1010,36 @@ export function OnboardingCard({
               value={indirizzoCap}
               onChange={(event) => setIndirizzoCap(event.target.value)}
               onBlur={() => {
-                void patchProcess({ indirizzo_prova_cap: indirizzoCap || null });
+                void patchAddress({ cap: indirizzoCap || null });
               }}
             />
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Field>
-            <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
-            <Input
-              id="onboarding-quartiere"
-              value={indirizzoNote}
-              onChange={(event) => setIndirizzoNote(event.target.value)}
-              onBlur={() => {
-                void patchProcess({ indirizzo_prova_note: indirizzoNote || null });
-              }}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="onboarding-indirizzo-completo">
-              Indirizzo completo
-            </FieldLabel>
-            <Input
-              id="onboarding-indirizzo-completo"
-              value={indirizzoCompleto}
-              onChange={(event) => setIndirizzoCompleto(event.target.value)}
-              onBlur={() => {
-                const parts = indirizzoCompleto
-                  .split(",")
-                  .map((value) => value.trim())
-                  .filter(Boolean);
-                void patchProcess({
-                  indirizzo_prova_via: parts[0] ?? null,
-                  indirizzo_prova_civico: parts[1] ?? null,
-                  indirizzo_prova_comune: parts[2] ?? null,
-                  indirizzo_prova_cap: parts[3] ?? indirizzoCap ?? null,
-                });
-              }}
-            />
-          </Field>
-        </div>
-
-        <Field>
-          <FieldLabel>SRC Maps</FieldLabel>
-          <FieldDescription>
-            <a
-              href={srcMapsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary underline underline-offset-2"
-            >
-              {srcMapsUrl}
-            </a>
-          </FieldDescription>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
-          <Input
-            id="onboarding-src-maps-edit"
-            value={srcMapsUrl}
-            onChange={(event) => setSrcMapsUrl(event.target.value)}
-            onBlur={() => {
-              void patchProcess({ src_embed_maps_annucio: srcMapsUrl || null });
-            }}
-          />
-        </Field>
+	        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+	          <Field>
+	            <FieldLabel htmlFor="onboarding-via">Via</FieldLabel>
+	            <Input
+	              id="onboarding-via"
+	              value={indirizzoVia}
+	              onChange={(event) => setIndirizzoVia(event.target.value)}
+	              onBlur={() => {
+	                void patchAddress({ via: indirizzoVia || null });
+	              }}
+	            />
+	          </Field>
+	          <Field>
+	            <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
+	            <Input
+	              id="onboarding-quartiere"
+	              value={indirizzoNote}
+	              onChange={(event) => setIndirizzoNote(event.target.value)}
+	              onBlur={() => {
+	                void patchAddress({ note: indirizzoNote || null });
+	              }}
+	            />
+	          </Field>
+	        </div>
         </DetailSectionBlock>
       </div>
       ) : null}
@@ -1399,21 +1404,21 @@ export function OnboardingCard({
 
         <Separator />
 
-        <p className="text-base font-semibold">Luogo di lavoro</p>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="onboarding-provincia">Provincia</FieldLabel>
-              <Select
-                value={selectedIndirizzoProvincia}
-                onValueChange={(next) => {
-                  const label =
-                    orderedProvinciaOptions.find((option) => option.valueKey === next)
-                      ?.valueLabel ?? next;
-                  setIndirizzoProvincia(label);
-                  void patchProcess({ indirizzo_prova_provincia: label || null });
-                }}
-              >
+	        <p className="text-base font-semibold">Luogo di lavoro</p>
+	        <div className="space-y-4">
+	          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+	            <Field>
+	              <FieldLabel htmlFor="onboarding-provincia">Provincia</FieldLabel>
+	              <Select
+	                value={selectedIndirizzoProvincia}
+	                onValueChange={(next) => {
+	                  const label =
+	                    orderedProvinciaOptions.find((option) => option.valueKey === next)
+	                      ?.valueLabel ?? next;
+	                  setIndirizzoProvincia(label);
+	                  void patchAddress({ provincia: label || null });
+	                }}
+	              >
                 <SelectTrigger id="onboarding-provincia" className="w-full">
                   <SelectValue placeholder="Seleziona provincia" />
                 </SelectTrigger>
@@ -1430,78 +1435,67 @@ export function OnboardingCard({
             </Field>
             <Field>
               <FieldLabel htmlFor="onboarding-cap">CAP</FieldLabel>
-              <Input
-                id="onboarding-cap"
-                placeholder="20158"
-                value={indirizzoCap}
-                onChange={(event) => setIndirizzoCap(event.target.value)}
-                onBlur={() => {
-                  void patchProcess({ indirizzo_prova_cap: indirizzoCap || null });
-                }}
-              />
-            </Field>
-          </div>
+	              <Input
+	                id="onboarding-cap"
+	                placeholder="20158"
+	                value={indirizzoCap}
+	                onChange={(event) => setIndirizzoCap(event.target.value)}
+	                onBlur={() => {
+	                  void patchAddress({ cap: indirizzoCap || null });
+	                }}
+	              />
+	            </Field>
+	          </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
-              <Input
-                id="onboarding-quartiere"
-                value={indirizzoNote}
-                onChange={(event) => setIndirizzoNote(event.target.value)}
-                onBlur={() => {
-                  void patchProcess({ indirizzo_prova_note: indirizzoNote || null });
-                }}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="onboarding-indirizzo-completo">
-                Indirizzo completo
-              </FieldLabel>
-              <Input
-                id="onboarding-indirizzo-completo"
-                value={indirizzoCompleto}
-                onChange={(event) => setIndirizzoCompleto(event.target.value)}
-                onBlur={() => {
-                  const parts = indirizzoCompleto
-                    .split(",")
-                    .map((value) => value.trim())
-                    .filter(Boolean);
-                  void patchProcess({
-                    indirizzo_prova_via: parts[0] ?? null,
-                    indirizzo_prova_civico: parts[1] ?? null,
-                    indirizzo_prova_comune: parts[2] ?? null,
-                    indirizzo_prova_cap: parts[3] ?? indirizzoCap ?? null,
-                  });
-                }}
-              />
-            </Field>
-          </div>
-          <Field>
-            <FieldLabel>SRC Maps</FieldLabel>
-            <FieldDescription>
-              <a
-                href={srcMapsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline underline-offset-2"
-              >
-                {srcMapsUrl}
-              </a>
-            </FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
-            <Input
-              id="onboarding-src-maps-edit"
-              value={srcMapsUrl}
-              onChange={(event) => setSrcMapsUrl(event.target.value)}
-              onBlur={() => {
-                void patchProcess({ src_embed_maps_annucio: srcMapsUrl || null });
-              }}
-            />
-          </Field>
-        </div>
+		          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+		            <Field>
+		              <FieldLabel htmlFor="onboarding-via">Via</FieldLabel>
+		              <Input
+		                id="onboarding-via"
+		                value={indirizzoVia}
+		                onChange={(event) => setIndirizzoVia(event.target.value)}
+		                onBlur={() => {
+		                  void patchAddress({ via: indirizzoVia || null });
+		                }}
+		              />
+		            </Field>
+		            <Field>
+		              <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
+		              <Input
+		                id="onboarding-quartiere"
+		                value={indirizzoNote}
+		                onChange={(event) => setIndirizzoNote(event.target.value)}
+		                onBlur={() => {
+		                  void patchAddress({ note: indirizzoNote || null });
+		                }}
+		              />
+			            </Field>
+		          </div>
+	          <Field>
+	            <FieldLabel>SRC Maps</FieldLabel>
+	            <FieldDescription>
+	              <a
+	                href={srcMapsUrl}
+	                target="_blank"
+	                rel="noreferrer"
+	                className="text-primary underline underline-offset-2"
+	              >
+	                {srcMapsUrl}
+	              </a>
+	            </FieldDescription>
+	          </Field>
+	          <Field>
+	            <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
+	            <Input
+	              id="onboarding-src-maps-edit"
+	              value={srcMapsUrl}
+	              onChange={(event) => setSrcMapsUrl(event.target.value)}
+	              onBlur={() => {
+	                void patchProcess({ src_embed_maps_annucio: srcMapsUrl || null });
+	              }}
+	            />
+	          </Field>
+		        </div>
 
         {showTempistiche ? (
           <>
