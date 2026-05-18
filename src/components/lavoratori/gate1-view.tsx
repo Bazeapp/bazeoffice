@@ -268,7 +268,9 @@ function GateStepSection({
     if (reserveStepperSpace) {
       return (
         <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-4">
-          <div aria-hidden="true" />
+          <div aria-hidden="true" className="relative">
+            <div className="bg-border absolute top-[-1.5rem] bottom-[-1.5rem] left-1/2 w-px -translate-x-1/2" />
+          </div>
           <div className="min-w-0 space-y-4">{children}</div>
         </div>
       );
