@@ -9,7 +9,10 @@ import {
   fetchLavoratori,
   updateRecord,
 } from "@/lib/anagrafiche-api"
-import { fetchRichiesteAttivazioneByProcessIds } from "@/features/richieste-attivazione/api"
+import {
+  fetchRichiesteAttivazioneByIds,
+  fetchRichiesteAttivazioneByProcessIds,
+} from "@/features/richieste-attivazione/api"
 import type {
   FamigliaRecord,
   LookupValueRecord,
@@ -362,6 +365,40 @@ function parseProcessRapportoIds(value: string | null | undefined) {
     .filter(Boolean)
 }
 
+function resolveRichiestaAttivazioneForRapporto({
+  rapporto,
+  process,
+  richiesteById,
+  richiesteByProcessId,
+}: {
+  rapporto: RapportoLavorativoRecord
+  process: ProcessoMatchingRecord | null
+  richiesteById: Map<string, RichiestaAttivazioneRecord>
+  richiesteByProcessId: Map<string, RichiestaAttivazioneRecord>
+}) {
+  if (rapporto.richiesta_attivazione_id) {
+    const richiestaById = richiesteById.get(rapporto.richiesta_attivazione_id)
+    if (richiestaById) return richiestaById
+  }
+
+  if (process?.id) {
+    const richiestaByProcess = richiesteByProcessId.get(process.id)
+    if (richiestaByProcess) return richiestaByProcess
+  }
+
+  for (const processId of rapporto.processo_res ?? []) {
+    const richiestaByProcess = richiesteByProcessId.get(processId)
+    if (richiestaByProcess) return richiestaByProcess
+  }
+
+  for (const processId of parseProcessRapportoIds(rapporto.id_rapporto)) {
+    const richiestaByProcess = richiesteByProcessId.get(processId)
+    if (richiestaByProcess) return richiestaByProcess
+  }
+
+  return null
+}
+
 function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
   const aliases = new Map<string, string>()
   const colorByStage = new Map<string, string>()
@@ -476,6 +513,19 @@ function indexFirstAssunzioneBy(
   getKey: (record: AssunzioneRecord) => string | null | undefined
 ) {
   const index = new Map<string, AssunzioneRecord>()
+  for (const row of rows) {
+    const key = getKey(row)
+    if (!key || index.has(key)) continue
+    index.set(key, row)
+  }
+  return index
+}
+
+function indexFirstProcessBy(
+  rows: ProcessoMatchingRecord[],
+  getKey: (record: ProcessoMatchingRecord) => string | null | undefined
+) {
+  const index = new Map<string, ProcessoMatchingRecord>()
   for (const row of rows) {
     const key = getKey(row)
     if (!key || index.has(key)) continue
@@ -650,13 +700,28 @@ async function fetchAssunzioniBoardData({
   const rapportiRows = rapportiResult.rows as RapportoLavorativoRecord[]
   const processRows = processesResult.rows as ProcessoMatchingRecord[]
   const processById = new Map(processRows.map((process) => [process.id, process] as const))
+  const processByFamilyId = indexFirstProcessBy(processRows, (process) => process.famiglia_id)
   const familyIds = compactUnique([
     ...rapportiRows.map((rapporto) => rapporto.famiglia_id),
     ...processRows.map((process) => process.famiglia_id),
   ])
   const workerIds = compactUnique(rapportiRows.map((rapporto) => rapporto.lavoratore_id))
   const rapportoIds = compactUnique(rapportiRows.map((rapporto) => rapporto.id))
-  const [familiesRows, lavoratoriRows, assunzioniRows] = await Promise.all([
+  const richiestaIds = compactUnique(
+    rapportiRows.map((rapporto) => rapporto.richiesta_attivazione_id)
+  )
+  const richiestaProcessIds = compactUnique([
+    ...processRows.map((process) => process.id),
+    ...rapportiRows.flatMap((rapporto) => rapporto.processo_res ?? []),
+    ...rapportiRows.flatMap((rapporto) => parseProcessRapportoIds(rapporto.id_rapporto)),
+  ])
+  const [
+    familiesRows,
+    lavoratoriRows,
+    assunzioniRows,
+    richiesteAttivazioneById,
+    richiesteAttivazioneByProcessId,
+  ] = await Promise.all([
     fetchFamiglieByIds(familyIds),
     fetchLavoratoriByIds(workerIds),
     fetchAssunzioniByLinkedIds({
@@ -664,13 +729,9 @@ async function fetchAssunzioniBoardData({
       famigliaIds: familyIds,
       lavoratoreIds: workerIds,
     }),
+    fetchRichiesteAttivazioneByIds(richiestaIds),
+    fetchRichiesteAttivazioneByProcessIds(richiestaProcessIds),
   ])
-  const richiesteAttivazioneByProcessId = await fetchRichiesteAttivazioneByProcessIds(
-    compactUnique([
-      ...processRows.map((process) => process.id),
-      ...rapportiRows.flatMap((rapporto) => rapporto.processo_res ?? []),
-    ])
-  )
 
   const familiesById = new Map(
     familiesRows.map((family) => [family.id, family] as const)
@@ -713,6 +774,9 @@ async function fetchAssunzioniBoardData({
       parseProcessRapportoIds(linkedRapporto.id_rapporto)
         .map((processId) => processById.get(processId) ?? null)
         .find((record): record is ProcessoMatchingRecord => Boolean(record)) ??
+      (linkedRapporto.famiglia_id
+        ? processByFamilyId.get(linkedRapporto.famiglia_id) ?? null
+        : null) ??
       null
     const family =
       (linkedRapporto?.famiglia_id ? familiesById.get(linkedRapporto.famiglia_id) ?? null : null) ??
@@ -737,8 +801,12 @@ async function fetchAssunzioniBoardData({
       process,
       assunzione: datoreAssunzione,
       lavoratoreAssunzione,
-      richiestaAttivazione:
-        process?.id ? richiesteAttivazioneByProcessId.get(process.id) ?? null : null,
+      richiestaAttivazione: resolveRichiestaAttivazioneForRapporto({
+        rapporto: linkedRapporto,
+        process,
+        richiesteById: richiesteAttivazioneById,
+        richiesteByProcessId: richiesteAttivazioneByProcessId,
+      }),
       rapporto: linkedRapporto,
       lavoratore,
       famiglia: family,
