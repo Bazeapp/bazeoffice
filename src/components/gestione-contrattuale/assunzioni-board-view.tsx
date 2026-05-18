@@ -26,8 +26,8 @@ import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
 const ASSUNZIONI_FORM_URLS = {
-  datore: "",
-  lavoratore: "",
+  datore: "https://airtable.com/appevZURCPFkSG3CJ/pag5YgoOJ0v7SF8Md/form",
+  lavoratore: "https://airtable.com/appevZURCPFkSG3CJ/pagyXYipcEfKXSUVj/form",
 } as const
 
 function getColumnVisual(color: string): KanbanColumnVisual {
@@ -280,7 +280,7 @@ export function AssunzioniBoardView() {
         </SectionHeader.Title>
         <SectionHeader.Actions className="flex-wrap justify-end">
           <AssunzioniFormButton href={ASSUNZIONI_FORM_URLS.datore}>
-            Form assunzione datore
+            Form assunzione famiglia
           </AssunzioniFormButton>
           <AssunzioniFormButton href={ASSUNZIONI_FORM_URLS.lavoratore}>
             Form assunzione lavoratore

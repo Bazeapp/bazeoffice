@@ -61,6 +61,8 @@ const TIPO_RAPPORTO_OPTIONS = [
 const REGIME_NON_CONVIVENTE = "Il lavoratore NON è convivente"
 const REGIME_CONVIVENTE = "Il lavoratore è convivente"
 const TIPO_UTENTE_OPTIONS = ["DATORE LAVORO", "LAVORATORE"] as const
+const ASSUNZIONE_DATORE_FORM_TYPE = "DATORE LAVORO"
+const ASSUNZIONE_LAVORATORE_FORM_TYPE = "LAVORATORE"
 const SCONTO_APPLICATO_OPTIONS: LookupOption[] = [
   { value: "50%", label: "50%" },
   { value: "prova_gratuita", label: "prova_gratuita" },
@@ -177,6 +179,46 @@ type AssunzioneAttachmentSlot =
   | "ricevuta_rinnovo_permesso_allegati"
 
 type AssunzioneAttachmentTarget = "datore" | "lavoratore"
+
+type AssunzioneCandidatesByTarget = Record<DetailTarget, AssunzioneRecord[]>
+
+function compactText(value: string | number | null | undefined) {
+  if (value === null || value === undefined) return null
+  const text = String(value).trim()
+  return text || null
+}
+
+function formatAssunzioneOptionLabel(record: AssunzioneRecord) {
+  const name =
+    [compactText(record.info_anagrafiche_nome), compactText(record.info_anagrafiche_cognome)]
+      .filter(Boolean)
+      .join(" ")
+      .trim() || "Senza nome"
+  return `${name} • ${compactText(record.info_anagrafiche_email) ?? "-"}`
+}
+
+function resolveAssunzioneDisplayName(record: AssunzioneRecord) {
+  return (
+    [compactText(record.info_anagrafiche_nome), compactText(record.info_anagrafiche_cognome)]
+      .filter(Boolean)
+      .join(" ")
+      .trim() || null
+  )
+}
+
+function mergeAssunzioneOptions(
+  currentRecord: AssunzioneRecord | null | undefined,
+  records: AssunzioneRecord[]
+) {
+  const merged = new Map<string, AssunzioneRecord>()
+  for (const record of records) {
+    if (record.id) merged.set(record.id, record)
+  }
+  if (currentRecord?.id && !merged.has(currentRecord.id)) {
+    merged.set(currentRecord.id, currentRecord)
+  }
+  return Array.from(merged.values())
+}
 
 function buildLookupOptions(
   rows: Array<{
@@ -1595,6 +1637,12 @@ export function AssunzioniDetailSheet({
   const [tipoRapportoOptions, setTipoRapportoOptions] = React.useState<LookupOption[]>([])
   const [offertaOptions, setOffertaOptions] = React.useState<LookupOption[]>(SCONTO_APPLICATO_OPTIONS)
   const [workerDocuments, setWorkerDocuments] = React.useState<DocumentoLavoratoreRecord[]>([])
+  const [assunzioneCandidates, setAssunzioneCandidates] =
+    React.useState<AssunzioneCandidatesByTarget>({
+      datore: [],
+      lavoratore: [],
+    })
+  const [loadingAssunzioneCandidates, setLoadingAssunzioneCandidates] = React.useState(false)
   const [savingPractice, setSavingPractice] = React.useState(false)
   const [practiceError, setPracticeError] = React.useState<string | null>(null)
   const [uploadingAttachment, setUploadingAttachment] = React.useState<string | null>(null)
@@ -1631,11 +1679,105 @@ export function AssunzioniDetailSheet({
     [card]
   )
   const lavoratoreIsLinked = React.useMemo(() => Boolean(card?.lavoratoreAssunzione?.id), [card])
+  const datoreAssunzioneOptions = React.useMemo(
+    () => mergeAssunzioneOptions(card?.assunzione, assunzioneCandidates.datore),
+    [assunzioneCandidates.datore, card?.assunzione]
+  )
+  const lavoratoreAssunzioneOptions = React.useMemo(
+    () => mergeAssunzioneOptions(card?.lavoratoreAssunzione, assunzioneCandidates.lavoratore),
+    [assunzioneCandidates.lavoratore, card?.lavoratoreAssunzione]
+  )
+  const selectedAssunzioneOptions =
+    target === "datore" ? datoreAssunzioneOptions : lavoratoreAssunzioneOptions
+  const selectedAssunzioneId =
+    target === "datore" ? card?.assunzione?.id : card?.lavoratoreAssunzione?.id
 
   React.useEffect(() => {
     if (!open) return
     setTarget("datore")
   }, [open, card?.id])
+
+  React.useEffect(() => {
+    if (!open || !card?.id) {
+      setAssunzioneCandidates({ datore: [], lavoratore: [] })
+      return
+    }
+
+    let isActive = true
+    const currentCard = card
+
+    async function loadAssunzioneCandidates() {
+      setLoadingAssunzioneCandidates(true)
+      setPracticeError(null)
+
+      try {
+        const [datoreResponse, lavoratoreResponse] = await Promise.all([
+          fetchAssunzioni({
+            select: ASSUNZIONE_DETAIL_SELECT,
+            limit: 1000,
+            offset: 0,
+            orderBy: [{ field: "created", ascending: false }],
+            filters: {
+              kind: "group",
+              id: `assunzioni-candidates-datore-root-${currentCard.id}`,
+              logic: "and",
+              nodes: [
+                {
+                  kind: "condition",
+                  id: `assunzioni-candidates-datore-type-${currentCard.id}`,
+                  field: "type_of_compilazione_form",
+                  operator: "is",
+                  value: ASSUNZIONE_DATORE_FORM_TYPE,
+                },
+              ],
+            },
+          }),
+          fetchAssunzioni({
+            select: ASSUNZIONE_DETAIL_SELECT,
+            limit: 1000,
+            offset: 0,
+            orderBy: [{ field: "created", ascending: false }],
+            filters: {
+              kind: "group",
+              id: `assunzioni-candidates-lavoratore-root-${currentCard.id}`,
+              logic: "and",
+              nodes: [
+                {
+                  kind: "condition",
+                  id: `assunzioni-candidates-lavoratore-type-${currentCard.id}`,
+                  field: "type_of_compilazione_form",
+                  operator: "is",
+                  value: ASSUNZIONE_LAVORATORE_FORM_TYPE,
+                },
+              ],
+            },
+          }),
+        ])
+
+        if (!isActive) return
+        setAssunzioneCandidates({
+          datore: datoreResponse.rows as AssunzioneRecord[],
+          lavoratore: lavoratoreResponse.rows as AssunzioneRecord[],
+        })
+      } catch (caughtError) {
+        if (!isActive) return
+        setAssunzioneCandidates({ datore: [], lavoratore: [] })
+        setPracticeError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore caricando form assunzione"
+        )
+      } finally {
+        if (isActive) setLoadingAssunzioneCandidates(false)
+      }
+    }
+
+    void loadAssunzioneCandidates()
+
+    return () => {
+      isActive = false
+    }
+  }, [card, open])
 
   React.useEffect(() => {
     if (!open || !card?.lavoratore?.id) {
@@ -2060,6 +2202,76 @@ export function AssunzioniDetailSheet({
       }
     },
     [card, onCardChange]
+  )
+
+  const linkAssunzioneRecord = React.useCallback(
+    async (assunzioneId: string) => {
+      if (!card) return
+
+      const sourceOptions = target === "datore" ? datoreAssunzioneOptions : lavoratoreAssunzioneOptions
+      const selectedRecord = sourceOptions.find((record) => record.id === assunzioneId)
+      if (!selectedRecord) return
+
+      setPracticeError(null)
+      setSavingPractice(true)
+
+      try {
+        const patch =
+          target === "datore"
+            ? {
+                rapporto_lavorativo_datore_lavoro_id: card.id,
+                famiglia_id: card.famigliaId,
+              }
+            : {
+                rapporto_lavorativo_lavoratore_id: card.id,
+                lavoratore_id: card.lavoratore?.id ?? null,
+              }
+
+        const response = await updateRecord("assunzioni", assunzioneId, patch)
+        const nextRecord = {
+          ...selectedRecord,
+          ...response.row,
+        } as AssunzioneRecord
+
+        setAssunzioneCandidates((current) => ({
+          ...current,
+          [target]: current[target].map((record) =>
+            record.id === assunzioneId ? nextRecord : record
+          ),
+        }))
+
+        onCardChange(
+          target === "datore"
+            ? {
+                ...card,
+                assunzione: nextRecord,
+                nomeFamiglia: resolveAssunzioneDisplayName(nextRecord) ?? card.nomeFamiglia,
+                email: nextRecord.info_anagrafiche_email ?? card.email,
+                telefono: nextRecord.info_anagrafiche_numero_mobile ?? card.telefono,
+              }
+            : {
+                ...card,
+                lavoratoreAssunzione: nextRecord,
+                nomeLavoratore: resolveAssunzioneDisplayName(nextRecord) ?? card.nomeLavoratore,
+              }
+        )
+      } catch (caughtError) {
+        setPracticeError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore associando form assunzione"
+        )
+      } finally {
+        setSavingPractice(false)
+      }
+    },
+    [
+      card,
+      datoreAssunzioneOptions,
+      lavoratoreAssunzioneOptions,
+      onCardChange,
+      target,
+    ]
   )
 
   const uploadAssunzioneAttachment = React.useCallback(
@@ -2493,6 +2705,60 @@ export function AssunzioniDetailSheet({
                   isComplete={lavoratoreIsLinked}
                 />
               </RadioGroup>
+
+              <DetailSectionBlock
+                title="Associazione form"
+                icon={<FileTextIcon className="text-muted-foreground size-4" />}
+                contentClassName="space-y-2"
+              >
+                <EditableField
+                  label={
+                    target === "datore"
+                      ? "Form assunzione famiglia"
+                      : "Form assunzione lavoratore"
+                  }
+                >
+                  <Select
+                    value={selectedAssunzioneId || undefined}
+                    disabled={
+                      loadingAssunzioneCandidates ||
+                      savingPractice ||
+                      selectedAssunzioneOptions.length === 0
+                    }
+                    onValueChange={(value) => {
+                      void linkAssunzioneRecord(value)
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          loadingAssunzioneCandidates
+                            ? "Caricamento form..."
+                            : "Seleziona form da associare"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedAssunzioneOptions.length === 0 ? (
+                        <SelectItem value="no-assunzione-records" disabled>
+                          Nessun form disponibile
+                        </SelectItem>
+                      ) : (
+                        selectedAssunzioneOptions.map((record) => {
+                          return (
+                            <SelectItem
+                              key={record.id}
+                              value={record.id}
+                            >
+                              {formatAssunzioneOptionLabel(record)}
+                            </SelectItem>
+                          )
+                        })
+                      )}
+                    </SelectContent>
+                  </Select>
+                </EditableField>
+              </DetailSectionBlock>
 
               {target === "datore" ? (
                 <DatoreDetail

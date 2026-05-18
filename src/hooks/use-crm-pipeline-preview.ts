@@ -890,8 +890,7 @@ function mapCardData(
 
   const processId = displayValue(process.id)
   const famigliaId = displayValue(process.famiglia_id)
-  const preventivoSessionId =
-    toStringValue(richiestaAttivazione?.id) ?? toStringValue(process.id)
+  const preventivoSessionId = toStringValue(process.id)
   const tipoLavoroBadges = getStringArrayValue(process.tipo_lavoro)
     .map((value) => canonicalizeLookupValue("tipo_lavoro", value))
     .filter((value): value is string => Boolean(value))

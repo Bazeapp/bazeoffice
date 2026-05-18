@@ -234,9 +234,9 @@ export const mockCrmCard: CrmPipelineCardData = {
   tentativiChiamataCount: 1,
   preventivoAccettato: true,
   richiestaAttivazioneId: "72ed1347-903f-51d0-be47-b7504ed473d0",
-  preventivoSessionId: "72ed1347-903f-51d0-be47-b7504ed473d0",
+  preventivoSessionId: "220e0afe-081f-5a76-a07c-1789386fa4f6",
   preventivoAcceptanceUrl:
-    "https://app.bazeapp.com/v2/checkout/accettare-preventivo?utm_source=whatsapp&utm_medium=organic&utm_campaign=whatsapp&utm_content=reminder1&session_id=72ed1347-903f-51d0-be47-b7504ed473d0",
+    "https://app.bazeapp.com/v2/checkout/accettare-preventivo?utm_source=whatsapp&utm_medium=organic&utm_campaign=whatsapp&utm_content=reminder1&session_id=220e0afe-081f-5a76-a07c-1789386fa4f6",
   orarioDiLavoro: "lun-ven, 8:30-13:30",
   nucleoFamigliare: "Coppia con due bambini di 6 e 9 anni.",
   descrizioneCasa: "Appartamento su un piano, circa 110 mq.",
