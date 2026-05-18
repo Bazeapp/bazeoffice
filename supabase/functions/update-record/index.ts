@@ -91,7 +91,7 @@ const AUTO_UPDATED_AT_FIELD: Record<SupportedTable, string> = {
   processi_matching: "aggiornato_il",
 };
 
-const MATCH_WORKFLOW_TARGET_STATUSES = new Set(["match", "prova in corso"]);
+const CREATE_RAPPORTO_TARGET_STATUSES = new Set(["prova schedulata"]);
 const CREATE_RAPPORTO_AFTER_MATCH_WEBHOOK_URL =
   "https://hook.eu1.make.com/aq1sq4aa3tc6ujccbqq9dodx9pt3uxni";
 
@@ -485,8 +485,8 @@ Deno.serve(async (req) => {
     );
 
     if (
-      MATCH_WORKFLOW_TARGET_STATUSES.has(nextStatus) &&
-      !MATCH_WORKFLOW_TARGET_STATUSES.has(previousStatus)
+      CREATE_RAPPORTO_TARGET_STATUSES.has(nextStatus) &&
+      !CREATE_RAPPORTO_TARGET_STATUSES.has(previousStatus)
     ) {
       try {
         await runCreateRapportoAfterMatchAutomation(
