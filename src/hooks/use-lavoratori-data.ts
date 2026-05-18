@@ -198,6 +198,8 @@ let gate1BlockingWorkerIdsCache:
     }
   | null = null
 
+const GATE1_RETURN_AVAILABILITY_WINDOW_DAYS = 14
+
 type UseLavoratoriDataOptions = {
   initialSelectedWorkerId?: string | null
   forcedWorkerStatus?: string | string[]
@@ -360,21 +362,24 @@ function isGate1AvailabilityEligible(row: GenericRow) {
     .replaceAll("_", " ")
     .trim()
 
-  if (disponibilita === "disponibile") return true
-  if (disponibilita !== "non disponibile") return false
+  if (disponibilita !== "non disponibile") return true
 
   const returnDate = asString(row.data_ritorno_disponibilita)
   if (!returnDate) return false
 
   const returnDateLimit = new Date()
-  returnDateLimit.setDate(returnDateLimit.getDate() + 2)
+  returnDateLimit.setDate(
+    returnDateLimit.getDate() + GATE1_RETURN_AVAILABILITY_WINDOW_DAYS
+  )
 
   return returnDate <= formatDateFilterValue(returnDateLimit)
 }
 
 function buildGate1AvailabilityFilter(): QueryFilterGroup {
   const returnDateLimit = new Date()
-  returnDateLimit.setDate(returnDateLimit.getDate() + 2)
+  returnDateLimit.setDate(
+    returnDateLimit.getDate() + GATE1_RETURN_AVAILABILITY_WINDOW_DAYS
+  )
 
   return {
     kind: "group",
@@ -383,10 +388,10 @@ function buildGate1AvailabilityFilter(): QueryFilterGroup {
     nodes: [
       {
         kind: "condition",
-        id: "gate1-disponibile",
+        id: "gate1-disponibilita-diversa-da-non-disponibile",
         field: "disponibilita",
-        operator: "is",
-        value: "Disponibile",
+        operator: "is_not",
+        value: "Non disponibile",
       },
       {
         kind: "group",
@@ -402,7 +407,7 @@ function buildGate1AvailabilityFilter(): QueryFilterGroup {
           },
           {
             kind: "condition",
-            id: "gate1-data-ritorno-entro-due-giorni",
+            id: "gate1-data-ritorno-entro-quattordici-giorni",
             field: "data_ritorno_disponibilita",
             operator: "lte",
             value: formatDateFilterValue(returnDateLimit),

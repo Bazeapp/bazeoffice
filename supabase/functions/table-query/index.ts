@@ -1360,15 +1360,22 @@ function applySearch(
 ): Record<string, unknown>[] {
   const token = query.trim().toLowerCase();
   if (!token) return rows;
+  const tokens = token.split(/\s+/).filter(Boolean);
 
   return rows.filter((row) => {
     const fields =
       searchFields && searchFields.length > 0
         ? searchFields
         : Object.keys(row);
+    const fieldValues = fields.map((field) =>
+      String(row[field] ?? "").toLowerCase()
+    );
+    const combinedValue = fieldValues.join(" ");
 
-    return fields.some((field) =>
-      String(row[field] ?? "").toLowerCase().includes(token)
+    return (
+      fieldValues.some((value) => value.includes(token)) ||
+      combinedValue.includes(token) ||
+      tokens.every((queryToken) => combinedValue.includes(queryToken))
     );
   });
 }
