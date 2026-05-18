@@ -1717,6 +1717,7 @@ export function AssunzioniDetailSheet({
   )
   const filteredAssunzioneOptions = React.useMemo(() => {
     const query = assunzioneSearchQuery.trim()
+    if (!query) return selectedAssunzioneOptions.slice(0, 10)
     if (query.length < 2) return []
     return selectedAssunzioneOptions
       .filter((record) => matchesAssunzioneSearch(record, query))
@@ -2839,7 +2840,7 @@ export function AssunzioniDetailSheet({
                         <Trash2Icon className="size-4" />
                       </Button>
                     </div>
-                    {assunzioneSearchQuery.trim().length < 2 ? (
+                    {assunzioneSearchQuery.trim().length === 1 ? (
                       <p className="text-muted-foreground text-xs">
                         Inserisci almeno 2 caratteri.
                       </p>

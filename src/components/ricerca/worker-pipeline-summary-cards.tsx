@@ -655,6 +655,58 @@ function TravelTimeCard({
             : "-"
         } | ${availableDays > 0 ? `${availableDays}g` : "-"} a settimana`
       : "Non dichiarato";
+  const familyAddressFields = [
+    {
+      key: "provincia",
+      label: "Provincia",
+      value: familyProvince,
+      draftValue: familyAddressDraft.provincia,
+      field: "indirizzo_prova_provincia" as const,
+      type: "province" as const,
+    },
+    {
+      key: "cap",
+      label: "CAP",
+      value: familyCap,
+      draftValue: familyAddressDraft.cap,
+      field: "indirizzo_prova_cap" as const,
+    },
+    {
+      key: "via",
+      label: "Via",
+      value: familyStreet,
+      draftValue: familyAddressDraft.via,
+      field: "indirizzo_prova_via" as const,
+    },
+    {
+      key: "civico",
+      label: "Civico",
+      value: familyCivicNumber,
+      draftValue: familyAddressDraft.civico,
+      field: "indirizzo_prova_civico" as const,
+    },
+    {
+      key: "comune",
+      label: "Comune",
+      value: familyCity,
+      draftValue: familyAddressDraft.comune,
+      field: "indirizzo_prova_comune" as const,
+    },
+    {
+      key: "citofono",
+      label: "Citofono",
+      value: familyIntercom,
+      draftValue: familyAddressDraft.citofono,
+      field: "indirizzo_prova_citofono" as const,
+    },
+    {
+      key: "note",
+      label: "Nota",
+      value: familyAddressNote,
+      draftValue: familyAddressDraft.note,
+      field: "indirizzo_prova_note" as const,
+    },
+  ];
 
   return (
     <DetailSectionBlock
@@ -767,145 +819,60 @@ function TravelTimeCard({
 
       <div className="space-y-1.5 text-sm">
         <p className="text-muted-foreground text-xs font-medium tracking-wide">
-          Indirizzo famiglia
+          Indirizzo prova
         </p>
         {isEditing ? (
           <div className="grid gap-2">
-            <Select
-              value={familyAddressDraft.provincia || "none"}
-              onValueChange={(value) => {
-                const nextValue = value === "none" ? "" : value;
-                setFamilyAddressDraft((current) => ({
-                  ...current,
-                  provincia: nextValue,
-                }));
-                void commitFamilyAddressField(
-                  "indirizzo_prova_provincia",
-                  nextValue,
-                );
-              }}
-              disabled={updatingProcessAddress}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Provincia" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nessuna provincia</SelectItem>
-                {provinceOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.label}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              value={familyAddressDraft.cap}
-              onChange={(event) =>
-                setFamilyAddressDraft((current) => ({
-                  ...current,
-                  cap: event.target.value,
-                }))
-              }
-              onBlur={() =>
-                void commitFamilyAddressField(
-                  "indirizzo_prova_cap",
-                  familyAddressDraft.cap,
-                )
-              }
-              className="h-9 text-sm"
-              placeholder="CAP"
-              disabled={updatingProcessAddress}
-            />
-            <Input
-              value={familyAddressDraft.via || familyAddressDraft.indirizzo}
-              onChange={(event) =>
-                setFamilyAddressDraft((current) => ({
-                  ...current,
-                  via: event.target.value,
-                }))
-              }
-              onBlur={() =>
-                void commitFamilyAddressField(
-                  "indirizzo_prova_via",
-                  familyAddressDraft.via || familyAddressDraft.indirizzo,
-                )
-              }
-              className="h-9 text-sm"
-              placeholder="Via"
-              disabled={updatingProcessAddress}
-            />
-            <Input
-              value={familyAddressDraft.civico}
-              onChange={(event) =>
-                setFamilyAddressDraft((current) => ({
-                  ...current,
-                  civico: event.target.value,
-                }))
-              }
-              onBlur={() =>
-                void commitFamilyAddressField(
-                  "indirizzo_prova_civico",
-                  familyAddressDraft.civico,
-                )
-              }
-              className="h-9 text-sm"
-              placeholder="Civico"
-              disabled={updatingProcessAddress}
-            />
-            <Input
-              value={familyAddressDraft.comune}
-              onChange={(event) =>
-                setFamilyAddressDraft((current) => ({
-                  ...current,
-                  comune: event.target.value,
-                }))
-              }
-              onBlur={() =>
-                void commitFamilyAddressField(
-                  "indirizzo_prova_comune",
-                  familyAddressDraft.comune,
-                )
-              }
-              className="h-9 text-sm"
-              placeholder="Comune"
-              disabled={updatingProcessAddress}
-            />
-            <Input
-              value={familyAddressDraft.citofono}
-              onChange={(event) =>
-                setFamilyAddressDraft((current) => ({
-                  ...current,
-                  citofono: event.target.value,
-                }))
-              }
-              onBlur={() =>
-                void commitFamilyAddressField(
-                  "indirizzo_prova_citofono",
-                  familyAddressDraft.citofono,
-                )
-              }
-              className="h-9 text-sm"
-              placeholder="Citofono"
-              disabled={updatingProcessAddress}
-            />
-            <Input
-              value={familyAddressDraft.note}
-              onChange={(event) =>
-                setFamilyAddressDraft((current) => ({
-                  ...current,
-                  note: event.target.value,
-                }))
-              }
-              onBlur={() =>
-                void commitFamilyAddressField(
-                  "indirizzo_prova_note",
-                  familyAddressDraft.note,
-                )
-              }
-              className="h-9 text-sm sm:col-span-3"
-              placeholder="Note indirizzo"
-              disabled={updatingProcessAddress}
-            />
+            {familyAddressFields.map((item) => (
+              <label key={item.key} className="grid gap-1">
+                <span className="text-muted-foreground text-xs font-medium">
+                  {item.label}
+                </span>
+                {item.type === "province" ? (
+                  <Select
+                    value={item.draftValue || "none"}
+                    onValueChange={(value) => {
+                      const nextValue = value === "none" ? "" : value;
+                      setFamilyAddressDraft((current) => ({
+                        ...current,
+                        provincia: nextValue,
+                      }));
+                      void commitFamilyAddressField(item.field, nextValue);
+                    }}
+                    disabled={updatingProcessAddress}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder={item.label} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nessuna provincia</SelectItem>
+                      {provinceOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.label}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={item.draftValue}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      setFamilyAddressDraft((current) => ({
+                        ...current,
+                        [item.key]: nextValue,
+                      }));
+                    }}
+                    onBlur={() =>
+                      void commitFamilyAddressField(item.field, item.draftValue)
+                    }
+                    className="h-9 text-sm"
+                    placeholder={item.label}
+                    disabled={updatingProcessAddress}
+                  />
+                )}
+              </label>
+            ))}
           </div>
         ) : (
           <p>
@@ -915,7 +882,9 @@ function TravelTimeCard({
               familyStreet || familyAddress,
               familyCivicNumber,
               familyCity,
-              familyIntercom ? `Citofono ${familyIntercom}` : null,
+              asString(familyIntercom) && asString(familyIntercom) !== "-"
+                ? `Citofono ${familyIntercom}`
+                : null,
               familyAddressNote,
             ]
               .map((value) => (typeof value === "string" ? value.trim() : ""))

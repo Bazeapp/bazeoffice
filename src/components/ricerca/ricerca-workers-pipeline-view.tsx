@@ -104,7 +104,16 @@ import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavor
 
 type RicercaWorkersPipelineViewProps = {
   processId: string;
-  card: CrmPipelineCardData;
+  card: CrmPipelineCardData &
+    Partial<{
+      indirizzoProvaProvincia: string;
+      indirizzoProvaCap: string;
+      indirizzoProvaNote: string;
+      indirizzoProvaVia: string;
+      indirizzoProvaCivico: string;
+      indirizzoProvaComune: string;
+      indirizzoProvaCitofono: string;
+    }>;
   focusSelectionId?: string | null;
   onOpenRelatedSearch?: (processId: string, selectionId: string) => void;
   onPatchProcess?: (
@@ -982,14 +991,14 @@ export function RicercaWorkersPipelineView({
     React.useState(false);
   const [updatingFamilyAddress, setUpdatingFamilyAddress] = React.useState(false);
   const [familyAddressDraft, setFamilyAddressDraft] = React.useState({
-    province: card.indirizzoProvincia,
-    cap: card.indirizzoCap,
-    address: card.indirizzoCompleto,
-    street: card.indirizzoVia,
-    civicNumber: card.indirizzoCivico,
-    city: card.indirizzoComune,
-    intercom: card.indirizzoCitofono,
-    note: card.indirizzoNote,
+    province: card.indirizzoProvaProvincia ?? "-",
+    cap: card.indirizzoProvaCap ?? "-",
+    address: card.indirizzoProvaVia ?? "-",
+    street: card.indirizzoProvaVia ?? "-",
+    civicNumber: card.indirizzoProvaCivico ?? "-",
+    city: card.indirizzoProvaComune ?? "-",
+    intercom: card.indirizzoProvaCitofono ?? "-",
+    note: card.indirizzoProvaNote ?? "-",
   });
   const [selectedWorkerError, setSelectedWorkerError] = React.useState<
     string | null
@@ -1543,24 +1552,23 @@ export function RicercaWorkersPipelineView({
 
   React.useEffect(() => {
     setFamilyAddressDraft({
-      province: card.indirizzoProvincia,
-      cap: card.indirizzoCap,
-      address: card.indirizzoCompleto,
-      street: card.indirizzoVia,
-      civicNumber: card.indirizzoCivico,
-      city: card.indirizzoComune,
-      intercom: card.indirizzoCitofono,
-      note: card.indirizzoNote,
+      province: card.indirizzoProvaProvincia ?? "-",
+      cap: card.indirizzoProvaCap ?? "-",
+      address: card.indirizzoProvaVia ?? "-",
+      street: card.indirizzoProvaVia ?? "-",
+      civicNumber: card.indirizzoProvaCivico ?? "-",
+      city: card.indirizzoProvaComune ?? "-",
+      intercom: card.indirizzoProvaCitofono ?? "-",
+      note: card.indirizzoProvaNote ?? "-",
     });
   }, [
-    card.indirizzoCap,
-    card.indirizzoCitofono,
-    card.indirizzoCivico,
-    card.indirizzoComune,
-    card.indirizzoCompleto,
-    card.indirizzoNote,
-    card.indirizzoProvincia,
-    card.indirizzoVia,
+    card.indirizzoProvaCap,
+    card.indirizzoProvaCitofono,
+    card.indirizzoProvaCivico,
+    card.indirizzoProvaComune,
+    card.indirizzoProvaNote,
+    card.indirizzoProvaProvincia,
+    card.indirizzoProvaVia,
   ]);
 
   const handleDropToColumn = React.useCallback(

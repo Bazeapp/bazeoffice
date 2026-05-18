@@ -97,6 +97,13 @@ type ExtendedCardData = CrmPipelineCardData &
     indirizzoComune: string;
     indirizzoCitofono: string;
     indirizzoProvincia: string;
+    indirizzoProvaProvincia: string;
+    indirizzoProvaCap: string;
+    indirizzoProvaNote: string;
+    indirizzoProvaVia: string;
+    indirizzoProvaCivico: string;
+    indirizzoProvaComune: string;
+    indirizzoProvaCitofono: string;
     deadlineMobile: string;
     deadlineMobileRaw: string;
     dataAssegnazione: string;
@@ -601,24 +608,31 @@ function applyProcessPatchToCard(
   }
   if ("indirizzo_prova_provincia" in patch) {
     nextCard.indirizzoProvincia = displayValue(patch.indirizzo_prova_provincia);
+    nextCard.indirizzoProvaProvincia = displayValue(patch.indirizzo_prova_provincia);
   }
   if ("indirizzo_prova_cap" in patch) {
     nextCard.indirizzoCap = displayValue(patch.indirizzo_prova_cap);
+    nextCard.indirizzoProvaCap = displayValue(patch.indirizzo_prova_cap);
   }
   if ("indirizzo_prova_note" in patch) {
     nextCard.indirizzoNote = displayValue(patch.indirizzo_prova_note);
+    nextCard.indirizzoProvaNote = displayValue(patch.indirizzo_prova_note);
   }
   if ("indirizzo_prova_via" in patch) {
     nextCard.indirizzoVia = displayValue(patch.indirizzo_prova_via);
+    nextCard.indirizzoProvaVia = displayValue(patch.indirizzo_prova_via);
   }
   if ("indirizzo_prova_civico" in patch) {
     nextCard.indirizzoCivico = displayValue(patch.indirizzo_prova_civico);
+    nextCard.indirizzoProvaCivico = displayValue(patch.indirizzo_prova_civico);
   }
   if ("indirizzo_prova_comune" in patch) {
     nextCard.indirizzoComune = displayValue(patch.indirizzo_prova_comune);
+    nextCard.indirizzoProvaComune = displayValue(patch.indirizzo_prova_comune);
   }
   if ("indirizzo_prova_citofono" in patch) {
     nextCard.indirizzoCitofono = displayValue(patch.indirizzo_prova_citofono);
+    nextCard.indirizzoProvaCitofono = displayValue(patch.indirizzo_prova_citofono);
   }
   if ("recruiter_ricerca_e_selezione_id" in patch) {
     nextCard.recruiterId =
@@ -1033,6 +1047,13 @@ export function RicercaDetailView({
           indirizzoCivico: displayValue(processRow.indirizzo_prova_civico),
           indirizzoComune: displayValue(processRow.indirizzo_prova_comune),
           indirizzoCitofono: displayValue(processRow.indirizzo_prova_citofono),
+          indirizzoProvaProvincia: displayValue(processRow.indirizzo_prova_provincia),
+          indirizzoProvaCap: displayValue(processRow.indirizzo_prova_cap),
+          indirizzoProvaNote: displayValue(processRow.indirizzo_prova_note),
+          indirizzoProvaVia: displayValue(processRow.indirizzo_prova_via),
+          indirizzoProvaCivico: displayValue(processRow.indirizzo_prova_civico),
+          indirizzoProvaComune: displayValue(processRow.indirizzo_prova_comune),
+          indirizzoProvaCitofono: displayValue(processRow.indirizzo_prova_citofono),
           geocode: displayValue(processRow.geocode),
           srcEmbedMapsAnnucio: displayValue(processRow.src_embed_maps_annucio),
           deadlineMobile: formatItalianDate(processRow.deadline_mobile),
