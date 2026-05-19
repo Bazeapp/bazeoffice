@@ -260,6 +260,14 @@ export type CrmPipelineColumnData = {
   cards: CrmPipelineCardData[]
 }
 
+export type CrmPipelineFilters = {
+  createdFrom?: string | null
+  createdTo?: string | null
+  tipoLavoro?: string[]
+  preventivoAccettato?: boolean | null
+  chiamataPrenotata?: boolean | null
+}
+
 type UseCrmPipelinePreviewState = {
   loading: boolean
   error: string | null
@@ -1070,16 +1078,11 @@ function buildSalesStageCounts(
   return counts
 }
 
-function getStageFilterValues(
-  stages: StageDefinition[],
-  loadedClosedStageIds: Set<string>,
-  includeClosedStages: boolean
-) {
+function getStageFilterValues(stages: StageDefinition[], loadedClosedStageIds: Set<string>) {
   const values: string[] = []
 
   for (const stage of stages) {
     if (
-      !includeClosedStages &&
       CLOSED_STAGE_IDS.has(stage.id) &&
       !loadedClosedStageIds.has(stage.id)
     ) {
@@ -1094,13 +1097,19 @@ function getStageFilterValues(
 
 async function fetchBoardRecordsWithRpc(
   stageFilter: string[],
-  searchQuery: string
+  searchQuery: string,
+  filters: CrmPipelineFilters
 ): Promise<BoardRecordBundle> {
   const result = await fetchCrmPipelineFamiglieBoard({
     limit: searchQuery.trim() ? CRM_PIPELINE_SEARCH_CARD_LIMIT : CRM_PIPELINE_CARD_LIMIT,
     offset: 0,
     stageFilter,
     search: searchQuery,
+    createdFrom: filters.createdFrom,
+    createdTo: filters.createdTo,
+    tipoLavoro: filters.tipoLavoro,
+    preventivoAccettato: filters.preventivoAccettato,
+    chiamataPrenotata: filters.chiamataPrenotata,
   })
 
   return {
@@ -1174,18 +1183,32 @@ async function fetchBoardRecordsWithTableQueries(): Promise<BoardRecordBundle> {
 
 async function fetchBoardRecordsForStages(
   stageFilter: string[],
-  searchQuery: string
+  searchQuery: string,
+  filters: CrmPipelineFilters
 ): Promise<BoardRecordBundle> {
   try {
-    return await fetchBoardRecordsWithRpc(stageFilter, searchQuery)
-  } catch {
+    return await fetchBoardRecordsWithRpc(stageFilter, searchQuery, filters)
+  } catch (caughtError) {
+    const hasServerSideFilters =
+      Boolean(searchQuery.trim()) ||
+      Boolean(filters.createdFrom) ||
+      Boolean(filters.createdTo) ||
+      Boolean(filters.tipoLavoro?.length) ||
+      filters.preventivoAccettato !== null ||
+      filters.chiamataPrenotata !== null
+
+    if (hasServerSideFilters) {
+      throw caughtError
+    }
+
     return fetchBoardRecordsWithTableQueries()
   }
 }
 
 async function fetchBoardData(
   loadedClosedStageIds: Set<string>,
-  searchQuery: string
+  searchQuery: string,
+  filters: CrmPipelineFilters
 ): Promise<FetchBoardDataResult> {
   const normalizedSearchQuery = searchQuery.trim()
   const lookupResult = await fetchLookupValues()
@@ -1194,12 +1217,9 @@ async function fetchBoardData(
   const lookupOptionsByField = buildLookupOptionsByField(lookupRows)
   const { stages, tokenToStageId } = buildStageDefinitions(lookupRows)
   const boardRecords = await fetchBoardRecordsForStages(
-    getStageFilterValues(
-      stages,
-      loadedClosedStageIds,
-      normalizedSearchQuery.length > 0
-    ),
-    normalizedSearchQuery
+    getStageFilterValues(stages, loadedClosedStageIds),
+    normalizedSearchQuery,
+    filters
   )
   const salesStageCounts = buildSalesStageCounts(
     boardRecords.stageGroups,
@@ -1245,7 +1265,20 @@ async function fetchBoardData(
   }
 }
 
-export function useCrmPipelinePreview(searchQuery = ""): UseCrmPipelinePreviewState {
+function serializeCrmPipelineFilters(filters: CrmPipelineFilters) {
+  return JSON.stringify({
+    createdFrom: filters.createdFrom ?? null,
+    createdTo: filters.createdTo ?? null,
+    tipoLavoro: [...(filters.tipoLavoro ?? [])].sort(),
+    preventivoAccettato: filters.preventivoAccettato ?? null,
+    chiamataPrenotata: filters.chiamataPrenotata ?? null,
+  })
+}
+
+export function useCrmPipelinePreview(
+  searchQuery = "",
+  filters: CrmPipelineFilters = {}
+): UseCrmPipelinePreviewState {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [columns, setColumns] = React.useState<CrmPipelineColumnData[]>([])
@@ -1253,6 +1286,11 @@ export function useCrmPipelinePreview(searchQuery = ""): UseCrmPipelinePreviewSt
     React.useState<LookupOptionsByField>({})
   const [loadedClosedStageIds, setLoadedClosedStageIds] = React.useState<Set<string>>(
     () => new Set()
+  )
+  const filtersKey = React.useMemo(() => serializeCrmPipelineFilters(filters), [filters])
+  const stableFilters = React.useMemo(
+    () => JSON.parse(filtersKey) as CrmPipelineFilters,
+    [filtersKey]
   )
 
   const loadClosedStage = React.useCallback((stageId: string) => {
@@ -1843,7 +1881,7 @@ export function useCrmPipelinePreview(searchQuery = ""): UseCrmPipelinePreviewSt
       setError(null)
 
       try {
-        const boardData = await fetchBoardData(loadedClosedStageIds, searchQuery)
+        const boardData = await fetchBoardData(loadedClosedStageIds, searchQuery, stableFilters)
         if (cancelled) return
         setColumns(boardData.columns)
         setLookupOptionsByField(boardData.lookupOptionsByField)
@@ -1868,7 +1906,7 @@ export function useCrmPipelinePreview(searchQuery = ""): UseCrmPipelinePreviewSt
     return () => {
       cancelled = true
     }
-  }, [loadedClosedStageIds, searchQuery])
+  }, [filtersKey, loadedClosedStageIds, searchQuery, stableFilters])
 
   return {
     loading,

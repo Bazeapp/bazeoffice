@@ -17,14 +17,12 @@ import {
   normalizeLookupColors,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils"
-import { isDirectInvolvementSelection } from "@/features/lavoratori/lib/involvement-utils"
 import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
 import {
-  fetchFamiglie,
   fetchIndirizzi,
   fetchLavoratori,
   fetchLookupValues,
-  fetchProcessiMatching,
+  fetchRicercaWorkerRelatedSelectionSummaries,
   fetchSelezioniLavoratori,
   updateRecord,
 } from "@/lib/anagrafiche-api"
@@ -75,13 +73,11 @@ type UseRicercaWorkersPipelineState = {
   refresh: () => void
 }
 
-const EMPTY_RECRUITER_LABELS_BY_ID = new Map<string, string>()
+export type RicercaWorkersPipelineState = UseRicercaWorkersPipelineState
+
 const SELEZIONI_PAGE_SIZE = 500
 const WORKER_BATCH_SIZE = 250
 const ADDRESS_BATCH_SIZE = 120
-const RELATED_WORKER_BATCH_SIZE = 50
-const RELATED_PROCESS_BATCH_SIZE = 150
-const RELATED_FAMILY_BATCH_SIZE = 150
 const PIPELINE_SELECTIONS_SELECT = [
   "id",
   "lavoratore_id",
@@ -362,41 +358,6 @@ function resolveWorkerAddress(
   )
 }
 
-function formatRelatedFamilyName(row: GenericRow | null | undefined) {
-  const familyName = [
-    toStringValue(row?.nome),
-    toStringValue(row?.cognome),
-  ]
-    .filter((value): value is string => Boolean(value))
-    .join(" ")
-    .trim()
-
-  return familyName || "Famiglia senza nome"
-}
-
-function formatRelatedSearchLabel(processRow: GenericRow) {
-  const searchNumber = toStringValue(processRow.numero_ricerca_attivata)
-  if (searchNumber) return `Ricerca #${searchNumber}`
-
-  const processId = toStringValue(processRow.id)
-  return processId ? `Ricerca ${processId.slice(0, 8)}` : "Ricerca"
-}
-
-function formatRelatedZona(processRow: GenericRow) {
-  const parts = [
-    toStringValue(processRow.indirizzo_prova_via),
-    toStringValue(processRow.indirizzo_prova_comune),
-    toStringValue(processRow.indirizzo_prova_provincia),
-    toStringValue(processRow.indirizzo_prova_cap),
-    toStringValue(processRow.indirizzo_prova_note),
-  ].filter(
-    (value, index, values): value is string =>
-      Boolean(value) && values.indexOf(value) === index
-  )
-
-  return parts.join(" • ")
-}
-
 function getDotColorClassName(color: string | null | undefined) {
   switch ((color ?? "").toLowerCase()) {
     case "red":
@@ -466,233 +427,31 @@ function resolveLookupColorByStatusToken(
   return null
 }
 
-async function fetchSelectionsForWorkers(workerIds: string[]) {
-  if (workerIds.length === 0) return []
-
-  const rows: GenericRow[] = []
-
-  for (let index = 0; index < workerIds.length; index += RELATED_WORKER_BATCH_SIZE) {
-    const batch = workerIds.slice(index, index + RELATED_WORKER_BATCH_SIZE)
-    let offset = 0
-
-    while (true) {
-      const result = await fetchSelezioniLavoratori({
-        select: [
-          "id",
-          "lavoratore_id",
-          "processo_matching_id",
-          "stato_selezione",
-          "stato_situazione_lavorativa",
-          "note_selezione",
-          "aggiornato_il",
-        ],
-        limit: SELEZIONI_PAGE_SIZE,
-        offset,
-        orderBy: [{ field: "aggiornato_il", ascending: false }],
-        filters: {
-          kind: "group",
-          id: `pipeline-related-selections-${index}-${offset}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `pipeline-related-worker-ids-${index}-${offset}`,
-              field: "lavoratore_id",
-              operator: "in",
-              value: batch.join(","),
-            },
-          ],
-        },
-      }).catch((error) => {
-        const message = error instanceof Error ? error.message : String(error)
-        throw new Error(`selezioni_lavoratori correlate(batch ${index}): ${message}`)
-      })
-
-      const pageRows = asRowArray(result.rows)
-      rows.push(...pageRows)
-
-      if (pageRows.length < SELEZIONI_PAGE_SIZE) break
-      offset += SELEZIONI_PAGE_SIZE
-    }
-  }
-
-  return rows
-}
-
-async function fetchRelatedProcessesByIds(processIds: string[]) {
-  if (processIds.length === 0) return []
-
-  const rows: GenericRow[] = []
-
-  for (
-    let index = 0;
-    index < processIds.length;
-    index += RELATED_PROCESS_BATCH_SIZE
-  ) {
-    const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE)
-    const result = await fetchProcessiMatching({
-      select: [
-        "id",
-        "famiglia_id",
-        "numero_ricerca_attivata",
-        "stato_res",
-        "recruiter_ricerca_e_selezione_id",
-        "orario_di_lavoro",
-        "indirizzo_prova_via",
-        "indirizzo_prova_comune",
-        "indirizzo_prova_provincia",
-        "indirizzo_prova_cap",
-        "indirizzo_prova_note",
-      ],
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `pipeline-related-processes-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `pipeline-related-process-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    }).catch((error) => {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`processi_matching correlati(batch ${index}): ${message}`)
-    })
-
-    rows.push(...asRowArray(result.rows))
-  }
-
-  return rows
-}
-
-async function fetchRelatedFamiliesByIds(familyIds: string[]) {
-  if (familyIds.length === 0) return []
-
-  const rows: GenericRow[] = []
-
-  for (
-    let index = 0;
-    index < familyIds.length;
-    index += RELATED_FAMILY_BATCH_SIZE
-  ) {
-    const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE)
-    const result = await fetchFamiglie({
-      select: ["id", "nome", "cognome"],
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `pipeline-related-families-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `pipeline-related-family-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    }).catch((error) => {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`famiglie correlate(batch ${index}): ${message}`)
-    })
-
-    rows.push(...asRowArray(result.rows))
-  }
-
-  return rows
-}
-
-async function fetchRelatedActiveSelectionsByWorkerIds({
+async function fetchRelatedSelectionSummariesByWorkerIds({
   workerIds,
   currentProcessId,
   lookupColorsByDomain,
-  recruiterLabelsById,
 }: {
   workerIds: string[]
   currentProcessId: string
   lookupColorsByDomain: Map<string, string>
-  recruiterLabelsById: Map<string, string>
 }) {
-  const selections = (await fetchSelectionsForWorkers(workerIds)).filter((selection) => {
-    const processId = toStringValue(selection.processo_matching_id)
-    return Boolean(processId) && processId !== currentProcessId
-  })
-
-  const processIds = Array.from(
-    new Set(
-      selections
-        .map((selection) => toStringValue(selection.processo_matching_id))
-        .filter((value): value is string => Boolean(value))
-    )
-  )
-  const processRows = await fetchRelatedProcessesByIds(processIds)
-  const processRowsById = new Map(
-    processRows
-      .map((row) => {
-        const rowId = toStringValue(row.id)
-        if (!rowId) return null
-        return [rowId, row] as const
-      })
-      .filter((entry): entry is readonly [string, GenericRow] => Boolean(entry))
-  )
-  const familyIds = Array.from(
-    new Set(
-      processRows
-        .map((row) => toStringValue(row.famiglia_id))
-        .filter((value): value is string => Boolean(value))
-    )
-  )
-  const familyRows = await fetchRelatedFamiliesByIds(familyIds)
-  const familyRowsById = new Map(
-    familyRows
-      .map((row) => {
-        const rowId = toStringValue(row.id)
-        if (!rowId) return null
-        return [rowId, row] as const
-      })
-      .filter((entry): entry is readonly [string, GenericRow] => Boolean(entry))
-  )
-  const selectionsByWorkerId = new Map<string, GenericRow[]>()
-
-  for (const selection of selections) {
-    const workerId = toStringValue(selection.lavoratore_id)
-    if (!workerId) continue
-    const current = selectionsByWorkerId.get(workerId) ?? []
-    current.push(selection)
-    selectionsByWorkerId.set(workerId, current)
-  }
-
-  const relatedSelectionsByWorkerId = new Map<
+  const summariesByWorkerId = new Map<
     string,
     NonNullable<LavoratoreListItem["otherActiveSelections"]>
   >()
 
-  for (const workerId of workerIds) {
-    const workerSelections = selectionsByWorkerId.get(workerId) ?? []
-    const details: NonNullable<LavoratoreListItem["otherActiveSelections"]>["details"] = []
-    const dots: NonNullable<LavoratoreListItem["otherActiveSelections"]>["dots"] = []
-    const seenProcesses = new Set<string>()
+  const rpcRows = await fetchRicercaWorkerRelatedSelectionSummaries({
+    workerIds,
+    currentProcessId,
+  })
 
-    for (const selection of workerSelections) {
-      const processId = toStringValue(selection.processo_matching_id)
-      if (!processId || seenProcesses.has(processId)) continue
+  for (const row of rpcRows) {
+    const workerId = toStringValue(row.worker_id)
+    if (!workerId) continue
 
-      const processRow = processRowsById.get(processId)
-      if (!processRow || !isDirectInvolvementSelection(selection)) {
-        continue
-      }
-
-      const statoSelezione = toStringValue(selection.stato_selezione) ?? "-"
-      const statoRicerca = toStringValue(processRow.stato_res) ?? "-"
+    const dots = row.dots.slice(0, 4).map((dot) => {
+      const statoSelezione = toStringValue(dot.stato_selezione) ?? "-"
       const selectionColor =
         resolveLookupColorByStatusToken(
           lookupColorsByDomain,
@@ -704,48 +463,22 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
           "lavoratori.stato_selezione",
           statoSelezione
         )
-      const processColor = resolveLookupColorByStatusToken(
-        lookupColorsByDomain,
-        "processi_matching.stato_res",
-        statoRicerca
-      )
-      const recruiterId = toStringValue(processRow.recruiter_ricerca_e_selezione_id)
-      const familyRow = familyRowsById.get(toStringValue(processRow.famiglia_id) ?? "")
 
-      details.push({
-        id: processId,
-        familyName: formatRelatedFamilyName(familyRow),
-        ricercaLabel: formatRelatedSearchLabel(processRow),
-        recruiterLabel: recruiterId ? recruiterLabelsById.get(recruiterId) ?? "" : "",
-        statoSelezione,
-        statoSelezioneColor: selectionColor,
-        statoRicerca,
-        statoRicercaColor: processColor,
-        orarioDiLavoro: toStringValue(processRow.orario_di_lavoro) ?? "",
-        zona: formatRelatedZona(processRow),
-        appunti: toStringValue(selection.note_selezione) ?? "",
-      })
-
-      if (dots.length < 4) {
-        dots.push({
-          key: `${processId}-${statoSelezione}`,
-          colorClassName: getDotColorClassName(selectionColor),
-          label: statoSelezione,
-        })
+      return {
+        key: `${dot.process_id}-${statoSelezione}`,
+        colorClassName: getDotColorClassName(selectionColor),
+        label: statoSelezione,
       }
-      seenProcesses.add(processId)
-    }
+    })
 
-    if (details.length > 0) {
-      relatedSelectionsByWorkerId.set(workerId, {
-        count: details.length,
-        dots,
-        details,
-      })
-    }
+    summariesByWorkerId.set(workerId, {
+      count: row.count,
+      dots,
+      details: [],
+    })
   }
 
-  return relatedSelectionsByWorkerId
+  return summariesByWorkerId
 }
 
 function buildWorkerListItem(
@@ -1000,8 +733,7 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
 }
 
 async function fetchWorkersPipelineData(
-  processId: string,
-  recruiterLabelsById: Map<string, string>
+  processId: string
 ): Promise<RicercaWorkerSelectionColumn[]> {
   const [selezioniRows, lookupResult] = await Promise.all([
     fetchAllSelectionsForProcess(processId),
@@ -1029,12 +761,11 @@ async function fetchWorkersPipelineData(
   ] = await Promise.all([
     fetchWorkersByIds(workerIds),
     fetchWorkerAddressesByIds(workerIds),
-    fetchRelatedActiveSelectionsByWorkerIds({
+    fetchRelatedSelectionSummariesByWorkerIds({
       workerIds,
       currentProcessId: processId,
       lookupColorsByDomain,
-      recruiterLabelsById,
-    }).catch(() => new Map<string, NonNullable<LavoratoreListItem["otherActiveSelections"]>>()),
+    }),
   ])
   const stageMetadata = buildStageMetadata(lookupRows)
   const stageDefinitions = stageMetadata.definitions
@@ -1255,8 +986,7 @@ async function fetchWorkersPipelineData(
 }
 
 export function useRicercaWorkersPipeline(
-  processId: string,
-  recruiterLabelsById: Map<string, string> = EMPTY_RECRUITER_LABELS_BY_ID
+  processId: string
 ): UseRicercaWorkersPipelineState {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -1327,7 +1057,7 @@ export function useRicercaWorkersPipeline(
       setError(null)
 
       try {
-        const data = await fetchWorkersPipelineData(processId, recruiterLabelsById)
+        const data = await fetchWorkersPipelineData(processId)
         if (cancelled) return
         setColumns(data)
       } catch (caughtError) {
@@ -1348,7 +1078,7 @@ export function useRicercaWorkersPipeline(
     return () => {
       cancelled = true
     }
-  }, [processId, recruiterLabelsById, refreshTick])
+  }, [processId, refreshTick])
 
   return {
     loading,

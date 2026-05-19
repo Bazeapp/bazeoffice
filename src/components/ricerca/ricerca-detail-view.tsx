@@ -48,6 +48,7 @@ import type {
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
 import { normalizeLookupPatchLabels } from "@/hooks/use-crm-pipeline-preview";
+import { useRicercaWorkersPipeline } from "@/hooks/use-ricerca-workers-pipeline";
 import { STATI_RICERCA_CANONICI } from "@/features/ricerca/stati-ricerca";
 import {
   fetchFamiglie,
@@ -724,6 +725,11 @@ export function RicercaDetailView({
     role: "recruiter",
     activeOnly: true,
   });
+  const recruiterLabelsById = React.useMemo(
+    () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
+    [recruiterOptions],
+  );
+  const pipelineState = useRicercaWorkersPipeline(currentProcessId);
 
   React.useEffect(() => {
     setCurrentProcessId(processId);
@@ -2378,6 +2384,8 @@ export function RicercaDetailView({
                   focusSelectionId={focusedSelectionId}
                   onOpenRelatedSearch={handleOpenRelatedSearch}
                   onPatchProcess={updateProcessCard}
+                  pipelineState={pipelineState}
+                  recruiterLabelsById={recruiterLabelsById}
                 />
               </TabsContent>
               <TabsContent
@@ -2391,6 +2399,7 @@ export function RicercaDetailView({
                   searchMapsEmbed={resolvedCard.srcEmbedMapsAnnucio}
                   jobRole={resolvedCard.tipoLavoroBadge}
                   weeklyDays={resolvedCard.giorniSettimana}
+                  pipelineState={pipelineState}
                 />
               </TabsContent>
             </div>

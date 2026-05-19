@@ -10,7 +10,10 @@ import {
   XIcon,
 } from "lucide-react";
 
-import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
+import {
+  LavoratoreCard,
+  type WorkerOtherSelectionSummaryItem,
+} from "@/components/lavoratori/lavoratore-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
 import {
@@ -79,9 +82,8 @@ import { type CrmPipelineCardData } from "@/hooks/use-crm-pipeline-preview";
 import {
   type RicercaWorkerSelectionColumn,
   type RicercaWorkerSelectionCard,
-  useRicercaWorkersPipeline,
+  type RicercaWorkersPipelineState,
 } from "@/hooks/use-ricerca-workers-pipeline";
-import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import {
   createRecord,
@@ -120,6 +122,8 @@ type RicercaWorkersPipelineViewProps = {
     processId: string,
     patch: Record<string, unknown>,
   ) => Promise<void> | void;
+  pipelineState: RicercaWorkersPipelineState;
+  recruiterLabelsById: Map<string, string>;
   className?: string;
 };
 
@@ -627,9 +631,13 @@ function getWorkerColumnVisual(
 function PipelineWorkerCard({
   card,
   onOpenWorker,
+  onLoadOtherActiveSelectionDetails,
 }: {
   card: RicercaWorkerSelectionCard;
   onOpenWorker: (card: RicercaWorkerSelectionCard) => void;
+  onLoadOtherActiveSelectionDetails: (
+    workerId: string
+  ) => Promise<WorkerOtherSelectionSummaryItem[]>;
 }) {
   const timing = getCardOperationalTiming(card);
 
@@ -638,6 +646,7 @@ function PipelineWorkerCard({
       worker={card.worker}
       isActive={false}
       onClick={() => onOpenWorker(card)}
+      onLoadOtherActiveSelectionDetails={onLoadOtherActiveSelectionDetails}
       bottomSlot={
         timing ? (
         <div className="text-muted-foreground flex min-w-0 items-start gap-1.5 text-2xs leading-snug">
@@ -668,6 +677,7 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
   onDragStartCard,
   onDragEndCard,
   onOpenWorker,
+  onLoadOtherActiveSelectionDetails,
 }: {
   column: RicercaWorkerSelectionColumn;
   isDropTarget: boolean;
@@ -681,6 +691,9 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
   onDragStartCard: (selectionId: string, sourceColumnId: string) => void;
   onDragEndCard: () => void;
   onOpenWorker: (card: RicercaWorkerSelectionCard) => void;
+  onLoadOtherActiveSelectionDetails: (
+    workerId: string
+  ) => Promise<WorkerOtherSelectionSummaryItem[]>;
 }) {
   const groups = GROUPED_COLUMN_GROUPS[column.id] ?? null;
   const isGroupedColumn = Boolean(groups);
@@ -875,6 +888,9 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
                         <PipelineWorkerCard
                           card={card}
                           onOpenWorker={onOpenWorker}
+                          onLoadOtherActiveSelectionDetails={
+                            onLoadOtherActiveSelectionDetails
+                          }
                         />
                       </div>
                     ))}
@@ -899,7 +915,13 @@ const WorkerPipelineColumn = React.memo(function WorkerPipelineColumn({
                 draggingSelectionId === card.id && "opacity-40",
               )}
             >
-              <PipelineWorkerCard card={card} onOpenWorker={onOpenWorker} />
+              <PipelineWorkerCard
+                card={card}
+                onOpenWorker={onOpenWorker}
+                onLoadOtherActiveSelectionDetails={
+                  onLoadOtherActiveSelectionDetails
+                }
+              />
             </div>
           ))
         )}
@@ -913,18 +935,11 @@ export function RicercaWorkersPipelineView({
   card,
   focusSelectionId = null,
   onOpenRelatedSearch,
+  pipelineState,
+  recruiterLabelsById,
   className,
 }: RicercaWorkersPipelineViewProps) {
-  const { options: recruiterOptions } = useOperatoriOptions({
-    role: "recruiter",
-    activeOnly: true,
-  });
-  const recruiterLabelsById = React.useMemo(
-    () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
-    [recruiterOptions],
-  );
-  const { loading, error, columns, moveCard, refresh } =
-    useRicercaWorkersPipeline(processId, recruiterLabelsById);
+  const { loading, error, columns, moveCard, refresh } = pipelineState;
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isRunningSmartMatching, setIsRunningSmartMatching] =
     React.useState(false);
@@ -1010,6 +1025,9 @@ export function RicercaWorkersPipelineView({
     React.useState<RelatedSearchGroups>({ direct: [], other: [] });
   const [loadingRelatedActiveSearches, setLoadingRelatedActiveSearches] =
     React.useState(false);
+  const otherSelectionDetailsCacheRef = React.useRef(
+    new Map<string, Promise<WorkerOtherSelectionSummaryItem[]>>(),
+  );
   const selectedWorkerId = selectedWorkerRow?.id ?? null;
   const selectedWorker = React.useMemo(() => {
     if (!selectedCard) return null;
@@ -1542,6 +1560,103 @@ export function RicercaWorkersPipelineView({
     selectedCard?.id,
     selectedWorkerId,
   ]);
+
+  const loadOtherActiveSelectionDetails = React.useCallback(
+    (workerId: string) => {
+      const cached = otherSelectionDetailsCacheRef.current.get(workerId);
+      if (cached) return cached;
+
+      const promise = (async () => {
+        const workerSelections = await fetchAllSelectionsForWorker(workerId);
+        const filteredSelections = workerSelections.filter((selection) => {
+          const selectionProcessId = asString(selection.processo_matching_id);
+
+          return Boolean(selectionProcessId) && selectionProcessId !== processId;
+        });
+
+        const processIds = Array.from(
+          new Set(
+            filteredSelections
+              .map((selection) => asString(selection.processo_matching_id))
+              .filter((value): value is string => Boolean(value)),
+          ),
+        );
+        const processRows = await fetchRelatedProcessesByIds(processIds);
+        const processRowsById = new Map(
+          processRows
+            .map((row) => {
+              const rowId = asString(row.id);
+              if (!rowId) return null;
+              return [rowId, row] as const;
+            })
+            .filter(
+              (entry): entry is readonly [string, Record<string, unknown>] =>
+                Boolean(entry),
+            ),
+        );
+        const familyIds = Array.from(
+          new Set(
+            processRows
+              .map((row) => asString(row.famiglia_id))
+              .filter((value): value is string => Boolean(value)),
+          ),
+        );
+        const familyRows = await fetchRelatedFamiliesByIds(familyIds);
+        const familyRowsById = new Map(
+          familyRows
+            .map((row) => {
+              const rowId = asString(row.id);
+              if (!rowId) return null;
+              return [rowId, row] as const;
+            })
+            .filter(
+              (entry): entry is readonly [string, Record<string, unknown>] =>
+                Boolean(entry),
+            ),
+        );
+        const seenProcessIds = new Set<string>();
+        const details: WorkerOtherSelectionSummaryItem[] = [];
+
+        for (const selection of filteredSelections) {
+          const selectionProcessId = asString(selection.processo_matching_id);
+          if (!selectionProcessId || seenProcessIds.has(selectionProcessId)) {
+            continue;
+          }
+
+          const processRow = processRowsById.get(selectionProcessId);
+          if (!processRow || !isDirectInvolvementSelection(selection)) continue;
+
+          const familyRow = familyRowsById.get(
+            asString(processRow.famiglia_id) ?? "",
+          );
+          const recruiterId = asString(
+            processRow.recruiter_ricerca_e_selezione_id,
+          );
+
+          details.push({
+            id: selectionProcessId,
+            familyName: formatRelatedFamilyName(familyRow),
+            ricercaLabel: formatRelatedSearchLabel(processRow),
+            recruiterLabel: recruiterId
+              ? recruiterLabelsById.get(recruiterId) ?? "Recruiter non assegnato"
+              : "Recruiter non assegnato",
+            statoSelezione: asString(selection.stato_selezione) || "-",
+            statoRicerca: asString(processRow.stato_res) || "-",
+            orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
+            zona: formatRelatedZona(processRow),
+            appunti: asString(selection.note_selezione) || "",
+          });
+          seenProcessIds.add(selectionProcessId);
+        }
+
+        return details;
+      })();
+
+      otherSelectionDetailsCacheRef.current.set(workerId, promise);
+      return promise;
+    },
+    [processId, recruiterLabelsById],
+  );
 
   const handleOpenRelatedSearchCard = React.useCallback(
     (nextProcessId: string, nextSelectionId: string) => {
@@ -2113,6 +2228,7 @@ export function RicercaWorkersPipelineView({
                 setDropTargetColumnId(null);
               }}
               onOpenWorker={handleOpenWorker}
+              onLoadOtherActiveSelectionDetails={loadOtherActiveSelectionDetails}
             />
           ))}
         </div>

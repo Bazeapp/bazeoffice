@@ -202,6 +202,19 @@ export type RapportiLavorativiBoardRpcResponse = {
   total?: number
 }
 
+export type RicercaWorkerRelatedSelectionSummary = {
+  worker_id: string
+  count: number
+  dots: Array<{
+    process_id: string
+    stato_selezione: string
+  }>
+}
+
+export type RicercaWorkerRelatedSelectionSummariesRpcResponse = {
+  rows?: RicercaWorkerRelatedSelectionSummary[]
+}
+
 function normalizeTableResponse<TRecord>(
   response: TableQueryResponse<TRecord>
 ): { rows: TRecord[]; total: number; columns: TableColumnMeta[]; groups: TableGroupResult[] } {
@@ -263,6 +276,13 @@ const rapportiLavorativiBoardCache = new Map<
     promise: Promise<{ rows: RapportoLavorativoRecord[]; total: number }>
   }
 >()
+const ricercaWorkerRelatedSelectionSummariesCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<RicercaWorkerRelatedSelectionSummary[]>
+  }
+>()
 
 let lookupValuesCache:
   | {
@@ -281,6 +301,7 @@ function clearReadCaches() {
   crmPipelineBoardCache.clear()
   crmPipelineDetailCache.clear()
   rapportiLavorativiBoardCache.clear()
+  ricercaWorkerRelatedSelectionSummariesCache.clear()
   lookupValuesCache = null
 }
 
@@ -641,6 +662,54 @@ export async function fetchReferenzeLavoratoriByWorker(lavoratoreId: string) {
   })
 }
 
+export async function fetchRicercaWorkerRelatedSelectionSummaries(query: {
+  workerIds: string[]
+  currentProcessId: string
+}) {
+  const uniqueWorkerIds = Array.from(new Set(query.workerIds.filter(Boolean))).sort()
+  if (uniqueWorkerIds.length === 0) return []
+
+  const cacheKey = JSON.stringify({
+    functionName: "ricerca_worker_related_selection_summaries",
+    currentProcessId: query.currentProcessId,
+    workerIds: uniqueWorkerIds,
+  })
+  const now = Date.now()
+  const cached = ricercaWorkerRelatedSelectionSummariesCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc("ricerca_worker_related_selection_summaries", {
+      p_worker_ids: uniqueWorkerIds,
+      p_current_process_id: query.currentProcessId,
+    })
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(
+        `ricerca_worker_related_selection_summaries failed: ${error.message}`
+      )
+    }
+
+    const response =
+      data as RicercaWorkerRelatedSelectionSummariesRpcResponse | null
+    return Array.isArray(response?.rows) ? response.rows : []
+  })
+
+  ricercaWorkerRelatedSelectionSummariesCache.set(cacheKey, {
+    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    ricercaWorkerRelatedSelectionSummariesCache.delete(cacheKey)
+    throw error
+  }
+}
+
 export async function fetchProcessiMatching(query: TablePageQuery) {
   return queryTable<ProcessoMatchingRecord>({
     table: "processi_matching",
@@ -661,6 +730,11 @@ export async function fetchCrmPipelineFamiglieBoard(query: {
   offset: number
   stageFilter?: string[]
   search?: string
+  createdFrom?: string | null
+  createdTo?: string | null
+  tipoLavoro?: string[]
+  preventivoAccettato?: boolean | null
+  chiamataPrenotata?: boolean | null
 }) {
   const cacheKey = JSON.stringify({ functionName: "crm_pipeline_famiglie_board", ...query })
   const now = Date.now()
@@ -675,6 +749,11 @@ export async function fetchCrmPipelineFamiglieBoard(query: {
       p_offset: query.offset,
       p_stage_filter: query.stageFilter?.length ? query.stageFilter : null,
       p_search: query.search?.trim() ? query.search.trim() : null,
+      p_created_from: query.createdFrom ?? null,
+      p_created_to: query.createdTo ?? null,
+      p_tipo_lavoro_filter: query.tipoLavoro?.length ? query.tipoLavoro : null,
+      p_preventivo_accettato: query.preventivoAccettato ?? null,
+      p_chiamata_prenotata: query.chiamataPrenotata ?? null,
     })
   ).then(({ data, error }) => {
     if (error) {

@@ -26,8 +26,8 @@ import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
 import type {
   RicercaWorkerSelectionCard,
   RicercaWorkerSelectionColumn,
+  RicercaWorkersPipelineState,
 } from "@/hooks/use-ricerca-workers-pipeline"
-import { useRicercaWorkersPipeline } from "@/hooks/use-ricerca-workers-pipeline"
 import {
   createRecord,
   fetchIndirizzi,
@@ -92,6 +92,7 @@ type RicercaWorkersMapViewProps = {
   searchMapsEmbed?: unknown
   jobRole?: string | null
   weeklyDays?: string | null
+  pipelineState: RicercaWorkersPipelineState
   className?: string
 }
 
@@ -889,9 +890,10 @@ export function RicercaWorkersMapView({
   searchMapsEmbed,
   jobRole,
   weeklyDays,
+  pipelineState,
   className,
 }: RicercaWorkersMapViewProps) {
-  const { loading, error, columns, moveCard, refresh } = useRicercaWorkersPipeline(processId)
+  const { loading, error, columns, moveCard, refresh } = pipelineState
   const [hideDiscarded, setHideDiscarded] = React.useState(false)
   const [hidePipeline, setHidePipeline] = React.useState(false)
   const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>([

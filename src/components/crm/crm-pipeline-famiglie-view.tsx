@@ -4,6 +4,8 @@ import {
   CalendarClockIcon,
   CalendarPlusIcon,
   CheckCircle2Icon,
+  CheckIcon,
+  ChevronDownIcon,
   CircleDotIcon,
   CircleXIcon,
   Clock3Icon,
@@ -13,6 +15,7 @@ import {
   SnowflakeIcon,
   TrophyIcon,
   UserRoundXIcon,
+  XIcon,
 } from "lucide-react"
 
 import { FamigliaProcessoDetailShell } from "@/components/crm/famiglia-processo-detail-shell"
@@ -24,8 +27,27 @@ import {
 } from "@/components/shared-next/kanban"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  type CrmPipelineFilters,
   type CrmPipelineCardData,
   type CrmPipelineColumnData,
   useCrmPipelinePreview,
@@ -34,6 +56,36 @@ import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
 const DEFERRED_STAGE_IDS = new Set(["won_ricerca_attivata", "lost", "out_of_target"])
+const CRM_PIPELINE_FILTERS_STORAGE_KEY = "bazeoffice.crmPipelineFamiglie.filters.v1"
+const VISIBLE_CARD_BATCH_SIZE = 80
+
+type BooleanFilterValue = "all" | "yes" | "no"
+
+type CrmPipelineToolbarFilters = {
+  createdFrom: string
+  createdTo: string
+  tipoLavoro: string[]
+  preventivoAccettato: BooleanFilterValue
+  chiamataPrenotata: BooleanFilterValue
+}
+
+const EMPTY_TOOLBAR_FILTERS: CrmPipelineToolbarFilters = {
+  createdFrom: "",
+  createdTo: "",
+  tipoLavoro: [],
+  preventivoAccettato: "all",
+  chiamataPrenotata: "all",
+}
+
+const DATE_PRESETS = [
+  { id: "custom", label: "Da sempre" },
+  { id: "24h", label: "Ultime 24h" },
+  { id: "7d", label: "Ultimi 7 giorni" },
+  { id: "30d", label: "Ultimo mese" },
+  { id: "year", label: "Quest'anno" },
+] as const
+
+type DatePresetValue = (typeof DATE_PRESETS)[number]["id"]
 
 type ColumnVisual = {
   columnClassName: string
@@ -211,6 +263,140 @@ function getStageIcon(stageId: string, iconClassName: string) {
   }
 }
 
+function padDatePart(value: number) {
+  return String(value).padStart(2, "0")
+}
+
+function toDateTimeLocalValue(date: Date) {
+  return [
+    date.getFullYear(),
+    padDatePart(date.getMonth() + 1),
+    padDatePart(date.getDate()),
+  ].join("-") + `T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`
+}
+
+function dateTimeLocalToIso(value: string) {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString()
+}
+
+function booleanFilterToValue(value: BooleanFilterValue) {
+  if (value === "yes") return true
+  if (value === "no") return false
+  return null
+}
+
+function sanitizeToolbarFilters(value: unknown): CrmPipelineToolbarFilters {
+  if (!value || typeof value !== "object") return EMPTY_TOOLBAR_FILTERS
+  const raw = value as Partial<CrmPipelineToolbarFilters>
+  return {
+    createdFrom: typeof raw.createdFrom === "string" ? raw.createdFrom : "",
+    createdTo: typeof raw.createdTo === "string" ? raw.createdTo : "",
+    tipoLavoro: Array.isArray(raw.tipoLavoro)
+      ? raw.tipoLavoro.filter((item): item is string => typeof item === "string")
+      : [],
+    preventivoAccettato:
+      raw.preventivoAccettato === "yes" || raw.preventivoAccettato === "no"
+        ? raw.preventivoAccettato
+        : "all",
+    chiamataPrenotata:
+      raw.chiamataPrenotata === "yes" || raw.chiamataPrenotata === "no"
+        ? raw.chiamataPrenotata
+        : "all",
+  }
+}
+
+function readStoredToolbarFilters() {
+  if (typeof window === "undefined") return EMPTY_TOOLBAR_FILTERS
+  try {
+    const raw = window.localStorage.getItem(CRM_PIPELINE_FILTERS_STORAGE_KEY)
+    return raw ? sanitizeToolbarFilters(JSON.parse(raw)) : EMPTY_TOOLBAR_FILTERS
+  } catch {
+    return EMPTY_TOOLBAR_FILTERS
+  }
+}
+
+function buildServerFilters(filters: CrmPipelineToolbarFilters): CrmPipelineFilters {
+  return {
+    createdFrom: dateTimeLocalToIso(filters.createdFrom),
+    createdTo: dateTimeLocalToIso(filters.createdTo),
+    tipoLavoro: filters.tipoLavoro,
+    preventivoAccettato: booleanFilterToValue(filters.preventivoAccettato),
+    chiamataPrenotata: booleanFilterToValue(filters.chiamataPrenotata),
+  }
+}
+
+function applyDatePreset(
+  preset: DatePresetValue,
+  setFilters: React.Dispatch<React.SetStateAction<CrmPipelineToolbarFilters>>
+) {
+  if (preset === "custom") return
+
+  const now = new Date()
+  const from = new Date(now)
+
+  if (preset === "24h") {
+    from.setHours(from.getHours() - 24)
+  } else if (preset === "7d") {
+    from.setDate(from.getDate() - 7)
+  } else if (preset === "30d") {
+    from.setMonth(from.getMonth() - 1)
+  } else {
+    from.setMonth(0, 1)
+    from.setHours(0, 0, 0, 0)
+  }
+
+  setFilters((current) => ({
+    ...current,
+    createdFrom: toDateTimeLocalValue(from),
+    createdTo: toDateTimeLocalValue(now),
+  }))
+}
+
+function toggleFilterValue(values: string[], value: string, checked: boolean) {
+  if (checked) return values.includes(value) ? values : [...values, value]
+  return values.filter((item) => item !== value)
+}
+
+function hasActiveFilters(filters: CrmPipelineToolbarFilters) {
+  return (
+    Boolean(filters.createdFrom) ||
+    Boolean(filters.createdTo) ||
+    filters.tipoLavoro.length > 0 ||
+    filters.preventivoAccettato !== "all" ||
+    filters.chiamataPrenotata !== "all"
+  )
+}
+
+function serializeToolbarFilters(filters: CrmPipelineToolbarFilters) {
+  return JSON.stringify({
+    createdFrom: filters.createdFrom,
+    createdTo: filters.createdTo,
+    tipoLavoro: [...filters.tipoLavoro].sort(),
+    preventivoAccettato: filters.preventivoAccettato,
+    chiamataPrenotata: filters.chiamataPrenotata,
+  })
+}
+
+function ToolbarField({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <label className={cn("flex min-w-0 flex-col gap-1 text-xs font-medium text-muted-foreground", className)}>
+      <span>{label}</span>
+      {children}
+    </label>
+  )
+}
+
 function CrmPipelineSkeletonColumn() {
   return <KanbanColumnSkeleton widthClassName="w-73" showBadgeRow />
 }
@@ -244,7 +430,15 @@ function Column({
   isDeferred,
   onLoadDeferred,
 }: ColumnProps) {
+  const [visibleCardCount, setVisibleCardCount] = React.useState(VISIBLE_CARD_BATCH_SIZE)
   const visual = getColumnVisual(column.color)
+  const visibleCards = column.cards.slice(0, visibleCardCount)
+  const hiddenCardsCount = Math.max(0, column.cards.length - visibleCards.length)
+
+  React.useEffect(() => {
+    setVisibleCardCount(VISIBLE_CARD_BATCH_SIZE)
+  }, [column.id, column.cards.length])
+
   const emptyState = isDeferred ? (
     <div className="space-y-3 rounded-lg border border-dashed border-border/60 px-4 py-6">
       <p className="text-sm text-muted-foreground/80">
@@ -273,7 +467,7 @@ function Column({
       onDragLeave={onDragLeaveColumn}
       onDrop={onDropToColumn}
     >
-      {column.cards.map((card) => (
+      {visibleCards.map((card) => (
         <div
           key={card.id}
           draggable
@@ -294,14 +488,35 @@ function Column({
           <FamigliaProcessoCard data={card} />
         </div>
       ))}
+      {hiddenCardsCount > 0 ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() =>
+            setVisibleCardCount((current) => current + VISIBLE_CARD_BATCH_SIZE)
+          }
+        >
+          Mostra altre {Math.min(VISIBLE_CARD_BATCH_SIZE, hiddenCardsCount)}
+        </Button>
+      ) : null}
     </KanbanColumnShell>
   )
 }
 
 export function CrmPipelineFamiglieView() {
   const [searchQuery, setSearchQuery] = React.useState("")
-  const deferredSearchQuery = React.useDeferredValue(searchQuery)
-  const isDeferredSearchActive = deferredSearchQuery.trim().length > 0
+  const [appliedSearchQuery, setAppliedSearchQuery] = React.useState("")
+  const [toolbarFilters, setToolbarFilters] =
+    React.useState<CrmPipelineToolbarFilters>(() => readStoredToolbarFilters())
+  const [appliedToolbarFilters, setAppliedToolbarFilters] =
+    React.useState<CrmPipelineToolbarFilters>(() => readStoredToolbarFilters())
+  const [datePreset, setDatePreset] = React.useState<DatePresetValue>("custom")
+  const serverFilters = React.useMemo(
+    () => buildServerFilters(appliedToolbarFilters),
+    [appliedToolbarFilters]
+  )
   const {
     loading,
     error,
@@ -315,7 +530,7 @@ export function CrmPipelineFamiglieView() {
     updateFamilyCard,
     updateAddressCard,
   } =
-    useCrmPipelinePreview(deferredSearchQuery)
+    useCrmPipelinePreview(appliedSearchQuery, serverFilters)
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(
     null
   )
@@ -324,6 +539,29 @@ export function CrmPipelineFamiglieView() {
   )
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [isDetailOpen, setIsDetailOpen] = React.useState(false)
+  const tipoLavoroOptions = lookupOptionsByField.tipo_lavoro ?? []
+  const filtersActive =
+    hasActiveFilters(appliedToolbarFilters) || appliedSearchQuery.trim().length > 0
+  const hasPendingFilters =
+    searchQuery !== appliedSearchQuery ||
+    serializeToolbarFilters(toolbarFilters) !== serializeToolbarFilters(appliedToolbarFilters)
+  const tipoLavoroFilterLabel =
+    toolbarFilters.tipoLavoro.length === 0
+      ? "Tutti"
+      : toolbarFilters.tipoLavoro.length === 1
+        ? toolbarFilters.tipoLavoro[0]
+        : `${toolbarFilters.tipoLavoro.length} selezionati`
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        CRM_PIPELINE_FILTERS_STORAGE_KEY,
+        JSON.stringify(appliedToolbarFilters)
+      )
+    } catch {
+      // localStorage may be unavailable in private or embedded contexts.
+    }
+  }, [appliedToolbarFilters])
 
   const filteredColumns = React.useMemo(() => {
     const mappedColumns = columns.map((column) => {
@@ -340,19 +578,19 @@ export function CrmPipelineFamiglieView() {
             card.stage,
             card.statoRes,
           ],
-          deferredSearchQuery,
+          appliedSearchQuery,
         )
       )
 
       return {
         ...column,
-        totalCount: isDeferredSearchActive ? filteredCards.length : column.totalCount,
+        totalCount: column.totalCount,
         cards: filteredCards,
       }
     })
 
     return mappedColumns
-  }, [columns, isDeferredSearchActive, deferredSearchQuery])
+  }, [columns, appliedSearchQuery])
 
   const totalRicerche = React.useMemo(
     () =>
@@ -412,15 +650,191 @@ export function CrmPipelineFamiglieView() {
         >
           Sales Pipeline
         </SectionHeader.Title>
-        <SectionHeader.Toolbar>
-          <div className="min-w-0 flex-1 max-w-105">
+        <SectionHeader.Toolbar className="flex-nowrap items-end gap-2 overflow-x-auto">
+          <ToolbarField label="Cerca" className="w-72 shrink-0">
             <SearchInput
               placeholder="Cerca famiglia, email, telefono..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               onClear={() => setSearchQuery("")}
             />
+          </ToolbarField>
+          <ToolbarField label="Periodo">
+            <Select
+              value={datePreset}
+              onValueChange={(value) => {
+                const nextPreset = value as DatePresetValue
+                setDatePreset(nextPreset)
+                applyDatePreset(nextPreset, setToolbarFilters)
+              }}
+            >
+              <SelectTrigger className="h-8 w-32 text-xs">
+                <SelectValue placeholder="Periodo" />
+              </SelectTrigger>
+              <SelectContent>
+                {DATE_PRESETS.map((preset) => (
+                  <SelectItem key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ToolbarField>
+          <div className="flex shrink-0 items-end gap-2">
+            <ToolbarField label="Creato da">
+              <Input
+                type="datetime-local"
+                className="h-8 w-38 text-xs"
+                value={toolbarFilters.createdFrom}
+                onChange={(event) => {
+                  setDatePreset("custom")
+                  setToolbarFilters((current) => ({
+                    ...current,
+                    createdFrom: event.target.value,
+                  }))
+                }}
+              />
+            </ToolbarField>
+            <ToolbarField label="Creato a">
+              <Input
+                type="datetime-local"
+                className="h-8 w-38 text-xs"
+                value={toolbarFilters.createdTo}
+                onChange={(event) => {
+                  setDatePreset("custom")
+                  setToolbarFilters((current) => ({
+                    ...current,
+                    createdTo: event.target.value,
+                  }))
+                }}
+              />
+            </ToolbarField>
           </div>
+          {tipoLavoroOptions.length ? (
+            <ToolbarField label="Tipo ricerca">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-40 justify-between"
+                  >
+                    <span className="truncate">{tipoLavoroFilterLabel}</span>
+                    <ChevronDownIcon className="size-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="max-h-80 w-72 overflow-y-auto">
+                  <DropdownMenuLabel>Tipo ricerca</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault()
+                      setToolbarFilters((current) => ({ ...current, tipoLavoro: [] }))
+                    }}
+                  >
+                    Tutti
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {tipoLavoroOptions.map((option) => {
+                    const checked = toolbarFilters.tipoLavoro.includes(option.valueLabel)
+
+                    return (
+                      <DropdownMenuItem
+                        key={option.valueKey}
+                        onSelect={(event) => {
+                          event.preventDefault()
+                          setToolbarFilters((current) => ({
+                            ...current,
+                            tipoLavoro: toggleFilterValue(
+                              current.tipoLavoro,
+                              option.valueLabel,
+                              !checked
+                            ),
+                          }))
+                        }}
+                      >
+                        <Checkbox checked={checked} className="pointer-events-none" />
+                        {option.valueLabel}
+                      </DropdownMenuItem>
+                    )
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ToolbarField>
+          ) : null}
+          <ToolbarField label="Preventivo">
+            <Select
+              value={toolbarFilters.preventivoAccettato}
+              onValueChange={(value) =>
+                setToolbarFilters((current) => ({
+                  ...current,
+                  preventivoAccettato: value as BooleanFilterValue,
+                }))
+              }
+            >
+              <SelectTrigger className="h-8 w-34 text-xs">
+                <SelectValue placeholder="Preventivo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti</SelectItem>
+                <SelectItem value="yes">Accettato</SelectItem>
+                <SelectItem value="no">Non accettato</SelectItem>
+              </SelectContent>
+            </Select>
+          </ToolbarField>
+          <ToolbarField label="Chiamata">
+            <Select
+              value={toolbarFilters.chiamataPrenotata}
+              onValueChange={(value) =>
+                setToolbarFilters((current) => ({
+                  ...current,
+                  chiamataPrenotata: value as BooleanFilterValue,
+                }))
+              }
+            >
+              <SelectTrigger className="h-8 w-30 text-xs">
+                <SelectValue placeholder="Chiamata" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti</SelectItem>
+                <SelectItem value="yes">Sì</SelectItem>
+                <SelectItem value="no">No</SelectItem>
+              </SelectContent>
+            </Select>
+          </ToolbarField>
+          {filtersActive ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="mb-0.5 shrink-0"
+              title="Reset filtri"
+              aria-label="Reset filtri"
+              onClick={() => {
+                setDatePreset("custom")
+                setSearchQuery("")
+                setAppliedSearchQuery("")
+                setToolbarFilters(EMPTY_TOOLBAR_FILTERS)
+                setAppliedToolbarFilters(EMPTY_TOOLBAR_FILTERS)
+              }}
+            >
+              <XIcon className="size-3.5" />
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            size="icon-sm"
+            className="mb-0.5 shrink-0"
+            disabled={!hasPendingFilters}
+            title="Applica filtri"
+            aria-label="Applica filtri"
+            onClick={() => {
+              setAppliedSearchQuery(searchQuery)
+              setAppliedToolbarFilters(toolbarFilters)
+            }}
+          >
+            <CheckIcon className="size-3.5" />
+          </Button>
         </SectionHeader.Toolbar>
       </SectionHeader>
 
@@ -458,7 +872,6 @@ export function CrmPipelineFamiglieView() {
                         setIsDetailOpen(true)
                       }}
                       isDeferred={
-                        !isDeferredSearchActive &&
                         DEFERRED_STAGE_IDS.has(column.id) &&
                         !loadedClosedStageIds.has(column.id)
                       }
