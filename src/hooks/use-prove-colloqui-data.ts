@@ -2,6 +2,7 @@ import * as React from "react"
 
 import { flattenAttachmentLinks } from "@/components/shared-next/attachment-utils"
 import { normalizeLookupColors, normalizeLookupOptions } from "@/features/lavoratori/lib/lookup-utils"
+import { getRapportoProcessIds } from "@/features/rapporti/rapporti-processi"
 import {
   fetchFamiglie,
   fetchLavoratori,
@@ -82,7 +83,7 @@ const RAPPORTO_FIELDS = [
   "id",
   "famiglia_id",
   "lavoratore_id",
-  "processo_res",
+  "processi_matching_id",
   "cognome_nome_datore_proper",
   "nome_lavoratore_per_url",
   "data_inizio_rapporto",
@@ -253,20 +254,12 @@ function getCalendarDateKey(value: string | null | undefined) {
   return Number.isNaN(date.getTime()) ? null : toDateRangeValue(date)
 }
 
-function getStringArray(value: unknown) {
-  if (Array.isArray(value)) {
-    return value.map(toStringValue).filter((item): item is string => Boolean(item))
-  }
-  const singleValue = toStringValue(value)
-  return singleValue ? [singleValue] : []
-}
-
 function getProvaDedupKeys(card: ProvaCardData) {
   const dateKey = getCalendarDateKey(card.rapporto.data_inizio_rapporto)
   const workerId = toStringValue(card.rapporto.lavoratore_id) ?? toStringValue(card.lavoratore?.id)
   if (!dateKey || !workerId) return []
 
-  const keys = getStringArray(card.rapporto.processo_res).map(
+  const keys = getRapportoProcessIds(card.rapporto).map(
     (processId) => `process:${processId}:worker:${workerId}:date:${dateKey}`,
   )
   const familyId = toStringValue(card.rapporto.famiglia_id) ?? toStringValue(card.famiglia?.id)

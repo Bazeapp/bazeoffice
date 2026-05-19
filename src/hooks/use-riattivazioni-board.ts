@@ -98,7 +98,7 @@ const RIATTIVAZIONI_CHIUSURE_SELECT = [
   "allegato_compilato",
   "check_8_giorni_di_lavoro_svolti",
   "check_chiusura_istantanea",
-  "data_creazione",
+  "creato_il",
   "email",
   "informazioni_aggiuntive",
   "motivazione_cessazione_rapporto",

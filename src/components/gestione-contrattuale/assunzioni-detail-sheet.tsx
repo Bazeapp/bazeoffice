@@ -1919,7 +1919,7 @@ export function AssunzioniDetailSheet({
             select: ASSUNZIONE_DETAIL_SELECT,
             limit: 5,
             offset: 0,
-            orderBy: [{ field: "created", ascending: false }],
+            orderBy: [{ field: "creato_il", ascending: false }],
             filters: {
               kind: "group",
               id: `assunzioni-detail-datore-${currentCard.id}`,
@@ -1931,7 +1931,7 @@ export function AssunzioniDetailSheet({
             select: ASSUNZIONE_DETAIL_SELECT,
             limit: 5,
             offset: 0,
-            orderBy: [{ field: "created", ascending: false }],
+            orderBy: [{ field: "creato_il", ascending: false }],
             filters: {
               kind: "group",
               id: `assunzioni-detail-lavoratore-${currentCard.id}`,

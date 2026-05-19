@@ -18,6 +18,7 @@ import {
   type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
 import { fetchRichiesteAttivazioneByProcessIds } from "@/features/richieste-attivazione/api"
+import { getRapportoProcessIds } from "@/features/rapporti/rapporti-processi"
 import { normalizeLookupColors } from "@/features/lavoratori/lib/lookup-utils"
 import type {
   SupportTicketMetadata,
@@ -413,7 +414,8 @@ export function useRapportiLavorativiData(
       setSelectedRichiesteAttivazione([])
 
       try {
-        const processiFilter = buildIdsFilter(selectedRapporto.processo_res ?? [])
+        const processIds = getRapportoProcessIds(selectedRapporto)
+        const processiFilter = buildIdsFilter(processIds)
         const [famigliaResponse, lavoratoreResponse, processiResponse, chiusuraResponse] = await Promise.all([
           selectedRapporto.famiglia_id
             ? fetchFamiglie({
@@ -447,9 +449,7 @@ export function useRapportiLavorativiData(
         ])
 
         const processiRows = processiResponse.rows as ProcessoMatchingRecord[]
-        const richiesteByProcessId = await fetchRichiesteAttivazioneByProcessIds(
-          (selectedRapporto.processo_res ?? []).filter(Boolean)
-        )
+        const richiesteByProcessId = await fetchRichiesteAttivazioneByProcessIds(processIds)
         let nextFamiglia = (famigliaResponse.rows[0] as FamigliaRecord | undefined) ?? null
         let nextLavoratore = (lavoratoreResponse.rows[0] as LavoratoreRecord | undefined) ?? null
 

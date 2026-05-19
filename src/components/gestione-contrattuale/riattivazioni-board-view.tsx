@@ -285,7 +285,7 @@ function RiattivazioniDetailSheet({
                 Dettaglio riattivazione famiglia con stato, rapporto collegato e dati chiusura.
               </SheetDescription>
               <p className="mt-1 text-sm text-muted-foreground">
-                Chiusura creata il {formatDate(card?.record.data_creazione)}
+                Chiusura creata il {formatDate(card?.record.creato_il)}
               </p>
             </div>
 

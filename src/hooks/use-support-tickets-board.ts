@@ -340,7 +340,7 @@ const SUPPORT_CHIUSURE_SELECT = [
   "stato",
   "nome",
   "cognome",
-  "data_creazione",
+  "creato_il",
   "data_fine_rapporto",
   "email",
   "informazioni_aggiuntive",
@@ -480,7 +480,7 @@ function buildLinkedRecords(
         : titleBase,
       subtitle: chiusura?.motivazione_cessazione_rapporto ?? chiusura?.tipo_licenziamento ?? chiusura?.tipo_decesso ?? null,
       status: chiusura?.stato ?? null,
-      dateLabel: formatOptionalDateLabel(chiusura?.data_fine_rapporto ?? chiusura?.data_creazione),
+      dateLabel: formatOptionalDateLabel(chiusura?.data_fine_rapporto ?? chiusura?.creato_il),
       accent: "rose",
       record: chiusura,
     })

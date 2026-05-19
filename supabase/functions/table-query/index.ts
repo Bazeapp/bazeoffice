@@ -499,7 +499,7 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "paga_mensile_lorda",
     "paga_oraria_lorda",
     "preventivo_id",
-    "processo_res",
+    "processi_matching_id",
     "prova_data_checkin",
     "prova_feedback_famiglia",
     "prova_feedback_lavoratore",
@@ -804,6 +804,12 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
   ],
 };
 
+const FIELD_ALIASES: Partial<Record<SupportedTable, Record<string, string>>> = {
+  rapporti_lavorativi: {
+    processo_res: "processi_matching_id",
+  },
+};
+
 function badRequest(message: string) {
   return new Response(JSON.stringify({ error: message }), {
     status: 400,
@@ -821,6 +827,61 @@ function serverError(message: string) {
 function sanitizeFields(tableName: SupportedTable, fields: string[]) {
   const allowed = new Set(ALLOWED_FIELDS[tableName]);
   return fields.filter((field) => allowed.has(field));
+}
+
+function resolveFieldName(tableName: SupportedTable, field: string) {
+  return FIELD_ALIASES[tableName]?.[field] ?? field;
+}
+
+function resolveFields(tableName: SupportedTable, fields: string[]) {
+  return fields
+    .map((field) => resolveFieldName(tableName, field))
+    .filter((field, index, array) => array.indexOf(field) === index);
+}
+
+function resolveFilterFields(
+  tableName: SupportedTable,
+  group: FilterGroup | undefined,
+): FilterGroup | undefined {
+  if (!group) return undefined;
+
+  return {
+    ...group,
+    nodes: group.nodes.map((node) => {
+      if (node.kind === "condition") {
+        return {
+          ...node,
+          field: resolveFieldName(tableName, node.field),
+        };
+      }
+
+      return resolveFilterFields(tableName, node) ?? node;
+    }),
+  };
+}
+
+function applyResponseFieldAliases(
+  tableName: SupportedTable,
+  rows: Record<string, unknown>[],
+  requestedFields: string[],
+) {
+  const aliases = FIELD_ALIASES[tableName];
+  if (!aliases) return rows;
+
+  const requestedAliases = Object.entries(aliases).filter(([alias]) =>
+    requestedFields.includes(alias)
+  );
+  if (requestedAliases.length === 0) return rows;
+
+  return rows.map((row) => {
+    const nextRow = { ...row };
+    for (const [alias, resolvedField] of requestedAliases) {
+      if (alias in nextRow || !(resolvedField in nextRow)) continue;
+      const value = nextRow[resolvedField];
+      nextRow[alias] = value ? [value] : [];
+    }
+    return nextRow;
+  });
 }
 
 function isUuidLike(value: string) {
@@ -1735,9 +1796,10 @@ Deno.serve(async (req) => {
 
   const requestedFields = payload.select ?? [];
   const wantsAllFields = requestedFields.length === 0 || requestedFields.includes("*");
+  const resolvedRequestedFields = resolveFields(payload.table, requestedFields);
   const selectFields = wantsAllFields
     ? ALLOWED_FIELDS[payload.table]
-    : sanitizeFields(payload.table, requestedFields);
+    : sanitizeFields(payload.table, resolvedRequestedFields);
   const includeSchema = payload.includeSchema ?? true;
   const fallbackSchemaFields = includeSchema
     ? ALLOWED_FIELDS[payload.table]
@@ -1749,14 +1811,25 @@ Deno.serve(async (req) => {
 
   const limit = Math.max(1, Math.min(payload.limit ?? 200, MAX_QUERY_LIMIT));
   const offset = Math.max(0, payload.offset ?? 0);
-  const orderBy = Array.isArray(payload.orderBy) ? payload.orderBy : [];
+  const orderBy = Array.isArray(payload.orderBy)
+    ? payload.orderBy.map((item) => ({
+        ...item,
+        field: resolveFieldName(payload.table, item.field),
+      }))
+    : [];
   const search = String(payload.search ?? "").trim();
   const searchFields = Array.isArray(payload.searchFields)
-    ? payload.searchFields.filter((field) => typeof field === "string" && field.trim())
+    ? resolveFields(
+        payload.table,
+        payload.searchFields.filter((field) => typeof field === "string" && field.trim()),
+      )
     : undefined;
-  const filters = payload.filters;
+  const filters = resolveFilterFields(payload.table, payload.filters);
   const groupBy = Array.isArray(payload.groupBy)
-    ? payload.groupBy.filter((field) => typeof field === "string" && selectFields.includes(field))
+    ? resolveFields(
+        payload.table,
+        payload.groupBy.filter((field) => typeof field === "string" && field.trim()),
+      ).filter((field) => selectFields.includes(field))
     : [];
 
   const supabase = createClient(url, serviceRole, {
@@ -1804,7 +1877,11 @@ Deno.serve(async (req) => {
         throw new Error(error.message);
       }
 
-      const rows = (data ?? []) as Record<string, unknown>[];
+      const rows = applyResponseFieldAliases(
+        payload.table,
+        (data ?? []) as Record<string, unknown>[],
+        requestedFields,
+      );
       const columns = includeSchema ? inferColumnsFromRows(rows, fallbackSchemaFields) : [];
 
       return new Response(
@@ -1827,11 +1904,15 @@ Deno.serve(async (req) => {
       filters,
       lookupMetadata,
     );
-    const rows = await fetchAllRows(
-      supabase,
+    const rows = applyResponseFieldAliases(
       payload.table,
-      selectFields.join(","),
-      serverPrefilterConditions,
+      await fetchAllRows(
+        supabase,
+        payload.table,
+        selectFields.join(","),
+        serverPrefilterConditions,
+      ),
+      requestedFields,
     );
     const columns = includeSchema ? inferColumnsFromRows(rows, fallbackSchemaFields) : [];
     const fieldTypes = new Map<string, FilterFieldType>(

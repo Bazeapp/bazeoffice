@@ -13,6 +13,7 @@ import {
   fetchRichiesteAttivazioneByIds,
   fetchRichiesteAttivazioneByProcessIds,
 } from "@/features/richieste-attivazione/api"
+import { getRapportoProcessIds } from "@/features/rapporti/rapporti-processi"
 import type {
   FamigliaRecord,
   LookupValueRecord,
@@ -164,7 +165,7 @@ const ASSUNZIONI_RAPPORTI_SELECT = [
   "id_rapporto",
   "codice_datore_webcolf",
   "codice_dipendente_webcolf",
-  "processo_res",
+  "processi_matching_id",
   "preventivo_id",
   "richiesta_attivazione_id",
   "famiglia_id",
@@ -388,7 +389,7 @@ function resolveRichiestaAttivazioneForRapporto({
     if (richiestaByProcess) return richiestaByProcess
   }
 
-  for (const processId of rapporto.processo_res ?? []) {
+  for (const processId of getRapportoProcessIds(rapporto)) {
     const richiestaByProcess = richiesteByProcessId.get(processId)
     if (richiestaByProcess) return richiestaByProcess
   }
@@ -556,7 +557,7 @@ async function fetchAssunzioniByLinkedIds({
           select: ASSUNZIONI_RECORD_SELECT,
           limit: batch.length,
           offset: 0,
-          orderBy: [{ field: "created", ascending: false }],
+          orderBy: [{ field: "creato_il", ascending: false }],
           filters: {
             kind: "group",
             id: `assunzioni-records-datore-${index}`,
@@ -576,7 +577,7 @@ async function fetchAssunzioniByLinkedIds({
           select: ASSUNZIONI_RECORD_SELECT,
           limit: batch.length,
           offset: 0,
-          orderBy: [{ field: "created", ascending: false }],
+          orderBy: [{ field: "creato_il", ascending: false }],
           filters: {
             kind: "group",
             id: `assunzioni-records-lavoratore-${index}`,
@@ -598,7 +599,7 @@ async function fetchAssunzioniByLinkedIds({
           select: ASSUNZIONI_RECORD_SELECT,
           limit: batch.length * 5,
           offset: 0,
-          orderBy: [{ field: "created", ascending: false }],
+          orderBy: [{ field: "creato_il", ascending: false }],
           filters: {
             kind: "group",
             id: `assunzioni-records-famiglia-${index}`,
@@ -620,7 +621,7 @@ async function fetchAssunzioniByLinkedIds({
           select: ASSUNZIONI_RECORD_SELECT,
           limit: batch.length * 5,
           offset: 0,
-          orderBy: [{ field: "created", ascending: false }],
+          orderBy: [{ field: "creato_il", ascending: false }],
           filters: {
             kind: "group",
             id: `assunzioni-records-lavoratore-${index}`,
@@ -714,7 +715,7 @@ async function fetchAssunzioniBoardData({
   )
   const richiestaProcessIds = compactUnique([
     ...processRows.map((process) => process.id),
-    ...rapportiRows.flatMap((rapporto) => rapporto.processo_res ?? []),
+    ...rapportiRows.flatMap((rapporto) => getRapportoProcessIds(rapporto)),
     ...rapportiRows.flatMap((rapporto) => parseProcessRapportoIds(rapporto.id_rapporto)),
   ])
   const [
@@ -770,7 +771,7 @@ async function fetchAssunzioniBoardData({
     if (!processStage) continue
 
     const process =
-      (linkedRapporto.processo_res ?? [])
+      getRapportoProcessIds(linkedRapporto)
         .map((processId) => processById.get(processId) ?? null)
         .find((record): record is ProcessoMatchingRecord => Boolean(record)) ??
       parseProcessRapportoIds(linkedRapporto.id_rapporto)

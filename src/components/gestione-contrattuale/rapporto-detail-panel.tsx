@@ -237,7 +237,7 @@ function sanitizeFileName(name: string) {
     .replace(/-+/g, "-")
 }
 
-function buildDistributionItems(source: string | null, totalHours: number | null) {
+function buildDistributionItems(source: string | null) {
   const days = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
   const hourMatches = source?.match(/(\d+(?:[.,]\d+)?)h?/g) ?? []
   const parsed = hourMatches.map((item) => Number.parseFloat(item.replace("h", "").replace(",", ".")))
@@ -249,16 +249,7 @@ function buildDistributionItems(source: string | null, totalHours: number | null
     }))
   }
 
-  if (typeof totalHours !== "number" || !Number.isFinite(totalHours)) {
-    return days.map((day) => ({ day, value: "-" }))
-  }
-
-  const base = Math.floor(totalHours / 7)
-  const remainder = Math.round(totalHours - base * 7)
-  return days.map((day, index) => ({
-    day,
-    value: `${base + (index < remainder ? 1 : 0)}h`,
-  }))
+  return days.map((day) => ({ day, value: "-" }))
 }
 
 function getDurationLabel(startDate: string | null, endDate: string | null = null) {
@@ -533,6 +524,7 @@ function buildRapportoDraft(rapporto: RapportoLavorativoRecord | null | undefine
     tipo_rapporto: rapporto?.tipo_rapporto ?? "",
     ore_a_settimana:
       typeof rapporto?.ore_a_settimana === "number" ? String(rapporto.ore_a_settimana) : "",
+    distribuzione_ore_settimana: rapporto?.distribuzione_ore_settimana ?? "",
     data_inizio_rapporto: rapporto?.data_inizio_rapporto ?? "",
     stato_assunzione: rapporto?.stato_assunzione ?? "",
     relazione_lavorativa: rapporto?.relazione_lavorativa ?? "",
@@ -767,6 +759,7 @@ export function RapportoDetailPanel({
       tipo_contratto: rapportoDraft.tipo_contratto || null,
       tipo_rapporto: rapportoDraft.tipo_rapporto || null,
       ore_a_settimana: rapportoDraft.ore_a_settimana ? Number(rapportoDraft.ore_a_settimana) : null,
+      distribuzione_ore_settimana: rapportoDraft.distribuzione_ore_settimana || null,
       data_inizio_rapporto: rapportoDraft.data_inizio_rapporto || null,
       stato_assunzione: rapportoDraft.stato_assunzione || null,
       relazione_lavorativa: rapportoDraft.relazione_lavorativa || null,
@@ -865,10 +858,7 @@ export function RapportoDetailPanel({
   const workerEmail = firstAvailableText(lavoratore?.email)
   const workerPhone = firstAvailableText(lavoratore?.telefono)
   const relationshipTitle = getRapportoTitle(rapportoView, { famiglia, lavoratore })
-  const distributionItems = buildDistributionItems(
-    rapportoView.distribuzione_ore_settimana,
-    rapportoView.ore_a_settimana
-  )
+  const distributionItems = buildDistributionItems(rapportoView.distribuzione_ore_settimana)
   const rapportoMetadata =
     rapportoView.metadati_migrazione && typeof rapportoView.metadati_migrazione === "object"
       ? rapportoView.metadati_migrazione
@@ -1123,14 +1113,6 @@ export function RapportoDetailPanel({
                         </SelectContent>
                       </Select>
                     </DetailFieldControl>
-                    <DetailFieldControl label="Ore settimanali">
-                      <Input
-                        type="number"
-                        value={rapportoDraft.ore_a_settimana}
-                        readOnly
-                        onChange={(event) => setDraftValue("ore_a_settimana", event.target.value)}
-                      />
-                    </DetailFieldControl>
                     <DetailFieldControl label="Data inizio">
                       <Input
                         type="date"
@@ -1191,6 +1173,52 @@ export function RapportoDetailPanel({
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                {editingSection === "contratto" ? (
+                  <>
+                    <DetailFieldControl label="Distribuzione ore settimanali">
+                      <div className="space-y-2">
+                        <p className="ui-type-meta">Parte da domenica</p>
+                        <Input
+                          value={rapportoDraft.distribuzione_ore_settimana}
+                          placeholder="0-0-0-0-0-0-0"
+                          onChange={(event) =>
+                            setDraftValue("distribuzione_ore_settimana", event.target.value)
+                          }
+                        />
+                      </div>
+                    </DetailFieldControl>
+                    <DetailFieldControl label="Ore di lavoro a settimana">
+                      <div className="space-y-2">
+                        <p className="ui-type-meta invisible" aria-hidden="true">
+                          Parte da domenica
+                        </p>
+                        <Input
+                          type="number"
+                          value={rapportoDraft.ore_a_settimana}
+                          onChange={(event) => setDraftValue("ore_a_settimana", event.target.value)}
+                        />
+                      </div>
+                    </DetailFieldControl>
+                  </>
+                ) : (
+                  <>
+                    <DetailField
+                      label="Distribuzione ore settimanali"
+                      value={rapportoView.distribuzione_ore_settimana ?? "-"}
+                    />
+                    <DetailField
+                      label="Ore di lavoro a settimana"
+                      value={
+                        typeof rapportoView.ore_a_settimana === "number"
+                          ? `${rapportoView.ore_a_settimana}`
+                          : "-"
+                      }
+                    />
+                  </>
+                )}
               </div>
 
               <Separator className="bg-border/60" />

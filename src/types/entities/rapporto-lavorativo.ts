@@ -21,7 +21,8 @@ export type RapportoLavorativoRecord = {
   paga_mensile_lorda: number | null
   paga_oraria_lorda: number | null
   preventivo_id: string | null
-  processo_res: string[] | null
+  processi_matching_id: string | null
+  processo_res?: string[] | string | null
   prova_data_checkin: string | null
   prova_feedback_famiglia: string | null
   prova_feedback_lavoratore: string | null

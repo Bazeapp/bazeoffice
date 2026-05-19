@@ -276,7 +276,7 @@ function ChiusureDetailSheet({
                 Dettaglio pratica di chiusura con stato, riepilogo rapporto e allegati.
               </SheetDescription>
               <p className="text-muted-foreground mt-1 text-sm">
-                Creata il {formatDate(card?.record.data_creazione)}
+                Creata il {formatDate(card?.record.creato_il)}
               </p>
             </div>
 

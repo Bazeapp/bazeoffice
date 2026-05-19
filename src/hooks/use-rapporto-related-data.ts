@@ -15,6 +15,7 @@ import {
 } from "@/lib/anagrafiche-api"
 import { fetchRichiesteAttivazioneByProcessIds } from "@/features/richieste-attivazione/api"
 import { normalizeLookupColors } from "@/features/lavoratori/lib/lookup-utils"
+import { getRapportoProcessIds } from "@/features/rapporti/rapporti-processi"
 import type {
   ChiusuraContrattoRecord,
   ContributoInpsRecord,
@@ -169,7 +170,8 @@ export function useRapportoRelatedData(
       setError(null)
 
       try {
-        const processiFilter = buildIdsFilter(rapporto.processo_res ?? [])
+        const processIds = getRapportoProcessIds(rapporto)
+        const processiFilter = buildIdsFilter(processIds)
         const [
           famigliaResponse,
           lavoratoreResponse,
@@ -265,7 +267,7 @@ export function useRapportoRelatedData(
                 filters: buildAnyOfFilter("id", presenzaIds),
               })
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
-          fetchRichiesteAttivazioneByProcessIds((rapporto.processo_res ?? []).filter(Boolean)),
+          fetchRichiesteAttivazioneByProcessIds(processIds),
         ])
 
         if (!isActive) return
