@@ -35,42 +35,23 @@ export function CreazioneAnnuncioCard({
   defaultOpen?: boolean;
 }) {
   const [isGenerating, setIsGenerating] = React.useState(false);
-  const [isGeneratingSeo, setIsGeneratingSeo] = React.useState(false);
-  const [hasRequestedSeo, setHasRequestedSeo] = React.useState(false);
   const normalizedBrief = brief?.trim() || "";
 
-  const handleGenerate = React.useCallback(() => {
+  const handleCreateAnnouncement = React.useCallback(async () => {
     if (!processId) {
       toast.error("Il processo non ha un id associato");
       return;
     }
     setIsGenerating(true);
     try {
+      await runAutomationWebhook("workflow-create-whatsapp-text", processId);
+      toast.success("Workflow annuncio avviato");
+    } catch (error) {
       toast.error(
-        "Webhook creazione annuncio non configurato: serve l'automazione Webflow/WhatsApp lato backend.",
+        error instanceof Error ? error.message : "Errore avvio workflow annuncio",
       );
     } finally {
       setIsGenerating(false);
-    }
-  }, [processId]);
-
-  const handleGenerateSeo = React.useCallback(async () => {
-    if (!processId) {
-      toast.error("Il processo non ha un id associato");
-      return;
-    }
-
-    setIsGeneratingSeo(true);
-    try {
-      await runAutomationWebhook("workflow-create-job-offer-seo", processId);
-      setHasRequestedSeo(true);
-      toast.success("Workflow SEO e slug avviato");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Errore avvio workflow SEO e slug",
-      );
-    } finally {
-      setIsGeneratingSeo(false);
     }
   }, [processId]);
 
@@ -98,40 +79,17 @@ export function CreazioneAnnuncioCard({
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">SEO e slug Webflow</p>
-                    <p className="text-muted-foreground text-sm">
-                      Genera titolo SEO, descrizione SEO e slug della job offer.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    type="button"
-                    disabled={isGeneratingSeo}
-                    onClick={() => void handleGenerateSeo()}
-                  >
-                    {isGeneratingSeo ? (
-                      <LoaderCircleIcon className="animate-spin" />
-                    ) : (
-                      <WandSparklesIcon />
-                    )}
-                    {isGeneratingSeo ? "Generazione in corso..." : "Crea SEO e slug"}
-                  </Button>
-                </div>
-
-                <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1">
                     <p className="text-sm font-medium">Workflow annuncio</p>
                     <p className="text-muted-foreground text-sm">
-                      Pubblica su Webflow e genera il testo WhatsApp finale dopo SEO e slug.
+                      Genera SEO, slug e testo WhatsApp per l'annuncio.
                     </p>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     type="button"
-                    disabled={isGenerating || !hasRequestedSeo}
-                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    onClick={() => void handleCreateAnnouncement()}
                   >
                     {isGenerating ? (
                       <LoaderCircleIcon className="animate-spin" />

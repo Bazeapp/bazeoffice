@@ -9,6 +9,7 @@ import {
   CopyIcon,
   CreditCardIcon,
   ExternalLinkIcon,
+  EyeIcon,
   FileTextIcon,
   LoaderCircleIcon,
   MessageSquareTextIcon,
@@ -19,7 +20,7 @@ import {
 import { usePayrollBoard, type PayrollBoardCardData, type PayrollBoardColumnData } from "@/hooks/use-payroll-board"
 import { ContributiInpsView } from "@/components/payroll/contributi-inps-view"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
-import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
+import { flattenAttachmentLinks, type AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
   KanbanColumnShell,
@@ -63,6 +64,27 @@ type PayrollMetric = {
 }
 
 const MAKE_TRANSACTION_WEBHOOK_URL = "https://hook.eu1.make.com/wp7qdoft5vc11zbgh91trjm7d17zj4jm"
+
+function getGoogleDriveFileId(url: string) {
+  const filePathMatch = url.match(/\/file\/d\/([^/?#]+)/)
+  if (filePathMatch?.[1]) return filePathMatch[1]
+
+  try {
+    const parsedUrl = new URL(url)
+    return parsedUrl.searchParams.get("id")
+  } catch {
+    return null
+  }
+}
+
+function toInlineDocumentUrl(url: string) {
+  const driveFileId = getGoogleDriveFileId(url)
+  if (driveFileId && url.includes("drive.google.com")) {
+    return `https://drive.google.com/file/d/${driveFileId}/preview`
+  }
+
+  return url
+}
 
 function buildPayrollMetrics(columns: PayrollBoardColumnData[]): PayrollMetric[] {
   const cards = columns.flatMap((column) => column.cards)
@@ -468,6 +490,16 @@ export function CedolinoDetailSheet({
   const [runningAutomationId, setRunningAutomationId] = React.useState<string | null>(null)
   const [uploadingCedolino, setUploadingCedolino] = React.useState(false)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
+  const [showCedolinoPreview, setShowCedolinoPreview] = React.useState(false)
+  const cedolinoPreviewUrl = React.useMemo(() => {
+    const attachmentUrl = flattenAttachmentLinks(card?.record.cedolino, "Cedolino")[0]?.url
+    const sourceUrl = attachmentUrl ?? card?.record.cedolino_url?.trim()
+    return sourceUrl ? toInlineDocumentUrl(sourceUrl) : null
+  }, [card?.record.cedolino, card?.record.cedolino_url])
+
+  React.useEffect(() => {
+    setShowCedolinoPreview(false)
+  }, [card?.id])
 
   const handleRunPagamentoAutomation = React.useCallback(
     async (
@@ -703,6 +735,26 @@ export function CedolinoDetailSheet({
                   onPreviewOpen={openAttachmentPreview}
                   isUploading={uploadingCedolino}
                 />
+                <div className="space-y-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!cedolinoPreviewUrl}
+                    onClick={() => setShowCedolinoPreview((current) => !current)}
+                  >
+                    <EyeIcon />
+                    {showCedolinoPreview ? "Nascondi cedolino" : "Vedi cedolino in pagina"}
+                  </Button>
+                  {showCedolinoPreview && cedolinoPreviewUrl ? (
+                    <div className="overflow-hidden rounded-lg border bg-surface">
+                      <iframe
+                        src={cedolinoPreviewUrl}
+                        title="Anteprima cedolino"
+                        className="h-[min(72vh,760px)] w-full"
+                      />
+                    </div>
+                  ) : null}
+                </div>
                 {uploadError ? (
                   <p className="text-xs font-medium text-red-600">{uploadError}</p>
                 ) : null}

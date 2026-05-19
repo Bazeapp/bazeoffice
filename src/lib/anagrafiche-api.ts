@@ -888,6 +888,7 @@ export type AutomationWebhookId =
   | "finance-invoice-payment"
   | "workflow-smart-matching"
   | "workflow-create-job-offer-seo"
+  | "workflow-create-whatsapp-text"
   | "workflow-create-rapporto-after-match"
 
 type RunAutomationWebhookResponse = {

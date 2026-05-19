@@ -93,7 +93,7 @@ const AUTO_UPDATED_AT_FIELD: Record<SupportedTable, string> = {
 
 const CREATE_RAPPORTO_TARGET_STATUSES = new Set(["prova schedulata"]);
 const CREATE_RAPPORTO_AFTER_MATCH_WEBHOOK_URL =
-  "https://hook.eu1.make.com/aq1sq4aa3tc6ujccbqq9dodx9pt3uxni";
+  "https://hook.eu1.make.com/a9ypx6tn63mtik4nycuvhjvfz6qibgy9";
 
 function badRequest(message: string) {
   return new Response(JSON.stringify({ error: message }), {
@@ -182,7 +182,7 @@ function normalizeLookupBackedValue(
 }
 
 async function normalizeLookupBackedPatch(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   table: SupportedTable,
   patch: Record<string, unknown>
 ) {
@@ -262,11 +262,123 @@ function validateAndNormalizeFamilyContactPatch(patch: Record<string, unknown>) 
   return null;
 }
 
+function toDisplayText(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => toTrimmedText(item))
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  return toTrimmedText(value);
+}
+
+function hasDisplayText(value: unknown) {
+  return Boolean(toDisplayText(value));
+}
+
+function equalsDisplayText(value: unknown, expected: string) {
+  return toDisplayText(value).toLowerCase() === expected.toLowerCase();
+}
+
+function buildSeoPositionLabel(
+  processRow: Record<string, unknown>,
+  addressRow: Record<string, unknown> | null
+) {
+  return [
+    toTrimmedText(addressRow?.indirizzo_formattato),
+    toTrimmedText(processRow.indirizzo_prova_via),
+    toTrimmedText(processRow.indirizzo_prova_civico),
+    toTrimmedText(addressRow?.citta) ||
+      toTrimmedText(processRow.indirizzo_prova_comune),
+    toTrimmedText(addressRow?.cap) ||
+      toTrimmedText(processRow.indirizzo_prova_cap),
+  ]
+    .filter(Boolean)
+    .join(" - ");
+}
+
+function buildAnnouncementDescription(
+  processRow: Record<string, unknown>,
+  addressRow: Record<string, unknown> | null
+) {
+  const tipoRapporto = toDisplayText(processRow.tipo_rapporto);
+  const provincia =
+    toTrimmedText(addressRow?.provincia) ||
+    toTrimmedText(processRow.indirizzo_prova_provincia);
+  const riferimentoPubblico =
+    toTrimmedText(addressRow?.indirizzo_formattato) ||
+    toTrimmedText(addressRow?.citta) ||
+    toTrimmedText(processRow.indirizzo_prova_comune);
+  const cap =
+    toTrimmedText(addressRow?.cap) ||
+    toTrimmedText(processRow.indirizzo_prova_cap);
+  const descrizioneGiorniRiposo = toDisplayText(
+    processRow.descrizione_richiesta_giorni_riposo
+  );
+  const descrizioneTrasferte = toDisplayText(
+    processRow.descrizione_richiesta_trasferte
+  );
+  const descrizioneFerie = toDisplayText(processRow.descrizione_richiesta_ferie);
+  const pagaOraria = toDisplayText(processRow.paga_oraria);
+  const descrizioneAnimali = toDisplayText(processRow.descrizione_animali_in_casa);
+  const patente = toDisplayText(processRow.patente);
+
+  let description =
+    `Il cliente è alla ricerca di una ${toDisplayText(processRow.tipo_lavoro)} ` +
+    `per un rapporto di lavoro ${tipoRapporto}, idealmente dovrebbe lavorare di ` +
+    `${toDisplayText(processRow.momento_disponibilita)}, nell'orario specifico ` +
+    `${toDisplayText(processRow.orario_di_lavoro)}.\n\n` +
+    `☀️Sono richiesti ${toDisplayText(processRow.numero_giorni_settimanali)} ` +
+    `giorni di lavoro a settimana, per un totale di ${toDisplayText(processRow.ore_settimanale)} ` +
+    `ore settimanali.`;
+
+  if (equalsDisplayText(processRow.tipo_rapporto, "Convivente")) {
+    description += descrizioneGiorniRiposo;
+  }
+
+  description +=
+    `\n\n📍 La posizione lavorativa è a ${provincia}, con precisione in ${riferimentoPubblico} ` +
+    `nel CAP ${cap}.` +
+    `\n\n💪 Le mansioni richieste nello specifico sono: \n${toDisplayText(processRow.mansioni_richieste)}` +
+    `\n Altri aspetti importanti da considerare: \n${toDisplayText(processRow.descrizione_lavoratore_ideale)}` +
+    `\n\n🏡 Ecco una descrizione della casa: \n${toDisplayText(processRow.descrizione_casa)} ` +
+    `La casa è di ${toDisplayText(processRow.metratura_casa)} metri quadri.` +
+    `\n\n👨‍👩‍👧 Il nucleo familiare presente in casa è: \n${toDisplayText(processRow.nucleo_famigliare)}` +
+    `\n\nEcco una descrizione del contesto della famiglia: \n${toDisplayText(processRow.appunti_generali_sul_cliente)}`;
+
+  description += descrizioneAnimali
+    ? `\n🐾 In casa ci sono animali: ${descrizioneAnimali}`
+    : "\n🐾 Non ci sono animali in casa.";
+
+  if (patente) {
+    description += `\n🚗${patente}.`;
+  }
+
+  description += pagaOraria === "-"
+    ? ` \n\n💰 La paga netta mensile è di ${toDisplayText(processRow.paga_mensile)}.`
+    : ` \n\n💰 La paga netta oraria è di ${pagaOraria}, per un netto mensile  di ${
+      toDisplayText(processRow.paga_mensile)
+    }.`;
+
+  if (
+    hasDisplayText(processRow.descrizione_richiesta_trasferte) ||
+    hasDisplayText(processRow.descrizione_richiesta_ferie)
+  ) {
+    description +=
+      ` Dettagli extra: \n\n✈️ Trasferte: ${descrizioneTrasferte}` +
+      `\n\n🥱 Giorni di riposo: ${descrizioneGiorniRiposo}` +
+      `\n\n🏝 Ferie: ${descrizioneFerie}.`;
+  }
+
+  return description;
+}
+
 async function runCreateRapportoAfterMatchAutomation(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   row: Record<string, unknown>
 ) {
-  const recordId =
+  const selezioneRecordId =
     typeof row.id === "string" && row.id.trim()
       ? row.id.trim()
       : null;
@@ -274,34 +386,44 @@ async function runCreateRapportoAfterMatchAutomation(
     typeof row.processo_matching_id === "string" && row.processo_matching_id.trim()
       ? row.processo_matching_id.trim()
       : null;
-  const lavoratoreId =
-    typeof row.lavoratore_id === "string" && row.lavoratore_id.trim()
-      ? row.lavoratore_id.trim()
-      : null;
-  const statoSelezione =
-    typeof row.stato_selezione === "string" && row.stato_selezione.trim()
-      ? row.stato_selezione.trim()
-      : null;
 
-  if (!recordId) {
-    throw new Error("Missing record_id for post-match workflow");
+  if (!selezioneRecordId) {
+    throw new Error("Missing selezione_lavoratori id for post-match workflow");
   }
 
   if (!processoMatchingId) {
     throw new Error("Missing processo_matching_id for post-match workflow");
   }
 
-  if (!lavoratoreId) {
-    throw new Error("Missing lavoratore_id for post-match workflow");
-  }
-
-  if (!statoSelezione) {
-    throw new Error("Missing stato_selezione for post-match workflow");
-  }
-
   const { data: processRow, error: processError } = await supabase
     .from("processi_matching")
-    .select("famiglia_id")
+    .select(`
+      id,
+      tipo_lavoro,
+      tipo_rapporto,
+      momento_disponibilita,
+      orario_di_lavoro,
+      numero_giorni_settimanali,
+      ore_settimanale,
+      descrizione_richiesta_giorni_riposo,
+      indirizzo_prova_provincia,
+      indirizzo_prova_via,
+      indirizzo_prova_civico,
+      indirizzo_prova_comune,
+      indirizzo_prova_cap,
+      mansioni_richieste,
+      descrizione_lavoratore_ideale,
+      descrizione_casa,
+      metratura_casa,
+      nucleo_famigliare,
+      appunti_generali_sul_cliente,
+      descrizione_animali_in_casa,
+      patente,
+      paga_oraria,
+      paga_mensile,
+      descrizione_richiesta_trasferte,
+      descrizione_richiesta_ferie
+    `)
     .eq("id", processoMatchingId)
     .maybeSingle();
 
@@ -309,28 +431,59 @@ async function runCreateRapportoAfterMatchAutomation(
     throw new Error(processError.message);
   }
 
-  const famigliaId =
-    processRow &&
-    typeof processRow.famiglia_id === "string" &&
-    processRow.famiglia_id.trim()
-      ? processRow.famiglia_id.trim()
-      : null;
-
-  if (!famigliaId) {
-    throw new Error("Missing famiglia_id for post-match workflow");
+  if (!processRow) {
+    throw new Error("Processo non trovato");
   }
 
-  const response = await fetch(CREATE_RAPPORTO_AFTER_MATCH_WEBHOOK_URL, {
+  const { data: addressRow, error: addressError } = await supabase
+    .from("indirizzi")
+    .select("cap, citta, provincia, indirizzo_formattato")
+    .eq("entita_tabella", "processi_matching")
+    .eq("entita_id", processoMatchingId)
+    .in("tipo_indirizzo", ["luogo", "prova"])
+    .order("tipo_indirizzo", { ascending: true })
+    .order("aggiornato_il", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (addressError) {
+    throw new Error(addressError.message);
+  }
+
+  const typedProcessRow = processRow as Record<string, unknown>;
+  const typedAddressRow = addressRow as Record<string, unknown> | null;
+  const provincia =
+    toTrimmedText(typedAddressRow?.provincia) ||
+    toTrimmedText(typedProcessRow.indirizzo_prova_provincia);
+
+  const webhookUrl = new URL(CREATE_RAPPORTO_AFTER_MATCH_WEBHOOK_URL);
+  webhookUrl.searchParams.set("record_id", processoMatchingId);
+
+  const response = await fetch(webhookUrl.toString(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      record_id: recordId,
-      lavoratore_id: lavoratoreId,
-      famiglia_id: famigliaId,
-      stato_selezione: statoSelezione,
-      processo_matching_id: processoMatchingId,
+      record_id: processoMatchingId,
+      processo_res_id: processoMatchingId,
+      descrizione_ricerca_famiglia: buildAnnouncementDescription(
+        typedProcessRow,
+        typedAddressRow
+      ),
+      tipo_lavoro: Array.isArray(typedProcessRow.tipo_lavoro)
+        ? typedProcessRow.tipo_lavoro
+        : [],
+      tipo_rapporto: Array.isArray(typedProcessRow.tipo_rapporto)
+        ? typedProcessRow.tipo_rapporto
+        : [],
+      orario_di_lavoro: toTrimmedText(typedProcessRow.orario_di_lavoro),
+      paga_oraria: toTrimmedText(typedProcessRow.paga_oraria),
+      provincia,
+      posizione_specifica_lavoro: buildSeoPositionLabel(
+        typedProcessRow,
+        typedAddressRow
+      ),
     }),
   });
 

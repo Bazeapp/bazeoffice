@@ -322,6 +322,17 @@ export function CrmPipelineFamiglieView() {
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [isDetailOpen, setIsDetailOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
+  const isSearchActive = searchQuery.trim().length > 0
+
+  React.useEffect(() => {
+    if (!isSearchActive) return
+
+    for (const stageId of DEFERRED_STAGE_IDS) {
+      if (!loadedClosedStageIds.has(stageId)) {
+        loadClosedStage(stageId)
+      }
+    }
+  }, [isSearchActive, loadClosedStage, loadedClosedStageIds])
 
   const filteredColumns = React.useMemo(() => {
     const mappedColumns = columns.map((column) => {
@@ -342,8 +353,6 @@ export function CrmPipelineFamiglieView() {
         )
       )
 
-      const isSearchActive = searchQuery.trim().length > 0
-
       return {
         ...column,
         totalCount: isSearchActive ? filteredCards.length : column.totalCount,
@@ -352,7 +361,7 @@ export function CrmPipelineFamiglieView() {
     })
 
     return mappedColumns
-  }, [columns, searchQuery])
+  }, [columns, isSearchActive, searchQuery])
 
   const totalRicerche = React.useMemo(
     () =>
