@@ -90,6 +90,8 @@ type OnboardingDecisioneLavoroDefaults = {
 
 const REQUIRED_FIELD_CLASS =
   "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/30";
+const AGE_MIN = 18;
+const AGE_MAX = 99;
 
 export type OnboardingDecisioneLavoroSectionKey =
   | "famiglia"
@@ -115,6 +117,10 @@ function clampNumberInRange(value: string, min: number, max: number) {
   const parsed = Number.parseInt(digits, 10);
   if (Number.isNaN(parsed)) return "";
   return String(Math.max(min, Math.min(parsed, max)));
+}
+
+function normalizeAgeInput(value: string) {
+  return clampNumberInRange(value, AGE_MIN, AGE_MAX);
 }
 
 function normalizeGenderValue(value: string | null | undefined): "donna" | "uomo" | "indifferente" | "" {
@@ -379,10 +385,10 @@ export function OnboardingDecisioneLavoroSection({
   const [informazioniExtraRiservate, setInformazioniExtraRiservate] =
     React.useState(toInputValue(defaults?.informazioniExtraRiservate));
   const [etaMin, setEtaMin] = React.useState(
-    clampNumberInRange(toInputValue(defaults?.etaMinima), 20, 80),
+    normalizeAgeInput(toInputValue(defaults?.etaMinima)),
   );
   const [etaMax, setEtaMax] = React.useState(
-    clampNumberInRange(toInputValue(defaults?.etaMassima), 20, 80),
+    normalizeAgeInput(toInputValue(defaults?.etaMassima)),
   );
   const [genere, setGenere] = React.useState<"donna" | "uomo" | "indifferente" | "">(
     normalizeGenderValue(defaults?.sesso),
@@ -503,8 +509,8 @@ export function OnboardingDecisioneLavoroSection({
     setInformazioniExtraRiservate(
       toInputValue(defaults?.informazioniExtraRiservate),
     );
-    setEtaMin(clampNumberInRange(toInputValue(defaults?.etaMinima), 20, 80));
-    setEtaMax(clampNumberInRange(toInputValue(defaults?.etaMassima), 20, 80));
+    setEtaMin(normalizeAgeInput(toInputValue(defaults?.etaMinima)));
+    setEtaMax(normalizeAgeInput(toInputValue(defaults?.etaMassima)));
     setNazionalitaEscluse(normalizeStringArray(defaults?.nazionalitaEscluse));
     setNazionalitaObbligatorie(
       normalizeStringArray(defaults?.nazionalitaObbligatorie),
@@ -1049,15 +1055,15 @@ export function OnboardingDecisioneLavoroSection({
               id="onboarding-eta-min"
               type="number"
               inputMode="numeric"
-              min={20}
-              max={80}
+              min={AGE_MIN}
+              max={AGE_MAX}
               value={etaMin}
-              onChange={(event) =>
-                setEtaMin(clampNumberInRange(event.target.value, 20, 80))
-              }
-              placeholder="20"
+              onChange={(event) => setEtaMin(numbersOnly(event.target.value))}
+              placeholder="24"
               onBlur={() => {
-                void patchProcess({ eta_minima: etaMin || null });
+                const normalized = normalizeAgeInput(etaMin);
+                setEtaMin(normalized);
+                void patchProcess({ eta_minima: normalized || null });
               }}
             />
           </Field>
@@ -1067,15 +1073,15 @@ export function OnboardingDecisioneLavoroSection({
               id="onboarding-eta-max"
               type="number"
               inputMode="numeric"
-              min={20}
-              max={80}
+              min={AGE_MIN}
+              max={AGE_MAX}
               value={etaMax}
-              onChange={(event) =>
-                setEtaMax(clampNumberInRange(event.target.value, 20, 80))
-              }
-              placeholder="80"
+              onChange={(event) => setEtaMax(numbersOnly(event.target.value))}
+              placeholder="60"
               onBlur={() => {
-                void patchProcess({ eta_massima: etaMax || null });
+                const normalized = normalizeAgeInput(etaMax);
+                setEtaMax(normalized);
+                void patchProcess({ eta_massima: normalized || null });
               }}
             />
           </Field>

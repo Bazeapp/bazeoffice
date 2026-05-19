@@ -83,6 +83,7 @@ type OnboardingCardProps = {
   readOnly?: boolean;
   flattenSections?: boolean;
   requiredMissingFields?: string[];
+  privateAreaUrl?: string;
   sectionContainerProps?: Partial<
     Record<OnboardingFlatSectionKey, React.ComponentProps<"div">>
   >;
@@ -351,6 +352,7 @@ export function OnboardingCard({
   readOnly = false,
   flattenSections = false,
   requiredMissingFields = [],
+  privateAreaUrl = "",
   sectionContainerProps,
   onPatchProcess,
   onPatchAddress,
@@ -812,6 +814,14 @@ export function OnboardingCard({
                 openButtonLabel="Vai al link"
                 onCopy={copyToClipboard}
               />
+              <CopyableUrlField
+                label="Link area privata"
+                value={privateAreaUrl}
+                copyLabel="Link area privata"
+                copyButtonLabel="Copia link"
+                openButtonLabel="Vai al link"
+                onCopy={copyToClipboard}
+              />
               <DetailField label="URL origine" value={displayText(card?.origineUrl)} />
             </DetailSectionBlock>
           </div>
@@ -1221,6 +1231,14 @@ export function OnboardingCard({
             openButtonLabel="Vai al link"
             onCopy={copyToClipboard}
           />
+          <CopyableUrlField
+            label="Link area privata"
+            value={privateAreaUrl}
+            copyLabel="Link area privata"
+            copyButtonLabel="Copia link"
+            openButtonLabel="Vai al link"
+            onCopy={copyToClipboard}
+          />
           <Field>
             <div className="mb-1 flex items-center gap-2">
               <FieldLabel>URL origine</FieldLabel>
@@ -1604,6 +1622,14 @@ export function OnboardingCard({
                 label="Link preventivo"
                 value={preventivoAcceptanceUrl}
                 copyLabel="Link preventivo"
+                copyButtonLabel="Copia link"
+                openButtonLabel="Vai al link"
+                onCopy={copyToClipboard}
+              />
+              <CopyableUrlField
+                label="Link area privata"
+                value={privateAreaUrl}
+                copyLabel="Link area privata"
                 copyButtonLabel="Copia link"
                 openButtonLabel="Vai al link"
                 onCopy={copyToClipboard}

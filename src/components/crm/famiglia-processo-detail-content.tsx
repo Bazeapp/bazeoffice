@@ -53,6 +53,7 @@ import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview"
+import { buildFamilyPrivateAreaUrl } from "@/lib/private-area-url"
 
 type SidebarSectionTab = {
   id: OnboardingFlatSectionKey | "creazione-annuncio"
@@ -786,6 +787,7 @@ export function FamigliaProcessoDetailContent({
   ].filter((groupKey) => (groupedStageOptions[groupKey] ?? []).length > 0)
   const tipoLavoroOptions = lookupOptionsByField.tipo_lavoro ?? []
   const tipoRapportoOptions = lookupOptionsByField.tipo_rapporto ?? []
+  const privateAreaUrl = buildFamilyPrivateAreaUrl(card?.email, card?.famigliaId)
   const canEditFamilyHeader =
     !readOnly &&
     Boolean(onPatchFamily) &&
@@ -1143,6 +1145,7 @@ export function FamigliaProcessoDetailContent({
             showRichiesteSpecifiche={showRichiesteSpecifiche}
             showTempistiche={showTempistiche}
             requiredMissingFields={announcementMissingFields}
+            privateAreaUrl={privateAreaUrl ?? ""}
             sectionTitleAction={onboardingEditAction}
             sectionsCollapsible={blocksCollapsible}
             firstSectionDefaultOpen={firstBlockDefaultOpen}

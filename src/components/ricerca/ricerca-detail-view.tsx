@@ -56,6 +56,7 @@ import {
   fetchProcessiMatching,
   updateRecord,
 } from "@/lib/anagrafiche-api";
+import { buildFamilyPrivateAreaUrl } from "@/lib/private-area-url";
 import { cn } from "@/lib/utils";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { toast } from "sonner";
@@ -112,8 +113,6 @@ type ExtendedCardData = CrmPipelineCardData &
     descrizioneCasa: string;
     metraturaCasa: string;
     descrizioneAnimaliInCasa: string;
-    codiceOtp: string;
-    areaPrivataUrl: string;
     informazioniExtraRiservate: string;
     etaMinima: string;
     etaMassima: string;
@@ -136,34 +135,6 @@ function toStringValue(value: unknown): string | null {
     return String(value);
   }
   return null;
-}
-
-function getOtpSortValue(value: unknown): string | null {
-  const rawValue = toStringValue(value);
-  if (!rawValue) return null;
-  const normalized = rawValue.replace(/\D/g, "");
-  return normalized ? normalized : null;
-}
-
-function getFamilyOtpCode(value: unknown): string | null {
-  const sortValue = getOtpSortValue(value);
-  if (!sortValue) return null;
-  const otpNumber = 100000 - Number(sortValue);
-  return Number.isFinite(otpNumber) ? String(otpNumber) : null;
-}
-
-function buildFamilyPrivateAreaUrl(email: unknown, sortValue: unknown) {
-  const normalizedEmail = toStringValue(email);
-  const normalizedSort = getOtpSortValue(sortValue);
-  if (!normalizedEmail || !normalizedSort) return null;
-
-  const params = new URLSearchParams({
-    email: normalizedEmail,
-    sort: normalizedSort,
-    utm_source: "entry_point",
-  });
-
-  return `https://app.bazeapp.com/auth/entry-point?${params.toString()}`;
 }
 
 function getFirstArrayValue(value: unknown): string | null {
@@ -945,12 +916,6 @@ export function RicercaDetailView({
         ]
           .filter((value): value is string => Boolean(value))
           .join(" ");
-        const familyPrivateAreaUrl = buildFamilyPrivateAreaUrl(
-          familyRow?.email,
-          familyRow?.base_codice_otp,
-        );
-        const familyOtpCode = getFamilyOtpCode(familyRow?.base_codice_otp);
-
         const giorniSettimanaValue =
           toStringValue(processRow.numero_giorni_settimanali) ??
           extractFirstNumberToken(processRow.frequenza_rapporto) ??
@@ -967,8 +932,6 @@ export function RicercaDetailView({
           email: displayValue(familyRow?.email),
           telefono: displayValue(familyRow?.telefono),
           dataLead: formatItalianDate(familyRow?.creato_il),
-          codiceOtp: displayValue(familyOtpCode),
-          areaPrivataUrl: displayValue(familyPrivateAreaUrl),
           tipoLavoroBadge: getFirstArrayValue(processRow.tipo_lavoro),
           tipoLavoroColor: null,
           tipoRapportoBadge: getFirstArrayValue(processRow.tipo_rapporto),
@@ -1281,6 +1244,10 @@ export function RicercaDetailView({
   const resolvedCard = React.useMemo<ExtendedCardData | null>(() => {
     return card;
   }, [card]);
+  const resolvedPrivateAreaUrl = buildFamilyPrivateAreaUrl(
+    resolvedCard?.email,
+    resolvedCard?.famigliaId,
+  );
   const statoRicercaOptions = React.useMemo(
     () => buildCanonicalStatoRicercaOptions(lookupOptionsByField.stato_res),
     [lookupOptionsByField.stato_res],
@@ -1885,46 +1852,44 @@ export function RicercaDetailView({
                       >
                         Famiglia
                       </AccordionTrigger>
-	                    <AccordionContent className="space-y-3">
-	                      <div className="grid grid-cols-2 gap-3">
-	                        {renderField("Codice OTP", resolvedCard.codiceOtp)}
-                        <Field>
-                          <FieldLabel variant="eyebrow">
-                            Link area privata
-                          </FieldLabel>
-                          {resolvedCard.areaPrivataUrl &&
-                          resolvedCard.areaPrivataUrl !== "-" ? (
-                            <div className="flex min-w-0 items-center gap-2">
-                              <a
-                                href={resolvedCard.areaPrivataUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="min-w-0 truncate text-sm font-medium text-blue-600 underline-offset-2 hover:underline"
-                              >
-                                Apri area privata
-                              </a>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-7 shrink-0 px-2"
-                                onClick={() => {
-                                  void navigator.clipboard
-                                    .writeText(resolvedCard.areaPrivataUrl ?? "")
-                                    .then(() => toast.success("Link copiato"))
-                                    .catch(() =>
-                                      toast.error("Impossibile copiare"),
-                                    );
-                                }}
-                              >
-                                <CopyIcon className="size-3.5" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-foreground">—</p>
-                          )}
-                        </Field>
-	                      </div>
+                      <AccordionContent className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <Field className="col-span-2">
+                            <FieldLabel variant="eyebrow">
+                              Link area privata
+                            </FieldLabel>
+                            {resolvedPrivateAreaUrl ? (
+                              <div className="flex min-w-0 items-center gap-2">
+                                <a
+                                  href={resolvedPrivateAreaUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="min-w-0 truncate text-sm font-medium text-blue-600 underline-offset-2 hover:underline"
+                                >
+                                  Apri area privata
+                                </a>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 shrink-0 px-2"
+                                  onClick={() => {
+                                    void navigator.clipboard
+                                      .writeText(resolvedPrivateAreaUrl)
+                                      .then(() => toast.success("Link copiato"))
+                                      .catch(() =>
+                                        toast.error("Impossibile copiare"),
+                                      );
+                                  }}
+                                >
+                                  <CopyIcon className="size-3.5" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-foreground">—</p>
+                            )}
+                          </Field>
+                        </div>
 	                      <div className="grid grid-cols-2 gap-3">
 	                        <EditableTextField
 	                          label="Nucleo famigliare"
