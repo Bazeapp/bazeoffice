@@ -5,8 +5,10 @@ import {
   CalendarDaysIcon,
   CheckIcon,
   CircleUserRoundIcon,
+  CircleSlashIcon,
   CircleHelpIcon,
   FileSearchIcon,
+  LoaderCircleIcon,
   NotebookPenIcon,
   PencilIcon,
   PhoneIcon,
@@ -2479,43 +2481,95 @@ function GateAdministrativeFieldsCard({
   ibanValue,
   stripeAccountValue,
   isEditing,
+  isUpdating,
+  missingStripeRequirements = [],
   onIbanChange,
   onIbanBlur,
+  onGenerateStripeAccount,
 }: {
   ibanValue: string;
   stripeAccountValue: string;
   isEditing: boolean;
+  isUpdating: boolean;
+  missingStripeRequirements?: string[];
   onIbanChange: (value: string) => void;
   onIbanBlur: () => void;
+  onGenerateStripeAccount?: () => void | Promise<unknown>;
 }) {
+  const resolvedIbanValue = ibanValue.trim();
+  const resolvedStripeAccountValue = stripeAccountValue.trim();
+  const stripeRequirements = [
+    ...(resolvedIbanValue ? [] : ["IBAN"]),
+    ...missingStripeRequirements,
+  ];
+  const canGenerateStripeAccount =
+    Boolean(onGenerateStripeAccount) && !resolvedStripeAccountValue;
+  const isGenerateStripeAccountDisabled =
+    isUpdating || stripeRequirements.length > 0;
+
   return (
     <GateInfoCard
       title="Dati amministrativi"
       icon={<NotebookPenIcon className="text-muted-foreground size-4" />}
     >
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-1">
-          <p className="text-sm">IBAN</p>
-          {isEditing ? (
-            <Input
-              value={ibanValue}
-              onChange={(event) => onIbanChange(event.target.value)}
-              onBlur={onIbanBlur}
-              placeholder="Inserisci IBAN"
-            />
-          ) : (
-            <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
-              {ibanValue || "-"}
-            </div>
-          )}
-        </div>
+      <div className="space-y-3">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1">
+            <p className="text-sm">IBAN</p>
+            {isEditing ? (
+              <Input
+                value={ibanValue}
+                onChange={(event) => onIbanChange(event.target.value)}
+                onBlur={onIbanBlur}
+                disabled={isUpdating}
+                placeholder="Inserisci IBAN"
+              />
+            ) : (
+              <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
+                {ibanValue || "-"}
+              </div>
+            )}
+          </div>
 
-        <div className="space-y-1">
-          <p className="text-sm">ID account Stripe</p>
-          <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
-            {stripeAccountValue || "-"}
+          <div className="space-y-1">
+            <p className="text-sm">ID account Stripe</p>
+            <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
+              {stripeAccountValue || "-"}
+            </div>
           </div>
         </div>
+
+        {canGenerateStripeAccount ? (
+          <div className="flex flex-col gap-2 rounded-xl border border-dashed bg-surface px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Account Stripe mancante</p>
+              {stripeRequirements.length > 0 ? (
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {stripeRequirements.map((requirement) => (
+                    <span
+                      key={requirement}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-red-600"
+                    >
+                      <CircleSlashIcon className="size-3.5" />
+                      {requirement}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void onGenerateStripeAccount?.()}
+              disabled={isGenerateStripeAccountDisabled}
+            >
+              {isUpdating ? (
+                <LoaderCircleIcon className="mr-2 size-4 animate-spin" />
+              ) : null}
+              {isUpdating ? "Creazione..." : "Genera account Stripe"}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </GateInfoCard>
   );
@@ -2847,6 +2901,7 @@ export function Gate1View({
     setSkillsDraft,
     documentsDraft,
     setDocumentsDraft,
+    resolvedIban,
     presentationPhotoSlots,
     updatingAvailability,
     updatingAvailabilityStatus,
@@ -2870,6 +2925,7 @@ export function Gate1View({
     patchSkillsField,
     patchDocumentField,
     commitDocumentField,
+    generateStripeAccount,
     AVAILABILITY_EDIT_DAYS,
     AVAILABILITY_EDIT_BANDS,
     AVAILABILITY_HOUR_LABELS,
@@ -5594,11 +5650,23 @@ export function Gate1View({
                       />
                       {showAdministrativeFields ? (
                         <GateAdministrativeFieldsCard
-                          ibanValue={documentsDraft.iban}
+                          ibanValue={documentsDraft.iban || resolvedIban}
                           stripeAccountValue={documentsDraft.id_stripe_account}
                           isEditing={
                             showAdministrativeFields || gateDocumentsIsEditing
                           }
+                          isUpdating={updatingDocuments}
+                          missingStripeRequirements={[
+                            ...(!formatWorkerAddressLine(selectedWorkerAddress)
+                              ? ["Indirizzo"]
+                              : []),
+                            ...(!asString(selectedWorkerAddress?.cap)
+                              ? ["CAP"]
+                              : []),
+                            ...(!asString(selectedWorkerRow?.provincia)
+                              ? ["Provincia"]
+                              : []),
+                          ]}
                           onIbanChange={(value) =>
                             setDocumentsDraft((current) => ({
                               ...current,
@@ -5606,6 +5674,7 @@ export function Gate1View({
                             }))
                           }
                           onIbanBlur={() => void commitDocumentField("iban")}
+                          onGenerateStripeAccount={generateStripeAccount}
                         />
                       ) : null}
                     </GateStepSection>

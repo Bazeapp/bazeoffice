@@ -48,8 +48,6 @@ import {
 import {
   createRecord,
   deleteRecord,
-  fetchAssunzioni,
-  fetchRapportiLavorativi,
   updateRecord,
 } from "@/lib/anagrafiche-api"
 import { createStripeConnectAccount } from "@/lib/stripe-connect-api"
@@ -135,12 +133,6 @@ type WorkerDocumentsDraft = {
   data_scadenza_naspi: string
   iban: string
   id_stripe_account: string
-}
-
-function extractIban(value: unknown) {
-  const raw = asString(value)
-  const match = raw.match(/[A-Z]{2}\d{2}[A-Z0-9]{11,30}/i)
-  return match?.[0]?.replace(/\s+/g, "").toUpperCase() ?? ""
 }
 
 type PatchLoadingKey =
@@ -348,10 +340,7 @@ export function useSelectedWorkerEditor({
   const [documentsDraft, setDocumentsDraft] = React.useState<WorkerDocumentsDraft>(() =>
     buildDocumentsDraft(selectedWorkerRow)
   )
-  const [assunzioneIban, setAssunzioneIban] = React.useState("")
-  const [hasLinkedRapportoForIban, setHasLinkedRapportoForIban] = React.useState(false)
-  const workerIban = asString(selectedWorkerRow?.iban)
-  const resolvedIban = workerIban || assunzioneIban
+  const resolvedIban = asString(selectedWorkerRow?.iban)
   const availabilityPayload = React.useMemo(
     () =>
       parseAvailabilityPayload(selectedWorkerRow?.availability_final_json) ??
@@ -444,101 +433,6 @@ export function useSelectedWorkerEditor({
     setSkillsDraft(buildSkillsDraft(selectedWorkerRow))
     setDocumentsDraft(buildDocumentsDraft(selectedWorkerRow))
   }, [selectedWorkerRow, selectedWorkerAddress, availabilityPayload])
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function loadAssunzioneIban() {
-      if (!selectedWorkerId) {
-        setAssunzioneIban("")
-        setHasLinkedRapportoForIban(false)
-        return
-      }
-
-      try {
-        const rapportiResult = await fetchRapportiLavorativi({
-          select: ["id"],
-          limit: 100,
-          offset: 0,
-          filters: {
-            kind: "group",
-            id: "worker-iban-rapporti-by-worker",
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: "worker-iban-rapporti-worker-id",
-                field: "lavoratore_id",
-                operator: "is",
-                value: selectedWorkerId,
-              },
-            ],
-          },
-        })
-        const rapportoIds = (rapportiResult.rows ?? [])
-          .map((row) => asString(row.id))
-          .filter(Boolean)
-        if (!cancelled) {
-          setHasLinkedRapportoForIban(rapportoIds.length > 0)
-        }
-
-        if (rapportoIds.length === 0) {
-          if (!cancelled) {
-            setAssunzioneIban("")
-          }
-          return
-        }
-
-        const assunzioniResult = await fetchAssunzioni({
-          select: ["id", "dati_bancari_lavoratore", "aggiornato_il"],
-          limit: 20,
-          offset: 0,
-          orderBy: [{ field: "aggiornato_il", ascending: false }],
-          filters: {
-            kind: "group",
-            id: "worker-iban-assunzioni-by-rapporti",
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: "worker-iban-assunzioni-rapporto-id",
-                field: "rapporto_lavorativo_lavoratore_id",
-                operator: "in",
-                value: rapportoIds.join(","),
-              },
-            ],
-          },
-        })
-
-        const sourceRow =
-          (assunzioniResult.rows ?? []).find((row) =>
-            Boolean(extractIban(row.dati_bancari_lavoratore))
-          ) ??
-          assunzioniResult.rows?.[0] ??
-          null
-        const iban = extractIban(sourceRow?.dati_bancari_lavoratore)
-
-        if (!cancelled) {
-          setAssunzioneIban(iban)
-          setDocumentsDraft((current) => ({
-            ...current,
-            iban: asString(selectedWorkerRow?.iban) || iban,
-          }))
-        }
-      } catch {
-        if (!cancelled) {
-          setAssunzioneIban("")
-          setHasLinkedRapportoForIban(false)
-        }
-      }
-    }
-
-    void loadAssunzioneIban()
-
-    return () => {
-      cancelled = true
-    }
-  }, [selectedWorkerId, selectedWorkerRow?.iban])
 
   React.useEffect(() => {
     setSelectedPresentationPhotoIndex(0)
@@ -1104,7 +998,6 @@ export function useSelectedWorkerEditor({
     documentsDraft,
     setDocumentsDraft,
     resolvedIban,
-    hasLinkedRapportoForIban,
     handleNonIdoneoReasonsChange,
     handleBlacklistChange,
     patchSelectedWorkerField,

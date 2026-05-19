@@ -1084,7 +1084,6 @@ export function LavoratoriCercaView({
     documentsDraft,
     setDocumentsDraft,
     resolvedIban,
-    hasLinkedRapportoForIban,
     handleNonIdoneoReasonsChange,
     handleBlacklistChange,
     patchSelectedWorkerField,
@@ -2033,7 +2032,6 @@ export function LavoratoriCercaView({
                         selectedWorkerRow?.id_stripe_account,
                       ),
                       missingStripeRequirements: [
-                        ...(!hasLinkedRapportoForIban ? ["Rapporto"] : []),
                         ...(!formatWorkerAddressLine(selectedWorkerAddress)
                           ? ["Indirizzo"]
                           : []),

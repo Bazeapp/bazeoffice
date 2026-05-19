@@ -18,6 +18,7 @@ type WorkerRow = {
   telefono: string | null;
   data_di_nascita: string | null;
   provincia: string | null;
+  iban: string | null;
   id_stripe_account: string | null;
 };
 
@@ -246,7 +247,7 @@ Deno.serve(async (req) => {
 
   const { data: worker, error: workerError } = await supabase
     .from("lavoratori")
-    .select("id,nome,cognome,email,telefono,data_di_nascita,provincia,id_stripe_account")
+    .select("id,nome,cognome,email,telefono,data_di_nascita,provincia,iban,id_stripe_account")
     .eq("id", workerId)
     .maybeSingle<WorkerRow>();
 
@@ -286,27 +287,28 @@ Deno.serve(async (req) => {
     .map((row) => toText((row as { id?: unknown }).id))
     .filter(Boolean);
 
-  if (rapportoIds.length === 0) {
-    return badRequest("Nessun rapporto lavorativo collegato al lavoratore");
+  let assunzioniIban = "";
+  if (rapportoIds.length > 0) {
+    const { data: assunzioni, error: assunzioniError } = await supabase
+      .from("assunzioni")
+      .select("id,dati_bancari_lavoratore,aggiornato_il")
+      .in("rapporto_lavorativo_lavoratore_id", rapportoIds)
+      .order("aggiornato_il", { ascending: false })
+      .limit(20);
+
+    if (assunzioniError) return serverError(assunzioniError.message);
+
+    const sourceAssunzione =
+      ((assunzioni ?? []) as AssunzioneRow[]).find((row) =>
+        Boolean(extractIban(row.dati_bancari_lavoratore))
+      ) ?? null;
+    assunzioniIban = extractIban(sourceAssunzione?.dati_bancari_lavoratore);
   }
 
-  const { data: assunzioni, error: assunzioniError } = await supabase
-    .from("assunzioni")
-    .select("id,dati_bancari_lavoratore,aggiornato_il")
-    .in("rapporto_lavorativo_lavoratore_id", rapportoIds)
-    .order("aggiornato_il", { ascending: false })
-    .limit(20);
-
-  if (assunzioniError) return serverError(assunzioniError.message);
-
-  const sourceAssunzione =
-    ((assunzioni ?? []) as AssunzioneRow[]).find((row) =>
-      Boolean(extractIban(row.dati_bancari_lavoratore))
-    ) ?? null;
-  const iban = extractIban(sourceAssunzione?.dati_bancari_lavoratore);
+  const iban = extractIban(worker.iban) || assunzioniIban;
 
   if (!iban) {
-    return badRequest("IBAN mancante in assunzioni.dati_bancari_lavoratore");
+    return badRequest("IBAN mancante in lavoratori.iban");
   }
 
   const address = pickWorkerAddress((addresses ?? []) as AddressRow[]);
