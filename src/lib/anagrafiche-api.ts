@@ -660,6 +660,7 @@ export async function fetchCrmPipelineFamiglieBoard(query: {
   limit: number
   offset: number
   stageFilter?: string[]
+  search?: string
 }) {
   const cacheKey = JSON.stringify({ functionName: "crm_pipeline_famiglie_board", ...query })
   const now = Date.now()
@@ -673,6 +674,7 @@ export async function fetchCrmPipelineFamiglieBoard(query: {
       p_limit: query.limit,
       p_offset: query.offset,
       p_stage_filter: query.stageFilter?.length ? query.stageFilter : null,
+      p_search: query.search?.trim() ? query.search.trim() : null,
     })
   ).then(({ data, error }) => {
     if (error) {

@@ -19,6 +19,7 @@ export function CreazioneAnnuncioCard({
   titleAction,
   containerProps,
   processId,
+  onBeforeCreate,
   title = "Creazione Annuncio",
   brief,
   briefOnly = false,
@@ -28,6 +29,7 @@ export function CreazioneAnnuncioCard({
   titleAction?: ReactNode;
   containerProps?: React.ComponentProps<"div">;
   processId?: string | null;
+  onBeforeCreate?: () => boolean;
   title?: string;
   brief?: string | null;
   briefOnly?: boolean;
@@ -42,6 +44,9 @@ export function CreazioneAnnuncioCard({
       toast.error("Il processo non ha un id associato");
       return;
     }
+    if (onBeforeCreate && !onBeforeCreate()) {
+      return;
+    }
     setIsGenerating(true);
     try {
       await runAutomationWebhook("workflow-create-whatsapp-text", processId);
@@ -53,7 +58,7 @@ export function CreazioneAnnuncioCard({
     } finally {
       setIsGenerating(false);
     }
-  }, [processId]);
+  }, [onBeforeCreate, processId]);
 
   const handleCopy = React.useCallback(async () => {
     if (!normalizedBrief) return;

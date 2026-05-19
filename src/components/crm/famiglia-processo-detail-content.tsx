@@ -60,6 +60,45 @@ type SidebarSectionTab = {
   icon: React.ComponentType<{ className?: string }>
 }
 
+const ANNOUNCEMENT_REQUIRED_FIELD_LABELS = {
+  orarioDiLavoro: "Orario lavoro",
+  oreSettimana: "Ore settimanali",
+  giorniSettimana: "Giorni settimanali",
+  giornatePreferite: "Giornate preferite",
+  srcEmbedMapsAnnucio: "Src maps",
+  indirizzoProvincia: "Prov",
+  indirizzoCap: "Cap",
+  indirizzoVia: "Via",
+  indirizzoNote: "Quartiere",
+  nucleoFamigliare: "Famiglia",
+  descrizioneCasa: "Casa",
+  metraturaCasa: "Metratura",
+  mansioniRichieste: "Mansioni",
+  sesso: "Genere",
+} as const
+
+type AnnouncementRequiredField = keyof typeof ANNOUNCEMENT_REQUIRED_FIELD_LABELS
+
+const ANNOUNCEMENT_REQUIRED_FIELD_SECTION: Record<
+  AnnouncementRequiredField,
+  SidebarSectionTab["id"]
+> = {
+  orarioDiLavoro: "orari-frequenza",
+  oreSettimana: "orari-frequenza",
+  giorniSettimana: "orari-frequenza",
+  giornatePreferite: "orari-frequenza",
+  srcEmbedMapsAnnucio: "orari-frequenza",
+  indirizzoProvincia: "luogo-lavoro",
+  indirizzoCap: "luogo-lavoro",
+  indirizzoVia: "luogo-lavoro",
+  indirizzoNote: "luogo-lavoro",
+  nucleoFamigliare: "famiglia",
+  descrizioneCasa: "casa",
+  metraturaCasa: "casa",
+  mansioniRichieste: "mansioni",
+  sesso: "richieste-specifiche",
+}
+
 const SIDEBAR_SECTION_TABS: SidebarSectionTab[] = [
   { id: "orari-frequenza", label: "Orari e frequenza", icon: CalendarIcon },
   { id: "luogo-lavoro", label: "Luogo di lavoro", icon: MapPinnedIcon },
@@ -84,6 +123,40 @@ function renderValue(value: string | null | undefined) {
   if (!value) return "-"
   const normalized = value.trim()
   return normalized ? normalized : "-"
+}
+
+function hasRequiredValue(value: string | string[] | null | undefined) {
+  if (Array.isArray(value)) return value.length > 0
+  if (!value) return false
+  const normalized = value.trim()
+  return Boolean(normalized && normalized !== "-")
+}
+
+function getMissingAnnouncementFields(
+  card: CrmPipelineCardData | null
+): AnnouncementRequiredField[] {
+  if (!card) return Object.keys(ANNOUNCEMENT_REQUIRED_FIELD_LABELS) as AnnouncementRequiredField[]
+
+  const values: Record<AnnouncementRequiredField, string | string[] | null | undefined> = {
+    orarioDiLavoro: card.orarioDiLavoro,
+    oreSettimana: card.oreSettimana,
+    giorniSettimana: card.giorniSettimana,
+    giornatePreferite: card.giornatePreferite,
+    srcEmbedMapsAnnucio: card.srcEmbedMapsAnnucio,
+    indirizzoProvincia: card.indirizzoProvincia,
+    indirizzoCap: card.indirizzoCap,
+    indirizzoVia: card.indirizzoVia,
+    indirizzoNote: card.indirizzoNote,
+    nucleoFamigliare: card.nucleoFamigliare,
+    descrizioneCasa: card.descrizioneCasa,
+    metraturaCasa: card.metraturaCasa,
+    mansioniRichieste: card.mansioniRichieste,
+    sesso: card.sesso,
+  }
+
+  return (Object.keys(values) as AnnouncementRequiredField[]).filter(
+    (field) => !hasRequiredValue(values[field])
+  )
 }
 
 function editableValue(value: string | null | undefined) {
@@ -596,6 +669,9 @@ export function FamigliaProcessoDetailContent({
     editMode === "always"
   )
   const [isEditingFamilyHeader, setIsEditingFamilyHeader] = React.useState(false)
+  const [announcementMissingFields, setAnnouncementMissingFields] = React.useState<
+    AnnouncementRequiredField[]
+  >([])
   const [activeSection, setActiveSection] = React.useState<SidebarSectionTab["id"]>(
     visibleTabs[0]?.id ?? "orari-frequenza"
   )
@@ -623,6 +699,10 @@ export function FamigliaProcessoDetailContent({
       setIsEditingFamilyHeader(false)
     }
   }, [editMode, isActive, card?.id, readOnly])
+
+  React.useEffect(() => {
+    setAnnouncementMissingFields([])
+  }, [card?.id])
 
   const canEditStatoLead =
     !readOnly && (editMode === "always" ? true : isEditingStatoLead)
@@ -750,6 +830,32 @@ export function FamigliaProcessoDetailContent({
       behavior: "smooth",
     })
   }, [])
+
+  const validateAnnouncementRequiredFields = React.useCallback(() => {
+    const missing = getMissingAnnouncementFields(card)
+    setAnnouncementMissingFields(missing)
+
+    if (missing.length === 0) return true
+
+    if (editMode === "toggle" && !readOnly) {
+      setIsEditingOnboarding(true)
+    }
+
+    const firstVisibleSection = missing
+      .map((field) => ANNOUNCEMENT_REQUIRED_FIELD_SECTION[field])
+      .find((sectionId) => visibleTabs.some((tab) => tab.id === sectionId))
+
+    if (firstVisibleSection) {
+      window.setTimeout(() => scrollToSection(firstVisibleSection), 0)
+    }
+
+    toast.error(
+      `Compila i campi obbligatori: ${missing
+        .map((field) => ANNOUNCEMENT_REQUIRED_FIELD_LABELS[field])
+        .join(", ")}`
+    )
+    return false
+  }, [card, editMode, readOnly, scrollToSection, visibleTabs])
 
   React.useEffect(() => {
     setActiveSection(visibleTabs[0]?.id ?? "orari-frequenza")
@@ -1036,6 +1142,7 @@ export function FamigliaProcessoDetailContent({
             showMansioni={showMansioni}
             showRichiesteSpecifiche={showRichiesteSpecifiche}
             showTempistiche={showTempistiche}
+            requiredMissingFields={announcementMissingFields}
             sectionTitleAction={onboardingEditAction}
             sectionsCollapsible={blocksCollapsible}
             firstSectionDefaultOpen={firstBlockDefaultOpen}
@@ -1067,6 +1174,7 @@ export function FamigliaProcessoDetailContent({
               <CreazioneAnnuncioCard
                 processId={card?.id ?? null}
                 brief={card?.testoAnnuncioWhatsapp}
+                onBeforeCreate={validateAnnouncementRequiredFields}
                 containerProps={{ ref: bindSectionRef("creazione-annuncio") }}
                 titleAction={annuncioEditAction}
                 collapsible={blocksCollapsible}

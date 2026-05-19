@@ -299,6 +299,9 @@ function Column({
 }
 
 export function CrmPipelineFamiglieView() {
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const deferredSearchQuery = React.useDeferredValue(searchQuery)
+  const isDeferredSearchActive = deferredSearchQuery.trim().length > 0
   const {
     loading,
     error,
@@ -312,7 +315,7 @@ export function CrmPipelineFamiglieView() {
     updateFamilyCard,
     updateAddressCard,
   } =
-    useCrmPipelinePreview()
+    useCrmPipelinePreview(deferredSearchQuery)
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(
     null
   )
@@ -321,18 +324,6 @@ export function CrmPipelineFamiglieView() {
   )
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [isDetailOpen, setIsDetailOpen] = React.useState(false)
-  const [searchQuery, setSearchQuery] = React.useState("")
-  const isSearchActive = searchQuery.trim().length > 0
-
-  React.useEffect(() => {
-    if (!isSearchActive) return
-
-    for (const stageId of DEFERRED_STAGE_IDS) {
-      if (!loadedClosedStageIds.has(stageId)) {
-        loadClosedStage(stageId)
-      }
-    }
-  }, [isSearchActive, loadClosedStage, loadedClosedStageIds])
 
   const filteredColumns = React.useMemo(() => {
     const mappedColumns = columns.map((column) => {
@@ -349,19 +340,19 @@ export function CrmPipelineFamiglieView() {
             card.stage,
             card.statoRes,
           ],
-          searchQuery,
+          deferredSearchQuery,
         )
       )
 
       return {
         ...column,
-        totalCount: isSearchActive ? filteredCards.length : column.totalCount,
+        totalCount: isDeferredSearchActive ? filteredCards.length : column.totalCount,
         cards: filteredCards,
       }
     })
 
     return mappedColumns
-  }, [columns, isSearchActive, searchQuery])
+  }, [columns, isDeferredSearchActive, deferredSearchQuery])
 
   const totalRicerche = React.useMemo(
     () =>
@@ -467,6 +458,7 @@ export function CrmPipelineFamiglieView() {
                         setIsDetailOpen(true)
                       }}
                       isDeferred={
+                        !isDeferredSearchActive &&
                         DEFERRED_STAGE_IDS.has(column.id) &&
                         !loadedClosedStageIds.has(column.id)
                       }

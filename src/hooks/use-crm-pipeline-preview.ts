@@ -41,6 +41,7 @@ const FALLBACK_STATO_SALES_STAGES = [
 ] satisfies StageDefinition[]
 
 const CRM_PIPELINE_CARD_LIMIT = 5000
+const CRM_PIPELINE_SEARCH_CARD_LIMIT = 50000
 const CLOSED_STAGE_IDS = new Set(["won_ricerca_attivata", "lost", "out_of_target"])
 const PREVENTIVO_ACCEPTANCE_BASE_URL =
   "https://app.bazeapp.com/v2/checkout/accettare-preventivo"
@@ -1071,12 +1072,17 @@ function buildSalesStageCounts(
 
 function getStageFilterValues(
   stages: StageDefinition[],
-  loadedClosedStageIds: Set<string>
+  loadedClosedStageIds: Set<string>,
+  includeClosedStages: boolean
 ) {
   const values: string[] = []
 
   for (const stage of stages) {
-    if (CLOSED_STAGE_IDS.has(stage.id) && !loadedClosedStageIds.has(stage.id)) {
+    if (
+      !includeClosedStages &&
+      CLOSED_STAGE_IDS.has(stage.id) &&
+      !loadedClosedStageIds.has(stage.id)
+    ) {
       continue
     }
 
@@ -1086,11 +1092,15 @@ function getStageFilterValues(
   return Array.from(new Set(values.filter(Boolean)))
 }
 
-async function fetchBoardRecordsWithRpc(stageFilter: string[]): Promise<BoardRecordBundle> {
+async function fetchBoardRecordsWithRpc(
+  stageFilter: string[],
+  searchQuery: string
+): Promise<BoardRecordBundle> {
   const result = await fetchCrmPipelineFamiglieBoard({
-    limit: CRM_PIPELINE_CARD_LIMIT,
+    limit: searchQuery.trim() ? CRM_PIPELINE_SEARCH_CARD_LIMIT : CRM_PIPELINE_CARD_LIMIT,
     offset: 0,
     stageFilter,
+    search: searchQuery,
   })
 
   return {
@@ -1162,24 +1172,34 @@ async function fetchBoardRecordsWithTableQueries(): Promise<BoardRecordBundle> {
   }
 }
 
-async function fetchBoardRecordsForStages(stageFilter: string[]): Promise<BoardRecordBundle> {
+async function fetchBoardRecordsForStages(
+  stageFilter: string[],
+  searchQuery: string
+): Promise<BoardRecordBundle> {
   try {
-    return await fetchBoardRecordsWithRpc(stageFilter)
+    return await fetchBoardRecordsWithRpc(stageFilter, searchQuery)
   } catch {
     return fetchBoardRecordsWithTableQueries()
   }
 }
 
 async function fetchBoardData(
-  loadedClosedStageIds: Set<string>
+  loadedClosedStageIds: Set<string>,
+  searchQuery: string
 ): Promise<FetchBoardDataResult> {
+  const normalizedSearchQuery = searchQuery.trim()
   const lookupResult = await fetchLookupValues()
   const lookupRows = lookupResult.rows
   const lookupColors = buildLookupColorMap(lookupRows)
   const lookupOptionsByField = buildLookupOptionsByField(lookupRows)
   const { stages, tokenToStageId } = buildStageDefinitions(lookupRows)
   const boardRecords = await fetchBoardRecordsForStages(
-    getStageFilterValues(stages, loadedClosedStageIds)
+    getStageFilterValues(
+      stages,
+      loadedClosedStageIds,
+      normalizedSearchQuery.length > 0
+    ),
+    normalizedSearchQuery
   )
   const salesStageCounts = buildSalesStageCounts(
     boardRecords.stageGroups,
@@ -1225,7 +1245,7 @@ async function fetchBoardData(
   }
 }
 
-export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
+export function useCrmPipelinePreview(searchQuery = ""): UseCrmPipelinePreviewState {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [columns, setColumns] = React.useState<CrmPipelineColumnData[]>([])
@@ -1823,7 +1843,7 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
       setError(null)
 
       try {
-        const boardData = await fetchBoardData(loadedClosedStageIds)
+        const boardData = await fetchBoardData(loadedClosedStageIds, searchQuery)
         if (cancelled) return
         setColumns(boardData.columns)
         setLookupOptionsByField(boardData.lookupOptionsByField)
@@ -1848,7 +1868,7 @@ export function useCrmPipelinePreview(): UseCrmPipelinePreviewState {
     return () => {
       cancelled = true
     }
-  }, [loadedClosedStageIds])
+  }, [loadedClosedStageIds, searchQuery])
 
   return {
     loading,

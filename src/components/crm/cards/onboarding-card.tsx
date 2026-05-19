@@ -82,6 +82,7 @@ type OnboardingCardProps = {
   showTempistiche?: boolean;
   readOnly?: boolean;
   flattenSections?: boolean;
+  requiredMissingFields?: string[];
   sectionContainerProps?: Partial<
     Record<OnboardingFlatSectionKey, React.ComponentProps<"div">>
   >;
@@ -254,6 +255,9 @@ function displayText(value: string | null | undefined) {
   return normalized || "-";
 }
 
+const REQUIRED_FIELD_CLASS =
+  "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/30";
+
 type CopyableUrlFieldProps = {
   label: string;
   value: string;
@@ -346,6 +350,7 @@ export function OnboardingCard({
   showTempistiche = true,
   readOnly = false,
   flattenSections = false,
+  requiredMissingFields = [],
   sectionContainerProps,
   onPatchProcess,
   onPatchAddress,
@@ -555,6 +560,10 @@ export function OnboardingCard({
   const selectedIndirizzoProvincia = getSelectedLookupValue(
     indirizzoProvincia,
     orderedProvinciaOptions,
+  );
+  const isRequiredMissing = React.useCallback(
+    (field: string) => requiredMissingFields.includes(field),
+    [requiredMissingFields],
   );
   const scontoApplicatoOptions = React.useMemo(() => {
     const fromLookup = lookupOptionsByField?.offerta ?? [];
@@ -824,7 +833,7 @@ export function OnboardingCard({
           defaultOpen={firstSectionDefaultOpen}
           contentClassName="space-y-4"
         >
-        <Field>
+        <Field invalid={isRequiredMissing("orarioDiLavoro")}>
           <FieldLabel htmlFor="onboarding-orario-lavoro" className="font-semibold">
             Orario di lavoro
           </FieldLabel>
@@ -835,6 +844,7 @@ export function OnboardingCard({
           </FieldDescription>
           <Input
             id="onboarding-orario-lavoro"
+            className={cn(isRequiredMissing("orarioDiLavoro") && REQUIRED_FIELD_CLASS)}
             placeholder="da lunedì a venerdì, dalle 9:00 alle 19:00"
             value={orarioDiLavoro}
             onChange={(event) => setOrarioDiLavoro(event.target.value)}
@@ -845,12 +855,13 @@ export function OnboardingCard({
         </Field>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <Field>
+          <Field invalid={isRequiredMissing("oreSettimana")}>
             <FieldLabel htmlFor="onboarding-ore-settimanali">
               Ore Settimanali
             </FieldLabel>
             <Input
               id="onboarding-ore-settimanali"
+              className={cn(isRequiredMissing("oreSettimana") && REQUIRED_FIELD_CLASS)}
               type="number"
               inputMode="numeric"
               min={0}
@@ -866,12 +877,13 @@ export function OnboardingCard({
             />
           </Field>
 
-          <Field>
+          <Field invalid={isRequiredMissing("giorniSettimana")}>
             <FieldLabel htmlFor="onboarding-giorni-settimanali">
               Giorni Settimanali
             </FieldLabel>
             <Input
               id="onboarding-giorni-settimanali"
+              className={cn(isRequiredMissing("giorniSettimana") && REQUIRED_FIELD_CLASS)}
               type="number"
               inputMode="numeric"
               min={0}
@@ -889,7 +901,7 @@ export function OnboardingCard({
             />
           </Field>
 
-          <Field>
+          <Field invalid={isRequiredMissing("giornatePreferite")}>
             <FieldLabel htmlFor="onboarding-giornate-preferite">
               Giornate preferite
             </FieldLabel>
@@ -908,7 +920,10 @@ export function OnboardingCard({
               <ComboboxChips
                 ref={anchor}
                 id="onboarding-giornate-preferite"
-                className="w-full"
+                className={cn(
+                  "w-full",
+                  isRequiredMissing("giornatePreferite") && REQUIRED_FIELD_CLASS,
+                )}
               >
                 <ComboboxValue>
                   {(values) => (
@@ -936,7 +951,7 @@ export function OnboardingCard({
             </Combobox>
 		          </Field>
 		        </div>
-        <Field>
+        <Field invalid={isRequiredMissing("srcEmbedMapsAnnucio")}>
           <FieldLabel>SRC Maps</FieldLabel>
           <FieldDescription>
             <a
@@ -949,10 +964,11 @@ export function OnboardingCard({
             </a>
           </FieldDescription>
         </Field>
-        <Field>
+        <Field invalid={isRequiredMissing("srcEmbedMapsAnnucio")}>
           <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
           <Input
             id="onboarding-src-maps-edit"
+            className={cn(isRequiredMissing("srcEmbedMapsAnnucio") && REQUIRED_FIELD_CLASS)}
             value={srcMapsUrl}
             onChange={(event) => setSrcMapsUrl(event.target.value)}
             onBlur={() => {
@@ -976,7 +992,7 @@ export function OnboardingCard({
           contentClassName="space-y-4"
         >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Field>
+          <Field invalid={isRequiredMissing("indirizzoProvincia")}>
             <FieldLabel htmlFor="onboarding-provincia">Provincia</FieldLabel>
             <Select
               value={selectedIndirizzoProvincia}
@@ -988,7 +1004,13 @@ export function OnboardingCard({
                 void patchAddress({ provincia: label || null });
               }}
             >
-              <SelectTrigger id="onboarding-provincia" className="w-full">
+              <SelectTrigger
+                id="onboarding-provincia"
+                className={cn(
+                  "w-full",
+                  isRequiredMissing("indirizzoProvincia") && REQUIRED_FIELD_CLASS,
+                )}
+              >
                 <SelectValue placeholder="Seleziona provincia" />
               </SelectTrigger>
               <SelectContent>
@@ -1002,10 +1024,11 @@ export function OnboardingCard({
               </SelectContent>
             </Select>
           </Field>
-          <Field>
+          <Field invalid={isRequiredMissing("indirizzoCap")}>
             <FieldLabel htmlFor="onboarding-cap">CAP</FieldLabel>
             <Input
               id="onboarding-cap"
+              className={cn(isRequiredMissing("indirizzoCap") && REQUIRED_FIELD_CLASS)}
               placeholder="20158"
               value={indirizzoCap}
               onChange={(event) => setIndirizzoCap(event.target.value)}
@@ -1017,10 +1040,11 @@ export function OnboardingCard({
         </div>
 
 	        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-	          <Field>
+	          <Field invalid={isRequiredMissing("indirizzoVia")}>
 	            <FieldLabel htmlFor="onboarding-via">Via</FieldLabel>
 	            <Input
 	              id="onboarding-via"
+	              className={cn(isRequiredMissing("indirizzoVia") && REQUIRED_FIELD_CLASS)}
 	              value={indirizzoVia}
 	              onChange={(event) => setIndirizzoVia(event.target.value)}
 	              onBlur={() => {
@@ -1028,10 +1052,11 @@ export function OnboardingCard({
 	              }}
 	            />
 	          </Field>
-	          <Field>
+	          <Field invalid={isRequiredMissing("indirizzoNote")}>
 	            <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
 	            <Input
 	              id="onboarding-quartiere"
+	              className={cn(isRequiredMissing("indirizzoNote") && REQUIRED_FIELD_CLASS)}
 	              value={indirizzoNote}
 	              onChange={(event) => setIndirizzoNote(event.target.value)}
 	              onBlur={() => {
@@ -1085,6 +1110,7 @@ export function OnboardingCard({
           curaPiante: card?.curaPiante,
         }}
         onPatchProcess={patchProcess}
+        requiredMissingFields={requiredMissingFields}
         useSectionBlocks
         titleAction={resolvedSectionAction}
         sectionsCollapsible={shouldCollapseSections}

@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { LookupOptionsByField } from "@/hooks/use-crm-pipeline-preview";
+import { cn } from "@/lib/utils";
 
 export type OnboardingDecisioneLavoroCheckboxDefaults = Partial<
   Record<string, boolean>
@@ -86,6 +87,9 @@ type OnboardingDecisioneLavoroDefaults = {
   cucinareElaborato?: boolean;
   curaPiante?: boolean;
 };
+
+const REQUIRED_FIELD_CLASS =
+  "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/30";
 
 export type OnboardingDecisioneLavoroSectionKey =
   | "famiglia"
@@ -313,6 +317,7 @@ export function OnboardingDecisioneLavoroSection({
   showAnimali = true,
   showMansioni = true,
   showRichiesteSpecifiche = true,
+  requiredMissingFields = [],
 }: {
   checkboxDefaults?: OnboardingDecisioneLavoroCheckboxDefaults;
   lookupOptionsByField?: LookupOptionsByField;
@@ -328,6 +333,7 @@ export function OnboardingDecisioneLavoroSection({
   showAnimali?: boolean;
   showMansioni?: boolean;
   showRichiesteSpecifiche?: boolean;
+  requiredMissingFields?: string[];
   sectionContainerProps?: Partial<
     Record<OnboardingDecisioneLavoroSectionKey, React.ComponentProps<"div">>
   >;
@@ -533,6 +539,10 @@ export function OnboardingDecisioneLavoroSection({
     [patchProcess],
   );
   const shouldCollapseSections = sectionsCollapsible ?? useSectionBlocks;
+  const isRequiredMissing = React.useCallback(
+    (field: string) => requiredMissingFields.includes(field),
+    [requiredMissingFields],
+  );
 
   const patenteOptions = React.useMemo(() => {
     const fromLookup = lookupOptionsByField?.patente ?? [];
@@ -565,7 +575,7 @@ export function OnboardingDecisioneLavoroSection({
         defaultOpen={firstSectionDefaultOpen}
         containerProps={sectionContainerProps?.famiglia}
       >
-        <Field>
+        <Field invalid={isRequiredMissing("nucleoFamigliare")}>
           <FieldLabel
             htmlFor="onboarding-famiglia-note"
             className="font-semibold"
@@ -574,6 +584,7 @@ export function OnboardingDecisioneLavoroSection({
           </FieldLabel>
           <Input
             id="onboarding-famiglia-note"
+            className={cn(isRequiredMissing("nucleoFamigliare") && REQUIRED_FIELD_CLASS)}
             placeholder="indica situazioni o casi particolari sul nucleo familiare"
             value={nucleoFamigliare}
             onChange={(event) => setNucleoFamigliare(event.target.value)}
@@ -618,7 +629,7 @@ export function OnboardingDecisioneLavoroSection({
         defaultOpen={sectionsDefaultOpen}
         containerProps={sectionContainerProps?.casa}
       >
-        <Field>
+        <Field invalid={isRequiredMissing("descrizioneCasa")}>
           <FieldLabel
             htmlFor="onboarding-casa-desc"
             className="font-semibold"
@@ -627,6 +638,7 @@ export function OnboardingDecisioneLavoroSection({
           </FieldLabel>
           <Input
             id="onboarding-casa-desc"
+            className={cn(isRequiredMissing("descrizioneCasa") && REQUIRED_FIELD_CLASS)}
             placeholder="Descrizione della casa"
             value={descrizioneCasa}
             onChange={(event) => setDescrizioneCasa(event.target.value)}
@@ -636,10 +648,11 @@ export function OnboardingDecisioneLavoroSection({
           />
         </Field>
 
-        <Field>
+        <Field invalid={isRequiredMissing("metraturaCasa")}>
           <FieldLabel htmlFor="onboarding-casa-mq">Metratura casa</FieldLabel>
           <Input
             id="onboarding-casa-mq"
+            className={cn(isRequiredMissing("metraturaCasa") && REQUIRED_FIELD_CLASS)}
             type="number"
             inputMode="numeric"
             min={0}
@@ -664,7 +677,7 @@ export function OnboardingDecisioneLavoroSection({
         defaultOpen={sectionsDefaultOpen}
         containerProps={sectionContainerProps?.animali}
       >
-        <Field>
+        <Field invalid={isRequiredMissing("mansioniRichieste")}>
           <FieldLabel
             htmlFor="onboarding-animali-note"
             className="font-semibold"
@@ -733,6 +746,7 @@ export function OnboardingDecisioneLavoroSection({
           </FieldLabel>
           <Textarea
             id="onboarding-mansioni-note"
+            className={cn(isRequiredMissing("mansioniRichieste") && REQUIRED_FIELD_CLASS)}
             rows={4}
             placeholder='Inserire solo le mansioni "particolari" Es: deve saper essere una massima esperta di orchidee da competizione'
             value={mansioniRichieste}
@@ -844,7 +858,12 @@ export function OnboardingDecisioneLavoroSection({
           />
         </CheckboxGroupSet>
 
-        <FieldSet>
+        <FieldSet
+          className={cn(
+            isRequiredMissing("sesso") &&
+              "rounded-md border border-destructive p-3 text-destructive",
+          )}
+        >
           <FieldLegend variant="label">Genere</FieldLegend>
           <RadioGroup
             value={genere}
