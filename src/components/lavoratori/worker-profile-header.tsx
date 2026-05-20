@@ -42,7 +42,10 @@ import {
   readArrayStrings,
 } from "@/features/lavoratori/lib/base-utils"
 import {
+  getLookupLabelForSave,
   getTagClassName,
+  resolveLookupSingleValueOptions,
+  getLookupSelectValue,
   type LookupOption,
 } from "@/features/lavoratori/lib/lookup-utils"
 import { getWorkerQualificationStatus } from "@/features/lavoratori/lib/status-utils"
@@ -180,24 +183,8 @@ function getGateAvatarStateClass(isCompleted: boolean, variant: "idoneo" | "cert
   }
 }
 
-function resolveSingleValueOptions(value: string | null, options: LookupOption[]) {
-  if (options.length > 0) return options
-  if (!value) return []
-  return [{ value, label: value }]
-}
-
 function selectedOptionValue(selected: string | null, options: LookupOption[]) {
-  const normalizedSelected = String(selected ?? "").trim().toLowerCase()
-  if (!normalizedSelected) return "none"
-
-  const resolved = resolveSingleValueOptions(selected, options)
-  const match = resolved.find(
-    (option) =>
-      option.value.trim().toLowerCase() === normalizedSelected ||
-      option.label.trim().toLowerCase() === normalizedSelected
-  )
-
-  return match?.value ?? "none"
+  return getLookupSelectValue(selected, options, "none")
 }
 
 export function WorkerProfileHeader({
@@ -286,7 +273,11 @@ export function WorkerProfileHeader({
   ]
 
   const canUseSessoSelect = sessoOptions.length > 0
-  const resolvedNazionalitaOptions = resolveSingleValueOptions(
+  const resolvedSessoOptions = resolveLookupSingleValueOptions(
+    asString(workerRow.sesso) || null,
+    sessoOptions
+  )
+  const resolvedNazionalitaOptions = resolveLookupSingleValueOptions(
     asString(workerRow.nazionalita) || null,
     nazionalitaOptions
   )
@@ -317,8 +308,8 @@ export function WorkerProfileHeader({
   )
 
   const handleLookupFieldChange = React.useCallback(
-    async (field: "sesso" | "nazionalita", value: string) => {
-      const nextValue = value === "none" ? "" : value
+    async (field: "sesso" | "nazionalita", value: string, options: LookupOption[]) => {
+      const nextValue = value === "none" ? "" : getLookupLabelForSave(value, options)
       updateDraftField(field, nextValue)
       await onPatchField?.(field, nextValue || null)
     },
@@ -341,9 +332,11 @@ export function WorkerProfileHeader({
       </p>
       <Select
         value={selectedOptionValue(value, options)}
-        onValueChange={(next) =>
-          void onValueChange?.(next === "none" ? null : next)
-        }
+        onValueChange={(next) => {
+          const nextValue =
+            next === "none" ? null : getLookupLabelForSave(next, options)
+          void onValueChange?.(nextValue)
+        }}
         disabled={isDisabled}
       >
         <SelectTrigger className={cn("min-w-35", triggerClassName)}>
@@ -351,7 +344,7 @@ export function WorkerProfileHeader({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="none">{emptyLabel}</SelectItem>
-          {resolveSingleValueOptions(value, options).map((option) => (
+          {resolveLookupSingleValueOptions(value, options).map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
             </SelectItem>
@@ -643,8 +636,10 @@ export function WorkerProfileHeader({
             {isEditing ? (
               canUseSessoSelect ? (
                 <Select
-                  value={draft.sesso || "none"}
-                  onValueChange={(value) => void handleLookupFieldChange("sesso", value)}
+                  value={getLookupSelectValue(draft.sesso, resolvedSessoOptions, "none")}
+                  onValueChange={(value) =>
+                    void handleLookupFieldChange("sesso", value, resolvedSessoOptions)
+                  }
                   disabled={fieldsDisabled}
                 >
                   <SelectTrigger className="w-36">
@@ -652,7 +647,7 @@ export function WorkerProfileHeader({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Non indicato</SelectItem>
-                    {sessoOptions.map((option) => (
+                    {resolvedSessoOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -678,9 +673,9 @@ export function WorkerProfileHeader({
             <FlagIcon className="size-3.5 shrink-0" />
             {isEditing ? (
               <Select
-                value={draft.nazionalita || "none"}
+                value={getLookupSelectValue(draft.nazionalita, resolvedNazionalitaOptions, "none")}
                 onValueChange={(value) =>
-                  void handleLookupFieldChange("nazionalita", value)
+                  void handleLookupFieldChange("nazionalita", value, resolvedNazionalitaOptions)
                 }
                 disabled={fieldsDisabled}
               >

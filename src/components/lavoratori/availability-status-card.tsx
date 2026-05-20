@@ -1,4 +1,4 @@
-import { CalendarDaysIcon, PencilIcon, SaveIcon } from "lucide-react"
+import { CalendarDaysIcon, PencilIcon } from "lucide-react"
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { Badge } from "@/components/ui/badge"
@@ -6,6 +6,11 @@ import { Button } from "@/components/ui/button"
 import { FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  getLookupLabelForSave,
+  getLookupSelectValue,
+  normalizeLookupComparableToken,
+} from "@/features/lavoratori/lib/lookup-utils"
 
 const EMPTY_SELECT_VALUE = "none"
 
@@ -31,7 +36,6 @@ type AvailabilityStatusCardProps = {
   selectedDisponibilitaBadgeClassName: string
   selectedDataRitorno: string
   onToggleEdit: () => void
-  onSave?: () => void
   onDisponibilitaChange: (value: string) => void
   onDataRitornoChange: (value: string) => void
   onDataRitornoBlur: () => void
@@ -49,51 +53,37 @@ export function AvailabilityStatusCard({
   selectedDisponibilitaBadgeClassName,
   selectedDataRitorno,
   onToggleEdit,
-  onSave,
   onDisponibilitaChange,
   onDataRitornoChange,
   onDataRitornoBlur,
 }: AvailabilityStatusCardProps) {
-  const isReturnDateEnabled = draft.disponibilita === "Non disponibile"
+  const isReturnDateEnabled =
+    normalizeLookupComparableToken(draft.disponibilita) === "non disponibile"
 
   return (
     <DetailSectionBlock
       title="Disponibilita"
       icon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
-      action={showEditAction || onSave ? (
+      action={showEditAction ? (
         <div className="flex items-center gap-1.5">
-          {isEditing && onSave ? (
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={onSave}
-              disabled={isUpdating}
-            >
-              <SaveIcon />
-              {isUpdating ? "Salvataggio" : "Salva"}
-            </Button>
-          ) : null}
-          {showEditAction ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={
-                isEditing
-                  ? "Termina modifica stato disponibilita"
-                  : "Modifica stato disponibilita"
-              }
-              title={
-                isEditing
-                  ? "Termina modifica stato disponibilita"
-                  : "Modifica stato disponibilita"
-              }
-              onClick={onToggleEdit}
-            >
-              <PencilIcon />
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={
+              isEditing
+                ? "Termina modifica stato disponibilita"
+                : "Modifica stato disponibilita"
+            }
+            title={
+              isEditing
+                ? "Termina modifica stato disponibilita"
+                : "Modifica stato disponibilita"
+            }
+            onClick={onToggleEdit}
+          >
+            <PencilIcon />
+          </Button>
         </div>
       ) : undefined}
       showDefaultAction={showEditAction}
@@ -109,10 +99,18 @@ export function AvailabilityStatusCard({
           {isEditing ? (
             <div className="max-w-xs">
               <Select
-                value={draft.disponibilita || EMPTY_SELECT_VALUE}
-                onValueChange={(value) =>
-                  onDisponibilitaChange(value === EMPTY_SELECT_VALUE ? "" : value)
-                }
+                value={getLookupSelectValue(
+                  draft.disponibilita,
+                  disponibilitaOptions,
+                  EMPTY_SELECT_VALUE
+                )}
+                onValueChange={(value) => {
+                  const nextValue =
+                    value === EMPTY_SELECT_VALUE
+                      ? ""
+                      : getLookupLabelForSave(value, disponibilitaOptions)
+                  onDisponibilitaChange(nextValue)
+                }}
                 disabled={isUpdating}
               >
                 <SelectTrigger>
@@ -121,7 +119,7 @@ export function AvailabilityStatusCard({
                 <SelectContent>
                   <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
                   {disponibilitaOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.label}>
+                    <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
                   ))}

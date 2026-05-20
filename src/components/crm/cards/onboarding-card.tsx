@@ -193,6 +193,20 @@ function getSelectedLookupValue(
   return match?.valueKey ?? rawValue ?? "";
 }
 
+function getLookupLabelForSave(
+  rawValue: string | null | undefined,
+  options: LookupOption[],
+) {
+  const token = normalizeLookupToken(rawValue);
+  if (!token || token === "-") return "";
+  const match = options.find(
+    (option) =>
+      normalizeLookupToken(option.valueKey) === token ||
+      normalizeLookupToken(option.valueLabel) === token,
+  );
+  return match?.valueLabel ?? rawValue ?? "";
+}
+
 function getTagClassName(color: string | null | undefined) {
   switch ((color ?? "").toLowerCase()) {
     case "red":
@@ -1220,11 +1234,12 @@ export function OnboardingCard({
               Seleziona la tipologia del primo incontro
             </FieldLabel>
             <Select
-              value={tipoIncontro}
+              value={getSelectedLookupValue(tipoIncontro, tipoIncontroOptions)}
               onValueChange={(next) => {
-                setTipoIncontro(next);
+                const nextValue = getLookupLabelForSave(next, tipoIncontroOptions);
+                setTipoIncontro(nextValue);
                 void patchProcess({
-                  tipo_incontro_famiglia_lavoratore: next || null,
+                  tipo_incontro_famiglia_lavoratore: nextValue || null,
                 });
               }}
             >
@@ -1292,7 +1307,8 @@ export function OnboardingCard({
             <Select
               value={selectedScontoApplicato || undefined}
               onValueChange={(value) => {
-                void patchProcess({ offerta: value || null });
+                const nextValue = getLookupLabelForSave(value, scontoApplicatoOptions);
+                void patchProcess({ offerta: nextValue || null });
               }}
             >
               <SelectTrigger>
@@ -1590,11 +1606,12 @@ export function OnboardingCard({
                   Seleziona la tipologia del primo incontro
                 </FieldLabel>
                 <Select
-                  value={tipoIncontro}
+                  value={getSelectedLookupValue(tipoIncontro, tipoIncontroOptions)}
                   onValueChange={(next) => {
-                    setTipoIncontro(next);
+                    const nextValue = getLookupLabelForSave(next, tipoIncontroOptions);
+                    setTipoIncontro(nextValue);
                     void patchProcess({
-                      tipo_incontro_famiglia_lavoratore: next || null,
+                      tipo_incontro_famiglia_lavoratore: nextValue || null,
                     });
                   }}
                 >
@@ -1662,7 +1679,8 @@ export function OnboardingCard({
                 <Select
                   value={selectedScontoApplicato || undefined}
                   onValueChange={(value) => {
-                    void patchProcess({ offerta: value || null });
+                    const nextValue = getLookupLabelForSave(value, scontoApplicatoOptions);
+                    void patchProcess({ offerta: nextValue || null });
                   }}
                 >
                   <SelectTrigger>

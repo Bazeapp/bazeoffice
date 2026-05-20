@@ -63,6 +63,7 @@ import {
 } from "@/features/lavoratori/lib/base-utils";
 import { isDirectInvolvementSelection } from "@/features/lavoratori/lib/involvement-utils";
 import {
+  getLookupSelectValue,
   isBlacklistValue,
   normalizeLookupColors,
   normalizeLookupOptions,
@@ -2456,7 +2457,7 @@ export function RicercaWorkersPipelineView({
                       );
                       return (
                         <Select
-                          value={currentStato || "none"}
+                          value={getLookupSelectValue(currentStato, statoOptions, "none")}
                           onValueChange={(value) => {
                             if (!value || value === "none") return;
                             void handleMoveSelectionStatus(value);

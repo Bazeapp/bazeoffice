@@ -709,6 +709,28 @@ export function useSelectedWorkerEditor({
     setError,
   ])
 
+  const patchWorkerAvailabilityStatus = React.useCallback(
+    async (patch: Pick<Partial<LavoratoreRecord>, "disponibilita" | "data_ritorno_disponibilita">) => {
+      if (!selectedWorkerId) return
+
+      setUpdatingAvailabilityStatus(true)
+      try {
+        const result = await updateRecord("lavoratori", selectedWorkerId, patch)
+        const nextRow = asLavoratoreRecord(result.row)
+        applyUpdatedWorkerRow(nextRow)
+        await invokeWorkerAvailability(selectedWorkerId)
+      } catch (caughtError) {
+        const message = formatEditorError("Errore salvando stato disponibilita", caughtError)
+        setError(message)
+        toast.error(message)
+        throw caughtError
+      } finally {
+        setUpdatingAvailabilityStatus(false)
+      }
+    },
+    [applyUpdatedWorkerRow, selectedWorkerId, setError]
+  )
+
   const handleAvailabilityMatrixChange = React.useCallback(
     async (
       dayField: AvailabilityEditDayField,
@@ -998,6 +1020,7 @@ export function useSelectedWorkerEditor({
     commitHeaderField,
     commitAddressField,
     saveWorkerAvailability,
+    patchWorkerAvailabilityStatus,
     handleAvailabilityMatrixChange,
     patchJobSearchField,
     patchExperienceRecord,

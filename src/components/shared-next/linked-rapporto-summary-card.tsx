@@ -1,4 +1,4 @@
-import { Link2Icon, ShieldCheckIcon, UserRoundIcon } from "lucide-react"
+import { Link2Icon, ShieldCheckIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -73,7 +73,6 @@ export function LinkedRapportoSummaryCard({
   const resolvedType = toTextValue(type) ?? toTextValue(rapporto?.tipo_rapporto) ?? "-"
   const resolvedHours = toTextValue(hoursPerWeek) ?? toTextValue(rapporto?.ore_a_settimana) ?? "-"
   const resolvedStartDate = formatStartDate(startDate ?? rapporto?.data_inizio_rapporto)
-  const resolvedWorkerName = toTextValue(rapporto?.nome_lavoratore_per_url) ?? "Lavoratore non disponibile"
   const statusBadgeClassName = getLookupBadgeSoftClassName(getStatusColor(resolvedStatus))
   const rapportoPath = rapporto?.id
       ? buildPathForRoute({
@@ -111,10 +110,6 @@ export function LinkedRapportoSummaryCard({
               {resolvedStatus}
             </Badge>
           ) : null}
-          <Badge variant="outline" className="rounded-full px-3 text-xs font-medium">
-            <UserRoundIcon data-icon="inline-start" />
-            {resolvedWorkerName}
-          </Badge>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {resolvedLevel ? <DetailField label="Livello" value={resolvedLevel} /> : null}

@@ -36,6 +36,10 @@ import {
   updateRecord,
 } from "@/lib/anagrafiche-api"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
+import {
+  findLookupOption,
+  getLookupSelectValue,
+} from "@/features/lavoratori/lib/lookup-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
@@ -186,15 +190,6 @@ function compactText(value: string | number | null | undefined) {
   return text || null
 }
 
-function formatAssunzioneOptionLabel(record: AssunzioneRecord) {
-  const name =
-    [compactText(record.info_anagrafiche_nome), compactText(record.info_anagrafiche_cognome)]
-      .filter(Boolean)
-      .join(" ")
-      .trim() || "Senza nome"
-  return `${name} • ${compactText(record.info_anagrafiche_email) ?? "-"}`
-}
-
 function resolveAssunzioneDisplayName(record: AssunzioneRecord) {
   return (
     [compactText(record.info_anagrafiche_nome), compactText(record.info_anagrafiche_cognome)]
@@ -202,6 +197,43 @@ function resolveAssunzioneDisplayName(record: AssunzioneRecord) {
       .join(" ")
       .trim() || null
   )
+}
+
+function resolveAssunzioneFormLabel(
+  record: AssunzioneRecord,
+  target: DetailTarget,
+  card: AssunzioniBoardCardData | null
+) {
+  return (
+    resolveAssunzioneDisplayName(record) ??
+    (target === "datore" ? card?.nomeFamiglia : card?.nomeLavoratore) ??
+    "Senza nome"
+  )
+}
+
+function resolveAssunzioneFormSubLabel(
+  record: AssunzioneRecord,
+  target: DetailTarget,
+  card: AssunzioniBoardCardData | null
+) {
+  return (
+    compactText(record.info_anagrafiche_email) ??
+    (target === "datore" ? compactText(card?.email) : compactText(card?.lavoratore?.email)) ??
+    (target === "datore" ? compactText(card?.telefono) : compactText(card?.lavoratore?.telefono)) ??
+    "-"
+  )
+}
+
+function formatSelectedAssunzioneLabel(
+  record: AssunzioneRecord,
+  target: DetailTarget,
+  card: AssunzioniBoardCardData | null
+) {
+  return `${resolveAssunzioneFormLabel(record, target, card)} • ${resolveAssunzioneFormSubLabel(
+    record,
+    target,
+    card
+  )}`
 }
 
 function matchesAssunzioneSearch(record: AssunzioneRecord, query: string) {
@@ -266,11 +298,22 @@ function buildLookupOptions(
       label: row.value_label as string,
     }))
 
-  if (options.length > 0) return options
-  if (fallbackValue && fallbackValue.trim()) {
-    return [{ value: fallbackValue, label: fallbackValue }]
+  const fallback = fallbackValue?.trim()
+  if (fallback && !findLookupOption(options, fallback)) {
+    return [{ value: fallback, label: fallback }, ...options]
   }
-  return []
+  return options
+}
+
+function getLookupSelectDisplayValue(
+  value: string | null | undefined,
+  options: LookupOption[]
+) {
+  return getLookupSelectValue(value, options, "") || undefined
+}
+
+function getLookupLabelForSave(value: string, options: LookupOption[]) {
+  return findLookupOption(options, value)?.label ?? value
 }
 
 function hasAssunzioneCoreDetails(assunzione: AssunzioneRecord | null | undefined) {
@@ -411,6 +454,7 @@ function RapportoDetailSections({
     totaleOreLavorative:
       toInputValue(assunzione?.ore_di_lavoro) ||
       (rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : ""),
+    distribuzioneOreSettimanali: rapporto?.distribuzione_ore_settimana ?? "",
     oreLunedi: toInputValue(assunzione?.ore_lunedi),
     oreMartedi: toInputValue(assunzione?.ore_martedi),
     oreMercoledi: toInputValue(assunzione?.ore_mercoledi),
@@ -433,6 +477,7 @@ function RapportoDetailSections({
       totaleOreLavorative:
         toInputValue(assunzione?.ore_di_lavoro) ||
         (rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : ""),
+      distribuzioneOreSettimanali: rapporto?.distribuzione_ore_settimana ?? "",
       oreLunedi: toInputValue(assunzione?.ore_lunedi),
       oreMartedi: toInputValue(assunzione?.ore_martedi),
       oreMercoledi: toInputValue(assunzione?.ore_mercoledi),
@@ -465,6 +510,7 @@ function RapportoDetailSections({
     assunzione?.telecamere_posto_lavoro,
     assunzione?.tredicesima_rateizzata_mensile,
     rapporto?.data_inizio_rapporto,
+    rapporto?.distribuzione_ore_settimana,
     rapporto?.ore_a_settimana,
     rapporto?.paga_mensile_lorda,
     rapporto?.paga_oraria_lorda,
@@ -502,17 +548,29 @@ function RapportoDetailSections({
             type="number"
             value={draft.totaleOreLavorative}
             onChange={(event) => setValue("totaleOreLavorative", event.target.value)}
-            onBlur={() =>
+            onBlur={(event) => {
+              const nextValue = event.currentTarget.value
               void Promise.all([
-                onRapportoPatch({
-                  ore_a_settimana: toNullableNumber(draft.totaleOreLavorative),
-                }),
-                onAssunzionePatch({
-                  ore_di_lavoro: toNullableNumber(draft.totaleOreLavorative),
-                }),
+                onRapportoPatch({ ore_a_settimana: toNullableNumber(nextValue) }),
+                onAssunzionePatch({ ore_di_lavoro: toNullableNumber(nextValue) }),
               ])
-            }
+            }}
           />
+        </EditableField>
+        <EditableField label="Distribuzione ore settimanali">
+          <div className="space-y-2">
+            <p className="ui-type-meta">Parte da domenica</p>
+            <Input
+              value={draft.distribuzioneOreSettimanali}
+              placeholder="0-0-0-0-0-0-0"
+              onChange={(event) => setValue("distribuzioneOreSettimanali", event.target.value)}
+              onBlur={(event) =>
+                void onRapportoPatch({
+                  distribuzione_ore_settimana: event.currentTarget.value || null,
+                })
+              }
+            />
+          </div>
         </EditableField>
         <div className="grid gap-4 md:grid-cols-3">
           <EditableField label="Ore lunedi">
@@ -521,7 +579,9 @@ function RapportoDetailSections({
               step="0.25"
               value={draft.oreLunedi}
               onChange={(event) => setValue("oreLunedi", event.target.value)}
-              onBlur={() => void onAssunzionePatch({ ore_lunedi: toNullableNumber(draft.oreLunedi) })}
+              onBlur={(event) =>
+                void onAssunzionePatch({ ore_lunedi: toNullableNumber(event.currentTarget.value) })
+              }
             />
           </EditableField>
           <EditableField label="Ore martedi">
@@ -530,7 +590,9 @@ function RapportoDetailSections({
               step="0.25"
               value={draft.oreMartedi}
               onChange={(event) => setValue("oreMartedi", event.target.value)}
-              onBlur={() => void onAssunzionePatch({ ore_martedi: toNullableNumber(draft.oreMartedi) })}
+              onBlur={(event) =>
+                void onAssunzionePatch({ ore_martedi: toNullableNumber(event.currentTarget.value) })
+              }
             />
           </EditableField>
           <EditableField label="Ore mercoledi">
@@ -539,7 +601,9 @@ function RapportoDetailSections({
               step="0.25"
               value={draft.oreMercoledi}
               onChange={(event) => setValue("oreMercoledi", event.target.value)}
-              onBlur={() => void onAssunzionePatch({ ore_mercoledi: toNullableNumber(draft.oreMercoledi) })}
+              onBlur={(event) =>
+                void onAssunzionePatch({ ore_mercoledi: toNullableNumber(event.currentTarget.value) })
+              }
             />
           </EditableField>
           <EditableField label="Ore giovedi">
@@ -548,7 +612,9 @@ function RapportoDetailSections({
               step="0.25"
               value={draft.oreGiovedi}
               onChange={(event) => setValue("oreGiovedi", event.target.value)}
-              onBlur={() => void onAssunzionePatch({ ore_giovedi: toNullableNumber(draft.oreGiovedi) })}
+              onBlur={(event) =>
+                void onAssunzionePatch({ ore_giovedi: toNullableNumber(event.currentTarget.value) })
+              }
             />
           </EditableField>
           <EditableField label="Ore venerdi">
@@ -557,7 +623,9 @@ function RapportoDetailSections({
               step="0.25"
               value={draft.oreVenerdi}
               onChange={(event) => setValue("oreVenerdi", event.target.value)}
-              onBlur={() => void onAssunzionePatch({ ore_venerdi: toNullableNumber(draft.oreVenerdi) })}
+              onBlur={(event) =>
+                void onAssunzionePatch({ ore_venerdi: toNullableNumber(event.currentTarget.value) })
+              }
             />
           </EditableField>
           <EditableField label="Ore sabato">
@@ -566,16 +634,18 @@ function RapportoDetailSections({
               step="0.25"
               value={draft.oreSabato}
               onChange={(event) => setValue("oreSabato", event.target.value)}
-              onBlur={() => void onAssunzionePatch({ ore_sabato: toNullableNumber(draft.oreSabato) })}
+              onBlur={(event) =>
+                void onAssunzionePatch({ ore_sabato: toNullableNumber(event.currentTarget.value) })
+              }
             />
           </EditableField>
           <EditableField label="Giorno/mezza giornata di riposo">
             <Input
               value={draft.mezzaGiornataRiposo}
               onChange={(event) => setValue("mezzaGiornataRiposo", event.target.value)}
-              onBlur={() =>
+              onBlur={(event) =>
                 void onAssunzionePatch({
-                  mezza_giornata_di_riposo: draft.mezzaGiornataRiposo || null,
+                  mezza_giornata_di_riposo: event.currentTarget.value || null,
                 })
               }
             />
@@ -1640,6 +1710,22 @@ export function AssunzioniDetailSheet({
   const [practiceError, setPracticeError] = React.useState<string | null>(null)
   const [uploadingAttachment, setUploadingAttachment] = React.useState<string | null>(null)
   const hydratedAssunzioniRef = React.useRef<Set<string>>(new Set())
+  const latestCardRef = React.useRef<AssunzioniBoardCardData | null>(card)
+  const datoreAssunzioneCreateRef = React.useRef<Promise<AssunzioneRecord> | null>(null)
+  const lavoratoreAssunzioneCreateRef = React.useRef<Promise<AssunzioneRecord> | null>(null)
+
+  React.useEffect(() => {
+    latestCardRef.current = card
+  }, [card])
+
+  const applyCardChange = React.useCallback(
+    (nextCard: AssunzioniBoardCardData) => {
+      latestCardRef.current = nextCard
+      onCardChange(nextCard)
+    },
+    [onCardChange]
+  )
+
   const makePracticeDraft = React.useCallback(
     () => ({
       statoAssunzione: card?.stage ?? "",
@@ -1680,6 +1766,13 @@ export function AssunzioniDetailSheet({
     () => mergeAssunzioneOptions(card?.lavoratoreAssunzione, assunzioneCandidates.lavoratore),
     [assunzioneCandidates.lavoratore, card?.lavoratoreAssunzione]
   )
+  const currentOffertaOptions = React.useMemo(() => {
+    const currentOfferta = card?.process?.offerta?.trim()
+    if (!currentOfferta || findLookupOption(offertaOptions, currentOfferta)) {
+      return offertaOptions
+    }
+    return [{ value: currentOfferta, label: currentOfferta }, ...offertaOptions]
+  }, [card?.process?.offerta, offertaOptions])
   const selectedAssunzioneOptions =
     target === "datore" ? datoreAssunzioneOptions : lavoratoreAssunzioneOptions
   const selectedAssunzioneId =
@@ -1707,9 +1800,11 @@ export function AssunzioniDetailSheet({
 
   React.useEffect(() => {
     setAssunzioneSearchQuery(
-      selectedAssunzioneRecord ? formatAssunzioneOptionLabel(selectedAssunzioneRecord) : ""
+      selectedAssunzioneRecord
+        ? formatSelectedAssunzioneLabel(selectedAssunzioneRecord, target, card)
+        : ""
     )
-  }, [card?.id, selectedAssunzioneRecord, target])
+  }, [card, selectedAssunzioneRecord, target])
 
   React.useEffect(() => {
     if (!open || !card?.id) {
@@ -1952,7 +2047,7 @@ export function AssunzioniDetailSheet({
         }
 
         if (changed) {
-          onCardChange(nextCard)
+          applyCardChange(nextCard)
         }
       } catch (caughtError) {
         if (!isActive) return
@@ -1969,7 +2064,7 @@ export function AssunzioniDetailSheet({
     return () => {
       isActive = false
     }
-  }, [card, onCardChange, open])
+  }, [applyCardChange, card, open])
 
   React.useEffect(() => {
     setPracticeDraft(makePracticeDraft())
@@ -2027,25 +2122,27 @@ export function AssunzioniDetailSheet({
 
   const saveRapportoPatch = React.useCallback(
     async (patch: Record<string, unknown>) => {
-      if (!card || Object.keys(patch).length === 0) return
+      const currentCard = latestCardRef.current ?? card
+      if (!currentCard || Object.keys(patch).length === 0) return
 
       setPracticeError(null)
       setSavingPractice(true)
 
       try {
-        const response = await updateRecord("rapporti_lavorativi", card.id, patch)
+        const response = await updateRecord("rapporti_lavorativi", currentCard.id, patch)
+        const baseCard = latestCardRef.current ?? currentCard
         const nextRapporto = {
-          ...(card.rapporto ?? {}),
+          ...(baseCard.rapporto ?? {}),
           ...response.row,
         } as NonNullable<AssunzioniBoardCardData["rapporto"]>
         const nextStage =
           typeof nextRapporto.stato_assunzione === "string" && nextRapporto.stato_assunzione
             ? nextRapporto.stato_assunzione
-            : card.stage
-        const nextTipoRapporto = nextRapporto.tipo_rapporto ?? card.tipoRapporto
+            : baseCard.stage
+        const nextTipoRapporto = nextRapporto.tipo_rapporto ?? baseCard.tipoRapporto
 
-        onCardChange({
-          ...card,
+        applyCardChange({
+          ...baseCard,
           stage: nextStage,
           rapporto: nextRapporto,
           tipoRapporto: nextTipoRapporto,
@@ -2059,19 +2156,22 @@ export function AssunzioniDetailSheet({
         setSavingPractice(false)
       }
     },
-    [card, onCardChange]
+    [applyCardChange, card]
   )
 
   const saveProcessPatch = React.useCallback(
     async (patch: Record<string, unknown>) => {
-      if (!card?.process?.id || Object.keys(patch).length === 0) return
+      const currentCard = latestCardRef.current ?? card
+      if (!currentCard?.process?.id || Object.keys(patch).length === 0) return
 
       try {
-        const response = await updateRecord("processi_matching", card.process.id, patch)
-        onCardChange({
-          ...card,
+        const response = await updateRecord("processi_matching", currentCard.process.id, patch)
+        const baseCard = latestCardRef.current ?? currentCard
+        const baseProcess = baseCard.process ?? currentCard.process
+        applyCardChange({
+          ...baseCard,
           process: {
-            ...card.process,
+            ...baseProcess,
             ...response.row,
           },
         })
@@ -2081,32 +2181,34 @@ export function AssunzioniDetailSheet({
         )
       }
     },
-    [card, onCardChange]
+    [applyCardChange, card]
   )
 
   const saveFamigliaPatch = React.useCallback(
     async (patch: Record<string, unknown>) => {
-      if (!card?.famigliaId || Object.keys(patch).length === 0) return
+      const currentCard = latestCardRef.current ?? card
+      if (!currentCard?.famigliaId || Object.keys(patch).length === 0) return
 
       setPracticeError(null)
       setSavingPractice(true)
 
       try {
-        const response = await updateRecord("famiglie", card.famigliaId, patch)
+        const response = await updateRecord("famiglie", currentCard.famigliaId, patch)
+        const baseCard = latestCardRef.current ?? currentCard
         const nextFamiglia = {
-          ...(card.famiglia ?? {}),
+          ...(baseCard.famiglia ?? {}),
           ...response.row,
         } as NonNullable<AssunzioniBoardCardData["famiglia"]>
         const nextNomeFamiglia =
           [nextFamiglia.cognome, nextFamiglia.nome].filter(Boolean).join(" ").trim() ||
-          card.nomeFamiglia
+          baseCard.nomeFamiglia
 
-        onCardChange({
-          ...card,
+        applyCardChange({
+          ...baseCard,
           famiglia: nextFamiglia,
           nomeFamiglia: nextNomeFamiglia,
-          email: nextFamiglia.email ?? card.email,
-          telefono: nextFamiglia.telefono ?? card.telefono,
+          email: nextFamiglia.email ?? baseCard.email,
+          telefono: nextFamiglia.telefono ?? baseCard.telefono,
         })
       } catch (caughtError) {
         setPracticeError(
@@ -2116,29 +2218,58 @@ export function AssunzioniDetailSheet({
         setSavingPractice(false)
       }
     },
-    [card, onCardChange]
+    [applyCardChange, card]
   )
 
   const saveAssunzionePatch = React.useCallback(
     async (patch: Record<string, unknown>) => {
-      if (!card || Object.keys(patch).length === 0) return
+      const currentCard = latestCardRef.current ?? card
+      if (!currentCard || Object.keys(patch).length === 0) return
 
       setPracticeError(null)
       setSavingPractice(true)
 
       try {
-        const response = card.assunzione?.id
-          ? await updateRecord("assunzioni", card.assunzione.id, patch)
-          : await createRecord("assunzioni", {
+        let nextAssunzione: AssunzioneRecord
+        const existingAssunzioneId =
+          currentCard.assunzione?.id ?? latestCardRef.current?.assunzione?.id
+
+        if (existingAssunzioneId) {
+          const response = await updateRecord("assunzioni", existingAssunzioneId, patch)
+          nextAssunzione = response.row as AssunzioneRecord
+        } else {
+          let createdByThisCall = false
+          if (!datoreAssunzioneCreateRef.current) {
+            createdByThisCall = true
+            datoreAssunzioneCreateRef.current = createRecord("assunzioni", {
               ...patch,
-              rapporto_lavorativo_datore_lavoro_id: card.id,
-              famiglia_id: card.famigliaId,
+              rapporto_lavorativo_datore_lavoro_id: currentCard.id,
+              famiglia_id: currentCard.famigliaId,
             })
-        onCardChange({
-          ...card,
+              .then((response) => response.row as AssunzioneRecord)
+              .finally(() => {
+                datoreAssunzioneCreateRef.current = null
+              })
+          }
+
+          const createdAssunzione = await datoreAssunzioneCreateRef.current
+          if (createdByThisCall) {
+            nextAssunzione = createdAssunzione
+          } else {
+            const response = await updateRecord("assunzioni", createdAssunzione.id, patch)
+            nextAssunzione = {
+              ...createdAssunzione,
+              ...response.row,
+            } as AssunzioneRecord
+          }
+        }
+
+        const baseCard = latestCardRef.current ?? currentCard
+        applyCardChange({
+          ...baseCard,
           assunzione: {
-            ...(card.assunzione ?? {}),
-            ...response.row,
+            ...(baseCard.assunzione ?? {}),
+            ...nextAssunzione,
           } as AssunzioniBoardCardData["assunzione"],
         })
       } catch (caughtError) {
@@ -2149,29 +2280,58 @@ export function AssunzioniDetailSheet({
         setSavingPractice(false)
       }
     },
-    [card, onCardChange]
+    [applyCardChange, card]
   )
 
   const saveLavoratoreAssunzionePatch = React.useCallback(
     async (patch: Record<string, unknown>) => {
-      if (!card || Object.keys(patch).length === 0) return
+      const currentCard = latestCardRef.current ?? card
+      if (!currentCard || Object.keys(patch).length === 0) return
 
       setPracticeError(null)
       setSavingPractice(true)
 
       try {
-        const response = card.lavoratoreAssunzione?.id
-          ? await updateRecord("assunzioni", card.lavoratoreAssunzione.id, patch)
-          : await createRecord("assunzioni", {
+        let nextAssunzione: AssunzioneRecord
+        const existingAssunzioneId =
+          currentCard.lavoratoreAssunzione?.id ?? latestCardRef.current?.lavoratoreAssunzione?.id
+
+        if (existingAssunzioneId) {
+          const response = await updateRecord("assunzioni", existingAssunzioneId, patch)
+          nextAssunzione = response.row as AssunzioneRecord
+        } else {
+          let createdByThisCall = false
+          if (!lavoratoreAssunzioneCreateRef.current) {
+            createdByThisCall = true
+            lavoratoreAssunzioneCreateRef.current = createRecord("assunzioni", {
               ...patch,
-              rapporto_lavorativo_lavoratore_id: card.id,
-              lavoratore_id: card.lavoratore?.id,
+              rapporto_lavorativo_lavoratore_id: currentCard.id,
+              lavoratore_id: currentCard.lavoratore?.id,
             })
-        onCardChange({
-          ...card,
+              .then((response) => response.row as AssunzioneRecord)
+              .finally(() => {
+                lavoratoreAssunzioneCreateRef.current = null
+              })
+          }
+
+          const createdAssunzione = await lavoratoreAssunzioneCreateRef.current
+          if (createdByThisCall) {
+            nextAssunzione = createdAssunzione
+          } else {
+            const response = await updateRecord("assunzioni", createdAssunzione.id, patch)
+            nextAssunzione = {
+              ...createdAssunzione,
+              ...response.row,
+            } as AssunzioneRecord
+          }
+        }
+
+        const baseCard = latestCardRef.current ?? currentCard
+        applyCardChange({
+          ...baseCard,
           lavoratoreAssunzione: {
-            ...(card.lavoratoreAssunzione ?? {}),
-            ...response.row,
+            ...(baseCard.lavoratoreAssunzione ?? {}),
+            ...nextAssunzione,
           } as AssunzioniBoardCardData["lavoratoreAssunzione"],
         })
       } catch (caughtError) {
@@ -2182,28 +2342,30 @@ export function AssunzioniDetailSheet({
         setSavingPractice(false)
       }
     },
-    [card, onCardChange]
+    [applyCardChange, card]
   )
 
   const saveLavoratorePatch = React.useCallback(
     async (patch: Record<string, unknown>) => {
-      if (!card?.lavoratore?.id || Object.keys(patch).length === 0) return
+      const currentCard = latestCardRef.current ?? card
+      if (!currentCard?.lavoratore?.id || Object.keys(patch).length === 0) return
 
       setPracticeError(null)
       setSavingPractice(true)
 
       try {
-        const response = await updateRecord("lavoratori", card.lavoratore.id, patch)
+        const response = await updateRecord("lavoratori", currentCard.lavoratore.id, patch)
+        const baseCard = latestCardRef.current ?? currentCard
         const nextLavoratore = {
-          ...card.lavoratore,
+          ...baseCard.lavoratore,
           ...response.row,
         } as NonNullable<AssunzioniBoardCardData["lavoratore"]>
         const nextNomeLavoratore =
           [nextLavoratore.cognome, nextLavoratore.nome].filter(Boolean).join(" ").trim() ||
-          card.nomeLavoratore
+          baseCard.nomeLavoratore
 
-        onCardChange({
-          ...card,
+        applyCardChange({
+          ...baseCard,
           lavoratore: nextLavoratore,
           nomeLavoratore: nextNomeLavoratore,
         })
@@ -2215,12 +2377,13 @@ export function AssunzioniDetailSheet({
         setSavingPractice(false)
       }
     },
-    [card, onCardChange]
+    [applyCardChange, card]
   )
 
   const linkAssunzioneRecord = React.useCallback(
     async (assunzioneId: string) => {
-      if (!card) return
+      const currentCard = latestCardRef.current ?? card
+      if (!currentCard) return
 
       const sourceOptions = target === "datore" ? datoreAssunzioneOptions : lavoratoreAssunzioneOptions
       const selectedRecord = sourceOptions.find((record) => record.id === assunzioneId)
@@ -2233,12 +2396,12 @@ export function AssunzioniDetailSheet({
         const patch =
           target === "datore"
             ? {
-                rapporto_lavorativo_datore_lavoro_id: card.id,
-                famiglia_id: card.famigliaId,
+                rapporto_lavorativo_datore_lavoro_id: currentCard.id,
+                famiglia_id: currentCard.famigliaId,
               }
             : {
-                rapporto_lavorativo_lavoratore_id: card.id,
-                lavoratore_id: card.lavoratore?.id ?? null,
+                rapporto_lavorativo_lavoratore_id: currentCard.id,
+                lavoratore_id: currentCard.lavoratore?.id ?? null,
               }
 
         const response = await updateRecord("assunzioni", assunzioneId, patch)
@@ -2253,21 +2416,21 @@ export function AssunzioniDetailSheet({
             record.id === assunzioneId ? nextRecord : record
           ),
         }))
-        setAssunzioneSearchQuery(formatAssunzioneOptionLabel(nextRecord))
+        setAssunzioneSearchQuery(formatSelectedAssunzioneLabel(nextRecord, target, currentCard))
 
-        onCardChange(
+        applyCardChange(
           target === "datore"
             ? {
-                ...card,
+                ...currentCard,
                 assunzione: nextRecord,
-                nomeFamiglia: resolveAssunzioneDisplayName(nextRecord) ?? card.nomeFamiglia,
-                email: nextRecord.info_anagrafiche_email ?? card.email,
-                telefono: nextRecord.info_anagrafiche_numero_mobile ?? card.telefono,
+                nomeFamiglia: resolveAssunzioneDisplayName(nextRecord) ?? currentCard.nomeFamiglia,
+                email: nextRecord.info_anagrafiche_email ?? currentCard.email,
+                telefono: nextRecord.info_anagrafiche_numero_mobile ?? currentCard.telefono,
               }
             : {
-                ...card,
+                ...currentCard,
                 lavoratoreAssunzione: nextRecord,
-                nomeLavoratore: resolveAssunzioneDisplayName(nextRecord) ?? card.nomeLavoratore,
+                nomeLavoratore: resolveAssunzioneDisplayName(nextRecord) ?? currentCard.nomeLavoratore,
               }
         )
       } catch (caughtError) {
@@ -2284,15 +2447,16 @@ export function AssunzioniDetailSheet({
       card,
       datoreAssunzioneOptions,
       lavoratoreAssunzioneOptions,
-      onCardChange,
+      applyCardChange,
       target,
     ]
   )
 
   const unlinkAssunzioneRecord = React.useCallback(async () => {
-    if (!card) return
+    const currentCard = latestCardRef.current ?? card
+    if (!currentCard) return
 
-    const currentRecord = target === "datore" ? card.assunzione : card.lavoratoreAssunzione
+    const currentRecord = target === "datore" ? currentCard.assunzione : currentCard.lavoratoreAssunzione
     if (!currentRecord?.id) return
 
     setPracticeError(null)
@@ -2324,14 +2488,14 @@ export function AssunzioniDetailSheet({
       }))
       setAssunzioneSearchQuery("")
 
-      onCardChange(
+      applyCardChange(
         target === "datore"
           ? {
-              ...card,
+              ...currentCard,
               assunzione: null,
             }
           : {
-              ...card,
+              ...currentCard,
               lavoratoreAssunzione: null,
             }
       )
@@ -2344,7 +2508,7 @@ export function AssunzioniDetailSheet({
     } finally {
       setSavingPractice(false)
     }
-  }, [card, onCardChange, target])
+  }, [applyCardChange, card, target])
 
   const uploadAssunzioneAttachment = React.useCallback(
     async (
@@ -2509,13 +2673,17 @@ export function AssunzioniDetailSheet({
                 <div className="grid gap-4 md:grid-cols-3">
                   <EditableField label="Stato assunzione">
                     <Select
-                      value={practiceDraft.statoAssunzione || undefined}
+                      value={getLookupSelectDisplayValue(
+                        practiceDraft.statoAssunzione,
+                        statoAssunzioneOptions
+                      )}
                       onValueChange={(value) => {
+                        const nextValue = getLookupLabelForSave(value, statoAssunzioneOptions)
                         setPracticeDraft((current) => ({
                           ...current,
-                          statoAssunzione: value,
+                          statoAssunzione: nextValue,
                         }))
-                        void saveRapportoPatch({ stato_assunzione: value || null })
+                        void saveRapportoPatch({ stato_assunzione: nextValue || null })
                       }}
                     >
                       <SelectTrigger>
@@ -2548,13 +2716,17 @@ export function AssunzioniDetailSheet({
                   </EditableField>
                   <EditableField label="Tipo rapporto">
                     <Select
-                      value={practiceDraft.tipoRapporto || undefined}
+                      value={getLookupSelectDisplayValue(
+                        practiceDraft.tipoRapporto,
+                        tipoRapportoOptions
+                      )}
                       onValueChange={(value) => {
+                        const nextValue = getLookupLabelForSave(value, tipoRapportoOptions)
                         setPracticeDraft((current) => ({
                           ...current,
-                          tipoRapporto: value,
+                          tipoRapporto: nextValue,
                         }))
-                        void saveRapportoPatch({ tipo_rapporto: value || null })
+                        void saveRapportoPatch({ tipo_rapporto: nextValue || null })
                       }}
                     >
                       <SelectTrigger>
@@ -2659,9 +2831,13 @@ export function AssunzioniDetailSheet({
                   </EditableField>
                   <EditableField label="Sconto applicato">
                     <Select
-                      value={card.process?.offerta || undefined}
+                      value={getLookupSelectDisplayValue(
+                        card.process?.offerta,
+                        currentOffertaOptions
+                      )}
                       onValueChange={(value) => {
-                        void saveProcessPatch({ offerta: value || null })
+                        const nextValue = getLookupLabelForSave(value, currentOffertaOptions)
+                        void saveProcessPatch({ offerta: nextValue || null })
                       }}
                       disabled={!card.process?.id}
                     >
@@ -2669,13 +2845,7 @@ export function AssunzioniDetailSheet({
                         <SelectValue placeholder="Seleziona sconto" />
                       </SelectTrigger>
                       <SelectContent>
-                        {[
-                          ...offertaOptions,
-                          ...(card.process?.offerta &&
-                          !offertaOptions.some((option) => option.value === card.process?.offerta)
-                            ? [{ value: card.process.offerta, label: card.process.offerta }]
-                            : []),
-                        ].map((option) => (
+                        {currentOffertaOptions.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>
@@ -2847,10 +3017,10 @@ export function AssunzioniDetailSheet({
                               )}
                             >
                               <div className="font-medium">
-                                {resolveAssunzioneDisplayName(record) ?? "Senza nome"}
+                                {resolveAssunzioneFormLabel(record, target, card)}
                               </div>
                               <div className="text-muted-foreground text-xs">
-                                {compactText(record.info_anagrafiche_email) ?? "-"}
+                                {resolveAssunzioneFormSubLabel(record, target, card)}
                               </div>
                             </button>
                           )

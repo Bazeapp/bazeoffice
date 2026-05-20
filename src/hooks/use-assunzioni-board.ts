@@ -175,6 +175,7 @@ const ASSUNZIONI_RAPPORTI_SELECT = [
   "nome_lavoratore_per_url",
   "data_inizio_rapporto",
   "ore_a_settimana",
+  "distribuzione_ore_settimana",
   "paga_mensile_lorda",
   "paga_oraria_lorda",
   "tipo_contratto",

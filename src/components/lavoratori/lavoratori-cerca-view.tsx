@@ -47,7 +47,9 @@ import {
 } from "@/features/lavoratori/lib/base-utils";
 import { isDirectInvolvementSelection } from "@/features/lavoratori/lib/involvement-utils";
 import {
+  getLookupLabelForSave,
   getLookupOptionLabel,
+  getLookupSelectValue,
   getTagClassName,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils";
@@ -1112,6 +1114,7 @@ export function LavoratoriCercaView({
     patchSelectedWorkerField,
     commitAddressField,
     saveWorkerAvailability,
+    patchWorkerAvailabilityStatus,
     handleAvailabilityMatrixChange,
     patchJobSearchField,
     patchExperienceRecord,
@@ -1672,12 +1675,18 @@ export function LavoratoriCercaView({
                         ...current,
                         disponibilita: value ?? "",
                       }));
+                      void patchWorkerAvailabilityStatus({
+                        disponibilita: value || null,
+                      });
                     }}
                     onDataRitornoDisponibilitaChange={(value) => {
                       setAvailabilityStatusDraft((current) => ({
                         ...current,
                         data_ritorno_disponibilita: value,
                       }));
+                      void patchWorkerAvailabilityStatus({
+                        data_ritorno_disponibilita: value || null,
+                      });
                     }}
                     onMotivazioneChange={(value) =>
                       void handleNonIdoneoReasonsChange(value ? [value] : [])
@@ -2229,16 +2238,22 @@ export function LavoratoriCercaView({
                               {issue.id === "referenze" ? (
                                 <Select
                                   value={
-                                    asString(
-                                      selectedWorkerRow?.hai_referenze,
+                                    getLookupSelectValue(
+                                      asString(selectedWorkerRow?.hai_referenze),
+                                      haiReferenzeOptions,
+                                      ""
                                     ) || undefined
                                   }
-                                  onValueChange={(value) =>
+                                  onValueChange={(value) => {
+                                    const nextValue = getLookupLabelForSave(
+                                      value,
+                                      haiReferenzeOptions
+                                    )
                                     void patchSelectedWorkerField(
                                       "hai_referenze",
-                                      value || null,
+                                      nextValue || null,
                                     )
-                                  }
+                                  }}
                                   disabled={updatingNonQualificato}
                                 >
                                   <SelectTrigger>

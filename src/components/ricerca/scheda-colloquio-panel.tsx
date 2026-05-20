@@ -39,7 +39,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils";
 import {
+  getLookupLabelForSave,
   getLookupOptionLabel,
+  getLookupSelectValue,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
   type LookupOption,
@@ -496,9 +498,9 @@ export function SchedaColloquioPanel({
               Motivo no match
             </label>
             <Select
-              value={draft.motivoNoMatch || "none"}
+              value={getLookupSelectValue(draft.motivoNoMatch, noMatchOptions, "none")}
               onValueChange={(value) => {
-                const nextValue = value === "none" ? "" : value;
+                const nextValue = value === "none" ? "" : getLookupLabelForSave(value, noMatchOptions);
                 setDraft((current) => ({
                   ...current,
                   motivoNoMatch: nextValue,

@@ -362,6 +362,34 @@ function selectedOptionValue(selected: string, options: LookupOption[]) {
   return matched?.valueKey ?? selected;
 }
 
+function findLookupOption(value: string, options: LookupOption[]) {
+  const token = normalizeToken(value);
+  if (!token || token === "-") return null;
+
+  return (
+    options.find(
+      (option) =>
+        normalizeToken(option.valueKey) === token ||
+        normalizeToken(option.valueLabel) === token
+    ) ?? null
+  );
+}
+
+function normalizeSelectedLookupKeys(values: string[], options: LookupOption[]) {
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    const key = findLookupOption(value, options)?.valueKey ?? value.trim();
+    const token = normalizeToken(key);
+    if (!key || seen.has(token)) continue;
+    result.push(key);
+    seen.add(token);
+  }
+
+  return result;
+}
+
 function ChoiceFieldSet({
   title,
   selected,
@@ -432,18 +460,19 @@ function MultiCheckboxField({
     typeof maxVisibleOptions === "number"
       ? options.slice(0, maxVisibleOptions)
       : options;
+  const selectedKeys = normalizeSelectedLookupKeys(value, options);
 
   return (
     <FieldSet>
       <FieldLegend variant="label">{title}</FieldLegend>
       <FieldGroup className="flex-row flex-wrap gap-2">
         {visibleOptions.map((option, index) => {
-          const checked = value.includes(option.valueKey);
+          const checked = selectedKeys.includes(option.valueKey);
           const previousAllChecked =
             !sequential ||
             visibleOptions
               .slice(0, index)
-              .every((previous) => value.includes(previous.valueKey));
+              .every((previous) => selectedKeys.includes(previous.valueKey));
           const disabled = sequential && !checked && !previousAllChecked;
           return (
             <CheckboxChip
@@ -473,8 +502,8 @@ function MultiCheckboxField({
                 }
 
                 const next = nextChecked
-                  ? [...value, option.valueKey]
-                  : value.filter((item) => item !== option.valueKey);
+                  ? [...selectedKeys, option.valueKey]
+                  : selectedKeys.filter((item) => item !== option.valueKey);
                 onChange(next);
               }}
             >

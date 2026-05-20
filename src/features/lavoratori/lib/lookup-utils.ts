@@ -86,6 +86,15 @@ export function getLookupOptionLabel(options: LookupOption[], value: string) {
   return findLookupOption(options, value)?.label ?? value
 }
 
+export function getLookupLabelForSave(
+  value: string | null | undefined,
+  options: LookupOption[],
+) {
+  const normalizedValue = String(value ?? "").trim()
+  if (!normalizedValue) return ""
+  return findLookupOption(options, normalizedValue)?.label ?? normalizedValue
+}
+
 export function normalizeLookupDbLabels(
   values: string[],
   options: LookupOption[],

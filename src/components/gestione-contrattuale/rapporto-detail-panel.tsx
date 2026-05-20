@@ -279,9 +279,61 @@ function getMonthLabel(mese: MeseLavoratoRecord, meseCalendario: MeseCalendarioR
   return formatDate(mese.creato_il)
 }
 
+function toNumericValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value !== "string" || !value.trim()) return null
+  const parsed = Number(value.replace(",", "."))
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function formatHoursLabel(value: number) {
+  return new Intl.NumberFormat("it-IT", {
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+function sumPresenceHours(value: PresenzaMensileRecord) {
+  let total = 0
+  let hasHours = false
+
+  for (let day = 1; day <= 31; day += 1) {
+    const hours = toNumericValue(value[`ore_day_${day}`])
+    if (hours === null) continue
+    hasHours = true
+    total += hours
+  }
+
+  return hasHours ? total : null
+}
+
+function hasPresenceDayData(value: PresenzaMensileRecord) {
+  for (let day = 1; day <= 31; day += 1) {
+    if (
+      value[`tipo_day_${day}`] ||
+      value[`evento_day_${day}`] ||
+      value[`note_day_${day}`] ||
+      value[`codice_malattia_day_${day}`]
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
+
 function getPresenceSummary(value: PresenzaMensileRecord | null) {
-  if (!value || typeof value.presenze_mensili !== "number") return "Presenze non disponibili"
-  return `${value.presenze_mensili} presenze`
+  if (!value) return "Presenze non disponibili"
+
+  const monthlyPresenceValue = toNumericValue(value.presenze_mensili)
+  const hoursValue = monthlyPresenceValue ?? sumPresenceHours(value)
+
+  if (hoursValue !== null) {
+    return `Presenze disponibili (${formatHoursLabel(hoursValue)} ore)`
+  }
+
+  if (hasPresenceDayData(value)) return "Presenze disponibili"
+
+  return "Presenze non disponibili"
 }
 
 function getContributoTitle(record: ContributoInpsRecord) {

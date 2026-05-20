@@ -29,7 +29,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/lookup-utils"
+import {
+  getLookupLabelForSave,
+  getLookupSelectValue,
+  getTagClassName,
+  resolveLookupColor,
+} from "@/features/lavoratori/lib/lookup-utils"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"
@@ -544,9 +549,10 @@ function ProvaDetailSheet({
             {rapporto ? (
               <DetailFieldControl label="Stato CS Prova" className="max-w-sm">
                 <Select
-                  value={rapporto.prova_stato_cs ?? "none"}
+                  value={getLookupSelectValue(rapporto.prova_stato_cs, statusOptions, "none")}
                   onValueChange={(next) => {
-                    void updateRapporto({ prova_stato_cs: next === "none" ? null : next }).catch((caughtError) => {
+                    const nextValue = next === "none" ? null : getLookupLabelForSave(next, statusOptions)
+                    void updateRapporto({ prova_stato_cs: nextValue }).catch((caughtError) => {
                       toast.error(caughtError instanceof Error ? caughtError.message : "Errore aggiornando stato prova")
                     })
                   }}
@@ -641,8 +647,11 @@ function ProvaDetailSheet({
               >
                 <DetailFieldControl label="Feedback Famiglia">
                   <Select
-                    value={rapporto.prova_feedback_famiglia ?? "none"}
-                    onValueChange={(next) => void updateRapporto({ prova_feedback_famiglia: next === "none" ? null : next })}
+                    value={getLookupSelectValue(rapporto.prova_feedback_famiglia, feedbackFamigliaOptions, "none")}
+                    onValueChange={(next) => {
+                      const nextValue = next === "none" ? null : getLookupLabelForSave(next, feedbackFamigliaOptions)
+                      void updateRapporto({ prova_feedback_famiglia: nextValue })
+                    }}
                   >
                     <SelectTrigger className="bg-surface">
                       <SelectValue placeholder="Feedback famiglia" />
@@ -657,8 +666,11 @@ function ProvaDetailSheet({
                 </DetailFieldControl>
                 <DetailFieldControl label="Feedback Lavoratore">
                   <Select
-                    value={rapporto.prova_feedback_lavoratore ?? "none"}
-                    onValueChange={(next) => void updateRapporto({ prova_feedback_lavoratore: next === "none" ? null : next })}
+                    value={getLookupSelectValue(rapporto.prova_feedback_lavoratore, feedbackLavoratoreOptions, "none")}
+                    onValueChange={(next) => {
+                      const nextValue = next === "none" ? null : getLookupLabelForSave(next, feedbackLavoratoreOptions)
+                      void updateRapporto({ prova_feedback_lavoratore: nextValue })
+                    }}
                   >
                     <SelectTrigger className="bg-surface">
                       <SelectValue placeholder="Feedback lavoratore" />
@@ -673,8 +685,11 @@ function ProvaDetailSheet({
                 </DetailFieldControl>
                 <DetailFieldControl label="Ramificazione D2">
                   <Select
-                    value={rapporto.prova_ramo_d2 ?? "none"}
-                    onValueChange={(next) => void updateRapporto({ prova_ramo_d2: next === "none" ? null : next })}
+                    value={getLookupSelectValue(rapporto.prova_ramo_d2, ramoD2Options, "none")}
+                    onValueChange={(next) => {
+                      const nextValue = next === "none" ? null : getLookupLabelForSave(next, ramoD2Options)
+                      void updateRapporto({ prova_ramo_d2: nextValue })
+                    }}
                   >
                     <SelectTrigger className="bg-surface">
                       <SelectValue placeholder="Ramificazione D2" />
@@ -1112,7 +1127,8 @@ function ColloquioSheet({
   const workerLabel = [event?.lavoratore?.nome, event?.lavoratore?.cognome].filter(Boolean).join(" ") || "Lavoratore"
   const familyLabel = [event?.famiglia?.nome, event?.famiglia?.cognome].filter(Boolean).join(" ") || event?.famiglia?.email || "Famiglia"
   const address = [event?.process?.indirizzo_prova_via, event?.process?.indirizzo_prova_civico].filter(Boolean).join(" ") || "-"
-  const tipoIncontroValue = event?.process?.tipo_incontro_famiglia_lavoratore ?? "none"
+  const rawTipoIncontroValue = event?.process?.tipo_incontro_famiglia_lavoratore ?? ""
+  const tipoIncontroValue = getLookupSelectValue(rawTipoIncontroValue, tipoIncontroOptions, "none")
   const hasCurrentTipoIncontro =
     tipoIncontroValue === "none" || tipoIncontroOptions.some((option) => option.value === tipoIncontroValue)
 
@@ -1170,8 +1186,9 @@ function ColloquioSheet({
                     disabled={!processId}
                     onValueChange={(next) => {
                       if (!processId) return
+                      const nextValue = next === "none" ? null : getLookupLabelForSave(next, tipoIncontroOptions)
                       void patchProcess(processId, {
-                        tipo_incontro_famiglia_lavoratore: next === "none" ? null : next,
+                        tipo_incontro_famiglia_lavoratore: nextValue,
                       }).catch((caughtError) => {
                         toast.error(caughtError instanceof Error ? caughtError.message : "Errore aggiornando colloquio")
                       })
@@ -1183,7 +1200,7 @@ function ColloquioSheet({
                     <SelectContent>
                       <SelectItem value="none">Non segnato</SelectItem>
                       {!hasCurrentTipoIncontro ? (
-                        <SelectItem value={tipoIncontroValue}>{tipoIncontroValue}</SelectItem>
+                        <SelectItem value={tipoIncontroValue}>{rawTipoIncontroValue}</SelectItem>
                       ) : null}
                       {tipoIncontroOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>

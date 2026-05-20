@@ -3,7 +3,6 @@ import {
   CalendarDaysIcon,
   CalendarIcon,
   FileTextIcon,
-  MapPinIcon,
   PencilIcon,
   PlusIcon,
 } from "lucide-react";
@@ -127,6 +126,7 @@ type AnagraficaField = {
   key: string;
   label: string;
   placeholder?: string;
+  readOnly?: boolean;
 };
 
 function toDisplayValue(value: unknown) {
@@ -160,8 +160,8 @@ const VARIAZIONE_WORKER_FIELDS: AnagraficaField[] = [
   { key: "email", label: "Email", placeholder: "email@dominio.it" },
   { key: "telefono", label: "Telefono", placeholder: "+39..." },
   { key: "iban", label: "IBAN" },
-  { key: "indirizzo_residenza_completo", label: "Indirizzo residenza" },
-  { key: "cap", label: "CAP" },
+  { key: "indirizzo_residenza_completo", label: "Indirizzo residenza", readOnly: true },
+  { key: "cap", label: "CAP", readOnly: true },
   { key: "provincia", label: "Provincia" },
   { key: "documenti_in_regola", label: "Documenti in regola" },
   { key: "docs_scadenza_permesso_di_soggiorno", label: "Scadenza permesso" },
@@ -213,7 +213,7 @@ function EditableAnagraficaSection({
   }, [fields, isEditing, row, rowId]);
 
   async function saveField(field: AnagraficaField) {
-    if (!rowId) return;
+    if (!rowId || field.readOnly) return;
     const nextValue = draft[field.key]?.trim() ?? "";
     const currentValue = toDisplayValue(row?.[field.key]).trim();
     if (nextValue === currentValue) return;
@@ -257,7 +257,7 @@ function EditableAnagraficaSection({
           {fields.map((field) => (
             <label key={field.key} className="space-y-2">
               <span className="ui-type-label">{field.label}</span>
-              {isEditing ? (
+              {isEditing && !field.readOnly ? (
                 <Input
                   value={draft[field.key] ?? ""}
                   placeholder={field.placeholder}
@@ -771,11 +771,6 @@ function VariazioniDetailSheet({
                       ))}
                     </div>
                   </div>
-                  <p className="flex items-center gap-2">
-                    <MapPinIcon className="text-muted-foreground size-4 shrink-0" />
-                    <span className="text-muted-foreground">Indirizzo:</span>
-                    <span className="font-medium text-foreground" />
-                  </p>
                 </div>
               </DetailSectionBlock>
 

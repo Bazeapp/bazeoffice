@@ -92,9 +92,11 @@ import {
   readArrayStrings,
 } from "@/features/lavoratori/lib/base-utils";
 import {
+  getLookupLabelForSave,
   getLookupOptionLabel,
   getLookupSelectValue,
   getTagClassName,
+  normalizeLookupComparableToken,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
   resolveLookupSingleValueOptions,
@@ -341,8 +343,10 @@ function GateContactsCard({
         </FieldLabel>
         <div className="min-w-0 flex-1 text-foreground">
           <RadioGroup
-            value={followupStatus}
-            onValueChange={onFollowupStatusChange}
+            value={getLookupSelectValue(followupStatus, options, "")}
+            onValueChange={(value) =>
+              onFollowupStatusChange(getLookupLabelForSave(value, options))
+            }
             variant="card"
             className="pt-1"
           >
@@ -703,7 +707,8 @@ function GateAssessmentCard({
       return leftOrder - rightOrder || left.label.localeCompare(right.label);
     });
   }, [statusOptions]);
-  const isNonIdoneo = statusValue === "Non idoneo";
+  const isNonIdoneo =
+    normalizeLookupComparableToken(statusValue) === "non idoneo";
   const [pendingStatusValue, setPendingStatusValue] = React.useState<
     string | null
   >(null);
@@ -711,11 +716,12 @@ function GateAssessmentCard({
 
   const handleStatusSelection = React.useCallback(
     (value: string) => {
-      if (!value || value === statusValue) return;
-      setPendingStatusValue(value);
+      const nextValue = getLookupLabelForSave(value, orderedStatusOptions);
+      if (!nextValue || nextValue === statusValue) return;
+      setPendingStatusValue(nextValue);
       setIsStatusConfirmOpen(true);
     },
-    [statusValue],
+    [orderedStatusOptions, statusValue],
   );
 
   const handleStatusConfirm = React.useCallback(() => {
@@ -763,7 +769,7 @@ function GateAssessmentCard({
             Aggiorna lo stato del lavoratore dopo il colloquio
           </p>
           <RadioGroup
-            value={statusValue}
+            value={getLookupSelectValue(statusValue, orderedStatusOptions, "")}
             onValueChange={handleStatusSelection}
             className="gap-3"
           >
@@ -772,7 +778,7 @@ function GateAssessmentCard({
                 key={option.value}
                 className="flex items-center gap-3 text-sm"
               >
-                <RadioGroupItem value={option.label} />
+                <RadioGroupItem value={option.value} />
                 <span
                   className={`inline-flex items-center rounded-4xl border px-2.5 py-0.5 text-xs ${getTagClassName(
                     resolveLookupColor(
@@ -796,10 +802,18 @@ function GateAssessmentCard({
           </p>
           <div className="max-w-md">
             <Select
-              value={nonIdoneoReasonValue || EMPTY_SELECT_VALUE}
-              onValueChange={(value) =>
-                onNonIdoneoReasonChange(value === EMPTY_SELECT_VALUE ? "" : value)
-              }
+              value={getLookupSelectValue(
+                nonIdoneoReasonValue,
+                nonIdoneoReasonOptions,
+                EMPTY_SELECT_VALUE,
+              )}
+              onValueChange={(value) => {
+                const nextValue =
+                  value === EMPTY_SELECT_VALUE
+                    ? ""
+                    : getLookupLabelForSave(value, nonIdoneoReasonOptions);
+                onNonIdoneoReasonChange(nextValue);
+              }}
               disabled={!isNonIdoneo}
             >
               <SelectTrigger>
@@ -2914,6 +2928,7 @@ export function Gate1View({
     commitHeaderField,
     commitAddressField,
     saveWorkerAvailability,
+    patchWorkerAvailabilityStatus,
     handleAvailabilityMatrixChange,
     patchExperienceRecord,
     createExperienceRecord,
@@ -4515,15 +4530,20 @@ export function Gate1View({
                                 ...current,
                                 disponibilita: value,
                               }));
+                              void patchWorkerAvailabilityStatus({
+                                disponibilita: value || null,
+                              });
                             }}
-                            onDataRitornoChange={(value) =>
+                            onDataRitornoChange={(value) => {
                               setAvailabilityStatusDraft((current) => ({
                                 ...current,
                                 data_ritorno_disponibilita: value,
-                              }))
-                            }
+                              }));
+                              void patchWorkerAvailabilityStatus({
+                                data_ritorno_disponibilita: value || null,
+                              });
+                            }}
                             onDataRitornoBlur={() => undefined}
-                            onSave={() => void saveWorkerAvailability()}
                           />
                           <GateShiftPreferencesCard
                             isEditing={gateShiftPreferencesIsEditing}
@@ -4861,15 +4881,20 @@ export function Gate1View({
                             ...current,
                             disponibilita: value,
                           }));
+                          void patchWorkerAvailabilityStatus({
+                            disponibilita: value || null,
+                          });
                         }}
-                        onDataRitornoChange={(value) =>
+                        onDataRitornoChange={(value) => {
                           setAvailabilityStatusDraft((current) => ({
                             ...current,
                             data_ritorno_disponibilita: value,
-                          }))
-                        }
+                          }));
+                          void patchWorkerAvailabilityStatus({
+                            data_ritorno_disponibilita: value || null,
+                          });
+                        }}
                         onDataRitornoBlur={() => undefined}
-                        onSave={() => void saveWorkerAvailability()}
                       />
                       <AvailabilityCalendarCard
                         titleMeta={

@@ -25,7 +25,9 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils"
 import {
+  getLookupLabelForSave,
   getLookupOptionLabel,
+  getLookupSelectValue,
   getTagClassName,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
@@ -191,9 +193,9 @@ export function SelectionDetailsCard({
         </FieldLabel>
         <div className="max-w-sm">
           <Select
-            value={draft.stato_selezione || "none"}
+            value={getLookupSelectValue(draft.stato_selezione, statusOptions, "none")}
             onValueChange={(value) => {
-              const nextValue = value === "none" ? "" : value
+              const nextValue = value === "none" ? "" : getLookupLabelForSave(value, statusOptions)
               setDraft((current) => ({ ...current, stato_selezione: nextValue }))
               void onPatchField("stato_selezione", nextValue || null)
             }}
@@ -263,9 +265,9 @@ export function SelectionDetailsCard({
           </FieldLabel>
           <div className="max-w-sm">
             <Select
-              value={draft.followup_senza_risposta || "none"}
+              value={getLookupSelectValue(draft.followup_senza_risposta, followupOptions, "none")}
               onValueChange={(value) => {
-                const nextValue = value === "none" ? "" : value
+                const nextValue = value === "none" ? "" : getLookupLabelForSave(value, followupOptions)
                 setDraft((current) => ({ ...current, followup_senza_risposta: nextValue }))
                 void onPatchField("followup_senza_risposta", nextValue || null)
               }}
@@ -294,9 +296,9 @@ export function SelectionDetailsCard({
           </FieldLabel>
           <div className="max-w-sm">
             <Select
-              value={draft.motivo_archivio || "none"}
+              value={getLookupSelectValue(draft.motivo_archivio, archivioOptions, "none")}
               onValueChange={(value) => {
-                const nextValue = value === "none" ? "" : value
+                const nextValue = value === "none" ? "" : getLookupLabelForSave(value, archivioOptions)
                 setDraft((current) => ({ ...current, motivo_archivio: nextValue }))
                 void onPatchField("motivo_archivio", nextValue || null)
               }}
@@ -342,9 +344,9 @@ export function SelectionDetailsCard({
           </FieldLabel>
           <div className="max-w-sm">
             <Select
-              value={draft.motivo_no_match || "none"}
+              value={getLookupSelectValue(draft.motivo_no_match, noMatchOptions, "none")}
               onValueChange={(value) => {
-                const nextValue = value === "none" ? "" : value
+                const nextValue = value === "none" ? "" : getLookupLabelForSave(value, noMatchOptions)
                 setDraft((current) => ({ ...current, motivo_no_match: nextValue }))
                 void onPatchField("motivo_no_match", nextValue || null)
               }}
