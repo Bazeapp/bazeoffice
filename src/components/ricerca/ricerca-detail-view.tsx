@@ -1032,6 +1032,7 @@ export function RicercaDetailView({
           disponibilitaColloquiInPresenza: displayValue(
             processRow.disponibilita_colloqui_in_presenza,
           ),
+          familyAvailabilityJson: toStringValue(processRow.family_availability_json),
           tipoIncontroFamigliaLavoratore: displayValue(
             processRow.tipo_incontro_famiglia_lavoratore,
           ),

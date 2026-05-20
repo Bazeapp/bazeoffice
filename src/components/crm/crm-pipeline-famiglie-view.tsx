@@ -872,6 +872,7 @@ export function CrmPipelineFamiglieView() {
                         setIsDetailOpen(true)
                       }}
                       isDeferred={
+                        !filtersActive &&
                         DEFERRED_STAGE_IDS.has(column.id) &&
                         !loadedClosedStageIds.has(column.id)
                       }

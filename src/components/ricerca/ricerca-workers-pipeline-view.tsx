@@ -78,6 +78,10 @@ import {
 import { matchesSearchQuery } from "@/lib/search-utils";
 import { cn } from "@/lib/utils";
 import { invokeAiGenerationFunction } from "@/lib/ai-generation";
+import {
+  getSelectionAvailabilityWorkerIds,
+  invokeWorkerAvailabilityForIds,
+} from "@/lib/availability-functions";
 import { type CrmPipelineCardData } from "@/hooks/use-crm-pipeline-preview";
 import {
   type RicercaWorkerSelectionColumn,
@@ -1164,7 +1168,7 @@ export function RicercaWorkersPipelineView({
     setDocumentsDraft,
     resolvedIban,
     handleAvailabilityMatrixChange,
-    commitAvailabilityField,
+    saveWorkerAvailability,
     patchJobSearchField,
     patchExperienceRecord,
     createExperienceRecord,
@@ -1721,12 +1725,18 @@ export function RicercaWorkersPipelineView({
       setSelectedWorkerError(null);
 
       try {
+        const previousSelectionRow = selectedSelectionRow;
         const response = await updateRecord(
           "selezioni_lavoratori",
           selectedCard.id,
           {
             [field]: value,
           },
+        );
+        await invokeWorkerAvailabilityForIds(
+          getSelectionAvailabilityWorkerIds(previousSelectionRow, {
+            [field]: value,
+          }),
         );
 
         setSelectedSelectionRow((current) => {
@@ -1746,7 +1756,7 @@ export function RicercaWorkersPipelineView({
         setUpdatingSelectionDetails(false);
       }
     },
-    [selectedCard],
+    [selectedCard, selectedSelectionRow],
   );
 
   const handleGenerateWorkerSummary = React.useCallback(async () => {
@@ -2095,6 +2105,13 @@ export function RicercaWorkersPipelineView({
         motivo_inserimento_manuale: reason,
         source: "manuale",
       });
+      await invokeWorkerAvailabilityForIds(
+        getSelectionAvailabilityWorkerIds(null, {
+          processo_matching_id: processId,
+          lavoratore_id: workerId,
+          stato_selezione: "Prospetto",
+        }),
+      );
 
       setIsAddWorkerDialogOpen(false);
       refresh();
@@ -2312,15 +2329,8 @@ export function RicercaWorkersPipelineView({
                       onStatoLavoratoreChange={(value) =>
                         patchSelectedWorkerField("stato_lavoratore", value)
                       }
-                      onDisponibilitaChange={(value) =>
-                        patchSelectedWorkerField("disponibilita", value)
-                      }
-                      onDataRitornoDisponibilitaChange={(value) =>
-                        patchSelectedWorkerField(
-                          "data_ritorno_disponibilita",
-                          value || null,
-                        )
-                      }
+                      disponibilitaDisabled
+                      dataRitornoDisponibilitaDisabled
                       onMotivazioneChange={(value) =>
                         patchSelectedWorkerField(
                           "motivazione_non_idoneo",
@@ -2532,9 +2542,8 @@ export function RicercaWorkersPipelineView({
                         vincoli_orari_disponibilita: value,
                       }))
                     }
-                    onAvailabilityVincoliBlur={() =>
-                      void commitAvailabilityField("vincoli_orari_disponibilita")
-                    }
+                    onAvailabilityVincoliBlur={() => undefined}
+                    onAvailabilitySave={() => void saveWorkerAvailability()}
                     isEditingExperience={isEditingExperience}
                     onToggleExperienceEdit={() =>
                       setIsEditingExperience((current) => !current)

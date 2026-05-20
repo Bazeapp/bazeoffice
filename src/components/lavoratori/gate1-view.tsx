@@ -2913,9 +2913,7 @@ export function Gate1View({
     patchSelectedWorkerField,
     commitHeaderField,
     commitAddressField,
-    commitAvailabilityField,
-    commitAvailabilityStatusField,
-    patchAvailabilityStatusValue,
+    saveWorkerAvailability,
     handleAvailabilityMatrixChange,
     patchExperienceRecord,
     createExperienceRecord,
@@ -4517,10 +4515,6 @@ export function Gate1View({
                                 ...current,
                                 disponibilita: value,
                               }));
-                              void patchAvailabilityStatusValue(
-                                "disponibilita",
-                                value,
-                              );
                             }}
                             onDataRitornoChange={(value) =>
                               setAvailabilityStatusDraft((current) => ({
@@ -4528,11 +4522,8 @@ export function Gate1View({
                                 data_ritorno_disponibilita: value,
                               }))
                             }
-                            onDataRitornoBlur={() =>
-                              void commitAvailabilityStatusField(
-                                "data_ritorno_disponibilita",
-                              )
-                            }
+                            onDataRitornoBlur={() => undefined}
+                            onSave={() => void saveWorkerAvailability()}
                           />
                           <GateShiftPreferencesCard
                             isEditing={gateShiftPreferencesIsEditing}
@@ -4580,10 +4571,6 @@ export function Gate1View({
                                 ...current,
                                 disponibilita_nel_giorno: values,
                               }));
-                              void patchSelectedWorkerField(
-                                "disponibilita_nel_giorno",
-                                values.length > 0 ? values : null,
-                              );
                             }}
                           />
                           <AvailabilityCalendarCard
@@ -4623,11 +4610,8 @@ export function Gate1View({
                                 vincoli_orari_disponibilita: value,
                               }))
                             }
-                            onVincoliBlur={() =>
-                              void commitAvailabilityField(
-                                "vincoli_orari_disponibilita",
-                              )
-                            }
+                            onVincoliBlur={() => undefined}
+                            onSave={() => void saveWorkerAvailability()}
                           />
                         </GateStepSection>
                       </div>
@@ -4852,10 +4836,6 @@ export function Gate1View({
                             ...current,
                             disponibilita_nel_giorno: values,
                           }));
-                          void patchSelectedWorkerField(
-                            "disponibilita_nel_giorno",
-                            values.length > 0 ? values : null,
-                          );
                         }}
                       />
                       <AvailabilityStatusCard
@@ -4881,10 +4861,6 @@ export function Gate1View({
                             ...current,
                             disponibilita: value,
                           }));
-                          void patchAvailabilityStatusValue(
-                            "disponibilita",
-                            value,
-                          );
                         }}
                         onDataRitornoChange={(value) =>
                           setAvailabilityStatusDraft((current) => ({
@@ -4892,11 +4868,8 @@ export function Gate1View({
                             data_ritorno_disponibilita: value,
                           }))
                         }
-                        onDataRitornoBlur={() =>
-                          void commitAvailabilityStatusField(
-                            "data_ritorno_disponibilita",
-                          )
-                        }
+                        onDataRitornoBlur={() => undefined}
+                        onSave={() => void saveWorkerAvailability()}
                       />
                       <AvailabilityCalendarCard
                         titleMeta={
@@ -4935,11 +4908,8 @@ export function Gate1View({
                             vincoli_orari_disponibilita: value,
                           }))
                         }
-                        onVincoliBlur={() =>
-                          void commitAvailabilityField(
-                            "vincoli_orari_disponibilita",
-                          )
-                        }
+                        onVincoliBlur={() => undefined}
+                        onSave={() => void saveWorkerAvailability()}
                       />
                     </GateStepSection>
                   )}

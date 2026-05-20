@@ -80,7 +80,7 @@ function buildDistributionItems(
   source: string | null,
   totalHours: number | null,
 ) {
-  const labels = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+  const labels = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
   const matches = String(source ?? "").match(/\d+([.,]\d+)?/g) ?? [];
   const parsedValues = matches.slice(0, 7).map((value) => {
     const normalized = value.replace(",", ".");

@@ -26,6 +26,10 @@ import {
   fetchSelezioniLavoratori,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import {
+  getSelectionAvailabilityWorkerIds,
+  invokeWorkerAvailabilityForIds,
+} from "@/lib/availability-functions"
 import type { LookupValueRecord } from "@/types"
 
 type GenericRow = Record<string, unknown>
@@ -999,6 +1003,9 @@ export function useRicercaWorkersPipeline(
   const moveCard = React.useCallback(
     async (selectionId: string, targetStatusId: string) => {
       const previous = columns
+      const currentCard = columns
+        .flatMap((column) => column.cards)
+        .find((card) => card.id === selectionId)
 
       setColumns((current) => {
         let movedCard: RicercaWorkerSelectionCard | null = null
@@ -1036,6 +1043,17 @@ export function useRicercaWorkersPipeline(
         await updateRecord("selezioni_lavoratori", selectionId, {
           stato_selezione: targetStatusId,
         })
+        await invokeWorkerAvailabilityForIds(
+          getSelectionAvailabilityWorkerIds(
+            currentCard
+              ? {
+                  lavoratore_id: currentCard.worker.id,
+                  stato_selezione: currentCard.status,
+                }
+              : null,
+            { stato_selezione: targetStatusId }
+          )
+        )
       } catch (caughtError) {
         setColumns(previous)
         const message =

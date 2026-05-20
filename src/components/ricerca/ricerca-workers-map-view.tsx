@@ -35,6 +35,10 @@ import {
   fetchLookupValues,
 } from "@/lib/anagrafiche-api"
 import {
+  getSelectionAvailabilityWorkerIds,
+  invokeWorkerAvailabilityForIds,
+} from "@/lib/availability-functions"
+import {
   distanceKmBetweenCoordinates,
   parseCoordinates,
   type GeoCoordinates,
@@ -1029,6 +1033,13 @@ export function RicercaWorkersMapView({
           motivo_inserimento_manuale: "Inserito da mappa ricerca",
           source: "mappa",
         })
+        await invokeWorkerAvailabilityForIds(
+          getSelectionAvailabilityWorkerIds(null, {
+            processo_matching_id: processId,
+            lavoratore_id: worker.worker.id,
+            stato_selezione: targetStatus,
+          })
+        )
         refresh()
         toast.success("Lavoratore aggiunto alla pipeline")
       } catch (caughtError) {

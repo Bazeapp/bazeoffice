@@ -1095,6 +1095,17 @@ function getStageFilterValues(stages: StageDefinition[], loadedClosedStageIds: S
   return Array.from(new Set(values.filter(Boolean)))
 }
 
+function hasActiveServerFilters(searchQuery: string, filters: CrmPipelineFilters) {
+  return (
+    Boolean(searchQuery.trim()) ||
+    Boolean(filters.createdFrom) ||
+    Boolean(filters.createdTo) ||
+    Boolean(filters.tipoLavoro?.length) ||
+    filters.preventivoAccettato !== null ||
+    filters.chiamataPrenotata !== null
+  )
+}
+
 async function fetchBoardRecordsWithRpc(
   stageFilter: string[],
   searchQuery: string,
@@ -1189,15 +1200,7 @@ async function fetchBoardRecordsForStages(
   try {
     return await fetchBoardRecordsWithRpc(stageFilter, searchQuery, filters)
   } catch (caughtError) {
-    const hasServerSideFilters =
-      Boolean(searchQuery.trim()) ||
-      Boolean(filters.createdFrom) ||
-      Boolean(filters.createdTo) ||
-      Boolean(filters.tipoLavoro?.length) ||
-      filters.preventivoAccettato !== null ||
-      filters.chiamataPrenotata !== null
-
-    if (hasServerSideFilters) {
+    if (hasActiveServerFilters(searchQuery, filters)) {
       throw caughtError
     }
 
@@ -1216,8 +1219,14 @@ async function fetchBoardData(
   const lookupColors = buildLookupColorMap(lookupRows)
   const lookupOptionsByField = buildLookupOptionsByField(lookupRows)
   const { stages, tokenToStageId } = buildStageDefinitions(lookupRows)
+  const effectiveLoadedClosedStageIds = hasActiveServerFilters(
+    normalizedSearchQuery,
+    filters
+  )
+    ? new Set([...loadedClosedStageIds, ...CLOSED_STAGE_IDS])
+    : loadedClosedStageIds
   const boardRecords = await fetchBoardRecordsForStages(
-    getStageFilterValues(stages, loadedClosedStageIds),
+    getStageFilterValues(stages, effectiveLoadedClosedStageIds),
     normalizedSearchQuery,
     filters
   )

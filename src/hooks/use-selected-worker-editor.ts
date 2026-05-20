@@ -50,6 +50,7 @@ import {
   deleteRecord,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { invokeWorkerAvailability } from "@/lib/availability-functions"
 import { createStripeConnectAccount } from "@/lib/stripe-connect-api"
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
@@ -667,48 +668,46 @@ export function useSelectedWorkerEditor({
     ]
   )
 
-  const commitAvailabilityField = React.useCallback(
-    async (field: "vincoli_orari_disponibilita") => {
-      const currentValue = asString(selectedWorkerRow?.[field])
-      const nextValue = availabilityDraft[field].trim()
-      if (nextValue === currentValue) return
-      await patchWorkerField(field, nextValue || null, {
-        loadingKey: "availability",
-        errorMessage: "Errore aggiornando disponibilita",
-      })
-    },
-    [availabilityDraft, patchWorkerField, selectedWorkerRow]
-  )
+  const saveWorkerAvailability = React.useCallback(async () => {
+    if (!selectedWorkerId) return
 
-  const commitAvailabilityStatusField = React.useCallback(
-    async (field: "disponibilita" | "data_ritorno_disponibilita") => {
-      const currentValue = asString(selectedWorkerRow?.[field])
-      const nextValue =
-        field === "data_ritorno_disponibilita"
-          ? availabilityStatusDraft[field]
-          : availabilityStatusDraft[field].trim()
-      if (nextValue === currentValue) return
+    const patch = {
+      disponibilita: availabilityStatusDraft.disponibilita.trim() || null,
+      data_ritorno_disponibilita: availabilityStatusDraft.data_ritorno_disponibilita || null,
+      disponibilita_nel_giorno:
+        availabilityDraft.disponibilita_nel_giorno.length > 0
+          ? availabilityDraft.disponibilita_nel_giorno
+          : null,
+      vincoli_orari_disponibilita:
+        availabilityDraft.vincoli_orari_disponibilita.trim() || null,
+      ...buildAvailabilityPatchFromMatrix(availabilityDraft.matrix, availabilityPayload),
+    } as Partial<LavoratoreRecord> & Record<string, unknown>
 
-      await patchWorkerField(field, nextValue || null, {
-        loadingKey: "availabilityStatus",
-        errorMessage: "Errore aggiornando stato disponibilita",
-      })
-    },
-    [availabilityStatusDraft, patchWorkerField, selectedWorkerRow]
-  )
-
-  const patchAvailabilityStatusValue = React.useCallback(
-    async (field: "disponibilita" | "data_ritorno_disponibilita", nextValue: string) => {
-      const currentValue = asString(selectedWorkerRow?.[field])
-      if (nextValue === currentValue) return
-
-      await patchWorkerField(field, nextValue || null, {
-        loadingKey: "availabilityStatus",
-        errorMessage: "Errore aggiornando stato disponibilita",
-      })
-    },
-    [patchWorkerField, selectedWorkerRow]
-  )
+    setUpdatingAvailability(true)
+    setUpdatingAvailabilityStatus(true)
+    try {
+      const result = await updateRecord("lavoratori", selectedWorkerId, patch)
+      const nextRow = asLavoratoreRecord(result.row)
+      applyUpdatedWorkerRow(nextRow)
+      await invokeWorkerAvailability(selectedWorkerId)
+      toast.success("Disponibilita lavoratore salvata")
+    } catch (caughtError) {
+      const message = formatEditorError("Errore salvando disponibilita", caughtError)
+      setError(message)
+      toast.error(message)
+      throw caughtError
+    } finally {
+      setUpdatingAvailability(false)
+      setUpdatingAvailabilityStatus(false)
+    }
+  }, [
+    applyUpdatedWorkerRow,
+    availabilityDraft,
+    availabilityPayload,
+    availabilityStatusDraft,
+    selectedWorkerId,
+    setError,
+  ])
 
   const handleAvailabilityMatrixChange = React.useCallback(
     async (
@@ -726,13 +725,8 @@ export function useSelectedWorkerEditor({
         ...current,
         matrix: nextMatrix,
       }))
-
-      await applyWorkerPatch(buildAvailabilityPatchFromMatrix(nextMatrix, availabilityPayload), {
-        loadingKey: "availability",
-        errorMessage: "Errore aggiornando disponibilita",
-      })
     },
-    [applyWorkerPatch, availabilityDraft.matrix, availabilityPayload]
+    [availabilityDraft.matrix]
   )
 
   const patchJobSearchField = React.useCallback(
@@ -1003,9 +997,7 @@ export function useSelectedWorkerEditor({
     patchSelectedWorkerField,
     commitHeaderField,
     commitAddressField,
-    commitAvailabilityField,
-    commitAvailabilityStatusField,
-    patchAvailabilityStatusValue,
+    saveWorkerAvailability,
     handleAvailabilityMatrixChange,
     patchJobSearchField,
     patchExperienceRecord,

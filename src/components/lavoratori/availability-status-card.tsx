@@ -1,4 +1,4 @@
-import { CalendarDaysIcon, PencilIcon } from "lucide-react"
+import { CalendarDaysIcon, PencilIcon, SaveIcon } from "lucide-react"
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +31,7 @@ type AvailabilityStatusCardProps = {
   selectedDisponibilitaBadgeClassName: string
   selectedDataRitorno: string
   onToggleEdit: () => void
+  onSave?: () => void
   onDisponibilitaChange: (value: string) => void
   onDataRitornoChange: (value: string) => void
   onDataRitornoBlur: () => void
@@ -48,6 +49,7 @@ export function AvailabilityStatusCard({
   selectedDisponibilitaBadgeClassName,
   selectedDataRitorno,
   onToggleEdit,
+  onSave,
   onDisponibilitaChange,
   onDataRitornoChange,
   onDataRitornoBlur,
@@ -58,25 +60,41 @@ export function AvailabilityStatusCard({
     <DetailSectionBlock
       title="Disponibilita"
       icon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
-      action={showEditAction ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={
-            isEditing
-              ? "Termina modifica stato disponibilita"
-              : "Modifica stato disponibilita"
-          }
-          title={
-            isEditing
-              ? "Termina modifica stato disponibilita"
-              : "Modifica stato disponibilita"
-          }
-          onClick={onToggleEdit}
-        >
-          <PencilIcon />
-        </Button>
+      action={showEditAction || onSave ? (
+        <div className="flex items-center gap-1.5">
+          {isEditing && onSave ? (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={onSave}
+              disabled={isUpdating}
+            >
+              <SaveIcon />
+              {isUpdating ? "Salvataggio" : "Salva"}
+            </Button>
+          ) : null}
+          {showEditAction ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={
+                isEditing
+                  ? "Termina modifica stato disponibilita"
+                  : "Modifica stato disponibilita"
+              }
+              title={
+                isEditing
+                  ? "Termina modifica stato disponibilita"
+                  : "Modifica stato disponibilita"
+              }
+              onClick={onToggleEdit}
+            >
+              <PencilIcon />
+            </Button>
+          ) : null}
+        </div>
       ) : undefined}
       showDefaultAction={showEditAction}
       collapsible={collapsible}

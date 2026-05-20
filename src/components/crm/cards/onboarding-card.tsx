@@ -8,6 +8,7 @@ import {
   ExternalLinkIcon,
   HomeIcon,
   MapPinnedIcon,
+  SaveIcon,
   ShieldCheckIcon,
   TimerResetIcon,
   UsersIcon,
@@ -60,6 +61,7 @@ import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
+import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
 import { updateRecord } from "@/lib/anagrafiche-api";
 
@@ -395,6 +397,7 @@ export function OnboardingCard({
   const [giornatePreferite, setGiornatePreferite] = React.useState<string[]>(
     normalizeWeekdayList(card?.giornatePreferite),
   );
+  const [isSavingAvailability, setIsSavingAvailability] = React.useState(false);
 
   const weekdayColorMap = React.useMemo(() => {
     const options = (lookupOptionsByField?.preferenza_giorno ??
@@ -462,6 +465,60 @@ export function OnboardingCard({
       await onPatchProcess?.(cardId, patch);
     },
     [cardId, onPatchProcess],
+  );
+
+  const saveFamilyAvailability = React.useCallback(async () => {
+    if (!cardId || !onPatchProcess || isSavingAvailability) return;
+
+    const patch = {
+      orario_di_lavoro: orarioDiLavoro || null,
+      preferenza_giorno: giornatePreferite,
+      ore_settimanale: oreSettimanali || null,
+      numero_giorni_settimanali: giorniSettimanali || null,
+    };
+
+    setIsSavingAvailability(true);
+    try {
+      await onPatchProcess(cardId, patch);
+      await invokeEdgeFunction("family-availability", {
+        processo_matching_id: cardId,
+      });
+      toast.success("Disponibilita famiglia salvata");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Errore salvando disponibilita famiglia",
+      );
+    } finally {
+      setIsSavingAvailability(false);
+    }
+  }, [
+    cardId,
+    giornatePreferite,
+    giorniSettimanali,
+    isSavingAvailability,
+    onPatchProcess,
+    orarioDiLavoro,
+    oreSettimanali,
+  ]);
+
+  const availabilitySaveAction = !readOnly ? (
+    <div className="flex items-center gap-1.5">
+      <Button
+        type="button"
+        variant="default"
+        size="sm"
+        onClick={() => void saveFamilyAvailability()}
+        disabled={!cardId || !onPatchProcess || isSavingAvailability}
+      >
+        <SaveIcon />
+        {isSavingAvailability ? "Salvataggio" : "Salva"}
+      </Button>
+      {resolvedSectionAction}
+    </div>
+  ) : (
+    resolvedSectionAction
   );
 
   const patchAddress = React.useCallback(
@@ -837,7 +894,7 @@ export function OnboardingCard({
         <DetailSectionBlock
           title="Orari e frequenza"
           icon={<CalendarDaysIcon className="size-4" />}
-          action={resolvedSectionAction}
+          action={availabilitySaveAction}
           showDefaultAction={false}
           collapsible={shouldCollapseSections}
           defaultOpen={firstSectionDefaultOpen}
@@ -858,9 +915,6 @@ export function OnboardingCard({
             placeholder="da lunedì a venerdì, dalle 9:00 alle 19:00"
             value={orarioDiLavoro}
             onChange={(event) => setOrarioDiLavoro(event.target.value)}
-            onBlur={() => {
-              void patchProcess({ orario_di_lavoro: orarioDiLavoro || null });
-            }}
           />
         </Field>
 
@@ -881,9 +935,6 @@ export function OnboardingCard({
               onChange={(event) =>
                 setOreSettimanali(clampNumericInput(event.target.value, 52))
               }
-              onBlur={() => {
-                void patchProcess({ ore_settimanale: oreSettimanali || null });
-              }}
             />
           </Field>
 
@@ -903,11 +954,6 @@ export function OnboardingCard({
               onChange={(event) =>
                 setGiorniSettimanali(clampNumericInput(event.target.value, 7))
               }
-              onBlur={() => {
-                void patchProcess({
-                  numero_giorni_settimanali: giorniSettimanali || null,
-                });
-              }}
             />
           </Field>
 
@@ -924,7 +970,6 @@ export function OnboardingCard({
               onValueChange={(nextValues) => {
                 const normalized = normalizeWeekdayList(nextValues as string[]);
                 setGiornatePreferite(normalized);
-                void patchProcess({ preferenza_giorno: normalized });
               }}
             >
               <ComboboxChips
@@ -961,31 +1006,6 @@ export function OnboardingCard({
             </Combobox>
 		          </Field>
 		        </div>
-        <Field invalid={isRequiredMissing("srcEmbedMapsAnnucio")}>
-          <FieldLabel>SRC Maps</FieldLabel>
-          <FieldDescription>
-            <a
-              href={srcMapsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary underline underline-offset-2"
-            >
-              {srcMapsUrl}
-            </a>
-          </FieldDescription>
-        </Field>
-        <Field invalid={isRequiredMissing("srcEmbedMapsAnnucio")}>
-          <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
-          <Input
-            id="onboarding-src-maps-edit"
-            className={cn(isRequiredMissing("srcEmbedMapsAnnucio") && REQUIRED_FIELD_CLASS)}
-            value={srcMapsUrl}
-            onChange={(event) => setSrcMapsUrl(event.target.value)}
-            onBlur={() => {
-              void patchProcess({ src_embed_maps_annucio: srcMapsUrl || null });
-            }}
-          />
-        </Field>
         </DetailSectionBlock>
       </div>
       ) : null}
@@ -1075,6 +1095,18 @@ export function OnboardingCard({
 	            />
 	          </Field>
 	        </div>
+        <Field invalid={isRequiredMissing("srcEmbedMapsAnnucio")}>
+          <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
+          <Input
+            id="onboarding-src-maps-edit"
+            className={cn(isRequiredMissing("srcEmbedMapsAnnucio") && REQUIRED_FIELD_CLASS)}
+            value={srcMapsUrl}
+            onChange={(event) => setSrcMapsUrl(event.target.value)}
+            onBlur={() => {
+              void patchProcess({ src_embed_maps_annucio: srcMapsUrl || null });
+            }}
+          />
+        </Field>
         </DetailSectionBlock>
       </div>
       ) : null}
@@ -1288,7 +1320,7 @@ export function OnboardingCard({
   }
 
   return (
-    <CrmDetailCard title={showTitle ? "Onboarding" : ""} titleAction={titleAction}>
+    <CrmDetailCard title={showTitle ? "Onboarding" : ""} titleAction={availabilitySaveAction}>
       <FieldGroup>
         <p className="text-base font-semibold">Orari e frequenza</p>
         <Field>
@@ -1305,9 +1337,6 @@ export function OnboardingCard({
             placeholder="da lunedì a venerdì, dalle 9:00 alle 19:00"
             value={orarioDiLavoro}
             onChange={(event) => setOrarioDiLavoro(event.target.value)}
-            onBlur={() => {
-              void patchProcess({ orario_di_lavoro: orarioDiLavoro || null });
-            }}
           />
         </Field>
 
@@ -1327,9 +1356,6 @@ export function OnboardingCard({
               onChange={(event) =>
                 setOreSettimanali(clampNumericInput(event.target.value, 52))
               }
-              onBlur={() => {
-                void patchProcess({ ore_settimanale: oreSettimanali || null });
-              }}
             />
           </Field>
 
@@ -1348,11 +1374,6 @@ export function OnboardingCard({
               onChange={(event) =>
                 setGiorniSettimanali(clampNumericInput(event.target.value, 7))
               }
-              onBlur={() => {
-                void patchProcess({
-                  numero_giorni_settimanali: giorniSettimanali || null,
-                });
-              }}
             />
           </Field>
 
@@ -1369,7 +1390,6 @@ export function OnboardingCard({
               onValueChange={(nextValues) => {
                 const normalized = normalizeWeekdayList(nextValues as string[]);
                 setGiornatePreferite(normalized);
-                void patchProcess({ preferenza_giorno: normalized });
               }}
             >
               <ComboboxChips ref={anchor} id="onboarding-giornate-preferite" className="w-full">
@@ -1515,19 +1535,6 @@ export function OnboardingCard({
 		              />
 			            </Field>
 		          </div>
-	          <Field>
-	            <FieldLabel>SRC Maps</FieldLabel>
-	            <FieldDescription>
-	              <a
-	                href={srcMapsUrl}
-	                target="_blank"
-	                rel="noreferrer"
-	                className="text-primary underline underline-offset-2"
-	              >
-	                {srcMapsUrl}
-	              </a>
-	            </FieldDescription>
-	          </Field>
 	          <Field>
 	            <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
 	            <Input

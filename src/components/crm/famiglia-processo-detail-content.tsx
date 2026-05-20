@@ -88,7 +88,7 @@ const ANNOUNCEMENT_REQUIRED_FIELD_SECTION: Record<
   oreSettimana: "orari-frequenza",
   giorniSettimana: "orari-frequenza",
   giornatePreferite: "orari-frequenza",
-  srcEmbedMapsAnnucio: "orari-frequenza",
+  srcEmbedMapsAnnucio: "luogo-lavoro",
   indirizzoProvincia: "luogo-lavoro",
   indirizzoCap: "luogo-lavoro",
   indirizzoVia: "luogo-lavoro",

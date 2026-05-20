@@ -238,7 +238,7 @@ function sanitizeFileName(name: string) {
 }
 
 function buildDistributionItems(source: string | null) {
-  const days = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
+  const days = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]
   const hourMatches = source?.match(/(\d+(?:[.,]\d+)?)h?/g) ?? []
   const parsed = hourMatches.map((item) => Number.parseFloat(item.replace("h", "").replace(",", ".")))
 

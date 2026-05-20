@@ -1,5 +1,5 @@
 import * as React from "react"
-import { CalendarDaysIcon, PencilIcon } from "lucide-react"
+import { CalendarDaysIcon, PencilIcon, SaveIcon } from "lucide-react"
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { Button } from "@/components/ui/button"
@@ -39,6 +39,7 @@ type AvailabilityCalendarCardProps = {
   matrix: Record<string, boolean>
   vincoliOrari: string
   onToggleEdit: () => void
+  onSave?: () => void
   onMatrixChange: (dayField: string, bandField: string, checked: boolean) => void
   onVincoliChange: (value: string) => void
   onVincoliBlur: () => void
@@ -61,6 +62,7 @@ export function AvailabilityCalendarCard({
   matrix,
   vincoliOrari,
   onToggleEdit,
+  onSave,
   onMatrixChange,
   onVincoliChange,
   onVincoliBlur,
@@ -73,6 +75,7 @@ export function AvailabilityCalendarCard({
     }
     return map
   }, [comparisonRows])
+  const hasComparisonRows = comparisonRows.length > 0
 
   return (
     <DetailSectionBlock
@@ -85,17 +88,33 @@ export function AvailabilityCalendarCard({
         </span>
       }
       icon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
-      action={showEditAction ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={isEditing ? "Termina modifica disponibilita" : "Modifica disponibilita"}
-          title={isEditing ? "Termina modifica disponibilita" : "Modifica disponibilita"}
-          onClick={onToggleEdit}
-        >
-          <PencilIcon />
-        </Button>
+      action={showEditAction || onSave ? (
+        <div className="flex items-center gap-1.5">
+          {isEditing && onSave ? (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={onSave}
+              disabled={isUpdating}
+            >
+              <SaveIcon />
+              {isUpdating ? "Salvataggio" : "Salva"}
+            </Button>
+          ) : null}
+          {showEditAction ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={isEditing ? "Termina modifica disponibilita" : "Modifica disponibilita"}
+              title={isEditing ? "Termina modifica disponibilita" : "Modifica disponibilita"}
+              onClick={onToggleEdit}
+            >
+              <PencilIcon />
+            </Button>
+          ) : null}
+        </div>
       ) : undefined}
       showDefaultAction={showEditAction}
       collapsible={collapsible}
@@ -197,14 +216,17 @@ export function AvailabilityCalendarCard({
                     <div key={`${row.day}-${hourLabels[index]}`} className="p-[2px]">
                       {(() => {
                         const comparisonActive = comparisonByDay.get(row.day)?.[index] === true
-                        const className =
-                          isActive && comparisonActive
-                            ? "h-4 rounded-[5px] border border-emerald-400 bg-emerald-300"
-                            : comparisonActive
-                              ? "h-4 rounded-[5px] border border-rose-300 bg-rose-100"
-                              : isActive
-                                ? "h-4 rounded-[5px] border border-emerald-200 bg-emerald-50"
-                                : "h-4 rounded-[5px] border border-border/50 bg-muted/25"
+                        const className = hasComparisonRows
+                          ? comparisonActive
+                            ? isActive
+                              ? "h-4 rounded-[5px] border border-emerald-500 bg-emerald-300"
+                              : "h-4 rounded-[5px] border border-red-300 bg-red-200"
+                            : isActive
+                              ? "h-4 rounded-[5px] border border-emerald-100 bg-emerald-50"
+                              : "h-4 rounded-[5px] border border-border/50 bg-muted/25"
+                          : isActive
+                            ? "h-4 rounded-[5px] border border-emerald-300 bg-emerald-200"
+                            : "h-4 rounded-[5px] border border-border/50 bg-muted/25"
                         return <div className={className} />
                       })()}
                     </div>

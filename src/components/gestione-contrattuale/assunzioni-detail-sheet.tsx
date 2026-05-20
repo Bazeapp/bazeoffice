@@ -55,11 +55,6 @@ type DetailTarget = "datore" | "lavoratore"
 type LookupOption = { value: string; label: string }
 
 const TIPO_CONTRATTO_OPTIONS = ["A", "B", "BS", "C", "CS", "D", "DS"] as const
-const TIPO_RAPPORTO_OPTIONS = [
-  "Lavoro ad ore",
-  "Convivente Full time",
-  "NON convivente Full time",
-] as const
 const REGIME_NON_CONVIVENTE = "Il lavoratore NON è convivente"
 const REGIME_CONVIVENTE = "Il lavoratore è convivente"
 const TIPO_UTENTE_OPTIONS = ["DATORE LAVORO", "LAVORATORE"] as const
@@ -412,8 +407,6 @@ function RapportoDetailSections({
   const rapporto = card.rapporto
   const assunzione = card.assunzione
   const [draft, setDraft] = React.useState(() => ({
-    tipologiaContratto: rapporto?.tipo_contratto ?? "",
-    tipologiaRapporto: rapporto?.tipo_rapporto ?? card.tipoRapporto ?? "",
     regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
     totaleOreLavorative:
       toInputValue(assunzione?.ore_di_lavoro) ||
@@ -436,8 +429,6 @@ function RapportoDetailSections({
 
   React.useEffect(() => {
     setDraft({
-      tipologiaContratto: rapporto?.tipo_contratto ?? "",
-      tipologiaRapporto: rapporto?.tipo_rapporto ?? card.tipoRapporto ?? "",
       regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
       totaleOreLavorative:
         toInputValue(assunzione?.ore_di_lavoro) ||
@@ -473,13 +464,10 @@ function RapportoDetailSections({
     assunzione?.rapporto_di_lavoro_residenza,
     assunzione?.telecamere_posto_lavoro,
     assunzione?.tredicesima_rateizzata_mensile,
-    card.tipoRapporto,
     rapporto?.data_inizio_rapporto,
     rapporto?.ore_a_settimana,
     rapporto?.paga_mensile_lorda,
     rapporto?.paga_oraria_lorda,
-    rapporto?.tipo_contratto,
-    rapporto?.tipo_rapporto,
   ])
 
   const setValue = (key: keyof typeof draft, value: string) =>
@@ -488,32 +476,10 @@ function RapportoDetailSections({
   return (
     <>
       <DetailSectionBlock
-        title="Tipologia contratto e rapporto"
+        title="Convivenza e orario"
         icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
         contentClassName="space-y-4"
       >
-        <EditableField label="Tipologia contratto">
-          <SingleSelectField
-            value={draft.tipologiaContratto}
-            placeholder="Seleziona tipologia contratto"
-            options={TIPO_CONTRATTO_OPTIONS}
-            onValueChange={(value) => {
-              setValue("tipologiaContratto", value)
-              void onRapportoPatch({ tipo_contratto: value || null })
-            }}
-          />
-        </EditableField>
-        <EditableField label="Tipologia di rapporto">
-          <SingleSelectField
-            value={draft.tipologiaRapporto}
-            placeholder="Seleziona tipologia rapporto"
-            options={TIPO_RAPPORTO_OPTIONS}
-            onValueChange={(value) => {
-              setValue("tipologiaRapporto", value)
-              void onRapportoPatch({ tipo_rapporto: value || null })
-            }}
-          />
-        </EditableField>
         <EditableField label="Regime di convivenza">
           <Select
             value={draft.regimeConvivenza}
@@ -777,7 +743,6 @@ function DatoreDetail({
       numeroDocumento: assunzione?.documento_identita_numero ?? "",
       scadenzaDocumento: assunzione?.documento_identita_scadenza ?? "",
       cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
-      tipologiaRapporto: rapporto?.tipo_rapporto ?? card.tipoRapporto ?? "",
       regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
       totaleOreLavorative: rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : "",
       oreLunedi: "",
@@ -794,7 +759,6 @@ function DatoreDetail({
     }),
     [
       card.nomeFamiglia,
-      card.tipoRapporto,
       assunzione?.civico_se_diverso_residenza,
       assunzione?.comune_se_diverso_residenza,
       assunzione?.documento_identita_numero,
@@ -828,7 +792,6 @@ function DatoreDetail({
       rapporto?.ore_a_settimana,
       rapporto?.paga_mensile_lorda,
       rapporto?.paga_oraria_lorda,
-      rapporto?.tipo_rapporto,
     ]
   )
   const [draft, setDraft] = React.useState(makeDraft)

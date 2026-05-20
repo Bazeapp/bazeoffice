@@ -65,6 +65,10 @@ import {
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import {
+  getSelectionAvailabilityWorkerIds,
+  invokeWorkerAvailabilityForIds,
+} from "@/lib/availability-functions";
+import {
   buildAttachmentPayload,
   type MinimalAttachment,
   normalizeAttachmentArray,
@@ -1074,6 +1078,7 @@ export function LavoratoriCercaView({
     setAddressDraft,
     availabilityDraft,
     setAvailabilityDraft,
+    availabilityStatusDraft,
     setAvailabilityStatusDraft,
     jobSearchDraft,
     setJobSearchDraft,
@@ -1088,8 +1093,7 @@ export function LavoratoriCercaView({
     handleBlacklistChange,
     patchSelectedWorkerField,
     commitAddressField,
-    commitAvailabilityField,
-    patchAvailabilityStatusValue,
+    saveWorkerAvailability,
     handleAvailabilityMatrixChange,
     patchJobSearchField,
     patchExperienceRecord,
@@ -1238,6 +1242,13 @@ export function LavoratoriCercaView({
         motivo_inserimento_manuale: reason,
         source: "manuale",
       });
+      await invokeWorkerAvailabilityForIds(
+        getSelectionAvailabilityWorkerIds(null, {
+          processo_matching_id: processId,
+          lavoratore_id: workerId,
+          stato_selezione: "Prospetto",
+        }),
+      );
 
       setIsAddSearchDialogOpen(false);
       setRelatedSearchesRefreshKey((current) => current + 1);
@@ -1621,7 +1632,12 @@ export function LavoratoriCercaView({
                 {selectedWorker && selectedWorkerRow ? (
                   <WorkerProfileHeader
                     worker={selectedWorker}
-                    workerRow={selectedWorkerRow}
+                    workerRow={{
+                      ...selectedWorkerRow,
+                      disponibilita: availabilityStatusDraft.disponibilita,
+                      data_ritorno_disponibilita:
+                        availabilityStatusDraft.data_ritorno_disponibilita,
+                    }}
                     statoLavoratoreOptions={statoLavoratoreLookupOptions}
                     disponibilitaOptions={disponibilitaLookupOptions}
                     motivazioniOptions={motivazioniNonIdoneoOptions}
@@ -1638,20 +1654,12 @@ export function LavoratoriCercaView({
                         ...current,
                         disponibilita: value ?? "",
                       }));
-                      void patchAvailabilityStatusValue(
-                        "disponibilita",
-                        value ?? "",
-                      );
                     }}
                     onDataRitornoDisponibilitaChange={(value) => {
                       setAvailabilityStatusDraft((current) => ({
                         ...current,
                         data_ritorno_disponibilita: value,
                       }));
-                      void patchAvailabilityStatusValue(
-                        "data_ritorno_disponibilita",
-                        value,
-                      );
                     }}
                     onMotivazioneChange={(value) =>
                       void handleNonIdoneoReasonsChange(value ? [value] : [])
@@ -1786,11 +1794,8 @@ export function LavoratoriCercaView({
                         vincoli_orari_disponibilita: value,
                       }))
                     }
-                    onVincoliBlur={() =>
-                      void commitAvailabilityField(
-                        "vincoli_orari_disponibilita",
-                      )
-                    }
+                    onVincoliBlur={() => undefined}
+                    onSave={() => void saveWorkerAvailability()}
                   />
                 </div>
 

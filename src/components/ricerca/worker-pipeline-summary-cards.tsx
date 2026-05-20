@@ -175,6 +175,7 @@ type WorkerPipelineSummaryCardsProps = {
   ) => void;
   onAvailabilityVincoliChange: (value: string) => void;
   onAvailabilityVincoliBlur: () => void;
+  onAvailabilitySave: () => void;
   isEditingExperience: boolean;
   onToggleExperienceEdit: () => void;
   updatingExperience: boolean;
@@ -1150,6 +1151,7 @@ function AvailabilityCard({
   onMatrixChange,
   onVincoliChange,
   onVincoliBlur,
+  onSave,
 }: {
   availabilityTitleMeta: string;
   familyAvailabilityJson?: string | null;
@@ -1176,6 +1178,7 @@ function AvailabilityCard({
   ) => void;
   onVincoliChange: (value: string) => void;
   onVincoliBlur: () => void;
+  onSave: () => void;
 }) {
   const familyRequestsText = React.useMemo(() => {
     const schedule =
@@ -1248,6 +1251,7 @@ function AvailabilityCard({
       }
       onVincoliChange={onVincoliChange}
       onVincoliBlur={onVincoliBlur}
+      onSave={onSave}
     >
       <WorkerShiftPreferencesFields
         fields={[
@@ -1640,6 +1644,7 @@ export function WorkerPipelineSummaryCards({
   onAvailabilityMatrixChange,
   onAvailabilityVincoliChange,
   onAvailabilityVincoliBlur,
+  onAvailabilitySave,
   isEditingExperience,
   onToggleExperienceEdit,
   updatingExperience,
@@ -1767,6 +1772,7 @@ export function WorkerPipelineSummaryCards({
         onMatrixChange={onAvailabilityMatrixChange}
         onVincoliChange={onAvailabilityVincoliChange}
         onVincoliBlur={onAvailabilityVincoliBlur}
+        onSave={onAvailabilitySave}
       />
       <PreferencesConstraintsCard
         workerRow={workerRow}

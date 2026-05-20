@@ -54,6 +54,7 @@ type CalendarEventKind = "colloquio" | "prova"
 type CalendarStatusKey = "match" | "no-match" | "prova" | "colloquio" | "standby"
 
 const DAY_LABELS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]
+const DISTRIBUTION_DAY_LABELS = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]
 const CALENDAR_KIND_OPTIONS: Array<{ value: CalendarEventKind; label: string }> = [
   { value: "colloquio", label: "Colloquio" },
   { value: "prova", label: "Prova" },
@@ -258,8 +259,8 @@ function buildDistributionItems(source: string | null, totalHours: number | null
   const hourMatches = source?.match(/(\d+(?:[.,]\d+)?)h?/g) ?? []
   const parsed = hourMatches.map((item) => Number.parseFloat(item.replace("h", "").replace(",", ".")))
 
-  if (parsed.length >= 6) {
-    return DAY_LABELS.map((day, index) => ({
+  if (parsed.length >= 7) {
+    return DISTRIBUTION_DAY_LABELS.map((day, index) => ({
       day,
       value: `${Math.round(parsed[index] ?? 0)}h`,
     }))
