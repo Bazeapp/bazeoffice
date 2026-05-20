@@ -46,7 +46,7 @@ import { cn } from "@/lib/utils"
 
 const DEFAULT_RADIUS_KM = 5
 const DEFAULT_MAP_ZOOM = 13
-const DISCOVERY_ADDRESS_LIMIT = 1000
+const DISCOVERY_ADDRESS_PAGE_SIZE = 1000
 const DISCOVERY_WORKER_BATCH_SIZE = 100
 const MAP_ACTIONS = [
   { label: "Da colloquiare", status: "Da colloquiare" },
@@ -405,79 +405,84 @@ function getBoundingBox(center: GeoCoordinates, radiusKm: number) {
 
 async function fetchDiscoveryWorkerAddresses(searchCoordinates: GeoCoordinates) {
   const bounds = getBoundingBox(searchCoordinates, DEFAULT_RADIUS_KM)
-
-  const result = await fetchIndirizzi({
-    select: [
-      "entita_id",
-      "tipo_indirizzo",
-      "cap",
-      "citta",
-      "note",
-      "latitudine",
-      "longitudine",
-    ],
-    limit: DISCOVERY_ADDRESS_LIMIT,
-    offset: 0,
-    orderBy: [{ field: "aggiornato_il", ascending: false }],
-    filters: {
-      kind: "group",
-      id: "map-discovery-addresses-root",
-      logic: "and",
-      nodes: [
-        {
-          kind: "condition",
-          id: "map-discovery-addresses-table",
-          field: "entita_tabella",
-          operator: "is",
-          value: "lavoratori",
-        },
-        {
-          kind: "condition",
-          id: "map-discovery-addresses-lat-min",
-          field: "latitudine",
-          operator: "gte",
-          value: String(bounds.minLat),
-        },
-        {
-          kind: "condition",
-          id: "map-discovery-addresses-lat-max",
-          field: "latitudine",
-          operator: "lte",
-          value: String(bounds.maxLat),
-        },
-        {
-          kind: "condition",
-          id: "map-discovery-addresses-lng-min",
-          field: "longitudine",
-          operator: "gte",
-          value: String(bounds.minLng),
-        },
-        {
-          kind: "condition",
-          id: "map-discovery-addresses-lng-max",
-          field: "longitudine",
-          operator: "lte",
-          value: String(bounds.maxLng),
-        },
-      ],
-    },
-  })
-
   const addressesByWorkerId = new Map<string, GenericRow[]>()
 
-  for (const row of result.rows as GenericRow[]) {
-    const workerId = asString(row.entita_id)
-    if (!workerId) continue
+  for (let offset = 0; ; offset += DISCOVERY_ADDRESS_PAGE_SIZE) {
+    const result = await fetchIndirizzi({
+      select: [
+        "entita_id",
+        "tipo_indirizzo",
+        "cap",
+        "citta",
+        "note",
+        "latitudine",
+        "longitudine",
+      ],
+      limit: DISCOVERY_ADDRESS_PAGE_SIZE,
+      offset,
+      orderBy: [{ field: "aggiornato_il", ascending: false }],
+      filters: {
+        kind: "group",
+        id: `map-discovery-addresses-root-${offset}`,
+        logic: "and",
+        nodes: [
+          {
+            kind: "condition",
+            id: `map-discovery-addresses-table-${offset}`,
+            field: "entita_tabella",
+            operator: "is",
+            value: "lavoratori",
+          },
+          {
+            kind: "condition",
+            id: `map-discovery-addresses-lat-min-${offset}`,
+            field: "latitudine",
+            operator: "gte",
+            value: String(bounds.minLat),
+          },
+          {
+            kind: "condition",
+            id: `map-discovery-addresses-lat-max-${offset}`,
+            field: "latitudine",
+            operator: "lte",
+            value: String(bounds.maxLat),
+          },
+          {
+            kind: "condition",
+            id: `map-discovery-addresses-lng-min-${offset}`,
+            field: "longitudine",
+            operator: "gte",
+            value: String(bounds.minLng),
+          },
+          {
+            kind: "condition",
+            id: `map-discovery-addresses-lng-max-${offset}`,
+            field: "longitudine",
+            operator: "lte",
+            value: String(bounds.maxLng),
+          },
+        ],
+      },
+    })
 
-    const coordinates = readAddressCoordinates(row)
-    if (!coordinates) continue
-    if (distanceKmBetweenCoordinates(searchCoordinates, coordinates) > DEFAULT_RADIUS_KM) {
-      continue
+    const rows = result.rows as GenericRow[]
+
+    for (const row of rows) {
+      const workerId = asString(row.entita_id)
+      if (!workerId) continue
+
+      const coordinates = readAddressCoordinates(row)
+      if (!coordinates) continue
+      if (distanceKmBetweenCoordinates(searchCoordinates, coordinates) > DEFAULT_RADIUS_KM) {
+        continue
+      }
+
+      const current = addressesByWorkerId.get(workerId) ?? []
+      current.push(row)
+      addressesByWorkerId.set(workerId, current)
     }
 
-    const current = addressesByWorkerId.get(workerId) ?? []
-    current.push(row)
-    addressesByWorkerId.set(workerId, current)
+    if (rows.length < DISCOVERY_ADDRESS_PAGE_SIZE) break
   }
 
   return addressesByWorkerId
