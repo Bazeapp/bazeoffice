@@ -227,7 +227,7 @@ function resolveWorkerAddress(
 }
 
 function isUnavailable(value: string | null | undefined) {
-  return normalizeStatusToken(value).includes("non disponibile")
+  return normalizeStatusToken(value) === "non disponibile"
 }
 
 function normalizeFilterValues(values: readonly string[]) {

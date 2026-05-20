@@ -1,10 +1,11 @@
 import * as React from "react"
-import { CalendarDaysIcon, PencilIcon, SaveIcon } from "lucide-react"
+import { CalendarDaysIcon, CircleHelpIcon, PencilIcon, SaveIcon } from "lucide-react"
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { FieldLabel } from "@/components/ui/field"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -238,7 +239,37 @@ export function AvailabilityCalendarCard({
         )}
 
         <div className="space-y-1.5">
-          <div className="ui-type-label">Vincoli orari</div>
+          <div className="flex items-center gap-1.5">
+            <div className="ui-type-label">Vincoli orari</div>
+            <HoverCard openDelay={120}>
+              <HoverCardTrigger asChild>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground inline-flex size-5 items-center justify-center rounded-full transition-colors"
+                  aria-label="Linee guida vincoli orari"
+                  title="Linee guida vincoli orari"
+                >
+                  <CircleHelpIcon className="size-3.5" />
+                </button>
+              </HoverCardTrigger>
+              <HoverCardContent side="right" align="start" className="w-[24rem] space-y-3 p-4">
+                <p className="text-sm font-semibold">Come scrivere i vincoli</p>
+                <div className="text-muted-foreground space-y-2 text-sm leading-6">
+                  <p>
+                    Usa frasi semplici nel formato:
+                    <span className="text-foreground font-medium"> Disponibile/Non disponibile + giorni + fascia oraria</span>.
+                  </p>
+                  <p>
+                    Scrivi orari in 24h, giorni espliciti e regole separate da punto o punto e virgola.
+                  </p>
+                  <p className="text-foreground font-medium">
+                    Esempio: Disponibile lun-ven 12:00-19:00. Non disponibile sab-dom.
+                  </p>
+                  <p>Evita frasi ambigue come "libera dalle 12 in poi" o "no sabato".</p>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+          </div>
           {isEditing ? (
             <div className="w-full max-w-2xl">
               <Textarea
