@@ -37,11 +37,6 @@ const PROCESS_BOARD_SELECT_FIELDS = [
   "deadline_mobile",
   "tipo_lavoro",
   "tipo_rapporto",
-  "luogo_id",
-  "indirizzo_prova_note",
-  "indirizzo_prova_comune",
-  "indirizzo_prova_provincia",
-  "indirizzo_prova_cap",
 ] as const
 const FAMILY_BOARD_SELECT_FIELDS = [
   "id",
@@ -275,31 +270,8 @@ function resolveBadgeColor(
 function formatZonaFromAddress(address: GenericRow | undefined) {
   if (!address) return null
 
-  const citta = toStringValue(address.citta)
-  const cap = toStringValue(address.cap)
   const note = toStringValue(address.note)
-  const shortNote = note?.split("-")[0]?.trim() || null
-
-  return (
-    [shortNote, citta, cap]
-      .filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index)
-      .join(" • ") || null
-  )
-}
-
-function formatLegacyZona(process: GenericRow) {
-  return (
-    [
-      toStringValue(process.indirizzo_prova_note),
-      toStringValue(process.indirizzo_prova_comune),
-      toStringValue(process.indirizzo_prova_provincia),
-      toStringValue(process.indirizzo_prova_cap),
-    ]
-      .filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index)
-      .join(" • ") ||
-    toStringValue(process.luogo_id) ||
-    "-"
-  )
+  return note?.split("-")[0]?.trim() || null
 }
 
 function buildStageFilter(
@@ -562,7 +534,7 @@ async function buildCardsForProcesses(
         "-",
       deadline: formatItalianDate(process.deadline_mobile),
       deadlineRaw: toStringValue(process.deadline_mobile),
-      zona: formatZonaFromAddress(processAddress) ?? formatLegacyZona(process),
+      zona: formatZonaFromAddress(processAddress) ?? "-",
       tipoLavoroBadges,
       tipoLavoroColors: Object.fromEntries(
         tipoLavoroBadges.map((tipoLavoro) => [

@@ -173,10 +173,15 @@ export function buildAvailabilityMatrixDraft(
     for (const bandConfig of AVAILABILITY_EDIT_BANDS) {
       const key = getAvailabilityMatrixKey(dayConfig.field, bandConfig.field)
       const booleanField = getAvailabilityBooleanField(dayConfig.field, bandConfig.field)
-      const fallbackValue = row?.[booleanField] === true
-      nextDraft[key] = daySlots.length > 0
-        ? overlapsAvailabilityBand(daySlots, bandConfig)
-        : fallbackValue
+      const rowValue = row?.[booleanField]
+      nextDraft[key] =
+        rowValue === true
+          ? true
+          : rowValue === false || rowValue === null
+            ? false
+            : daySlots.length > 0
+              ? overlapsAvailabilityBand(daySlots, bandConfig)
+              : false
     }
   }
 

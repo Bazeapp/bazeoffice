@@ -55,6 +55,7 @@ import {
   fetchIndirizzi,
   fetchLookupValues,
   fetchProcessiMatching,
+  createRecord,
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import { buildFamilyPrivateAreaUrl } from "@/lib/private-area-url";
@@ -226,14 +227,6 @@ function isPlaceholderText(value: string) {
   return value === "-" || value === "—";
 }
 
-function firstMeaningfulText(...values: unknown[]) {
-  for (const value of values) {
-    const normalized = toStringValue(value);
-    if (normalized && !isPlaceholderText(normalized)) return normalized;
-  }
-  return null;
-}
-
 function buildAddressLine(address: Record<string, unknown> | null | undefined) {
   if (!address) return null;
 
@@ -246,22 +239,6 @@ function buildAddressLine(address: Record<string, unknown> | null | undefined) {
       toStringValue(address.civico),
       toStringValue(address.citta),
       toStringValue(address.cap),
-    ]
-      .filter(
-        (item): item is string =>
-          typeof item === "string" && !isPlaceholderText(item),
-      )
-      .join(", ") || null
-  );
-}
-
-function buildLegacyProcessAddressLine(process: Record<string, unknown>) {
-  return (
-    [
-      toStringValue(process.indirizzo_prova_via),
-      toStringValue(process.indirizzo_prova_civico),
-      toStringValue(process.indirizzo_prova_comune),
-      toStringValue(process.indirizzo_prova_cap),
     ]
       .filter(
         (item): item is string =>
@@ -579,31 +556,24 @@ function applyProcessPatchToCard(
     );
   }
   if ("indirizzo_prova_provincia" in patch) {
-    nextCard.indirizzoProvincia = displayValue(patch.indirizzo_prova_provincia);
     nextCard.indirizzoProvaProvincia = displayValue(patch.indirizzo_prova_provincia);
   }
   if ("indirizzo_prova_cap" in patch) {
-    nextCard.indirizzoCap = displayValue(patch.indirizzo_prova_cap);
     nextCard.indirizzoProvaCap = displayValue(patch.indirizzo_prova_cap);
   }
   if ("indirizzo_prova_note" in patch) {
-    nextCard.indirizzoNote = displayValue(patch.indirizzo_prova_note);
     nextCard.indirizzoProvaNote = displayValue(patch.indirizzo_prova_note);
   }
   if ("indirizzo_prova_via" in patch) {
-    nextCard.indirizzoVia = displayValue(patch.indirizzo_prova_via);
     nextCard.indirizzoProvaVia = displayValue(patch.indirizzo_prova_via);
   }
   if ("indirizzo_prova_civico" in patch) {
-    nextCard.indirizzoCivico = displayValue(patch.indirizzo_prova_civico);
     nextCard.indirizzoProvaCivico = displayValue(patch.indirizzo_prova_civico);
   }
   if ("indirizzo_prova_comune" in patch) {
-    nextCard.indirizzoComune = displayValue(patch.indirizzo_prova_comune);
     nextCard.indirizzoProvaComune = displayValue(patch.indirizzo_prova_comune);
   }
   if ("indirizzo_prova_citofono" in patch) {
-    nextCard.indirizzoCitofono = displayValue(patch.indirizzo_prova_citofono);
     nextCard.indirizzoProvaCitofono = displayValue(patch.indirizzo_prova_citofono);
   }
   if ("recruiter_ricerca_e_selezione_id" in patch) {
@@ -685,6 +655,47 @@ function applyProcessPatchToCard(
     nextCard.testoAnnuncioWhatsapp = displayValue(patch.testo_annuncio_whatsapp);
   }
 
+  return nextCard;
+}
+
+function applyAddressPatchToCard(
+  card: ExtendedCardData,
+  patch: Record<string, unknown>,
+  addressId?: string | null,
+): ExtendedCardData {
+  const nextCard = { ...card };
+  if (addressId) {
+    nextCard.indirizzoId = addressId;
+  }
+  if ("provincia" in patch) {
+    nextCard.indirizzoProvincia = displayValue(patch.provincia);
+  }
+  if ("cap" in patch) {
+    nextCard.indirizzoCap = displayValue(patch.cap);
+  }
+  if ("note" in patch) {
+    nextCard.indirizzoNote = displayValue(patch.note);
+  }
+  if ("via" in patch) {
+    nextCard.indirizzoVia = displayValue(patch.via);
+  }
+  if ("civico" in patch) {
+    nextCard.indirizzoCivico = displayValue(patch.civico);
+  }
+  if ("citta" in patch) {
+    nextCard.indirizzoComune = displayValue(patch.citta);
+  }
+  if ("citofono" in patch) {
+    nextCard.indirizzoCitofono = displayValue(patch.citofono);
+  }
+  nextCard.indirizzoCompleto = displayValue(
+    buildAddressLine({
+      via: "via" in patch ? patch.via : nextCard.indirizzoVia,
+      civico: "civico" in patch ? patch.civico : nextCard.indirizzoCivico,
+      citta: "citta" in patch ? patch.citta : nextCard.indirizzoComune,
+      cap: "cap" in patch ? patch.cap : nextCard.indirizzoCap,
+    }),
+  );
   return nextCard;
 }
 
@@ -995,29 +1006,15 @@ export function RicercaDetailView({
           ),
           etaMinima: displayValue(processRow.eta_minima),
           etaMassima: displayValue(processRow.eta_massima),
-          indirizzoProvincia: displayValue(
-            firstMeaningfulText(
-              processAddress?.provincia,
-              processRow.indirizzo_prova_provincia,
-            ),
-          ),
-          indirizzoCap: displayValue(
-            firstMeaningfulText(processAddress?.cap, processRow.indirizzo_prova_cap),
-          ),
-	          indirizzoNote: displayValue(
-	            firstMeaningfulText(processAddress?.note, processRow.indirizzo_prova_note),
-	          ),
-	          indirizzoId: toStringValue(processAddress?.id),
-	          indirizzoCompleto: displayValue(
-            firstMeaningfulText(
-              buildAddressLine(processAddress),
-              buildLegacyProcessAddressLine(processRow),
-            ),
-          ),
-          indirizzoVia: displayValue(processRow.indirizzo_prova_via),
-          indirizzoCivico: displayValue(processRow.indirizzo_prova_civico),
-          indirizzoComune: displayValue(processRow.indirizzo_prova_comune),
-          indirizzoCitofono: displayValue(processRow.indirizzo_prova_citofono),
+          indirizzoProvincia: displayValue(processAddress?.provincia),
+          indirizzoCap: displayValue(processAddress?.cap),
+          indirizzoNote: displayValue(processAddress?.note),
+          indirizzoId: toStringValue(processAddress?.id),
+          indirizzoCompleto: displayValue(buildAddressLine(processAddress)),
+          indirizzoVia: displayValue(processAddress?.via),
+          indirizzoCivico: displayValue(processAddress?.civico),
+          indirizzoComune: displayValue(processAddress?.citta),
+          indirizzoCitofono: displayValue(processAddress?.citofono),
           indirizzoProvaProvincia: displayValue(processRow.indirizzo_prova_provincia),
           indirizzoProvaCap: displayValue(processRow.indirizzo_prova_cap),
           indirizzoProvaNote: displayValue(processRow.indirizzo_prova_note),
@@ -1225,6 +1222,51 @@ export function RicercaDetailView({
     [card],
   );
 
+  const updateAddressCard = React.useCallback(
+    async (targetProcessId: string, patch: Record<string, unknown>) => {
+      setError(null);
+      const previousCard = card;
+      const addressId = toStringValue(card?.indirizzoId);
+
+      if (!addressId && !Object.values(patch).some((value) => toStringValue(value))) {
+        return;
+      }
+
+      setCard((current) =>
+        current ? applyAddressPatchToCard(current, patch, addressId) : current,
+      );
+
+      try {
+        if (addressId) {
+          await updateRecord("indirizzi", addressId, patch);
+          return;
+        }
+
+        const response = await createRecord("indirizzi", {
+          entita_tabella: "processi_matching",
+          entita_id: targetProcessId,
+          tipo_indirizzo: "luogo",
+          ...patch,
+        });
+        const createdAddressId = toStringValue(response.row.id);
+        if (createdAddressId) {
+          setCard((current) =>
+            current ? { ...current, indirizzoId: createdAddressId } : current,
+          );
+        }
+      } catch (caughtError) {
+        setCard(previousCard);
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore aggiornando indirizzo",
+        );
+        throw caughtError;
+      }
+    },
+    [card],
+  );
+
   const saveProcessPatch = React.useCallback(
     async (_section: string, patch: Record<string, unknown>) => {
       if (!currentProcessId) return;
@@ -1248,6 +1290,18 @@ export function RicercaDetailView({
       }
     },
     [card?.famigliaId, updateFamilyCard],
+  );
+
+  const saveAddressPatch = React.useCallback(
+    async (_section: string, patch: Record<string, unknown>) => {
+      if (!currentProcessId) return;
+      try {
+        await updateAddressCard(currentProcessId, patch);
+      } catch {
+        // Error state is already surfaced by updateAddressCard.
+      }
+    },
+    [currentProcessId, updateAddressCard],
   );
 
   const resolvedCard = React.useMemo<ExtendedCardData | null>(() => {
@@ -1781,8 +1835,8 @@ export function RicercaDetailView({
 	                          value={resolvedCard.indirizzoProvincia}
                             editing={isEditingSection("luogo-lavoro")}
                             onSave={(next) =>
-                              void saveProcessPatch("luogo-lavoro", {
-                                indirizzo_prova_provincia: next,
+                              void saveAddressPatch("luogo-lavoro", {
+                                provincia: next,
                               })
                             }
 	                        />
@@ -1791,8 +1845,8 @@ export function RicercaDetailView({
                             value={resolvedCard.indirizzoCap}
                             editing={isEditingSection("luogo-lavoro")}
                             onSave={(next) =>
-                              void saveProcessPatch("luogo-lavoro", {
-                                indirizzo_prova_cap: next,
+                              void saveAddressPatch("luogo-lavoro", {
+                                cap: next,
                               })
                             }
                           />
@@ -1802,8 +1856,8 @@ export function RicercaDetailView({
                           value={resolvedCard.indirizzoNote}
                           editing={isEditingSection("luogo-lavoro")}
                           onSave={(next) =>
-                            void saveProcessPatch("luogo-lavoro", {
-                              indirizzo_prova_note: next,
+                            void saveAddressPatch("luogo-lavoro", {
+                              note: next,
                             })
                           }
                         />
@@ -1814,8 +1868,8 @@ export function RicercaDetailView({
                               value={resolvedCard.indirizzoVia}
                               editing
                               onSave={(next) =>
-                                void saveProcessPatch("luogo-lavoro", {
-                                  indirizzo_prova_via: next,
+                                void saveAddressPatch("luogo-lavoro", {
+                                  via: next,
                                 })
                               }
                             />
@@ -1824,8 +1878,8 @@ export function RicercaDetailView({
                               value={resolvedCard.indirizzoCivico}
                               editing
                               onSave={(next) =>
-                                void saveProcessPatch("luogo-lavoro", {
-                                  indirizzo_prova_civico: next,
+                                void saveAddressPatch("luogo-lavoro", {
+                                  civico: next,
                                 })
                               }
                             />
@@ -1834,8 +1888,8 @@ export function RicercaDetailView({
                               value={resolvedCard.indirizzoComune}
                               editing
                               onSave={(next) =>
-                                void saveProcessPatch("luogo-lavoro", {
-                                  indirizzo_prova_comune: next,
+                                void saveAddressPatch("luogo-lavoro", {
+                                  citta: next,
                                 })
                               }
                             />
@@ -1844,8 +1898,8 @@ export function RicercaDetailView({
                               value={resolvedCard.indirizzoCitofono}
                               editing
                               onSave={(next) =>
-                                void saveProcessPatch("luogo-lavoro", {
-                                  indirizzo_prova_citofono: next,
+                                void saveAddressPatch("luogo-lavoro", {
+                                  citofono: next,
                                 })
                               }
                             />
