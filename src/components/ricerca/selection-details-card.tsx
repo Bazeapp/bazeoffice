@@ -229,7 +229,9 @@ export function SelectionDetailsCard({
           onChange={(event) =>
             setDraft((current) => ({ ...current, note_selezione: event.target.value }))
           }
-          onBlur={() => void onPatchField("note_selezione", draft.note_selezione.trim() || null)}
+          onBlur={(event) =>
+            void onPatchField("note_selezione", event.currentTarget.value.trim() || null)
+          }
           disabled={disabled}
           className="min-h-28 w-full text-sm"
         />
@@ -247,10 +249,10 @@ export function SelectionDetailsCard({
               motivo_inserimento_manuale: event.target.value,
             }))
           }
-          onBlur={() =>
+          onBlur={(event) =>
             void onPatchField(
               "motivo_inserimento_manuale",
-              draft.motivo_inserimento_manuale.trim() || null
+              event.currentTarget.value.trim() || null
             )
           }
           disabled={disabled}

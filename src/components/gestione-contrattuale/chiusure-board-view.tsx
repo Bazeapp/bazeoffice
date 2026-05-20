@@ -28,9 +28,10 @@ import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
-import { updateRecord } from "@/lib/anagrafiche-api"
+import { fetchChiusureContratti, fetchRapportiLavorativi, updateRecord } from "@/lib/anagrafiche-api"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
@@ -139,7 +140,20 @@ function ChiusureDetailSheet({
   const [uploadingSlot, setUploadingSlot] = React.useState<ChiusuraAttachmentSlot | null>(null)
   const [detailsError, setDetailsError] = React.useState<string | null>(null)
   const previousCardIdRef = React.useRef<string | null>(card?.id ?? null)
+  const latestCardRef = React.useRef<ChiusureBoardCardData | null>(card)
   const [detailsDraft, setDetailsDraft] = React.useState(() => buildChiusuraDetailsDraft(card))
+
+  React.useEffect(() => {
+    latestCardRef.current = card
+  }, [card])
+
+  const applyCardChange = React.useCallback(
+    (nextCard: ChiusureBoardCardData) => {
+      latestCardRef.current = nextCard
+      onCardChange(nextCard)
+    },
+    [onCardChange]
+  )
 
   React.useEffect(() => {
     const nextDetailsDraft = {
@@ -176,29 +190,32 @@ function ChiusureDetailSheet({
   ])
 
   async function handleStatusChange(nextValue: string) {
-    if (!card || nextValue === card.stage) return
+    const currentCard = latestCardRef.current ?? card
+    if (!currentCard || nextValue === currentCard.stage) return
     try {
       setUpdatingStatus(true)
-      await onStatusChange(card.id, nextValue)
+      await onStatusChange(currentCard.id, nextValue)
     } finally {
       setUpdatingStatus(false)
     }
   }
 
   async function saveDetailsPatch(patch: Record<string, unknown>) {
-    if (!card || Object.keys(patch).length === 0) return
+    const currentCard = latestCardRef.current ?? card
+    if (!currentCard || Object.keys(patch).length === 0) return
 
     setSavingDetails(true)
     setDetailsError(null)
 
     try {
-      const response = await updateRecord("chiusure_contratti", card.id, patch)
+      const response = await updateRecord("chiusure_contratti", currentCard.id, patch)
+      const baseCard = latestCardRef.current ?? currentCard
       const nextRecord = {
-        ...card.record,
+        ...baseCard.record,
         ...response.row,
       } as ChiusureBoardCardData["record"]
-      onCardChange({
-        ...card,
+      applyCardChange({
+        ...baseCard,
         record: nextRecord,
         motivazione: nextRecord.motivazione_cessazione_rapporto,
         dataFineRapporto: formatDate(nextRecord.data_fine_rapporto),
@@ -214,7 +231,8 @@ function ChiusureDetailSheet({
   }
 
   async function handleUploadAttachment(slot: ChiusuraAttachmentSlot, file: File) {
-    if (!card) return
+    const currentCard = latestCardRef.current ?? card
+    if (!currentCard) return
 
     setUploadingSlot(slot)
     setDetailsError(null)
@@ -223,7 +241,7 @@ function ChiusureDetailSheet({
       const safeName = sanitizeFileName(file.name || "documento")
       const storagePath = [
         "chiusure_contratti",
-        card.id,
+        currentCard.id,
         slot,
         `${Date.now()}-${safeName}`,
       ].join("/")
@@ -241,17 +259,18 @@ function ChiusureDetailSheet({
       }
 
       const payload = buildAttachmentPayload(file, storagePath)
-      const nextValue = [...normalizeAttachmentArray(card.record[slot]), payload]
-      const response = await updateRecord("chiusure_contratti", card.id, {
+      const baseCard = latestCardRef.current ?? currentCard
+      const nextValue = [...normalizeAttachmentArray(baseCard.record[slot]), payload]
+      const response = await updateRecord("chiusure_contratti", currentCard.id, {
         [slot]: nextValue,
       })
       const nextRecord = {
-        ...card.record,
+        ...baseCard.record,
         ...response.row,
       } as ChiusureBoardCardData["record"]
 
-      onCardChange({
-        ...card,
+      applyCardChange({
+        ...baseCard,
         record: nextRecord,
       })
     } catch (caughtError) {
@@ -330,9 +349,9 @@ function ChiusureDetailSheet({
                             dataFineRapporto: event.target.value,
                           }))
                         }
-                        onBlur={() =>
+                        onBlur={(event) =>
                           void saveDetailsPatch({
-                            data_fine_rapporto: detailsDraft.dataFineRapporto || null,
+                            data_fine_rapporto: event.currentTarget.value || null,
                           })
                         }
                       />
@@ -347,9 +366,9 @@ function ChiusureDetailSheet({
                             tipoLicenziamento: event.target.value,
                           }))
                         }
-                        onBlur={() =>
+                        onBlur={(event) =>
                           void saveDetailsPatch({
-                            tipo_licenziamento: detailsDraft.tipoLicenziamento || null,
+                            tipo_licenziamento: event.currentTarget.value || null,
                           })
                         }
                       />
@@ -364,9 +383,9 @@ function ChiusureDetailSheet({
                             tipoDecesso: event.target.value,
                           }))
                         }
-                        onBlur={() =>
+                        onBlur={(event) =>
                           void saveDetailsPatch({
-                            tipo_decesso: detailsDraft.tipoDecesso || null,
+                            tipo_decesso: event.currentTarget.value || null,
                           })
                         }
                       />
@@ -381,9 +400,9 @@ function ChiusureDetailSheet({
                             presenzeUltimoMese: event.target.value,
                           }))
                         }
-                        onBlur={() =>
+                        onBlur={(event) =>
                           void saveDetailsPatch({
-                            presenze_ultimo_mese: detailsDraft.presenzeUltimoMese || null,
+                            presenze_ultimo_mese: event.currentTarget.value || null,
                           })
                         }
                       />
@@ -398,9 +417,9 @@ function ChiusureDetailSheet({
                             motivazione: event.target.value,
                           }))
                         }
-                        onBlur={() =>
+                        onBlur={(event) =>
                           void saveDetailsPatch({
-                            motivazione_cessazione_rapporto: detailsDraft.motivazione || null,
+                            motivazione_cessazione_rapporto: event.currentTarget.value || null,
                           })
                         }
                       />
@@ -415,10 +434,10 @@ function ChiusureDetailSheet({
                             informazioniAggiuntive: event.target.value,
                           }))
                         }
-                        onBlur={() =>
+                        onBlur={(event) =>
                           void saveDetailsPatch({
                             informazioni_aggiuntive:
-                              detailsDraft.informazioniAggiuntive || null,
+                              event.currentTarget.value || null,
                           })
                         }
                       />
@@ -504,7 +523,9 @@ function ChiusureDetailSheet({
               </DetailSectionBlock>
             </div>
           </section>
-        ) : null}
+        ) : (
+          <DetailSheetSkeleton />
+        )}
       </SheetContent>
     </Sheet>
   )
@@ -643,11 +664,32 @@ function ChiusureBoardSkeletonColumn() {
   return <KanbanColumnSkeleton />
 }
 
+function DetailSheetSkeleton() {
+  return (
+    <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
+      <div className="mx-auto max-w-5xl space-y-5">
+        <Skeleton className="h-24 rounded-lg" />
+        <div className="rounded-lg border bg-surface p-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="space-y-2">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export function ChiusureBoardView() {
   const { loading, error, columns, moveCard, updateCard } = useChiusureBoard()
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
+  const [selectedFreshCard, setSelectedFreshCard] = React.useState<ChiusureBoardCardData | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
 
   const filteredColumns = React.useMemo(() => {
@@ -682,10 +724,98 @@ export function ChiusureBoardView() {
     [filteredColumns],
   )
 
-  const selectedCard = React.useMemo(
+  const selectedCardFromColumns = React.useMemo(
     () => columns.flatMap((column) => column.cards).find((card) => card.id === selectedCardId) ?? null,
     [columns, selectedCardId],
   )
+
+  React.useEffect(() => {
+    if (!selectedCardId) {
+      setSelectedFreshCard(null)
+      return
+    }
+    if (!selectedCardFromColumns) return
+
+    let isActive = true
+    const currentCardId = selectedCardId
+    const currentCard = selectedCardFromColumns
+    setSelectedFreshCard(null)
+
+    async function loadSelectedCard() {
+      try {
+        const [recordResponse, rapportoResponse] = await Promise.all([
+          fetchChiusureContratti({
+            limit: 1,
+            offset: 0,
+            filters: {
+              kind: "group",
+              id: "chiusure-selected-record",
+              logic: "and",
+              nodes: [
+                  {
+                    kind: "condition",
+                    id: "chiusure-selected-record-id",
+                    field: "id",
+                    operator: "is",
+                    value: currentCardId,
+                  },
+                ],
+              },
+            }),
+          currentCard.rapporto?.id
+            ? fetchRapportiLavorativi({
+                limit: 1,
+                offset: 0,
+                filters: {
+                  kind: "group",
+                  id: "chiusure-selected-rapporto",
+                  logic: "and",
+                  nodes: [
+                      {
+                        kind: "condition",
+                        id: "chiusure-selected-rapporto-id",
+                        field: "id",
+                        operator: "is",
+                        value: currentCard.rapporto.id,
+                      },
+                    ],
+                  },
+                })
+            : Promise.resolve({ rows: [], total: 0, columns: [] }),
+        ])
+
+        if (!isActive) return
+
+        const freshRecord = recordResponse.rows[0]
+        if (!freshRecord) return
+
+        const nextCard: ChiusureBoardCardData = {
+          ...currentCard,
+          record: freshRecord as ChiusureBoardCardData["record"],
+          rapporto:
+            (rapportoResponse.rows[0] as ChiusureBoardCardData["rapporto"]) ?? currentCard.rapporto,
+          motivazione:
+            (freshRecord as ChiusureBoardCardData["record"]).motivazione_cessazione_rapporto ??
+            currentCard.motivazione,
+          dataFineRapporto: formatDate(
+            (freshRecord as ChiusureBoardCardData["record"]).data_fine_rapporto
+          ),
+        }
+
+        setSelectedFreshCard(nextCard)
+        updateCard(currentCardId, () => nextCard)
+      } catch (error) {
+        if (!isActive) return
+        console.error("Errore caricando dettaglio chiusura", error)
+      }
+    }
+
+    void loadSelectedCard()
+
+    return () => {
+      isActive = false
+    }
+  }, [selectedCardFromColumns?.id, selectedCardId, updateCard])
 
   return (
     <>
@@ -740,7 +870,10 @@ export function ChiusureBoardView() {
                     column={column}
                     draggingRecordId={draggingRecordId}
                     isDropTarget={dropTargetColumnId === column.id}
-                    onOpenCard={setSelectedCardId}
+                    onOpenCard={(cardId) => {
+                      setSelectedFreshCard(null)
+                      setSelectedCardId(cardId)
+                    }}
                     onDragStartCard={setDraggingRecordId}
                     onDragEndCard={() => {
                       window.setTimeout(() => {
@@ -768,11 +901,14 @@ export function ChiusureBoardView() {
       </section>
 
       <ChiusureDetailSheet
-        card={selectedCard}
+        card={selectedFreshCard}
         columns={columns}
-        open={Boolean(selectedCard)}
+        open={Boolean(selectedCardId)}
         onOpenChange={(open) => {
-          if (!open) setSelectedCardId(null)
+          if (!open) {
+            setSelectedCardId(null)
+            setSelectedFreshCard(null)
+          }
         }}
         onStatusChange={moveCard}
         onCardChange={(nextCard) => updateCard(nextCard.id, () => nextCard)}

@@ -12,6 +12,7 @@ import {
   fetchPagamenti,
   fetchProcessiMatching,
   fetchPresenzeMensili,
+  fetchRapportiLavorativi,
   fetchRapportiLavorativiBoard,
   fetchTickets,
   fetchVariazioniContrattuali,
@@ -235,6 +236,10 @@ export function useRapportiLavorativiData(
   const [selectedRapportoId, setSelectedRapportoId] = React.useState<string | null>(
     initialSelectedRapportoId
   )
+  const [selectedRapporto, setSelectedRapporto] = React.useState<RapportoLavorativoRecord | null>(
+    null
+  )
+  const [loadingSelectedRapporto, setLoadingSelectedRapporto] = React.useState(false)
   const [selectedFamiglia, setSelectedFamiglia] = React.useState<FamigliaRecord | null>(null)
   const [selectedLavoratore, setSelectedLavoratore] = React.useState<LavoratoreRecord | null>(null)
   const [selectedProcessi, setSelectedProcessi] = React.useState<ProcessoMatchingRecord[]>([])
@@ -355,11 +360,6 @@ export function useRapportiLavorativiData(
     }
   }, [])
 
-  const selectedRapporto = React.useMemo(
-    () => rapporti.find((rapporto) => rapporto.id === selectedRapportoId) ?? null,
-    [rapporti, selectedRapportoId]
-  )
-
   React.useEffect(() => {
     setSelectedRapportoId((previous) => {
       if (previous && rapporti.some((rapporto) => rapporto.id === previous)) {
@@ -373,6 +373,79 @@ export function useRapportiLavorativiData(
     if (!initialSelectedRapportoId) return
     setSelectedRapportoId(initialSelectedRapportoId)
   }, [initialSelectedRapportoId])
+
+  React.useEffect(() => {
+    let isActive = true
+
+    async function loadSelectedRapporto() {
+      if (!selectedRapportoId) {
+        setLoadingSelectedRapporto(false)
+        setSelectedRapporto(null)
+        return
+      }
+
+      setLoadingSelectedRapporto(true)
+      const fallbackRapporto =
+        rapporti.find((rapporto) => rapporto.id === selectedRapportoId) ?? null
+      setSelectedRapporto(fallbackRapporto)
+
+      try {
+        const response = await fetchRapportiLavorativi({
+          limit: 1,
+          offset: 0,
+          filters: buildEqualsFilter("id", selectedRapportoId),
+        })
+        if (!isActive) return
+
+        const freshRapporto = (response.rows[0] as RapportoLavorativoRecord | undefined) ?? null
+        const mergedRapporto =
+          freshRapporto && fallbackRapporto
+            ? {
+                ...freshRapporto,
+                cognome_nome_datore_proper:
+                  freshRapporto.cognome_nome_datore_proper ??
+                  fallbackRapporto.cognome_nome_datore_proper,
+                nome_lavoratore_per_url:
+                  freshRapporto.nome_lavoratore_per_url ??
+                  fallbackRapporto.nome_lavoratore_per_url,
+              }
+            : freshRapporto
+        setSelectedRapporto(mergedRapporto)
+
+        if (mergedRapporto) {
+          setRapporti((current) =>
+            current.map((rapporto) =>
+              rapporto.id === mergedRapporto.id
+                ? {
+                    ...mergedRapporto,
+                    cognome_nome_datore_proper:
+                      mergedRapporto.cognome_nome_datore_proper ??
+                      rapporto.cognome_nome_datore_proper,
+                    nome_lavoratore_per_url:
+                      mergedRapporto.nome_lavoratore_per_url ??
+                      rapporto.nome_lavoratore_per_url,
+                  }
+                : rapporto
+            )
+          )
+        }
+      } catch (loadError) {
+        if (!isActive) return
+        console.error("Errore caricando dettaglio rapporto", loadError)
+        setError("Errore nel caricamento del rapporto selezionato. Riprova tra qualche secondo.")
+      } finally {
+        if (isActive) {
+          setLoadingSelectedRapporto(false)
+        }
+      }
+    }
+
+    void loadSelectedRapporto()
+
+    return () => {
+      isActive = false
+    }
+  }, [reloadToken, selectedRapportoId])
 
   React.useEffect(() => {
     let isActive = true
@@ -644,6 +717,7 @@ export function useRapportiLavorativiData(
     selectedRapportoId,
     setSelectedRapportoId,
     selectedRapporto,
+    loadingSelectedRapporto,
     selectedFamiglia,
     selectedLavoratore,
     selectedProcessi,

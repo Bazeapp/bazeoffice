@@ -48,9 +48,18 @@ import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { runAutomationWebhook, updateRecord } from "@/lib/anagrafiche-api"
+import {
+  fetchFamiglie,
+  fetchMesiCalendario,
+  fetchMesiLavorati,
+  fetchPresenzeMensili,
+  fetchRapportiLavorativi,
+  runAutomationWebhook,
+  updateRecord,
+} from "@/lib/anagrafiche-api"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
@@ -1136,7 +1145,9 @@ export function CedolinoDetailSheet({
               </DetailSectionBlock>
             </div>
           </section>
-        ) : null}
+        ) : (
+          <DetailSheetSkeleton />
+        )}
       </SheetContent>
     </Sheet>
   )
@@ -1213,12 +1224,33 @@ function PayrollBoardSkeletonColumn() {
   return <KanbanColumnSkeleton widthClassName="w-70" density="compact" />
 }
 
+function DetailSheetSkeleton() {
+  return (
+    <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
+      <div className="mx-auto max-w-5xl space-y-5">
+        <Skeleton className="h-24 rounded-lg" />
+        <div className="rounded-lg border bg-surface p-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="space-y-2">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function CedoliniPayrollView() {
   const [selectedMonth, setSelectedMonth] = React.useState(getCurrentMonthValue)
   const { loading, error, columns, moveCard, patchCard, patchPresence } = usePayrollBoard(selectedMonth)
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
+  const [selectedCard, setSelectedCard] = React.useState<PayrollBoardCardData | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
 
   const filteredColumns = React.useMemo(() => {
@@ -1270,10 +1302,179 @@ function CedoliniPayrollView() {
     [filteredColumns],
   )
 
-  const selectedCard = React.useMemo(
+  const selectedCardFromColumns = React.useMemo(
     () => columns.flatMap((column) => column.cards).find((card) => card.id === selectedCardId) ?? null,
     [columns, selectedCardId]
   )
+
+  React.useEffect(() => {
+    if (!selectedCardId) {
+      setSelectedCard(null)
+      return
+    }
+    if (!selectedCardFromColumns) return
+
+    let isActive = true
+    const currentCardId = selectedCardId
+    const currentCard = selectedCardFromColumns
+    setSelectedCard(null)
+
+    async function loadSelectedCard() {
+      try {
+        const recordResponse = await fetchMesiLavorati({
+          limit: 1,
+          offset: 0,
+          filters: {
+            kind: "group",
+            id: "payroll-selected-record",
+            logic: "and",
+            nodes: [
+              {
+                kind: "condition",
+                id: "payroll-selected-record-id",
+                field: "id",
+                operator: "is",
+                value: currentCardId,
+              },
+            ],
+          },
+        })
+
+        const freshRecord = recordResponse.rows[0] as PayrollBoardCardData["record"] | undefined
+        if (!isActive || !freshRecord) return
+
+        const [rapportoResponse, famigliaResponse, meseResponse, presenzeResponse, presenzeRegolariResponse] =
+          await Promise.all([
+            freshRecord.rapporto_lavorativo_id
+              ? fetchRapportiLavorativi({
+                  limit: 1,
+                  offset: 0,
+                  filters: {
+                    kind: "group",
+                    id: "payroll-selected-rapporto",
+                    logic: "and",
+                    nodes: [
+                      {
+                        kind: "condition",
+                        id: "payroll-selected-rapporto-id",
+                        field: "id",
+                        operator: "is",
+                        value: freshRecord.rapporto_lavorativo_id,
+                      },
+                    ],
+                  },
+                })
+              : Promise.resolve({ rows: [], total: 0, columns: [] }),
+            currentCard.rapporto?.famiglia_id
+              ? fetchFamiglie({
+                  limit: 1,
+                  offset: 0,
+                  filters: {
+                    kind: "group",
+                    id: "payroll-selected-famiglia",
+                    logic: "and",
+                    nodes: [
+                      {
+                        kind: "condition",
+                        id: "payroll-selected-famiglia-id",
+                        field: "id",
+                        operator: "is",
+                        value: currentCard.rapporto.famiglia_id,
+                      },
+                    ],
+                  },
+                })
+              : Promise.resolve({ rows: [], total: 0, columns: [] }),
+            freshRecord.mese_id
+              ? fetchMesiCalendario({
+                  limit: 1,
+                  offset: 0,
+                  filters: {
+                    kind: "group",
+                    id: "payroll-selected-mese",
+                    logic: "and",
+                    nodes: [
+                      {
+                        kind: "condition",
+                        id: "payroll-selected-mese-id",
+                        field: "id",
+                        operator: "is",
+                        value: freshRecord.mese_id,
+                      },
+                    ],
+                  },
+                })
+              : Promise.resolve({ rows: [], total: 0, columns: [] }),
+            freshRecord.presenze_id
+              ? fetchPresenzeMensili({
+                  limit: 1,
+                  offset: 0,
+                  filters: {
+                    kind: "group",
+                    id: "payroll-selected-presenze",
+                    logic: "and",
+                    nodes: [
+                      {
+                        kind: "condition",
+                        id: "payroll-selected-presenze-id",
+                        field: "id",
+                        operator: "is",
+                        value: freshRecord.presenze_id,
+                      },
+                    ],
+                  },
+                })
+              : Promise.resolve({ rows: [], total: 0, columns: [] }),
+            freshRecord.presenze_regolare_id
+              ? fetchPresenzeMensili({
+                  limit: 1,
+                  offset: 0,
+                  filters: {
+                    kind: "group",
+                    id: "payroll-selected-presenze-regolari",
+                    logic: "and",
+                    nodes: [
+                      {
+                        kind: "condition",
+                        id: "payroll-selected-presenze-regolari-id",
+                        field: "id",
+                        operator: "is",
+                        value: freshRecord.presenze_regolare_id,
+                      },
+                    ],
+                  },
+                })
+              : Promise.resolve({ rows: [], total: 0, columns: [] }),
+          ])
+
+        if (!isActive) return
+
+        setSelectedCard({
+          ...currentCard,
+          record: freshRecord,
+          rapporto:
+            (rapportoResponse.rows[0] as PayrollBoardCardData["rapporto"]) ?? currentCard.rapporto,
+          famiglia:
+            (famigliaResponse.rows[0] as PayrollBoardCardData["famiglia"]) ?? currentCard.famiglia,
+          mese: (meseResponse.rows[0] as PayrollBoardCardData["mese"]) ?? currentCard.mese,
+          presenze:
+            (presenzeResponse.rows[0] as PayrollBoardCardData["presenze"]) ?? currentCard.presenze,
+          presenzeRegolari:
+            (presenzeRegolariResponse.rows[0] as PayrollBoardCardData["presenzeRegolari"]) ??
+            currentCard.presenzeRegolari,
+        })
+      } catch (error) {
+        if (!isActive) return
+        console.error("Errore caricando dettaglio cedolino", error)
+      }
+    }
+
+    void loadSelectedCard()
+
+    return () => {
+      isActive = false
+    }
+  }, [selectedCardFromColumns?.id, selectedCardId])
 
   const monthSwitcher = (
     <div className="flex items-center gap-2">
@@ -1363,7 +1564,10 @@ function CedoliniPayrollView() {
                   column={column}
                   draggingRecordId={draggingRecordId}
                   isDropTarget={dropTargetColumnId === column.id}
-                  onOpenCard={setSelectedCardId}
+                  onOpenCard={(cardId) => {
+                    setSelectedCard(null)
+                    setSelectedCardId(cardId)
+                  }}
                   onDragStartCard={setDraggingRecordId}
                   onDragEndCard={() => {
                     window.setTimeout(() => {
@@ -1392,9 +1596,12 @@ function CedoliniPayrollView() {
       <CedolinoDetailSheet
         card={selectedCard}
         columns={columns}
-        open={Boolean(selectedCard)}
+        open={Boolean(selectedCardId)}
         onOpenChange={(open) => {
-          if (!open) setSelectedCardId(null)
+          if (!open) {
+            setSelectedCardId(null)
+            setSelectedCard(null)
+          }
         }}
         onStageChange={(recordId, targetStageId) => {
           void moveCard(recordId, targetStageId)

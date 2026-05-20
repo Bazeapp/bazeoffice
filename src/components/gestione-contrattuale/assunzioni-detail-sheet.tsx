@@ -27,6 +27,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import {
   createRecord,
@@ -449,7 +450,7 @@ function RapportoDetailSections({
 }) {
   const rapporto = card.rapporto
   const assunzione = card.assunzione
-  const [draft, setDraft] = React.useState(() => ({
+  const makeDraft = React.useCallback(() => ({
     regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
     totaleOreLavorative:
       toInputValue(assunzione?.ore_di_lavoro) ||
@@ -469,52 +470,12 @@ function RapportoDetailSections({
     telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
     dataAssunzione: assunzione?.data_assunzione ?? rapporto?.data_inizio_rapporto ?? "",
     appuntiExtra: assunzione?.note_aggiuntive ?? "",
-  }))
+  }), [assunzione, rapporto])
+  const [draft, setDraft] = React.useState(makeDraft)
 
   React.useEffect(() => {
-    setDraft({
-      regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
-      totaleOreLavorative:
-        toInputValue(assunzione?.ore_di_lavoro) ||
-        (rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : ""),
-      distribuzioneOreSettimanali: rapporto?.distribuzione_ore_settimana ?? "",
-      oreLunedi: toInputValue(assunzione?.ore_lunedi),
-      oreMartedi: toInputValue(assunzione?.ore_martedi),
-      oreMercoledi: toInputValue(assunzione?.ore_mercoledi),
-      oreGiovedi: toInputValue(assunzione?.ore_giovedi),
-      oreVenerdi: toInputValue(assunzione?.ore_venerdi),
-      oreSabato: toInputValue(assunzione?.ore_sabato),
-      mezzaGiornataRiposo: assunzione?.mezza_giornata_di_riposo ?? "",
-      rapportoCorrispondeResidenza:
-        assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
-      tredicesimaRateizzata: assunzione?.tredicesima_rateizzata_mensile ?? "",
-      pagaOraria: rapporto?.paga_oraria_lorda ? String(rapporto.paga_oraria_lorda) : "",
-      pagaMensile: rapporto?.paga_mensile_lorda ? String(rapporto.paga_mensile_lorda) : "",
-      telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
-      dataAssunzione: assunzione?.data_assunzione ?? rapporto?.data_inizio_rapporto ?? "",
-      appuntiExtra: assunzione?.note_aggiuntive ?? "",
-    })
-  }, [
-    assunzione?.data_assunzione,
-    assunzione?.mezza_giornata_di_riposo,
-    assunzione?.note_aggiuntive,
-    assunzione?.ore_di_lavoro,
-    assunzione?.ore_giovedi,
-    assunzione?.ore_lunedi,
-    assunzione?.ore_martedi,
-    assunzione?.ore_mercoledi,
-    assunzione?.ore_sabato,
-    assunzione?.ore_venerdi,
-    assunzione?.regime_convivenza,
-    assunzione?.rapporto_di_lavoro_residenza,
-    assunzione?.telecamere_posto_lavoro,
-    assunzione?.tredicesima_rateizzata_mensile,
-    rapporto?.data_inizio_rapporto,
-    rapporto?.distribuzione_ore_settimana,
-    rapporto?.ore_a_settimana,
-    rapporto?.paga_mensile_lorda,
-    rapporto?.paga_oraria_lorda,
-  ])
+    setDraft(makeDraft())
+  }, [assunzione?.id, card.id, rapporto?.id])
 
   const setValue = (key: keyof typeof draft, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }))
@@ -868,7 +829,7 @@ function DatoreDetail({
 
   React.useEffect(() => {
     setDraft(makeDraft())
-  }, [makeDraft])
+  }, [assunzione?.id, card.id, famiglia?.id, rapporto?.id])
 
   const setValue = (key: keyof typeof draft, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }))
@@ -1307,7 +1268,7 @@ function LavoratoreDetail({
 
   React.useEffect(() => {
     setDraft(makeDraft())
-  }, [makeDraft])
+  }, [assunzione?.id, card.id, lavoratore?.id, rapporto?.id])
 
   const setValue = (key: keyof typeof draft, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }))
@@ -3053,8 +3014,30 @@ export function AssunzioniDetailSheet({
               )}
             </div>
           </section>
-        ) : null}
+        ) : (
+          <DetailSheetSkeleton />
+        )}
       </SheetContent>
     </Sheet>
+  )
+}
+
+function DetailSheetSkeleton() {
+  return (
+    <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
+      <div className="mx-auto max-w-5xl space-y-5">
+        <Skeleton className="h-24 rounded-lg" />
+        <div className="rounded-lg border bg-surface p-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            {Array.from({ length: 9 }).map((_, index) => (
+              <div key={index} className="space-y-2">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }

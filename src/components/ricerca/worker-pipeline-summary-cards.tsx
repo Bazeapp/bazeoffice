@@ -770,7 +770,7 @@ function TravelTimeCard({
                   cap: event.target.value,
                 }))
               }
-              onBlur={() => void commitAddressField("cap", addressDraft.cap)}
+              onBlur={(event) => void commitAddressField("cap", event.currentTarget.value)}
               className="h-9 text-sm"
               placeholder="CAP"
             />
@@ -782,10 +782,10 @@ function TravelTimeCard({
                   indirizzo_residenza_completo: event.target.value,
                 }))
               }
-              onBlur={() =>
+              onBlur={(event) =>
                 void commitAddressField(
                   "indirizzo_residenza_completo",
-                  addressDraft.indirizzo_residenza_completo,
+                  event.currentTarget.value,
                 )
               }
               className="h-9 text-sm"

@@ -19,6 +19,10 @@ import {
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
+  fetchContributiInps,
+  fetchRapportiLavorativi,
+} from "@/lib/anagrafiche-api"
+import {
   buildAttachmentPayload,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
@@ -39,6 +43,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Skeleton } from "@/components/ui/skeleton"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
@@ -447,7 +452,9 @@ export function ContributoInpsDetailSheet({
                 </DetailSectionBlock>
               </div>
             </section>
-          ) : null}
+          ) : (
+            <DetailSheetSkeleton />
+          )}
         </SheetContent>
       </Sheet>
       <Dialog open={Boolean(selectedPreview)} onOpenChange={(nextOpen) => !nextOpen && setSelectedPreview(null)}>
@@ -543,6 +550,26 @@ function ContributoInpsBoardSkeletonColumn() {
   return <KanbanColumnSkeleton widthClassName="w-73" density="compact" showBadgeRow />
 }
 
+function DetailSheetSkeleton() {
+  return (
+    <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
+      <div className="mx-auto max-w-5xl space-y-5">
+        <Skeleton className="h-24 rounded-lg" />
+        <div className="rounded-lg border bg-surface p-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="space-y-2">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export function ContributiInpsView() {
   const [period, setPeriod] = React.useState<QuarterState>(getCurrentQuarterState)
   const [search, setSearch] = React.useState("")
@@ -554,6 +581,7 @@ export function ContributiInpsView() {
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
+  const [selectedCard, setSelectedCard] = React.useState<ContributoInpsBoardCardData | null>(null)
 
   const filteredCards = React.useMemo(() => {
     return cards.filter((card) => {
@@ -628,10 +656,95 @@ export function ContributiInpsView() {
     [activeRapportiCount, stages, stats.grouped, stats.totale]
   )
 
-  const selectedCard = React.useMemo(
+  const selectedCardFromCards = React.useMemo(
     () => cards.find((card) => card.id === selectedCardId) ?? null,
     [cards, selectedCardId]
   )
+
+  React.useEffect(() => {
+    if (!selectedCardId) {
+      setSelectedCard(null)
+      return
+    }
+    if (!selectedCardFromCards) return
+
+    let isActive = true
+    const currentCardId = selectedCardId
+    const currentCard = selectedCardFromCards
+    setSelectedCard(null)
+
+    async function loadSelectedCard() {
+      try {
+        const recordResponse = await fetchContributiInps({
+          limit: 1,
+          offset: 0,
+          filters: {
+            kind: "group",
+            id: "contributi-selected-record",
+            logic: "and",
+            nodes: [
+              {
+                kind: "condition",
+                id: "contributi-selected-record-id",
+                field: "id",
+                operator: "is",
+                value: currentCardId,
+              },
+            ],
+          },
+        })
+
+        const freshRecord = recordResponse.rows[0] as ContributoInpsBoardCardData["record"] | undefined
+        if (!isActive || !freshRecord) return
+
+        const rapportoId =
+          currentCard.rapporto?.id ??
+          (typeof freshRecord.rapporto_lavorativo_id === "string" ? freshRecord.rapporto_lavorativo_id : null)
+
+        const rapportoResponse = rapportoId
+          ? await fetchRapportiLavorativi({
+              limit: 1,
+              offset: 0,
+              filters: {
+                kind: "group",
+                id: "contributi-selected-rapporto",
+                logic: "and",
+                nodes: [
+                  {
+                    kind: "condition",
+                    id: "contributi-selected-rapporto-id",
+                    field: "id",
+                    operator: "is",
+                    value: rapportoId,
+                  },
+                ],
+              },
+            })
+          : { rows: [], total: 0, columns: [] }
+
+        const freshRapporto =
+          (rapportoResponse.rows[0] as ContributoInpsBoardCardData["rapporto"]) ??
+          currentCard.rapporto
+
+        if (!isActive) return
+
+        setSelectedCard({
+          ...currentCard,
+          record: freshRecord,
+          rapporto: freshRapporto,
+        })
+      } catch (error) {
+        if (!isActive) return
+        console.error("Errore caricando dettaglio contributo", error)
+      }
+    }
+
+    void loadSelectedCard()
+
+    return () => {
+      isActive = false
+    }
+  }, [selectedCardFromCards?.id, selectedCardId])
 
   const quarterSwitcher = (
     <div className="flex items-center gap-2">
@@ -754,7 +867,10 @@ export function ContributiInpsView() {
                   column={column}
                   draggingRecordId={draggingRecordId}
                   isDropTarget={dropTargetColumnId === column.id}
-                  onOpenCard={setSelectedCardId}
+                  onOpenCard={(cardId) => {
+                    setSelectedCard(null)
+                    setSelectedCardId(cardId)
+                  }}
                   onDragStartCard={setDraggingRecordId}
                   onDragEndCard={() => {
                     window.setTimeout(() => {
@@ -783,9 +899,12 @@ export function ContributiInpsView() {
       <ContributoInpsDetailSheet
         card={selectedCard}
         columns={columns}
-        open={Boolean(selectedCard)}
+        open={Boolean(selectedCardId)}
         onOpenChange={(open) => {
-          if (!open) setSelectedCardId(null)
+          if (!open) {
+            setSelectedCardId(null)
+            setSelectedCard(null)
+          }
         }}
         onStageChange={moveCard}
         onPatchCard={patchCard}

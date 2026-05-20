@@ -25,6 +25,7 @@ export function RapportiLavorativiView({
     selectedRapportoId,
     setSelectedRapportoId,
     selectedRapporto,
+    loadingSelectedRapporto,
     selectedFamiglia,
     selectedLavoratore,
     selectedProcessi,
@@ -66,6 +67,7 @@ export function RapportiLavorativiView({
 
       <RapportoDetailPanel
         rapporto={selectedRapporto}
+        loadingRapporto={loadingSelectedRapporto}
         famiglia={selectedFamiglia}
         lavoratore={selectedLavoratore}
         processi={selectedProcessi}

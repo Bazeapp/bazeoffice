@@ -291,6 +291,31 @@ let lookupValuesCache:
     }
   | null = null
 
+let pendingWriteCount = 0
+let pendingWriteUnloadGuardInstalled = false
+
+function installPendingWriteUnloadGuard() {
+  if (pendingWriteUnloadGuardInstalled || typeof window === "undefined") return
+  pendingWriteUnloadGuardInstalled = true
+
+  window.addEventListener("beforeunload", (event) => {
+    if (pendingWriteCount <= 0) return
+    event.preventDefault()
+    event.returnValue = ""
+  })
+}
+
+async function trackWrite<TResponse>(operation: Promise<TResponse>) {
+  installPendingWriteUnloadGuard()
+  pendingWriteCount += 1
+
+  try {
+    return await operation
+  } finally {
+    pendingWriteCount = Math.max(0, pendingWriteCount - 1)
+  }
+}
+
 function makeTableQueryCacheKey(payload: TableQueryRequest) {
   return JSON.stringify(payload)
 }
@@ -1012,11 +1037,13 @@ export async function updateRecord(
   id: string,
   patch: Record<string, unknown>
 ) {
-  const response = await invokeEdgeFunction<UpdateRecordResponse>("update-record", {
-    table,
-    id,
-    patch,
-  })
+  const response = await trackWrite(
+    invokeEdgeFunction<UpdateRecordResponse>("update-record", {
+      table,
+      id,
+      patch,
+    })
+  )
   clearReadCaches()
   return response
 }
@@ -1025,19 +1052,23 @@ export async function createRecord(
   table: CreateTableName,
   values: Record<string, unknown>
 ) {
-  const response = await invokeEdgeFunction<CreateRecordResponse>("create-record", {
-    table,
-    values,
-  })
+  const response = await trackWrite(
+    invokeEdgeFunction<CreateRecordResponse>("create-record", {
+      table,
+      values,
+    })
+  )
   clearReadCaches()
   return response
 }
 
 export async function deleteRecord(table: UpdateTableName, id: string) {
-  const response = await invokeEdgeFunction<DeleteRecordResponse>("delete-record", {
-    table,
-    id,
-  })
+  const response = await trackWrite(
+    invokeEdgeFunction<DeleteRecordResponse>("delete-record", {
+      table,
+      id,
+    })
+  )
   clearReadCaches()
   return response
 }

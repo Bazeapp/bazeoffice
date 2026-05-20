@@ -11,6 +11,7 @@ import {
   type AssunzioniBoardColumnData,
   useAssunzioniBoard,
 } from "@/hooks/use-assunzioni-board"
+import { fetchAssunzioni, fetchRapportiLavorativi } from "@/lib/anagrafiche-api"
 import { AssunzioniDetailSheet } from "@/components/gestione-contrattuale/assunzioni-detail-sheet"
 import {
   KanbanColumnShell,
@@ -234,7 +235,9 @@ export function AssunzioniBoardView() {
   const { loading, error, columns, loadDeferredColumn, moveCard, updateCard } = useAssunzioniBoard()
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
+  const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [selectedCard, setSelectedCard] = React.useState<AssunzioniBoardCardData | null>(null)
+  const selectedCardRequestRef = React.useRef<string | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
 
   const filteredColumns = React.useMemo(() => {
@@ -264,6 +267,93 @@ export function AssunzioniBoardView() {
 
     return mappedColumns
   }, [columns, searchValue])
+
+  const handleSelectCard = React.useCallback(
+    async (card: AssunzioniBoardCardData) => {
+      selectedCardRequestRef.current = card.id
+      setSelectedCardId(card.id)
+      setSelectedCard(null)
+
+      try {
+        const [rapportoResponse, datoreResponse, lavoratoreResponse] = await Promise.all([
+          fetchRapportiLavorativi({
+            limit: 1,
+            offset: 0,
+            filters: {
+              kind: "group",
+              id: "assunzioni-selected-rapporto",
+              logic: "and",
+              nodes: [
+                {
+                  kind: "condition",
+                  id: "assunzioni-selected-rapporto-id",
+                  field: "id",
+                  operator: "is",
+                  value: card.id,
+                },
+              ],
+            },
+          }),
+          card.assunzione?.id
+            ? fetchAssunzioni({
+                limit: 1,
+                offset: 0,
+                filters: {
+                  kind: "group",
+                  id: "assunzioni-selected-datore",
+                  logic: "and",
+                  nodes: [
+                    {
+                      kind: "condition",
+                      id: "assunzioni-selected-datore-id",
+                      field: "id",
+                      operator: "is",
+                      value: card.assunzione.id,
+                    },
+                  ],
+                },
+              })
+            : Promise.resolve({ rows: [], total: 0, columns: [] }),
+          card.lavoratoreAssunzione?.id
+            ? fetchAssunzioni({
+                limit: 1,
+                offset: 0,
+                filters: {
+                  kind: "group",
+                  id: "assunzioni-selected-lavoratore",
+                  logic: "and",
+                  nodes: [
+                    {
+                      kind: "condition",
+                      id: "assunzioni-selected-lavoratore-id",
+                      field: "id",
+                      operator: "is",
+                      value: card.lavoratoreAssunzione.id,
+                    },
+                  ],
+                },
+              })
+            : Promise.resolve({ rows: [], total: 0, columns: [] }),
+        ])
+
+        const nextCard: AssunzioniBoardCardData = {
+          ...card,
+          rapporto: (rapportoResponse.rows[0] as AssunzioniBoardCardData["rapporto"]) ?? card.rapporto,
+          assunzione: (datoreResponse.rows[0] as AssunzioniBoardCardData["assunzione"]) ?? card.assunzione,
+          lavoratoreAssunzione:
+            (lavoratoreResponse.rows[0] as AssunzioniBoardCardData["lavoratoreAssunzione"]) ??
+            card.lavoratoreAssunzione,
+        }
+
+        if (selectedCardRequestRef.current !== card.id) return
+        setSelectedCard(nextCard)
+        updateCard(nextCard.id, () => nextCard)
+      } catch (error) {
+        console.error("Errore caricando dettaglio assunzione", error)
+      }
+    },
+    [updateCard]
+  )
 
   const totalProcesses = React.useMemo(
     () => filteredColumns.reduce((sum, column) => sum + column.cards.length, 0),
@@ -333,7 +423,9 @@ export function AssunzioniBoardView() {
                     if (!processId) return
                     void moveCard(processId, columnId)
                   }}
-                  onCardClick={setSelectedCard}
+                  onCardClick={(card) => {
+                    void handleSelectCard(card)
+                  }}
                   onLoadDeferredColumn={(columnId) => {
                     void loadDeferredColumn(columnId)
                   }}
@@ -344,13 +436,17 @@ export function AssunzioniBoardView() {
 
       <AssunzioniDetailSheet
         card={selectedCard}
-        open={Boolean(selectedCard)}
+        open={Boolean(selectedCardId)}
         onCardChange={(nextCard) => {
           setSelectedCard(nextCard)
           updateCard(nextCard.id, () => nextCard)
         }}
         onOpenChange={(open) => {
-          if (!open) setSelectedCard(null)
+          if (!open) {
+            selectedCardRequestRef.current = null
+            setSelectedCardId(null)
+            setSelectedCard(null)
+          }
         }}
       />
     </section>

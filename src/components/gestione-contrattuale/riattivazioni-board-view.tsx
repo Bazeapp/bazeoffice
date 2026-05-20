@@ -146,13 +146,27 @@ function RiattivazioniDetailSheet({
   const [savingRecallDate, setSavingRecallDate] = React.useState(false)
   const [uploadingSlot, setUploadingSlot] = React.useState<ChiusuraAttachmentSlot | null>(null)
   const [detailsError, setDetailsError] = React.useState<string | null>(null)
+  const latestCardRef = React.useRef<RiattivazioniBoardCardData | null>(card)
+
+  React.useEffect(() => {
+    latestCardRef.current = card
+  }, [card])
+
+  const applyCardChange = React.useCallback(
+    (nextCard: RiattivazioniBoardCardData) => {
+      latestCardRef.current = nextCard
+      onCardChange(nextCard)
+    },
+    [onCardChange]
+  )
 
   async function handleStatusChange(nextValue: string) {
-    if (!card || nextValue === card.stage) return
+    const currentCard = latestCardRef.current ?? card
+    if (!currentCard || nextValue === currentCard.stage) return
     try {
       setUpdatingStatus(true)
       setDetailsError(null)
-      await onStatusChange(card.id, nextValue as RiattivazioneStageId)
+      await onStatusChange(currentCard.id, nextValue as RiattivazioneStageId)
     } catch (caughtError) {
       setDetailsError(
         caughtError instanceof Error ? caughtError.message : "Errore aggiornando stato riattivazione",
@@ -163,22 +177,24 @@ function RiattivazioniDetailSheet({
   }
 
   async function handleScontoChange(nextValue: string) {
-    if (!card) return
+    const currentCard = latestCardRef.current ?? card
+    if (!currentCard) return
     const normalizedValue = nextValue === EMPTY_SELECT_VALUE ? null : nextValue
-    if (normalizedValue === (card.record.sconto_proposto_riattivazione ?? null)) return
+    if (normalizedValue === (currentCard.record.sconto_proposto_riattivazione ?? null)) return
 
     setSavingSconto(true)
     setDetailsError(null)
     try {
-      const response = await updateRecord("chiusure_contratti", card.id, {
+      const response = await updateRecord("chiusure_contratti", currentCard.id, {
         sconto_proposto_riattivazione: normalizedValue,
       })
+      const baseCard = latestCardRef.current ?? currentCard
       const nextRecord = {
-        ...card.record,
+        ...baseCard.record,
         ...response.row,
       } as RiattivazioniBoardCardData["record"]
-      onCardChange({
-        ...card,
+      applyCardChange({
+        ...baseCard,
         record: nextRecord,
       })
     } catch (caughtError) {
@@ -193,22 +209,24 @@ function RiattivazioniDetailSheet({
   }
 
   async function handleRecallDateChange(nextValue: string) {
-    if (!card) return
+    const currentCard = latestCardRef.current ?? card
+    if (!currentCard) return
     const normalizedValue = nextValue || null
-    if (normalizedValue === formatDateInputValue(card.record.data_per_riattivazione)) return
+    if (normalizedValue === formatDateInputValue(currentCard.record.data_per_riattivazione)) return
 
     setSavingRecallDate(true)
     setDetailsError(null)
     try {
-      const response = await updateRecord("chiusure_contratti", card.id, {
+      const response = await updateRecord("chiusure_contratti", currentCard.id, {
         data_per_riattivazione: normalizedValue,
       })
+      const baseCard = latestCardRef.current ?? currentCard
       const nextRecord = {
-        ...card.record,
+        ...baseCard.record,
         ...response.row,
       } as RiattivazioniBoardCardData["record"]
-      onCardChange({
-        ...card,
+      applyCardChange({
+        ...baseCard,
         record: nextRecord,
       })
     } catch (caughtError) {
@@ -223,7 +241,8 @@ function RiattivazioniDetailSheet({
   }
 
   async function handleUploadAttachment(slot: ChiusuraAttachmentSlot, file: File) {
-    if (!card) return
+    const currentCard = latestCardRef.current ?? card
+    if (!currentCard) return
 
     setUploadingSlot(slot)
     setDetailsError(null)
@@ -232,7 +251,7 @@ function RiattivazioniDetailSheet({
       const safeName = sanitizeFileName(file.name || "documento")
       const storagePath = [
         "chiusure_contratti",
-        card.id,
+        currentCard.id,
         slot,
         `${Date.now()}-${safeName}`,
       ].join("/")
@@ -250,17 +269,18 @@ function RiattivazioniDetailSheet({
       }
 
       const payload = buildAttachmentPayload(file, storagePath)
-      const nextValue = [...normalizeAttachmentArray(card.record[slot]), payload]
-      const response = await updateRecord("chiusure_contratti", card.id, {
+      const baseCard = latestCardRef.current ?? currentCard
+      const nextValue = [...normalizeAttachmentArray(baseCard.record[slot]), payload]
+      const response = await updateRecord("chiusure_contratti", currentCard.id, {
         [slot]: nextValue,
       })
       const nextRecord = {
-        ...card.record,
+        ...baseCard.record,
         ...response.row,
       } as RiattivazioniBoardCardData["record"]
 
-      onCardChange({
-        ...card,
+      applyCardChange({
+        ...baseCard,
         record: nextRecord,
       })
     } catch (caughtError) {

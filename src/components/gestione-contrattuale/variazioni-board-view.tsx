@@ -43,8 +43,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { updateRecord } from "@/lib/anagrafiche-api";
+import {
+  fetchRapportiLavorativi,
+  fetchVariazioniContrattuali,
+  updateRecord,
+} from "@/lib/anagrafiche-api";
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments";
 import { matchesSearchQuery } from "@/lib/search-utils";
 import { supabase } from "@/lib/supabase-client";
@@ -313,11 +318,24 @@ function VariazioniDetailSheet({
   const [uploadingSlot, setUploadingSlot] = React.useState<VariazioneAttachmentSlot | null>(null);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const previousCardIdRef = React.useRef<string | null>(card?.id ?? null);
+  const latestCardRef = React.useRef<VariazioniBoardCardData | null>(card);
   const [detailsDraft, setDetailsDraft] = React.useState(() => buildVariazioneDetailsDraft(card));
   const [rapportoDraft, setRapportoDraft] = React.useState(() => buildVariazioneRapportoDraft(card));
   const distributionItems = buildDistributionItems(
     card?.rapporto?.distribuzione_ore_settimana ?? null,
     card?.rapporto?.ore_a_settimana ?? null,
+  );
+
+  React.useEffect(() => {
+    latestCardRef.current = card;
+  }, [card]);
+
+  const applyCardChange = React.useCallback(
+    (nextCard: VariazioniBoardCardData) => {
+      latestCardRef.current = nextCard;
+      onCardChange(nextCard);
+    },
+    [onCardChange],
   );
 
   React.useEffect(() => {
@@ -365,20 +383,22 @@ function VariazioniDetailSheet({
   ]);
 
   async function saveDetailsPatch(patch: Record<string, unknown>) {
-    if (!card || Object.keys(patch).length === 0) return;
+    const currentCard = latestCardRef.current ?? card;
+    if (!currentCard || Object.keys(patch).length === 0) return;
 
     setSavingDetails(true);
     setDetailsError(null);
 
     try {
-      const response = await updateRecord("variazioni_contrattuali", card.id, patch);
+      const response = await updateRecord("variazioni_contrattuali", currentCard.id, patch);
+      const baseCard = latestCardRef.current ?? currentCard;
       const nextRecord = {
-        ...card.record,
+        ...baseCard.record,
         ...response.row,
       } as VariazioniBoardCardData["record"];
 
-      onCardChange({
-        ...card,
+      applyCardChange({
+        ...baseCard,
         record: nextRecord,
         dataVariazione: formatDate(nextRecord.data_variazione),
         variazioneDaApplicare: nextRecord.variazione_da_applicare,
@@ -393,17 +413,20 @@ function VariazioniDetailSheet({
   }
 
   async function saveRapportoPatch(patch: Record<string, unknown>) {
-    if (!card?.rapporto?.id || Object.keys(patch).length === 0) return;
+    const currentCard = latestCardRef.current ?? card;
+    if (!currentCard?.rapporto?.id || Object.keys(patch).length === 0) return;
 
     setSavingRapporto(true);
     setRapportoError(null);
 
     try {
-      const response = await updateRecord("rapporti_lavorativi", card.rapporto.id, patch);
-      onCardChange({
-        ...card,
+      const response = await updateRecord("rapporti_lavorativi", currentCard.rapporto.id, patch);
+      const baseCard = latestCardRef.current ?? currentCard;
+      const baseRapporto = baseCard.rapporto ?? currentCard.rapporto;
+      applyCardChange({
+        ...baseCard,
         rapporto: {
-          ...card.rapporto,
+          ...baseRapporto,
           ...response.row,
         } as VariazioniBoardCardData["rapporto"],
       });
@@ -417,7 +440,8 @@ function VariazioniDetailSheet({
   }
 
   async function handleUploadAttachment(slot: VariazioneAttachmentSlot, file: File) {
-    if (!card) return;
+    const currentCard = latestCardRef.current ?? card;
+    if (!currentCard) return;
 
     setUploadingSlot(slot);
     setUploadError(null);
@@ -426,7 +450,7 @@ function VariazioniDetailSheet({
       const safeName = sanitizeFileName(file.name || "documento");
       const storagePath = [
         "variazioni_contrattuali",
-        card.id,
+        currentCard.id,
         slot,
         `${Date.now()}-${safeName}`,
       ].join("/");
@@ -442,16 +466,17 @@ function VariazioniDetailSheet({
       }
 
       const payload = buildAttachmentPayload(file, storagePath);
-      const response = await updateRecord("variazioni_contrattuali", card.id, {
-        [slot]: [...normalizeAttachmentArray(card.record[slot]), payload],
+      const baseCard = latestCardRef.current ?? currentCard;
+      const response = await updateRecord("variazioni_contrattuali", currentCard.id, {
+        [slot]: [...normalizeAttachmentArray(baseCard.record[slot]), payload],
       });
       const nextRecord = {
-        ...card.record,
+        ...baseCard.record,
         ...response.row,
       } as VariazioniBoardCardData["record"];
 
-      onCardChange({
-        ...card,
+      applyCardChange({
+        ...baseCard,
         record: nextRecord,
       });
     } catch (caughtError) {
@@ -501,12 +526,14 @@ function VariazioniDetailSheet({
                 table="lavoratori"
                 row={card.lavoratore}
                 fields={VARIAZIONE_WORKER_FIELDS}
-                onRowChange={(nextLavoratore) =>
-                  onCardChange({
-                    ...card,
+                onRowChange={(nextLavoratore) => {
+                  const baseCard = latestCardRef.current ?? card;
+                  if (!baseCard) return;
+                  applyCardChange({
+                    ...baseCard,
                     lavoratore: nextLavoratore,
-                  })
-                }
+                  });
+                }}
               />
 
               <EditableAnagraficaSection
@@ -514,12 +541,14 @@ function VariazioniDetailSheet({
                 table="famiglie"
                 row={card.famiglia}
                 fields={VARIAZIONE_FAMILY_FIELDS}
-                onRowChange={(nextFamiglia) =>
-                  onCardChange({
-                    ...card,
+                onRowChange={(nextFamiglia) => {
+                  const baseCard = latestCardRef.current ?? card;
+                  if (!baseCard) return;
+                  applyCardChange({
+                    ...baseCard,
                     famiglia: nextFamiglia,
-                  })
-                }
+                  });
+                }}
               />
 
               <DetailSectionBlock
@@ -550,9 +579,9 @@ function VariazioniDetailSheet({
                             dataVariazione: event.target.value,
                           }))
                         }
-                        onBlur={() =>
+                        onBlur={(event) =>
                           void saveDetailsPatch({
-                            data_variazione: detailsDraft.dataVariazione || null,
+                            data_variazione: event.currentTarget.value || null,
                           })
                         }
                       />
@@ -567,9 +596,9 @@ function VariazioniDetailSheet({
                             variazioneDaApplicare: event.target.value,
                           }))
                         }
-                        onBlur={() =>
+                        onBlur={(event) =>
                           void saveDetailsPatch({
-                            variazione_da_applicare: detailsDraft.variazioneDaApplicare || null,
+                            variazione_da_applicare: event.currentTarget.value || null,
                           })
                         }
                       />
@@ -635,10 +664,10 @@ function VariazioniDetailSheet({
                               pagaOraria: event.target.value,
                             }))
                           }
-                          onBlur={() =>
+                          onBlur={(event) =>
                             void saveRapportoPatch({
-                              paga_oraria_lorda: rapportoDraft.pagaOraria
-                                ? Number(rapportoDraft.pagaOraria)
+                              paga_oraria_lorda: event.currentTarget.value
+                                ? Number(event.currentTarget.value)
                                 : null,
                             })
                           }
@@ -656,10 +685,10 @@ function VariazioniDetailSheet({
                               oreSettimanali: event.target.value,
                             }))
                           }
-                          onBlur={() =>
+                          onBlur={(event) =>
                             void saveRapportoPatch({
-                              ore_a_settimana: rapportoDraft.oreSettimanali
-                                ? Number(rapportoDraft.oreSettimanali)
+                              ore_a_settimana: event.currentTarget.value
+                                ? Number(event.currentTarget.value)
                                 : null,
                             })
                           }
@@ -675,9 +704,9 @@ function VariazioniDetailSheet({
                               tipoRapporto: event.target.value,
                             }))
                           }
-                          onBlur={() =>
+                          onBlur={(event) =>
                             void saveRapportoPatch({
-                              tipo_rapporto: rapportoDraft.tipoRapporto || null,
+                              tipo_rapporto: event.currentTarget.value || null,
                             })
                           }
                         />
@@ -799,9 +828,31 @@ function VariazioniDetailSheet({
               </DetailSectionBlock>
             </div>
           </section>
-        ) : null}
+        ) : (
+          <DetailSheetSkeleton />
+        )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function DetailSheetSkeleton() {
+  return (
+    <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
+      <div className="mx-auto max-w-5xl space-y-5">
+        <Skeleton className="h-24 rounded-lg" />
+        <div className="rounded-lg border bg-surface p-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="space-y-2">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1085,6 +1136,8 @@ export function VariazioniBoardView() {
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(
     null,
   );
+  const [selectedFreshCard, setSelectedFreshCard] =
+    React.useState<VariazioniBoardCardData | null>(null);
   const [searchValue, setSearchValue] = React.useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
 
@@ -1126,13 +1179,102 @@ export function VariazioniBoardView() {
     [filteredColumns],
   );
 
-  const selectedCard = React.useMemo(
+  const selectedCardFromColumns = React.useMemo(
     () =>
       columns
         .flatMap((column) => column.cards)
         .find((card) => card.id === selectedCardId) ?? null,
     [columns, selectedCardId],
   );
+
+  React.useEffect(() => {
+    if (!selectedCardId) {
+      setSelectedFreshCard(null);
+      return;
+    }
+    if (!selectedCardFromColumns) return;
+
+    let isActive = true;
+    const currentCardId = selectedCardId;
+    const currentCard = selectedCardFromColumns;
+    setSelectedFreshCard(null);
+
+    async function loadSelectedCard() {
+      try {
+        const [recordResponse, rapportoResponse] = await Promise.all([
+          fetchVariazioniContrattuali({
+            limit: 1,
+            offset: 0,
+            filters: {
+              kind: "group",
+              id: "variazioni-selected-record",
+              logic: "and",
+              nodes: [
+                {
+                  kind: "condition",
+                  id: "variazioni-selected-record-id",
+                  field: "id",
+                  operator: "is",
+                  value: currentCardId,
+                },
+              ],
+            },
+          }),
+          currentCard.rapporto?.id
+            ? fetchRapportiLavorativi({
+                limit: 1,
+                offset: 0,
+                filters: {
+                  kind: "group",
+                  id: "variazioni-selected-rapporto",
+                  logic: "and",
+                  nodes: [
+                    {
+                      kind: "condition",
+                      id: "variazioni-selected-rapporto-id",
+                      field: "id",
+                      operator: "is",
+                      value: currentCard.rapporto.id,
+                    },
+                  ],
+                },
+              })
+            : Promise.resolve({ rows: [], total: 0, columns: [] }),
+        ]);
+
+        if (!isActive) return;
+
+        const freshRecord = recordResponse.rows[0];
+        if (!freshRecord) return;
+
+        const nextCard: VariazioniBoardCardData = {
+          ...currentCard,
+          record: freshRecord as VariazioniBoardCardData["record"],
+          rapporto:
+            (rapportoResponse.rows[0] as VariazioniBoardCardData["rapporto"]) ??
+            currentCard.rapporto,
+          variazioneDaApplicare:
+            (freshRecord as VariazioniBoardCardData["record"]).variazione_da_applicare ??
+            currentCard.variazioneDaApplicare,
+          dataVariazione: formatDate(
+            (freshRecord as VariazioniBoardCardData["record"]).data_variazione,
+          ),
+        };
+
+        setSelectedFreshCard(nextCard);
+        updateCard(currentCardId, () => nextCard);
+      } catch (error) {
+        if (!isActive) return;
+        console.error("Errore caricando dettaglio variazione", error);
+      }
+    }
+
+    void loadSelectedCard();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedCardFromColumns?.id, selectedCardId, updateCard]);
 
   return (
     <>
@@ -1180,7 +1322,10 @@ export function VariazioniBoardView() {
                     column={column}
                     draggingRecordId={draggingRecordId}
                     isDropTarget={dropTargetColumnId === column.id}
-                    onOpenCard={setSelectedCardId}
+                    onOpenCard={(cardId) => {
+                      setSelectedFreshCard(null);
+                      setSelectedCardId(cardId);
+                    }}
                     onDragStartCard={setDraggingRecordId}
                     onDragEndCard={() => {
                       window.setTimeout(() => {
@@ -1214,10 +1359,13 @@ export function VariazioniBoardView() {
       </section>
 
       <VariazioniDetailSheet
-        card={selectedCard}
-        open={Boolean(selectedCard)}
+        card={selectedFreshCard}
+        open={Boolean(selectedCardId)}
         onOpenChange={(open) => {
-          if (!open) setSelectedCardId(null);
+          if (!open) {
+            setSelectedCardId(null);
+            setSelectedFreshCard(null);
+          }
         }}
         onCardChange={(nextCard) => updateCard(nextCard.id, () => nextCard)}
       />

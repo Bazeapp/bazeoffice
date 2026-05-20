@@ -68,6 +68,7 @@ type DataTableToolbarProps<TData> = {
   hasPendingFilters?: boolean;
   onRequestSchema?: () => void;
   searchCommitDebounceMs?: number;
+  showSearch?: boolean;
 };
 
 function getColumnLabel(column: {
@@ -128,6 +129,7 @@ export function DataTableToolbar<TData>({
   hasPendingFilters = false,
   onRequestSchema,
   searchCommitDebounceMs = 120,
+  showSearch = true,
 }: DataTableToolbarProps<TData>) {
   const [viewName, setViewName] = React.useState("");
   const [localSearchValue, setLocalSearchValue] = React.useState(searchValue);
@@ -247,13 +249,15 @@ export function DataTableToolbar<TData>({
             : "flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
         }
       >
-        <SearchInput
-          className={compactControls ? "w-full" : "w-full md:max-w-sm"}
-          placeholder={searchPlaceholder}
-          value={localSearchValue}
-          onChange={(event) => setLocalSearchValue(event.target.value)}
-          onClear={() => setLocalSearchValue("")}
-        />
+        {showSearch ? (
+          <SearchInput
+            className={compactControls ? "w-full" : "w-full md:max-w-sm"}
+            placeholder={searchPlaceholder}
+            value={localSearchValue}
+            onChange={(event) => setLocalSearchValue(event.target.value)}
+            onClear={() => setLocalSearchValue("")}
+          />
+        ) : null}
 
         <div
           className={

@@ -86,6 +86,7 @@ import type {
 
 type RapportoDetailPanelProps = {
   rapporto: RapportoLavorativoRecord | null
+  loadingRapporto?: boolean
   famiglia: FamigliaRecord | null
   lavoratore: LavoratoreRecord | null
   processi: ProcessoMatchingRecord[]
@@ -515,6 +516,52 @@ function LinkedRowsSkeleton({ rows = 3 }: { rows?: number }) {
   )
 }
 
+function RapportoDetailPanelSkeleton() {
+  return (
+    <DetailSectionCard
+      title="Dettaglio rapporto"
+      titleIcon={<BriefcaseBusinessIcon className="size-5" />}
+      className="h-full"
+      contentClassName="space-y-6"
+    >
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-72 max-w-full" />
+        <div className="flex gap-2">
+          <Skeleton className="h-6 w-24 rounded-full" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-6 w-28 rounded-full" />
+        </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <div key={index} className="space-y-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-10 w-full rounded-xl" />
+          </div>
+        ))}
+      </div>
+      <div className="space-y-3">
+        <Skeleton className="h-3 w-32" />
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 7 }).map((_, index) => (
+            <Skeleton key={index} className="h-14 w-14 rounded-xl" />
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-40" />
+          <Skeleton className="h-10 w-full rounded-xl" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-40" />
+          <Skeleton className="h-10 w-full rounded-xl" />
+        </div>
+      </div>
+    </DetailSectionCard>
+  )
+}
+
 function ListRowCard({
   title,
   subtitle,
@@ -593,6 +640,7 @@ function buildRapportoDraft(rapporto: RapportoLavorativoRecord | null | undefine
 
 export function RapportoDetailPanel({
   rapporto,
+  loadingRapporto = false,
   famiglia,
   lavoratore,
   processi,
@@ -629,21 +677,26 @@ export function RapportoDetailPanel({
   const autosaveTimeoutRef = React.useRef<number | null>(null)
   const previousRapportoIdRef = React.useRef<string | null>(rapporto?.id ?? null)
   const [rapportoDraft, setRapportoDraft] = React.useState(() => buildRapportoDraft(rapporto))
+  const rapportoDraftRef = React.useRef(rapportoDraft)
+
+  React.useEffect(() => {
+    rapportoDraftRef.current = rapportoDraft
+  }, [rapportoDraft])
 
   React.useEffect(() => {
     const nextRapportoId = rapporto?.id ?? null
     const isDifferentRapporto = previousRapportoIdRef.current !== nextRapportoId
     previousRapportoIdRef.current = nextRapportoId
 
-    setRapportoState(rapporto)
-
     if (!isDifferentRapporto) {
       if (editingSection === null) {
+        setRapportoState(rapporto)
         setRapportoDraft(buildRapportoDraft(rapporto))
       }
       return
     }
 
+    setRapportoState(rapporto)
     setSelectedCedolinoId(null)
     setSelectedContributoId(null)
     setSelectedTicket(null)
@@ -779,7 +832,11 @@ export function RapportoDetailPanel({
 
   const setDraftValue = React.useCallback(
     (field: keyof typeof rapportoDraft, value: string) => {
-      setRapportoDraft((current) => ({ ...current, [field]: value }))
+      setRapportoDraft((current) => {
+        const nextDraft = { ...current, [field]: value }
+        rapportoDraftRef.current = nextDraft
+        return nextDraft
+      })
     },
     []
   )
@@ -806,25 +863,25 @@ export function RapportoDetailPanel({
   }, [currentProcesso?.offerta])
 
   const buildContrattoPatch = React.useCallback(
-    () => ({
-      tipo_contratto_durata: rapportoDraft.tipo_contratto_durata || null,
-      tipo_contratto: rapportoDraft.tipo_contratto || null,
-      tipo_rapporto: rapportoDraft.tipo_rapporto || null,
-      ore_a_settimana: rapportoDraft.ore_a_settimana ? Number(rapportoDraft.ore_a_settimana) : null,
-      distribuzione_ore_settimana: rapportoDraft.distribuzione_ore_settimana || null,
-      data_inizio_rapporto: rapportoDraft.data_inizio_rapporto || null,
-      stato_assunzione: rapportoDraft.stato_assunzione || null,
-      relazione_lavorativa: rapportoDraft.relazione_lavorativa || null,
-      paga_oraria_lorda: rapportoDraft.paga_oraria_lorda ? Number(rapportoDraft.paga_oraria_lorda) : null,
-      paga_mensile_lorda: rapportoDraft.paga_mensile_lorda ? Number(rapportoDraft.paga_mensile_lorda) : null,
-      codice_datore_webcolf: rapportoDraft.codice_datore_webcolf
-        ? Number(rapportoDraft.codice_datore_webcolf)
+    (draft = rapportoDraftRef.current) => ({
+      tipo_contratto_durata: draft.tipo_contratto_durata || null,
+      tipo_contratto: draft.tipo_contratto || null,
+      tipo_rapporto: draft.tipo_rapporto || null,
+      ore_a_settimana: draft.ore_a_settimana ? Number(draft.ore_a_settimana) : null,
+      distribuzione_ore_settimana: draft.distribuzione_ore_settimana || null,
+      data_inizio_rapporto: draft.data_inizio_rapporto || null,
+      stato_assunzione: draft.stato_assunzione || null,
+      relazione_lavorativa: draft.relazione_lavorativa || null,
+      paga_oraria_lorda: draft.paga_oraria_lorda ? Number(draft.paga_oraria_lorda) : null,
+      paga_mensile_lorda: draft.paga_mensile_lorda ? Number(draft.paga_mensile_lorda) : null,
+      codice_datore_webcolf: draft.codice_datore_webcolf
+        ? Number(draft.codice_datore_webcolf)
         : null,
-      codice_dipendente_webcolf: rapportoDraft.codice_dipendente_webcolf
-        ? Number(rapportoDraft.codice_dipendente_webcolf)
+      codice_dipendente_webcolf: draft.codice_dipendente_webcolf
+        ? Number(draft.codice_dipendente_webcolf)
         : null,
     }),
-    [rapportoDraft]
+    []
   )
 
   const getChangedContrattoPatch = React.useCallback(() => {
@@ -853,7 +910,11 @@ export function RapportoDetailPanel({
     setRapportoState((previous) => (previous ? { ...previous, ...patch } : previous))
 
     try {
-      await updateRecord("rapporti_lavorativi", currentRapporto.id, patch)
+      const response = await updateRecord("rapporti_lavorativi", currentRapporto.id, patch)
+      setRapportoState((previous) => ({
+        ...((previous ?? currentRapporto) as RapportoLavorativoRecord),
+        ...response.row,
+      }))
     } finally {
       setSavingContratto(false)
     }
@@ -878,10 +939,13 @@ export function RapportoDetailPanel({
       if (autosaveTimeoutRef.current) {
         window.clearTimeout(autosaveTimeoutRef.current)
         autosaveTimeoutRef.current = null
-        void persistContrattoChanges()
       }
     }
   }, [editingSection, getChangedContrattoPatch, persistContrattoChanges])
+
+  if (loadingRapporto) {
+    return <RapportoDetailPanelSkeleton />
+  }
 
   if (!rapporto) {
     return (
@@ -1239,6 +1303,7 @@ export function RapportoDetailPanel({
                           onChange={(event) =>
                             setDraftValue("distribuzione_ore_settimana", event.target.value)
                           }
+                          onBlur={() => void persistContrattoChanges()}
                         />
                       </div>
                     </DetailFieldControl>
@@ -1251,6 +1316,7 @@ export function RapportoDetailPanel({
                           type="number"
                           value={rapportoDraft.ore_a_settimana}
                           onChange={(event) => setDraftValue("ore_a_settimana", event.target.value)}
+                          onBlur={() => void persistContrattoChanges()}
                         />
                       </div>
                     </DetailFieldControl>

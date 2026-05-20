@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { FieldLabel } from "@/components/ui/field"
 import { Pagination } from "@/components/ui/pagination"
+import { SearchInput } from "@/components/ui/search-input"
 import {
   Select,
   SelectContent,
@@ -314,7 +315,6 @@ export function RapportiListPanel({
     [],
   )
   const {
-    searchValue,
     setSearchValue,
     filters,
     setFilters,
@@ -334,11 +334,24 @@ export function RapportiListPanel({
     debounceMs: 350,
     initialQuery,
   })
+  const [localSearchValue, setLocalSearchValue] = React.useState(externalSearchValue)
 
   React.useEffect(() => {
-    if (searchValue === externalSearchValue) return
-    onSearchValueChange(searchValue)
-  }, [externalSearchValue, onSearchValueChange, searchValue])
+    setLocalSearchValue(externalSearchValue)
+  }, [externalSearchValue])
+
+  React.useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setSearchValue(localSearchValue)
+      if (localSearchValue !== externalSearchValue) {
+        onSearchValueChange(localSearchValue)
+      }
+    }, 350)
+
+    return () => {
+      window.clearTimeout(timeout)
+    }
+  }, [externalSearchValue, localSearchValue, onSearchValueChange, setSearchValue])
 
   const items = React.useMemo<RapportiListItem[]>(
     () =>
@@ -495,9 +508,16 @@ export function RapportiListPanel({
         contentClassName="space-y-3 px-5 pt-3 pb-3"
         className="h-full gap-2"
       >
+        <SearchInput
+          placeholder="Cerca famiglia o lavoratore..."
+          value={localSearchValue}
+          onChange={(event) => setLocalSearchValue(event.target.value)}
+          onClear={() => setLocalSearchValue("")}
+        />
+
         <DataTableToolbar
           table={table}
-          searchValue={searchValue}
+          searchValue={localSearchValue}
           onSearchValueChange={setSearchValue}
           filters={filters}
           onFiltersChange={setFilters}
@@ -523,6 +543,7 @@ export function RapportiListPanel({
           onDeleteSavedView={deleteView}
           onApplyFilters={applyFilters}
           hasPendingFilters={hasPendingFilters}
+          showSearch={false}
         />
 
         <div className="space-y-1">
