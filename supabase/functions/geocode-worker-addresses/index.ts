@@ -32,6 +32,7 @@ type AddressRow = {
 type WorkerRow = {
   id: string
   stato_lavoratore: string | null
+  provincia: string | null
 }
 
 type GeocodeResult = {
@@ -66,7 +67,7 @@ function addressRank(row: AddressRow) {
   return 2
 }
 
-function buildAddressQuery(row: AddressRow) {
+function buildAddressQuery(row: AddressRow, worker: WorkerRow | undefined) {
   const formatted = row.indirizzo_formattato?.trim()
   if (formatted) return formatted
 
@@ -75,7 +76,7 @@ function buildAddressQuery(row: AddressRow) {
     row.civico,
     row.cap,
     row.citta,
-    row.provincia,
+    row.provincia ?? worker?.provincia,
     row.paese ?? "Italia",
   ]
     .map((part) => String(part ?? "").trim())
@@ -217,7 +218,7 @@ serve(async (req) => {
       const [workersResult, geocodedResult] = await Promise.all([
         supabase
           .from("lavoratori")
-          .select("id, stato_lavoratore")
+          .select("id, stato_lavoratore, provincia")
           .in("id", batch),
         supabase
           .from("indirizzi")
@@ -264,7 +265,8 @@ serve(async (req) => {
     let failed = 0
 
     for (const address of candidates) {
-      const query = buildAddressQuery(address)
+      const worker = workersById.get(address.entita_id)
+      const query = buildAddressQuery(address, worker)
       if (!query) {
         skipped += 1
         results.push({ id: address.id, status: "skipped", reason: "empty query" })
