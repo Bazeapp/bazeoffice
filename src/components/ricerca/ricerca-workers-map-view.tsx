@@ -45,8 +45,7 @@ import {
 import { cn } from "@/lib/utils"
 
 const DEFAULT_RADIUS_KM = 5
-const MIN_RADIUS_KM = 2
-const MAX_RADIUS_KM = 10
+const RADIUS_OPTIONS_KM = [2, 5, 10] as const
 const DEFAULT_MAP_ZOOM = 13
 const DISCOVERY_ADDRESS_PAGE_SIZE = 1000
 const DISCOVERY_WORKER_BATCH_SIZE = 100
@@ -1126,19 +1125,23 @@ export function RicercaWorkersMapView({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <label className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
-              <span>Raggio {radiusKm} km</span>
-              <input
-                type="range"
-                min={MIN_RADIUS_KM}
-                max={MAX_RADIUS_KM}
-                step={1}
-                value={radiusKm}
-                aria-label="Raggio mappa lavoratori"
-                className="h-1.5 w-24 accent-blue-600"
-                onChange={(event) => setRadiusKm(Number(event.target.value))}
-              />
-            </label>
+            <div className="flex overflow-hidden rounded-full border border-blue-200 bg-blue-50 font-medium text-blue-700">
+              {RADIUS_OPTIONS_KM.map((radiusOption) => (
+                <button
+                  key={radiusOption}
+                  type="button"
+                  className={cn(
+                    "h-7 px-2.5 text-xs transition-colors",
+                    radiusKm === radiusOption
+                      ? "bg-blue-600 text-white"
+                      : "hover:bg-blue-100"
+                  )}
+                  onClick={() => setRadiusKm(radiusOption)}
+                >
+                  {radiusOption} km
+                </button>
+              ))}
+            </div>
             <span>{insideRadius} dentro</span>
             <span>{outsideRadius} fuori</span>
           </div>
