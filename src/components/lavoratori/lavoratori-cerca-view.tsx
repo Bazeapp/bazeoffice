@@ -226,6 +226,10 @@ function getFirstLookupArrayValue(value: unknown) {
   return readArrayStrings(value)[0] ?? null;
 }
 
+function getLookupArrayValues(value: unknown) {
+  return readArrayStrings(value);
+}
+
 async function fetchAllSelectionsForWorker(workerId: string) {
   const rows: Record<string, unknown>[] = [];
   let offset = 0;
@@ -965,6 +969,9 @@ export function LavoratoriCercaView({
 
           const familyRow = familyRowsById.get(asString(processRow.famiglia_id) ?? "");
           const recruiterId = asString(processRow.recruiter_ricerca_e_selezione_id);
+          const tipoLavoroBadges = getLookupArrayValues(processRow.tipo_lavoro);
+          const tipoLavoroBadge = tipoLavoroBadges[0] ?? null;
+          const tipoRapportoBadge = getFirstLookupArrayValue(processRow.tipo_rapporto);
           const nextItem: WorkerRelatedSearchItem = {
             selectionId,
             processId,
@@ -991,17 +998,28 @@ export function LavoratoriCercaView({
               deadline: asString(processRow.deadline_mobile) || "-",
               deadlineRaw: asString(processRow.deadline_mobile),
               zona: formatRelatedZona(processRow),
-              tipoLavoroBadge: getFirstLookupArrayValue(processRow.tipo_lavoro),
+              tipoLavoroBadges,
+              tipoLavoroColors: Object.fromEntries(
+                tipoLavoroBadges.map((tipoLavoro) => [
+                  tipoLavoro,
+                  resolveLookupColor(
+                    lookupColorsByDomain,
+                    "processi_matching.tipo_lavoro",
+                    tipoLavoro,
+                  ),
+                ]),
+              ),
+              tipoLavoroBadge,
               tipoLavoroColor: resolveLookupColor(
                 lookupColorsByDomain,
                 "processi_matching.tipo_lavoro",
-                getFirstLookupArrayValue(processRow.tipo_lavoro),
+                tipoLavoroBadge,
               ),
-              tipoRapportoBadge: getFirstLookupArrayValue(processRow.tipo_rapporto),
+              tipoRapportoBadge,
               tipoRapportoColor: resolveLookupColor(
                 lookupColorsByDomain,
                 "processi_matching.tipo_rapporto",
-                getFirstLookupArrayValue(processRow.tipo_rapporto),
+                tipoRapportoBadge,
               ),
             },
           };

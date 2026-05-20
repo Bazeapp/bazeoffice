@@ -75,6 +75,8 @@ export type RicercaBoardCardData = {
   deadline: string
   deadlineRaw: string | null
   zona: string
+  tipoLavoroBadges?: string[]
+  tipoLavoroColors?: Record<string, string | null>
   tipoLavoroBadge: string | null
   tipoLavoroColor: string | null
   tipoRapportoBadge: string | null
@@ -132,6 +134,17 @@ function getFirstArrayValue(value: unknown): string | null {
   }
 
   return toStringValue(value)
+}
+
+function getStringArrayValue(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => toStringValue(item))
+      .filter((item): item is string => Boolean(item))
+  }
+
+  const single = toStringValue(value)
+  return single ? [single] : []
 }
 
 function extractFirstNumberToken(value: unknown): string | null {
@@ -529,7 +542,8 @@ async function buildCardsForProcesses(
       .filter((value): value is string => Boolean(value))
       .join(" ")
 
-    const tipoLavoroBadge = getFirstArrayValue(process.tipo_lavoro)
+    const tipoLavoroBadges = getStringArrayValue(process.tipo_lavoro)
+    const tipoLavoroBadge = tipoLavoroBadges[0] ?? null
     const tipoRapportoBadge = getFirstArrayValue(process.tipo_rapporto)
     const processAddress = resolveProcessAddress(id, addressesByProcessId)
 
@@ -549,6 +563,18 @@ async function buildCardsForProcesses(
       deadline: formatItalianDate(process.deadline_mobile),
       deadlineRaw: toStringValue(process.deadline_mobile),
       zona: formatZonaFromAddress(processAddress) ?? formatLegacyZona(process),
+      tipoLavoroBadges,
+      tipoLavoroColors: Object.fromEntries(
+        tipoLavoroBadges.map((tipoLavoro) => [
+          tipoLavoro,
+          resolveBadgeColor(
+            lookupColors,
+            "processi_matching",
+            "tipo_lavoro",
+            tipoLavoro
+          ),
+        ])
+      ),
       tipoLavoroBadge,
       tipoLavoroColor: resolveBadgeColor(
         lookupColors,

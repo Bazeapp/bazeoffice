@@ -103,7 +103,13 @@ export function RicercaActiveSearchCard({
 }) {
   const oreGiorni = formatOreGiorniLabel(data.oreSettimanali, data.giorniSettimanali)
   const hasUrgentDeadline = isUrgentDeadline(data.deadlineRaw)
-  const hasTags = Boolean(data.tipoLavoroBadge || data.tipoRapportoBadge)
+  const tipoLavoroBadges =
+    data.tipoLavoroBadges && data.tipoLavoroBadges.length > 0
+      ? data.tipoLavoroBadges
+      : data.tipoLavoroBadge
+        ? [data.tipoLavoroBadge]
+        : []
+  const hasTags = Boolean(tipoLavoroBadges.length > 0 || data.tipoRapportoBadge)
 
   return (
     <div className={className} onClick={onClick}>
@@ -112,12 +118,17 @@ export function RicercaActiveSearchCard({
         <RecordCard.Body>
           {hasTags ? (
             <CardMetaRow>
-              {data.tipoLavoroBadge ? (
-                <Badge className={getBadgeClassName(data.tipoLavoroColor)}>
+              {tipoLavoroBadges.map((tipoLavoro) => (
+                <Badge
+                  key={tipoLavoro}
+                  className={getBadgeClassName(
+                    data.tipoLavoroColors?.[tipoLavoro] ?? data.tipoLavoroColor
+                  )}
+                >
                   <BriefcaseBusinessIcon data-icon="inline-start" />
-                  {formatBadgeLabel(data.tipoLavoroBadge)}
+                  {formatBadgeLabel(tipoLavoro)}
                 </Badge>
-              ) : null}
+              ))}
               {data.tipoRapportoBadge ? (
                 <Badge className={getBadgeClassName(data.tipoRapportoColor)}>
                   <Clock3Icon data-icon="inline-start" />
