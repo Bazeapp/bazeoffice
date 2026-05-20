@@ -33,7 +33,6 @@ const PROCESS_BOARD_SELECT_FIELDS = [
   "referente_ricerca_e_selezione_id",
   "ore_settimanale",
   "numero_giorni_settimanali",
-  "frequenza_rapporto",
   "deadline_mobile",
   "tipo_lavoro",
   "tipo_rapporto",
@@ -140,13 +139,6 @@ function getStringArrayValue(value: unknown): string[] {
 
   const single = toStringValue(value)
   return single ? [single] : []
-}
-
-function extractFirstNumberToken(value: unknown): string | null {
-  const raw = toStringValue(value)
-  if (!raw) return null
-  const match = raw.match(/\d+/)
-  return match ? match[0] : null
 }
 
 function formatItalianDate(value: unknown): string {
@@ -528,10 +520,7 @@ async function buildCardsForProcesses(
       telefono: toStringValue(family.telefono) ?? "-",
       operatorId: toStringValue(process.recruiter_ricerca_e_selezione_id),
       oreSettimanali: toStringValue(process.ore_settimanale) ?? "-",
-      giorniSettimanali:
-        toStringValue(process.numero_giorni_settimanali) ??
-        extractFirstNumberToken(process.frequenza_rapporto) ??
-        "-",
+      giorniSettimanali: toStringValue(process.numero_giorni_settimanali) ?? "-",
       deadline: formatItalianDate(process.deadline_mobile),
       deadlineRaw: toStringValue(process.deadline_mobile),
       zona: formatZonaFromAddress(processAddress) ?? "-",

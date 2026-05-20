@@ -47,7 +47,6 @@ import {
   AVAILABILITY_EDIT_DAYS,
   AVAILABILITY_DAY_LABELS,
   AVAILABILITY_HOUR_LABELS,
-  AVAILABILITY_VISIBLE_DAY_ORDER,
   type AvailabilityEditBandField,
   type AvailabilityEditDayField,
   isAvailabilityHourActive,
@@ -457,7 +456,6 @@ function TravelTimeCard({
   selectionRow,
   onPatchWorkerField,
   onPatchProcessField,
-  processWeeklyHours,
   familyAddress,
   familyCap,
   familyProvince,
@@ -487,7 +485,6 @@ function TravelTimeCard({
       | "indirizzo_prova_note",
     value: unknown,
   ) => Promise<void> | void;
-  processWeeklyHours?: string | null;
   familyAddress?: string | null;
   familyCap?: string | null;
   familyProvince?: string | null;
@@ -638,23 +635,9 @@ function TravelTimeCard({
 
   const travelTone = getTravelTimeTone(travelMinutes);
   const mobility = readArrayStrings(workerRow.come_ti_sposti);
-  const availabilityPayload = parseAvailabilityPayload(
-    workerRow.availability_final_json,
-  );
-  const availableDaysFromSlots = AVAILABILITY_VISIBLE_DAY_ORDER.filter(
-    (day) => readAvailabilitySlots(availabilityPayload?.weekly, day).length > 0,
-  ).length;
-  const availableDays =
-    availableDaysFromSlots > 0
-      ? availableDaysFromSlots
-      : readArrayStrings(workerRow.disponibilita_nel_giorno).length;
   const travelTimeLabel =
     roundedTravelMinutes != null
-      ? `${roundedTravelMinutes} min per ${
-          processWeeklyHours && processWeeklyHours.trim()
-            ? processWeeklyHours.trim()
-            : "-"
-        } | ${availableDays > 0 ? `${availableDays}g` : "-"} a settimana`
+      ? `${roundedTravelMinutes} min`
       : "Non dichiarato";
   const familyAddressFields = [
     {
@@ -1692,7 +1675,6 @@ export function WorkerPipelineSummaryCards({
         selectionRow={selectionRow}
         onPatchWorkerField={onPatchWorkerField}
         onPatchProcessField={onPatchProcessField}
-        processWeeklyHours={processWeeklyHours}
         familyAddress={familyAddress}
         familyCap={familyCap}
         familyProvince={familyProvince}

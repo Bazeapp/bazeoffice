@@ -248,13 +248,6 @@ function buildAddressLine(address: Record<string, unknown> | null | undefined) {
   );
 }
 
-function extractFirstNumberToken(value: unknown) {
-  const raw = toStringValue(value);
-  if (!raw) return null;
-  const match = raw.match(/\d+(?:[.,]\d+)?/);
-  return match?.[0] ?? null;
-}
-
 function selectedLookupOptionValue(
   selected: string | null | undefined,
   options:
@@ -934,9 +927,7 @@ export function RicercaDetailView({
           .filter((value): value is string => Boolean(value))
           .join(" ");
         const giorniSettimanaValue =
-          toStringValue(processRow.numero_giorni_settimanali) ??
-          extractFirstNumberToken(processRow.frequenza_rapporto) ??
-          "-";
+          toStringValue(processRow.numero_giorni_settimanali) ?? "-";
         const tipoLavoroBadges = getStringArrayValue(processRow.tipo_lavoro);
 
         const mapped: ExtendedCardData = {
@@ -1687,15 +1678,10 @@ export function RicercaDetailView({
                       {resolvedCard.email}
                     </CardMetaRow>
                   ) : null}
-                  {resolvedCard.indirizzoCompleto &&
-                  resolvedCard.indirizzoCompleto !== "" ? (
+                  {resolvedCard.indirizzoNote &&
+                  resolvedCard.indirizzoNote !== "-" ? (
                     <CardMetaRow icon={<MapPinIcon />}>
-                      {resolvedCard.indirizzoCompleto}
-                    </CardMetaRow>
-                  ) : resolvedCard.indirizzoProvincia &&
-                    resolvedCard.indirizzoProvincia !== "-" ? (
-                    <CardMetaRow icon={<MapPinIcon />}>
-                      {resolvedCard.indirizzoProvincia}
+                      {resolvedCard.indirizzoNote}
                     </CardMetaRow>
                   ) : null}
                   {oreGiorniLabel !== "-" ? (

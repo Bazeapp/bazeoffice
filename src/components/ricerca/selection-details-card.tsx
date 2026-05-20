@@ -160,8 +160,14 @@ export function SelectionDetailsCard({
   )
   const showFollowupSenzaRisposta = normalizedStatus === "non risponde"
   const showMotivazioneArchivio = normalizedStatus.includes("archivio")
+  const isCandidatoPoorFit =
+    normalizedStatus.includes("candidato") &&
+    normalizedStatus.includes("poor") &&
+    normalizedStatus.includes("fit")
   const showMotivazioneNonSelezionato =
-    normalizedStatus === "non selezionato" || normalizedStatus === "nascosto oot"
+    normalizedStatus === "non selezionato" ||
+    normalizedStatus === "nascosto oot" ||
+    isCandidatoPoorFit
   const showMotivazioneNoMatch = normalizedStatus === "no match"
   const resolveStatusColor = React.useCallback(
     (value: string) =>

@@ -2340,8 +2340,15 @@ export function RicercaWorkersPipelineView({
                       onStatoLavoratoreChange={(value) =>
                         patchSelectedWorkerField("stato_lavoratore", value)
                       }
-                      disponibilitaDisabled
-                      dataRitornoDisponibilitaDisabled
+                      onDisponibilitaChange={(value) =>
+                        patchSelectedWorkerField("disponibilita", value)
+                      }
+                      onDataRitornoDisponibilitaChange={(value) =>
+                        patchSelectedWorkerField(
+                          "data_ritorno_disponibilita",
+                          value,
+                        )
+                      }
                       onMotivazioneChange={(value) =>
                         patchSelectedWorkerField(
                           "motivazione_non_idoneo",
