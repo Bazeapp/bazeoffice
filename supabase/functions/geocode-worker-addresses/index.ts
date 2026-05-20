@@ -8,6 +8,7 @@ const corsHeaders = {
 }
 
 const TARGET_STATUSES = new Set(["qualificato", "idoneo", "certificato"])
+const WORKER_LOOKUP_BATCH_SIZE = 100
 const PRECISE_LOCATION_TYPES = new Set([
   "ROOFTOP",
   "RANGE_INTERPOLATED",
@@ -214,7 +215,7 @@ serve(async (req) => {
     const workersById = new Map<string, WorkerRow>()
     const workersWithCoordinates = new Set<string>()
 
-    for (const batch of chunk(workerIds, 500)) {
+    for (const batch of chunk(workerIds, WORKER_LOOKUP_BATCH_SIZE)) {
       const [workersResult, geocodedResult] = await Promise.all([
         supabase
           .from("lavoratori")

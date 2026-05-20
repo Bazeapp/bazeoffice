@@ -45,6 +45,8 @@ import {
 import { cn } from "@/lib/utils"
 
 const DEFAULT_RADIUS_KM = 5
+const MIN_RADIUS_KM = 2
+const MAX_RADIUS_KM = 10
 const DEFAULT_MAP_ZOOM = 13
 const DISCOVERY_ADDRESS_PAGE_SIZE = 1000
 const DISCOVERY_WORKER_BATCH_SIZE = 100
@@ -403,8 +405,11 @@ function getBoundingBox(center: GeoCoordinates, radiusKm: number) {
   }
 }
 
-async function fetchDiscoveryWorkerAddresses(searchCoordinates: GeoCoordinates) {
-  const bounds = getBoundingBox(searchCoordinates, DEFAULT_RADIUS_KM)
+async function fetchDiscoveryWorkerAddresses(
+  searchCoordinates: GeoCoordinates,
+  radiusKm: number
+) {
+  const bounds = getBoundingBox(searchCoordinates, radiusKm)
   const addressesByWorkerId = new Map<string, GenericRow[]>()
 
   for (let offset = 0; ; offset += DISCOVERY_ADDRESS_PAGE_SIZE) {
@@ -473,7 +478,7 @@ async function fetchDiscoveryWorkerAddresses(searchCoordinates: GeoCoordinates) 
 
       const coordinates = readAddressCoordinates(row)
       if (!coordinates) continue
-      if (distanceKmBetweenCoordinates(searchCoordinates, coordinates) > DEFAULT_RADIUS_KM) {
+      if (distanceKmBetweenCoordinates(searchCoordinates, coordinates) > radiusKm) {
         continue
       }
 
@@ -675,9 +680,11 @@ function createHomeIcon() {
 function useDiscoveryWorkers({
   searchCoordinates,
   jobRole,
+  radiusKm,
 }: {
   searchCoordinates: GeoCoordinates | null
   jobRole?: string | null
+  radiusKm: number
 }) {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -701,7 +708,7 @@ function useDiscoveryWorkers({
 
       try {
         const [addressesByWorkerId, lookupResult] = await Promise.all([
-          fetchDiscoveryWorkerAddresses(center),
+          fetchDiscoveryWorkerAddresses(center, radiusKm),
           fetchLookupValues(),
         ])
         const workerIds = Array.from(addressesByWorkerId.keys())
@@ -733,7 +740,7 @@ function useDiscoveryWorkers({
               worker: MapWorkerListItem
               coordinates: GeoCoordinates
               distanceKm: number
-            } => item !== null && item.distanceKm <= DEFAULT_RADIUS_KM
+            } => item !== null && item.distanceKm <= radiusKm
           )
           .sort((left, right) => left.distanceKm - right.distanceKm)
 
@@ -760,18 +767,20 @@ function useDiscoveryWorkers({
     return () => {
       cancelled = true
     }
-  }, [jobRole, searchCoordinates])
+  }, [jobRole, radiusKm, searchCoordinates])
 
   return { ...result, loading, error }
 }
 
 function RicercaLeafletMap({
   searchCoordinates,
+  radiusKm,
   workers,
   actionColors,
   onMoveWorker,
 }: {
   searchCoordinates: GeoCoordinates
+  radiusKm: number
   workers: MapWorker[]
   actionColors: MapActionColor[]
   onMoveWorker: (workerId: string, targetStatus: string) => void
@@ -815,7 +824,7 @@ function RicercaLeafletMap({
     const layer = L.layerGroup().addTo(map)
 
     L.circle([searchCoordinates.lat, searchCoordinates.lng], {
-      radius: DEFAULT_RADIUS_KM * 1000,
+      radius: radiusKm * 1000,
       color: "#2563eb",
       weight: 2,
       opacity: 0.8,
@@ -882,7 +891,7 @@ function RicercaLeafletMap({
       hoverMarkerRef.current = null
       layer.remove()
     }
-  }, [actionColors, onMoveWorker, searchCoordinates, workers])
+  }, [actionColors, onMoveWorker, radiusKm, searchCoordinates, workers])
 
   return <div ref={containerRef} className="h-full min-h-0 w-full" />
 }
@@ -914,6 +923,7 @@ export function RicercaWorkersMapView({
   className,
 }: RicercaWorkersMapViewProps) {
   const { loading, error, columns, moveCard, refresh } = pipelineState
+  const [radiusKm, setRadiusKm] = React.useState(DEFAULT_RADIUS_KM)
   const [hideDiscarded, setHideDiscarded] = React.useState(false)
   const [hidePipeline, setHidePipeline] = React.useState(false)
   const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>([
@@ -940,6 +950,7 @@ export function RicercaWorkersMapView({
   const discovery = useDiscoveryWorkers({
     searchCoordinates,
     jobRole,
+    radiusKm,
   })
   const pipelineByWorkerId = React.useMemo(() => {
     const map = new Map<
@@ -1070,10 +1081,10 @@ export function RicercaWorkersMapView({
   )
 
   const insideRadius = workers.filter(
-    (worker) => worker.distanceKm !== null && worker.distanceKm <= DEFAULT_RADIUS_KM
+    (worker) => worker.distanceKm !== null && worker.distanceKm <= radiusKm
   ).length
   const outsideRadius = workers.filter(
-    (worker) => worker.distanceKm !== null && worker.distanceKm > DEFAULT_RADIUS_KM
+    (worker) => worker.distanceKm !== null && worker.distanceKm > radiusKm
   ).length
   if (loading || discovery.loading) {
     return (
@@ -1115,9 +1126,19 @@ export function RicercaWorkersMapView({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
-              Raggio {DEFAULT_RADIUS_KM} km
-            </span>
+            <label className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
+              <span>Raggio {radiusKm} km</span>
+              <input
+                type="range"
+                min={MIN_RADIUS_KM}
+                max={MAX_RADIUS_KM}
+                step={1}
+                value={radiusKm}
+                aria-label="Raggio mappa lavoratori"
+                className="h-1.5 w-24 accent-blue-600"
+                onChange={(event) => setRadiusKm(Number(event.target.value))}
+              />
+            </label>
             <span>{insideRadius} dentro</span>
             <span>{outsideRadius} fuori</span>
           </div>
@@ -1225,6 +1246,7 @@ export function RicercaWorkersMapView({
           `}</style>
           <RicercaLeafletMap
             searchCoordinates={searchCoordinates}
+            radiusKm={radiusKm}
             workers={workers}
             actionColors={actionColors}
             onMoveWorker={handleMoveWorker}
