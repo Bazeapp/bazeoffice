@@ -350,6 +350,59 @@ const DEFAULT_BLUE_BADGE_CLASS_NAME =
 const RELATED_SELECTIONS_PAGE_SIZE = 500;
 const RELATED_PROCESS_BATCH_SIZE = 150;
 const RELATED_FAMILY_BATCH_SIZE = 150;
+const ADD_WORKER_SEARCH_LIMIT = 8;
+const ADD_WORKER_SEARCH_FETCH_LIMIT = 24;
+
+function normalizeWorkerSearchText(value: unknown) {
+  return String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}@._+-]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenizeWorkerSearchQuery(value: string) {
+  return normalizeWorkerSearchText(value)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0);
+}
+
+function buildWorkerSearchHaystack(row: Record<string, unknown>) {
+  return normalizeWorkerSearchText(
+    [
+      row.nome,
+      row.cognome,
+      [row.nome, row.cognome].filter(Boolean).join(" "),
+      row.email,
+    ].join(" "),
+  );
+}
+
+function workerMatchesCombinedQuery(
+  row: Record<string, unknown>,
+  tokens: string[],
+) {
+  if (tokens.length === 0) return true;
+  const haystack = buildWorkerSearchHaystack(row);
+  return tokens.every((token) => haystack.includes(token));
+}
+
+function scoreWorkerSearchResult(row: Record<string, unknown>, query: string) {
+  const normalizedQuery = normalizeWorkerSearchText(query);
+  const fullName = normalizeWorkerSearchText([row.nome, row.cognome].join(" "));
+  const email = normalizeWorkerSearchText(row.email);
+
+  if (fullName === normalizedQuery) return 0;
+  if (fullName.startsWith(normalizedQuery)) return 1;
+  if (email === normalizedQuery) return 2;
+  if (email.startsWith(normalizedQuery)) return 3;
+  if (fullName.includes(normalizedQuery)) return 4;
+  if (email.includes(normalizedQuery)) return 5;
+  return 6;
+}
 
 function formatRelatedFamilyName(row: Record<string, unknown> | null | undefined) {
   const familyName = [asString(row?.nome), asString(row?.cognome)]
@@ -1989,30 +2042,57 @@ export function RicercaWorkersPipelineView({
     setIsWorkerSearchLoading(true);
 
     const timeoutId = window.setTimeout(() => {
-      void fetchLavoratori({
-        limit: 8,
-        offset: 0,
-        search: normalizedQuery,
-        searchFields: ["nome", "cognome", "email"],
-        select: [
-          "id",
-          "nome",
-          "cognome",
-          "email",
-          "data_di_nascita",
-          "provincia",
-        ],
-      })
-        .then((result) => {
+      const tokens = tokenizeWorkerSearchQuery(normalizedQuery);
+      const searchTerms = Array.from(
+        new Set([normalizedQuery, ...tokens].filter(Boolean)),
+      );
+      const select = [
+        "id",
+        "nome",
+        "cognome",
+        "email",
+        "data_di_nascita",
+        "provincia",
+      ];
+
+      void Promise.all(
+        searchTerms.map((searchTerm) =>
+          fetchLavoratori({
+            limit: ADD_WORKER_SEARCH_FETCH_LIMIT,
+            offset: 0,
+            search: searchTerm,
+            searchFields: ["nome", "cognome", "email"],
+            select,
+          }),
+        ),
+      )
+        .then((results) => {
           if (cancelled) return;
-          setWorkerSearchResults(
-            Array.isArray(result.rows)
-              ? result.rows.filter(
-                  (row): row is Record<string, unknown> =>
-                    Boolean(row) && typeof row === "object",
-                )
-              : [],
-          );
+          const rowsById = new Map<string, Record<string, unknown>>();
+          for (const result of results) {
+            for (const row of result.rows ?? []) {
+              if (!row || typeof row !== "object") continue;
+              const rowId = asString(row.id);
+              if (!rowId || rowsById.has(rowId)) continue;
+              rowsById.set(rowId, row as Record<string, unknown>);
+            }
+          }
+
+          const rows = Array.from(rowsById.values())
+            .filter((row) => workerMatchesCombinedQuery(row, tokens))
+            .sort((left, right) => {
+              const scoreDelta =
+                scoreWorkerSearchResult(left, normalizedQuery) -
+                scoreWorkerSearchResult(right, normalizedQuery);
+              if (scoreDelta !== 0) return scoreDelta;
+              return buildWorkerSearchHaystack(left).localeCompare(
+                buildWorkerSearchHaystack(right),
+                "it",
+              );
+            })
+            .slice(0, ADD_WORKER_SEARCH_LIMIT);
+
+          setWorkerSearchResults(rows);
         })
         .catch(() => {
           if (cancelled) return;
