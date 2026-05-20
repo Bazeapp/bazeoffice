@@ -98,6 +98,12 @@ export function RicercaFamilySummaryCard({
   const statoOperativoOptions = buildCanonicalStatoOptions(
     lookupOptionsByField?.stato_res,
   );
+  const tipoLavoroBadges =
+    card.tipoLavoroBadges && card.tipoLavoroBadges.length > 0
+      ? card.tipoLavoroBadges
+      : card.tipoLavoroBadge
+        ? [card.tipoLavoroBadge]
+        : [];
 
   return (
     <DetailSectionBlock
@@ -155,15 +161,18 @@ export function RicercaFamilySummaryCard({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {card.tipoLavoroBadge ? (
+        {tipoLavoroBadges.map((tipoLavoro) => (
           <Badge
+            key={tipoLavoro}
             variant="outline"
-            className={getTagClassName(card.tipoLavoroColor)}
+            className={getTagClassName(
+              card.tipoLavoroColors?.[tipoLavoro] ?? card.tipoLavoroColor,
+            )}
           >
             <BriefcaseBusinessIcon data-icon="inline-start" />
-            {formatBadgeLabel(card.tipoLavoroBadge)}
+            {formatBadgeLabel(tipoLavoro)}
           </Badge>
-        ) : null}
+        ))}
         {card.tipoRapportoBadge ? (
           <Badge
             variant="outline"

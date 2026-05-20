@@ -57,8 +57,8 @@ export const AVAILABILITY_EDIT_BANDS: Array<{
   from: string
   to: string
 }> = [
-  { field: "mattina", label: "Mattina", from: "06:00", to: "12:00" },
-  { field: "pomeriggio", label: "Pomeriggio", from: "12:00", to: "18:00" },
+  { field: "mattina", label: "Mattina", from: "06:00", to: "14:00" },
+  { field: "pomeriggio", label: "Pomeriggio", from: "14:00", to: "18:00" },
   { field: "sera", label: "Sera", from: "18:00", to: "22:00" },
 ] as const
 

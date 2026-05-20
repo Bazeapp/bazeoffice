@@ -11,9 +11,9 @@ import {
   asLavoratoreRecord,
   getAgeFromBirthDate,
   asString,
-  asStringArrayFirst,
   formatWorkerLocationLabel,
   normalizeDomesticRoleLabels,
+  readArrayStrings,
   toListItem,
   toReadableColumnLabel,
 } from "@/features/lavoratori/lib/base-utils"
@@ -575,7 +575,8 @@ function buildWorkerListItem(
     : []
   const ruoliDomestici = normalizeDomesticRoleLabels(ruoliDomesticiRaw)
   const tipoRuolo = ruoliDomestici[0] ?? null
-  const tipoLavoro = asStringArrayFirst(row.tipo_rapporto_lavorativo) || null
+  const tipoLavori = readArrayStrings(row.tipo_rapporto_lavorativo)
+  const tipoLavoro = tipoLavori[0] ?? null
   const eta = getAgeFromBirthDate(row.data_di_nascita)
   const anniEsperienzaColf =
     typeof row.anni_esperienza_colf === "number" && Number.isFinite(row.anni_esperienza_colf)
@@ -608,6 +609,17 @@ function buildWorkerListItem(
       lookupColorsByDomain,
       "lavoratori.tipo_lavoro_domestico",
       tipoRuolo
+    ),
+    tipoLavori,
+    tipoLavoriColors: Object.fromEntries(
+      tipoLavori.map((tipo) => [
+        tipo,
+        resolveLookupColor(
+          lookupColorsByDomain,
+          "lavoratori.tipo_rapporto_lavorativo",
+          tipo
+        ),
+      ])
     ),
     tipoLavoro,
     tipoLavoroColor: resolveLookupColor(

@@ -55,7 +55,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatAvailabilityComputedAt } from "@/features/lavoratori/lib/availability-utils";
 import {
   asString,
-  asStringArrayFirst,
   getAgeFromBirthDate,
   getDefaultWorkerAvatar,
   normalizeDomesticRoleLabels,
@@ -67,6 +66,7 @@ import {
   isBlacklistValue,
   normalizeLookupColors,
   normalizeLookupOptions,
+  resolveLookupColor,
   type LookupOption,
 } from "@/features/lavoratori/lib/lookup-utils";
 import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils";
@@ -1044,6 +1044,7 @@ export function RicercaWorkersPipelineView({
     const ruoliDomestici = normalizeDomesticRoleLabels(
       readArrayStrings(selectedWorkerRow.tipo_lavoro_domestico),
     );
+    const tipoLavori = readArrayStrings(selectedWorkerRow.tipo_rapporto_lavorativo);
     const statoLavoratore = asString(selectedWorkerRow.stato_lavoratore) || null;
     const disponibilita = asString(selectedWorkerRow.disponibilita) || null;
     const statusFlags = toWorkerStatusFlags(statoLavoratore);
@@ -1062,8 +1063,18 @@ export function RicercaWorkersPipelineView({
       telefono: asString(selectedWorkerRow.telefono) || null,
       isBlacklisted: isBlacklistValue(selectedWorkerRow.check_blacklist),
       tipoRuolo: ruoliDomestici[0] ?? null,
-      tipoLavoro:
-        asStringArrayFirst(selectedWorkerRow.tipo_rapporto_lavorativo) || null,
+      tipoLavori,
+      tipoLavoriColors: Object.fromEntries(
+        tipoLavori.map((tipo) => [
+          tipo,
+          resolveLookupColor(
+            lookupColorsByDomain,
+            "lavoratori.tipo_rapporto_lavorativo",
+            tipo,
+          ),
+        ]),
+      ),
+      tipoLavoro: tipoLavori[0] ?? null,
       ruoliDomestici,
       eta: getAgeFromBirthDate(selectedWorkerRow.data_di_nascita),
       anniEsperienzaColf:
@@ -1080,7 +1091,7 @@ export function RicercaWorkersPipelineView({
       isIdoneo: statusFlags.isIdoneo,
       isCertificato: statusFlags.isCertificato,
     };
-  }, [selectedCard, selectedWorkerRow]);
+  }, [lookupColorsByDomain, selectedCard, selectedWorkerRow]);
 
   const applyUpdatedWorkerRow = React.useCallback((row: LavoratoreRecord) => {
     setSelectedWorkerRow(row);

@@ -25,6 +25,8 @@ export type AssegnazioneCardData = {
   zonaQuartiere: string | null
   zonaCap: string | null
   zonaComune: string | null
+  tipoLavoroBadges?: string[]
+  tipoLavoroColors?: Record<string, string | null>
   tipoLavoroBadge: string | null
   tipoLavoroColor: string | null
   tipoRapportoBadge: string | null
@@ -119,6 +121,17 @@ function getFirstArrayValue(value: unknown): string | null {
   }
 
   return toStringValue(value)
+}
+
+function getStringArrayValue(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => toStringValue(item))
+      .filter((item): item is string => Boolean(item))
+  }
+
+  const single = toStringValue(value)
+  return single ? [single] : []
 }
 
 function formatItalianDate(value: unknown): string {
@@ -333,8 +346,14 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
       .filter((value): value is string => Boolean(value))
       .join(" ")
 
-    const rawTipoLavoro = getFirstArrayValue(process.tipo_lavoro)
+    const rawTipoLavori = getStringArrayValue(process.tipo_lavoro)
+    const rawTipoLavoro = rawTipoLavori[0] ?? null
     const rawTipoRapporto = getFirstArrayValue(process.tipo_rapporto)
+    const tipoLavoroBadges = rawTipoLavori
+      .map((value) =>
+        resolveLabel(lookupLabels, "processi_matching", "tipo_lavoro", value)
+      )
+      .filter((value): value is string => Boolean(value))
     const tipoLavoroBadge = resolveLabel(
       lookupLabels,
       "processi_matching",
@@ -375,6 +394,18 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
       zonaQuartiere: toStringValue(process.indirizzo_prova_note),
       zonaCap: toStringValue(process.indirizzo_prova_cap),
       zonaComune: toStringValue(process.indirizzo_prova_comune),
+      tipoLavoroBadges,
+      tipoLavoroColors: Object.fromEntries(
+        rawTipoLavori.map((rawValue, index) => [
+          tipoLavoroBadges[index] ?? rawValue,
+          resolveColor(
+            lookupColors,
+            "processi_matching",
+            "tipo_lavoro",
+            rawValue
+          ),
+        ])
+      ),
       tipoLavoroBadge,
       tipoLavoroColor: resolveColor(
         lookupColors,

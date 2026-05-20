@@ -324,6 +324,8 @@ export function toListItem(
       : toAvatarUrl(row)
   const normalizedDomesticRoles = normalizeDomesticRoleLabels(readArrayStrings(row.tipo_lavoro_domestico))
   const firstDomesticRole = normalizedDomesticRoles[0] ?? null
+  const tipoLavori = readArrayStrings(row.tipo_rapporto_lavorativo)
+  const tipoLavoro = tipoLavori[0] ?? null
 
   return {
     id: workerId,
@@ -334,7 +336,9 @@ export function toListItem(
     isBlacklisted: options.isBlacklisted,
     tipoRuolo: firstDomesticRole,
     tipoRuoloColor: null,
-    tipoLavoro: asStringArrayFirst(row.tipo_rapporto_lavorativo) || null,
+    tipoLavori,
+    tipoLavoriColors: {},
+    tipoLavoro,
     tipoLavoroColor: null,
     ruoliDomestici: normalizedDomesticRoles,
     statoLavoratore: asString(row.stato_lavoratore) || null,

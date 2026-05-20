@@ -926,6 +926,7 @@ export function RicercaDetailView({
           toStringValue(processRow.numero_giorni_settimanali) ??
           extractFirstNumberToken(processRow.frequenza_rapporto) ??
           "-";
+        const tipoLavoroBadges = getStringArrayValue(processRow.tipo_lavoro);
 
         const mapped: ExtendedCardData = {
           id: displayValue(processRow.id),
@@ -938,7 +939,8 @@ export function RicercaDetailView({
           email: displayValue(familyRow?.email),
           telefono: displayValue(familyRow?.telefono),
           dataLead: formatItalianDate(familyRow?.creato_il),
-          tipoLavoroBadge: getFirstArrayValue(processRow.tipo_lavoro),
+          tipoLavoroBadges,
+          tipoLavoroBadge: tipoLavoroBadges[0] ?? null,
           tipoLavoroColor: null,
           tipoRapportoBadge: getFirstArrayValue(processRow.tipo_rapporto),
           tipoRapportoColor: null,
@@ -1558,14 +1560,24 @@ export function RicercaDetailView({
                   </Field>
                 ) : null}
 
-                {resolvedCard.tipoLavoroBadge ||
+                {(resolvedCard.tipoLavoroBadges && resolvedCard.tipoLavoroBadges.length > 0) ||
+                resolvedCard.tipoLavoroBadge ||
                 resolvedCard.tipoRapportoBadge ? (
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {resolvedCard.tipoLavoroBadge ? (
-                      <Badge className="border-emerald-200 bg-emerald-100 text-emerald-700">
-                        {resolvedCard.tipoLavoroBadge}
+                    {(resolvedCard.tipoLavoroBadges &&
+                    resolvedCard.tipoLavoroBadges.length > 0
+                      ? resolvedCard.tipoLavoroBadges
+                      : resolvedCard.tipoLavoroBadge
+                        ? [resolvedCard.tipoLavoroBadge]
+                        : []
+                    ).map((tipoLavoro) => (
+                      <Badge
+                        key={tipoLavoro}
+                        className="border-emerald-200 bg-emerald-100 text-emerald-700"
+                      >
+                        {tipoLavoro}
                       </Badge>
-                    ) : null}
+                    ))}
                     {resolvedCard.tipoRapportoBadge ? (
                       <Badge className="border-amber-200 bg-amber-100 text-amber-700">
                         {resolvedCard.tipoRapportoBadge}

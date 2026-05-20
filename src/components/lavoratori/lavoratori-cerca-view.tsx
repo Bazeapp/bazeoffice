@@ -201,7 +201,7 @@ function formatSearchProcessResult(
     familyEmail,
     searchLabel: formatRelatedSearchLabel(processRow),
     statoRicerca: asString(processRow.stato_res) || "-",
-    tipoLavoro: getFirstLookupArrayValue(processRow.tipo_lavoro) ?? "-",
+    tipoLavoro: getLookupArrayValues(processRow.tipo_lavoro).join(", ") || "-",
     tipoRapporto: getFirstLookupArrayValue(processRow.tipo_rapporto) ?? "-",
     orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
     zona: formatRelatedZona(processRow),

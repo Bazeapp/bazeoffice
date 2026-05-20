@@ -271,6 +271,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
             card.email,
             card.telefono,
             card.zona,
+            ...(card.tipoLavoroBadges ?? []),
             card.tipoLavoroBadge,
             card.tipoRapportoBadge,
             card.oreSettimanali,

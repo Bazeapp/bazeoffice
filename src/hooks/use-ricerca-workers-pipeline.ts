@@ -4,7 +4,6 @@ import { toast } from "sonner"
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import {
   asString,
-  asStringArrayFirst,
   getAgeFromBirthDate,
   getDefaultWorkerAvatar,
   normalizeDomesticRoleLabels,
@@ -507,7 +506,8 @@ function buildWorkerListItem(
           : null
   const ruoliDomestici = normalizeDomesticRoleLabels(readArrayStrings(worker.tipo_lavoro_domestico))
   const tipoRuolo = ruoliDomestici[0] ?? null
-  const tipoLavoro = asStringArrayFirst(worker.tipo_rapporto_lavorativo) || null
+  const tipoLavori = readArrayStrings(worker.tipo_rapporto_lavorativo)
+  const tipoLavoro = tipoLavori[0] ?? null
   const statusFlags = toWorkerStatusFlags(statoLavoratore)
   const workerAddress = resolveWorkerAddress(workerId, addressesByWorkerId)
 
@@ -527,6 +527,17 @@ function buildWorkerListItem(
       lookupColorsByDomain,
       "lavoratori.tipo_lavoro_domestico",
       tipoRuolo
+    ),
+    tipoLavori,
+    tipoLavoriColors: Object.fromEntries(
+      tipoLavori.map((tipo) => [
+        tipo,
+        resolveLookupColor(
+          lookupColorsByDomain,
+          "lavoratori.tipo_rapporto_lavorativo",
+          tipo
+        ),
+      ])
     ),
     tipoLavoro,
     tipoLavoroColor: resolveLookupColor(
@@ -815,6 +826,8 @@ async function fetchWorkersPipelineData(
           isBlacklisted: false,
           tipoRuolo: null,
           tipoRuoloColor: null,
+          tipoLavori: [],
+          tipoLavoriColors: {},
           tipoLavoro: null,
           tipoLavoroColor: null,
           ruoliDomestici: [],

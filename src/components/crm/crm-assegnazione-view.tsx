@@ -110,6 +110,14 @@ function formatRoleBadgeLabel(value: string) {
   return formatBadgeLabel(value);
 }
 
+function getTipoLavoroBadges(card: AssegnazioneCardData) {
+  return card.tipoLavoroBadges && card.tipoLavoroBadges.length > 0
+    ? card.tipoLavoroBadges
+    : card.tipoLavoroBadge
+      ? [card.tipoLavoroBadge]
+      : [];
+}
+
 function getBadgeClassName(color: string | null | undefined) {
   switch ((color ?? "").toLowerCase()) {
     case "red":
@@ -359,7 +367,8 @@ function AssegnazioneSearchCard({
   accentClassName: string;
   onAssigneeChange: (assigneeId: AssigneeValue) => void;
 }) {
-  const hasTags = Boolean(data.tipoLavoroBadge || data.tipoRapportoBadge);
+  const tipoLavoroBadges = getTipoLavoroBadges(data);
+  const hasTags = Boolean(tipoLavoroBadges.length > 0 || data.tipoRapportoBadge);
   const hasInconsistentAssignment =
     (data.statoRes === "da_assegnare" &&
       (Boolean(data.recruiterId) || Boolean(data.dataAssegnazione))) ||
@@ -384,12 +393,17 @@ function AssegnazioneSearchCard({
       <RecordCard.Body>
         {hasTags ? (
           <CardMetaRow>
-            {data.tipoLavoroBadge ? (
-              <Badge className={getBadgeClassName(data.tipoLavoroColor)}>
+            {tipoLavoroBadges.map((tipoLavoro) => (
+              <Badge
+                key={tipoLavoro}
+                className={getBadgeClassName(
+                  data.tipoLavoroColors?.[tipoLavoro] ?? data.tipoLavoroColor,
+                )}
+              >
                 <BriefcaseBusinessIcon data-icon="inline-start" />
-                {formatRoleBadgeLabel(data.tipoLavoroBadge)}
+                {formatRoleBadgeLabel(tipoLavoro)}
               </Badge>
-            ) : null}
+            ))}
             {data.tipoRapportoBadge ? (
               <Badge className={getBadgeClassName(data.tipoRapportoColor)}>
                 <Clock3Icon data-icon="inline-start" />
@@ -628,12 +642,17 @@ function AssegnazioneDetailSheet({
                     <span>{recruiterLabel}</span>
                   </span>
                 ) : null}
-                {card.tipoLavoroBadge ? (
-                  <Badge className={getBadgeClassName(card.tipoLavoroColor)}>
+                {getTipoLavoroBadges(card).map((tipoLavoro) => (
+                  <Badge
+                    key={tipoLavoro}
+                    className={getBadgeClassName(
+                      card.tipoLavoroColors?.[tipoLavoro] ?? card.tipoLavoroColor,
+                    )}
+                  >
                     <BriefcaseBusinessIcon data-icon="inline-start" />
-                    {formatRoleBadgeLabel(card.tipoLavoroBadge)}
+                    {formatRoleBadgeLabel(tipoLavoro)}
                   </Badge>
-                ) : null}
+                ))}
                 {card.tipoRapportoBadge ? (
                   <Badge className={getBadgeClassName(card.tipoRapportoColor)}>
                     <Clock3Icon data-icon="inline-start" />
@@ -876,15 +895,23 @@ function AssegnazioneDetailSheet({
                     />
                     <DetailField label="Luogo" value={card.zona} />
                     <DetailFieldControl label="Tipo profilo">
-                      {card.tipoLavoroBadge ? (
-                        <Badge
-                          className={cn(
-                            "w-fit",
-                            getBadgeClassName(card.tipoLavoroColor),
-                          )}
-                        >
-                          {formatRoleBadgeLabel(card.tipoLavoroBadge)}
-                        </Badge>
+                      {getTipoLavoroBadges(card).length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {getTipoLavoroBadges(card).map((tipoLavoro) => (
+                            <Badge
+                              key={tipoLavoro}
+                              className={cn(
+                                "w-fit",
+                                getBadgeClassName(
+                                  card.tipoLavoroColors?.[tipoLavoro] ??
+                                    card.tipoLavoroColor,
+                                ),
+                              )}
+                            >
+                              {formatRoleBadgeLabel(tipoLavoro)}
+                            </Badge>
+                          ))}
+                        </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">-</span>
                       )}

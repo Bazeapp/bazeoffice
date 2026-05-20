@@ -57,6 +57,8 @@ export type LavoratoreListItem = {
   isBlacklisted: boolean
   tipoRuolo: string | null
   tipoRuoloColor: string | null
+  tipoLavori?: string[]
+  tipoLavoriColors?: Record<string, string | null>
   tipoLavoro: string | null
   tipoLavoroColor: string | null
   ruoliDomestici?: string[]
@@ -275,6 +277,9 @@ export function LavoratoreCard({
   const ruoliDomestici = Array.isArray(worker.ruoliDomestici) ? worker.ruoliDomestici : []
   const displayRoles =
     ruoliDomestici.length > 0 ? ruoliDomestici.slice(0, 3) : worker.tipoRuolo ? [worker.tipoRuolo] : []
+  const tipoLavori = Array.isArray(worker.tipoLavori) ? worker.tipoLavori : []
+  const displayWorkTypes =
+    tipoLavori.length > 0 ? tipoLavori : worker.tipoLavoro ? [worker.tipoLavoro] : []
 
   const experienceEntries: Array<{
     label: string
@@ -441,16 +446,23 @@ export function LavoratoreCard({
         ) : (
           <p className="text-muted-foreground text-2xs leading-none">-</p>
         )}
-        {worker.tipoLavoro ? (
-          <Badge
-            className={cn(
-              "h-5 w-fit px-2 text-2xs font-medium",
-              getBadgeClassName(worker.tipoLavoroColor),
-            )}
-          >
-            <Clock3Icon />
-            {worker.tipoLavoro}
-          </Badge>
+        {displayWorkTypes.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {displayWorkTypes.map((workType) => (
+              <Badge
+                key={`${worker.id}-tipo-lavoro-${workType}`}
+                className={cn(
+                  "h-5 w-fit px-2 text-2xs font-medium",
+                  getBadgeClassName(
+                    worker.tipoLavoriColors?.[workType] ?? worker.tipoLavoroColor,
+                  ),
+                )}
+              >
+                <Clock3Icon />
+                {workType}
+              </Badge>
+            ))}
+          </div>
         ) : (
           <p className="text-muted-foreground text-2xs leading-none">-</p>
         )}
