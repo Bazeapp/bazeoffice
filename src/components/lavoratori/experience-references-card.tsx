@@ -173,8 +173,8 @@ function getExperienceDurationLabel(experience: EsperienzaLavoratoreRecord) {
   }
 
   const diffMonths =
-    (end.getFullYear() - start.getFullYear()) * 12 +
-    (end.getMonth() - start.getMonth());
+    (end.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+    (end.getUTCMonth() - start.getUTCMonth());
 
   if (diffMonths < 12) {
     return "meno di 1 anno";
@@ -1449,7 +1449,7 @@ export function ExperienceReferencesCard({
                 type="number"
                 min="0"
                 step="1"
-                value={draft.anni_esperienza_colf}
+                value={selectedAnniEsperienzaColf}
                 onChange={(event) =>
                   onAnniEsperienzaColfChange(event.target.value)
                 }
@@ -1464,7 +1464,7 @@ export function ExperienceReferencesCard({
                 type="number"
                 min="0"
                 step="1"
-                value={draft.anni_esperienza_badante}
+                value={selectedAnniEsperienzaBadante}
                 onChange={(event) =>
                   onAnniEsperienzaBadanteChange(event.target.value)
                 }
@@ -1479,7 +1479,7 @@ export function ExperienceReferencesCard({
                 type="number"
                 min="0"
                 step="1"
-                value={draft.anni_esperienza_babysitter}
+                value={selectedAnniEsperienzaBabysitter}
                 onChange={(event) =>
                   onAnniEsperienzaBabysitterChange(event.target.value)
                 }
@@ -1513,7 +1513,7 @@ export function ExperienceReferencesCard({
           </FieldLabel>
           {isEditing ? (
             <Textarea
-              value={draft.situazione_lavorativa_attuale}
+              value={selectedSituazioneLavorativaAttuale}
               onChange={(event) =>
                 onSituazioneLavorativaAttualeChange(event.target.value)
               }

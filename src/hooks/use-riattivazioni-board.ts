@@ -221,6 +221,7 @@ function formatItalianDate(value: unknown) {
   if (Number.isNaN(parsed.getTime())) return "-"
 
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

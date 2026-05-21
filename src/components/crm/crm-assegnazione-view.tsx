@@ -166,14 +166,15 @@ function getBadgeClassName(color: string | null | undefined) {
 }
 
 function toDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
 function formatDayLabel(date: Date) {
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     weekday: "short",
     day: "2-digit",
     month: "2-digit",
@@ -181,13 +182,14 @@ function formatDayLabel(date: Date) {
 }
 
 function formatWeekday(date: Date) {
-  return new Intl.DateTimeFormat("it-IT", { weekday: "short" })
+  return new Intl.DateTimeFormat("it-IT", { timeZone: "UTC", weekday: "short" })
     .format(date)
     .replace(".", "");
 }
 
 function formatDayMonth(date: Date) {
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
   }).format(date);
@@ -195,13 +197,13 @@ function formatDayMonth(date: Date) {
 
 function startOfDay(input: Date) {
   const date = new Date(input);
-  date.setHours(0, 0, 0, 0);
+  date.setUTCHours(0, 0, 0, 0);
   return date;
 }
 
 function addDays(input: Date, days: number) {
   const date = new Date(input);
-  date.setDate(date.getDate() + days);
+  date.setUTCDate(date.getUTCDate() + days);
   return date;
 }
 
@@ -306,6 +308,7 @@ function formatDateForView(value: string | null | undefined) {
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) {
     return new Intl.DateTimeFormat("it-IT", {
+      timeZone: "UTC",
       day: "2-digit",
       month: "2-digit",
       year: "numeric",

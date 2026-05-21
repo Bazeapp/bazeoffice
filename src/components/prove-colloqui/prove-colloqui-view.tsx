@@ -101,6 +101,7 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -112,6 +113,7 @@ function formatDateTime(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -125,6 +127,7 @@ function formatTime(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ""
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     hour: "2-digit",
     minute: "2-digit",
   }).format(date)
@@ -140,7 +143,7 @@ function toIsoDateInput(value: string | null | undefined) {
 
 function startOfLocalDay(date: Date) {
   const next = new Date(date)
-  next.setHours(0, 0, 0, 0)
+  next.setUTCHours(0, 0, 0, 0)
   return next
 }
 
@@ -160,23 +163,23 @@ function getTrialDayLabel(days: number | null) {
 }
 
 function toDateRangeValue(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0")
+  const day = String(date.getUTCDate()).padStart(2, "0")
   return `${year}-${month}-${day}`
 }
 
 function addDays(date: Date, days: number) {
   const next = new Date(date)
-  next.setDate(next.getDate() + days)
+  next.setUTCDate(next.getUTCDate() + days)
   return next
 }
 
 function startOfWeek(date: Date) {
   const next = new Date(date)
-  const day = (next.getDay() + 6) % 7
-  next.setDate(next.getDate() - day)
-  next.setHours(0, 0, 0, 0)
+  const day = (next.getUTCDay() + 6) % 7
+  next.setUTCDate(next.getUTCDate() - day)
+  next.setUTCHours(0, 0, 0, 0)
   return next
 }
 
@@ -190,9 +193,9 @@ function getWeekVisibleRange(date: Date): CalendarDateRange {
 
 function isSameDate(left: Date, right: Date) {
   return (
-    left.getFullYear() === right.getFullYear() &&
-    left.getMonth() === right.getMonth() &&
-    left.getDate() === right.getDate()
+    left.getUTCFullYear() === right.getUTCFullYear() &&
+    left.getUTCMonth() === right.getUTCMonth() &&
+    left.getUTCDate() === right.getUTCDate()
   )
 }
 
@@ -1007,9 +1010,11 @@ function CalendarView({
   const weekStart = visibleDays[0] ?? cursor
   const weekEnd = visibleDays[6] ?? cursor
   const title = `${new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "short",
   }).format(weekStart)} - ${new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -1083,10 +1088,10 @@ function CalendarView({
               <div key={day.toISOString()} className="flex min-h-0 flex-col border-b border-r bg-surface p-2">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <span className="text-2xs font-medium capitalize text-muted-foreground">
-                    {new Intl.DateTimeFormat("it-IT", { weekday: "short" }).format(day)}
+                    {new Intl.DateTimeFormat("it-IT", { timeZone: "UTC", weekday: "short" }).format(day)}
                   </span>
                   <span className={cn("text-xs font-semibold tabular-nums", isSameDate(day, new Date()) && "rounded-full bg-accent px-1.5 py-0.5 text-accent-foreground")}>
-                    {day.getDate()}
+                    {day.getUTCDate()}
                   </span>
                 </div>
                 <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">

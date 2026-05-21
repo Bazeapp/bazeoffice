@@ -274,7 +274,7 @@ function getQuarterValueFromDate(value: string | null | undefined): ContributoQu
   if (!value) return null
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return null
-  const month = date.getMonth()
+  const month = date.getUTCMonth()
   if (month <= 2) return "Q1"
   if (month <= 5) return "Q2"
   if (month <= 8) return "Q3"
@@ -285,7 +285,7 @@ function getYearFromDate(value: string | null | undefined) {
   if (!value) return null
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return null
-  return date.getFullYear()
+  return date.getUTCFullYear()
 }
 
 function getQuarterDateRange(year: number, quarter: ContributoQuarterValue) {

@@ -155,10 +155,10 @@ export function findNonQualificatoIssues(row: Record<string, unknown>) {
     const birthDate = new Date(dataDiNascita)
     if (!Number.isNaN(birthDate.getTime())) {
       const now = new Date()
-      age = now.getFullYear() - birthDate.getFullYear()
+      age = now.getUTCFullYear() - birthDate.getUTCFullYear()
       const hasNotHadBirthdayYet =
-        now.getMonth() < birthDate.getMonth() ||
-        (now.getMonth() === birthDate.getMonth() && now.getDate() < birthDate.getDate())
+        now.getUTCMonth() < birthDate.getUTCMonth() ||
+        (now.getUTCMonth() === birthDate.getUTCMonth() && now.getUTCDate() < birthDate.getUTCDate())
       if (hasNotHadBirthdayYet) age -= 1
     }
   }

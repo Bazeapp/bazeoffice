@@ -49,6 +49,7 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -349,6 +350,38 @@ export function SupportTicketDetailSheet({
     [card, onPatchTicket]
   )
 
+  const handleRemoveAttachment = React.useCallback(
+    async (link: AttachmentLink) => {
+      if (!card) return
+
+      setUploadError(null)
+      setIsUploadingAttachment(true)
+
+      try {
+        const nextValue = toAttachmentArray(card.record.allegati).filter(
+          (a) => !(link.path && a.path === link.path) && a.name !== link.label,
+        )
+
+        if (link.path?.startsWith("baze-bucket/")) {
+          await supabase.storage
+            .from("baze-bucket")
+            .remove([link.path.replace(/^baze-bucket\//, "")])
+        }
+
+        await onPatchTicket(card.id, {
+          allegati: nextValue.length > 0 ? nextValue : null,
+        })
+      } catch (caughtError) {
+        setUploadError(
+          caughtError instanceof Error ? caughtError.message : "Errore rimuovendo allegato",
+        )
+      } finally {
+        setIsUploadingAttachment(false)
+      }
+    },
+    [card, onPatchTicket],
+  )
+
   const handleLinkChiusuraRapporto = React.useCallback(
     async (linkedRecord: SupportTicketLinkedRecord, rapportoId: string) => {
       if (!card || linkedRecord.type !== "chiusura" || !rapportoId || rapportoId === "__none__") return
@@ -515,6 +548,7 @@ export function SupportTicketDetailSheet({
                     label="Allegato ticket"
                     value={normalizeAttachmentValue(card.record.allegati)}
                     onAdd={(file) => void handleUploadAttachment(file)}
+                    onRemove={(link) => void handleRemoveAttachment(link)}
                     onPreviewOpen={setSelectedPreview}
                     isUploading={isUploadingAttachment}
                   />

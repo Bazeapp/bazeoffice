@@ -17,6 +17,7 @@ export function useDebouncedSave<T>(
   const [draft, setDraft] = React.useState<T>(committedValue)
 
   const isDirtyRef = React.useRef(false)
+  const savesInFlightRef = React.useRef(0)
   const draftRef = React.useRef<T>(committedValue)
   const onSaveRef = React.useRef(onSave)
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -26,9 +27,10 @@ export function useDebouncedSave<T>(
     onSaveRef.current = onSave
   })
 
-  // Sync committed value from server only when there is no pending local change
+  // Sync committed value from server only when no local edits are pending
+  // AND no save is currently in-flight (to avoid overwriting mid-save)
   React.useEffect(() => {
-    if (isDirtyRef.current) return
+    if (isDirtyRef.current || savesInFlightRef.current > 0) return
     setDraft(committedValue)
     draftRef.current = committedValue
   }, [committedValue])
@@ -41,7 +43,10 @@ export function useDebouncedSave<T>(
         timerRef.current = null
       }
       if (isDirtyRef.current) {
+        savesInFlightRef.current++
+        isDirtyRef.current = false
         void onSaveRef.current(draftRef.current).finally(() => {
+          savesInFlightRef.current--
           endPendingWrite()
         })
       }
@@ -65,7 +70,9 @@ export function useDebouncedSave<T>(
       timerRef.current = setTimeout(() => {
         timerRef.current = null
         isDirtyRef.current = false
+        savesInFlightRef.current++
         void onSaveRef.current(draftRef.current).finally(() => {
+          savesInFlightRef.current--
           endPendingWrite()
         })
       }, debounceMs)

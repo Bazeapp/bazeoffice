@@ -311,7 +311,7 @@ export function getAgeFromBirthDate(value: unknown) {
       month <= 12 &&
       year > 1900
     ) {
-      birthDate = new Date(year, month - 1, day)
+      birthDate = new Date(Date.UTC(year, month - 1, day))
     }
   }
 
@@ -325,10 +325,10 @@ export function getAgeFromBirthDate(value: unknown) {
   if (!birthDate) return null
   if (Number.isNaN(birthDate.getTime())) return null
   const now = new Date()
-  let age = now.getFullYear() - birthDate.getFullYear()
+  let age = now.getUTCFullYear() - birthDate.getUTCFullYear()
   const hasNotHadBirthdayYet =
-    now.getMonth() < birthDate.getMonth() ||
-    (now.getMonth() === birthDate.getMonth() && now.getDate() < birthDate.getDate())
+    now.getUTCMonth() < birthDate.getUTCMonth() ||
+    (now.getUTCMonth() === birthDate.getUTCMonth() && now.getUTCDate() < birthDate.getUTCDate())
   if (hasNotHadBirthdayYet) age -= 1
   return age >= 0 ? age : null
 }

@@ -60,6 +60,7 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -73,7 +74,7 @@ function formatDateInputValue(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ""
 
-  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}-${`${date.getDate()}`.padStart(2, "0")}`
+  return `${date.getUTCFullYear()}-${`${date.getUTCMonth() + 1}`.padStart(2, "0")}-${`${date.getUTCDate()}`.padStart(2, "0")}`
 }
 
 function getColumnVisual(color: string): KanbanColumnVisual {
@@ -292,6 +293,42 @@ function RiattivazioniDetailSheet({
     }
   }
 
+  async function handleRemoveAttachment(slot: ChiusuraAttachmentSlot, link: AttachmentLink) {
+    const currentCard = latestCardRef.current ?? card
+    if (!currentCard) return
+
+    setUploadingSlot(slot)
+    setDetailsError(null)
+
+    try {
+      const nextValue = normalizeAttachmentArray(currentCard.record[slot]).filter(
+        (a) => !(link.path && a.path === link.path) && a.name !== link.label,
+      )
+
+      if (link.path?.startsWith("baze-bucket/")) {
+        await supabase.storage
+          .from("baze-bucket")
+          .remove([link.path.replace(/^baze-bucket\//, "")])
+      }
+
+      const baseCard = latestCardRef.current ?? currentCard
+      const response = await updateRecord("chiusure_contratti", currentCard.id, {
+        [slot]: nextValue.length > 0 ? nextValue : null,
+      })
+
+      applyCardChange({
+        ...baseCard,
+        record: { ...baseCard.record, ...response.row } as RiattivazioniBoardCardData["record"],
+      })
+    } catch (caughtError) {
+      setDetailsError(
+        caughtError instanceof Error ? caughtError.message : "Errore rimuovendo allegato",
+      )
+    } finally {
+      setUploadingSlot(null)
+    }
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,900px)]! max-w-none! p-0 sm:max-w-none">
@@ -398,6 +435,7 @@ function RiattivazioniDetailSheet({
                   label="Lettera dimissioni / licenziamento"
                   value={card.record.allegato_compilato ?? null}
                   onAdd={(file) => void handleUploadAttachment("allegato_compilato", file)}
+                  onRemove={(link) => void handleRemoveAttachment("allegato_compilato", link)}
                   onPreviewOpen={() => {}}
                   isUploading={uploadingSlot === "allegato_compilato"}
                 />
@@ -405,6 +443,7 @@ function RiattivazioniDetailSheet({
                   label="Documenti finali di chiusura"
                   value={card.record.documenti_chiusura_rapporto ?? null}
                   onAdd={(file) => void handleUploadAttachment("documenti_chiusura_rapporto", file)}
+                  onRemove={(link) => void handleRemoveAttachment("documenti_chiusura_rapporto", link)}
                   onPreviewOpen={() => {}}
                   isUploading={uploadingSlot === "documenti_chiusura_rapporto"}
                 />

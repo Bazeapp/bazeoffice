@@ -1052,19 +1052,19 @@ function ExperienceBlock({
     values: Partial<ReferenzaLavoratoreRecord>,
   ) => Promise<void> | void;
 }) {
-  const { onChange: saveColf } = useDebouncedSave(
+  const { value: colfValue, onChange: saveColf } = useDebouncedSave(
     asInputValue(workerRow.anni_esperienza_colf),
     async (v) => { onFieldSave("anni_esperienza_colf", v); },
   );
-  const { onChange: saveBadante } = useDebouncedSave(
+  const { value: badanteValue, onChange: saveBadante } = useDebouncedSave(
     asInputValue(workerRow.anni_esperienza_badante),
     async (v) => { onFieldSave("anni_esperienza_badante", v); },
   );
-  const { onChange: saveBabysitter } = useDebouncedSave(
+  const { value: babysitterValue, onChange: saveBabysitter } = useDebouncedSave(
     asInputValue(workerRow.anni_esperienza_babysitter),
     async (v) => { onFieldSave("anni_esperienza_babysitter", v); },
   );
-  const { onChange: saveSituazione } = useDebouncedSave(
+  const { value: situazioneValue, onChange: saveSituazione } = useDebouncedSave(
     asString(workerRow.situazione_lavorativa_attuale),
     async (v) => { onFieldSave("situazione_lavorativa_attuale", v); },
   );
@@ -1090,31 +1090,21 @@ function ExperienceBlock({
       experienceTipoLavoroOptions={experienceTipoLavoroOptions}
       experienceTipoRapportoOptions={experienceTipoRapportoOptions}
       referenceStatusOptions={referenceStatusOptions}
-      selectedAnniEsperienzaColf={asInputValue(workerRow.anni_esperienza_colf)}
-      selectedAnniEsperienzaBadante={asInputValue(
-        workerRow.anni_esperienza_badante,
-      )}
-      selectedAnniEsperienzaBabysitter={asInputValue(
-        workerRow.anni_esperienza_babysitter,
-      )}
-      selectedSituazioneLavorativaAttuale={asString(
-        workerRow.situazione_lavorativa_attuale,
-      )}
+      selectedAnniEsperienzaColf={colfValue}
+      selectedAnniEsperienzaBadante={badanteValue}
+      selectedAnniEsperienzaBabysitter={babysitterValue}
+      selectedSituazioneLavorativaAttuale={situazioneValue}
       onToggleEdit={onToggleEdit}
       onAnniEsperienzaColfChange={(value) => {
-        onDraftChange({ anni_esperienza_colf: value });
         saveColf(value);
       }}
       onAnniEsperienzaBadanteChange={(value) => {
-        onDraftChange({ anni_esperienza_badante: value });
         saveBadante(value);
       }}
       onAnniEsperienzaBabysitterChange={(value) => {
-        onDraftChange({ anni_esperienza_babysitter: value });
         saveBabysitter(value);
       }}
       onSituazioneLavorativaAttualeChange={(value) => {
-        onDraftChange({ situazione_lavorativa_attuale: value });
         saveSituazione(value);
       }}
       onExperiencePatch={onExperiencePatch}

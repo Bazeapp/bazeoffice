@@ -150,6 +150,7 @@ function formatCardDateTime(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) return null;
 
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -2523,7 +2524,6 @@ export function RicercaWorkersPipelineView({
                           "selezioni_lavoratori.motivo_no_match",
                         ) ?? []
                       }
-                      disabled={updatingSelectionDetails}
                       isGeneratingFeedback={generatingSelectionFeedback}
                       onGenerateFeedback={handleGenerateSelectionFeedback}
                       onPatchField={patchSelectedSelectionField}

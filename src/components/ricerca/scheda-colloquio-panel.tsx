@@ -99,11 +99,11 @@ function toDateInputParts(value: unknown): { date: string; time: string } {
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return { date: "", time: "" };
 
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getDate()).padStart(2, "0");
-  const hours = String(parsed.getHours()).padStart(2, "0");
-  const minutes = String(parsed.getMinutes()).padStart(2, "0");
+  const year = parsed.getUTCFullYear();
+  const month = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getUTCDate()).padStart(2, "0");
+  const hours = String(parsed.getUTCHours()).padStart(2, "0");
+  const minutes = String(parsed.getUTCMinutes()).padStart(2, "0");
 
   return {
     date: `${year}-${month}-${day}`,
@@ -118,12 +118,14 @@ function toTimestampValue(date: string, time: string) {
   if (!dateMatch || !timeMatch) return null;
 
   const parsed = new Date(
-    Number(dateMatch[1]),
-    Number(dateMatch[2]) - 1,
-    Number(dateMatch[3]),
-    Number(timeMatch[1]),
-    Number(timeMatch[2]),
-    0,
+    Date.UTC(
+      Number(dateMatch[1]),
+      Number(dateMatch[2]) - 1,
+      Number(dateMatch[3]),
+      Number(timeMatch[1]),
+      Number(timeMatch[2]),
+      0,
+    ),
   );
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString();

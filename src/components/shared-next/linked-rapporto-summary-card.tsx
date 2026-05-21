@@ -37,7 +37,7 @@ function formatStartDate(value: string | null | undefined) {
   const date = new Date(raw)
   if (Number.isNaN(date.getTime())) return raw
 
-  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}-${`${date.getDate()}`.padStart(2, "0")}`
+  return `${date.getUTCFullYear()}-${`${date.getUTCMonth() + 1}`.padStart(2, "0")}-${`${date.getUTCDate()}`.padStart(2, "0")}`
 }
 
 function normalizeToken(value: string | null | undefined) {

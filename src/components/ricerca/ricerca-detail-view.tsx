@@ -109,6 +109,8 @@ type ExtendedCardData = CrmPipelineCardData &
     indirizzoProvaCivico: string;
     indirizzoProvaComune: string;
     indirizzoProvaCitofono: string;
+    indirizzoProvaLatitudine: number | null;
+    indirizzoProvaLongitudine: number | null;
     deadlineMobile: string;
     deadlineMobileRaw: string;
     dataAssegnazione: string;
@@ -211,6 +213,7 @@ function formatItalianDate(value: unknown): string {
   if (Number.isNaN(parsed.getTime())) return "-";
 
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -896,6 +899,8 @@ export function RicercaDetailView({
             "provincia",
             "indirizzo_formattato",
             "note",
+            "latitudine",
+            "longitudine",
           ],
           limit: 3,
           offset: 0,
@@ -945,6 +950,24 @@ export function RicercaDetailView({
           ) ??
           addressRows[0] ??
           null;
+        const hasProvaAddressInProcess = !!(
+          toStringValue(processRow.indirizzo_prova_via) ||
+          toStringValue(processRow.indirizzo_prova_cap) ||
+          toStringValue(processRow.indirizzo_prova_comune)
+        )
+        const provaIndirizziRow =
+          addressRows.find(
+            (row) =>
+              normalizeLookupToken(toStringValue(row.tipo_indirizzo)) === "prova",
+          ) ?? null
+        const luogoIndirizziRow =
+          addressRows.find(
+            (row) =>
+              normalizeLookupToken(toStringValue(row.tipo_indirizzo)) === "luogo",
+          ) ?? null
+        const processProvaAddress = hasProvaAddressInProcess
+          ? (provaIndirizziRow ?? luogoIndirizziRow)
+          : luogoIndirizziRow
 
         const familyName = [
           toStringValue(familyRow?.nome),
@@ -1041,6 +1064,16 @@ export function RicercaDetailView({
           indirizzoProvaCitofono: displayValue(processRow.indirizzo_prova_citofono),
           geocode: displayValue(processRow.geocode),
           srcEmbedMapsAnnucio: displayValue(processRow.src_embed_maps_annucio),
+          indirizzoProvaLatitudine: typeof processProvaAddress?.latitudine === "number"
+            ? processProvaAddress.latitudine
+            : typeof processProvaAddress?.latitudine === "string" && processProvaAddress.latitudine !== ""
+              ? Number(processProvaAddress.latitudine)
+              : null,
+          indirizzoProvaLongitudine: typeof processProvaAddress?.longitudine === "number"
+            ? processProvaAddress.longitudine
+            : typeof processProvaAddress?.longitudine === "string" && processProvaAddress.longitudine !== ""
+              ? Number(processProvaAddress.longitudine)
+              : null,
           deadlineMobile: formatItalianDate(processRow.deadline_mobile),
           deadlineMobileRaw: toStringValue(processRow.deadline_mobile) ?? "",
           dataAssegnazione: formatItalianDate(processRow.data_assegnazione),
@@ -2515,8 +2548,8 @@ export function RicercaDetailView({
                 <RicercaWorkersMapView
                   className="min-h-0 flex-1 shadow-[0_1px_1px_rgba(0,0,0,0.02),0_2px_4px_rgba(0,0,0,0.04)]"
                   processId={currentProcessId}
-                  searchGeocode={resolvedCard.geocode}
-                  searchMapsEmbed={resolvedCard.srcEmbedMapsAnnucio}
+                  searchLat={resolvedCard.indirizzoProvaLatitudine}
+                  searchLng={resolvedCard.indirizzoProvaLongitudine}
                   jobRole={resolvedCard.tipoLavoroBadge}
                   weeklyDays={resolvedCard.giorniSettimana}
                   pipelineState={pipelineState}

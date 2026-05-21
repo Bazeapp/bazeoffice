@@ -51,6 +51,7 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -745,6 +746,7 @@ function DatoreDetail({
   onFamigliaPatch,
   onAssunzionePatch,
   onAttachmentAdd,
+  onAttachmentRemove,
   onAttachmentPreview,
   uploadingAttachment,
 }: {
@@ -752,6 +754,7 @@ function DatoreDetail({
   onFamigliaPatch: (patch: Record<string, unknown>) => Promise<void>
   onAssunzionePatch: (patch: Record<string, unknown>) => Promise<void>
   onAttachmentAdd: (target: AssunzioneAttachmentTarget, slot: AssunzioneAttachmentSlot, file: File) => void
+  onAttachmentRemove: (target: AssunzioneAttachmentTarget, slot: AssunzioneAttachmentSlot, link: AttachmentLink) => void
   onAttachmentPreview: (link: AttachmentLink) => void
   uploadingAttachment: string | null
 }) {
@@ -1126,6 +1129,7 @@ function DatoreDetail({
           label="Documento identita"
           value={documentoIdentitaAllegati}
           onAdd={(file) => onAttachmentAdd("datore", "documento_identita_allegati", file)}
+          onRemove={(link) => onAttachmentRemove("datore", "documento_identita_allegati", link)}
           onPreviewOpen={onAttachmentPreview}
           isUploading={uploadingAttachment === "datore:documento_identita_allegati"}
           multiple={false}
@@ -1134,6 +1138,7 @@ function DatoreDetail({
           label="Codice fiscale"
           value={codiceFiscaleAllegati}
           onAdd={(file) => onAttachmentAdd("datore", "codice_fiscale_allegati", file)}
+          onRemove={(link) => onAttachmentRemove("datore", "codice_fiscale_allegati", link)}
           onPreviewOpen={onAttachmentPreview}
           isUploading={uploadingAttachment === "datore:codice_fiscale_allegati"}
           multiple={false}
@@ -1142,6 +1147,7 @@ function DatoreDetail({
           label="Permesso di soggiorno"
           value={permessoSoggiornoAllegati}
           onAdd={(file) => onAttachmentAdd("datore", "permesso_di_soggiorno_allegati", file)}
+          onRemove={(link) => onAttachmentRemove("datore", "permesso_di_soggiorno_allegati", link)}
           onPreviewOpen={onAttachmentPreview}
           isUploading={uploadingAttachment === "datore:permesso_di_soggiorno_allegati"}
           multiple={false}
@@ -1157,6 +1163,7 @@ function LavoratoreDetail({
   onLavoratorePatch,
   onLavoratoreAssunzionePatch,
   onAttachmentAdd,
+  onAttachmentRemove,
   onAttachmentPreview,
   uploadingAttachment,
 }: {
@@ -1165,6 +1172,7 @@ function LavoratoreDetail({
   onLavoratorePatch: (patch: Record<string, unknown>) => Promise<void>
   onLavoratoreAssunzionePatch: (patch: Record<string, unknown>) => Promise<void>
   onAttachmentAdd: (target: AssunzioneAttachmentTarget, slot: AssunzioneAttachmentSlot, file: File) => void
+  onAttachmentRemove: (target: AssunzioneAttachmentTarget, slot: AssunzioneAttachmentSlot, link: AttachmentLink) => void
   onAttachmentPreview: (link: AttachmentLink) => void
   uploadingAttachment: string | null
 }) {
@@ -1549,6 +1557,7 @@ function LavoratoreDetail({
           label="Documento identità"
           value={documentoIdentitaAllegati}
           onAdd={(file) => onAttachmentAdd("lavoratore", "documento_identita_allegati", file)}
+          onRemove={(link) => onAttachmentRemove("lavoratore", "documento_identita_allegati", link)}
           onPreviewOpen={onAttachmentPreview}
           isUploading={uploadingAttachment === "lavoratore:documento_identita_allegati"}
           multiple={false}
@@ -1557,6 +1566,7 @@ function LavoratoreDetail({
           label="Codice fiscale"
           value={codiceFiscaleAllegati}
           onAdd={(file) => onAttachmentAdd("lavoratore", "codice_fiscale_allegati", file)}
+          onRemove={(link) => onAttachmentRemove("lavoratore", "codice_fiscale_allegati", link)}
           onPreviewOpen={onAttachmentPreview}
           isUploading={uploadingAttachment === "lavoratore:codice_fiscale_allegati"}
           multiple={false}
@@ -1565,6 +1575,7 @@ function LavoratoreDetail({
           label="Permesso di soggiorno"
           value={permessoSoggiornoAllegati}
           onAdd={(file) => onAttachmentAdd("lavoratore", "permesso_di_soggiorno_allegati", file)}
+          onRemove={(link) => onAttachmentRemove("lavoratore", "permesso_di_soggiorno_allegati", link)}
           onPreviewOpen={onAttachmentPreview}
           isUploading={uploadingAttachment === "lavoratore:permesso_di_soggiorno_allegati"}
           multiple={false}
@@ -2498,6 +2509,83 @@ export function AssunzioniDetailSheet({
     [card, saveRapportoPatch]
   )
 
+  const removeAssunzioneAttachment = React.useCallback(
+    async (
+      target: AssunzioneAttachmentTarget,
+      slot: AssunzioneAttachmentSlot,
+      link: AttachmentLink,
+    ) => {
+      if (!card) return
+
+      const currentRecord = target === "datore" ? card.assunzione : card.lavoratoreAssunzione
+      const key = `${target}:${slot}`
+      setUploadingAttachment(key)
+      setPracticeError(null)
+
+      try {
+        const nextValue = normalizeAttachmentArray(currentRecord?.[slot]).filter(
+          (a) => !(link.path && a.path === link.path) && a.name !== link.label,
+        )
+
+        if (link.path?.startsWith("baze-bucket/")) {
+          await supabase.storage
+            .from("baze-bucket")
+            .remove([link.path.replace(/^baze-bucket\//, "")])
+        }
+
+        const patch = { [slot]: nextValue.length > 0 ? nextValue : null }
+        if (target === "datore") {
+          await saveAssunzionePatch(patch)
+        } else {
+          await saveLavoratoreAssunzionePatch(patch)
+        }
+      } catch (caughtError) {
+        setPracticeError(
+          caughtError instanceof Error ? caughtError.message : "Errore rimuovendo documento",
+        )
+      } finally {
+        setUploadingAttachment(null)
+      }
+    },
+    [card, saveAssunzionePatch, saveLavoratoreAssunzionePatch],
+  )
+
+  const removeRapportoAttachment = React.useCallback(
+    async (
+      slot: "accordo_di_lavoro_allegati" | "ricevuta_inps_allegati",
+      link: AttachmentLink,
+    ) => {
+      if (!card?.rapporto) return
+
+      const key = `rapporto:${slot}`
+      setUploadingAttachment(key)
+      setPracticeError(null)
+
+      try {
+        const nextValue = normalizeAttachmentArray(card.rapporto[slot]).filter(
+          (a) => !(link.path && a.path === link.path) && a.name !== link.label,
+        )
+
+        if (link.path?.startsWith("baze-bucket/")) {
+          await supabase.storage
+            .from("baze-bucket")
+            .remove([link.path.replace(/^baze-bucket\//, "")])
+        }
+
+        await saveRapportoPatch({
+          [slot]: nextValue.length > 0 ? nextValue : null,
+        })
+      } catch (caughtError) {
+        setPracticeError(
+          caughtError instanceof Error ? caughtError.message : "Errore rimuovendo documento",
+        )
+      } finally {
+        setUploadingAttachment(null)
+      }
+    },
+    [card, saveRapportoPatch],
+  )
+
   function openAttachmentPreview(link: AttachmentLink) {
     window.open(link.url, "_blank", "noopener,noreferrer")
   }
@@ -2766,6 +2854,7 @@ export function AssunzioniDetailSheet({
                     label="Accordo di lavoro"
                     value={card.rapporto?.accordo_di_lavoro_allegati ?? null}
                     onAdd={(file) => uploadRapportoAttachment("accordo_di_lavoro_allegati", file)}
+                    onRemove={(link) => void removeRapportoAttachment("accordo_di_lavoro_allegati", link)}
                     onPreviewOpen={openAttachmentPreview}
                     isUploading={uploadingAttachment === "rapporto:accordo_di_lavoro_allegati"}
                     showStatusIndicator
@@ -2774,6 +2863,7 @@ export function AssunzioniDetailSheet({
                     label="Ricevuta INPS"
                     value={card.rapporto?.ricevuta_inps_allegati ?? null}
                     onAdd={(file) => uploadRapportoAttachment("ricevuta_inps_allegati", file)}
+                    onRemove={(link) => void removeRapportoAttachment("ricevuta_inps_allegati", link)}
                     onPreviewOpen={openAttachmentPreview}
                     isUploading={uploadingAttachment === "rapporto:ricevuta_inps_allegati"}
                     showStatusIndicator
@@ -2789,6 +2879,7 @@ export function AssunzioniDetailSheet({
                         : null)
                     }
                     onAdd={(file) => uploadAssunzioneAttachment("datore", "delega_inps_allegati", file)}
+                    onRemove={(link) => void removeAssunzioneAttachment("datore", "delega_inps_allegati", link)}
                     onPreviewOpen={openAttachmentPreview}
                     isUploading={uploadingAttachment === "datore:delega_inps_allegati"}
                     showStatusIndicator
@@ -2916,6 +3007,7 @@ export function AssunzioniDetailSheet({
                   onFamigliaPatch={saveFamigliaPatch}
                   onAssunzionePatch={saveAssunzionePatch}
                   onAttachmentAdd={uploadAssunzioneAttachment}
+                  onAttachmentRemove={removeAssunzioneAttachment}
                   onAttachmentPreview={openAttachmentPreview}
                   uploadingAttachment={uploadingAttachment}
                 />
@@ -2926,6 +3018,7 @@ export function AssunzioniDetailSheet({
                   onLavoratorePatch={saveLavoratorePatch}
                   onLavoratoreAssunzionePatch={saveLavoratoreAssunzionePatch}
                   onAttachmentAdd={uploadAssunzioneAttachment}
+                  onAttachmentRemove={removeAssunzioneAttachment}
                   onAttachmentPreview={openAttachmentPreview}
                   uploadingAttachment={uploadingAttachment}
                 />

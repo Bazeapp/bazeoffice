@@ -269,10 +269,10 @@ function padDatePart(value: number) {
 
 function toDateTimeLocalValue(date: Date) {
   return [
-    date.getFullYear(),
-    padDatePart(date.getMonth() + 1),
-    padDatePart(date.getDate()),
-  ].join("-") + `T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`
+    date.getUTCFullYear(),
+    padDatePart(date.getUTCMonth() + 1),
+    padDatePart(date.getUTCDate()),
+  ].join("-") + `T${padDatePart(date.getUTCHours())}:${padDatePart(date.getUTCMinutes())}`
 }
 
 function dateTimeLocalToIso(value: string) {
@@ -338,14 +338,14 @@ function applyDatePreset(
   const from = new Date(now)
 
   if (preset === "24h") {
-    from.setHours(from.getHours() - 24)
+    from.setUTCHours(from.getUTCHours() - 24)
   } else if (preset === "7d") {
-    from.setDate(from.getDate() - 7)
+    from.setUTCDate(from.getUTCDate() - 7)
   } else if (preset === "30d") {
-    from.setMonth(from.getMonth() - 1)
+    from.setUTCMonth(from.getUTCMonth() - 1)
   } else {
-    from.setMonth(0, 1)
-    from.setHours(0, 0, 0, 0)
+    from.setUTCMonth(0, 1)
+    from.setUTCHours(0, 0, 0, 0)
   }
 
   setFilters((current) => ({

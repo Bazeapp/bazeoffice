@@ -65,12 +65,12 @@ const QUARTERS: ContributoQuarterValue[] = ["Q1", "Q2", "Q3", "Q4"]
 
 function getCurrentQuarterState(): QuarterState {
   const now = new Date()
-  const month = now.getMonth()
+  const month = now.getUTCMonth()
 
-  if (month <= 2) return { quarter: "Q1", year: now.getFullYear() }
-  if (month <= 5) return { quarter: "Q2", year: now.getFullYear() }
-  if (month <= 8) return { quarter: "Q3", year: now.getFullYear() }
-  return { quarter: "Q4", year: now.getFullYear() }
+  if (month <= 2) return { quarter: "Q1", year: now.getUTCFullYear() }
+  if (month <= 5) return { quarter: "Q2", year: now.getUTCFullYear() }
+  if (month <= 8) return { quarter: "Q3", year: now.getUTCFullYear() }
+  return { quarter: "Q4", year: now.getUTCFullYear() }
 }
 
 function shiftQuarter(period: QuarterState, delta: number): QuarterState {
@@ -99,6 +99,7 @@ function formatDateTime(value: string | null | undefined) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -318,6 +319,38 @@ export function ContributoInpsDetailSheet({
     [card, onPatchCard]
   )
 
+  const handleRemoveAttachment = React.useCallback(
+    async (link: AttachmentLink) => {
+      if (!card) return
+
+      setUploadError(null)
+      setIsUploadingAttachment(true)
+
+      try {
+        const nextValue = normalizeAttachmentArray(card.record.allegato).filter(
+          (a) => !(link.path && a.path === link.path) && a.name !== link.label,
+        )
+
+        if (link.path?.startsWith("baze-bucket/")) {
+          await supabase.storage
+            .from("baze-bucket")
+            .remove([link.path.replace(/^baze-bucket\//, "")])
+        }
+
+        await onPatchCard(card.id, {
+          allegato: nextValue.length > 0 ? nextValue : null,
+        })
+      } catch (caughtError) {
+        setUploadError(
+          caughtError instanceof Error ? caughtError.message : "Errore rimuovendo allegato",
+        )
+      } finally {
+        setIsUploadingAttachment(false)
+      }
+    },
+    [card, onPatchCard],
+  )
+
   React.useEffect(() => {
     if (open) return
     setSelectedPreview(null)
@@ -429,6 +462,7 @@ export function ContributoInpsDetailSheet({
                     label="Allegato PagoPA"
                     value={normalizeAttachmentValue(card.record.allegato)}
                     onAdd={(file) => void handleUploadAttachment(file)}
+                    onRemove={(link) => void handleRemoveAttachment(link)}
                     onPreviewOpen={setSelectedPreview}
                     isUploading={isUploadingAttachment}
                   />
@@ -891,7 +925,14 @@ export function ContributiInpsView() {
           }
         }}
         onStageChange={moveCard}
-        onPatchCard={patchCard}
+        onPatchCard={async (recordId, patch) => {
+          await patchCard(recordId, patch)
+          setSelectedCard((current) =>
+            current?.id === recordId
+              ? { ...current, record: { ...current.record, ...patch } }
+              : current
+          )
+        }}
       />
     </section>
   )

@@ -33,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -52,7 +53,6 @@ import {
   fetchVariazioniContrattuali,
   updateRecord,
 } from "@/lib/anagrafiche-api";
-import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments";
 import { matchesSearchQuery } from "@/lib/search-utils";
 import { supabase } from "@/lib/supabase-client";
@@ -63,6 +63,7 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -351,26 +352,6 @@ function VariazioniDetailSheet({
     card?.rapporto?.ore_a_settimana ?? null,
   );
 
-  const { onChange: saveDataVariazione } = useDebouncedSave(
-    card?.record.data_variazione ?? "",
-    async (v) => { await saveDetailsPatch({ data_variazione: v || null }); },
-  );
-  const { onChange: saveVariazioneDaApplicare } = useDebouncedSave(
-    card?.record.variazione_da_applicare ?? "",
-    async (v) => { await saveDetailsPatch({ variazione_da_applicare: v || null }); },
-  );
-  const { onChange: savePagaOraria } = useDebouncedSave(
-    card?.rapporto?.paga_oraria_lorda != null ? String(card.rapporto.paga_oraria_lorda) : "",
-    async (v) => { await saveRapportoPatch({ paga_oraria_lorda: v ? Number(v) : null }); },
-  );
-  const { onChange: saveOreSettimanali } = useDebouncedSave(
-    card?.rapporto?.ore_a_settimana != null ? String(card.rapporto.ore_a_settimana) : "",
-    async (v) => { await saveRapportoPatch({ ore_a_settimana: v ? Number(v) : null }); },
-  );
-  const { onChange: saveTipoRapporto } = useDebouncedSave(
-    card?.rapporto?.tipo_rapporto ?? "",
-    async (v) => { await saveRapportoPatch({ tipo_rapporto: v || null }); },
-  );
 
   React.useEffect(() => {
     latestCardRef.current = card;
@@ -534,6 +515,42 @@ function VariazioniDetailSheet({
     }
   }
 
+  async function handleRemoveAttachment(slot: VariazioneAttachmentSlot, link: AttachmentLink) {
+    const currentCard = latestCardRef.current ?? card;
+    if (!currentCard) return;
+
+    setUploadingSlot(slot);
+    setUploadError(null);
+
+    try {
+      const nextValue = normalizeAttachmentArray(currentCard.record[slot]).filter(
+        (a) => !(link.path && a.path === link.path) && a.name !== link.label,
+      );
+
+      if (link.path?.startsWith("baze-bucket/")) {
+        await supabase.storage
+          .from("baze-bucket")
+          .remove([link.path.replace(/^baze-bucket\//, "")]);
+      }
+
+      const baseCard = latestCardRef.current ?? currentCard;
+      const response = await updateRecord("variazioni_contrattuali", currentCard.id, {
+        [slot]: nextValue.length > 0 ? nextValue : null,
+      });
+
+      applyCardChange({
+        ...baseCard,
+        record: { ...baseCard.record, ...response.row } as VariazioniBoardCardData["record"],
+      });
+    } catch (caughtError) {
+      setUploadError(
+        caughtError instanceof Error ? caughtError.message : "Errore rimuovendo allegato",
+      );
+    } finally {
+      setUploadingSlot(null);
+    }
+  }
+
   function openAttachmentPreview(link: AttachmentLink) {
     window.open(link.url, "_blank", "noopener,noreferrer");
   }
@@ -616,25 +633,17 @@ function VariazioniDetailSheet({
                   <div className="grid gap-4">
                     <label className="space-y-2">
                       <span className="ui-type-label">Data di partenza</span>
-                      <Input
+                      <DebouncedInput
                         type="date"
-                        value={detailsDraft.dataVariazione}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setDetailsDraft((current) => ({ ...current, dataVariazione: value }));
-                          saveDataVariazione(value);
-                        }}
+                        committedValue={card?.record.data_variazione ?? ""}
+                        onSave={async (v) => { await saveDetailsPatch({ data_variazione: v || null }); }}
                       />
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Variazione da applicare</span>
-                      <Textarea
-                        value={detailsDraft.variazioneDaApplicare}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setDetailsDraft((current) => ({ ...current, variazioneDaApplicare: value }));
-                          saveVariazioneDaApplicare(value);
-                        }}
+                      <DebouncedTextarea
+                        committedValue={card?.record.variazione_da_applicare ?? ""}
+                        onSave={async (v) => { await saveDetailsPatch({ variazione_da_applicare: v || null }); }}
                       />
                     </label>
                     {savingDetails ? (
@@ -688,39 +697,27 @@ function VariazioniDetailSheet({
                     <div className="grid gap-4 md:grid-cols-2">
                       <label className="space-y-2">
                         <span className="ui-type-label">Paga oraria lorda</span>
-                        <Input
+                        <DebouncedInput
                           type="number"
                           step="0.01"
-                          value={rapportoDraft.pagaOraria}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setRapportoDraft((current) => ({ ...current, pagaOraria: value }));
-                            savePagaOraria(value);
-                          }}
+                          committedValue={card?.rapporto?.paga_oraria_lorda != null ? String(card.rapporto.paga_oraria_lorda) : ""}
+                          onSave={async (v) => { await saveRapportoPatch({ paga_oraria_lorda: v ? Number(v) : null }); }}
                         />
                       </label>
                       <label className="space-y-2">
                         <span className="ui-type-label">Ore settimanali</span>
-                        <Input
+                        <DebouncedInput
                           type="number"
                           step="0.5"
-                          value={rapportoDraft.oreSettimanali}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setRapportoDraft((current) => ({ ...current, oreSettimanali: value }));
-                            saveOreSettimanali(value);
-                          }}
+                          committedValue={card?.rapporto?.ore_a_settimana != null ? String(card.rapporto.ore_a_settimana) : ""}
+                          onSave={async (v) => { await saveRapportoPatch({ ore_a_settimana: v ? Number(v) : null }); }}
                         />
                       </label>
                       <label className="space-y-2">
                         <span className="ui-type-label">Tipo rapporto</span>
-                        <Input
-                          value={rapportoDraft.tipoRapporto}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setRapportoDraft((current) => ({ ...current, tipoRapporto: value }));
-                            saveTipoRapporto(value);
-                          }}
+                        <DebouncedInput
+                          committedValue={card?.rapporto?.tipo_rapporto ?? ""}
+                          onSave={async (v) => { await saveRapportoPatch({ tipo_rapporto: v || null }); }}
                         />
                       </label>
                       <label className="space-y-2">
@@ -824,6 +821,7 @@ function VariazioniDetailSheet({
                   label="Accordo Variazione"
                   value={card.record.accordo_variazione_contrattuale ?? null}
                   onAdd={(file) => handleUploadAttachment("accordo_variazione_contrattuale", file)}
+                  onRemove={(link) => void handleRemoveAttachment("accordo_variazione_contrattuale", link)}
                   onPreviewOpen={openAttachmentPreview}
                   isUploading={uploadingSlot === "accordo_variazione_contrattuale"}
                 />
@@ -831,6 +829,7 @@ function VariazioniDetailSheet({
                   label="Ricevuta INPS Variazione"
                   value={card.record.ricevuta_inps_variazione_rapporto ?? null}
                   onAdd={(file) => handleUploadAttachment("ricevuta_inps_variazione_rapporto", file)}
+                  onRemove={(link) => void handleRemoveAttachment("ricevuta_inps_variazione_rapporto", link)}
                   onPreviewOpen={openAttachmentPreview}
                   isUploading={uploadingSlot === "ricevuta_inps_variazione_rapporto"}
                 />
@@ -1379,7 +1378,10 @@ export function VariazioniBoardView() {
             setSelectedFreshCard(null);
           }
         }}
-        onCardChange={(nextCard) => updateCard(nextCard.id, () => nextCard)}
+        onCardChange={(nextCard) => {
+          updateCard(nextCard.id, () => nextCard);
+          setSelectedFreshCard(nextCard);
+        }}
       />
       <CreateVariazioneDialog
         open={isCreateDialogOpen}

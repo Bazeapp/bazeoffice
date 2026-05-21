@@ -57,6 +57,7 @@ import { Button } from "@/components/ui/button";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board";
+import { DebouncedInput } from "@/components/ui/debounced-input";
 import { Input } from "@/components/ui/input";
 import {
   fetchFamiglie,
@@ -1146,31 +1147,31 @@ export function LavoratoriCercaView({
     appendCreatedWorkerReference,
   });
 
-  const { onChange: saveAnniEsperienzaColf } = useDebouncedSave(
+  const { value: anniEsperienzaColfValue, onChange: saveAnniEsperienzaColf } = useDebouncedSave(
     asString(selectedWorkerRow?.anni_esperienza_colf),
     async (v) => { await patchSelectedWorkerField("anni_esperienza_colf", v ? Number(v) : null); },
   );
-  const { onChange: saveAnniEsperienzaBadante } = useDebouncedSave(
+  const { value: anniEsperienzaBadanteValue, onChange: saveAnniEsperienzaBadante } = useDebouncedSave(
     asString(selectedWorkerRow?.anni_esperienza_badante),
     async (v) => { await patchSelectedWorkerField("anni_esperienza_badante", v ? Number(v) : null); },
   );
-  const { onChange: saveAnniEsperienzaBabysitter } = useDebouncedSave(
+  const { value: anniEsperienzaBabysitterValue, onChange: saveAnniEsperienzaBabysitter } = useDebouncedSave(
     asString(selectedWorkerRow?.anni_esperienza_babysitter),
     async (v) => { await patchSelectedWorkerField("anni_esperienza_babysitter", v ? Number(v) : null); },
   );
-  const { onChange: saveSituazioneLavorativaAttuale } = useDebouncedSave(
+  const { value: situazioneLavorativaAttualeValue, onChange: saveSituazioneLavorativaAttuale } = useDebouncedSave(
     asString(selectedWorkerRow?.situazione_lavorativa_attuale),
     async (v) => { await patchSelectedWorkerField("situazione_lavorativa_attuale", v.trim() || null); },
   );
-  const { onChange: saveNaspiLCV } = useDebouncedSave(
+  const { value: naspiLCVValue, onChange: saveNaspiLCV } = useDebouncedSave(
     asString(selectedWorkerRow?.data_scadenza_naspi),
     async (v) => { await patchDocumentField("data_scadenza_naspi", v || null); },
   );
-  const { onChange: saveIbanLCV } = useDebouncedSave(
+  const { value: ibanLCVValue, onChange: saveIbanLCV } = useDebouncedSave(
     resolvedIban,
     async (v) => { await patchDocumentField("iban", v || null); },
   );
-  const { onChange: saveStripeAccountLCV } = useDebouncedSave(
+  const { value: stripeAccountLCVValue, onChange: saveStripeAccountLCV } = useDebouncedSave(
     asString(selectedWorkerRow?.id_stripe_account),
     async (v) => { await patchDocumentField("id_stripe_account", v || null); },
   );
@@ -1962,47 +1963,23 @@ export function LavoratoriCercaView({
                       experienceTipoRapportoOptions
                     }
                     referenceStatusOptions={referenceStatusOptions}
-                    selectedAnniEsperienzaColf={asInputValue(
-                      selectedWorkerRow?.anni_esperienza_colf,
-                    )}
-                    selectedAnniEsperienzaBadante={asInputValue(
-                      selectedWorkerRow?.anni_esperienza_badante,
-                    )}
-                    selectedAnniEsperienzaBabysitter={asInputValue(
-                      selectedWorkerRow?.anni_esperienza_babysitter,
-                    )}
-                    selectedSituazioneLavorativaAttuale={asString(
-                      selectedWorkerRow?.situazione_lavorativa_attuale,
-                    )}
+                    selectedAnniEsperienzaColf={anniEsperienzaColfValue}
+                    selectedAnniEsperienzaBadante={anniEsperienzaBadanteValue}
+                    selectedAnniEsperienzaBabysitter={anniEsperienzaBabysitterValue}
+                    selectedSituazioneLavorativaAttuale={situazioneLavorativaAttualeValue}
                     onToggleEdit={() =>
                       setIsEditingExperience((current) => !current)
                     }
                     onAnniEsperienzaColfChange={(value) => {
-                      setExperienceDraft((current) => ({
-                        ...current,
-                        anni_esperienza_colf: value,
-                      }));
                       saveAnniEsperienzaColf(value);
                     }}
                     onAnniEsperienzaBadanteChange={(value) => {
-                      setExperienceDraft((current) => ({
-                        ...current,
-                        anni_esperienza_badante: value,
-                      }));
                       saveAnniEsperienzaBadante(value);
                     }}
                     onAnniEsperienzaBabysitterChange={(value) => {
-                      setExperienceDraft((current) => ({
-                        ...current,
-                        anni_esperienza_babysitter: value,
-                      }));
                       saveAnniEsperienzaBabysitter(value);
                     }}
                     onSituazioneLavorativaAttualeChange={(value) => {
-                      setExperienceDraft((current) => ({
-                        ...current,
-                        situazione_lavorativa_attuale: value,
-                      }));
                       saveSituazioneLavorativaAttuale(value);
                     }}
                     onExperiencePatch={(experienceId, patch) =>
@@ -2057,9 +2034,7 @@ export function LavoratoriCercaView({
                       documenti_in_regola: asString(
                         selectedWorkerRow?.documenti_in_regola,
                       ),
-                      data_scadenza_naspi: asString(
-                        selectedWorkerRow?.data_scadenza_naspi,
-                      ),
+                      data_scadenza_naspi: naspiLCVValue,
                     }}
                     documents={selectedWorkerDocuments}
                     documentsLoading={loadingSelectedWorkerDocuments}
@@ -2074,9 +2049,11 @@ export function LavoratoriCercaView({
                       missingStripeRequirements: getStripeAccountMissingRequirements({
                         worker: selectedWorkerRow,
                         address: selectedWorkerAddress,
-                        iban: documentsDraft.iban || resolvedIban,
+                        iban: ibanLCVValue,
                       }),
                     }}
+                    ibanInputValue={ibanLCVValue}
+                    stripeAccountInputValue={stripeAccountLCVValue}
                     onToggleEdit={() =>
                       setIsEditingDocuments((current) => !current)
                     }
@@ -2101,24 +2078,12 @@ export function LavoratoriCercaView({
                       );
                     }}
                     onNaspiChange={(value) => {
-                      setDocumentsDraft((current) => ({
-                        ...current,
-                        data_scadenza_naspi: value,
-                      }));
                       saveNaspiLCV(value);
                     }}
                     onIbanChange={(value) => {
-                      setDocumentsDraft((current) => ({
-                        ...current,
-                        iban: value,
-                      }));
                       saveIbanLCV(value);
                     }}
                     onStripeAccountChange={(value) => {
-                      setDocumentsDraft((current) => ({
-                        ...current,
-                        id_stripe_account: value,
-                      }));
                       saveStripeAccountLCV(value);
                     }}
                     onGenerateStripeAccount={generateStripeAccount}
@@ -2142,16 +2107,16 @@ export function LavoratoriCercaView({
                             <p className="font-medium">{issue.title}</p>
                             <div>
                               {issue.id === "missing-description" ? (
-                                <Input
-                                  value={asString(
+                                <DebouncedInput
+                                  committedValue={asString(
                                     selectedWorkerRow?.descrizione_pubblica,
                                   )}
-                                  onChange={(event) =>
-                                    void patchSelectedWorkerField(
+                                  onSave={async (v) => {
+                                    await patchSelectedWorkerField(
                                       "descrizione_pubblica",
-                                      event.target.value || null,
-                                    )
-                                  }
+                                      v || null,
+                                    );
+                                  }}
                                   disabled={updatingNonQualificato}
                                   placeholder="Inserisci descrizione"
                                 />
@@ -2271,17 +2236,17 @@ export function LavoratoriCercaView({
                               ) : null}
 
                               {issue.id === "age" ? (
-                                <Input
+                                <DebouncedInput
                                   type="date"
-                                  value={asString(
+                                  committedValue={asString(
                                     selectedWorkerRow?.data_di_nascita,
                                   )}
-                                  onChange={(event) =>
-                                    void patchSelectedWorkerField(
+                                  onSave={async (v) => {
+                                    await patchSelectedWorkerField(
                                       "data_di_nascita",
-                                      event.target.value || null,
-                                    )
-                                  }
+                                      v || null,
+                                    );
+                                  }}
                                   disabled={updatingNonQualificato}
                                 />
                               ) : null}
@@ -2304,37 +2269,33 @@ export function LavoratoriCercaView({
 
                               {issue.id === "esperienza" ? (
                                 <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                                  <Input
+                                  <DebouncedInput
                                     type="number"
                                     inputMode="decimal"
-                                    value={asInputValue(
+                                    committedValue={asInputValue(
                                       selectedWorkerRow?.anni_esperienza_colf,
                                     )}
-                                    onChange={(event) =>
-                                      void patchSelectedWorkerField(
+                                    onSave={async (v) => {
+                                      await patchSelectedWorkerField(
                                         "anni_esperienza_colf",
-                                        event.target.value
-                                          ? Number(event.target.value)
-                                          : null,
-                                      )
-                                    }
+                                        v ? Number(v) : null,
+                                      );
+                                    }}
                                     disabled={updatingNonQualificato}
                                     placeholder="Anni esperienza colf"
                                   />
-                                  <Input
+                                  <DebouncedInput
                                     type="number"
                                     inputMode="decimal"
-                                    value={asInputValue(
+                                    committedValue={asInputValue(
                                       selectedWorkerRow?.anni_esperienza_babysitter,
                                     )}
-                                    onChange={(event) =>
-                                      void patchSelectedWorkerField(
+                                    onSave={async (v) => {
+                                      await patchSelectedWorkerField(
                                         "anni_esperienza_babysitter",
-                                        event.target.value
-                                          ? Number(event.target.value)
-                                          : null,
-                                      )
-                                    }
+                                        v ? Number(v) : null,
+                                      );
+                                    }}
                                     disabled={updatingNonQualificato}
                                     placeholder="Anni esperienza babysitter"
                                   />

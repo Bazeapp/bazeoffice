@@ -221,9 +221,11 @@ function parseDate(value: unknown): number | null {
   if (slashParts.length === 3) {
     const [day, month, year] = slashParts
     const parsed = new Date(
-      Number.parseInt(year ?? "", 10),
-      Number.parseInt(month ?? "", 10) - 1,
-      Number.parseInt(day ?? "", 10)
+      Date.UTC(
+        Number.parseInt(year ?? "", 10),
+        Number.parseInt(month ?? "", 10) - 1,
+        Number.parseInt(day ?? "", 10)
+      )
     )
     return Number.isNaN(parsed.getTime()) ? null : parsed.getTime()
   }

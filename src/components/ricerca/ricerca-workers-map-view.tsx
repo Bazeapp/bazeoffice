@@ -92,8 +92,8 @@ const COLOR_HEX_BY_TOKEN: Record<string, string> = {
 
 type RicercaWorkersMapViewProps = {
   processId: string
-  searchGeocode?: unknown
-  searchMapsEmbed?: unknown
+  searchLat?: number | null
+  searchLng?: number | null
   jobRole?: string | null
   weeklyDays?: string | null
   pipelineState: RicercaWorkersPipelineState
@@ -914,8 +914,8 @@ function MapFilterGroup({
 
 export function RicercaWorkersMapView({
   processId,
-  searchGeocode,
-  searchMapsEmbed,
+  searchLat,
+  searchLng,
   jobRole,
   weeklyDays,
   pipelineState,
@@ -932,8 +932,11 @@ export function RicercaWorkersMapView({
     defaultWorkDaysFromSearch(weeklyDays)
   )
   const searchCoordinates = React.useMemo(
-    () => parseCoordinates(searchGeocode) ?? parseCoordinates(searchMapsEmbed),
-    [searchGeocode, searchMapsEmbed],
+    () =>
+      typeof searchLat === "number" && typeof searchLng === "number"
+        ? { lat: searchLat, lng: searchLng }
+        : null,
+    [searchLat, searchLng],
   )
   React.useEffect(() => {
     setSelectedWorkDays(defaultWorkDaysFromSearch(weeklyDays))
@@ -1107,7 +1110,7 @@ export function RicercaWorkersMapView({
         <div className="max-w-sm text-center">
           <p className="text-sm font-medium text-foreground">Coordinate ricerca mancanti</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Per mostrare la mappa serve un valore valido in geocode o nell'embed Maps della ricerca.
+            Per mostrare la mappa serve un indirizzo con latitudine e longitudine nella tab Indirizzi della ricerca.
           </p>
         </div>
       </div>

@@ -218,10 +218,9 @@ function HeaderInlineField({
   validate,
 }: HeaderInlineFieldProps) {
   const inputRef = React.useRef<HTMLInputElement | null>(null)
-  const [draft, setDraft] = React.useState(editableValue(value))
   const [saving, setSaving] = React.useState(false)
 
-  const { onChange: debouncedSave } = useDebouncedSave(
+  const { value: hookDraft, onChange: debouncedSave } = useDebouncedSave(
     editableValue(value),
     async (v) => {
       const normalized = normalize ? normalize(v.trim()) : v.trim()
@@ -234,23 +233,17 @@ function HeaderInlineField({
   )
 
   React.useEffect(() => {
-    if (!editing) {
-      setDraft(editableValue(value))
-    }
-  }, [editing, value])
-
-  React.useEffect(() => {
     if (!editing || !autoFocus) return
     inputRef.current?.focus()
     inputRef.current?.select()
   }, [autoFocus, editing])
 
   const cancel = React.useCallback(() => {
-    setDraft(editableValue(value))
-  }, [value])
+    debouncedSave(editableValue(value))
+  }, [debouncedSave, value])
 
   const commit = React.useCallback(async () => {
-    const normalized = normalize ? normalize(draft.trim()) : draft.trim()
+    const normalized = normalize ? normalize(hookDraft.trim()) : hookDraft.trim()
     const currentValue = editableValue(value)
     if (normalized === currentValue) {
       return
@@ -272,7 +265,7 @@ function HeaderInlineField({
     } finally {
       setSaving(false)
     }
-  }, [draft, normalize, onSave, validate, value])
+  }, [hookDraft, normalize, onSave, validate, value])
 
   if (editing) {
     return (
@@ -283,11 +276,10 @@ function HeaderInlineField({
           type={inputType}
           inputMode={inputMode}
           aria-label={label}
-          value={draft}
+          value={hookDraft}
           disabled={saving}
           className="h-7 min-w-0 px-2 text-xs"
           onChange={(event) => {
-            setDraft(event.target.value)
             debouncedSave(event.target.value)
           }}
           onKeyDown={(event) => {

@@ -145,16 +145,16 @@ function getUniqueIds(values: Array<string | null | undefined>) {
 }
 
 function toDateRangeValue(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0")
+  const day = String(date.getUTCDate()).padStart(2, "0")
   return `${year}-${month}-${day}`
 }
 
 function getDefaultCalendarRange() {
   const today = new Date()
-  const start = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-  const end = new Date(today.getFullYear(), today.getMonth() + 2, 0)
+  const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1))
+  const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 2, 0))
   return {
     start: toDateRangeValue(start),
     end: toDateRangeValue(end),
@@ -292,7 +292,7 @@ function isPastDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return false
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  today.setUTCHours(0, 0, 0, 0)
   return date.getTime() < today.getTime()
 }
 

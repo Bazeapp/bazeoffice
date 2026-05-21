@@ -93,6 +93,8 @@ type DocumentsCardProps = {
   lookupColorsByDomain: Map<string, string>
   showAdministrativeData?: boolean
   administrativeValues?: AdministrativeValues
+  ibanInputValue?: string
+  stripeAccountInputValue?: string
   onToggleEdit: () => void
   onVerificationChange: (value: string) => void
   onStatoDocumentiChange: (value: string) => void
@@ -263,7 +265,6 @@ function AdministrativeDataSection({
             <Input
               value={ibanValue}
               onChange={(event) => onIbanChange?.(event.target.value)}
-              disabled={isUpdating}
               className="mt-2"
               placeholder="Inserisci IBAN"
             />
@@ -279,7 +280,6 @@ function AdministrativeDataSection({
               onChange={(event) =>
                 onStripeAccountChange?.(event.target.value)
               }
-              disabled={isUpdating}
               className="mt-2"
               placeholder="Inserisci ID account Stripe"
             />
@@ -509,6 +509,8 @@ export function DocumentsCard({
   lookupColorsByDomain,
   showAdministrativeData = true,
   administrativeValues,
+  ibanInputValue,
+  stripeAccountInputValue,
   onToggleEdit,
   onVerificationChange,
   onStatoDocumentiChange,
@@ -778,7 +780,7 @@ export function DocumentsCard({
             <div className="space-y-2">
               <Input
                 type="date"
-                value={draft.data_scadenza_naspi}
+                value={selectedValues.data_scadenza_naspi}
                 onChange={(event) => onNaspiChange(event.target.value)}
                 disabled={isUpdating}
               />
@@ -797,8 +799,8 @@ export function DocumentsCard({
         {showAdministrativeData ? (
           <AdministrativeDataSection
             values={administrativeValues}
-            ibanValue={draft.iban}
-            stripeAccountValue={draft.id_stripe_account}
+            ibanValue={ibanInputValue ?? draft.iban}
+            stripeAccountValue={stripeAccountInputValue ?? draft.id_stripe_account}
             isEditing={isEditing}
             isUpdating={isUpdating}
             onIbanChange={onIbanChange}

@@ -145,8 +145,8 @@ function buildPayrollMetrics(columns: PayrollBoardColumnData[]): PayrollMetric[]
 
 function getCurrentMonthValue() {
   const now = new Date()
-  const month = `${now.getMonth() + 1}`.padStart(2, "0")
-  return `${now.getFullYear()}-${month}`
+  const month = `${now.getUTCMonth() + 1}`.padStart(2, "0")
+  return `${now.getUTCFullYear()}-${month}`
 }
 
 function shiftMonth(value: string, delta: number) {
@@ -158,9 +158,9 @@ function shiftMonth(value: string, delta: number) {
     return getCurrentMonthValue()
   }
 
-  const nextDate = new Date(year, month - 1 + delta, 1)
-  const nextMonth = `${nextDate.getMonth() + 1}`.padStart(2, "0")
-  return `${nextDate.getFullYear()}-${nextMonth}`
+  const nextDate = new Date(Date.UTC(year, month - 1 + delta, 1))
+  const nextMonth = `${nextDate.getUTCMonth() + 1}`.padStart(2, "0")
+  return `${nextDate.getUTCFullYear()}-${nextMonth}`
 }
 
 function formatMonthLabel(value: string) {
@@ -173,9 +173,10 @@ function formatMonthLabel(value: string) {
   }
 
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     month: "long",
     year: "numeric",
-  }).format(new Date(year, month - 1, 1))
+  }).format(new Date(Date.UTC(year, month - 1, 1)))
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -183,6 +184,7 @@ function formatDateTime(value: string | null | undefined) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "UTC",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -599,6 +601,42 @@ export function CedolinoDetailSheet({
     [card, onPatchCard]
   )
 
+  const handleRemoveCedolino = React.useCallback(
+    async (link: AttachmentLink) => {
+      if (!card) return
+
+      setUploadingCedolino(true)
+      setUploadError(null)
+
+      try {
+        const nextValue = normalizeAttachmentArray(card.record.cedolino).filter(
+          (a) => !(link.path && a.path === link.path) && a.name !== link.label,
+        )
+
+        if (link.path?.startsWith("baze-bucket/")) {
+          await supabase.storage
+            .from("baze-bucket")
+            .remove([link.path.replace(/^baze-bucket\//, "")])
+        }
+
+        const response = await updateRecord("mesi_lavorati", card.id, {
+          cedolino: nextValue.length > 0 ? nextValue : null,
+        })
+
+        onPatchCard(card.id, {
+          cedolino: response.row.cedolino as PayrollBoardCardData["record"]["cedolino"],
+        })
+      } catch (caughtError) {
+        setUploadError(
+          caughtError instanceof Error ? caughtError.message : "Errore rimuovendo cedolino",
+        )
+      } finally {
+        setUploadingCedolino(false)
+      }
+    },
+    [card, onPatchCard],
+  )
+
   function openAttachmentPreview(link: AttachmentLink) {
     window.open(link.url, "_blank", "noopener,noreferrer")
   }
@@ -741,6 +779,7 @@ export function CedolinoDetailSheet({
                   label="Cedolino"
                   value={normalizeAttachmentValue(card.record.cedolino)}
                   onAdd={handleUploadCedolino}
+                  onRemove={handleRemoveCedolino}
                   onPreviewOpen={openAttachmentPreview}
                   isUploading={uploadingCedolino}
                 />
@@ -1608,6 +1647,11 @@ function CedoliniPayrollView() {
         }}
         onPatchCard={(recordId, patch) => {
           void patchCard(recordId, patch)
+          setSelectedCard((current) =>
+            current?.id === recordId
+              ? { ...current, record: { ...current.record, ...patch } }
+              : current
+          )
         }}
         onPatchPresence={(recordId, patch) => {
           void patchPresence(recordId, patch)
