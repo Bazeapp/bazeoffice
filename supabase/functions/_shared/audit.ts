@@ -24,6 +24,7 @@ function getBearerToken(req: Request) {
 }
 
 export async function resolveAuditActor(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   req: Request,
 ): Promise<AuditActor> {
@@ -65,6 +66,7 @@ function getAuditFields(options: FieldAuditLogOptions) {
 }
 
 export async function insertFieldAuditLogs(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   options: FieldAuditLogOptions,
 ) {

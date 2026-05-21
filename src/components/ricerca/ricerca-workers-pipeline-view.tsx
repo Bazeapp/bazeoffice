@@ -2669,7 +2669,7 @@ export function RicercaWorkersPipelineView({
                       if (field === "situazione_lavorativa_attuale") {
                         void patchSelectedWorkerField(field, value.trim() || null);
                       } else {
-                        void patchSelectedWorkerField(field, parseNumberValue(value));
+                        void patchSelectedWorkerField(field as keyof LavoratoreRecord, parseNumberValue(value));
                       }
                     }}
                     onExperiencePatch={patchExperienceRecord}

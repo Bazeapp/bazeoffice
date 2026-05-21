@@ -2954,10 +2954,6 @@ export function Gate1View({
     resolvedIban,
     async (v) => { await patchDocumentField("iban", v || null); },
   );
-  const { onChange: saveStripeAccount } = useDebouncedSave(
-    asString(selectedWorkerRow?.id_stripe_account),
-    async (v) => { await patchDocumentField("id_stripe_account", v || null); },
-  );
   const { onChange: saveHeaderNome } = useDebouncedSave(
     asString(selectedWorkerRow?.nome),
     async (v) => { await patchSelectedWorkerField("nome", v.trim() || null); },

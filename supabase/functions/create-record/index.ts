@@ -143,7 +143,7 @@ function normalizeLookupBackedValue(
 }
 
 async function normalizeLookupBackedValues(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   table: SupportedTable,
   values: Record<string, unknown>
 ) {

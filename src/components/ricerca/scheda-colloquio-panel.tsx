@@ -318,7 +318,7 @@ function LabeledTextarea({
   icon: React.ElementType;
   value: string;
   onChange: (value: string) => void;
-  onBlur: () => void;
+  onBlur?: () => void;
   disabled?: boolean;
 }) {
   return (
@@ -420,13 +420,6 @@ export function SchedaColloquioPanel({
     normalizedStatus.includes("prova") ||
     normalizedStatus === "match" ||
     normalizedStatus === "inviato al cliente";
-
-  const patchTextField = React.useCallback(
-    (field: string, value: string) => {
-      void onPatchField(field, value.trim() || null);
-    },
-    [onPatchField],
-  );
 
   const { value: vannoBeneGiorni, onChange: onVannoBeneGiorni } = useDebouncedSave(
     asString(selectionRow.intervista_giorni_lavoro),
