@@ -32,9 +32,12 @@ type LookupOption = {
 }
 
 type AddressDraft = {
-  provincia: string
+  via: string
+  civico: string
   cap: string
-  indirizzo_residenza_completo: string
+  citta: string
+  provincia: string
+  citofono: string
   come_ti_sposti: string[]
 }
 
@@ -44,24 +47,36 @@ type AddressSectionCardProps = {
   showEditAction?: boolean
   collapsible?: boolean
   defaultOpen?: boolean
-  showCap?: boolean
   showMobility?: boolean
   addressDraft: AddressDraft
   provinciaOptions: LookupOption[]
   mobilityOptions: LookupOption[]
-  selectedProvincia: string
-  selectedCap: string
-  selectedAddress: string
+  selectedVia?: string | null
+  selectedCivico?: string | null
+  selectedCap?: string | null
+  selectedCitta?: string | null
+  selectedProvincia?: string | null
+  selectedCitofono?: string | null
   selectedMobility: string[]
   mobilityAnchor: React.RefObject<HTMLDivElement | null>
   onToggleEdit: () => void
-  onProvinciaChange: (value: string) => void
-  onCapChange: (value: string) => void
-  onCapBlur: () => void
-  onAddressChange: (value: string) => void
-  onAddressBlur: () => void
+  onFieldChange: (field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono", value: string) => void
+  onFieldBlur: (field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono") => void
   onMobilityChange: (values: string[]) => void
 }
+
+const ADDRESS_FIELDS: Array<{
+  key: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono"
+  label: string
+  type?: "province"
+}> = [
+  { key: "provincia", label: "Provincia", type: "province" },
+  { key: "cap", label: "CAP" },
+  { key: "via", label: "Via" },
+  { key: "civico", label: "Civico" },
+  { key: "citta", label: "Comune" },
+  { key: "citofono", label: "Citofono" },
+]
 
 export function AddressSectionCard({
   isEditing,
@@ -69,24 +84,28 @@ export function AddressSectionCard({
   showEditAction = true,
   collapsible = true,
   defaultOpen = true,
-  showCap = true,
   showMobility = true,
   addressDraft,
   provinciaOptions,
   mobilityOptions,
-  selectedProvincia,
+  selectedVia,
+  selectedCivico,
   selectedCap,
-  selectedAddress,
+  selectedCitta,
+  selectedProvincia,
+  selectedCitofono,
   selectedMobility,
   mobilityAnchor,
   onToggleEdit,
-  onProvinciaChange,
-  onCapChange,
-  onCapBlur,
-  onAddressChange,
-  onAddressBlur,
+  onFieldChange,
+  onFieldBlur,
   onMobilityChange,
 }: AddressSectionCardProps) {
+  const composedAddress = [selectedVia, selectedCivico, selectedCap, selectedCitta, selectedProvincia]
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter((v) => v && v !== "-")
+    .join(" • ")
+
   return (
     <DetailSectionBlock
       title="Indirizzo"
@@ -108,140 +127,104 @@ export function AddressSectionCard({
       defaultOpen={defaultOpen}
       contentClassName="space-y-3"
     >
-      <div
-        className={
-          showCap
-            ? showMobility
-              ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[130px_100px_minmax(0,2fr)_minmax(240px,1fr)]"
-              : "grid grid-cols-1 gap-3 sm:grid-cols-[130px_100px_minmax(0,1fr)]"
-            : showMobility
-              ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[130px_minmax(0,2fr)_minmax(240px,1fr)]"
-              : "grid grid-cols-1 gap-3 sm:grid-cols-[130px_minmax(0,1fr)]"
-        }
-      >
+      {isEditing ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {ADDRESS_FIELDS.map((item) => (
+            <div key={item.key} className="space-y-1">
+              <FieldLabel>{item.label}</FieldLabel>
+              {item.type === "province" ? (
+                <Select
+                  value={addressDraft.provincia || EMPTY_SELECT_VALUE}
+                  onValueChange={(value) =>
+                    onFieldChange("provincia", value === EMPTY_SELECT_VALUE ? "" : value)
+                  }
+                  disabled={isUpdating}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Provincia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
+                    {provinciaOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.label}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={addressDraft[item.key]}
+                  onChange={(event) => onFieldChange(item.key, event.target.value)}
+                  onBlur={() => onFieldBlur(item.key)}
+                  disabled={isUpdating}
+                  placeholder={item.label}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm">{composedAddress || "-"}</p>
+      )}
+
+      {showMobility ? (
         <div className="space-y-1">
-          <FieldLabel>Provincia</FieldLabel>
+          <FieldLabel>Mobilita</FieldLabel>
           {isEditing ? (
-            <Select
-              value={addressDraft.provincia || EMPTY_SELECT_VALUE}
-              onValueChange={(value) =>
-                onProvinciaChange(value === EMPTY_SELECT_VALUE ? "" : value)
+            <Combobox
+              multiple
+              autoHighlight
+              items={mobilityOptions.map((option) => option.value)}
+              value={normalizeLookupOptionValues(
+                addressDraft.come_ti_sposti,
+                mobilityOptions,
+              )}
+              onValueChange={(nextValues) =>
+                onMobilityChange(
+                  normalizeLookupDbLabels(nextValues as string[], mobilityOptions),
+                )
               }
               disabled={isUpdating}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Provincia" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
-                {provinciaOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.label}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <p className="truncate text-sm">{selectedProvincia || "-"}</p>
-          )}
-        </div>
-
-        {showCap ? (
-          <div className="space-y-1">
-            <FieldLabel>CAP</FieldLabel>
-            {isEditing ? (
-              <Input
-                value={addressDraft.cap}
-                onChange={(event) => {
-                  const normalized = event.target.value
-                    .toUpperCase()
-                    .replace(/[^A-Z0-9 ]/g, "")
-                    .slice(0, 10)
-                  onCapChange(normalized)
-                }}
-                onBlur={onCapBlur}
-                disabled={isUpdating}
-                placeholder="CAP"
-              />
-            ) : (
-              <p className="truncate text-sm">{selectedCap || "-"}</p>
-            )}
-          </div>
-        ) : null}
-
-        <div className="space-y-1">
-          <FieldLabel>Indirizzo</FieldLabel>
-          {isEditing ? (
-            <Input
-              value={addressDraft.indirizzo_residenza_completo}
-              onChange={(event) => onAddressChange(event.target.value)}
-              onBlur={onAddressBlur}
-              disabled={isUpdating}
-              placeholder="Inserisci indirizzo"
-            />
-          ) : (
-            <p className="truncate text-sm">{selectedAddress || "-"}</p>
-          )}
-        </div>
-
-        {showMobility ? (
-          <div className="space-y-1">
-            <FieldLabel>Mobilita</FieldLabel>
-            {isEditing ? (
-              <Combobox
-                multiple
-                autoHighlight
-                items={mobilityOptions.map((option) => option.value)}
-                value={normalizeLookupOptionValues(
-                  addressDraft.come_ti_sposti,
-                  mobilityOptions,
-                )}
-                onValueChange={(nextValues) =>
-                  onMobilityChange(
-                    normalizeLookupDbLabels(nextValues as string[], mobilityOptions),
-                  )
-                }
-                disabled={isUpdating}
-              >
-                <ComboboxChips ref={mobilityAnchor} className="w-full">
-                  <ComboboxValue>
-                    {(values) => (
-                      <React.Fragment>
-                        {values.map((value: string) => (
-                          <ComboboxChip key={value}>
-                            {getLookupOptionLabel(mobilityOptions, value)}
-                          </ComboboxChip>
-                        ))}
-                        <ComboboxChipsInput placeholder="Seleziona opzioni" />
-                      </React.Fragment>
-                    )}
-                  </ComboboxValue>
-                </ComboboxChips>
-                <ComboboxContent anchor={mobilityAnchor} className="max-h-80">
-                  <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
-                  <ComboboxList className="max-h-72 overflow-y-auto">
-                    {(item) => (
-                      <ComboboxItem key={item} value={item}>
-                        {getLookupOptionLabel(mobilityOptions, item)}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-            ) : selectedMobility.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {selectedMobility.map((value) => (
-                  <Badge key={value} variant="outline">
-                    {value}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <p className="truncate text-sm">-</p>
-            )}
+              <ComboboxChips ref={mobilityAnchor} className="w-full">
+                <ComboboxValue>
+                  {(values) => (
+                    <React.Fragment>
+                      {values.map((value: string) => (
+                        <ComboboxChip key={value}>
+                          {getLookupOptionLabel(mobilityOptions, value)}
+                        </ComboboxChip>
+                      ))}
+                      <ComboboxChipsInput placeholder="Seleziona opzioni" />
+                    </React.Fragment>
+                  )}
+                </ComboboxValue>
+              </ComboboxChips>
+              <ComboboxContent anchor={mobilityAnchor} className="max-h-80">
+                <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
+                <ComboboxList className="max-h-72 overflow-y-auto">
+                  {(item) => (
+                    <ComboboxItem key={item} value={item}>
+                      {getLookupOptionLabel(mobilityOptions, item)}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          ) : selectedMobility.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {selectedMobility.map((value) => (
+                <Badge key={value} variant="outline">
+                  {value}
+                </Badge>
+              ))}
             </div>
-        ) : null}
-      </div>
+          ) : (
+            <p className="truncate text-sm">-</p>
+          )}
+        </div>
+      ) : null}
     </DetailSectionBlock>
   )
 }

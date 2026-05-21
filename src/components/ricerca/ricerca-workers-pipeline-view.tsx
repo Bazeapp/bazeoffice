@@ -1032,6 +1032,8 @@ export function RicercaWorkersPipelineView({
   const [isWorkerOverlayOpen, setIsWorkerOverlayOpen] = React.useState(false);
   const [selectedWorkerRow, setSelectedWorkerRow] =
     React.useState<LavoratoreRecord | null>(null);
+  const [selectedWorkerAddress, setSelectedWorkerAddress] =
+    React.useState<Record<string, unknown> | null>(null);
   const [selectedWorkerExperiences, setSelectedWorkerExperiences] =
     React.useState<EsperienzaLavoratoreRecord[]>([]);
   const [selectedWorkerDocuments, setSelectedWorkerDocuments] =
@@ -1153,6 +1155,13 @@ export function RicercaWorkersPipelineView({
     setSelectedWorkerRow(row);
   }, []);
 
+  const applyUpdatedWorkerAddress = React.useCallback(
+    (row: Record<string, unknown>) => {
+      setSelectedWorkerAddress(row);
+    },
+    [],
+  );
+
   const applyUpdatedWorkerExperience = React.useCallback(
     (row: EsperienzaLavoratoreRecord) => {
       setSelectedWorkerExperiences((current) =>
@@ -1245,15 +1254,16 @@ export function RicercaWorkersPipelineView({
     patchSkillsField,
     patchDocumentField,
     patchSelectedWorkerField,
+    patchWorkerAddressField,
   } = useSelectedWorkerEditor({
     selectedWorkerId,
     selectedWorker,
     selectedWorkerRow,
-    selectedWorkerAddress: null,
+    selectedWorkerAddress,
     lookupColorsByDomain,
     setError: setSelectedWorkerError,
     applyUpdatedWorkerRow,
-    applyUpdatedWorkerAddress: () => {},
+    applyUpdatedWorkerAddress,
     applyUpdatedWorkerExperience,
     appendCreatedWorkerExperience,
     removeWorkerExperience,
@@ -1406,6 +1416,7 @@ export function RicercaWorkersPipelineView({
           }),
           fetchIndirizzi({
             select: [
+              "id",
               "tipo_indirizzo",
               "via",
               "civico",
@@ -1413,6 +1424,8 @@ export function RicercaWorkersPipelineView({
               "citta",
               "provincia",
               "paese",
+              "citofono",
+              "note",
               "indirizzo_formattato",
             ],
             limit: 3,
@@ -1465,6 +1478,7 @@ export function RicercaWorkersPipelineView({
           ) ??
           addressRows[0];
         if (isCancelled) return;
+        setSelectedWorkerAddress(residenceAddressRow ?? null);
         setSelectedWorkerRow(
           row
             ? mergeWorkerResidenceAddress(
@@ -2527,7 +2541,14 @@ export function RicercaWorkersPipelineView({
                     relatedActiveSearchesLoading={loadingRelatedActiveSearches}
                     onOpenRelatedSearch={handleOpenRelatedSearchCard}
                     onPatchWorkerField={patchSelectedWorkerField}
+                    onPatchWorkerAddress={patchWorkerAddressField}
                     onPatchProcessField={patchSelectedProcessAddressField}
+                    workerVia={asString(selectedWorkerAddress?.via) || null}
+                    workerCivico={asString(selectedWorkerAddress?.civico) || null}
+                    workerCap={asString(selectedWorkerAddress?.cap) || null}
+                    workerCitta={asString(selectedWorkerAddress?.citta) || null}
+                    workerProvincia={asString(selectedWorkerAddress?.provincia) || null}
+                    workerCitofono={asString(selectedWorkerAddress?.citofono) || null}
                     processWeeklyHours={card.oreSettimana}
                     familyAddress={familyAddressDraft.address}
                     familyCap={familyAddressDraft.cap}

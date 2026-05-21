@@ -60,6 +60,7 @@ import {
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import { buildFamilyPrivateAreaUrl } from "@/lib/private-area-url";
+import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { toast } from "sonner";
@@ -356,19 +357,34 @@ function SectionEditBar({
   section,
   editing,
   onToggle,
+  onSave,
+  saving,
 }: {
   section: string;
   editing: boolean;
   onToggle: (section: string) => void;
+  onSave?: () => void;
+  saving?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-end">
+    <div className="flex items-center gap-1 justify-end">
+      {editing && onSave ? (
+        <Button
+          type="button"
+          variant="default"
+          size="sm"
+          disabled={saving}
+          onClick={onSave}
+        >
+          {saving ? "Salvataggio..." : "Salva"}
+        </Button>
+      ) : null}
       <Button
         type="button"
         variant={editing ? "outline" : "ghost"}
         size="icon-sm"
-        aria-label={editing ? "Chiudi modifica sezione" : "Modifica sezione"}
-        title={editing ? "Chiudi modifica sezione" : "Modifica sezione"}
+        aria-label={editing ? "Annulla" : "Modifica sezione"}
+        title={editing ? "Annulla" : "Modifica sezione"}
         onClick={() => onToggle(section)}
       >
         {editing ? <XIcon /> : <PencilIcon />}
@@ -715,6 +731,13 @@ export function RicercaDetailView({
   const [editingSections, setEditingSections] = React.useState<Set<string>>(
     () => new Set(),
   );
+  const [orariDraft, setOrariDraft] = React.useState({
+    orarioDiLavoro: editableValue(card?.orarioDiLavoro),
+    oreSettimana: editableValue(card?.oreSettimana),
+    giorniSettimana: editableValue(card?.giorniSettimana),
+    giornatePreferite: card?.giornatePreferite?.join(", ") ?? "",
+  });
+  const [isSavingOrari, setIsSavingOrari] = React.useState(false);
   const { options: operatorOptions, loading: operatorOptionsLoading } =
     useOperatoriOptions();
   const { options: recruiterOptions } = useOperatoriOptions({
@@ -732,6 +755,16 @@ export function RicercaDetailView({
     setFocusedSelectionId(null);
     setEditingSections(new Set());
   }, [processId]);
+
+  React.useEffect(() => {
+    if (editingSections.has("orari")) return;
+    setOrariDraft({
+      orarioDiLavoro: editableValue(card?.orarioDiLavoro),
+      oreSettimana: editableValue(card?.oreSettimana),
+      giorniSettimana: editableValue(card?.giorniSettimana),
+      giornatePreferite: card?.giornatePreferite?.join(", ") ?? "",
+    });
+  }, [card, editingSections]);
 
   const resolveLookupValueKey = React.useCallback(
     (field: string, rawValue: string) => {
@@ -1263,6 +1296,30 @@ export function RicercaDetailView({
     [currentProcessId, updateProcessCard],
   );
 
+  const saveOrariSection = React.useCallback(async () => {
+    if (!currentProcessId) return;
+    setIsSavingOrari(true);
+    try {
+      await saveProcessPatch("orari", {
+        orario_di_lavoro: orariDraft.orarioDiLavoro.trim() || null,
+        ore_settimanale: orariDraft.oreSettimana.trim() || null,
+        numero_giorni_settimanali: orariDraft.giorniSettimana.trim() || null,
+        preferenza_giorno: orariDraft.giornatePreferite
+          ? splitCommaList(orariDraft.giornatePreferite)
+          : null,
+      });
+      await invokeEdgeFunction("family-availability", {
+        processo_matching_id: currentProcessId,
+      });
+      toast.success("Orari e frequenza salvati");
+      toggleEditingSection("orari");
+    } catch {
+      toast.error("Errore salvando orari e frequenza");
+    } finally {
+      setIsSavingOrari(false);
+    }
+  }, [currentProcessId, orariDraft, saveProcessPatch, toggleEditingSection]);
+
   const saveFamilyPatch = React.useCallback(
     async (_section: string, patch: Record<string, unknown>) => {
       const familyId = toStringValue(card?.famigliaId);
@@ -1715,85 +1772,102 @@ export function RicercaDetailView({
                   tone="flush"
                   defaultValue={["orari"]}
                 >
-	                  <AccordionItem value="orari">
-	                    <AccordionTrigger
-                        titleAction={
-                          <SectionEditBar
-                            section="orari"
-                            editing={isEditingSection("orari")}
-                            onToggle={toggleEditingSection}
-                          />
-                        }
-                      >
-                        Orari e frequenza
-                      </AccordionTrigger>
-	                    <AccordionContent className="space-y-3">
-	                      <EditableTextField
-	                        label="Orario di lavoro"
-	                        value={resolvedCard.orarioDiLavoro}
+                  <AccordionItem value="orari">
+                    <AccordionTrigger
+                      titleAction={
+                        <SectionEditBar
+                          section="orari"
                           editing={isEditingSection("orari")}
-                          multiline
-                          onSave={(next) =>
-                            void saveProcessPatch("orari", {
-                              orario_di_lavoro: next,
-                            })
-                          }
-	                      />
-	                      <div className="grid grid-cols-2 gap-3">
-	                        <EditableTextField
-	                          label="Ore settimanali"
-	                          value={resolvedCard.oreSettimana}
-                            labelClassName="whitespace-nowrap text-[11px]"
-                            editing={isEditingSection("orari")}
-                            onSave={(next) =>
-                              void saveProcessPatch("orari", {
-                                ore_settimanale: next,
-                              })
-                            }
-	                        />
-	                        <EditableTextField
-	                          label="Giorni settimanali"
-	                          value={resolvedCard.giorniSettimana}
-                            labelClassName="whitespace-nowrap text-[11px]"
-                            editing={isEditingSection("orari")}
-                            onSave={(next) =>
-                              void saveProcessPatch("orari", {
-                                numero_giorni_settimanali: next,
-                              })
-                            }
-	                        />
-	                      </div>
+                          onToggle={toggleEditingSection}
+                          onSave={saveOrariSection}
+                          saving={isSavingOrari}
+                        />
+                      }
+                    >
+                      Orari e frequenza
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-3">
+                      <Field>
+                        <FieldLabel variant="eyebrow">Orario di lavoro</FieldLabel>
                         {isEditingSection("orari") ? (
-                          <EditableTextField
-                            label="Giornate preferite"
-                            value={resolvedCard.giornatePreferite?.join(", ")}
-                            editing
-                            onSave={(next) =>
-                              void saveProcessPatch("orari", {
-                                preferenza_giorno: next ? splitCommaList(next) : null,
-                              })
+                          <Textarea
+                            value={orariDraft.orarioDiLavoro}
+                            onChange={(e) =>
+                              setOrariDraft((d) => ({ ...d, orarioDiLavoro: e.target.value }))
                             }
+                            rows={4}
                           />
-                        ) : resolvedCard.giornatePreferite &&
-                          resolvedCard.giornatePreferite.length > 0 ? (
-                          <Field>
-                            <FieldLabel variant="eyebrow">
-                              Giornate preferite
-                            </FieldLabel>
-                            <div className="flex flex-wrap gap-1.5">
-                              {resolvedCard.giornatePreferite.map((giorno) => (
-                                <Badge
-                                  key={giorno}
-                                  className="border-blue-200 bg-blue-50 text-blue-700"
-                                >
-                                  {giorno}
-                                </Badge>
-                              ))}
-                            </div>
-                          </Field>
-                        ) : null}
-	                    </AccordionContent>
-	                  </AccordionItem>
+                        ) : (
+                          <p className="text-sm text-foreground">
+                            {editableValue(resolvedCard.orarioDiLavoro) || "—"}
+                          </p>
+                        )}
+                      </Field>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field>
+                          <FieldLabel variant="eyebrow" className="whitespace-nowrap text-[11px]">
+                            Ore settimanali
+                          </FieldLabel>
+                          {isEditingSection("orari") ? (
+                            <Input
+                              value={orariDraft.oreSettimana}
+                              onChange={(e) =>
+                                setOrariDraft((d) => ({ ...d, oreSettimana: e.target.value }))
+                              }
+                            />
+                          ) : (
+                            <p className="text-sm text-foreground">
+                              {editableValue(resolvedCard.oreSettimana) || "—"}
+                            </p>
+                          )}
+                        </Field>
+                        <Field>
+                          <FieldLabel variant="eyebrow" className="whitespace-nowrap text-[11px]">
+                            Giorni settimanali
+                          </FieldLabel>
+                          {isEditingSection("orari") ? (
+                            <Input
+                              value={orariDraft.giorniSettimana}
+                              onChange={(e) =>
+                                setOrariDraft((d) => ({ ...d, giorniSettimana: e.target.value }))
+                              }
+                            />
+                          ) : (
+                            <p className="text-sm text-foreground">
+                              {editableValue(resolvedCard.giorniSettimana) || "—"}
+                            </p>
+                          )}
+                        </Field>
+                      </div>
+                      {isEditingSection("orari") ? (
+                        <Field>
+                          <FieldLabel variant="eyebrow">Giornate preferite</FieldLabel>
+                          <Input
+                            value={orariDraft.giornatePreferite}
+                            onChange={(e) =>
+                              setOrariDraft((d) => ({ ...d, giornatePreferite: e.target.value }))
+                            }
+                            placeholder="es. Lunedì, Mercoledì"
+                          />
+                        </Field>
+                      ) : resolvedCard.giornatePreferite &&
+                        resolvedCard.giornatePreferite.length > 0 ? (
+                        <Field>
+                          <FieldLabel variant="eyebrow">Giornate preferite</FieldLabel>
+                          <div className="flex flex-wrap gap-1.5">
+                            {resolvedCard.giornatePreferite.map((giorno) => (
+                              <Badge
+                                key={giorno}
+                                className="border-blue-200 bg-blue-50 text-blue-700"
+                              >
+                                {giorno}
+                              </Badge>
+                            ))}
+                          </div>
+                        </Field>
+                      ) : null}
+                    </AccordionContent>
+                  </AccordionItem>
 
 	                  <AccordionItem value="luogo-lavoro">
 	                    <AccordionTrigger

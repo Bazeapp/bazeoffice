@@ -2888,6 +2888,7 @@ export function Gate1View({
     updatingNonQualificato,
     handleNonIdoneoReasonsChange,
     patchSelectedWorkerField,
+    patchWorkerAddressField,
     commitAddressField,
     saveWorkerAvailability,
     patchWorkerAvailabilityStatus,
@@ -4290,20 +4291,16 @@ export function Gate1View({
                       isEditing={gateAddressIsEditing}
                       isUpdating={updatingNonQualificato}
                       showEditAction={addressEditMode === "toggle"}
-                      showCap={false}
                       showMobility={false}
                       addressDraft={addressDraft}
                       provinciaOptions={provinciaLookupOptions}
                       mobilityOptions={mobilityLookupOptions}
-                      selectedProvincia={asString(selectedWorkerRow.provincia)}
-                      selectedCap={
-                        asString(selectedWorkerAddress?.cap) ||
-                        asString(selectedWorkerRow.cap)
-                      }
-                      selectedAddress={
-                        formatWorkerAddressLine(selectedWorkerAddress) ||
-                        asString(selectedWorkerRow.indirizzo_residenza_completo)
-                      }
+                      selectedVia={asString(selectedWorkerAddress?.via) || null}
+                      selectedCivico={asString(selectedWorkerAddress?.civico) || null}
+                      selectedCap={asString(selectedWorkerAddress?.cap) || null}
+                      selectedCitta={asString(selectedWorkerAddress?.citta) || null}
+                      selectedProvincia={asString(selectedWorkerAddress?.provincia) || asString(selectedWorkerRow.provincia) || null}
+                      selectedCitofono={asString(selectedWorkerAddress?.citofono) || null}
                       selectedMobility={readArrayStrings(
                         selectedWorkerRow.come_ti_sposti,
                       )}
@@ -4311,32 +4308,15 @@ export function Gate1View({
                       onToggleEdit={() =>
                         setIsEditingAddress((current) => !current)
                       }
-                      onProvinciaChange={(value) => {
-                        setAddressDraft((current) => ({
-                          ...current,
-                          provincia: value,
-                        }));
-                        void patchSelectedWorkerField(
-                          "provincia",
-                          value || null,
-                        );
+                      onFieldChange={(field, value) => {
+                        setAddressDraft((current) => ({ ...current, [field]: value }));
+                        if (field === "provincia") {
+                          void patchWorkerAddressField("provincia", value || null);
+                        }
                       }}
-                      onCapChange={(value) =>
-                        setAddressDraft((current) => ({
-                          ...current,
-                          cap: value,
-                        }))
-                      }
-                      onCapBlur={() => void commitAddressField("cap")}
-                      onAddressChange={(value) =>
-                        setAddressDraft((current) => ({
-                          ...current,
-                          indirizzo_residenza_completo: value,
-                        }))
-                      }
-                      onAddressBlur={() =>
-                        void commitAddressField("indirizzo_residenza_completo")
-                      }
+                      onFieldBlur={(field) => {
+                        if (field !== "provincia") void commitAddressField(field);
+                      }}
                       onMobilityChange={(values) => {
                         setAddressDraft((current) => ({
                           ...current,

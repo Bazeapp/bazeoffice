@@ -447,7 +447,14 @@ function TravelTimeCard({
   workerRow,
   selectionRow,
   onPatchWorkerField,
+  onPatchWorkerAddress,
   onPatchProcessField,
+  workerVia,
+  workerCivico,
+  workerCap,
+  workerCitta,
+  workerProvincia,
+  workerCitofono,
   familyAddress,
   familyCap,
   familyProvince,
@@ -466,6 +473,16 @@ function TravelTimeCard({
     field: keyof LavoratoreRecord,
     value: unknown,
   ) => Promise<void> | void;
+  onPatchWorkerAddress?: (
+    field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono" | "note",
+    value: string | null,
+  ) => Promise<void>;
+  workerVia?: string | null;
+  workerCivico?: string | null;
+  workerCap?: string | null;
+  workerCitta?: string | null;
+  workerProvincia?: string | null;
+  workerCitofono?: string | null;
   onPatchProcessField?: (
     field:
       | "indirizzo_prova_provincia"
@@ -496,11 +513,12 @@ function TravelTimeCard({
     travelMinutes != null ? Math.round(travelMinutes) : null;
   const [isEditing, setIsEditing] = React.useState(false);
   const [addressDraft, setAddressDraft] = React.useState({
-    provincia: asString(workerRow.provincia),
-    cap: asString(workerRow.cap),
-    indirizzo_residenza_completo: asString(
-      workerRow.indirizzo_residenza_completo,
-    ),
+    via: asString(workerVia),
+    civico: asString(workerCivico),
+    cap: asString(workerCap),
+    citta: asString(workerCitta),
+    provincia: asString(workerProvincia),
+    citofono: asString(workerCitofono),
     mobilita: readArrayStrings(workerRow.come_ti_sposti).join(", "),
   });
   const [familyAddressDraft, setFamilyAddressDraft] = React.useState({
@@ -517,17 +535,21 @@ function TravelTimeCard({
 
   React.useEffect(() => {
     setAddressDraft({
-      provincia: asString(workerRow.provincia),
-      cap: asString(workerRow.cap),
-      indirizzo_residenza_completo: asString(
-        workerRow.indirizzo_residenza_completo,
-      ),
+      via: asString(workerVia),
+      civico: asString(workerCivico),
+      cap: asString(workerCap),
+      citta: asString(workerCitta),
+      provincia: asString(workerProvincia),
+      citofono: asString(workerCitofono),
       mobilita: readArrayStrings(workerRow.come_ti_sposti).join(", "),
     });
   }, [
-    workerRow.provincia,
-    workerRow.cap,
-    workerRow.indirizzo_residenza_completo,
+    workerVia,
+    workerCivico,
+    workerCap,
+    workerCitta,
+    workerProvincia,
+    workerCitofono,
     workerRow.come_ti_sposti,
   ]);
 
@@ -555,16 +577,14 @@ function TravelTimeCard({
 
   const commitAddressField = React.useCallback(
     async (
-      field: "provincia" | "cap" | "indirizzo_residenza_completo",
+      field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono",
       rawValue: string,
     ) => {
-      if (!onPatchWorkerField) return;
       const nextValue = rawValue.trim();
-      const currentValue = asString(workerRow[field]);
-      if (nextValue === currentValue) return;
-      await onPatchWorkerField(field, nextValue || null);
+      if (!onPatchWorkerAddress) return;
+      await onPatchWorkerAddress(field, nextValue || null);
     },
-    [onPatchWorkerField, workerRow],
+    [onPatchWorkerAddress],
   );
 
   const commitFamilyAddressField = React.useCallback(
@@ -731,64 +751,74 @@ function TravelTimeCard({
         </p>
         {isEditing ? (
           <div className="grid gap-2">
-            <Select
-              value={addressDraft.provincia || "none"}
-              onValueChange={(value) => {
-                const nextValue = value === "none" ? "" : value;
-                setAddressDraft((current) => ({
-                  ...current,
-                  provincia: nextValue,
-                }));
-                void commitAddressField("provincia", nextValue);
-              }}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Provincia" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nessuna provincia</SelectItem>
-                {provinceOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.label}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              value={addressDraft.cap}
-              onChange={(event) =>
-                setAddressDraft((current) => ({
-                  ...current,
-                  cap: event.target.value,
-                }))
-              }
-              onBlur={(event) => void commitAddressField("cap", event.currentTarget.value)}
-              className="h-9 text-sm"
-              placeholder="CAP"
-            />
-            <Input
-              value={addressDraft.indirizzo_residenza_completo}
-              onChange={(event) =>
-                setAddressDraft((current) => ({
-                  ...current,
-                  indirizzo_residenza_completo: event.target.value,
-                }))
-              }
-              onBlur={(event) =>
-                void commitAddressField(
-                  "indirizzo_residenza_completo",
-                  event.currentTarget.value,
-                )
-              }
-              className="h-9 text-sm"
-              placeholder="Indirizzo"
-            />
+            {(
+              [
+                { key: "provincia" as const, label: "Provincia", type: "province" as const },
+                { key: "cap" as const, label: "CAP" },
+                { key: "via" as const, label: "Via" },
+                { key: "civico" as const, label: "Civico" },
+                { key: "citta" as const, label: "Comune" },
+                { key: "citofono" as const, label: "Citofono" },
+              ] as Array<{
+                key: "provincia" | "cap" | "via" | "civico" | "citta" | "citofono";
+                label: string;
+                type?: "province";
+              }>
+            ).map((item) => (
+              <label key={item.key} className="grid gap-1">
+                <span className="text-muted-foreground text-xs font-medium">
+                  {item.label}
+                </span>
+                {item.type === "province" ? (
+                  <Select
+                    value={addressDraft.provincia || "none"}
+                    onValueChange={(value) => {
+                      const nextValue = value === "none" ? "" : value;
+                      setAddressDraft((current) => ({
+                        ...current,
+                        provincia: nextValue,
+                      }));
+                      void commitAddressField("provincia", nextValue);
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Provincia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nessuna provincia</SelectItem>
+                      {provinceOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.label}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={addressDraft[item.key]}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      setAddressDraft((current) => ({
+                        ...current,
+                        [item.key]: nextValue,
+                      }));
+                    }}
+                    onBlur={(event) =>
+                      void commitAddressField(item.key, event.currentTarget.value)
+                    }
+                    className="h-9 text-sm"
+                    placeholder={item.label}
+                  />
+                )}
+              </label>
+            ))}
           </div>
         ) : (
           <p>
-            {asString(workerRow.provincia) || "-"} •{" "}
-            {asString(workerRow.cap) || "-"} •{" "}
-            {asString(workerRow.indirizzo_residenza_completo) || "-"}
+            {[workerVia, workerCivico, workerCap, workerCitta, workerProvincia]
+              .map((v) => (typeof v === "string" ? v.trim() : ""))
+              .filter((v) => v && v !== "-")
+              .join(" • ") || "-"}
           </p>
         )}
       </div>
@@ -1573,7 +1603,14 @@ export function WorkerPipelineSummaryCards({
   relatedActiveSearchesLoading = false,
   onOpenRelatedSearch,
   onPatchWorkerField,
+  onPatchWorkerAddress,
   onPatchProcessField,
+  workerVia,
+  workerCivico,
+  workerCap,
+  workerCitta,
+  workerProvincia,
+  workerCitofono,
   processWeeklyHours,
   familyAddress,
   familyCap,
@@ -1670,7 +1707,14 @@ export function WorkerPipelineSummaryCards({
         workerRow={workerRow}
         selectionRow={selectionRow}
         onPatchWorkerField={onPatchWorkerField}
+        onPatchWorkerAddress={onPatchWorkerAddress}
         onPatchProcessField={onPatchProcessField}
+        workerVia={workerVia}
+        workerCivico={workerCivico}
+        workerCap={workerCap}
+        workerCitta={workerCitta}
+        workerProvincia={workerProvincia}
+        workerCitofono={workerCitofono}
         familyAddress={familyAddress}
         familyCap={familyCap}
         familyProvince={familyProvince}

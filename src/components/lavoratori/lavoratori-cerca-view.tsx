@@ -1113,6 +1113,7 @@ export function LavoratoriCercaView({
     handleNonIdoneoReasonsChange,
     handleBlacklistChange,
     patchSelectedWorkerField,
+    patchWorkerAddressField,
     commitAddressField,
     saveWorkerAvailability,
     patchWorkerAvailabilityStatus,
@@ -1765,9 +1766,12 @@ export function LavoratoriCercaView({
                     addressDraft={addressDraft}
                     provinciaOptions={provinciaLookupOptions}
                     mobilityOptions={mobilityLookupOptions}
-                    selectedProvincia={asString(selectedWorkerRow?.provincia)}
-                    selectedCap={asString(selectedWorkerAddress?.cap)}
-                    selectedAddress={formatWorkerAddressLine(selectedWorkerAddress)}
+                    selectedVia={asString(selectedWorkerAddress?.via) || null}
+                    selectedCivico={asString(selectedWorkerAddress?.civico) || null}
+                    selectedCap={asString(selectedWorkerAddress?.cap) || null}
+                    selectedCitta={asString(selectedWorkerAddress?.citta) || null}
+                    selectedProvincia={asString(selectedWorkerAddress?.provincia) || asString(selectedWorkerRow?.provincia) || null}
+                    selectedCitofono={asString(selectedWorkerAddress?.citofono) || null}
                     selectedMobility={readArrayStrings(
                       selectedWorkerRow?.come_ti_sposti,
                     )}
@@ -1775,29 +1779,15 @@ export function LavoratoriCercaView({
                     onToggleEdit={() =>
                       setIsEditingAddress((current) => !current)
                     }
-                    onProvinciaChange={(value) => {
-                      setAddressDraft((current) => ({
-                        ...current,
-                        provincia: value,
-                      }));
-                      void patchSelectedWorkerField("provincia", value || null);
+                    onFieldChange={(field, value) => {
+                      setAddressDraft((current) => ({ ...current, [field]: value }));
+                      if (field === "provincia") {
+                        void patchWorkerAddressField("provincia", value || null);
+                      }
                     }}
-                    onCapChange={(value) =>
-                      setAddressDraft((current) => ({
-                        ...current,
-                        cap: value,
-                      }))
-                    }
-                    onCapBlur={() => void commitAddressField("cap")}
-                    onAddressChange={(value) =>
-                      setAddressDraft((current) => ({
-                        ...current,
-                        indirizzo_residenza_completo: value,
-                      }))
-                    }
-                    onAddressBlur={() =>
-                      void commitAddressField("indirizzo_residenza_completo")
-                    }
+                    onFieldBlur={(field) => {
+                      if (field !== "provincia") void commitAddressField(field);
+                    }}
                     onMobilityChange={(values) => {
                       setAddressDraft((current) => ({
                         ...current,

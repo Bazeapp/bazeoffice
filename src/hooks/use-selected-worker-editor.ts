@@ -67,9 +67,12 @@ type WorkerHeaderDraft = {
 }
 
 type WorkerAddressDraft = {
-  provincia: string
+  via: string
+  civico: string
   cap: string
-  indirizzo_residenza_completo: string
+  citta: string
+  provincia: string
+  citofono: string
   come_ti_sposti: string[]
 }
 
@@ -179,10 +182,12 @@ function buildAddressDraft(
   address?: Record<string, unknown> | null
 ): WorkerAddressDraft {
   return {
-    provincia: asString(row?.provincia),
-    cap: asString(address?.cap) || asString(row?.cap),
-    indirizzo_residenza_completo:
-      formatWorkerAddressLine(address) || asString(row?.indirizzo_residenza_completo),
+    via: asString(address?.via),
+    civico: asString(address?.civico),
+    cap: asString(address?.cap),
+    citta: asString(address?.citta),
+    provincia: asString(address?.provincia) || asString(row?.provincia),
+    citofono: asString(address?.citofono),
     come_ti_sposti: readArrayStrings(row?.come_ti_sposti),
   }
 }
@@ -598,6 +603,16 @@ export function useSelectedWorkerEditor({
     ]
   )
 
+  const patchWorkerAddressField = React.useCallback(
+    async (
+      field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono" | "note",
+      value: string | null
+    ) => {
+      await applyAddressPatch({ [field]: value })
+    },
+    [applyAddressPatch]
+  )
+
   const commitHeaderField = React.useCallback(
     async (
       field:
@@ -621,9 +636,12 @@ export function useSelectedWorkerEditor({
   const commitAddressField = React.useCallback(
     async (
       field:
-        | "provincia"
+        | "via"
+        | "civico"
         | "cap"
-        | "indirizzo_residenza_completo"
+        | "citta"
+        | "provincia"
+        | "citofono"
         | "come_ti_sposti"
     ) => {
       if (field === "come_ti_sposti") {
@@ -634,43 +652,14 @@ export function useSelectedWorkerEditor({
         return
       }
 
-      if (field === "cap" || field === "indirizzo_residenza_completo") {
-        const currentValue =
-          field === "cap"
-            ? asString(selectedWorkerAddress?.cap)
-            : formatWorkerAddressLine(selectedWorkerAddress)
-        const rawValue = addressDraft[field].trim()
-        const nextValue =
-          field === "cap" ? rawValue.replace(/\s+/g, "").toUpperCase() : rawValue
-        if (field === "cap" && nextValue && !/^[A-Z0-9]{3,10}$/.test(nextValue)) {
-          setError("Formato CAP non valido (3-10 caratteri alfanumerici).")
-          return
-        }
-        if (nextValue === currentValue) return
-        await applyAddressPatch(
-          field === "cap"
-            ? { cap: nextValue || null }
-            : {
-                via: nextValue || null,
-                indirizzo_formattato: nextValue || null,
-              }
-        )
-        return
-      }
-
-      const currentValue = asString(selectedWorkerRow?.[field])
-      const rawValue = addressDraft[field].trim()
-      const nextValue = rawValue
-      if (nextValue === currentValue) return
-      await patchSelectedWorkerField(field, nextValue || null)
+      const nextValue = addressDraft[field].trim() || null
+      await applyAddressPatch({ [field]: nextValue })
     },
     [
       addressDraft,
       applyAddressPatch,
       patchSelectedWorkerField,
-      selectedWorkerAddress,
       selectedWorkerRow,
-      setError,
     ]
   )
 
@@ -1023,6 +1012,7 @@ export function useSelectedWorkerEditor({
     handleNonIdoneoReasonsChange,
     handleBlacklistChange,
     patchSelectedWorkerField,
+    patchWorkerAddressField,
     commitHeaderField,
     commitAddressField,
     saveWorkerAvailability,
