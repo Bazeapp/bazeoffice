@@ -1290,7 +1290,7 @@ type ExperienceReferencesCardProps = {
   onGenerateAiSummary?: () => Promise<void> | void;
   children?: React.ReactNode;
   isUpdating: boolean;
-  draft: ExperienceDraft;
+  draft?: ExperienceDraft;
   experiences: EsperienzaLavoratoreRecord[];
   experiencesLoading: boolean;
   references: ReferenzaLavoratoreRecord[];

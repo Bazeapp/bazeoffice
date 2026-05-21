@@ -1076,7 +1076,6 @@ function ExperienceBlock({
       showCreateExperienceAction={isEditing}
       collapsible
       isUpdating={isUpdating}
-      draft={draft}
       experiences={experiences}
       experiencesLoading={experiencesLoading}
       aiSummaryValue={asString(workerRow.riassunto_profilo_breve)}
