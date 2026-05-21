@@ -345,7 +345,7 @@ function VariazioniDetailSheet({
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const previousCardIdRef = React.useRef<string | null>(card?.id ?? null);
   const latestCardRef = React.useRef<VariazioniBoardCardData | null>(card);
-  const [detailsDraft, setDetailsDraft] = React.useState(() => buildVariazioneDetailsDraft(card));
+  const [, setDetailsDraft] = React.useState(() => buildVariazioneDetailsDraft(card));
   const [rapportoDraft, setRapportoDraft] = React.useState(() => buildVariazioneRapportoDraft(card));
   const distributionItems = buildDistributionItems(
     card?.rapporto?.distribuzione_ore_settimana ?? null,

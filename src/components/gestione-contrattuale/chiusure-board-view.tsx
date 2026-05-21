@@ -13,6 +13,7 @@ import {
   useChiusureBoard,
 } from "@/hooks/use-chiusure-board"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
+import { type AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
   KanbanColumnShell,

@@ -2872,7 +2872,6 @@ export function Gate1View({
     jobSearchDraft,
     setJobSearchDraft,
     experienceDraft,
-    setExperienceDraft,
     skillsDraft,
     setSkillsDraft,
     documentsDraft,

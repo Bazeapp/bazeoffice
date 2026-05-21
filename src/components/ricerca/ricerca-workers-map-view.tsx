@@ -39,7 +39,6 @@ import {
 } from "@/lib/availability-functions"
 import {
   distanceKmBetweenCoordinates,
-  parseCoordinates,
   type GeoCoordinates,
 } from "@/lib/geo-utils"
 import { cn } from "@/lib/utils"

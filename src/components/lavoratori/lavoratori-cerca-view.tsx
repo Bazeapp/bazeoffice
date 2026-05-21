@@ -1105,7 +1105,6 @@ export function LavoratoriCercaView({
     jobSearchDraft,
     setJobSearchDraft,
     experienceDraft,
-    setExperienceDraft,
     skillsDraft,
     setSkillsDraft,
     documentsDraft,

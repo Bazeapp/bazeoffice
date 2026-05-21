@@ -1341,7 +1341,6 @@ export function ExperienceReferencesCard({
   onGenerateAiSummary,
   children,
   isUpdating,
-  draft,
   experiences,
   experiencesLoading,
   references,
