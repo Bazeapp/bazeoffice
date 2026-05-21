@@ -84,7 +84,7 @@ import {
   asLavoratoreRecord,
   asInputValue,
   asString,
-  formatWorkerAddressLine,
+  getStripeAccountMissingRequirements,
   normalizeDomesticRoleDbLabels,
   normalizeDomesticRoleLabels,
   normalizeDomesticRoleLookupValues,
@@ -2481,12 +2481,8 @@ function GateAdministrativeFieldsCard({
   onIbanChange: (value: string) => void;
   onGenerateStripeAccount?: () => void | Promise<unknown>;
 }) {
-  const resolvedIbanValue = ibanValue.trim();
   const resolvedStripeAccountValue = stripeAccountValue.trim();
-  const stripeRequirements = [
-    ...(resolvedIbanValue ? [] : ["IBAN"]),
-    ...missingStripeRequirements,
-  ];
+  const stripeRequirements = missingStripeRequirements;
   const canGenerateStripeAccount =
     Boolean(onGenerateStripeAccount) && !resolvedStripeAccountValue;
   const isGenerateStripeAccountDisabled =
@@ -5598,17 +5594,11 @@ export function Gate1View({
                             showAdministrativeFields || gateDocumentsIsEditing
                           }
                           isUpdating={updatingDocuments}
-                          missingStripeRequirements={[
-                            ...(!formatWorkerAddressLine(selectedWorkerAddress)
-                              ? ["Indirizzo"]
-                              : []),
-                            ...(!asString(selectedWorkerAddress?.cap)
-                              ? ["CAP"]
-                              : []),
-                            ...(!asString(selectedWorkerRow?.provincia)
-                              ? ["Provincia"]
-                              : []),
-                          ]}
+                          missingStripeRequirements={getStripeAccountMissingRequirements({
+                            worker: selectedWorkerRow,
+                            address: selectedWorkerAddress,
+                            iban: documentsDraft.iban || resolvedIban,
+                          })}
                           onIbanChange={(value) => {
                             setDocumentsDraft((current) => ({
                               ...current,

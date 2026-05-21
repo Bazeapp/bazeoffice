@@ -236,16 +236,12 @@ function AdministrativeDataSection({
 }) {
   const canEditIban = isEditing && Boolean(onIbanChange)
   const canEditStripeAccount = isEditing && Boolean(onStripeAccountChange)
-  const resolvedIbanValue = ibanValue.trim()
   const resolvedStripeAccountValue =
     stripeAccountValue.trim() || values?.id_stripe_account?.trim() || ""
   const canGenerateStripeAccount =
     Boolean(onGenerateStripeAccount) &&
     !resolvedStripeAccountValue
-  const missingStripeRequirements = [
-    ...(resolvedIbanValue ? [] : ["IBAN"]),
-    ...(values?.missingStripeRequirements ?? []),
-  ]
+  const missingStripeRequirements = values?.missingStripeRequirements ?? []
   const isGenerateStripeAccountDisabled =
     isUpdating || missingStripeRequirements.length > 0
 

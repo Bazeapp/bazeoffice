@@ -40,7 +40,7 @@ import {
   asLavoratoreRecord,
   asInputValue,
   asString,
-  formatWorkerAddressLine,
+  getStripeAccountMissingRequirements,
   normalizeDomesticRoleDbLabels,
   normalizeDomesticRoleLookupValues,
   readArrayStrings,
@@ -2071,17 +2071,11 @@ export function LavoratoriCercaView({
                       id_stripe_account: asString(
                         selectedWorkerRow?.id_stripe_account,
                       ),
-                      missingStripeRequirements: [
-                        ...(!formatWorkerAddressLine(selectedWorkerAddress)
-                          ? ["Indirizzo"]
-                          : []),
-                        ...(!asString(selectedWorkerAddress?.cap)
-                          ? ["CAP"]
-                          : []),
-                        ...(!asString(selectedWorkerRow?.provincia)
-                          ? ["Provincia"]
-                          : []),
-                      ],
+                      missingStripeRequirements: getStripeAccountMissingRequirements({
+                        worker: selectedWorkerRow,
+                        address: selectedWorkerAddress,
+                        iban: documentsDraft.iban || resolvedIban,
+                      }),
                     }}
                     onToggleEdit={() =>
                       setIsEditingDocuments((current) => !current)

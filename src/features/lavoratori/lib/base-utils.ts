@@ -214,6 +214,33 @@ export function formatWorkerAddressLine(address?: Record<string, unknown> | null
   return [asString(address.via), asString(address.civico)].filter(Boolean).join(" ").trim()
 }
 
+export function getStripeAccountMissingRequirements({
+  worker,
+  address,
+  iban,
+}: {
+  worker?: Record<string, unknown> | null
+  address?: Record<string, unknown> | null
+  iban?: unknown
+}) {
+  const resolvedWorker = asRecord(worker)
+  const resolvedAddress = asRecord(address)
+  const resolvedIban = asString(iban) || asString(resolvedWorker.iban)
+
+  return [
+    ...(asString(resolvedWorker.nome) ? [] : ["Nome"]),
+    ...(asString(resolvedWorker.cognome) ? [] : ["Cognome"]),
+    ...(asString(resolvedWorker.email) ? [] : ["Email"]),
+    ...(asString(resolvedWorker.telefono) ? [] : ["Telefono"]),
+    ...(asString(resolvedWorker.data_di_nascita) ? [] : ["Data di nascita"]),
+    ...(resolvedIban ? [] : ["IBAN"]),
+    ...(formatWorkerAddressLine(address) ? [] : ["Indirizzo"]),
+    ...(asString(resolvedAddress.cap) ? [] : ["CAP"]),
+    ...(asString(resolvedAddress.citta) ? [] : ["Citta"]),
+    ...(asString(resolvedAddress.provincia) ? [] : ["Provincia"]),
+  ]
+}
+
 export function toAvatarUrl(row: Record<string, unknown>) {
   const permalinkPhotoUrl = sanitizeWorkerImageUrl(row.permalink_foto)
   if (permalinkPhotoUrl) return permalinkPhotoUrl

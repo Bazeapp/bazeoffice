@@ -120,6 +120,7 @@ const CRM_PIPELINE_PROCESSI_SELECT = [
   "cura_piante",
   "testo_annuncio_whatsapp",
   "aggiornato_il",
+  "creato_il",
 ]
 
 const CRM_PIPELINE_FAMIGLIE_SELECT = [
@@ -925,7 +926,7 @@ function mapCardData(
     nomeFamiglia: familyName || "-",
     email: displayValue(family.email),
     telefono: displayValue(family.telefono),
-    dataLead: formatItalianDate(family.creato_il),
+    dataLead: formatItalianDate(process.creato_il),
     tipoLavoroBadges,
     tipoLavoroColors: Object.fromEntries(
       tipoLavoroBadges.map((value) => [
@@ -966,7 +967,7 @@ function mapCardData(
     appuntiChiamataSales: displayValue(process.appunti_chiamata_sales),
     dataPerRicercaFutura: formatItalianDate(process.data_per_ricerca_futura),
     dataCallPrenotata: formatItalianDateTime(family.data_call_prenotata),
-    dataLeadRaw: toStringValue(family.creato_il),
+    dataLeadRaw: toStringValue(process.creato_il),
     dataPerRicercaFuturaRaw: toStringValue(process.data_per_ricerca_futura),
     dataCallPrenotataRaw: toStringValue(family.data_call_prenotata),
     tentativiChiamataCount: getFlexibleStringArrayValue(process.sales_cold_call_followup).length,
