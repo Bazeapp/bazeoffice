@@ -83,6 +83,16 @@ type WorkerPipelineSummaryCardsProps = {
     field: keyof LavoratoreRecord,
     value: unknown,
   ) => Promise<void> | void;
+  onPatchWorkerAddress?: (
+    field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono" | "note",
+    value: string | null,
+  ) => Promise<void>;
+  workerVia?: string | null;
+  workerCivico?: string | null;
+  workerCap?: string | null;
+  workerCitta?: string | null;
+  workerProvincia?: string | null;
+  workerCitofono?: string | null;
   onPatchProcessField?: (
     field:
       | "indirizzo_prova_provincia"

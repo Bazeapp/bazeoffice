@@ -1771,7 +1771,7 @@ export function LavoratoriCercaView({
                     selectedCap={asString(selectedWorkerAddress?.cap) || null}
                     selectedCitta={asString(selectedWorkerAddress?.citta) || null}
                     selectedProvincia={asString(selectedWorkerAddress?.provincia) || asString(selectedWorkerRow?.provincia) || null}
-                    selectedCitofono={asString(selectedWorkerAddress?.citofono) || null}
+
                     selectedMobility={readArrayStrings(
                       selectedWorkerRow?.come_ti_sposti,
                     )}

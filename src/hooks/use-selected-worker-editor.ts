@@ -27,7 +27,6 @@ import {
   asInputValue,
   asLavoratoreRecord,
   asString,
-  formatWorkerAddressLine,
   getAgeFromBirthDate,
   parseNumberValue,
   readArrayStrings,

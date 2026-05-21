@@ -56,7 +56,6 @@ type AddressSectionCardProps = {
   selectedCap?: string | null
   selectedCitta?: string | null
   selectedProvincia?: string | null
-  selectedCitofono?: string | null
   selectedMobility: string[]
   mobilityAnchor: React.RefObject<HTMLDivElement | null>
   onToggleEdit: () => void
@@ -93,7 +92,6 @@ export function AddressSectionCard({
   selectedCap,
   selectedCitta,
   selectedProvincia,
-  selectedCitofono,
   selectedMobility,
   mobilityAnchor,
   onToggleEdit,
