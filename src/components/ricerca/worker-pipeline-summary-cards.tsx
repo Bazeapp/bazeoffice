@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { AvailabilityCalendarCard } from "@/components/lavoratori/availability-calendar-card";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { DocumentsCard } from "@/components/lavoratori/documents-card";
 import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
@@ -192,13 +193,7 @@ type WorkerPipelineSummaryCardsProps = {
       situazione_lavorativa_attuale: string;
     }>,
   ) => void;
-  onExperienceFieldBlur: (
-    field:
-      | "anni_esperienza_colf"
-      | "anni_esperienza_badante"
-      | "anni_esperienza_babysitter"
-      | "situazione_lavorativa_attuale",
-  ) => void;
+  onExperienceFieldSave: (field: string, value: string) => void;
   onExperiencePatch: (
     experienceId: string,
     patch: Partial<EsperienzaLavoratoreRecord>,
@@ -239,11 +234,8 @@ type WorkerPipelineSummaryCardsProps = {
   onDocumentVerificationChange: (value: string) => void;
   onDocumentStatusChange: (value: string) => void;
   onDocumentNaspiChange: (value: string) => void;
-  onDocumentNaspiBlur: () => void;
   onDocumentIbanChange: (value: string) => void;
-  onDocumentIbanBlur: () => void;
   onDocumentStripeAccountChange: (value: string) => void;
-  onDocumentStripeAccountBlur: () => void;
   onDocumentUpsert: (row: DocumentoLavoratoreRecord) => void;
   onDocumentUploadError: React.Dispatch<React.SetStateAction<string | null>>;
 };
@@ -962,7 +954,7 @@ function ExperienceBlock({
   onDraftChange,
   onJobSearchDraftChange,
   onJobSearchFieldPatch,
-  onFieldBlur,
+  onFieldSave,
   onExperiencePatch,
   onExperienceCreate,
   onExperienceDelete,
@@ -1003,13 +995,7 @@ function ExperienceBlock({
   ) => void;
   onJobSearchDraftChange: WorkerPipelineSummaryCardsProps["onJobSearchDraftChange"];
   onJobSearchFieldPatch: WorkerPipelineSummaryCardsProps["onJobSearchFieldPatch"];
-  onFieldBlur: (
-    field:
-      | "anni_esperienza_colf"
-      | "anni_esperienza_badante"
-      | "anni_esperienza_babysitter"
-      | "situazione_lavorativa_attuale",
-  ) => void;
+  onFieldSave: (field: string, value: string) => void;
   onExperiencePatch: (
     experienceId: string,
     patch: Partial<EsperienzaLavoratoreRecord>,
@@ -1026,6 +1012,23 @@ function ExperienceBlock({
     values: Partial<ReferenzaLavoratoreRecord>,
   ) => Promise<void> | void;
 }) {
+  const { onChange: saveColf } = useDebouncedSave(
+    asInputValue(workerRow.anni_esperienza_colf),
+    async (v) => { onFieldSave("anni_esperienza_colf", v); },
+  );
+  const { onChange: saveBadante } = useDebouncedSave(
+    asInputValue(workerRow.anni_esperienza_badante),
+    async (v) => { onFieldSave("anni_esperienza_badante", v); },
+  );
+  const { onChange: saveBabysitter } = useDebouncedSave(
+    asInputValue(workerRow.anni_esperienza_babysitter),
+    async (v) => { onFieldSave("anni_esperienza_babysitter", v); },
+  );
+  const { onChange: saveSituazione } = useDebouncedSave(
+    asString(workerRow.situazione_lavorativa_attuale),
+    async (v) => { onFieldSave("situazione_lavorativa_attuale", v); },
+  );
+
   return (
     <ExperienceReferencesCard
       workerId={workerRow.id}
@@ -1058,26 +1061,22 @@ function ExperienceBlock({
         workerRow.situazione_lavorativa_attuale,
       )}
       onToggleEdit={onToggleEdit}
-      onAnniEsperienzaColfChange={(value) =>
-        onDraftChange({ anni_esperienza_colf: value })
-      }
-      onAnniEsperienzaBadanteChange={(value) =>
-        onDraftChange({ anni_esperienza_badante: value })
-      }
-      onAnniEsperienzaBabysitterChange={(value) =>
-        onDraftChange({ anni_esperienza_babysitter: value })
-      }
-      onSituazioneLavorativaAttualeChange={(value) =>
-        onDraftChange({ situazione_lavorativa_attuale: value })
-      }
-      onAnniEsperienzaColfBlur={() => onFieldBlur("anni_esperienza_colf")}
-      onAnniEsperienzaBadanteBlur={() => onFieldBlur("anni_esperienza_badante")}
-      onAnniEsperienzaBabysitterBlur={() =>
-        onFieldBlur("anni_esperienza_babysitter")
-      }
-      onSituazioneLavorativaAttualeBlur={() =>
-        onFieldBlur("situazione_lavorativa_attuale")
-      }
+      onAnniEsperienzaColfChange={(value) => {
+        onDraftChange({ anni_esperienza_colf: value });
+        saveColf(value);
+      }}
+      onAnniEsperienzaBadanteChange={(value) => {
+        onDraftChange({ anni_esperienza_badante: value });
+        saveBadante(value);
+      }}
+      onAnniEsperienzaBabysitterChange={(value) => {
+        onDraftChange({ anni_esperienza_babysitter: value });
+        saveBabysitter(value);
+      }}
+      onSituazioneLavorativaAttualeChange={(value) => {
+        onDraftChange({ situazione_lavorativa_attuale: value });
+        saveSituazione(value);
+      }}
       onExperiencePatch={onExperiencePatch}
       onExperienceCreate={onExperienceCreate}
       onExperienceDelete={onExperienceDelete}
@@ -1633,7 +1632,7 @@ export function WorkerPipelineSummaryCards({
   updatingExperience,
   experienceDraft,
   onExperienceDraftChange,
-  onExperienceFieldBlur,
+  onExperienceFieldSave,
   onExperiencePatch,
   onExperienceCreate,
   onExperienceDelete,
@@ -1655,11 +1654,8 @@ export function WorkerPipelineSummaryCards({
   onDocumentVerificationChange,
   onDocumentStatusChange,
   onDocumentNaspiChange,
-  onDocumentNaspiBlur,
   onDocumentIbanChange,
-  onDocumentIbanBlur,
   onDocumentStripeAccountChange,
-  onDocumentStripeAccountBlur,
   onDocumentUpsert,
   onDocumentUploadError,
 }: WorkerPipelineSummaryCardsProps) {
@@ -1710,7 +1706,7 @@ export function WorkerPipelineSummaryCards({
         onDraftChange={onExperienceDraftChange}
         onJobSearchDraftChange={onJobSearchDraftChange}
         onJobSearchFieldPatch={onJobSearchFieldPatch}
-        onFieldBlur={onExperienceFieldBlur}
+        onFieldSave={onExperienceFieldSave}
         onExperiencePatch={onExperiencePatch}
         onExperienceCreate={onExperienceCreate}
         onExperienceDelete={onExperienceDelete}
@@ -1807,11 +1803,8 @@ export function WorkerPipelineSummaryCards({
         onVerificationChange={onDocumentVerificationChange}
         onStatoDocumentiChange={onDocumentStatusChange}
         onNaspiChange={onDocumentNaspiChange}
-        onNaspiBlur={onDocumentNaspiBlur}
         onIbanChange={onDocumentIbanChange}
-        onIbanBlur={onDocumentIbanBlur}
         onStripeAccountChange={onDocumentStripeAccountChange}
-        onStripeAccountBlur={onDocumentStripeAccountBlur}
         onDocumentUpsert={onDocumentUpsert}
         onUploadError={onDocumentUploadError}
         collapsible

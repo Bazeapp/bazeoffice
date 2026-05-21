@@ -316,6 +316,15 @@ async function trackWrite<TResponse>(operation: Promise<TResponse>) {
   }
 }
 
+export function beginPendingWrite() {
+  installPendingWriteUnloadGuard()
+  pendingWriteCount += 1
+}
+
+export function endPendingWrite() {
+  pendingWriteCount = Math.max(0, pendingWriteCount - 1)
+}
+
 function makeTableQueryCacheKey(payload: TableQueryRequest) {
   return JSON.stringify(payload)
 }

@@ -32,6 +32,7 @@ type AssunzioniStageDefinition = {
 export type AssunzioneRecord = {
   id: string
   creato_il?: string | null
+  delega_inps_allegati: Record<string, unknown> | Record<string, unknown>[] | null
   civico_se_diverso_residenza: string | null
   codice_fiscale_allegati: Record<string, unknown> | Record<string, unknown>[] | null
   comune_se_diverso_residenza: string | null
@@ -163,6 +164,7 @@ const ASSUNZIONI_FAMIGLIE_SELECT = [
 const ASSUNZIONI_RAPPORTI_SELECT = [
   "id",
   "id_rapporto",
+  "accordo_di_lavoro_allegati",
   "codice_datore_webcolf",
   "codice_dipendente_webcolf",
   "processi_matching_id",
@@ -178,8 +180,10 @@ const ASSUNZIONI_RAPPORTI_SELECT = [
   "distribuzione_ore_settimana",
   "paga_mensile_lorda",
   "paga_oraria_lorda",
+  "ricevuta_inps_allegati",
   "tipo_contratto",
   "tipo_rapporto",
+  "metadati_migrazione",
 ] satisfies string[]
 
 const ASSUNZIONI_LAVORATORI_SELECT = [
@@ -194,6 +198,7 @@ const ASSUNZIONI_LAVORATORI_SELECT = [
 
 const ASSUNZIONI_RECORD_SELECT = [
   "id",
+  "delega_inps_allegati",
   "civico_se_diverso_residenza",
   "codice_fiscale_allegati",
   "comune_se_diverso_residenza",
@@ -788,12 +793,12 @@ async function fetchAssunzioniBoardData({
     const lavoratore =
       linkedRapporto?.lavoratore_id ? lavoratoriById.get(linkedRapporto.lavoratore_id) ?? null : null
     const datoreAssunzione =
-      (family?.id ? assunzioniByFamigliaId.get(family.id) ?? null : null) ??
       assunzioniByDatoreRapportoId.get(linkedRapporto.id) ??
+      (family?.id ? assunzioniByFamigliaId.get(family.id) ?? null : null) ??
       null
     const lavoratoreAssunzione =
-      (lavoratore?.id ? assunzioniByLavoratoreId.get(lavoratore.id) ?? null : null) ??
       assunzioniByLavoratoreRapportoId.get(linkedRapporto.id) ??
+      (lavoratore?.id ? assunzioniByLavoratoreId.get(lavoratore.id) ?? null : null) ??
       null
     const nomeFamiglia = resolveFamilyName(datoreAssunzione, family, linkedRapporto)
     const nomeLavoratore = resolveWorkerName(lavoratoreAssunzione, lavoratore, linkedRapporto)

@@ -1,4 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  insertFieldAuditLogs,
+  resolveAuditActor,
+} from "../_shared/audit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -556,6 +560,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(url, serviceRole, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const auditActor = await resolveAuditActor(supabase, req);
 
   const currentRecordSelect = "*";
 
@@ -617,6 +622,9 @@ Deno.serve(async (req) => {
 
   const updatedAtField = AUTO_UPDATED_AT_FIELD[table];
   sanitizedPatch[updatedAtField] = new Date().toISOString();
+  const auditFields = Object.keys(sanitizedPatch).filter(
+    (field) => field !== updatedAtField
+  );
 
   const { data: updatedRecord, error: updateError } = await supabase
     .from(table)
@@ -628,6 +636,17 @@ Deno.serve(async (req) => {
   if (updateError) {
     return serverError(updateError.message);
   }
+
+  await insertFieldAuditLogs(supabase, {
+    actor: auditActor,
+    operation: "update",
+    tableName: table,
+    recordId: id,
+    source: "update-record",
+    oldRecord: currentRecord as Record<string, unknown>,
+    newRecord: updatedRecord as Record<string, unknown>,
+    fields: auditFields,
+  });
 
   if (table === "selezioni_lavoratori" && "stato_selezione" in sanitizedPatch) {
     const previousStatus = normalizeToken(

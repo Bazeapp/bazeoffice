@@ -76,6 +76,7 @@ import {
   normalizeAttachmentArray,
 } from "@/lib/attachments";
 import { invokeAiGenerationFunction } from "@/lib/ai-generation";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { supabase } from "@/lib/supabase-client";
 import {
   Select,
@@ -1122,10 +1123,8 @@ export function LavoratoriCercaView({
     deleteExperienceRecord,
     patchReferenceRecord,
     createReferenceRecord,
-    commitExperienceField,
     patchSkillsField,
     patchDocumentField,
-    commitDocumentField,
     generateStripeAccount,
     AVAILABILITY_EDIT_DAYS,
     AVAILABILITY_EDIT_BANDS,
@@ -1145,6 +1144,35 @@ export function LavoratoriCercaView({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
+
+  const { onChange: saveAnniEsperienzaColf } = useDebouncedSave(
+    asString(selectedWorkerRow?.anni_esperienza_colf),
+    async (v) => { await patchSelectedWorkerField("anni_esperienza_colf", v ? Number(v) : null); },
+  );
+  const { onChange: saveAnniEsperienzaBadante } = useDebouncedSave(
+    asString(selectedWorkerRow?.anni_esperienza_badante),
+    async (v) => { await patchSelectedWorkerField("anni_esperienza_badante", v ? Number(v) : null); },
+  );
+  const { onChange: saveAnniEsperienzaBabysitter } = useDebouncedSave(
+    asString(selectedWorkerRow?.anni_esperienza_babysitter),
+    async (v) => { await patchSelectedWorkerField("anni_esperienza_babysitter", v ? Number(v) : null); },
+  );
+  const { onChange: saveSituazioneLavorativaAttuale } = useDebouncedSave(
+    asString(selectedWorkerRow?.situazione_lavorativa_attuale),
+    async (v) => { await patchSelectedWorkerField("situazione_lavorativa_attuale", v.trim() || null); },
+  );
+  const { onChange: saveNaspiLCV } = useDebouncedSave(
+    asString(selectedWorkerRow?.data_scadenza_naspi),
+    async (v) => { await patchDocumentField("data_scadenza_naspi", v || null); },
+  );
+  const { onChange: saveIbanLCV } = useDebouncedSave(
+    resolvedIban,
+    async (v) => { await patchDocumentField("iban", v || null); },
+  );
+  const { onChange: saveStripeAccountLCV } = useDebouncedSave(
+    asString(selectedWorkerRow?.id_stripe_account),
+    async (v) => { await patchDocumentField("id_stripe_account", v || null); },
+  );
 
   const handleGenerateWorkerSummary = React.useCallback(async () => {
     if (!selectedWorkerId) return;
@@ -1959,44 +1987,34 @@ export function LavoratoriCercaView({
                     onToggleEdit={() =>
                       setIsEditingExperience((current) => !current)
                     }
-                    onAnniEsperienzaColfChange={(value) =>
+                    onAnniEsperienzaColfChange={(value) => {
                       setExperienceDraft((current) => ({
                         ...current,
                         anni_esperienza_colf: value,
-                      }))
-                    }
-                    onAnniEsperienzaBadanteChange={(value) =>
+                      }));
+                      saveAnniEsperienzaColf(value);
+                    }}
+                    onAnniEsperienzaBadanteChange={(value) => {
                       setExperienceDraft((current) => ({
                         ...current,
                         anni_esperienza_badante: value,
-                      }))
-                    }
-                    onAnniEsperienzaBabysitterChange={(value) =>
+                      }));
+                      saveAnniEsperienzaBadante(value);
+                    }}
+                    onAnniEsperienzaBabysitterChange={(value) => {
                       setExperienceDraft((current) => ({
                         ...current,
                         anni_esperienza_babysitter: value,
-                      }))
-                    }
-                    onSituazioneLavorativaAttualeChange={(value) =>
+                      }));
+                      saveAnniEsperienzaBabysitter(value);
+                    }}
+                    onSituazioneLavorativaAttualeChange={(value) => {
                       setExperienceDraft((current) => ({
                         ...current,
                         situazione_lavorativa_attuale: value,
-                      }))
-                    }
-                    onAnniEsperienzaColfBlur={() =>
-                      void commitExperienceField("anni_esperienza_colf")
-                    }
-                    onAnniEsperienzaBadanteBlur={() =>
-                      void commitExperienceField("anni_esperienza_badante")
-                    }
-                    onAnniEsperienzaBabysitterBlur={() =>
-                      void commitExperienceField("anni_esperienza_babysitter")
-                    }
-                    onSituazioneLavorativaAttualeBlur={() =>
-                      void commitExperienceField(
-                        "situazione_lavorativa_attuale",
-                      )
-                    }
+                      }));
+                      saveSituazioneLavorativaAttuale(value);
+                    }}
                     onExperiencePatch={(experienceId, patch) =>
                       void patchExperienceRecord(experienceId, patch)
                     }
@@ -2098,31 +2116,27 @@ export function LavoratoriCercaView({
                         value || null,
                       );
                     }}
-                    onNaspiChange={(value) =>
+                    onNaspiChange={(value) => {
                       setDocumentsDraft((current) => ({
                         ...current,
                         data_scadenza_naspi: value,
-                      }))
-                    }
-                    onNaspiBlur={() =>
-                      void commitDocumentField("data_scadenza_naspi")
-                    }
-                    onIbanChange={(value) =>
+                      }));
+                      saveNaspiLCV(value);
+                    }}
+                    onIbanChange={(value) => {
                       setDocumentsDraft((current) => ({
                         ...current,
                         iban: value,
-                      }))
-                    }
-                    onIbanBlur={() => void commitDocumentField("iban")}
-                    onStripeAccountChange={(value) =>
+                      }));
+                      saveIbanLCV(value);
+                    }}
+                    onStripeAccountChange={(value) => {
                       setDocumentsDraft((current) => ({
                         ...current,
                         id_stripe_account: value,
-                      }))
-                    }
-                    onStripeAccountBlur={() =>
-                      void commitDocumentField("id_stripe_account")
-                    }
+                      }));
+                      saveStripeAccountLCV(value);
+                    }}
                     onGenerateStripeAccount={generateStripeAccount}
                     onDocumentUpsert={upsertSelectedWorkerDocument}
                     onUploadError={setError}

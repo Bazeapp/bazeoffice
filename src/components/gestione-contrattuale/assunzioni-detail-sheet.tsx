@@ -36,6 +36,7 @@ import {
   fetchLookupValues,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { useDebouncedSave } from "@/hooks/use-debounced-save"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import {
   findLookupOption,
@@ -74,6 +75,7 @@ const SCONTO_APPLICATO_OPTIONS: LookupOption[] = [
 const ASSUNZIONE_DETAIL_SELECT = [
   "id",
   "creato_il",
+  "delega_inps_allegati",
   "civico_se_diverso_residenza",
   "codice_fiscale_allegati",
   "comune_se_diverso_residenza",
@@ -178,6 +180,7 @@ function sanitizeFileName(name: string) {
 type AssunzioneAttachmentSlot =
   | "documento_identita_allegati"
   | "codice_fiscale_allegati"
+  | "delega_inps_allegati"
   | "permesso_di_soggiorno_allegati"
   | "ricevuta_rinnovo_permesso_allegati"
 
@@ -450,35 +453,99 @@ function RapportoDetailSections({
 }) {
   const rapporto = card.rapporto
   const assunzione = card.assunzione
-  const makeDraft = React.useCallback(() => ({
+  const [draft, setDraft] = React.useState(() => ({
     regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
-    totaleOreLavorative:
-      toInputValue(assunzione?.ore_di_lavoro) ||
-      (rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : ""),
-    distribuzioneOreSettimanali: rapporto?.distribuzione_ore_settimana ?? "",
-    oreLunedi: toInputValue(assunzione?.ore_lunedi),
-    oreMartedi: toInputValue(assunzione?.ore_martedi),
-    oreMercoledi: toInputValue(assunzione?.ore_mercoledi),
-    oreGiovedi: toInputValue(assunzione?.ore_giovedi),
-    oreVenerdi: toInputValue(assunzione?.ore_venerdi),
-    oreSabato: toInputValue(assunzione?.ore_sabato),
-    mezzaGiornataRiposo: assunzione?.mezza_giornata_di_riposo ?? "",
     rapportoCorrispondeResidenza: assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
     tredicesimaRateizzata: assunzione?.tredicesima_rateizzata_mensile ?? "",
-    pagaOraria: rapporto?.paga_oraria_lorda ? String(rapporto.paga_oraria_lorda) : "",
-    pagaMensile: rapporto?.paga_mensile_lorda ? String(rapporto.paga_mensile_lorda) : "",
     telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
-    dataAssunzione: assunzione?.data_assunzione ?? rapporto?.data_inizio_rapporto ?? "",
-    appuntiExtra: assunzione?.note_aggiuntive ?? "",
-  }), [assunzione, rapporto])
-  const [draft, setDraft] = React.useState(makeDraft)
+  }))
 
   React.useEffect(() => {
-    setDraft(makeDraft())
+    setDraft({
+      regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
+      rapportoCorrispondeResidenza: assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
+      tredicesimaRateizzata: assunzione?.tredicesima_rateizzata_mensile ?? "",
+      telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
+    })
   }, [assunzione?.id, card.id, rapporto?.id])
 
   const setValue = (key: keyof typeof draft, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }))
+
+  const { value: totaleOreLavorative, onChange: onTotaleOreLavorativeChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_di_lavoro) || (rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : ""),
+    async (value) => {
+      await Promise.all([
+        onRapportoPatch({ ore_a_settimana: toNullableNumber(value) }),
+        onAssunzionePatch({ ore_di_lavoro: toNullableNumber(value) }),
+      ])
+    }
+  )
+
+  const { value: distribuzioneOreSettimanali, onChange: onDistribuzioneChange } = useDebouncedSave(
+    rapporto?.distribuzione_ore_settimana ?? "",
+    async (value) => { await onRapportoPatch({ distribuzione_ore_settimana: value || null }) }
+  )
+
+  const { value: oreLunedi, onChange: onOreLunediChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_lunedi),
+    async (value) => { await onAssunzionePatch({ ore_lunedi: toNullableNumber(value) }) }
+  )
+
+  const { value: oreMartedi, onChange: onOreMartediChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_martedi),
+    async (value) => { await onAssunzionePatch({ ore_martedi: toNullableNumber(value) }) }
+  )
+
+  const { value: oreMercoledi, onChange: onOreMercolediChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_mercoledi),
+    async (value) => { await onAssunzionePatch({ ore_mercoledi: toNullableNumber(value) }) }
+  )
+
+  const { value: oreGiovedi, onChange: onOreGiovediChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_giovedi),
+    async (value) => { await onAssunzionePatch({ ore_giovedi: toNullableNumber(value) }) }
+  )
+
+  const { value: oreVenerdi, onChange: onOreVenerdiChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_venerdi),
+    async (value) => { await onAssunzionePatch({ ore_venerdi: toNullableNumber(value) }) }
+  )
+
+  const { value: oreSabato, onChange: onOreSabatoChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_sabato),
+    async (value) => { await onAssunzionePatch({ ore_sabato: toNullableNumber(value) }) }
+  )
+
+  const { value: mezzaGiornataRiposo, onChange: onMezzaGiornataRiposoChange } = useDebouncedSave(
+    assunzione?.mezza_giornata_di_riposo ?? "",
+    async (value) => { await onAssunzionePatch({ mezza_giornata_di_riposo: value || null }) }
+  )
+
+  const { value: pagaOraria, onChange: onPagaOrariaChange } = useDebouncedSave(
+    rapporto?.paga_oraria_lorda ? String(rapporto.paga_oraria_lorda) : "",
+    async (value) => { await onRapportoPatch({ paga_oraria_lorda: toNullableNumber(value) }) }
+  )
+
+  const { value: pagaMensile, onChange: onPagaMensileChange } = useDebouncedSave(
+    rapporto?.paga_mensile_lorda ? String(rapporto.paga_mensile_lorda) : "",
+    async (value) => { await onRapportoPatch({ paga_mensile_lorda: toNullableNumber(value) }) }
+  )
+
+  const { value: dataAssunzioneRapporto, onChange: onDataAssunzioneRapportoChange } = useDebouncedSave(
+    assunzione?.data_assunzione ?? rapporto?.data_inizio_rapporto ?? "",
+    async (value) => {
+      await Promise.all([
+        onRapportoPatch({ data_inizio_rapporto: value || null }),
+        onAssunzionePatch({ data_assunzione: value || null }),
+      ])
+    }
+  )
+
+  const { value: appuntiExtra, onChange: onAppuntiExtraChange } = useDebouncedSave(
+    assunzione?.note_aggiuntive ?? "",
+    async (value) => { await onAssunzionePatch({ note_aggiuntive: value || null }) }
+  )
 
   return (
     <>
@@ -504,32 +571,20 @@ function RapportoDetailSections({
             </SelectContent>
           </Select>
         </EditableField>
-        <EditableField label="Totale ore lavorative">
+        <EditableField label="Ore di lavoro a settimana">
           <Input
             type="number"
-            value={draft.totaleOreLavorative}
-            onChange={(event) => setValue("totaleOreLavorative", event.target.value)}
-            onBlur={(event) => {
-              const nextValue = event.currentTarget.value
-              void Promise.all([
-                onRapportoPatch({ ore_a_settimana: toNullableNumber(nextValue) }),
-                onAssunzionePatch({ ore_di_lavoro: toNullableNumber(nextValue) }),
-              ])
-            }}
+            value={totaleOreLavorative}
+            onChange={(event) => onTotaleOreLavorativeChange(event.target.value)}
           />
         </EditableField>
         <EditableField label="Distribuzione ore settimanali">
           <div className="space-y-2">
             <p className="ui-type-meta">Parte da domenica</p>
             <Input
-              value={draft.distribuzioneOreSettimanali}
+              value={distribuzioneOreSettimanali}
               placeholder="0-0-0-0-0-0-0"
-              onChange={(event) => setValue("distribuzioneOreSettimanali", event.target.value)}
-              onBlur={(event) =>
-                void onRapportoPatch({
-                  distribuzione_ore_settimana: event.currentTarget.value || null,
-                })
-              }
+              onChange={(event) => onDistribuzioneChange(event.target.value)}
             />
           </div>
         </EditableField>
@@ -538,77 +593,54 @@ function RapportoDetailSections({
             <Input
               type="number"
               step="0.25"
-              value={draft.oreLunedi}
-              onChange={(event) => setValue("oreLunedi", event.target.value)}
-              onBlur={(event) =>
-                void onAssunzionePatch({ ore_lunedi: toNullableNumber(event.currentTarget.value) })
-              }
+              value={oreLunedi}
+              onChange={(event) => onOreLunediChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Ore martedi">
             <Input
               type="number"
               step="0.25"
-              value={draft.oreMartedi}
-              onChange={(event) => setValue("oreMartedi", event.target.value)}
-              onBlur={(event) =>
-                void onAssunzionePatch({ ore_martedi: toNullableNumber(event.currentTarget.value) })
-              }
+              value={oreMartedi}
+              onChange={(event) => onOreMartediChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Ore mercoledi">
             <Input
               type="number"
               step="0.25"
-              value={draft.oreMercoledi}
-              onChange={(event) => setValue("oreMercoledi", event.target.value)}
-              onBlur={(event) =>
-                void onAssunzionePatch({ ore_mercoledi: toNullableNumber(event.currentTarget.value) })
-              }
+              value={oreMercoledi}
+              onChange={(event) => onOreMercolediChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Ore giovedi">
             <Input
               type="number"
               step="0.25"
-              value={draft.oreGiovedi}
-              onChange={(event) => setValue("oreGiovedi", event.target.value)}
-              onBlur={(event) =>
-                void onAssunzionePatch({ ore_giovedi: toNullableNumber(event.currentTarget.value) })
-              }
+              value={oreGiovedi}
+              onChange={(event) => onOreGiovediChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Ore venerdi">
             <Input
               type="number"
               step="0.25"
-              value={draft.oreVenerdi}
-              onChange={(event) => setValue("oreVenerdi", event.target.value)}
-              onBlur={(event) =>
-                void onAssunzionePatch({ ore_venerdi: toNullableNumber(event.currentTarget.value) })
-              }
+              value={oreVenerdi}
+              onChange={(event) => onOreVenerdiChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Ore sabato">
             <Input
               type="number"
               step="0.25"
-              value={draft.oreSabato}
-              onChange={(event) => setValue("oreSabato", event.target.value)}
-              onBlur={(event) =>
-                void onAssunzionePatch({ ore_sabato: toNullableNumber(event.currentTarget.value) })
-              }
+              value={oreSabato}
+              onChange={(event) => onOreSabatoChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Giorno/mezza giornata di riposo">
             <Input
-              value={draft.mezzaGiornataRiposo}
-              onChange={(event) => setValue("mezzaGiornataRiposo", event.target.value)}
-              onBlur={(event) =>
-                void onAssunzionePatch({
-                  mezza_giornata_di_riposo: event.currentTarget.value || null,
-                })
-              }
+              value={mezzaGiornataRiposo}
+              onChange={(event) => onMezzaGiornataRiposoChange(event.target.value)}
             />
           </EditableField>
         </div>
@@ -658,26 +690,16 @@ function RapportoDetailSections({
             <Input
               type="number"
               step="0.01"
-              value={draft.pagaOraria}
-              onChange={(event) => setValue("pagaOraria", event.target.value)}
-              onBlur={() =>
-                void onRapportoPatch({
-                  paga_oraria_lorda: toNullableNumber(draft.pagaOraria),
-                })
-              }
+              value={pagaOraria}
+              onChange={(event) => onPagaOrariaChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Paga mensile">
             <Input
               type="number"
               step="0.01"
-              value={draft.pagaMensile}
-              onChange={(event) => setValue("pagaMensile", event.target.value)}
-              onBlur={() =>
-                void onRapportoPatch({
-                  paga_mensile_lorda: toNullableNumber(draft.pagaMensile),
-                })
-              }
+              value={pagaMensile}
+              onChange={(event) => onPagaMensileChange(event.target.value)}
             />
           </EditableField>
         </div>
@@ -701,25 +723,14 @@ function RapportoDetailSections({
         <EditableField label="Data di assunzione">
           <Input
             type="date"
-            value={draft.dataAssunzione}
-            onChange={(event) => setValue("dataAssunzione", event.target.value)}
-            onBlur={() =>
-              void Promise.all([
-                onRapportoPatch({
-                  data_inizio_rapporto: draft.dataAssunzione || null,
-                }),
-                onAssunzionePatch({
-                  data_assunzione: draft.dataAssunzione || null,
-                }),
-              ])
-            }
+            value={dataAssunzioneRapporto}
+            onChange={(event) => onDataAssunzioneRapportoChange(event.target.value)}
           />
         </EditableField>
         <EditableField label="Appunti extra">
           <Textarea
-            value={draft.appuntiExtra}
-            onChange={(event) => setValue("appuntiExtra", event.target.value)}
-            onBlur={() => void onAssunzionePatch({ note_aggiuntive: draft.appuntiExtra || null })}
+            value={appuntiExtra}
+            onChange={(event) => onAppuntiExtraChange(event.target.value)}
             className="min-h-24"
             placeholder="Aggiungi note sul rapporto o sulla pratica"
           />
@@ -747,92 +758,119 @@ function DatoreDetail({
   const rapporto = card.rapporto
   const famiglia = card.famiglia
   const assunzione = card.assunzione
-  const makeDraft = React.useCallback(
-    () => ({
-      appuntiExtra: "",
-      tipoUtente: "DATORE LAVORO",
-      nome: assunzione?.info_anagrafiche_nome ?? famiglia?.nome ?? card.nomeFamiglia.split(" ")[0] ?? "",
-      cognome: assunzione?.info_anagrafiche_cognome ?? famiglia?.cognome ?? card.nomeFamiglia.split(" ").slice(1).join(" ") ?? "",
-      codiceFiscale: assunzione?.info_anagrafiche_codice_fiscale ?? "",
-      cittadinanza: assunzione?.info_anagrafiche_cittadidanza ?? "Italiana",
-      email: assunzione?.info_anagrafiche_email ?? famiglia?.email ?? "",
-      cellulare: assunzione?.info_anagrafiche_numero_mobile ?? famiglia?.telefono ?? "",
-      telefonoFisso: assunzione?.info_anagrafiche_numero_fisso ?? "",
-      dataNascita: assunzione?.info_anagrafiche_data_di_nascita ?? "",
-      luogoNascita: assunzione?.info_anagrafiche_luogo_di_nascita ?? "",
-      indirizzoResidenza: assunzione?.info_anagrafiche_indirizzo ?? "",
-      civico: assunzione?.info_anagrafiche_civico ?? "",
-      localita: assunzione?.info_anagrafiche_localita ?? "",
-      cap: assunzione?.info_anagrafiche_cap ?? "",
-      rapportoCorrispondeResidenza:
-        assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
-      luogoLavoroIndirizzo: assunzione?.luogo_lavoro_se_diverso_da_residenza ?? "",
-      luogoLavoroCivico: assunzione?.civico_se_diverso_residenza ?? "",
-      luogoLavoroComune: assunzione?.comune_se_diverso_residenza ?? "",
-      luogoLavoroProvincia: assunzione?.provincia ?? "",
-      tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
-      numeroDocumento: assunzione?.documento_identita_numero ?? "",
-      scadenzaDocumento: assunzione?.documento_identita_scadenza ?? "",
-      cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
-      regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
-      totaleOreLavorative: rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : "",
-      oreLunedi: "",
-      oreMartedi: "",
-      oreMercoledi: "",
-      oreGiovedi: "",
-      oreVenerdi: "",
-      oreSabato: "",
-      tredicesimaRateizzata: assunzione?.tredicesima_rateizzata_mensile ?? "",
-      pagaOraria: rapporto?.paga_oraria_lorda ? String(rapporto.paga_oraria_lorda) : "",
-      pagaMensile: rapporto?.paga_mensile_lorda ? String(rapporto.paga_mensile_lorda) : "",
-      telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
-      dataAssunzione: rapporto?.data_inizio_rapporto ?? "",
-    }),
-    [
-      card.nomeFamiglia,
-      assunzione?.civico_se_diverso_residenza,
-      assunzione?.comune_se_diverso_residenza,
-      assunzione?.documento_identita_numero,
-      assunzione?.documento_identita_scadenza,
-      assunzione?.documento_identita_tipo,
-      assunzione?.cittadino_extracomunitario,
-      assunzione?.info_anagrafiche_cap,
-      assunzione?.info_anagrafiche_cittadidanza,
-      assunzione?.info_anagrafiche_civico,
-      assunzione?.info_anagrafiche_codice_fiscale,
-      assunzione?.info_anagrafiche_cognome,
-      assunzione?.info_anagrafiche_data_di_nascita,
-      assunzione?.info_anagrafiche_email,
-      assunzione?.info_anagrafiche_indirizzo,
-      assunzione?.info_anagrafiche_localita,
-      assunzione?.info_anagrafiche_luogo_di_nascita,
-      assunzione?.info_anagrafiche_nome,
-      assunzione?.info_anagrafiche_numero_fisso,
-      assunzione?.info_anagrafiche_numero_mobile,
-      assunzione?.luogo_lavoro_se_diverso_da_residenza,
-      assunzione?.provincia,
-      assunzione?.rapporto_di_lavoro_residenza,
-      assunzione?.regime_convivenza,
-      assunzione?.telecamere_posto_lavoro,
-      assunzione?.tredicesima_rateizzata_mensile,
-      famiglia?.cognome,
-      famiglia?.email,
-      famiglia?.nome,
-      famiglia?.telefono,
-      rapporto?.data_inizio_rapporto,
-      rapporto?.ore_a_settimana,
-      rapporto?.paga_mensile_lorda,
-      rapporto?.paga_oraria_lorda,
-    ]
-  )
-  const [draft, setDraft] = React.useState(makeDraft)
+  const [draft, setDraft] = React.useState(() => ({
+    tipoUtente: assunzione?.type_of_compilazione_form ?? "DATORE LAVORO",
+    rapportoCorrispondeResidenza: assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
+    tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
+    cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
+  }))
 
   React.useEffect(() => {
-    setDraft(makeDraft())
+    setDraft({
+      tipoUtente: assunzione?.type_of_compilazione_form ?? "DATORE LAVORO",
+      rapportoCorrispondeResidenza: assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
+      tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
+      cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
+    })
   }, [assunzione?.id, card.id, famiglia?.id, rapporto?.id])
 
   const setValue = (key: keyof typeof draft, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }))
+
+  const { value: nomeD, onChange: onNomeDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_nome ?? famiglia?.nome ?? card.nomeFamiglia.split(" ")[0] ?? "",
+    async (value) => { await onFamigliaPatch({ nome: value || null }) }
+  )
+
+  const { value: cognomeD, onChange: onCognomeDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_cognome ?? famiglia?.cognome ?? card.nomeFamiglia.split(" ").slice(1).join(" ") ?? "",
+    async (value) => { await onFamigliaPatch({ cognome: value || null }) }
+  )
+
+  const { value: emailD, onChange: onEmailDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_email ?? famiglia?.email ?? "",
+    async (value) => { await onFamigliaPatch({ email: value || null }) }
+  )
+
+  const { value: cellulareD, onChange: onCellulareDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_numero_mobile ?? famiglia?.telefono ?? "",
+    async (value) => { await onFamigliaPatch({ telefono: value || null }) }
+  )
+
+  const { value: codiceFiscaleD, onChange: onCodiceFiscaleDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_codice_fiscale ?? "",
+    async (value) => { await onAssunzionePatch({ info_anagrafiche_codice_fiscale: value || null }) }
+  )
+
+  const { value: cittadinanzaD, onChange: onCittadinanzaDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_cittadidanza ?? "Italiana",
+    async (value) => { await onAssunzionePatch({ info_anagrafiche_cittadidanza: value || null }) }
+  )
+
+  const { value: telefonoFissoD, onChange: onTelefonoFissoDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_numero_fisso ?? "",
+    async (value) => { await onAssunzionePatch({ info_anagrafiche_numero_fisso: value || null }) }
+  )
+
+  const { value: dataNascitaD, onChange: onDataNascitaDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_data_di_nascita ?? "",
+    async (value) => { await onAssunzionePatch({ info_anagrafiche_data_di_nascita: value || null }) }
+  )
+
+  const { value: luogoNascitaD, onChange: onLuogoNascitaDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_luogo_di_nascita ?? "",
+    async (value) => { await onAssunzionePatch({ info_anagrafiche_luogo_di_nascita: value || null }) }
+  )
+
+  const { value: indirizzoResidenzaD, onChange: onIndirizzoResidenzaDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_indirizzo ?? "",
+    async (value) => { await onAssunzionePatch({ info_anagrafiche_indirizzo: value || null }) }
+  )
+
+  const { value: civicoD, onChange: onCivicoDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_civico ?? "",
+    async (value) => { await onAssunzionePatch({ info_anagrafiche_civico: value || null }) }
+  )
+
+  const { value: localitaD, onChange: onLocalitaDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_localita ?? "",
+    async (value) => { await onAssunzionePatch({ info_anagrafiche_localita: value || null }) }
+  )
+
+  const { value: capD, onChange: onCapDChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_cap ?? "",
+    async (value) => { await onAssunzionePatch({ info_anagrafiche_cap: value || null }) }
+  )
+
+  const { value: luogoLavoroIndirizzoD, onChange: onLuogoLavoroIndirizzoDChange } = useDebouncedSave(
+    assunzione?.luogo_lavoro_se_diverso_da_residenza ?? "",
+    async (value) => { await onAssunzionePatch({ luogo_lavoro_se_diverso_da_residenza: value || null }) }
+  )
+
+  const { value: luogoLavoroCivicoD, onChange: onLuogoLavoroCivicoDChange } = useDebouncedSave(
+    assunzione?.civico_se_diverso_residenza ?? "",
+    async (value) => { await onAssunzionePatch({ civico_se_diverso_residenza: value || null }) }
+  )
+
+  const { value: luogoLavoroComuneD, onChange: onLuogoLavoroComuneDChange } = useDebouncedSave(
+    assunzione?.comune_se_diverso_residenza ?? "",
+    async (value) => { await onAssunzionePatch({ comune_se_diverso_residenza: value || null }) }
+  )
+
+  const { value: luogoLavoroProvinciaD, onChange: onLuogoLavoroProvinciaDChange } = useDebouncedSave(
+    assunzione?.provincia ?? "",
+    async (value) => { await onAssunzionePatch({ provincia: value || null }) }
+  )
+
+  const { value: numeroDocumentoD, onChange: onNumeroDocumentoDChange } = useDebouncedSave(
+    assunzione?.documento_identita_numero ?? "",
+    async (value) => { await onAssunzionePatch({ documento_identita_numero: value || null }) }
+  )
+
+  const { value: scadenzaDocumentoD, onChange: onScadenzaDocumentoDChange } = useDebouncedSave(
+    assunzione?.documento_identita_scadenza ?? "",
+    async (value) => { await onAssunzionePatch({ documento_identita_scadenza: value || null }) }
+  )
 
   const documentoIdentitaAllegati = collectAttachmentValues(
     assunzione?.documento_identita_allegati
@@ -854,30 +892,26 @@ function DatoreDetail({
       >
         <EditableField label="Nome">
           <Input
-            value={draft.nome}
-            onChange={(event) => setValue("nome", event.target.value)}
-            onBlur={() => void onFamigliaPatch({ nome: draft.nome || null })}
+            value={nomeD}
+            onChange={(event) => onNomeDChange(event.target.value)}
           />
         </EditableField>
         <EditableField label="Cognome">
           <Input
-            value={draft.cognome}
-            onChange={(event) => setValue("cognome", event.target.value)}
-            onBlur={() => void onFamigliaPatch({ cognome: draft.cognome || null })}
+            value={cognomeD}
+            onChange={(event) => onCognomeDChange(event.target.value)}
           />
         </EditableField>
         <EditableField label="Email">
           <Input
-            value={draft.email}
-            onChange={(event) => setValue("email", event.target.value)}
-            onBlur={() => void onFamigliaPatch({ email: draft.email || null })}
+            value={emailD}
+            onChange={(event) => onEmailDChange(event.target.value)}
           />
         </EditableField>
         <EditableField label="Cellulare">
           <Input
-            value={draft.cellulare}
-            onChange={(event) => setValue("cellulare", event.target.value)}
-            onBlur={() => void onFamigliaPatch({ telefono: draft.cellulare || null })}
+            value={cellulareD}
+            onChange={(event) => onCellulareDChange(event.target.value)}
           />
         </EditableField>
       </DetailSectionBlock>
@@ -901,126 +935,83 @@ function DatoreDetail({
         <div className="grid gap-4 md:grid-cols-2">
           <EditableField label="Nome">
             <Input
-              value={draft.nome}
-              onChange={(event) => setValue("nome", event.target.value)}
-              onBlur={() => void onFamigliaPatch({ nome: draft.nome || null })}
+              value={nomeD}
+              onChange={(event) => onNomeDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Cognome">
             <Input
-              value={draft.cognome}
-              onChange={(event) => setValue("cognome", event.target.value)}
-              onBlur={() => void onFamigliaPatch({ cognome: draft.cognome || null })}
+              value={cognomeD}
+              onChange={(event) => onCognomeDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Codice fiscale">
             <Input
-              value={draft.codiceFiscale}
-              onChange={(event) => setValue("codiceFiscale", event.target.value)}
-              onBlur={() =>
-                void onAssunzionePatch({
-                  info_anagrafiche_codice_fiscale: draft.codiceFiscale || null,
-                })
-              }
+              value={codiceFiscaleD}
+              onChange={(event) => onCodiceFiscaleDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Cittadinanza">
             <Input
-              value={draft.cittadinanza}
-              onChange={(event) => setValue("cittadinanza", event.target.value)}
-              onBlur={() =>
-                void onAssunzionePatch({
-                  info_anagrafiche_cittadidanza: draft.cittadinanza || null,
-                })
-              }
+              value={cittadinanzaD}
+              onChange={(event) => onCittadinanzaDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Email">
             <Input
-              value={draft.email}
-              onChange={(event) => setValue("email", event.target.value)}
-              onBlur={() => void onFamigliaPatch({ email: draft.email || null })}
+              value={emailD}
+              onChange={(event) => onEmailDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Cellulare">
             <Input
-              value={draft.cellulare}
-              onChange={(event) => setValue("cellulare", event.target.value)}
-              onBlur={() => void onFamigliaPatch({ telefono: draft.cellulare || null })}
+              value={cellulareD}
+              onChange={(event) => onCellulareDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Telefono fisso">
             <Input
-              value={draft.telefonoFisso}
-              onChange={(event) => setValue("telefonoFisso", event.target.value)}
-              onBlur={() =>
-                void onAssunzionePatch({
-                  info_anagrafiche_numero_fisso: draft.telefonoFisso || null,
-                })
-              }
+              value={telefonoFissoD}
+              onChange={(event) => onTelefonoFissoDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Data di nascita">
             <Input
               type="date"
-              value={draft.dataNascita}
-              onChange={(event) => setValue("dataNascita", event.target.value)}
-              onBlur={() =>
-                void onAssunzionePatch({
-                  info_anagrafiche_data_di_nascita: draft.dataNascita || null,
-                })
-              }
+              value={dataNascitaD}
+              onChange={(event) => onDataNascitaDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Luogo di nascita">
             <Input
-              value={draft.luogoNascita}
-              onChange={(event) => setValue("luogoNascita", event.target.value)}
-              onBlur={() =>
-                void onAssunzionePatch({
-                  info_anagrafiche_luogo_di_nascita: draft.luogoNascita || null,
-                })
-              }
+              value={luogoNascitaD}
+              onChange={(event) => onLuogoNascitaDChange(event.target.value)}
             />
           </EditableField>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <EditableField label="Indirizzo di residenza">
             <Input
-              value={draft.indirizzoResidenza}
-              onChange={(event) => setValue("indirizzoResidenza", event.target.value)}
-              onBlur={() =>
-                void onAssunzionePatch({
-                  info_anagrafiche_indirizzo: draft.indirizzoResidenza || null,
-                })
-              }
+              value={indirizzoResidenzaD}
+              onChange={(event) => onIndirizzoResidenzaDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Civico">
             <Input
-              value={draft.civico}
-              onChange={(event) => setValue("civico", event.target.value)}
-              onBlur={() =>
-                void onAssunzionePatch({ info_anagrafiche_civico: draft.civico || null })
-              }
+              value={civicoD}
+              onChange={(event) => onCivicoDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Localita">
             <Input
-              value={draft.localita}
-              onChange={(event) => setValue("localita", event.target.value)}
-              onBlur={() =>
-                void onAssunzionePatch({ info_anagrafiche_localita: draft.localita || null })
-              }
+              value={localitaD}
+              onChange={(event) => onLocalitaDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="CAP">
             <Input
-              value={draft.cap}
-              onChange={(event) => setValue("cap", event.target.value)}
-              onBlur={() =>
-                void onAssunzionePatch({ info_anagrafiche_cap: draft.cap || null })
-              }
+              value={capD}
+              onChange={(event) => onCapDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Il luogo di residenza corrisponde al luogo di lavoro?">
@@ -1044,46 +1035,26 @@ function DatoreDetail({
             <>
               <EditableField label="Indirizzo luogo lavoro">
                 <Input
-                  value={draft.luogoLavoroIndirizzo}
-                  onChange={(event) => setValue("luogoLavoroIndirizzo", event.target.value)}
-                  onBlur={() =>
-                    void onAssunzionePatch({
-                      luogo_lavoro_se_diverso_da_residenza: draft.luogoLavoroIndirizzo || null,
-                    })
-                  }
+                  value={luogoLavoroIndirizzoD}
+                  onChange={(event) => onLuogoLavoroIndirizzoDChange(event.target.value)}
                 />
               </EditableField>
               <EditableField label="Civico luogo lavoro">
                 <Input
-                  value={draft.luogoLavoroCivico}
-                  onChange={(event) => setValue("luogoLavoroCivico", event.target.value)}
-                  onBlur={() =>
-                    void onAssunzionePatch({
-                      civico_se_diverso_residenza: draft.luogoLavoroCivico || null,
-                    })
-                  }
+                  value={luogoLavoroCivicoD}
+                  onChange={(event) => onLuogoLavoroCivicoDChange(event.target.value)}
                 />
               </EditableField>
               <EditableField label="Comune luogo lavoro">
                 <Input
-                  value={draft.luogoLavoroComune}
-                  onChange={(event) => setValue("luogoLavoroComune", event.target.value)}
-                  onBlur={() =>
-                    void onAssunzionePatch({
-                      comune_se_diverso_residenza: draft.luogoLavoroComune || null,
-                    })
-                  }
+                  value={luogoLavoroComuneD}
+                  onChange={(event) => onLuogoLavoroComuneDChange(event.target.value)}
                 />
               </EditableField>
               <EditableField label="Provincia luogo lavoro">
                 <Input
-                  value={draft.luogoLavoroProvincia}
-                  onChange={(event) => setValue("luogoLavoroProvincia", event.target.value)}
-                  onBlur={() =>
-                    void onAssunzionePatch({
-                      provincia: draft.luogoLavoroProvincia || null,
-                    })
-                  }
+                  value={luogoLavoroProvinciaD}
+                  onChange={(event) => onLuogoLavoroProvinciaDChange(event.target.value)}
                 />
               </EditableField>
             </>
@@ -1108,25 +1079,15 @@ function DatoreDetail({
           </EditableField>
           <EditableField label="Numero documento">
             <Input
-              value={draft.numeroDocumento}
-              onChange={(event) => setValue("numeroDocumento", event.target.value)}
-              onBlur={() =>
-                void onAssunzionePatch({
-                  documento_identita_numero: draft.numeroDocumento || null,
-                })
-              }
+              value={numeroDocumentoD}
+              onChange={(event) => onNumeroDocumentoDChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Scadenza documento">
             <Input
               type="date"
-              value={draft.scadenzaDocumento}
-              onChange={(event) => setValue("scadenzaDocumento", event.target.value)}
-              onBlur={() =>
-                void onAssunzionePatch({
-                  documento_identita_scadenza: draft.scadenzaDocumento || null,
-                })
-              }
+              value={scadenzaDocumentoD}
+              onChange={(event) => onScadenzaDocumentoDChange(event.target.value)}
             />
           </EditableField>
         </div>
@@ -1211,67 +1172,122 @@ function LavoratoreDetail({
   const lavoratore = card.lavoratore
   const assunzione = card.lavoratoreAssunzione
   const fullName = card.nomeLavoratore
-  const makeDraft = React.useCallback(
-    () => ({
-      appuntiExtra: "",
-      tipoUtente: "LAVORATORE",
-      nome: assunzione?.info_anagrafiche_nome ?? lavoratore?.nome ?? fullName.split(" ")[0] ?? "",
-      cognome: assunzione?.info_anagrafiche_cognome ?? lavoratore?.cognome ?? fullName.split(" ").slice(1).join(" ") ?? "",
-      email: assunzione?.info_anagrafiche_email ?? lavoratore?.email ?? "",
-      cellulare: assunzione?.info_anagrafiche_numero_mobile ?? lavoratore?.telefono ?? "",
-      telefonoFisso: assunzione?.info_anagrafiche_numero_fisso ?? "",
-      cittadinanza: assunzione?.info_anagrafiche_cittadidanza ?? lavoratore?.nazionalita ?? "",
-      codiceFiscale: assunzione?.info_anagrafiche_codice_fiscale ?? "",
-      dataNascita: assunzione?.info_anagrafiche_data_di_nascita ?? "",
-      luogoNascita: assunzione?.info_anagrafiche_luogo_di_nascita ?? "",
-      indirizzoResidenza: assunzione?.info_anagrafiche_indirizzo ?? "",
-      civico: assunzione?.info_anagrafiche_civico ?? "",
-      localita: assunzione?.info_anagrafiche_localita ?? "",
-      cap: assunzione?.info_anagrafiche_cap ?? "",
-      tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
-      datiBancari: lavoratore?.iban ?? assunzione?.dati_bancari_lavoratore ?? "",
-      numeroDocumento: assunzione?.documento_identita_numero ?? "",
-      scadenzaDocumento: assunzione?.documento_identita_scadenza ?? "",
-      cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
-      dataAssunzione: rapporto?.data_inizio_rapporto ?? "",
-    }),
-    [
-      assunzione?.cittadino_extracomunitario,
-      assunzione?.dati_bancari_lavoratore,
-      assunzione?.documento_identita_numero,
-      assunzione?.documento_identita_scadenza,
-      assunzione?.documento_identita_tipo,
-      assunzione?.info_anagrafiche_cap,
-      assunzione?.info_anagrafiche_cittadidanza,
-      assunzione?.info_anagrafiche_civico,
-      assunzione?.info_anagrafiche_codice_fiscale,
-      assunzione?.info_anagrafiche_cognome,
-      assunzione?.info_anagrafiche_data_di_nascita,
-      assunzione?.info_anagrafiche_email,
-      assunzione?.info_anagrafiche_indirizzo,
-      assunzione?.info_anagrafiche_localita,
-      assunzione?.info_anagrafiche_luogo_di_nascita,
-      assunzione?.info_anagrafiche_nome,
-      assunzione?.info_anagrafiche_numero_fisso,
-      assunzione?.info_anagrafiche_numero_mobile,
-      fullName,
-      lavoratore?.cognome,
-      lavoratore?.email,
-      lavoratore?.iban,
-      lavoratore?.nazionalita,
-      lavoratore?.nome,
-      lavoratore?.telefono,
-      rapporto?.data_inizio_rapporto,
-    ]
-  )
-  const [draft, setDraft] = React.useState(makeDraft)
+  const [draft, setDraft] = React.useState(() => ({
+    tipoUtente: assunzione?.type_of_compilazione_form ?? "LAVORATORE",
+    tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
+    cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
+  }))
 
   React.useEffect(() => {
-    setDraft(makeDraft())
+    setDraft({
+      tipoUtente: assunzione?.type_of_compilazione_form ?? "LAVORATORE",
+      tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
+      cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
+    })
   }, [assunzione?.id, card.id, lavoratore?.id, rapporto?.id])
 
   const setValue = (key: keyof typeof draft, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }))
+
+  const { value: nomeL, onChange: onNomeLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_nome ?? lavoratore?.nome ?? fullName.split(" ")[0] ?? "",
+    async (value) => { await onLavoratorePatch({ nome: value || null }) }
+  )
+
+  const { value: cognomeL, onChange: onCognomeLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_cognome ?? lavoratore?.cognome ?? fullName.split(" ").slice(1).join(" ") ?? "",
+    async (value) => { await onLavoratorePatch({ cognome: value || null }) }
+  )
+
+  const { value: emailL, onChange: onEmailLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_email ?? lavoratore?.email ?? "",
+    async (value) => { await onLavoratorePatch({ email: value || null }) }
+  )
+
+  const { value: cellulareL, onChange: onCellulareLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_numero_mobile ?? lavoratore?.telefono ?? "",
+    async (value) => { await onLavoratorePatch({ telefono: value || null }) }
+  )
+
+  const { value: cittadinanzaL, onChange: onCittadinanzaLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_cittadidanza ?? lavoratore?.nazionalita ?? "",
+    async (value) => {
+      await Promise.all([
+        onLavoratorePatch({ nazionalita: value || null }),
+        onLavoratoreAssunzionePatch({ info_anagrafiche_cittadidanza: value || null }),
+      ])
+    }
+  )
+
+  const { value: dataAssunzioneL, onChange: onDataAssunzioneLChange } = useDebouncedSave(
+    rapporto?.data_inizio_rapporto ?? "",
+    async (value) => { await onLavoratoreAssunzionePatch({ data_assunzione: value || null }) }
+  )
+
+  const { value: codiceFiscaleL, onChange: onCodiceFiscaleLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_codice_fiscale ?? "",
+    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_codice_fiscale: value || null }) }
+  )
+
+  const { value: telefonoFissoL, onChange: onTelefonoFissoLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_numero_fisso ?? "",
+    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_numero_fisso: value || null }) }
+  )
+
+  const { value: dataNascitaL, onChange: onDataNascitaLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_data_di_nascita ?? "",
+    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_data_di_nascita: value || null }) }
+  )
+
+  const { value: luogoNascitaL, onChange: onLuogoNascitaLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_luogo_di_nascita ?? "",
+    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_luogo_di_nascita: value || null }) }
+  )
+
+  const { value: indirizzoResidenzaL, onChange: onIndirizzoResidenzaLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_indirizzo ?? "",
+    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_indirizzo: value || null }) }
+  )
+
+  const { value: civicoL, onChange: onCivicoLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_civico ?? "",
+    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_civico: value || null }) }
+  )
+
+  const { value: localitaL, onChange: onLocalitaLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_localita ?? "",
+    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_localita: value || null }) }
+  )
+
+  const { value: capL, onChange: onCapLChange } = useDebouncedSave(
+    assunzione?.info_anagrafiche_cap ?? "",
+    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_cap: value || null }) }
+  )
+
+  const { value: numeroDocumentoL, onChange: onNumeroDocumentoLChange } = useDebouncedSave(
+    assunzione?.documento_identita_numero ?? "",
+    async (value) => { await onLavoratoreAssunzionePatch({ documento_identita_numero: value || null }) }
+  )
+
+  const { value: scadenzaDocumentoL, onChange: onScadenzaDocumentoLChange } = useDebouncedSave(
+    assunzione?.documento_identita_scadenza ?? "",
+    async (value) => { await onLavoratoreAssunzionePatch({ documento_identita_scadenza: value || null }) }
+  )
+
+  const { value: datiBancariL, onChange: onDatiBancariLChange } = useDebouncedSave(
+    lavoratore?.iban ?? assunzione?.dati_bancari_lavoratore ?? "",
+    async (value) => {
+      await Promise.all([
+        onLavoratorePatch({ iban: value || null }),
+        onLavoratoreAssunzionePatch({ dati_bancari_lavoratore: value || null }),
+      ])
+    }
+  )
+
+  const { value: appuntiExtraL, onChange: onAppuntiExtraLChange } = useDebouncedSave(
+    "",
+    async (value) => { await onLavoratoreAssunzionePatch({ note_aggiuntive: value || null }) }
+  )
 
   const documentoIdentitaAllegati =
     collectDocumentAttachments(documents, [
@@ -1303,49 +1319,39 @@ function LavoratoreDetail({
       >
         <EditableField label="Nome">
           <Input
-            value={draft.nome}
-            onChange={(event) => setValue("nome", event.target.value)}
-            onBlur={() => void onLavoratorePatch({ nome: draft.nome || null })}
+            value={nomeL}
+            onChange={(event) => onNomeLChange(event.target.value)}
           />
         </EditableField>
         <EditableField label="Cognome">
           <Input
-            value={draft.cognome}
-            onChange={(event) => setValue("cognome", event.target.value)}
-            onBlur={() => void onLavoratorePatch({ cognome: draft.cognome || null })}
+            value={cognomeL}
+            onChange={(event) => onCognomeLChange(event.target.value)}
           />
         </EditableField>
         <EditableField label="Email">
           <Input
-            value={draft.email}
-            onChange={(event) => setValue("email", event.target.value)}
-            onBlur={() => void onLavoratorePatch({ email: draft.email || null })}
+            value={emailL}
+            onChange={(event) => onEmailLChange(event.target.value)}
           />
         </EditableField>
         <EditableField label="Cellulare">
           <Input
-            value={draft.cellulare}
-            onChange={(event) => setValue("cellulare", event.target.value)}
-            onBlur={() => void onLavoratorePatch({ telefono: draft.cellulare || null })}
+            value={cellulareL}
+            onChange={(event) => onCellulareLChange(event.target.value)}
           />
         </EditableField>
         <EditableField label="Cittadinanza">
           <Input
-            value={draft.cittadinanza}
-            onChange={(event) => setValue("cittadinanza", event.target.value)}
-            onBlur={() => void onLavoratorePatch({ nazionalita: draft.cittadinanza || null })}
+            value={cittadinanzaL}
+            onChange={(event) => onCittadinanzaLChange(event.target.value)}
           />
         </EditableField>
         <EditableField label="Data assunzione">
           <Input
             type="date"
-            value={draft.dataAssunzione}
-            onChange={(event) => setValue("dataAssunzione", event.target.value)}
-            onBlur={() =>
-              void onLavoratoreAssunzionePatch({
-                data_assunzione: draft.dataAssunzione || null,
-              })
-            }
+            value={dataAssunzioneL}
+            onChange={(event) => onDataAssunzioneLChange(event.target.value)}
           />
         </EditableField>
       </DetailSectionBlock>
@@ -1369,133 +1375,81 @@ function LavoratoreDetail({
         <div className="grid gap-4 md:grid-cols-2">
           <EditableField label="Nome">
             <Input
-              value={draft.nome}
-              onChange={(event) => setValue("nome", event.target.value)}
-              onBlur={() => void onLavoratorePatch({ nome: draft.nome || null })}
+              value={nomeL}
+              onChange={(event) => onNomeLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Cognome">
             <Input
-              value={draft.cognome}
-              onChange={(event) => setValue("cognome", event.target.value)}
-              onBlur={() => void onLavoratorePatch({ cognome: draft.cognome || null })}
+              value={cognomeL}
+              onChange={(event) => onCognomeLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Codice fiscale">
             <Input
-              value={draft.codiceFiscale}
-              onChange={(event) => setValue("codiceFiscale", event.target.value)}
-              onBlur={() =>
-                void onLavoratoreAssunzionePatch({
-                  info_anagrafiche_codice_fiscale: draft.codiceFiscale || null,
-                })
-              }
+              value={codiceFiscaleL}
+              onChange={(event) => onCodiceFiscaleLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Cittadinanza">
             <Input
-            value={draft.cittadinanza}
-            onChange={(event) => setValue("cittadinanza", event.target.value)}
-            onBlur={() =>
-              void Promise.all([
-                onLavoratorePatch({ nazionalita: draft.cittadinanza || null }),
-                onLavoratoreAssunzionePatch({
-                  info_anagrafiche_cittadidanza: draft.cittadinanza || null,
-                }),
-              ])
-            }
-          />
+              value={cittadinanzaL}
+              onChange={(event) => onCittadinanzaLChange(event.target.value)}
+            />
           </EditableField>
           <EditableField label="Email">
             <Input
-              value={draft.email}
-              onChange={(event) => setValue("email", event.target.value)}
-              onBlur={() => void onLavoratorePatch({ email: draft.email || null })}
+              value={emailL}
+              onChange={(event) => onEmailLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Cellulare">
             <Input
-              value={draft.cellulare}
-              onChange={(event) => setValue("cellulare", event.target.value)}
-              onBlur={() => void onLavoratorePatch({ telefono: draft.cellulare || null })}
+              value={cellulareL}
+              onChange={(event) => onCellulareLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Telefono fisso">
             <Input
-              value={draft.telefonoFisso}
-              onChange={(event) => setValue("telefonoFisso", event.target.value)}
-              onBlur={() =>
-                void onLavoratoreAssunzionePatch({
-                  info_anagrafiche_numero_fisso: draft.telefonoFisso || null,
-                })
-              }
+              value={telefonoFissoL}
+              onChange={(event) => onTelefonoFissoLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Data di nascita">
             <Input
               type="date"
-              value={draft.dataNascita}
-              onChange={(event) => setValue("dataNascita", event.target.value)}
-              onBlur={() =>
-                void onLavoratoreAssunzionePatch({
-                  info_anagrafiche_data_di_nascita: draft.dataNascita || null,
-                })
-              }
+              value={dataNascitaL}
+              onChange={(event) => onDataNascitaLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Luogo di nascita">
             <Input
-              value={draft.luogoNascita}
-              onChange={(event) => setValue("luogoNascita", event.target.value)}
-              onBlur={() =>
-                void onLavoratoreAssunzionePatch({
-                  info_anagrafiche_luogo_di_nascita: draft.luogoNascita || null,
-                })
-              }
+              value={luogoNascitaL}
+              onChange={(event) => onLuogoNascitaLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Indirizzo di residenza">
             <Input
-              value={draft.indirizzoResidenza}
-              onChange={(event) => setValue("indirizzoResidenza", event.target.value)}
-              onBlur={() =>
-                void onLavoratoreAssunzionePatch({
-                  info_anagrafiche_indirizzo: draft.indirizzoResidenza || null,
-                })
-              }
+              value={indirizzoResidenzaL}
+              onChange={(event) => onIndirizzoResidenzaLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Civico">
             <Input
-              value={draft.civico}
-              onChange={(event) => setValue("civico", event.target.value)}
-              onBlur={() =>
-                void onLavoratoreAssunzionePatch({
-                  info_anagrafiche_civico: draft.civico || null,
-                })
-              }
+              value={civicoL}
+              onChange={(event) => onCivicoLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Localita">
             <Input
-              value={draft.localita}
-              onChange={(event) => setValue("localita", event.target.value)}
-              onBlur={() =>
-                void onLavoratoreAssunzionePatch({
-                  info_anagrafiche_localita: draft.localita || null,
-                })
-              }
+              value={localitaL}
+              onChange={(event) => onLocalitaLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="CAP">
             <Input
-              value={draft.cap}
-              onChange={(event) => setValue("cap", event.target.value)}
-              onBlur={() =>
-                void onLavoratoreAssunzionePatch({
-                  info_anagrafiche_cap: draft.cap || null,
-                })
-              }
+              value={capL}
+              onChange={(event) => onCapLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Tipo documento">
@@ -1518,25 +1472,15 @@ function LavoratoreDetail({
           </EditableField>
           <EditableField label="Numero documento">
             <Input
-              value={draft.numeroDocumento}
-              onChange={(event) => setValue("numeroDocumento", event.target.value)}
-              onBlur={() =>
-                void onLavoratoreAssunzionePatch({
-                  documento_identita_numero: draft.numeroDocumento || null,
-                })
-              }
+              value={numeroDocumentoL}
+              onChange={(event) => onNumeroDocumentoLChange(event.target.value)}
             />
           </EditableField>
           <EditableField label="Scadenza documento">
             <Input
               type="date"
-              value={draft.scadenzaDocumento}
-              onChange={(event) => setValue("scadenzaDocumento", event.target.value)}
-              onBlur={() =>
-                void onLavoratoreAssunzionePatch({
-                  documento_identita_scadenza: draft.scadenzaDocumento || null,
-                })
-              }
+              value={scadenzaDocumentoL}
+              onChange={(event) => onScadenzaDocumentoLChange(event.target.value)}
             />
           </EditableField>
         </div>
@@ -1549,16 +1493,8 @@ function LavoratoreDetail({
       >
         <EditableField label="Dati bancari">
           <Textarea
-            value={draft.datiBancari}
-            onChange={(event) => setValue("datiBancari", event.target.value)}
-            onBlur={() =>
-              void Promise.all([
-                onLavoratorePatch({ iban: draft.datiBancari || null }),
-                onLavoratoreAssunzionePatch({
-                  dati_bancari_lavoratore: draft.datiBancari || null,
-                }),
-              ])
-            }
+            value={datiBancariL}
+            onChange={(event) => onDatiBancariLChange(event.target.value)}
             className="min-h-24 font-mono"
             placeholder="IBAN..."
           />
@@ -1596,13 +1532,8 @@ function LavoratoreDetail({
       >
         <EditableField label="Appunti extra">
           <Textarea
-            value={draft.appuntiExtra}
-            onChange={(event) => setValue("appuntiExtra", event.target.value)}
-            onBlur={() =>
-              void onLavoratoreAssunzionePatch({
-                note_aggiuntive: draft.appuntiExtra || null,
-              })
-            }
+            value={appuntiExtraL}
+            onChange={(event) => onAppuntiExtraLChange(event.target.value)}
             className="min-h-24"
             placeholder="Aggiungi note sul lavoratore o sulla pratica"
           />
@@ -1847,7 +1778,7 @@ export function AssunzioniDetailSheet({
     return () => {
       isActive = false
     }
-  }, [card, open])
+  }, [card?.id, open])
 
   React.useEffect(() => {
     if (!open || !card?.lavoratore?.id) {
@@ -2524,7 +2455,7 @@ export function AssunzioniDetailSheet({
 
   const uploadRapportoAttachment = React.useCallback(
     async (
-      slot: "accordo_di_lavoro_allegati" | "ricevuta_inps_allegati" | "delega_inps_allegati",
+      slot: "accordo_di_lavoro_allegati" | "ricevuta_inps_allegati",
       file: File
     ) => {
       if (!card?.rapporto) return
@@ -2553,26 +2484,9 @@ export function AssunzioniDetailSheet({
         }
 
         const payload = buildAttachmentPayload(file, storagePath)
-        if (slot === "delega_inps_allegati") {
-          const metadata =
-            card.rapporto.metadati_migrazione &&
-            typeof card.rapporto.metadati_migrazione === "object"
-              ? (card.rapporto.metadati_migrazione as Record<string, unknown>)
-              : {}
-          await saveRapportoPatch({
-            metadati_migrazione: {
-              ...metadata,
-              delega_inps_allegati: [
-                ...normalizeAttachmentArray(metadata.delega_inps_allegati),
-                payload,
-              ],
-            },
-          })
-        } else {
-          await saveRapportoPatch({
-            [slot]: [...normalizeAttachmentArray(card.rapporto[slot]), payload],
-          })
-        }
+        await saveRapportoPatch({
+          [slot]: [...normalizeAttachmentArray(card.rapporto[slot]), payload],
+        })
       } catch (caughtError) {
         setPracticeError(
           caughtError instanceof Error ? caughtError.message : "Errore caricando documento"
@@ -2854,6 +2768,7 @@ export function AssunzioniDetailSheet({
                     onAdd={(file) => uploadRapportoAttachment("accordo_di_lavoro_allegati", file)}
                     onPreviewOpen={openAttachmentPreview}
                     isUploading={uploadingAttachment === "rapporto:accordo_di_lavoro_allegati"}
+                    showStatusIndicator
                   />
                   <AttachmentUploadSlot
                     label="Ricevuta INPS"
@@ -2861,19 +2776,22 @@ export function AssunzioniDetailSheet({
                     onAdd={(file) => uploadRapportoAttachment("ricevuta_inps_allegati", file)}
                     onPreviewOpen={openAttachmentPreview}
                     isUploading={uploadingAttachment === "rapporto:ricevuta_inps_allegati"}
+                    showStatusIndicator
                   />
                   <AttachmentUploadSlot
                     label="Delega INPS"
                     value={
-                      card.rapporto?.metadati_migrazione &&
+                      card.assunzione?.delega_inps_allegati ??
+                      (card.rapporto?.metadati_migrazione &&
                       typeof card.rapporto.metadati_migrazione === "object"
                         ? (card.rapporto.metadati_migrazione as Record<string, unknown>)
                             .delega_inps_allegati ?? null
-                        : null
+                        : null)
                     }
-                    onAdd={(file) => uploadRapportoAttachment("delega_inps_allegati", file)}
+                    onAdd={(file) => uploadAssunzioneAttachment("datore", "delega_inps_allegati", file)}
                     onPreviewOpen={openAttachmentPreview}
-                    isUploading={uploadingAttachment === "rapporto:delega_inps_allegati"}
+                    isUploading={uploadingAttachment === "datore:delega_inps_allegati"}
+                    showStatusIndicator
                   />
                 </div>
               </DetailSectionBlock>

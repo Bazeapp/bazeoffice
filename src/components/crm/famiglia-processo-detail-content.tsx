@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useDebouncedSave } from "@/hooks/use-debounced-save"
 import {
   BriefcaseBusinessIcon,
   CalendarIcon,
@@ -220,6 +221,18 @@ function HeaderInlineField({
   const [draft, setDraft] = React.useState(editableValue(value))
   const [saving, setSaving] = React.useState(false)
 
+  const { onChange: debouncedSave } = useDebouncedSave(
+    editableValue(value),
+    async (v) => {
+      const normalized = normalize ? normalize(v.trim()) : v.trim()
+      const currentValue = editableValue(value)
+      if (normalized === currentValue) return
+      const errorMessage = validate?.(normalized) ?? null
+      if (errorMessage) { toast.error(errorMessage); return }
+      await onSave(normalized)
+    },
+  )
+
   React.useEffect(() => {
     if (!editing) {
       setDraft(editableValue(value))
@@ -273,12 +286,14 @@ function HeaderInlineField({
           value={draft}
           disabled={saving}
           className="h-7 min-w-0 px-2 text-xs"
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={() => void commit()}
+          onChange={(event) => {
+            setDraft(event.target.value)
+            debouncedSave(event.target.value)
+          }}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault()
-              event.currentTarget.blur()
+              void commit()
             }
             if (event.key === "Escape") {
               event.preventDefault()

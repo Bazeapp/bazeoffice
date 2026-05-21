@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
   CalendarIcon,
   ChevronLeftIcon,
@@ -391,11 +392,10 @@ function EditableTextField({
   labelClassName?: string;
   onSave: (next: string | null) => void;
 }) {
-  const [draft, setDraft] = React.useState(editableValue(value));
-
-  React.useEffect(() => {
-    setDraft(editableValue(value));
-  }, [value]);
+  const { value: draft, onChange } = useDebouncedSave(
+    editableValue(value),
+    async (next) => { onSave(next.trim() || null) }
+  );
 
   if (!editing) {
     return (
@@ -408,12 +408,6 @@ function EditableTextField({
     );
   }
 
-  const saveDraft = () => {
-    const next = draft.trim();
-    if (next === editableValue(value)) return;
-    onSave(next || null);
-  };
-
   return (
     <Field>
       <FieldLabel variant="eyebrow" className={labelClassName}>
@@ -422,15 +416,13 @@ function EditableTextField({
       {multiline ? (
         <Textarea
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={saveDraft}
+          onChange={(event) => onChange(event.target.value)}
           rows={4}
         />
       ) : (
         <Input
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={saveDraft}
+          onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter") event.currentTarget.blur();
           }}
@@ -862,6 +854,7 @@ export function RicercaDetailView({
 
         const addressResult = await fetchIndirizzi({
           select: [
+            "id",
             "tipo_indirizzo",
             "via",
             "civico",

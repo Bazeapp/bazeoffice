@@ -22,6 +22,7 @@ import {
   fetchContributiInps,
   fetchRapportiLavorativi,
 } from "@/lib/anagrafiche-api"
+import { useDebouncedSave } from "@/hooks/use-debounced-save"
 import {
   buildAttachmentPayload,
   normalizeAttachmentArray,
@@ -229,28 +230,46 @@ export function ContributoInpsDetailSheet({
 }) {
   const rapporto = card?.rapporto
   const [stageValue, setStageValue] = React.useState("")
-  const [importoValue, setImportoValue] = React.useState("")
-  const [pagopaValue, setPagopaValue] = React.useState("")
-  const [dataInvioValue, setDataInvioValue] = React.useState("")
   const [selectedPreview, setSelectedPreview] = React.useState<AttachmentLink | null>(null)
   const [isUploadingAttachment, setIsUploadingAttachment] = React.useState(false)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     setStageValue(card?.stage ?? "")
-    setImportoValue(card?.record.importo_contributi_inps?.toString() ?? "")
-    setPagopaValue(card?.record.valore_pagopa?.toString() ?? "")
-    setDataInvioValue(toInputDateValue(card?.record.data_invio_famiglia))
     setSelectedPreview(null)
     setUploadError(null)
     setIsUploadingAttachment(false)
-  }, [
-    card?.id,
-    card?.stage,
-    card?.record.data_invio_famiglia,
-    card?.record.importo_contributi_inps,
-    card?.record.valore_pagopa,
-  ])
+  }, [card?.id, card?.stage])
+
+  const { value: importoValue, onChange: onImportoChange } = useDebouncedSave(
+    card?.record.importo_contributi_inps?.toString() ?? "",
+    async (value) => {
+      if (!card) return
+      const nextValue = parseNullableNumber(value)
+      if ((card.record.importo_contributi_inps ?? null) === nextValue) return
+      await onPatchCard(card.id, { importo_contributi_inps: nextValue })
+    }
+  )
+
+  const { value: pagopaValue, onChange: onPagopaChange } = useDebouncedSave(
+    card?.record.valore_pagopa?.toString() ?? "",
+    async (value) => {
+      if (!card) return
+      const nextValue = parseNullableNumber(value)
+      if ((card.record.valore_pagopa ?? null) === nextValue) return
+      await onPatchCard(card.id, { valore_pagopa: nextValue })
+    }
+  )
+
+  const { value: dataInvioValue, onChange: onDataInvioChange } = useDebouncedSave(
+    toInputDateValue(card?.record.data_invio_famiglia),
+    async (value) => {
+      if (!card) return
+      const nextValue = value || null
+      if ((card.record.data_invio_famiglia ?? null) === nextValue) return
+      await onPatchCard(card.id, { data_invio_famiglia: nextValue })
+    }
+  )
 
   const handleStageValueChange = React.useCallback(
     async (nextValue: string) => {
@@ -261,38 +280,6 @@ export function ContributoInpsDetailSheet({
     [card, onStageChange]
   )
 
-  const commitImportoValue = React.useCallback(async () => {
-    if (!card) return
-
-    const nextValue = parseNullableNumber(importoValue)
-    if ((card.record.importo_contributi_inps ?? null) === nextValue) return
-
-    await onPatchCard(card.id, {
-      importo_contributi_inps: nextValue,
-    })
-  }, [card, importoValue, onPatchCard])
-
-  const commitPagopaValue = React.useCallback(async () => {
-    if (!card) return
-
-    const nextValue = parseNullableNumber(pagopaValue)
-    if ((card.record.valore_pagopa ?? null) === nextValue) return
-
-    await onPatchCard(card.id, {
-      valore_pagopa: nextValue,
-    })
-  }, [card, onPatchCard, pagopaValue])
-
-  const commitDataInvioValue = React.useCallback(async () => {
-    if (!card) return
-
-    const nextValue = dataInvioValue || null
-    if ((card.record.data_invio_famiglia ?? null) === nextValue) return
-
-    await onPatchCard(card.id, {
-      data_invio_famiglia: nextValue,
-    })
-  }, [card, dataInvioValue, onPatchCard])
 
   const handleUploadAttachment = React.useCallback(
     async (file: File) => {
@@ -396,8 +383,7 @@ export function ContributoInpsDetailSheet({
                         type="number"
                         step="0.01"
                         value={importoValue}
-                        onChange={(event) => setImportoValue(event.target.value)}
-                        onBlur={() => void commitImportoValue()}
+                        onChange={(event) => onImportoChange(event.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
@@ -406,8 +392,7 @@ export function ContributoInpsDetailSheet({
                         type="number"
                         step="0.01"
                         value={pagopaValue}
-                        onChange={(event) => setPagopaValue(event.target.value)}
-                        onBlur={() => void commitPagopaValue()}
+                        onChange={(event) => onPagopaChange(event.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
@@ -415,8 +400,7 @@ export function ContributoInpsDetailSheet({
                       <Input
                         type="date"
                         value={dataInvioValue}
-                        onChange={(event) => setDataInvioValue(event.target.value)}
-                        onBlur={() => void commitDataInvioValue()}
+                        onChange={(event) => onDataInvioChange(event.target.value)}
                       />
                     </div>
                     <div className="space-y-2">

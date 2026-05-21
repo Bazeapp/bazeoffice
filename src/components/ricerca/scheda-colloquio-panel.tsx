@@ -38,6 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
   getLookupLabelForSave,
   getLookupOptionLabel,
@@ -427,6 +428,39 @@ export function SchedaColloquioPanel({
     [onPatchField],
   );
 
+  const { value: vannoBeneGiorni, onChange: onVannoBeneGiorni } = useDebouncedSave(
+    asString(selectionRow.intervista_giorni_lavoro),
+    async (v) => { await onPatchField("intervista_giorni_lavoro", v.trim() || null) }
+  )
+  const { value: vannoBeneOrari, onChange: onVannoBeneOrari } = useDebouncedSave(
+    asString(selectionRow.intervista_orario_e_giorni),
+    async (v) => { await onPatchField("intervista_orario_e_giorni", v.trim() || null) }
+  )
+  const { value: distanzaImpegni, onChange: onDistanzaImpegni } = useDebouncedSave(
+    asString(selectionRow.intervista_distanza),
+    async (v) => { await onPatchField("intervista_distanza", v.trim() || null) }
+  )
+  const { value: accettaStipendio, onChange: onAccettaStipendio } = useDebouncedSave(
+    asString(selectionRow.intervista_stipendio),
+    async (v) => { await onPatchField("intervista_stipendio", v.trim() || null) }
+  )
+  const { value: proMotivazioni, onChange: onProMotivazioni } = useDebouncedSave(
+    asString(selectionRow.intervista_punti_forza),
+    async (v) => { await onPatchField("intervista_punti_forza", v.trim() || null) }
+  )
+  const { value: aspettiDivergenza, onChange: onAspettiDivergenza } = useDebouncedSave(
+    asString(selectionRow.intervista_punti_debolezza),
+    async (v) => { await onPatchField("intervista_punti_debolezza", v.trim() || null) }
+  )
+  const { value: feedbackBaze, onChange: onFeedbackBaze } = useDebouncedSave(
+    asString(selectionRow.messaggio_famiglia_selezione_lavoratore),
+    async (v) => { await onPatchField("messaggio_famiglia_selezione_lavoratore", v.trim() || null) }
+  )
+  const { value: dataOraColloquio, onChange: onDataOraColloquio } = useDebouncedSave(
+    toDatetimeLocalValue(selectionRow.data_ora_colloquio_famiglia_lavoratore),
+    async (v) => { await onPatchField("data_ora_colloquio_famiglia_lavoratore", datetimeLocalToTimestampValue(v) || null) }
+  )
+
   const updateSlotDraft = React.useCallback(
     (slotIndex: number, patch: Partial<SchedaSlotDraft>) => {
       const nextSlots = [...slotColloquioRef.current] as [
@@ -534,73 +568,43 @@ export function SchedaColloquioPanel({
           <LabeledTextarea
             label="1. Vanno bene i giorni?"
             icon={CalendarCheckIcon}
-            value={draft.vannoBeneGiorni}
-            onChange={(value) =>
-              setDraft((current) => ({ ...current, vannoBeneGiorni: value }))
-            }
-            onBlur={() =>
-              patchTextField("intervista_giorni_lavoro", draft.vannoBeneGiorni)
-            }
+            value={vannoBeneGiorni}
+            onChange={onVannoBeneGiorni}
             disabled={disabled}
           />
           <LabeledTextarea
             label="2. Vanno bene gli orari?"
             icon={Clock3Icon}
-            value={draft.vannoBeneOrari}
-            onChange={(value) =>
-              setDraft((current) => ({ ...current, vannoBeneOrari: value }))
-            }
-            onBlur={() =>
-              patchTextField("intervista_orario_e_giorni", draft.vannoBeneOrari)
-            }
+            value={vannoBeneOrari}
+            onChange={onVannoBeneOrari}
             disabled={disabled}
           />
           <LabeledTextarea
             label="3. Quanto è distante? Ha altri impegni ravvicinati?"
             icon={MapPinIcon}
-            value={draft.distanzaImpegni}
-            onChange={(value) =>
-              setDraft((current) => ({ ...current, distanzaImpegni: value }))
-            }
-            onBlur={() =>
-              patchTextField("intervista_distanza", draft.distanzaImpegni)
-            }
+            value={distanzaImpegni}
+            onChange={onDistanzaImpegni}
             disabled={disabled}
           />
           <LabeledTextarea
             label="4. Accetta lo stipendio e la paga?"
             icon={CoinsIcon}
-            value={draft.accettaStipendio}
-            onChange={(value) =>
-              setDraft((current) => ({ ...current, accettaStipendio: value }))
-            }
-            onBlur={() =>
-              patchTextField("intervista_stipendio", draft.accettaStipendio)
-            }
+            value={accettaStipendio}
+            onChange={onAccettaStipendio}
             disabled={disabled}
           />
           <LabeledTextarea
             label="5. Indica tutti i pro per i quali stai presentando il profilo"
             icon={ThumbsUpIcon}
-            value={draft.proMotivazioni}
-            onChange={(value) =>
-              setDraft((current) => ({ ...current, proMotivazioni: value }))
-            }
-            onBlur={() =>
-              patchTextField("intervista_punti_forza", draft.proMotivazioni)
-            }
+            value={proMotivazioni}
+            onChange={onProMotivazioni}
             disabled={disabled}
           />
           <LabeledTextarea
             label="6. Indica tutti gli aspetti di divergenza dal profilo ideale per la famiglia"
             icon={AlertTriangleIcon}
-            value={draft.aspettiDivergenza}
-            onChange={(value) =>
-              setDraft((current) => ({ ...current, aspettiDivergenza: value }))
-            }
-            onBlur={() =>
-              patchTextField("intervista_punti_debolezza", draft.aspettiDivergenza)
-            }
+            value={aspettiDivergenza}
+            onChange={onAspettiDivergenza}
             disabled={disabled}
           />
         </CollapsibleSection>
@@ -744,22 +748,9 @@ export function SchedaColloquioPanel({
               </label>
               <Input
                 type="datetime-local"
-                value={draft.dataOraColloquioFamigliaLavoratore}
+                value={dataOraColloquio}
                 disabled={disabled}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    dataOraColloquioFamigliaLavoratore: event.target.value,
-                  }))
-                }
-                onBlur={() =>
-                  void onPatchField(
-                    "data_ora_colloquio_famiglia_lavoratore",
-                    datetimeLocalToTimestampValue(
-                      draft.dataOraColloquioFamigliaLavoratore,
-                    ),
-                  )
-                }
+                onChange={(event) => onDataOraColloquio(event.target.value)}
               />
             </div>
 
@@ -816,33 +807,19 @@ export function SchedaColloquioPanel({
                   onClick={async () => {
                     const generated = await onGenerateFeedback();
                     if (typeof generated === "string") {
-                      setDraft((current) => ({
-                        ...current,
-                        feedbackBaze: generated,
-                      }));
+                      onFeedbackBaze(generated);
                     }
                   }}
                   disabled={disabled || isGeneratingFeedback}
                 >
                   <BotIcon className="size-4" />
-                  {draft.feedbackBaze ? "Rigenera" : "Genera"}
+                  {feedbackBaze ? "Rigenera" : "Genera"}
                 </Button>
               ) : null}
             </div>
             <Textarea
-              value={draft.feedbackBaze}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  feedbackBaze: event.target.value,
-                }))
-              }
-              onBlur={() =>
-                patchTextField(
-                  "messaggio_famiglia_selezione_lavoratore",
-                  draft.feedbackBaze,
-                )
-              }
+              value={feedbackBaze}
+              onChange={(event) => onFeedbackBaze(event.target.value)}
               disabled={disabled}
               className="min-h-20 resize-none text-xs"
               placeholder="Scrivi il feedback..."

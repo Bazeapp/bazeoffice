@@ -58,6 +58,7 @@ import {
   getAgeFromBirthDate,
   getDefaultWorkerAvatar,
   normalizeDomesticRoleLabels,
+  parseNumberValue,
   readArrayStrings,
   toAvatarUrl,
 } from "@/features/lavoratori/lib/base-utils";
@@ -90,6 +91,7 @@ import {
   type RicercaWorkersPipelineState,
 } from "@/hooks/use-ricerca-workers-pipeline";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
   createRecord,
   fetchEsperienzeLavoratoriByWorker,
@@ -1240,10 +1242,8 @@ export function RicercaWorkersPipelineView({
     deleteExperienceRecord,
     patchReferenceRecord,
     createReferenceRecord,
-    commitExperienceField,
     patchSkillsField,
     patchDocumentField,
-    commitDocumentField,
     patchSelectedWorkerField,
   } = useSelectedWorkerEditor({
     selectedWorkerId,
@@ -1260,6 +1260,19 @@ export function RicercaWorkersPipelineView({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
+
+  const { onChange: saveDocumentNaspi } = useDebouncedSave(
+    asString(selectedWorkerRow?.data_scadenza_naspi),
+    async (v) => { await patchDocumentField("data_scadenza_naspi", v || null); },
+  );
+  const { onChange: saveDocumentIban } = useDebouncedSave(
+    resolvedIban,
+    async (v) => { await patchDocumentField("iban", v || null); },
+  );
+  const { onChange: saveDocumentStripeAccount } = useDebouncedSave(
+    asString(selectedWorkerRow?.id_stripe_account),
+    async (v) => { await patchDocumentField("id_stripe_account", v || null); },
+  );
 
   const updateDropTargetColumnId = React.useCallback((next: string | null) => {
     setDropTargetColumnId((current) => (current === next ? current : next));
@@ -2652,9 +2665,13 @@ export function RicercaWorkersPipelineView({
                     onExperienceDraftChange={(patch) =>
                       setExperienceDraft((current) => ({ ...current, ...patch }))
                     }
-                    onExperienceFieldBlur={(field) =>
-                      void commitExperienceField(field)
-                    }
+                    onExperienceFieldSave={(field, value) => {
+                      if (field === "situazione_lavorativa_attuale") {
+                        void patchSelectedWorkerField(field, value.trim() || null);
+                      } else {
+                        void patchSelectedWorkerField(field, parseNumberValue(value));
+                      }
+                    }}
                     onExperiencePatch={patchExperienceRecord}
                     onExperienceCreate={createExperienceRecord}
                     onExperienceDelete={deleteExperienceRecord}
@@ -2703,31 +2720,27 @@ export function RicercaWorkersPipelineView({
                       }));
                       void patchDocumentField("documenti_in_regola", value || null);
                     }}
-                    onDocumentNaspiChange={(value) =>
+                    onDocumentNaspiChange={(value) => {
                       setDocumentsDraft((current) => ({
                         ...current,
                         data_scadenza_naspi: value,
-                      }))
-                    }
-                    onDocumentNaspiBlur={() =>
-                      void commitDocumentField("data_scadenza_naspi")
-                    }
-                    onDocumentIbanChange={(value) =>
+                      }));
+                      saveDocumentNaspi(value);
+                    }}
+                    onDocumentIbanChange={(value) => {
                       setDocumentsDraft((current) => ({
                         ...current,
                         iban: value,
-                      }))
-                    }
-                    onDocumentIbanBlur={() => void commitDocumentField("iban")}
-                    onDocumentStripeAccountChange={(value) =>
+                      }));
+                      saveDocumentIban(value);
+                    }}
+                    onDocumentStripeAccountChange={(value) => {
                       setDocumentsDraft((current) => ({
                         ...current,
                         id_stripe_account: value,
-                      }))
-                    }
-                    onDocumentStripeAccountBlur={() =>
-                      void commitDocumentField("id_stripe_account")
-                    }
+                      }));
+                      saveDocumentStripeAccount(value);
+                    }}
                     onDocumentUpsert={upsertSelectedWorkerDocument}
                     onDocumentUploadError={setSelectedWorkerError}
                   />

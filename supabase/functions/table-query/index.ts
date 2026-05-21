@@ -122,6 +122,7 @@ const BATCH_SIZE = 1000;
 const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
   assunzioni: [
     "id",
+    "delega_inps_allegati",
     "civico_se_diverso_residenza",
     "codice_fiscale_allegati",
     "comune_se_diverso_residenza",

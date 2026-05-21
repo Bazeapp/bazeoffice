@@ -74,9 +74,7 @@ type WorkerProfileOverviewProps = {
   onUploadPhoto?: () => void
   onSelectedPresentationPhotoIndexChange?: (value: number) => void
   onLivelloItalianoChange?: (value: string) => void
-  onLivelloItalianoBlur?: () => void
   onFieldChange?: (field: string, value: string) => void
-  onFieldBlur?: (field: string) => void
 }
 
 export function WorkerProfileOverview({
@@ -95,9 +93,7 @@ export function WorkerProfileOverview({
   onUploadPhoto,
   onSelectedPresentationPhotoIndexChange,
   onLivelloItalianoChange,
-  onLivelloItalianoBlur,
   onFieldChange,
-  onFieldBlur,
 }: WorkerProfileOverviewProps) {
   const qualificationStatus = getWorkerQualificationStatus(worker)
   const StatusIcon = qualificationStatus.icon
@@ -233,14 +229,12 @@ export function WorkerProfileOverview({
                 <Input
                   value={draft.nome}
                   onChange={(event) => onFieldChange?.("nome", event.target.value)}
-                  onBlur={() => onFieldBlur?.("nome")}
                   placeholder="Nome"
                   className="w-full sm:max-w-52"
                 />
                 <Input
                   value={draft.cognome}
                   onChange={(event) => onFieldChange?.("cognome", event.target.value)}
-                  onBlur={() => onFieldBlur?.("cognome")}
                   placeholder="Cognome"
                   className="w-full sm:max-w-52"
                 />
@@ -250,7 +244,6 @@ export function WorkerProfileOverview({
                 onChange={(event) =>
                   onFieldChange?.("descrizione_pubblica", event.target.value)
                 }
-                onBlur={() => onFieldBlur?.("descrizione_pubblica")}
                 rows={3}
                 className="min-h-24"
               />
@@ -276,7 +269,6 @@ export function WorkerProfileOverview({
               <Input
                 value={draft.email}
                 onChange={(event) => onFieldChange?.("email", event.target.value)}
-                onBlur={() => onFieldBlur?.("email")}
                 type="email"
                 className="max-w-md"
               />
@@ -290,7 +282,6 @@ export function WorkerProfileOverview({
               <Input
                 value={draft.telefono}
                 onChange={(event) => onFieldChange?.("telefono", event.target.value)}
-                onBlur={() => onFieldBlur?.("telefono")}
                 type="tel"
                 className="max-w-xs"
               />
@@ -314,7 +305,7 @@ export function WorkerProfileOverview({
                     )
                   }
                 >
-                  <SelectTrigger onBlur={onLivelloItalianoBlur}>
+                  <SelectTrigger>
                     <SelectValue placeholder="Seleziona livello" />
                   </SelectTrigger>
                   <SelectContent>
@@ -359,7 +350,7 @@ export function WorkerProfileOverview({
                       )
                     }
                   >
-                    <SelectTrigger onBlur={() => onFieldBlur?.("sesso")}>
+                    <SelectTrigger>
                       <SelectValue placeholder="Seleziona sesso" />
                     </SelectTrigger>
                     <SelectContent>
@@ -376,7 +367,6 @@ export function WorkerProfileOverview({
                 <Input
                   value={draft.sesso}
                   onChange={(event) => onFieldChange?.("sesso", event.target.value)}
-                  onBlur={() => onFieldBlur?.("sesso")}
                   className="max-w-xs"
                 />
               )
@@ -401,7 +391,7 @@ export function WorkerProfileOverview({
                     )
                   }
                 >
-                  <SelectTrigger onBlur={() => onFieldBlur?.("nazionalita")}>
+                  <SelectTrigger>
                     <SelectValue placeholder="Seleziona nazionalita" />
                   </SelectTrigger>
                   <SelectContent>
@@ -424,7 +414,6 @@ export function WorkerProfileOverview({
               <Input
                 value={draft.data_di_nascita}
                 onChange={(event) => onFieldChange?.("data_di_nascita", event.target.value)}
-                onBlur={() => onFieldBlur?.("data_di_nascita")}
                 type="date"
                 className="max-w-xs"
               />

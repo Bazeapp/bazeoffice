@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useDebouncedSave } from "@/hooks/use-debounced-save"
 import { cn } from "@/lib/utils"
 import {
   asString,
@@ -297,14 +298,33 @@ export function WorkerProfileHeader({
     []
   )
 
-  const commitField = React.useCallback(
-    async (field: WorkerProfileHeaderField) => {
-      if (!onPatchField) return
-      const rawValue = draft[field]
-      const nextValue = field === "data_di_nascita" ? rawValue : rawValue.trim()
-      await onPatchField(field, nextValue || null)
-    },
-    [draft, onPatchField]
+  const { value: nomeValue, onChange: onNomeChange } = useDebouncedSave(
+    asString(workerRow.nome),
+    async (value) => { await onPatchField?.("nome", value.trim() || null) }
+  )
+  const { value: cognomeValue, onChange: onCognomeChange } = useDebouncedSave(
+    asString(workerRow.cognome),
+    async (value) => { await onPatchField?.("cognome", value.trim() || null) }
+  )
+  const { value: descrizioneValue, onChange: onDescrizioneChange } = useDebouncedSave(
+    asString(workerRow.descrizione_pubblica),
+    async (value) => { await onPatchField?.("descrizione_pubblica", value.trim() || null) }
+  )
+  const { value: emailValue, onChange: onEmailChange } = useDebouncedSave(
+    asString(workerRow.email),
+    async (value) => { await onPatchField?.("email", value.trim() || null) }
+  )
+  const { value: telefonoValue, onChange: onTelefonoChange } = useDebouncedSave(
+    asString(workerRow.telefono),
+    async (value) => { await onPatchField?.("telefono", value.trim() || null) }
+  )
+  const { value: sessoInputValue, onChange: onSessoInputChange } = useDebouncedSave(
+    asString(workerRow.sesso),
+    async (value) => { await onPatchField?.("sesso", value.trim() || null) }
+  )
+  const { value: dataNascitaValue, onChange: onDataNascitaChange } = useDebouncedSave(
+    asString(workerRow.data_di_nascita),
+    async (value) => { await onPatchField?.("data_di_nascita", value || null) }
   )
 
   const handleLookupFieldChange = React.useCallback(
@@ -470,17 +490,15 @@ export function WorkerProfileHeader({
               {isEditing ? (
                 <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
                   <Input
-                    value={draft.nome}
-                    onChange={(event) => updateDraftField("nome", event.target.value)}
-                    onBlur={() => void commitField("nome")}
+                    value={nomeValue}
+                    onChange={(event) => onNomeChange(event.target.value)}
                     disabled={fieldsDisabled}
                     placeholder="Nome"
                     className="w-40"
                   />
                   <Input
-                    value={draft.cognome}
-                    onChange={(event) => updateDraftField("cognome", event.target.value)}
-                    onBlur={() => void commitField("cognome")}
+                    value={cognomeValue}
+                    onChange={(event) => onCognomeChange(event.target.value)}
                     disabled={fieldsDisabled}
                     placeholder="Cognome"
                     className="w-40"
@@ -526,11 +544,8 @@ export function WorkerProfileHeader({
 
             {isEditing ? (
               <Textarea
-                value={draft.descrizione_pubblica}
-                onChange={(event) =>
-                  updateDraftField("descrizione_pubblica", event.target.value)
-                }
-                onBlur={() => void commitField("descrizione_pubblica")}
+                value={descrizioneValue}
+                onChange={(event) => onDescrizioneChange(event.target.value)}
                 disabled={fieldsDisabled}
                 className="mt-2 min-h-20"
               />
@@ -599,9 +614,8 @@ export function WorkerProfileHeader({
             {isEditing ? (
               <Input
                 type="email"
-                value={draft.email}
-                onChange={(event) => updateDraftField("email", event.target.value)}
-                onBlur={() => void commitField("email")}
+                value={emailValue}
+                onChange={(event) => onEmailChange(event.target.value)}
                 disabled={fieldsDisabled}
                 className="w-64"
               />
@@ -615,9 +629,8 @@ export function WorkerProfileHeader({
             {isEditing ? (
               <Input
                 type="tel"
-                value={draft.telefono}
-                onChange={(event) => updateDraftField("telefono", event.target.value)}
-                onBlur={() => void commitField("telefono")}
+                value={telefonoValue}
+                onChange={(event) => onTelefonoChange(event.target.value)}
                 disabled={fieldsDisabled}
                 className="w-40"
               />
@@ -656,9 +669,8 @@ export function WorkerProfileHeader({
                 </Select>
               ) : (
                 <Input
-                  value={draft.sesso}
-                  onChange={(event) => updateDraftField("sesso", event.target.value)}
-                  onBlur={() => void commitField("sesso")}
+                  value={sessoInputValue}
+                  onChange={(event) => onSessoInputChange(event.target.value)}
                   disabled={fieldsDisabled}
                   placeholder="Sesso"
                   className="w-36"
@@ -701,11 +713,8 @@ export function WorkerProfileHeader({
             {isEditing ? (
               <Input
                 type="date"
-                value={draft.data_di_nascita}
-                onChange={(event) =>
-                  updateDraftField("data_di_nascita", event.target.value)
-                }
-                onBlur={() => void commitField("data_di_nascita")}
+                value={dataNascitaValue}
+                onChange={(event) => onDataNascitaChange(event.target.value)}
                 disabled={fieldsDisabled}
                 className="w-40"
               />

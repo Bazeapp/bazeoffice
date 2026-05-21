@@ -64,6 +64,7 @@ import type {
 import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
 import { updateRecord } from "@/lib/anagrafiche-api";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 
 type OnboardingCardProps = {
   card: CrmPipelineCardData | null;
@@ -381,24 +382,6 @@ export function OnboardingCard({
   const [indirizzoProvincia, setIndirizzoProvincia] = React.useState(
     toInputValue(card?.indirizzoProvincia),
   );
-  const [indirizzoCap, setIndirizzoCap] = React.useState(
-    toInputValue(card?.indirizzoCap),
-  );
-  const [indirizzoNote, setIndirizzoNote] = React.useState(
-    toInputValue(card?.indirizzoNote),
-  );
-  const [indirizzoVia, setIndirizzoVia] = React.useState(
-    toInputValue(card?.indirizzoVia),
-  );
-  const [srcMapsUrl, setSrcMapsUrl] = React.useState(
-    toInputValue(card?.srcEmbedMapsAnnucio),
-  );
-  const [disponibilitaColloqui, setDisponibilitaColloqui] = React.useState(
-    toInputValue(card?.disponibilitaColloquiInPresenza),
-  );
-  const [feeConcordata, setFeeConcordata] = React.useState(
-    card?.feeConcordata != null ? String(card.feeConcordata) : "",
-  );
   const anchor = useComboboxAnchor();
   const [oreSettimanali, setOreSettimanali] = React.useState(
     toInputValue(card?.oreSettimana),
@@ -434,21 +417,10 @@ export function OnboardingCard({
   );
 
   React.useEffect(() => {
-    setFeeConcordata(card?.feeConcordata != null ? String(card.feeConcordata) : "");
-  }, [card?.feeConcordata]);
-
-  React.useEffect(() => {
     setOreSettimanali(toInputValue(card?.oreSettimana));
     setGiorniSettimanali(toInputValue(card?.giorniSettimana));
     setOrarioDiLavoro(toInputValue(card?.orarioDiLavoro));
     setIndirizzoProvincia(toInputValue(card?.indirizzoProvincia));
-    setIndirizzoCap(toInputValue(card?.indirizzoCap));
-    setIndirizzoNote(toInputValue(card?.indirizzoNote));
-    setIndirizzoVia(toInputValue(card?.indirizzoVia));
-    setSrcMapsUrl(toInputValue(card?.srcEmbedMapsAnnucio));
-    setDisponibilitaColloqui(
-      toInputValue(card?.disponibilitaColloquiInPresenza),
-    );
     setGiornatePreferite(normalizeWeekdayList(card?.giornatePreferite));
   }, [
     card?.id,
@@ -456,11 +428,6 @@ export function OnboardingCard({
     card?.giorniSettimana,
     card?.orarioDiLavoro,
     card?.indirizzoProvincia,
-    card?.indirizzoCap,
-    card?.indirizzoNote,
-    card?.indirizzoVia,
-    card?.srcEmbedMapsAnnucio,
-    card?.disponibilitaColloquiInPresenza,
     card?.giornatePreferite,
   ]);
 
@@ -543,24 +510,39 @@ export function OnboardingCard({
     [addressId, cardId, onPatchAddress],
   );
 
-  const saveFeeConcordata = React.useCallback(async () => {
-    if (!richiestaAttivazioneId) return;
-    const normalized = feeConcordata.trim().replace(",", ".");
-    const nextValue = normalized ? Number(normalized) : null;
-    if (normalized && Number.isNaN(nextValue)) {
-      toast.error("Fee concordata non valida");
-      return;
-    }
-
-    try {
-      await updateRecord("richieste_attivazione", richiestaAttivazioneId, {
-        fee_concordata: nextValue,
-      });
-      toast.success("Fee concordata salvata");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Errore salvando fee concordata");
-    }
-  }, [feeConcordata, richiestaAttivazioneId]);
+  const { value: indirizzoCap, onChange: onIndirizzoCapChange } = useDebouncedSave(
+    toInputValue(card?.indirizzoCap),
+    async (value) => { await patchAddress({ cap: value || null }); },
+  );
+  const { value: indirizzoVia, onChange: onIndirizzoViaChange } = useDebouncedSave(
+    toInputValue(card?.indirizzoVia),
+    async (value) => { await patchAddress({ via: value || null }); },
+  );
+  const { value: indirizzoNote, onChange: onIndirizzoNoteChange } = useDebouncedSave(
+    toInputValue(card?.indirizzoNote),
+    async (value) => { await patchAddress({ note: value || null }); },
+  );
+  const { value: srcMapsUrl, onChange: onSrcMapsUrlChange } = useDebouncedSave(
+    toInputValue(card?.srcEmbedMapsAnnucio),
+    async (value) => { await patchProcess({ src_embed_maps_annucio: value || null }); },
+  );
+  const { value: disponibilitaColloqui, onChange: onDisponibilitaColloquiChange } = useDebouncedSave(
+    toInputValue(card?.disponibilitaColloquiInPresenza),
+    async (value) => { await patchProcess({ disponibilita_colloqui_in_presenza: value || null }); },
+  );
+  const { value: feeConcordata, onChange: onFeeConcordataChange } = useDebouncedSave(
+    card?.feeConcordata != null ? String(card.feeConcordata) : "",
+    async (value) => {
+      if (!richiestaAttivazioneId) return;
+      const normalized = value.trim().replace(",", ".");
+      const nextValue = normalized ? Number(normalized) : null;
+      if (normalized && Number.isNaN(nextValue)) {
+        toast.error("Fee concordata non valida");
+        return;
+      }
+      await updateRecord("richieste_attivazione", richiestaAttivazioneId, { fee_concordata: nextValue });
+    },
+  );
 
   const copyToClipboard = React.useCallback(async (value: string, label: string) => {
     try {
@@ -1075,10 +1057,7 @@ export function OnboardingCard({
               className={cn(isRequiredMissing("indirizzoCap") && REQUIRED_FIELD_CLASS)}
               placeholder="20158"
               value={indirizzoCap}
-              onChange={(event) => setIndirizzoCap(event.target.value)}
-              onBlur={() => {
-                void patchAddress({ cap: indirizzoCap || null });
-              }}
+              onChange={(event) => onIndirizzoCapChange(event.target.value)}
             />
           </Field>
         </div>
@@ -1090,10 +1069,7 @@ export function OnboardingCard({
 	              id="onboarding-via"
 	              className={cn(isRequiredMissing("indirizzoVia") && REQUIRED_FIELD_CLASS)}
 	              value={indirizzoVia}
-	              onChange={(event) => setIndirizzoVia(event.target.value)}
-	              onBlur={() => {
-	                void patchAddress({ via: indirizzoVia || null });
-	              }}
+	              onChange={(event) => onIndirizzoViaChange(event.target.value)}
 	            />
 	          </Field>
 	          <Field invalid={isRequiredMissing("indirizzoNote")}>
@@ -1102,10 +1078,7 @@ export function OnboardingCard({
 	              id="onboarding-quartiere"
 	              className={cn(isRequiredMissing("indirizzoNote") && REQUIRED_FIELD_CLASS)}
 	              value={indirizzoNote}
-	              onChange={(event) => setIndirizzoNote(event.target.value)}
-	              onBlur={() => {
-	                void patchAddress({ note: indirizzoNote || null });
-	              }}
+	              onChange={(event) => onIndirizzoNoteChange(event.target.value)}
 	            />
 	          </Field>
 	        </div>
@@ -1115,10 +1088,7 @@ export function OnboardingCard({
             id="onboarding-src-maps-edit"
             className={cn(isRequiredMissing("srcEmbedMapsAnnucio") && REQUIRED_FIELD_CLASS)}
             value={srcMapsUrl}
-            onChange={(event) => setSrcMapsUrl(event.target.value)}
-            onBlur={() => {
-              void patchProcess({ src_embed_maps_annucio: srcMapsUrl || null });
-            }}
+            onChange={(event) => onSrcMapsUrlChange(event.target.value)}
           />
         </Field>
         </DetailSectionBlock>
@@ -1219,13 +1189,7 @@ export function OnboardingCard({
             <Input
               id="onboarding-disponibilita-incontro"
               value={disponibilitaColloqui}
-              onChange={(event) => setDisponibilitaColloqui(event.target.value)}
-              onBlur={() => {
-                void patchProcess({
-                  disponibilita_colloqui_in_presenza:
-                    disponibilitaColloqui || null,
-                });
-              }}
+              onChange={(event) => onDisponibilitaColloquiChange(event.target.value)}
             />
           </Field>
 
@@ -1265,8 +1229,7 @@ export function OnboardingCard({
               step="0.01"
               value={feeConcordata}
               disabled={!card?.richiestaAttivazioneId}
-              onChange={(event) => setFeeConcordata(event.target.value)}
-              onBlur={() => void saveFeeConcordata()}
+              onChange={(event) => onFeeConcordataChange(event.target.value)}
               placeholder="-"
             />
           </Field>
@@ -1519,10 +1482,7 @@ export function OnboardingCard({
 	                id="onboarding-cap"
 	                placeholder="20158"
 	                value={indirizzoCap}
-	                onChange={(event) => setIndirizzoCap(event.target.value)}
-	                onBlur={() => {
-	                  void patchAddress({ cap: indirizzoCap || null });
-	                }}
+	                onChange={(event) => onIndirizzoCapChange(event.target.value)}
 	              />
 	            </Field>
 	          </div>
@@ -1533,10 +1493,7 @@ export function OnboardingCard({
 		              <Input
 		                id="onboarding-via"
 		                value={indirizzoVia}
-		                onChange={(event) => setIndirizzoVia(event.target.value)}
-		                onBlur={() => {
-		                  void patchAddress({ via: indirizzoVia || null });
-		                }}
+		                onChange={(event) => onIndirizzoViaChange(event.target.value)}
 		              />
 		            </Field>
 		            <Field>
@@ -1544,10 +1501,7 @@ export function OnboardingCard({
 		              <Input
 		                id="onboarding-quartiere"
 		                value={indirizzoNote}
-		                onChange={(event) => setIndirizzoNote(event.target.value)}
-		                onBlur={() => {
-		                  void patchAddress({ note: indirizzoNote || null });
-		                }}
+		                onChange={(event) => onIndirizzoNoteChange(event.target.value)}
 		              />
 			            </Field>
 		          </div>
@@ -1556,10 +1510,7 @@ export function OnboardingCard({
 	            <Input
 	              id="onboarding-src-maps-edit"
 	              value={srcMapsUrl}
-	              onChange={(event) => setSrcMapsUrl(event.target.value)}
-	              onBlur={() => {
-	                void patchProcess({ src_embed_maps_annucio: srcMapsUrl || null });
-	              }}
+	              onChange={(event) => onSrcMapsUrlChange(event.target.value)}
 	            />
 	          </Field>
 		        </div>
@@ -1591,13 +1542,7 @@ export function OnboardingCard({
                 <Input
                   id="onboarding-disponibilita-incontro"
                   value={disponibilitaColloqui}
-                  onChange={(event) => setDisponibilitaColloqui(event.target.value)}
-                  onBlur={() => {
-                    void patchProcess({
-                      disponibilita_colloqui_in_presenza:
-                        disponibilitaColloqui || null,
-                    });
-                  }}
+                  onChange={(event) => onDisponibilitaColloquiChange(event.target.value)}
                 />
               </Field>
 
@@ -1637,8 +1582,7 @@ export function OnboardingCard({
                   step="0.01"
                   value={feeConcordata}
                   disabled={!card?.richiestaAttivazioneId}
-                  onChange={(event) => setFeeConcordata(event.target.value)}
-                  onBlur={() => void saveFeeConcordata()}
+                  onChange={(event) => onFeeConcordataChange(event.target.value)}
                   placeholder="-"
                 />
               </Field>

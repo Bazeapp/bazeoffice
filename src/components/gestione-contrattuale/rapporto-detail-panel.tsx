@@ -54,7 +54,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { updateRecord } from "@/lib/anagrafiche-api"
+import { beginPendingWrite, endPendingWrite, updateRecord } from "@/lib/anagrafiche-api"
+import { useDebouncedSave } from "@/hooks/use-debounced-save"
 import {
   buildAttachmentPayload,
   normalizeAttachmentArray,
@@ -858,6 +859,17 @@ export function RapportoDetailPanel({
     null
   const [processOfferta, setProcessOfferta] = React.useState(currentProcesso?.offerta ?? "")
 
+  const { value: feeConcordata, onChange: onFeeConcordataChange } = useDebouncedSave(
+    richiestaAttivazione?.fee_concordata?.toString() ?? "",
+    async (value) => {
+      if (!richiestaAttivazione?.id) return
+      const rawValue = value.trim()
+      const nextValue = rawValue ? Number(rawValue) : null
+      if (rawValue && Number.isNaN(nextValue)) return
+      await updateRecord("richieste_attivazione", richiestaAttivazione.id, { fee_concordata: nextValue })
+    }
+  )
+
   React.useEffect(() => {
     setProcessOfferta(currentProcesso?.offerta ?? "")
   }, [currentProcesso?.offerta])
@@ -920,28 +932,48 @@ export function RapportoDetailPanel({
     }
   }, [currentRapporto, getChangedContrattoPatch])
 
+  const persistContrattoChangesRef = React.useRef(persistContrattoChanges)
+  React.useEffect(() => {
+    persistContrattoChangesRef.current = persistContrattoChanges
+  })
+
   React.useEffect(() => {
     if (editingSection !== "contratto") return
 
     const patch = getChangedContrattoPatch()
     if (Object.keys(patch).length === 0) return
 
+    const hadTimer = autosaveTimeoutRef.current !== null
     if (autosaveTimeoutRef.current) {
       window.clearTimeout(autosaveTimeoutRef.current)
     }
 
+    if (!hadTimer) beginPendingWrite()
+
     autosaveTimeoutRef.current = window.setTimeout(() => {
-      void persistContrattoChanges()
       autosaveTimeoutRef.current = null
+      void persistContrattoChangesRef.current().finally(() => endPendingWrite())
     }, 500)
 
     return () => {
       if (autosaveTimeoutRef.current) {
         window.clearTimeout(autosaveTimeoutRef.current)
         autosaveTimeoutRef.current = null
+        endPendingWrite()
       }
     }
-  }, [editingSection, getChangedContrattoPatch, persistContrattoChanges])
+  }, [editingSection, getChangedContrattoPatch])
+
+  React.useEffect(() => {
+    return () => {
+      if (autosaveTimeoutRef.current) {
+        window.clearTimeout(autosaveTimeoutRef.current)
+        autosaveTimeoutRef.current = null
+        endPendingWrite()
+        void persistContrattoChangesRef.current()
+      }
+    }
+  }, [])
 
   if (loadingRapporto) {
     return <RapportoDetailPanelSkeleton />
@@ -1258,14 +1290,6 @@ export function RapportoDetailPanel({
                     <DetailField label="Tipo durata" value={rapportoView.tipo_contratto_durata ?? "-"} />
                     <DetailField label="Tipo contratto" value={rapportoView.tipo_contratto ?? "-"} />
                     <DetailField label="Tipo rapporto" value={rapportoView.tipo_rapporto ?? "-"} />
-                    <DetailField
-                      label="Ore settimanali"
-                      value={
-                        typeof rapportoView.ore_a_settimana === "number"
-                          ? `${rapportoView.ore_a_settimana}h`
-                          : "-"
-                      }
-                    />
                     <DetailField label="Data inizio" value={startDateLabel} />
                     <DetailField label="Durata" value={getDurationLabel(rapportoView.data_inizio_rapporto)} />
                     <DetailField label="Stato assunzione" value={rapportoView.stato_assunzione ?? "-"} />
@@ -1289,54 +1313,6 @@ export function RapportoDetailPanel({
                     </div>
                   ))}
                 </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                {editingSection === "contratto" ? (
-                  <>
-                    <DetailFieldControl label="Distribuzione ore settimanali">
-                      <div className="space-y-2">
-                        <p className="ui-type-meta">Parte da domenica</p>
-                        <Input
-                          value={rapportoDraft.distribuzione_ore_settimana}
-                          placeholder="0-0-0-0-0-0-0"
-                          onChange={(event) =>
-                            setDraftValue("distribuzione_ore_settimana", event.target.value)
-                          }
-                          onBlur={() => void persistContrattoChanges()}
-                        />
-                      </div>
-                    </DetailFieldControl>
-                    <DetailFieldControl label="Ore di lavoro a settimana">
-                      <div className="space-y-2">
-                        <p className="ui-type-meta invisible" aria-hidden="true">
-                          Parte da domenica
-                        </p>
-                        <Input
-                          type="number"
-                          value={rapportoDraft.ore_a_settimana}
-                          onChange={(event) => setDraftValue("ore_a_settimana", event.target.value)}
-                          onBlur={() => void persistContrattoChanges()}
-                        />
-                      </div>
-                    </DetailFieldControl>
-                  </>
-                ) : (
-                  <>
-                    <DetailField
-                      label="Distribuzione ore settimanali"
-                      value={rapportoView.distribuzione_ore_settimana ?? "-"}
-                    />
-                    <DetailField
-                      label="Ore di lavoro a settimana"
-                      value={
-                        typeof rapportoView.ore_a_settimana === "number"
-                          ? `${rapportoView.ore_a_settimana}`
-                          : "-"
-                      }
-                    />
-                  </>
-                )}
               </div>
 
               <Separator className="bg-border/60" />
@@ -1414,21 +1390,12 @@ export function RapportoDetailPanel({
                 <div className="grid gap-3 md:grid-cols-3">
                   <DetailFieldControl label="Fee concordata">
                     <Input
-                      key={richiestaAttivazione?.id ?? "no-richiesta"}
                       type="number"
                       step="0.01"
-                      defaultValue={richiestaAttivazione?.fee_concordata ?? ""}
+                      value={feeConcordata}
                       disabled={!richiestaAttivazione?.id}
                       placeholder="-"
-                      onBlur={(event) => {
-                        if (!richiestaAttivazione?.id) return
-                        const rawValue = event.target.value.trim()
-                        const nextValue = rawValue ? Number(rawValue) : null
-                        if (rawValue && Number.isNaN(nextValue)) return
-                        void updateRecord("richieste_attivazione", richiestaAttivazione.id, {
-                          fee_concordata: nextValue,
-                        })
-                      }}
+                      onChange={(event) => onFeeConcordataChange(event.target.value)}
                     />
                   </DetailFieldControl>
                   <div className="rounded-lg border bg-surface px-3 py-2">

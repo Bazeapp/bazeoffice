@@ -46,10 +46,13 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  beginPendingWrite,
+  endPendingWrite,
   fetchRapportiLavorativi,
   fetchVariazioniContrattuali,
   updateRecord,
 } from "@/lib/anagrafiche-api";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments";
 import { matchesSearchQuery } from "@/lib/search-utils";
 import { supabase } from "@/lib/supabase-client";
@@ -199,6 +202,8 @@ function EditableAnagraficaSection({
   const [savingField, setSavingField] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const previousRowIdRef = React.useRef(rowId);
+  const saveTimersRef = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingValuesRef = React.useRef<Record<string, string>>({});
 
   React.useEffect(() => {
     const nextDraft = buildAnagraficaDraft(row, fields);
@@ -217,11 +222,11 @@ function EditableAnagraficaSection({
     }
   }, [fields, isEditing, row, rowId]);
 
-  async function saveField(field: AnagraficaField) {
+  async function saveFieldValue(field: AnagraficaField, value: string) {
     if (!rowId || field.readOnly) return;
-    const nextValue = draft[field.key]?.trim() ?? "";
+    const nextValue = value.trim();
     const currentValue = toDisplayValue(row?.[field.key]).trim();
-    if (nextValue === currentValue) return;
+    if (nextValue === currentValue) { endPendingWrite(); return; }
 
     setSavingField(field.key);
     setError(null);
@@ -237,8 +242,22 @@ function EditableAnagraficaSection({
       setError(caughtError instanceof Error ? caughtError.message : `Errore salvando ${title}`);
     } finally {
       setSavingField(null);
+      endPendingWrite();
     }
   }
+
+  React.useEffect(() => {
+    const timers = saveTimersRef.current;
+    const pending = pendingValuesRef.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+      Object.entries(pending).forEach(([key, value]) => {
+        const field = fields.find((f) => f.key === key);
+        if (field) void saveFieldValue(field, value);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <DetailSectionBlock
@@ -266,13 +285,19 @@ function EditableAnagraficaSection({
                 <Input
                   value={draft[field.key] ?? ""}
                   placeholder={field.placeholder}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      [field.key]: event.target.value,
-                    }))
-                  }
-                  onBlur={() => void saveField(field)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setDraft((current) => ({ ...current, [field.key]: value }));
+                    pendingValuesRef.current[field.key] = value;
+                    if (!saveTimersRef.current[field.key]) beginPendingWrite();
+                    clearTimeout(saveTimersRef.current[field.key]);
+                    saveTimersRef.current[field.key] = setTimeout(() => {
+                      delete saveTimersRef.current[field.key];
+                      const v = pendingValuesRef.current[field.key] ?? value;
+                      delete pendingValuesRef.current[field.key];
+                      void saveFieldValue(field, v);
+                    }, 300);
+                  }}
                   disabled={savingField === field.key}
                 />
               ) : (
@@ -324,6 +349,27 @@ function VariazioniDetailSheet({
   const distributionItems = buildDistributionItems(
     card?.rapporto?.distribuzione_ore_settimana ?? null,
     card?.rapporto?.ore_a_settimana ?? null,
+  );
+
+  const { onChange: saveDataVariazione } = useDebouncedSave(
+    card?.record.data_variazione ?? "",
+    async (v) => { await saveDetailsPatch({ data_variazione: v || null }); },
+  );
+  const { onChange: saveVariazioneDaApplicare } = useDebouncedSave(
+    card?.record.variazione_da_applicare ?? "",
+    async (v) => { await saveDetailsPatch({ variazione_da_applicare: v || null }); },
+  );
+  const { onChange: savePagaOraria } = useDebouncedSave(
+    card?.rapporto?.paga_oraria_lorda != null ? String(card.rapporto.paga_oraria_lorda) : "",
+    async (v) => { await saveRapportoPatch({ paga_oraria_lorda: v ? Number(v) : null }); },
+  );
+  const { onChange: saveOreSettimanali } = useDebouncedSave(
+    card?.rapporto?.ore_a_settimana != null ? String(card.rapporto.ore_a_settimana) : "",
+    async (v) => { await saveRapportoPatch({ ore_a_settimana: v ? Number(v) : null }); },
+  );
+  const { onChange: saveTipoRapporto } = useDebouncedSave(
+    card?.rapporto?.tipo_rapporto ?? "",
+    async (v) => { await saveRapportoPatch({ tipo_rapporto: v || null }); },
   );
 
   React.useEffect(() => {
@@ -573,34 +619,22 @@ function VariazioniDetailSheet({
                       <Input
                         type="date"
                         value={detailsDraft.dataVariazione}
-                        onChange={(event) =>
-                          setDetailsDraft((current) => ({
-                            ...current,
-                            dataVariazione: event.target.value,
-                          }))
-                        }
-                        onBlur={(event) =>
-                          void saveDetailsPatch({
-                            data_variazione: event.currentTarget.value || null,
-                          })
-                        }
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setDetailsDraft((current) => ({ ...current, dataVariazione: value }));
+                          saveDataVariazione(value);
+                        }}
                       />
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Variazione da applicare</span>
                       <Textarea
                         value={detailsDraft.variazioneDaApplicare}
-                        onChange={(event) =>
-                          setDetailsDraft((current) => ({
-                            ...current,
-                            variazioneDaApplicare: event.target.value,
-                          }))
-                        }
-                        onBlur={(event) =>
-                          void saveDetailsPatch({
-                            variazione_da_applicare: event.currentTarget.value || null,
-                          })
-                        }
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setDetailsDraft((current) => ({ ...current, variazioneDaApplicare: value }));
+                          saveVariazioneDaApplicare(value);
+                        }}
                       />
                     </label>
                     {savingDetails ? (
@@ -658,19 +692,11 @@ function VariazioniDetailSheet({
                           type="number"
                           step="0.01"
                           value={rapportoDraft.pagaOraria}
-                          onChange={(event) =>
-                            setRapportoDraft((current) => ({
-                              ...current,
-                              pagaOraria: event.target.value,
-                            }))
-                          }
-                          onBlur={(event) =>
-                            void saveRapportoPatch({
-                              paga_oraria_lorda: event.currentTarget.value
-                                ? Number(event.currentTarget.value)
-                                : null,
-                            })
-                          }
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setRapportoDraft((current) => ({ ...current, pagaOraria: value }));
+                            savePagaOraria(value);
+                          }}
                         />
                       </label>
                       <label className="space-y-2">
@@ -679,36 +705,22 @@ function VariazioniDetailSheet({
                           type="number"
                           step="0.5"
                           value={rapportoDraft.oreSettimanali}
-                          onChange={(event) =>
-                            setRapportoDraft((current) => ({
-                              ...current,
-                              oreSettimanali: event.target.value,
-                            }))
-                          }
-                          onBlur={(event) =>
-                            void saveRapportoPatch({
-                              ore_a_settimana: event.currentTarget.value
-                                ? Number(event.currentTarget.value)
-                                : null,
-                            })
-                          }
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setRapportoDraft((current) => ({ ...current, oreSettimanali: value }));
+                            saveOreSettimanali(value);
+                          }}
                         />
                       </label>
                       <label className="space-y-2">
                         <span className="ui-type-label">Tipo rapporto</span>
                         <Input
                           value={rapportoDraft.tipoRapporto}
-                          onChange={(event) =>
-                            setRapportoDraft((current) => ({
-                              ...current,
-                              tipoRapporto: event.target.value,
-                            }))
-                          }
-                          onBlur={(event) =>
-                            void saveRapportoPatch({
-                              tipo_rapporto: event.currentTarget.value || null,
-                            })
-                          }
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setRapportoDraft((current) => ({ ...current, tipoRapporto: value }));
+                            saveTipoRapporto(value);
+                          }}
                         />
                       </label>
                       <label className="space-y-2">

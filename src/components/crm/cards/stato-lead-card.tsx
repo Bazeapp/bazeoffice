@@ -27,6 +27,7 @@ import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 
 type StatoLeadCardProps = {
   card: CrmPipelineCardData | null;
@@ -344,16 +345,23 @@ export function StatoLeadCard({
   onChangeStage,
   onPatchProcess,
 }: StatoLeadCardProps) {
-  const [noteStato, setNoteStato] = React.useState(card?.appuntiChiamataSales ?? "-");
   const [dataRicontatto, setDataRicontatto] = React.useState(
     card?.dataPerRicercaFutura ?? "-"
   );
 
   React.useEffect(() => {
     if (!card) return;
-    setNoteStato(card.appuntiChiamataSales);
     setDataRicontatto(card.dataPerRicercaFutura);
   }, [card]);
+
+  const { value: noteStato, onChange: onNoteStatoChange } = useDebouncedSave(
+    card?.appuntiChiamataSales === "-" ? "" : (card?.appuntiChiamataSales ?? ""),
+    async (value) => {
+      if (card && onPatchProcess) {
+        await onPatchProcess(card.id, { appunti_chiamata_sales: value || null })
+      }
+    }
+  );
 
   if (!card) {
     return null;
@@ -452,13 +460,8 @@ export function StatoLeadCard({
             <FieldLabel htmlFor="note-lost">Note</FieldLabel>
             <Textarea
               id="note-lost"
-              value={noteStato === "-" ? "" : noteStato}
-              onChange={(event) => setNoteStato(event.target.value)}
-              onBlur={() => {
-                void onPatchProcess?.(card.id, {
-                  appunti_chiamata_sales: noteStato || null,
-                });
-              }}
+              value={noteStato}
+              onChange={(event) => onNoteStatoChange(event.target.value)}
             />
           </Field>
         </FieldGroup>
@@ -482,13 +485,8 @@ export function StatoLeadCard({
             <FieldLabel htmlFor="note-oot">Note</FieldLabel>
             <Textarea
               id="note-oot"
-              value={noteStato === "-" ? "" : noteStato}
-              onChange={(event) => setNoteStato(event.target.value)}
-              onBlur={() => {
-                void onPatchProcess?.(card.id, {
-                  appunti_chiamata_sales: noteStato || null,
-                });
-              }}
+              value={noteStato}
+              onChange={(event) => onNoteStatoChange(event.target.value)}
             />
           </Field>
         </FieldGroup>
@@ -514,13 +512,8 @@ export function StatoLeadCard({
             <FieldLabel htmlFor="note-cold">Note</FieldLabel>
             <Textarea
               id="note-cold"
-              value={noteStato === "-" ? "" : noteStato}
-              onChange={(event) => setNoteStato(event.target.value)}
-              onBlur={() => {
-                void onPatchProcess?.(card.id, {
-                  appunti_chiamata_sales: noteStato || null,
-                });
-              }}
+              value={noteStato}
+              onChange={(event) => onNoteStatoChange(event.target.value)}
             />
           </Field>
         </FieldGroup>

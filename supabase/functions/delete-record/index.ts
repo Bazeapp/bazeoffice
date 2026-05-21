@@ -1,4 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  insertFieldAuditLogs,
+  resolveAuditActor,
+} from "../_shared/audit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -99,10 +103,11 @@ Deno.serve(async (req) => {
   const supabase = createClient(url, serviceRole, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const auditActor = await resolveAuditActor(supabase, req);
 
   const { data: existingRow, error: existingError } = await supabase
     .from(table)
-    .select("id")
+    .select("*")
     .eq("id", id)
     .maybeSingle();
 
@@ -115,6 +120,15 @@ Deno.serve(async (req) => {
   }
 
   if (table === "esperienze_lavoratori") {
+    const { data: referenceRows, error: referencesReadError } = await supabase
+      .from("referenze_lavoratori")
+      .select("*")
+      .eq("esperienza_lavoratore_id", id);
+
+    if (referencesReadError) {
+      return serverError(referencesReadError.message);
+    }
+
     const { error: referencesDeleteError } = await supabase
       .from("referenze_lavoratori")
       .delete()
@@ -123,6 +137,17 @@ Deno.serve(async (req) => {
     if (referencesDeleteError) {
       return serverError(referencesDeleteError.message);
     }
+
+    for (const referenceRow of referenceRows ?? []) {
+      await insertFieldAuditLogs(supabase, {
+        actor: auditActor,
+        operation: "delete",
+        tableName: "referenze_lavoratori",
+        recordId: String((referenceRow as { id?: unknown }).id ?? ""),
+        source: "delete-record:cascade",
+        oldRecord: referenceRow as Record<string, unknown>,
+      });
+    }
   }
 
   const { error: deleteError } = await supabase.from(table).delete().eq("id", id);
@@ -130,6 +155,15 @@ Deno.serve(async (req) => {
   if (deleteError) {
     return serverError(deleteError.message);
   }
+
+  await insertFieldAuditLogs(supabase, {
+    actor: auditActor,
+    operation: "delete",
+    tableName: table,
+    recordId: id,
+    source: "delete-record",
+    oldRecord: existingRow as Record<string, unknown>,
+  });
 
   return new Response(
     JSON.stringify({

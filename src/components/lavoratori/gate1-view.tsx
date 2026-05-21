@@ -108,6 +108,7 @@ import {
   useOperatoriOptions,
 } from "@/hooks/use-operatori-options";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { updateRecord } from "@/lib/anagrafiche-api";
 import {
   buildAttachmentPayload,
@@ -549,10 +550,8 @@ function GatePresentationCard({
   onUploadPhoto,
   onSelectedPresentationPhotoIndexChange,
   onHeaderChange,
-  onHeaderBlur,
   livelloItalianoOptions,
   onLivelloItalianoChange,
-  onLivelloItalianoBlur,
 }: {
   worker: LavoratoreListItem;
   workerRow: LavoratoreRecord;
@@ -585,9 +584,7 @@ function GatePresentationCard({
   onSelectedPresentationPhotoIndexChange: (value: number) => void;
   livelloItalianoOptions: Array<{ label: string; value: string }>;
   onHeaderChange: (field: string, value: string) => void;
-  onHeaderBlur: (field: string) => void;
   onLivelloItalianoChange: (value: string) => void;
-  onLivelloItalianoBlur: () => void;
 }) {
   return (
     <GateInfoCard
@@ -655,9 +652,7 @@ function GatePresentationCard({
             onSelectedPresentationPhotoIndexChange
           }
           onLivelloItalianoChange={onLivelloItalianoChange}
-          onLivelloItalianoBlur={onLivelloItalianoBlur}
           onFieldChange={onHeaderChange}
-          onFieldBlur={onHeaderBlur}
         />
       </div>
     </GateInfoCard>
@@ -673,7 +668,6 @@ function GateAssessmentCard({
   onNonIdoneoReasonChange,
   feedbackValue,
   onFeedbackChange,
-  onFeedbackBlur,
   lookupColorsByDomain,
 }: {
   statusValue: string;
@@ -684,7 +678,6 @@ function GateAssessmentCard({
   onNonIdoneoReasonChange: (value: string) => void;
   feedbackValue: string;
   onFeedbackChange: (value: string) => void;
-  onFeedbackBlur: () => void;
   lookupColorsByDomain: Map<string, string>;
 }) {
   const helperDate = React.useMemo(
@@ -756,7 +749,6 @@ function GateAssessmentCard({
         <Textarea
           value={feedbackValue}
           onChange={(event) => onFeedbackChange(event.target.value)}
-          onBlur={onFeedbackBlur}
           rows={4}
           className="min-h-28 w-full"
           placeholder="Aggiungi note di screening"
@@ -939,9 +931,6 @@ function GateWorkTypesCard({
   onAnniEsperienzaColfChange,
   onAnniEsperienzaBadanteChange,
   onAnniEsperienzaBabysitterChange,
-  onAnniEsperienzaColfBlur,
-  onAnniEsperienzaBadanteBlur,
-  onAnniEsperienzaBabysitterBlur,
   onExperiencePatch,
   onExperienceCreate,
   onReferencePatch,
@@ -976,9 +965,6 @@ function GateWorkTypesCard({
   onAnniEsperienzaColfChange: (value: string) => void;
   onAnniEsperienzaBadanteChange: (value: string) => void;
   onAnniEsperienzaBabysitterChange: (value: string) => void;
-  onAnniEsperienzaColfBlur: () => void;
-  onAnniEsperienzaBadanteBlur: () => void;
-  onAnniEsperienzaBabysitterBlur: () => void;
   onExperiencePatch: Parameters<
     typeof ExperienceReferencesCard
   >[0]["onExperiencePatch"];
@@ -1106,7 +1092,6 @@ function GateWorkTypesCard({
               onChange={(event) =>
                 onAnniEsperienzaColfChange(event.target.value)
               }
-              onBlur={onAnniEsperienzaColfBlur}
             />
           ) : (
             <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
@@ -1127,7 +1112,6 @@ function GateWorkTypesCard({
               onChange={(event) =>
                 onAnniEsperienzaBabysitterChange(event.target.value)
               }
-              onBlur={onAnniEsperienzaBabysitterBlur}
             />
           ) : (
             <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
@@ -1148,7 +1132,6 @@ function GateWorkTypesCard({
               onChange={(event) =>
                 onAnniEsperienzaBadanteChange(event.target.value)
               }
-              onBlur={onAnniEsperienzaBadanteBlur}
             />
           ) : (
             <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
@@ -1189,10 +1172,6 @@ function GateWorkTypesCard({
         onAnniEsperienzaBadanteChange={onAnniEsperienzaBadanteChange}
         onAnniEsperienzaBabysitterChange={onAnniEsperienzaBabysitterChange}
         onSituazioneLavorativaAttualeChange={() => {}}
-        onAnniEsperienzaColfBlur={onAnniEsperienzaColfBlur}
-        onAnniEsperienzaBadanteBlur={onAnniEsperienzaBadanteBlur}
-        onAnniEsperienzaBabysitterBlur={onAnniEsperienzaBabysitterBlur}
-        onSituazioneLavorativaAttualeBlur={() => {}}
         onExperiencePatch={onExperiencePatch}
         onExperienceCreate={onExperienceCreate}
         onReferencePatch={onReferencePatch}
@@ -2043,10 +2022,8 @@ function GateBazeChecksCard({
   onFunzionamentoBazeChange,
   onPaga9Change,
   onPagaOrariaRichiestaChange,
-  onPagaOrariaRichiestaBlur,
   onMultipliContrattiChange,
   onDataScadenzaNaspiChange,
-  onDataScadenzaNaspiBlur,
 }: {
   isEditing: boolean;
   showEditAction?: boolean;
@@ -2063,10 +2040,8 @@ function GateBazeChecksCard({
   onFunzionamentoBazeChange: (value: string) => void;
   onPaga9Change: (value: string) => void;
   onPagaOrariaRichiestaChange: (value: string) => void;
-  onPagaOrariaRichiestaBlur: () => void;
   onMultipliContrattiChange: (value: string) => void;
   onDataScadenzaNaspiChange: (value: string) => void;
-  onDataScadenzaNaspiBlur: () => void;
 }) {
   const isPagaMinimaDisabled = paga9 === "Accetta";
 
@@ -2157,7 +2132,6 @@ function GateBazeChecksCard({
               onChange={(event) =>
                 onPagaOrariaRichiestaChange(event.target.value)
               }
-              onBlur={onPagaOrariaRichiestaBlur}
               disabled={isPagaMinimaDisabled}
               placeholder="Inserisci paga oraria"
             />
@@ -2196,7 +2170,6 @@ function GateBazeChecksCard({
             type="date"
             value={dataScadenzaNaspi}
             onChange={(event) => onDataScadenzaNaspiChange(event.target.value)}
-            onBlur={onDataScadenzaNaspiBlur}
           />
         ) : (
           <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
@@ -2498,7 +2471,6 @@ function GateAdministrativeFieldsCard({
   isUpdating,
   missingStripeRequirements = [],
   onIbanChange,
-  onIbanBlur,
   onGenerateStripeAccount,
 }: {
   ibanValue: string;
@@ -2507,7 +2479,6 @@ function GateAdministrativeFieldsCard({
   isUpdating: boolean;
   missingStripeRequirements?: string[];
   onIbanChange: (value: string) => void;
-  onIbanBlur: () => void;
   onGenerateStripeAccount?: () => void | Promise<unknown>;
 }) {
   const resolvedIbanValue = ibanValue.trim();
@@ -2534,7 +2505,6 @@ function GateAdministrativeFieldsCard({
               <Input
                 value={ibanValue}
                 onChange={(event) => onIbanChange(event.target.value)}
-                onBlur={onIbanBlur}
                 disabled={isUpdating}
                 placeholder="Inserisci IBAN"
               />
@@ -2594,7 +2564,6 @@ function GateDocumentIdentityCard({
   nazionalitaOptions,
   isEditing,
   onHeaderChange,
-  onHeaderBlur,
 }: {
   headerDraft: {
     nome: string;
@@ -2605,7 +2574,6 @@ function GateDocumentIdentityCard({
   nazionalitaOptions: Array<{ label: string; value: string }>;
   isEditing: boolean;
   onHeaderChange: (field: string, value: string) => void;
-  onHeaderBlur: (field: string) => void;
 }) {
   const resolvedNazionalitaOptions = resolveLookupSingleValueOptions(
     headerDraft.nazionalita,
@@ -2624,7 +2592,6 @@ function GateDocumentIdentityCard({
           <Input
             value={headerDraft.nome}
             onChange={(event) => onHeaderChange("nome", event.target.value)}
-            onBlur={() => onHeaderBlur("nome")}
             disabled={!isEditing}
           />
         </div>
@@ -2633,7 +2600,6 @@ function GateDocumentIdentityCard({
           <Input
             value={headerDraft.cognome}
             onChange={(event) => onHeaderChange("cognome", event.target.value)}
-            onBlur={() => onHeaderBlur("cognome")}
             disabled={!isEditing}
           />
         </div>
@@ -2645,7 +2611,6 @@ function GateDocumentIdentityCard({
             onChange={(event) =>
               onHeaderChange("data_di_nascita", event.target.value)
             }
-            onBlur={() => onHeaderBlur("data_di_nascita")}
             disabled={!isEditing}
           />
         </div>
@@ -2663,7 +2628,6 @@ function GateDocumentIdentityCard({
                   "nazionalita",
                   value === EMPTY_SELECT_VALUE ? "" : value,
                 );
-                onHeaderBlur("nazionalita");
               }}
               disabled={!isEditing}
             >
@@ -2685,7 +2649,6 @@ function GateDocumentIdentityCard({
               onChange={(event) =>
                 onHeaderChange("nazionalita", event.target.value)
               }
-              onBlur={() => onHeaderBlur("nazionalita")}
               disabled={!isEditing}
             />
           )}
@@ -2925,7 +2888,6 @@ export function Gate1View({
     updatingNonQualificato,
     handleNonIdoneoReasonsChange,
     patchSelectedWorkerField,
-    commitHeaderField,
     commitAddressField,
     saveWorkerAvailability,
     patchWorkerAvailabilityStatus,
@@ -2934,10 +2896,8 @@ export function Gate1View({
     createExperienceRecord,
     patchReferenceRecord,
     createReferenceRecord,
-    commitExperienceField,
     patchSkillsField,
     patchDocumentField,
-    commitDocumentField,
     generateStripeAccount,
     AVAILABILITY_EDIT_DAYS,
     AVAILABILITY_EDIT_BANDS,
@@ -2957,6 +2917,67 @@ export function Gate1View({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
+
+  const { onChange: saveAnniEsperienzaColf } = useDebouncedSave(
+    asInputValue(selectedWorkerRow?.anni_esperienza_colf),
+    async (v) => { await patchSelectedWorkerField("anni_esperienza_colf", v ? Number(v) : null); },
+  );
+  const { onChange: saveAnniEsperienzaBadante } = useDebouncedSave(
+    asInputValue(selectedWorkerRow?.anni_esperienza_badante),
+    async (v) => { await patchSelectedWorkerField("anni_esperienza_badante", v ? Number(v) : null); },
+  );
+  const { onChange: saveAnniEsperienzaBabysitter } = useDebouncedSave(
+    asInputValue(selectedWorkerRow?.anni_esperienza_babysitter),
+    async (v) => { await patchSelectedWorkerField("anni_esperienza_babysitter", v ? Number(v) : null); },
+  );
+  const { onChange: saveDescrizionePubblica } = useDebouncedSave(
+    asString(selectedWorkerRow?.descrizione_pubblica),
+    async (v) => { await patchSelectedWorkerField("descrizione_pubblica", v || null); },
+  );
+  const { onChange: savePagaOrariaRichiesta } = useDebouncedSave(
+    asInputValue(selectedWorkerRow?.paga_oraria_richiesta),
+    async (v) => { await patchSelectedWorkerField("paga_oraria_richiesta", parseNumberValue(v)); },
+  );
+  const { onChange: saveDataScadenzaNaspiGate } = useDebouncedSave(
+    asString(selectedWorkerRow?.data_scadenza_naspi),
+    async (v) => { await patchSelectedWorkerField("data_scadenza_naspi", v || null); },
+  );
+  const { onChange: saveAssessmentFeedback } = useDebouncedSave(
+    asString(selectedWorkerRow?.feedback_recruiter),
+    async (v) => { await patchSelectedWorkerField("feedback_recruiter", v.trim() || null); },
+  );
+  const { onChange: saveNaspiDoc } = useDebouncedSave(
+    asString(selectedWorkerRow?.data_scadenza_naspi),
+    async (v) => { await patchDocumentField("data_scadenza_naspi", v || null); },
+  );
+  const { onChange: saveIban } = useDebouncedSave(
+    resolvedIban,
+    async (v) => { await patchDocumentField("iban", v || null); },
+  );
+  const { onChange: saveStripeAccount } = useDebouncedSave(
+    asString(selectedWorkerRow?.id_stripe_account),
+    async (v) => { await patchDocumentField("id_stripe_account", v || null); },
+  );
+  const { onChange: saveHeaderNome } = useDebouncedSave(
+    asString(selectedWorkerRow?.nome),
+    async (v) => { await patchSelectedWorkerField("nome", v.trim() || null); },
+  );
+  const { onChange: saveHeaderCognome } = useDebouncedSave(
+    asString(selectedWorkerRow?.cognome),
+    async (v) => { await patchSelectedWorkerField("cognome", v.trim() || null); },
+  );
+  const { onChange: saveHeaderEmail } = useDebouncedSave(
+    asString(selectedWorkerRow?.email),
+    async (v) => { await patchSelectedWorkerField("email", v.trim() || null); },
+  );
+  const { onChange: saveHeaderTelefono } = useDebouncedSave(
+    asString(selectedWorkerRow?.telefono),
+    async (v) => { await patchSelectedWorkerField("telefono", v.trim() || null); },
+  );
+  const { onChange: saveHeaderDataNascita } = useDebouncedSave(
+    asString(selectedWorkerRow?.data_di_nascita),
+    async (v) => { await patchSelectedWorkerField("data_di_nascita", v || null); },
+  );
 
   const retainSelectedWorkerAfterStatusChange = React.useCallback(
     (workerId: string) => {
@@ -4229,6 +4250,7 @@ export function Gate1View({
                             ...current,
                             descrizionePubblica: value,
                           }));
+                          saveDescrizionePubblica(value);
                           return;
                         }
 
@@ -4236,39 +4258,22 @@ export function Gate1View({
                           ...current,
                           [field]: value,
                         }));
-                      }}
-                      onHeaderBlur={(field) => {
-                        if (field === "descrizione_pubblica") {
-                          void patchSelectedWorkerField(
-                            "descrizione_pubblica",
-                            gateDraft.descrizionePubblica || null,
-                          );
-                          return;
+                        if (field === "nome") saveHeaderNome(value);
+                        else if (field === "cognome") saveHeaderCognome(value);
+                        else if (field === "email") saveHeaderEmail(value);
+                        else if (field === "telefono") saveHeaderTelefono(value);
+                        else if (field === "data_di_nascita") saveHeaderDataNascita(value);
+                        else if (field === "sesso" || field === "nazionalita") {
+                          void patchSelectedWorkerField(field, value || null);
                         }
-
-                        void commitHeaderField(
-                          field as
-                            | "nome"
-                            | "cognome"
-                            | "email"
-                            | "telefono"
-                            | "sesso"
-                            | "nazionalita"
-                            | "data_di_nascita",
-                        );
                       }}
-                      onLivelloItalianoChange={(value) =>
+                      onLivelloItalianoChange={(value) => {
                         setGateDraft((current) => ({
                           ...current,
                           livelloItaliano: value,
-                        }))
-                      }
-                      onLivelloItalianoBlur={() =>
-                        void patchSelectedWorkerField(
-                          "livello_italiano",
-                          gateDraft.livelloItaliano || null,
-                        )
-                      }
+                        }));
+                        void patchSelectedWorkerField("livello_italiano", value || null);
+                      }}
                     />
 
                   </GateStepSection>
@@ -4437,33 +4442,27 @@ export function Gate1View({
                           values.length > 0 ? values : null,
                         );
                       }}
-                      onAnniEsperienzaColfChange={(value) =>
+                      onAnniEsperienzaColfChange={(value) => {
                         setExperienceDraft((current) => ({
                           ...current,
                           anni_esperienza_colf: value,
-                        }))
-                      }
-                      onAnniEsperienzaBadanteChange={(value) =>
+                        }));
+                        saveAnniEsperienzaColf(value);
+                      }}
+                      onAnniEsperienzaBadanteChange={(value) => {
                         setExperienceDraft((current) => ({
                           ...current,
                           anni_esperienza_badante: value,
-                        }))
-                      }
-                      onAnniEsperienzaBabysitterChange={(value) =>
+                        }));
+                        saveAnniEsperienzaBadante(value);
+                      }}
+                      onAnniEsperienzaBabysitterChange={(value) => {
                         setExperienceDraft((current) => ({
                           ...current,
                           anni_esperienza_babysitter: value,
-                        }))
-                      }
-                      onAnniEsperienzaColfBlur={() =>
-                        void commitExperienceField("anni_esperienza_colf")
-                      }
-                      onAnniEsperienzaBadanteBlur={() =>
-                        void commitExperienceField("anni_esperienza_badante")
-                      }
-                      onAnniEsperienzaBabysitterBlur={() =>
-                        void commitExperienceField("anni_esperienza_babysitter")
-                      }
+                        }));
+                        saveAnniEsperienzaBabysitter(value);
+                      }}
                       onExperiencePatch={(experienceId, patch) =>
                         void patchExperienceRecord(experienceId, patch)
                       }
@@ -4692,18 +4691,13 @@ export function Gate1View({
                                 value || null,
                               );
                             }}
-                            onPagaOrariaRichiestaChange={(value) =>
+                            onPagaOrariaRichiestaChange={(value) => {
                               setGateDraft((current) => ({
                                 ...current,
                                 pagaOrariaRichiesta: value,
-                              }))
-                            }
-                            onPagaOrariaRichiestaBlur={() =>
-                              void patchSelectedWorkerField(
-                                "paga_oraria_richiesta",
-                                parseNumberValue(gateDraft.pagaOrariaRichiesta),
-                              )
-                            }
+                              }));
+                              savePagaOrariaRichiesta(value);
+                            }}
                             onMultipliContrattiChange={(value) => {
                               setGateDraft((current) => ({
                                 ...current,
@@ -4714,18 +4708,13 @@ export function Gate1View({
                                 value || null,
                               );
                             }}
-                            onDataScadenzaNaspiChange={(value) =>
+                            onDataScadenzaNaspiChange={(value) => {
                               setGateDraft((current) => ({
                                 ...current,
                                 dataScadenzaNaspi: value,
-                              }))
-                            }
-                            onDataScadenzaNaspiBlur={() =>
-                              void patchSelectedWorkerField(
-                                "data_scadenza_naspi",
-                                gateDraft.dataScadenzaNaspi || null,
-                              )
-                            }
+                              }));
+                              saveDataScadenzaNaspiGate(value);
+                            }}
                           />
                         </GateStepSection>
                       </div>
@@ -4775,18 +4764,13 @@ export function Gate1View({
                             value || null,
                           );
                         }}
-                        onPagaOrariaRichiestaChange={(value) =>
+                        onPagaOrariaRichiestaChange={(value) => {
                           setGateDraft((current) => ({
                             ...current,
                             pagaOrariaRichiesta: value,
-                          }))
-                        }
-                        onPagaOrariaRichiestaBlur={() =>
-                          void patchSelectedWorkerField(
-                            "paga_oraria_richiesta",
-                            parseNumberValue(gateDraft.pagaOrariaRichiesta),
-                          )
-                        }
+                          }));
+                          savePagaOrariaRichiesta(value);
+                        }}
                         onMultipliContrattiChange={(value) => {
                           setGateDraft((current) => ({
                             ...current,
@@ -4797,18 +4781,13 @@ export function Gate1View({
                             value || null,
                           );
                         }}
-                        onDataScadenzaNaspiChange={(value) =>
+                        onDataScadenzaNaspiChange={(value) => {
                           setGateDraft((current) => ({
                             ...current,
                             dataScadenzaNaspi: value,
-                          }))
-                        }
-                        onDataScadenzaNaspiBlur={() =>
-                          void patchSelectedWorkerField(
-                            "data_scadenza_naspi",
-                            gateDraft.dataScadenzaNaspi || null,
-                          )
-                        }
+                          }));
+                          saveDataScadenzaNaspiGate(value);
+                        }}
                       />
                       <GateShiftPreferencesCard
                         isEditing={gateShiftPreferencesIsEditing}
@@ -5606,15 +5585,13 @@ export function Gate1View({
                             value || null,
                           );
                         }}
-                        onNaspiChange={(value) =>
+                        onNaspiChange={(value) => {
                           setDocumentsDraft((current) => ({
                             ...current,
                             data_scadenza_naspi: value,
-                          }))
-                        }
-                        onNaspiBlur={() =>
-                          void commitDocumentField("data_scadenza_naspi")
-                        }
+                          }));
+                          saveNaspiDoc(value);
+                        }}
                         onDocumentUpsert={upsertSelectedWorkerDocument}
                         onUploadError={setError}
                       />
@@ -5627,21 +5604,15 @@ export function Gate1View({
                         }}
                         nazionalitaOptions={nazionalitaLookupOptions}
                         isEditing={true}
-                        onHeaderChange={(field, value) =>
-                          setHeaderDraft((current) => ({
-                            ...current,
-                            [field]: value,
-                          }))
-                        }
-                        onHeaderBlur={(field) =>
-                          void commitHeaderField(
-                            field as
-                              | "nome"
-                              | "cognome"
-                              | "data_di_nascita"
-                              | "nazionalita",
-                          )
-                        }
+                        onHeaderChange={(field, value) => {
+                          setHeaderDraft((current) => ({ ...current, [field]: value }));
+                          if (field === "nome") saveHeaderNome(value);
+                          else if (field === "cognome") saveHeaderCognome(value);
+                          else if (field === "data_di_nascita") saveHeaderDataNascita(value);
+                          else if (field === "nazionalita") {
+                            void patchSelectedWorkerField("nazionalita", value || null);
+                          }
+                        }}
                       />
                       {showAdministrativeFields ? (
                         <GateAdministrativeFieldsCard
@@ -5662,13 +5633,13 @@ export function Gate1View({
                               ? ["Provincia"]
                               : []),
                           ]}
-                          onIbanChange={(value) =>
+                          onIbanChange={(value) => {
                             setDocumentsDraft((current) => ({
                               ...current,
                               iban: value,
-                            }))
-                          }
-                          onIbanBlur={() => void commitDocumentField("iban")}
+                            }));
+                            saveIban(value);
+                          }}
                           onGenerateStripeAccount={generateStripeAccount}
                         />
                       ) : null}
@@ -5715,17 +5686,12 @@ export function Gate1View({
                           );
                         }}
                         feedbackValue={gateDraft.assessmentFeedback}
-                        onFeedbackChange={(value) =>
+                        onFeedbackChange={(value) => {
                           setGateDraft((current) => ({
                             ...current,
                             assessmentFeedback: value,
-                          }))
-                        }
-                        onFeedbackBlur={() => {
-                          void patchSelectedWorkerField(
-                            "feedback_recruiter",
-                            gateDraft.assessmentFeedback.trim() || null,
-                          );
+                          }));
+                          saveAssessmentFeedback(value);
                         }}
                         lookupColorsByDomain={lookupColorsByDomain}
                       />

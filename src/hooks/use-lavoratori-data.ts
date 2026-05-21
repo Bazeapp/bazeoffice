@@ -779,6 +779,7 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
     while (true) {
       const result = await fetchIndirizzi({
         select: [
+          "id",
           "entita_id",
           "tipo_indirizzo",
           "via",

@@ -97,11 +97,8 @@ type DocumentsCardProps = {
   onVerificationChange: (value: string) => void
   onStatoDocumentiChange: (value: string) => void
   onNaspiChange: (value: string) => void
-  onNaspiBlur: () => void
   onIbanChange?: (value: string) => void
-  onIbanBlur?: () => void
   onStripeAccountChange?: (value: string) => void
-  onStripeAccountBlur?: () => void
   onGenerateStripeAccount?: () => void | Promise<unknown>
   onDocumentUpsert: (row: DocumentoLavoratoreRecord) => void
   onUploadError: React.Dispatch<React.SetStateAction<string | null>>
@@ -224,10 +221,8 @@ function AdministrativeDataSection({
   isEditing,
   isUpdating,
   onIbanChange,
-  onIbanBlur,
   stripeAccountValue,
   onStripeAccountChange,
-  onStripeAccountBlur,
   onGenerateStripeAccount,
 }: {
   values?: AdministrativeValues
@@ -236,14 +231,11 @@ function AdministrativeDataSection({
   isEditing: boolean
   isUpdating: boolean
   onIbanChange?: (value: string) => void
-  onIbanBlur?: () => void
   onStripeAccountChange?: (value: string) => void
-  onStripeAccountBlur?: () => void
   onGenerateStripeAccount?: () => void | Promise<unknown>
 }) {
-  const canEditIban = isEditing && Boolean(onIbanChange && onIbanBlur)
-  const canEditStripeAccount =
-    isEditing && Boolean(onStripeAccountChange && onStripeAccountBlur)
+  const canEditIban = isEditing && Boolean(onIbanChange)
+  const canEditStripeAccount = isEditing && Boolean(onStripeAccountChange)
   const resolvedIbanValue = ibanValue.trim()
   const resolvedStripeAccountValue =
     stripeAccountValue.trim() || values?.id_stripe_account?.trim() || ""
@@ -275,7 +267,6 @@ function AdministrativeDataSection({
             <Input
               value={ibanValue}
               onChange={(event) => onIbanChange?.(event.target.value)}
-              onBlur={onIbanBlur}
               disabled={isUpdating}
               className="mt-2"
               placeholder="Inserisci IBAN"
@@ -292,7 +283,6 @@ function AdministrativeDataSection({
               onChange={(event) =>
                 onStripeAccountChange?.(event.target.value)
               }
-              onBlur={onStripeAccountBlur}
               disabled={isUpdating}
               className="mt-2"
               placeholder="Inserisci ID account Stripe"
@@ -527,11 +517,8 @@ export function DocumentsCard({
   onVerificationChange,
   onStatoDocumentiChange,
   onNaspiChange,
-  onNaspiBlur,
   onIbanChange,
-  onIbanBlur,
   onStripeAccountChange,
-  onStripeAccountBlur,
   onGenerateStripeAccount,
   onDocumentUpsert,
   onUploadError,
@@ -797,7 +784,6 @@ export function DocumentsCard({
                 type="date"
                 value={draft.data_scadenza_naspi}
                 onChange={(event) => onNaspiChange(event.target.value)}
-                onBlur={onNaspiBlur}
                 disabled={isUpdating}
               />
               <FieldDescription>Da inserire solo se e in Naspi.</FieldDescription>
@@ -820,9 +806,7 @@ export function DocumentsCard({
             isEditing={isEditing}
             isUpdating={isUpdating}
             onIbanChange={onIbanChange}
-            onIbanBlur={onIbanBlur}
             onStripeAccountChange={onStripeAccountChange}
-            onStripeAccountBlur={onStripeAccountBlur}
             onGenerateStripeAccount={onGenerateStripeAccount}
           />
         ) : null}

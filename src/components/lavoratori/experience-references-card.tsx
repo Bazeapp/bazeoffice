@@ -1308,10 +1308,6 @@ type ExperienceReferencesCardProps = {
   onAnniEsperienzaBadanteChange: (value: string) => void;
   onAnniEsperienzaBabysitterChange: (value: string) => void;
   onSituazioneLavorativaAttualeChange: (value: string) => void;
-  onAnniEsperienzaColfBlur: () => void;
-  onAnniEsperienzaBadanteBlur: () => void;
-  onAnniEsperienzaBabysitterBlur: () => void;
-  onSituazioneLavorativaAttualeBlur: () => void;
   onExperiencePatch: (
     experienceId: string,
     patch: Partial<EsperienzaLavoratoreRecord>,
@@ -1363,10 +1359,6 @@ export function ExperienceReferencesCard({
   onAnniEsperienzaBadanteChange,
   onAnniEsperienzaBabysitterChange,
   onSituazioneLavorativaAttualeChange,
-  onAnniEsperienzaColfBlur,
-  onAnniEsperienzaBadanteBlur,
-  onAnniEsperienzaBabysitterBlur,
-  onSituazioneLavorativaAttualeBlur,
   onExperiencePatch,
   onExperienceCreate,
   onExperienceDelete,
@@ -1461,7 +1453,6 @@ export function ExperienceReferencesCard({
                 onChange={(event) =>
                   onAnniEsperienzaColfChange(event.target.value)
                 }
-                onBlur={onAnniEsperienzaColfBlur}
                 disabled={isUpdating}
                 className="h-9 text-sm"
               />
@@ -1477,7 +1468,6 @@ export function ExperienceReferencesCard({
                 onChange={(event) =>
                   onAnniEsperienzaBadanteChange(event.target.value)
                 }
-                onBlur={onAnniEsperienzaBadanteBlur}
                 disabled={isUpdating}
                 className="h-9 text-sm"
               />
@@ -1493,7 +1483,6 @@ export function ExperienceReferencesCard({
                 onChange={(event) =>
                   onAnniEsperienzaBabysitterChange(event.target.value)
                 }
-                onBlur={onAnniEsperienzaBabysitterBlur}
                 disabled={isUpdating}
                 className="h-9 text-sm"
               />
@@ -1528,7 +1517,6 @@ export function ExperienceReferencesCard({
               onChange={(event) =>
                 onSituazioneLavorativaAttualeChange(event.target.value)
               }
-              onBlur={onSituazioneLavorativaAttualeBlur}
               disabled={isUpdating}
               className="min-h-24 w-full text-sm"
             />

@@ -1,4 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  insertFieldAuditLogs,
+  resolveAuditActor,
+} from "../_shared/audit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,6 +74,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(url, serviceRole, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const auditActor = await resolveAuditActor(supabase, req);
 
   const { data: validStatuses, error: statusError } = await supabase
     .from("lookup_values")
@@ -131,6 +136,17 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  await insertFieldAuditLogs(supabase, {
+    actor: auditActor,
+    operation: "update",
+    tableName: "processi_matching",
+    recordId: processId,
+    source: "update-process-stato-sales",
+    oldRecord: processRow as Record<string, unknown>,
+    newRecord: updatedProcess as Record<string, unknown>,
+    fields: ["stato_sales"],
+  });
 
   return new Response(
     JSON.stringify({

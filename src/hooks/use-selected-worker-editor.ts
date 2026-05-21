@@ -352,6 +352,8 @@ export function useSelectedWorkerEditor({
     buildAvailabilityDraft(selectedWorkerRow, availabilityPayload)
   )
 
+  const activePatchesRef = React.useRef(0)
+
   const selectedWorkerIsNonIdoneo = React.useMemo(
     () => isNonIdoneoStatus(selectedWorkerRow?.stato_lavoratore),
     [selectedWorkerRow]
@@ -422,6 +424,7 @@ export function useSelectedWorkerEditor({
   }, [selectedWorker?.immagineUrl, selectedWorkerRow?.foto])
 
   React.useEffect(() => {
+    if (activePatchesRef.current > 0) return
     setNonIdoneoReasonValues(readArrayStrings(selectedWorkerRow?.motivazione_non_idoneo))
     const blacklistToken = normalizeLookupToken(selectedWorkerRow?.check_blacklist)
     setBlacklistChecked(blacklistToken === "blacklist" || blacklistToken === "yes")
@@ -480,12 +483,13 @@ export function useSelectedWorkerEditor({
     async (
       patch: Partial<LavoratoreRecord> & Record<string, unknown>,
       options: {
-        loadingKey: PatchLoadingKey
+        loadingKey?: PatchLoadingKey
         errorMessage: string
       }
     ) => {
       if (!selectedWorkerId) return null
-      setPatchLoading(options.loadingKey, true)
+      activePatchesRef.current++
+      if (options.loadingKey) setPatchLoading(options.loadingKey, true)
       try {
         const result = await updateRecord("lavoratori", selectedWorkerId, patch)
         const nextRow = asLavoratoreRecord(result.row)
@@ -495,7 +499,8 @@ export function useSelectedWorkerEditor({
         setError(formatEditorError(options.errorMessage, caughtError))
         throw caughtError
       } finally {
-        setPatchLoading(options.loadingKey, false)
+        activePatchesRef.current--
+        if (options.loadingKey) setPatchLoading(options.loadingKey, false)
       }
     },
     [applyUpdatedWorkerRow, selectedWorkerId, setError, setPatchLoading]
@@ -506,7 +511,7 @@ export function useSelectedWorkerEditor({
       field: keyof LavoratoreRecord,
       value: unknown,
       options: {
-        loadingKey: PatchLoadingKey
+        loadingKey?: PatchLoadingKey
         errorMessage: string
       }
     ) => {
@@ -552,7 +557,6 @@ export function useSelectedWorkerEditor({
     async (field: keyof LavoratoreRecord, value: unknown) => {
       if (!selectedWorkerId) return
       await patchWorkerField(field, value, {
-        loadingKey: "nonQualificato",
         errorMessage: "Errore aggiornando campo",
       })
     },
@@ -562,6 +566,7 @@ export function useSelectedWorkerEditor({
   const applyAddressPatch = React.useCallback(
     async (patch: Record<string, unknown>) => {
       if (!selectedWorkerId) return null
+      activePatchesRef.current++
       setPatchLoading("nonQualificato", true)
       try {
         const addressId = asString(selectedWorkerAddress?.id)
@@ -580,6 +585,7 @@ export function useSelectedWorkerEditor({
         setError(formatEditorError("Errore aggiornando indirizzo", caughtError))
         throw caughtError
       } finally {
+        activePatchesRef.current--
         setPatchLoading("nonQualificato", false)
       }
     },

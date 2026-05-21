@@ -1,8 +1,10 @@
 import * as React from "react"
 import {
+  CheckCircle2Icon,
   ExternalLinkIcon,
   FileIcon,
   LoaderCircleIcon,
+  OctagonAlertIcon,
   PlusIcon,
   ScanSearchIcon,
   Trash2Icon,
@@ -41,6 +43,7 @@ export function AttachmentUploadSlot({
   multiple = true,
   accept = "image/*,application/pdf",
   emptyText = "Nessun file allegato",
+  showStatusIndicator = false,
 }: {
   label: string
   value: unknown
@@ -51,6 +54,7 @@ export function AttachmentUploadSlot({
   multiple?: boolean
   accept?: string
   emptyText?: string
+  showStatusIndicator?: boolean
 }) {
   const inputRef = React.useRef<HTMLInputElement | null>(null)
   const [isDragActive, setIsDragActive] = React.useState(false)
@@ -126,6 +130,19 @@ export function AttachmentUploadSlot({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{label}</span>
+            {showStatusIndicator ? (
+              hasValue ? (
+                <CheckCircle2Icon
+                  className="size-4 shrink-0 text-green-600"
+                  aria-label="File presente"
+                />
+              ) : (
+                <OctagonAlertIcon
+                  className="size-4 shrink-0 text-red-500"
+                  aria-label="File mancante"
+                />
+              )
+            ) : null}
           </div>
           <p className="text-muted-foreground mt-0.5 truncate text-2xs">
             {links.length > 1

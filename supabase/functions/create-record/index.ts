@@ -1,4 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  insertFieldAuditLogs,
+  resolveAuditActor,
+} from "../_shared/audit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -139,7 +143,7 @@ function normalizeLookupBackedValue(
 }
 
 async function normalizeLookupBackedValues(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   table: SupportedTable,
   values: Record<string, unknown>
 ) {
@@ -219,6 +223,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(url, serviceRole, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const auditActor = await resolveAuditActor(supabase, req);
 
   const normalizedValuesResult = await normalizeLookupBackedValues(
     supabase,
@@ -238,6 +243,16 @@ Deno.serve(async (req) => {
   if (createError) {
     return serverError(createError.message);
   }
+
+  await insertFieldAuditLogs(supabase, {
+    actor: auditActor,
+    operation: "create",
+    tableName: table,
+    recordId: String((createdRecord as { id?: unknown }).id ?? ""),
+    source: "create-record",
+    newRecord: createdRecord as Record<string, unknown>,
+    fields: Object.keys(sanitizedValues),
+  });
 
   return new Response(
     JSON.stringify({
