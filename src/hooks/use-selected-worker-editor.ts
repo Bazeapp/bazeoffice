@@ -185,7 +185,7 @@ function buildAddressDraft(
     civico: asString(address?.civico),
     cap: asString(address?.cap),
     citta: asString(address?.citta),
-    provincia: asString(address?.provincia) || asString(row?.provincia),
+    provincia: asString(address?.provincia),
     citofono: asString(address?.citofono),
     come_ti_sposti: readArrayStrings(row?.come_ti_sposti),
   }

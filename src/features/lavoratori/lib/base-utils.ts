@@ -194,15 +194,13 @@ export function toDisplayName(row: Record<string, unknown>) {
 }
 
 export function formatWorkerLocationLabel(
-  row: Record<string, unknown>,
+  _row: Record<string, unknown>,
   address?: Record<string, unknown> | null
 ) {
   const city =
     asString(address?.citta) ||
-    asString(address?.provincia) ||
-    asString(row.citta) ||
-    asString(row.provincia)
-  const cap = asString(address?.cap) || asString(row.cap)
+    asString(address?.provincia)
+  const cap = asString(address?.cap)
   const label = [city, cap].filter(Boolean).join(" ").trim()
   return label || null
 }
