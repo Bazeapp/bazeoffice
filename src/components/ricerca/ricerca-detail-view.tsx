@@ -163,6 +163,20 @@ function getStringArrayValue(value: unknown): string[] {
   return single ? [single] : [];
 }
 
+// Ricava l'ordinale del tentativo più alto (es. "3° chiamata..." -> 3).
+// Robusto sia alla scrittura cumulativa ("1°, 2°, 3°") sia a quella
+// con singolo ordinale ("3°").
+function getCallAttemptCount(value: unknown): number {
+  const items = getStringArrayValue(value);
+  let maxOrdinal = 0;
+  for (const item of items) {
+    for (const match of item.matchAll(/\d+/g)) {
+      maxOrdinal = Math.max(maxOrdinal, Number(match[0]));
+    }
+  }
+  return maxOrdinal || items.length;
+}
+
 function getFirstPresentValue(
   row: Record<string, unknown>,
   fields: string[],
@@ -1019,9 +1033,9 @@ export function RicercaDetailView({
             processRow.data_per_ricerca_futura,
           ),
           dataCallPrenotataRaw: toStringValue(familyRow?.data_call_prenotata),
-          tentativiChiamataCount: getStringArrayValue(
+          tentativiChiamataCount: getCallAttemptCount(
             processRow.sales_cold_call_followup,
-          ).length,
+          ),
           preventivoAccettato:
             toBooleanValue(processRow.preventivo_firmato) ?? false,
           richiestaAttivazioneId: null,

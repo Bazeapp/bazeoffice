@@ -458,6 +458,22 @@ function getFlexibleStringArrayValue(value: unknown): string[] {
     .filter(Boolean)
 }
 
+// Ricava l'ordinale del tentativo più alto (es. "3° chiamata..." -> 3).
+// Robusto sia alla scrittura cumulativa ("1°, 2°, 3°") sia a quella
+// con singolo ordinale ("3°"): in entrambi i casi restituisce 3.
+function getCallAttemptCount(value: unknown): number {
+  const items = getFlexibleStringArrayValue(value)
+  let maxOrdinal = 0
+  for (const item of items) {
+    const match = item.match(/\d+/)
+    if (match) {
+      maxOrdinal = Math.max(maxOrdinal, Number(match[0]))
+    }
+  }
+  // Fallback: se nessun ordinale è presente, usa il numero di voci.
+  return maxOrdinal || items.length
+}
+
 function resolveLookupOptionColor(
   lookupOptionsByField: LookupOptionsByField,
   field: string,
@@ -972,7 +988,7 @@ function mapCardData(
     dataLeadRaw: toStringValue(process.creato_il),
     dataPerRicercaFuturaRaw: toStringValue(process.data_per_ricerca_futura),
     dataCallPrenotataRaw: toStringValue(family.data_call_prenotata),
-    tentativiChiamataCount: getFlexibleStringArrayValue(process.sales_cold_call_followup).length,
+    tentativiChiamataCount: getCallAttemptCount(process.sales_cold_call_followup),
     preventivoAccettato: toBooleanValue(process.preventivo_firmato) ?? false,
     richiestaAttivazioneId: richiestaAttivazione?.id ?? null,
     preventivoUrl: richiestaAttivazione?.signed_document_url ?? null,
@@ -1494,9 +1510,9 @@ export function useCrmPipelinePreview(
             nextCard.salesColdCallFollowup = displayValue(
               normalizedPatch.sales_cold_call_followup
             )
-            nextCard.tentativiChiamataCount = getFlexibleStringArrayValue(
+            nextCard.tentativiChiamataCount = getCallAttemptCount(
               normalizedPatch.sales_cold_call_followup
-            ).length
+            )
           }
           if ("sales_no_show_followup" in normalizedPatch) {
             nextCard.salesNoShowFollowup = displayValue(

@@ -5,6 +5,7 @@ import {
   CalendarIcon,
   CheckIcon,
   Clock3Icon,
+  CopyIcon,
   MailIcon,
   MapPinnedIcon,
   PencilIcon,
@@ -18,6 +19,18 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { invokeEdgeFunction } from "@/lib/supabase-edge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogActions,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { OnboardingContextCard } from "@/components/crm/cards/onboarding-context-card"
@@ -608,6 +621,17 @@ export type FamigliaProcessoDetailContentProps = {
   className?: string
 }
 
+type DuplicaProcessoResponse =
+  | {
+      status: "success"
+      data: {
+        processo_matching_id: string
+        indirizzi_ids: string[]
+        source_processo_matching_id: string
+      }
+    }
+  | { status: "error"; message: string }
+
 export function FamigliaProcessoDetailContent({
   card,
   lookupOptionsByField,
@@ -677,6 +701,29 @@ export function FamigliaProcessoDetailContent({
     editMode === "always"
   )
   const [isEditingFamilyHeader, setIsEditingFamilyHeader] = React.useState(false)
+  const [isDuplicating, setIsDuplicating] = React.useState(false)
+
+  const handleDuplicaRicerca = React.useCallback(async () => {
+    if (!card?.id || isDuplicating) return
+    setIsDuplicating(true)
+    try {
+      const response = await invokeEdgeFunction<DuplicaProcessoResponse>(
+        "duplica-processo-matching",
+        { processo_matching_id: card.id },
+      )
+      if (response.status !== "success") {
+        toast.error(
+          response.message ?? "Errore durante la duplicazione della ricerca",
+        )
+        return
+      }
+      toast.success("Ricerca duplicata")
+    } catch {
+      toast.error("Errore durante la duplicazione della ricerca")
+    } finally {
+      setIsDuplicating(false)
+    }
+  }, [card?.id, isDuplicating])
   const [announcementMissingFields, setAnnouncementMissingFields] = React.useState<
     AnnouncementRequiredField[]
   >([])
@@ -914,12 +961,44 @@ export function FamigliaProcessoDetailContent({
               ) : (
                 <div />
               )}
-              {familyHeaderEditAction || headerAction ? (
-                <div className="flex shrink-0 items-center gap-1">
-                  {familyHeaderEditAction}
-                  {headerAction}
-                </div>
-              ) : null}
+              <div className="flex shrink-0 items-center gap-1">
+                {card?.id ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={isDuplicating}
+                      >
+                        <CopyIcon className="size-4" />
+                        {isDuplicating ? "Duplicazione…" : "Duplica ricerca"}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogTitle>Duplicare la ricerca?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Verra creata una copia di questa ricerca con i relativi
+                        indirizzi. L'operazione non puo essere annullata
+                        automaticamente.
+                      </AlertDialogDescription>
+                      <AlertDialogFooter>
+                        <AlertDialogActions>
+                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                          <AlertDialogAction
+                            variant="default"
+                            onClick={handleDuplicaRicerca}
+                          >
+                            Duplica ricerca
+                          </AlertDialogAction>
+                        </AlertDialogActions>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : null}
+                {familyHeaderEditAction}
+                {headerAction}
+              </div>
             </div>
           ) : null}
 
