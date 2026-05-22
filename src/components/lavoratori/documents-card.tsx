@@ -93,6 +93,7 @@ type DocumentsCardProps = {
   lookupColorsByDomain: Map<string, string>
   showAdministrativeData?: boolean
   administrativeValues?: AdministrativeValues
+  naspiInputValue?: string
   ibanInputValue?: string
   stripeAccountInputValue?: string
   onToggleEdit: () => void
@@ -509,6 +510,7 @@ export function DocumentsCard({
   lookupColorsByDomain,
   showAdministrativeData = true,
   administrativeValues,
+  naspiInputValue,
   ibanInputValue,
   stripeAccountInputValue,
   onToggleEdit,
@@ -780,9 +782,8 @@ export function DocumentsCard({
             <div className="space-y-2">
               <Input
                 type="date"
-                value={selectedValues.data_scadenza_naspi}
+                value={naspiInputValue ?? selectedValues.data_scadenza_naspi}
                 onChange={(event) => onNaspiChange(event.target.value)}
-                disabled={isUpdating}
               />
               <FieldDescription>Da inserire solo se e in Naspi.</FieldDescription>
             </div>

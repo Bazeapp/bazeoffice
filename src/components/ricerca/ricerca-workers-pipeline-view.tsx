@@ -1272,15 +1272,15 @@ export function RicercaWorkersPipelineView({
     appendCreatedWorkerReference,
   });
 
-  const { onChange: saveDocumentNaspi } = useDebouncedSave(
+  const { value: documentNaspiValue, onChange: saveDocumentNaspi } = useDebouncedSave(
     asString(selectedWorkerRow?.data_scadenza_naspi),
     async (v) => { await patchDocumentField("data_scadenza_naspi", v || null); },
   );
-  const { onChange: saveDocumentIban } = useDebouncedSave(
+  const { value: documentIbanValue, onChange: saveDocumentIban } = useDebouncedSave(
     resolvedIban,
     async (v) => { await patchDocumentField("iban", v || null); },
   );
-  const { onChange: saveDocumentStripeAccount } = useDebouncedSave(
+  const { value: documentStripeValue, onChange: saveDocumentStripeAccount } = useDebouncedSave(
     asString(selectedWorkerRow?.id_stripe_account),
     async (v) => { await patchDocumentField("id_stripe_account", v || null); },
   );
@@ -2741,27 +2741,12 @@ export function RicercaWorkersPipelineView({
                       }));
                       void patchDocumentField("documenti_in_regola", value || null);
                     }}
-                    onDocumentNaspiChange={(value) => {
-                      setDocumentsDraft((current) => ({
-                        ...current,
-                        data_scadenza_naspi: value,
-                      }));
-                      saveDocumentNaspi(value);
-                    }}
-                    onDocumentIbanChange={(value) => {
-                      setDocumentsDraft((current) => ({
-                        ...current,
-                        iban: value,
-                      }));
-                      saveDocumentIban(value);
-                    }}
-                    onDocumentStripeAccountChange={(value) => {
-                      setDocumentsDraft((current) => ({
-                        ...current,
-                        id_stripe_account: value,
-                      }));
-                      saveDocumentStripeAccount(value);
-                    }}
+                    naspiInputValue={documentNaspiValue}
+                    ibanInputValue={documentIbanValue}
+                    stripeAccountInputValue={documentStripeValue}
+                    onDocumentNaspiChange={saveDocumentNaspi}
+                    onDocumentIbanChange={saveDocumentIban}
+                    onDocumentStripeAccountChange={saveDocumentStripeAccount}
                     onDocumentUpsert={upsertSelectedWorkerDocument}
                     onDocumentUploadError={setSelectedWorkerError}
                   />

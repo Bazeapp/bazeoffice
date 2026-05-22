@@ -243,6 +243,9 @@ type WorkerPipelineSummaryCardsProps = {
   documentiInRegolaOptions: LookupOption[];
   onDocumentVerificationChange: (value: string) => void;
   onDocumentStatusChange: (value: string) => void;
+  naspiInputValue?: string;
+  ibanInputValue?: string;
+  stripeAccountInputValue?: string;
   onDocumentNaspiChange: (value: string) => void;
   onDocumentIbanChange: (value: string) => void;
   onDocumentStripeAccountChange: (value: string) => void;
@@ -1687,6 +1690,9 @@ export function WorkerPipelineSummaryCards({
   documentiInRegolaOptions,
   onDocumentVerificationChange,
   onDocumentStatusChange,
+  naspiInputValue,
+  ibanInputValue,
+  stripeAccountInputValue,
   onDocumentNaspiChange,
   onDocumentIbanChange,
   onDocumentStripeAccountChange,
@@ -1840,6 +1846,9 @@ export function WorkerPipelineSummaryCards({
           iban: resolvedIban,
           id_stripe_account: asString(workerRow.id_stripe_account),
         }}
+        naspiInputValue={naspiInputValue}
+        ibanInputValue={ibanInputValue}
+        stripeAccountInputValue={stripeAccountInputValue}
         onToggleEdit={onToggleDocumentsEdit}
         onVerificationChange={onDocumentVerificationChange}
         onStatoDocumentiChange={onDocumentStatusChange}
