@@ -24,7 +24,6 @@ import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -2938,7 +2937,7 @@ export function AssunzioniDetailSheet({
                       primaryLabel: resolveAssunzioneFormLabel(record, target, card),
                       secondaryLabel: resolveAssunzioneFormSubLabel(record, target, card),
                     }))}
-                    selectedId={selectedAssunzioneId}
+                    selectedId={selectedAssunzioneId ?? null}
                     onSelect={(id) => void linkAssunzioneRecord(id)}
                     onUnlink={() => void unlinkAssunzioneRecord()}
                     canUnlink={Boolean(selectedAssunzioneId)}
