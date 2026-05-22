@@ -22,6 +22,8 @@ export type RapportoLavorativoRecord = {
   paga_oraria_lorda: number | null
   preventivo_id: string | null
   processi_matching_id: string | null
+  assunzione_datore_id: string | null
+  assunzione_lavoratore_id: string | null
   processo_res?: string[] | string | null
   prova_data_checkin: string | null
   prova_feedback_famiglia: string | null

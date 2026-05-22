@@ -5,6 +5,8 @@ import {
   FileTextIcon,
   MailIcon,
   PencilIcon,
+  UserCheckIcon,
+  UsersIcon,
 } from "lucide-react"
 
 import {
@@ -686,7 +688,7 @@ function ChiusureBoardCard({
       <RecordCard>
         <RecordCard.Header title={card.nomeCompleto} />
         <RecordCard.Body>
-          <div>
+          <div className="flex flex-wrap gap-1.5">
             <Badge
               className={cn(
                 card.tipoColor
@@ -695,6 +697,26 @@ function ChiusureBoardCard({
               )}
             >
               {card.tipoLabel}
+            </Badge>
+            <Badge
+              className={cn(
+                card.hasAssunzioneDatore
+                  ? "border-green-200 bg-green-100 text-green-700"
+                  : "border-red-200 bg-red-100 text-red-700",
+              )}
+            >
+              <UsersIcon />
+              Famiglia
+            </Badge>
+            <Badge
+              className={cn(
+                card.hasAssunzioneLavoratore
+                  ? "border-green-200 bg-green-100 text-green-700"
+                  : "border-red-200 bg-red-100 text-red-700",
+              )}
+            >
+              <UserCheckIcon />
+              Lavoratore
             </Badge>
           </div>
           <div className="text-muted-foreground space-y-1.5 border-t pt-2 text-xs">

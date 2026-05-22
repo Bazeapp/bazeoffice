@@ -1834,118 +1834,65 @@ export function AssunzioniDetailSheet({
 
     async function hydrateLinkedAssunzioni() {
       try {
-        const datoreFilterNodes = [
-          {
-            kind: "condition" as const,
-            id: `assunzioni-detail-datore-id-${currentCard.id}`,
-            field: "rapporto_lavorativo_datore_lavoro_id",
-            operator: "in" as const,
-            value: currentCard.id,
-          },
-          ...(currentCard.famigliaId
-            ? [
+        const datoreAssunzioneId = currentCard.assunzione?.id ?? null
+        const lavoratoreAssunzioneId = currentCard.lavoratoreAssunzione?.id ?? null
+        const emptyResponse = { rows: [] as AssunzioneRecord[], total: 0, columns: [] }
+        const fetchById = (assunzioneId: string, key: string) =>
+          fetchAssunzioni({
+            select: ASSUNZIONE_DETAIL_SELECT,
+            limit: 1,
+            offset: 0,
+            filters: {
+              kind: "group",
+              id: `assunzioni-detail-${key}-${currentCard.id}`,
+              logic: "and",
+              nodes: [
                 {
                   kind: "condition" as const,
-                  id: `assunzioni-detail-datore-famiglia-id-${currentCard.id}`,
-                  field: "famiglia_id",
-                  operator: "in" as const,
-                  value: currentCard.famigliaId,
+                  id: `assunzioni-detail-${key}-id-${currentCard.id}`,
+                  field: "id",
+                  operator: "is" as const,
+                  value: assunzioneId,
                 },
-              ]
-            : []),
-        ]
-        const lavoratoreFilterNodes = [
-          {
-            kind: "condition" as const,
-            id: `assunzioni-detail-lavoratore-id-${currentCard.id}`,
-            field: "rapporto_lavorativo_lavoratore_id",
-            operator: "in" as const,
-            value: currentCard.id,
-          },
-          ...(currentCard.lavoratore?.id
-            ? [
-                {
-                  kind: "condition" as const,
-                  id: `assunzioni-detail-lavoratore-worker-id-${currentCard.id}`,
-                  field: "lavoratore_id",
-                  operator: "in" as const,
-                  value: currentCard.lavoratore.id,
-                },
-              ]
-            : []),
-        ]
+              ],
+            },
+          })
         const [datoreResponse, lavoratoreResponse] = await Promise.all([
-          fetchAssunzioni({
-            select: ASSUNZIONE_DETAIL_SELECT,
-            limit: 5,
-            offset: 0,
-            orderBy: [{ field: "creato_il", ascending: false }],
-            filters: {
-              kind: "group",
-              id: `assunzioni-detail-datore-${currentCard.id}`,
-              logic: "or",
-              nodes: datoreFilterNodes,
-            },
-          }),
-          fetchAssunzioni({
-            select: ASSUNZIONE_DETAIL_SELECT,
-            limit: 5,
-            offset: 0,
-            orderBy: [{ field: "creato_il", ascending: false }],
-            filters: {
-              kind: "group",
-              id: `assunzioni-detail-lavoratore-${currentCard.id}`,
-              logic: "or",
-              nodes: lavoratoreFilterNodes,
-            },
-          }),
+          datoreAssunzioneId ? fetchById(datoreAssunzioneId, "datore") : Promise.resolve(emptyResponse),
+          lavoratoreAssunzioneId
+            ? fetchById(lavoratoreAssunzioneId, "lavoratore")
+            : Promise.resolve(emptyResponse),
         ])
 
         if (!isActive) return
 
-        const rows = [
-          ...(datoreResponse.rows as AssunzioneRecord[]),
-          ...(lavoratoreResponse.rows as AssunzioneRecord[]),
-        ]
-        if (rows.length === 0) return
+        const datoreRow = (datoreResponse.rows as AssunzioneRecord[])[0] ?? null
+        const lavoratoreRow = (lavoratoreResponse.rows as AssunzioneRecord[])[0] ?? null
+        if (!datoreRow && !lavoratoreRow) return
 
         let nextCard: AssunzioniBoardCardData = currentCard
         let changed = false
-        let datoreHydrated = false
-        let lavoratoreHydrated = false
 
-        for (const row of rows) {
-          if (
-            !datoreHydrated &&
-            ((currentCard.famigliaId && row.famiglia_id === currentCard.famigliaId) ||
-              row.rapporto_lavorativo_datore_lavoro_id === currentCard.id)
-          ) {
-            nextCard = {
-              ...nextCard,
-              assunzione: {
-                ...(nextCard.assunzione ?? {}),
-                ...row,
-              },
-            }
-            changed = true
-            datoreHydrated = true
+        if (datoreRow) {
+          nextCard = {
+            ...nextCard,
+            assunzione: {
+              ...(nextCard.assunzione ?? {}),
+              ...datoreRow,
+            },
           }
+          changed = true
+        }
 
-          if (
-            !lavoratoreHydrated &&
-            ((currentCard.lavoratore?.id && row.lavoratore_id === currentCard.lavoratore.id) ||
-              row.rapporto_lavorativo_lavoratore_id === currentCard.id)
-          ) {
-            nextCard = {
-              ...nextCard,
-              lavoratoreAssunzione: {
-                ...(nextCard.lavoratoreAssunzione ?? {}),
-                ...row,
-              },
-            }
-            changed = true
-            lavoratoreHydrated = true
+        if (lavoratoreRow) {
+          nextCard = {
+            ...nextCard,
+            lavoratoreAssunzione: {
+              ...(nextCard.lavoratoreAssunzione ?? {}),
+              ...lavoratoreRow,
+            },
           }
+          changed = true
         }
 
         if (changed) {
@@ -2145,10 +2092,15 @@ export function AssunzioniDetailSheet({
             createdByThisCall = true
             datoreAssunzioneCreateRef.current = createRecord("assunzioni", {
               ...patch,
-              rapporto_lavorativo_datore_lavoro_id: currentCard.id,
               famiglia_id: currentCard.famigliaId,
             })
-              .then((response) => response.row as AssunzioneRecord)
+              .then(async (response) => {
+                const created = response.row as AssunzioneRecord
+                await updateRecord("rapporti_lavorativi", currentCard.id, {
+                  assunzione_datore_id: created.id,
+                })
+                return created
+              })
               .finally(() => {
                 datoreAssunzioneCreateRef.current = null
               })
@@ -2207,10 +2159,15 @@ export function AssunzioniDetailSheet({
             createdByThisCall = true
             lavoratoreAssunzioneCreateRef.current = createRecord("assunzioni", {
               ...patch,
-              rapporto_lavorativo_lavoratore_id: currentCard.id,
               lavoratore_id: currentCard.lavoratore?.id,
             })
-              .then((response) => response.row as AssunzioneRecord)
+              .then(async (response) => {
+                const created = response.row as AssunzioneRecord
+                await updateRecord("rapporti_lavorativi", currentCard.id, {
+                  assunzione_lavoratore_id: created.id,
+                })
+                return created
+              })
               .finally(() => {
                 lavoratoreAssunzioneCreateRef.current = null
               })
@@ -2295,35 +2252,26 @@ export function AssunzioniDetailSheet({
       setSavingPractice(true)
 
       try {
-        const patch =
+        const response = await updateRecord(
+          "rapporti_lavorativi",
+          currentCard.id,
           target === "datore"
-            ? {
-                rapporto_lavorativo_datore_lavoro_id: currentCard.id,
-                famiglia_id: currentCard.famigliaId,
-              }
-            : {
-                rapporto_lavorativo_lavoratore_id: currentCard.id,
-                lavoratore_id: currentCard.lavoratore?.id ?? null,
-              }
-
-        const response = await updateRecord("assunzioni", assunzioneId, patch)
-        const nextRecord = {
-          ...selectedRecord,
+            ? { assunzione_datore_id: assunzioneId }
+            : { assunzione_lavoratore_id: assunzioneId }
+        )
+        const nextRecord = selectedRecord
+        const nextRapporto = {
+          ...(currentCard.rapporto ?? {}),
           ...response.row,
-        } as AssunzioneRecord
+        } as AssunzioniBoardCardData["rapporto"]
 
-        setAssunzioneCandidates((current) => ({
-          ...current,
-          [target]: current[target].map((record) =>
-            record.id === assunzioneId ? nextRecord : record
-          ),
-        }))
         setAssunzioneSearchQuery(formatSelectedAssunzioneLabel(nextRecord, target, currentCard))
 
         applyCardChange(
           target === "datore"
             ? {
                 ...currentCard,
+                rapporto: nextRapporto,
                 assunzione: nextRecord,
                 nomeFamiglia: resolveAssunzioneDisplayName(nextRecord) ?? currentCard.nomeFamiglia,
                 email: nextRecord.info_anagrafiche_email ?? currentCard.email,
@@ -2331,6 +2279,7 @@ export function AssunzioniDetailSheet({
               }
             : {
                 ...currentCard,
+                rapporto: nextRapporto,
                 lavoratoreAssunzione: nextRecord,
                 nomeLavoratore: resolveAssunzioneDisplayName(nextRecord) ?? currentCard.nomeLavoratore,
               }
@@ -2365,39 +2314,30 @@ export function AssunzioniDetailSheet({
     setSavingPractice(true)
 
     try {
-      const patch =
+      const response = await updateRecord(
+        "rapporti_lavorativi",
+        currentCard.id,
         target === "datore"
-          ? {
-              rapporto_lavorativo_datore_lavoro_id: null,
-              famiglia_id: null,
-            }
-          : {
-              rapporto_lavorativo_lavoratore_id: null,
-              lavoratore_id: null,
-            }
-
-      const response = await updateRecord("assunzioni", currentRecord.id, patch)
-      const nextRecord = {
-        ...currentRecord,
+          ? { assunzione_datore_id: null }
+          : { assunzione_lavoratore_id: null }
+      )
+      const nextRapporto = {
+        ...(currentCard.rapporto ?? {}),
         ...response.row,
-      } as AssunzioneRecord
+      } as AssunzioniBoardCardData["rapporto"]
 
-      setAssunzioneCandidates((current) => ({
-        ...current,
-        [target]: current[target].map((record) =>
-          record.id === currentRecord.id ? nextRecord : record
-        ),
-      }))
       setAssunzioneSearchQuery("")
 
       applyCardChange(
         target === "datore"
           ? {
               ...currentCard,
+              rapporto: nextRapporto,
               assunzione: null,
             }
           : {
               ...currentCard,
+              rapporto: nextRapporto,
               lavoratoreAssunzione: null,
             }
       )

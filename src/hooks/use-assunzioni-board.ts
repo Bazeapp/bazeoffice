@@ -170,6 +170,8 @@ const ASSUNZIONI_RAPPORTI_SELECT = [
   "processi_matching_id",
   "preventivo_id",
   "richiesta_attivazione_id",
+  "assunzione_datore_id",
+  "assunzione_lavoratore_id",
   "famiglia_id",
   "lavoratore_id",
   "stato_assunzione",
@@ -518,19 +520,6 @@ async function fetchLavoratoriByIds(ids: string[]) {
   return results.flatMap((result) => result.rows as LavoratoreRecord[])
 }
 
-function indexFirstAssunzioneBy(
-  rows: AssunzioneRecord[],
-  getKey: (record: AssunzioneRecord) => string | null | undefined
-) {
-  const index = new Map<string, AssunzioneRecord>()
-  for (const row of rows) {
-    const key = getKey(row)
-    if (!key || index.has(key)) continue
-    index.set(key, row)
-  }
-  return index
-}
-
 function indexFirstProcessBy(
   rows: ProcessoMatchingRecord[],
   getKey: (record: ProcessoMatchingRecord) => string | null | undefined
@@ -544,108 +533,32 @@ function indexFirstProcessBy(
   return index
 }
 
-async function fetchAssunzioniByLinkedIds({
-  rapportoIds,
-  famigliaIds,
-  lavoratoreIds,
-}: {
-  rapportoIds: string[]
-  famigliaIds: string[]
-  lavoratoreIds: string[]
-}) {
-  if (rapportoIds.length === 0 && famigliaIds.length === 0 && lavoratoreIds.length === 0) {
-    return [] as AssunzioneRecord[]
-  }
+async function fetchAssunzioniByIds(ids: string[]) {
+  if (ids.length === 0) return [] as AssunzioneRecord[]
 
   const results = await Promise.all(
-    [
-      ...chunkValues(rapportoIds, RELATED_RECORDS_BATCH_SIZE).flatMap((batch, index) => [
-        fetchAssunzioni({
-          select: ASSUNZIONI_RECORD_SELECT,
-          limit: batch.length,
-          offset: 0,
-          orderBy: [{ field: "creato_il", ascending: false }],
-          filters: {
-            kind: "group",
-            id: `assunzioni-records-datore-${index}`,
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: `assunzioni-records-datore-id-${index}`,
-                field: "rapporto_lavorativo_datore_lavoro_id",
-                operator: "in",
-                value: batch.join(","),
-              },
-            ],
-          },
-        }),
-        fetchAssunzioni({
-          select: ASSUNZIONI_RECORD_SELECT,
-          limit: batch.length,
-          offset: 0,
-          orderBy: [{ field: "creato_il", ascending: false }],
-          filters: {
-            kind: "group",
-            id: `assunzioni-records-lavoratore-${index}`,
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: `assunzioni-records-lavoratore-id-${index}`,
-                field: "rapporto_lavorativo_lavoratore_id",
-                operator: "in",
-                value: batch.join(","),
-              },
-            ],
-          },
-        }),
-      ]),
-      ...chunkValues(famigliaIds, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
-        fetchAssunzioni({
-          select: ASSUNZIONI_RECORD_SELECT,
-          limit: batch.length * 5,
-          offset: 0,
-          orderBy: [{ field: "creato_il", ascending: false }],
-          filters: {
-            kind: "group",
-            id: `assunzioni-records-famiglia-${index}`,
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: `assunzioni-records-famiglia-id-${index}`,
-                field: "famiglia_id",
-                operator: "in",
-                value: batch.join(","),
-              },
-            ],
-          },
-        })
-      ),
-      ...chunkValues(lavoratoreIds, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
-        fetchAssunzioni({
-          select: ASSUNZIONI_RECORD_SELECT,
-          limit: batch.length * 5,
-          offset: 0,
-          orderBy: [{ field: "creato_il", ascending: false }],
-          filters: {
-            kind: "group",
-            id: `assunzioni-records-lavoratore-${index}`,
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: `assunzioni-records-lavoratore-id-${index}`,
-                field: "lavoratore_id",
-                operator: "in",
-                value: batch.join(","),
-              },
-            ],
-          },
-        })
-      ),
-    ]
+    chunkValues(ids, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
+      fetchAssunzioni({
+        select: ASSUNZIONI_RECORD_SELECT,
+        limit: batch.length,
+        offset: 0,
+        orderBy: [{ field: "creato_il", ascending: false }],
+        filters: {
+          kind: "group",
+          id: `assunzioni-records-by-id-${index}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `assunzioni-records-by-id-condition-${index}`,
+              field: "id",
+              operator: "in",
+              value: batch.join(","),
+            },
+          ],
+        },
+      })
+    )
   )
 
   return results.flatMap((result) => result.rows as AssunzioneRecord[])
@@ -716,7 +629,12 @@ async function fetchAssunzioniBoardData({
     ...processRows.map((process) => process.famiglia_id),
   ])
   const workerIds = compactUnique(rapportiRows.map((rapporto) => rapporto.lavoratore_id))
-  const rapportoIds = compactUnique(rapportiRows.map((rapporto) => rapporto.id))
+  const assunzioneIds = compactUnique(
+    rapportiRows.flatMap((rapporto) => [
+      rapporto.assunzione_datore_id,
+      rapporto.assunzione_lavoratore_id,
+    ])
+  )
   const richiestaIds = compactUnique(
     rapportiRows.map((rapporto) => rapporto.richiesta_attivazione_id)
   )
@@ -734,11 +652,7 @@ async function fetchAssunzioniBoardData({
   ] = await Promise.all([
     fetchFamiglieByIds(familyIds),
     fetchLavoratoriByIds(workerIds),
-    fetchAssunzioniByLinkedIds({
-      rapportoIds,
-      famigliaIds: familyIds,
-      lavoratoreIds: workerIds,
-    }),
+    fetchAssunzioniByIds(assunzioneIds),
     fetchRichiesteAttivazioneByIds(richiestaIds),
     fetchRichiesteAttivazioneByProcessIds(richiestaProcessIds),
   ])
@@ -749,21 +663,8 @@ async function fetchAssunzioniBoardData({
   const lavoratoriById = new Map(
     lavoratoriRows.map((worker) => [worker.id, worker] as const)
   )
-  const assunzioniByDatoreRapportoId = indexFirstAssunzioneBy(
-    assunzioniRows,
-    (record) => record.rapporto_lavorativo_datore_lavoro_id
-  )
-  const assunzioniByLavoratoreRapportoId = indexFirstAssunzioneBy(
-    assunzioniRows,
-    (record) => record.rapporto_lavorativo_lavoratore_id
-  )
-  const assunzioniByFamigliaId = indexFirstAssunzioneBy(
-    assunzioniRows,
-    (record) => record.famiglia_id
-  )
-  const assunzioniByLavoratoreId = indexFirstAssunzioneBy(
-    assunzioniRows,
-    (record) => record.lavoratore_id
+  const assunzioniById = new Map(
+    assunzioniRows.map((record) => [record.id, record] as const)
   )
 
   const stageMetadata = buildStageMetadata(lookupResult.rows)
@@ -793,14 +694,12 @@ async function fetchAssunzioniBoardData({
       (process?.famiglia_id ? familiesById.get(process.famiglia_id) ?? null : null)
     const lavoratore =
       linkedRapporto?.lavoratore_id ? lavoratoriById.get(linkedRapporto.lavoratore_id) ?? null : null
-    const datoreAssunzione =
-      assunzioniByDatoreRapportoId.get(linkedRapporto.id) ??
-      (family?.id ? assunzioniByFamigliaId.get(family.id) ?? null : null) ??
-      null
-    const lavoratoreAssunzione =
-      assunzioniByLavoratoreRapportoId.get(linkedRapporto.id) ??
-      (lavoratore?.id ? assunzioniByLavoratoreId.get(lavoratore.id) ?? null : null) ??
-      null
+    const datoreAssunzione = linkedRapporto.assunzione_datore_id
+      ? assunzioniById.get(linkedRapporto.assunzione_datore_id) ?? null
+      : null
+    const lavoratoreAssunzione = linkedRapporto.assunzione_lavoratore_id
+      ? assunzioniById.get(linkedRapporto.assunzione_lavoratore_id) ?? null
+      : null
     const nomeFamiglia = resolveFamilyName(datoreAssunzione, family, linkedRapporto)
     const nomeLavoratore = resolveWorkerName(lavoratoreAssunzione, lavoratore, linkedRapporto)
 

@@ -146,6 +146,11 @@ function normalizeToken(value: string | null | undefined) {
     .replace(/\s+/g, " ")
 }
 
+function toPersonName(row: GenericRow | null) {
+  if (!row) return null
+  return { cognome: toStringValue(row.cognome), nome: toStringValue(row.nome) }
+}
+
 function toStringValue(value: unknown): string | null {
   if (value === null || value === undefined) return null
   if (typeof value === "string") {
@@ -427,16 +432,22 @@ async function fetchVariazioniBoardData(): Promise<{
   const variationRapporti = variationRapportoIds
     .map((id) => rapportoById.get(id))
     .filter(Boolean) as RapportoLavorativoRecord[]
+  // Risolvo i nomi per TUTTI i rapporti (servono per le opzioni di collegamento e i titoli),
+  // non solo per quelli già associati a una variazione.
   const famigliaIds = uniqueStrings(
-    variationRapporti.map((rapporto) => toStringValue(rapporto.famiglia_id))
+    rapportiResult.rows.map((rapporto) => toStringValue(rapporto.famiglia_id))
   )
   const lavoratoreIds = uniqueStrings(
+    rapportiResult.rows.map((rapporto) => toStringValue(rapporto.lavoratore_id))
+  )
+  // Gli indirizzi servono solo per il dettaglio lavoratore delle card con variazione.
+  const variationLavoratoreIds = uniqueStrings(
     variationRapporti.map((rapporto) => toStringValue(rapporto.lavoratore_id))
   )
   const [famiglieRows, lavoratoriRows, addressesByWorkerId] = await Promise.all([
     fetchFamiglieByIds(famigliaIds),
     fetchLavoratoriByIds(lavoratoreIds),
-    fetchWorkerAddressesByIds(lavoratoreIds),
+    fetchWorkerAddressesByIds(variationLavoratoreIds),
   ])
   const famigliaById = new Map(famiglieRows.map((famiglia) => [toStringValue(famiglia.id), famiglia]))
   const lavoratoreById = new Map(lavoratoriRows.map((lavoratore) => [toStringValue(lavoratore.id), lavoratore]))
@@ -466,7 +477,12 @@ async function fetchVariazioniBoardData(): Promise<{
           cap: workerAddressCap,
         }
       : null
-    const nomeCompleto = rapporto ? getRapportoTitle(rapporto) : "Rapporto non disponibile"
+    const nomeCompleto = rapporto
+      ? getRapportoTitle(rapporto, {
+          famiglia: toPersonName(famiglia),
+          lavoratore: toPersonName(baseLavoratore),
+        })
+      : "Rapporto non disponibile"
 
     const card: VariazioniBoardCardData = {
       id: record.id,
@@ -491,11 +507,22 @@ async function fetchVariazioniBoardData(): Promise<{
   }))
 
   const rapportoOptions = rapportiResult.rows
-    .map((rapporto) => ({
-      id: rapporto.id,
-      label: getRapportoTitle(rapporto),
-      rapporto,
-    }))
+    .map((rapporto) => {
+      const optFamiglia = rapporto.famiglia_id
+        ? famigliaById.get(toStringValue(rapporto.famiglia_id)) ?? null
+        : null
+      const optLavoratore = rapporto.lavoratore_id
+        ? lavoratoreById.get(toStringValue(rapporto.lavoratore_id)) ?? null
+        : null
+      return {
+        id: rapporto.id,
+        label: getRapportoTitle(rapporto, {
+          famiglia: toPersonName(optFamiglia),
+          lavoratore: toPersonName(optLavoratore),
+        }),
+        rapporto,
+      }
+    })
     .sort((left, right) => left.label.localeCompare(right.label, "it"))
 
   return { columns, rapportoOptions }

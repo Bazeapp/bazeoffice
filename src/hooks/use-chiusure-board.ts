@@ -1,4 +1,5 @@
 import * as React from "react"
+import { toast } from "sonner"
 
 import { createRecord, fetchChiusureContratti, fetchFamiglie, fetchLavoratori, fetchLookupValues, fetchRapportiLavorativi, updateRecord } from "@/lib/anagrafiche-api"
 import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
@@ -31,6 +32,8 @@ export type ChiusureBoardCardData = {
   dataFineRapporto: string
   tipoLabel: string
   tipoColor: string | null
+  hasAssunzioneDatore: boolean
+  hasAssunzioneLavoratore: boolean
 }
 
 export type ChiusureBoardColumnData = {
@@ -59,6 +62,8 @@ type UseChiusureBoardState = {
   ) => void
 }
 
+const LICENZIAMENTO_STAGE_ID = "Datore comunica licenziamento"
+
 const DEFAULT_STAGE_DEFINITIONS: ChiusuraStageDefinition[] = [
   { id: "Lavoratore comunica dimissioni", label: "Lavoratore comunica dimissioni", color: "violet" },
   { id: "Datore comunica licenziamento", label: "Datore comunica licenziamento", color: "zinc" },
@@ -84,6 +89,8 @@ const CHIUSURE_RAPPORTI_SELECT = [
   "nome_lavoratore_per_url",
   "famiglia_id",
   "lavoratore_id",
+  "assunzione_datore_id",
+  "assunzione_lavoratore_id",
 ] satisfies string[]
 
 const RELATED_RECORDS_BATCH_SIZE = 200
@@ -326,6 +333,10 @@ async function fetchChiusureBoardData(): Promise<{
   ])
   const familiesById = new Map(familiesRows.map((family) => [family.id, family] as const))
   const lavoratoriById = new Map(lavoratoriRows.map((worker) => [worker.id, worker] as const))
+  const resolveAssunzionePresence = (rapporto: RapportoLavorativoRecord | null) => ({
+    hasAssunzioneDatore: Boolean(rapporto?.assunzione_datore_id),
+    hasAssunzioneLavoratore: Boolean(rapporto?.assunzione_lavoratore_id),
+  })
   const titleFor = (rapporto: RapportoLavorativoRecord) =>
     getRapportoTitle(rapporto, {
       famiglia: rapporto.famiglia_id ? familiesById.get(rapporto.famiglia_id) ?? null : null,
@@ -364,6 +375,8 @@ async function fetchChiusureBoardData(): Promise<{
     const rawTipo = record.tipo_licenziamento ?? record.tipo_decesso ?? "-"
     const normalizedTipo = normalizeToken(rawTipo)
 
+    const { hasAssunzioneDatore, hasAssunzioneLavoratore } = resolveAssunzionePresence(rapporto)
+
     const card: ChiusureBoardCardData = {
       id: record.id,
       stage,
@@ -375,6 +388,8 @@ async function fetchChiusureBoardData(): Promise<{
       dataFineRapporto: formatItalianDate(record.data_fine_rapporto),
       tipoLabel: tipoMetadata.labels.get(normalizedTipo) ?? rawTipo,
       tipoColor: tipoMetadata.colors.get(normalizedTipo) ?? null,
+      hasAssunzioneDatore,
+      hasAssunzioneLavoratore,
     }
 
     cardsByStage.get(stage)?.push(card)
@@ -417,6 +432,22 @@ export function useChiusureBoard(): UseChiusureBoardState {
   const moveCard = React.useCallback(
     async (recordId: string, targetStageId: string) => {
       const previous = columns
+
+      const movingCard = columns.flatMap((column) => column.cards).find((card) => card.id === recordId)
+      const licenziamentoIndex = columns.findIndex((column) => column.id === LICENZIAMENTO_STAGE_ID)
+      const targetIndex = columns.findIndex((column) => column.id === targetStageId)
+      const isAfterLicenziamento =
+        licenziamentoIndex >= 0 && targetIndex > licenziamentoIndex
+
+      if (movingCard && isAfterLicenziamento) {
+        const missing: string[] = []
+        if (!movingCard.hasAssunzioneLavoratore) missing.push("assunzione lavoratore")
+        if (!movingCard.hasAssunzioneDatore) missing.push("assunzione datore")
+        if (missing.length > 0) {
+          toast.error(`Mancano i dati di: ${missing.join(" e ")}`)
+          return
+        }
+      }
 
       setColumns((current) => {
         let movedCard: ChiusureBoardCardData | null = null
@@ -500,6 +531,8 @@ export function useChiusureBoard(): UseChiusureBoardState {
         dataFineRapporto: formatItalianDate(record.data_fine_rapporto),
         tipoLabel: record.tipo_licenziamento ?? record.tipo_decesso ?? "-",
         tipoColor: null,
+        hasAssunzioneDatore: false,
+        hasAssunzioneLavoratore: false,
       }
 
       setColumns((current) =>

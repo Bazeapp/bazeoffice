@@ -501,6 +501,8 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "paga_oraria_lorda",
     "preventivo_id",
     "processi_matching_id",
+    "assunzione_datore_id",
+    "assunzione_lavoratore_id",
     "prova_data_checkin",
     "prova_feedback_famiglia",
     "prova_feedback_lavoratore",
