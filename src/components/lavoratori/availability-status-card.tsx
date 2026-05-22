@@ -143,10 +143,9 @@ export function AvailabilityStatusCard({
             <div className="max-w-xs">
               <Input
                 type="date"
-                value={draft.data_ritorno_disponibilita}
+                value={selectedDataRitorno}
                 onChange={(event) => onDataRitornoChange(event.target.value)}
-                onBlur={onDataRitornoBlur}
-                disabled={isUpdating || !isReturnDateEnabled}
+                disabled={!isReturnDateEnabled}
               />
             </div>
           ) : (

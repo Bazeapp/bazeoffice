@@ -1146,6 +1146,10 @@ export function LavoratoriCercaView({
     appendCreatedWorkerReference,
   });
 
+  const { value: dataRitornoLCVValue, onChange: saveDataRitornoLCV } = useDebouncedSave(
+    asString(selectedWorkerRow?.data_ritorno_disponibilita),
+    async (v) => { await patchWorkerAvailabilityStatus({ data_ritorno_disponibilita: v || null }); },
+  );
   const { value: anniEsperienzaColfValue, onChange: saveAnniEsperienzaColf } = useDebouncedSave(
     asString(selectedWorkerRow?.anni_esperienza_colf),
     async (v) => { await patchSelectedWorkerField("anni_esperienza_colf", v ? Number(v) : null); },
@@ -1685,8 +1689,7 @@ export function LavoratoriCercaView({
                     workerRow={{
                       ...selectedWorkerRow,
                       disponibilita: availabilityStatusDraft.disponibilita,
-                      data_ritorno_disponibilita:
-                        availabilityStatusDraft.data_ritorno_disponibilita,
+                      data_ritorno_disponibilita: dataRitornoLCVValue,
                     }}
                     statoLavoratoreOptions={statoLavoratoreLookupOptions}
                     disponibilitaOptions={disponibilitaLookupOptions}
@@ -1708,15 +1711,7 @@ export function LavoratoriCercaView({
                         disponibilita: value || null,
                       });
                     }}
-                    onDataRitornoDisponibilitaChange={(value) => {
-                      setAvailabilityStatusDraft((current) => ({
-                        ...current,
-                        data_ritorno_disponibilita: value,
-                      }));
-                      void patchWorkerAvailabilityStatus({
-                        data_ritorno_disponibilita: value || null,
-                      });
-                    }}
+                    onDataRitornoDisponibilitaChange={saveDataRitornoLCV}
                     onMotivazioneChange={(value) =>
                       void handleNonIdoneoReasonsChange(value ? [value] : [])
                     }

@@ -2928,6 +2928,10 @@ export function Gate1View({
     asInputValue(selectedWorkerRow?.anni_esperienza_babysitter),
     async (v) => { await patchSelectedWorkerField("anni_esperienza_babysitter", v ? Number(v) : null); },
   );
+  const { value: dataRitornoValue, onChange: saveDataRitorno } = useDebouncedSave(
+    asString(selectedWorkerRow?.data_ritorno_disponibilita),
+    async (v) => { await patchWorkerAvailabilityStatus({ data_ritorno_disponibilita: v || null }); },
+  );
   const { value: descrizionePubblicaValue, onChange: saveDescrizionePubblica } = useDebouncedSave(
     asString(selectedWorkerRow?.descrizione_pubblica),
     async (v) => { await patchSelectedWorkerField("descrizione_pubblica", v || null); },
@@ -4481,9 +4485,7 @@ export function Gate1View({
                             selectedDisponibilitaBadgeClassName={
                               disponibilitaBadgeClassName
                             }
-                            selectedDataRitorno={asString(
-                              selectedWorkerRow.data_ritorno_disponibilita,
-                            )}
+                            selectedDataRitorno={dataRitornoValue}
                             onToggleEdit={() =>
                               setIsEditingAvailabilityStep((current) => !current)
                             }
@@ -4496,15 +4498,7 @@ export function Gate1View({
                                 disponibilita: value || null,
                               });
                             }}
-                            onDataRitornoChange={(value) => {
-                              setAvailabilityStatusDraft((current) => ({
-                                ...current,
-                                data_ritorno_disponibilita: value,
-                              }));
-                              void patchWorkerAvailabilityStatus({
-                                data_ritorno_disponibilita: value || null,
-                              });
-                            }}
+                            onDataRitornoChange={saveDataRitorno}
                             onDataRitornoBlur={() => undefined}
                           />
                           <GateShiftPreferencesCard
