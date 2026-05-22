@@ -1272,6 +1272,10 @@ export function RicercaWorkersPipelineView({
     appendCreatedWorkerReference,
   });
 
+  const { value: dataRitornoPipelineValue, onChange: saveDataRitornoPipeline } = useDebouncedSave(
+    asString(selectedWorkerRow?.data_ritorno_disponibilita),
+    async (v) => { await patchWorkerAvailabilityStatus({ data_ritorno_disponibilita: v || null }); },
+  );
   const { value: documentNaspiValue, onChange: saveDocumentNaspi } = useDebouncedSave(
     asString(selectedWorkerRow?.data_scadenza_naspi),
     async (v) => { await patchDocumentField("data_scadenza_naspi", v || null); },
@@ -2424,7 +2428,7 @@ export function RicercaWorkersPipelineView({
                   >
                     <WorkerProfileHeader
                       worker={selectedWorker ?? selectedCard.worker}
-                      workerRow={selectedWorkerRow}
+                      workerRow={{ ...selectedWorkerRow, data_ritorno_disponibilita: dataRitornoPipelineValue }}
                       statoLavoratoreOptions={
                         lookupOptionsByDomain.get("lavoratori.stato_lavoratore") ??
                         []
@@ -2452,12 +2456,7 @@ export function RicercaWorkersPipelineView({
                       onDisponibilitaChange={(value) =>
                         patchSelectedWorkerField("disponibilita", value)
                       }
-                      onDataRitornoDisponibilitaChange={(value) =>
-                        patchSelectedWorkerField(
-                          "data_ritorno_disponibilita",
-                          value,
-                        )
-                      }
+                      onDataRitornoDisponibilitaChange={saveDataRitornoPipeline}
                       onMotivazioneChange={(value) =>
                         patchSelectedWorkerField(
                           "motivazione_non_idoneo",

@@ -1724,9 +1724,7 @@ export function LavoratoriCercaView({
                       updatingAvailabilityStatus ||
                       disponibilitaLookupOptions.length === 0
                     }
-                    dataRitornoDisponibilitaDisabled={
-                      updatingAvailabilityStatus
-                    }
+                    dataRitornoDisponibilitaDisabled={false}
                     motivazioneDisabled={updatingNonIdoneo}
                     blacklistChecked={blacklistChecked}
                     onBlacklistToggle={(nextValue) =>
