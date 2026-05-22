@@ -150,7 +150,7 @@ function formatCardDateTime(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) return null;
 
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

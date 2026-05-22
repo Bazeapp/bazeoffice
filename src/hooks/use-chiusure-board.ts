@@ -1,8 +1,8 @@
 import * as React from "react"
 
-import { createRecord, fetchChiusureContratti, fetchLookupValues, fetchRapportiLavorativi, updateRecord } from "@/lib/anagrafiche-api"
+import { createRecord, fetchChiusureContratti, fetchFamiglie, fetchLavoratori, fetchLookupValues, fetchRapportiLavorativi, updateRecord } from "@/lib/anagrafiche-api"
 import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
-import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
+import type { ChiusuraContrattoRecord, FamigliaRecord, LavoratoreRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
 
 type ChiusuraStageDefinition = {
   id: string
@@ -51,6 +51,7 @@ type UseChiusureBoardState = {
     dataFineRapporto: string
     note: string
   }) => Promise<void>
+  linkRapporto: (chiusuraId: string, rapportoId: string | null) => Promise<void>
   moveCard: (recordId: string, targetStageId: string) => Promise<void>
   updateCard: (
     recordId: string,
@@ -81,7 +82,81 @@ const CHIUSURE_RAPPORTI_SELECT = [
   "data_inizio_rapporto",
   "cognome_nome_datore_proper",
   "nome_lavoratore_per_url",
+  "famiglia_id",
+  "lavoratore_id",
 ] satisfies string[]
+
+const RELATED_RECORDS_BATCH_SIZE = 200
+
+function compactUnique(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value))))
+}
+
+function chunkValues<T>(values: T[], size: number) {
+  const chunks: T[][] = []
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size))
+  }
+  return chunks
+}
+
+async function fetchFamiglieByIds(ids: string[]) {
+  if (ids.length === 0) return [] as FamigliaRecord[]
+  const results = await Promise.all(
+    chunkValues(ids, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
+      fetchFamiglie({
+        select: ["id", "nome", "cognome"],
+        limit: batch.length,
+        offset: 0,
+        orderBy: [{ field: "id", ascending: true }],
+        filters: {
+          kind: "group",
+          id: `chiusure-famiglie-${index}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `chiusure-famiglie-id-${index}`,
+              field: "id",
+              operator: "in",
+              value: batch.join(","),
+            },
+          ],
+        },
+      })
+    )
+  )
+  return results.flatMap((result) => result.rows as FamigliaRecord[])
+}
+
+async function fetchLavoratoriByIds(ids: string[]) {
+  if (ids.length === 0) return [] as LavoratoreRecord[]
+  const results = await Promise.all(
+    chunkValues(ids, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
+      fetchLavoratori({
+        select: ["id", "nome", "cognome"],
+        limit: batch.length,
+        offset: 0,
+        orderBy: [{ field: "id", ascending: true }],
+        filters: {
+          kind: "group",
+          id: `chiusure-lavoratori-${index}`,
+          logic: "and",
+          nodes: [
+            {
+              kind: "condition",
+              id: `chiusure-lavoratori-id-${index}`,
+              field: "id",
+              operator: "in",
+              value: batch.join(","),
+            },
+          ],
+        },
+      })
+    )
+  )
+  return results.flatMap((result) => result.rows as LavoratoreRecord[])
+}
 
 const CHIUSURE_SELECT = [
   "id",
@@ -137,7 +212,7 @@ function formatItalianDate(value: unknown) {
   if (Number.isNaN(parsed.getTime())) return "-"
 
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -243,6 +318,20 @@ async function fetchChiusureBoardData(): Promise<{
     fetchLookupValues(),
   ])
 
+  const familyIds = compactUnique(rapportiResult.rows.map((rapporto) => rapporto.famiglia_id))
+  const workerIds = compactUnique(rapportiResult.rows.map((rapporto) => rapporto.lavoratore_id))
+  const [familiesRows, lavoratoriRows] = await Promise.all([
+    fetchFamiglieByIds(familyIds),
+    fetchLavoratoriByIds(workerIds),
+  ])
+  const familiesById = new Map(familiesRows.map((family) => [family.id, family] as const))
+  const lavoratoriById = new Map(lavoratoriRows.map((worker) => [worker.id, worker] as const))
+  const titleFor = (rapporto: RapportoLavorativoRecord) =>
+    getRapportoTitle(rapporto, {
+      famiglia: rapporto.famiglia_id ? familiesById.get(rapporto.famiglia_id) ?? null : null,
+      lavoratore: rapporto.lavoratore_id ? lavoratoriById.get(rapporto.lavoratore_id) ?? null : null,
+    })
+
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const tipoMetadata = buildTipoMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
@@ -269,7 +358,7 @@ async function fetchChiusureBoardData(): Promise<{
       rapportoByChiusuraId.get(record.id) ??
       (record.ticket_id ? rapportoByTicketId.get(record.ticket_id) ?? null : null)
     const nomeCompleto =
-      (rapporto ? getRapportoTitle(rapporto) : null) ||
+      (rapporto ? titleFor(rapporto) : null) ||
       [record.nome, record.cognome].filter(Boolean).join(" ").trim() ||
       "Nominativo non disponibile"
     const rawTipo = record.tipo_licenziamento ?? record.tipo_decesso ?? "-"
@@ -298,7 +387,7 @@ async function fetchChiusureBoardData(): Promise<{
     cards: cardsByStage.get(stage.id) ?? [],
   }))
   const rapportoOptions = rapportiResult.rows
-    .map((rapporto) => ({ id: rapporto.id, label: getRapportoTitle(rapporto), rapporto }))
+    .map((rapporto) => ({ id: rapporto.id, label: titleFor(rapporto), rapporto }))
     .sort((left, right) => left.label.localeCompare(right.label, "it"))
 
   return { columns, rapportoOptions }
@@ -422,6 +511,73 @@ export function useChiusureBoard(): UseChiusureBoardState {
     [rapportoOptions]
   )
 
+  const linkRapporto = React.useCallback(
+    async (chiusuraId: string, rapportoId: string | null) => {
+      const nextOption = rapportoId
+        ? rapportoOptions.find((option) => option.id === rapportoId) ?? null
+        : null
+      const nextRapporto = nextOption?.rapporto ?? null
+
+      let previousRapportoId: string | null = null
+      for (const column of columns) {
+        for (const card of column.cards) {
+          if (card.id === chiusuraId && card.rapporto) {
+            previousRapportoId = card.rapporto.id
+          }
+        }
+      }
+
+      const previousColumns = columns
+
+      const fallbackNome = (card: ChiusureBoardCardData) =>
+        [card.record.nome, card.record.cognome].filter(Boolean).join(" ").trim() ||
+        "Nominativo non disponibile"
+
+      setColumns((current) =>
+        current.map((column) => ({
+          ...column,
+          cards: column.cards.map((card) => {
+            if (card.id === chiusuraId) {
+              return {
+                ...card,
+                rapporto: nextRapporto,
+                nomeCompleto: nextOption ? nextOption.label : fallbackNome(card),
+              }
+            }
+            if (rapportoId && card.rapporto?.id === rapportoId) {
+              return { ...card, rapporto: null, nomeCompleto: fallbackNome(card) }
+            }
+            return card
+          }),
+        }))
+      )
+
+      try {
+        if (rapportoId) {
+          if (previousRapportoId && previousRapportoId !== rapportoId) {
+            await updateRecord("rapporti_lavorativi", previousRapportoId, {
+              fine_rapporto_lavorativo_id: null,
+            })
+          }
+          await updateRecord("rapporti_lavorativi", rapportoId, {
+            fine_rapporto_lavorativo_id: chiusuraId,
+          })
+        } else if (previousRapportoId) {
+          await updateRecord("rapporti_lavorativi", previousRapportoId, {
+            fine_rapporto_lavorativo_id: null,
+          })
+        }
+      } catch (caughtError) {
+        setColumns(previousColumns)
+        setError(
+          caughtError instanceof Error ? caughtError.message : "Errore collegando rapporto"
+        )
+        throw caughtError
+      }
+    },
+    [columns, rapportoOptions]
+  )
+
   React.useEffect(() => {
     let cancelled = false
 
@@ -458,6 +614,7 @@ export function useChiusureBoard(): UseChiusureBoardState {
     columns,
     rapportoOptions,
     createChiusura,
+    linkRapporto,
     moveCard,
     updateCard,
   }

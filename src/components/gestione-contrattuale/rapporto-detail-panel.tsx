@@ -62,6 +62,7 @@ import {
 } from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"
 import { buildPathForRoute } from "@/routes/app-routes"
+import { buildFamilyPresenzeUrl } from "@/lib/private-area-url"
 import type {
   ChiusuraContrattoRecord,
   ContributoInpsRecord,
@@ -188,7 +189,7 @@ function formatDate(value: string | null) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -209,7 +210,7 @@ function formatDateTime(value: string | null) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -274,7 +275,7 @@ function getMonthLabel(mese: MeseLavoratoRecord, meseCalendario: MeseCalendarioR
     const date = new Date(meseCalendario.data_inizio)
     if (!Number.isNaN(date.getTime())) {
       return new Intl.DateTimeFormat("it-IT", {
-        timeZone: "UTC",
+        timeZone: "Europe/Rome",
         month: "long",
         year: "numeric",
       }).format(date)
@@ -1008,6 +1009,7 @@ export function RapportoDetailPanel({
   const familyPhone = firstAvailableText(famiglia?.telefono, famiglia?.whatsapp)
   const workerEmail = firstAvailableText(lavoratore?.email)
   const workerPhone = firstAvailableText(lavoratore?.telefono)
+  const presenzeUrl = buildFamilyPresenzeUrl(famiglia?.email, famiglia?.base_codice_otp)
   const relationshipTitle = getRapportoTitle(rapportoView, { famiglia, lavoratore })
   const distributionItems = buildDistributionItems(rapportoView.distribuzione_ore_settimana)
   const rapportoMetadata =
@@ -1660,6 +1662,21 @@ export function RapportoDetailPanel({
               title="Cedolini"
               icon={<FileTextIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
+              action={
+                presenzeUrl ? (
+                  <Button asChild variant="outline" size="sm">
+                    <a
+                      href={presenzeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Apri il calendario presenze della famiglia"
+                    >
+                      <CalendarDaysIcon className="size-4" />
+                      Calendario presenze
+                    </a>
+                  </Button>
+                ) : undefined
+              }
             >
               {isSectionLoading("cedolini") ? (
                 <LinkedRowsSkeleton />

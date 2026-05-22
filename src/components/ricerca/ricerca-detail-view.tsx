@@ -227,7 +227,7 @@ function formatItalianDate(value: unknown): string {
   if (Number.isNaN(parsed.getTime())) return "-";
 
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -236,6 +236,15 @@ function formatItalianDate(value: unknown): string {
 
 function displayValue(value: unknown): string {
   return toStringValue(value) ?? "-";
+}
+
+function readCoordinate(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string" && value !== "") {
+    const n = Number(value)
+    return Number.isFinite(n) ? n : null
+  }
+  return null
 }
 
 function toAvatarRingClass(legacyClassName: string) {
@@ -1078,16 +1087,8 @@ export function RicercaDetailView({
           indirizzoProvaCitofono: displayValue(processRow.indirizzo_prova_citofono),
           geocode: displayValue(processRow.geocode),
           srcEmbedMapsAnnucio: displayValue(processRow.src_embed_maps_annucio),
-          indirizzoProvaLatitudine: typeof processProvaAddress?.latitudine === "number"
-            ? processProvaAddress.latitudine
-            : typeof processProvaAddress?.latitudine === "string" && processProvaAddress.latitudine !== ""
-              ? Number(processProvaAddress.latitudine)
-              : null,
-          indirizzoProvaLongitudine: typeof processProvaAddress?.longitudine === "number"
-            ? processProvaAddress.longitudine
-            : typeof processProvaAddress?.longitudine === "string" && processProvaAddress.longitudine !== ""
-              ? Number(processProvaAddress.longitudine)
-              : null,
+          indirizzoProvaLatitudine: readCoordinate(processProvaAddress?.latitudine) ?? readCoordinate(luogoIndirizziRow?.latitudine) ?? null,
+          indirizzoProvaLongitudine: readCoordinate(processProvaAddress?.longitudine) ?? readCoordinate(luogoIndirizziRow?.longitudine) ?? null,
           deadlineMobile: formatItalianDate(processRow.deadline_mobile),
           deadlineMobileRaw: toStringValue(processRow.deadline_mobile) ?? "",
           dataAssegnazione: formatItalianDate(processRow.data_assegnazione),

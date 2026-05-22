@@ -38,6 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils";
+import { romaDateTimeToUtcIso, utcIsoToRomaParts } from "@/lib/datetime";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
   getLookupLabelForSave,
@@ -94,21 +95,7 @@ const SCORE_OPTIONS: ScoreCardValue[] = ["Basso", "Medio", "Alto"];
 
 function toDateInputParts(value: unknown): { date: string; time: string } {
   const raw = asString(value);
-  if (!raw) return { date: "", time: "" };
-
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return { date: "", time: "" };
-
-  const year = parsed.getUTCFullYear();
-  const month = String(parsed.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getUTCDate()).padStart(2, "0");
-  const hours = String(parsed.getUTCHours()).padStart(2, "0");
-  const minutes = String(parsed.getUTCMinutes()).padStart(2, "0");
-
-  return {
-    date: `${year}-${month}-${day}`,
-    time: `${hours}:${minutes}`,
-  };
+  return utcIsoToRomaParts(raw);
 }
 
 function toTimestampValue(date: string, time: string) {
@@ -116,19 +103,7 @@ function toTimestampValue(date: string, time: string) {
   const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   const timeMatch = /^(\d{2}):(\d{2})$/.exec(time);
   if (!dateMatch || !timeMatch) return null;
-
-  const parsed = new Date(
-    Date.UTC(
-      Number(dateMatch[1]),
-      Number(dateMatch[2]) - 1,
-      Number(dateMatch[3]),
-      Number(timeMatch[1]),
-      Number(timeMatch[2]),
-      0,
-    ),
-  );
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString();
+  return romaDateTimeToUtcIso(date, time);
 }
 
 function toDatetimeLocalValue(value: unknown) {

@@ -52,6 +52,7 @@ import {
   type CrmPipelineColumnData,
   useCrmPipelinePreview,
 } from "@/hooks/use-crm-pipeline-preview"
+import { romaWallclockToUtcIso, utcIsoToRomaInput } from "@/lib/datetime"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
@@ -263,23 +264,12 @@ function getStageIcon(stageId: string, iconClassName: string) {
   }
 }
 
-function padDatePart(value: number) {
-  return String(value).padStart(2, "0")
-}
-
 function toDateTimeLocalValue(date: Date) {
-  return [
-    date.getUTCFullYear(),
-    padDatePart(date.getUTCMonth() + 1),
-    padDatePart(date.getUTCDate()),
-  ].join("-") + `T${padDatePart(date.getUTCHours())}:${padDatePart(date.getUTCMinutes())}`
+  return utcIsoToRomaInput(date.toISOString())
 }
 
 function dateTimeLocalToIso(value: string) {
-  if (!value) return null
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return parsed.toISOString()
+  return romaWallclockToUtcIso(value)
 }
 
 function booleanFilterToValue(value: BooleanFilterValue) {

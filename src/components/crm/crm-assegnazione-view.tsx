@@ -174,7 +174,7 @@ function toDateKey(date: Date) {
 
 function formatDayLabel(date: Date) {
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     weekday: "short",
     day: "2-digit",
     month: "2-digit",
@@ -182,14 +182,14 @@ function formatDayLabel(date: Date) {
 }
 
 function formatWeekday(date: Date) {
-  return new Intl.DateTimeFormat("it-IT", { timeZone: "UTC", weekday: "short" })
+  return new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", weekday: "short" })
     .format(date)
     .replace(".", "");
 }
 
 function formatDayMonth(date: Date) {
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "2-digit",
   }).format(date);
@@ -308,7 +308,7 @@ function formatDateForView(value: string | null | undefined) {
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) {
     return new Intl.DateTimeFormat("it-IT", {
-      timeZone: "UTC",
+      timeZone: "Europe/Rome",
       day: "2-digit",
       month: "2-digit",
       year: "numeric",

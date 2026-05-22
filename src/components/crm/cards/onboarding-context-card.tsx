@@ -14,6 +14,7 @@ import {
   UserRoundXIcon,
 } from "lucide-react";
 
+import { romaWallclockToUtcIso, utcIsoToRomaInput } from "@/lib/datetime";
 import { Badge } from "@/components/ui/badge";
 import { CheckboxChip } from "@/components/ui/checkbox";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
@@ -259,15 +260,7 @@ function splitStoredValues(value: string | null | undefined) {
 }
 
 function toDateTimeLocalValue(value: string | null | undefined) {
-  if (!value) return "";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "";
-  const yyyy = parsed.getUTCFullYear();
-  const mm = String(parsed.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(parsed.getUTCDate()).padStart(2, "0");
-  const hh = String(parsed.getUTCHours()).padStart(2, "0");
-  const min = String(parsed.getUTCMinutes()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  return utcIsoToRomaInput(value);
 }
 
 function normalizeToken(value: string | null | undefined) {
@@ -605,7 +598,7 @@ export function OnboardingContextCard({
                 const nextValue = event.target.value;
                 setDataCall(nextValue);
                 void onPatchFamily?.(card.famigliaId, {
-                  data_call_prenotata: nextValue || null,
+                  data_call_prenotata: romaWallclockToUtcIso(nextValue),
                 });
               }}
             />

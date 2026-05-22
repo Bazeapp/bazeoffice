@@ -10,12 +10,12 @@ import {
   OctagonAlertIcon,
   PhoneIcon,
   ShieldCheckIcon,
-  Trash2Icon,
   UserIcon,
   UsersIcon,
 } from "lucide-react"
 
 import type { AssunzioneRecord, AssunzioniBoardCardData } from "@/hooks/use-assunzioni-board"
+import { AssociationSearchField } from "@/components/shared-next/association-search-field"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
@@ -51,7 +51,7 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -2930,74 +2930,23 @@ export function AssunzioniDetailSheet({
                       : "Form assunzione lavoratore"
                   }
                 >
-                  <div className="space-y-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <SearchInput
-                        className="min-w-0 flex-1"
-                        value={assunzioneSearchQuery}
-                        onChange={(event) => setAssunzioneSearchQuery(event.target.value)}
-                        onClear={() => setAssunzioneSearchQuery("")}
-                        disabled={loadingAssunzioneCandidates || savingPractice}
-                        placeholder={
-                          loadingAssunzioneCandidates
-                            ? "Caricamento form..."
-                            : "Nome, cognome o email"
-                        }
-                      />
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        disabled={!selectedAssunzioneId || savingPractice}
-                        title="Scollega form"
-                        aria-label="Scollega form"
-                        onClick={() => void unlinkAssunzioneRecord()}
-                      >
-                        <Trash2Icon className="size-4" />
-                      </Button>
-                    </div>
-                    {assunzioneSearchQuery.trim().length === 1 ? (
-                      <p className="text-muted-foreground text-xs">
-                        Inserisci almeno 2 caratteri.
-                      </p>
-                    ) : loadingAssunzioneCandidates ? (
-                      <p className="text-muted-foreground text-xs">
-                        Caricamento risultati...
-                      </p>
-                    ) : filteredAssunzioneOptions.length === 0 ? (
-                      <p className="text-muted-foreground text-xs">
-                        Nessun form trovato.
-                      </p>
-                    ) : (
-                      <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-2">
-                        {filteredAssunzioneOptions.map((record) => {
-                          const isSelected = selectedAssunzioneId === record.id
-
-                          return (
-                            <button
-                              key={record.id}
-                              type="button"
-                              onClick={() => void linkAssunzioneRecord(record.id)}
-                              disabled={savingPractice}
-                              className={cn(
-                                "w-full rounded-md border px-3 py-2 text-left text-sm transition",
-                                isSelected
-                                  ? "border-emerald-400 bg-emerald-50"
-                                  : "border-border hover:bg-muted/50",
-                              )}
-                            >
-                              <div className="font-medium">
-                                {resolveAssunzioneFormLabel(record, target, card)}
-                              </div>
-                              <div className="text-muted-foreground text-xs">
-                                {resolveAssunzioneFormSubLabel(record, target, card)}
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <AssociationSearchField
+                    query={assunzioneSearchQuery}
+                    onQueryChange={setAssunzioneSearchQuery}
+                    options={filteredAssunzioneOptions.map((record) => ({
+                      id: record.id,
+                      primaryLabel: resolveAssunzioneFormLabel(record, target, card),
+                      secondaryLabel: resolveAssunzioneFormSubLabel(record, target, card),
+                    }))}
+                    selectedId={selectedAssunzioneId}
+                    onSelect={(id) => void linkAssunzioneRecord(id)}
+                    onUnlink={() => void unlinkAssunzioneRecord()}
+                    canUnlink={Boolean(selectedAssunzioneId)}
+                    disabled={savingPractice}
+                    loading={loadingAssunzioneCandidates}
+                    placeholder="Nome, cognome o email"
+                    emptyMessage="Nessun form trovato."
+                  />
                 </EditableField>
               </DetailSectionBlock>
 

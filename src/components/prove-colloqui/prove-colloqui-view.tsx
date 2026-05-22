@@ -101,7 +101,7 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -113,7 +113,7 @@ function formatDateTime(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -127,7 +127,7 @@ function formatTime(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ""
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     hour: "2-digit",
     minute: "2-digit",
   }).format(date)
@@ -1010,11 +1010,11 @@ function CalendarView({
   const weekStart = visibleDays[0] ?? cursor
   const weekEnd = visibleDays[6] ?? cursor
   const title = `${new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "short",
   }).format(weekStart)} - ${new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -1088,7 +1088,7 @@ function CalendarView({
               <div key={day.toISOString()} className="flex min-h-0 flex-col border-b border-r bg-surface p-2">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <span className="text-2xs font-medium capitalize text-muted-foreground">
-                    {new Intl.DateTimeFormat("it-IT", { timeZone: "UTC", weekday: "short" }).format(day)}
+                    {new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", weekday: "short" }).format(day)}
                   </span>
                   <span className={cn("text-xs font-semibold tabular-nums", isSameDate(day, new Date()) && "rounded-full bg-accent px-1.5 py-0.5 text-accent-foreground")}>
                     {day.getUTCDate()}

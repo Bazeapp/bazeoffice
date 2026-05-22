@@ -173,7 +173,7 @@ function formatMonthLabel(value: string) {
   }
 
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     month: "long",
     year: "numeric",
   }).format(new Date(Date.UTC(year, month - 1, 1)))
@@ -184,7 +184,7 @@ function formatDateTime(value: string | null | undefined) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

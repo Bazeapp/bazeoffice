@@ -681,7 +681,7 @@ function GateAssessmentCard({
   lookupColorsByDomain: Map<string, string>;
 }) {
   const helperDate = React.useMemo(
-    () => new Intl.DateTimeFormat("it-IT", { timeZone: "UTC" }).format(new Date()),
+    () => new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome" }).format(new Date()),
     [],
   );
   const orderedStatusOptions = React.useMemo(() => {

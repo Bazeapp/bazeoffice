@@ -24,3 +24,18 @@ export function buildFamilyPrivateAreaUrl(email: unknown, familyId: unknown) {
 
   return `https://app.bazeapp.com/v2/auth/entry-point?${params.toString()}`;
 }
+
+export function buildFamilyPresenzeUrl(email: unknown, baseCodiceOtp: unknown) {
+  const normalizedEmail = toPrivateAreaText(email);
+  const sort = toPrivateAreaText(baseCodiceOtp);
+  if (!normalizedEmail || !sort) return null;
+
+  const params = new URLSearchParams({
+    email: normalizedEmail,
+    sort,
+    utm_source: "link_invio_presenze",
+    go_to: "/famiglie/presenze",
+  });
+
+  return `https://app.bazeapp.com/v2/auth/entry-point?${params.toString()}`;
+}

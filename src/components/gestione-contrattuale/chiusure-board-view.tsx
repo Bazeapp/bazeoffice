@@ -12,6 +12,7 @@ import {
   type ChiusureBoardColumnData,
   useChiusureBoard,
 } from "@/hooks/use-chiusure-board"
+import { AssociationSearchField } from "@/components/shared-next/association-search-field"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import { type AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
@@ -36,6 +37,7 @@ import { fetchChiusureContratti, fetchRapportiLavorativi, updateRecord } from "@
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
+import type { RapportoLavorativoRecord } from "@/types"
 
 type ChiusuraAttachmentSlot = "allegato_compilato" | "documenti_chiusura_rapporto"
 
@@ -50,7 +52,7 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "UTC",
+    timeZone: "Europe/Rome",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -124,19 +126,25 @@ function buildChiusuraDetailsDraft(card: ChiusureBoardCardData | null) {
 function ChiusureDetailSheet({
   card,
   columns,
+  rapportoOptions,
   open,
   onOpenChange,
   onStatusChange,
+  onLinkRapporto,
   onCardChange,
 }: {
   card: ChiusureBoardCardData | null
   columns: ChiusureBoardColumnData[]
+  rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
   open: boolean
   onOpenChange: (open: boolean) => void
   onStatusChange: (recordId: string, targetStageId: string) => Promise<void>
+  onLinkRapporto: (chiusuraId: string, rapportoId: string | null) => Promise<void>
   onCardChange: (card: ChiusureBoardCardData) => void
 }) {
   const [updatingStatus, setUpdatingStatus] = React.useState(false)
+  const [rapportoSearchQuery, setRapportoSearchQuery] = React.useState("")
+  const [linkingRapporto, setLinkingRapporto] = React.useState(false)
   const [editingDetails, setEditingDetails] = React.useState(false)
   const [savingDetails, setSavingDetails] = React.useState(false)
   const [uploadingSlot, setUploadingSlot] = React.useState<ChiusuraAttachmentSlot | null>(null)
@@ -155,6 +163,46 @@ function ChiusureDetailSheet({
       onCardChange(nextCard)
     },
     [onCardChange]
+  )
+
+  React.useEffect(() => {
+    setRapportoSearchQuery(card?.rapporto ? card.nomeCompleto : "")
+  }, [card?.id, card?.rapporto?.id, card?.nomeCompleto, open])
+
+  const filteredRapportoOptions = React.useMemo(() => {
+    const query = rapportoSearchQuery.trim()
+    if (card?.rapporto && query === card.nomeCompleto.trim()) return []
+    if (query.length < 2) return rapportoOptions.slice(0, 20)
+    return rapportoOptions
+      .filter((option) => matchesSearchQuery([option.label], query))
+      .slice(0, 20)
+  }, [rapportoOptions, rapportoSearchQuery, card?.rapporto?.id, card?.nomeCompleto])
+
+  const handleLinkRapporto = React.useCallback(
+    async (rapportoId: string | null) => {
+      const currentCard = latestCardRef.current
+      if (!currentCard) return
+      const option = rapportoId
+        ? rapportoOptions.find((item) => item.id === rapportoId) ?? null
+        : null
+      setLinkingRapporto(true)
+      try {
+        await onLinkRapporto(currentCard.id, rapportoId)
+        const fallbackNome =
+          [currentCard.record.nome, currentCard.record.cognome].filter(Boolean).join(" ").trim() ||
+          "Nominativo non disponibile"
+        applyCardChange({
+          ...currentCard,
+          rapporto: option?.rapporto ?? null,
+          nomeCompleto: option ? option.label : fallbackNome,
+        })
+      } catch {
+        // l'errore è gestito a livello di board
+      } finally {
+        setLinkingRapporto(false)
+      }
+    },
+    [applyCardChange, onLinkRapporto, rapportoOptions]
   )
 
   React.useEffect(() => {
@@ -358,6 +406,28 @@ function ChiusureDetailSheet({
           <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
               <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={card.rapporto} />
+
+              <DetailSectionBlock
+                title="Associazione rapporto"
+                icon={<FileTextIcon className="text-muted-foreground size-4" />}
+                contentClassName="space-y-2"
+              >
+                <AssociationSearchField
+                  query={rapportoSearchQuery}
+                  onQueryChange={setRapportoSearchQuery}
+                  options={filteredRapportoOptions.map((option) => ({
+                    id: option.id,
+                    primaryLabel: option.label,
+                  }))}
+                  selectedId={card.rapporto?.id ?? null}
+                  onSelect={(id) => void handleLinkRapporto(id)}
+                  onUnlink={() => void handleLinkRapporto(null)}
+                  canUnlink={Boolean(card.rapporto)}
+                  disabled={linkingRapporto}
+                  placeholder="Cerca per famiglia o lavoratore..."
+                  emptyMessage="Nessun rapporto trovato."
+                />
+              </DetailSectionBlock>
 
               <DetailSectionBlock
                 title="Dettagli chiusura"
@@ -725,7 +795,8 @@ function DetailSheetSkeleton() {
 }
 
 export function ChiusureBoardView() {
-  const { loading, error, columns, moveCard, updateCard } = useChiusureBoard()
+  const { loading, error, columns, rapportoOptions, linkRapporto, moveCard, updateCard } =
+    useChiusureBoard()
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
@@ -943,6 +1014,7 @@ export function ChiusureBoardView() {
       <ChiusureDetailSheet
         card={selectedFreshCard}
         columns={columns}
+        rapportoOptions={rapportoOptions}
         open={Boolean(selectedCardId)}
         onOpenChange={(open) => {
           if (!open) {
@@ -951,6 +1023,7 @@ export function ChiusureBoardView() {
           }
         }}
         onStatusChange={moveCard}
+        onLinkRapporto={linkRapporto}
         onCardChange={(nextCard) => {
           updateCard(nextCard.id, () => nextCard)
           setSelectedFreshCard(nextCard)
