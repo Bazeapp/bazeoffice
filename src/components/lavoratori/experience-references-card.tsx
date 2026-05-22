@@ -1,4 +1,5 @@
 import * as React from "react";
+import { toast } from "sonner";
 import {
   AlertCircleIcon,
   AlertTriangleIcon,
@@ -688,6 +689,23 @@ function DeleteExperienceAction({
   onDelete: () => Promise<void> | void;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await toast.promise(Promise.resolve(onDelete()), {
+        loading: "Eliminazione esperienza in corso…",
+        success: "Esperienza eliminata",
+        error: "Errore durante l'eliminazione dell'esperienza",
+      }).unwrap();
+      setOpen(false);
+    } catch {
+      // l'errore è già notificato dal toast
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -720,8 +738,14 @@ function DeleteExperienceAction({
           </AlertDialogDescription>
         </div>
         <AlertDialogFooter>
-          <AlertDialogCancel>Annulla</AlertDialogCancel>
-          <AlertDialogAction onClick={() => void onDelete()}>
+          <AlertDialogCancel disabled={deleting}>Annulla</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={deleting}
+            onClick={(event) => {
+              event.preventDefault();
+              void handleDelete();
+            }}
+          >
             Elimina esperienza
           </AlertDialogAction>
         </AlertDialogFooter>

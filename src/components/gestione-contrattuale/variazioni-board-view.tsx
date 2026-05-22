@@ -84,37 +84,6 @@ function formatCurrency(value: number | null | undefined) {
   }).format(value);
 }
 
-function buildDistributionItems(
-  source: string | null,
-  totalHours: number | null,
-) {
-  const labels = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
-  const matches = String(source ?? "").match(/\d+([.,]\d+)?/g) ?? [];
-  const parsedValues = matches.slice(0, 7).map((value) => {
-    const normalized = value.replace(",", ".");
-    const parsed = Number.parseFloat(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
-  });
-
-  const paddedValues = Array.from(
-    { length: 7 },
-    (_, index) => parsedValues[index] ?? 0,
-  );
-  const valuesSum = paddedValues.reduce((sum, value) => sum + value, 0);
-  if (
-    !valuesSum &&
-    typeof totalHours === "number" &&
-    Number.isFinite(totalHours)
-  ) {
-    paddedValues[0] = totalHours;
-  }
-
-  return labels.map((label, index) => ({
-    label,
-    value: `${paddedValues[index] ?? 0}h`,
-  }));
-}
-
 function buildVariazioneDetailsDraft(card: VariazioniBoardCardData | null) {
   return {
     dataVariazione: toDateInputValue(card?.record.data_variazione),
@@ -347,11 +316,6 @@ function VariazioniDetailSheet({
   const latestCardRef = React.useRef<VariazioniBoardCardData | null>(card);
   const [, setDetailsDraft] = React.useState(() => buildVariazioneDetailsDraft(card));
   const [rapportoDraft, setRapportoDraft] = React.useState(() => buildVariazioneRapportoDraft(card));
-  const distributionItems = buildDistributionItems(
-    card?.rapporto?.distribuzione_ore_settimana ?? null,
-    card?.rapporto?.ore_a_settimana ?? null,
-  );
-
 
   React.useEffect(() => {
     latestCardRef.current = card;
@@ -744,6 +708,15 @@ function VariazioniDetailSheet({
                           </SelectContent>
                         </Select>
                       </label>
+                      <label className="space-y-2 md:col-span-2">
+                        <span className="ui-type-label">Distribuzione ore settimanali</span>
+                        <p className="ui-type-meta">Parte da domenica</p>
+                        <DebouncedInput
+                          committedValue={card?.rapporto?.distribuzione_ore_settimana ?? ""}
+                          placeholder="0-0-0-0-0-0-0"
+                          onSave={async (v) => { await saveRapportoPatch({ distribuzione_ore_settimana: v || null }); }}
+                        />
+                      </label>
                       {savingRapporto ? (
                         <p className="text-muted-foreground text-xs md:col-span-2">
                           Salvataggio rapporto in corso...
@@ -791,24 +764,17 @@ function VariazioniDetailSheet({
                       </p>
                     </>
                   )}
-                  <div className="space-y-3">
-                    <p className="text-muted-foreground">Distribuzione ore:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {distributionItems.map((item) => (
-                        <div
-                          key={item.label}
-                          className="bg-muted/70 flex min-w-12 flex-col rounded-lg px-3 py-2 text-center"
-                        >
-                          <span className="text-muted-foreground text-xs">
-                            {item.label}
-                          </span>
-                          <span className="text-sm font-semibold">
-                            {item.value}
-                          </span>
-                        </div>
-                      ))}
+                  {!editingRapporto ? (
+                    <div className="space-y-1">
+                      <p>
+                        <span className="text-muted-foreground">Distribuzione ore settimanali:</span>{" "}
+                        <span className="font-medium text-foreground">
+                          {card.rapporto?.distribuzione_ore_settimana ?? "-"}
+                        </span>
+                      </p>
+                      <p className="ui-type-meta">Parte da domenica</p>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               </DetailSectionBlock>
 

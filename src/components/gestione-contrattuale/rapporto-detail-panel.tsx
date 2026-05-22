@@ -242,21 +242,6 @@ function sanitizeFileName(name: string) {
     .replace(/-+/g, "-")
 }
 
-function buildDistributionItems(source: string | null) {
-  const days = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]
-  const hourMatches = source?.match(/(\d+(?:[.,]\d+)?)h?/g) ?? []
-  const parsed = hourMatches.map((item) => Number.parseFloat(item.replace("h", "").replace(",", ".")))
-
-  if (parsed.length >= 7) {
-    return days.map((day, index) => ({
-      day,
-      value: `${Math.round(parsed[index] ?? 0)}h`,
-    }))
-  }
-
-  return days.map((day) => ({ day, value: "-" }))
-}
-
 function getDurationLabel(startDate: string | null, endDate: string | null = null) {
   if (!startDate) return "-"
   const start = new Date(startDate)
@@ -1011,7 +996,6 @@ export function RapportoDetailPanel({
   const workerPhone = firstAvailableText(lavoratore?.telefono)
   const presenzeUrl = buildFamilyPresenzeUrl(famiglia?.email, famiglia?.base_codice_otp)
   const relationshipTitle = getRapportoTitle(rapportoView, { famiglia, lavoratore })
-  const distributionItems = buildDistributionItems(rapportoView.distribuzione_ore_settimana)
   const rapportoMetadata =
     rapportoView.metadati_migrazione && typeof rapportoView.metadati_migrazione === "object"
       ? rapportoView.metadati_migrazione
@@ -1204,30 +1188,6 @@ export function RapportoDetailPanel({
               <div className="space-y-4">
                 {editingSection === "contratto" ? (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <DetailFieldControl label="Tipo durata">
-                      <Select
-                        value={rapportoDraft.tipo_contratto_durata || "__empty__"}
-                        disabled
-                        onValueChange={(value) =>
-                          setDraftValue("tipo_contratto_durata", value === "__empty__" ? "" : value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona tipo durata" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__empty__">Non impostato</SelectItem>
-                          <SelectItem value="Determinato">Determinato</SelectItem>
-                          <SelectItem value="Indeterminato">Indeterminato</SelectItem>
-                          {rapportoDraft.tipo_contratto_durata &&
-                          !["Determinato", "Indeterminato"].includes(rapportoDraft.tipo_contratto_durata) ? (
-                            <SelectItem value={rapportoDraft.tipo_contratto_durata}>
-                              {rapportoDraft.tipo_contratto_durata}
-                            </SelectItem>
-                          ) : null}
-                        </SelectContent>
-                      </Select>
-                    </DetailFieldControl>
                     <DetailFieldControl label="Tipo contratto">
                       <Input
                         value={rapportoDraft.tipo_contratto}
@@ -1292,7 +1252,6 @@ export function RapportoDetailPanel({
                   </div>
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <DetailField label="Tipo durata" value={rapportoView.tipo_contratto_durata ?? "-"} />
                     <DetailField label="Tipo contratto" value={rapportoView.tipo_contratto ?? "-"} />
                     <DetailField label="Tipo rapporto" value={rapportoView.tipo_rapporto ?? "-"} />
                     <DetailField label="Data inizio" value={startDateLabel} />
@@ -1305,19 +1264,10 @@ export function RapportoDetailPanel({
 
               <Separator className="bg-border/60" />
 
-              <div className="space-y-3">
-                <p className="ui-type-label">Distribuzione ore</p>
-                <div className="flex flex-wrap gap-2">
-                  {distributionItems.map((item) => (
-                    <div
-                      key={item.day}
-                      className="flex min-w-14 flex-col items-center rounded-xl border bg-surface px-2.5 py-2"
-                    >
-                      <span className="ui-type-label normal-case tracking-normal">{item.day}</span>
-                      <span className="ui-type-value mt-1">{item.value}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="space-y-1">
+                <p className="ui-type-label">Distribuzione ore settimanali</p>
+                <p className="ui-type-meta">Parte da domenica</p>
+                <p className="ui-type-value">{rapportoView.distribuzione_ore_settimana || "-"}</p>
               </div>
 
               <Separator className="bg-border/60" />
