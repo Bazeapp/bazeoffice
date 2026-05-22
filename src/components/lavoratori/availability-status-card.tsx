@@ -55,7 +55,6 @@ export function AvailabilityStatusCard({
   onToggleEdit,
   onDisponibilitaChange,
   onDataRitornoChange,
-  onDataRitornoBlur,
 }: AvailabilityStatusCardProps) {
   const isReturnDateEnabled =
     normalizeLookupComparableToken(draft.disponibilita) === "non disponibile"

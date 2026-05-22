@@ -1274,7 +1274,7 @@ export function RicercaWorkersPipelineView({
 
   const { value: dataRitornoPipelineValue, onChange: saveDataRitornoPipeline } = useDebouncedSave(
     asString(selectedWorkerRow?.data_ritorno_disponibilita),
-    async (v) => { await patchWorkerAvailabilityStatus({ data_ritorno_disponibilita: v || null }); },
+    async (v) => { await patchSelectedWorkerField("data_ritorno_disponibilita", v || null); },
   );
   const { value: documentNaspiValue, onChange: saveDocumentNaspi } = useDebouncedSave(
     asString(selectedWorkerRow?.data_scadenza_naspi),
