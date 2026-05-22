@@ -12,6 +12,7 @@ import {
   TargetIcon,
   ThumbsUpIcon,
   TrophyIcon,
+  XIcon,
 } from "lucide-react";
 
 import * as CollapsiblePrimitive from "@radix-ui/react-collapsible";
@@ -470,6 +471,15 @@ export function SchedaColloquioPanel({
     [onPatchField],
   );
 
+  const clearSlot = React.useCallback(
+    (slotIndex: number) => {
+      updateSlotDraft(slotIndex, { inizioData: "", inizioOra: "", fineData: "", fineOra: "" });
+      void onPatchField(`disponibilita_colloquio_lavoratore_slot${slotIndex + 1}_inizio`, null);
+      void onPatchField(`disponibilita_colloquio_lavoratore_slot${slotIndex + 1}_fine`, null);
+    },
+    [onPatchField, updateSlotDraft],
+  );
+
   return (
     <div className="bg-card">
       <div className="space-y-2 px-4 py-3">
@@ -626,85 +636,86 @@ export function SchedaColloquioPanel({
           title="Segna gli slot di disponibilità per fare il colloquio"
           icon={CalendarDaysIcon}
         >
-          {draft.slotColloquio.map((slot, index) => (
-            <div key={index} className="space-y-1.5">
-              <p className="text-foreground text-sm font-medium">
-                Slot {index + 1}
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-0.5">
-                  <label className="text-muted-foreground text-xs">
-                    Inizio disponibilità
-                  </label>
-                  <div className="flex gap-1">
-                    <Input
-                      type="date"
-                      className="flex-1"
-                      value={slot.inizioData}
+          {draft.slotColloquio.map((slot, index) => {
+            const hasAnyValue = slot.inizioData || slot.inizioOra || slot.fineData || slot.fineOra;
+            return (
+              <div key={index} className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-foreground text-sm font-medium">
+                    Slot {index + 1}
+                  </p>
+                  {hasAnyValue ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
                       disabled={disabled}
-                      onChange={(event) =>
-                        updateSlotDraft(index, { inizioData: event.target.value })
-                      }
-                      onBlur={(event) =>
-                        patchSlotField(index, "inizio", {
-                          inizioData: event.currentTarget.value,
-                        })
-                      }
-                    />
-                    <Input
-                      type="time"
-                      className="w-28"
-                      value={slot.inizioOra}
-                      disabled={disabled}
-                      onChange={(event) =>
-                        updateSlotDraft(index, { inizioOra: event.target.value })
-                      }
-                      onBlur={(event) =>
-                        patchSlotField(index, "inizio", {
-                          inizioOra: event.currentTarget.value,
-                        })
-                      }
-                    />
-                  </div>
+                      onClick={() => clearSlot(index)}
+                      aria-label="Cancella slot"
+                    >
+                      <XIcon className="size-3.5" />
+                    </Button>
+                  ) : null}
                 </div>
-                <div className="space-y-0.5">
-                  <label className="text-muted-foreground text-xs">
-                    Fine disponibilità
-                  </label>
-                  <div className="flex gap-1">
-                    <Input
-                      type="date"
-                      className="flex-1"
-                      value={slot.fineData}
-                      disabled={disabled}
-                      onChange={(event) =>
-                        updateSlotDraft(index, { fineData: event.target.value })
-                      }
-                      onBlur={(event) =>
-                        patchSlotField(index, "fine", {
-                          fineData: event.currentTarget.value,
-                        })
-                      }
-                    />
-                    <Input
-                      type="time"
-                      className="w-28"
-                      value={slot.fineOra}
-                      disabled={disabled}
-                      onChange={(event) =>
-                        updateSlotDraft(index, { fineOra: event.target.value })
-                      }
-                      onBlur={(event) =>
-                        patchSlotField(index, "fine", {
-                          fineOra: event.currentTarget.value,
-                        })
-                      }
-                    />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-0.5">
+                    <label className="text-muted-foreground text-xs">
+                      Inizio disponibilità
+                    </label>
+                    <div className="flex gap-1">
+                      <Input
+                        type="date"
+                        className="flex-1"
+                        value={slot.inizioData}
+                        disabled={disabled}
+                        onChange={(event) => {
+                          updateSlotDraft(index, { inizioData: event.target.value });
+                          patchSlotField(index, "inizio", { inizioData: event.target.value });
+                        }}
+                      />
+                      <Input
+                        type="time"
+                        className="w-28"
+                        value={slot.inizioOra}
+                        disabled={disabled}
+                        onChange={(event) => {
+                          updateSlotDraft(index, { inizioOra: event.target.value });
+                          patchSlotField(index, "inizio", { inizioOra: event.target.value });
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <label className="text-muted-foreground text-xs">
+                      Fine disponibilità
+                    </label>
+                    <div className="flex gap-1">
+                      <Input
+                        type="date"
+                        className="flex-1"
+                        value={slot.fineData}
+                        disabled={disabled}
+                        onChange={(event) => {
+                          updateSlotDraft(index, { fineData: event.target.value });
+                          patchSlotField(index, "fine", { fineData: event.target.value });
+                        }}
+                      />
+                      <Input
+                        type="time"
+                        className="w-28"
+                        value={slot.fineOra}
+                        disabled={disabled}
+                        onChange={(event) => {
+                          updateSlotDraft(index, { fineOra: event.target.value });
+                          patchSlotField(index, "fine", { fineOra: event.target.value });
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </CollapsibleSection>
 
         {showColloquioFamigliaFields ? (
