@@ -1094,14 +1094,14 @@ function GateWorkTypesCard({
               type="number"
               min="0"
               step="1"
-              value={experienceDraft.anni_esperienza_colf}
+              value={selectedAnniEsperienzaColf}
               onChange={(event) =>
                 onAnniEsperienzaColfChange(event.target.value)
               }
             />
           ) : (
             <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
-              {experienceDraft.anni_esperienza_colf || "-"}
+              {selectedAnniEsperienzaColf || "-"}
             </div>
           )}
         </div>
@@ -1114,14 +1114,14 @@ function GateWorkTypesCard({
               type="number"
               min="0"
               step="1"
-              value={experienceDraft.anni_esperienza_babysitter}
+              value={selectedAnniEsperienzaBabysitter}
               onChange={(event) =>
                 onAnniEsperienzaBabysitterChange(event.target.value)
               }
             />
           ) : (
             <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
-              {experienceDraft.anni_esperienza_babysitter || "-"}
+              {selectedAnniEsperienzaBabysitter || "-"}
             </div>
           )}
         </div>
@@ -1134,14 +1134,14 @@ function GateWorkTypesCard({
               type="number"
               min="0"
               step="1"
-              value={experienceDraft.anni_esperienza_badante}
+              value={selectedAnniEsperienzaBadante}
               onChange={(event) =>
                 onAnniEsperienzaBadanteChange(event.target.value)
               }
             />
           ) : (
             <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
-              {experienceDraft.anni_esperienza_badante || "-"}
+              {selectedAnniEsperienzaBadante || "-"}
             </div>
           )}
         </div>
@@ -1156,7 +1156,6 @@ function GateWorkTypesCard({
         showEditAction={false}
         showCreateExperienceAction={isEditing}
         isUpdating={isUpdatingExperience}
-        draft={experienceDraft}
         experiences={experiences}
         experiencesLoading={experiencesLoading}
         references={references}
