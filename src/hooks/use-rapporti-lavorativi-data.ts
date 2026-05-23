@@ -1,7 +1,7 @@
 import * as React from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
-  clearReadCaches,
   createRecord,
   fetchChiusureContratti,
   fetchContributiInps,
@@ -231,12 +231,11 @@ export function useRapportiLavorativiData(
   options: UseRapportiLavorativiDataOptions = {}
 ) {
   const { initialSelectedRapportoId = null } = options
-  const [rapporti, setRapporti] = React.useState<RapportoLavorativoRecord[]>([])
-  const [rapportiTotal, setRapportiTotal] = React.useState(0)
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [reloadToken, setReloadToken] = React.useState(0)
+  const queryClient = useQueryClient()
   const [pageIndex, setPageIndex] = React.useState(0)
+  const [detailError, setDetailError] = React.useState<string | null>(null)
+  const [detailRetryToken, setDetailRetryToken] = React.useState(0)
+  const setError = setDetailError
   const [searchValue, setSearchValue] = React.useState("")
   const [rapportoStatusFilter, setRapportoStatusFilter] =
     React.useState<RapportoStatusFilter>("all")
@@ -276,22 +275,53 @@ export function useRapportiLavorativiData(
     selectedRapportoIdRef.current = selectedRapportoId
   }, [selectedRapportoId])
 
-  const retryRapporti = React.useCallback(() => {
-    setReloadToken((current) => current + 1)
-  }, [])
+  const boardQueryKey = React.useMemo(
+    () =>
+      [
+        "rapporti-lavorativi-board",
+        pageIndex,
+        rapportoStatusFilter,
+        serverSearchQuery,
+      ] as const,
+    [pageIndex, rapportoStatusFilter, serverSearchQuery],
+  )
 
-  // Set just before a realtime-triggered reload so the load effect skips the
-  // loading spinner and keeps current data on error.
-  const silentReloadRef = React.useRef(false)
-  const reloadSilently = React.useCallback(() => {
-    silentReloadRef.current = true
-    clearReadCaches()
-    setReloadToken((current) => current + 1)
-  }, [])
+  const {
+    data: boardData,
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey: boardQueryKey,
+    queryFn: () =>
+      fetchRapportiLavorativiBoard({
+        limit: PAGE_SIZE,
+        offset: pageIndex * PAGE_SIZE,
+        search: serverSearchQuery,
+        statusFilter: rapportoStatusFilter,
+      }),
+  })
+
+  const rapporti = boardData?.rows ?? []
+  const rapportiTotal = boardData?.total ?? 0
+  const error =
+    queryError instanceof Error
+      ? getRapportiLoadErrorMessage(queryError)
+      : null
+
+  const retryRapporti = React.useCallback(() => {
+    setDetailError(null)
+    setDetailRetryToken((current) => current + 1)
+    void refetch()
+  }, [refetch])
+
+  const invalidateBoard = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["rapporti-lavorativi-board"] })
+  }, [queryClient])
 
   useRealtimeBoardSync({
     tables: RAPPORTI_REALTIME_TABLES,
-    reload: reloadSilently,
+    reload: invalidateBoard,
   })
 
   const createTicketForSelectedRapporto = React.useCallback(
@@ -322,47 +352,12 @@ export function useRapportiLavorativiData(
     setPageIndex(0)
   }, [rapportoStatusFilter, serverSearchQuery])
 
+  // Auto-select the first rapporto once the board loads (if nothing selected yet).
   React.useEffect(() => {
-    let isActive = true
-
-    async function load() {
-      const silent = silentReloadRef.current
-      silentReloadRef.current = false
-      if (!silent) setLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetchRapportiLavorativiBoard({
-          limit: PAGE_SIZE,
-          offset: pageIndex * PAGE_SIZE,
-          search: serverSearchQuery,
-          statusFilter: rapportoStatusFilter,
-        })
-
-        if (!isActive) return
-
-        setRapporti(response.rows)
-        setRapportiTotal(response.total)
-        setSelectedRapportoId((previous) => previous ?? response.rows[0]?.id ?? null)
-      } catch (loadError) {
-        if (!isActive) return
-        console.error("Errore caricando rapporti lavorativi", loadError)
-        if (!silent) {
-          setError(getRapportiLoadErrorMessage(loadError))
-          setRapporti([])
-          setRapportiTotal(0)
-        }
-      } finally {
-        if (isActive && !silent) setLoading(false)
-      }
+    if (!selectedRapportoId && rapporti.length > 0) {
+      setSelectedRapportoId(rapporti[0].id)
     }
-
-    void load()
-
-    return () => {
-      isActive = false
-    }
-  }, [pageIndex, rapportoStatusFilter, reloadToken, serverSearchQuery])
+  }, [rapporti, selectedRapportoId])
 
   React.useEffect(() => {
     let isActive = true
@@ -447,21 +442,25 @@ export function useRapportiLavorativiData(
         setSelectedRapporto(mergedRapporto)
 
         if (mergedRapporto) {
-          setRapporti((current) =>
-            current.map((rapporto) =>
-              rapporto.id === mergedRapporto.id
-                ? {
-                    ...mergedRapporto,
-                    cognome_nome_datore_proper:
-                      mergedRapporto.cognome_nome_datore_proper ??
-                      rapporto.cognome_nome_datore_proper,
-                    nome_lavoratore_per_url:
-                      mergedRapporto.nome_lavoratore_per_url ??
-                      rapporto.nome_lavoratore_per_url,
-                  }
-                : rapporto
-            )
-          )
+          queryClient.setQueryData(boardQueryKey, (previous: typeof boardData | undefined) => {
+            if (!previous) return previous
+            return {
+              ...previous,
+              rows: previous.rows.map((rapporto) =>
+                rapporto.id === mergedRapporto.id
+                  ? {
+                      ...mergedRapporto,
+                      cognome_nome_datore_proper:
+                        mergedRapporto.cognome_nome_datore_proper ??
+                        rapporto.cognome_nome_datore_proper,
+                      nome_lavoratore_per_url:
+                        mergedRapporto.nome_lavoratore_per_url ??
+                        rapporto.nome_lavoratore_per_url,
+                    }
+                  : rapporto,
+              ),
+            }
+          })
         }
       } catch (loadError) {
         if (!isActive) return
@@ -479,7 +478,7 @@ export function useRapportiLavorativiData(
     return () => {
       isActive = false
     }
-  }, [reloadToken, selectedRapportoId])
+  }, [detailRetryToken, selectedRapportoId])
 
   React.useEffect(() => {
     let isActive = true
@@ -739,7 +738,7 @@ export function useRapportiLavorativiData(
     rapporti,
     rapportiTotal,
     loading,
-    error,
+    error: error ?? detailError,
     pageIndex,
     pageSize: PAGE_SIZE,
     setPageIndex,

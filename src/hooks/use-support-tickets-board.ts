@@ -1,7 +1,12 @@
 import * as React from "react"
 
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+
 import {
-  clearReadCaches,
+  useMoveMutation,
+  usePatchMutation,
+} from "@/hooks/use-board-mutations"
+import {
   createRecord,
   fetchLookupValues,
   fetchSupportTicketsBundle,
@@ -708,148 +713,126 @@ async function fetchSupportTicketsData(ticketType: SupportTicketType) {
   }
 }
 
+type SupportTicketsBoardData = {
+  stages: SupportTicketStatusDefinition[]
+  cards: SupportTicketBoardCardData[]
+  activeRapportiCount: number
+  rapportoOptions: Array<{ id: string; label: string }>
+  rapportoIndex: ReturnType<typeof buildRapportoIndex>
+  chiusuraIndex: ReturnType<typeof buildChiusuraIndex>
+  linkedRecordIndexes: LinkedRecordIndexes
+  stageAliases: Map<string, string>
+}
+
 export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSupportTicketsBoardState {
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [stages, setStages] = React.useState<SupportTicketStatusDefinition[]>([])
-  const [cards, setCards] = React.useState<SupportTicketBoardCardData[]>([])
-  const [activeRapportiCount, setActiveRapportiCount] = React.useState(0)
-  const [rapportoOptions, setRapportoOptions] = React.useState<Array<{ id: string; label: string }>>([])
-  const rapportoIndexRef = React.useRef<ReturnType<typeof buildRapportoIndex>>(buildRapportoIndex([]))
-  const chiusuraIndexRef = React.useRef<ReturnType<typeof buildChiusuraIndex>>(buildChiusuraIndex([]))
-  const linkedRecordIndexesRef = React.useRef<LinkedRecordIndexes>(buildEmptyLinkedRecordIndexes())
-  const stageAliasesRef = React.useRef<Map<string, string>>(new Map())
+  const queryClient = useQueryClient()
+  const boardQueryKey = React.useMemo(
+    () => ["support-tickets-board", ticketType] as const,
+    [ticketType],
+  )
 
-  React.useEffect(() => {
-    let cancelled = false
+  const {
+    data,
+    isLoading: loading,
+    error: queryError,
+  } = useQuery<SupportTicketsBoardData>({
+    queryKey: boardQueryKey,
+    queryFn: () => fetchSupportTicketsData(ticketType),
+  })
 
-    async function load() {
-      setLoading(true)
-      setError(null)
+  const stages = data?.stages ?? []
+  const cards = data?.cards ?? []
+  const activeRapportiCount = data?.activeRapportiCount ?? 0
+  const rapportoOptions = data?.rapportoOptions ?? []
+  const rapportoIndex = data?.rapportoIndex ?? buildRapportoIndex([])
+  const chiusuraIndex = data?.chiusuraIndex ?? buildChiusuraIndex([])
+  const linkedRecordIndexes = data?.linkedRecordIndexes ?? buildEmptyLinkedRecordIndexes()
+  const stageAliases = data?.stageAliases ?? new Map<string, string>()
 
-      try {
-        const data = await fetchSupportTicketsData(ticketType)
-        if (cancelled) return
+  const invalidateBoard = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["support-tickets-board"] })
+  }, [queryClient])
 
-        setStages(data.stages)
-        setCards(data.cards)
-        setActiveRapportiCount(data.activeRapportiCount)
-        setRapportoOptions(data.rapportoOptions)
-        rapportoIndexRef.current = data.rapportoIndex
-        chiusuraIndexRef.current = data.chiusuraIndex
-        linkedRecordIndexesRef.current = data.linkedRecordIndexes
-        stageAliasesRef.current = data.stageAliases
-      } catch (caughtError) {
-        if (cancelled) return
-        setError(caughtError instanceof Error ? caughtError.message : "Errore caricamento ticket")
-        setStages([])
-        setCards([])
-        setActiveRapportiCount(0)
-        setRapportoOptions([])
-        rapportoIndexRef.current = buildRapportoIndex([])
-        chiusuraIndexRef.current = buildChiusuraIndex([])
-        linkedRecordIndexesRef.current = buildEmptyLinkedRecordIndexes()
-        stageAliasesRef.current = new Map()
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [ticketType])
-
-  const ticketTypeRef = React.useRef(ticketType)
-  React.useEffect(() => {
-    ticketTypeRef.current = ticketType
-  }, [ticketType])
-
-  const reloadSilently = React.useCallback(async () => {
-    clearReadCaches()
-    try {
-      const data = await fetchSupportTicketsData(ticketTypeRef.current)
-      setStages(data.stages)
-      setCards(data.cards)
-      setActiveRapportiCount(data.activeRapportiCount)
-      setRapportoOptions(data.rapportoOptions)
-      rapportoIndexRef.current = data.rapportoIndex
-      chiusuraIndexRef.current = data.chiusuraIndex
-      linkedRecordIndexesRef.current = data.linkedRecordIndexes
-      stageAliasesRef.current = data.stageAliases
-    } catch {
-      // Ignore: a failed background refresh must not blank the board.
-    }
-  }, [])
+  const setBoardData = React.useCallback(
+    (updater: (previous: SupportTicketsBoardData | undefined) => SupportTicketsBoardData | undefined) => {
+      queryClient.setQueryData<SupportTicketsBoardData>(boardQueryKey, (previous) =>
+        updater(previous),
+      )
+    },
+    [queryClient, boardQueryKey],
+  )
 
   useRealtimeBoardSync({
     tables: SUPPORT_TICKETS_REALTIME_TABLES,
-    reload: reloadSilently,
+    reload: invalidateBoard,
   })
 
-  const moveTicket = React.useCallback(
-    async (ticketId: string, targetStageId: string) => {
-      const previous = cards
-
-      setCards((current) =>
-        current.map((card) =>
+  const moveMutation = useMoveMutation<
+    { ticketId: string; targetStageId: string },
+    unknown,
+    SupportTicketsBoardData
+  >({
+    queryKey: boardQueryKey,
+    mutationFn: ({ ticketId, targetStageId }) =>
+      updateRecord("ticket", ticketId, { stato: targetStageId }),
+    applyOptimistic: (previous, { ticketId, targetStageId }) => {
+      if (!previous) return previous
+      return {
+        ...previous,
+        cards: previous.cards.map((card) =>
           card.id === ticketId
             ? {
                 ...card,
                 stage: targetStageId,
-                record: {
-                  ...card.record,
-                  stato: targetStageId,
-                },
+                record: { ...card.record, stato: targetStageId },
               }
-            : card
-        )
-      )
-
-      try {
-        await updateRecord("ticket", ticketId, {
-          stato: targetStageId,
-        })
-      } catch (caughtError) {
-        setCards(previous)
-        setError(caughtError instanceof Error ? caughtError.message : "Errore aggiornando ticket")
+            : card,
+        ),
       }
     },
-    [cards]
+  })
+
+  const moveTicket = React.useCallback(
+    async (ticketId: string, targetStageId: string) => {
+      await moveMutation.mutateAsync({ ticketId, targetStageId })
+    },
+    [moveMutation],
   )
 
-  const patchTicket = React.useCallback(
-    async (ticketId: string, patch: Partial<TicketRecord>) => {
-      const previous = cards
-
-      setCards((current) =>
-        current.map((card) => {
+  const patchMutation = usePatchMutation<
+    { ticketId: string; patch: Partial<TicketRecord> },
+    unknown,
+    SupportTicketsBoardData
+  >({
+    queryKey: boardQueryKey,
+    mutationFn: ({ ticketId, patch }) =>
+      updateRecord("ticket", ticketId, patch as Record<string, unknown>),
+    applyOptimistic: (previous, { ticketId, patch }) => {
+      if (!previous) return previous
+      return {
+        ...previous,
+        cards: previous.cards.map((card) => {
           if (card.id !== ticketId) return card
-
           const nextRecord = { ...card.record, ...patch }
           const nextCard = mapRecordToCard(
             nextRecord,
             ticketType,
-            rapportoIndexRef.current,
-            chiusuraIndexRef.current,
-            linkedRecordIndexesRef.current,
-            stageAliasesRef.current
+            previous.rapportoIndex,
+            previous.chiusuraIndex,
+            previous.linkedRecordIndexes,
+            previous.stageAliases,
           )
-
           return nextCard ?? card
-        })
-      )
-
-      try {
-        await updateRecord("ticket", ticketId, patch as Record<string, unknown>)
-      } catch (caughtError) {
-        setCards(previous)
-        setError(caughtError instanceof Error ? caughtError.message : "Errore aggiornando ticket")
+        }),
       }
     },
-    [cards, ticketType]
+  })
+
+  const patchTicket = React.useCallback(
+    async (ticketId: string, patch: Partial<TicketRecord>) => {
+      await patchMutation.mutateAsync({ ticketId, patch })
+    },
+    [patchMutation],
   )
 
   const createTicket = React.useCallback(
@@ -860,38 +843,56 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
         assegnatario: "",
       }
 
-      try {
-        const response = await createRecord("ticket", {
-          allegati: [],
-          causale: input.causale,
-          data_apertura: new Date().toISOString(),
-          rapporto_id: input.rapportoId,
-          stato: SUPPORT_TICKET_STATUSES[0].id,
-          tipo: input.tipo,
-          urgenza: input.urgenza,
-          metadati_migrazione: metadata,
+      const response = await createRecord("ticket", {
+        allegati: [],
+        causale: input.causale,
+        data_apertura: new Date().toISOString(),
+        rapporto_id: input.rapportoId,
+        stato: SUPPORT_TICKET_STATUSES[0].id,
+        tipo: input.tipo,
+        urgenza: input.urgenza,
+        metadati_migrazione: metadata,
+      })
+
+      const createdRecord = response.row as TicketRecord
+      const nextCard = mapRecordToCard(
+        createdRecord,
+        ticketType,
+        rapportoIndex,
+        chiusuraIndex,
+        linkedRecordIndexes,
+        stageAliases,
+      )
+
+      if (nextCard) {
+        setBoardData((previous) => {
+          if (!previous) return previous
+          return { ...previous, cards: [nextCard, ...previous.cards] }
         })
-
-        const createdRecord = response.row as TicketRecord
-        const nextCard = mapRecordToCard(
-          createdRecord,
-          ticketType,
-          rapportoIndexRef.current,
-          chiusuraIndexRef.current,
-          linkedRecordIndexesRef.current,
-          stageAliasesRef.current
-        )
-
-        if (nextCard) {
-          setCards((current) => [nextCard, ...current])
-        }
-      } catch (caughtError) {
-        setError(caughtError instanceof Error ? caughtError.message : "Errore creazione ticket")
-        throw caughtError
       }
+
+      // Trigger a background refetch to pick up any server-derived fields.
+      invalidateBoard()
     },
-    [ticketType]
+    [
+      ticketType,
+      rapportoIndex,
+      chiusuraIndex,
+      linkedRecordIndexes,
+      stageAliases,
+      setBoardData,
+      invalidateBoard,
+    ],
   )
+
+  const error =
+    moveMutation.error instanceof Error
+      ? moveMutation.error.message
+      : patchMutation.error instanceof Error
+        ? patchMutation.error.message
+        : queryError instanceof Error
+          ? queryError.message
+          : null
 
   return {
     loading,

@@ -390,6 +390,7 @@ export function AssunzioniBoardView() {
       </div>
 
       <AssunzioniDetailSheet
+        key={selectedCardId ?? "__empty__"}
         card={selectedCard}
         open={Boolean(selectedCardId)}
         onCardChange={(nextCard) => {

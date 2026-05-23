@@ -1326,6 +1326,8 @@ export function ProveColloquiView({ onOpenRicercaDetail }: ProveColloquiViewProp
       )}
 
       <ProvaDetailSheet
+        // Remount on card switch so debounced inputs reset their local draft.
+        key={selectedCardId ?? "__empty__"}
         card={selectedCard}
         statusOptions={statusOptions}
         feedbackFamigliaOptions={feedbackFamigliaOptions}

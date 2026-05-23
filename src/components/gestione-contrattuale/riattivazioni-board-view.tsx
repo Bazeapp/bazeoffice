@@ -695,6 +695,8 @@ export function RiattivazioniBoardView() {
       </section>
 
       <RiattivazioniDetailSheet
+        // Remount on card switch so debounced inputs reset their local draft.
+        key={selectedCardId ?? "__empty__"}
         card={selectedCard}
         columns={columns}
         open={Boolean(selectedCard)}

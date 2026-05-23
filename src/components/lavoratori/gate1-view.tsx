@@ -4107,6 +4107,7 @@ export function Gate1View({
 
         {selectedWorkerId ? (
           <WorkerDetailShell
+            key={selectedWorkerId ?? "__empty__"}
             sectionRef={detailScrollRef}
             tabs={gateTabs}
             activeSection={activeGateSection}

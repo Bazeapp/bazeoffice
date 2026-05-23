@@ -1336,6 +1336,8 @@ export function VariazioniBoardView() {
       </section>
 
       <VariazioniDetailSheet
+        // Remount on card switch so debounced inputs reset their local draft.
+        key={selectedCardId ?? "__empty__"}
         card={selectedFreshCard}
         open={Boolean(selectedCardId)}
         onOpenChange={(open) => {

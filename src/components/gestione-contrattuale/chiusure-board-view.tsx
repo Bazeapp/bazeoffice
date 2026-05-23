@@ -28,12 +28,11 @@ import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Textarea } from "@/components/ui/textarea"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import { fetchChiusureContratti, fetchRapportiLavorativi, updateRecord } from "@/lib/anagrafiche-api"
 import { matchesSearchQuery } from "@/lib/search-utils"
@@ -114,17 +113,6 @@ function sanitizeFileName(name: string) {
     .replace(/-+/g, "-")
 }
 
-function buildChiusuraDetailsDraft(card: ChiusureBoardCardData | null) {
-  return {
-    dataFineRapporto: card?.record.data_fine_rapporto ?? "",
-    tipoLicenziamento: card?.record.tipo_licenziamento ?? "",
-    tipoDecesso: card?.record.tipo_decesso ?? "",
-    presenzeUltimoMese: card?.record.presenze_ultimo_mese ?? "",
-    motivazione: card?.record.motivazione_cessazione_rapporto ?? "",
-    informazioniAggiuntive: card?.record.informazioni_aggiuntive ?? "",
-  }
-}
-
 function ChiusureDetailSheet({
   card,
   columns,
@@ -134,6 +122,7 @@ function ChiusureDetailSheet({
   onStatusChange,
   onLinkRapporto,
   onCardChange,
+  onPatchChiusura,
 }: {
   card: ChiusureBoardCardData | null
   columns: ChiusureBoardColumnData[]
@@ -143,17 +132,19 @@ function ChiusureDetailSheet({
   onStatusChange: (recordId: string, targetStageId: string) => Promise<void>
   onLinkRapporto: (chiusuraId: string, rapportoId: string | null) => Promise<void>
   onCardChange: (card: ChiusureBoardCardData) => void
+  onPatchChiusura: (
+    recordId: string,
+    patch: Partial<ChiusureBoardCardData["record"]>
+  ) => Promise<void>
 }) {
   const [updatingStatus, setUpdatingStatus] = React.useState(false)
   const [rapportoSearchQuery, setRapportoSearchQuery] = React.useState("")
   const [linkingRapporto, setLinkingRapporto] = React.useState(false)
   const [editingDetails, setEditingDetails] = React.useState(false)
-  const [savingDetails, setSavingDetails] = React.useState(false)
   const [uploadingSlot, setUploadingSlot] = React.useState<ChiusuraAttachmentSlot | null>(null)
   const [detailsError, setDetailsError] = React.useState<string | null>(null)
   const previousCardIdRef = React.useRef<string | null>(card?.id ?? null)
   const latestCardRef = React.useRef<ChiusureBoardCardData | null>(card)
-  const [detailsDraft, setDetailsDraft] = React.useState(() => buildChiusuraDetailsDraft(card))
 
   React.useEffect(() => {
     latestCardRef.current = card
@@ -207,39 +198,17 @@ function ChiusureDetailSheet({
     [applyCardChange, onLinkRapporto, rapportoOptions]
   )
 
+  // Reset editing/error state when the user switches to a different card.
+  // The Debounced* inputs draw their value directly from `card.record`, so we
+  // no longer need to maintain a separate draft for the editable fields.
   React.useEffect(() => {
-    const nextDetailsDraft = {
-      dataFineRapporto: card?.record.data_fine_rapporto ?? "",
-      tipoLicenziamento: card?.record.tipo_licenziamento ?? "",
-      tipoDecesso: card?.record.tipo_decesso ?? "",
-      presenzeUltimoMese: card?.record.presenze_ultimo_mese ?? "",
-      motivazione: card?.record.motivazione_cessazione_rapporto ?? "",
-      informazioniAggiuntive: card?.record.informazioni_aggiuntive ?? "",
-    }
     const nextCardId = card?.id ?? null
-    const isDifferentCard = previousCardIdRef.current !== nextCardId
-    previousCardIdRef.current = nextCardId
-
-    if (isDifferentCard) {
+    if (previousCardIdRef.current !== nextCardId) {
+      previousCardIdRef.current = nextCardId
       setEditingDetails(false)
       setDetailsError(null)
-      setDetailsDraft(nextDetailsDraft)
-      return
     }
-
-    if (!editingDetails) {
-      setDetailsDraft(nextDetailsDraft)
-    }
-  }, [
-    card?.id,
-    card?.record.data_fine_rapporto,
-    card?.record.informazioni_aggiuntive,
-    card?.record.motivazione_cessazione_rapporto,
-    card?.record.presenze_ultimo_mese,
-    card?.record.tipo_decesso,
-    card?.record.tipo_licenziamento,
-    editingDetails,
-  ])
+  }, [card?.id])
 
   async function handleStatusChange(nextValue: string) {
     const currentCard = latestCardRef.current ?? card
@@ -249,36 +218,6 @@ function ChiusureDetailSheet({
       await onStatusChange(currentCard.id, nextValue)
     } finally {
       setUpdatingStatus(false)
-    }
-  }
-
-  async function saveDetailsPatch(patch: Record<string, unknown>) {
-    const currentCard = latestCardRef.current ?? card
-    if (!currentCard || Object.keys(patch).length === 0) return
-
-    setSavingDetails(true)
-    setDetailsError(null)
-
-    try {
-      const response = await updateRecord("chiusure_contratti", currentCard.id, patch)
-      const baseCard = latestCardRef.current ?? currentCard
-      const nextRecord = {
-        ...baseCard.record,
-        ...response.row,
-      } as ChiusureBoardCardData["record"]
-      applyCardChange({
-        ...baseCard,
-        record: nextRecord,
-        motivazione: nextRecord.motivazione_cessazione_rapporto,
-        dataFineRapporto: formatDate(nextRecord.data_fine_rapporto),
-        tipoLabel: nextRecord.tipo_licenziamento ?? nextRecord.tipo_decesso ?? "-",
-      })
-    } catch (caughtError) {
-      setDetailsError(
-        caughtError instanceof Error ? caughtError.message : "Errore salvando chiusura"
-      )
-    } finally {
-      setSavingDetails(false)
     }
   }
 
@@ -450,113 +389,71 @@ function ChiusureDetailSheet({
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="space-y-2">
                       <span className="ui-type-label">Data fine rapporto</span>
-                      <Input
+                      <DebouncedInput
                         type="date"
-                        value={detailsDraft.dataFineRapporto}
-                        onChange={(event) =>
-                          setDetailsDraft((current) => ({
-                            ...current,
-                            dataFineRapporto: event.target.value,
-                          }))
-                        }
-                        onBlur={(event) =>
-                          void saveDetailsPatch({
-                            data_fine_rapporto: event.currentTarget.value || null,
+                        committedValue={card.record.data_fine_rapporto ?? ""}
+                        onSave={async (value) => {
+                          await onPatchChiusura(card.id, {
+                            data_fine_rapporto: value || null,
                           })
-                        }
+                        }}
                       />
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Tipo licenziamento/dimissione</span>
-                      <Input
-                        value={detailsDraft.tipoLicenziamento}
-                        onChange={(event) =>
-                          setDetailsDraft((current) => ({
-                            ...current,
-                            tipoLicenziamento: event.target.value,
-                          }))
-                        }
-                        onBlur={(event) =>
-                          void saveDetailsPatch({
-                            tipo_licenziamento: event.currentTarget.value || null,
+                      <DebouncedInput
+                        committedValue={card.record.tipo_licenziamento ?? ""}
+                        onSave={async (value) => {
+                          await onPatchChiusura(card.id, {
+                            tipo_licenziamento: value || null,
                           })
-                        }
+                        }}
                       />
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Tipo decesso</span>
-                      <Input
-                        value={detailsDraft.tipoDecesso}
-                        onChange={(event) =>
-                          setDetailsDraft((current) => ({
-                            ...current,
-                            tipoDecesso: event.target.value,
-                          }))
-                        }
-                        onBlur={(event) =>
-                          void saveDetailsPatch({
-                            tipo_decesso: event.currentTarget.value || null,
+                      <DebouncedInput
+                        committedValue={card.record.tipo_decesso ?? ""}
+                        onSave={async (value) => {
+                          await onPatchChiusura(card.id, {
+                            tipo_decesso: value || null,
                           })
-                        }
+                        }}
                       />
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Presenze ultimo mese</span>
-                      <Input
-                        value={detailsDraft.presenzeUltimoMese}
-                        onChange={(event) =>
-                          setDetailsDraft((current) => ({
-                            ...current,
-                            presenzeUltimoMese: event.target.value,
-                          }))
-                        }
-                        onBlur={(event) =>
-                          void saveDetailsPatch({
-                            presenze_ultimo_mese: event.currentTarget.value || null,
+                      <DebouncedInput
+                        committedValue={card.record.presenze_ultimo_mese ?? ""}
+                        onSave={async (value) => {
+                          await onPatchChiusura(card.id, {
+                            presenze_ultimo_mese: value || null,
                           })
-                        }
+                        }}
                       />
                     </label>
                     <label className="space-y-2 md:col-span-2">
                       <span className="ui-type-label">Motivazione</span>
-                      <Textarea
-                        value={detailsDraft.motivazione}
-                        onChange={(event) =>
-                          setDetailsDraft((current) => ({
-                            ...current,
-                            motivazione: event.target.value,
-                          }))
-                        }
-                        onBlur={(event) =>
-                          void saveDetailsPatch({
-                            motivazione_cessazione_rapporto: event.currentTarget.value || null,
+                      <DebouncedTextarea
+                        committedValue={card.record.motivazione_cessazione_rapporto ?? ""}
+                        onSave={async (value) => {
+                          await onPatchChiusura(card.id, {
+                            motivazione_cessazione_rapporto: value || null,
                           })
-                        }
+                        }}
                       />
                     </label>
                     <label className="space-y-2 md:col-span-2">
                       <span className="ui-type-label">Informazioni aggiuntive</span>
-                      <Textarea
-                        value={detailsDraft.informazioniAggiuntive}
-                        onChange={(event) =>
-                          setDetailsDraft((current) => ({
-                            ...current,
-                            informazioniAggiuntive: event.target.value,
-                          }))
-                        }
-                        onBlur={(event) =>
-                          void saveDetailsPatch({
-                            informazioni_aggiuntive:
-                              event.currentTarget.value || null,
+                      <DebouncedTextarea
+                        committedValue={card.record.informazioni_aggiuntive ?? ""}
+                        onSave={async (value) => {
+                          await onPatchChiusura(card.id, {
+                            informazioni_aggiuntive: value || null,
                           })
-                        }
+                        }}
                       />
                     </label>
-                    {savingDetails ? (
-                      <p className="text-muted-foreground text-xs md:col-span-2">
-                        Salvataggio in corso...
-                      </p>
-                    ) : null}
                     {detailsError ? (
                       <p className="text-xs font-medium text-red-600 md:col-span-2">
                         {detailsError}
@@ -817,8 +714,16 @@ function DetailSheetSkeleton() {
 }
 
 export function ChiusureBoardView() {
-  const { loading, error, columns, rapportoOptions, linkRapporto, moveCard, updateCard } =
-    useChiusureBoard()
+  const {
+    loading,
+    error,
+    columns,
+    rapportoOptions,
+    linkRapporto,
+    moveCard,
+    updateCard,
+    patchChiusura,
+  } = useChiusureBoard()
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
@@ -1034,6 +939,8 @@ export function ChiusureBoardView() {
       </section>
 
       <ChiusureDetailSheet
+        // Remount on card switch so debounced inputs reset their local draft.
+        key={selectedCardId ?? "__empty__"}
         card={selectedFreshCard}
         columns={columns}
         rapportoOptions={rapportoOptions}
@@ -1046,6 +953,7 @@ export function ChiusureBoardView() {
         }}
         onStatusChange={moveCard}
         onLinkRapporto={linkRapporto}
+        onPatchChiusura={patchChiusura}
         onCardChange={(nextCard) => {
           updateCard(nextCard.id, () => nextCard)
           setSelectedFreshCard(nextCard)

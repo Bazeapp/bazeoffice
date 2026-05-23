@@ -303,7 +303,7 @@ const DA_COLLOQUIARE_GROUPS: GroupedColumnGroup[] = [
   },
 ];
 
-const COLLOQUI_MATCH_GROUPS: GroupedColumnGroup[] = [
+const COLLOQUI_PROVE_GROUPS: GroupedColumnGroup[] = [
   {
     key: "colloquio schedulato",
     label: "Colloquio schedulato",
@@ -335,9 +335,9 @@ const COLLOQUI_MATCH_GROUPS: GroupedColumnGroup[] = [
     dropStatusId: "Prova in corso",
   },
   {
-    key: "match",
-    label: "Match",
-    dropStatusId: "Match",
+    key: "prova fatta",
+    label: "Prova fatta",
+    dropStatusId: "Prova fatta",
   },
 ];
 
@@ -345,7 +345,7 @@ const GROUPED_COLUMN_GROUPS: Record<string, GroupedColumnGroup[]> = {
   __candidati__: CANDIDATI_GROUPS,
   __da_colloquiare__: DA_COLLOQUIARE_GROUPS,
   __archivio__: ARCHIVIO_GROUPS,
-  __colloqui_match__: COLLOQUI_MATCH_GROUPS,
+  __colloqui_prove__: COLLOQUI_PROVE_GROUPS,
 };
 
 const DEFAULT_BLUE_BADGE_CLASS_NAME =
@@ -2474,11 +2474,7 @@ export function RicercaWorkersPipelineView({
                       const statoOptions =
                         lookupOptionsByDomain.get(
                           "selezioni_lavoratori.stato_selezione",
-                        ) ??
-                        lookupOptionsByDomain.get(
-                          "lavoratori.stato_selezione",
-                        ) ??
-                        [];
+                        ) ?? [];
                       const currentStato = asString(
                         selectedSelectionRow.stato_selezione,
                       );

@@ -1,7 +1,9 @@
 import * as React from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+
+import { useCreateMutation, useMoveMutation } from "@/hooks/use-board-mutations"
 
 import {
-  clearReadCaches,
   createRecord,
   fetchLookupValues,
   fetchVariazioniBoard,
@@ -10,6 +12,13 @@ import {
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
 import type { LookupValueRecord, RapportoLavorativoRecord, VariazioneContrattualeRecord } from "@/types"
+
+const VARIAZIONI_BOARD_QUERY_KEY = ["variazioni-board"] as const
+
+type BoardData = {
+  columns: VariazioniBoardColumnData[]
+  rapportoOptions: VariazioniRapportoOption[]
+}
 
 const VARIAZIONI_REALTIME_TABLES = [
   "variazioni_contrattuali",
@@ -281,77 +290,100 @@ async function fetchVariazioniBoardData(): Promise<{
 }
 
 export function useVariazioniBoard(): UseVariazioniBoardState {
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [columns, setColumns] = React.useState<VariazioniBoardColumnData[]>([])
-  const [rapportoOptions, setRapportoOptions] = React.useState<VariazioniRapportoOption[]>([])
+  const queryClient = useQueryClient()
+
+  const {
+    data,
+    isLoading,
+    error: queryError,
+  } = useQuery({
+    queryKey: VARIAZIONI_BOARD_QUERY_KEY,
+    queryFn: fetchVariazioniBoardData,
+  })
+
+  const columns = data?.columns ?? []
+  const rapportoOptions = data?.rapportoOptions ?? []
+
+  const setBoardData = React.useCallback(
+    (updater: (previous: BoardData | undefined) => BoardData | undefined) => {
+      queryClient.setQueryData<BoardData>(VARIAZIONI_BOARD_QUERY_KEY, (previous) =>
+        updater(previous),
+      )
+    },
+    [queryClient],
+  )
+
+  const invalidateBoard = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: VARIAZIONI_BOARD_QUERY_KEY })
+  }, [queryClient])
 
   const updateCard = React.useCallback(
     (
       recordId: string,
       updater: (card: VariazioniBoardCardData) => VariazioniBoardCardData
     ) => {
-      setColumns((current) =>
-        current.map((column) => ({
-          ...column,
-          cards: column.cards.map((card) => (card.id === recordId ? updater(card) : card)),
-        }))
-      )
+      setBoardData((previous) => {
+        if (!previous) return previous
+        return {
+          ...previous,
+          columns: previous.columns.map((column) => ({
+            ...column,
+            cards: column.cards.map((card) => (card.id === recordId ? updater(card) : card)),
+          })),
+        }
+      })
     },
-    []
+    [setBoardData],
   )
+
+  const moveMutation = useMoveMutation<
+    { recordId: string; targetStageId: string },
+    unknown,
+    BoardData
+  >({
+    queryKey: VARIAZIONI_BOARD_QUERY_KEY,
+    mutationFn: ({ recordId, targetStageId }) =>
+      updateRecord("variazioni_contrattuali", recordId, { stato: targetStageId }),
+    applyOptimistic: (previous, { recordId, targetStageId }) => {
+      if (!previous) return previous
+      let movedCard: VariazioniBoardCardData | null = null
+      const removed = previous.columns.map((column) => {
+        if (column.cards.some((card) => card.id === recordId)) {
+          const remainingCards = column.cards.filter((card) => {
+            if (card.id !== recordId) return true
+            movedCard = { ...card, stage: targetStageId }
+            return false
+          })
+          return { ...column, cards: remainingCards }
+        }
+        return column
+      })
+      if (!movedCard) return previous
+      return {
+        ...previous,
+        columns: removed.map((column) =>
+          column.id === targetStageId
+            ? { ...column, cards: [movedCard as VariazioniBoardCardData, ...column.cards] }
+            : column,
+        ),
+      }
+    },
+  })
 
   const moveCard = React.useCallback(
     async (recordId: string, targetStageId: string) => {
-      const previous = columns
-
-      setColumns((current) => {
-        let movedCard: VariazioniBoardCardData | null = null
-
-        const nextColumns = current.map((column) => {
-          if (column.cards.some((card) => card.id === recordId)) {
-            const remainingCards = column.cards.filter((card) => {
-              if (card.id !== recordId) return true
-              movedCard = { ...card, stage: targetStageId }
-              return false
-            })
-            return { ...column, cards: remainingCards }
-          }
-          return column
-        })
-
-        if (!movedCard) return current
-
-        return nextColumns.map((column) =>
-          column.id === targetStageId
-            ? { ...column, cards: [movedCard as VariazioniBoardCardData, ...column.cards] }
-            : column
-        )
-      })
-
-      try {
-        await updateRecord("variazioni_contrattuali", recordId, {
-          stato: targetStageId,
-        })
-      } catch (caughtError) {
-        setColumns(previous)
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore aggiornando stato variazione"
-        )
-      }
+      await moveMutation.mutateAsync({ recordId, targetStageId })
     },
-    [columns]
+    [moveMutation],
   )
 
-  const createVariazione = React.useCallback(
-    async (input: {
-      rapportoId: string
-      variazioneDaApplicare: string
-      dataVariazione: string
-    }) => {
-      const rapportoOption =
-        rapportoOptions.find((option) => option.id === input.rapportoId) ?? null
-      const rapporto = rapportoOption?.rapporto ?? null
+  const createMutation = useCreateMutation<
+    { rapportoId: string; variazioneDaApplicare: string; dataVariazione: string },
+    { record: VariazioneContrattualeRecord; initialStage: string },
+    BoardData
+  >({
+    queryKey: VARIAZIONI_BOARD_QUERY_KEY,
+    mutationFn: async (input) => {
       const initialStage = DEFAULT_STAGE_DEFINITIONS[0].id
       const response = await createRecord("variazioni_contrattuali", {
         rapporto_lavorativo_id: input.rapportoId,
@@ -359,76 +391,37 @@ export function useVariazioniBoard(): UseVariazioniBoardState {
         data_variazione: input.dataVariazione || null,
         stato: initialStage,
       })
-      const record = response.row as VariazioneContrattualeRecord
-      const card: VariazioniBoardCardData = {
-        id: record.id,
-        stage: record.stato ?? initialStage,
-        record,
-        rapporto,
-        famiglia: null,
-        lavoratore: null,
-        nomeCompleto: rapportoOption?.label ?? "Rapporto non disponibile",
-        dataVariazione: formatItalianDate(record.data_variazione),
-        variazioneDaApplicare: record.variazione_da_applicare,
-      }
-
-      setColumns((current) =>
-        current.map((column) =>
-          column.id === initialStage ? { ...column, cards: [card, ...column.cards] } : column
-        )
-      )
+      return { record: response.row as VariazioneContrattualeRecord, initialStage }
     },
-    [rapportoOptions]
+  })
+
+  const createVariazione = React.useCallback(
+    async (input: {
+      rapportoId: string
+      variazioneDaApplicare: string
+      dataVariazione: string
+    }) => {
+      await createMutation.mutateAsync(input)
+    },
+    [createMutation],
   )
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await fetchVariazioniBoardData()
-        if (cancelled) return
-        setColumns(data.columns)
-        setRapportoOptions(data.rapportoOptions)
-      } catch (caughtError) {
-        if (cancelled) return
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore caricamento variazioni"
-        )
-        setColumns([])
-        setRapportoOptions([])
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const reloadSilently = React.useCallback(async () => {
-    clearReadCaches()
-    try {
-      const data = await fetchVariazioniBoardData()
-      setColumns(data.columns)
-      setRapportoOptions(data.rapportoOptions)
-    } catch {
-      // Ignore: a failed background refresh must not blank the board.
-    }
-  }, [])
 
   useRealtimeBoardSync({
     tables: VARIAZIONI_REALTIME_TABLES,
-    reload: reloadSilently,
+    reload: invalidateBoard,
   })
 
+  const error =
+    moveMutation.error instanceof Error
+      ? moveMutation.error.message
+      : createMutation.error instanceof Error
+        ? createMutation.error.message
+        : queryError instanceof Error
+          ? queryError.message
+          : null
+
   return {
-    loading,
+    loading: isLoading,
     error,
     columns,
     rapportoOptions,

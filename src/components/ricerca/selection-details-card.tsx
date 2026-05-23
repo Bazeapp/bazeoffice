@@ -173,8 +173,7 @@ export function SelectionDetailsCard({
   const showMotivazioneNoMatch = normalizedStatus === "no match"
   const resolveStatusColor = React.useCallback(
     (value: string) =>
-      resolveLookupColor(lookupColorsByDomain, "selezioni_lavoratori.stato_selezione", value) ??
-      resolveLookupColor(lookupColorsByDomain, "lavoratori.stato_selezione", value),
+      resolveLookupColor(lookupColorsByDomain, "selezioni_lavoratori.stato_selezione", value),
     [lookupColorsByDomain]
   )
   const selectedStatusClassName = getTagClassName(resolveStatusColor(draft.stato_selezione))

@@ -1,7 +1,9 @@
 import * as React from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+
+import { useMoveMutation } from "@/hooks/use-board-mutations"
 
 import {
-  clearReadCaches,
   fetchLookupValues,
   fetchRicercaBoard,
   updateRecord,
@@ -374,21 +376,46 @@ async function fetchRicercaBoardData(): Promise<RicercaBoardColumnData[]> {
   return orderedColumns
 }
 
+const RICERCA_BOARD_QUERY_KEY = ["ricerca-board"] as const
+
 export function useRicercaBoard(): UseRicercaBoardState {
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [columns, setColumns] = React.useState<RicercaBoardColumnData[]>([])
+  const queryClient = useQueryClient()
+
+  const {
+    data,
+    isLoading,
+    error: queryError,
+  } = useQuery({
+    queryKey: RICERCA_BOARD_QUERY_KEY,
+    queryFn: fetchRicercaBoardData,
+  })
+
+  const columns = data ?? []
+
+  const setBoardData = React.useCallback(
+    (updater: (previous: RicercaBoardColumnData[] | undefined) => RicercaBoardColumnData[] | undefined) => {
+      queryClient.setQueryData<RicercaBoardColumnData[]>(RICERCA_BOARD_QUERY_KEY, (previous) =>
+        updater(previous),
+      )
+    },
+    [queryClient],
+  )
+
+  const invalidateBoard = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: RICERCA_BOARD_QUERY_KEY })
+  }, [queryClient])
 
   const loadDeferredColumn = React.useCallback(async (columnId: string) => {
-    const targetColumn = columns.find((column) => column.id === columnId)
+    const currentColumns = queryClient.getQueryData<RicercaBoardColumnData[]>(RICERCA_BOARD_QUERY_KEY) ?? []
+    const targetColumn = currentColumns.find((column) => column.id === columnId)
     if (!targetColumn || !targetColumn.deferred || targetColumn.isLoaded || targetColumn.isLoading) {
       return
     }
 
-    setColumns((current) =>
-      current.map((column) =>
-        column.id === columnId ? { ...column, isLoading: true } : column
-      )
+    setBoardData((previous) =>
+      (previous ?? []).map((column) =>
+        column.id === columnId ? { ...column, isLoading: true } : column,
+      ),
     )
 
     try {
@@ -402,8 +429,8 @@ export function useRicercaBoard(): UseRicercaBoardState {
       const cardsByStageId = await buildCardsForProcesses(boardResult.processes, lookupResultRows)
       const loadedCards = cardsByStageId.get(columnId) ?? []
 
-      setColumns((current) =>
-        current.map((column) =>
+      setBoardData((previous) =>
+        (previous ?? []).map((column) =>
           column.id === columnId
             ? {
                 ...column,
@@ -412,121 +439,78 @@ export function useRicercaBoard(): UseRicercaBoardState {
                 isLoaded: true,
                 isLoading: false,
               }
-            : column
-        )
+            : column,
+        ),
       )
-    } catch (caughtError) {
-      setColumns((current) =>
-        current.map((column) =>
-          column.id === columnId ? { ...column, isLoading: false } : column
-        )
-      )
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Errore caricando colonna differita"
+    } catch {
+      setBoardData((previous) =>
+        (previous ?? []).map((column) =>
+          column.id === columnId ? { ...column, isLoading: false } : column,
+        ),
       )
     }
-  }, [columns])
+  }, [queryClient, setBoardData])
+
+  const moveMutation = useMoveMutation<
+    { processId: string; targetStageId: string },
+    unknown,
+    RicercaBoardColumnData[]
+  >({
+    queryKey: RICERCA_BOARD_QUERY_KEY,
+    mutationFn: ({ processId, targetStageId }) =>
+      updateRecord("processi_matching", processId, { stato_res: targetStageId }),
+    applyOptimistic: (previous, { processId, targetStageId }) => {
+      if (!previous) return previous
+      let movedCard: RicercaBoardCardData | null = null
+      const removed = previous.map((column) => {
+        if (column.cards.some((card) => card.id === processId)) {
+          const remainingCards = column.cards.filter((card) => {
+            if (card.id !== processId) return true
+            movedCard = { ...card, stage: targetStageId }
+            return false
+          })
+          return {
+            ...column,
+            cards: remainingCards,
+            totalCount: Math.max(0, column.totalCount - 1),
+          }
+        }
+        return column
+      })
+      if (!movedCard) return previous
+      return removed.map((column) =>
+        column.id === targetStageId
+          ? {
+              ...column,
+              cards: [movedCard as RicercaBoardCardData, ...column.cards],
+              totalCount: column.totalCount + 1,
+            }
+          : column,
+      )
+    },
+  })
 
   const moveCard = React.useCallback(
     async (processId: string, targetStageId: string) => {
-      const previous = columns
-
-      setColumns((current) => {
-        let movedCard: RicercaBoardCardData | null = null
-
-        const nextColumns = current.map((column) => {
-          if (column.cards.some((card) => card.id === processId)) {
-            const remainingCards = column.cards.filter((card) => {
-              if (card.id !== processId) return true
-              movedCard = { ...card, stage: targetStageId }
-              return false
-            })
-            return {
-              ...column,
-              cards: remainingCards,
-              totalCount: Math.max(0, column.totalCount - 1),
-            }
-          }
-
-          return column
-        })
-
-        if (!movedCard) return current
-
-        return nextColumns.map((column) =>
-          column.id === targetStageId
-            ? {
-                ...column,
-                cards: [movedCard as RicercaBoardCardData, ...column.cards],
-                totalCount: column.totalCount + 1,
-              }
-            : column
-        )
-      })
-
-      try {
-        await updateRecord("processi_matching", processId, {
-          stato_res: targetStageId,
-        })
-      } catch (caughtError) {
-        setColumns(previous)
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore aggiornando stato ricerca"
-        )
-      }
+      await moveMutation.mutateAsync({ processId, targetStageId })
     },
-    [columns]
+    [moveMutation],
   )
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await fetchRicercaBoardData()
-        if (cancelled) return
-        setColumns(data)
-      } catch (caughtError) {
-        if (cancelled) return
-        const message =
-          caughtError instanceof Error ? caughtError.message : "Errore caricamento ricerca"
-        setError(message)
-        setColumns([])
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const reloadSilently = React.useCallback(async () => {
-    clearReadCaches()
-    try {
-      const data = await fetchRicercaBoardData()
-      setColumns(data)
-    } catch {
-      // Ignore: a failed background refresh must not blank the board.
-    }
-  }, [])
 
   useRealtimeBoardSync({
     tables: RICERCA_REALTIME_TABLES,
-    reload: reloadSilently,
+    reload: invalidateBoard,
   })
 
+  const error =
+    moveMutation.error instanceof Error
+      ? moveMutation.error.message
+      : queryError instanceof Error
+        ? queryError.message
+        : null
+
   return {
-    loading,
+    loading: isLoading,
     error,
     columns,
     moveCard,

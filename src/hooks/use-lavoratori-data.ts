@@ -1139,17 +1139,11 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
 
       const statoSelezione = asString(selection.stato_selezione) ?? "-"
       const statoRicerca = asString(processRow.stato_res) ?? "-"
-      const selectionColor =
-        resolveLookupColorByStatusToken(
-          lookupColorsByDomain,
-          "selezioni_lavoratori.stato_selezione",
-          statoSelezione
-        ) ??
-        resolveLookupColorByStatusToken(
-          lookupColorsByDomain,
-          "lavoratori.stato_selezione",
-          statoSelezione
-        )
+      const selectionColor = resolveLookupColorByStatusToken(
+        lookupColorsByDomain,
+        "selezioni_lavoratori.stato_selezione",
+        statoSelezione
+      )
       const processColor = resolveLookupColorByStatusToken(
         lookupColorsByDomain,
         "processi_matching.stato_res",

@@ -21,6 +21,8 @@
     "@fontsource-variable/outfit": "^5.2.8",
     "@supabase/supabase-js": "^2.97.0",
     "@tailwindcss/vite": "^4.1.17",
+    "@tanstack/react-query": "^5.100.13",
+    "@tanstack/react-query-devtools": "^5.100.13",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.23",
     "@types/leaflet": "^1.9.21",

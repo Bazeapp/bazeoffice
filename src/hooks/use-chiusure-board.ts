@@ -1,10 +1,20 @@
 import * as React from "react"
 import { toast } from "sonner"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { clearReadCaches, createRecord, fetchChiusureBoard, fetchLookupValues, updateRecord } from "@/lib/anagrafiche-api"
+import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
+
+import { createRecord, fetchChiusureBoard, fetchLookupValues, updateRecord } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
 import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
+
+const CHIUSURE_BOARD_QUERY_KEY = ["chiusure-board"] as const
+
+type ChiusureBoardData = {
+  columns: ChiusureBoardColumnData[]
+  rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
+}
 
 const CHIUSURE_REALTIME_TABLES = [
   "chiusure_contratti",
@@ -64,6 +74,16 @@ type UseChiusureBoardState = {
   }) => Promise<void>
   linkRapporto: (chiusuraId: string, rapportoId: string | null) => Promise<void>
   moveCard: (recordId: string, targetStageId: string) => Promise<void>
+  /**
+   * Persist an arbitrary patch on a chiusura record. Optimistic update via the
+   * React Query cache, then invalidate on settle so Realtime stays consistent.
+   */
+  patchChiusura: (recordId: string, patch: Partial<ChiusuraContrattoRecord>) => Promise<void>
+  /**
+   * @deprecated Mutations + cache invalidation keep card state in sync now.
+   * Kept as a no-op for backwards compatibility with callers that haven't been
+   * migrated yet.
+   */
   updateCard: (
     recordId: string,
     updater: (card: ChiusureBoardCardData) => ChiusureBoardCardData
@@ -276,31 +296,65 @@ async function fetchChiusureBoardData(): Promise<{
   return { columns, rapportoOptions }
 }
 
-export function useChiusureBoard(): UseChiusureBoardState {
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [columns, setColumns] = React.useState<ChiusureBoardColumnData[]>([])
-  const [rapportoOptions, setRapportoOptions] = React.useState<Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>>([])
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
 
-  const updateCard = React.useCallback(
-    (
-      recordId: string,
-      updater: (card: ChiusureBoardCardData) => ChiusureBoardCardData
-    ) => {
-      setColumns((current) =>
-        current.map((column) => ({
-          ...column,
-          cards: column.cards.map((card) => (card.id === recordId ? updater(card) : card)),
-        }))
+export function useChiusureBoard(): UseChiusureBoardState {
+  const queryClient = useQueryClient()
+  const [mutationError, setMutationError] = React.useState<string | null>(null)
+
+  const {
+    data,
+    isLoading,
+    error: queryError,
+  } = useQuery<ChiusureBoardData>({
+    queryKey: CHIUSURE_BOARD_QUERY_KEY,
+    queryFn: fetchChiusureBoardData,
+  })
+
+  const columns = data?.columns ?? []
+  const rapportoOptions = data?.rapportoOptions ?? []
+
+  const setBoardData = React.useCallback(
+    (updater: (previous: ChiusureBoardData) => ChiusureBoardData) => {
+      queryClient.setQueryData<ChiusureBoardData>(CHIUSURE_BOARD_QUERY_KEY, (previous) =>
+        previous ? updater(previous) : previous
       )
     },
-    []
+    [queryClient]
   )
+
+  const invalidateBoard = React.useCallback(
+    () => queryClient.invalidateQueries({ queryKey: CHIUSURE_BOARD_QUERY_KEY }),
+    [queryClient]
+  )
+
+  const moveMutation = useMoveMutation<
+    { recordId: string; targetStageId: string },
+    unknown,
+    ChiusureBoardData
+  >({
+    queryKey: CHIUSURE_BOARD_QUERY_KEY,
+    mutationFn: ({ recordId, targetStageId }) =>
+      updateRecord("chiusure_contratti", recordId, { stato: targetStageId }),
+    applyOptimistic: (previous, { recordId, targetStageId }) => {
+      setMutationError(null)
+      if (!previous) return previous
+      return {
+        ...previous,
+        columns: moveCardInColumns(previous.columns, recordId, targetStageId),
+      }
+    },
+  })
+  React.useEffect(() => {
+    if (moveMutation.error) {
+      setMutationError(errorMessage(moveMutation.error, "Errore aggiornando stato chiusura"))
+    }
+  }, [moveMutation.error])
 
   const moveCard = React.useCallback(
     async (recordId: string, targetStageId: string) => {
-      const previous = columns
-
       const movingCard = columns.flatMap((column) => column.cards).find((card) => card.id === recordId)
       const licenziamentoIndex = columns.findIndex((column) => column.id === LICENZIAMENTO_STAGE_ID)
       const targetIndex = columns.findIndex((column) => column.id === targetStageId)
@@ -317,42 +371,36 @@ export function useChiusureBoard(): UseChiusureBoardState {
         }
       }
 
-      setColumns((current) => {
-        let movedCard: ChiusureBoardCardData | null = null
-
-        const nextColumns = current.map((column) => {
-          if (column.cards.some((card) => card.id === recordId)) {
-            const remainingCards = column.cards.filter((card) => {
-              if (card.id !== recordId) return true
-              movedCard = { ...card, stage: targetStageId }
-              return false
-            })
-            return { ...column, cards: remainingCards }
-          }
-          return column
-        })
-
-        if (!movedCard) return current
-
-        return nextColumns.map((column) =>
-          column.id === targetStageId
-            ? { ...column, cards: [movedCard as ChiusureBoardCardData, ...column.cards] }
-            : column
-        )
-      })
-
-      try {
-        await updateRecord("chiusure_contratti", recordId, {
-          stato: targetStageId,
-        })
-      } catch (caughtError) {
-        setColumns(previous)
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore aggiornando stato chiusura"
-        )
-      }
+      await moveMutation.mutateAsync({ recordId, targetStageId })
     },
-    [columns]
+    [columns, moveMutation]
+  )
+
+  const patchMutation = usePatchMutation<
+    { recordId: string; patch: Partial<ChiusuraContrattoRecord> },
+    unknown,
+    ChiusureBoardData
+  >({
+    queryKey: CHIUSURE_BOARD_QUERY_KEY,
+    mutationFn: ({ recordId, patch }) =>
+      updateRecord("chiusure_contratti", recordId, patch),
+    applyOptimistic: (previous, { recordId, patch }) => {
+      setMutationError(null)
+      if (!previous) return previous
+      return { ...previous, columns: applyPatchInColumns(previous.columns, recordId, patch) }
+    },
+  })
+  React.useEffect(() => {
+    if (patchMutation.error) {
+      setMutationError(errorMessage(patchMutation.error, "Errore aggiornando chiusura"))
+    }
+  }, [patchMutation.error])
+
+  const patchChiusura = React.useCallback(
+    async (recordId: string, patch: Partial<ChiusuraContrattoRecord>) => {
+      await patchMutation.mutateAsync({ recordId, patch })
+    },
+    [patchMutation]
   )
 
   const createChiusura = React.useCallback(
@@ -362,97 +410,58 @@ export function useChiusureBoard(): UseChiusureBoardState {
       dataFineRapporto: string
       note: string
     }) => {
-      const rapportoOption =
-        rapportoOptions.find((option) => option.id === input.rapportoId) ?? null
-      const rapporto = rapportoOption?.rapporto ?? null
+      setMutationError(null)
       const stage =
         input.tipo === "dimissione"
           ? "Lavoratore comunica dimissioni"
           : input.tipo === "licenziamento"
             ? "Datore comunica licenziamento"
             : "Chiusura elaborata"
-      const response = await createRecord("chiusure_contratti", {
-        stato: stage,
-        data_fine_rapporto: input.dataFineRapporto || null,
-        tipo_licenziamento:
-          input.tipo === "licenziamento"
-            ? "Licenziamento"
-            : input.tipo === "annullamento"
-              ? "Annullamento"
-              : null,
-        motivazione_cessazione_rapporto:
-          input.tipo === "dimissione" ? "Dimissioni" : input.note || null,
-        informazioni_aggiuntive: input.note || null,
-      })
-      const record = response.row as ChiusuraContrattoRecord
-      await updateRecord("rapporti_lavorativi", input.rapportoId, {
-        fine_rapporto_lavorativo_id: record.id,
-      })
-
-      const card: ChiusureBoardCardData = {
-        id: record.id,
-        stage,
-        record,
-        rapporto,
-        nomeCompleto: rapportoOption?.label ?? "Rapporto non disponibile",
-        email: record.email ?? "-",
-        motivazione: record.motivazione_cessazione_rapporto,
-        dataFineRapporto: formatItalianDate(record.data_fine_rapporto),
-        tipoLabel: record.tipo_licenziamento ?? record.tipo_decesso ?? "-",
-        tipoColor: null,
-        hasAssunzioneDatore: false,
-        hasAssunzioneLavoratore: false,
+      try {
+        const response = await createRecord("chiusure_contratti", {
+          stato: stage,
+          data_fine_rapporto: input.dataFineRapporto || null,
+          tipo_licenziamento:
+            input.tipo === "licenziamento"
+              ? "Licenziamento"
+              : input.tipo === "annullamento"
+                ? "Annullamento"
+                : null,
+          motivazione_cessazione_rapporto:
+            input.tipo === "dimissione" ? "Dimissioni" : input.note || null,
+          informazioni_aggiuntive: input.note || null,
+        })
+        const record = response.row as ChiusuraContrattoRecord
+        await updateRecord("rapporti_lavorativi", input.rapportoId, {
+          fine_rapporto_lavorativo_id: record.id,
+        })
+      } catch (caughtError) {
+        setMutationError(errorMessage(caughtError, "Errore creando chiusura"))
+        throw caughtError
+      } finally {
+        await invalidateBoard()
       }
-
-      setColumns((current) =>
-        current.map((column) =>
-          column.id === stage ? { ...column, cards: [card, ...column.cards] } : column
-        )
-      )
     },
-    [rapportoOptions]
+    [invalidateBoard]
   )
 
   const linkRapporto = React.useCallback(
     async (chiusuraId: string, rapportoId: string | null) => {
-      const nextOption = rapportoId
-        ? rapportoOptions.find((option) => option.id === rapportoId) ?? null
-        : null
-      const nextRapporto = nextOption?.rapporto ?? null
+      setMutationError(null)
+      const previous = queryClient.getQueryData<ChiusureBoardData>(CHIUSURE_BOARD_QUERY_KEY)
 
+      // Resolve the chiusura's previously linked rapporto from the cache so we
+      // can unlink it server-side too.
       let previousRapportoId: string | null = null
-      for (const column of columns) {
-        for (const card of column.cards) {
-          if (card.id === chiusuraId && card.rapporto) {
-            previousRapportoId = card.rapporto.id
+      if (previous) {
+        for (const column of previous.columns) {
+          for (const card of column.cards) {
+            if (card.id === chiusuraId && card.rapporto) {
+              previousRapportoId = card.rapporto.id
+            }
           }
         }
       }
-
-      const previousColumns = columns
-
-      const fallbackNome = (card: ChiusureBoardCardData) =>
-        [card.record.nome, card.record.cognome].filter(Boolean).join(" ").trim() ||
-        "Nominativo non disponibile"
-
-      setColumns((current) =>
-        current.map((column) => ({
-          ...column,
-          cards: column.cards.map((card) => {
-            if (card.id === chiusuraId) {
-              return {
-                ...card,
-                rapporto: nextRapporto,
-                nomeCompleto: nextOption ? nextOption.label : fallbackNome(card),
-              }
-            }
-            if (rapportoId && card.rapporto?.id === rapportoId) {
-              return { ...card, rapporto: null, nomeCompleto: fallbackNome(card) }
-            }
-            return card
-          }),
-        }))
-      )
 
       try {
         if (rapportoId) {
@@ -470,71 +479,112 @@ export function useChiusureBoard(): UseChiusureBoardState {
           })
         }
       } catch (caughtError) {
-        setColumns(previousColumns)
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore collegando rapporto"
-        )
+        setMutationError(errorMessage(caughtError, "Errore collegando rapporto"))
         throw caughtError
+      } finally {
+        await invalidateBoard()
       }
     },
-    [columns, rapportoOptions]
+    [queryClient, invalidateBoard]
   )
 
-  React.useEffect(() => {
-    let cancelled = false
+  // Optimistic in-memory updater backed by the React Query cache. Kept so
+  // legacy callers (e.g. attachment upload/remove) can still patch a card
+  // without going through a full mutation. Memoised so consumers that put it
+  // in effect dependencies don't re-render-loop.
+  const updateCard = React.useCallback(
+    (
+      recordId: string,
+      updater: (card: ChiusureBoardCardData) => ChiusureBoardCardData
+    ) => {
+      setBoardData((current) => ({
+        ...current,
+        columns: current.columns.map((column) => ({
+          ...column,
+          cards: column.cards.map((card) =>
+            card.id === recordId ? updater(card) : card
+          ),
+        })),
+      }))
+    },
+    [setBoardData]
+  )
 
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await fetchChiusureBoardData()
-        if (cancelled) return
-        setColumns(data.columns)
-        setRapportoOptions(data.rapportoOptions)
-      } catch (caughtError) {
-        if (cancelled) return
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore caricamento chiusure"
-        )
-        setColumns([])
-        setRapportoOptions([])
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  // Silent background refresh used by realtime: no spinner, keep current data on error.
-  const reloadSilently = React.useCallback(async () => {
-    clearReadCaches()
-    try {
-      const data = await fetchChiusureBoardData()
-      setColumns(data.columns)
-      setRapportoOptions(data.rapportoOptions)
-    } catch {
-      // Ignore: a failed background refresh must not blank the board.
-    }
-  }, [])
-
+  // Realtime → invalidate the query. React Query then refetches the board
+  // and re-renders consumers. The orchestrator still debounces and defers
+  // while local writes are pending so we don't clobber optimistic state.
   useRealtimeBoardSync({
     tables: CHIUSURE_REALTIME_TABLES,
-    reload: reloadSilently,
+    reload: invalidateBoard,
   })
 
+  const error =
+    mutationError ?? (queryError ? errorMessage(queryError, "Errore caricamento chiusure") : null)
+
   return {
-    loading,
+    loading: isLoading,
     error,
     columns,
     rapportoOptions,
     createChiusura,
     linkRapporto,
     moveCard,
+    patchChiusura,
     updateCard,
   }
+}
+
+function moveCardInColumns(
+  columns: ChiusureBoardColumnData[],
+  recordId: string,
+  targetStageId: string
+): ChiusureBoardColumnData[] {
+  let movedCard: ChiusureBoardCardData | null = null
+
+  const withoutCard = columns.map((column) => {
+    if (column.cards.some((card) => card.id === recordId)) {
+      const remainingCards = column.cards.filter((card) => {
+        if (card.id !== recordId) return true
+        movedCard = { ...card, stage: targetStageId }
+        return false
+      })
+      return { ...column, cards: remainingCards }
+    }
+    return column
+  })
+
+  if (!movedCard) return columns
+
+  return withoutCard.map((column) =>
+    column.id === targetStageId
+      ? { ...column, cards: [movedCard as ChiusureBoardCardData, ...column.cards] }
+      : column
+  )
+}
+
+function applyPatchInColumns(
+  columns: ChiusureBoardColumnData[],
+  recordId: string,
+  patch: Partial<ChiusuraContrattoRecord>
+): ChiusureBoardColumnData[] {
+  return columns.map((column) => ({
+    ...column,
+    cards: column.cards.map((card) => {
+      if (card.id !== recordId) return card
+      const nextRecord = { ...card.record, ...patch }
+      return {
+        ...card,
+        record: nextRecord,
+        motivazione:
+          "motivazione_cessazione_rapporto" in patch
+            ? nextRecord.motivazione_cessazione_rapporto
+            : card.motivazione,
+        email: "email" in patch ? (nextRecord.email ?? "-") : card.email,
+        dataFineRapporto:
+          "data_fine_rapporto" in patch
+            ? formatItalianDate(nextRecord.data_fine_rapporto)
+            : card.dataFineRapporto,
+      }
+    }),
+  }))
 }

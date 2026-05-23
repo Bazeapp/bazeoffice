@@ -1634,6 +1634,7 @@ export function LavoratoriCercaView({
       {selectedWorkerId ? (
         <>
           <WorkerDetailShell
+            key={selectedWorkerId ?? "__empty__"}
             sectionRef={detailScrollRef}
             tabs={workerSectionTabs}
             activeSection={activeWorkerSection}

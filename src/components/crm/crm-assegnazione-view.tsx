@@ -1617,6 +1617,8 @@ export function CrmAssegnazioneView({
       </div>
 
       <AssegnazioneDetailSheet
+        // Remount on card switch so debounced inputs reset their local draft.
+        key={selectedCardFromState?.id ?? "__empty__"}
         open={isSheetOpen}
         onOpenChange={setIsSheetOpen}
         card={selectedCardFromState}

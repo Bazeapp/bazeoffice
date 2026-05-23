@@ -1,7 +1,9 @@
 import * as React from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+
+import { useMoveMutation } from "@/hooks/use-board-mutations"
 
 import {
-  clearReadCaches,
   fetchAssunzioniBoard,
   fetchLookupValues,
   updateRecord,
@@ -360,23 +362,48 @@ async function fetchAssunzioniBoardData({
   }))
 }
 
+const ASSUNZIONI_BOARD_QUERY_KEY = ["assunzioni-board"] as const
+
 export function useAssunzioniBoard(): UseAssunzioniBoardState {
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [columns, setColumns] = React.useState<AssunzioniBoardColumnData[]>([])
+  const queryClient = useQueryClient()
   const [loadedDeferredStageIds, setLoadedDeferredStageIds] = React.useState<Set<string>>(
     () => new Set()
   )
+
+  const {
+    data,
+    isLoading,
+    error: queryError,
+  } = useQuery({
+    queryKey: ASSUNZIONI_BOARD_QUERY_KEY,
+    queryFn: () => fetchAssunzioniBoardData(),
+  })
+
+  const columns = data ?? []
+
+  const setBoardData = React.useCallback(
+    (updater: (previous: AssunzioniBoardColumnData[] | undefined) => AssunzioniBoardColumnData[] | undefined) => {
+      queryClient.setQueryData<AssunzioniBoardColumnData[]>(ASSUNZIONI_BOARD_QUERY_KEY, (previous) =>
+        updater(previous),
+      )
+    },
+    [queryClient],
+  )
+
+  const invalidateBoard = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ASSUNZIONI_BOARD_QUERY_KEY })
+  }, [queryClient])
 
   const updateCard = React.useCallback(
     (
       rapportoId: string,
       updater: (card: AssunzioniBoardCardData) => AssunzioniBoardCardData
     ) => {
-      setColumns((current) => {
+      setBoardData((previous) => {
+        if (!previous) return previous
         let nextCard: AssunzioniBoardCardData | null = null
 
-        const columnsWithoutCard = current.map((column) => ({
+        const columnsWithoutCard = previous.map((column) => ({
           ...column,
           cards: column.cards.filter((card) => {
             if (card.id !== rapportoId) return true
@@ -385,7 +412,7 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
           }),
         }))
 
-        if (!nextCard) return current
+        if (!nextCard) return previous
 
         return columnsWithoutCard.map((column) =>
           column.id === nextCard?.stage
@@ -394,61 +421,55 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
         )
       })
     },
-    []
+    [setBoardData],
   )
+
+  const moveMutation = useMoveMutation<
+    { rapportoId: string; targetStageId: string },
+    unknown,
+    AssunzioniBoardColumnData[]
+  >({
+    queryKey: ASSUNZIONI_BOARD_QUERY_KEY,
+    mutationFn: ({ rapportoId, targetStageId }) =>
+      updateRecord("rapporti_lavorativi", rapportoId, { stato_assunzione: targetStageId }),
+    applyOptimistic: (previous, { rapportoId, targetStageId }) => {
+      if (!previous) return previous
+      let movedCard: AssunzioniBoardCardData | null = null
+      const removed = previous.map((column) => {
+        if (column.cards.some((card) => card.id === rapportoId)) {
+          const remainingCards = column.cards.filter((card) => {
+            if (card.id !== rapportoId) return true
+            movedCard = { ...card, stage: targetStageId }
+            return false
+          })
+          return { ...column, cards: remainingCards }
+        }
+        return column
+      })
+      if (!movedCard) return previous
+      return removed.map((column) =>
+        column.id === targetStageId
+          ? { ...column, cards: [movedCard as AssunzioniBoardCardData, ...column.cards] }
+          : column,
+      )
+    },
+  })
 
   const moveCard = React.useCallback(
     async (rapportoId: string, targetStageId: string) => {
-      const previous = columns
-
-      setColumns((current) => {
-        let movedCard: AssunzioniBoardCardData | null = null
-
-        const nextColumns = current.map((column) => {
-          if (column.cards.some((card) => card.id === rapportoId)) {
-            const remainingCards = column.cards.filter((card) => {
-              if (card.id !== rapportoId) return true
-              movedCard = { ...card, stage: targetStageId }
-              return false
-            })
-            return { ...column, cards: remainingCards }
-          }
-          return column
-        })
-
-        if (!movedCard) return current
-
-        return nextColumns.map((column) =>
-          column.id === targetStageId
-            ? { ...column, cards: [movedCard as AssunzioniBoardCardData, ...column.cards] }
-            : column
-        )
-      })
-
-      try {
-        await updateRecord("rapporti_lavorativi", rapportoId, {
-          stato_assunzione: targetStageId,
-        })
-      } catch (caughtError) {
-        setColumns(previous)
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore aggiornando stato assunzione"
-        )
-      }
+      await moveMutation.mutateAsync({ rapportoId, targetStageId })
     },
-    [columns]
+    [moveMutation],
   )
 
   const loadDeferredColumn = React.useCallback(
     async (stageId: string) => {
       if (!DEFERRED_STAGE_IDS.has(stageId) || loadedDeferredStageIds.has(stageId)) return
 
-      setColumns((current) =>
-        current.map((column) =>
-          column.id === stageId ? { ...column, loadError: null, loading: true } : column
-        )
+      setBoardData((previous) =>
+        (previous ?? []).map((column) =>
+          column.id === stageId ? { ...column, loadError: null, loading: true } : column,
+        ),
       )
 
       try {
@@ -463,8 +484,8 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
           next.add(stageId)
           return next
         })
-        setColumns((current) =>
-          current.map((column) =>
+        setBoardData((previous) =>
+          (previous ?? []).map((column) =>
             column.id === stageId
               ? {
                   ...column,
@@ -473,69 +494,38 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
                   loaded: true,
                   loading: false,
                 }
-              : column
-          )
+              : column,
+          ),
         )
       } catch (caughtError) {
         const message =
           caughtError instanceof Error ? caughtError.message : "Errore caricamento colonna"
-        setColumns((current) =>
-          current.map((column) =>
+        setBoardData((previous) =>
+          (previous ?? []).map((column) =>
             column.id === stageId
               ? { ...column, loadError: message, loaded: false, loading: false }
-              : column
-          )
+              : column,
+          ),
         )
       }
     },
-    [loadedDeferredStageIds]
+    [loadedDeferredStageIds, setBoardData],
   )
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await fetchAssunzioniBoardData()
-        if (cancelled) return
-        setColumns(data)
-      } catch (caughtError) {
-        if (cancelled) return
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore caricamento assunzioni"
-        )
-        setColumns([])
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const reloadSilently = React.useCallback(async () => {
-    clearReadCaches()
-    try {
-      const data = await fetchAssunzioniBoardData()
-      setColumns(data)
-    } catch {
-      // Ignore: a failed background refresh must not blank the board.
-    }
-  }, [])
 
   useRealtimeBoardSync({
     tables: ASSUNZIONI_REALTIME_TABLES,
-    reload: reloadSilently,
+    reload: invalidateBoard,
   })
 
+  const error =
+    moveMutation.error instanceof Error
+      ? moveMutation.error.message
+      : queryError instanceof Error
+        ? queryError.message
+        : null
+
   return {
-    loading,
+    loading: isLoading,
     error,
     columns,
     loadDeferredColumn,

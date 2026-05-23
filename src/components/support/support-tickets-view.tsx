@@ -411,6 +411,8 @@ export function SupportTicketsView({
 
       {selectedCard ? (
         <SupportTicketDetailSheet
+          // Remount on ticket switch so debounced inputs reset their local draft.
+          key={selectedTicketId ?? "__empty__"}
           card={selectedCard}
           stages={stages}
           rapportoOptions={rapportoOptions}

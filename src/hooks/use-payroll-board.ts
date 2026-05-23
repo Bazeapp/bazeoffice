@@ -1,7 +1,9 @@
 import * as React from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+
+import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
 import {
-  clearReadCaches,
   fetchCedoliniBoard,
   fetchLookupValues,
   updateRecord,
@@ -248,166 +250,152 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
 }
 
 export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [columns, setColumns] = React.useState<PayrollBoardColumnData[]>([])
+  const queryClient = useQueryClient()
+  const boardQueryKey = React.useMemo(
+    () => ["payroll-board", selectedMonth] as const,
+    [selectedMonth],
+  )
+
+  const {
+    data,
+    isLoading,
+    error: queryError,
+  } = useQuery({
+    queryKey: boardQueryKey,
+    queryFn: () => fetchPayrollBoardData(selectedMonth),
+  })
+
+  const columns = data ?? []
+
+  const invalidateBoard = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: boardQueryKey })
+  }, [queryClient, boardQueryKey])
+
+  type PayrollBoard = PayrollBoardColumnData[]
+
+  const moveMutation = useMoveMutation<
+    { recordId: string; targetStageId: string },
+    unknown,
+    PayrollBoard
+  >({
+    queryKey: boardQueryKey,
+    mutationFn: ({ recordId, targetStageId }) =>
+      updateRecord("mesi_lavorati", recordId, { stato_mese_lavorativo: targetStageId }),
+    applyOptimistic: (previous, { recordId, targetStageId }) => {
+      if (!previous) return previous
+      let movedCard: PayrollBoardCardData | null = null
+      const removed = previous.map((column) => {
+        if (column.cards.some((card) => card.id === recordId)) {
+          const remainingCards = column.cards.filter((card) => {
+            if (card.id !== recordId) return true
+            movedCard = { ...card, stage: targetStageId }
+            return false
+          })
+          return { ...column, cards: remainingCards }
+        }
+        return column
+      })
+      if (!movedCard) return previous
+      return removed.map((column) =>
+        column.id === targetStageId
+          ? { ...column, cards: [movedCard as PayrollBoardCardData, ...column.cards] }
+          : column,
+      )
+    },
+  })
 
   const moveCard = React.useCallback(
     async (recordId: string, targetStageId: string) => {
-      const previous = columns
-
-      setColumns((current) => {
-        let movedCard: PayrollBoardCardData | null = null
-
-        const nextColumns = current.map((column) => {
-          if (column.cards.some((card) => card.id === recordId)) {
-            const remainingCards = column.cards.filter((card) => {
-              if (card.id !== recordId) return true
-              movedCard = { ...card, stage: targetStageId }
-              return false
-            })
-            return { ...column, cards: remainingCards }
-          }
-          return column
-        })
-
-        if (!movedCard) return current
-
-        return nextColumns.map((column) =>
-          column.id === targetStageId
-            ? { ...column, cards: [movedCard as PayrollBoardCardData, ...column.cards] }
-            : column
-        )
-      })
-
-      try {
-        await updateRecord("mesi_lavorati", recordId, {
-          stato_mese_lavorativo: targetStageId,
-        })
-      } catch (caughtError) {
-        setColumns(previous)
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore aggiornando stato cedolino"
-        )
-      }
+      await moveMutation.mutateAsync({ recordId, targetStageId })
     },
-    [columns]
+    [moveMutation],
   )
+
+  const patchCardMutation = usePatchMutation<
+    { recordId: string; patch: Partial<MeseLavoratoRecord> },
+    unknown,
+    PayrollBoard
+  >({
+    queryKey: boardQueryKey,
+    mutationFn: ({ recordId, patch }) =>
+      updateRecord("mesi_lavorati", recordId, patch as Record<string, unknown>),
+    applyOptimistic: (previous, { recordId, patch }) => {
+      if (!previous) return previous
+      return previous.map((column) => ({
+        ...column,
+        cards: column.cards.map((card) =>
+          card.id === recordId
+            ? {
+                ...card,
+                record: { ...card.record, ...patch },
+                importoLabel:
+                  typeof patch.importo_busta_estratto === "number"
+                    ? formatCurrency(patch.importo_busta_estratto)
+                    : card.importoLabel,
+                dataInvioLabel:
+                  typeof patch.data_invio_famiglia === "string"
+                    ? formatItalianDate(patch.data_invio_famiglia)
+                    : card.dataInvioLabel,
+              }
+            : card,
+        ),
+      }))
+    },
+  })
 
   const patchCard = React.useCallback(
     async (recordId: string, patch: Partial<MeseLavoratoRecord>) => {
-      const previous = columns
-
-      setColumns((current) =>
-        current.map((column) => ({
-          ...column,
-          cards: column.cards.map((card) =>
-            card.id === recordId
-              ? {
-                  ...card,
-                  record: { ...card.record, ...patch },
-                  importoLabel:
-                    typeof patch.importo_busta_estratto === "number"
-                      ? formatCurrency(patch.importo_busta_estratto)
-                      : card.importoLabel,
-                  dataInvioLabel:
-                    typeof patch.data_invio_famiglia === "string"
-                      ? formatItalianDate(patch.data_invio_famiglia)
-                      : card.dataInvioLabel,
-                }
-              : card
-          ),
-        }))
-      )
-
-      try {
-        await updateRecord("mesi_lavorati", recordId, patch as Record<string, unknown>)
-      } catch (caughtError) {
-        setColumns(previous)
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore aggiornando cedolino"
-        )
-      }
+      await patchCardMutation.mutateAsync({ recordId, patch })
     },
-    [columns]
+    [patchCardMutation],
   )
+
+  const patchPresenceMutation = usePatchMutation<
+    { recordId: string; patch: Partial<PresenzaMensileRecord> },
+    unknown,
+    PayrollBoard
+  >({
+    queryKey: boardQueryKey,
+    mutationFn: ({ recordId, patch }) =>
+      updateRecord("presenze_mensili", recordId, patch as Record<string, unknown>),
+    applyOptimistic: (previous, { recordId, patch }) => {
+      if (!previous) return previous
+      return previous.map((column) => ({
+        ...column,
+        cards: column.cards.map((card) =>
+          card.presenze?.id === recordId
+            ? { ...card, presenze: { ...card.presenze, ...patch } }
+            : card,
+        ),
+      }))
+    },
+  })
 
   const patchPresence = React.useCallback(
     async (recordId: string, patch: Partial<PresenzaMensileRecord>) => {
-      const previous = columns
-      setColumns((current) =>
-        current.map((column) => ({
-          ...column,
-          cards: column.cards.map((card) =>
-            card.presenze?.id === recordId
-              ? { ...card, presenze: { ...card.presenze, ...patch } }
-              : card
-          ),
-        }))
-      )
-
-      try {
-        await updateRecord("presenze_mensili", recordId, patch as Record<string, unknown>)
-      } catch (caughtError) {
-        setColumns(previous)
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore aggiornando presenze"
-        )
-      }
+      await patchPresenceMutation.mutateAsync({ recordId, patch })
     },
-    [columns]
+    [patchPresenceMutation],
   )
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await fetchPayrollBoardData(selectedMonth)
-        if (cancelled) return
-        setColumns(data)
-      } catch (caughtError) {
-        if (cancelled) return
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore caricamento payroll"
-        )
-        setColumns([])
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [selectedMonth])
-
-  const selectedMonthRef = React.useRef(selectedMonth)
-  React.useEffect(() => {
-    selectedMonthRef.current = selectedMonth
-  }, [selectedMonth])
-
-  const reloadSilently = React.useCallback(async () => {
-    clearReadCaches()
-    try {
-      const data = await fetchPayrollBoardData(selectedMonthRef.current)
-      setColumns(data)
-    } catch {
-      // Ignore: a failed background refresh must not blank the board.
-    }
-  }, [])
 
   useRealtimeBoardSync({
     tables: PAYROLL_REALTIME_TABLES,
-    reload: reloadSilently,
+    reload: invalidateBoard,
   })
 
+  const error =
+    moveMutation.error instanceof Error
+      ? moveMutation.error.message
+      : patchCardMutation.error instanceof Error
+        ? patchCardMutation.error.message
+        : patchPresenceMutation.error instanceof Error
+          ? patchPresenceMutation.error.message
+          : queryError instanceof Error
+            ? queryError.message
+            : null
+
   return {
-    loading,
+    loading: isLoading,
     error,
     columns,
     moveCard,

@@ -17,8 +17,10 @@ import {
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils"
 import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+
+import { useMoveMutation } from "@/hooks/use-board-mutations"
 import {
-  clearReadCaches,
   fetchIndirizzi,
   fetchLavoratori,
   fetchLookupValues,
@@ -205,7 +207,7 @@ const COLLOQUI_GROUP_KEYS = {
   provaSchedulata: "prova schedulata",
   provaRimandata: "prova rimandata",
   provaInCorso: "prova in corso",
-  match: "match",
+  provaFatta: "prova fatta",
 } as const
 const LEGACY_PROVA_CON_CLIENTE_STATUS = "prova con cliente"
 
@@ -230,7 +232,7 @@ function isColloquiStatus(value: string | null | undefined) {
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.provaRimandata) ||
     token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.provaInCorso) ||
     token === normalizeStatusToken(LEGACY_PROVA_CON_CLIENTE_STATUS) ||
-    token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.match)
+    token === normalizeStatusToken(COLLOQUI_GROUP_KEYS.provaFatta)
   )
 }
 
@@ -463,17 +465,11 @@ async function fetchRelatedSelectionSummariesByWorkerIds({
 
     const dots = row.dots.slice(0, 4).map((dot) => {
       const statoSelezione = toStringValue(dot.stato_selezione) ?? "-"
-      const selectionColor =
-        resolveLookupColorByStatusToken(
-          lookupColorsByDomain,
-          "selezioni_lavoratori.stato_selezione",
-          statoSelezione
-        ) ??
-        resolveLookupColorByStatusToken(
-          lookupColorsByDomain,
-          "lavoratori.stato_selezione",
-          statoSelezione
-        )
+      const selectionColor = resolveLookupColorByStatusToken(
+        lookupColorsByDomain,
+        "selezioni_lavoratori.stato_selezione",
+        statoSelezione
+      )
 
       return {
         key: `${dot.process_id}-${statoSelezione}`,
@@ -583,7 +579,7 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
     .filter(
       (row) =>
         row.is_active &&
-        row.entity_table === "lavoratori" &&
+        row.entity_table === "selezioni_lavoratori" &&
         row.entity_field === "stato_selezione" &&
         Boolean(toStringValue(row.value_key)) &&
         Boolean(toStringValue(row.value_label))
@@ -988,8 +984,8 @@ async function fetchWorkersPipelineData(
     )
 
     const mergedColloquiColumn: RicercaWorkerSelectionColumn = {
-      id: "__colloqui_match__",
-      label: "Colloqui / Match",
+      id: "__colloqui_prove__",
+      label: "Colloqui / Prove",
       color: "green",
       dropStatusId: resolvePreferredDropStatusId(
         colloquiColumns,
@@ -1013,129 +1009,112 @@ async function fetchWorkersPipelineData(
 export function useRicercaWorkersPipeline(
   processId: string
 ): UseRicercaWorkersPipelineState {
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [columns, setColumns] = React.useState<RicercaWorkerSelectionColumn[]>([])
-  const [refreshTick, setRefreshTick] = React.useState(0)
-  const refresh = React.useCallback(() => {
-    setRefreshTick((current) => current + 1)
-  }, [])
+  const queryClient = useQueryClient()
+  const boardQueryKey = React.useMemo(
+    () => ["ricerca-workers-pipeline", processId] as const,
+    [processId],
+  )
 
-  // Set just before a realtime-triggered reload so the load effect skips the
-  // loading spinner and keeps current data on error.
-  const silentReloadRef = React.useRef(false)
-  const reloadSilently = React.useCallback(() => {
-    silentReloadRef.current = true
-    clearReadCaches()
-    setRefreshTick((current) => current + 1)
-  }, [])
+  const {
+    data,
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey: boardQueryKey,
+    queryFn: () => fetchWorkersPipelineData(processId),
+  })
+
+  const columns = data ?? []
+
+  const invalidateBoard = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["ricerca-workers-pipeline"] })
+  }, [queryClient])
+
+  const refresh = React.useCallback(() => {
+    void refetch()
+  }, [refetch])
 
   useRealtimeBoardSync({
     tables: RICERCA_WORKERS_REALTIME_TABLES,
-    reload: reloadSilently,
+    reload: invalidateBoard,
+  })
+
+  const moveMutation = useMoveMutation<
+    { selectionId: string; targetStatusId: string; currentCard: RicercaWorkerSelectionCard | undefined },
+    unknown,
+    RicercaWorkerSelectionColumn[]
+  >({
+    queryKey: boardQueryKey,
+    mutationFn: async ({ selectionId, targetStatusId, currentCard }) => {
+      await updateRecord("selezioni_lavoratori", selectionId, {
+        stato_selezione: targetStatusId,
+      })
+      await invokeWorkerAvailabilityForIds(
+        getSelectionAvailabilityWorkerIds(
+          currentCard
+            ? {
+                lavoratore_id: currentCard.worker.id,
+                stato_selezione: currentCard.status,
+              }
+            : null,
+          { stato_selezione: targetStatusId },
+        ),
+      )
+    },
+    applyOptimistic: (previous, { selectionId, targetStatusId }) => {
+      if (!previous) return previous
+      let movedCard: RicercaWorkerSelectionCard | null = null
+      const nextColumns = previous.map((column) => {
+        if (column.cards.some((card) => card.id === selectionId)) {
+          const remainingCards = column.cards.filter((card) => {
+            if (card.id !== selectionId) return true
+            movedCard = { ...card, status: targetStatusId }
+            return false
+          })
+          return { ...column, cards: remainingCards }
+        }
+        return column
+      })
+      if (!movedCard) return previous
+      return sortWorkerSelectionColumns(
+        nextColumns.map((column) =>
+          column.id === targetStatusId ||
+          (column.id === "__candidati__" && isCandidatiStatus(targetStatusId)) ||
+          (column.id === "__da_colloquiare__" && isDaColloquiareStatus(targetStatusId)) ||
+          (column.id === "__archivio__" && isArchivioStatus(targetStatusId)) ||
+          (column.id === "__colloqui_prove__" && isColloquiStatus(targetStatusId))
+            ? { ...column, cards: [movedCard as RicercaWorkerSelectionCard, ...column.cards] }
+            : column,
+        ),
+      )
+    },
   })
 
   const moveCard = React.useCallback(
     async (selectionId: string, targetStatusId: string) => {
-      const previous = columns
       const currentCard = columns
         .flatMap((column) => column.cards)
         .find((card) => card.id === selectionId)
-
-      setColumns((current) => {
-        let movedCard: RicercaWorkerSelectionCard | null = null
-
-        const nextColumns = current.map((column) => {
-          if (column.cards.some((card) => card.id === selectionId)) {
-            const remainingCards = column.cards.filter((card) => {
-              if (card.id !== selectionId) return true
-              movedCard = { ...card, status: targetStatusId }
-              return false
-            })
-            return { ...column, cards: remainingCards }
-          }
-
-          return column
-        })
-
-        if (!movedCard) return current
-
-        return sortWorkerSelectionColumns(
-          nextColumns.map((column) =>
-            column.id === targetStatusId ||
-            (column.id === "__candidati__" && isCandidatiStatus(targetStatusId)) ||
-            (column.id === "__da_colloquiare__" &&
-              isDaColloquiareStatus(targetStatusId)) ||
-            (column.id === "__archivio__" && isArchivioStatus(targetStatusId)) ||
-            (column.id === "__colloqui_match__" && isColloquiStatus(targetStatusId))
-              ? { ...column, cards: [movedCard as RicercaWorkerSelectionCard, ...column.cards] }
-              : column
-          )
-        )
-      })
-
       try {
-        await updateRecord("selezioni_lavoratori", selectionId, {
-          stato_selezione: targetStatusId,
-        })
-        await invokeWorkerAvailabilityForIds(
-          getSelectionAvailabilityWorkerIds(
-            currentCard
-              ? {
-                  lavoratore_id: currentCard.worker.id,
-                  stato_selezione: currentCard.status,
-                }
-              : null,
-            { stato_selezione: targetStatusId }
-          )
-        )
+        await moveMutation.mutateAsync({ selectionId, targetStatusId, currentCard })
       } catch (caughtError) {
-        setColumns(previous)
         const message =
           caughtError instanceof Error
             ? caughtError.message
             : "Errore aggiornando stato selezione lavoratore"
-        setError(message)
         toast.error(message)
       }
     },
-    [columns]
+    [columns, moveMutation],
   )
 
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      const silent = silentReloadRef.current
-      silentReloadRef.current = false
-      if (!silent) setLoading(true)
-      setError(null)
-
-      try {
-        const data = await fetchWorkersPipelineData(processId)
-        if (cancelled) return
-        setColumns(data)
-      } catch (caughtError) {
-        if (cancelled) return
-        if (!silent) {
-          setError(
-            caughtError instanceof Error
-              ? caughtError.message
-              : "Errore caricamento pipeline lavoratori"
-          )
-          setColumns([])
-        }
-      } finally {
-        if (!cancelled && !silent) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [processId, refreshTick])
+  const error =
+    moveMutation.error instanceof Error
+      ? moveMutation.error.message
+      : queryError instanceof Error
+        ? queryError.message
+        : null
 
   return {
     loading,

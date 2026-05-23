@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
   fetchCrmPipelineFamigliaDetail,
@@ -10,7 +11,6 @@ import {
   createRecord,
   updateRecord,
   updateProcessoMatchingStatoSales,
-  clearReadCaches,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import type { LookupValueRecord, RichiestaAttivazioneRecord } from "@/types"
@@ -1079,13 +1079,6 @@ function mapBoardEntryToCard(
   )
 }
 
-function emptyBoardData(): FetchBoardDataResult {
-  return {
-    columns: [],
-    lookupOptionsByField: {},
-  }
-}
-
 function buildSalesStageCounts(
   groups: Array<{ value: string; count: number }>,
   tokenToStageId: Map<string, string>
@@ -1313,11 +1306,8 @@ export function useCrmPipelinePreview(
   filters: CrmPipelineFilters = {},
   openProcessId: string | null = null
 ): UseCrmPipelinePreviewState {
-  const [loading, setLoading] = React.useState(true)
+  const queryClient = useQueryClient()
   const [error, setError] = React.useState<string | null>(null)
-  const [columns, setColumns] = React.useState<CrmPipelineColumnData[]>([])
-  const [lookupOptionsByField, setLookupOptionsByField] =
-    React.useState<LookupOptionsByField>({})
   const [loadedClosedStageIds, setLoadedClosedStageIds] = React.useState<Set<string>>(
     () => new Set()
   )
@@ -1326,6 +1316,42 @@ export function useCrmPipelinePreview(
     () => JSON.parse(filtersKey) as CrmPipelineFilters,
     [filtersKey]
   )
+
+  const boardQueryKey = React.useMemo(
+    () =>
+      [
+        "crm-pipeline-board",
+        filtersKey,
+        searchQuery,
+        Array.from(loadedClosedStageIds).sort().join(","),
+      ] as const,
+    [filtersKey, searchQuery, loadedClosedStageIds],
+  )
+
+  const {
+    data,
+    isLoading: loading,
+    error: queryError,
+  } = useQuery({
+    queryKey: boardQueryKey,
+    queryFn: () => fetchBoardData(loadedClosedStageIds, searchQuery, stableFilters),
+  })
+
+  const columns = data?.columns ?? []
+  const lookupOptionsByField = data?.lookupOptionsByField ?? ({} as LookupOptionsByField)
+
+  type CrmBoardData = NonNullable<typeof data>
+
+  const setBoardData = React.useCallback(
+    (updater: (previous: CrmBoardData | undefined) => CrmBoardData | undefined) => {
+      queryClient.setQueryData<CrmBoardData>(boardQueryKey, (previous) => updater(previous))
+    },
+    [queryClient, boardQueryKey],
+  )
+
+  const invalidateBoard = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["crm-pipeline-board"] })
+  }, [queryClient])
 
   const loadClosedStage = React.useCallback((stageId: string) => {
     if (!CLOSED_STAGE_IDS.has(stageId)) return
@@ -1371,17 +1397,21 @@ export function useCrmPipelinePreview(
       )
       if (!card) return
 
-      setColumns((current) =>
-        current.map((column) => ({
-          ...column,
-          cards: sortCardsForStage(
-            column.cards.map((currentCard) =>
-              currentCard.id === processId ? card : currentCard
+      setBoardData((previous) => {
+        if (!previous) return previous
+        return {
+          ...previous,
+          columns: previous.columns.map((column) => ({
+            ...column,
+            cards: sortCardsForStage(
+              column.cards.map((currentCard) =>
+                currentCard.id === processId ? card : currentCard,
+              ),
+              column.id,
             ),
-            column.id
-          ),
-        }))
-      )
+          })),
+        }
+      })
     } catch (caughtError) {
       const message =
         caughtError instanceof Error
@@ -1389,7 +1419,7 @@ export function useCrmPipelinePreview(
           : "Errore caricando dettaglio ricerca"
       setError(message)
     }
-  }, [])
+  }, [setBoardData])
 
   const moveCard = React.useCallback(
     async (processId: string, targetStageId: string) => {
@@ -1445,12 +1475,12 @@ export function useCrmPipelinePreview(
         return column
       })
 
-      setColumns(optimisticColumns)
+      setBoardData((prev) => (prev ? { ...prev, columns: optimisticColumns } : prev))
 
       try {
         await updateProcessoMatchingStatoSales(processId, targetStageId)
       } catch (caughtError) {
-        setColumns(previousColumns)
+        setBoardData((prev) => (prev ? { ...prev, columns: previousColumns } : prev))
 
         const message =
           caughtError instanceof Error
@@ -1459,7 +1489,7 @@ export function useCrmPipelinePreview(
         setError(message)
       }
     },
-    [columns]
+    [columns, setBoardData]
   )
 
   const updateProcessCard = React.useCallback(
@@ -1748,12 +1778,12 @@ export function useCrmPipelinePreview(
         }), column.id),
       }))
 
-      setColumns(optimisticColumns)
+      setBoardData((prev) => (prev ? { ...prev, columns: optimisticColumns } : prev))
 
       try {
         await updateRecord("processi_matching", processId, normalizedPatch)
       } catch (caughtError) {
-        setColumns(previousColumns)
+        setBoardData((prev) => (prev ? { ...prev, columns: previousColumns } : prev))
         const message =
           caughtError instanceof Error
             ? caughtError.message
@@ -1762,7 +1792,7 @@ export function useCrmPipelinePreview(
         throw caughtError
       }
     },
-    [columns, lookupOptionsByField]
+    [columns, lookupOptionsByField, setBoardData]
   )
 
   const updateFamilyCard = React.useCallback(
@@ -1807,12 +1837,12 @@ export function useCrmPipelinePreview(
         ),
       }))
 
-      setColumns(optimisticColumns)
+      setBoardData((prev) => (prev ? { ...prev, columns: optimisticColumns } : prev))
 
       try {
         await updateRecord("famiglie", familyId, patch)
       } catch (caughtError) {
-        setColumns(previousColumns)
+        setBoardData((prev) => (prev ? { ...prev, columns: previousColumns } : prev))
         const message =
           caughtError instanceof Error
             ? caughtError.message
@@ -1821,7 +1851,7 @@ export function useCrmPipelinePreview(
         throw caughtError
       }
     },
-    [columns]
+    [columns, setBoardData]
   )
 
   const updateAddressCard = React.useCallback(
@@ -1867,7 +1897,7 @@ export function useCrmPipelinePreview(
         ),
       }))
 
-      setColumns(optimisticColumns)
+      setBoardData((prev) => (prev ? { ...prev, columns: optimisticColumns } : prev))
 
       try {
         if (addressId) {
@@ -1884,18 +1914,22 @@ export function useCrmPipelinePreview(
         const createdAddressId = toStringValue(response.row.id)
         if (!createdAddressId) return
 
-        setColumns((current) =>
-          current.map((column) => ({
-            ...column,
-            cards: column.cards.map((card) =>
-              card.id === processId
-                ? { ...card, indirizzoId: createdAddressId }
-                : card
-            ),
-          }))
-        )
+        setBoardData((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            columns: prev.columns.map((column) => ({
+              ...column,
+              cards: column.cards.map((card) =>
+                card.id === processId
+                  ? { ...card, indirizzoId: createdAddressId }
+                  : card,
+              ),
+            })),
+          }
+        })
       } catch (caughtError) {
-        setColumns(previousColumns)
+        setBoardData((prev) => (prev ? { ...prev, columns: previousColumns } : prev))
         const message =
           caughtError instanceof Error
             ? caughtError.message
@@ -1904,89 +1938,11 @@ export function useCrmPipelinePreview(
         throw caughtError
       }
     },
-    [columns]
+    [columns, setBoardData]
   )
 
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const boardData = await fetchBoardData(loadedClosedStageIds, searchQuery, stableFilters)
-        if (cancelled) return
-        setColumns(boardData.columns)
-        setLookupOptionsByField(boardData.lookupOptionsByField)
-      } catch (caughtError) {
-        if (cancelled) return
-        const message =
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore nel caricamento pipeline CRM"
-        setError(message)
-        setColumns(emptyBoardData().columns)
-        setLookupOptionsByField(emptyBoardData().lookupOptionsByField)
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [filtersKey, loadedClosedStageIds, searchQuery, stableFilters])
-
-  const fetchParamsRef = React.useRef({
-    loadedClosedStageIds,
-    searchQuery,
-    stableFilters,
-  })
-  React.useEffect(() => {
-    fetchParamsRef.current = { loadedClosedStageIds, searchQuery, stableFilters }
-  }, [loadedClosedStageIds, searchQuery, stableFilters])
-
-  // Silent background refresh used by realtime: no spinner, keep current data on error.
-  const reloadBoardSilently = React.useCallback(async () => {
-    const params = fetchParamsRef.current
-    clearReadCaches()
-    try {
-      const boardData = await fetchBoardData(
-        params.loadedClosedStageIds,
-        params.searchQuery,
-        params.stableFilters
-      )
-      const openId = openProcessIdRef.current
-      setColumns((prev) => {
-        if (!openId) return boardData.columns
-        // Preserve the already-enriched open card so the board swap doesn't
-        // blank its detail-only fields; loadProcessDetail refreshes it next.
-        let openCard: CrmPipelineCardData | undefined
-        for (const column of prev) {
-          openCard = column.cards.find((card) => card.id === openId)
-          if (openCard) break
-        }
-        if (!openCard) return boardData.columns
-        return boardData.columns.map((column) => ({
-          ...column,
-          cards: column.cards.map((card) =>
-            card.id === openId ? (openCard as CrmPipelineCardData) : card
-          ),
-        }))
-      })
-      setLookupOptionsByField(boardData.lookupOptionsByField)
-    } catch {
-      // Ignore: a failed background refresh must not blank the board.
-    }
-  }, [])
-
-  // Track the currently-open detail card so the board reload can preserve its
-  // already-enriched detail-only fields instead of blanking them.
+  // Track the currently-open detail card so the realtime reload can re-enrich
+  // its detail-only fields instead of leaving them stale.
   const openProcessIdRef = React.useRef<string | null>(openProcessId)
   React.useEffect(() => {
     openProcessIdRef.current = openProcessId
@@ -1994,7 +1950,7 @@ export function useCrmPipelinePreview(
 
   useRealtimeBoardSync({
     tables: CRM_REALTIME_TABLES,
-    reload: reloadBoardSilently,
+    reload: invalidateBoard,
     reloadOpenDetail: () => {
       const openId = openProcessIdRef.current
       return openId ? loadProcessDetail(openId) : undefined
@@ -2002,9 +1958,12 @@ export function useCrmPipelinePreview(
     debounceMs: CRM_REALTIME_RELOAD_DEBOUNCE_MS,
   })
 
+  const combinedError =
+    error ?? (queryError instanceof Error ? queryError.message : null)
+
   return {
     loading,
-    error,
+    error: combinedError,
     columns,
     lookupOptionsByField,
     loadedClosedStageIds,

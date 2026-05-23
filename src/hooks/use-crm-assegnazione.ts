@@ -1,7 +1,9 @@
 import * as React from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+
+import { usePatchMutation } from "@/hooks/use-board-mutations"
 
 import {
-  clearReadCaches,
   fetchFamiglie,
   fetchLookupValues,
   fetchProcessiMatching,
@@ -446,112 +448,123 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
   return cards
 }
 
+const ASSEGNAZIONE_BOARD_QUERY_KEY = ["crm-assegnazione-board"] as const
+
 export function useCrmAssegnazione(): UseCrmAssegnazioneState {
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [cards, setCards] = React.useState<AssegnazioneCardData[]>([])
+  const queryClient = useQueryClient()
 
-  const patchCard = React.useCallback(
-    async (processId: string, patch: Record<string, unknown>) => {
+  const {
+    data,
+    isLoading,
+    error: queryError,
+  } = useQuery({
+    queryKey: ASSEGNAZIONE_BOARD_QUERY_KEY,
+    queryFn: fetchAssegnazioneCards,
+  })
+
+  const cards = data ?? []
+
+  const invalidateBoard = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ASSEGNAZIONE_BOARD_QUERY_KEY })
+  }, [queryClient])
+
+  const patchMutation = usePatchMutation<
+    { processId: string; patch: Record<string, unknown> },
+    unknown,
+    AssegnazioneCardData[]
+  >({
+    queryKey: ASSEGNAZIONE_BOARD_QUERY_KEY,
+    mutationFn: ({ processId, patch }) =>
+      updateRecord("processi_matching", processId, patch),
+    applyOptimistic: (previous, { processId, patch }) => {
+      if (!previous) return previous
       let patchedStatus: "da_assegnare" | "fare_ricerca" | null = null
-
       if ("stato_res" in patch) {
         patchedStatus = toAssegnazioneStatus(toStringValue(patch.stato_res))
         if (!patchedStatus) {
           throw new Error("Stato assegnazione non valido")
         }
       }
+      return previous.map((card) => {
+        if (card.id !== processId) return card
 
-      const previous = cards
+        const nextCard = { ...card }
 
-      setCards((current) =>
-        current.map((card) => {
-          if (card.id !== processId) return card
+        if (patchedStatus) {
+          nextCard.statoRes = patchedStatus
+          nextCard.statoResLabel = toReadableStatusLabel(patchedStatus)
+        }
+        if ("data_assegnazione" in patch) {
+          nextCard.dataAssegnazione = toIsoDate(patch.data_assegnazione)
+        }
+        if ("recruiter_ricerca_e_selezione_id" in patch) {
+          nextCard.recruiterId = toStringValue(patch.recruiter_ricerca_e_selezione_id)
+        }
+        if ("deadline_mobile" in patch) {
+          const nextDeadline = patch.deadline_mobile ?? patch.data_limite_invio_selezione
+          nextCard.deadlineMobile = formatItalianDate(nextDeadline)
+          nextCard.deadlineSales = formatItalianDate(nextDeadline)
+        }
+        if ("data_limite_invio_selezione" in patch && !("deadline_mobile" in patch)) {
+          nextCard.deadlineMobile = formatItalianDate(patch.data_limite_invio_selezione)
+          nextCard.deadlineSales = formatItalianDate(patch.data_limite_invio_selezione)
+        }
+        if ("ore_settimanale" in patch) {
+          nextCard.oreSettimanali = toStringValue(patch.ore_settimanale) ?? "-"
+        }
+        if ("numero_giorni_settimanali" in patch) {
+          nextCard.giorniSettimanali =
+            toStringValue(patch.numero_giorni_settimanali) ??
+            extractFirstNumberToken(patch.frequenza_rapporto) ??
+            "-"
+        }
+        if ("frequenza_rapporto" in patch && nextCard.giorniSettimanali === "-") {
+          nextCard.giorniSettimanali =
+            extractFirstNumberToken(patch.frequenza_rapporto) ?? "-"
+        }
+        if ("orario_di_lavoro" in patch) {
+          nextCard.orarioDiLavoro = toStringValue(patch.orario_di_lavoro) ?? "-"
+        }
+        if ("luogo_id" in patch) {
+          nextCard.zona = toStringValue(patch.luogo_id) ?? "-"
+        }
+        if (
+          "indirizzo_prova_note" in patch ||
+          "indirizzo_prova_cap" in patch ||
+          "indirizzo_prova_comune" in patch
+        ) {
+          if ("indirizzo_prova_note" in patch) {
+            nextCard.zonaQuartiere = toStringValue(patch.indirizzo_prova_note)
+          }
+          if ("indirizzo_prova_cap" in patch) {
+            nextCard.zonaCap = toStringValue(patch.indirizzo_prova_cap)
+          }
+          if ("indirizzo_prova_comune" in patch) {
+            nextCard.zonaComune = toStringValue(patch.indirizzo_prova_comune)
+          }
+          nextCard.zona = formatAssegnazioneZona({
+            indirizzo_prova_note: nextCard.zonaQuartiere,
+            indirizzo_prova_cap: nextCard.zonaCap,
+            indirizzo_prova_comune: nextCard.zonaComune,
+          })
+        }
+        if ("mansioni_richieste" in patch) {
+          nextCard.overview = toStringValue(patch.mansioni_richieste) ?? "-"
+        } else if ("descrizione_lavoratore_ideale" in patch) {
+          nextCard.overview =
+            toStringValue(patch.descrizione_lavoratore_ideale) ?? "-"
+        }
 
-          const nextCard = { ...card }
-
-          if (patchedStatus) {
-            nextCard.statoRes = patchedStatus
-            nextCard.statoResLabel = toReadableStatusLabel(patchedStatus)
-          }
-          if ("data_assegnazione" in patch) {
-            nextCard.dataAssegnazione = toIsoDate(patch.data_assegnazione)
-          }
-          if ("recruiter_ricerca_e_selezione_id" in patch) {
-            nextCard.recruiterId = toStringValue(patch.recruiter_ricerca_e_selezione_id)
-          }
-          if ("deadline_mobile" in patch) {
-            const nextDeadline = patch.deadline_mobile ?? patch.data_limite_invio_selezione
-            nextCard.deadlineMobile = formatItalianDate(nextDeadline)
-            nextCard.deadlineSales = formatItalianDate(nextDeadline)
-          }
-          if ("data_limite_invio_selezione" in patch && !("deadline_mobile" in patch)) {
-            nextCard.deadlineMobile = formatItalianDate(patch.data_limite_invio_selezione)
-            nextCard.deadlineSales = formatItalianDate(patch.data_limite_invio_selezione)
-          }
-          if ("ore_settimanale" in patch) {
-            nextCard.oreSettimanali = toStringValue(patch.ore_settimanale) ?? "-"
-          }
-          if ("numero_giorni_settimanali" in patch) {
-            nextCard.giorniSettimanali =
-              toStringValue(patch.numero_giorni_settimanali) ??
-              extractFirstNumberToken(patch.frequenza_rapporto) ??
-              "-"
-          }
-          if ("frequenza_rapporto" in patch && nextCard.giorniSettimanali === "-") {
-            nextCard.giorniSettimanali =
-              extractFirstNumberToken(patch.frequenza_rapporto) ?? "-"
-          }
-          if ("orario_di_lavoro" in patch) {
-            nextCard.orarioDiLavoro = toStringValue(patch.orario_di_lavoro) ?? "-"
-          }
-          if ("luogo_id" in patch) {
-            nextCard.zona = toStringValue(patch.luogo_id) ?? "-"
-          }
-          if (
-            "indirizzo_prova_note" in patch ||
-            "indirizzo_prova_cap" in patch ||
-            "indirizzo_prova_comune" in patch
-          ) {
-            if ("indirizzo_prova_note" in patch) {
-              nextCard.zonaQuartiere = toStringValue(patch.indirizzo_prova_note)
-            }
-            if ("indirizzo_prova_cap" in patch) {
-              nextCard.zonaCap = toStringValue(patch.indirizzo_prova_cap)
-            }
-            if ("indirizzo_prova_comune" in patch) {
-              nextCard.zonaComune = toStringValue(patch.indirizzo_prova_comune)
-            }
-            nextCard.zona = formatAssegnazioneZona({
-              indirizzo_prova_note: nextCard.zonaQuartiere,
-              indirizzo_prova_cap: nextCard.zonaCap,
-              indirizzo_prova_comune: nextCard.zonaComune,
-            })
-          }
-          if ("mansioni_richieste" in patch) {
-            nextCard.overview = toStringValue(patch.mansioni_richieste) ?? "-"
-          } else if ("descrizione_lavoratore_ideale" in patch) {
-            nextCard.overview =
-              toStringValue(patch.descrizione_lavoratore_ideale) ?? "-"
-          }
-
-          return nextCard
-        })
-      )
-
-      try {
-        await updateRecord("processi_matching", processId, patch)
-      } catch (caughtError) {
-        setCards(previous)
-        const message =
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore aggiornando ricerca in assegnazione"
-        setError(message)
-        throw caughtError
-      }
+        return nextCard
+      })
     },
-    [cards]
+  })
+
+  const patchCard = React.useCallback(
+    async (processId: string, patch: Record<string, unknown>) => {
+      await patchMutation.mutateAsync({ processId, patch })
+    },
+    [patchMutation],
   )
 
   const assignCardToDate = React.useCallback(
@@ -562,58 +575,23 @@ export function useCrmAssegnazione(): UseCrmAssegnazioneState {
         stato_res: toAssegnazioneStatusPatch(nextStatus),
       })
     },
-    [patchCard]
+    [patchCard],
   )
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await fetchAssegnazioneCards()
-        if (cancelled) return
-        setCards(data)
-      } catch (caughtError) {
-        if (cancelled) return
-        const message =
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore caricamento assegnazione"
-        setError(message)
-        setCards([])
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const reloadSilently = React.useCallback(async () => {
-    clearReadCaches()
-    try {
-      const data = await fetchAssegnazioneCards()
-      setCards(data)
-    } catch {
-      // Ignore: a failed background refresh must not blank the board.
-    }
-  }, [])
 
   useRealtimeBoardSync({
     tables: ASSEGNAZIONE_REALTIME_TABLES,
-    reload: reloadSilently,
+    reload: invalidateBoard,
   })
 
+  const error =
+    patchMutation.error instanceof Error
+      ? patchMutation.error.message
+      : queryError instanceof Error
+        ? queryError.message
+        : null
+
   return {
-    loading,
+    loading: isLoading,
     error,
     cards,
     assignCardToDate,

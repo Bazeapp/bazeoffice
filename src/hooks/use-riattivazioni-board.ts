@@ -1,18 +1,13 @@
 import * as React from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+
+import { useMoveMutation } from "@/hooks/use-board-mutations"
 
 import {
-  clearReadCaches,
   fetchRiattivazioniBoard,
   updateRecord,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-
-const RIATTIVAZIONI_REALTIME_TABLES = [
-  "chiusure_contratti",
-  "rapporti_lavorativi",
-  "famiglie",
-  "lavoratori",
-]
 import {
   getRapportoFamilyLabel,
   getRapportoWorkerLabel,
@@ -23,6 +18,15 @@ import type {
   LavoratoreRecord,
   RapportoLavorativoRecord,
 } from "@/types"
+
+const RIATTIVAZIONI_REALTIME_TABLES = [
+  "chiusure_contratti",
+  "rapporti_lavorativi",
+  "famiglie",
+  "lavoratori",
+]
+
+const RIATTIVAZIONI_BOARD_QUERY_KEY = ["riattivazioni-board"] as const
 
 export type RiattivazioneStageId =
   | "da sentire"
@@ -87,6 +91,8 @@ type RiattivazioneBaseCard = {
   stage: RiattivazioneStageId
 }
 
+type BoardData = { columns: RiattivazioniBoardColumnData[] }
+
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
     .trim()
@@ -146,9 +152,7 @@ function getFallbackFamigliaLabel(record: ChiusuraContrattoRecord) {
   return [record.cognome, record.nome].filter(Boolean).join(" ").trim() || "Famiglia senza nome"
 }
 
-async function fetchRiattivazioniBoardData(): Promise<{
-  columns: RiattivazioniBoardColumnData[]
-}> {
+async function fetchRiattivazioniBoardData(): Promise<BoardData> {
   const boardResult = await fetchRiattivazioniBoard()
 
   const baseCards: RiattivazioneBaseCard[] = []
@@ -210,121 +214,113 @@ async function fetchRiattivazioniBoardData(): Promise<{
 }
 
 export function useRiattivazioniBoard(): UseRiattivazioniBoardState {
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [columns, setColumns] = React.useState<RiattivazioniBoardColumnData[]>([])
+  const queryClient = useQueryClient()
+
+  const {
+    data,
+    isLoading,
+    error: queryError,
+  } = useQuery({
+    queryKey: RIATTIVAZIONI_BOARD_QUERY_KEY,
+    queryFn: fetchRiattivazioniBoardData,
+  })
+
+  const columns = data?.columns ?? []
+
+  const setBoardData = React.useCallback(
+    (updater: (previous: BoardData | undefined) => BoardData | undefined) => {
+      queryClient.setQueryData<BoardData>(RIATTIVAZIONI_BOARD_QUERY_KEY, (previous) =>
+        updater(previous),
+      )
+    },
+    [queryClient],
+  )
+
+  const invalidateBoard = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: RIATTIVAZIONI_BOARD_QUERY_KEY })
+  }, [queryClient])
 
   const updateCard = React.useCallback(
     (
       recordId: string,
       updater: (card: RiattivazioniBoardCardData) => RiattivazioniBoardCardData,
     ) => {
-      setColumns((current) =>
-        current.map((column) => ({
-          ...column,
-          cards: column.cards.map((card) => (card.id === recordId ? updater(card) : card)),
-        })),
-      )
+      setBoardData((previous) => {
+        if (!previous) return previous
+        return {
+          columns: previous.columns.map((column) => ({
+            ...column,
+            cards: column.cards.map((card) => (card.id === recordId ? updater(card) : card)),
+          })),
+        }
+      })
     },
-    [],
+    [setBoardData],
   )
 
-  const moveCard = React.useCallback(
-    async (recordId: string, targetStageId: RiattivazioneStageId) => {
-      const previous = columns
-
-      setColumns((current) => {
-        let movedCard: RiattivazioniBoardCardData | null = null
-
-        const nextColumns = current.map((column) => {
-          if (column.cards.some((card) => card.id === recordId)) {
-            const remainingCards = column.cards.filter((card) => {
-              if (card.id !== recordId) return true
-              movedCard = {
-                ...card,
-                stage: targetStageId,
-                record: {
-                  ...card.record,
-                  stato_riattivazione_famiglia: targetStageId,
-                },
-              }
-              return false
-            })
-            return { ...column, cards: remainingCards }
-          }
-          return column
-        })
-
-        if (!movedCard) return current
-
-        return nextColumns.map((column) =>
+  const moveMutation = useMoveMutation<
+    { recordId: string; targetStageId: RiattivazioneStageId },
+    unknown,
+    BoardData
+  >({
+    queryKey: RIATTIVAZIONI_BOARD_QUERY_KEY,
+    mutationFn: ({ recordId, targetStageId }) =>
+      updateRecord("chiusure_contratti", recordId, {
+        stato_riattivazione_famiglia: targetStageId,
+      }),
+    applyOptimistic: (previous, { recordId, targetStageId }) => {
+      if (!previous) return previous
+      let movedCard: RiattivazioniBoardCardData | null = null
+      const removed = previous.columns.map((column) => {
+        if (column.cards.some((card) => card.id === recordId)) {
+          const remainingCards = column.cards.filter((card) => {
+            if (card.id !== recordId) return true
+            movedCard = {
+              ...card,
+              stage: targetStageId,
+              record: {
+                ...card.record,
+                stato_riattivazione_famiglia: targetStageId,
+              },
+            }
+            return false
+          })
+          return { ...column, cards: remainingCards }
+        }
+        return column
+      })
+      if (!movedCard) return previous
+      return {
+        columns: removed.map((column) =>
           column.id === targetStageId
             ? { ...column, cards: [movedCard as RiattivazioniBoardCardData, ...column.cards] }
             : column,
-        )
-      })
-
-      try {
-        await updateRecord("chiusure_contratti", recordId, {
-          stato_riattivazione_famiglia: targetStageId,
-        })
-      } catch (caughtError) {
-        setColumns(previous)
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore aggiornando stato riattivazione",
-        )
+        ),
       }
     },
-    [columns],
+  })
+
+  const moveCard = React.useCallback(
+    async (recordId: string, targetStageId: RiattivazioneStageId) => {
+      await moveMutation.mutateAsync({ recordId, targetStageId })
+    },
+    [moveMutation],
   )
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await fetchRiattivazioniBoardData()
-        if (cancelled) return
-        setColumns(data.columns)
-      } catch (caughtError) {
-        if (cancelled) return
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore caricamento riattivazioni",
-        )
-        setColumns([])
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const reloadSilently = React.useCallback(async () => {
-    clearReadCaches()
-    try {
-      const data = await fetchRiattivazioniBoardData()
-      setColumns(data.columns)
-    } catch {
-      // Ignore: a failed background refresh must not blank the board.
-    }
-  }, [])
 
   useRealtimeBoardSync({
     tables: RIATTIVAZIONI_REALTIME_TABLES,
-    reload: reloadSilently,
+    reload: invalidateBoard,
   })
 
+  const error =
+    moveMutation.error instanceof Error
+      ? moveMutation.error.message
+      : queryError instanceof Error
+        ? queryError.message
+        : null
+
   return {
-    loading,
+    loading: isLoading,
     error,
     columns,
     moveCard,

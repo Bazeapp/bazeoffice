@@ -1,7 +1,9 @@
 import * as React from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+
+import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
 import {
-  clearReadCaches,
   fetchContributiInps,
   fetchLookupValues,
   fetchMesiCalendario,
@@ -569,55 +571,84 @@ async function fetchContributiBoardData(
   }
 }
 
+type BoardData = {
+  stages: ContributoStageDefinition[]
+  cards: ContributoInpsBoardCardData[]
+  activeRapportiCount: number
+}
+
 export function useContributiInpsBoard(
   selectedYear: number,
   selectedQuarter: ContributoQuarterValue
 ): UseContributiInpsBoardState {
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [stages, setStages] = React.useState<ContributoStageDefinition[]>(DEFAULT_STAGE_DEFINITIONS)
-  const [cards, setCards] = React.useState<ContributoInpsBoardCardData[]>([])
-  const [activeRapportiCount, setActiveRapportiCount] = React.useState(0)
+  const queryClient = useQueryClient()
+  const boardQueryKey = React.useMemo(
+    () => ["contributi-inps-board", selectedYear, selectedQuarter] as const,
+    [selectedYear, selectedQuarter],
+  )
 
-  const moveCard = React.useCallback(
-    async (recordId: string, targetStageId: string) => {
-      const previous = cards
+  const {
+    data,
+    isLoading,
+    error: queryError,
+  } = useQuery({
+    queryKey: boardQueryKey,
+    queryFn: () => fetchContributiBoardData(selectedYear, selectedQuarter),
+  })
 
-      setCards((current) =>
-        current.map((card) =>
+  const stages = data?.stages ?? DEFAULT_STAGE_DEFINITIONS
+  const cards = data?.cards ?? []
+  const activeRapportiCount = data?.activeRapportiCount ?? 0
+
+  const invalidateBoard = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: boardQueryKey })
+  }, [queryClient, boardQueryKey])
+
+  const moveMutation = useMoveMutation<
+    { recordId: string; targetStageId: string },
+    unknown,
+    BoardData
+  >({
+    queryKey: boardQueryKey,
+    mutationFn: ({ recordId, targetStageId }) =>
+      updateRecord("contributi_inps", recordId, { stato_contributi_inps: targetStageId }),
+    applyOptimistic: (previous, { recordId, targetStageId }) => {
+      if (!previous) return previous
+      return {
+        ...previous,
+        cards: previous.cards.map((card) =>
           card.id === recordId
             ? {
                 ...card,
                 stage: targetStageId,
-                record: {
-                  ...card.record,
-                  stato_contributi_inps: targetStageId,
-                },
+                record: { ...card.record, stato_contributi_inps: targetStageId },
               }
-            : card
-        )
-      )
-
-      try {
-        await updateRecord("contributi_inps", recordId, {
-          stato_contributi_inps: targetStageId,
-        })
-      } catch (caughtError) {
-        setCards(previous)
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore aggiornando stato contributo INPS"
-        )
+            : card,
+        ),
       }
     },
-    [cards]
+  })
+
+  const moveCard = React.useCallback(
+    async (recordId: string, targetStageId: string) => {
+      await moveMutation.mutateAsync({ recordId, targetStageId })
+    },
+    [moveMutation],
   )
 
-  const patchCard = React.useCallback(
-    async (recordId: string, patch: Partial<ContributoInpsRecord>) => {
-      const previous = cards
-
-      setCards((current) =>
-        current.map((card) =>
+  const patchMutation = usePatchMutation<
+    { recordId: string; patch: Partial<ContributoInpsRecord> },
+    unknown,
+    BoardData
+  >({
+    queryKey: boardQueryKey,
+    mutationFn: ({ recordId, patch }) =>
+      updateRecord("contributi_inps", recordId, patch as Record<string, unknown>),
+    applyOptimistic: (previous, { recordId, patch }) => {
+      if (!previous) return previous
+      return {
+        ...previous,
+        cards: previous.cards.map((card) =>
           card.id === recordId
             ? {
                 ...card,
@@ -635,80 +666,35 @@ export function useContributiInpsBoard(
                       ? null
                       : card.pagopaLabel,
               }
-            : card
-        )
-      )
-
-      try {
-        await updateRecord("contributi_inps", recordId, patch as Record<string, unknown>)
-      } catch (caughtError) {
-        setCards(previous)
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore aggiornando contributo INPS"
-        )
+            : card,
+        ),
       }
     },
-    [cards]
+  })
+
+  const patchCard = React.useCallback(
+    async (recordId: string, patch: Partial<ContributoInpsRecord>) => {
+      await patchMutation.mutateAsync({ recordId, patch })
+    },
+    [patchMutation],
   )
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const data = await fetchContributiBoardData(selectedYear, selectedQuarter)
-        if (cancelled) return
-        setStages(data.stages)
-        setCards(data.cards)
-        setActiveRapportiCount(data.activeRapportiCount)
-      } catch (caughtError) {
-        if (cancelled) return
-        setError(
-          caughtError instanceof Error ? caughtError.message : "Errore caricamento contributi INPS"
-        )
-        setStages(DEFAULT_STAGE_DEFINITIONS)
-        setCards([])
-        setActiveRapportiCount(0)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [selectedQuarter, selectedYear])
-
-  const periodRef = React.useRef({ selectedYear, selectedQuarter })
-  React.useEffect(() => {
-    periodRef.current = { selectedYear, selectedQuarter }
-  }, [selectedYear, selectedQuarter])
-
-  const reloadSilently = React.useCallback(async () => {
-    clearReadCaches()
-    try {
-      const { selectedYear, selectedQuarter } = periodRef.current
-      const data = await fetchContributiBoardData(selectedYear, selectedQuarter)
-      setStages(data.stages)
-      setCards(data.cards)
-      setActiveRapportiCount(data.activeRapportiCount)
-    } catch {
-      // Ignore: a failed background refresh must not blank the board.
-    }
-  }, [])
 
   useRealtimeBoardSync({
     tables: CONTRIBUTI_REALTIME_TABLES,
-    reload: reloadSilently,
+    reload: invalidateBoard,
   })
 
+  const error =
+    moveMutation.error instanceof Error
+      ? moveMutation.error.message
+      : patchMutation.error instanceof Error
+        ? patchMutation.error.message
+        : queryError instanceof Error
+          ? queryError.message
+          : null
+
   return {
-    loading,
+    loading: isLoading,
     error,
     stages,
     cards,

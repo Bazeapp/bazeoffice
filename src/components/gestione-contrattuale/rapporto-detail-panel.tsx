@@ -1136,6 +1136,7 @@ export function RapportoDetailPanel({
 
   return (
     <RecordDetailShell
+      key={rapporto?.id ?? "__empty__"}
       sectionRef={detailScrollRef}
       tabs={SECTION_TABS}
       activeSection={activeSection}
@@ -1794,6 +1795,7 @@ export function RapportoDetailPanel({
         />
       ) : null}
       <CedolinoDetailSheet
+        key={selectedCedolinoId ?? "__empty__"}
         card={selectedCedolino}
         columns={cedolinoColumns}
         open={Boolean(selectedCedolino)}
@@ -1813,6 +1815,7 @@ export function RapportoDetailPanel({
         }}
       />
       <ContributoInpsDetailSheet
+        key={selectedContributoId ?? "__empty__"}
         card={selectedContributo}
         columns={contributoColumns}
         open={Boolean(selectedContributo)}
