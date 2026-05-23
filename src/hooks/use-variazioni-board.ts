@@ -1,17 +1,23 @@
 import * as React from "react"
 
 import {
+  clearReadCaches,
   createRecord,
-  fetchFamiglie,
-  fetchIndirizzi,
-  fetchLavoratori,
   fetchLookupValues,
-  fetchRapportiLavorativi,
-  fetchVariazioniContrattuali,
+  fetchVariazioniBoard,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
 import type { LookupValueRecord, RapportoLavorativoRecord, VariazioneContrattualeRecord } from "@/types"
+
+const VARIAZIONI_REALTIME_TABLES = [
+  "variazioni_contrattuali",
+  "rapporti_lavorativi",
+  "famiglie",
+  "lavoratori",
+  "indirizzi",
+]
 
 type VariazioneStageDefinition = {
   id: string
@@ -74,70 +80,6 @@ const DEFAULT_STAGE_DEFINITIONS: VariazioneStageDefinition[] = [
   { id: "documenti inviati", label: "documenti inviati", color: "teal" },
 ]
 
-const VARIAZIONI_RAPPORTI_SELECT = [
-  "id",
-  "stato_assunzione",
-  "stato_servizio",
-  "fine_rapporto_lavorativo_id",
-  "tipo_rapporto",
-  "tipo_contratto",
-  "ore_a_settimana",
-  "paga_oraria_lorda",
-  "data_inizio_rapporto",
-  "cognome_nome_datore_proper",
-  "famiglia_id",
-  "lavoratore_id",
-  "nome_lavoratore_per_url",
-] satisfies string[]
-
-const VARIAZIONI_FAMIGLIE_SELECT = [
-  "id",
-  "nome",
-  "cognome",
-  "email",
-  "customer_email",
-  "secondary_email",
-  "telefono",
-  "whatsapp",
-] satisfies string[]
-
-const VARIAZIONI_LAVORATORI_SELECT = [
-  "id",
-  "nome",
-  "cognome",
-  "email",
-  "telefono",
-  "iban",
-  "cap",
-  "provincia",
-  "documenti_in_regola",
-  "docs_scadenza_permesso_di_soggiorno",
-] satisfies string[]
-
-const VARIAZIONI_INDIRIZZI_SELECT = [
-  "entita_id",
-  "tipo_indirizzo",
-  "via",
-  "civico",
-  "cap",
-  "citta",
-  "provincia",
-  "indirizzo_formattato",
-  "note",
-] satisfies string[]
-
-const VARIAZIONI_SELECT = [
-  "id",
-  "accordo_variazione_contrattuale",
-  "rapporto_lavorativo_id",
-  "ricevuta_inps_variazione_rapporto",
-  "stato",
-  "data_variazione",
-  "variazione_da_applicare",
-] satisfies string[]
-
-const RELATED_RECORDS_BATCH_SIZE = 100
-
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
     .trim()
@@ -184,78 +126,6 @@ function formatItalianDate(value: unknown) {
   }).format(parsed)
 }
 
-function uniqueStrings(values: Array<string | null>) {
-  return Array.from(new Set(values.filter(Boolean))) as string[]
-}
-
-function chunkArray<T>(values: T[], size: number) {
-  const chunks: T[][] = []
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size))
-  }
-  return chunks
-}
-
-async function fetchFamiglieByIds(ids: string[]) {
-  if (ids.length === 0) return [] as GenericRow[]
-
-  const results = await Promise.all(
-    chunkArray(ids, RELATED_RECORDS_BATCH_SIZE).map((chunk, index) =>
-      fetchFamiglie({
-        select: VARIAZIONI_FAMIGLIE_SELECT,
-        limit: chunk.length,
-        offset: 0,
-        filters: {
-          kind: "group",
-          id: `variazioni-famiglie-root-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `variazioni-famiglie-id-${index}`,
-              field: "id",
-              operator: "in",
-              value: chunk.join(","),
-            },
-          ],
-        },
-      })
-    )
-  )
-
-  return results.flatMap((result) => result.rows as GenericRow[])
-}
-
-async function fetchLavoratoriByIds(ids: string[]) {
-  if (ids.length === 0) return [] as GenericRow[]
-
-  const results = await Promise.all(
-    chunkArray(ids, RELATED_RECORDS_BATCH_SIZE).map((chunk, index) =>
-      fetchLavoratori({
-        select: VARIAZIONI_LAVORATORI_SELECT,
-        limit: chunk.length,
-        offset: 0,
-        filters: {
-          kind: "group",
-          id: `variazioni-lavoratori-root-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `variazioni-lavoratori-id-${index}`,
-              field: "id",
-              operator: "in",
-              value: chunk.join(","),
-            },
-          ],
-        },
-      })
-    )
-  )
-
-  return results.flatMap((result) => result.rows as GenericRow[])
-}
-
 function formatAddressLabel(address: GenericRow | null | undefined) {
   if (!address) return null
 
@@ -284,72 +154,6 @@ function formatAddressLabel(address: GenericRow | null | undefined) {
 
 function getAddressCap(address: GenericRow | null | undefined) {
   return toStringValue(address?.cap)
-}
-
-function resolveWorkerAddress(
-  workerId: string,
-  addressesByWorkerId: Map<string, GenericRow[]>
-) {
-  const addresses = addressesByWorkerId.get(workerId) ?? []
-  if (addresses.length === 0) return null
-
-  return (
-    addresses.find(
-      (address) => normalizeToken(toStringValue(address.tipo_indirizzo)) === "residenza"
-    ) ??
-    addresses.find(
-      (address) => normalizeToken(toStringValue(address.tipo_indirizzo)) === "domicilio"
-    ) ??
-    addresses[0] ??
-    null
-  )
-}
-
-async function fetchWorkerAddressesByIds(workerIds: string[]) {
-  if (workerIds.length === 0) return new Map<string, GenericRow[]>()
-
-  const addressesByWorkerId = new Map<string, GenericRow[]>()
-
-  for (let index = 0; index < workerIds.length; index += RELATED_RECORDS_BATCH_SIZE) {
-    const batch = workerIds.slice(index, index + RELATED_RECORDS_BATCH_SIZE)
-    const result = await fetchIndirizzi({
-      select: VARIAZIONI_INDIRIZZI_SELECT,
-      limit: Math.max(batch.length * 2, batch.length),
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: `variazioni-worker-addresses-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `variazioni-worker-addresses-table-${index}`,
-            field: "entita_tabella",
-            operator: "is",
-            value: "lavoratori",
-          },
-          {
-            kind: "condition",
-            id: `variazioni-worker-addresses-id-${index}`,
-            field: "entita_id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    })
-
-    for (const row of result.rows as GenericRow[]) {
-      const workerId = toStringValue(row.entita_id)
-      if (!workerId) continue
-      const current = addressesByWorkerId.get(workerId) ?? []
-      current.push(row)
-      addressesByWorkerId.set(workerId, current)
-    }
-  }
-
-  return addressesByWorkerId
 }
 
 function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
@@ -403,19 +207,8 @@ async function fetchVariazioniBoardData(): Promise<{
   columns: VariazioniBoardColumnData[]
   rapportoOptions: VariazioniRapportoOption[]
 }> {
-  const [variazioniResult, rapportiResult, lookupResult] = await Promise.all([
-    fetchVariazioniContrattuali({
-      select: VARIAZIONI_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
-    fetchRapportiLavorativi({
-      select: VARIAZIONI_RAPPORTI_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
+  const [boardResult, lookupResult] = await Promise.all([
+    fetchVariazioniBoard(),
     fetchLookupValues(),
   ])
 
@@ -425,49 +218,16 @@ async function fetchVariazioniBoardData(): Promise<{
   const cardsByStage = new Map<string, VariazioniBoardCardData[]>(
     stages.map((stage) => [stage.id, []])
   )
-  const rapportoById = new Map(rapportiResult.rows.map((rapporto) => [rapporto.id, rapporto]))
-  const variationRapportoIds = uniqueStrings(
-    variazioniResult.rows.map((record) => toStringValue(record.rapporto_lavorativo_id))
-  )
-  const variationRapporti = variationRapportoIds
-    .map((id) => rapportoById.get(id))
-    .filter(Boolean) as RapportoLavorativoRecord[]
-  // Risolvo i nomi per TUTTI i rapporti (servono per le opzioni di collegamento e i titoli),
-  // non solo per quelli già associati a una variazione.
-  const famigliaIds = uniqueStrings(
-    rapportiResult.rows.map((rapporto) => toStringValue(rapporto.famiglia_id))
-  )
-  const lavoratoreIds = uniqueStrings(
-    rapportiResult.rows.map((rapporto) => toStringValue(rapporto.lavoratore_id))
-  )
-  // Gli indirizzi servono solo per il dettaglio lavoratore delle card con variazione.
-  const variationLavoratoreIds = uniqueStrings(
-    variationRapporti.map((rapporto) => toStringValue(rapporto.lavoratore_id))
-  )
-  const [famiglieRows, lavoratoriRows, addressesByWorkerId] = await Promise.all([
-    fetchFamiglieByIds(famigliaIds),
-    fetchLavoratoriByIds(lavoratoreIds),
-    fetchWorkerAddressesByIds(variationLavoratoreIds),
-  ])
-  const famigliaById = new Map(famiglieRows.map((famiglia) => [toStringValue(famiglia.id), famiglia]))
-  const lavoratoreById = new Map(lavoratoriRows.map((lavoratore) => [toStringValue(lavoratore.id), lavoratore]))
 
-  for (const record of variazioniResult.rows) {
+  for (const row of boardResult.cards) {
+    const record = row.record
     const stage = aliases.get(normalizeToken(record.stato))
-
     if (!stage) continue
 
-    const rapporto = record.rapporto_lavorativo_id
-      ? rapportoById.get(record.rapporto_lavorativo_id) ?? null
-      : null
-    const famiglia = rapporto?.famiglia_id
-      ? famigliaById.get(toStringValue(rapporto.famiglia_id)) ?? null
-      : null
-    const lavoratoreId = rapporto?.lavoratore_id ? toStringValue(rapporto.lavoratore_id) : null
-    const baseLavoratore = lavoratoreId ? lavoratoreById.get(lavoratoreId) ?? null : null
-    const resolvedWorkerAddress = lavoratoreId
-      ? resolveWorkerAddress(lavoratoreId, addressesByWorkerId)
-      : null
+    const rapporto = row.rapporto ?? null
+    const famiglia = (row.famiglia as GenericRow | null) ?? null
+    const baseLavoratore = (row.lavoratore as GenericRow | null) ?? null
+    const resolvedWorkerAddress = (row.lavoratoreAddress as GenericRow | null) ?? null
     const workerAddress = formatAddressLabel(resolvedWorkerAddress)
     const workerAddressCap = getAddressCap(resolvedWorkerAddress)
     const lavoratore = baseLavoratore
@@ -506,23 +266,15 @@ async function fetchVariazioniBoardData(): Promise<{
     cards: cardsByStage.get(stage.id) ?? [],
   }))
 
-  const rapportoOptions = rapportiResult.rows
-    .map((rapporto) => {
-      const optFamiglia = rapporto.famiglia_id
-        ? famigliaById.get(toStringValue(rapporto.famiglia_id)) ?? null
-        : null
-      const optLavoratore = rapporto.lavoratore_id
-        ? lavoratoreById.get(toStringValue(rapporto.lavoratore_id)) ?? null
-        : null
-      return {
-        id: rapporto.id,
-        label: getRapportoTitle(rapporto, {
-          famiglia: toPersonName(optFamiglia),
-          lavoratore: toPersonName(optLavoratore),
-        }),
-        rapporto,
-      }
-    })
+  const rapportoOptions = boardResult.rapporti
+    .map((row) => ({
+      id: row.rapporto.id,
+      label: getRapportoTitle(row.rapporto, {
+        famiglia: toPersonName((row.famiglia as GenericRow | null) ?? null),
+        lavoratore: toPersonName((row.lavoratore as GenericRow | null) ?? null),
+      }),
+      rapporto: row.rapporto,
+    }))
     .sort((left, right) => left.label.localeCompare(right.label, "it"))
 
   return { columns, rapportoOptions }
@@ -597,8 +349,9 @@ export function useVariazioniBoard(): UseVariazioniBoardState {
       variazioneDaApplicare: string
       dataVariazione: string
     }) => {
-      const rapporto =
-        rapportoOptions.find((option) => option.id === input.rapportoId)?.rapporto ?? null
+      const rapportoOption =
+        rapportoOptions.find((option) => option.id === input.rapportoId) ?? null
+      const rapporto = rapportoOption?.rapporto ?? null
       const initialStage = DEFAULT_STAGE_DEFINITIONS[0].id
       const response = await createRecord("variazioni_contrattuali", {
         rapporto_lavorativo_id: input.rapportoId,
@@ -614,7 +367,7 @@ export function useVariazioniBoard(): UseVariazioniBoardState {
         rapporto,
         famiglia: null,
         lavoratore: null,
-        nomeCompleto: rapporto ? getRapportoTitle(rapporto) : "Rapporto non disponibile",
+        nomeCompleto: rapportoOption?.label ?? "Rapporto non disponibile",
         dataVariazione: formatItalianDate(record.data_variazione),
         variazioneDaApplicare: record.variazione_da_applicare,
       }
@@ -657,6 +410,22 @@ export function useVariazioniBoard(): UseVariazioniBoardState {
       cancelled = true
     }
   }, [])
+
+  const reloadSilently = React.useCallback(async () => {
+    clearReadCaches()
+    try {
+      const data = await fetchVariazioniBoardData()
+      setColumns(data.columns)
+      setRapportoOptions(data.rapportoOptions)
+    } catch {
+      // Ignore: a failed background refresh must not blank the board.
+    }
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: VARIAZIONI_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
 
   return {
     loading,

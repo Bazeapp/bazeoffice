@@ -1,13 +1,20 @@
 import * as React from "react"
 
 import {
-  fetchFamiglie,
-  fetchIndirizzi,
+  clearReadCaches,
   fetchLookupValues,
-  fetchProcessiMatching,
+  fetchRicercaBoard,
   updateRecord,
+  type RicercaBoardRpcProcess,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { STATI_RICERCA_CANONICI } from "@/features/ricerca/stati-ricerca"
+
+const RICERCA_REALTIME_TABLES = [
+  "processi_matching",
+  "famiglie",
+  "indirizzi",
+]
 import type { LookupValueRecord } from "@/types"
 
 type GenericRow = Record<string, unknown>
@@ -23,38 +30,6 @@ type StageMetadata = {
   definitions: StageDefinition[]
   aliases: Map<string, string>
 }
-
-const BOARD_FETCH_PAGE_SIZE = 500
-const PROCESS_BOARD_SELECT_FIELDS = [
-  "id",
-  "stato_res",
-  "famiglia_id",
-  "recruiter_ricerca_e_selezione_id",
-  "referente_ricerca_e_selezione_id",
-  "ore_settimanale",
-  "numero_giorni_settimanali",
-  "deadline_mobile",
-  "tipo_lavoro",
-  "tipo_rapporto",
-] as const
-const FAMILY_BOARD_SELECT_FIELDS = [
-  "id",
-  "nome",
-  "cognome",
-  "email",
-  "telefono",
-] as const
-const ADDRESS_BOARD_SELECT_FIELDS = [
-  "entita_id",
-  "tipo_indirizzo",
-  "via",
-  "civico",
-  "cap",
-  "citta",
-  "provincia",
-  "indirizzo_formattato",
-  "note",
-] as const
 
 export type RicercaBoardCardData = {
   id: string
@@ -94,13 +69,6 @@ type UseRicercaBoardState = {
   columns: RicercaBoardColumnData[]
   moveCard: (processId: string, targetStageId: string) => Promise<void>
   loadDeferredColumn: (columnId: string) => Promise<void>
-}
-
-function asRowArray(input: unknown): GenericRow[] {
-  if (!Array.isArray(input)) return []
-  return input.filter(
-    (item): item is GenericRow => Boolean(item) && typeof item === "object"
-  )
 }
 
 function toStringValue(value: unknown): string | null {
@@ -241,14 +209,6 @@ function isDeferredStage(value: string) {
   return normalized === "match" || normalized === "no match"
 }
 
-function chunkValues<T>(values: T[], size: number) {
-  const chunks: T[][] = []
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size))
-  }
-  return chunks
-}
-
 function resolveBadgeColor(
   lookupColors: LookupColorMap,
   entityTable: string,
@@ -267,228 +227,13 @@ function formatZonaFromAddress(address: GenericRow | undefined) {
   return note?.split("-")[0]?.trim() || null
 }
 
-function buildStageFilter(
-  stages: Array<Pick<StageDefinition, "id" | "label">>,
-  idPrefix: string
-) {
-  if (stages.length === 0) return undefined
-
-  const values = Array.from(
-    new Set(
-      stages.flatMap((stage) =>
-        [stage.id, stage.label].filter((value): value is string =>
-          Boolean(toStringValue(value))
-        )
-      )
-    )
-  )
-
-  return {
-    kind: "group" as const,
-    id: `${idPrefix}-stage-filter`,
-    logic: "and" as const,
-    nodes: [
-      values.length <= 1
-        ? {
-            kind: "condition" as const,
-            id: `${idPrefix}-stage-value`,
-            field: "stato_res",
-            operator: "is" as const,
-            value: values[0] ?? stages[0]?.id ?? "",
-          }
-        : {
-            kind: "condition" as const,
-            id: `${idPrefix}-stage-values`,
-            field: "stato_res",
-            operator: "in" as const,
-            value: JSON.stringify(values),
-          },
-    ],
-  }
-}
-
-async function fetchAllRows(
-  fetchPage: (offset: number) => Promise<{ rows: GenericRow[]; total: number }>
-) {
-  const firstPage = await fetchPage(0)
-  const rows = [...firstPage.rows]
-  const total = firstPage.total
-
-  if (rows.length >= total) return rows
-
-  for (let offset = rows.length; offset < total; offset += BOARD_FETCH_PAGE_SIZE) {
-    const page = await fetchPage(offset)
-    rows.push(...page.rows)
-  }
-
-  return rows
-}
-
-async function fetchProcessRowsForStages(
-  stages: Array<Pick<StageDefinition, "id" | "label">>
-) {
-  const filters = buildStageFilter(stages, "ricerca-board-processes")
-
-  return fetchAllRows((offset) =>
-    fetchProcessiMatching({
-      select: [...PROCESS_BOARD_SELECT_FIELDS],
-      limit: BOARD_FETCH_PAGE_SIZE,
-      offset,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters,
-    }).then((result) => ({
-      rows: asRowArray(result.rows),
-      total: result.total,
-    }))
-  )
-}
-
-async function fetchStageCount(stage: Pick<StageDefinition, "id" | "label">) {
-  const result = await fetchProcessiMatching({
-    select: ["id"],
-    limit: 1,
-    offset: 0,
-    orderBy: [{ field: "aggiornato_il", ascending: false }],
-    filters: buildStageFilter([stage], `ricerca-board-stage-count-${stage.id}`),
-  })
-
-  return result.total
-}
-
-async function fetchFamiliesByIds(familyIds: string[]) {
-  const uniqueFamilyIds = Array.from(new Set(familyIds.filter(Boolean)))
-  if (uniqueFamilyIds.length === 0) return []
-
-  const chunks = chunkValues(uniqueFamilyIds, 150)
-  const pages = await Promise.all(
-    chunks.map((ids, index) =>
-      fetchFamiglie({
-        select: [...FAMILY_BOARD_SELECT_FIELDS],
-        limit: ids.length,
-        offset: 0,
-        orderBy: [{ field: "aggiornato_il", ascending: false }],
-        filters: {
-          kind: "group",
-          id: `ricerca-board-famiglie-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `ricerca-board-famiglie-id-${index}`,
-              field: "id",
-              operator: "in",
-              value: ids.join(","),
-            },
-          ],
-        },
-      }).then((result) => asRowArray(result.rows))
-    )
-  )
-
-  return pages.flat()
-}
-
-async function fetchProcessAddresses(processIds: string[]) {
-  const uniqueProcessIds = Array.from(new Set(processIds.filter(Boolean)))
-  if (uniqueProcessIds.length === 0) return new Map<string, GenericRow[]>()
-
-  const chunks = chunkValues(uniqueProcessIds, 120)
-  const pages = await Promise.all(
-    chunks.map((ids, index) =>
-      fetchIndirizzi({
-        select: [...ADDRESS_BOARD_SELECT_FIELDS],
-        limit: Math.max(ids.length * 3, ids.length),
-        offset: 0,
-        orderBy: [{ field: "aggiornato_il", ascending: false }],
-        filters: {
-          kind: "group",
-          id: `indirizzi-processi-matching-chunk-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `indirizzi-entita-tabella-${index}`,
-              field: "entita_tabella",
-              operator: "is",
-              value: "processi_matching",
-            },
-            {
-              kind: "condition",
-              id: `indirizzi-entita-id-${index}`,
-              field: "entita_id",
-              operator: "in",
-              value: ids.join(","),
-            },
-            {
-              kind: "condition",
-              id: `indirizzi-tipo-${index}`,
-              field: "tipo_indirizzo",
-              operator: "in",
-              value: "luogo,prova",
-            },
-          ],
-        },
-      }).then((result) => asRowArray(result.rows))
-    )
-  )
-
-  const rows = pages.flat()
-  const addressesByProcessId = new Map<string, GenericRow[]>()
-  for (const row of rows) {
-    const entityId = toStringValue(row.entita_id)
-    if (!entityId) continue
-    const current = addressesByProcessId.get(entityId) ?? []
-    current.push(row)
-    addressesByProcessId.set(entityId, current)
-  }
-
-  return addressesByProcessId
-}
-
-function resolveProcessAddress(
-  processId: string,
-  addressesByProcessId: Map<string, GenericRow[]>
-) {
-  const addresses = addressesByProcessId.get(processId) ?? []
-  if (addresses.length === 0) return undefined
-
-  return (
-    addresses.find(
-      (address) => normalizeLookupToken(toStringValue(address.tipo_indirizzo)) === "luogo"
-    ) ??
-    addresses.find(
-      (address) => normalizeLookupToken(toStringValue(address.tipo_indirizzo)) === "prova"
-    ) ??
-    addresses[0]
-  )
-}
-
 async function buildCardsForProcesses(
-  processRows: GenericRow[],
+  processRows: RicercaBoardRpcProcess[],
   lookupRows: LookupValueRecord[]
 ) {
-  const familyIds = processRows
-    .map((process) => toStringValue(process.famiglia_id))
-    .filter((value): value is string => Boolean(value))
-  const processIds = processRows
-    .map((process) => toStringValue(process.id))
-    .filter((value): value is string => Boolean(value))
-
-  const [familyRows, addressesByProcessId] = await Promise.all([
-    fetchFamiliesByIds(familyIds),
-    fetchProcessAddresses(processIds),
-  ])
-
   const lookupColors = buildLookupColorMap(lookupRows)
   const stageMetadata = buildStageMetadata(lookupRows)
-  const familyById = new Map<string, GenericRow>()
   const cardsByStageId = new Map<string, RicercaBoardCardData[]>()
-
-  for (const family of familyRows) {
-    const id = toStringValue(family.id)
-    if (!id) continue
-    familyById.set(id, family)
-  }
 
   for (const process of processRows) {
     const id = toStringValue(process.id)
@@ -499,7 +244,7 @@ async function buildCardsForProcesses(
     const stage =
       stageMetadata.aliases.get(normalizeLookupToken(stageRaw)) ?? stageRaw
 
-    const family = familyById.get(famigliaId)
+    const family = process.famiglia
     if (!family) continue
 
     const cognomeFamiglia = toStringValue(family.cognome) ?? ""
@@ -510,7 +255,7 @@ async function buildCardsForProcesses(
     const tipoLavoroBadges = getStringArrayValue(process.tipo_lavoro)
     const tipoLavoroBadge = tipoLavoroBadges[0] ?? null
     const tipoRapportoBadge = getFirstArrayValue(process.tipo_rapporto)
-    const processAddress = resolveProcessAddress(id, addressesByProcessId)
+    const processAddress = (process.indirizzo as GenericRow | null) ?? undefined
 
     const card: RicercaBoardCardData = {
       id,
@@ -575,15 +320,23 @@ async function fetchRicercaBoardData(): Promise<RicercaBoardColumnData[]> {
     (stage) => isDeferredStage(stage.label) || isDeferredStage(stage.id)
   )
 
-  const [eagerProcessRows, deferredCounts] = await Promise.all([
-    fetchProcessRowsForStages(eagerStages),
-    Promise.all(
-      deferredStages.map(async (stage) => [stage.id, await fetchStageCount(stage)] as const)
-    ),
-  ])
+  const eagerStageValues = Array.from(
+    new Set(eagerStages.flatMap((stage) => [stage.id, stage.label]).filter(Boolean))
+  ) as string[]
+  const deferredStageValues = Array.from(
+    new Set(deferredStages.flatMap((stage) => [stage.id, stage.label]).filter(Boolean))
+  ) as string[]
 
-  const eagerCardsByStageId = await buildCardsForProcesses(eagerProcessRows, lookupRows)
-  const deferredCountMap = new Map<string, number>(deferredCounts)
+  const boardResult = await fetchRicercaBoard(eagerStageValues, deferredStageValues)
+  const eagerCardsByStageId = await buildCardsForProcesses(boardResult.processes, lookupRows)
+  const deferredCountMap = new Map<string, number>()
+  for (const stage of deferredStages) {
+    const count =
+      (boardResult.deferredCounts[stage.id] as number | undefined) ??
+      (boardResult.deferredCounts[stage.label] as number | undefined) ??
+      0
+    deferredCountMap.set(stage.id, count)
+  }
 
   const orderedColumns = [
     ...visibleStageDefinitions.map((stage) => ({
@@ -639,11 +392,14 @@ export function useRicercaBoard(): UseRicercaBoardState {
     )
 
     try {
-      const processRows = await fetchProcessRowsForStages([
-        { id: targetColumn.id, label: targetColumn.label },
+      const eagerValues = Array.from(
+        new Set([targetColumn.id, targetColumn.label].filter(Boolean))
+      ) as string[]
+      const [boardResult, lookupResultRows] = await Promise.all([
+        fetchRicercaBoard(eagerValues, []),
+        fetchLookupValues().then((result) => result.rows),
       ])
-      const lookupRows = (await fetchLookupValues()).rows
-      const cardsByStageId = await buildCardsForProcesses(processRows, lookupRows)
+      const cardsByStageId = await buildCardsForProcesses(boardResult.processes, lookupResultRows)
       const loadedCards = cardsByStageId.get(columnId) ?? []
 
       setColumns((current) =>
@@ -753,6 +509,21 @@ export function useRicercaBoard(): UseRicercaBoardState {
       cancelled = true
     }
   }, [])
+
+  const reloadSilently = React.useCallback(async () => {
+    clearReadCaches()
+    try {
+      const data = await fetchRicercaBoardData()
+      setColumns(data)
+    } catch {
+      // Ignore: a failed background refresh must not blank the board.
+    }
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: RICERCA_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
 
   return {
     loading,

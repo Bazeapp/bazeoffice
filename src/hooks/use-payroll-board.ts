@@ -1,18 +1,23 @@
 import * as React from "react"
 
 import {
-  fetchFamiglie,
+  clearReadCaches,
+  fetchCedoliniBoard,
   fetchLookupValues,
-  fetchMesiCalendario,
-  fetchMesiLavorati,
-  fetchPagamenti,
-  fetchPresenzeMensili,
-  fetchRapportiLavorativi,
-  fetchTransazioniFinanziarie,
   updateRecord,
-  type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
+
+const PAYROLL_REALTIME_TABLES = [
+  "mesi_lavorati",
+  "pagamenti",
+  "presenze_mensili",
+  "rapporti_lavorativi",
+  "famiglie",
+  "transazioni_finanziarie",
+  "mesi_calendario",
+]
 import type {
   FamigliaRecord,
   LookupValueRecord,
@@ -85,80 +90,6 @@ const LEGACY_STAGE_ALIASES: Record<string, string> = {
   done: "Pagato",
   "cedolino pronto saf acli": "Cedolino Pronto",
 }
-
-const PAYROLL_RAPPORTI_SELECT = [
-  "id",
-  "famiglia_id",
-  "creata",
-  "codice_datore_webcolf",
-  "codice_dipendente_webcolf",
-  "cognome_nome_datore_proper",
-  "nome_lavoratore_per_url",
-  "ore_a_settimana",
-  "data_inizio_rapporto",
-  "stato_servizio",
-  "tipo_rapporto",
-  "tipo_contratto",
-] satisfies string[]
-
-const PAYROLL_FAMIGLIE_SELECT = ["id", "nome", "cognome", "email", "customer_email"] satisfies string[]
-
-const PAYROLL_MESI_LAVORATI_SELECT = [
-  "id",
-  "mese_id",
-  "rapporto_lavorativo_id",
-  "presenze_id",
-  "presenze_regolare_id",
-  "stato_mese_lavorativo",
-  "importo_busta_estratto",
-  "data_invio_famiglia",
-  "data_ora_creazione",
-  "caso_particolare",
-  "cedolino",
-  "cedolino_url",
-  "ore_contratto_mese",
-  "ore_lavorate_estratte",
-  "cedolino_corretto",
-  "note",
-  "rating_feedback_famiglia",
-  "testo_feedback_famiglia",
-] satisfies string[]
-
-const PAYROLL_TRANSAZIONI_SELECT = ["id", "mese_lavorativo_id"] satisfies string[]
-
-const PAYROLL_PAGAMENTI_SELECT = [
-  "id",
-  "amount",
-  "charge_id",
-  "data_ora_di_pagamento",
-  "famiglia_id",
-  "fattura_url",
-  "fee",
-  "numero_fattura",
-  "payment_intent_id",
-  "status",
-  "ticket_id",
-  "transazione_id",
-  "type_of_payment",
-] satisfies string[]
-
-const PRESENZE_DAY_SELECT = Array.from({ length: 31 }, (_, index) => {
-  const day = index + 1
-  return [
-    `tipo_day_${day}`,
-    `ore_day_${day}`,
-    `evento_day_${day}`,
-    `codice_malattia_day_${day}`,
-    `note_day_${day}`,
-  ]
-}).flat()
-
-const PAYROLL_PRESENZE_SELECT = [
-  "id",
-  "presenze_mensili",
-  "data_ora_creazione",
-  ...PRESENZE_DAY_SELECT,
-] satisfies string[]
 
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
@@ -259,142 +190,11 @@ function formatItalianDate(value: string | null | undefined) {
   }).format(parsed)
 }
 
-function buildInFilter(field: string, values: string[]): QueryFilterGroup | undefined {
-  const uniqueValues = Array.from(new Set(values.filter(Boolean)))
-  if (uniqueValues.length === 0) return undefined
-
-  return {
-    kind: "group",
-    id: `${field}-in-root`,
-    logic: "and",
-    nodes: [
-      {
-      kind: "condition" as const,
-      id: `${field}-in-0`,
-      field,
-      operator: "in" as const,
-      value: uniqueValues.join(","),
-    },
-    ],
-  }
-}
-
-function chunkValues<T>(values: T[], size: number) {
-  const chunks: T[][] = []
-
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size))
-  }
-
-  return chunks
-}
-
-function normalizeRecordKey(value: unknown) {
-  if (value === null || value === undefined) return null
-  const normalized = String(value).trim()
-  return normalized || null
-}
-
-function buildMonthDateRange(selectedMonth: string) {
-  const [yearPart, monthPart] = selectedMonth.split("-")
-  const year = Number.parseInt(yearPart ?? "", 10)
-  const month = Number.parseInt(monthPart ?? "", 10)
-
-  if (!Number.isFinite(year) || !Number.isFinite(month)) return null
-
-  const start = new Date(Date.UTC(year, month - 1, 1))
-  const end = new Date(Date.UTC(year, month, 0))
-
-  return {
-    start: start.toISOString().slice(0, 10),
-    end: end.toISOString().slice(0, 10),
-  }
-}
-
-function getMonthIdsForSelectedMonth(
-  mesiCalendario: MeseCalendarioRecord[],
-  selectedMonth: string
-) {
-  const range = buildMonthDateRange(selectedMonth)
-  if (!range) return []
-
-  return mesiCalendario
-    .filter((mese) => {
-      const dataInizio = normalizeRecordKey(mese.data_inizio)
-      if (!dataInizio) return false
-      const normalizedDate = dataInizio.slice(0, 10)
-      return normalizedDate >= range.start && normalizedDate <= range.end
-    })
-    .map((mese) => normalizeRecordKey(mese.id))
-    .filter((value): value is string => Boolean(value))
-}
-
 async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoardColumnData[]> {
-  const mesiCalendarioResult = await fetchMesiCalendario({
-    limit: 200,
-    offset: 0,
-    orderBy: [{ field: "data_inizio", ascending: false }],
-  })
-  const monthIds = getMonthIdsForSelectedMonth(mesiCalendarioResult.rows, selectedMonth)
-  const lookupResult = await fetchLookupValues()
-  const mesiLavoratiResult =
-    monthIds.length > 0
-      ? await fetchMesiLavorati({
-          select: PAYROLL_MESI_LAVORATI_SELECT,
-          limit: 3000,
-          offset: 0,
-          orderBy: [{ field: "creato_il", ascending: false }],
-          filters: buildInFilter("mese_id", monthIds),
-        })
-      : { rows: [], total: 0, columns: [], groups: [] }
-  const selectedRows = mesiLavoratiResult.rows
-  const rapportoIds = Array.from(
-    new Set(
-      selectedRows
-        .map((record) => normalizeRecordKey(record.rapporto_lavorativo_id))
-        .filter((value): value is string => Boolean(value))
-    )
-  )
-
-  const rapportiRows =
-    rapportoIds.length > 0
-      ? (
-          await Promise.all(
-            chunkValues(rapportoIds, 100).map((chunk) =>
-              fetchRapportiLavorativi({
-                select: PAYROLL_RAPPORTI_SELECT,
-                limit: 500,
-                offset: 0,
-                orderBy: [{ field: "aggiornato_il", ascending: false }],
-                filters: buildInFilter("id", chunk),
-              })
-            )
-          )
-        ).flatMap((result) => result.rows)
-      : []
-  const famigliaIds = Array.from(
-    new Set(
-      rapportiRows
-        .map((rapporto) => normalizeRecordKey(rapporto.famiglia_id))
-        .filter((value): value is string => Boolean(value))
-    )
-  )
-  const famiglieRows =
-    famigliaIds.length > 0
-      ? (
-          await Promise.all(
-            chunkValues(famigliaIds, 100).map((chunk) =>
-              fetchFamiglie({
-                select: PAYROLL_FAMIGLIE_SELECT,
-                limit: 500,
-                offset: 0,
-                orderBy: [{ field: "aggiornato_il", ascending: false }],
-                filters: buildInFilter("id", chunk),
-              })
-            )
-          )
-        ).flatMap((result) => result.rows)
-      : []
+  const [lookupResult, boardResult] = await Promise.all([
+    fetchLookupValues(),
+    fetchCedoliniBoard(selectedMonth),
+  ])
 
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
@@ -402,146 +202,35 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
   const cardsByStage = new Map<string, PayrollBoardCardData[]>(
     stages.map((stage) => [stage.id, []])
   )
-  const meseById = new Map(
-    mesiCalendarioResult.rows
-      .map((mese) => {
-        const key = normalizeRecordKey(mese.id)
-        return key ? ([key, mese] as const) : null
-      })
-      .filter(Boolean) as Array<readonly [string, MeseCalendarioRecord]>
-  )
-  const rapportoById = new Map(
-    rapportiRows
-      .map((rapporto) => {
-        const key = normalizeRecordKey(rapporto.id)
-        return key ? ([key, rapporto] as const) : null
-      })
-      .filter(Boolean) as Array<readonly [string, RapportoLavorativoRecord]>
-  )
-  const famigliaById = new Map(
-    famiglieRows
-      .map((famiglia) => {
-        const key = normalizeRecordKey(famiglia.id)
-        return key ? ([key, famiglia as FamigliaRecord] as const) : null
-      })
-      .filter(Boolean) as Array<readonly [string, FamigliaRecord]>
-  )
-  const meseLavoratoIds = selectedRows.map((record) => record.id).filter(Boolean)
-  const presenzaIds = selectedRows.flatMap((record) =>
-    [record.presenze_id, record.presenze_regolare_id].filter(Boolean) as string[]
-  )
 
-  const transazioniRows =
-    meseLavoratoIds.length > 0
-      ? (
-          await Promise.all(
-            chunkValues(Array.from(new Set(meseLavoratoIds)), 100).map((chunk) =>
-              fetchTransazioniFinanziarie({
-                select: PAYROLL_TRANSAZIONI_SELECT,
-                limit: 500,
-                offset: 0,
-                orderBy: [{ field: "creato_il", ascending: false }],
-                filters: buildInFilter("mese_lavorativo_id", chunk),
-              })
-            )
-          )
-        ).flatMap((result) => result.rows)
-      : []
-
-  const transazioneIds = transazioniRows
-    .map((transazione) => normalizeRecordKey(transazione.id))
-    .filter((value): value is string => Boolean(value))
-
-  const [pagamentiRows, presenzeRows] = await Promise.all([
-    transazioneIds.length > 0
-      ? Promise.all(
-          chunkValues(Array.from(new Set(transazioneIds)), 100).map((chunk) =>
-            fetchPagamenti({
-              select: PAYROLL_PAGAMENTI_SELECT,
-              limit: 500,
-              offset: 0,
-              orderBy: [{ field: "creato_il", ascending: false }],
-              filters: buildInFilter("transazione_id", chunk),
-            })
-          )
-        ).then((results) => results.flatMap((result) => result.rows))
-      : [],
-    presenzaIds.length > 0
-      ? Promise.all(
-          chunkValues(Array.from(new Set(presenzaIds)), 100).map((chunk) =>
-            fetchPresenzeMensili({
-              select: PAYROLL_PRESENZE_SELECT,
-              limit: 500,
-              offset: 0,
-              orderBy: [{ field: "creato_il", ascending: false }],
-              filters: buildInFilter("id", chunk),
-            })
-          )
-        ).then((results) => results.flatMap((result) => result.rows))
-      : [],
-  ])
-  const transazioneByMeseLavoratoId = new Map<string, TransazioneFinanziariaRecord>()
-  for (const transazione of transazioniRows) {
-    const meseLavoratoId = normalizeRecordKey(transazione.mese_lavorativo_id)
-    if (!meseLavoratoId || transazioneByMeseLavoratoId.has(meseLavoratoId)) continue
-    transazioneByMeseLavoratoId.set(meseLavoratoId, transazione)
-  }
-
-  const pagamentoByTransazioneId = new Map(
-    pagamentiRows
-      .map((pagamento) => {
-        const key = normalizeRecordKey(pagamento.transazione_id)
-        return key ? ([key, pagamento] as const) : null
-      })
-      .filter(Boolean) as Array<readonly [string, PagamentoRecord]>
-  )
-  const presenzeById = new Map(
-    presenzeRows
-      .map((presenza) => {
-        const key = normalizeRecordKey(presenza.id)
-        return key ? ([key, presenza] as const) : null
-      })
-      .filter(Boolean) as Array<readonly [string, PresenzaMensileRecord]>
-  )
-
-  for (const record of selectedRows) {
-    const mese = normalizeRecordKey(record.mese_id)
-      ? meseById.get(normalizeRecordKey(record.mese_id) as string) ?? null
-      : null
+  for (const row of boardResult.rows) {
+    const record = row.record
+    if (!record) continue
 
     const stage = aliases.get(normalizeToken(record.stato_mese_lavorativo))
     if (!stage) continue
 
-    const rapporto = normalizeRecordKey(record.rapporto_lavorativo_id)
-      ? rapportoById.get(normalizeRecordKey(record.rapporto_lavorativo_id) as string) ?? null
-      : null
-    const famiglia = normalizeRecordKey(rapporto?.famiglia_id)
-      ? famigliaById.get(normalizeRecordKey(rapporto?.famiglia_id) as string) ?? null
-      : null
-    const transazione = transazioneByMeseLavoratoId.get(record.id) ?? null
-    const pagamento = normalizeRecordKey(transazione?.id)
-      ? pagamentoByTransazioneId.get(normalizeRecordKey(transazione?.id) as string) ?? null
-      : null
-    const presenze = normalizeRecordKey(record.presenze_id)
-      ? presenzeById.get(normalizeRecordKey(record.presenze_id) as string) ?? null
-      : null
-    const presenzeRegolari = normalizeRecordKey(record.presenze_regolare_id)
-      ? presenzeById.get(normalizeRecordKey(record.presenze_regolare_id) as string) ?? null
-      : null
+    const rapporto = row.rapporto ?? null
+    const famiglia = row.famiglia ?? null
+    const lavoratore = row.lavoratore ?? null
 
-    const nomeCompleto = rapporto ? getRapportoTitle(rapporto) : "Rapporto non disponibile"
+    const nomeCompleto = rapporto
+      ? getRapportoTitle(rapporto, { famiglia, lavoratore })
+      : "Rapporto non disponibile"
 
+    // presenze are not loaded by the board RPC; the detail panel fetches them on
+    // card open via fetchCedolinoDetail.
     const card: PayrollBoardCardData = {
       id: record.id,
       stage,
       record,
       famiglia,
-      pagamento,
-      transazione,
-      presenze,
-      presenzeRegolari,
+      pagamento: row.pagamento ?? null,
+      transazione: row.transazione ?? null,
+      presenze: null,
+      presenzeRegolari: null,
       rapporto,
-      mese,
+      mese: row.mese ?? null,
       nomeCompleto,
       importoLabel: formatCurrency(record.importo_busta_estratto),
       dataInvioLabel: formatItalianDate(record.data_invio_famiglia),
@@ -696,6 +385,26 @@ export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
       cancelled = true
     }
   }, [selectedMonth])
+
+  const selectedMonthRef = React.useRef(selectedMonth)
+  React.useEffect(() => {
+    selectedMonthRef.current = selectedMonth
+  }, [selectedMonth])
+
+  const reloadSilently = React.useCallback(async () => {
+    clearReadCaches()
+    try {
+      const data = await fetchPayrollBoardData(selectedMonthRef.current)
+      setColumns(data)
+    } catch {
+      // Ignore: a failed background refresh must not blank the board.
+    }
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: PAYROLL_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
 
   return {
     loading,

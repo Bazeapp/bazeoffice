@@ -507,6 +507,8 @@ export function CrmPipelineFamiglieView() {
     () => buildServerFilters(appliedToolbarFilters),
     [appliedToolbarFilters]
   )
+  const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = React.useState(false)
   const {
     loading,
     error,
@@ -520,15 +522,17 @@ export function CrmPipelineFamiglieView() {
     updateFamilyCard,
     updateAddressCard,
   } =
-    useCrmPipelinePreview(appliedSearchQuery, serverFilters)
+    useCrmPipelinePreview(
+      appliedSearchQuery,
+      serverFilters,
+      isDetailOpen ? selectedCardId : null
+    )
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(
     null
   )
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(
     null
   )
-  const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
-  const [isDetailOpen, setIsDetailOpen] = React.useState(false)
   const tipoLavoroOptions = lookupOptionsByField.tipo_lavoro ?? []
   const filtersActive =
     hasActiveFilters(appliedToolbarFilters) || appliedSearchQuery.trim().length > 0
@@ -873,6 +877,10 @@ export function CrmPipelineFamiglieView() {
       </div>
 
       <FamigliaProcessoDetailShell
+        // Remount when the selected card changes so input components reset
+        // their local debounced-save state (hasUserEditedRef) and don't show
+        // a stale draft from the previously selected card.
+        key={selectedCardId ?? "__empty__"}
         mode="sheet"
         open={isDetailOpen}
         onOpenChange={(open) => {

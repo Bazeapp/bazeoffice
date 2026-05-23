@@ -1,12 +1,21 @@
 import * as React from "react"
 
 import {
+  clearReadCaches,
   fetchContributiInps,
   fetchLookupValues,
   fetchMesiCalendario,
   fetchRapportiLavorativi,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+
+const CONTRIBUTI_REALTIME_TABLES = [
+  "contributi_inps",
+  "rapporti_lavorativi",
+  "famiglie",
+  "lavoratori",
+]
 import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
 import { resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 import type {
@@ -674,6 +683,29 @@ export function useContributiInpsBoard(
       cancelled = true
     }
   }, [selectedQuarter, selectedYear])
+
+  const periodRef = React.useRef({ selectedYear, selectedQuarter })
+  React.useEffect(() => {
+    periodRef.current = { selectedYear, selectedQuarter }
+  }, [selectedYear, selectedQuarter])
+
+  const reloadSilently = React.useCallback(async () => {
+    clearReadCaches()
+    try {
+      const { selectedYear, selectedQuarter } = periodRef.current
+      const data = await fetchContributiBoardData(selectedYear, selectedQuarter)
+      setStages(data.stages)
+      setCards(data.cards)
+      setActiveRapportiCount(data.activeRapportiCount)
+    } catch {
+      // Ignore: a failed background refresh must not blank the board.
+    }
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: CONTRIBUTI_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
 
   return {
     loading,

@@ -21,16 +21,22 @@ export function useDebouncedSave<T>(
   const draftRef = React.useRef<T>(committedValue)
   const onSaveRef = React.useRef(onSave)
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Once the user has typed in this field, never let an incoming committedValue
+  // overwrite the local draft. The previous gate (isDirty || savesInFlight > 0)
+  // had a window between debounce-fire and the next keystroke where the server
+  // value could replace what the user was about to keep typing, causing dropped
+  // characters / collapsed spaces.
+  const hasUserEditedRef = React.useRef(false)
 
   // Keep onSave ref current so the flush closure always calls the latest version
   React.useEffect(() => {
     onSaveRef.current = onSave
   })
 
-  // Sync committed value from server only when no local edits are pending
-  // AND no save is currently in-flight (to avoid overwriting mid-save)
+  // Sync committed value from server only when the user has never interacted
+  // with this field (initial mount + remote refresh of an untouched field).
   React.useEffect(() => {
-    if (isDirtyRef.current || savesInFlightRef.current > 0) return
+    if (hasUserEditedRef.current) return
     setDraft(committedValue)
     draftRef.current = committedValue
   }, [committedValue])
@@ -55,6 +61,7 @@ export function useDebouncedSave<T>(
 
   const onChange = React.useCallback(
     (value: T) => {
+      hasUserEditedRef.current = true
       setDraft(value)
       draftRef.current = value
 

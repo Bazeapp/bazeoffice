@@ -1,12 +1,16 @@
 import * as React from "react"
 
 import {
+  clearReadCaches,
   fetchFamiglie,
   fetchLookupValues,
   fetchProcessiMatching,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import type { LookupValueRecord } from "@/types"
+
+const ASSEGNAZIONE_REALTIME_TABLES = ["processi_matching", "famiglie"]
 
 type GenericRow = Record<string, unknown>
 type LookupColorMap = Record<string, Record<string, string>>
@@ -592,6 +596,21 @@ export function useCrmAssegnazione(): UseCrmAssegnazioneState {
       cancelled = true
     }
   }, [])
+
+  const reloadSilently = React.useCallback(async () => {
+    clearReadCaches()
+    try {
+      const data = await fetchAssegnazioneCards()
+      setCards(data)
+    } catch {
+      // Ignore: a failed background refresh must not blank the board.
+    }
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: ASSEGNAZIONE_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
 
   return {
     loading,

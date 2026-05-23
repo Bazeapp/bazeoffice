@@ -10,8 +10,13 @@ import {
   createRecord,
   updateRecord,
   updateProcessoMatchingStatoSales,
+  clearReadCaches,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import type { LookupValueRecord, RichiestaAttivazioneRecord } from "@/types"
+
+const CRM_REALTIME_TABLES = ["processi_matching", "famiglie", "indirizzi"]
+const CRM_REALTIME_RELOAD_DEBOUNCE_MS = 600
 
 const STATO_SALES_COLUMN_ORDER = [
   "warm_lead",
@@ -1305,7 +1310,8 @@ function serializeCrmPipelineFilters(filters: CrmPipelineFilters) {
 
 export function useCrmPipelinePreview(
   searchQuery = "",
-  filters: CrmPipelineFilters = {}
+  filters: CrmPipelineFilters = {},
+  openProcessId: string | null = null
 ): UseCrmPipelinePreviewState {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -1935,6 +1941,66 @@ export function useCrmPipelinePreview(
       cancelled = true
     }
   }, [filtersKey, loadedClosedStageIds, searchQuery, stableFilters])
+
+  const fetchParamsRef = React.useRef({
+    loadedClosedStageIds,
+    searchQuery,
+    stableFilters,
+  })
+  React.useEffect(() => {
+    fetchParamsRef.current = { loadedClosedStageIds, searchQuery, stableFilters }
+  }, [loadedClosedStageIds, searchQuery, stableFilters])
+
+  // Silent background refresh used by realtime: no spinner, keep current data on error.
+  const reloadBoardSilently = React.useCallback(async () => {
+    const params = fetchParamsRef.current
+    clearReadCaches()
+    try {
+      const boardData = await fetchBoardData(
+        params.loadedClosedStageIds,
+        params.searchQuery,
+        params.stableFilters
+      )
+      const openId = openProcessIdRef.current
+      setColumns((prev) => {
+        if (!openId) return boardData.columns
+        // Preserve the already-enriched open card so the board swap doesn't
+        // blank its detail-only fields; loadProcessDetail refreshes it next.
+        let openCard: CrmPipelineCardData | undefined
+        for (const column of prev) {
+          openCard = column.cards.find((card) => card.id === openId)
+          if (openCard) break
+        }
+        if (!openCard) return boardData.columns
+        return boardData.columns.map((column) => ({
+          ...column,
+          cards: column.cards.map((card) =>
+            card.id === openId ? (openCard as CrmPipelineCardData) : card
+          ),
+        }))
+      })
+      setLookupOptionsByField(boardData.lookupOptionsByField)
+    } catch {
+      // Ignore: a failed background refresh must not blank the board.
+    }
+  }, [])
+
+  // Track the currently-open detail card so the board reload can preserve its
+  // already-enriched detail-only fields instead of blanking them.
+  const openProcessIdRef = React.useRef<string | null>(openProcessId)
+  React.useEffect(() => {
+    openProcessIdRef.current = openProcessId
+  }, [openProcessId])
+
+  useRealtimeBoardSync({
+    tables: CRM_REALTIME_TABLES,
+    reload: reloadBoardSilently,
+    reloadOpenDetail: () => {
+      const openId = openProcessIdRef.current
+      return openId ? loadProcessDetail(openId) : undefined
+    },
+    debounceMs: CRM_REALTIME_RELOAD_DEBOUNCE_MS,
+  })
 
   return {
     loading,

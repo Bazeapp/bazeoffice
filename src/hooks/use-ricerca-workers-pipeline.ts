@@ -18,6 +18,7 @@ import {
 } from "@/features/lavoratori/lib/lookup-utils"
 import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
 import {
+  clearReadCaches,
   fetchIndirizzi,
   fetchLavoratori,
   fetchLookupValues,
@@ -25,6 +26,13 @@ import {
   fetchSelezioniLavoratori,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+
+const RICERCA_WORKERS_REALTIME_TABLES = [
+  "selezioni_lavoratori",
+  "processi_matching",
+  "lavoratori",
+]
 import {
   getSelectionAvailabilityWorkerIds,
   invokeWorkerAvailabilityForIds,
@@ -1013,6 +1021,20 @@ export function useRicercaWorkersPipeline(
     setRefreshTick((current) => current + 1)
   }, [])
 
+  // Set just before a realtime-triggered reload so the load effect skips the
+  // loading spinner and keeps current data on error.
+  const silentReloadRef = React.useRef(false)
+  const reloadSilently = React.useCallback(() => {
+    silentReloadRef.current = true
+    clearReadCaches()
+    setRefreshTick((current) => current + 1)
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: RICERCA_WORKERS_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
+
   const moveCard = React.useCallback(
     async (selectionId: string, targetStatusId: string) => {
       const previous = columns
@@ -1084,7 +1106,9 @@ export function useRicercaWorkersPipeline(
     let cancelled = false
 
     async function load() {
-      setLoading(true)
+      const silent = silentReloadRef.current
+      silentReloadRef.current = false
+      if (!silent) setLoading(true)
       setError(null)
 
       try {
@@ -1093,14 +1117,16 @@ export function useRicercaWorkersPipeline(
         setColumns(data)
       } catch (caughtError) {
         if (cancelled) return
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore caricamento pipeline lavoratori"
-        )
-        setColumns([])
+        if (!silent) {
+          setError(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Errore caricamento pipeline lavoratori"
+          )
+          setColumns([])
+        }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled && !silent) setLoading(false)
       }
     }
 

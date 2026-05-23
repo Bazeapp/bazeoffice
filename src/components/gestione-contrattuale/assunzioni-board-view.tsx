@@ -11,7 +11,7 @@ import {
   type AssunzioniBoardColumnData,
   useAssunzioniBoard,
 } from "@/hooks/use-assunzioni-board"
-import { fetchAssunzioni, fetchRapportiLavorativi } from "@/lib/anagrafiche-api"
+import { fetchAssunzioneDetail } from "@/lib/anagrafiche-api"
 import { AssunzioniDetailSheet } from "@/components/gestione-contrattuale/assunzioni-detail-sheet"
 import {
   KanbanColumnShell,
@@ -276,77 +276,25 @@ export function AssunzioniBoardView() {
       setSelectedCard(null)
 
       try {
-        const [rapportoResponse, datoreResponse, lavoratoreResponse] = await Promise.all([
-          fetchRapportiLavorativi({
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: "assunzioni-selected-rapporto",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "assunzioni-selected-rapporto-id",
-                  field: "id",
-                  operator: "is",
-                  value: card.id,
-                },
-              ],
-            },
-          }),
-          card.assunzione?.id
-            ? fetchAssunzioni({
-                limit: 1,
-                offset: 0,
-                filters: {
-                  kind: "group",
-                  id: "assunzioni-selected-datore",
-                  logic: "and",
-                  nodes: [
-                    {
-                      kind: "condition",
-                      id: "assunzioni-selected-datore-id",
-                      field: "id",
-                      operator: "is",
-                      value: card.assunzione.id,
-                    },
-                  ],
-                },
-              })
-            : Promise.resolve({ rows: [], total: 0, columns: [] }),
-          card.lavoratoreAssunzione?.id
-            ? fetchAssunzioni({
-                limit: 1,
-                offset: 0,
-                filters: {
-                  kind: "group",
-                  id: "assunzioni-selected-lavoratore",
-                  logic: "and",
-                  nodes: [
-                    {
-                      kind: "condition",
-                      id: "assunzioni-selected-lavoratore-id",
-                      field: "id",
-                      operator: "is",
-                      value: card.lavoratoreAssunzione.id,
-                    },
-                  ],
-                },
-              })
-            : Promise.resolve({ rows: [], total: 0, columns: [] }),
-        ])
+        const detail = await fetchAssunzioneDetail(card.id)
+        if (selectedCardRequestRef.current !== card.id) return
+        if (!detail) {
+          setSelectedCard(card)
+          return
+        }
 
         const nextCard: AssunzioniBoardCardData = {
           ...card,
-          rapporto: (rapportoResponse.rows[0] as AssunzioniBoardCardData["rapporto"]) ?? card.rapporto,
-          assunzione: (datoreResponse.rows[0] as AssunzioniBoardCardData["assunzione"]) ?? card.assunzione,
+          rapporto: (detail.rapporto as AssunzioniBoardCardData["rapporto"]) ?? card.rapporto,
+          assunzione: (detail.assunzione as AssunzioniBoardCardData["assunzione"]) ?? card.assunzione,
           lavoratoreAssunzione:
-            (lavoratoreResponse.rows[0] as AssunzioniBoardCardData["lavoratoreAssunzione"]) ??
+            (detail.lavoratoreAssunzione as AssunzioniBoardCardData["lavoratoreAssunzione"]) ??
             card.lavoratoreAssunzione,
+          richiestaAttivazione:
+            (detail.richiestaAttivazione as AssunzioniBoardCardData["richiestaAttivazione"]) ??
+            card.richiestaAttivazione,
         }
 
-        if (selectedCardRequestRef.current !== card.id) return
         setSelectedCard(nextCard)
         updateCard(nextCard.id, () => nextCard)
       } catch (error) {
@@ -355,6 +303,12 @@ export function AssunzioniBoardView() {
     },
     [updateCard]
   )
+
+  // Detail is loaded once in handleSelectCard and kept fresh by optimistic
+  // updates via updateCard. We deliberately do NOT auto-refresh detail when
+  // `columns` changes identity: optimistic updates would re-trigger the
+  // fetch → updateCard → columns identity change → fetch loop and freeze
+  // the page (observed: 70s of cumulative main-thread blocking).
 
   const totalProcesses = React.useMemo(
     () => filteredColumns.reduce((sum, column) => sum + column.cards.length, 0),

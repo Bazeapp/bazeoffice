@@ -66,6 +66,10 @@ export function RapportiLavorativiView({
       />
 
       <RapportoDetailPanel
+        // Remount on rapporto switch so debounced inputs reset their local
+        // draft (useDebouncedSave's hasUserEditedRef) instead of carrying it
+        // across to a different rapporto.
+        key={selectedRapportoId ?? "__empty__"}
         rapporto={selectedRapporto}
         loadingRapporto={loadingSelectedRapporto}
         famiglia={selectedFamiglia}

@@ -994,7 +994,7 @@ export function RapportoDetailPanel({
   const familyPhone = firstAvailableText(famiglia?.telefono, famiglia?.whatsapp)
   const workerEmail = firstAvailableText(lavoratore?.email)
   const workerPhone = firstAvailableText(lavoratore?.telefono)
-  const presenzeUrl = buildFamilyPresenzeUrl(famiglia?.email, famiglia?.base_codice_otp)
+  const presenzeUrl = buildFamilyPresenzeUrl(famiglia?.email, famiglia?.id)
   const relationshipTitle = getRapportoTitle(rapportoView, { famiglia, lavoratore })
   const rapportoMetadata =
     rapportoView.metadati_migrazione && typeof rapportoView.metadati_migrazione === "object"
@@ -1071,8 +1071,6 @@ export function RapportoDetailPanel({
   }))
   const selectedCedolino = cedolinoCards.find((card) => card.id === selectedCedolinoId) ?? null
   const contributoCards: ContributoInpsBoardCardData[] = contributi.map((contributo) => {
-    const nomeFamiglia = rapportoView.cognome_nome_datore_proper?.trim() || "Famiglia non disponibile"
-    const nomeLavoratore = rapportoView.nome_lavoratore_per_url?.trim() || "Lavoratore non disponibile"
     const stage = resolveContributoStage(contributo.stato_contributi_inps)
 
     return {
@@ -1081,9 +1079,9 @@ export function RapportoDetailPanel({
       record: contributo,
       rapporto: rapportoView,
       trimestre: null,
-      nomeFamiglia,
-      nomeLavoratore,
-      nomeCompleto: `${nomeFamiglia} – ${nomeLavoratore}`,
+      nomeFamiglia: familyName,
+      nomeLavoratore: workerName,
+      nomeCompleto: relationshipTitle,
       trimestreLabel: getContributoTitle(contributo),
       importoLabel:
         typeof contributo.importo_contributi_inps === "number"

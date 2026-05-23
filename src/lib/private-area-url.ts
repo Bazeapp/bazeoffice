@@ -5,16 +5,20 @@ function toPrivateAreaText(value: unknown) {
   return normalized ? normalized : null;
 }
 
-export function buildFamilyPrivateAreaUrl(email: unknown, familyId: unknown) {
-  const normalizedEmail = toPrivateAreaText(email);
+function deriveFamilySort(familyId: unknown) {
   const normalizedFamilyId = toPrivateAreaText(familyId);
-  if (!normalizedEmail || !normalizedFamilyId) return null;
-
+  if (!normalizedFamilyId) return null;
   const idParts = normalizedFamilyId.split("-");
   const sort = idParts.length > 1
     ? idParts[idParts.length - 1]
     : normalizedFamilyId.slice(-12);
-  if (!sort) return null;
+  return sort ? sort : null;
+}
+
+export function buildFamilyPrivateAreaUrl(email: unknown, familyId: unknown) {
+  const normalizedEmail = toPrivateAreaText(email);
+  const sort = deriveFamilySort(familyId);
+  if (!normalizedEmail || !sort) return null;
 
   const params = new URLSearchParams({
     email: normalizedEmail,
@@ -25,9 +29,9 @@ export function buildFamilyPrivateAreaUrl(email: unknown, familyId: unknown) {
   return `https://app.bazeapp.com/v2/auth/entry-point?${params.toString()}`;
 }
 
-export function buildFamilyPresenzeUrl(email: unknown, baseCodiceOtp: unknown) {
+export function buildFamilyPresenzeUrl(email: unknown, familyId: unknown) {
   const normalizedEmail = toPrivateAreaText(email);
-  const sort = toPrivateAreaText(baseCodiceOtp);
+  const sort = deriveFamilySort(familyId);
   if (!normalizedEmail || !sort) return null;
 
   const params = new URLSearchParams({

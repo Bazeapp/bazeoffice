@@ -1,13 +1,18 @@
 import * as React from "react"
 
 import {
-  fetchChiusureContratti,
-  fetchFamiglie,
-  fetchLavoratori,
-  fetchRapportiLavorativi,
+  clearReadCaches,
+  fetchRiattivazioniBoard,
   updateRecord,
-  type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+
+const RIATTIVAZIONI_REALTIME_TABLES = [
+  "chiusure_contratti",
+  "rapporti_lavorativi",
+  "famiglie",
+  "lavoratori",
+]
 import {
   getRapportoFamilyLabel,
   getRapportoWorkerLabel,
@@ -72,52 +77,6 @@ export const RIATTIVAZIONI_STAGE_DEFINITIONS: RiattivazioneStageDefinition[] = [
 
 const DEFAULT_STAGE_ID: RiattivazioneStageId = "da sentire"
 
-const RIATTIVAZIONI_RAPPORTI_SELECT = [
-  "id",
-  "ticket_id",
-  "famiglia_id",
-  "lavoratore_id",
-  "stato_assunzione",
-  "stato_servizio",
-  "fine_rapporto_lavorativo_id",
-  "tipo_rapporto",
-  "tipo_contratto",
-  "ore_a_settimana",
-  "data_inizio_rapporto",
-  "cognome_nome_datore_proper",
-  "nome_lavoratore_per_url",
-] satisfies string[]
-
-const RIATTIVAZIONI_CHIUSURE_SELECT = [
-  "id",
-  "ticket_id",
-  "stato",
-  "stato_riattivazione_famiglia",
-  "nome",
-  "cognome",
-  "allegato_compilato",
-  "check_8_giorni_di_lavoro_svolti",
-  "check_chiusura_istantanea",
-  "creato_il",
-  "email",
-  "informazioni_aggiuntive",
-  "motivazione_cessazione_rapporto",
-  "motivazione_lost",
-  "data_fine_rapporto",
-  "data_per_riattivazione",
-  "documenti_chiusura_rapporto",
-  "presenze_ultimo_mese",
-  "sconto_proposto_riattivazione",
-  "tipo_licenziamento",
-  "tipo_decesso",
-] satisfies string[]
-
-const RIATTIVAZIONI_FAMIGLIE_SELECT = ["id", "nome", "cognome", "email"] satisfies string[]
-
-const RIATTIVAZIONI_LAVORATORI_SELECT = ["id", "nome", "cognome", "email"] satisfies string[]
-
-const LOOKUP_FILTER_CHUNK_SIZE = 80
-
 type RiattivazioneFamigliaLookup = Pick<FamigliaRecord, "id" | "nome" | "cognome" | "email">
 
 type RiattivazioneLavoratoreLookup = Pick<LavoratoreRecord, "id" | "nome" | "cognome" | "email">
@@ -126,71 +85,6 @@ type RiattivazioneBaseCard = {
   record: ChiusuraContrattoRecord
   rapporto: RapportoLavorativoRecord | null
   stage: RiattivazioneStageId
-}
-
-function uniqueStrings(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.filter((value): value is string => Boolean(value))))
-}
-
-function chunkValues<TValue>(values: TValue[], size: number) {
-  const chunks: TValue[][] = []
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size))
-  }
-  return chunks
-}
-
-function buildInFilter(field: string, values: string[]): QueryFilterGroup {
-  return {
-    kind: "group",
-    id: `${field}-lookup-filter`,
-    logic: "and",
-    nodes: [
-      {
-        kind: "condition",
-        id: `${field}-lookup-condition`,
-        field,
-        operator: "in",
-        value: values.join(","),
-      },
-    ],
-  }
-}
-
-async function fetchRiattivazioneFamiglieByIds(ids: string[]) {
-  if (!ids.length) return [] as RiattivazioneFamigliaLookup[]
-
-  const results = await Promise.all(
-    chunkValues(ids, LOOKUP_FILTER_CHUNK_SIZE).map((chunk) =>
-      fetchFamiglie({
-        select: RIATTIVAZIONI_FAMIGLIE_SELECT,
-        limit: chunk.length,
-        offset: 0,
-        includeSchema: false,
-        filters: buildInFilter("id", chunk),
-      }),
-    ),
-  )
-
-  return results.flatMap((result) => result.rows as RiattivazioneFamigliaLookup[])
-}
-
-async function fetchRiattivazioneLavoratoriByIds(ids: string[]) {
-  if (!ids.length) return [] as RiattivazioneLavoratoreLookup[]
-
-  const results = await Promise.all(
-    chunkValues(ids, LOOKUP_FILTER_CHUNK_SIZE).map((chunk) =>
-      fetchLavoratori({
-        select: RIATTIVAZIONI_LAVORATORI_SELECT,
-        limit: chunk.length,
-        offset: 0,
-        includeSchema: false,
-        filters: buildInFilter("id", chunk),
-      }),
-    ),
-  )
-
-  return results.flatMap((result) => result.rows as RiattivazioneLavoratoreLookup[])
 }
 
 function normalizeToken(value: string | null | undefined) {
@@ -255,56 +149,21 @@ function getFallbackFamigliaLabel(record: ChiusuraContrattoRecord) {
 async function fetchRiattivazioniBoardData(): Promise<{
   columns: RiattivazioniBoardColumnData[]
 }> {
-  const [chiusureResult, rapportiResult] = await Promise.all([
-    fetchChiusureContratti({
-      select: RIATTIVAZIONI_CHIUSURE_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
-    fetchRapportiLavorativi({
-      select: RIATTIVAZIONI_RAPPORTI_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
-  ])
-
-  const rapportoByTicketId = new Map(
-    rapportiResult.rows
-      .filter((rapporto) => rapporto.ticket_id)
-      .map((rapporto) => [rapporto.ticket_id as string, rapporto] as const),
-  )
-  const rapportoByChiusuraId = new Map(
-    rapportiResult.rows
-      .filter((rapporto) => rapporto.fine_rapporto_lavorativo_id)
-      .map((rapporto) => [rapporto.fine_rapporto_lavorativo_id as string, rapporto] as const),
-  )
+  const boardResult = await fetchRiattivazioniBoard()
 
   const baseCards: RiattivazioneBaseCard[] = []
-  for (const record of chiusureResult.rows) {
+  const famigliaById = new Map<string, RiattivazioneFamigliaLookup>()
+  const lavoratoreById = new Map<string, RiattivazioneLavoratoreLookup>()
+  for (const row of boardResult.cards) {
+    const record = row.record as ChiusuraContrattoRecord
+    const rapporto = (row.rapporto as RapportoLavorativoRecord | null) ?? null
     const stage = resolveStage(record.stato_riattivazione_famiglia)
-    const rapporto =
-      rapportoByChiusuraId.get(record.id) ??
-      (record.ticket_id ? rapportoByTicketId.get(record.ticket_id) ?? null : null)
     const hasExplicitStage = hasRiattivazioneStatus(record.stato_riattivazione_famiglia)
     if (!hasExplicitStage && !shouldShowUnclassifiedChiusura(rapporto)) continue
-
     baseCards.push({ record, rapporto, stage })
+    if (row.famiglia) famigliaById.set(row.famiglia.id, row.famiglia as RiattivazioneFamigliaLookup)
+    if (row.lavoratore) lavoratoreById.set(row.lavoratore.id, row.lavoratore as RiattivazioneLavoratoreLookup)
   }
-
-  const famigliaIds = uniqueStrings(baseCards.map((card) => card.rapporto?.famiglia_id))
-  const lavoratoreIds = uniqueStrings(baseCards.map((card) => card.rapporto?.lavoratore_id))
-
-  const [famiglie, lavoratori] = await Promise.all([
-    fetchRiattivazioneFamiglieByIds(famigliaIds),
-    fetchRiattivazioneLavoratoriByIds(lavoratoreIds),
-  ])
-
-  const famigliaById = new Map(famiglie.map((famiglia) => [famiglia.id, famiglia] as const))
-  const lavoratoreById = new Map(
-    lavoratori.map((lavoratore) => [lavoratore.id, lavoratore] as const),
-  )
 
   const cardsByStage = new Map<RiattivazioneStageId, RiattivazioniBoardCardData[]>(
     RIATTIVAZIONI_STAGE_DEFINITIONS.map((stage) => [stage.id, []]),
@@ -448,6 +307,21 @@ export function useRiattivazioniBoard(): UseRiattivazioniBoardState {
       cancelled = true
     }
   }, [])
+
+  const reloadSilently = React.useCallback(async () => {
+    clearReadCaches()
+    try {
+      const data = await fetchRiattivazioniBoardData()
+      setColumns(data.columns)
+    } catch {
+      // Ignore: a failed background refresh must not blank the board.
+    }
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: RIATTIVAZIONI_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
 
   return {
     loading,

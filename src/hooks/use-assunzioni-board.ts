@@ -1,19 +1,21 @@
 import * as React from "react"
 
 import {
-  fetchAssunzioni,
-  fetchFamiglie,
+  clearReadCaches,
+  fetchAssunzioniBoard,
   fetchLookupValues,
-  fetchProcessiMatching,
-  fetchRapportiLavorativi,
-  fetchLavoratori,
   updateRecord,
 } from "@/lib/anagrafiche-api"
-import {
-  fetchRichiesteAttivazioneByIds,
-  fetchRichiesteAttivazioneByProcessIds,
-} from "@/features/richieste-attivazione/api"
-import { getRapportoProcessIds } from "@/features/rapporti/rapporti-processi"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+
+const ASSUNZIONI_REALTIME_TABLES = [
+  "assunzioni",
+  "rapporti_lavorativi",
+  "famiglie",
+  "lavoratori",
+  "processi_matching",
+  "richieste_attivazione",
+]
 import type {
   FamigliaRecord,
   LookupValueRecord,
@@ -143,113 +145,6 @@ const DEFAULT_STAGE_DEFINITIONS: AssunzioniStageDefinition[] = [
 
 const DEFERRED_STAGE_IDS = new Set(["Contratto firmato", "Non assume con Baze"])
 
-const ASSUNZIONI_PROCESSI_SELECT = [
-  "id",
-  "famiglia_id",
-  "titolo_annuncio",
-  "tipo_rapporto",
-  "data_limite_invio_selezione",
-  "source_url",
-  "offerta",
-] satisfies string[]
-
-const ASSUNZIONI_FAMIGLIE_SELECT = [
-  "id",
-  "nome",
-  "cognome",
-  "email",
-  "telefono",
-] satisfies string[]
-
-const ASSUNZIONI_RAPPORTI_SELECT = [
-  "id",
-  "id_rapporto",
-  "accordo_di_lavoro_allegati",
-  "codice_datore_webcolf",
-  "codice_dipendente_webcolf",
-  "processi_matching_id",
-  "preventivo_id",
-  "richiesta_attivazione_id",
-  "assunzione_datore_id",
-  "assunzione_lavoratore_id",
-  "famiglia_id",
-  "lavoratore_id",
-  "stato_assunzione",
-  "cognome_nome_datore_proper",
-  "nome_lavoratore_per_url",
-  "data_inizio_rapporto",
-  "ore_a_settimana",
-  "distribuzione_ore_settimana",
-  "paga_mensile_lorda",
-  "paga_oraria_lorda",
-  "ricevuta_inps_allegati",
-  "tipo_contratto",
-  "tipo_rapporto",
-  "metadati_migrazione",
-] satisfies string[]
-
-const ASSUNZIONI_LAVORATORI_SELECT = [
-  "id",
-  "nome",
-  "cognome",
-  "email",
-  "telefono",
-  "nazionalita",
-  "iban",
-] satisfies string[]
-
-const ASSUNZIONI_RECORD_SELECT = [
-  "id",
-  "delega_inps_allegati",
-  "civico_se_diverso_residenza",
-  "codice_fiscale_allegati",
-  "comune_se_diverso_residenza",
-  "dati_bancari_lavoratore",
-  "documento_identita_allegati",
-  "documento_identita_numero",
-  "documento_identita_scadenza",
-  "documento_identita_tipo",
-  "famiglia_id",
-  "cittadino_extracomunitario",
-  "info_anagrafiche_cap",
-  "info_anagrafiche_cittadidanza",
-  "info_anagrafiche_civico",
-  "info_anagrafiche_codice_fiscale",
-  "info_anagrafiche_cognome",
-  "info_anagrafiche_data_di_nascita",
-  "info_anagrafiche_email",
-  "info_anagrafiche_indirizzo",
-  "info_anagrafiche_localita",
-  "info_anagrafiche_luogo_di_nascita",
-  "info_anagrafiche_nome",
-  "info_anagrafiche_numero_fisso",
-  "info_anagrafiche_numero_mobile",
-  "luogo_lavoro_se_diverso_da_residenza",
-  "mezza_giornata_di_riposo",
-  "ore_di_lavoro",
-  "ore_giovedi",
-  "ore_lunedi",
-  "ore_martedi",
-  "ore_mercoledi",
-  "ore_sabato",
-  "ore_venerdi",
-  "provincia",
-  "permesso_di_soggiorno_allegati",
-  "rapporto_di_lavoro_residenza",
-  "rapporto_lavorativo_datore_lavoro_id",
-  "rapporto_lavorativo_lavoratore_id",
-  "lavoratore_id",
-  "regime_convivenza",
-  "ricevuta_rinnovo_permesso_allegati",
-  "telecamere_posto_lavoro",
-  "tredicesima_rateizzata_mensile",
-  "note_aggiuntive",
-  "data_assunzione",
-  "type_of_compilazione_form",
-] satisfies string[]
-
-const RELATED_RECORDS_BATCH_SIZE = 100
-
 type FetchAssunzioniBoardDataOptions = {
   deferredLoadedStageIds?: Set<string>
   onlyStageId?: string
@@ -311,24 +206,6 @@ function formatFullName(firstName: string | null | undefined, lastName: string |
   return [lastName, firstName].filter(Boolean).join(" ").trim()
 }
 
-function compactUnique(values: Array<string | null | undefined>) {
-  return Array.from(
-    new Set(
-      values
-        .map((value) => toStringValue(value))
-        .filter((value): value is string => Boolean(value))
-    )
-  )
-}
-
-function chunkValues<T>(values: T[], size: number) {
-  const chunks: T[][] = []
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size))
-  }
-  return chunks
-}
-
 function resolveAssunzioneName(assunzione: AssunzioneRecord | null) {
   if (!assunzione) return null
 
@@ -366,49 +243,6 @@ function resolveWorkerName(
   if (workerName) return workerName
 
   return toStringValue(rapporto.nome_lavoratore_per_url)
-}
-
-function parseProcessRapportoIds(value: string | null | undefined) {
-  if (!value) return []
-
-  return value
-    .split(/[,\n;]+/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
-function resolveRichiestaAttivazioneForRapporto({
-  rapporto,
-  process,
-  richiesteById,
-  richiesteByProcessId,
-}: {
-  rapporto: RapportoLavorativoRecord
-  process: ProcessoMatchingRecord | null
-  richiesteById: Map<string, RichiestaAttivazioneRecord>
-  richiesteByProcessId: Map<string, RichiestaAttivazioneRecord>
-}) {
-  if (rapporto.richiesta_attivazione_id) {
-    const richiestaById = richiesteById.get(rapporto.richiesta_attivazione_id)
-    if (richiestaById) return richiestaById
-  }
-
-  if (process?.id) {
-    const richiestaByProcess = richiesteByProcessId.get(process.id)
-    if (richiestaByProcess) return richiestaByProcess
-  }
-
-  for (const processId of getRapportoProcessIds(rapporto)) {
-    const richiestaByProcess = richiesteByProcessId.get(processId)
-    if (richiestaByProcess) return richiestaByProcess
-  }
-
-  for (const processId of parseProcessRapportoIds(rapporto.id_rapporto)) {
-    const richiestaByProcess = richiesteByProcessId.get(processId)
-    if (richiestaByProcess) return richiestaByProcess
-  }
-
-  return null
 }
 
 function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
@@ -458,214 +292,14 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
   }
 }
 
-async function fetchFamiglieByIds(ids: string[]) {
-  if (ids.length === 0) return [] as FamigliaRecord[]
-
-  const results = await Promise.all(
-    chunkValues(ids, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
-      fetchFamiglie({
-        select: ASSUNZIONI_FAMIGLIE_SELECT,
-        limit: batch.length,
-        offset: 0,
-        orderBy: [{ field: "id", ascending: true }],
-        filters: {
-          kind: "group",
-          id: `assunzioni-famiglie-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `assunzioni-famiglie-id-${index}`,
-              field: "id",
-              operator: "in",
-              value: batch.join(","),
-            },
-          ],
-        },
-      })
-    )
-  )
-
-  return results.flatMap((result) => result.rows as FamigliaRecord[])
-}
-
-async function fetchLavoratoriByIds(ids: string[]) {
-  if (ids.length === 0) return [] as LavoratoreRecord[]
-
-  const results = await Promise.all(
-    chunkValues(ids, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
-      fetchLavoratori({
-        select: ASSUNZIONI_LAVORATORI_SELECT,
-        limit: batch.length,
-        offset: 0,
-        orderBy: [{ field: "id", ascending: true }],
-        filters: {
-          kind: "group",
-          id: `assunzioni-lavoratori-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `assunzioni-lavoratori-id-${index}`,
-              field: "id",
-              operator: "in",
-              value: batch.join(","),
-            },
-          ],
-        },
-      })
-    )
-  )
-
-  return results.flatMap((result) => result.rows as LavoratoreRecord[])
-}
-
-function indexFirstProcessBy(
-  rows: ProcessoMatchingRecord[],
-  getKey: (record: ProcessoMatchingRecord) => string | null | undefined
-) {
-  const index = new Map<string, ProcessoMatchingRecord>()
-  for (const row of rows) {
-    const key = getKey(row)
-    if (!key || index.has(key)) continue
-    index.set(key, row)
-  }
-  return index
-}
-
-async function fetchAssunzioniByIds(ids: string[]) {
-  if (ids.length === 0) return [] as AssunzioneRecord[]
-
-  const results = await Promise.all(
-    chunkValues(ids, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
-      fetchAssunzioni({
-        select: ASSUNZIONI_RECORD_SELECT,
-        limit: batch.length,
-        offset: 0,
-        orderBy: [{ field: "creato_il", ascending: false }],
-        filters: {
-          kind: "group",
-          id: `assunzioni-records-by-id-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `assunzioni-records-by-id-condition-${index}`,
-              field: "id",
-              operator: "in",
-              value: batch.join(","),
-            },
-          ],
-        },
-      })
-    )
-  )
-
-  return results.flatMap((result) => result.rows as AssunzioneRecord[])
-}
-
 async function fetchAssunzioniBoardData({
   deferredLoadedStageIds = new Set<string>(),
   onlyStageId,
 }: FetchAssunzioniBoardDataOptions = {}): Promise<AssunzioniBoardColumnData[]> {
-  const rapportiFilters = onlyStageId
-    ? {
-        kind: "group" as const,
-        id: `assunzioni-rapporti-stage-${normalizeToken(onlyStageId)}`,
-        logic: "and" as const,
-        nodes: [
-          {
-            kind: "condition" as const,
-            id: `assunzioni-rapporti-stage-value-${normalizeToken(onlyStageId)}`,
-            field: "stato_assunzione",
-            operator: "is" as const,
-            value: onlyStageId,
-          },
-        ],
-      }
-    : {
-        kind: "group" as const,
-        id: "assunzioni-rapporti-active-stages",
-        logic: "and" as const,
-        nodes: [
-          {
-            kind: "condition" as const,
-            id: "assunzioni-rapporti-exclude-deferred-stages",
-            field: "stato_assunzione",
-            operator: "not_has_any" as const,
-            value: Array.from(DEFERRED_STAGE_IDS).join(","),
-          },
-        ],
-      }
-
-  const [
-    processesResult,
-    rapportiResult,
-    lookupResult,
-  ] =
-    await Promise.all([
-    fetchProcessiMatching({
-      select: ASSUNZIONI_PROCESSI_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
-    fetchRapportiLavorativi({
-      select: ASSUNZIONI_RAPPORTI_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: rapportiFilters,
-    }),
+  const [boardResult, lookupResult] = await Promise.all([
+    fetchAssunzioniBoard(onlyStageId ?? null),
     fetchLookupValues(),
   ])
-
-  const rapportiRows = rapportiResult.rows as RapportoLavorativoRecord[]
-  const processRows = processesResult.rows as ProcessoMatchingRecord[]
-  const processById = new Map(processRows.map((process) => [process.id, process] as const))
-  const processByFamilyId = indexFirstProcessBy(processRows, (process) => process.famiglia_id)
-  const familyIds = compactUnique([
-    ...rapportiRows.map((rapporto) => rapporto.famiglia_id),
-    ...processRows.map((process) => process.famiglia_id),
-  ])
-  const workerIds = compactUnique(rapportiRows.map((rapporto) => rapporto.lavoratore_id))
-  const assunzioneIds = compactUnique(
-    rapportiRows.flatMap((rapporto) => [
-      rapporto.assunzione_datore_id,
-      rapporto.assunzione_lavoratore_id,
-    ])
-  )
-  const richiestaIds = compactUnique(
-    rapportiRows.map((rapporto) => rapporto.richiesta_attivazione_id)
-  )
-  const richiestaProcessIds = compactUnique([
-    ...processRows.map((process) => process.id),
-    ...rapportiRows.flatMap((rapporto) => getRapportoProcessIds(rapporto)),
-    ...rapportiRows.flatMap((rapporto) => parseProcessRapportoIds(rapporto.id_rapporto)),
-  ])
-  const [
-    familiesRows,
-    lavoratoriRows,
-    assunzioniRows,
-    richiesteAttivazioneById,
-    richiesteAttivazioneByProcessId,
-  ] = await Promise.all([
-    fetchFamiglieByIds(familyIds),
-    fetchLavoratoriByIds(workerIds),
-    fetchAssunzioniByIds(assunzioneIds),
-    fetchRichiesteAttivazioneByIds(richiestaIds),
-    fetchRichiesteAttivazioneByProcessIds(richiestaProcessIds),
-  ])
-
-  const familiesById = new Map(
-    familiesRows.map((family) => [family.id, family] as const)
-  )
-  const lavoratoriById = new Map(
-    lavoratoriRows.map((worker) => [worker.id, worker] as const)
-  )
-  const assunzioniById = new Map(
-    assunzioniRows.map((record) => [record.id, record] as const)
-  )
 
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
@@ -674,35 +308,22 @@ async function fetchAssunzioniBoardData({
     stages.map((stage) => [stage.id, []])
   )
 
-  for (const linkedRapporto of rapportiRows) {
+  for (const row of boardResult.rows) {
+    const linkedRapporto = row.rapporto
+    if (!linkedRapporto) continue
+
     const processStage = aliases.get(normalizeToken(linkedRapporto.stato_assunzione))
     if (!processStage) continue
 
-    const process =
-      getRapportoProcessIds(linkedRapporto)
-        .map((processId) => processById.get(processId) ?? null)
-        .find((record): record is ProcessoMatchingRecord => Boolean(record)) ??
-      parseProcessRapportoIds(linkedRapporto.id_rapporto)
-        .map((processId) => processById.get(processId) ?? null)
-        .find((record): record is ProcessoMatchingRecord => Boolean(record)) ??
-      (linkedRapporto.famiglia_id
-        ? processByFamilyId.get(linkedRapporto.famiglia_id) ?? null
-        : null) ??
-      null
-    const family =
-      (linkedRapporto?.famiglia_id ? familiesById.get(linkedRapporto.famiglia_id) ?? null : null) ??
-      (process?.famiglia_id ? familiesById.get(process.famiglia_id) ?? null : null)
-    const lavoratore =
-      linkedRapporto?.lavoratore_id ? lavoratoriById.get(linkedRapporto.lavoratore_id) ?? null : null
-    const datoreAssunzione = linkedRapporto.assunzione_datore_id
-      ? assunzioniById.get(linkedRapporto.assunzione_datore_id) ?? null
-      : null
-    const lavoratoreAssunzione = linkedRapporto.assunzione_lavoratore_id
-      ? assunzioniById.get(linkedRapporto.assunzione_lavoratore_id) ?? null
-      : null
+    const process = row.process ?? null
+    const family = row.famiglia ?? null
+    const lavoratore = row.lavoratore ?? null
+    const datoreAssunzione = (row.assunzione as AssunzioneRecord | null) ?? null
+    const lavoratoreAssunzione = (row.lavoratoreAssunzione as AssunzioneRecord | null) ?? null
     const nomeFamiglia = resolveFamilyName(datoreAssunzione, family, linkedRapporto)
     const nomeLavoratore = resolveWorkerName(lavoratoreAssunzione, lavoratore, linkedRapporto)
 
+    // richiestaAttivazione is not shown on cards; the detail RPC resolves it on open.
     const card: AssunzioniBoardCardData = {
       id: linkedRapporto.id,
       processId: process?.id ?? null,
@@ -710,12 +331,7 @@ async function fetchAssunzioniBoardData({
       process,
       assunzione: datoreAssunzione,
       lavoratoreAssunzione,
-      richiestaAttivazione: resolveRichiestaAttivazioneForRapporto({
-        rapporto: linkedRapporto,
-        process,
-        richiesteById: richiesteAttivazioneById,
-        richiesteByProcessId: richiesteAttivazioneByProcessId,
-      }),
+      richiestaAttivazione: null,
       rapporto: linkedRapporto,
       lavoratore,
       famiglia: family,
@@ -902,6 +518,21 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
       cancelled = true
     }
   }, [])
+
+  const reloadSilently = React.useCallback(async () => {
+    clearReadCaches()
+    try {
+      const data = await fetchAssunzioniBoardData()
+      setColumns(data)
+    } catch {
+      // Ignore: a failed background refresh must not blank the board.
+    }
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: ASSUNZIONI_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
 
   return {
     loading,

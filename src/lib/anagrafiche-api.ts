@@ -5,6 +5,8 @@ import type { ChiusuraContrattoRecord } from "@/types/entities/chiusura-contratt
 import type { ContributoInpsRecord } from "@/types/entities/contributo-inps"
 import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
+import type { FamigliaRecord } from "@/types/entities/famiglie"
+import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import type { MeseCalendarioRecord } from "@/types/entities/mese-calendario"
 import type { MeseLavoratoRecord } from "@/types/entities/mese-lavorato"
 import type { PagamentoRecord } from "@/types/entities/pagamento"
@@ -215,6 +217,156 @@ export type RicercaWorkerRelatedSelectionSummariesRpcResponse = {
   rows?: RicercaWorkerRelatedSelectionSummary[]
 }
 
+export type CedoliniBoardRpcRow = {
+  record: MeseLavoratoRecord
+  mese: MeseCalendarioRecord | null
+  rapporto: RapportoLavorativoRecord | null
+  famiglia: FamigliaRecord | null
+  lavoratore: LavoratoreRecord | null
+  transazione: TransazioneFinanziariaRecord | null
+  pagamento: PagamentoRecord | null
+}
+
+export type CedoliniBoardRpcResponse = {
+  rows?: CedoliniBoardRpcRow[]
+  total?: number
+}
+
+export type CedolinoDetailRpcResponse = {
+  record: MeseLavoratoRecord
+  rapporto: RapportoLavorativoRecord | null
+  famiglia: FamigliaRecord | null
+  mese: MeseCalendarioRecord | null
+  presenze: PresenzaMensileRecord | null
+  presenzeRegolari: PresenzaMensileRecord | null
+}
+
+export type AssunzioniBoardRpcRow = {
+  rapporto: RapportoLavorativoRecord | null
+  process: ProcessoMatchingRecord | null
+  famiglia: FamigliaRecord | null
+  lavoratore: LavoratoreRecord | null
+  assunzione: Record<string, unknown> | null
+  lavoratoreAssunzione: Record<string, unknown> | null
+}
+
+export type AssunzioniBoardRpcResponse = {
+  rows?: AssunzioniBoardRpcRow[]
+}
+
+export type AssunzioneDetailRpcResponse = {
+  rapporto: RapportoLavorativoRecord | null
+  assunzione: Record<string, unknown> | null
+  lavoratoreAssunzione: Record<string, unknown> | null
+  richiestaAttivazione: RichiestaAttivazioneRecord | null
+}
+
+export type VariazioniBoardRpcCard = {
+  record: VariazioneContrattualeRecord
+  rapporto: RapportoLavorativoRecord | null
+  famiglia: Record<string, unknown> | null
+  lavoratore: Record<string, unknown> | null
+  lavoratoreAddress: Record<string, unknown> | null
+}
+
+export type VariazioniBoardRpcRapporto = {
+  rapporto: RapportoLavorativoRecord
+  famiglia: Record<string, unknown> | null
+  lavoratore: Record<string, unknown> | null
+}
+
+export type VariazioniBoardRpcResponse = {
+  cards?: VariazioniBoardRpcCard[]
+  rapporti?: VariazioniBoardRpcRapporto[]
+}
+
+export type ChiusureBoardRpcCard = {
+  record: ChiusuraContrattoRecord
+  rapporto: RapportoLavorativoRecord | null
+  famiglia: { id: string; nome: string | null; cognome: string | null } | null
+  lavoratore: { id: string; nome: string | null; cognome: string | null } | null
+}
+
+export type ChiusureBoardRpcRapporto = {
+  rapporto: RapportoLavorativoRecord
+  famiglia: { id: string; nome: string | null; cognome: string | null } | null
+  lavoratore: { id: string; nome: string | null; cognome: string | null } | null
+}
+
+export type ChiusureBoardRpcResponse = {
+  cards?: ChiusureBoardRpcCard[]
+  rapporti?: ChiusureBoardRpcRapporto[]
+}
+
+export type RicercaBoardRpcProcess = {
+  id: string
+  stato_res: string | null
+  famiglia_id: string | null
+  recruiter_ricerca_e_selezione_id: string | null
+  referente_ricerca_e_selezione_id: string | null
+  ore_settimanale: string | number | null
+  numero_giorni_settimanali: string | number | null
+  deadline_mobile: string | null
+  tipo_lavoro: unknown
+  tipo_rapporto: unknown
+  famiglia: { id: string; nome: string | null; cognome: string | null; email: string | null; telefono: string | null } | null
+  indirizzo: Record<string, unknown> | null
+}
+
+export type RicercaBoardRpcResponse = {
+  processes?: RicercaBoardRpcProcess[]
+  deferredCounts?: Record<string, number>
+}
+
+export type LavoratoreExtrasRpcResponse = {
+  documenti?: DocumentoLavoratoreRecord[]
+  esperienze?: EsperienzaLavoratoreRecord[]
+  referenze?: ReferenzaLavoratoreRecord[]
+}
+
+export type ProveColloquiBoardRpcRapportoEntry = {
+  rapporto: RapportoLavorativoRecord
+  famiglia: FamigliaRecord | null
+  lavoratore: LavoratoreRecord | null
+}
+
+export type ProveColloquiBoardRpcSelezioneEntry = {
+  selezione: Record<string, unknown>
+  processo: ProcessoMatchingRecord | null
+  processoFamiglia: FamigliaRecord | null
+  lavoratore: LavoratoreRecord | null
+}
+
+export type RiattivazioniBoardRpcCard = {
+  record: ChiusuraContrattoRecord & { stato_riattivazione_famiglia?: string | null; motivazione_lost?: string | null; data_per_riattivazione?: string | null; sconto_proposto_riattivazione?: unknown }
+  rapporto: RapportoLavorativoRecord | null
+  famiglia: { id: string; nome: string | null; cognome: string | null; email: string | null } | null
+  lavoratore: { id: string; nome: string | null; cognome: string | null; email: string | null } | null
+}
+
+export type RiattivazioniBoardRpcResponse = {
+  cards?: RiattivazioniBoardRpcCard[]
+}
+
+export type ProveColloquiBoardRpcResponse = {
+  rapporti?: ProveColloquiBoardRpcRapportoEntry[]
+  selezioni?: ProveColloquiBoardRpcSelezioneEntry[]
+}
+
+export type SupportTicketsBundleRpcResponse = {
+  tickets?: TicketRecord[]
+  rapporti?: RapportoLavorativoRecord[]
+  chiusure?: ChiusuraContrattoRecord[]
+  assunzioni?: Array<Record<string, unknown>>
+  contributi?: ContributoInpsRecord[]
+  cedolini?: MeseLavoratoRecord[]
+  pagamenti?: PagamentoRecord[]
+  presenze?: PresenzaMensileRecord[]
+  variazioni?: VariazioneContrattualeRecord[]
+  famiglie?: Array<{ id: string; nome: string | null; cognome: string | null }>
+  lavoratori?: Array<{ id: string; nome: string | null; cognome: string | null }>
+}
+
 function normalizeTableResponse<TRecord>(
   response: TableQueryResponse<TRecord>
 ): { rows: TRecord[]; total: number; columns: TableColumnMeta[]; groups: TableGroupResult[] } {
@@ -283,6 +435,62 @@ const ricercaWorkerRelatedSelectionSummariesCache = new Map<
     promise: Promise<RicercaWorkerRelatedSelectionSummary[]>
   }
 >()
+const cedoliniBoardCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<{ rows: CedoliniBoardRpcRow[]; total: number }>
+  }
+>()
+const cedolinoDetailCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<CedolinoDetailRpcResponse | null>
+  }
+>()
+const assunzioniBoardCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<{ rows: AssunzioniBoardRpcRow[] }>
+  }
+>()
+const assunzioneDetailCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<AssunzioneDetailRpcResponse | null>
+  }
+>()
+const variazioniBoardCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<{ cards: VariazioniBoardRpcCard[]; rapporti: VariazioniBoardRpcRapporto[] }>
+  }
+>()
+const ricercaBoardCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<{ processes: RicercaBoardRpcProcess[]; deferredCounts: Record<string, number> }>
+  }
+>()
+const chiusureBoardCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<{ cards: ChiusureBoardRpcCard[]; rapporti: ChiusureBoardRpcRapporto[] }>
+  }
+>()
+const supportTicketsBundleCache = new Map<
+  string,
+  {
+    expiresAt: number
+    promise: Promise<SupportTicketsBundleRpcResponse>
+  }
+>()
 
 let lookupValuesCache:
   | {
@@ -305,12 +513,16 @@ function installPendingWriteUnloadGuard() {
   })
 }
 
+let lastLocalWriteAt = 0
+
 async function trackWrite<TResponse>(operation: Promise<TResponse>) {
   installPendingWriteUnloadGuard()
   pendingWriteCount += 1
 
   try {
-    return await operation
+    const result = await operation
+    lastLocalWriteAt = Date.now()
+    return result
   } finally {
     pendingWriteCount = Math.max(0, pendingWriteCount - 1)
   }
@@ -323,19 +535,36 @@ export function beginPendingWrite() {
 
 export function endPendingWrite() {
   pendingWriteCount = Math.max(0, pendingWriteCount - 1)
+  lastLocalWriteAt = Date.now()
+}
+
+export function getPendingWriteCount() {
+  return pendingWriteCount
+}
+
+export function getMillisSinceLastLocalWrite() {
+  return lastLocalWriteAt === 0 ? Number.POSITIVE_INFINITY : Date.now() - lastLocalWriteAt
 }
 
 function makeTableQueryCacheKey(payload: TableQueryRequest) {
   return JSON.stringify(payload)
 }
 
-function clearReadCaches() {
+export function clearReadCaches() {
   tableQueryCache.clear()
   gateQueryCache.clear()
   crmPipelineBoardCache.clear()
   crmPipelineDetailCache.clear()
   rapportiLavorativiBoardCache.clear()
   ricercaWorkerRelatedSelectionSummariesCache.clear()
+  cedoliniBoardCache.clear()
+  cedolinoDetailCache.clear()
+  assunzioniBoardCache.clear()
+  assunzioneDetailCache.clear()
+  variazioniBoardCache.clear()
+  supportTicketsBundleCache.clear()
+  chiusureBoardCache.clear()
+  ricercaBoardCache.clear()
   lookupValuesCache = null
 }
 
@@ -558,6 +787,308 @@ export async function fetchRapportiLavorativiBoard(query: {
     return await promise
   } catch (error) {
     rapportiLavorativiBoardCache.delete(cacheKey)
+    throw error
+  }
+}
+
+export async function fetchCedoliniBoard(yearMonth: string) {
+  const cacheKey = JSON.stringify({ functionName: "cedolini_board", yearMonth })
+  const now = Date.now()
+  const cached = cedoliniBoardCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc("cedolini_board", {
+      p_year_month: yearMonth,
+    })
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(`cedolini_board failed: ${error.message}`)
+    }
+
+    const response = data as CedoliniBoardRpcResponse | null
+    return {
+      rows: Array.isArray(response?.rows) ? response.rows : [],
+      total: typeof response?.total === "number" ? response.total : 0,
+    }
+  })
+
+  cedoliniBoardCache.set(cacheKey, {
+    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    cedoliniBoardCache.delete(cacheKey)
+    throw error
+  }
+}
+
+export async function fetchCedolinoDetail(id: string) {
+  const cacheKey = JSON.stringify({ functionName: "cedolino_detail", id })
+  const now = Date.now()
+  const cached = cedolinoDetailCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc("cedolino_detail", {
+      p_id: id,
+    })
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(`cedolino_detail failed: ${error.message}`)
+    }
+
+    if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+      return null
+    }
+
+    return data as CedolinoDetailRpcResponse
+  })
+
+  cedolinoDetailCache.set(cacheKey, {
+    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    cedolinoDetailCache.delete(cacheKey)
+    throw error
+  }
+}
+
+export async function fetchAssunzioniBoard(statoFilter?: string | null) {
+  const cacheKey = JSON.stringify({ functionName: "assunzioni_board", statoFilter: statoFilter ?? null })
+  const now = Date.now()
+  const cached = assunzioniBoardCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc("assunzioni_board", {
+      p_stato_filter: statoFilter ?? null,
+    })
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(`assunzioni_board failed: ${error.message}`)
+    }
+
+    const response = data as AssunzioniBoardRpcResponse | null
+    return {
+      rows: Array.isArray(response?.rows) ? response.rows : [],
+    }
+  })
+
+  assunzioniBoardCache.set(cacheKey, {
+    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    assunzioniBoardCache.delete(cacheKey)
+    throw error
+  }
+}
+
+export async function fetchAssunzioneDetail(rapportoId: string) {
+  const cacheKey = JSON.stringify({ functionName: "assunzione_detail", rapportoId })
+  const now = Date.now()
+  const cached = assunzioneDetailCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc("assunzione_detail", {
+      p_rapporto_id: rapportoId,
+    })
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(`assunzione_detail failed: ${error.message}`)
+    }
+
+    if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+      return null
+    }
+
+    return data as AssunzioneDetailRpcResponse
+  })
+
+  assunzioneDetailCache.set(cacheKey, {
+    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    assunzioneDetailCache.delete(cacheKey)
+    throw error
+  }
+}
+
+export async function fetchVariazioniBoard() {
+  const cacheKey = JSON.stringify({ functionName: "variazioni_board" })
+  const now = Date.now()
+  const cached = variazioniBoardCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc("variazioni_board", {})
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(`variazioni_board failed: ${error.message}`)
+    }
+
+    const response = data as VariazioniBoardRpcResponse | null
+    return {
+      cards: Array.isArray(response?.cards) ? response.cards : [],
+      rapporti: Array.isArray(response?.rapporti) ? response.rapporti : [],
+    }
+  })
+
+  variazioniBoardCache.set(cacheKey, {
+    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    variazioniBoardCache.delete(cacheKey)
+    throw error
+  }
+}
+
+export async function fetchRiattivazioniBoard() {
+  const { data, error } = await supabase.rpc("riattivazioni_board", {})
+  if (error) throw new Error(`riattivazioni_board failed: ${error.message}`)
+  const response = (data ?? {}) as RiattivazioniBoardRpcResponse
+  return {
+    cards: Array.isArray(response.cards) ? response.cards : [],
+  }
+}
+
+export async function fetchProveColloquiBoard(startDate: string, endDate: string) {
+  const { data, error } = await supabase.rpc("prove_colloqui_board", {
+    p_start_date: startDate,
+    p_end_date: endDate,
+  })
+  if (error) throw new Error(`prove_colloqui_board failed: ${error.message}`)
+  const response = (data ?? {}) as ProveColloquiBoardRpcResponse
+  return {
+    rapporti: Array.isArray(response.rapporti) ? response.rapporti : [],
+    selezioni: Array.isArray(response.selezioni) ? response.selezioni : [],
+  }
+}
+
+export async function fetchLavoratoreExtras(workerId: string) {
+  const { data, error } = await supabase.rpc("lavoratore_extras", { p_worker_id: workerId })
+  if (error) throw new Error(`lavoratore_extras failed: ${error.message}`)
+  return (data ?? {}) as LavoratoreExtrasRpcResponse
+}
+
+export async function fetchRicercaBoard(eagerStages: string[], deferredStages: string[]) {
+  const cacheKey = JSON.stringify({ functionName: "ricerca_board", eagerStages, deferredStages })
+  const now = Date.now()
+  const cached = ricercaBoardCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc("ricerca_board", {
+      p_eager_stages: eagerStages,
+      p_deferred_stages: deferredStages,
+    })
+  ).then(({ data, error }) => {
+    if (error) throw new Error(`ricerca_board failed: ${error.message}`)
+    const response = data as RicercaBoardRpcResponse | null
+    return {
+      processes: Array.isArray(response?.processes) ? response.processes : [],
+      deferredCounts: (response?.deferredCounts ?? {}) as Record<string, number>,
+    }
+  })
+
+  ricercaBoardCache.set(cacheKey, { expiresAt: now + TABLE_QUERY_CACHE_TTL_MS, promise })
+
+  try {
+    return await promise
+  } catch (error) {
+    ricercaBoardCache.delete(cacheKey)
+    throw error
+  }
+}
+
+export async function fetchChiusureBoard() {
+  const cacheKey = JSON.stringify({ functionName: "chiusure_board" })
+  const now = Date.now()
+  const cached = chiusureBoardCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(supabase.rpc("chiusure_board", {})).then(({ data, error }) => {
+    if (error) throw new Error(`chiusure_board failed: ${error.message}`)
+    const response = data as ChiusureBoardRpcResponse | null
+    return {
+      cards: Array.isArray(response?.cards) ? response.cards : [],
+      rapporti: Array.isArray(response?.rapporti) ? response.rapporti : [],
+    }
+  })
+
+  chiusureBoardCache.set(cacheKey, { expiresAt: now + TABLE_QUERY_CACHE_TTL_MS, promise })
+
+  try {
+    return await promise
+  } catch (error) {
+    chiusureBoardCache.delete(cacheKey)
+    throw error
+  }
+}
+
+export async function fetchSupportTicketsBundle(tipo: string) {
+  const cacheKey = JSON.stringify({ functionName: "support_tickets_bundle", tipo })
+  const now = Date.now()
+  const cached = supportTicketsBundleCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const promise = Promise.resolve(
+    supabase.rpc("support_tickets_bundle", {
+      p_tipo: tipo,
+    })
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(`support_tickets_bundle failed: ${error.message}`)
+    }
+
+    return (data ?? {}) as SupportTicketsBundleRpcResponse
+  })
+
+  supportTicketsBundleCache.set(cacheKey, {
+    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
+    promise,
+  })
+
+  try {
+    return await promise
+  } catch (error) {
+    supportTicketsBundleCache.delete(cacheKey)
     throw error
   }
 }

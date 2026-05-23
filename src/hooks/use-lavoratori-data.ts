@@ -33,19 +33,21 @@ import {
   type QueryFilterCondition,
   type QueryFilterGroup,
   type TableColumnMeta,
+  clearReadCaches,
   fetchCercaLavoratori,
-  fetchDocumentiLavoratoriByWorker,
-  fetchEsperienzeLavoratoriByWorker,
   fetchFamiglie,
   fetchGate1Lavoratori,
   fetchGate2Lavoratori,
   fetchIndirizzi,
+  fetchLavoratoreExtras,
   fetchLookupValues,
   fetchLavoratori,
   fetchProcessiMatching,
-  fetchReferenzeLavoratoriByWorker,
   fetchSelezioniLavoratori,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+
+const LAVORATORI_REALTIME_TABLES = ["lavoratori"]
 import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
@@ -1251,6 +1253,9 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   )
   const [pageIndex, setPageIndex] = React.useState(0)
   const [pageSize] = React.useState(DEFAULT_PAGE_SIZE)
+  // Bumped by realtime events to force the list effect to re-run silently.
+  const [realtimeTick, setRealtimeTick] = React.useState(0)
+  const silentReloadRef = React.useRef(false)
   const requestIdRef = React.useRef(0)
   const workersSchemaLoadedRef = React.useRef(false)
   const workersSchemaLoadingRef = React.useRef(false)
@@ -1362,6 +1367,9 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     requestIdRef.current = requestId
 
     async function load() {
+      const silent = silentReloadRef.current
+      silentReloadRef.current = false
+
       const queryKey = JSON.stringify({
         applyGate1BaseFilters,
         filters: debouncedQuery.filters ?? null,
@@ -1376,17 +1384,17 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         sorting: debouncedQuery.sorting,
       })
       if (lastLoadedListQueryKeyRef.current === queryKey && workerRows.length > 0) {
-        setLoading(false)
+        if (!silent) setLoading(false)
         return
       }
       if (inFlightListQueryKeyRef.current === queryKey) {
-        setLoading(true)
+        if (!silent) setLoading(true)
         return
       }
 
       inFlightListQueryKeyRef.current = queryKey
-      setLoading(true)
-      setError(null)
+      if (!silent) setLoading(true)
+      if (!silent) setError(null)
       try {
         const sortOrderBy =
           debouncedQuery.sorting.length > 0
@@ -1794,22 +1802,24 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         })
       } catch (caughtError) {
         if (requestId !== requestIdRef.current) return
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore nel caricamento lavoratori"
-        )
-        setWorkers([])
-        setWorkerRows([])
-        setWorkerAddressesById(new Map())
-        setRelatedSelectionsByWorkerId(new Map())
-        setWorkersTotal(0)
-        setWorkersColumns([])
+        if (!silent) {
+          setError(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Errore nel caricamento lavoratori"
+          )
+          setWorkers([])
+          setWorkerRows([])
+          setWorkerAddressesById(new Map())
+          setRelatedSelectionsByWorkerId(new Map())
+          setWorkersTotal(0)
+          setWorkersColumns([])
+        }
       } finally {
         if (inFlightListQueryKeyRef.current === queryKey) {
           inFlightListQueryKeyRef.current = null
         }
-        if (requestId === requestIdRef.current) setLoading(false)
+        if (requestId === requestIdRef.current && !silent) setLoading(false)
       }
     }
 
@@ -1824,8 +1834,23 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     initialSelectedWorkerId,
     pageIndex,
     pageSize,
+    realtimeTick,
     workerRows.length,
   ])
+
+  const reloadSilently = React.useCallback(() => {
+    silentReloadRef.current = true
+    clearReadCaches()
+    // Invalidate the cached query key so the load effect actually re-fetches
+    // even when the query params haven't changed.
+    lastLoadedListQueryKeyRef.current = null
+    setRealtimeTick((current) => current + 1)
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: LAVORATORI_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
 
   React.useEffect(() => {
     setWorkers(
@@ -1942,93 +1967,41 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   React.useEffect(() => {
     let isCancelled = false
 
-    async function loadSelectedWorkerDocuments() {
+    async function loadSelectedWorkerExtras() {
       if (!selectedWorkerId) {
         setSelectedWorkerDocuments([])
-        setLoadingSelectedWorkerDocuments(false)
-        return
-      }
-
-      setLoadingSelectedWorkerDocuments(true)
-      try {
-        const result = await fetchDocumentiLavoratoriByWorker(selectedWorkerId)
-        if (isCancelled) return
-        setSelectedWorkerDocuments(result.rows)
-      } catch {
-        if (isCancelled) return
-        setSelectedWorkerDocuments([])
-      } finally {
-        if (!isCancelled) {
-          setLoadingSelectedWorkerDocuments(false)
-        }
-      }
-    }
-
-    void loadSelectedWorkerDocuments()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [selectedWorkerId])
-
-  React.useEffect(() => {
-    let isCancelled = false
-
-    async function loadSelectedWorkerExperiences() {
-      if (!selectedWorkerId) {
         setSelectedWorkerExperiences([])
-        setLoadingSelectedWorkerExperiences(false)
-        return
-      }
-
-      setLoadingSelectedWorkerExperiences(true)
-      try {
-        const result = await fetchEsperienzeLavoratoriByWorker(selectedWorkerId)
-        if (isCancelled) return
-        setSelectedWorkerExperiences(result.rows)
-      } catch {
-        if (isCancelled) return
-        setSelectedWorkerExperiences([])
-      } finally {
-        if (!isCancelled) {
-          setLoadingSelectedWorkerExperiences(false)
-        }
-      }
-    }
-
-    void loadSelectedWorkerExperiences()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [selectedWorkerId])
-
-  React.useEffect(() => {
-    let isCancelled = false
-
-    async function loadSelectedWorkerReferences() {
-      if (!selectedWorkerId) {
         setSelectedWorkerReferences([])
+        setLoadingSelectedWorkerDocuments(false)
+        setLoadingSelectedWorkerExperiences(false)
         setLoadingSelectedWorkerReferences(false)
         return
       }
 
+      setLoadingSelectedWorkerDocuments(true)
+      setLoadingSelectedWorkerExperiences(true)
       setLoadingSelectedWorkerReferences(true)
       try {
-        const result = await fetchReferenzeLavoratoriByWorker(selectedWorkerId)
+        const result = await fetchLavoratoreExtras(selectedWorkerId)
         if (isCancelled) return
-        setSelectedWorkerReferences(result.rows)
+        setSelectedWorkerDocuments((result.documenti ?? []) as DocumentoLavoratoreRecord[])
+        setSelectedWorkerExperiences((result.esperienze ?? []) as EsperienzaLavoratoreRecord[])
+        setSelectedWorkerReferences((result.referenze ?? []) as ReferenzaLavoratoreRecord[])
       } catch {
         if (isCancelled) return
+        setSelectedWorkerDocuments([])
+        setSelectedWorkerExperiences([])
         setSelectedWorkerReferences([])
       } finally {
         if (!isCancelled) {
+          setLoadingSelectedWorkerDocuments(false)
+          setLoadingSelectedWorkerExperiences(false)
           setLoadingSelectedWorkerReferences(false)
         }
       }
     }
 
-    void loadSelectedWorkerReferences()
+    void loadSelectedWorkerExtras()
 
     return () => {
       isCancelled = true

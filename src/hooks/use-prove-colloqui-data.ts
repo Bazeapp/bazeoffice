@@ -4,15 +4,17 @@ import { flattenAttachmentLinks } from "@/components/shared-next/attachment-util
 import { normalizeLookupColors, normalizeLookupOptions } from "@/features/lavoratori/lib/lookup-utils"
 import { getRapportoProcessIds } from "@/features/rapporti/rapporti-processi"
 import {
-  fetchFamiglie,
-  fetchLavoratori,
+  clearReadCaches,
   fetchLookupValues,
-  fetchProcessiMatching,
-  fetchRapportiLavorativi,
-  fetchSelezioniLavoratori,
+  fetchProveColloquiBoard,
   updateRecord,
-  type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+
+const PROVE_COLLOQUI_REALTIME_TABLES = [
+  "selezioni_lavoratori",
+  "processi_matching",
+]
 import type {
   FamigliaRecord,
   LavoratoreRecord,
@@ -77,51 +79,7 @@ export type CalendarDateRange = {
   end: string
 }
 
-const TABLE_QUERY_MAX_LIMIT = 1000
 const TRIAL_STATUS_DOMAIN = "rapporti_lavorativi.prova_stato_cs"
-const RAPPORTO_FIELDS = [
-  "id",
-  "famiglia_id",
-  "lavoratore_id",
-  "processi_matching_id",
-  "cognome_nome_datore_proper",
-  "nome_lavoratore_per_url",
-  "data_inizio_rapporto",
-  "distribuzione_ore_settimana",
-  "ore_a_settimana",
-  "prova_data_checkin",
-  "prova_feedback_famiglia",
-  "prova_feedback_lavoratore",
-  "prova_note_cs_famiglia",
-  "prova_note_cs_lavoratore",
-  "prova_priorita_famiglia",
-  "prova_ramo_d2",
-  "prova_stato_cs",
-  "registrazione_chiamate_famiglia",
-  "registrazione_chiamate_lavoratori",
-  "stato_assunzione",
-  "stato_rapporto",
-  "aggiornato_il",
-] satisfies Array<keyof RapportoLavorativoRecord>
-const FAMIGLIA_FIELDS = ["id", "nome", "cognome", "email", "telefono"] satisfies Array<keyof FamigliaRecord>
-const LAVORATORE_FIELDS = ["id", "nome", "cognome", "email", "telefono", "foto"] satisfies Array<keyof LavoratoreRecord>
-const PROCESSO_FIELDS = [
-  "id",
-  "famiglia_id",
-  "stato_res",
-  "tipo_incontro_famiglia_lavoratore",
-  "indirizzo_prova_via",
-  "indirizzo_prova_civico",
-  "indirizzo_prova_comune",
-] satisfies Array<keyof ProcessoMatchingRecord>
-const SELEZIONE_FIELDS = [
-  "id",
-  "processo_matching_id",
-  "lavoratore_id",
-  "stato_selezione",
-  "colloquio_effettuato",
-  "data_ora_colloquio_famiglia_lavoratore",
-]
 
 function toStringValue(value: unknown): string | null {
   if (value === null || value === undefined) return null
@@ -140,10 +98,6 @@ function normalizeToken(value: unknown) {
     .replaceAll("_", " ")
 }
 
-function getUniqueIds(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.filter((value): value is string => Boolean(value))))
-}
-
 function toDateRangeValue(date: Date) {
   const year = date.getUTCFullYear()
   const month = String(date.getUTCMonth() + 1).padStart(2, "0")
@@ -158,56 +112,6 @@ function getDefaultCalendarRange() {
   return {
     start: toDateRangeValue(start),
     end: toDateRangeValue(end),
-  }
-}
-
-function buildTextNotBlankFilter(field: string): QueryFilterGroup {
-  return {
-    kind: "group",
-    id: `${field}-not-blank-root`,
-    logic: "and",
-    nodes: [
-      {
-        kind: "condition",
-        id: `${field}-not-blank`,
-        field,
-        operator: "is_not",
-        value: "",
-      },
-    ],
-  }
-}
-
-function buildDateRangeFilter(field: string, start: string, end: string): QueryFilterGroup {
-  return {
-    kind: "group",
-    id: `${field}-range-root`,
-    logic: "and",
-    nodes: [
-      {
-        kind: "condition",
-        id: `${field}-range`,
-        field,
-        operator: "between",
-        value: start,
-        valueTo: end,
-      },
-    ],
-  }
-}
-
-function buildInFilter(field: string, values: string[]): QueryFilterGroup {
-  return {
-    kind: "group",
-    id: `${field}-in-root`,
-    logic: "and",
-    nodes: [{
-      kind: "condition",
-      id: `${field}-in`,
-      field,
-      operator: "in",
-      value: values.join(","),
-    }],
   }
 }
 
@@ -328,28 +232,6 @@ function getLookupColorByValue(
   return colorsByDomain.get(`${domain}:${normalizeToken(value)}`) ?? null
 }
 
-async function fetchRowsByIds<TRecord>(
-  ids: string[],
-  fetcher: typeof fetchFamiglie | typeof fetchLavoratori | typeof fetchProcessiMatching,
-  select: string[],
-) {
-  if (ids.length === 0) return new Map<string, TRecord>()
-
-  const response = await fetcher({
-    limit: Math.max(ids.length, 1),
-    offset: 0,
-    select,
-    includeSchema: false,
-    filters: buildInFilter("id", ids),
-  })
-
-  return new Map(
-    response.rows
-      .map((row) => [toStringValue((row as TableRow).id), row as TRecord] as const)
-      .filter((entry): entry is readonly [string, TRecord] => Boolean(entry[0])),
-  )
-}
-
 function buildProvaCard(
   rapporto: RapportoLavorativoRecord,
   famiglia: FamigliaRecord | null,
@@ -385,6 +267,20 @@ export function useProveColloquiData(calendarRange?: CalendarDateRange) {
   const reload = React.useCallback(() => {
     setReloadToken((current) => current + 1)
   }, [])
+
+  // Set just before a realtime-triggered reload so the load effect skips the
+  // loading spinner (silent background refresh, no flash).
+  const silentReloadRef = React.useRef(false)
+  const reloadSilently = React.useCallback(() => {
+    silentReloadRef.current = true
+    clearReadCaches()
+    setReloadToken((current) => current + 1)
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: PROVE_COLLOQUI_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
 
   const patchRapporto = React.useCallback(async (rapportoId: string, patch: Partial<RapportoLavorativoRecord>) => {
     const response = await updateRecord("rapporti_lavorativi", rapportoId, patch)
@@ -437,7 +333,9 @@ export function useProveColloquiData(calendarRange?: CalendarDateRange) {
     let isActive = true
 
     async function load() {
-      setLoading(true)
+      const silent = silentReloadRef.current
+      silentReloadRef.current = false
+      if (!silent) setLoading(true)
       setError(null)
 
       try {
@@ -445,54 +343,30 @@ export function useProveColloquiData(calendarRange?: CalendarDateRange) {
           calendarRangeStart && calendarRangeEnd
             ? { start: calendarRangeStart, end: calendarRangeEnd }
             : getDefaultCalendarRange()
-        const [lookupResponse, rapportiResponse, selezioniResponse] = await Promise.all([
+        const [lookupResponse, boardResponse] = await Promise.all([
           fetchLookupValues(),
-          fetchRapportiLavorativi({
-            limit: TABLE_QUERY_MAX_LIMIT,
-            offset: 0,
-            select: RAPPORTO_FIELDS,
-            includeSchema: false,
-            orderBy: [
-              { field: "data_inizio_rapporto", ascending: true },
-              { field: "aggiornato_il", ascending: false },
-            ],
-            filters: buildTextNotBlankFilter("prova_stato_cs"),
-          }),
-          fetchSelezioniLavoratori({
-            limit: TABLE_QUERY_MAX_LIMIT,
-            offset: 0,
-            select: SELEZIONE_FIELDS,
-            includeSchema: false,
-            orderBy: [{ field: "data_ora_colloquio_famiglia_lavoratore", ascending: true }],
-            filters: buildDateRangeFilter(
-              "data_ora_colloquio_famiglia_lavoratore",
-              effectiveCalendarRange.start,
-              effectiveCalendarRange.end,
-            ),
-          }),
+          fetchProveColloquiBoard(effectiveCalendarRange.start, effectiveCalendarRange.end),
         ])
 
         const optionsByDomain = normalizeLookupOptions(lookupResponse.rows)
         const colorsByDomain = normalizeLookupColors(lookupResponse.rows)
-        const rapporti = rapportiResponse.rows
-        const selections = selezioniResponse.rows
+        const rapporti = boardResponse.rapporti.map((entry) => entry.rapporto)
+        const selections = boardResponse.selezioni.map((entry) => entry.selezione as Record<string, unknown>)
 
-        const rapportoFamilyIds = getUniqueIds(rapporti.map((rapporto) => rapporto.famiglia_id))
-        const rapportoWorkerIds = getUniqueIds(rapporti.map((rapporto) => rapporto.lavoratore_id))
-        const processIds = getUniqueIds(selections.map((selection) => toStringValue(selection.processo_matching_id)))
-        const selectionWorkerIds = getUniqueIds(selections.map((selection) => toStringValue(selection.lavoratore_id)))
-
-        const [familiesById, workersById, processesById, selectionWorkersById] = await Promise.all([
-          fetchRowsByIds<FamigliaRecord>(rapportoFamilyIds, fetchFamiglie, FAMIGLIA_FIELDS),
-          fetchRowsByIds<LavoratoreRecord>(rapportoWorkerIds, fetchLavoratori, LAVORATORE_FIELDS),
-          fetchRowsByIds<ProcessoMatchingRecord>(processIds, fetchProcessiMatching, PROCESSO_FIELDS),
-          fetchRowsByIds<LavoratoreRecord>(selectionWorkerIds, fetchLavoratori, LAVORATORE_FIELDS),
-        ])
-
-        const processFamilyIds = getUniqueIds(
-          Array.from(processesById.values()).map((process) => process.famiglia_id),
-        )
-        const processFamiliesById = await fetchRowsByIds<FamigliaRecord>(processFamilyIds, fetchFamiglie, FAMIGLIA_FIELDS)
+        const familiesById = new Map<string, FamigliaRecord>()
+        const workersById = new Map<string, LavoratoreRecord>()
+        for (const entry of boardResponse.rapporti) {
+          if (entry.famiglia) familiesById.set(entry.famiglia.id, entry.famiglia)
+          if (entry.lavoratore) workersById.set(entry.lavoratore.id, entry.lavoratore)
+        }
+        const processesById = new Map<string, ProcessoMatchingRecord>()
+        const selectionWorkersById = new Map<string, LavoratoreRecord>()
+        const processFamiliesById = new Map<string, FamigliaRecord>()
+        for (const entry of boardResponse.selezioni) {
+          if (entry.processo) processesById.set(entry.processo.id, entry.processo)
+          if (entry.lavoratore) selectionWorkersById.set(entry.lavoratore.id, entry.lavoratore)
+          if (entry.processoFamiglia) processFamiliesById.set(entry.processoFamiglia.id, entry.processoFamiglia)
+        }
 
         if (!isActive) return
 

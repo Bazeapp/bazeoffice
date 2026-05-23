@@ -27,7 +27,19 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox, CheckboxChip } from "@/components/ui/checkbox";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -359,12 +371,44 @@ function editableValue(value: unknown) {
   return normalized && normalized !== "-" ? normalized : "";
 }
 
-function splitCommaList(value: string) {
-  const values = value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  return values.length > 0 ? values : null;
+const WEEKDAY_ITEMS = [
+  "Lunedì",
+  "Martedì",
+  "Mercoledì",
+  "Giovedì",
+  "Venerdì",
+  "Sabato",
+  "Domenica",
+] as const;
+
+const WEEKDAY_ALIASES: Record<string, (typeof WEEKDAY_ITEMS)[number]> = {
+  lunedi: "Lunedì",
+  "lunedì": "Lunedì",
+  martedi: "Martedì",
+  "martedì": "Martedì",
+  mercoledi: "Mercoledì",
+  "mercoledì": "Mercoledì",
+  giovedi: "Giovedì",
+  "giovedì": "Giovedì",
+  venerdi: "Venerdì",
+  "venerdì": "Venerdì",
+  sabato: "Sabato",
+  domenica: "Domenica",
+};
+
+function normalizeWeekdayList(values: string[] | null | undefined): string[] {
+  if (!values) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of values) {
+    const token = raw.trim().toLowerCase();
+    const canonical = WEEKDAY_ALIASES[token];
+    if (canonical && !seen.has(canonical)) {
+      seen.add(canonical);
+      result.push(canonical);
+    }
+  }
+  return WEEKDAY_ITEMS.filter((day) => seen.has(day));
 }
 
 function toIsoDateInputValue(value: string | null | undefined) {
@@ -757,11 +801,16 @@ export function RicercaDetailView({
   const [editingSections, setEditingSections] = React.useState<Set<string>>(
     () => new Set(),
   );
-  const [orariDraft, setOrariDraft] = React.useState({
+  const [orariDraft, setOrariDraft] = React.useState<{
+    orarioDiLavoro: string;
+    oreSettimana: string;
+    giorniSettimana: string;
+    giornatePreferite: string[];
+  }>({
     orarioDiLavoro: editableValue(card?.orarioDiLavoro),
     oreSettimana: editableValue(card?.oreSettimana),
     giorniSettimana: editableValue(card?.giorniSettimana),
-    giornatePreferite: card?.giornatePreferite?.join(", ") ?? "",
+    giornatePreferite: normalizeWeekdayList(card?.giornatePreferite),
   });
   const [isSavingOrari, setIsSavingOrari] = React.useState(false);
   const { options: operatorOptions, loading: operatorOptionsLoading } =
@@ -788,7 +837,7 @@ export function RicercaDetailView({
       orarioDiLavoro: editableValue(card?.orarioDiLavoro),
       oreSettimana: editableValue(card?.oreSettimana),
       giorniSettimana: editableValue(card?.giorniSettimana),
-      giornatePreferite: card?.giornatePreferite?.join(", ") ?? "",
+      giornatePreferite: normalizeWeekdayList(card?.giornatePreferite),
     });
   }, [card, editingSections]);
 
@@ -1352,9 +1401,10 @@ export function RicercaDetailView({
         orario_di_lavoro: orariDraft.orarioDiLavoro.trim() || null,
         ore_settimanale: orariDraft.oreSettimana.trim() || null,
         numero_giorni_settimanali: orariDraft.giorniSettimana.trim() || null,
-        preferenza_giorno: orariDraft.giornatePreferite
-          ? splitCommaList(orariDraft.giornatePreferite)
-          : null,
+        preferenza_giorno:
+          orariDraft.giornatePreferite.length > 0
+            ? orariDraft.giornatePreferite
+            : null,
       });
       await invokeEdgeFunction("family-availability", {
         processo_matching_id: currentProcessId,
@@ -1444,6 +1494,11 @@ export function RicercaDetailView({
 
   const tipoIncontroOptions =
     lookupOptionsByField.tipo_incontro_famiglia_lavoratore ?? [];
+  const nazionalitaEscluseOptions = lookupOptionsByField.nazionalita_escluse ?? [];
+  const nazionalitaObbligatorieOptions =
+    lookupOptionsByField.nazionalita_obbligatorie ?? [];
+  const nazionalitaEscluseAnchor = useComboboxAnchor();
+  const nazionalitaObbligatorieAnchor = useComboboxAnchor();
 
   const renderField = (label: string, value: React.ReactNode) => (
     <Field>
@@ -1890,13 +1945,32 @@ export function RicercaDetailView({
                       {isEditingSection("orari") ? (
                         <Field>
                           <FieldLabel variant="eyebrow">Giornate preferite</FieldLabel>
-                          <Input
-                            value={orariDraft.giornatePreferite}
-                            onChange={(e) =>
-                              setOrariDraft((d) => ({ ...d, giornatePreferite: e.target.value }))
-                            }
-                            placeholder="es. Lunedì, Mercoledì"
-                          />
+                          <div className="flex flex-wrap gap-1.5">
+                            {WEEKDAY_ITEMS.map((day) => {
+                              const checked = orariDraft.giornatePreferite.includes(day);
+                              return (
+                                <CheckboxChip
+                                  key={day}
+                                  checked={checked}
+                                  onCheckedChange={(next) =>
+                                    setOrariDraft((d) => {
+                                      const set = new Set(d.giornatePreferite);
+                                      if (next) set.add(day);
+                                      else set.delete(day);
+                                      return {
+                                        ...d,
+                                        giornatePreferite: WEEKDAY_ITEMS.filter((item) =>
+                                          set.has(item),
+                                        ),
+                                      };
+                                    })
+                                  }
+                                >
+                                  {day}
+                                </CheckboxChip>
+                              );
+                            })}
+                          </div>
                         </Field>
                       ) : resolvedCard.giornatePreferite &&
                         resolvedCard.giornatePreferite.length > 0 ? (
@@ -2186,7 +2260,6 @@ export function RicercaDetailView({
                               })
                             }
 	                        />
-	                        {renderField("Dettaglio patente", resolvedCard.patenteDettaglio)}
 	                      </div>
 	                      <div className="grid grid-cols-2 gap-3">
 	                        {isEditingSection("richieste-specifiche") ? (
@@ -2218,16 +2291,38 @@ export function RicercaDetailView({
                               `${resolvedCard.etaMinima ?? "-"} - ${resolvedCard.etaMassima ?? "-"}`,
                             )
                           )}
-	                        <EditableTextField
-                            label="Sesso"
-                            value={resolvedCard.sesso}
-                            editing={isEditingSection("richieste-specifiche")}
-                            onSave={(next) =>
-                              void saveProcessPatch("richieste-specifiche", {
-                                sesso: next,
-                              })
-                            }
-                          />
+	                        <Field>
+                            <FieldLabel variant="eyebrow">Sesso</FieldLabel>
+                            {isEditingSection("richieste-specifiche") ? (
+                              <Select
+                                value={(() => {
+                                  const raw = (resolvedCard.sesso ?? "").toLowerCase()
+                                  if (raw === "uomo") return "Uomo"
+                                  if (raw === "donna") return "Donna"
+                                  if (raw === "indifferente") return "Indifferente"
+                                  return ""
+                                })()}
+                                onValueChange={(next) =>
+                                  void saveProcessPatch("richieste-specifiche", {
+                                    sesso: next || null,
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Seleziona" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Indifferente">Indifferente</SelectItem>
+                                  <SelectItem value="Donna">Donna</SelectItem>
+                                  <SelectItem value="Uomo">Uomo</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <p className="text-sm text-foreground">
+                                {resolvedCard.sesso || "—"}
+                              </p>
+                            )}
+                          </Field>
 	                      </div>
 	                      <div className="grid grid-cols-2 gap-3">
 	                        <EditableCheckboxField
@@ -2295,26 +2390,98 @@ export function RicercaDetailView({
                             }
 	                        />
 	                      </div>
-	                      <EditableTextField
-	                        label="Nazionalità escluse"
-	                        value={resolvedCard.nazionalitaEscluseLabel}
-                          editing={isEditingSection("richieste-specifiche")}
-                          onSave={(next) =>
-                            void saveProcessPatch("richieste-specifiche", {
-                              nazionalita_escluse: next ? splitCommaList(next) : null,
-                            })
-                          }
-	                      />
-	                      <EditableTextField
-	                        label="Nazionalità obbligatorie"
-	                        value={resolvedCard.nazionalitaObbligatorieLabel}
-                          editing={isEditingSection("richieste-specifiche")}
-                          onSave={(next) =>
-                            void saveProcessPatch("richieste-specifiche", {
-                              nazionalita_obbligatorie: next ? splitCommaList(next) : null,
-                            })
-                          }
-	                      />
+	                      <Field>
+                          <FieldLabel variant="eyebrow">Nazionalità escluse</FieldLabel>
+                          {isEditingSection("richieste-specifiche") ? (
+                            <Combobox
+                              multiple
+                              autoHighlight
+                              items={nazionalitaEscluseOptions.map((o) => o.valueLabel)}
+                              value={resolvedCard.nazionalitaEscluse ?? []}
+                              onValueChange={(nextValues) =>
+                                void saveProcessPatch("richieste-specifiche", {
+                                  nazionalita_escluse:
+                                    (nextValues as string[]).length > 0
+                                      ? (nextValues as string[])
+                                      : null,
+                                })
+                              }
+                            >
+                              <ComboboxChips ref={nazionalitaEscluseAnchor} className="w-full">
+                                <ComboboxValue>
+                                  {(values) => (
+                                    <React.Fragment>
+                                      {(values as string[]).map((value) => (
+                                        <ComboboxChip key={value}>{value}</ComboboxChip>
+                                      ))}
+                                      <ComboboxChipsInput placeholder="Seleziona nazionalità" />
+                                    </React.Fragment>
+                                  )}
+                                </ComboboxValue>
+                              </ComboboxChips>
+                              <ComboboxContent anchor={nazionalitaEscluseAnchor} className="max-h-80">
+                                <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
+                                <ComboboxList className="max-h-72 overflow-y-auto">
+                                  {(item) => (
+                                    <ComboboxItem key={item as string} value={item as string}>
+                                      {item as string}
+                                    </ComboboxItem>
+                                  )}
+                                </ComboboxList>
+                              </ComboboxContent>
+                            </Combobox>
+                          ) : (
+                            <p className="text-sm text-foreground">
+                              {resolvedCard.nazionalitaEscluseLabel || "—"}
+                            </p>
+                          )}
+                        </Field>
+	                      <Field>
+                          <FieldLabel variant="eyebrow">Nazionalità obbligatorie</FieldLabel>
+                          {isEditingSection("richieste-specifiche") ? (
+                            <Combobox
+                              multiple
+                              autoHighlight
+                              items={nazionalitaObbligatorieOptions.map((o) => o.valueLabel)}
+                              value={resolvedCard.nazionalitaObbligatorie ?? []}
+                              onValueChange={(nextValues) =>
+                                void saveProcessPatch("richieste-specifiche", {
+                                  nazionalita_obbligatorie:
+                                    (nextValues as string[]).length > 0
+                                      ? (nextValues as string[])
+                                      : null,
+                                })
+                              }
+                            >
+                              <ComboboxChips ref={nazionalitaObbligatorieAnchor} className="w-full">
+                                <ComboboxValue>
+                                  {(values) => (
+                                    <React.Fragment>
+                                      {(values as string[]).map((value) => (
+                                        <ComboboxChip key={value}>{value}</ComboboxChip>
+                                      ))}
+                                      <ComboboxChipsInput placeholder="Seleziona nazionalità" />
+                                    </React.Fragment>
+                                  )}
+                                </ComboboxValue>
+                              </ComboboxChips>
+                              <ComboboxContent anchor={nazionalitaObbligatorieAnchor} className="max-h-80">
+                                <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
+                                <ComboboxList className="max-h-72 overflow-y-auto">
+                                  {(item) => (
+                                    <ComboboxItem key={item as string} value={item as string}>
+                                      {item as string}
+                                    </ComboboxItem>
+                                  )}
+                                </ComboboxList>
+                              </ComboboxContent>
+                            </Combobox>
+                          ) : (
+                            <p className="text-sm text-foreground">
+                              {resolvedCard.nazionalitaObbligatorieLabel || "—"}
+                            </p>
+                          )}
+                        </Field>
 	                      <EditableTextField
 	                        label="Descrizione trasferte"
 	                        value={resolvedCard.descrizioneRichiestaTrasferte}

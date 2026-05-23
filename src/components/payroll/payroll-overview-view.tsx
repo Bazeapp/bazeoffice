@@ -52,15 +52,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  fetchFamiglie,
-  fetchMesiCalendario,
-  fetchMesiLavorati,
-  fetchPresenzeMensili,
-  fetchRapportiLavorativi,
+  fetchCedolinoDetail,
   runAutomationWebhook,
   updateRecord,
 } from "@/lib/anagrafiche-api"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
+import { buildFamilyPresenzeUrl } from "@/lib/private-area-url"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
@@ -746,14 +743,25 @@ export function CedolinoDetailSheet({
               <DetailSectionBlock
                 title="Cedolino"
                 icon={<FileTextIcon className="text-muted-foreground size-5" />}
-                action={
-                  <Button variant="outline" size="sm" asChild>
-                    <a href="#" onClick={(event) => event.preventDefault()}>
-                      Apri calendario presenze
-                      <ExternalLinkIcon className="size-3.5" />
-                    </a>
-                  </Button>
-                }
+                action={(() => {
+                  const presenzeUrl = buildFamilyPresenzeUrl(
+                    famiglia?.email ?? famiglia?.customer_email,
+                    famiglia?.id,
+                  )
+                  return presenzeUrl ? (
+                    <Button variant="outline" size="sm" asChild>
+                      <a
+                        href={presenzeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Apri il calendario presenze della famiglia"
+                      >
+                        Apri calendario presenze
+                        <ExternalLinkIcon className="size-3.5" />
+                      </a>
+                    </Button>
+                  ) : null
+                })()}
                 contentClassName="space-y-5"
               >
                 <div className="space-y-2">
@@ -1346,160 +1354,41 @@ function CedoliniPayrollView() {
     [columns, selectedCardId]
   )
 
+  // Re-run on `selectedCardFromColumns` (not just its id) so a realtime board
+  // refetch — which produces a new card object with the same id — also
+  // refreshes the detail. Blank only when actually switching cards, otherwise
+  // keep the current detail visible and update in the background.
+  const previousSelectedCardIdRef = React.useRef<string | null>(null)
   React.useEffect(() => {
     if (!selectedCardId) {
       setSelectedCard(null)
+      previousSelectedCardIdRef.current = null
       return
     }
     if (!selectedCardFromColumns) return
 
+    const isSwitchingCard = previousSelectedCardIdRef.current !== selectedCardId
+    previousSelectedCardIdRef.current = selectedCardId
+
     let isActive = true
     const currentCardId = selectedCardId
     const currentCard = selectedCardFromColumns
-    setSelectedCard(null)
+    if (isSwitchingCard) setSelectedCard(null)
 
     async function loadSelectedCard() {
       try {
-        const recordResponse = await fetchMesiLavorati({
-          limit: 1,
-          offset: 0,
-          filters: {
-            kind: "group",
-            id: "payroll-selected-record",
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: "payroll-selected-record-id",
-                field: "id",
-                operator: "is",
-                value: currentCardId,
-              },
-            ],
-          },
-        })
-
-        const freshRecord = recordResponse.rows[0] as PayrollBoardCardData["record"] | undefined
-        if (!isActive || !freshRecord) return
-
-        const [rapportoResponse, famigliaResponse, meseResponse, presenzeResponse, presenzeRegolariResponse] =
-          await Promise.all([
-            freshRecord.rapporto_lavorativo_id
-              ? fetchRapportiLavorativi({
-                  limit: 1,
-                  offset: 0,
-                  filters: {
-                    kind: "group",
-                    id: "payroll-selected-rapporto",
-                    logic: "and",
-                    nodes: [
-                      {
-                        kind: "condition",
-                        id: "payroll-selected-rapporto-id",
-                        field: "id",
-                        operator: "is",
-                        value: freshRecord.rapporto_lavorativo_id,
-                      },
-                    ],
-                  },
-                })
-              : Promise.resolve({ rows: [], total: 0, columns: [] }),
-            currentCard.rapporto?.famiglia_id
-              ? fetchFamiglie({
-                  limit: 1,
-                  offset: 0,
-                  filters: {
-                    kind: "group",
-                    id: "payroll-selected-famiglia",
-                    logic: "and",
-                    nodes: [
-                      {
-                        kind: "condition",
-                        id: "payroll-selected-famiglia-id",
-                        field: "id",
-                        operator: "is",
-                        value: currentCard.rapporto.famiglia_id,
-                      },
-                    ],
-                  },
-                })
-              : Promise.resolve({ rows: [], total: 0, columns: [] }),
-            freshRecord.mese_id
-              ? fetchMesiCalendario({
-                  limit: 1,
-                  offset: 0,
-                  filters: {
-                    kind: "group",
-                    id: "payroll-selected-mese",
-                    logic: "and",
-                    nodes: [
-                      {
-                        kind: "condition",
-                        id: "payroll-selected-mese-id",
-                        field: "id",
-                        operator: "is",
-                        value: freshRecord.mese_id,
-                      },
-                    ],
-                  },
-                })
-              : Promise.resolve({ rows: [], total: 0, columns: [] }),
-            freshRecord.presenze_id
-              ? fetchPresenzeMensili({
-                  limit: 1,
-                  offset: 0,
-                  filters: {
-                    kind: "group",
-                    id: "payroll-selected-presenze",
-                    logic: "and",
-                    nodes: [
-                      {
-                        kind: "condition",
-                        id: "payroll-selected-presenze-id",
-                        field: "id",
-                        operator: "is",
-                        value: freshRecord.presenze_id,
-                      },
-                    ],
-                  },
-                })
-              : Promise.resolve({ rows: [], total: 0, columns: [] }),
-            freshRecord.presenze_regolare_id
-              ? fetchPresenzeMensili({
-                  limit: 1,
-                  offset: 0,
-                  filters: {
-                    kind: "group",
-                    id: "payroll-selected-presenze-regolari",
-                    logic: "and",
-                    nodes: [
-                      {
-                        kind: "condition",
-                        id: "payroll-selected-presenze-regolari-id",
-                        field: "id",
-                        operator: "is",
-                        value: freshRecord.presenze_regolare_id,
-                      },
-                    ],
-                  },
-                })
-              : Promise.resolve({ rows: [], total: 0, columns: [] }),
-          ])
-
-        if (!isActive) return
+        const detail = await fetchCedolinoDetail(currentCardId)
+        if (!isActive || !detail || !detail.record) return
 
         setSelectedCard({
           ...currentCard,
-          record: freshRecord,
-          rapporto:
-            (rapportoResponse.rows[0] as PayrollBoardCardData["rapporto"]) ?? currentCard.rapporto,
-          famiglia:
-            (famigliaResponse.rows[0] as PayrollBoardCardData["famiglia"]) ?? currentCard.famiglia,
-          mese: (meseResponse.rows[0] as PayrollBoardCardData["mese"]) ?? currentCard.mese,
-          presenze:
-            (presenzeResponse.rows[0] as PayrollBoardCardData["presenze"]) ?? currentCard.presenze,
+          record: detail.record as PayrollBoardCardData["record"],
+          rapporto: (detail.rapporto as PayrollBoardCardData["rapporto"]) ?? currentCard.rapporto,
+          famiglia: (detail.famiglia as PayrollBoardCardData["famiglia"]) ?? currentCard.famiglia,
+          mese: (detail.mese as PayrollBoardCardData["mese"]) ?? currentCard.mese,
+          presenze: (detail.presenze as PayrollBoardCardData["presenze"]) ?? currentCard.presenze,
           presenzeRegolari:
-            (presenzeRegolariResponse.rows[0] as PayrollBoardCardData["presenzeRegolari"]) ??
+            (detail.presenzeRegolari as PayrollBoardCardData["presenzeRegolari"]) ??
             currentCard.presenzeRegolari,
         })
       } catch (error) {
@@ -1513,7 +1402,7 @@ function CedoliniPayrollView() {
     return () => {
       isActive = false
     }
-  }, [selectedCardFromColumns?.id, selectedCardId])
+  }, [selectedCardFromColumns, selectedCardId])
 
   const monthSwitcher = (
     <div className="flex items-center gap-2">
@@ -1633,6 +1522,10 @@ function CedoliniPayrollView() {
       </div>
 
       <CedolinoDetailSheet
+        // Remount on card switch so debounced inputs reset their local draft
+        // (useDebouncedSave's hasUserEditedRef) instead of carrying it across
+        // to a different cedolino.
+        key={selectedCardId ?? "__empty__"}
         card={selectedCard}
         columns={columns}
         open={Boolean(selectedCardId)}

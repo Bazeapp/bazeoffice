@@ -1,9 +1,17 @@
 import * as React from "react"
 import { toast } from "sonner"
 
-import { createRecord, fetchChiusureContratti, fetchFamiglie, fetchLavoratori, fetchLookupValues, fetchRapportiLavorativi, updateRecord } from "@/lib/anagrafiche-api"
+import { clearReadCaches, createRecord, fetchChiusureBoard, fetchLookupValues, updateRecord } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
-import type { ChiusuraContrattoRecord, FamigliaRecord, LavoratoreRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
+import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
+
+const CHIUSURE_REALTIME_TABLES = [
+  "chiusure_contratti",
+  "rapporti_lavorativi",
+  "famiglie",
+  "lavoratori",
+]
 
 type ChiusuraStageDefinition = {
   id: string
@@ -74,116 +82,6 @@ const DEFAULT_STAGE_DEFINITIONS: ChiusuraStageDefinition[] = [
   { id: "Richiesta chiarimenti famiglia", label: "Richiesta chiarimenti famiglia", color: "orange" },
   { id: "Chiusura terminata", label: "Chiusura terminata", color: "green" },
 ]
-
-const CHIUSURE_RAPPORTI_SELECT = [
-  "id",
-  "ticket_id",
-  "stato_assunzione",
-  "stato_servizio",
-  "fine_rapporto_lavorativo_id",
-  "tipo_rapporto",
-  "tipo_contratto",
-  "ore_a_settimana",
-  "data_inizio_rapporto",
-  "cognome_nome_datore_proper",
-  "nome_lavoratore_per_url",
-  "famiglia_id",
-  "lavoratore_id",
-  "assunzione_datore_id",
-  "assunzione_lavoratore_id",
-] satisfies string[]
-
-const RELATED_RECORDS_BATCH_SIZE = 200
-
-function compactUnique(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.filter((value): value is string => Boolean(value))))
-}
-
-function chunkValues<T>(values: T[], size: number) {
-  const chunks: T[][] = []
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size))
-  }
-  return chunks
-}
-
-async function fetchFamiglieByIds(ids: string[]) {
-  if (ids.length === 0) return [] as FamigliaRecord[]
-  const results = await Promise.all(
-    chunkValues(ids, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
-      fetchFamiglie({
-        select: ["id", "nome", "cognome"],
-        limit: batch.length,
-        offset: 0,
-        orderBy: [{ field: "id", ascending: true }],
-        filters: {
-          kind: "group",
-          id: `chiusure-famiglie-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `chiusure-famiglie-id-${index}`,
-              field: "id",
-              operator: "in",
-              value: batch.join(","),
-            },
-          ],
-        },
-      })
-    )
-  )
-  return results.flatMap((result) => result.rows as FamigliaRecord[])
-}
-
-async function fetchLavoratoriByIds(ids: string[]) {
-  if (ids.length === 0) return [] as LavoratoreRecord[]
-  const results = await Promise.all(
-    chunkValues(ids, RELATED_RECORDS_BATCH_SIZE).map((batch, index) =>
-      fetchLavoratori({
-        select: ["id", "nome", "cognome"],
-        limit: batch.length,
-        offset: 0,
-        orderBy: [{ field: "id", ascending: true }],
-        filters: {
-          kind: "group",
-          id: `chiusure-lavoratori-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `chiusure-lavoratori-id-${index}`,
-              field: "id",
-              operator: "in",
-              value: batch.join(","),
-            },
-          ],
-        },
-      })
-    )
-  )
-  return results.flatMap((result) => result.rows as LavoratoreRecord[])
-}
-
-const CHIUSURE_SELECT = [
-  "id",
-  "ticket_id",
-  "stato",
-  "nome",
-  "cognome",
-  "allegato_compilato",
-  "check_8_giorni_di_lavoro_svolti",
-  "check_chiusura_istantanea",
-  "creato_il",
-  "email",
-  "informazioni_aggiuntive",
-  "motivazione_cessazione_rapporto",
-  "data_fine_rapporto",
-  "documenti_chiusura_rapporto",
-  "presenze_ultimo_mese",
-  "tipo_licenziamento",
-  "tipo_decesso",
-] satisfies string[]
 
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
@@ -309,73 +207,36 @@ async function fetchChiusureBoardData(): Promise<{
   columns: ChiusureBoardColumnData[]
   rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
 }> {
-  const [chiusureResult, rapportiResult, lookupResult] = await Promise.all([
-    fetchChiusureContratti({
-      select: CHIUSURE_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
-    fetchRapportiLavorativi({
-      select: CHIUSURE_RAPPORTI_SELECT,
-      limit: 1000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
+  const [boardResult, lookupResult] = await Promise.all([
+    fetchChiusureBoard(),
     fetchLookupValues(),
   ])
-
-  const familyIds = compactUnique(rapportiResult.rows.map((rapporto) => rapporto.famiglia_id))
-  const workerIds = compactUnique(rapportiResult.rows.map((rapporto) => rapporto.lavoratore_id))
-  const [familiesRows, lavoratoriRows] = await Promise.all([
-    fetchFamiglieByIds(familyIds),
-    fetchLavoratoriByIds(workerIds),
-  ])
-  const familiesById = new Map(familiesRows.map((family) => [family.id, family] as const))
-  const lavoratoriById = new Map(lavoratoriRows.map((worker) => [worker.id, worker] as const))
-  const resolveAssunzionePresence = (rapporto: RapportoLavorativoRecord | null) => ({
-    hasAssunzioneDatore: Boolean(rapporto?.assunzione_datore_id),
-    hasAssunzioneLavoratore: Boolean(rapporto?.assunzione_lavoratore_id),
-  })
-  const titleFor = (rapporto: RapportoLavorativoRecord) =>
-    getRapportoTitle(rapporto, {
-      famiglia: rapporto.famiglia_id ? familiesById.get(rapporto.famiglia_id) ?? null : null,
-      lavoratore: rapporto.lavoratore_id ? lavoratoriById.get(rapporto.lavoratore_id) ?? null : null,
-    })
 
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const tipoMetadata = buildTipoMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
   const aliases = stageMetadata.aliases
-  const rapportoByTicketId = new Map(
-    rapportiResult.rows
-      .filter((rapporto) => rapporto.ticket_id)
-      .map((rapporto) => [rapporto.ticket_id as string, rapporto] as const)
-  )
-  const rapportoByChiusuraId = new Map(
-    rapportiResult.rows
-      .filter((rapporto) => rapporto.fine_rapporto_lavorativo_id)
-      .map((rapporto) => [rapporto.fine_rapporto_lavorativo_id as string, rapporto] as const)
-  )
   const cardsByStage = new Map<string, ChiusureBoardCardData[]>(
     stages.map((stage) => [stage.id, []])
   )
 
-  for (const record of chiusureResult.rows) {
+  for (const row of boardResult.cards) {
+    const record = row.record
     const stage = aliases.get(normalizeToken(record.stato))
     if (!stage) continue
 
-    const rapporto =
-      rapportoByChiusuraId.get(record.id) ??
-      (record.ticket_id ? rapportoByTicketId.get(record.ticket_id) ?? null : null)
+    const rapporto = row.rapporto ?? null
     const nomeCompleto =
-      (rapporto ? titleFor(rapporto) : null) ||
+      (rapporto
+        ? getRapportoTitle(rapporto, {
+            famiglia: row.famiglia ? { cognome: row.famiglia.cognome, nome: row.famiglia.nome } : null,
+            lavoratore: row.lavoratore ? { cognome: row.lavoratore.cognome, nome: row.lavoratore.nome } : null,
+          })
+        : null) ||
       [record.nome, record.cognome].filter(Boolean).join(" ").trim() ||
       "Nominativo non disponibile"
     const rawTipo = record.tipo_licenziamento ?? record.tipo_decesso ?? "-"
     const normalizedTipo = normalizeToken(rawTipo)
-
-    const { hasAssunzioneDatore, hasAssunzioneLavoratore } = resolveAssunzionePresence(rapporto)
 
     const card: ChiusureBoardCardData = {
       id: record.id,
@@ -388,8 +249,8 @@ async function fetchChiusureBoardData(): Promise<{
       dataFineRapporto: formatItalianDate(record.data_fine_rapporto),
       tipoLabel: tipoMetadata.labels.get(normalizedTipo) ?? rawTipo,
       tipoColor: tipoMetadata.colors.get(normalizedTipo) ?? null,
-      hasAssunzioneDatore,
-      hasAssunzioneLavoratore,
+      hasAssunzioneDatore: Boolean(rapporto?.assunzione_datore_id),
+      hasAssunzioneLavoratore: Boolean(rapporto?.assunzione_lavoratore_id),
     }
 
     cardsByStage.get(stage)?.push(card)
@@ -401,8 +262,15 @@ async function fetchChiusureBoardData(): Promise<{
     color: stage.color,
     cards: cardsByStage.get(stage.id) ?? [],
   }))
-  const rapportoOptions = rapportiResult.rows
-    .map((rapporto) => ({ id: rapporto.id, label: titleFor(rapporto), rapporto }))
+  const rapportoOptions = boardResult.rapporti
+    .map((row) => ({
+      id: row.rapporto.id,
+      label: getRapportoTitle(row.rapporto, {
+        famiglia: row.famiglia ? { cognome: row.famiglia.cognome, nome: row.famiglia.nome } : null,
+        lavoratore: row.lavoratore ? { cognome: row.lavoratore.cognome, nome: row.lavoratore.nome } : null,
+      }),
+      rapporto: row.rapporto,
+    }))
     .sort((left, right) => left.label.localeCompare(right.label, "it"))
 
   return { columns, rapportoOptions }
@@ -494,8 +362,9 @@ export function useChiusureBoard(): UseChiusureBoardState {
       dataFineRapporto: string
       note: string
     }) => {
-      const rapporto =
-        rapportoOptions.find((option) => option.id === input.rapportoId)?.rapporto ?? null
+      const rapportoOption =
+        rapportoOptions.find((option) => option.id === input.rapportoId) ?? null
+      const rapporto = rapportoOption?.rapporto ?? null
       const stage =
         input.tipo === "dimissione"
           ? "Lavoratore comunica dimissioni"
@@ -525,7 +394,7 @@ export function useChiusureBoard(): UseChiusureBoardState {
         stage,
         record,
         rapporto,
-        nomeCompleto: rapporto ? getRapportoTitle(rapporto) : "Rapporto non disponibile",
+        nomeCompleto: rapportoOption?.label ?? "Rapporto non disponibile",
         email: record.email ?? "-",
         motivazione: record.motivazione_cessazione_rapporto,
         dataFineRapporto: formatItalianDate(record.data_fine_rapporto),
@@ -640,6 +509,23 @@ export function useChiusureBoard(): UseChiusureBoardState {
       cancelled = true
     }
   }, [])
+
+  // Silent background refresh used by realtime: no spinner, keep current data on error.
+  const reloadSilently = React.useCallback(async () => {
+    clearReadCaches()
+    try {
+      const data = await fetchChiusureBoardData()
+      setColumns(data.columns)
+      setRapportoOptions(data.rapportoOptions)
+    } catch {
+      // Ignore: a failed background refresh must not blank the board.
+    }
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: CHIUSURE_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
 
   return {
     loading,

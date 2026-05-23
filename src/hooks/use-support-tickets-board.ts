@@ -1,19 +1,17 @@
 import * as React from "react"
 
 import {
-  fetchAssunzioni,
+  clearReadCaches,
   createRecord,
-  fetchChiusureContratti,
-  fetchContributiInps,
   fetchLookupValues,
-  fetchMesiLavorati,
-  fetchPagamenti,
-  fetchPresenzeMensili,
-  fetchRapportiLavorativi,
-  fetchTickets,
-  fetchVariazioniContrattuali,
+  fetchSupportTicketsBundle,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+
+// The board's primary entity is the ticket; linked records are contextual, so
+// we subscribe only to `ticket` to avoid refetching on unrelated table churn.
+const SUPPORT_TICKETS_REALTIME_TABLES = ["ticket"]
 import type {
   ChiusuraContrattoRecord,
   ContributoInpsRecord,
@@ -38,7 +36,7 @@ import {
   type SupportTicketType,
   type SupportTicketUrgency,
 } from "@/components/support/support-ticket-config"
-import { getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
+import { formatPersonName, getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
 import { resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 
 type SupportTicketStageMetadata = {
@@ -264,16 +262,34 @@ function buildStageMetadata(rows: LookupValueRecord[], ticketRows: TicketRecord[
   return { definitions, aliases }
 }
 
-function buildRapportoIndex(rows: RapportoLavorativoRecord[]) {
+type PersonNameInput = { cognome?: string | null; nome?: string | null }
+
+function buildRapportoIndex(
+  rows: RapportoLavorativoRecord[],
+  famiglieById?: Map<string, PersonNameInput>,
+  lavoratoriById?: Map<string, PersonNameInput>
+) {
   const byId = new Map<string, RapportoLavorativoRecord>()
   const byExternalId = new Map<string, RapportoLavorativoRecord>()
   const byChiusuraId = new Map<string, RapportoLavorativoRecord>()
+  const byAssunzioneId = new Map<string, RapportoLavorativoRecord>()
+  const personNamesById = new Map<
+    string,
+    { famiglia: PersonNameInput | null; lavoratore: PersonNameInput | null }
+  >()
 
   for (const rapporto of rows) {
     byId.set(rapporto.id, rapporto)
 
     if (rapporto.fine_rapporto_lavorativo_id) {
       byChiusuraId.set(rapporto.fine_rapporto_lavorativo_id, rapporto)
+    }
+
+    for (const assunzioneId of [
+      rapporto.assunzione_datore_id,
+      rapporto.assunzione_lavoratore_id,
+    ]) {
+      if (assunzioneId) byAssunzioneId.set(assunzioneId, rapporto)
     }
 
     for (const key of [
@@ -284,9 +300,21 @@ function buildRapportoIndex(rows: RapportoLavorativoRecord[]) {
       if (!key) continue
       byExternalId.set(key, rapporto)
     }
+
+    personNamesById.set(rapporto.id, {
+      famiglia: rapporto.famiglia_id ? famiglieById?.get(rapporto.famiglia_id) ?? null : null,
+      lavoratore: rapporto.lavoratore_id ? lavoratoriById?.get(rapporto.lavoratore_id) ?? null : null,
+    })
   }
 
-  return { byId, byExternalId, byChiusuraId }
+  return {
+    byId,
+    byExternalId,
+    byChiusuraId,
+    byAssunzioneId,
+    personNamesById,
+    famigliaNameById: famiglieById ?? new Map<string, PersonNameInput>(),
+  }
 }
 
 function buildChiusuraIndex(rows: ChiusuraContrattoRecord[]) {
@@ -321,100 +349,11 @@ function getIndexedRecord<TRecord extends { id: string; ticket_id?: string | nul
   return index.byTicketId.get(ticketId) ?? null
 }
 
-const SUPPORT_RAPPORTI_SELECT = [
-  "id",
-  "id_rapporto",
-  "ticket_id",
-  "stato_assunzione",
-  "stato_servizio",
-  "fine_rapporto_lavorativo_id",
-  "tipo_rapporto",
-  "tipo_contratto",
-  "data_inizio_rapporto",
-  "cognome_nome_datore_proper",
-  "nome_lavoratore_per_url",
-] satisfies string[]
-
-const SUPPORT_CHIUSURE_SELECT = [
-  "id",
-  "ticket_id",
-  "stato",
-  "nome",
-  "cognome",
-  "creato_il",
-  "data_fine_rapporto",
-  "email",
-  "informazioni_aggiuntive",
-  "motivazione_cessazione_rapporto",
-  "presenze_ultimo_mese",
-  "tipo_licenziamento",
-  "tipo_decesso",
-] satisfies string[]
-
-const SUPPORT_ASSUNZIONI_SELECT = [
-  "id",
-  "info_anagrafiche_nome",
-  "info_anagrafiche_cognome",
-  "info_anagrafiche_email",
-  "type_of_compilazione_form",
-] satisfies string[]
-
-const SUPPORT_CONTRIBUTI_SELECT = [
-  "id",
-  "data_invio_famiglia",
-  "data_ora_creazione",
-  "importo_contributi_inps",
-  "rapporto_lavorativo_id",
-  "stato_contributi_inps",
-  "ticket_id",
-  "trimestre_id",
-] satisfies string[]
-
-const SUPPORT_CEDOLINI_SELECT = [
-  "id",
-  "caso_particolare",
-  "data_invio_famiglia",
-  "data_ora_creazione",
-  "importo_busta_estratto",
-  "mese_id",
-  "rapporto_lavorativo_id",
-  "stato_mese_lavorativo",
-  "ticket_id",
-] satisfies string[]
-
-const SUPPORT_PAGAMENTI_SELECT = [
-  "id",
-  "amount",
-  "currency",
-  "customer_email",
-  "data_ora_di_pagamento",
-  "numero_fattura",
-  "status",
-  "ticket_id",
-  "type_of_payment",
-] satisfies string[]
-
-const SUPPORT_PRESENZE_SELECT = [
-  "id",
-  "presenze_mensili",
-  "data_ora_creazione",
-  "note_interne",
-  "ticket_id",
-] satisfies string[]
-
-const SUPPORT_VARIAZIONI_SELECT = [
-  "id",
-  "data_variazione",
-  "rapporto_lavorativo_id",
-  "stato",
-  "ticket_id",
-  "variazione_da_applicare",
-] satisfies string[]
-
 function getRapportoForTicket(
   record: TicketRecord,
   rapportoIndex: ReturnType<typeof buildRapportoIndex>,
-  chiusuraIndex: ReturnType<typeof buildChiusuraIndex>
+  chiusuraIndex: ReturnType<typeof buildChiusuraIndex>,
+  linkedRecordIndexes?: LinkedRecordIndexes
 ) {
   for (const key of [
     record.rapporto_id,
@@ -435,6 +374,33 @@ function getRapportoForTicket(
       (chiusura?.ticket_id ? rapportoIndex.byExternalId.get(chiusura.ticket_id) : null)
 
     if (rapporto) return rapporto
+  }
+
+  // Risalita al rapporto tramite i record collegati che lo referenziano direttamente.
+  if (linkedRecordIndexes) {
+    const linkedRapportoId =
+      (record.cedolino_id
+        ? getIndexedRecord(record.cedolino_id, record.id, linkedRecordIndexes.cedolini)
+            ?.rapporto_lavorativo_id
+        : null) ??
+      (record.variazione_id
+        ? getIndexedRecord(record.variazione_id, record.id, linkedRecordIndexes.variazioni)
+            ?.rapporto_lavorativo_id
+        : null) ??
+      (record.contributi_id
+        ? getIndexedRecord(record.contributi_id, record.id, linkedRecordIndexes.contributi)
+            ?.rapporto_lavorativo_id
+        : null)
+
+    if (linkedRapportoId) {
+      const rapporto = rapportoIndex.byId.get(linkedRapportoId)
+      if (rapporto) return rapporto
+    }
+
+    if (record.assunzione_id) {
+      const rapporto = rapportoIndex.byAssunzioneId.get(record.assunzione_id)
+      if (rapporto) return rapporto
+    }
   }
 
   return null
@@ -598,7 +564,7 @@ function mapRecordToCard(
   const normalizedType = normalizeTicketType(record.tipo)
   if (normalizedType !== ticketType) return null
 
-  const rapporto = getRapportoForTicket(record, rapportoIndex, chiusuraIndex)
+  const rapporto = getRapportoForTicket(record, rapportoIndex, chiusuraIndex, linkedRecordIndexes)
   const linkedRecords = buildLinkedRecords(record, linkedRecordIndexes)
   const metadata = getSupportTicketMetadata(record)
   const tag = toStringValue(metadata.tag) ?? inferSupportTicketTag(record)
@@ -620,8 +586,23 @@ function mapRecordToCard(
   if (!stage) {
     throw new Error(`Stato ticket non mappato per ticket ${record.id}: ${rawStage}`)
   }
-  const nomeFamiglia = rapporto ? getRapportoFamilyLabel(rapporto) : "Famiglia non disponibile"
-  const nomeLavoratore = rapporto ? getRapportoWorkerLabel(rapporto) : "Lavoratore non disponibile"
+  const personNames = rapporto ? rapportoIndex.personNamesById.get(rapporto.id) ?? null : null
+  // Se il ticket non risale a un rapporto, proviamo a recuperare almeno la famiglia
+  // dal pagamento collegato (i pagamenti referenziano direttamente la famiglia).
+  const pagamentoFamiglia =
+    !rapporto && (record.pagamenti_id || linkedRecordIndexes.pagamenti.byTicketId.has(record.id))
+      ? (() => {
+          const pagamento = getIndexedRecord(record.pagamenti_id, record.id, linkedRecordIndexes.pagamenti)
+          const famigliaId = pagamento?.famiglia_id
+          return famigliaId ? rapportoIndex.famigliaNameById.get(famigliaId) ?? null : null
+        })()
+      : null
+  const nomeFamiglia = rapporto
+    ? getRapportoFamilyLabel(rapporto, personNames?.famiglia)
+    : formatPersonName(pagamentoFamiglia) ?? "Famiglia non disponibile"
+  const nomeLavoratore = rapporto
+    ? getRapportoWorkerLabel(rapporto, personNames?.lavoratore)
+    : "Lavoratore non disponibile"
 
   return {
     id: record.id,
@@ -633,7 +614,9 @@ function mapRecordToCard(
     causale: toStringValue(record.causale) ?? "Ticket senza causale",
     nomeFamiglia,
     nomeLavoratore,
-    nomeCompleto: rapporto ? getRapportoTitle(rapporto) : `${nomeFamiglia} – ${nomeLavoratore}`,
+    nomeCompleto: rapporto
+      ? getRapportoTitle(rapporto, { famiglia: personNames?.famiglia, lavoratore: personNames?.lavoratore })
+      : `${nomeFamiglia} – ${nomeLavoratore}`,
     dataAperturaLabel: formatDateLabel(record.data_apertura ?? record.creato_il),
     tag,
     urgenza,
@@ -643,163 +626,39 @@ function mapRecordToCard(
   }
 }
 
-function collectIds(rows: TicketRecord[], field: keyof TicketRecord) {
-  return Array.from(
-    new Set(
-      rows
-        .map((row) => toStringValue(row[field]))
-        .filter((value): value is string => Boolean(value))
-    )
-  )
-}
-
-function linkedRecordFilter(ids: string[], ticketIds: string[], includeTicketId = true) {
-  const nodes = []
-
-  if (ids.length > 0) {
-    nodes.push({
-      kind: "condition" as const,
-      id: "linked-record-id",
-      field: "id",
-      operator: "in" as const,
-      value: JSON.stringify(ids),
-    })
-  }
-
-  if (includeTicketId && ticketIds.length > 0) {
-    nodes.push({
-      kind: "condition" as const,
-      id: "linked-record-ticket-id",
-      field: "ticket_id",
-      operator: "in" as const,
-      value: JSON.stringify(ticketIds),
-    })
-  }
-
-  if (nodes.length === 0) return null
-
-  return {
-    kind: "group" as const,
-    id: "linked-record-root",
-    logic: "or" as const,
-    nodes,
-  }
-}
-
-function emptyTableResponse<TRecord>() {
-  return { rows: [] as TRecord[], total: 0, columns: [], groups: [] }
-}
-
 async function fetchSupportTicketsData(ticketType: SupportTicketType) {
-  const [ticketsResult, rapportiResult, lookupResult] = await Promise.all([
-    fetchTickets({
-      limit: 3000,
-      offset: 0,
-      orderBy: [{ field: "data_apertura", ascending: false }],
-    }),
-    fetchRapportiLavorativi({
-      select: SUPPORT_RAPPORTI_SELECT,
-      limit: 3000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
+  const [bundle, lookupResult] = await Promise.all([
+    fetchSupportTicketsBundle(ticketType),
     fetchLookupValues(),
   ])
 
-  const filteredTicketRows = ticketsResult.rows.filter((row) => normalizeTicketType(row.tipo) === ticketType)
-  const ticketIds = filteredTicketRows.map((row) => row.id)
-  const chiusuraFilter = linkedRecordFilter(collectIds(filteredTicketRows, "chiusura_id"), ticketIds)
-  const assunzioneFilter = linkedRecordFilter(collectIds(filteredTicketRows, "assunzione_id"), ticketIds, false)
-  const contributiFilter = linkedRecordFilter(collectIds(filteredTicketRows, "contributi_id"), ticketIds)
-  const cedolinoFilter = linkedRecordFilter(collectIds(filteredTicketRows, "cedolino_id"), ticketIds)
-  const pagamentiFilter = linkedRecordFilter(collectIds(filteredTicketRows, "pagamenti_id"), ticketIds)
-  const presenzeFilter = linkedRecordFilter(collectIds(filteredTicketRows, "presenze_id"), ticketIds)
-  const variazioniFilter = linkedRecordFilter(collectIds(filteredTicketRows, "variazione_id"), ticketIds)
+  const filteredTicketRows = (bundle.tickets ?? []) as TicketRecord[]
+  const rapportiRows = (bundle.rapporti ?? []) as RapportoLavorativoRecord[]
+  const chiusureRows = (bundle.chiusure ?? []) as ChiusuraContrattoRecord[]
+  const pagamentiRows = (bundle.pagamenti ?? []) as PagamentoRecord[]
 
-  const [
-    chiusureResult,
-    assunzioniResult,
-    contributiResult,
-    cedoliniResult,
-    pagamentiResult,
-    presenzeResult,
-    variazioniResult,
-  ] = await Promise.all([
-    chiusuraFilter
-      ? fetchChiusureContratti({
-          select: SUPPORT_CHIUSURE_SELECT,
-          limit: 5000,
-          offset: 0,
-          orderBy: [{ field: "aggiornato_il", ascending: false }],
-          filters: chiusuraFilter,
-        })
-      : emptyTableResponse<ChiusuraContrattoRecord>(),
-    assunzioneFilter
-      ? fetchAssunzioni({
-          select: SUPPORT_ASSUNZIONI_SELECT,
-          limit: 5000,
-          offset: 0,
-          orderBy: [{ field: "aggiornato_il", ascending: false }],
-          filters: assunzioneFilter,
-        })
-      : emptyTableResponse<AssunzioneRecord>(),
-    contributiFilter
-      ? fetchContributiInps({
-          select: SUPPORT_CONTRIBUTI_SELECT,
-          limit: 5000,
-          offset: 0,
-          orderBy: [{ field: "aggiornato_il", ascending: false }],
-          filters: contributiFilter,
-        })
-      : emptyTableResponse<ContributoInpsRecord>(),
-    cedolinoFilter
-      ? fetchMesiLavorati({
-          select: SUPPORT_CEDOLINI_SELECT,
-          limit: 5000,
-          offset: 0,
-          orderBy: [{ field: "aggiornato_il", ascending: false }],
-          filters: cedolinoFilter,
-        })
-      : emptyTableResponse<MeseLavoratoRecord>(),
-    pagamentiFilter
-      ? fetchPagamenti({
-          select: SUPPORT_PAGAMENTI_SELECT,
-          limit: 5000,
-          offset: 0,
-          orderBy: [{ field: "aggiornato_il", ascending: false }],
-          filters: pagamentiFilter,
-        })
-      : emptyTableResponse<PagamentoRecord>(),
-    presenzeFilter
-      ? fetchPresenzeMensili({
-          select: SUPPORT_PRESENZE_SELECT,
-          limit: 5000,
-          offset: 0,
-          orderBy: [{ field: "aggiornato_il", ascending: false }],
-          filters: presenzeFilter,
-        })
-      : emptyTableResponse<PresenzaMensileRecord>(),
-    variazioniFilter
-      ? fetchVariazioniContrattuali({
-          select: SUPPORT_VARIAZIONI_SELECT,
-          limit: 5000,
-          offset: 0,
-          orderBy: [{ field: "aggiornato_il", ascending: false }],
-          filters: variazioniFilter,
-        })
-      : emptyTableResponse<VariazioneContrattualeRecord>(),
-  ])
-
-  const rapportoIndex = buildRapportoIndex(rapportiResult.rows)
-  const chiusuraIndex = buildChiusuraIndex(chiusureResult.rows)
+  const famiglieById = new Map<string, PersonNameInput>(
+    (bundle.famiglie ?? []).map((row) => [
+      String(row.id),
+      { cognome: row.cognome ?? null, nome: row.nome ?? null },
+    ])
+  )
+  const lavoratoriById = new Map<string, PersonNameInput>(
+    (bundle.lavoratori ?? []).map((row) => [
+      String(row.id),
+      { cognome: row.cognome ?? null, nome: row.nome ?? null },
+    ])
+  )
+  const rapportoIndex = buildRapportoIndex(rapportiRows, famiglieById, lavoratoriById)
+  const chiusuraIndex = buildChiusuraIndex(chiusureRows)
   const linkedRecordIndexes: LinkedRecordIndexes = {
-    assunzioni: buildRecordIndex(assunzioniResult.rows as AssunzioneRecord[]),
-    cedolini: buildTicketRecordIndex(cedoliniResult.rows),
-    chiusure: buildTicketRecordIndex(chiusureResult.rows),
-    contributi: buildTicketRecordIndex(contributiResult.rows),
-    pagamenti: buildTicketRecordIndex(pagamentiResult.rows),
-    presenze: buildTicketRecordIndex(presenzeResult.rows),
-    variazioni: buildTicketRecordIndex(variazioniResult.rows),
+    assunzioni: buildRecordIndex((bundle.assunzioni ?? []) as unknown as AssunzioneRecord[]),
+    cedolini: buildTicketRecordIndex((bundle.cedolini ?? []) as MeseLavoratoRecord[]),
+    chiusure: buildTicketRecordIndex(chiusureRows),
+    contributi: buildTicketRecordIndex((bundle.contributi ?? []) as ContributoInpsRecord[]),
+    pagamenti: buildTicketRecordIndex(pagamentiRows),
+    presenze: buildTicketRecordIndex((bundle.presenze ?? []) as PresenzaMensileRecord[]),
+    variazioni: buildTicketRecordIndex((bundle.variazioni ?? []) as VariazioneContrattualeRecord[]),
   }
   const stageMetadata = buildStageMetadata(lookupResult.rows, filteredTicketRows)
 
@@ -815,20 +674,26 @@ async function fetchSupportTicketsData(ticketType: SupportTicketType) {
     return card ? [card] : []
   })
 
-  const activeRapportiCount = rapportiResult.rows.filter((rapporto) => {
+  const activeRapportiCount = rapportiRows.filter((rapporto) => {
     const token = normalizeToken(resolveRapportoStatus(rapporto))
     return token === "attivo"
   }).length
 
-  const rapportoOptions = rapportiResult.rows
+  const rapportoOptions = rapportiRows
     .filter((rapporto) => {
       const token = normalizeToken(resolveRapportoStatus(rapporto))
       return token === "attivo"
     })
-    .map((rapporto) => ({
-      id: rapporto.id,
-      label: getRapportoTitle(rapporto),
-    }))
+    .map((rapporto) => {
+      const personNames = rapportoIndex.personNamesById.get(rapporto.id) ?? null
+      return {
+        id: rapporto.id,
+        label: getRapportoTitle(rapporto, {
+          famiglia: personNames?.famiglia,
+          lavoratore: personNames?.lavoratore,
+        }),
+      }
+    })
     .sort((left, right) => left.label.localeCompare(right.label, "it"))
 
   return {
@@ -896,6 +761,33 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
       cancelled = true
     }
   }, [ticketType])
+
+  const ticketTypeRef = React.useRef(ticketType)
+  React.useEffect(() => {
+    ticketTypeRef.current = ticketType
+  }, [ticketType])
+
+  const reloadSilently = React.useCallback(async () => {
+    clearReadCaches()
+    try {
+      const data = await fetchSupportTicketsData(ticketTypeRef.current)
+      setStages(data.stages)
+      setCards(data.cards)
+      setActiveRapportiCount(data.activeRapportiCount)
+      setRapportoOptions(data.rapportoOptions)
+      rapportoIndexRef.current = data.rapportoIndex
+      chiusuraIndexRef.current = data.chiusuraIndex
+      linkedRecordIndexesRef.current = data.linkedRecordIndexes
+      stageAliasesRef.current = data.stageAliases
+    } catch {
+      // Ignore: a failed background refresh must not blank the board.
+    }
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: SUPPORT_TICKETS_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
 
   const moveTicket = React.useCallback(
     async (ticketId: string, targetStageId: string) => {

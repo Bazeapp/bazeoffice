@@ -1,6 +1,7 @@
 import * as React from "react"
 
 import {
+  clearReadCaches,
   createRecord,
   fetchChiusureContratti,
   fetchContributiInps,
@@ -18,6 +19,12 @@ import {
   fetchVariazioniContrattuali,
   type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+
+// The board lists rapporti; related tables are loaded only for the selected
+// detail and would cause excessive refetches if subscribed here. Detail-level
+// realtime is a follow-up refinement.
+const RAPPORTI_REALTIME_TABLES = ["rapporti_lavorativi"]
 import { fetchRichiesteAttivazioneByProcessIds } from "@/features/richieste-attivazione/api"
 import { getRapportoProcessIds } from "@/features/rapporti/rapporti-processi"
 import { normalizeLookupColors } from "@/features/lavoratori/lib/lookup-utils"
@@ -273,6 +280,20 @@ export function useRapportiLavorativiData(
     setReloadToken((current) => current + 1)
   }, [])
 
+  // Set just before a realtime-triggered reload so the load effect skips the
+  // loading spinner and keeps current data on error.
+  const silentReloadRef = React.useRef(false)
+  const reloadSilently = React.useCallback(() => {
+    silentReloadRef.current = true
+    clearReadCaches()
+    setReloadToken((current) => current + 1)
+  }, [])
+
+  useRealtimeBoardSync({
+    tables: RAPPORTI_REALTIME_TABLES,
+    reload: reloadSilently,
+  })
+
   const createTicketForSelectedRapporto = React.useCallback(
     async (input: CreateRapportoTicketInput) => {
       const metadata: SupportTicketMetadata = {
@@ -305,7 +326,9 @@ export function useRapportiLavorativiData(
     let isActive = true
 
     async function load() {
-      setLoading(true)
+      const silent = silentReloadRef.current
+      silentReloadRef.current = false
+      if (!silent) setLoading(true)
       setError(null)
 
       try {
@@ -324,11 +347,13 @@ export function useRapportiLavorativiData(
       } catch (loadError) {
         if (!isActive) return
         console.error("Errore caricando rapporti lavorativi", loadError)
-        setError(getRapportiLoadErrorMessage(loadError))
-        setRapporti([])
-        setRapportiTotal(0)
+        if (!silent) {
+          setError(getRapportiLoadErrorMessage(loadError))
+          setRapporti([])
+          setRapportiTotal(0)
+        }
       } finally {
-        if (isActive) setLoading(false)
+        if (isActive && !silent) setLoading(false)
       }
     }
 
@@ -398,16 +423,25 @@ export function useRapportiLavorativiData(
         if (!isActive) return
 
         const freshRapporto = (response.rows[0] as RapportoLavorativoRecord | undefined) ?? null
+        // La RPC board arricchisce alcune proprietà non presenti (o non risolte) nella
+        // tabella grezza: i nomi visualizzati ("cognome_nome_datore_proper" /
+        // "nome_lavoratore_per_url") sovrascritti con i nomi reali di famiglia/lavoratore,
+        // e i campi derivati "data_fine_rapporto" (da chiusure_contratti) e
+        // "stato_rapporto". La fetch grezza qui sotto non li ha, quindi li preserviamo dal
+        // board per non declassare card, titolo e badge di stato.
         const mergedRapporto =
           freshRapporto && fallbackRapporto
             ? {
                 ...freshRapporto,
                 cognome_nome_datore_proper:
-                  freshRapporto.cognome_nome_datore_proper ??
-                  fallbackRapporto.cognome_nome_datore_proper,
+                  fallbackRapporto.cognome_nome_datore_proper ??
+                  freshRapporto.cognome_nome_datore_proper,
                 nome_lavoratore_per_url:
-                  freshRapporto.nome_lavoratore_per_url ??
-                  fallbackRapporto.nome_lavoratore_per_url,
+                  fallbackRapporto.nome_lavoratore_per_url ??
+                  freshRapporto.nome_lavoratore_per_url,
+                data_fine_rapporto:
+                  fallbackRapporto.data_fine_rapporto ?? freshRapporto.data_fine_rapporto,
+                stato_rapporto: fallbackRapporto.stato_rapporto ?? freshRapporto.stato_rapporto,
               }
             : freshRapporto
         setSelectedRapporto(mergedRapporto)

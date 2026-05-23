@@ -1967,7 +1967,10 @@ export function AssunzioniDetailSheet({
     return () => {
       isActive = false
     }
-  }, [card?.process?.offerta, card?.stage, card?.tipoRapporto])
+    // Options derive from the static lookup domain, not from the current
+    // card values. Including card fields in the deps would re-fetch on every
+    // autosave and cause a network round-trip per keystroke.
+  }, [open])
 
   const saveRapportoPatch = React.useCallback(
     async (patch: Record<string, unknown>) => {
