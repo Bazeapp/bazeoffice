@@ -2670,7 +2670,6 @@ export function RicercaWorkersPipelineView({
                         vincoli_orari_disponibilita: value,
                       }))
                     }
-                    onAvailabilityVincoliBlur={() => undefined}
                     onAvailabilitySave={() => void saveWorkerAvailability()}
                     isEditingExperience={isEditingExperience}
                     onToggleExperienceEdit={() =>

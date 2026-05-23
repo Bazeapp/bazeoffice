@@ -19,8 +19,7 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input";
 import {
   Combobox,
   ComboboxChip,
@@ -588,14 +587,14 @@ export function OnboardingDecisioneLavoroSection({
           >
             Famiglia
           </FieldLabel>
-          <Input
+          <DebouncedInput
             id="onboarding-famiglia-note"
             className={cn(isRequiredMissing("nucleoFamigliare") && REQUIRED_FIELD_CLASS)}
             placeholder="indica situazioni o casi particolari sul nucleo familiare"
-            value={nucleoFamigliare}
-            onChange={(event) => setNucleoFamigliare(event.target.value)}
-            onBlur={() => {
-              void patchProcess({ nucleo_famigliare: nucleoFamigliare || null });
+            committedValue={nucleoFamigliare}
+            onSave={async (value) => {
+              setNucleoFamigliare(value);
+              await patchProcess({ nucleo_famigliare: value || null });
             }}
           />
         </Field>
@@ -642,31 +641,32 @@ export function OnboardingDecisioneLavoroSection({
           >
             Casa
           </FieldLabel>
-          <Input
+          <DebouncedInput
             id="onboarding-casa-desc"
             className={cn(isRequiredMissing("descrizioneCasa") && REQUIRED_FIELD_CLASS)}
             placeholder="Descrizione della casa"
-            value={descrizioneCasa}
-            onChange={(event) => setDescrizioneCasa(event.target.value)}
-            onBlur={() => {
-              void patchProcess({ descrizione_casa: descrizioneCasa || null });
+            committedValue={descrizioneCasa}
+            onSave={async (value) => {
+              setDescrizioneCasa(value);
+              await patchProcess({ descrizione_casa: value || null });
             }}
           />
         </Field>
 
         <Field invalid={isRequiredMissing("metraturaCasa")}>
           <FieldLabel htmlFor="onboarding-casa-mq">Metratura casa</FieldLabel>
-          <Input
+          <DebouncedInput
             id="onboarding-casa-mq"
             className={cn(isRequiredMissing("metraturaCasa") && REQUIRED_FIELD_CLASS)}
             type="number"
             inputMode="numeric"
             min={0}
-            value={metraturaCasa}
-            onChange={(event) => setMetraturaCasa(numbersOnly(event.target.value))}
+            committedValue={metraturaCasa}
             placeholder="120"
-            onBlur={() => {
-              void patchProcess({ metratura_casa: metraturaCasa || null });
+            onSave={async (raw) => {
+              const value = numbersOnly(raw);
+              setMetraturaCasa(value);
+              await patchProcess({ metratura_casa: value || null });
             }}
           />
         </Field>
@@ -690,14 +690,14 @@ export function OnboardingDecisioneLavoroSection({
           >
             Animali
           </FieldLabel>
-          <Input
+          <DebouncedInput
             id="onboarding-animali-note"
             placeholder="Ci sono 3 gatti e un cane"
-            value={descrizioneAnimaliInCasa}
-            onChange={(event) => setDescrizioneAnimaliInCasa(event.target.value)}
-            onBlur={() => {
-              void patchProcess({
-                descrizione_animali_in_casa: descrizioneAnimaliInCasa || null,
+            committedValue={descrizioneAnimaliInCasa}
+            onSave={async (value) => {
+              setDescrizioneAnimaliInCasa(value);
+              await patchProcess({
+                descrizione_animali_in_casa: value || null,
               });
             }}
           />
@@ -750,15 +750,15 @@ export function OnboardingDecisioneLavoroSection({
           >
             Mansioni
           </FieldLabel>
-          <Textarea
+          <DebouncedTextarea
             id="onboarding-mansioni-note"
             className={cn(isRequiredMissing("mansioniRichieste") && REQUIRED_FIELD_CLASS)}
             rows={4}
             placeholder='Inserire solo le mansioni "particolari" Es: deve saper essere una massima esperta di orchidee da competizione'
-            value={mansioniRichieste}
-            onChange={(event) => setMansioniRichieste(event.target.value)}
-            onBlur={() => {
-              void patchProcess({ mansioni_richieste: mansioniRichieste || null });
+            committedValue={mansioniRichieste}
+            onSave={async (value) => {
+              setMansioniRichieste(value);
+              await patchProcess({ mansioni_richieste: value || null });
             }}
           />
         </Field>
@@ -829,17 +829,15 @@ export function OnboardingDecisioneLavoroSection({
           <FieldLabel htmlFor="onboarding-altre-info">
             Note private del recruiter
           </FieldLabel>
-          <Textarea
+          <DebouncedTextarea
             id="onboarding-altre-info"
             rows={4}
             placeholder="Informazioni extra riservate"
-            value={informazioniExtraRiservate}
-            onChange={(event) =>
-              setInformazioniExtraRiservate(event.target.value)
-            }
-            onBlur={() => {
-              void patchProcess({
-                informazioni_extra_riservate: informazioniExtraRiservate || null,
+            committedValue={informazioniExtraRiservate}
+            onSave={async (value) => {
+              setInformazioniExtraRiservate(value);
+              await patchProcess({
+                informazioni_extra_riservate: value || null,
               });
             }}
           />
@@ -931,14 +929,13 @@ export function OnboardingDecisioneLavoroSection({
               <FieldLabel htmlFor="onboarding-trasferte-desc">
                 Che trasferte bisogna fare?
               </FieldLabel>
-              <Input
+              <DebouncedInput
                 id="onboarding-trasferte-desc"
-                value={descrizioneTrasferte}
-                onChange={(event) => setDescrizioneTrasferte(event.target.value)}
-                onBlur={() => {
-                  void patchProcess({
-                    descrizione_richiesta_trasferte:
-                      descrizioneTrasferte || null,
+                committedValue={descrizioneTrasferte}
+                onSave={async (value) => {
+                  setDescrizioneTrasferte(value);
+                  await patchProcess({
+                    descrizione_richiesta_trasferte: value || null,
                   });
                 }}
               />
@@ -965,13 +962,13 @@ export function OnboardingDecisioneLavoroSection({
               <FieldLabel htmlFor="onboarding-ferie-desc">
                 Che ferie richiedono?
               </FieldLabel>
-              <Input
+              <DebouncedInput
                 id="onboarding-ferie-desc"
-                value={descrizioneFerie}
-                onChange={(event) => setDescrizioneFerie(event.target.value)}
-                onBlur={() => {
-                  void patchProcess({
-                    descrizione_richiesta_ferie: descrizioneFerie || null,
+                committedValue={descrizioneFerie}
+                onSave={async (value) => {
+                  setDescrizioneFerie(value);
+                  await patchProcess({
+                    descrizione_richiesta_ferie: value || null,
                   });
                 }}
               />
@@ -1051,37 +1048,35 @@ export function OnboardingDecisioneLavoroSection({
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field>
             <FieldLabel htmlFor="onboarding-eta-min">Età min</FieldLabel>
-            <Input
+            <DebouncedInput
               id="onboarding-eta-min"
               type="number"
               inputMode="numeric"
               min={AGE_MIN}
               max={AGE_MAX}
-              value={etaMin}
-              onChange={(event) => setEtaMin(numbersOnly(event.target.value))}
+              committedValue={etaMin}
               placeholder="24"
-              onBlur={() => {
-                const normalized = normalizeAgeInput(etaMin);
+              onSave={async (raw) => {
+                const normalized = normalizeAgeInput(numbersOnly(raw));
                 setEtaMin(normalized);
-                void patchProcess({ eta_minima: normalized || null });
+                await patchProcess({ eta_minima: normalized || null });
               }}
             />
           </Field>
           <Field>
             <FieldLabel htmlFor="onboarding-eta-max">Età max</FieldLabel>
-            <Input
+            <DebouncedInput
               id="onboarding-eta-max"
               type="number"
               inputMode="numeric"
               min={AGE_MIN}
               max={AGE_MAX}
-              value={etaMax}
-              onChange={(event) => setEtaMax(numbersOnly(event.target.value))}
+              committedValue={etaMax}
               placeholder="60"
-              onBlur={() => {
-                const normalized = normalizeAgeInput(etaMax);
+              onSave={async (raw) => {
+                const normalized = normalizeAgeInput(numbersOnly(raw));
                 setEtaMax(normalized);
-                void patchProcess({ eta_massima: normalized || null });
+                await patchProcess({ eta_massima: normalized || null });
               }}
             />
           </Field>

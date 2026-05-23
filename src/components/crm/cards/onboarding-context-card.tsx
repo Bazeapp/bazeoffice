@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { DebouncedTextarea } from "@/components/ui/debounced-input";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
@@ -519,7 +519,8 @@ export function OnboardingContextCard({
   onPatchProcess,
   onPatchFamily,
 }: OnboardingContextCardProps) {
-  const [noteStato, setNoteStato] = React.useState(card?.appuntiChiamataSales ?? "");
+  const noteStatoCommitted =
+    card?.appuntiChiamataSales === "-" ? "" : card?.appuntiChiamataSales ?? "";
   const [dataRicontatto, setDataRicontatto] = React.useState(
     card?.dataPerRicercaFuturaRaw ? card.dataPerRicercaFuturaRaw.slice(0, 10) : ""
   );
@@ -534,7 +535,6 @@ export function OnboardingContextCard({
   );
 
   React.useEffect(() => {
-    setNoteStato(card?.appuntiChiamataSales === "-" ? "" : card?.appuntiChiamataSales ?? "");
     setDataRicontatto(card?.dataPerRicercaFuturaRaw ? card.dataPerRicercaFuturaRaw.slice(0, 10) : "");
     setDataCall(toDateTimeLocalValue(card?.dataCallPrenotataRaw));
     setColdAttempts(splitStoredValues(card?.salesColdCallFollowup));
@@ -643,13 +643,12 @@ export function OnboardingContextCard({
           </Field>
           <Field>
             <FieldLabel htmlFor="onboarding-note-cold">Note</FieldLabel>
-            <Textarea
+            <DebouncedTextarea
               id="onboarding-note-cold"
-              value={noteStato}
-              onChange={(event) => setNoteStato(event.target.value)}
-              onBlur={() => {
-                void onPatchProcess?.(card.id, {
-                  appunti_chiamata_sales: noteStato || null,
+              committedValue={noteStatoCommitted}
+              onSave={async (value) => {
+                await onPatchProcess?.(card.id, {
+                  appunti_chiamata_sales: value || null,
                 });
               }}
             />
@@ -710,13 +709,12 @@ export function OnboardingContextCard({
           />
           <Field>
             <FieldLabel htmlFor="onboarding-note-lost">Note</FieldLabel>
-            <Textarea
+            <DebouncedTextarea
               id="onboarding-note-lost"
-              value={noteStato}
-              onChange={(event) => setNoteStato(event.target.value)}
-              onBlur={() => {
-                void onPatchProcess?.(card.id, {
-                  appunti_chiamata_sales: noteStato || null,
+              committedValue={noteStatoCommitted}
+              onSave={async (value) => {
+                await onPatchProcess?.(card.id, {
+                  appunti_chiamata_sales: value || null,
                 });
               }}
             />
@@ -739,13 +737,12 @@ export function OnboardingContextCard({
           />
           <Field>
             <FieldLabel htmlFor="onboarding-note-oot">Note</FieldLabel>
-            <Textarea
+            <DebouncedTextarea
               id="onboarding-note-oot"
-              value={noteStato}
-              onChange={(event) => setNoteStato(event.target.value)}
-              onBlur={() => {
-                void onPatchProcess?.(card.id, {
-                  appunti_chiamata_sales: noteStato || null,
+              committedValue={noteStatoCommitted}
+              onSave={async (value) => {
+                await onPatchProcess?.(card.id, {
+                  appunti_chiamata_sales: value || null,
                 });
               }}
             />

@@ -4315,8 +4315,8 @@ export function Gate1View({
                           void patchWorkerAddressField("provincia", value || null);
                         }
                       }}
-                      onFieldBlur={(field) => {
-                        if (field !== "provincia") void commitAddressField(field);
+                      onFieldCommit={(field, value) => {
+                        if (field !== "provincia") void commitAddressField(field, value);
                       }}
                       onMobilityChange={(values) => {
                         setAddressDraft((current) => ({
@@ -4587,7 +4587,6 @@ export function Gate1View({
                                 vincoli_orari_disponibilita: value,
                               }))
                             }
-                            onVincoliBlur={() => undefined}
                             onSave={() => void saveWorkerAvailability()}
                           />
                         </GateStepSection>
@@ -4854,7 +4853,6 @@ export function Gate1View({
                             vincoli_orari_disponibilita: value,
                           }))
                         }
-                        onVincoliBlur={() => undefined}
                         onSave={() => void saveWorkerAvailability()}
                       />
                     </GateStepSection>

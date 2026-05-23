@@ -23,6 +23,7 @@ import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rappo
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { DebouncedInput } from "@/components/ui/debounced-input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -467,6 +468,9 @@ function RapportoDetailSections({
       tredicesimaRateizzata: assunzione?.tredicesima_rateizzata_mensile ?? "",
       telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
     })
+    // Only resync the draft when the selected assunzione identity changes,
+    // not on every individual field change (those are handled by user edits).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assunzione?.id, card.id, rapporto?.id])
 
   const setValue = (key: keyof typeof draft, value: string) =>
@@ -774,6 +778,8 @@ function DatoreDetail({
       tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
       cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
     })
+    // Resync only on identity change of related entities.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assunzione?.id, card.id, famiglia?.id, rapporto?.id])
 
   const setValue = (key: keyof typeof draft, value: string) =>
@@ -1191,6 +1197,8 @@ function LavoratoreDetail({
       tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
       cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
     })
+    // Resync only on identity change of related entities.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assunzione?.id, card.id, lavoratore?.id, rapporto?.id])
 
   const setValue = (key: keyof typeof draft, value: string) =>
@@ -1788,6 +1796,9 @@ export function AssunzioniDetailSheet({
     return () => {
       isActive = false
     }
+    // Loads candidates only on card switch or open toggle, not on every card
+    // object reference change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.id, open])
 
   React.useEffect(() => {
@@ -1970,6 +1981,7 @@ export function AssunzioniDetailSheet({
     // Options derive from the static lookup domain, not from the current
     // card values. Including card fields in the deps would re-fetch on every
     // autosave and cause a network round-trip per keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   const saveRapportoPatch = React.useCallback(
@@ -2647,72 +2659,67 @@ export function AssunzioniDetailSheet({
                     </Select>
                   </EditableField>
                   <EditableField label="Data di assunzione">
-                    <Input
+                    <DebouncedInput
                       type="date"
-                      value={practiceDraft.dataAssunzione}
-                      onChange={(event) =>
+                      committedValue={practiceDraft.dataAssunzione}
+                      onSave={async (value) => {
                         setPracticeDraft((current) => ({
                           ...current,
-                          dataAssunzione: event.target.value,
+                          dataAssunzione: value,
                         }))
-                      }
-                      onBlur={() =>
-                        void saveRapportoPatch({
-                          data_inizio_rapporto: practiceDraft.dataAssunzione || null,
+                        await saveRapportoPatch({
+                          data_inizio_rapporto: value || null,
                         })
-                      }
+                      }}
                     />
                   </EditableField>
                   <EditableField label="ID rapporto INPS">
-                    <Input
-                      value={practiceDraft.idRapportoInps}
-                      onChange={(event) =>
+                    <DebouncedInput
+                      committedValue={practiceDraft.idRapportoInps}
+                      onSave={async (value) => {
                         setPracticeDraft((current) => ({
                           ...current,
-                          idRapportoInps: event.target.value,
+                          idRapportoInps: value,
                         }))
-                      }
-                      onBlur={() =>
-                        void saveRapportoPatch({
-                          id_rapporto: practiceDraft.idRapportoInps || null,
+                        await saveRapportoPatch({
+                          id_rapporto: value || null,
                         })
-                      }
+                      }}
                     />
                   </EditableField>
                   <EditableField label="Cod. Rapporto WebColf">
-                    <Input
+                    <DebouncedInput
                       type="number"
-                      value={practiceDraft.codiceRapportoWebcolf}
-                      onChange={(event) =>
+                      committedValue={practiceDraft.codiceRapportoWebcolf}
+                      onSave={async (value) => {
                         setPracticeDraft((current) => ({
                           ...current,
-                          codiceRapportoWebcolf: event.target.value,
+                          codiceRapportoWebcolf: value,
                         }))
-                      }
-                      onBlur={() =>
-                        void saveRapportoPatch({
-                          codice_datore_webcolf: toNullableNumber(
-                            practiceDraft.codiceRapportoWebcolf
-                          ),
+                        await saveRapportoPatch({
+                          codice_datore_webcolf: toNullableNumber(value),
                         })
-                      }
+                      }}
                     />
                   </EditableField>
                   <EditableField label="Fee concordata">
-                    <Input
+                    <DebouncedInput
                       key={card.richiestaAttivazione?.id ?? "no-richiesta"}
                       type="number"
                       step="0.01"
-                      defaultValue={card.richiestaAttivazione?.fee_concordata ?? ""}
-                      disabled={!card.richiestaAttivazione?.id}
+                      committedValue={
+                        card.richiestaAttivazione?.fee_concordata != null
+                          ? String(card.richiestaAttivazione.fee_concordata)
+                          : ""
+                      }
                       placeholder="-"
-                      onBlur={(event) => {
+                      onSave={async (value) => {
                         const richiestaId = card.richiestaAttivazione?.id
                         if (!richiestaId) return
-                        const rawValue = event.target.value.trim()
+                        const rawValue = value.trim()
                         const nextValue = rawValue ? Number(rawValue) : null
                         if (rawValue && Number.isNaN(nextValue)) return
-                        void updateRecord("richieste_attivazione", richiestaId, {
+                        await updateRecord("richieste_attivazione", richiestaId, {
                           fee_concordata: nextValue,
                         })
                       }}
@@ -2759,22 +2766,18 @@ export function AssunzioniDetailSheet({
                     </Select>
                   </EditableField>
                   <EditableField label="Cod. Lavoratore WebColf">
-                    <Input
+                    <DebouncedInput
                       type="number"
-                      value={practiceDraft.codiceLavoratoreWebcolf}
-                      onChange={(event) =>
+                      committedValue={practiceDraft.codiceLavoratoreWebcolf}
+                      onSave={async (value) => {
                         setPracticeDraft((current) => ({
                           ...current,
-                          codiceLavoratoreWebcolf: event.target.value,
+                          codiceLavoratoreWebcolf: value,
                         }))
-                      }
-                      onBlur={() =>
-                        void saveRapportoPatch({
-                          codice_dipendente_webcolf: toNullableNumber(
-                            practiceDraft.codiceLavoratoreWebcolf
-                          ),
+                        await saveRapportoPatch({
+                          codice_dipendente_webcolf: toNullableNumber(value),
                         })
-                      }
+                      }}
                     />
                   </EditableField>
                 </div>

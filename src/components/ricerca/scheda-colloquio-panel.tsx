@@ -289,14 +289,12 @@ function LabeledTextarea({
   icon: Icon,
   value,
   onChange,
-  onBlur,
   disabled,
 }: {
   label: string;
   icon: React.ElementType;
   value: string;
   onChange: (value: string) => void;
-  onBlur?: () => void;
   disabled?: boolean;
 }) {
   return (
@@ -308,7 +306,6 @@ function LabeledTextarea({
       <Textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        onBlur={onBlur}
         disabled={disabled}
         className="min-h-27 w-full resize-y text-sm leading-6"
         placeholder="..."

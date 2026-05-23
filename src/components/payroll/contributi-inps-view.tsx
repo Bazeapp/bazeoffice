@@ -762,6 +762,8 @@ export function ContributiInpsView() {
     return () => {
       isActive = false
     }
+    // Watching id only on purpose: avoid re-fetching detail on every board refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCardFromCards?.id, selectedCardId])
 
   const quarterSwitcher = (

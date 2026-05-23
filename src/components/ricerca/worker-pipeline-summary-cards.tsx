@@ -32,7 +32,7 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@/components/ui/combobox";
-import { Input } from "@/components/ui/input";
+import { DebouncedInput } from "@/components/ui/debounced-input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -184,7 +184,6 @@ type WorkerPipelineSummaryCardsProps = {
     checked: boolean,
   ) => void;
   onAvailabilityVincoliChange: (value: string) => void;
-  onAvailabilityVincoliBlur: () => void;
   onAvailabilitySave: () => void;
   isEditingExperience: boolean;
   onToggleExperienceEdit: () => void;
@@ -807,18 +806,16 @@ function TravelTimeCard({
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input
-                    value={addressDraft[item.key]}
-                    onChange={(event) => {
-                      const nextValue = event.target.value;
+                  <DebouncedInput
+                    committedValue={addressDraft[item.key]}
+                    onSave={async (value) => {
                       setAddressDraft((current) => ({
                         ...current,
-                        [item.key]: nextValue,
+                        [item.key]: value,
                       }));
+                      await commitAddressField(item.key, value);
                     }}
-                    onBlur={(event) =>
-                      void commitAddressField(item.key, event.currentTarget.value)
-                    }
+                    // No `disabled` during save: would force-blur the input.
                     className="h-9 text-sm"
                     placeholder={item.label}
                   />
@@ -873,21 +870,19 @@ function TravelTimeCard({
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input
-                    value={item.draftValue}
-                    onChange={(event) => {
-                      const nextValue = event.target.value;
+                  <DebouncedInput
+                    committedValue={item.draftValue}
+                    onSave={async (value) => {
                       setFamilyAddressDraft((current) => ({
                         ...current,
-                        [item.key]: nextValue,
+                        [item.key]: value,
                       }));
+                      await commitFamilyAddressField(item.field, value);
                     }}
-                    onBlur={() =>
-                      void commitFamilyAddressField(item.field, item.draftValue)
-                    }
+                    // No `disabled={updatingProcessAddress}`: would force-blur
+                    // the input mid-typing.
                     className="h-9 text-sm"
                     placeholder={item.label}
-                    disabled={updatingProcessAddress}
                   />
                 )}
               </label>
@@ -1162,7 +1157,6 @@ function AvailabilityCard({
   onLavoriAccettabiliChange,
   onMatrixChange,
   onVincoliChange,
-  onVincoliBlur,
   onSave,
 }: {
   availabilityTitleMeta: string;
@@ -1189,7 +1183,6 @@ function AvailabilityCard({
     checked: boolean,
   ) => void;
   onVincoliChange: (value: string) => void;
-  onVincoliBlur: () => void;
   onSave: () => void;
 }) {
   const familyRequestsText = React.useMemo(() => {
@@ -1262,7 +1255,6 @@ function AvailabilityCard({
         )
       }
       onVincoliChange={onVincoliChange}
-      onVincoliBlur={onVincoliBlur}
       onSave={onSave}
     >
       <WorkerShiftPreferencesFields
@@ -1662,7 +1654,6 @@ export function WorkerPipelineSummaryCards({
   onLavoriAccettabiliChange,
   onAvailabilityMatrixChange,
   onAvailabilityVincoliChange,
-  onAvailabilityVincoliBlur,
   onAvailabilitySave,
   isEditingExperience,
   onToggleExperienceEdit,
@@ -1796,7 +1787,6 @@ export function WorkerPipelineSummaryCards({
         onLavoriAccettabiliChange={onLavoriAccettabiliChange}
         onMatrixChange={onAvailabilityMatrixChange}
         onVincoliChange={onAvailabilityVincoliChange}
-        onVincoliBlur={onAvailabilityVincoliBlur}
         onSave={onAvailabilitySave}
       />
       <PreferencesConstraintsCard

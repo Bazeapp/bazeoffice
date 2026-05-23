@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+import { DebouncedTextarea } from "@/components/ui/debounced-input"
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils"
 import {
   getLookupLabelForSave,
@@ -223,15 +223,12 @@ export function SelectionDetailsCard({
         <FieldLabel>
           Appunti generali
         </FieldLabel>
-        <Textarea
-          value={draft.note_selezione}
-          onChange={(event) =>
-            setDraft((current) => ({ ...current, note_selezione: event.target.value }))
-          }
-          onBlur={(event) =>
-            void onPatchField("note_selezione", event.currentTarget.value.trim() || null)
-          }
-          disabled={disabled}
+        <DebouncedTextarea
+          committedValue={draft.note_selezione}
+          onSave={async (value) => {
+            setDraft((current) => ({ ...current, note_selezione: value }))
+            await onPatchField("note_selezione", value.trim() || null)
+          }}
           className="min-h-28 w-full text-sm"
         />
       </div>
@@ -240,21 +237,18 @@ export function SelectionDetailsCard({
         <FieldLabel>
           Perché è stata inserita manualmente?
         </FieldLabel>
-        <Textarea
-          value={draft.motivo_inserimento_manuale}
-          onChange={(event) =>
+        <DebouncedTextarea
+          committedValue={draft.motivo_inserimento_manuale}
+          onSave={async (value) => {
             setDraft((current) => ({
               ...current,
-              motivo_inserimento_manuale: event.target.value,
+              motivo_inserimento_manuale: value,
             }))
-          }
-          onBlur={(event) =>
-            void onPatchField(
+            await onPatchField(
               "motivo_inserimento_manuale",
-              event.currentTarget.value.trim() || null
+              value.trim() || null,
             )
-          }
-          disabled={disabled}
+          }}
           className="min-h-24 w-full text-sm"
         />
       </div>

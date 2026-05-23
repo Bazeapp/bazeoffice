@@ -28,7 +28,7 @@ import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rappo
 import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+import { DebouncedInput } from "@/components/ui/debounced-input"
 import { SearchInput } from "@/components/ui/search-input"
 import {
   Select,
@@ -145,7 +145,6 @@ function RiattivazioniDetailSheet({
 }) {
   const [updatingStatus, setUpdatingStatus] = React.useState(false)
   const [savingSconto, setSavingSconto] = React.useState(false)
-  const [savingRecallDate, setSavingRecallDate] = React.useState(false)
   const [uploadingSlot, setUploadingSlot] = React.useState<ChiusuraAttachmentSlot | null>(null)
   const [detailsError, setDetailsError] = React.useState<string | null>(null)
   const latestCardRef = React.useRef<RiattivazioniBoardCardData | null>(card)
@@ -215,8 +214,6 @@ function RiattivazioniDetailSheet({
     if (!currentCard) return
     const normalizedValue = nextValue || null
     if (normalizedValue === formatDateInputValue(currentCard.record.data_per_riattivazione)) return
-
-    setSavingRecallDate(true)
     setDetailsError(null)
     try {
       const response = await updateRecord("chiusure_contratti", currentCard.id, {
@@ -237,8 +234,6 @@ function RiattivazioniDetailSheet({
           ? caughtError.message
           : "Errore aggiornando data recall riattivazione",
       )
-    } finally {
-      setSavingRecallDate(false)
     }
   }
 
@@ -379,11 +374,10 @@ function RiattivazioniDetailSheet({
                   <span className="text-sm font-medium text-foreground">
                     Data recall riattivazione
                   </span>
-                  <Input
+                  <DebouncedInput
                     type="date"
-                    value={formatDateInputValue(card.record.data_per_riattivazione)}
-                    onChange={(event) => void handleRecallDateChange(event.target.value)}
-                    disabled={savingRecallDate}
+                    committedValue={formatDateInputValue(card.record.data_per_riattivazione)}
+                    onSave={(value) => handleRecallDateChange(value)}
                     className="bg-surface"
                   />
                 </label>

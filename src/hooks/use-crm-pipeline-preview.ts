@@ -1337,8 +1337,11 @@ export function useCrmPipelinePreview(
     queryFn: () => fetchBoardData(loadedClosedStageIds, searchQuery, stableFilters),
   })
 
-  const columns = data?.columns ?? []
-  const lookupOptionsByField = data?.lookupOptionsByField ?? ({} as LookupOptionsByField)
+  const columns = React.useMemo(() => data?.columns ?? [], [data?.columns])
+  const lookupOptionsByField = React.useMemo(
+    () => data?.lookupOptionsByField ?? ({} as LookupOptionsByField),
+    [data?.lookupOptionsByField],
+  )
 
   type CrmBoardData = NonNullable<typeof data>
 

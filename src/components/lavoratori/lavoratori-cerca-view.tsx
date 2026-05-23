@@ -1779,8 +1779,8 @@ export function LavoratoriCercaView({
                         void patchWorkerAddressField("provincia", value || null);
                       }
                     }}
-                    onFieldBlur={(field) => {
-                      if (field !== "provincia") void commitAddressField(field);
+                    onFieldCommit={(field, value) => {
+                      if (field !== "provincia") void commitAddressField(field, value);
                     }}
                     onMobilityChange={(values) => {
                       setAddressDraft((current) => ({
@@ -1833,7 +1833,6 @@ export function LavoratoriCercaView({
                         vincoli_orari_disponibilita: value,
                       }))
                     }
-                    onVincoliBlur={() => undefined}
                     onSave={() => void saveWorkerAvailability()}
                   />
                 </div>
@@ -2110,7 +2109,6 @@ export function LavoratoriCercaView({
                                       v || null,
                                     );
                                   }}
-                                  disabled={updatingNonQualificato}
                                   placeholder="Inserisci descrizione"
                                 />
                               ) : null}
@@ -2240,7 +2238,6 @@ export function LavoratoriCercaView({
                                       v || null,
                                     );
                                   }}
-                                  disabled={updatingNonQualificato}
                                 />
                               ) : null}
 
@@ -2274,7 +2271,6 @@ export function LavoratoriCercaView({
                                         v ? Number(v) : null,
                                       );
                                     }}
-                                    disabled={updatingNonQualificato}
                                     placeholder="Anni esperienza colf"
                                   />
                                   <DebouncedInput
@@ -2289,7 +2285,6 @@ export function LavoratoriCercaView({
                                         v ? Number(v) : null,
                                       );
                                     }}
-                                    disabled={updatingNonQualificato}
                                     placeholder="Anni esperienza babysitter"
                                   />
                                 </div>

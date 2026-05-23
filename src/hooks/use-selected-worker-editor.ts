@@ -641,7 +641,8 @@ export function useSelectedWorkerEditor({
         | "citta"
         | "provincia"
         | "citofono"
-        | "come_ti_sposti"
+        | "come_ti_sposti",
+      overrideValue?: string,
     ) => {
       if (field === "come_ti_sposti") {
         const currentValue = readArrayStrings(selectedWorkerRow?.come_ti_sposti)
@@ -651,7 +652,8 @@ export function useSelectedWorkerEditor({
         return
       }
 
-      const nextValue = addressDraft[field].trim() || null
+      const source = overrideValue ?? addressDraft[field]
+      const nextValue = source.trim() || null
       await applyAddressPatch({ [field]: nextValue })
     },
     [

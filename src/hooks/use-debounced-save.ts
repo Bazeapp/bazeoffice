@@ -41,7 +41,11 @@ export function useDebouncedSave<T>(
     draftRef.current = committedValue
   }, [committedValue])
 
-  // Flush pending save on unmount (sheet close)
+  // Flush pending save on unmount (sheet close).
+  // The cleanup intentionally reads the refs at the time the component is
+  // unmounting, not at effect-setup time — that's the whole point of the
+  // flush-on-unmount pattern.
+  /* eslint-disable react-hooks/exhaustive-deps */
   React.useEffect(() => {
     return () => {
       if (timerRef.current !== null) {
@@ -58,6 +62,7 @@ export function useDebouncedSave<T>(
       }
     }
   }, [])
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const onChange = React.useCallback(
     (value: T) => {

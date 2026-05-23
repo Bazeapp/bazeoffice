@@ -60,6 +60,7 @@ import {
 } from "@/components/ui/dialog";
 import { FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDateOnly } from "@/features/lavoratori/lib/availability-utils";
 import {
@@ -837,20 +838,14 @@ function EditableReferenceCard({
               <UserIcon className="size-3.5" />
               Nome referenza
             </FieldLabel>
-            <Input
-              value={draft.nome_datore}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  nome_datore: event.target.value,
-                }))
-              }
-              onBlur={() => {
-                const nextValue = draft.nome_datore.trim();
+            <DebouncedInput
+              committedValue={draft.nome_datore}
+              onSave={async (raw) => {
+                const nextValue = raw.trim();
+                setDraft((current) => ({ ...current, nome_datore: raw }));
                 if (nextValue === (reference.nome_datore ?? "")) return;
-                void onPatch(reference.id, { nome_datore: nextValue || null });
+                await onPatch(reference.id, { nome_datore: nextValue || null });
               }}
-              disabled={disabled}
               className="h-9 text-sm"
             />
           </div>
@@ -859,22 +854,16 @@ function EditableReferenceCard({
               <UserIcon className="size-3.5" />
               Cognome referenza
             </FieldLabel>
-            <Input
-              value={draft.cognome_datore}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  cognome_datore: event.target.value,
-                }))
-              }
-              onBlur={() => {
-                const nextValue = draft.cognome_datore.trim();
+            <DebouncedInput
+              committedValue={draft.cognome_datore}
+              onSave={async (raw) => {
+                const nextValue = raw.trim();
+                setDraft((current) => ({ ...current, cognome_datore: raw }));
                 if (nextValue === (reference.cognome_datore ?? "")) return;
-                void onPatch(reference.id, {
+                await onPatch(reference.id, {
                   cognome_datore: nextValue || null,
                 });
               }}
-              disabled={disabled}
               className="h-9 text-sm"
             />
           </div>
@@ -883,22 +872,16 @@ function EditableReferenceCard({
               <PhoneIcon className="size-3.5" />
               Numero referenza
             </FieldLabel>
-            <Input
-              value={draft.telefono_datore}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  telefono_datore: event.target.value,
-                }))
-              }
-              onBlur={() => {
-                const nextValue = draft.telefono_datore.trim();
+            <DebouncedInput
+              committedValue={draft.telefono_datore}
+              onSave={async (raw) => {
+                const nextValue = raw.trim();
+                setDraft((current) => ({ ...current, telefono_datore: raw }));
                 if (nextValue === (reference.telefono_datore ?? "")) return;
-                void onPatch(reference.id, {
+                await onPatch(reference.id, {
                   telefono_datore: nextValue || null,
                 });
               }}
-              disabled={disabled}
               className="h-9 text-sm"
             />
           </div>
@@ -972,23 +955,16 @@ function EditableReferenceCard({
                 <MessageSquareTextIcon className="size-3.5" />
                 Feedback della referenza
               </FieldLabel>
-              <Textarea
-                value={draft.commento_esperienza}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    commento_esperienza: event.target.value,
-                  }))
-                }
-                onBlur={() => {
-                  const nextValue = draft.commento_esperienza.trim();
-                  if (nextValue === (reference.commento_esperienza ?? ""))
-                    return;
-                  void onPatch(reference.id, {
+              <DebouncedTextarea
+                committedValue={draft.commento_esperienza}
+                onSave={async (raw) => {
+                  const nextValue = raw.trim();
+                  setDraft((current) => ({ ...current, commento_esperienza: raw }));
+                  if (nextValue === (reference.commento_esperienza ?? "")) return;
+                  await onPatch(reference.id, {
                     commento_esperienza: nextValue || null,
                   });
                 }}
-                disabled={disabled}
                 className="min-h-24 w-full text-sm"
               />
             </div>
@@ -1114,23 +1090,16 @@ function EditableExperienceCard({
               <FieldLabel>
                 Data inizio
               </FieldLabel>
-              <Input
+              <DebouncedInput
                 type="date"
-                value={draft.data_inizio}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    data_inizio: event.target.value,
-                  }))
-                }
-                onBlur={() => {
-                  if (draft.data_inizio === (experience.data_inizio ?? ""))
-                    return;
-                  void onExperiencePatch(experience.id, {
-                    data_inizio: draft.data_inizio || null,
+                committedValue={draft.data_inizio}
+                onSave={async (raw) => {
+                  setDraft((current) => ({ ...current, data_inizio: raw }));
+                  if (raw === (experience.data_inizio ?? "")) return;
+                  await onExperiencePatch(experience.id, {
+                    data_inizio: raw || null,
                   });
                 }}
-                disabled={disabled}
                 className="h-9 text-sm"
               />
             </div>
@@ -1138,22 +1107,16 @@ function EditableExperienceCard({
               <FieldLabel>
                 Data fine
               </FieldLabel>
-              <Input
+              <DebouncedInput
                 type="date"
-                value={draft.data_fine}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    data_fine: event.target.value,
-                  }))
-                }
-                onBlur={() => {
-                  if (draft.data_fine === (experience.data_fine ?? "")) return;
-                  void onExperiencePatch(experience.id, {
-                    data_fine: draft.data_fine || null,
+                committedValue={draft.data_fine}
+                onSave={async (raw) => {
+                  setDraft((current) => ({ ...current, data_fine: raw }));
+                  if (raw === (experience.data_fine ?? "")) return;
+                  await onExperiencePatch(experience.id, {
+                    data_fine: raw || null,
                   });
                 }}
-                disabled={disabled || draft.stato_esperienza_attiva}
                 className="h-9 text-sm"
               />
             </div>
@@ -1189,22 +1152,16 @@ function EditableExperienceCard({
             <FieldLabel>
               Descrizione Mansioni ed Esperienza
             </FieldLabel>
-            <Textarea
-              value={draft.descrizione}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  descrizione: event.target.value,
-                }))
-              }
-              onBlur={() => {
-                const nextValue = draft.descrizione.trim();
+            <DebouncedTextarea
+              committedValue={draft.descrizione}
+              onSave={async (raw) => {
+                const nextValue = raw.trim();
+                setDraft((current) => ({ ...current, descrizione: raw }));
                 if (nextValue === (experience.descrizione ?? "")) return;
-                void onExperiencePatch(experience.id, {
+                await onExperiencePatch(experience.id, {
                   descrizione: nextValue || null,
                 });
               }}
-              disabled={disabled}
               className="min-h-28 w-full text-sm"
             />
           </div>
@@ -1212,26 +1169,23 @@ function EditableExperienceCard({
             <FieldLabel>
               Descrizione Famiglia e Contesto
             </FieldLabel>
-            <Textarea
-              value={draft.descrizione_contesto_lavorativo}
-              onChange={(event) =>
+            <DebouncedTextarea
+              committedValue={draft.descrizione_contesto_lavorativo}
+              onSave={async (raw) => {
+                const nextValue = raw.trim();
                 setDraft((current) => ({
                   ...current,
-                  descrizione_contesto_lavorativo: event.target.value,
-                }))
-              }
-              onBlur={() => {
-                const nextValue = draft.descrizione_contesto_lavorativo.trim();
+                  descrizione_contesto_lavorativo: raw,
+                }));
                 if (
                   nextValue ===
                   (experience.descrizione_contesto_lavorativo ?? "")
                 )
                   return;
-                void onExperiencePatch(experience.id, {
+                await onExperiencePatch(experience.id, {
                   descrizione_contesto_lavorativo: nextValue || null,
                 });
               }}
-              disabled={disabled}
               className="min-h-28 w-full text-sm"
             />
           </div>
@@ -1242,23 +1196,20 @@ function EditableExperienceCard({
             <FieldLabel>
               Motivazione fine rapporto
             </FieldLabel>
-            <Textarea
-              value={draft.motivazione_fine_rapporto}
-              onChange={(event) =>
+            <DebouncedTextarea
+              committedValue={draft.motivazione_fine_rapporto}
+              onSave={async (raw) => {
+                const nextValue = raw.trim();
                 setDraft((current) => ({
                   ...current,
-                  motivazione_fine_rapporto: event.target.value,
-                }))
-              }
-              onBlur={() => {
-                const nextValue = draft.motivazione_fine_rapporto.trim();
+                  motivazione_fine_rapporto: raw,
+                }));
                 if (nextValue === (experience.motivazione_fine_rapporto ?? ""))
                   return;
-                void onExperiencePatch(experience.id, {
+                await onExperiencePatch(experience.id, {
                   motivazione_fine_rapporto: nextValue || null,
                 });
               }}
-              disabled={disabled}
               className="min-h-24 w-full text-sm"
             />
           </div>

@@ -16,7 +16,7 @@ import {
   ComboboxValue,
 } from "@/components/ui/combobox"
 import { FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+import { DebouncedInput } from "@/components/ui/debounced-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   getLookupOptionLabel,
@@ -60,7 +60,7 @@ type AddressSectionCardProps = {
   mobilityAnchor: React.RefObject<HTMLDivElement | null>
   onToggleEdit: () => void
   onFieldChange: (field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono", value: string) => void
-  onFieldBlur: (field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono") => void
+  onFieldCommit: (field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono", value: string) => void | Promise<void>
   onMobilityChange: (values: string[]) => void
 }
 
@@ -96,7 +96,7 @@ export function AddressSectionCard({
   mobilityAnchor,
   onToggleEdit,
   onFieldChange,
-  onFieldBlur,
+  onFieldCommit,
   onMobilityChange,
 }: AddressSectionCardProps) {
   const composedAddress = [selectedVia, selectedCivico, selectedCap, selectedCitta, selectedProvincia]
@@ -151,11 +151,16 @@ export function AddressSectionCard({
                   </SelectContent>
                 </Select>
               ) : (
-                <Input
-                  value={addressDraft[item.key]}
-                  onChange={(event) => onFieldChange(item.key, event.target.value)}
-                  onBlur={() => onFieldBlur(item.key)}
-                  disabled={isUpdating}
+                <DebouncedInput
+                  committedValue={addressDraft[item.key]}
+                  onSave={async (value) => {
+                    onFieldChange(item.key, value)
+                    await onFieldCommit(item.key, value)
+                  }}
+                  // Intentionally NOT passing `disabled={isUpdating}`: a
+                  // transient disable during save forces the browser to fire
+                  // blur and the user gets kicked out of the field mid-typing.
+                  // Multiple in-flight saves are fine (last write wins).
                   placeholder={item.label}
                 />
               )}

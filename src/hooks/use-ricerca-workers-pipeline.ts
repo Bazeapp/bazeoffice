@@ -1025,7 +1025,7 @@ export function useRicercaWorkersPipeline(
     queryFn: () => fetchWorkersPipelineData(processId),
   })
 
-  const columns = data ?? []
+  const columns = React.useMemo(() => data ?? [], [data])
 
   const invalidateBoard = React.useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["ricerca-workers-pipeline"] })

@@ -313,8 +313,11 @@ export function useChiusureBoard(): UseChiusureBoardState {
     queryFn: fetchChiusureBoardData,
   })
 
-  const columns = data?.columns ?? []
-  const rapportoOptions = data?.rapportoOptions ?? []
+  const columns = React.useMemo(() => data?.columns ?? [], [data?.columns])
+  const rapportoOptions = React.useMemo(
+    () => data?.rapportoOptions ?? [],
+    [data?.rapportoOptions],
+  )
 
   const setBoardData = React.useCallback(
     (updater: (previous: ChiusureBoardData) => ChiusureBoardData) => {

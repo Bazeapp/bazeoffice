@@ -81,18 +81,19 @@ export default defineConfig([
     },
   },
 
-  // Rule 3a: legacy input pattern (useState + onBlur save) loses unsaved data
-  // when the parent sheet closes before blur fires. Use DebouncedInput /
-  // DebouncedTextarea, which flush on unmount via useDebouncedSave.
-  // Currently a WARNING because there are ~35 pre-existing occurrences to
-  // migrate gradually with per-file testing. New occurrences will still show
-  // in IDE + CI logs. Promote to "error" once the existing debt is cleared.
+  // Input / debounced-input rules (merged in one block to avoid
+  // no-restricted-syntax overrides between configs).
+  // Severity: "warn" because some selectors flag pre-existing debt we migrate
+  // gradually. New occurrences still surface in IDE + CI logs. Promote to
+  // "error" once the existing debt is cleared.
   {
-    files: ['src/components/**/*.tsx'],
+    files: ['src/components/**/*.tsx', 'src/pages/**/*.tsx'],
     rules: {
       'no-restricted-syntax': [
         'warn',
         {
+          // Legacy: useState + onBlur save loses unsaved data when the
+          // parent sheet closes before blur fires. Use DebouncedInput.
           selector:
             "JSXOpeningElement[name.name='Input']:has(JSXAttribute[name.name='onBlur'])",
           message:
@@ -104,23 +105,38 @@ export default defineConfig([
           message:
             'Use <DebouncedTextarea committedValue={...} onSave={...}> instead of <Textarea ... onBlur=...>.',
         },
-      ],
-    },
-  },
-
-  // Rule 3b: the outermost detail wrapper (rendered in *-view.tsx files,
-  // where the selectedCardId/selectedRapportoId state lives) must declare a
-  // `key` tied to the selected entity so debounced inputs inside reset their
-  // local draft when switching record. Generic composites used as children of
-  // a keyed parent are exempt.
-  {
-    files: ['src/components/**/*-view.tsx', 'src/pages/**/*.tsx'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
+        {
+          // A transient `disabled` (true during save) forces the browser to
+          // fire blur and kicks the user out of the field mid-typing.
+          selector:
+            "JSXOpeningElement[name.name='DebouncedInput'] > JSXAttribute[name.name='disabled']",
+          message:
+            'Do not pass `disabled` to DebouncedInput. A transient disable during save kicks focus out mid-typing. Multiple in-flight saves are fine (last write wins). For permanent disable (permissions), suppress this rule per-line with an explanation.',
+        },
         {
           selector:
-            "JSXOpeningElement[name.name=/Detail(Sheet|Panel|Shell)$/]:not(:has(JSXAttribute[name.name='key']))",
+            "JSXOpeningElement[name.name='DebouncedTextarea'] > JSXAttribute[name.name='disabled']",
+          message:
+            'Do not pass `disabled` to DebouncedTextarea. A transient disable during save kicks focus out mid-typing.',
+        },
+        {
+          // Catch hand-rolled "debounced autosave" patterns: an <Input> whose
+          // `disabled` prop is derived from a "saving" state variable. The
+          // pattern looks fine but causes focus loss mid-typing.
+          // Prefer <DebouncedInput committedValue=... onSave=...> instead.
+          selector:
+            "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='disabled'] > JSXExpressionContainer BinaryExpression > Identifier[name=/^(saving|isSaving)/i]",
+          message:
+            'Looks like a hand-rolled debounced save (Input with `disabled` tied to a `savingX` state). Use <DebouncedInput committedValue={...} onSave={...}> which handles debounce + flush + anti-focus-loss centrally.',
+        },
+        {
+          // Detail wrappers must declare a `key` tied to the selected entity
+          // so debounced inputs inside reset their local draft when switching
+          // record. The rule only fires for top-level wrappers (in *-view
+          // files); generic composites used as children of a keyed parent
+          // are not matched here.
+          selector:
+            "Program > :matches(FunctionDeclaration, VariableDeclaration) JSXOpeningElement[name.name=/Detail(Sheet|Panel|Shell)$/]:not(:has(JSXAttribute[name.name='key']))",
           message:
             'Detail wrappers (DetailSheet/DetailPanel/DetailShell) at the view level must declare key={selectedCardId ?? "__empty__"} so debounced inputs inside reset their local draft when switching cards.',
         },

@@ -43,7 +43,6 @@ type AvailabilityCalendarCardProps = {
   onSave?: () => void
   onMatrixChange: (dayField: string, bandField: string, checked: boolean) => void
   onVincoliChange: (value: string) => void
-  onVincoliBlur: () => void
   children?: React.ReactNode
 }
 
@@ -66,7 +65,6 @@ export function AvailabilityCalendarCard({
   onSave,
   onMatrixChange,
   onVincoliChange,
-  onVincoliBlur,
   children,
 }: AvailabilityCalendarCardProps) {
   const comparisonByDay = React.useMemo(() => {
@@ -275,7 +273,6 @@ export function AvailabilityCalendarCard({
               <Textarea
                 value={vincoliOrari}
                 onChange={(event) => onVincoliChange(event.target.value)}
-                onBlur={onVincoliBlur}
                 disabled={isUpdating}
                 placeholder="Inserisci vincoli orari"
                 rows={3}

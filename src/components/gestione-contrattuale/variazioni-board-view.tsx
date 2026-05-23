@@ -47,8 +47,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  beginPendingWrite,
-  endPendingWrite,
   fetchRapportiLavorativi,
   fetchVariazioniContrattuali,
   updateRecord,
@@ -125,15 +123,6 @@ type VariazioneAttachmentSlot =
   | "accordo_variazione_contrattuale"
   | "ricevuta_inps_variazione_rapporto";
 
-function buildAnagraficaDraft(
-  row: Record<string, unknown> | null | undefined,
-  fields: AnagraficaField[],
-) {
-  return Object.fromEntries(
-    fields.map((field) => [field.key, toDisplayValue(row?.[field.key])]),
-  );
-}
-
 const VARIAZIONE_WORKER_FIELDS: AnagraficaField[] = [
   { key: "email", label: "Email", placeholder: "email@dominio.it" },
   { key: "telefono", label: "Telefono", placeholder: "+39..." },
@@ -168,37 +157,24 @@ function EditableAnagraficaSection({
 }) {
   const rowId = toDisplayValue(row?.id);
   const [isEditing, setIsEditing] = React.useState(false);
-  const [draft, setDraft] = React.useState(() => buildAnagraficaDraft(row, fields));
-  const [savingField, setSavingField] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const previousRowIdRef = React.useRef(rowId);
-  const saveTimersRef = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const pendingValuesRef = React.useRef<Record<string, string>>({});
 
   React.useEffect(() => {
-    const nextDraft = buildAnagraficaDraft(row, fields);
     const isDifferentRow = previousRowIdRef.current !== rowId;
     previousRowIdRef.current = rowId;
-
     if (isDifferentRow) {
       setIsEditing(false);
       setError(null);
-      setDraft(nextDraft);
-      return;
     }
-
-    if (!isEditing) {
-      setDraft(nextDraft);
-    }
-  }, [fields, isEditing, row, rowId]);
+  }, [rowId]);
 
   async function saveFieldValue(field: AnagraficaField, value: string) {
     if (!rowId || field.readOnly) return;
     const nextValue = value.trim();
     const currentValue = toDisplayValue(row?.[field.key]).trim();
-    if (nextValue === currentValue) { endPendingWrite(); return; }
+    if (nextValue === currentValue) return;
 
-    setSavingField(field.key);
     setError(null);
     try {
       const response = await updateRecord(table, rowId, {
@@ -210,24 +186,8 @@ function EditableAnagraficaSection({
       });
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : `Errore salvando ${title}`);
-    } finally {
-      setSavingField(null);
-      endPendingWrite();
     }
   }
-
-  React.useEffect(() => {
-    const timers = saveTimersRef.current;
-    const pending = pendingValuesRef.current;
-    return () => {
-      Object.values(timers).forEach(clearTimeout);
-      Object.entries(pending).forEach(([key, value]) => {
-        const field = fields.find((f) => f.key === key);
-        if (field) void saveFieldValue(field, value);
-      });
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <DetailSectionBlock
@@ -252,23 +212,10 @@ function EditableAnagraficaSection({
             <label key={field.key} className="space-y-2">
               <span className="ui-type-label">{field.label}</span>
               {isEditing && !field.readOnly ? (
-                <Input
-                  value={draft[field.key] ?? ""}
+                <DebouncedInput
+                  committedValue={toDisplayValue(row?.[field.key])}
                   placeholder={field.placeholder}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setDraft((current) => ({ ...current, [field.key]: value }));
-                    pendingValuesRef.current[field.key] = value;
-                    if (!saveTimersRef.current[field.key]) beginPendingWrite();
-                    clearTimeout(saveTimersRef.current[field.key]);
-                    saveTimersRef.current[field.key] = setTimeout(() => {
-                      delete saveTimersRef.current[field.key];
-                      const v = pendingValuesRef.current[field.key] ?? value;
-                      delete pendingValuesRef.current[field.key];
-                      void saveFieldValue(field, v);
-                    }, 300);
-                  }}
-                  disabled={savingField === field.key}
+                  onSave={(value) => saveFieldValue(field, value)}
                 />
               ) : (
                 <p className="min-h-9 rounded-md bg-muted/50 px-3 py-2 text-sm">
@@ -277,11 +224,6 @@ function EditableAnagraficaSection({
               )}
             </label>
           ))}
-          {savingField ? (
-            <p className="text-muted-foreground text-xs md:col-span-2">
-              Salvataggio in corso...
-            </p>
-          ) : null}
           {error ? (
             <p className="text-xs font-medium text-red-600 md:col-span-2">{error}</p>
           ) : null}
@@ -1251,6 +1193,8 @@ export function VariazioniBoardView() {
     return () => {
       isActive = false;
     };
+    // Watching id only on purpose: avoid re-fetching detail on every board refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCardFromColumns?.id, selectedCardId, updateCard]);
 
   return (

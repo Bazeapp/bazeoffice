@@ -160,6 +160,9 @@ function ChiusureDetailSheet({
 
   React.useEffect(() => {
     setRapportoSearchQuery(card?.rapporto ? card.nomeCompleto : "")
+    // Re-runs only when the identity changes (id/name/open), not on every
+    // rapporto object reference change from board refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.id, card?.rapporto?.id, card?.nomeCompleto, open])
 
   const filteredRapportoOptions = React.useMemo(() => {
@@ -169,6 +172,8 @@ function ChiusureDetailSheet({
     return rapportoOptions
       .filter((option) => matchesSearchQuery([option.label], query))
       .slice(0, 20)
+    // Same intent as above — id-only dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rapportoOptions, rapportoSearchQuery, card?.rapporto?.id, card?.nomeCompleto])
 
   const handleLinkRapporto = React.useCallback(
@@ -853,6 +858,9 @@ export function ChiusureBoardView() {
     return () => {
       isActive = false
     }
+    // Intentionally watching only the id, not the object identity, so the
+    // detail fetch doesn't re-run on every board cache refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCardFromColumns?.id, selectedCardId, updateCard])
 
   return (

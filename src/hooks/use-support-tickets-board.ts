@@ -747,7 +747,10 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
   const rapportoIndex = data?.rapportoIndex ?? buildRapportoIndex([])
   const chiusuraIndex = data?.chiusuraIndex ?? buildChiusuraIndex([])
   const linkedRecordIndexes = data?.linkedRecordIndexes ?? buildEmptyLinkedRecordIndexes()
-  const stageAliases = data?.stageAliases ?? new Map<string, string>()
+  const stageAliases = React.useMemo(
+    () => data?.stageAliases ?? new Map<string, string>(),
+    [data?.stageAliases],
+  )
 
   const invalidateBoard = React.useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["support-tickets-board"] })

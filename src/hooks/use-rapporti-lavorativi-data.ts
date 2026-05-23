@@ -235,7 +235,6 @@ export function useRapportiLavorativiData(
   const [pageIndex, setPageIndex] = React.useState(0)
   const [detailError, setDetailError] = React.useState<string | null>(null)
   const [detailRetryToken, setDetailRetryToken] = React.useState(0)
-  const setError = setDetailError
   const [searchValue, setSearchValue] = React.useState("")
   const [rapportoStatusFilter, setRapportoStatusFilter] =
     React.useState<RapportoStatusFilter>("all")
@@ -302,7 +301,7 @@ export function useRapportiLavorativiData(
       }),
   })
 
-  const rapporti = boardData?.rows ?? []
+  const rapporti = React.useMemo(() => boardData?.rows ?? [], [boardData?.rows])
   const rapportiTotal = boardData?.total ?? 0
   const error =
     queryError instanceof Error
@@ -465,7 +464,7 @@ export function useRapportiLavorativiData(
       } catch (loadError) {
         if (!isActive) return
         console.error("Errore caricando dettaglio rapporto", loadError)
-        setError("Errore nel caricamento del rapporto selezionato. Riprova tra qualche secondo.")
+        setDetailError("Errore nel caricamento del rapporto selezionato. Riprova tra qualche secondo.")
       } finally {
         if (isActive) {
           setLoadingSelectedRapporto(false)
@@ -478,6 +477,11 @@ export function useRapportiLavorativiData(
     return () => {
       isActive = false
     }
+    // Only re-fetch detail when the selected id changes or retry is triggered.
+    // Re-running on every board re-render (rapporti object identity change)
+    // would be wasteful; the merged-detail patch inside this effect handles
+    // board cache sync via setQueryData.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detailRetryToken, selectedRapportoId])
 
   React.useEffect(() => {
@@ -603,7 +607,7 @@ export function useRapportiLavorativiData(
       } catch (loadError) {
         if (!isActive) return
         console.error("Errore caricando record collegati al rapporto", loadError)
-        setError("Errore nel caricamento dei record collegati. Riprova tra qualche secondo.")
+        setDetailError("Errore nel caricamento dei record collegati. Riprova tra qualche secondo.")
         setSelectedProcessi([])
         setSelectedContributi([])
         setSelectedMesi([])
@@ -726,7 +730,7 @@ export function useRapportiLavorativiData(
         loadedRelatedSectionsRef.current.add(sectionId)
       } catch (loadError) {
         console.error(`Errore caricando sezione rapporto ${sectionId}`, loadError)
-        setError("Errore nel caricamento dei record collegati. Riprova tra qualche secondo.")
+        setDetailError("Errore nel caricamento dei record collegati. Riprova tra qualche secondo.")
       } finally {
         setLoadingRelatedSections((current) => ({ ...current, [sectionId]: false }))
       }

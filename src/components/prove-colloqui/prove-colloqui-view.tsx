@@ -28,7 +28,7 @@ import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
+import { DebouncedTextarea } from "@/components/ui/debounced-input"
 import {
   getLookupLabelForSave,
   getLookupSelectValue,
@@ -289,43 +289,25 @@ function buildDistributionItems(source: string | null, totalHours: number | null
 function EditableTextarea({
   value,
   placeholder,
-  disabled = false,
   onCommit,
 }: {
   value: string | null | undefined
   placeholder?: string
-  disabled?: boolean
   onCommit: (next: string | null) => Promise<void>
 }) {
-  const [draft, setDraft] = React.useState(value ?? "")
-  const [saving, setSaving] = React.useState(false)
-
-  React.useEffect(() => {
-    setDraft(value ?? "")
-  }, [value])
+  const committedValue = value ?? ""
 
   return (
-    <div className="space-y-1.5">
-      <Textarea
-        value={draft}
-        placeholder={placeholder}
-        disabled={disabled}
-        className="min-h-24 resize-y"
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={async () => {
-          if (disabled) return
-          const next = draft.trim() || null
-          if (next === (value ?? null)) return
-          setSaving(true)
-          try {
-            await onCommit(next)
-          } finally {
-            setSaving(false)
-          }
-        }}
-      />
-      {saving ? <p className="text-2xs text-muted-foreground">Salvataggio...</p> : null}
-    </div>
+    <DebouncedTextarea
+      committedValue={committedValue}
+      placeholder={placeholder}
+      className="min-h-24 resize-y"
+      onSave={async (next) => {
+        const normalized = next.trim() || null
+        if (normalized === (value ?? null)) return
+        await onCommit(normalized)
+      }}
+    />
   )
 }
 
