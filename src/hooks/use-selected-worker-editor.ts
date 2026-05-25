@@ -429,18 +429,43 @@ export function useSelectedWorkerEditor({
 
   React.useEffect(() => {
     if (activePatchesRef.current > 0) return
+    // Per-section guard: do NOT overwrite a draft while the user is
+    // actively editing that specific section. A realtime echo from another
+    // tab/user mutates `selectedWorkerRow`, which without these guards
+    // would silently wipe in-progress edits (es. "In che momento è
+    // disponibile generalmente?" cancellata al primo realtime esterno).
+    // `activePatchesRef` guards only own-saves in flight, not the
+    // "editing started, save not yet fired" window.
     setNonIdoneoReasonValues(readArrayStrings(selectedWorkerRow?.motivazione_non_idoneo))
     const blacklistToken = normalizeLookupToken(selectedWorkerRow?.check_blacklist)
     setBlacklistChecked(blacklistToken === "blacklist" || blacklistToken === "yes")
-    setHeaderDraft(buildHeaderDraft(selectedWorkerRow))
-    setAddressDraft(buildAddressDraft(selectedWorkerRow, selectedWorkerAddress))
-    setAvailabilityDraft(buildAvailabilityDraft(selectedWorkerRow, availabilityPayload))
-    setAvailabilityStatusDraft(buildAvailabilityStatusDraft(selectedWorkerRow))
-    setJobSearchDraft(buildJobSearchDraft(selectedWorkerRow))
-    setExperienceDraft(buildExperienceDraft(selectedWorkerRow))
-    setSkillsDraft(buildSkillsDraft(selectedWorkerRow))
-    setDocumentsDraft(buildDocumentsDraft(selectedWorkerRow))
-  }, [selectedWorkerRow, selectedWorkerAddress, availabilityPayload])
+    if (!isEditingHeader) setHeaderDraft(buildHeaderDraft(selectedWorkerRow))
+    if (!isEditingAddress) {
+      setAddressDraft(buildAddressDraft(selectedWorkerRow, selectedWorkerAddress))
+    }
+    if (!isEditingAvailability) {
+      setAvailabilityDraft(buildAvailabilityDraft(selectedWorkerRow, availabilityPayload))
+    }
+    if (!isEditingAvailabilityStatus) {
+      setAvailabilityStatusDraft(buildAvailabilityStatusDraft(selectedWorkerRow))
+    }
+    if (!isEditingJobSearch) setJobSearchDraft(buildJobSearchDraft(selectedWorkerRow))
+    if (!isEditingExperience) setExperienceDraft(buildExperienceDraft(selectedWorkerRow))
+    if (!isEditingSkills) setSkillsDraft(buildSkillsDraft(selectedWorkerRow))
+    if (!isEditingDocuments) setDocumentsDraft(buildDocumentsDraft(selectedWorkerRow))
+  }, [
+    selectedWorkerRow,
+    selectedWorkerAddress,
+    availabilityPayload,
+    isEditingHeader,
+    isEditingAddress,
+    isEditingAvailability,
+    isEditingAvailabilityStatus,
+    isEditingJobSearch,
+    isEditingExperience,
+    isEditingSkills,
+    isEditingDocuments,
+  ])
 
   React.useEffect(() => {
     setSelectedPresentationPhotoIndex(0)

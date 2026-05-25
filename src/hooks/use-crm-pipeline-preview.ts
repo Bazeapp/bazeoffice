@@ -298,7 +298,7 @@ type UseCrmPipelinePreviewState = {
   ) => Promise<void>
 }
 
-type GenericRow = Record<string, unknown>
+export type GenericRow = Record<string, unknown>
 type LookupColorMap = Record<string, Record<string, string>>
 
 type StageDefinition = {
@@ -924,7 +924,7 @@ function buildStageDefinitions(lookupRows: LookupValueRecord[]) {
  * present (even if null), the fresh value wins — clearing in DB still
  * propagates correctly.
  */
-const PROCESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
+export const PROCESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
   ["stato_res", "statoRes"],
   ["qualificazione_lead", "qualificazioneLead"],
   ["motivo_no_match", "motivoNoMatch"],
@@ -998,7 +998,7 @@ const PROCESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]
   ["frequenza_rapporto", "giorniSettimana"],
 ]
 
-const FAMILY_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
+export const FAMILY_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
   ["email", "email"],
   ["telefono", "telefono"],
   ["data_call_prenotata", "dataCallPrenotata"],
@@ -1007,7 +1007,7 @@ const FAMILY_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]>
   ["cognome", "nomeFamiglia"],
 ]
 
-const ADDRESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
+export const ADDRESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
   ["provincia", "indirizzoProvincia"],
   ["cap", "indirizzoCap"],
   ["note", "indirizzoNote"],
@@ -1018,12 +1018,25 @@ const ADDRESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]
   ["id", "indirizzoId"],
 ]
 
+// Fourth data source: richiesta_attivazione attached to the process. Without
+// these bindings, fee_concordata + preventivo fields visibly disappear from
+// the open detail panel right after a remote realtime change, even if the
+// values are intact in DB (the board fetch may not return them).
+export const RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS: Array<
+  readonly [string, keyof CrmPipelineCardData]
+> = [
+  ["id", "richiestaAttivazioneId"],
+  ["signed_document_url", "preventivoUrl"],
+  ["signed_document_title", "preventivoTitolo"],
+  ["fee_concordata", "feeConcordata"],
+]
+
 /**
  * For each binding, if the source column is NOT present in `row`, restore
  * the previous card's value. Mutates `card` in place. Pass nullable `row`:
  * if `row` is missing entirely, every bound field falls back to previous.
  */
-function preserveMissingFields(
+export function preserveMissingFields(
   card: CrmPipelineCardData,
   previousCard: CrmPipelineCardData,
   row: GenericRow | undefined | null,
@@ -1035,7 +1048,7 @@ function preserveMissingFields(
   }
 }
 
-function mapCardData(
+export function mapCardData(
   family: GenericRow,
   process: GenericRow,
   stageId: string,
@@ -1191,6 +1204,12 @@ function mapCardData(
     preserveMissingFields(card, previousCard, process, PROCESS_FIELD_BINDINGS)
     preserveMissingFields(card, previousCard, family, FAMILY_FIELD_BINDINGS)
     preserveMissingFields(card, previousCard, processAddress, ADDRESS_FIELD_BINDINGS)
+    preserveMissingFields(
+      card,
+      previousCard,
+      (richiestaAttivazione ?? undefined) as GenericRow | undefined,
+      RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS,
+    )
   }
 
   return card
