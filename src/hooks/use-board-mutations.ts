@@ -5,6 +5,8 @@ import {
   type UseMutationResult,
 } from "@tanstack/react-query"
 
+import { runTracked } from "@/lib/anagrafiche-api"
+
 /**
  * Wrappers around React Query's `useMutation` that encode the project's
  * "save-pattern" rules in one place. The rule: a mutation either changes the
@@ -45,7 +47,15 @@ function useBoardMutation<TVars, TData, TBoardData>(
   const { queryKey, mutationFn, applyOptimistic, invalidateOnSettled } = options
 
   return useMutation<TData, Error, TVars, MutationContext<TBoardData>>({
-    mutationFn,
+    // Defensive trackWrite wrapper: callers today pass a `mutationFn` that
+    // calls the tracked central writers (`updateRecord`/`createRecord`/
+    // `deleteRecord`), but the wrappers cannot enforce that. Wrapping the
+    // invocation here guarantees that ANY mutationFn — even one that calls
+    // a raw `invokeEdgeFunction` or `supabase.rpc` — has its realtime echo
+    // recognised by the echo-window suppression in `useRealtimeBoardSync`.
+    // The pending-write counter is a simple integer (0->1->2->1->0), so
+    // double-counting via an inner trackWrite is harmless.
+    mutationFn: (variables) => runTracked(mutationFn(variables)),
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey })
       const snapshot = queryClient.getQueryData<TBoardData>(queryKey)

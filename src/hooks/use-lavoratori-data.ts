@@ -1902,12 +1902,17 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     return () => {
       isCancelled = true
     }
-    // NOTE: intentionally omits realtimeTick. Each keystroke save fires a
-    // realtime event and a per-tick refetch would multiply queries
-    // (3 detail effects × every keystroke) making the page unusable.
-    // Re-introduce Pattern B (see docs/realtime-board-pattern.md) only
-    // after lavoratori saves go through trackWrite so the echo-window
-    // suppression in useRealtimeBoardSync actually applies.
+    // NOTE: intentionally omits realtimeTick. Lavoratori saves DO go through
+    // trackWrite via updateRecord/createRecord/deleteRecord (and the board
+    // mutation wrappers in use-board-mutations.ts), so the echo-window
+    // suppression in useRealtimeBoardSync already deduplicates self-induced
+    // refetches at the board level. The reason this detail-effect still
+    // skips realtimeTick is different: it runs THREE detail effects per
+    // selected worker, and re-running them on every realtime tick — even
+    // one originating from a different worker — would multiply per-keystroke
+    // detail refetches across the page, regardless of echo-window status.
+    // The selected-worker draft anti-overwrite is handled inside
+    // use-selected-worker-editor via the `isEditingXxx` guards.
   }, [selectedWorkerId])
 
   const filterFields = React.useMemo<FilterField[]>(() => {

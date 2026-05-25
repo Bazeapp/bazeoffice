@@ -529,6 +529,38 @@ export function getMillisSinceLastLocalWrite() {
   return lastLocalWriteAt === 0 ? Number.POSITIVE_INFINITY : Date.now() - lastLocalWriteAt
 }
 
+/**
+ * Run an arbitrary write-producing promise (e.g. a direct
+ * `invokeEdgeFunction` for a function that persists rows the client
+ * subscribes to, or a custom `mutationFn` in a board hook) under the
+ * pending-write tracking machinery. Bumps `pendingWriteCount` while the
+ * promise is in flight and `lastLocalWriteAt` on success, so the
+ * echo-window suppression in `useRealtimeBoardSync` recognises the
+ * resulting realtime echo as our own.
+ *
+ * Safe to nest: the count is a simple integer (0->2->0), so wrapping a
+ * call that internally also uses trackWrite (e.g. via updateRecord) is
+ * harmless — both increments are paired with their own decrements, and
+ * `lastLocalWriteAt` is updated twice with monotonically increasing
+ * timestamps.
+ */
+export function runTracked<TResponse>(operation: Promise<TResponse>) {
+  return trackWrite(operation)
+}
+
+/**
+ * Convenience wrapper for the most common direct-invoke bypass pattern:
+ * `invokeEdgeFunction(name, payload)` against a function that writes to
+ * a subscribed table. Wraps the invocation in `trackWrite` so callers
+ * don't have to import both helpers.
+ */
+export function runTrackedEdgeFunction<TResponse = unknown>(
+  name: string,
+  payload: unknown,
+) {
+  return trackWrite(invokeEdgeFunction<TResponse>(name, payload))
+}
+
 function makeTableQueryCacheKey(payload: TableQueryRequest) {
   return JSON.stringify(payload)
 }

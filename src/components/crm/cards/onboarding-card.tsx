@@ -62,9 +62,8 @@ import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
-import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
-import { updateRecord } from "@/lib/anagrafiche-api";
+import { runTrackedEdgeFunction, updateRecord } from "@/lib/anagrafiche-api";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 
 type OnboardingCardProps = {
@@ -448,7 +447,10 @@ export function OnboardingCard({
     async (showToast: boolean) => {
       if (!cardId) return;
       try {
-        await invokeEdgeFunction("family-availability", {
+        // Tracked: family-availability writes derived fields on
+        // `processi_matching` (a subscribed table); without trackWrite the
+        // echo lands outside the 2.5s echo window and triggers a refetch.
+        await runTrackedEdgeFunction("family-availability", {
           processo_matching_id: cardId,
         });
         if (showToast) toast.success("Disponibilita famiglia ricalcolata");
@@ -536,6 +538,14 @@ export function OnboardingCard({
   const { value: indirizzoVia, onChange: onIndirizzoViaChange } = useDebouncedSave(
     toInputValue(card?.indirizzoVia),
     async (value) => { await patchAddress({ via: value || null }); },
+  );
+  const { value: indirizzoCivico, onChange: onIndirizzoCivicoChange } = useDebouncedSave(
+    toInputValue(card?.indirizzoCivico),
+    async (value) => { await patchAddress({ civico: value || null }); },
+  );
+  const { value: indirizzoComune, onChange: onIndirizzoComuneChange } = useDebouncedSave(
+    toInputValue(card?.indirizzoComune),
+    async (value) => { await patchAddress({ citta: value || null }); },
   );
   const { value: indirizzoNote, onChange: onIndirizzoNoteChange } = useDebouncedSave(
     toInputValue(card?.indirizzoNote),
@@ -740,6 +750,10 @@ export function OnboardingCard({
           </div>
           <div className={compactGridClassName}>
             <DetailField label="Via" value={displayText(card?.indirizzoVia)} />
+            <DetailField label="Civico" value={displayText(card?.indirizzoCivico)} />
+          </div>
+          <div className={compactGridClassName}>
+            <DetailField label="Città" value={displayText(card?.indirizzoComune)} />
             <DetailField label="Quartiere" value={displayText(card?.indirizzoNote)} />
           </div>
           <DetailFieldControl label="SRC Maps">
@@ -1097,6 +1111,26 @@ export function OnboardingCard({
 	              className={cn(isRequiredMissing("indirizzoVia") && REQUIRED_FIELD_CLASS)}
 	              value={indirizzoVia}
 	              onChange={(event) => onIndirizzoViaChange(event.target.value)}
+	            />
+	          </Field>
+	          <Field invalid={isRequiredMissing("indirizzoCivico")}>
+	            <FieldLabel htmlFor="onboarding-civico">Civico</FieldLabel>
+	            <Input
+	              id="onboarding-civico"
+	              className={cn(isRequiredMissing("indirizzoCivico") && REQUIRED_FIELD_CLASS)}
+	              value={indirizzoCivico}
+	              onChange={(event) => onIndirizzoCivicoChange(event.target.value)}
+	            />
+	          </Field>
+	        </div>
+	        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+	          <Field invalid={isRequiredMissing("indirizzoComune")}>
+	            <FieldLabel htmlFor="onboarding-citta">Città</FieldLabel>
+	            <Input
+	              id="onboarding-citta"
+	              className={cn(isRequiredMissing("indirizzoComune") && REQUIRED_FIELD_CLASS)}
+	              value={indirizzoComune}
+	              onChange={(event) => onIndirizzoComuneChange(event.target.value)}
 	            />
 	          </Field>
 	          <Field invalid={isRequiredMissing("indirizzoNote")}>
@@ -1529,6 +1563,24 @@ export function OnboardingCard({
 		                id="onboarding-via"
 		                value={indirizzoVia}
 		                onChange={(event) => onIndirizzoViaChange(event.target.value)}
+		              />
+		            </Field>
+		            <Field>
+		              <FieldLabel htmlFor="onboarding-civico">Civico</FieldLabel>
+		              <Input
+		                id="onboarding-civico"
+		                value={indirizzoCivico}
+		                onChange={(event) => onIndirizzoCivicoChange(event.target.value)}
+		              />
+		            </Field>
+		          </div>
+		          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+		            <Field>
+		              <FieldLabel htmlFor="onboarding-citta">Città</FieldLabel>
+		              <Input
+		                id="onboarding-citta"
+		                value={indirizzoComune}
+		                onChange={(event) => onIndirizzoComuneChange(event.target.value)}
 		              />
 		            </Field>
 		            <Field>
