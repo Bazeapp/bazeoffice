@@ -244,6 +244,7 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "cap",
     "citta",
     "provincia",
+    "provincia_sigla",
     "paese",
     "indirizzo_formattato",
     "citofono",
