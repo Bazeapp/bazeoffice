@@ -65,6 +65,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { runTrackedEdgeFunction, updateRecord } from "@/lib/anagrafiche-api";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
+import { useProvincie } from "@/hooks/use-provincie";
 
 type OnboardingCardProps = {
   card: CrmPipelineCardData | null;
@@ -330,25 +331,6 @@ function CopyableUrlField({
   );
 }
 
-function prioritizeProvinceOptions(options: LookupOption[]) {
-  const priorityLabels = ["Milano", "Monza e della Brianza", "Torino"];
-  const byToken = new Map(
-    options.map((option) => [normalizeLookupToken(option.valueLabel), option]),
-  );
-  const priority = priorityLabels
-    .map((label) => byToken.get(normalizeLookupToken(label)))
-    .filter((option): option is LookupOption => Boolean(option));
-  const priorityTokens = new Set(
-    priority.map((option) => normalizeLookupToken(option.valueLabel)),
-  );
-  return [
-    ...priority,
-    ...options.filter(
-      (option) => !priorityTokens.has(normalizeLookupToken(option.valueLabel)),
-    ),
-  ];
-}
-
 export function OnboardingCard({
   card,
   lookupOptionsByField,
@@ -381,7 +363,9 @@ export function OnboardingCard({
   // user edits."). Each Select/DatePicker below commits immediately, so the
   // local mirror only created a window where a realtime echo could reset the
   // input mid-edit.
-  const indirizzoProvincia = toInputValue(card?.indirizzoProvincia);
+  const indirizzoProvinciaSigla = toInputValue(
+    card?.indirizzoProvinciaSigla || card?.indirizzoProvincia,
+  );
   const anchor = useComboboxAnchor();
   const deadline = toInputValue(card?.deadlineMobile);
   const tipoIncontro = toInputValue(card?.tipoIncontroFamigliaLavoratore);
@@ -614,29 +598,17 @@ export function OnboardingCard({
       },
     ] as LookupOption[];
   }, [lookupOptionsByField]);
-  const provinciaOptions = React.useMemo(() => {
-    const fromLookup =
-      lookupOptionsByField?.indirizzo_prova_provincia ??
-      lookupOptionsByField?.provincia ??
-      [];
-    if (fromLookup.length > 0) return fromLookup;
-    return [
-      { valueKey: "milano", valueLabel: "Milano", color: null, sortOrder: 1 },
-      {
-        valueKey: "monza_e_della_brianza",
-        valueLabel: "Monza e della Brianza",
-        color: null,
-        sortOrder: 2,
-      },
-      { valueKey: "torino", valueLabel: "Torino", color: null, sortOrder: 3 },
-    ] as LookupOption[];
-  }, [lookupOptionsByField]);
-  const orderedProvinciaOptions = React.useMemo(
-    () => prioritizeProvinceOptions(provinciaOptions),
-    [provinciaOptions],
-  );
+  const { data: provincieData } = useProvincie();
+  const orderedProvinciaOptions = React.useMemo<LookupOption[]>(() => {
+    return (provincieData ?? []).map((row, index) => ({
+      valueKey: row.sigla,
+      valueLabel: row.sigla,
+      color: null,
+      sortOrder: index,
+    }));
+  }, [provincieData]);
   const selectedIndirizzoProvincia = getSelectedLookupValue(
-    indirizzoProvincia,
+    indirizzoProvinciaSigla,
     orderedProvinciaOptions,
   );
   const isRequiredMissing = React.useCallback(
