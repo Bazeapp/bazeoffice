@@ -80,21 +80,24 @@ in ~1.7s.
 qualcuno spezza la guardia `isEditing*`, l'echo-window, il defer dei
 pending writes, o il pattern `key=` → `npm test` fallisce prima del push.
 
-## FASE 3 — Audit e fix preventivi
+## FASE 3 — Audit e fix preventivi ✅
 
-**Stima**: 3-5 giorni.
+**Stima**: 3-5 giorni. **Effettivi**: ~3h con 9 agent in parallelo (4 audit + 5 fix Wave 1 + 4 fix Wave 2).
 
-- [ ] Audit "draft sovrascritto": script che scanna `useEffect` con
-      `setDraft*(buildDraft(serverRow))` senza guardia `isEditing*`.
-- [ ] Audit "key= mancante": potenziare `audit-autosave-risk.mjs` per
-      beccare wrapper detail senza `key={selectedXxxId}`.
-- [ ] Audit "Pattern A mancante": per ogni hook board, verificare se ha
-      detail loader separato con SELECT più ampio. Fissare `use-rapporti-
-      lavorativi-data.ts` confermato vulnerabile.
-- [ ] Audit "save bypass trackWrite": find save che NON passano per
-      `trackWrite` o `beginPendingWrite/endPendingWrite`. Wrappare tutto.
+- [x] Audit "draft sovrascritto" — 7 TRUE POSITIVE + 1 NOTE in
+      `docs/audits/audit-draft-resync.md`. Tutti fixati nelle 2 Wave.
+- [x] Audit "key= mancante" — 1 TRUE POSITIVE
+      (`SchedaColloquioPanel`), fixato + lint rule widened.
+- [x] Audit "Pattern A mancante" — 4 board hooks vulnerabili
+      (rapporti, chiusure, assunzioni, variazioni). Pattern A applicato
+      a tutti e 4 con binding lists + getPreviousCard lazy.
+- [x] Audit "save bypass trackWrite" — 3 BYPASS + central wrapper.
+      Tutto coperto: `runTracked`/`runTrackedEdgeFunction` esposti,
+      `availability-functions.ts` 1-line covering 4 callers,
+      `useBoardMutation` wraps mutationFn defensively.
 
-**Done**: 0 occorrenze per ognuno dei 4 audit + lint rule per ognuno.
+**Done**: 137 test verdi, classe di bug "fields disappear" + "draft
+overwritten" + "save bypass" chiusa retroattivamente.
 
 ## FASE 4 — Lint rules e guardrail strutturali
 
