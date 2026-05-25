@@ -147,6 +147,7 @@ const CRM_PIPELINE_ADDRESS_SELECT = [
   "cap",
   "citta",
   "provincia",
+  "provincia_sigla",
   "indirizzo_formattato",
   "citofono",
   "note",
