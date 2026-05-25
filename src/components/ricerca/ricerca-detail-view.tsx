@@ -1110,6 +1110,9 @@ export function RicercaDetailView({
           indirizzoProvincia: displayValue(
             processAddress?.provincia_sigla ?? processAddress?.provincia,
           ),
+          indirizzoProvinciaSigla: displayValue(
+            processAddress?.provincia_sigla ?? processAddress?.provincia,
+          ),
           indirizzoCap: displayValue(processAddress?.cap),
           indirizzoNote: displayValue(processAddress?.note),
           indirizzoId: toStringValue(processAddress?.id),

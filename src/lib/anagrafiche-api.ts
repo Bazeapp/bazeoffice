@@ -1450,16 +1450,17 @@ export async function fetchProvincie(): Promise<ProvinciaRecord[]> {
     return provincieCache.promise
   }
 
-  const promise = supabase
-    .from("provincie")
-    .select("sigla, nome, nome_inglese")
-    .order("sigla", { ascending: true })
-    .then(({ data, error }) => {
-      if (error) {
-        throw new Error(`fetchProvincie failed: ${error.message}`)
-      }
-      return (data ?? []) as ProvinciaRecord[]
-    })
+  const promise: Promise<ProvinciaRecord[]> = Promise.resolve(
+    supabase
+      .from("provincie")
+      .select("sigla, nome, nome_inglese")
+      .order("sigla", { ascending: true })
+  ).then(({ data, error }) => {
+    if (error) {
+      throw new Error(`fetchProvincie failed: ${error.message}`)
+    }
+    return (data ?? []) as ProvinciaRecord[]
+  })
 
   provincieCache = {
     expiresAt: now + LOOKUP_VALUES_CACHE_TTL_MS,
