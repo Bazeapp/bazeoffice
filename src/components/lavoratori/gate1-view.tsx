@@ -118,6 +118,7 @@ import {
 import { supabase } from "@/lib/supabase-client";
 import { normalizeWorkerStatus } from "@/features/lavoratori/lib/status-utils";
 import type { LavoratoreRecord } from "@/types/entities/lavoratore";
+import { useProvincieOptions } from "@/hooks/use-provincie";
 
 const EMPTY_SELECT_VALUE = "none";
 
@@ -3259,10 +3260,7 @@ export function Gate1View({
     () => lookupOptionsByDomain.get("lavoratori.disponibilita") ?? [],
     [lookupOptionsByDomain],
   );
-  const provinciaLookupOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.provincia") ?? [],
-    [lookupOptionsByDomain],
-  );
+  const provinciaLookupOptions = useProvincieOptions();
   const sessoLookupOptions = React.useMemo(
     () => lookupOptionsByDomain.get("lavoratori.sesso") ?? [],
     [lookupOptionsByDomain],

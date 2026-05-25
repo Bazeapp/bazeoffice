@@ -114,6 +114,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useProvincieOptions } from "@/hooks/use-provincie";
 
 type NonQualificatoTipoLavoroFieldProps = {
   value: string[];
@@ -728,10 +729,7 @@ export function LavoratoriCercaView({
     () => lookupOptionsByDomain.get("lavoratori.stato_lavoratore") ?? [],
     [lookupOptionsByDomain],
   );
-  const provinciaLookupOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.provincia") ?? [],
-    [lookupOptionsByDomain],
-  );
+  const provinciaLookupOptions = useProvincieOptions();
   const disponibilitaLookupOptions = React.useMemo(
     () => lookupOptionsByDomain.get("lavoratori.disponibilita") ?? [],
     [lookupOptionsByDomain],

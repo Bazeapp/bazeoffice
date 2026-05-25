@@ -37,6 +37,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -72,6 +73,7 @@ import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lav
 import type { LavoratoreRecord } from "@/types/entities/lavoratore";
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore";
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles";
+import { useProvincieOptions } from "@/hooks/use-provincie";
 
 type WorkerPipelineSummaryCardsProps = {
   workerRow: LavoratoreRecord;
@@ -587,6 +589,8 @@ function TravelTimeCard({
     familyStreet,
   ]);
 
+  const workerProvincieOptions = useProvincieOptions();
+
   const commitAddressField = React.useCallback(
     async (
       field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono",
@@ -594,7 +598,8 @@ function TravelTimeCard({
     ) => {
       const nextValue = rawValue.trim();
       if (!onPatchWorkerAddress) return;
-      await onPatchWorkerAddress(field, nextValue || null);
+      const dbField = field === "provincia" ? "provincia_sigla" : field;
+      await onPatchWorkerAddress(dbField as typeof field, nextValue || null);
     },
     [onPatchWorkerAddress],
   );
@@ -780,19 +785,45 @@ function TravelTimeCard({
                 <span className="text-muted-foreground text-xs font-medium">
                   {item.label}
                 </span>
-                <DebouncedInput
-                  committedValue={addressDraft[item.key]}
-                  onSave={async (value) => {
-                    setAddressDraft((current) => ({
-                      ...current,
-                      [item.key]: value,
-                    }));
-                    await commitAddressField(item.key, value);
-                  }}
-                  // No `disabled` during save: would force-blur the input.
-                  className="h-9 text-sm"
-                  placeholder={item.label}
-                />
+                {item.key === "provincia" ? (
+                  <Select
+                    value={addressDraft.provincia || "none"}
+                    onValueChange={(value) => {
+                      const nextValue = value === "none" ? "" : value;
+                      setAddressDraft((current) => ({
+                        ...current,
+                        provincia: nextValue,
+                      }));
+                      void commitAddressField("provincia", nextValue);
+                    }}
+                  >
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Seleziona provincia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {workerProvincieOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <DebouncedInput
+                    committedValue={addressDraft[item.key]}
+                    onSave={async (value) => {
+                      setAddressDraft((current) => ({
+                        ...current,
+                        [item.key]: value,
+                      }));
+                      await commitAddressField(item.key, value);
+                    }}
+                    className="h-9 text-sm"
+                    placeholder={item.label}
+                  />
+                )}
               </label>
             ))}
           </div>

@@ -77,6 +77,7 @@ import { getRicercaCenter } from "@/lib/ricerca/center-coords";
 import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
+import { useProvincieOptions } from "@/hooks/use-provincie";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
 
@@ -734,6 +735,9 @@ function applyAddressPatchToCard(
   if ("provincia" in patch) {
     nextCard.indirizzoProvincia = displayValue(patch.provincia);
   }
+  if ("provincia_sigla" in patch) {
+    nextCard.indirizzoProvincia = displayValue(patch.provincia_sigla);
+  }
   if ("cap" in patch) {
     nextCard.indirizzoCap = displayValue(patch.cap);
   }
@@ -806,6 +810,7 @@ export function RicercaDetailView({
     giornatePreferite: normalizeWeekdayList(card?.giornatePreferite),
   });
   const [isSavingOrari, setIsSavingOrari] = React.useState(false);
+  const provincieOptions = useProvincieOptions();
   const { options: operatorOptions, loading: operatorOptionsLoading } =
     useOperatoriOptions();
   const { options: recruiterOptions } = useOperatoriOptions({
@@ -1102,7 +1107,9 @@ export function RicercaDetailView({
           ),
           etaMinima: displayValue(processRow.eta_minima),
           etaMassima: displayValue(processRow.eta_massima),
-          indirizzoProvincia: displayValue(processAddress?.provincia),
+          indirizzoProvincia: displayValue(
+            processAddress?.provincia_sigla ?? processAddress?.provincia,
+          ),
           indirizzoCap: displayValue(processAddress?.cap),
           indirizzoNote: displayValue(processAddress?.note),
           indirizzoId: toStringValue(processAddress?.id),
@@ -1989,16 +1996,34 @@ export function RicercaDetailView({
                       </AccordionTrigger>
 	                    <AccordionContent className="space-y-3">
 	                      <div className="grid grid-cols-2 gap-3">
-	                        <EditableTextField
-	                          label="Provincia"
-	                          value={resolvedCard.indirizzoProvincia}
-                            editing={isEditingSection("luogo-lavoro")}
-                            onSave={(next) =>
-                              void saveAddressPatch("luogo-lavoro", {
-                                provincia: next,
-                              })
-                            }
-	                        />
+	                        <div className="space-y-1">
+                            <FieldLabel>Provincia</FieldLabel>
+                            {isEditingSection("luogo-lavoro") ? (
+                              <Select
+                                value={resolvedCard.indirizzoProvincia || "none"}
+                                onValueChange={(next) => {
+                                  const value = next === "none" ? "" : next;
+                                  void saveAddressPatch("luogo-lavoro", {
+                                    provincia_sigla: value || null,
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Seleziona provincia" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">—</SelectItem>
+                                  {provincieOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <p className="text-sm">{resolvedCard.indirizzoProvincia || "—"}</p>
+                            )}
+                          </div>
 	                        <EditableTextField
                             label="CAP"
                             value={resolvedCard.indirizzoCap}

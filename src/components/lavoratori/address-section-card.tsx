@@ -18,6 +18,14 @@ import {
 import { FieldLabel } from "@/components/ui/field"
 import { DebouncedInput } from "@/components/ui/debounced-input"
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   getLookupOptionLabel,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
@@ -81,8 +89,7 @@ export function AddressSectionCard({
   defaultOpen = true,
   showMobility = true,
   addressDraft,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  provinciaOptions: _provinciaOptions,
+  provinciaOptions,
   mobilityOptions,
   selectedVia,
   selectedCivico,
@@ -127,18 +134,38 @@ export function AddressSectionCard({
           {ADDRESS_FIELDS.map((item) => (
             <div key={item.key} className="space-y-1">
               <FieldLabel>{item.label}</FieldLabel>
-              <DebouncedInput
-                committedValue={addressDraft[item.key]}
-                onSave={async (value) => {
-                  onFieldChange(item.key, value)
-                  await onFieldCommit(item.key, value)
-                }}
-                // Intentionally NOT passing `disabled={isUpdating}`: a
-                // transient disable during save forces the browser to fire
-                // blur and the user gets kicked out of the field mid-typing.
-                // Multiple in-flight saves are fine (last write wins).
-                placeholder={item.label}
-              />
+              {item.key === "provincia" ? (
+                <Select
+                  value={addressDraft.provincia || "none"}
+                  onValueChange={(next) => {
+                    const value = next === "none" ? "" : next
+                    onFieldChange("provincia", value)
+                    void onFieldCommit("provincia", value)
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Seleziona provincia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {provinciaOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <DebouncedInput
+                  committedValue={addressDraft[item.key]}
+                  onSave={async (value) => {
+                    onFieldChange(item.key, value)
+                    await onFieldCommit(item.key, value)
+                  }}
+                  placeholder={item.label}
+                />
+              )}
             </div>
           ))}
         </div>
