@@ -55,23 +55,30 @@ Già fatta su `main` (commit `03ecdd3`).
 
 **Done**: 58 test verdi in ~1s. Helper pronti in `@/test/test-utils`.
 
-## FASE 2 — Test di regressione sui bug visti
+## FASE 2 — Test di regressione sui bug visti ✅
 
-**Stima**: ~1 giorno.
+**Stima**: ~1 giorno. **Effettivi**: ~30min con 3 agent in parallelo.
 
-- [x] Regressione `feeConcordata` (unit test su binding)
-- [x] Regressione preservazione campi CRM (`preserveMissingFields`)
-- [ ] Regressione `availabilityDraft`: hook test su `useSelectedWorkerEditor`
-      "draft non sovrascritto se `isEditingAvailability === true`"
-- [ ] Regressione `headerDraft`: stesso pattern per WorkerProfileHeader
-- [ ] Regressione `key=` mancante: component test "cambio selectedCardId
-      → unmount totale del componente detail, niente draft leak"
-- [ ] Regressione echo-suppression: hook test su `useRealtimeBoardSync`
-      "reload NOT chiamato se `getMillisSinceLastLocalWrite() < 2500`"
-- [ ] Regressione pending-write defer: hook test "reload DEFERRED finché
-      `getPendingWriteCount() > 0`"
+- [x] Regressione `feeConcordata` (unit test su binding) — FASE 0
+- [x] Regressione preservazione campi CRM (`preserveMissingFields`) — FASE 0
+- [x] Regressione `availabilityDraft` + headerDraft + addressDraft +
+      jobSearchDraft: hook test su `useSelectedWorkerEditor` — 5 test
+      in `use-selected-worker-editor.integration.test.tsx`
+- [x] Regressione `key=` mancante: pattern test in
+      `key-unmount-pattern.integration.test.tsx` — 4 test che provano
+      perché serve `key={selectedId ?? "__empty__"}` sui wrapper detail
+- [x] Regressione echo-suppression (LOCAL_WRITE_ECHO_WINDOW_MS) — hook
+      test in `use-realtime-board-sync.integration.test.tsx`
+- [x] Regressione pending-write defer — stesso file
+- [x] Regressione debounce burst + ordine reload→reloadOpenDetail —
+      stesso file
 
-**Done**: tutti i bug noti sono test-guarded.
+**Totale**: 14 nuovi test integration + 55 pure function = 72 test verdi
+in ~1.7s.
+
+**Done**: i bug noti hanno ognuno il proprio test di regressione. Se
+qualcuno spezza la guardia `isEditing*`, l'echo-window, il defer dei
+pending writes, o il pattern `key=` → `npm test` fallisce prima del push.
 
 ## FASE 3 — Audit e fix preventivi
 
