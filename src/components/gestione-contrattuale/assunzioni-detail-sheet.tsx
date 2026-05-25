@@ -446,84 +446,22 @@ function RelatedSubjectCard({
 function RapportoDetailSections({
   card,
   onRapportoPatch,
-  onAssunzionePatch,
 }: {
   card: AssunzioniBoardCardData
   onRapportoPatch: (patch: Record<string, unknown>) => Promise<void>
-  onAssunzionePatch: (patch: Record<string, unknown>) => Promise<void>
 }) {
   const rapporto = card.rapporto
-  const assunzione = card.assunzione
-  const [draft, setDraft] = React.useState(() => ({
-    regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
-    rapportoCorrispondeResidenza: assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
-    tredicesimaRateizzata: assunzione?.tredicesima_rateizzata_mensile ?? "",
-    telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
-  }))
-
-  React.useEffect(() => {
-    setDraft({
-      regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
-      rapportoCorrispondeResidenza: assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
-      tredicesimaRateizzata: assunzione?.tredicesima_rateizzata_mensile ?? "",
-      telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
-    })
-    // Only resync the draft when the selected assunzione identity changes,
-    // not on every individual field change (those are handled by user edits).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assunzione?.id, card.id, rapporto?.id])
-
-  const setValue = (key: keyof typeof draft, value: string) =>
-    setDraft((current) => ({ ...current, [key]: value }))
 
   const { value: totaleOreLavorative, onChange: onTotaleOreLavorativeChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_di_lavoro) || (rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : ""),
+    rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : "",
     async (value) => {
-      await Promise.all([
-        onRapportoPatch({ ore_a_settimana: toNullableNumber(value) }),
-        onAssunzionePatch({ ore_di_lavoro: toNullableNumber(value) }),
-      ])
+      await onRapportoPatch({ ore_a_settimana: toNullableNumber(value) })
     }
   )
 
   const { value: distribuzioneOreSettimanali, onChange: onDistribuzioneChange } = useDebouncedSave(
     rapporto?.distribuzione_ore_settimana ?? "",
     async (value) => { await onRapportoPatch({ distribuzione_ore_settimana: value || null }) }
-  )
-
-  const { value: oreLunedi, onChange: onOreLunediChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_lunedi),
-    async (value) => { await onAssunzionePatch({ ore_lunedi: toNullableNumber(value) }) }
-  )
-
-  const { value: oreMartedi, onChange: onOreMartediChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_martedi),
-    async (value) => { await onAssunzionePatch({ ore_martedi: toNullableNumber(value) }) }
-  )
-
-  const { value: oreMercoledi, onChange: onOreMercolediChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_mercoledi),
-    async (value) => { await onAssunzionePatch({ ore_mercoledi: toNullableNumber(value) }) }
-  )
-
-  const { value: oreGiovedi, onChange: onOreGiovediChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_giovedi),
-    async (value) => { await onAssunzionePatch({ ore_giovedi: toNullableNumber(value) }) }
-  )
-
-  const { value: oreVenerdi, onChange: onOreVenerdiChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_venerdi),
-    async (value) => { await onAssunzionePatch({ ore_venerdi: toNullableNumber(value) }) }
-  )
-
-  const { value: oreSabato, onChange: onOreSabatoChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_sabato),
-    async (value) => { await onAssunzionePatch({ ore_sabato: toNullableNumber(value) }) }
-  )
-
-  const { value: mezzaGiornataRiposo, onChange: onMezzaGiornataRiposoChange } = useDebouncedSave(
-    assunzione?.mezza_giornata_di_riposo ?? "",
-    async (value) => { await onAssunzionePatch({ mezza_giornata_di_riposo: value || null }) }
   )
 
   const { value: pagaOraria, onChange: onPagaOrariaChange } = useDebouncedSave(
@@ -537,210 +475,61 @@ function RapportoDetailSections({
   )
 
   const { value: dataAssunzioneRapporto, onChange: onDataAssunzioneRapportoChange } = useDebouncedSave(
-    assunzione?.data_assunzione ?? rapporto?.data_inizio_rapporto ?? "",
+    rapporto?.data_inizio_rapporto ?? "",
     async (value) => {
-      await Promise.all([
-        onRapportoPatch({ data_inizio_rapporto: value || null }),
-        onAssunzionePatch({ data_assunzione: value || null }),
-      ])
+      await onRapportoPatch({ data_inizio_rapporto: value || null })
     }
   )
 
-  const { value: appuntiExtra, onChange: onAppuntiExtraChange } = useDebouncedSave(
-    assunzione?.note_aggiuntive ?? "",
-    async (value) => { await onAssunzionePatch({ note_aggiuntive: value || null }) }
-  )
-
   return (
-    <>
-      <DetailSectionBlock
-        title="Convivenza e orario"
-        icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
-        contentClassName="space-y-4"
-      >
-        <EditableField label="Regime di convivenza">
-          <Select
-            value={draft.regimeConvivenza}
-            onValueChange={(value) => {
-              setValue("regimeConvivenza", value)
-              void onAssunzionePatch({ regime_convivenza: value || null })
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={REGIME_NON_CONVIVENTE}>{REGIME_NON_CONVIVENTE}</SelectItem>
-              <SelectItem value={REGIME_CONVIVENTE}>{REGIME_CONVIVENTE}</SelectItem>
-            </SelectContent>
-          </Select>
-        </EditableField>
-        <EditableField label="Ore di lavoro a settimana">
+    <DetailSectionBlock
+      title="Orario e paga rapporto"
+      icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
+      contentClassName="space-y-4"
+    >
+      <EditableField label="Ore di lavoro a settimana">
+        <Input
+          type="number"
+          value={totaleOreLavorative}
+          onChange={(event) => onTotaleOreLavorativeChange(event.target.value)}
+        />
+      </EditableField>
+      <EditableField label="Distribuzione ore settimanali">
+        <div className="space-y-2">
+          <p className="ui-type-meta">Parte da domenica</p>
+          <Input
+            value={distribuzioneOreSettimanali}
+            placeholder="0-0-0-0-0-0-0"
+            onChange={(event) => onDistribuzioneChange(event.target.value)}
+          />
+        </div>
+      </EditableField>
+      <div className="grid gap-4 md:grid-cols-2">
+        <EditableField label="Paga oraria">
           <Input
             type="number"
-            value={totaleOreLavorative}
-            onChange={(event) => onTotaleOreLavorativeChange(event.target.value)}
+            step="0.01"
+            value={pagaOraria}
+            onChange={(event) => onPagaOrariaChange(event.target.value)}
           />
         </EditableField>
-        <EditableField label="Distribuzione ore settimanali">
-          <div className="space-y-2">
-            <p className="ui-type-meta">Parte da domenica</p>
-            <Input
-              value={distribuzioneOreSettimanali}
-              placeholder="0-0-0-0-0-0-0"
-              onChange={(event) => onDistribuzioneChange(event.target.value)}
-            />
-          </div>
-        </EditableField>
-        <div className="grid gap-4 md:grid-cols-3">
-          <EditableField label="Ore lunedi">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreLunedi}
-              onChange={(event) => onOreLunediChange(event.target.value)}
-            />
-          </EditableField>
-          <EditableField label="Ore martedi">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreMartedi}
-              onChange={(event) => onOreMartediChange(event.target.value)}
-            />
-          </EditableField>
-          <EditableField label="Ore mercoledi">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreMercoledi}
-              onChange={(event) => onOreMercolediChange(event.target.value)}
-            />
-          </EditableField>
-          <EditableField label="Ore giovedi">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreGiovedi}
-              onChange={(event) => onOreGiovediChange(event.target.value)}
-            />
-          </EditableField>
-          <EditableField label="Ore venerdi">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreVenerdi}
-              onChange={(event) => onOreVenerdiChange(event.target.value)}
-            />
-          </EditableField>
-          <EditableField label="Ore sabato">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreSabato}
-              onChange={(event) => onOreSabatoChange(event.target.value)}
-            />
-          </EditableField>
-          <EditableField label="Giorno/mezza giornata di riposo">
-            <Input
-              value={mezzaGiornataRiposo}
-              onChange={(event) => onMezzaGiornataRiposoChange(event.target.value)}
-            />
-          </EditableField>
-        </div>
-      </DetailSectionBlock>
-
-      <DetailSectionBlock
-        title="Altri dettagli rapporto di lavoro"
-        icon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
-        contentClassName="space-y-4"
-      >
-        <EditableField label="Il rapporto di lavoro corrisponde alla residenza?">
-          <Select
-            value={draft.rapportoCorrispondeResidenza}
-            onValueChange={(value) => {
-              setValue("rapportoCorrispondeResidenza", value)
-              void onAssunzionePatch({ rapporto_di_lavoro_residenza: value === "Si" })
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Si">Si</SelectItem>
-              <SelectItem value="No">No</SelectItem>
-            </SelectContent>
-          </Select>
-        </EditableField>
-        <EditableField label="Tredicesima rateizzata?">
-          <Select
-            value={draft.tredicesimaRateizzata}
-            onValueChange={(value) => {
-              setValue("tredicesimaRateizzata", value)
-              void onAssunzionePatch({ tredicesima_rateizzata_mensile: value || null })
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Si">Si</SelectItem>
-              <SelectItem value="No">No</SelectItem>
-            </SelectContent>
-          </Select>
-        </EditableField>
-        <div className="grid gap-4 md:grid-cols-2">
-          <EditableField label="Paga oraria">
-            <Input
-              type="number"
-              step="0.01"
-              value={pagaOraria}
-              onChange={(event) => onPagaOrariaChange(event.target.value)}
-            />
-          </EditableField>
-          <EditableField label="Paga mensile">
-            <Input
-              type="number"
-              step="0.01"
-              value={pagaMensile}
-              onChange={(event) => onPagaMensileChange(event.target.value)}
-            />
-          </EditableField>
-        </div>
-        <EditableField label="Ci sono telecamere sul posto di lavoro?">
-          <Select
-            value={draft.telecamerePostoLavoro}
-            onValueChange={(value) => {
-              setValue("telecamerePostoLavoro", value)
-              void onAssunzionePatch({ telecamere_posto_lavoro: value || null })
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Si">Si</SelectItem>
-              <SelectItem value="No">No</SelectItem>
-            </SelectContent>
-          </Select>
-        </EditableField>
-        <EditableField label="Data di assunzione">
+        <EditableField label="Paga mensile">
           <Input
-            type="date"
-            value={dataAssunzioneRapporto}
-            onChange={(event) => onDataAssunzioneRapportoChange(event.target.value)}
+            type="number"
+            step="0.01"
+            value={pagaMensile}
+            onChange={(event) => onPagaMensileChange(event.target.value)}
           />
         </EditableField>
-        <EditableField label="Appunti extra">
-          <Textarea
-            value={appuntiExtra}
-            onChange={(event) => onAppuntiExtraChange(event.target.value)}
-            className="min-h-24"
-            placeholder="Aggiungi note sul rapporto o sulla pratica"
-          />
-        </EditableField>
-      </DetailSectionBlock>
-    </>
+      </div>
+      <EditableField label="Data di assunzione">
+        <Input
+          type="date"
+          value={dataAssunzioneRapporto}
+          onChange={(event) => onDataAssunzioneRapportoChange(event.target.value)}
+        />
+      </EditableField>
+    </DetailSectionBlock>
   )
 }
 
@@ -769,6 +558,9 @@ function DatoreDetail({
     rapportoCorrispondeResidenza: assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
     tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
     cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
+    regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
+    tredicesimaRateizzata: assunzione?.tredicesima_rateizzata_mensile ?? "",
+    telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
   }))
 
   React.useEffect(() => {
@@ -777,6 +569,9 @@ function DatoreDetail({
       rapportoCorrispondeResidenza: assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
       tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
       cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
+      regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
+      tredicesimaRateizzata: assunzione?.tredicesima_rateizzata_mensile ?? "",
+      telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
     })
     // Resync only on identity change of related entities.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -880,6 +675,56 @@ function DatoreDetail({
     async (value) => { await onAssunzionePatch({ documento_identita_scadenza: value || null }) }
   )
 
+  const { value: oreDiLavoroD, onChange: onOreDiLavoroDChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_di_lavoro),
+    async (value) => { await onAssunzionePatch({ ore_di_lavoro: toNullableNumber(value) }) }
+  )
+
+  const { value: oreLunediD, onChange: onOreLunediDChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_lunedi),
+    async (value) => { await onAssunzionePatch({ ore_lunedi: toNullableNumber(value) }) }
+  )
+
+  const { value: oreMartediD, onChange: onOreMartediDChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_martedi),
+    async (value) => { await onAssunzionePatch({ ore_martedi: toNullableNumber(value) }) }
+  )
+
+  const { value: oreMercolediD, onChange: onOreMercolediDChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_mercoledi),
+    async (value) => { await onAssunzionePatch({ ore_mercoledi: toNullableNumber(value) }) }
+  )
+
+  const { value: oreGiovediD, onChange: onOreGiovediDChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_giovedi),
+    async (value) => { await onAssunzionePatch({ ore_giovedi: toNullableNumber(value) }) }
+  )
+
+  const { value: oreVenerdiD, onChange: onOreVenerdiDChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_venerdi),
+    async (value) => { await onAssunzionePatch({ ore_venerdi: toNullableNumber(value) }) }
+  )
+
+  const { value: oreSabatoD, onChange: onOreSabatoDChange } = useDebouncedSave(
+    toInputValue(assunzione?.ore_sabato),
+    async (value) => { await onAssunzionePatch({ ore_sabato: toNullableNumber(value) }) }
+  )
+
+  const { value: mezzaGiornataRiposoD, onChange: onMezzaGiornataRiposoDChange } = useDebouncedSave(
+    assunzione?.mezza_giornata_di_riposo ?? "",
+    async (value) => { await onAssunzionePatch({ mezza_giornata_di_riposo: value || null }) }
+  )
+
+  const { value: dataAssunzioneAssD, onChange: onDataAssunzioneAssDChange } = useDebouncedSave(
+    assunzione?.data_assunzione ?? "",
+    async (value) => { await onAssunzionePatch({ data_assunzione: value || null }) }
+  )
+
+  const { value: appuntiExtraD, onChange: onAppuntiExtraDChange } = useDebouncedSave(
+    assunzione?.note_aggiuntive ?? "",
+    async (value) => { await onAssunzionePatch({ note_aggiuntive: value || null }) }
+  )
+
   const documentoIdentitaAllegati = collectAttachmentValues(
     assunzione?.documento_identita_allegati
   )
@@ -889,6 +734,9 @@ function DatoreDetail({
   const permessoSoggiornoAllegati = collectAttachmentValues(
     assunzione?.permesso_di_soggiorno_allegati,
     assunzione?.ricevuta_rinnovo_permesso_allegati
+  )
+  const delegaInpsAllegati = collectAttachmentValues(
+    assunzione?.delega_inps_allegati
   )
 
   return (
@@ -1126,6 +974,149 @@ function DatoreDetail({
       </DetailSectionBlock>
 
       <DetailSectionBlock
+        title="Convivenza e orario (form famiglia)"
+        icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
+        contentClassName="space-y-4"
+      >
+        <EditableField label="Regime di convivenza">
+          <Select
+            value={draft.regimeConvivenza}
+            onValueChange={(value) => {
+              setValue("regimeConvivenza", value)
+              void onAssunzionePatch({ regime_convivenza: value || null })
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={REGIME_NON_CONVIVENTE}>{REGIME_NON_CONVIVENTE}</SelectItem>
+              <SelectItem value={REGIME_CONVIVENTE}>{REGIME_CONVIVENTE}</SelectItem>
+            </SelectContent>
+          </Select>
+        </EditableField>
+        <EditableField label="Ore di lavoro a settimana">
+          <Input
+            type="number"
+            value={oreDiLavoroD}
+            onChange={(event) => onOreDiLavoroDChange(event.target.value)}
+          />
+        </EditableField>
+        <div className="grid gap-4 md:grid-cols-3">
+          <EditableField label="Ore lunedi">
+            <Input
+              type="number"
+              step="0.25"
+              value={oreLunediD}
+              onChange={(event) => onOreLunediDChange(event.target.value)}
+            />
+          </EditableField>
+          <EditableField label="Ore martedi">
+            <Input
+              type="number"
+              step="0.25"
+              value={oreMartediD}
+              onChange={(event) => onOreMartediDChange(event.target.value)}
+            />
+          </EditableField>
+          <EditableField label="Ore mercoledi">
+            <Input
+              type="number"
+              step="0.25"
+              value={oreMercolediD}
+              onChange={(event) => onOreMercolediDChange(event.target.value)}
+            />
+          </EditableField>
+          <EditableField label="Ore giovedi">
+            <Input
+              type="number"
+              step="0.25"
+              value={oreGiovediD}
+              onChange={(event) => onOreGiovediDChange(event.target.value)}
+            />
+          </EditableField>
+          <EditableField label="Ore venerdi">
+            <Input
+              type="number"
+              step="0.25"
+              value={oreVenerdiD}
+              onChange={(event) => onOreVenerdiDChange(event.target.value)}
+            />
+          </EditableField>
+          <EditableField label="Ore sabato">
+            <Input
+              type="number"
+              step="0.25"
+              value={oreSabatoD}
+              onChange={(event) => onOreSabatoDChange(event.target.value)}
+            />
+          </EditableField>
+          <EditableField label="Giorno/mezza giornata di riposo">
+            <Input
+              value={mezzaGiornataRiposoD}
+              onChange={(event) => onMezzaGiornataRiposoDChange(event.target.value)}
+            />
+          </EditableField>
+        </div>
+      </DetailSectionBlock>
+
+      <DetailSectionBlock
+        title="Altri dettagli (form famiglia)"
+        icon={<CalendarDaysIcon className="text-muted-foreground size-4" />}
+        contentClassName="space-y-4"
+      >
+        <EditableField label="Tredicesima rateizzata?">
+          <Select
+            value={draft.tredicesimaRateizzata}
+            onValueChange={(value) => {
+              setValue("tredicesimaRateizzata", value)
+              void onAssunzionePatch({ tredicesima_rateizzata_mensile: value || null })
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Si">Si</SelectItem>
+              <SelectItem value="No">No</SelectItem>
+            </SelectContent>
+          </Select>
+        </EditableField>
+        <EditableField label="Ci sono telecamere sul posto di lavoro?">
+          <Select
+            value={draft.telecamerePostoLavoro}
+            onValueChange={(value) => {
+              setValue("telecamerePostoLavoro", value)
+              void onAssunzionePatch({ telecamere_posto_lavoro: value || null })
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Si">Si</SelectItem>
+              <SelectItem value="No">No</SelectItem>
+            </SelectContent>
+          </Select>
+        </EditableField>
+        <EditableField label="Data di assunzione">
+          <Input
+            type="date"
+            value={dataAssunzioneAssD}
+            onChange={(event) => onDataAssunzioneAssDChange(event.target.value)}
+          />
+        </EditableField>
+        <EditableField label="Appunti extra">
+          <Textarea
+            value={appuntiExtraD}
+            onChange={(event) => onAppuntiExtraDChange(event.target.value)}
+            className="min-h-24"
+            placeholder="Aggiungi note sul rapporto o sulla pratica"
+          />
+        </EditableField>
+      </DetailSectionBlock>
+
+      <DetailSectionBlock
         title="Documenti datore"
         icon={<ShieldCheckIcon className="text-muted-foreground size-4" />}
         contentClassName="grid gap-3 md:grid-cols-3"
@@ -1155,6 +1146,15 @@ function DatoreDetail({
           onRemove={(link) => onAttachmentRemove("datore", "permesso_di_soggiorno_allegati", link)}
           onPreviewOpen={onAttachmentPreview}
           isUploading={uploadingAttachment === "datore:permesso_di_soggiorno_allegati"}
+          multiple={false}
+        />
+        <AttachmentUploadSlot
+          label="Delega INPS"
+          value={delegaInpsAllegati}
+          onAdd={(file) => onAttachmentAdd("datore", "delega_inps_allegati", file)}
+          onRemove={(link) => onAttachmentRemove("datore", "delega_inps_allegati", link)}
+          onPreviewOpen={onAttachmentPreview}
+          isUploading={uploadingAttachment === "datore:delega_inps_allegati"}
           multiple={false}
         />
       </DetailSectionBlock>
@@ -2794,7 +2794,7 @@ export function AssunzioniDetailSheet({
                 icon={<FileTextIcon className="text-muted-foreground size-4" />}
                 contentClassName="space-y-4"
               >
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-2">
                   <AttachmentUploadSlot
                     label="Accordo di lavoro"
                     value={card.rapporto?.accordo_di_lavoro_allegati ?? null}
@@ -2813,29 +2813,12 @@ export function AssunzioniDetailSheet({
                     isUploading={uploadingAttachment === "rapporto:ricevuta_inps_allegati"}
                     showStatusIndicator
                   />
-                  <AttachmentUploadSlot
-                    label="Delega INPS"
-                    value={
-                      card.assunzione?.delega_inps_allegati ??
-                      (card.rapporto?.metadati_migrazione &&
-                      typeof card.rapporto.metadati_migrazione === "object"
-                        ? (card.rapporto.metadati_migrazione as Record<string, unknown>)
-                            .delega_inps_allegati ?? null
-                        : null)
-                    }
-                    onAdd={(file) => uploadAssunzioneAttachment("datore", "delega_inps_allegati", file)}
-                    onRemove={(link) => void removeAssunzioneAttachment("datore", "delega_inps_allegati", link)}
-                    onPreviewOpen={openAttachmentPreview}
-                    isUploading={uploadingAttachment === "datore:delega_inps_allegati"}
-                    showStatusIndicator
-                  />
                 </div>
               </DetailSectionBlock>
 
               <RapportoDetailSections
                 card={card}
                 onRapportoPatch={saveRapportoPatch}
-                onAssunzionePatch={saveAssunzionePatch}
               />
 
               <RadioGroup
