@@ -910,13 +910,139 @@ function buildStageDefinitions(lookupRows: LookupValueRecord[]) {
   return { stages, tokenToStageId }
 }
 
+/**
+ * Bindings between source DB columns and the card fields they populate.
+ *
+ * These let `mapCardData` rebuild a card while preserving any field whose
+ * source column is *not present* in the fresh payload — which happens when
+ * the board RPC returns a narrower SELECT than the detail RPC. Without
+ * preservation, a board refetch would blank every field the board does not
+ * fetch (the open detail panel would visibly empty out).
+ *
+ * Treatment: if `column in row` is false for a fresh payload, we keep the
+ * previousCard's value for the corresponding card field. If the column is
+ * present (even if null), the fresh value wins — clearing in DB still
+ * propagates correctly.
+ */
+const PROCESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
+  ["stato_res", "statoRes"],
+  ["qualificazione_lead", "qualificazioneLead"],
+  ["motivo_no_match", "motivoNoMatch"],
+  ["modello_smartmatching", "modelloSmartmatching"],
+  ["ore_settimanale", "oreSettimana"],
+  ["preferenza_giorno", "giornatePreferite"],
+  ["sales_cold_call_followup", "salesColdCallFollowup"],
+  ["sales_no_show_followup", "salesNoShowFollowup"],
+  ["motivazione_lost", "motivazioneLost"],
+  ["motivazione_oot", "motivazioneOot"],
+  ["appunti_chiamata_sales", "appuntiChiamataSales"],
+  ["data_per_ricerca_futura", "dataPerRicercaFutura"],
+  ["data_per_ricerca_futura", "dataPerRicercaFuturaRaw"],
+  ["creato_il", "dataLead"],
+  ["creato_il", "dataLeadRaw"],
+  ["sales_cold_call_followup", "tentativiChiamataCount"],
+  ["preventivo_firmato", "preventivoAccettato"],
+  ["source_url", "origineUrl"],
+  ["offerta", "scontoApplicato"],
+  ["offerta", "scontoApplicatoRaw"],
+  ["orario_di_lavoro", "orarioDiLavoro"],
+  ["nucleo_famigliare", "nucleoFamigliare"],
+  ["descrizione_casa", "descrizioneCasa"],
+  ["metratura_casa", "metraturaCasa"],
+  ["descrizione_animali_in_casa", "descrizioneAnimaliInCasa"],
+  ["mansioni_richieste", "mansioniRichieste"],
+  ["informazioni_extra_riservate", "informazioniExtraRiservate"],
+  ["eta_minima", "etaMinima"],
+  ["eta_massima", "etaMassima"],
+  ["src_embed_maps_annucio", "srcEmbedMapsAnnucio"],
+  ["deadline_mobile", "deadlineMobile"],
+  ["disponibilita_colloqui_in_presenza", "disponibilitaColloquiInPresenza"],
+  ["family_availability_json", "familyAvailabilityJson"],
+  ["tipo_incontro_famiglia_lavoratore", "tipoIncontroFamigliaLavoratore"],
+  ["richiesta_patente", "richiestaPatente"],
+  ["richiesta_trasferte", "richiestaTrasferte"],
+  ["richiesta_ferie", "richiestaFerie"],
+  ["descrizione_richiesta_trasferte", "descrizioneRichiestaTrasferte"],
+  ["descrizione_richiesta_ferie", "descrizioneRichiestaFerie"],
+  ["patente", "patenteDettaglio"],
+  ["sesso", "sesso"],
+  ["nazionalita_escluse", "nazionalitaEscluse"],
+  ["nazionalita_obbligatorie", "nazionalitaObbligatorie"],
+  ["famiglia_molto_esigente", "famigliaMoltoEsigente"],
+  ["richiesta_autonomia", "richiestaAutonomia"],
+  ["datore_spesso_presente", "datoreSpessoPresente"],
+  ["richiesta_discrezione", "richiestaDiscrezione"],
+  ["comunicare_bene_italiano", "comunicareBeneItaliano"],
+  ["comunicare_bene_inglese", "comunicareBeneInglese"],
+  ["presenza_neonati", "presenzaNeonati"],
+  ["piu_bambini", "piuBambini"],
+  ["famiglia_4_persone", "famiglia4Persone"],
+  ["cani_piccoli", "caniPiccoli"],
+  ["cani_grandi", "caniGrandi"],
+  ["gatti", "gatti"],
+  ["pulire_ripiani_alti", "pulireRipianiAlti"],
+  ["stirare", "stirare"],
+  ["stirare_abiti_difficili", "stirareAbitiDifficili"],
+  ["cucinare", "cucinare"],
+  ["cucinare_elaborato", "cucinareElaborato"],
+  ["cura_piante", "curaPiante"],
+  ["testo_annuncio_whatsapp", "testoAnnuncioWhatsapp"],
+  ["tipo_lavoro", "tipoLavoroBadges"],
+  ["tipo_lavoro", "tipoLavoroBadge"],
+  ["tipo_lavoro", "tipoLavoroColor"],
+  ["tipo_lavoro", "tipoLavoroColors"],
+  ["tipo_rapporto", "tipoRapportoBadge"],
+  ["tipo_rapporto", "tipoRapportoColor"],
+  ["numero_giorni_settimanali", "giorniSettimana"],
+  ["numero_ricerca_attivata", "numeroRicercaAttivata"],
+  ["frequenza_rapporto", "giorniSettimana"],
+]
+
+const FAMILY_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
+  ["email", "email"],
+  ["telefono", "telefono"],
+  ["data_call_prenotata", "dataCallPrenotata"],
+  ["data_call_prenotata", "dataCallPrenotataRaw"],
+  ["nome", "nomeFamiglia"],
+  ["cognome", "nomeFamiglia"],
+]
+
+const ADDRESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
+  ["provincia", "indirizzoProvincia"],
+  ["cap", "indirizzoCap"],
+  ["note", "indirizzoNote"],
+  ["via", "indirizzoVia"],
+  ["civico", "indirizzoCivico"],
+  ["citta", "indirizzoComune"],
+  ["citofono", "indirizzoCitofono"],
+  ["id", "indirizzoId"],
+]
+
+/**
+ * For each binding, if the source column is NOT present in `row`, restore
+ * the previous card's value. Mutates `card` in place. Pass nullable `row`:
+ * if `row` is missing entirely, every bound field falls back to previous.
+ */
+function preserveMissingFields(
+  card: CrmPipelineCardData,
+  previousCard: CrmPipelineCardData,
+  row: GenericRow | undefined | null,
+  bindings: Array<readonly [string, keyof CrmPipelineCardData]>,
+) {
+  for (const [column, field] of bindings) {
+    if (row && column in row) continue
+    ;(card as Record<string, unknown>)[field as string] = previousCard[field]
+  }
+}
+
 function mapCardData(
   family: GenericRow,
   process: GenericRow,
   stageId: string,
   lookupColors: LookupColorMap,
   processAddress?: GenericRow,
-  richiestaAttivazione?: RichiestaAttivazioneRecord | null
+  richiestaAttivazione?: RichiestaAttivazioneRecord | null,
+  previousCard?: CrmPipelineCardData,
 ): CrmPipelineCardData {
   const familyName = [toStringValue(family.nome), toStringValue(family.cognome)]
     .filter((value): value is string => Boolean(value))
@@ -941,7 +1067,7 @@ function mapCardData(
     extractFirstNumberToken(process.frequenza_rapporto) ??
     "-"
 
-  return {
+  const card: CrmPipelineCardData = {
     id: processId,
     famigliaId,
     numeroRicercaAttivata: toStringValue(process.numero_ricerca_attivata),
@@ -1060,12 +1186,21 @@ function mapCardData(
     curaPiante: toBooleanValue(process.cura_piante) ?? false,
     testoAnnuncioWhatsapp: displayValue(process.testo_annuncio_whatsapp),
   }
+
+  if (previousCard) {
+    preserveMissingFields(card, previousCard, process, PROCESS_FIELD_BINDINGS)
+    preserveMissingFields(card, previousCard, family, FAMILY_FIELD_BINDINGS)
+    preserveMissingFields(card, previousCard, processAddress, ADDRESS_FIELD_BINDINGS)
+  }
+
+  return card
 }
 
 function mapBoardEntryToCard(
   entry: BoardRecordEntry,
   stageId: string,
-  lookupColors: LookupColorMap
+  lookupColors: LookupColorMap,
+  previousCard?: CrmPipelineCardData,
 ) {
   if (!entry.family) return null
 
@@ -1075,7 +1210,8 @@ function mapBoardEntryToCard(
     stageId,
     lookupColors,
     entry.address ?? undefined,
-    entry.richiestaAttivazione
+    entry.richiestaAttivazione,
+    previousCard,
   )
 }
 
@@ -1228,7 +1364,14 @@ async function fetchBoardRecordsForStages(
 async function fetchBoardData(
   loadedClosedStageIds: Set<string>,
   searchQuery: string,
-  filters: CrmPipelineFilters
+  filters: CrmPipelineFilters,
+  /**
+   * Called lazily at mapping time (AFTER the network fetch) so any concurrent
+   * `setBoardData` (e.g. from a parallel `loadProcessDetail`) is observed
+   * when we merge previous detail-only fields. Reading a snapshot at queryFn
+   * start would race against detail refetches and reinstate stale values.
+   */
+  getPreviousCard?: (processId: string) => CrmPipelineCardData | undefined,
 ): Promise<FetchBoardDataResult> {
   const normalizedSearchQuery = searchQuery.trim()
   const lookupResult = await fetchLookupValues()
@@ -1270,10 +1413,13 @@ async function fetchBoardData(
     const stageId = tokenToStageId.get(statusToken)
     if (!stageId) continue
 
+    const processId = toStringValue(process.id)
+    const previousCard = processId ? getPreviousCard?.(processId) : undefined
     const card = mapBoardEntryToCard(
       { process, family, address, richiestaAttivazione },
       stageId,
-      lookupColors
+      lookupColors,
+      previousCard,
     )
     if (!card) continue
     cardsByStage.get(stageId)?.push(card)
@@ -1334,7 +1480,24 @@ export function useCrmPipelinePreview(
     error: queryError,
   } = useQuery({
     queryKey: boardQueryKey,
-    queryFn: () => fetchBoardData(loadedClosedStageIds, searchQuery, stableFilters),
+    queryFn: () =>
+      fetchBoardData(
+        loadedClosedStageIds,
+        searchQuery,
+        stableFilters,
+        // Read the latest cached card at mapping time (after the fetch) so
+        // any concurrent setBoardData (e.g. loadProcessDetail completing
+        // mid-fetch) is observed and we never reinstate a stale snapshot.
+        (processId) => {
+          const latest = queryClient.getQueryData<FetchBoardDataResult>(boardQueryKey)
+          if (!latest) return undefined
+          for (const column of latest.columns) {
+            const card = column.cards.find((c) => c.id === processId)
+            if (card) return card
+          }
+          return undefined
+        },
+      ),
   })
 
   const columns = React.useMemo(() => data?.columns ?? [], [data?.columns])

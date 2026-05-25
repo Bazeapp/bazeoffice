@@ -404,23 +404,6 @@ const gateQueryCache = new Map<
     promise: Promise<TableResponse<TableRow>>
   }
 >()
-const crmPipelineBoardCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<{
-      rows: CrmPipelineBoardRpcRow[]
-      stageCounts: Array<{ value: string; count: number }>
-    }>
-  }
->()
-const crmPipelineDetailCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<CrmPipelineBoardRpcRow | null>
-  }
->()
 const rapportiLavorativiBoardCache = new Map<
   string,
   {
@@ -553,8 +536,6 @@ function makeTableQueryCacheKey(payload: TableQueryRequest) {
 export function clearReadCaches() {
   tableQueryCache.clear()
   gateQueryCache.clear()
-  crmPipelineBoardCache.clear()
-  crmPipelineDetailCache.clear()
   rapportiLavorativiBoardCache.clear()
   ricercaWorkerRelatedSelectionSummariesCache.clear()
   cedoliniBoardCache.clear()
@@ -1301,85 +1282,43 @@ export async function fetchCrmPipelineFamiglieBoard(query: {
   preventivoAccettato?: boolean | null
   chiamataPrenotata?: boolean | null
 }) {
-  const cacheKey = JSON.stringify({ functionName: "crm_pipeline_famiglie_board", ...query })
-  const now = Date.now()
-  const cached = crmPipelineBoardCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
+  const { data, error } = await supabase.rpc("crm_pipeline_famiglie_board", {
+    p_limit: query.limit,
+    p_offset: query.offset,
+    p_stage_filter: query.stageFilter?.length ? query.stageFilter : null,
+    p_search: query.search?.trim() ? query.search.trim() : null,
+    p_created_from: query.createdFrom ?? null,
+    p_created_to: query.createdTo ?? null,
+    p_tipo_lavoro_filter: query.tipoLavoro?.length ? query.tipoLavoro : null,
+    p_preventivo_accettato: query.preventivoAccettato ?? null,
+    p_chiamata_prenotata: query.chiamataPrenotata ?? null,
+  })
+
+  if (error) {
+    throw new Error(`crm_pipeline_famiglie_board failed: ${error.message}`)
   }
 
-  const promise = Promise.resolve(
-    supabase.rpc("crm_pipeline_famiglie_board", {
-      p_limit: query.limit,
-      p_offset: query.offset,
-      p_stage_filter: query.stageFilter?.length ? query.stageFilter : null,
-      p_search: query.search?.trim() ? query.search.trim() : null,
-      p_created_from: query.createdFrom ?? null,
-      p_created_to: query.createdTo ?? null,
-      p_tipo_lavoro_filter: query.tipoLavoro?.length ? query.tipoLavoro : null,
-      p_preventivo_accettato: query.preventivoAccettato ?? null,
-      p_chiamata_prenotata: query.chiamataPrenotata ?? null,
-    })
-  ).then(({ data, error }) => {
-    if (error) {
-      throw new Error(`crm_pipeline_famiglie_board failed: ${error.message}`)
-    }
-
-    const response = data as CrmPipelineBoardRpcResponse | null
-    return {
-      rows: Array.isArray(response?.rows) ? response.rows : [],
-      stageCounts: Array.isArray(response?.stage_counts) ? response.stage_counts : [],
-    }
-  })
-
-  crmPipelineBoardCache.set(cacheKey, {
-    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
-    promise,
-  })
-
-  try {
-    return await promise
-  } catch (error) {
-    crmPipelineBoardCache.delete(cacheKey)
-    throw error
+  const response = data as CrmPipelineBoardRpcResponse | null
+  return {
+    rows: Array.isArray(response?.rows) ? response.rows : [],
+    stageCounts: Array.isArray(response?.stage_counts) ? response.stage_counts : [],
   }
 }
 
 export async function fetchCrmPipelineFamigliaDetail(processId: string) {
-  const cacheKey = JSON.stringify({ functionName: "crm_pipeline_famiglia_detail", processId })
-  const now = Date.now()
-  const cached = crmPipelineDetailCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
-  }
-
-  const promise = Promise.resolve(
-    supabase.rpc("crm_pipeline_famiglia_detail", {
-      p_process_id: processId,
-    })
-  ).then(({ data, error }) => {
-    if (error) {
-      throw new Error(`crm_pipeline_famiglia_detail failed: ${error.message}`)
-    }
-
-    if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
-      return null
-    }
-
-    return data as CrmPipelineBoardRpcRow
+  const { data, error } = await supabase.rpc("crm_pipeline_famiglia_detail", {
+    p_process_id: processId,
   })
 
-  crmPipelineDetailCache.set(cacheKey, {
-    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
-    promise,
-  })
-
-  try {
-    return await promise
-  } catch (error) {
-    crmPipelineDetailCache.delete(cacheKey)
-    throw error
+  if (error) {
+    throw new Error(`crm_pipeline_famiglia_detail failed: ${error.message}`)
   }
+
+  if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+    return null
+  }
+
+  return data as CrmPipelineBoardRpcRow
 }
 
 export async function fetchSelezioniLavoratori(query: TablePageQuery) {

@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'storybook-static', 'design-system']),
+  globalIgnores(['dist', 'storybook-static', 'design-system', '.claude']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -54,6 +54,23 @@ export default defineConfig([
                 'Use useMoveMutation / usePatchMutation / useCreateMutation from @/hooks/use-board-mutations instead. The wrappers ensure per-keystroke saves never trigger a board refetch.',
             },
           ],
+        },
+      ],
+      // Rule 1b: in board hooks, any `useEffect` whose deps array references
+      // `selectedXxxId` must also include `realtimeTick` (the tick bumped by
+      // useRealtimeBoardSync's `reload` callback). Without it, the open
+      // detail panel stays stale when another user modifies the record
+      // remotely. See docs/realtime-board-pattern.md (Pattern B). To opt out
+      // for an effect that legitimately doesn't fetch data, suppress with a
+      // per-line `// eslint-disable-next-line no-restricted-syntax` comment
+      // explaining why.
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector:
+            "CallExpression[callee.name='useEffect'] > ArrayExpression:has(> Identifier[name=/^selected.+Id$/]):not(:has(> Identifier[name='realtimeTick']))",
+          message:
+            'useEffect with `selectedXxxId` in deps but missing `realtimeTick` — the open detail panel will not refresh on remote changes. Add `realtimeTick` to deps (see docs/realtime-board-pattern.md, Pattern B), or suppress this rule per-line if the effect does not fetch detail data.',
         },
       ],
     },

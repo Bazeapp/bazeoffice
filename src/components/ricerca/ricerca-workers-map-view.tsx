@@ -41,6 +41,7 @@ import {
   distanceKmBetweenCoordinates,
   type GeoCoordinates,
 } from "@/lib/geo-utils"
+import { isDisponibileRicerca } from "@/lib/lavoratori/is-disponibile-ricerca"
 import { cn } from "@/lib/utils"
 
 const DEFAULT_RADIUS_KM = 5
@@ -224,10 +225,6 @@ function resolveWorkerAddress(
     ) ??
     addresses[0]
   )
-}
-
-function isUnavailable(value: string | null | undefined) {
-  return normalizeStatusToken(value) === "non disponibile"
 }
 
 function normalizeFilterValues(values: readonly string[]) {
@@ -514,6 +511,7 @@ async function fetchDiscoveryWorkersByIds({
         "check_blacklist",
         "stato_lavoratore",
         "disponibilita",
+        "data_ritorno_disponibilita",
         "tipo_lavoro_domestico",
         "tipo_rapporto_lavorativo",
         "data_di_nascita",
@@ -716,7 +714,13 @@ function useDiscoveryWorkers({
         })
         const lookupColorsByDomain = normalizeLookupColors(lookupResult.rows)
         const workers = workerRows
-          .filter((row) => !isUnavailable(asString(row.disponibilita)))
+          .filter((row) =>
+            isDisponibileRicerca({
+              disponibilita: asString(row.disponibilita) || null,
+              data_ritorno_disponibilita:
+                asString(row.data_ritorno_disponibilita) || null,
+            }),
+          )
           .map((row) => {
             const worker = buildDiscoveryWorkerListItem(
               row,
@@ -1107,9 +1111,12 @@ export function RicercaWorkersMapView({
     return (
       <div className={cn("flex h-full items-center justify-center rounded-lg border border-border-subtle bg-surface p-6", className)}>
         <div className="max-w-sm text-center">
-          <p className="text-sm font-medium text-foreground">Coordinate ricerca mancanti</p>
+          <p className="text-sm font-medium text-foreground">
+            ⚠️ Indirizzo del processo mancante, impossibile centrare la mappa
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Per mostrare la mappa serve un indirizzo con latitudine e longitudine nella tab Indirizzi della ricerca.
+            Compila l'indirizzo (di prova o luogo) nella scheda della ricerca per
+            visualizzare i lavoratori geolocalizzati.
           </p>
         </div>
       </div>
@@ -1201,16 +1208,11 @@ export function RicercaWorkersMapView({
       </header>
 
       {workers.length === 0 ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-          <div className="max-w-sm text-center">
-            <p className="text-sm font-medium text-foreground">Nessun lavoratore geolocalizzato</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Nessun lavoratore disponibile trovato nel raggio di lavoro con i filtri attivi.
-            </p>
-          </div>
+        <div className="shrink-0 border-b border-border-subtle bg-amber-50 px-4 py-2 text-xs text-amber-800">
+          0 lavoratori disponibili nel raggio con i filtri attivi.
         </div>
-      ) : (
-        <div className="relative min-h-0 flex-1">
+      ) : null}
+      <div className="relative min-h-0 flex-1">
           <style>{`
             .ricerca-map-worker-marker span {
               display: block;
@@ -1257,7 +1259,6 @@ export function RicercaWorkersMapView({
             onMoveWorker={handleMoveWorker}
           />
         </div>
-      )}
     </section>
   )
 }

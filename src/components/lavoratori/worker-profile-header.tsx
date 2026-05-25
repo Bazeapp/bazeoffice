@@ -3,17 +3,21 @@ import {
   BadgeCheckIcon,
   CakeIcon,
   CalendarDaysIcon,
+  CopyIcon,
+  ExternalLinkIcon,
   FlagIcon,
   MailIcon,
   MapPinIcon,
   PencilIcon,
   PhoneIcon,
+  Share2Icon,
   ShieldCheckIcon,
   SkullIcon,
   StarIcon,
   UploadIcon,
   VenusAndMarsIcon,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import { Avatar } from "@/components/ui/avatar"
@@ -226,9 +230,13 @@ export function WorkerProfileHeader({
     buildDraft(workerRow)
   )
 
+  // Sync the draft from the server row ONLY when the user is not currently
+  // editing the header. Without this guard, a Realtime echo (e.g. a colleague
+  // saving on another tab) would overwrite the user's in-progress edits.
   React.useEffect(() => {
+    if (isEditing) return
     setDraft(buildDraft(workerRow))
-  }, [workerRow])
+  }, [workerRow, isEditing])
 
   React.useEffect(() => {
     setIsEditing(false)
@@ -727,6 +735,41 @@ export function WorkerProfileHeader({
             <CakeIcon className="size-3.5 shrink-0" />
             <span>{getAgeFromBirthDate(workerRow.data_di_nascita) ?? "-"}</span>
           </span>
+
+          {worker.id ? (
+            <span
+              className="inline-flex items-center gap-1.5 min-w-0"
+              title="Link invito referral"
+            >
+              <Share2Icon className="size-3.5 shrink-0" />
+              <span>Link Referral</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                title="Copia link invito"
+                onClick={() => {
+                  const url = `https://lavoro.bazeapp.com/v2/registrazione/invita-amici?invito_referrer=${worker.id}`
+                  void navigator.clipboard
+                    .writeText(url)
+                    .then(() => toast.success("Link invito copiato"))
+                    .catch(() => toast.error("Impossibile copiare"))
+                }}
+              >
+                <CopyIcon className="size-3.5" />
+              </Button>
+              <a
+                href={`https://lavoro.bazeapp.com/v2/registrazione/invita-amici?invito_referrer=${worker.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                title="Apri link invito"
+              >
+                <ExternalLinkIcon className="size-3.5" />
+              </a>
+            </span>
+          ) : null}
 
           {gateControls.map((control) => {
             const hr = getHrById(control.assigneeId)

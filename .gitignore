@@ -30,3 +30,4 @@ storybook-static
 !.env.example
 shared-imports-map.txt
 shared-inventory.txt
+.claude/

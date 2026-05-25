@@ -96,6 +96,7 @@ const DEFAULT_STAGE_DEFINITIONS: ChiusuraStageDefinition[] = [
   { id: "Lavoratore comunica dimissioni", label: "Lavoratore comunica dimissioni", color: "violet" },
   { id: "Datore comunica licenziamento", label: "Datore comunica licenziamento", color: "zinc" },
   { id: "Inviato comunicazione per firma documento", label: "Inviato comunicazione per firma documento", color: "sky" },
+  { id: "Chiusura pronta", label: "Chiusura pronta", color: "cyan" },
   { id: "Ricevuto documento firmato", label: "Ricevuto documento firmato", color: "lime" },
   { id: "Chiusura elaborata", label: "Chiusura elaborata", color: "amber" },
   { id: "Inviato documenti di chiusura", label: "Inviato documenti di chiusura", color: "lime" },

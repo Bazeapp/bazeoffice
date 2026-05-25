@@ -1902,6 +1902,12 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     return () => {
       isCancelled = true
     }
+    // NOTE: intentionally omits realtimeTick. Each keystroke save fires a
+    // realtime event and a per-tick refetch would multiply queries
+    // (3 detail effects × every keystroke) making the page unusable.
+    // Re-introduce Pattern B (see docs/realtime-board-pattern.md) only
+    // after lavoratori saves go through trackWrite so the echo-window
+    // suppression in useRealtimeBoardSync actually applies.
   }, [selectedWorkerId])
 
   const filterFields = React.useMemo<FilterField[]>(() => {
@@ -2000,6 +2006,8 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     return () => {
       isCancelled = true
     }
+    // NOTE: intentionally omits realtimeTick (see loadSelectedWorkerRow
+    // effect above for rationale).
   }, [selectedWorkerId])
 
   const saveCurrentView = React.useCallback((name: string) => {
@@ -2064,6 +2072,8 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     return () => {
       isCancelled = true
     }
+    // NOTE: intentionally omits realtimeTick (see loadSelectedWorkerRow
+    // effect above for rationale).
   }, [selectedWorkerAddress, selectedWorkerId])
 
   const applyUpdatedWorkerRow = React.useCallback(

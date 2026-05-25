@@ -48,6 +48,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DebouncedInput } from "@/components/ui/debounced-input";
 import {
   Select,
   SelectContent,
@@ -374,27 +375,25 @@ export function OnboardingCard({
   onPatchProcess,
   onPatchAddress,
 }: OnboardingCardProps) {
-  const [orarioDiLavoro, setOrarioDiLavoro] = React.useState(
-    toInputValue(card?.orarioDiLavoro),
-  );
   const resolvedSectionAction = sectionTitleAction ?? titleAction;
   const shouldCollapseSections = sectionsCollapsible ?? flattenSections;
   const [indirizzoProvincia, setIndirizzoProvincia] = React.useState(
     toInputValue(card?.indirizzoProvincia),
   );
   const anchor = useComboboxAnchor();
-  const [oreSettimanali, setOreSettimanali] = React.useState(
-    toInputValue(card?.oreSettimana),
-  );
-  const [giorniSettimanali, setGiorniSettimanali] = React.useState(
-    toInputValue(card?.giorniSettimana),
-  );
   const [deadline, setDeadline] = React.useState("");
   const [tipoIncontro, setTipoIncontro] = React.useState("");
-  const [giornatePreferite, setGiornatePreferite] = React.useState<string[]>(
-    normalizeWeekdayList(card?.giornatePreferite),
-  );
   const [isSavingAvailability, setIsSavingAvailability] = React.useState(false);
+
+  // Source of truth for availability fields = the card prop (server state).
+  // No local useState mirror to avoid Realtime echo resetting user edits.
+  const orarioDiLavoro = toInputValue(card?.orarioDiLavoro);
+  const oreSettimanali = toInputValue(card?.oreSettimana);
+  const giorniSettimanali = toInputValue(card?.giorniSettimana);
+  const giornatePreferite = React.useMemo(
+    () => normalizeWeekdayList(card?.giornatePreferite),
+    [card?.giornatePreferite],
+  );
 
   const weekdayColorMap = React.useMemo(() => {
     const options = (lookupOptionsByField?.preferenza_giorno ??
@@ -417,19 +416,8 @@ export function OnboardingCard({
   );
 
   React.useEffect(() => {
-    setOreSettimanali(toInputValue(card?.oreSettimana));
-    setGiorniSettimanali(toInputValue(card?.giorniSettimana));
-    setOrarioDiLavoro(toInputValue(card?.orarioDiLavoro));
     setIndirizzoProvincia(toInputValue(card?.indirizzoProvincia));
-    setGiornatePreferite(normalizeWeekdayList(card?.giornatePreferite));
-  }, [
-    card?.id,
-    card?.oreSettimana,
-    card?.giorniSettimana,
-    card?.orarioDiLavoro,
-    card?.indirizzoProvincia,
-    card?.giornatePreferite,
-  ]);
+  }, [card?.id, card?.indirizzoProvincia]);
 
   React.useEffect(() => {
     setDeadline(toInputValue(card?.deadlineMobile));
@@ -448,53 +436,84 @@ export function OnboardingCard({
     [cardId, onPatchProcess],
   );
 
-  const saveFamilyAvailability = React.useCallback(async () => {
-    if (!cardId || !onPatchProcess || isSavingAvailability) return;
+  // Throttle the family-availability edge function: per-field saves happen
+  // immediately (via DebouncedInput onSave), but the expensive recompute is
+  // scheduled 10s after the last availability-related edit and coalesced
+  // across multiple edits. The user can also trigger it immediately with
+  // the explicit button.
+  const FAMILY_AVAILABILITY_THROTTLE_MS = 10000;
+  const familyAvailabilityTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const patch = {
-      orario_di_lavoro: orarioDiLavoro || null,
-      preferenza_giorno: giornatePreferite,
-      ore_settimanale: oreSettimanali || null,
-      numero_giorni_settimanali: giorniSettimanali || null,
+  const invokeFamilyAvailability = React.useCallback(
+    async (showToast: boolean) => {
+      if (!cardId) return;
+      try {
+        await invokeEdgeFunction("family-availability", {
+          processo_matching_id: cardId,
+        });
+        if (showToast) toast.success("Disponibilita famiglia ricalcolata");
+      } catch (error) {
+        if (showToast) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Errore ricalcolando disponibilita famiglia",
+          );
+        }
+      }
+    },
+    [cardId],
+  );
+
+  const scheduleFamilyAvailabilityRefresh = React.useCallback(() => {
+    if (!cardId) return;
+    if (familyAvailabilityTimerRef.current) {
+      clearTimeout(familyAvailabilityTimerRef.current);
+    }
+    familyAvailabilityTimerRef.current = setTimeout(() => {
+      familyAvailabilityTimerRef.current = null;
+      void invokeFamilyAvailability(false);
+    }, FAMILY_AVAILABILITY_THROTTLE_MS);
+  }, [cardId, invokeFamilyAvailability]);
+
+  // Flush the scheduled recompute when the card switches or unmounts so the
+  // backend never misses a final invocation.
+  React.useEffect(() => {
+    return () => {
+      if (familyAvailabilityTimerRef.current) {
+        clearTimeout(familyAvailabilityTimerRef.current);
+        familyAvailabilityTimerRef.current = null;
+        void invokeFamilyAvailability(false);
+      }
     };
+  }, [cardId, invokeFamilyAvailability]);
 
+  const triggerFamilyAvailabilityNow = React.useCallback(async () => {
+    if (familyAvailabilityTimerRef.current) {
+      clearTimeout(familyAvailabilityTimerRef.current);
+      familyAvailabilityTimerRef.current = null;
+    }
+    if (!cardId || isSavingAvailability) return;
     setIsSavingAvailability(true);
     try {
-      await onPatchProcess(cardId, patch);
-      await invokeEdgeFunction("family-availability", {
-        processo_matching_id: cardId,
-      });
-      toast.success("Disponibilita famiglia salvata");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Errore salvando disponibilita famiglia",
-      );
+      await invokeFamilyAvailability(true);
     } finally {
       setIsSavingAvailability(false);
     }
-  }, [
-    cardId,
-    giornatePreferite,
-    giorniSettimanali,
-    isSavingAvailability,
-    onPatchProcess,
-    orarioDiLavoro,
-    oreSettimanali,
-  ]);
+  }, [cardId, invokeFamilyAvailability, isSavingAvailability]);
 
   const availabilitySaveAction = !readOnly ? (
     <div className="flex items-center gap-1.5">
       <Button
         type="button"
-        variant="default"
+        variant="outline"
         size="sm"
-        onClick={() => void saveFamilyAvailability()}
-        disabled={!cardId || !onPatchProcess || isSavingAvailability}
+        onClick={() => void triggerFamilyAvailabilityNow()}
+        disabled={!cardId || isSavingAvailability}
+        title="Ricalcola subito la disponibilita (altrimenti avviene automaticamente 10 secondi dopo l'ultima modifica)"
       >
         <SaveIcon />
-        {isSavingAvailability ? "Salvataggio" : "Salva"}
+        {isSavingAvailability ? "Ricalcolo..." : "Ricalcola"}
       </Button>
       {resolvedSectionAction}
     </div>
@@ -905,12 +924,15 @@ export function OnboardingCard({
             placeholder; in caso di più giornate specifica indicando
             &quot;OPPURE&quot;.
           </FieldDescription>
-          <Input
+          <DebouncedInput
             id="onboarding-orario-lavoro"
             className={cn(isRequiredMissing("orarioDiLavoro") && REQUIRED_FIELD_CLASS)}
             placeholder="da lunedì a venerdì, dalle 9:00 alle 19:00"
-            value={orarioDiLavoro}
-            onChange={(event) => setOrarioDiLavoro(event.target.value)}
+            committedValue={orarioDiLavoro}
+            onSave={async (value) => {
+              await patchProcess({ orario_di_lavoro: value || null });
+              scheduleFamilyAvailabilityRefresh();
+            }}
           />
         </Field>
 
@@ -919,18 +941,20 @@ export function OnboardingCard({
             <FieldLabel htmlFor="onboarding-ore-settimanali">
               Ore Settimanali
             </FieldLabel>
-            <Input
+            <DebouncedInput
               id="onboarding-ore-settimanali"
               className={cn(isRequiredMissing("oreSettimana") && REQUIRED_FIELD_CLASS)}
               type="number"
               inputMode="numeric"
               min={0}
               max={52}
-              value={oreSettimanali}
+              committedValue={oreSettimanali}
               placeholder="8"
-              onChange={(event) =>
-                setOreSettimanali(clampNumericInput(event.target.value, 52))
-              }
+              onSave={async (raw) => {
+                const value = clampNumericInput(raw, 52);
+                await patchProcess({ ore_settimanale: value || null });
+                scheduleFamilyAvailabilityRefresh();
+              }}
             />
           </Field>
 
@@ -938,18 +962,20 @@ export function OnboardingCard({
             <FieldLabel htmlFor="onboarding-giorni-settimanali">
               Giorni Settimanali
             </FieldLabel>
-            <Input
+            <DebouncedInput
               id="onboarding-giorni-settimanali"
               className={cn(isRequiredMissing("giorniSettimana") && REQUIRED_FIELD_CLASS)}
               type="number"
               inputMode="numeric"
               min={0}
               max={7}
-              value={giorniSettimanali}
+              committedValue={giorniSettimanali}
               placeholder="8"
-              onChange={(event) =>
-                setGiorniSettimanali(clampNumericInput(event.target.value, 7))
-              }
+              onSave={async (raw) => {
+                const value = clampNumericInput(raw, 7);
+                await patchProcess({ numero_giorni_settimanali: value || null });
+                scheduleFamilyAvailabilityRefresh();
+              }}
             />
           </Field>
 
@@ -965,7 +991,8 @@ export function OnboardingCard({
               value={giornatePreferite}
               onValueChange={(nextValues) => {
                 const normalized = normalizeWeekdayList(nextValues as string[]);
-                setGiornatePreferite(normalized);
+                void patchProcess({ preferenza_giorno: normalized });
+                scheduleFamilyAvailabilityRefresh();
               }}
             >
               <ComboboxChips
@@ -1311,11 +1338,14 @@ export function OnboardingCard({
             placeholder; in caso di più giornate specifica indicando
             &quot;OPPURE&quot;.
           </FieldDescription>
-          <Input
+          <DebouncedInput
             id="onboarding-orario-lavoro"
             placeholder="da lunedì a venerdì, dalle 9:00 alle 19:00"
-            value={orarioDiLavoro}
-            onChange={(event) => setOrarioDiLavoro(event.target.value)}
+            committedValue={orarioDiLavoro}
+            onSave={async (value) => {
+              await patchProcess({ orario_di_lavoro: value || null });
+              scheduleFamilyAvailabilityRefresh();
+            }}
           />
         </Field>
 
@@ -1324,17 +1354,19 @@ export function OnboardingCard({
             <FieldLabel htmlFor="onboarding-ore-settimanali">
               Ore Settimanali
             </FieldLabel>
-            <Input
+            <DebouncedInput
               id="onboarding-ore-settimanali"
               type="number"
               inputMode="numeric"
               min={0}
               max={52}
-              value={oreSettimanali}
+              committedValue={oreSettimanali}
               placeholder="8"
-              onChange={(event) =>
-                setOreSettimanali(clampNumericInput(event.target.value, 52))
-              }
+              onSave={async (raw) => {
+                const value = clampNumericInput(raw, 52);
+                await patchProcess({ ore_settimanale: value || null });
+                scheduleFamilyAvailabilityRefresh();
+              }}
             />
           </Field>
 
@@ -1342,17 +1374,19 @@ export function OnboardingCard({
             <FieldLabel htmlFor="onboarding-giorni-settimanali">
               Giorni Settimanali
             </FieldLabel>
-            <Input
+            <DebouncedInput
               id="onboarding-giorni-settimanali"
               type="number"
               inputMode="numeric"
               min={0}
               max={7}
-              value={giorniSettimanali}
+              committedValue={giorniSettimanali}
               placeholder="8"
-              onChange={(event) =>
-                setGiorniSettimanali(clampNumericInput(event.target.value, 7))
-              }
+              onSave={async (raw) => {
+                const value = clampNumericInput(raw, 7);
+                await patchProcess({ numero_giorni_settimanali: value || null });
+                scheduleFamilyAvailabilityRefresh();
+              }}
             />
           </Field>
 
@@ -1368,7 +1402,8 @@ export function OnboardingCard({
               value={giornatePreferite}
               onValueChange={(nextValues) => {
                 const normalized = normalizeWeekdayList(nextValues as string[]);
-                setGiornatePreferite(normalized);
+                void patchProcess({ preferenza_giorno: normalized });
+                scheduleFamilyAvailabilityRefresh();
               }}
             >
               <ComboboxChips ref={anchor} id="onboarding-giornate-preferite" className="w-full">

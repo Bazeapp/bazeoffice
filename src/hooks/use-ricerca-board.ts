@@ -380,6 +380,12 @@ const RICERCA_BOARD_QUERY_KEY = ["ricerca-board"] as const
 
 export function useRicercaBoard(): UseRicercaBoardState {
   const queryClient = useQueryClient()
+  // IMPORTANT: ref (not state) so the queryFn closure always sees the
+  // latest set. On refetch (e.g. realtime invalidate) the base call
+  // returns deferred columns as empty + isLoaded:false, so we re-fetch
+  // any column the user had already opted into to avoid the cards
+  // "disappearing" right after Carica processi.
+  const loadedDeferredColumnIdsRef = React.useRef<Set<string>>(new Set())
 
   const {
     data,
@@ -387,7 +393,42 @@ export function useRicercaBoard(): UseRicercaBoardState {
     error: queryError,
   } = useQuery({
     queryKey: RICERCA_BOARD_QUERY_KEY,
-    queryFn: fetchRicercaBoardData,
+    queryFn: async () => {
+      const baseColumns = await fetchRicercaBoardData()
+      const loaded = loadedDeferredColumnIdsRef.current
+      if (loaded.size === 0) return baseColumns
+
+      const lookupRowsPromise = fetchLookupValues().then((result) => result.rows)
+      const overrides = new Map<string, RicercaBoardCardData[]>()
+
+      await Promise.all(
+        Array.from(loaded).map(async (columnId) => {
+          const target = baseColumns.find((column) => column.id === columnId)
+          if (!target) return
+          const eagerValues = Array.from(
+            new Set([target.id, target.label].filter(Boolean))
+          ) as string[]
+          const [boardResult, lookupRows] = await Promise.all([
+            fetchRicercaBoard(eagerValues, []),
+            lookupRowsPromise,
+          ])
+          const cardsByStageId = await buildCardsForProcesses(boardResult.processes, lookupRows)
+          overrides.set(columnId, cardsByStageId.get(columnId) ?? [])
+        }),
+      )
+
+      return baseColumns.map((column) => {
+        if (!overrides.has(column.id)) return column
+        const cards = overrides.get(column.id) ?? []
+        return {
+          ...column,
+          cards,
+          totalCount: Math.max(column.totalCount, cards.length),
+          isLoaded: true,
+          isLoading: false,
+        }
+      })
+    },
   })
 
   const columns = data ?? []
@@ -429,6 +470,12 @@ export function useRicercaBoard(): UseRicercaBoardState {
       const cardsByStageId = await buildCardsForProcesses(boardResult.processes, lookupResultRows)
       const loadedCards = cardsByStageId.get(columnId) ?? []
 
+      // Record opt-in before mutating cache so any concurrent refetch
+      // (realtime) sees this column as user-loaded.
+      loadedDeferredColumnIdsRef.current = new Set([
+        ...loadedDeferredColumnIdsRef.current,
+        columnId,
+      ])
       setBoardData((previous) =>
         (previous ?? []).map((column) =>
           column.id === columnId

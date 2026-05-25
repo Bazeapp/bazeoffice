@@ -366,9 +366,12 @@ const ASSUNZIONI_BOARD_QUERY_KEY = ["assunzioni-board"] as const
 
 export function useAssunzioniBoard(): UseAssunzioniBoardState {
   const queryClient = useQueryClient()
-  const [loadedDeferredStageIds, setLoadedDeferredStageIds] = React.useState<Set<string>>(
-    () => new Set()
-  )
+  // IMPORTANT: this MUST be a ref, not state. React Query's queryFn is set
+  // once at mount; if we read state inside the closure it gets stale on
+  // refetch (e.g. after a realtime invalidate) and deferred columns that
+  // the user had explicitly loaded would revert to `loaded: false` with
+  // empty cards. The ref is read fresh on every queryFn invocation.
+  const loadedDeferredStageIdsRef = React.useRef<Set<string>>(new Set())
 
   const {
     data,
@@ -376,7 +379,33 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
     error: queryError,
   } = useQuery({
     queryKey: ASSUNZIONI_BOARD_QUERY_KEY,
-    queryFn: () => fetchAssunzioniBoardData(),
+    queryFn: async () => {
+      const loaded = loadedDeferredStageIdsRef.current
+      const baseColumns = await fetchAssunzioniBoardData({
+        deferredLoadedStageIds: loaded,
+      })
+
+      if (loaded.size === 0) return baseColumns
+
+      // The default RPC call (with null filter) does NOT return rows for
+      // deferred stages. For each stage the user already opted into,
+      // re-fetch it explicitly so it stays populated after invalidation.
+      const overrides = await Promise.all(
+        Array.from(loaded).map((stageId) =>
+          fetchAssunzioniBoardData({
+            deferredLoadedStageIds: loaded,
+            onlyStageId: stageId,
+          }).then((cols) => cols.find((column) => column.id === stageId) ?? null),
+        ),
+      )
+
+      const overrideById = new Map<string, AssunzioniBoardColumnData>()
+      for (const column of overrides) {
+        if (column) overrideById.set(column.id, column)
+      }
+
+      return baseColumns.map((column) => overrideById.get(column.id) ?? column)
+    },
   })
 
   const columns = data ?? []
@@ -464,7 +493,7 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
 
   const loadDeferredColumn = React.useCallback(
     async (stageId: string) => {
-      if (!DEFERRED_STAGE_IDS.has(stageId) || loadedDeferredStageIds.has(stageId)) return
+      if (!DEFERRED_STAGE_IDS.has(stageId) || loadedDeferredStageIdsRef.current.has(stageId)) return
 
       setBoardData((previous) =>
         (previous ?? []).map((column) =>
@@ -479,11 +508,12 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
         })
         const loadedColumn = loadedColumns.find((column) => column.id === stageId)
 
-        setLoadedDeferredStageIds((current) => {
-          const next = new Set(current)
-          next.add(stageId)
-          return next
-        })
+        // Mark this stage as "user-opted-in" before mutating cache so that any
+        // concurrent refetch (e.g. realtime) sees the updated set.
+        loadedDeferredStageIdsRef.current = new Set([
+          ...loadedDeferredStageIdsRef.current,
+          stageId,
+        ])
         setBoardData((previous) =>
           (previous ?? []).map((column) =>
             column.id === stageId
@@ -509,7 +539,7 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
         )
       }
     },
-    [loadedDeferredStageIds, setBoardData],
+    [setBoardData],
   )
 
   useRealtimeBoardSync({

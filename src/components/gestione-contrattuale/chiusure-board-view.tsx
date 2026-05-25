@@ -553,6 +553,10 @@ function getColumnVisual(color: string): KanbanColumnVisual {
       return { columnClassName: "bg-zinc-400", headerClassName: "", iconClassName: "text-zinc-500" }
     case "sky":
       return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
+    case "cyan":
+      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" }
+    case "teal":
+      return { columnClassName: "bg-teal-400", headerClassName: "", iconClassName: "text-teal-500" }
     case "lime":
       return { columnClassName: "bg-lime-400", headerClassName: "", iconClassName: "text-lime-500" }
     case "amber":

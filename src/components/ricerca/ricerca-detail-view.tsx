@@ -73,6 +73,7 @@ import {
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import { buildFamilyPrivateAreaUrl } from "@/lib/private-area-url";
+import { getRicercaCenter } from "@/lib/ricerca/center-coords";
 import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
@@ -249,15 +250,6 @@ function formatItalianDate(value: unknown): string {
 
 function displayValue(value: unknown): string {
   return toStringValue(value) ?? "-";
-}
-
-function readCoordinate(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value
-  if (typeof value === "string" && value !== "") {
-    const n = Number(value)
-    return Number.isFinite(n) ? n : null
-  }
-  return null
 }
 
 function toAvatarRingClass(legacyClassName: string) {
@@ -1023,24 +1015,15 @@ export function RicercaDetailView({
           ) ??
           addressRows[0] ??
           null;
-        const hasProvaAddressInProcess = !!(
-          toStringValue(processRow.indirizzo_prova_via) ||
-          toStringValue(processRow.indirizzo_prova_cap) ||
-          toStringValue(processRow.indirizzo_prova_comune)
+        const ricercaCenter = getRicercaCenter(
+          {
+            tipo_incontro_famiglia_lavoratore: toStringValue(
+              processRow.tipo_incontro_famiglia_lavoratore,
+            ),
+            indirizzo_prova_via: toStringValue(processRow.indirizzo_prova_via),
+          },
+          addressRows,
         )
-        const provaIndirizziRow =
-          addressRows.find(
-            (row) =>
-              normalizeLookupToken(toStringValue(row.tipo_indirizzo)) === "prova",
-          ) ?? null
-        const luogoIndirizziRow =
-          addressRows.find(
-            (row) =>
-              normalizeLookupToken(toStringValue(row.tipo_indirizzo)) === "luogo",
-          ) ?? null
-        const processProvaAddress = hasProvaAddressInProcess
-          ? (provaIndirizziRow ?? luogoIndirizziRow)
-          : luogoIndirizziRow
 
         const familyName = [
           toStringValue(familyRow?.nome),
@@ -1137,8 +1120,8 @@ export function RicercaDetailView({
           indirizzoProvaCitofono: displayValue(processRow.indirizzo_prova_citofono),
           geocode: displayValue(processRow.geocode),
           srcEmbedMapsAnnucio: displayValue(processRow.src_embed_maps_annucio),
-          indirizzoProvaLatitudine: readCoordinate(processProvaAddress?.latitudine) ?? readCoordinate(luogoIndirizziRow?.latitudine) ?? null,
-          indirizzoProvaLongitudine: readCoordinate(processProvaAddress?.longitudine) ?? readCoordinate(luogoIndirizziRow?.longitudine) ?? null,
+          indirizzoProvaLatitudine: ricercaCenter?.lat ?? null,
+          indirizzoProvaLongitudine: ricercaCenter?.lng ?? null,
           deadlineMobile: formatItalianDate(processRow.deadline_mobile),
           deadlineMobileRaw: toStringValue(processRow.deadline_mobile) ?? "",
           dataAssegnazione: formatItalianDate(processRow.data_assegnazione),

@@ -345,14 +345,9 @@ export function StatoLeadCard({
   onChangeStage,
   onPatchProcess,
 }: StatoLeadCardProps) {
-  const [dataRicontatto, setDataRicontatto] = React.useState(
-    card?.dataPerRicercaFutura ?? "-"
-  );
-
-  React.useEffect(() => {
-    if (!card) return;
-    setDataRicontatto(card.dataPerRicercaFutura);
-  }, [card]);
+  // Source of truth = card prop (server state). No local mirror so a
+  // Realtime refetch can't reset the user's selection.
+  const dataRicontatto = card?.dataPerRicercaFutura ?? "-";
 
   const { value: noteStato, onChange: onNoteStatoChange } = useDebouncedSave(
     card?.appuntiChiamataSales === "-" ? "" : (card?.appuntiChiamataSales ?? ""),
@@ -501,7 +496,6 @@ export function StatoLeadCard({
             <DatePicker
               value={dataRicontatto === "-" ? "" : dataRicontatto}
               onValueChange={(next) => {
-                setDataRicontatto(next);
                 void onPatchProcess?.(card.id, {
                   data_per_ricerca_futura: next ? toIsoDate(next) : null,
                 });
