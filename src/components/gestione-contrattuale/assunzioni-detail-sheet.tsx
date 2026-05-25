@@ -2781,9 +2781,6 @@ export function AssunzioniDetailSheet({
                     />
                   </EditableField>
                 </div>
-                {savingPractice ? (
-                  <p className="text-muted-foreground text-xs">Salvataggio in corso...</p>
-                ) : null}
                 {practiceError ? (
                   <p className="text-xs font-medium text-red-600">{practiceError}</p>
                 ) : null}
