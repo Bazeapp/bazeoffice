@@ -789,6 +789,7 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
           "cap",
           "citta",
           "provincia",
+          "provincia_sigla",
           "indirizzo_formattato",
           "note",
         ],

@@ -482,6 +482,19 @@ let lookupValuesCache:
     }
   | null = null
 
+export type ProvinciaRecord = {
+  sigla: string
+  nome: string
+  nome_inglese: string | null
+}
+
+let provincieCache:
+  | {
+      expiresAt: number
+      promise: Promise<ProvinciaRecord[]>
+    }
+  | null = null
+
 let pendingWriteCount = 0
 let pendingWriteUnloadGuardInstalled = false
 
@@ -1459,6 +1472,36 @@ export async function fetchLookupValues() {
     return await promise
   } catch (error) {
     lookupValuesCache = null
+    throw error
+  }
+}
+
+export async function fetchProvincie(): Promise<ProvinciaRecord[]> {
+  const now = Date.now()
+  if (provincieCache && provincieCache.expiresAt > now) {
+    return provincieCache.promise
+  }
+
+  const promise = supabase
+    .from("provincie")
+    .select("sigla, nome, nome_inglese")
+    .order("sigla", { ascending: true })
+    .then(({ data, error }) => {
+      if (error) {
+        throw new Error(`fetchProvincie failed: ${error.message}`)
+      }
+      return (data ?? []) as ProvinciaRecord[]
+    })
+
+  provincieCache = {
+    expiresAt: now + LOOKUP_VALUES_CACHE_TTL_MS,
+    promise,
+  }
+
+  try {
+    return await promise
+  } catch (error) {
+    provincieCache = null
     throw error
   }
 }

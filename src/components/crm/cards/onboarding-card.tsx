@@ -1030,10 +1030,7 @@ export function OnboardingCard({
             <Select
               value={selectedIndirizzoProvincia}
               onValueChange={(next) => {
-                const label =
-                  orderedProvinciaOptions.find((option) => option.valueKey === next)
-                    ?.valueLabel ?? next;
-                void patchAddress({ provincia: label || null });
+                void patchAddress({ provincia_sigla: next || null });
               }}
             >
               <SelectTrigger
@@ -1487,10 +1484,7 @@ export function OnboardingCard({
 	              <Select
 	                value={selectedIndirizzoProvincia}
 	                onValueChange={(next) => {
-	                  const label =
-	                    orderedProvinciaOptions.find((option) => option.valueKey === next)
-	                      ?.valueLabel ?? next;
-	                  void patchAddress({ provincia: label || null });
+	                  void patchAddress({ provincia_sigla: next || null });
 	                }}
 	              >
                 <SelectTrigger id="onboarding-provincia" className="w-full">

@@ -215,6 +215,7 @@ export type CrmPipelineCardData = {
   etaMinima: string
   etaMassima: string
   indirizzoProvincia: string
+  indirizzoProvinciaSigla: string
   indirizzoCap: string
   indirizzoNote: string
   indirizzoId: string | null
@@ -1009,6 +1010,7 @@ export const FAMILY_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCar
 
 export const ADDRESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
   ["provincia", "indirizzoProvincia"],
+  ["provincia_sigla", "indirizzoProvinciaSigla"],
   ["cap", "indirizzoCap"],
   ["note", "indirizzoNote"],
   ["via", "indirizzoVia"],
@@ -1152,7 +1154,12 @@ export function mapCardData(
     informazioniExtraRiservate: displayValue(process.informazioni_extra_riservate),
     etaMinima: displayValue(process.eta_minima),
     etaMassima: displayValue(process.eta_massima),
-    indirizzoProvincia: displayValue(processAddress?.provincia),
+    indirizzoProvincia: displayValue(
+      processAddress?.provincia_sigla ?? processAddress?.provincia,
+    ),
+    indirizzoProvinciaSigla: displayValue(
+      processAddress?.provincia_sigla ?? processAddress?.provincia,
+    ),
     indirizzoCap: displayValue(processAddress?.cap),
     indirizzoNote: displayValue(processAddress?.note),
     indirizzoId: toStringValue(processAddress?.id),
@@ -2065,6 +2072,10 @@ export function useCrmPipelinePreview(
             }
             if ("provincia" in patch) {
               nextCard.indirizzoProvincia = displayValue(patch.provincia)
+            }
+            if ("provincia_sigla" in patch) {
+              nextCard.indirizzoProvinciaSigla = displayValue(patch.provincia_sigla)
+              nextCard.indirizzoProvincia = displayValue(patch.provincia_sigla)
             }
             if ("cap" in patch) {
               nextCard.indirizzoCap = displayValue(patch.cap)

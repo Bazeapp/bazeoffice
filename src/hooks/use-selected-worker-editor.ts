@@ -632,7 +632,8 @@ export function useSelectedWorkerEditor({
       field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono" | "note",
       value: string | null
     ) => {
-      await applyAddressPatch({ [field]: value })
+      const dbField = field === "provincia" ? "provincia_sigla" : field
+      await applyAddressPatch({ [dbField]: value })
     },
     [applyAddressPatch]
   )
