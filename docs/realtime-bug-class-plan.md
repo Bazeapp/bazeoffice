@@ -36,21 +36,24 @@ Già fatta su `main` (commit `03ecdd3`).
 - [x] Fix `availabilityDraft` + 7 altri draft (guardia `isEditing*`)
 - [x] Push su main
 
-## FASE 1 — Setup infrastruttura test componente/hook
+## FASE 1 — Setup infrastruttura test componente/hook ✅
 
 **Stima**: ~3h. **Branch**: `realtime-bug-class-plan`.
 
-- [ ] Installare `@testing-library/react`, `@testing-library/user-event`,
-      `jsdom`, `@testing-library/jest-dom`.
-- [ ] `vitest.config.ts` con `environment: "jsdom"` per `*.integration.test.tsx`.
-- [ ] `src/test/setup.ts` con: mock di `@/lib/supabase-browser`, mock di
-      `useRealtimeRows`, helper `renderHookWithQueryClient`.
-- [ ] Smoke test hook + smoke test component (entrambi green).
-- [ ] Script `test:integration` (jsdom) e `test:unit` (node, pure functions).
-- [ ] Husky/lefthook: pre-push hook che fa fallire il push se `npm test`
-      non passa.
+- [x] Installate `@testing-library/react`, `@testing-library/user-event`,
+      `happy-dom`, `@testing-library/jest-dom` (happy-dom invece di jsdom:
+      jsdom 29 ha una regressione ESM su node 22).
+- [x] `vitest.config.ts` con `environment: "happy-dom"` e `setupFiles`.
+- [x] `src/test/setup.ts` con: jest-dom matchers, cleanup automatico,
+      polyfill `matchMedia` / `ResizeObserver` / `IntersectionObserver`.
+- [x] `src/test/test-utils.tsx`: helper `renderHookWithQueryClient` e
+      `renderWithProviders` con QueryClient isolato per test.
+- [x] `src/test/smoke.integration.test.tsx`: 3 smoke test green.
+- [x] Script: `test`, `test:watch`, `test:unit`, `test:integration`.
+- [x] Lefthook installato + `pre-push` con `npm test`, typecheck, lint.
+- [x] Exclude `supabase/functions` dalla lint (Deno tooling separato).
 
-**Done**: posso scrivere un hook test in 10 minuti senza setup aggiuntivo.
+**Done**: 58 test verdi in ~1s. Helper pronti in `@/test/test-utils`.
 
 ## FASE 2 — Test di regressione sui bug visti
 
