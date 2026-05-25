@@ -428,45 +428,79 @@ export function OnboardingDecisioneLavoroSection({
       defaults?.richiestaDiscrezione ?? isChecked("onboarding-discrezione-si"),
   }));
 
+  // Per-field dirty refs — once the user has interacted with a field, never
+  // let an incoming realtime echo on an UNRELATED `defaults.*` field overwrite
+  // the user's in-progress value. Mirrors the `hasUserEditedRef` guard in
+  // `use-debounced-save.ts`. Refs are cleared after the per-field patch
+  // resolves so subsequent server values (including merged concurrent remote
+  // updates) flow through the next prop-change resync.
+  //
+  // Text inputs wrapped in `DebouncedInput`/`DebouncedTextarea` already have
+  // an internal guard, so for those we still resync the parent `useState`
+  // mirror (the input ignores the prop change). The refs below cover the
+  // controls that DON'T have an internal guard: checkboxes (`CheckboxChip`),
+  // `RadioGroup` (genere), `Select` (patenteDettaglio), and
+  // `Combobox` (nazionalita*).
+  const dirtyRichiestaTrasferteRef = React.useRef(false);
+  const dirtyRichiestaFerieRef = React.useRef(false);
+  const dirtyRichiestaPatenteRef = React.useRef(false);
+  const dirtyGenereRef = React.useRef(false);
+  const dirtyPatenteDettaglioRef = React.useRef(false);
+  const dirtyNazionalitaEscluseRef = React.useRef(false);
+  const dirtyNazionalitaObbligatorieRef = React.useRef(false);
+  const dirtyCheckboxRefs = React.useRef<
+    Partial<Record<keyof typeof persistedCheckboxes, boolean>>
+  >({});
+
   React.useEffect(() => {
-    setRichiestaTrasferte(
-      defaults?.richiestaTrasferte ?? checkboxDefaults?.["onboarding-trasferte-si"] ?? false,
-    );
-    setRichiestaFerie(
-      defaults?.richiestaFerie ?? checkboxDefaults?.["onboarding-ferie-si"] ?? false,
-    );
-    setRichiestaPatente(
-      defaults?.richiestaPatente ?? checkboxDefaults?.["onboarding-patente-si"] ?? false,
-    );
-    setGenere(normalizeGenderValue(defaults?.sesso));
-    setPersistedCheckboxes({
-      presenza_neonati: defaults?.presenzaNeonati ?? checkboxDefaults?.["onboarding-neonati"] ?? false,
-      piu_bambini: defaults?.piuBambini ?? checkboxDefaults?.["onboarding-piu-bambini"] ?? false,
-      famiglia_4_persone: defaults?.famiglia4Persone ?? checkboxDefaults?.["onboarding-famiglia-4"] ?? false,
-      cani_piccoli: defaults?.caniPiccoli ?? checkboxDefaults?.["onboarding-cani-piccoli"] ?? false,
-      cani_grandi: defaults?.caniGrandi ?? checkboxDefaults?.["onboarding-cani-grandi"] ?? false,
-      gatti: defaults?.gatti ?? checkboxDefaults?.["onboarding-gatti"] ?? false,
-      pulire_ripiani_alti:
-        defaults?.pulireRipianiAlti ?? checkboxDefaults?.["onboarding-ripiani-alti-si"] ?? false,
-      stirare: defaults?.stirare ?? checkboxDefaults?.["onboarding-stirare-si"] ?? false,
-      stirare_abiti_difficili:
-        defaults?.stirareAbitiDifficili ?? checkboxDefaults?.["onboarding-stirare-difficile"] ?? false,
-      cucinare: defaults?.cucinare ?? checkboxDefaults?.["onboarding-cucinare-si"] ?? false,
-      cucinare_elaborato:
-        defaults?.cucinareElaborato ?? checkboxDefaults?.["onboarding-cucinare-elaborati"] ?? false,
-      cura_piante: defaults?.curaPiante ?? checkboxDefaults?.["onboarding-giardino-si"] ?? false,
-      comunicare_bene_italiano:
-        defaults?.comunicareBeneItaliano ?? checkboxDefaults?.["onboarding-italiano-si"] ?? false,
-      comunicare_bene_inglese:
-        defaults?.comunicareBeneInglese ?? checkboxDefaults?.["onboarding-inglese-si"] ?? false,
-      famiglia_molto_esigente:
-        defaults?.famigliaMoltoEsigente ?? checkboxDefaults?.["onboarding-esigente-si"] ?? false,
-      richiesta_autonomia:
-        defaults?.richiestaAutonomia ?? checkboxDefaults?.["onboarding-autonomia-si"] ?? false,
-      datore_spesso_presente:
-        defaults?.datoreSpessoPresente ?? checkboxDefaults?.["onboarding-datore-presente-si"] ?? false,
-      richiesta_discrezione:
-        defaults?.richiestaDiscrezione ?? checkboxDefaults?.["onboarding-discrezione-si"] ?? false,
+    if (!dirtyRichiestaTrasferteRef.current) {
+      setRichiestaTrasferte(
+        defaults?.richiestaTrasferte ?? checkboxDefaults?.["onboarding-trasferte-si"] ?? false,
+      );
+    }
+    if (!dirtyRichiestaFerieRef.current) {
+      setRichiestaFerie(
+        defaults?.richiestaFerie ?? checkboxDefaults?.["onboarding-ferie-si"] ?? false,
+      );
+    }
+    if (!dirtyRichiestaPatenteRef.current) {
+      setRichiestaPatente(
+        defaults?.richiestaPatente ?? checkboxDefaults?.["onboarding-patente-si"] ?? false,
+      );
+    }
+    if (!dirtyGenereRef.current) {
+      setGenere(normalizeGenderValue(defaults?.sesso));
+    }
+    setPersistedCheckboxes((current) => {
+      const next = { ...current };
+      const dirty = dirtyCheckboxRefs.current;
+      const apply = (
+        key: keyof typeof persistedCheckboxes,
+        value: boolean,
+      ) => {
+        if (!dirty[key]) {
+          next[key] = value;
+        }
+      };
+      apply("presenza_neonati", defaults?.presenzaNeonati ?? checkboxDefaults?.["onboarding-neonati"] ?? false);
+      apply("piu_bambini", defaults?.piuBambini ?? checkboxDefaults?.["onboarding-piu-bambini"] ?? false);
+      apply("famiglia_4_persone", defaults?.famiglia4Persone ?? checkboxDefaults?.["onboarding-famiglia-4"] ?? false);
+      apply("cani_piccoli", defaults?.caniPiccoli ?? checkboxDefaults?.["onboarding-cani-piccoli"] ?? false);
+      apply("cani_grandi", defaults?.caniGrandi ?? checkboxDefaults?.["onboarding-cani-grandi"] ?? false);
+      apply("gatti", defaults?.gatti ?? checkboxDefaults?.["onboarding-gatti"] ?? false);
+      apply("pulire_ripiani_alti", defaults?.pulireRipianiAlti ?? checkboxDefaults?.["onboarding-ripiani-alti-si"] ?? false);
+      apply("stirare", defaults?.stirare ?? checkboxDefaults?.["onboarding-stirare-si"] ?? false);
+      apply("stirare_abiti_difficili", defaults?.stirareAbitiDifficili ?? checkboxDefaults?.["onboarding-stirare-difficile"] ?? false);
+      apply("cucinare", defaults?.cucinare ?? checkboxDefaults?.["onboarding-cucinare-si"] ?? false);
+      apply("cucinare_elaborato", defaults?.cucinareElaborato ?? checkboxDefaults?.["onboarding-cucinare-elaborati"] ?? false);
+      apply("cura_piante", defaults?.curaPiante ?? checkboxDefaults?.["onboarding-giardino-si"] ?? false);
+      apply("comunicare_bene_italiano", defaults?.comunicareBeneItaliano ?? checkboxDefaults?.["onboarding-italiano-si"] ?? false);
+      apply("comunicare_bene_inglese", defaults?.comunicareBeneInglese ?? checkboxDefaults?.["onboarding-inglese-si"] ?? false);
+      apply("famiglia_molto_esigente", defaults?.famigliaMoltoEsigente ?? checkboxDefaults?.["onboarding-esigente-si"] ?? false);
+      apply("richiesta_autonomia", defaults?.richiestaAutonomia ?? checkboxDefaults?.["onboarding-autonomia-si"] ?? false);
+      apply("datore_spesso_presente", defaults?.datoreSpessoPresente ?? checkboxDefaults?.["onboarding-datore-presente-si"] ?? false);
+      apply("richiesta_discrezione", defaults?.richiestaDiscrezione ?? checkboxDefaults?.["onboarding-discrezione-si"] ?? false);
+      return next;
     });
   }, [
     checkboxDefaults,
@@ -495,11 +529,18 @@ export function OnboardingDecisioneLavoroSection({
   ]);
 
   React.useEffect(() => {
+    // Text-input mirrors. `DebouncedInput`/`DebouncedTextarea` have their own
+    // `hasUserEditedRef` guard so they ignore a stale prop while editing —
+    // the parent state still updates but the input's draft survives. Select /
+    // Combobox values (`patenteDettaglio`, `nazionalita*`) are NOT wrapped in
+    // a debounced component, so they need explicit per-field dirty guards.
     setDescrizioneTrasferte(
       toInputValue(defaults?.descrizioneRichiestaTrasferte),
     );
     setDescrizioneFerie(toInputValue(defaults?.descrizioneRichiestaFerie));
-    setPatenteDettaglio(toInputValue(defaults?.patenteDettaglio));
+    if (!dirtyPatenteDettaglioRef.current) {
+      setPatenteDettaglio(toInputValue(defaults?.patenteDettaglio));
+    }
     setNucleoFamigliare(toInputValue(defaults?.nucleoFamigliare));
     setDescrizioneCasa(toInputValue(defaults?.descrizioneCasa));
     setMetraturaCasa(numbersOnly(toInputValue(defaults?.metraturaCasa)));
@@ -510,10 +551,14 @@ export function OnboardingDecisioneLavoroSection({
     );
     setEtaMin(normalizeAgeInput(toInputValue(defaults?.etaMinima)));
     setEtaMax(normalizeAgeInput(toInputValue(defaults?.etaMassima)));
-    setNazionalitaEscluse(normalizeStringArray(defaults?.nazionalitaEscluse));
-    setNazionalitaObbligatorie(
-      normalizeStringArray(defaults?.nazionalitaObbligatorie),
-    );
+    if (!dirtyNazionalitaEscluseRef.current) {
+      setNazionalitaEscluse(normalizeStringArray(defaults?.nazionalitaEscluse));
+    }
+    if (!dirtyNazionalitaObbligatorieRef.current) {
+      setNazionalitaObbligatorie(
+        normalizeStringArray(defaults?.nazionalitaObbligatorie),
+      );
+    }
   }, [
     defaults?.descrizioneRichiestaTrasferte,
     defaults?.descrizioneRichiestaFerie,
@@ -538,8 +583,13 @@ export function OnboardingDecisioneLavoroSection({
   );
   const patchCheckbox = React.useCallback(
     (field: keyof typeof persistedCheckboxes, checked: boolean) => {
+      dirtyCheckboxRefs.current[field] = true;
       setPersistedCheckboxes((current) => ({ ...current, [field]: checked }));
-      void patchProcess({ [field]: checked });
+      void Promise.resolve(patchProcess({ [field]: checked })).finally(() => {
+        // Clear the dirty flag after save settles so a future remote update
+        // (or merged concurrent change) for this checkbox can resync.
+        dirtyCheckboxRefs.current[field] = false;
+      });
     },
     [patchProcess],
   );
@@ -873,8 +923,11 @@ export function OnboardingDecisioneLavoroSection({
             value={genere}
             onValueChange={(value) => {
               const next = normalizeGenderValue(value);
+              dirtyGenereRef.current = true;
               setGenere(next);
-              void patchProcess({ sesso: next || null });
+              void Promise.resolve(patchProcess({ sesso: next || null })).finally(() => {
+                dirtyGenereRef.current = false;
+              });
             }}
             className="gap-3"
           >
@@ -918,8 +971,13 @@ export function OnboardingDecisioneLavoroSection({
                 label="Trasferte richieste"
                 checked={richiestaTrasferte}
                 onCheckedChange={(checked) => {
+                  dirtyRichiestaTrasferteRef.current = true;
                   setRichiestaTrasferte(checked);
-                  void patchProcess({ richiesta_trasferte: checked });
+                  void Promise.resolve(
+                    patchProcess({ richiesta_trasferte: checked }),
+                  ).finally(() => {
+                    dirtyRichiestaTrasferteRef.current = false;
+                  });
                 }}
               />
             </FieldGroup>
@@ -951,8 +1009,13 @@ export function OnboardingDecisioneLavoroSection({
                 label="Ferie con richieste specifiche"
                 checked={richiestaFerie}
                 onCheckedChange={(checked) => {
+                  dirtyRichiestaFerieRef.current = true;
                   setRichiestaFerie(checked);
-                  void patchProcess({ richiesta_ferie: checked });
+                  void Promise.resolve(
+                    patchProcess({ richiesta_ferie: checked }),
+                  ).finally(() => {
+                    dirtyRichiestaFerieRef.current = false;
+                  });
                 }}
               />
             </FieldGroup>
@@ -984,8 +1047,13 @@ export function OnboardingDecisioneLavoroSection({
                 label="Patente richiesta"
                 checked={richiestaPatente}
                 onCheckedChange={(checked) => {
+                  dirtyRichiestaPatenteRef.current = true;
                   setRichiestaPatente(checked);
-                  void patchProcess({ richiesta_patente: checked });
+                  void Promise.resolve(
+                    patchProcess({ richiesta_patente: checked }),
+                  ).finally(() => {
+                    dirtyRichiestaPatenteRef.current = false;
+                  });
                 }}
               />
             </FieldGroup>
@@ -998,8 +1066,13 @@ export function OnboardingDecisioneLavoroSection({
               <Select
                 value={patenteDettaglio}
                 onValueChange={(next) => {
+                  dirtyPatenteDettaglioRef.current = true;
                   setPatenteDettaglio(next);
-                  void patchProcess({ patente: next ? [next] : [] });
+                  void Promise.resolve(
+                    patchProcess({ patente: next ? [next] : [] }),
+                  ).finally(() => {
+                    dirtyPatenteDettaglioRef.current = false;
+                  });
                 }}
               >
                 <SelectTrigger id="onboarding-patente-dettaglio" className="w-full">
@@ -1024,9 +1097,14 @@ export function OnboardingDecisioneLavoroSection({
             options={nazionalitaEscluseOptions}
             value={nazionalitaEscluse}
             onValueChange={(nextValues) => {
+              dirtyNazionalitaEscluseRef.current = true;
               setNazionalitaEscluse(nextValues);
-              void patchProcess({
-                nazionalita_escluse: nextValues.length > 0 ? nextValues : null,
+              void Promise.resolve(
+                patchProcess({
+                  nazionalita_escluse: nextValues.length > 0 ? nextValues : null,
+                }),
+              ).finally(() => {
+                dirtyNazionalitaEscluseRef.current = false;
               });
             }}
           />
@@ -1037,9 +1115,14 @@ export function OnboardingDecisioneLavoroSection({
             options={nazionalitaObbligatorieOptions}
             value={nazionalitaObbligatorie}
             onValueChange={(nextValues) => {
+              dirtyNazionalitaObbligatorieRef.current = true;
               setNazionalitaObbligatorie(nextValues);
-              void patchProcess({
-                nazionalita_obbligatorie: nextValues.length > 0 ? nextValues : null,
+              void Promise.resolve(
+                patchProcess({
+                  nazionalita_obbligatorie: nextValues.length > 0 ? nextValues : null,
+                }),
+              ).finally(() => {
+                dirtyNazionalitaObbligatorieRef.current = false;
               });
             }}
           />

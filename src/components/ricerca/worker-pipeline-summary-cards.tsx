@@ -546,6 +546,9 @@ function TravelTimeCard({
   const mobilityAnchor = useComboboxAnchor();
 
   React.useEffect(() => {
+    // Skip resync while the user is editing the address card: a realtime
+    // echo on a sibling field would wipe the in-progress input otherwise.
+    if (isEditing) return;
     setAddressDraft({
       via: asString(workerVia),
       civico: asString(workerCivico),
@@ -556,6 +559,7 @@ function TravelTimeCard({
       mobilita: readArrayStrings(workerRow.come_ti_sposti).join(", "),
     });
   }, [
+    isEditing,
     workerVia,
     workerCivico,
     workerCap,
@@ -566,6 +570,7 @@ function TravelTimeCard({
   ]);
 
   React.useEffect(() => {
+    if (isEditing) return;
     setFamilyAddressDraft({
       provincia: asString(familyProvince),
       cap: asString(familyCap),
@@ -577,6 +582,7 @@ function TravelTimeCard({
       note: asString(familyAddressNote),
     });
   }, [
+    isEditing,
     familyAddress,
     familyAddressNote,
     familyCap,

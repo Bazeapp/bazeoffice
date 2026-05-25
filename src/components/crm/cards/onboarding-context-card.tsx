@@ -533,12 +533,37 @@ export function OnboardingContextCard({
   const [noShowAttempts, setNoShowAttempts] = React.useState<string[]>(
     splitStoredValues(card?.salesNoShowFollowup)
   );
+  // Per-field dirty flags: prevent a realtime echo on any other field from
+  // wiping the in-progress draft for the field the user is editing. The flag
+  // is set when the user changes the value and cleared when the card id flips
+  // (different record loaded).
+  const isEditingDataRicontattoRef = React.useRef(false);
+  const isEditingDataCallRef = React.useRef(false);
+  const isEditingColdAttemptsRef = React.useRef(false);
+  const isEditingNoShowAttemptsRef = React.useRef(false);
+  const previousCardIdRef = React.useRef(card?.id);
 
   React.useEffect(() => {
-    setDataRicontatto(card?.dataPerRicercaFuturaRaw ? card.dataPerRicercaFuturaRaw.slice(0, 10) : "");
-    setDataCall(toDateTimeLocalValue(card?.dataCallPrenotataRaw));
-    setColdAttempts(splitStoredValues(card?.salesColdCallFollowup));
-    setNoShowAttempts(splitStoredValues(card?.salesNoShowFollowup));
+    const cardIdChanged = previousCardIdRef.current !== card?.id;
+    if (cardIdChanged) {
+      previousCardIdRef.current = card?.id;
+      isEditingDataRicontattoRef.current = false;
+      isEditingDataCallRef.current = false;
+      isEditingColdAttemptsRef.current = false;
+      isEditingNoShowAttemptsRef.current = false;
+    }
+    if (!isEditingDataRicontattoRef.current) {
+      setDataRicontatto(card?.dataPerRicercaFuturaRaw ? card.dataPerRicercaFuturaRaw.slice(0, 10) : "");
+    }
+    if (!isEditingDataCallRef.current) {
+      setDataCall(toDateTimeLocalValue(card?.dataCallPrenotataRaw));
+    }
+    if (!isEditingColdAttemptsRef.current) {
+      setColdAttempts(splitStoredValues(card?.salesColdCallFollowup));
+    }
+    if (!isEditingNoShowAttemptsRef.current) {
+      setNoShowAttempts(splitStoredValues(card?.salesNoShowFollowup));
+    }
   }, [
     card?.appuntiChiamataSales,
     card?.dataPerRicercaFuturaRaw,
@@ -567,6 +592,7 @@ export function OnboardingContextCard({
           maxVisibleOptions={3}
           sequential
           onChange={(next) => {
+            isEditingColdAttemptsRef.current = true;
             setColdAttempts(next);
             void onPatchProcess?.(card.id, {
               sales_cold_call_followup: next.join(", "),
@@ -596,6 +622,7 @@ export function OnboardingContextCard({
               value={dataCall}
               onChange={(event) => {
                 const nextValue = event.target.value;
+                isEditingDataCallRef.current = true;
                 setDataCall(nextValue);
                 void onPatchFamily?.(card.famigliaId, {
                   data_call_prenotata: romaWallclockToUtcIso(nextValue),
@@ -615,6 +642,7 @@ export function OnboardingContextCard({
           maxVisibleOptions={2}
           sequential
           onChange={(next) => {
+            isEditingNoShowAttemptsRef.current = true;
             setNoShowAttempts(next);
             void onPatchProcess?.(card.id, {
               sales_no_show_followup: next.join(", "),
@@ -634,6 +662,7 @@ export function OnboardingContextCard({
               value={dataRicontatto}
               onChange={(event) => {
                 const nextValue = event.target.value;
+                isEditingDataRicontattoRef.current = true;
                 setDataRicontatto(nextValue);
                 void onPatchProcess?.(card.id, {
                   data_per_ricerca_futura: nextValue || null,

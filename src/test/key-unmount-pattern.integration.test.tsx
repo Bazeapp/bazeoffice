@@ -206,6 +206,76 @@ describe("key= on a detail wrapper forces unmount on selectedId change", () => {
     expect(inputAfter.value).toBe("")
   })
 
+  it("SchedaColloquioPanel-shaped wrapper: key={selectionRow?.id ?? '__empty__'} resets debounced drafts across selection changes", async () => {
+    // Regression test for audit finding #1
+    // (docs/audits/audit-key-on-detail-wrapper.md): SchedaColloquioPanel in
+    // ricerca-workers-pipeline-view.tsx previously had no key= and would
+    // carry a recruiter's typed draft from selection A into selection B.
+    //
+    // This is a structural test: the fixture mirrors the shape of the real
+    // panel (a wrapper that receives a `selectionRow` object and renders an
+    // inner component holding its own draft state, like `useDebouncedSave`).
+    // The full-blown SchedaColloquioPanel has too many heavy dependencies
+    // (Supabase, lookup tables, generate-feedback edge function) to be
+    // mounted in isolation here; the pattern guarantee is what matters.
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+
+    type SelectionRow = { id: string; vannoBeneGiorni: string }
+    function SchedaColloquioPanelLike({
+      selectionRow,
+      onPatchField,
+    }: {
+      selectionRow: SelectionRow | null
+      onPatchField: (value: string) => void
+    }) {
+      return (
+        <DraftInput
+          initialValue={selectionRow?.vannoBeneGiorni ?? ""}
+          onSave={onPatchField}
+        />
+      )
+    }
+
+    function ParentView({
+      selectedSelectionRow,
+    }: {
+      selectedSelectionRow: SelectionRow | null
+    }) {
+      return (
+        <SchedaColloquioPanelLike
+          key={selectedSelectionRow?.id ?? "__empty__"}
+          selectionRow={selectedSelectionRow}
+          onPatchField={onSave}
+        />
+      )
+    }
+
+    const rowA: SelectionRow = { id: "sel-A", vannoBeneGiorni: "Lun-Ven" }
+    const rowB: SelectionRow = { id: "sel-B", vannoBeneGiorni: "Sab-Dom" }
+
+    const { rerender } = renderWithProviders(
+      <ParentView selectedSelectionRow={rowA} />
+    )
+
+    const input = screen.getByRole("textbox") as HTMLInputElement
+    expect(input.value).toBe("Lun-Ven")
+    await user.clear(input)
+    await user.type(input, "Mer-Gio (draft)")
+    expect(input.value).toBe("Mer-Gio (draft)")
+
+    // Switch to a different selection row — key= changes, panel remounts,
+    // draft state is gone.
+    rerender(<ParentView selectedSelectionRow={rowB} />)
+
+    const inputB = screen.getByRole("textbox") as HTMLInputElement
+    expect(inputB.value).toBe("Sab-Dom")
+
+    await user.click(screen.getByRole("button", { name: /save/i }))
+    // Save fires with B's value, not A's draft.
+    expect(onSave).toHaveBeenCalledWith("Sab-Dom")
+  })
+
   it("WITHOUT key= AND same selectedId: changed initialValue does NOT reset local draft (this is why the key pattern is needed)", async () => {
     const user = userEvent.setup()
     const onSave = vi.fn()

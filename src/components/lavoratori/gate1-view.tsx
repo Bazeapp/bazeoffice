@@ -3073,6 +3073,18 @@ export function Gate1View({
     assessmentStatus: "",
     assessmentFeedback: "",
   });
+  // Tracks the last server-derived snapshot for `gateDraft`. Each effect-driven
+  // resync (es. realtime echo) merges per-field: a field is updated only when
+  // the current draft value still matches the previously synced value — i.e.
+  // the user has NOT typed/picked a new value locally. This prevents a remote
+  // realtime echo (own debounced save or a colleague's edit on another tab)
+  // from wiping in-progress edits across the ~17 controlled inputs in this
+  // section. Mirrors the per-section `isEditing*` guards added in
+  // `use-selected-worker-editor.ts` (commit 03ecdd3), but here a `dirtyRef`
+  // style merge is a better fit because most gate inputs are always-editable
+  // (no explicit edit-mode toggle) and save immediately via
+  // `patchSelectedWorkerField` in their `onChange`.
+  const lastSyncedGateDraftRef = React.useRef<typeof gateDraft | null>(null);
   const {
     options: referenteIdoneitaOptions,
     loading: referenteIdoneitaOptionsLoading,
@@ -3691,6 +3703,9 @@ export function Gate1View({
   React.useEffect(() => {
     setIsEditingAvailabilityStep(false);
     setIsEditingBazeChecks(false);
+    // On worker switch, drop the dirty-merge baseline so the next resync from
+    // `selectedWorkerRow` populates every field freshly.
+    lastSyncedGateDraftRef.current = null;
   }, [selectedWorkerId]);
 
   const selectedWorkerStatusAlert = React.useMemo(() => {
@@ -3740,7 +3755,7 @@ export function Gate1View({
   ]);
 
   React.useEffect(() => {
-    setGateDraft({
+    const nextSnapshot = {
       referenteIdoneita: asString(selectedWorkerRow?.referente_idoneita_id),
       referenteCertificazione: asString(
         selectedWorkerRow?.referente_certificazione_id,
@@ -3776,6 +3791,35 @@ export function Gate1View({
       dataScadenzaNaspi: asString(selectedWorkerRow?.data_scadenza_naspi),
       assessmentStatus: asString(selectedWorkerRow?.stato_lavoratore),
       assessmentFeedback: asString(selectedWorkerRow?.feedback_recruiter),
+    };
+    const previousSynced = lastSyncedGateDraftRef.current;
+    lastSyncedGateDraftRef.current = nextSnapshot;
+    if (previousSynced === null) {
+      // First sync for this worker — populate every field.
+      setGateDraft(nextSnapshot);
+      return;
+    }
+    // Per-field merge: replace a field only when the local draft value still
+    // matches the previously synced server value (i.e. the user has NOT typed
+    // a new value locally yet). This prevents a realtime echo from wiping
+    // in-progress edits across the gate draft inputs.
+    setGateDraft((current) => {
+      let changed = false;
+      const merged: typeof current = { ...current };
+      (Object.keys(nextSnapshot) as Array<keyof typeof nextSnapshot>).forEach(
+        (key) => {
+          const previousValue = previousSynced[key];
+          const nextValue = nextSnapshot[key];
+          if (previousValue === nextValue) return;
+          if (current[key] !== previousValue) {
+            // User has a pending local edit for this field — keep it.
+            return;
+          }
+          merged[key] = nextValue;
+          changed = true;
+        },
+      );
+      return changed ? merged : current;
     });
   }, [selectedWorkerRow]);
 

@@ -376,12 +376,15 @@ export function OnboardingCard({
 }: OnboardingCardProps) {
   const resolvedSectionAction = sectionTitleAction ?? titleAction;
   const shouldCollapseSections = sectionsCollapsible ?? flattenSections;
-  const [indirizzoProvincia, setIndirizzoProvincia] = React.useState(
-    toInputValue(card?.indirizzoProvincia),
-  );
+  // Derived directly from `card?.*` — matches the house style documented at
+  // lines below ("No local useState mirror to avoid Realtime echo resetting
+  // user edits."). Each Select/DatePicker below commits immediately, so the
+  // local mirror only created a window where a realtime echo could reset the
+  // input mid-edit.
+  const indirizzoProvincia = toInputValue(card?.indirizzoProvincia);
   const anchor = useComboboxAnchor();
-  const [deadline, setDeadline] = React.useState("");
-  const [tipoIncontro, setTipoIncontro] = React.useState("");
+  const deadline = toInputValue(card?.deadlineMobile);
+  const tipoIncontro = toInputValue(card?.tipoIncontroFamigliaLavoratore);
   const [isSavingAvailability, setIsSavingAvailability] = React.useState(false);
 
   // Source of truth for availability fields = the card prop (server state).
@@ -413,15 +416,6 @@ export function OnboardingCard({
     },
     [weekdayColorMap],
   );
-
-  React.useEffect(() => {
-    setIndirizzoProvincia(toInputValue(card?.indirizzoProvincia));
-  }, [card?.id, card?.indirizzoProvincia]);
-
-  React.useEffect(() => {
-    setDeadline(toInputValue(card?.deadlineMobile));
-    setTipoIncontro(toInputValue(card?.tipoIncontroFamigliaLavoratore));
-  }, [card?.id, card?.deadlineMobile, card?.tipoIncontroFamigliaLavoratore]);
 
   const cardId = card?.id;
   const addressId = card?.indirizzoId ?? null;
@@ -1067,7 +1061,6 @@ export function OnboardingCard({
                 const label =
                   orderedProvinciaOptions.find((option) => option.valueKey === next)
                     ?.valueLabel ?? next;
-                setIndirizzoProvincia(label);
                 void patchAddress({ provincia: label || null });
               }}
             >
@@ -1234,7 +1227,6 @@ export function OnboardingCard({
             <DatePicker
               value={deadline}
               onValueChange={(next) => {
-                setDeadline(next);
                 void patchProcess({
                   deadline_mobile: next ? toIsoDate(next) : null,
                 });
@@ -1262,7 +1254,6 @@ export function OnboardingCard({
               value={getSelectedLookupValue(tipoIncontro, tipoIncontroOptions)}
               onValueChange={(next) => {
                 const nextValue = getLookupLabelForSave(next, tipoIncontroOptions);
-                setTipoIncontro(nextValue);
                 void patchProcess({
                   tipo_incontro_famiglia_lavoratore: nextValue || null,
                 });
@@ -1527,7 +1518,6 @@ export function OnboardingCard({
 	                  const label =
 	                    orderedProvinciaOptions.find((option) => option.valueKey === next)
 	                      ?.valueLabel ?? next;
-	                  setIndirizzoProvincia(label);
 	                  void patchAddress({ provincia: label || null });
 	                }}
 	              >
@@ -1613,7 +1603,6 @@ export function OnboardingCard({
                 <DatePicker
                   value={deadline}
                   onValueChange={(next) => {
-                    setDeadline(next);
                     void patchProcess({
                       deadline_mobile: next ? toIsoDate(next) : null,
                     });
@@ -1641,7 +1630,6 @@ export function OnboardingCard({
                   value={getSelectedLookupValue(tipoIncontro, tipoIncontroOptions)}
                   onValueChange={(next) => {
                     const nextValue = getLookupLabelForSave(next, tipoIncontroOptions);
-                    setTipoIncontro(nextValue);
                     void patchProcess({
                       tipo_incontro_famiglia_lavoratore: nextValue || null,
                     });

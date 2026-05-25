@@ -1928,7 +1928,12 @@ export function AssunzioniDetailSheet({
 
   React.useEffect(() => {
     setPracticeDraft(makePracticeDraft())
-  }, [makePracticeDraft])
+    // Identity-pin to card/rapporto identity (matches sibling effects at
+    // lines 464/774/1194): a realtime echo on any source field of
+    // makePracticeDraft would otherwise wipe in-progress text edits in
+    // idRapportoInps / codiceRapportoWebcolf etc.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card?.id, card?.rapporto?.id])
 
   React.useEffect(() => {
     let isActive = true

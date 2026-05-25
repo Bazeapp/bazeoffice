@@ -174,10 +174,19 @@ export default defineConfig([
           // record. The rule only fires for top-level wrappers (in *-view
           // files); generic composites used as children of a keyed parent
           // are not matched here.
+          //
+          // Naming convention enforced: the project uses two prefixes for
+          // selection-bound detail wrappers — `Detail*` (DetailSheet,
+          // DetailPanel, DetailShell) and `Scheda*` (SchedaColloquioPanel
+          // and similar Italian-named editors). Both convey "this component
+          // edits the currently selected record" and require a `key=` reset.
+          // If you add a new selection-bound wrapper, name it with one of
+          // these prefixes so the rule catches missing keys; if you name it
+          // differently, you must add a key= manually (no rule will help).
           selector:
-            "Program > :matches(FunctionDeclaration, VariableDeclaration) JSXOpeningElement[name.name=/Detail(Sheet|Panel|Shell)$/]:not(:has(JSXAttribute[name.name='key']))",
+            "Program > :matches(FunctionDeclaration, VariableDeclaration) JSXOpeningElement[name.name=/^(?:Detail.*|Scheda.*)(?:Sheet|Panel|Shell)$/]:not(:has(JSXAttribute[name.name='key']))",
           message:
-            'Detail wrappers (DetailSheet/DetailPanel/DetailShell) at the view level must declare key={selectedCardId ?? "__empty__"} so debounced inputs inside reset their local draft when switching cards.',
+            'Detail/Scheda wrappers (Detail*Sheet/Panel/Shell or Scheda*Sheet/Panel/Shell) at the view level must declare key={selectedCardId ?? "__empty__"} so debounced inputs inside reset their local draft when switching cards.',
         },
       ],
     },
