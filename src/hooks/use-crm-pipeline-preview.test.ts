@@ -73,6 +73,7 @@ function makePreviousCard(
     etaMinima: "20",
     etaMassima: "60",
     indirizzoProvincia: "PrevProv",
+    indirizzoProvinciaSigla: "PrevProv",
     indirizzoCap: "00100",
     indirizzoNote: "PrevNote",
     indirizzoId: "prev-indirizzo-id",
