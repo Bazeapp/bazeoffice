@@ -967,6 +967,7 @@ export function RicercaDetailView({
             "cap",
             "citta",
             "provincia",
+            "provincia_sigla",
             "indirizzo_formattato",
             "note",
             "latitudine",
