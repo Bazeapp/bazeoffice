@@ -17,14 +17,11 @@ import {
 } from "@/components/ui/combobox"
 import { FieldLabel } from "@/components/ui/field"
 import { DebouncedInput } from "@/components/ui/debounced-input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   getLookupOptionLabel,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
 } from "@/features/lavoratori/lib/lookup-utils"
-
-const EMPTY_SELECT_VALUE = "none"
 
 type LookupOption = {
   label: string
@@ -67,9 +64,8 @@ type AddressSectionCardProps = {
 const ADDRESS_FIELDS: Array<{
   key: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono"
   label: string
-  type?: "province"
 }> = [
-  { key: "provincia", label: "Provincia", type: "province" },
+  { key: "provincia", label: "Provincia" },
   { key: "cap", label: "CAP" },
   { key: "via", label: "Via" },
   { key: "civico", label: "Civico" },
@@ -85,7 +81,8 @@ export function AddressSectionCard({
   defaultOpen = true,
   showMobility = true,
   addressDraft,
-  provinciaOptions,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  provinciaOptions: _provinciaOptions,
   mobilityOptions,
   selectedVia,
   selectedCivico,
@@ -130,40 +127,18 @@ export function AddressSectionCard({
           {ADDRESS_FIELDS.map((item) => (
             <div key={item.key} className="space-y-1">
               <FieldLabel>{item.label}</FieldLabel>
-              {item.type === "province" ? (
-                <Select
-                  value={addressDraft.provincia || EMPTY_SELECT_VALUE}
-                  onValueChange={(value) =>
-                    onFieldChange("provincia", value === EMPTY_SELECT_VALUE ? "" : value)
-                  }
-                  disabled={isUpdating}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Provincia" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
-                    {provinciaOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.label}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <DebouncedInput
-                  committedValue={addressDraft[item.key]}
-                  onSave={async (value) => {
-                    onFieldChange(item.key, value)
-                    await onFieldCommit(item.key, value)
-                  }}
-                  // Intentionally NOT passing `disabled={isUpdating}`: a
-                  // transient disable during save forces the browser to fire
-                  // blur and the user gets kicked out of the field mid-typing.
-                  // Multiple in-flight saves are fine (last write wins).
-                  placeholder={item.label}
-                />
-              )}
+              <DebouncedInput
+                committedValue={addressDraft[item.key]}
+                onSave={async (value) => {
+                  onFieldChange(item.key, value)
+                  await onFieldCommit(item.key, value)
+                }}
+                // Intentionally NOT passing `disabled={isUpdating}`: a
+                // transient disable during save forces the browser to fire
+                // blur and the user gets kicked out of the field mid-typing.
+                // Multiple in-flight saves are fine (last write wins).
+                placeholder={item.label}
+              />
             </div>
           ))}
         </div>

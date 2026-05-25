@@ -43,7 +43,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
@@ -702,14 +702,14 @@ export function CedolinoDetailSheet({
                   </div>
                   <div className="space-y-2">
                     <label className="ui-type-label">Data invio famiglia</label>
-                    <Input
+                    <DebouncedInput
                       type="date"
-                      value={toInputDateValue(card.record.data_invio_famiglia)}
-                      onChange={(event) =>
-                        onPatchCard(card.id, {
-                          data_invio_famiglia: event.target.value || null,
+                      committedValue={toInputDateValue(card.record.data_invio_famiglia)}
+                      onSave={async (value) => {
+                        await onPatchCard(card.id, {
+                          data_invio_famiglia: value || null,
                         })
-                      }
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -818,15 +818,15 @@ export function CedolinoDetailSheet({
                 <div className="space-y-2">
                   <p className="ui-type-label">URL cedolino</p>
                   <div className="flex gap-2">
-                    <Input
+                    <DebouncedInput
                       type="url"
-                      value={card.record.cedolino_url ?? ""}
+                      committedValue={card.record.cedolino_url ?? ""}
                       placeholder="https://..."
-                      onChange={(event) =>
-                        onPatchCard(card.id, {
-                          cedolino_url: event.target.value || null,
+                      onSave={async (value) => {
+                        await onPatchCard(card.id, {
+                          cedolino_url: value || null,
                         })
-                      }
+                      }}
                     />
                     {card.record.cedolino_url ? (
                       <Button variant="outline" size="icon" asChild>
@@ -854,17 +854,17 @@ export function CedolinoDetailSheet({
                   </div>
                   <div className="space-y-2">
                     <p className="ui-type-label">Importo busta paga</p>
-                    <Input
+                    <DebouncedInput
                       type="number"
                       step="0.01"
-                      value={card.record.importo_busta_estratto ?? ""}
-                      onChange={(event) =>
-                        onPatchCard(card.id, {
-                          importo_busta_estratto: event.target.value
-                            ? Number(event.target.value)
+                      committedValue={String(card.record.importo_busta_estratto ?? "")}
+                      onSave={async (value) => {
+                        await onPatchCard(card.id, {
+                          importo_busta_estratto: value
+                            ? Number(value)
                             : null,
                         })
-                      }
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -877,10 +877,12 @@ export function CedolinoDetailSheet({
 
                 <div className="space-y-2">
                   <p className="ui-type-label">Note interne</p>
-                  <Textarea
-                    value={card.record.note ?? ""}
+                  <DebouncedTextarea
+                    committedValue={card.record.note ?? ""}
                     className="min-h-24 w-full"
-                    onChange={(event) => onPatchCard(card.id, { note: event.target.value || null })}
+                    onSave={async (value) => {
+                      await onPatchCard(card.id, { note: value || null })
+                    }}
                   />
                 </div>
               </DetailSectionBlock>
@@ -1090,17 +1092,16 @@ export function CedolinoDetailSheet({
                                 </Select>
                               </TableCell>
                               <TableCell>
-                                <Input
-                                  value={row.hours}
+                                <DebouncedInput
+                                  committedValue={row.hours}
                                   className="h-8 w-20"
                                   placeholder="Ore"
-                                  onChange={(event) =>
-                                    card.presenze
-                                      ? onPatchPresence(card.presenze.id, {
-                                          [`ore_day_${row.day}`]: event.target.value || null,
-                                        })
-                                      : undefined
-                                  }
+                                  onSave={async (value) => {
+                                    if (!card.presenze) return
+                                    await onPatchPresence(card.presenze.id, {
+                                      [`ore_day_${row.day}`]: value || null,
+                                    })
+                                  }}
                                 />
                               </TableCell>
                               <TableCell>
@@ -1129,31 +1130,29 @@ export function CedolinoDetailSheet({
                                 </Select>
                               </TableCell>
                               <TableCell>
-                                <Input
-                                  value={row.sicknessCode}
+                                <DebouncedInput
+                                  committedValue={row.sicknessCode}
                                   className="h-8 w-24"
                                   placeholder="PNR"
-                                  onChange={(event) =>
-                                    card.presenze
-                                      ? onPatchPresence(card.presenze.id, {
-                                          [`codice_malattia_day_${row.day}`]: event.target.value || null,
-                                        })
-                                      : undefined
-                                  }
+                                  onSave={async (value) => {
+                                    if (!card.presenze) return
+                                    await onPatchPresence(card.presenze.id, {
+                                      [`codice_malattia_day_${row.day}`]: value || null,
+                                    })
+                                  }}
                                 />
                               </TableCell>
                               <TableCell className="min-w-72">
-                                <Input
-                                  value={row.note}
+                                <DebouncedInput
+                                  committedValue={row.note}
                                   className="h-8"
                                   placeholder="Note"
-                                  onChange={(event) =>
-                                    card.presenze
-                                      ? onPatchPresence(card.presenze.id, {
-                                          [`note_day_${row.day}`]: event.target.value || null,
-                                        })
-                                      : undefined
-                                  }
+                                  onSave={async (value) => {
+                                    if (!card.presenze) return
+                                    await onPatchPresence(card.presenze.id, {
+                                      [`note_day_${row.day}`]: value || null,
+                                    })
+                                  }}
                                 />
                               </TableCell>
                             </TableRow>

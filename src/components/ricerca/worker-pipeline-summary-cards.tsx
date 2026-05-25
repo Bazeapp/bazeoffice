@@ -765,7 +765,7 @@ function TravelTimeCard({
           <div className="grid gap-2">
             {(
               [
-                { key: "provincia" as const, label: "Provincia", type: "province" as const },
+                { key: "provincia" as const, label: "Provincia" },
                 { key: "cap" as const, label: "CAP" },
                 { key: "via" as const, label: "Via" },
                 { key: "civico" as const, label: "Civico" },
@@ -774,52 +774,25 @@ function TravelTimeCard({
               ] as Array<{
                 key: "provincia" | "cap" | "via" | "civico" | "citta" | "citofono";
                 label: string;
-                type?: "province";
               }>
             ).map((item) => (
               <label key={item.key} className="grid gap-1">
                 <span className="text-muted-foreground text-xs font-medium">
                   {item.label}
                 </span>
-                {item.type === "province" ? (
-                  <Select
-                    value={addressDraft.provincia || "none"}
-                    onValueChange={(value) => {
-                      const nextValue = value === "none" ? "" : value;
-                      setAddressDraft((current) => ({
-                        ...current,
-                        provincia: nextValue,
-                      }));
-                      void commitAddressField("provincia", nextValue);
-                    }}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Provincia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessuna provincia</SelectItem>
-                      {provinceOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.label}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <DebouncedInput
-                    committedValue={addressDraft[item.key]}
-                    onSave={async (value) => {
-                      setAddressDraft((current) => ({
-                        ...current,
-                        [item.key]: value,
-                      }));
-                      await commitAddressField(item.key, value);
-                    }}
-                    // No `disabled` during save: would force-blur the input.
-                    className="h-9 text-sm"
-                    placeholder={item.label}
-                  />
-                )}
+                <DebouncedInput
+                  committedValue={addressDraft[item.key]}
+                  onSave={async (value) => {
+                    setAddressDraft((current) => ({
+                      ...current,
+                      [item.key]: value,
+                    }));
+                    await commitAddressField(item.key, value);
+                  }}
+                  // No `disabled` during save: would force-blur the input.
+                  className="h-9 text-sm"
+                  placeholder={item.label}
+                />
               </label>
             ))}
           </div>

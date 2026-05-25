@@ -628,7 +628,7 @@ export function LavoratoriCercaView({
     const groups = new Map<string, WorkerRelatedSearchItem[]>();
 
     for (const item of relatedActiveSearches.direct) {
-      const groupKey = item.statoRicerca || "Senza stato";
+      const groupKey = item.statoSelezione || "Senza stato";
       const currentItems = groups.get(groupKey) ?? [];
       currentItems.push(item);
       groups.set(groupKey, currentItems);
@@ -640,7 +640,7 @@ export function LavoratoriCercaView({
     const groups = new Map<string, WorkerRelatedSearchItem[]>();
 
     for (const item of relatedActiveSearches.other) {
-      const groupKey = item.statoRicerca || "Senza stato";
+      const groupKey = item.statoSelezione || "Senza stato";
       const currentItems = groups.get(groupKey) ?? [];
       currentItems.push(item);
       groups.set(groupKey, currentItems);
@@ -652,12 +652,12 @@ export function LavoratoriCercaView({
     () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
     [recruiterOptions],
   );
-  const getProcessStateClassName = React.useCallback(
+  const getSelectionStateClassName = React.useCallback(
     (value: string) =>
       getTagClassName(
         resolveLookupColor(
           lookupColorsByDomain,
-          "processi_matching.stato_res",
+          "selezioni_lavoratori.stato_selezione",
           value,
         ),
       ),
@@ -2129,33 +2129,19 @@ export function LavoratoriCercaView({
                               ) : null}
 
                               {issue.id === "not-milano" ? (
-                                <Select
-                                  value={
-                                    asString(selectedWorkerRow?.provincia) ||
-                                    undefined
+                                <DebouncedInput
+                                  committedValue={
+                                    asString(selectedWorkerAddress?.provincia) ??
+                                    ""
                                   }
-                                  onValueChange={(value) =>
-                                    void patchSelectedWorkerField(
+                                  onSave={async (value) => {
+                                    await patchWorkerAddressField(
                                       "provincia",
                                       value || null,
-                                    )
-                                  }
-                                  disabled={updatingNonQualificato}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Seleziona provincia" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {provinciaLookupOptions.map((option) => (
-                                      <SelectItem
-                                        key={option.value}
-                                        value={option.label}
-                                      >
-                                        {option.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                    );
+                                  }}
+                                  placeholder="Provincia"
+                                />
                               ) : null}
 
                               {issue.id === "documenti" ? (
@@ -2359,7 +2345,7 @@ export function LavoratoriCercaView({
                                   <AccordionTrigger className="px-4 py-3 hover:no-underline">
                                     <div className="flex min-w-0 items-center gap-2 text-left">
                                       <div
-                                        className={`rounded-full border px-2 py-0.5 text-2xs font-medium ${getProcessStateClassName(groupLabel)}`}
+                                        className={`rounded-full border px-2 py-0.5 text-2xs font-medium ${getSelectionStateClassName(groupLabel)}`}
                                       >
                                         {groupLabel}
                                       </div>
@@ -2404,7 +2390,7 @@ export function LavoratoriCercaView({
                                   <AccordionTrigger className="px-4 py-3 hover:no-underline">
                                     <div className="flex min-w-0 items-center gap-2 text-left">
                                       <div
-                                        className={`rounded-full border px-2 py-0.5 text-2xs font-medium ${getProcessStateClassName(groupLabel)}`}
+                                        className={`rounded-full border px-2 py-0.5 text-2xs font-medium ${getSelectionStateClassName(groupLabel)}`}
                                       >
                                         {groupLabel}
                                       </div>

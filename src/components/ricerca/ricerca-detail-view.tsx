@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DebouncedInput } from "@/components/ui/debounced-input";
 import {
   Select,
   SelectContent,
@@ -541,10 +542,10 @@ function EditableDateField({
   return (
     <Field>
       <FieldLabel variant="eyebrow">{label}</FieldLabel>
-      <Input
+      <DebouncedInput
         type="date"
-        value={toIsoDateInputValue(value)}
-        onChange={(event) => onSave(event.target.value || null)}
+        committedValue={toIsoDateInputValue(value)}
+        onSave={async (next) => onSave(next || null)}
       />
     </Field>
   );

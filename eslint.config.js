@@ -130,6 +130,19 @@ export default defineConfig([
             'Looks like a hand-rolled debounced save (Input with `disabled` tied to a `savingX` state). Use <DebouncedInput committedValue={...} onSave={...}> which handles debounce + flush + anti-focus-loss centrally.',
         },
         {
+          // Catch "save on every keystroke" patterns: an <Input> or <Textarea>
+          // whose onChange handler directly calls a function whose name ends
+          // in Patch, Save, Update, Mutate (e.g. onPatchCard, saveField,
+          // updateRecord). Each keystroke triggers a network round-trip ->
+          // visible lag while typing.
+          // Excludes names starting with "debounced" (e.g. debouncedSave),
+          // which are local already-debounced setters.
+          selector:
+            "JSXOpeningElement[name.name=/^(Input|Textarea)$/] > JSXAttribute[name.name='onChange'] CallExpression > Identifier[name=/^(?!debounced)(.*)?(Patch|Save|Update|Mutate|patchField|saveField|updateField|patchCard|patchPresence)$/i]",
+          message:
+            'Looks like save-on-every-keystroke (Input/Textarea onChange calling patch/save/update directly). Each character fires a network request and the field lags. Use <DebouncedInput committedValue={...} onSave={...}> (or DebouncedTextarea) which debounces 300ms and flushes on unmount.',
+        },
+        {
           // Detail wrappers must declare a `key` tied to the selected entity
           // so debounced inputs inside reset their local draft when switching
           // record. The rule only fires for top-level wrappers (in *-view
