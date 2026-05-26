@@ -483,6 +483,14 @@ export function CedolinoDetailSheet({
   const presenceRows = React.useMemo(() => buildPresenceDayRows(card?.presenze ?? null), [card?.presenze])
   const rapporto = card?.rapporto
   const statoServizio = rapporto?.stato_servizio || "Non disponibile"
+  const lastWorkingDay = React.useMemo<number | null>(() => {
+    const dataFine = rapporto?.data_fine_rapporto
+    const meseInizio = card?.mese?.data_inizio
+    if (!dataFine || !meseInizio) return null
+    if (dataFine.slice(0, 7) !== meseInizio.slice(0, 7)) return null
+    const day = Number(dataFine.slice(8, 10))
+    return Number.isFinite(day) ? day : null
+  }, [rapporto?.data_fine_rapporto, card?.mese?.data_inizio])
   const isRegularPresence = Boolean(card?.record.presenze_regolare_id)
   const paymentStatus = pagamento?.status ?? "Pagamento non ancora registrato"
   const paymentAmount = pagamento?.amount ?? card?.record.importo_busta_estratto ?? null
@@ -700,6 +708,12 @@ export function CedolinoDetailSheet({
                     <p className="ui-type-label">Codice Lavoratore Webcolf</p>
                     <p className="font-medium">{rapporto?.codice_dipendente_webcolf ?? "Non disponibile"}</p>
                   </div>
+                  {rapporto?.data_fine_rapporto ? (
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Data fine rapporto</p>
+                      <p className="font-medium">{formatDateTime(rapporto.data_fine_rapporto)}</p>
+                    </div>
+                  ) : null}
                   <div className="space-y-2">
                     <label className="ui-type-label">Data invio famiglia</label>
                     <DebouncedInput
@@ -1064,7 +1078,16 @@ export function CedolinoDetailSheet({
                         </TableHeader>
                         <TableBody>
                           {presenceRows.map((row) => (
-                            <TableRow key={row.day}>
+                            <TableRow
+                              key={row.day}
+                              className={cn(
+                                row.day === lastWorkingDay &&
+                                  "bg-orange-100 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-950/40",
+                              )}
+                              title={
+                                row.day === lastWorkingDay ? "Ultimo giorno di rapporto" : undefined
+                              }
+                            >
                               <TableCell className="font-mono text-xs">{row.day}</TableCell>
                               <TableCell>
                                 <Select
