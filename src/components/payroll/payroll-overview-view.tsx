@@ -190,6 +190,18 @@ function formatDateTime(value: string | null | undefined) {
   }).format(parsed)
 }
 
+function formatDateOnly(value: string | null | undefined) {
+  if (!value) return "Non disponibile"
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(parsed)
+}
+
 function toInputDateValue(value: string | null | undefined) {
   if (!value) return ""
   return value.slice(0, 10)
@@ -336,14 +348,50 @@ function buildPresenceDayRows(
   })
 }
 
-function sumPresenceHours(record: PayrollBoardCardData["presenzeRegolari"]): number | null {
+function sumPresenceHours(
+  record: PayrollBoardCardData["presenzeRegolari"],
+  range?: { startDay: number; endDay: number } | null,
+): number | null {
   if (!record) return null
 
-  return Array.from({ length: 31 }).reduce<number>((total, _, index) => {
-    const day = index + 1
+  const startDay = range?.startDay ?? 1
+  const endDay = range?.endDay ?? 31
+  if (endDay < startDay) return 0
+
+  let total = 0
+  for (let day = startDay; day <= endDay; day += 1) {
     const value = Number(record[`ore_day_${day}`])
-    return Number.isFinite(value) ? total + value : total
-  }, 0)
+    if (Number.isFinite(value)) total += value
+  }
+  return total
+}
+
+function getPayrollDayRange(
+  mese: { data_inizio: string | null; data_fine: string | null } | null | undefined,
+  rapporto: { data_inizio_rapporto?: string | null; data_fine_rapporto?: string | null } | null | undefined,
+): { startDay: number; endDay: number } | null {
+  const meseInizio = mese?.data_inizio
+  const meseFine = mese?.data_fine
+  if (!meseInizio || !meseFine) return null
+
+  const monthKey = meseInizio.slice(0, 7)
+  let startDay = Number(meseInizio.slice(8, 10))
+  let endDay = Number(meseFine.slice(8, 10))
+  if (!Number.isFinite(startDay) || !Number.isFinite(endDay)) return null
+
+  const dataInizioRapporto = rapporto?.data_inizio_rapporto
+  if (dataInizioRapporto && dataInizioRapporto.slice(0, 7) === monthKey) {
+    const day = Number(dataInizioRapporto.slice(8, 10))
+    if (Number.isFinite(day) && day > startDay) startDay = day
+  }
+
+  const dataFineRapporto = rapporto?.data_fine_rapporto
+  if (dataFineRapporto && dataFineRapporto.slice(0, 7) === monthKey) {
+    const day = Number(dataFineRapporto.slice(8, 10))
+    if (Number.isFinite(day) && day < endDay) endDay = day
+  }
+
+  return { startDay, endDay }
 }
 
 function formatHoursValue(value: unknown) {
@@ -500,7 +548,6 @@ export function CedolinoDetailSheet({
     [card?.presenze, card?.mese?.data_fine],
   )
   const rapporto = card?.rapporto
-  const statoServizio = rapporto?.stato_servizio || "Non disponibile"
   const lastWorkingDay = React.useMemo<number | null>(() => {
     const dataFine = rapporto?.data_fine_rapporto
     const meseInizio = card?.mese?.data_inizio
@@ -516,11 +563,22 @@ export function CedolinoDetailSheet({
   const makeTransactionUrl = transazione?.id
     ? `${MAKE_TRANSACTION_WEBHOOK_URL}?recordId=${encodeURIComponent(transazione.id)}`
     : null
-  const actualPresenceHours = React.useMemo(
-    () => sumPresenceHours(card?.presenze ?? null),
-    [card?.presenze]
+  const payrollDayRange = React.useMemo(
+    () => getPayrollDayRange(card?.mese ?? null, rapporto ?? null),
+    [card?.mese, rapporto]
   )
-  const workedHours = card?.record.ore_lavorate_estratte ?? actualPresenceHours
+  const contractHours = React.useMemo(
+    () => sumPresenceHours(card?.presenzeRegolari ?? null, payrollDayRange),
+    [card?.presenzeRegolari, payrollDayRange]
+  )
+  const workedHours = React.useMemo(
+    () => sumPresenceHours(card?.presenze ?? null, payrollDayRange),
+    [card?.presenze, payrollDayRange]
+  )
+  const hoursToPay = React.useMemo(() => {
+    if (contractHours === null && workedHours === null) return null
+    return Math.max(contractHours ?? 0, workedHours ?? 0)
+  }, [contractHours, workedHours])
   const [runningAutomationId, setRunningAutomationId] = React.useState<string | null>(null)
   const [uploadingCedolino, setUploadingCedolino] = React.useState(false)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
@@ -668,18 +726,37 @@ export function CedolinoDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
         <SheetHeader className="border-b bg-surface px-5 py-5">
-          <div className="space-y-2">
-            <SheetTitle className="truncate text-xl font-semibold">
-              {card?.nomeCompleto ?? "Dettaglio cedolino"}
-            </SheetTitle>
-            <SheetDescription className="sr-only">
-              Dettaglio del cedolino con rapporto, stato mese lavorativo, pagamento, presenze e feedback.
-            </SheetDescription>
-            {card?.mese?.mese_lavorativo_copy || card?.mese?.data_inizio ? (
-              <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                <CalendarDaysIcon className="size-4" />
-                <span>{card.mese?.mese_lavorativo_copy ?? formatMonthLabel(card.mese?.data_inizio?.slice(0, 7) ?? "")}</span>
-              </div>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 space-y-2">
+              <SheetTitle className="truncate text-xl font-semibold">
+                {card?.nomeCompleto ?? "Dettaglio cedolino"}
+              </SheetTitle>
+              <SheetDescription className="sr-only">
+                Dettaglio del cedolino con rapporto, stato mese lavorativo, pagamento, presenze e feedback.
+              </SheetDescription>
+              {card?.mese?.mese_lavorativo_copy || card?.mese?.data_inizio ? (
+                <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                  <CalendarDaysIcon className="size-4" />
+                  <span>{card.mese?.mese_lavorativo_copy ?? formatMonthLabel(card.mese?.data_inizio?.slice(0, 7) ?? "")}</span>
+                </div>
+              ) : null}
+            </div>
+            {card ? (
+              <Select
+                value={card.stage}
+                onValueChange={(nextValue) => onStageChange(card.id, nextValue)}
+              >
+                <SelectTrigger className="w-48 shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {columns.map((column) => (
+                    <SelectItem key={column.id} value={column.id}>
+                      {column.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : null}
           </div>
         </SheetHeader>
@@ -687,7 +764,7 @@ export function CedolinoDetailSheet({
         {card ? (
           <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
-              <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} status={statoServizio} />
+              <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} />
 
               <DetailSectionBlock
                 title="Dettagli rapporto"
@@ -697,14 +774,21 @@ export function CedolinoDetailSheet({
               >
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <p className="ui-type-label">Stato del servizio</p>
-                    <Badge variant="secondary" className="w-fit rounded-full px-3">
-                      {statoServizio}
-                    </Badge>
+                    <p className="ui-type-label">Data creazione rapporto</p>
+                    <p className="font-medium">{formatDateOnly(rapporto?.creata ?? card.record.data_ora_creazione)}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="ui-type-label">Data creazione rapporto</p>
-                    <p className="font-medium">{formatDateTime(rapporto?.creata ?? card.record.data_ora_creazione)}</p>
+                    <p className="ui-type-label">Data fine rapporto</p>
+                    {rapporto?.data_fine_rapporto ? (
+                      <p className="font-medium">{formatDateOnly(rapporto.data_fine_rapporto)}</p>
+                    ) : (
+                      <Badge
+                        variant="secondary"
+                        className="w-fit rounded-full bg-emerald-100 px-3 text-emerald-700 hover:bg-emerald-100"
+                      >
+                        In corso
+                      </Badge>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <p className="ui-type-label">Nome</p>
@@ -722,12 +806,6 @@ export function CedolinoDetailSheet({
                     <p className="ui-type-label">Codice Lavoratore Webcolf</p>
                     <p className="font-medium">{rapporto?.codice_dipendente_webcolf ?? "Non disponibile"}</p>
                   </div>
-                  {rapporto?.data_fine_rapporto ? (
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Data fine rapporto</p>
-                      <p className="font-medium">{formatDateTime(rapporto.data_fine_rapporto)}</p>
-                    </div>
-                  ) : null}
                   <div className="space-y-2">
                     <label className="ui-type-label">Data invio famiglia</label>
                     <DebouncedInput
@@ -792,25 +870,6 @@ export function CedolinoDetailSheet({
                 })()}
                 contentClassName="space-y-5"
               >
-                <div className="space-y-2">
-                  <p className="ui-type-label">Stato cedolino</p>
-                  <Select
-                    value={card.stage}
-                    onValueChange={(nextValue) => onStageChange(card.id, nextValue)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {columns.map((column) => (
-                        <SelectItem key={column.id} value={column.id}>
-                          {column.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <AttachmentUploadSlot
                   label="Cedolino"
                   value={normalizeAttachmentValue(card.record.cedolino)}
@@ -874,7 +933,7 @@ export function CedolinoDetailSheet({
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
                     <p className="ui-type-label">Ore da contratto</p>
-                    <p className="font-medium">{card.record.ore_contratto_mese ?? "Non disponibile"}</p>
+                    <p className="font-medium">{formatHoursValue(contractHours)}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="ui-type-label">Ore svolte</p>
@@ -946,7 +1005,11 @@ export function CedolinoDetailSheet({
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Application fee</p>
-                      <p className="font-medium">{formatCurrencyAmount(paymentFee)}</p>
+                      <p className="font-medium">
+                        {paymentFee !== null && hoursToPay !== null
+                          ? formatCurrencyAmount(paymentFee * hoursToPay)
+                          : formatCurrencyAmount(null)}
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Tipo pagamento</p>
@@ -1055,24 +1118,8 @@ export function CedolinoDetailSheet({
 
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <p className="ui-type-label">Presenze</p>
-                    <div className="rounded-xl border bg-surface p-4">
-                      <p className="truncate font-medium">{card.nomeCompleto}</p>
-                      <div className="text-muted-foreground mt-2 grid gap-2 text-sm sm:grid-cols-2">
-                        <div>
-                          <p className="text-xs uppercase tracking-wide">Totale ore da pagare</p>
-                          <p className="mt-1">{card.presenze?.presenze_mensili ?? card.record.ore_lavorate_estratte ?? "Non disponibile"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-wide">Data creazione</p>
-                          <p className="mt-1">{formatDateTime(card.presenze?.data_ora_creazione ?? card.record.data_ora_creazione)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
                     <p className="ui-type-label">Totale ore da pagare</p>
-                    <p className="font-medium">{card.presenze?.presenze_mensili ?? card.record.ore_lavorate_estratte ?? "Non disponibile"}</p>
+                    <p className="font-medium">{formatHoursValue(hoursToPay)}</p>
                   </div>
                 </div>
 
