@@ -53,6 +53,8 @@ export type PayrollBoardCardData = {
   presenzeRegolari: PresenzaMensileRecord | null
   rapporto: RapportoLavorativoRecord | null
   mese: MeseCalendarioRecord | null
+  richiestaAttivazione: { id: string; fee_concordata: number | null } | null
+  presenzeIrregolari: boolean
   nomeCompleto: string
   importoLabel: string | null
   dataInvioLabel: string | null
@@ -290,6 +292,8 @@ async function fetchPayrollBoardData(
       presenzeRegolari: null,
       rapporto,
       mese: row.mese ?? null,
+      richiestaAttivazione: row.richiestaAttivazione ?? null,
+      presenzeIrregolari: Boolean(row.presenzeIrregolari),
       nomeCompleto,
       importoLabel: formatCurrency(record.importo_busta_estratto),
       dataInvioLabel: formatItalianDate(record.data_invio_famiglia),

@@ -217,6 +217,11 @@ export type RicercaWorkerRelatedSelectionSummariesRpcResponse = {
   rows?: RicercaWorkerRelatedSelectionSummary[]
 }
 
+export type CedoliniRichiestaAttivazioneSlim = {
+  id: string
+  fee_concordata: number | null
+}
+
 export type CedoliniBoardRpcRow = {
   record: MeseLavoratoRecord
   mese: MeseCalendarioRecord | null
@@ -225,6 +230,8 @@ export type CedoliniBoardRpcRow = {
   lavoratore: LavoratoreRecord | null
   transazione: TransazioneFinanziariaRecord | null
   pagamento: PagamentoRecord | null
+  richiestaAttivazione: CedoliniRichiestaAttivazioneSlim | null
+  presenzeIrregolari: boolean | null
 }
 
 export type CedoliniBoardRpcResponse = {
@@ -239,6 +246,7 @@ export type CedolinoDetailRpcResponse = {
   mese: MeseCalendarioRecord | null
   presenze: PresenzaMensileRecord | null
   presenzeRegolari: PresenzaMensileRecord | null
+  richiestaAttivazione: CedoliniRichiestaAttivazioneSlim | null
 }
 
 export type AssunzioniBoardRpcRow = {

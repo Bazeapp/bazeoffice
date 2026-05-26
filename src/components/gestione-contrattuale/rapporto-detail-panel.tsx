@@ -1058,6 +1058,17 @@ export function RapportoDetailPanel({
       presenzeRegolari,
       rapporto: rapportoView,
       mese: meseCalendario,
+      richiestaAttivazione: richiestaAttivazione
+        ? { id: richiestaAttivazione.id, fee_concordata: richiestaAttivazione.fee_concordata ?? null }
+        : null,
+      presenzeIrregolari: (() => {
+        if (!presenzeMese) return false
+        for (let day = 1; day <= 31; day += 1) {
+          const value = (presenzeMese as Record<string, unknown>)[`evento_day_${day}`]
+          if (value !== null && value !== undefined && String(value).trim() !== "") return true
+        }
+        return false
+      })(),
       nomeCompleto,
       importoLabel: typeof mese.importo_busta_estratto === "number" ? formatCurrency(mese.importo_busta_estratto) : null,
       dataInvioLabel: mese.data_invio_famiglia ? formatDate(mese.data_invio_famiglia) : null,

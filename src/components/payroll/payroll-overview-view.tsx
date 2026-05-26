@@ -311,6 +311,33 @@ function withCurrentPresenceOption(options: PresenceSelectOption[], currentValue
   ]
 }
 
+const WEEKDAY_LETTERS_IT = ["D", "L", "M", "M", "G", "V", "S"] as const
+
+function getWeekdayLetter(yearMonth: string | null | undefined, day: number): string {
+  if (!yearMonth) return ""
+  const year = Number(yearMonth.slice(0, 4))
+  const month = Number(yearMonth.slice(5, 7))
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return ""
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (Number.isNaN(date.getTime())) return ""
+  return WEEKDAY_LETTERS_IT[date.getUTCDay()]
+}
+
+function getPresenceRegolariHours(
+  record: PayrollBoardCardData["presenzeRegolari"],
+  day: number,
+): string {
+  if (!record) return ""
+  const raw = record[`ore_day_${day}`]
+  if (raw === null || raw === undefined) return ""
+  return String(raw).trim()
+}
+
+function getDayTypeLabel(type: string): string {
+  if (!type) return ""
+  return PRESENCE_DAY_TYPE_OPTIONS.find((o) => o.value === type)?.label ?? type
+}
+
 function getDaysInMonth(meseDataFine: string | null | undefined): number {
   // data_fine looks like "2026-05-31" → 31, "2026-02-28" → 28. Falls back to
   // 31 so we never under-show days when the field is missing or malformed.
@@ -409,10 +436,10 @@ function PresenceBadge({ isRegular }: { isRegular: boolean }) {
         "rounded-full px-3",
         isRegular
           ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
-          : "bg-amber-100 text-amber-700 hover:bg-amber-100"
+          : "bg-red-100 text-red-700 hover:bg-red-100"
       )}
     >
-      {isRegular ? "Presenze regolari" : "Presenze da verificare"}
+      {isRegular ? "Presenze regolari" : "Presenze irregolari"}
     </Badge>
   )
 }
@@ -498,16 +525,18 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          <Badge
-            variant="secondary"
-            className={cn(
-              "gap-1 rounded-full px-2.5 py-0.5 text-2xs",
-              getCedolinoTypeClassName(card.record.caso_particolare)
-            )}
-          >
-            <CircleCheckBigIcon className="size-3" />
-            <span>{getCedolinoTypeLabel(card.record.caso_particolare)}</span>
-          </Badge>
+          {normalizeCaseFlag(card.record.caso_particolare) !== "no" ? (
+            <Badge
+              variant="secondary"
+              className={cn(
+                "gap-1 rounded-full px-2.5 py-0.5 text-2xs",
+                getCedolinoTypeClassName(card.record.caso_particolare)
+              )}
+            >
+              <CircleCheckBigIcon className="size-3" />
+              <span>{getCedolinoTypeLabel(card.record.caso_particolare)}</span>
+            </Badge>
+          ) : null}
           {isPaid ? (
             <Badge
               variant="secondary"
@@ -517,6 +546,17 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
               <span>Pagato</span>
             </Badge>
           ) : null}
+          <Badge
+            variant="secondary"
+            className={cn(
+              "gap-1 rounded-full px-2.5 py-0.5 text-2xs",
+              card.presenzeIrregolari
+                ? "bg-red-100 text-red-700 hover:bg-red-100"
+                : "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+            )}
+          >
+            <span>{card.presenzeIrregolari ? "Presenze irregolari" : "Presenze regolari"}</span>
+          </Badge>
         </div>
       </CardContent>
     </Card>
@@ -556,10 +596,21 @@ export function CedolinoDetailSheet({
     const day = Number(dataFine.slice(8, 10))
     return Number.isFinite(day) ? day : null
   }, [rapporto?.data_fine_rapporto, card?.mese?.data_inizio])
-  const isRegularPresence = Boolean(card?.record.presenze_regolare_id)
+  const isRegularPresence = React.useMemo(() => {
+    const presenze = card?.presenze
+    if (!presenze) return !(card?.presenzeIrregolari ?? false)
+    for (let day = 1; day <= 31; day += 1) {
+      const value = presenze[`evento_day_${day}`]
+      if (value !== null && value !== undefined && String(value).trim() !== "") {
+        return false
+      }
+    }
+    return true
+  }, [card?.presenze, card?.presenzeIrregolari])
   const paymentStatus = pagamento?.status ?? "Pagamento non ancora registrato"
   const paymentAmount = pagamento?.amount ?? card?.record.importo_busta_estratto ?? null
   const paymentFee = pagamento?.fee ?? null
+  const feeConcordata = card?.richiestaAttivazione?.fee_concordata ?? null
   const makeTransactionUrl = transazione?.id
     ? `${MAKE_TRANSACTION_WEBHOOK_URL}?recordId=${encodeURIComponent(transazione.id)}`
     : null
@@ -726,27 +777,25 @@ export function CedolinoDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
         <SheetHeader className="border-b bg-surface px-5 py-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 space-y-2">
-              <SheetTitle className="truncate text-xl font-semibold">
-                {card?.nomeCompleto ?? "Dettaglio cedolino"}
-              </SheetTitle>
-              <SheetDescription className="sr-only">
-                Dettaglio del cedolino con rapporto, stato mese lavorativo, pagamento, presenze e feedback.
-              </SheetDescription>
-              {card?.mese?.mese_lavorativo_copy || card?.mese?.data_inizio ? (
-                <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                  <CalendarDaysIcon className="size-4" />
-                  <span>{card.mese?.mese_lavorativo_copy ?? formatMonthLabel(card.mese?.data_inizio?.slice(0, 7) ?? "")}</span>
-                </div>
-              ) : null}
-            </div>
+          <div className="space-y-3">
+            <SheetTitle className="truncate text-xl font-semibold">
+              {card?.nomeCompleto ?? "Dettaglio cedolino"}
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              Dettaglio del cedolino con rapporto, stato mese lavorativo, pagamento, presenze e feedback.
+            </SheetDescription>
+            {card?.mese?.mese_lavorativo_copy || card?.mese?.data_inizio ? (
+              <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                <CalendarDaysIcon className="size-4" />
+                <span>{card.mese?.mese_lavorativo_copy ?? formatMonthLabel(card.mese?.data_inizio?.slice(0, 7) ?? "")}</span>
+              </div>
+            ) : null}
             {card ? (
               <Select
                 value={card.stage}
                 onValueChange={(nextValue) => onStageChange(card.id, nextValue)}
               >
-                <SelectTrigger className="w-48 shrink-0">
+                <SelectTrigger className="w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -980,6 +1029,28 @@ export function CedolinoDetailSheet({
                 contentClassName="space-y-5"
               >
                 <div className="space-y-5">
+                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Totale ore da pagare</p>
+                      <p className="font-medium">{formatHoursValue(hoursToPay)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Fee concordata</p>
+                      <p className="font-medium">{formatCurrencyAmount(feeConcordata)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Application fee</p>
+                      <p className="font-medium">
+                        {feeConcordata !== null && hoursToPay !== null
+                          ? formatCurrencyAmount(feeConcordata * hoursToPay)
+                          : formatCurrencyAmount(null)}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Importo cedolino</p>
+                      <p className="font-medium">{formatCurrencyAmount(paymentAmount)}</p>
+                    </div>
+                  </div>
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-2">
                       <p className="ui-type-label">Transazione</p>
@@ -998,18 +1069,6 @@ export function CedolinoDetailSheet({
                       <Badge variant="secondary" className="w-fit rounded-full px-3">
                         {paymentStatus}
                       </Badge>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Importo cedolino</p>
-                      <p className="font-medium">{formatCurrencyAmount(paymentAmount)}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Application fee</p>
-                      <p className="font-medium">
-                        {paymentFee !== null && hoursToPay !== null
-                          ? formatCurrencyAmount(paymentFee * hoursToPay)
-                          : formatCurrencyAmount(null)}
-                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Tipo pagamento</p>
@@ -1111,15 +1170,16 @@ export function CedolinoDetailSheet({
                 icon={<BadgeCheckIcon className="text-muted-foreground size-5" />}
                 contentClassName="space-y-5"
               >
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="ui-type-label">Presenze regolari?</span>
-                  <PresenceBadge isRegular={isRegularPresence} />
-                </div>
-
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <p className="ui-type-label">Totale ore da pagare</p>
-                    <p className="font-medium">{formatHoursValue(hoursToPay)}</p>
+                <div className="flex flex-wrap items-center gap-6">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="ui-type-label">Presenze regolari?</span>
+                    <PresenceBadge isRegular={isRegularPresence} />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="ui-type-label">Distribuzione ore settimanali</span>
+                    <span className="font-mono text-sm">
+                      {rapporto?.distribuzione_ore_settimana ?? "—"}
+                    </span>
                   </div>
                 </div>
 
@@ -1130,8 +1190,10 @@ export function CedolinoDetailSheet({
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-14">G.</TableHead>
+                            <TableHead className="w-10">GG</TableHead>
                             <TableHead className="w-28">Tipo</TableHead>
                             <TableHead className="w-16">Ore</TableHead>
+                            <TableHead className="w-16">Ore r.</TableHead>
                             <TableHead className="min-w-40">Evento</TableHead>
                             <TableHead className="w-20">PNR</TableHead>
                             <TableHead>Note</TableHead>
@@ -1150,30 +1212,11 @@ export function CedolinoDetailSheet({
                               }
                             >
                               <TableCell className="font-mono text-xs">{row.day}</TableCell>
-                              <TableCell>
-                                <Select
-                                  value={row.type || EMPTY_PRESENCE_SELECT_VALUE}
-                                  onValueChange={(value) =>
-                                    card.presenze
-                                      ? onPatchPresence(card.presenze.id, {
-                                          [`tipo_day_${row.day}`]:
-                                            value === EMPTY_PRESENCE_SELECT_VALUE ? null : value,
-                                        })
-                                      : undefined
-                                  }
-                                >
-                                  <SelectTrigger className={cn(PRESENCE_SELECT_TRIGGER_CLASS, "w-40")}>
-                                    <SelectValue placeholder="Tipo" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value={EMPTY_PRESENCE_SELECT_VALUE}>Nessuno</SelectItem>
-                                    {withCurrentPresenceOption(PRESENCE_DAY_TYPE_OPTIONS, row.type).map((option) => (
-                                      <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                              <TableCell className="text-muted-foreground font-mono text-xs">
+                                {getWeekdayLetter(card.mese?.data_inizio, row.day)}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-sm">
+                                {getDayTypeLabel(row.type) || "—"}
                               </TableCell>
                               <TableCell>
                                 <DebouncedInput
@@ -1187,6 +1230,9 @@ export function CedolinoDetailSheet({
                                     })
                                   }}
                                 />
+                              </TableCell>
+                              <TableCell className="text-muted-foreground font-mono text-xs">
+                                {getPresenceRegolariHours(card.presenzeRegolari, row.day) || "—"}
                               </TableCell>
                               <TableCell>
                                 <Select
@@ -1477,6 +1523,8 @@ function CedoliniPayrollView() {
           presenze: detail.presenze as PayrollBoardCardData["presenze"],
           presenzeRegolari:
             detail.presenzeRegolari as PayrollBoardCardData["presenzeRegolari"],
+          richiestaAttivazione:
+            detail.richiestaAttivazione as PayrollBoardCardData["richiestaAttivazione"],
         })
       } catch (error) {
         if (!isActive) return
