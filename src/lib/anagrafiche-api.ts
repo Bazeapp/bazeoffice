@@ -379,8 +379,6 @@ function normalizeTableResponse<TRecord>(
   return { rows, total, columns: response.columns ?? [], groups: response.groups ?? [] }
 }
 
-const TABLE_QUERY_CACHE_TTL_MS = 10_000
-const GATE_QUERY_CACHE_TTL_MS = 10_000
 const LOOKUP_VALUES_CACHE_TTL_MS = 5 * 60 * 1000
 
 type TableResponse<TRecord> = {
@@ -390,90 +388,13 @@ type TableResponse<TRecord> = {
   groups: TableGroupResult[]
 }
 
-const tableQueryCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<TableResponse<TableRow>>
-  }
->()
-const gateQueryCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<TableResponse<TableRow>>
-  }
->()
-const rapportiLavorativiBoardCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<{ rows: RapportoLavorativoRecord[]; total: number }>
-  }
->()
-const ricercaWorkerRelatedSelectionSummariesCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<RicercaWorkerRelatedSelectionSummary[]>
-  }
->()
-const cedoliniBoardCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<{ rows: CedoliniBoardRpcRow[]; total: number }>
-  }
->()
-const cedolinoDetailCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<CedolinoDetailRpcResponse | null>
-  }
->()
-const assunzioniBoardCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<{ rows: AssunzioniBoardRpcRow[] }>
-  }
->()
-const assunzioneDetailCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<AssunzioneDetailRpcResponse | null>
-  }
->()
-const variazioniBoardCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<{ cards: VariazioniBoardRpcCard[]; rapporti: VariazioniBoardRpcRapporto[] }>
-  }
->()
-const ricercaBoardCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<{ processes: RicercaBoardRpcProcess[]; deferredCounts: Record<string, number> }>
-  }
->()
-const chiusureBoardCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<{ cards: ChiusureBoardRpcCard[]; rapporti: ChiusureBoardRpcRapporto[] }>
-  }
->()
-const supportTicketsBundleCache = new Map<
-  string,
-  {
-    expiresAt: number
-    promise: Promise<SupportTicketsBundleRpcResponse>
-  }
->()
+// Shadow caches removed: 12 in-memory Maps used to wrap fetch helpers were
+// sitting in front of React Query and breaking invalidation semantics. When
+// React Query invalidated + refetched, the queryFn re-entered the helper,
+// hit the Map cache, and returned stale data — visible as "I edited a field
+// but the UI doesn't update until I refresh the page" (the cedolino Select
+// 'lavorativo'/'festivo' bug). React Query's queryClient is now the single
+// source of truth for cache lifecycle.
 
 let lookupValuesCache:
   | {
@@ -542,47 +463,22 @@ export function getMillisSinceLastLocalWrite() {
   return lastLocalWriteAt === 0 ? Number.POSITIVE_INFINITY : Date.now() - lastLocalWriteAt
 }
 
-function makeTableQueryCacheKey(payload: TableQueryRequest) {
-  return JSON.stringify(payload)
-}
-
+/**
+ * Reset any process-wide caches that aren't owned by React Query.
+ * After the shadow-cache removal there's only `lookupValuesCache` left
+ * (5 min TTL on lookup values, called from mutations that change a
+ * lookup label). The function name is kept for backward compat with
+ * existing callers.
+ */
 export function clearReadCaches() {
-  tableQueryCache.clear()
-  gateQueryCache.clear()
-  rapportiLavorativiBoardCache.clear()
-  ricercaWorkerRelatedSelectionSummariesCache.clear()
-  cedoliniBoardCache.clear()
-  cedolinoDetailCache.clear()
-  assunzioniBoardCache.clear()
-  assunzioneDetailCache.clear()
-  variazioniBoardCache.clear()
-  supportTicketsBundleCache.clear()
-  chiusureBoardCache.clear()
-  ricercaBoardCache.clear()
   lookupValuesCache = null
 }
 
 async function queryTable<TRecord>(payload: TableQueryRequest) {
-  const cacheKey = makeTableQueryCacheKey(payload)
-  const now = Date.now()
-  const cached = tableQueryCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return (await cached.promise) as TableResponse<TRecord>
-  }
-
-  const promise = invokeEdgeFunction<TableQueryResponse<TRecord>>("table-query", payload).then(
-    normalizeTableResponse
-  )
-
-  tableQueryCache.set(cacheKey, {
-    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
-    promise: promise as Promise<TableResponse<TableRow>>,
-  })
-
   try {
-    return await promise
+    const response = await invokeEdgeFunction<TableQueryResponse<TRecord>>("table-query", payload)
+    return normalizeTableResponse(response) as TableResponse<TRecord>
   } catch (error) {
-    tableQueryCache.delete(cacheKey)
     const message = error instanceof Error ? error.message : String(error)
     throw new Error(`table-query(${payload.table}) failed: ${message}`)
   }
@@ -744,226 +640,82 @@ export async function fetchRapportiLavorativiBoard(query: {
   search?: string
   statusFilter?: string
 }) {
-  const cacheKey = JSON.stringify({ functionName: "rapporti_lavorativi_board", ...query })
-  const now = Date.now()
-  const cached = rapportiLavorativiBoardCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
+  const { data, error } = await supabase.rpc("rapporti_lavorativi_board", {
+    p_limit: query.limit,
+    p_offset: query.offset,
+    p_search: query.search ?? null,
+    p_status_filter: query.statusFilter && query.statusFilter !== "all"
+      ? query.statusFilter
+      : null,
+  })
+  if (error) {
+    throw new Error(`rapporti_lavorativi_board failed: ${error.message}`)
   }
-
-  const promise = Promise.resolve(
-    supabase.rpc("rapporti_lavorativi_board", {
-      p_limit: query.limit,
-      p_offset: query.offset,
-      p_search: query.search ?? null,
-      p_status_filter: query.statusFilter && query.statusFilter !== "all"
-        ? query.statusFilter
-        : null,
-    })
-  ).then(({ data, error }) => {
-    if (error) {
-      throw new Error(`rapporti_lavorativi_board failed: ${error.message}`)
-    }
-
-    const response = data as RapportiLavorativiBoardRpcResponse | null
-    return {
-      rows: Array.isArray(response?.rows) ? response.rows : [],
-      total: typeof response?.total === "number" ? response.total : 0,
-    }
-  })
-
-  rapportiLavorativiBoardCache.set(cacheKey, {
-    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
-    promise,
-  })
-
-  try {
-    return await promise
-  } catch (error) {
-    rapportiLavorativiBoardCache.delete(cacheKey)
-    throw error
+  const response = data as RapportiLavorativiBoardRpcResponse | null
+  return {
+    rows: Array.isArray(response?.rows) ? response.rows : [],
+    total: typeof response?.total === "number" ? response.total : 0,
   }
 }
 
 export async function fetchCedoliniBoard(yearMonth: string) {
-  const cacheKey = JSON.stringify({ functionName: "cedolini_board", yearMonth })
-  const now = Date.now()
-  const cached = cedoliniBoardCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
+  const { data, error } = await supabase.rpc("cedolini_board", { p_year_month: yearMonth })
+  if (error) {
+    throw new Error(`cedolini_board failed: ${error.message}`)
   }
-
-  const promise = Promise.resolve(
-    supabase.rpc("cedolini_board", {
-      p_year_month: yearMonth,
-    })
-  ).then(({ data, error }) => {
-    if (error) {
-      throw new Error(`cedolini_board failed: ${error.message}`)
-    }
-
-    const response = data as CedoliniBoardRpcResponse | null
-    return {
-      rows: Array.isArray(response?.rows) ? response.rows : [],
-      total: typeof response?.total === "number" ? response.total : 0,
-    }
-  })
-
-  cedoliniBoardCache.set(cacheKey, {
-    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
-    promise,
-  })
-
-  try {
-    return await promise
-  } catch (error) {
-    cedoliniBoardCache.delete(cacheKey)
-    throw error
+  const response = data as CedoliniBoardRpcResponse | null
+  return {
+    rows: Array.isArray(response?.rows) ? response.rows : [],
+    total: typeof response?.total === "number" ? response.total : 0,
   }
 }
 
 export async function fetchCedolinoDetail(id: string) {
-  const cacheKey = JSON.stringify({ functionName: "cedolino_detail", id })
-  const now = Date.now()
-  const cached = cedolinoDetailCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
+  const { data, error } = await supabase.rpc("cedolino_detail", { p_id: id })
+  if (error) {
+    throw new Error(`cedolino_detail failed: ${error.message}`)
   }
-
-  const promise = Promise.resolve(
-    supabase.rpc("cedolino_detail", {
-      p_id: id,
-    })
-  ).then(({ data, error }) => {
-    if (error) {
-      throw new Error(`cedolino_detail failed: ${error.message}`)
-    }
-
-    if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
-      return null
-    }
-
-    return data as CedolinoDetailRpcResponse
-  })
-
-  cedolinoDetailCache.set(cacheKey, {
-    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
-    promise,
-  })
-
-  try {
-    return await promise
-  } catch (error) {
-    cedolinoDetailCache.delete(cacheKey)
-    throw error
+  if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+    return null
   }
+  return data as CedolinoDetailRpcResponse
 }
 
 export async function fetchAssunzioniBoard(statoFilter?: string | null) {
-  const cacheKey = JSON.stringify({ functionName: "assunzioni_board", statoFilter: statoFilter ?? null })
-  const now = Date.now()
-  const cached = assunzioniBoardCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
+  const { data, error } = await supabase.rpc("assunzioni_board", {
+    p_stato_filter: statoFilter ?? null,
+  })
+  if (error) {
+    throw new Error(`assunzioni_board failed: ${error.message}`)
   }
-
-  const promise = Promise.resolve(
-    supabase.rpc("assunzioni_board", {
-      p_stato_filter: statoFilter ?? null,
-    })
-  ).then(({ data, error }) => {
-    if (error) {
-      throw new Error(`assunzioni_board failed: ${error.message}`)
-    }
-
-    const response = data as AssunzioniBoardRpcResponse | null
-    return {
-      rows: Array.isArray(response?.rows) ? response.rows : [],
-    }
-  })
-
-  assunzioniBoardCache.set(cacheKey, {
-    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
-    promise,
-  })
-
-  try {
-    return await promise
-  } catch (error) {
-    assunzioniBoardCache.delete(cacheKey)
-    throw error
+  const response = data as AssunzioniBoardRpcResponse | null
+  return {
+    rows: Array.isArray(response?.rows) ? response.rows : [],
   }
 }
 
 export async function fetchAssunzioneDetail(rapportoId: string) {
-  const cacheKey = JSON.stringify({ functionName: "assunzione_detail", rapportoId })
-  const now = Date.now()
-  const cached = assunzioneDetailCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
-  }
-
-  const promise = Promise.resolve(
-    supabase.rpc("assunzione_detail", {
-      p_rapporto_id: rapportoId,
-    })
-  ).then(({ data, error }) => {
-    if (error) {
-      throw new Error(`assunzione_detail failed: ${error.message}`)
-    }
-
-    if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
-      return null
-    }
-
-    return data as AssunzioneDetailRpcResponse
+  const { data, error } = await supabase.rpc("assunzione_detail", {
+    p_rapporto_id: rapportoId,
   })
-
-  assunzioneDetailCache.set(cacheKey, {
-    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
-    promise,
-  })
-
-  try {
-    return await promise
-  } catch (error) {
-    assunzioneDetailCache.delete(cacheKey)
-    throw error
+  if (error) {
+    throw new Error(`assunzione_detail failed: ${error.message}`)
   }
+  if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
+    return null
+  }
+  return data as AssunzioneDetailRpcResponse
 }
 
 export async function fetchVariazioniBoard() {
-  const cacheKey = JSON.stringify({ functionName: "variazioni_board" })
-  const now = Date.now()
-  const cached = variazioniBoardCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
+  const { data, error } = await supabase.rpc("variazioni_board", {})
+  if (error) {
+    throw new Error(`variazioni_board failed: ${error.message}`)
   }
-
-  const promise = Promise.resolve(
-    supabase.rpc("variazioni_board", {})
-  ).then(({ data, error }) => {
-    if (error) {
-      throw new Error(`variazioni_board failed: ${error.message}`)
-    }
-
-    const response = data as VariazioniBoardRpcResponse | null
-    return {
-      cards: Array.isArray(response?.cards) ? response.cards : [],
-      rapporti: Array.isArray(response?.rapporti) ? response.rapporti : [],
-    }
-  })
-
-  variazioniBoardCache.set(cacheKey, {
-    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
-    promise,
-  })
-
-  try {
-    return await promise
-  } catch (error) {
-    variazioniBoardCache.delete(cacheKey)
-    throw error
+  const response = data as VariazioniBoardRpcResponse | null
+  return {
+    cards: Array.isArray(response?.cards) ? response.cards : [],
+    rapporti: Array.isArray(response?.rapporti) ? response.rapporti : [],
   }
 }
 
@@ -996,95 +748,34 @@ export async function fetchLavoratoreExtras(workerId: string) {
 }
 
 export async function fetchRicercaBoard(eagerStages: string[], deferredStages: string[]) {
-  const cacheKey = JSON.stringify({ functionName: "ricerca_board", eagerStages, deferredStages })
-  const now = Date.now()
-  const cached = ricercaBoardCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
-  }
-
-  const promise = Promise.resolve(
-    supabase.rpc("ricerca_board", {
-      p_eager_stages: eagerStages,
-      p_deferred_stages: deferredStages,
-    })
-  ).then(({ data, error }) => {
-    if (error) throw new Error(`ricerca_board failed: ${error.message}`)
-    const response = data as RicercaBoardRpcResponse | null
-    return {
-      processes: Array.isArray(response?.processes) ? response.processes : [],
-      deferredCounts: (response?.deferredCounts ?? {}) as Record<string, number>,
-    }
+  const { data, error } = await supabase.rpc("ricerca_board", {
+    p_eager_stages: eagerStages,
+    p_deferred_stages: deferredStages,
   })
-
-  ricercaBoardCache.set(cacheKey, { expiresAt: now + TABLE_QUERY_CACHE_TTL_MS, promise })
-
-  try {
-    return await promise
-  } catch (error) {
-    ricercaBoardCache.delete(cacheKey)
-    throw error
+  if (error) throw new Error(`ricerca_board failed: ${error.message}`)
+  const response = data as RicercaBoardRpcResponse | null
+  return {
+    processes: Array.isArray(response?.processes) ? response.processes : [],
+    deferredCounts: (response?.deferredCounts ?? {}) as Record<string, number>,
   }
 }
 
 export async function fetchChiusureBoard() {
-  const cacheKey = JSON.stringify({ functionName: "chiusure_board" })
-  const now = Date.now()
-  const cached = chiusureBoardCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
-  }
-
-  const promise = Promise.resolve(supabase.rpc("chiusure_board", {})).then(({ data, error }) => {
-    if (error) throw new Error(`chiusure_board failed: ${error.message}`)
-    const response = data as ChiusureBoardRpcResponse | null
-    return {
-      cards: Array.isArray(response?.cards) ? response.cards : [],
-      rapporti: Array.isArray(response?.rapporti) ? response.rapporti : [],
-    }
-  })
-
-  chiusureBoardCache.set(cacheKey, { expiresAt: now + TABLE_QUERY_CACHE_TTL_MS, promise })
-
-  try {
-    return await promise
-  } catch (error) {
-    chiusureBoardCache.delete(cacheKey)
-    throw error
+  const { data, error } = await supabase.rpc("chiusure_board", {})
+  if (error) throw new Error(`chiusure_board failed: ${error.message}`)
+  const response = data as ChiusureBoardRpcResponse | null
+  return {
+    cards: Array.isArray(response?.cards) ? response.cards : [],
+    rapporti: Array.isArray(response?.rapporti) ? response.rapporti : [],
   }
 }
 
 export async function fetchSupportTicketsBundle(tipo: string) {
-  const cacheKey = JSON.stringify({ functionName: "support_tickets_bundle", tipo })
-  const now = Date.now()
-  const cached = supportTicketsBundleCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
+  const { data, error } = await supabase.rpc("support_tickets_bundle", { p_tipo: tipo })
+  if (error) {
+    throw new Error(`support_tickets_bundle failed: ${error.message}`)
   }
-
-  const promise = Promise.resolve(
-    supabase.rpc("support_tickets_bundle", {
-      p_tipo: tipo,
-    })
-  ).then(({ data, error }) => {
-    if (error) {
-      throw new Error(`support_tickets_bundle failed: ${error.message}`)
-    }
-
-    return (data ?? {}) as SupportTicketsBundleRpcResponse
-  })
-
-  supportTicketsBundleCache.set(cacheKey, {
-    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
-    promise,
-  })
-
-  try {
-    return await promise
-  } catch (error) {
-    supportTicketsBundleCache.delete(cacheKey)
-    throw error
-  }
+  return (data ?? {}) as SupportTicketsBundleRpcResponse
 }
 
 export async function fetchRichiesteAttivazione(query: TablePageQuery) {
@@ -1228,45 +919,17 @@ export async function fetchRicercaWorkerRelatedSelectionSummaries(query: {
   const uniqueWorkerIds = Array.from(new Set(query.workerIds.filter(Boolean))).sort()
   if (uniqueWorkerIds.length === 0) return []
 
-  const cacheKey = JSON.stringify({
-    functionName: "ricerca_worker_related_selection_summaries",
-    currentProcessId: query.currentProcessId,
-    workerIds: uniqueWorkerIds,
+  const { data, error } = await supabase.rpc("ricerca_worker_related_selection_summaries", {
+    p_worker_ids: uniqueWorkerIds,
+    p_current_process_id: query.currentProcessId,
   })
-  const now = Date.now()
-  const cached = ricercaWorkerRelatedSelectionSummariesCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
+  if (error) {
+    throw new Error(
+      `ricerca_worker_related_selection_summaries failed: ${error.message}`
+    )
   }
-
-  const promise = Promise.resolve(
-    supabase.rpc("ricerca_worker_related_selection_summaries", {
-      p_worker_ids: uniqueWorkerIds,
-      p_current_process_id: query.currentProcessId,
-    })
-  ).then(({ data, error }) => {
-    if (error) {
-      throw new Error(
-        `ricerca_worker_related_selection_summaries failed: ${error.message}`
-      )
-    }
-
-    const response =
-      data as RicercaWorkerRelatedSelectionSummariesRpcResponse | null
-    return Array.isArray(response?.rows) ? response.rows : []
-  })
-
-  ricercaWorkerRelatedSelectionSummariesCache.set(cacheKey, {
-    expiresAt: now + TABLE_QUERY_CACHE_TTL_MS,
-    promise,
-  })
-
-  try {
-    return await promise
-  } catch (error) {
-    ricercaWorkerRelatedSelectionSummariesCache.delete(cacheKey)
-    throw error
-  }
+  const response = data as RicercaWorkerRelatedSelectionSummariesRpcResponse | null
+  return Array.isArray(response?.rows) ? response.rows : []
 }
 
 export async function fetchProcessiMatching(query: TablePageQuery) {
@@ -1385,39 +1048,16 @@ async function fetchGateLavoratoriRpc(
     filters?: Gate1RpcFilter[]
   }
 ) {
-  const cacheKey = JSON.stringify({ functionName, ...query })
-  const now = Date.now()
-  const cached = gateQueryCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return cached.promise
-  }
-
-  const promise = Promise.resolve(
-    supabase.rpc(functionName, {
-      p_limit: query.limit,
-      p_offset: query.offset,
-      p_search: query.search ?? null,
-      p_filters: query.filters ?? [],
-    })
-  ).then(({ data, error }) => {
-    if (error) {
-      throw new Error(`${functionName} failed: ${error.message}`)
-    }
-
-    return normalizeTableResponse(data as TableQueryResponse<TableRow>)
+  const { data, error } = await supabase.rpc(functionName, {
+    p_limit: query.limit,
+    p_offset: query.offset,
+    p_search: query.search ?? null,
+    p_filters: query.filters ?? [],
   })
-
-  gateQueryCache.set(cacheKey, {
-    expiresAt: now + GATE_QUERY_CACHE_TTL_MS,
-    promise,
-  })
-
-  try {
-    return await promise
-  } catch (error) {
-    gateQueryCache.delete(cacheKey)
-    throw error
+  if (error) {
+    throw new Error(`${functionName} failed: ${error.message}`)
   }
+  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
 }
 
 export async function fetchLookupValues() {

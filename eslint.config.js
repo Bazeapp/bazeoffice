@@ -6,7 +6,15 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'storybook-static', 'design-system', '.claude']),
+  globalIgnores([
+    'dist',
+    'storybook-static',
+    'design-system',
+    '.claude',
+    // Deno edge functions have their own tooling (Deno's own linter and
+    // type checker). Linting them here produces noise.
+    'supabase/functions',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
