@@ -99,16 +99,28 @@ pending writes, o il pattern `key=` → `npm test` fallisce prima del push.
 **Done**: 137 test verdi, classe di bug "fields disappear" + "draft
 overwritten" + "save bypass" chiusa retroattivamente.
 
-## FASE 4 — Lint rules e guardrail strutturali
+## FASE 4 — Lint rules e guardrail strutturali ✅
 
-**Stima**: 1-2 giorni.
+**Stima**: 1-2 giorni. **Effettivi**: 1 commit `eslint.config.js`.
 
-- [ ] Lint rule "draft setter without isEditing guard".
-- [ ] Lint rule "useState con value derived from prop without sync mechanism".
-- [ ] Lint rule "useEffect che chiama setDraft con deps che includono il row".
+- [x] Lint rule "draft setter without isEditing guard"
+      (selector: `setXxxDraft()` come ExpressionStatement diretta in
+      un useEffect body).
+- [x] Lint rule "useState mirror from prop without sync"
+      (selector: `useState(...)` initializer che legge da
+      `card / *Row / serverRow / defaults`).
+- [x] Lint rule "useEffect che chiama setDraft con deps che includono
+      il row" — versione più precisa della prima.
+- [x] Refinement della rule esistente "realtimeTick missing":
+      ora matcha anche `React.useEffect(...)` namespaced.
 - [ ] CI pipeline che blocca PR se lint/test/build falliscono.
+      (Lefthook pre-push già attivo localmente; CI server è da
+      pianificare separatamente — non bloccante.)
 
-**Done**: nuovi PR non possono introdurre regression senza override scritto.
+**Done**: 88 warnings sul codebase corrente (tutti pre-existing debt
+della stessa classe di bug). 0 errors. Ogni rule ha un recipe di
+suppression in-comment con istruzioni esplicite. Nuovi PR non
+possono introdurre regression senza override scritto + spiegazione.
 
 ## FASE 5 — Migrazione progressiva a react-hook-form
 
