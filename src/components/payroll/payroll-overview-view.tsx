@@ -1547,6 +1547,18 @@ function CedoliniPayrollView() {
         }}
         onPatchPresence={(recordId, patch) => {
           void patchPresence(recordId, patch)
+          // Mirror the optimistic update onto the local detail state so
+          // the open panel reflects the change immediately. The hook's
+          // applyOptimistic targets the board cache, but `presenze` is
+          // `null` there (loaded lazily by fetchCedolinoDetail), so its
+          // guard `card.presenze?.id === recordId` is always false and
+          // the board-level optimistic is a no-op. Without this mirror
+          // the Select keeps the old value until page refresh.
+          setSelectedCard((current) =>
+            current?.presenze?.id === recordId
+              ? { ...current, presenze: { ...current.presenze, ...patch } }
+              : current
+          )
         }}
       />
     </section>
