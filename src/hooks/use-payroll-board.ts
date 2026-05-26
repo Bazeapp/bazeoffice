@@ -72,6 +72,28 @@ type UsePayrollBoardState = {
   moveCard: (recordId: string, targetStageId: string) => Promise<void>
   patchCard: (recordId: string, patch: Partial<MeseLavoratoRecord>) => Promise<void>
   patchPresence: (recordId: string, patch: Partial<PresenzaMensileRecord>) => Promise<void>
+  /**
+   * Inject detail-loader fields (presenze, presenzeRegolari, enriched record /
+   * rapporto / famiglia / mese columns) into the cached card. The detail panel
+   * then reads from the board cache directly — same shape as CRM pipeline.
+   * If the card is not in the cache (e.g. it was filtered out), this is a
+   * no-op. Returns the merged card or undefined.
+   */
+  enrichCardFromDetail: (
+    cardId: string,
+    detail: Partial<PayrollBoardCardData>,
+  ) => PayrollBoardCardData | undefined
+  /**
+   * Incremented by useRealtimeBoardSync when a remote change arrives (and
+   * passes the echo-window guard). The view binds the detail loader's
+   * useEffect deps to this tick so the open detail panel re-fetches its
+   * detail-only fields (e.g. presenze) when another user modifies them.
+   *
+   * Without this, Pattern A's preserveDetailFields would restore the
+   * LOCAL previous presenze values during the board refetch, silently
+   * hiding the remote change until page reload.
+   */
+  detailRefreshTick: number
 }
 
 const DEFAULT_STAGE_DEFINITIONS: PayrollStageDefinition[] = [
@@ -192,7 +214,39 @@ function formatItalianDate(value: string | null | undefined) {
   }).format(parsed)
 }
 
-async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoardColumnData[]> {
+/**
+ * Pattern A bindings: fields that the detail loader enriches into the card
+ * (presenze, presenzeRegolari, and any wider record/rapporto/famiglia/mese
+ * columns the detail RPC returns) must be preserved when the board RPC
+ * refetches without them. Same shape as use-crm-pipeline-preview.ts.
+ *
+ * Treatment: if the fresh card has the field as null/undefined but the
+ * previous card had a value, restore the previous value. If the fresh card
+ * has a non-null value (even if narrower than detail), keep the fresh value.
+ */
+const PRESERVED_DETAIL_FIELDS: ReadonlyArray<keyof PayrollBoardCardData> = [
+  "presenze",
+  "presenzeRegolari",
+]
+
+function preserveDetailFields(
+  card: PayrollBoardCardData,
+  previousCard: PayrollBoardCardData | undefined,
+): PayrollBoardCardData {
+  if (!previousCard) return card
+  const merged: PayrollBoardCardData = { ...card }
+  for (const field of PRESERVED_DETAIL_FIELDS) {
+    if (merged[field] == null && previousCard[field] != null) {
+      ;(merged as Record<string, unknown>)[field] = previousCard[field]
+    }
+  }
+  return merged
+}
+
+async function fetchPayrollBoardData(
+  selectedMonth: string,
+  getPreviousCard?: (cardId: string) => PayrollBoardCardData | undefined,
+): Promise<PayrollBoardColumnData[]> {
   const [lookupResult, boardResult] = await Promise.all([
     fetchLookupValues(),
     fetchCedoliniBoard(selectedMonth),
@@ -220,9 +274,12 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
       ? getRapportoTitle(rapporto, { famiglia, lavoratore })
       : "Rapporto non disponibile"
 
-    // presenze are not loaded by the board RPC; the detail panel fetches them on
-    // card open via fetchCedolinoDetail.
-    const card: PayrollBoardCardData = {
+    // presenze / presenzeRegolari are not loaded by the board RPC; the detail
+    // panel writes them into the board cache via setQueryData on card open.
+    // We start from null here and let preserveDetailFields restore from the
+    // previous card so a board refetch (e.g. realtime echo) doesn't wipe an
+    // already-loaded detail.
+    const freshCard: PayrollBoardCardData = {
       id: record.id,
       stage,
       record,
@@ -237,6 +294,8 @@ async function fetchPayrollBoardData(selectedMonth: string): Promise<PayrollBoar
       importoLabel: formatCurrency(record.importo_busta_estratto),
       dataInvioLabel: formatItalianDate(record.data_invio_famiglia),
     }
+
+    const card = preserveDetailFields(freshCard, getPreviousCard?.(record.id))
 
     cardsByStage.get(stage)?.push(card)
   }
@@ -262,7 +321,20 @@ export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
     error: queryError,
   } = useQuery({
     queryKey: boardQueryKey,
-    queryFn: () => fetchPayrollBoardData(selectedMonth),
+    queryFn: () =>
+      fetchPayrollBoardData(selectedMonth, (cardId) => {
+        // Read the CURRENT cache at mapping time (not a snapshot taken at
+        // queryFn start) so a concurrent setQueryData from the detail
+        // loader is observed and its enriched fields get preserved.
+        // Mirrors the lazy callback pattern in use-crm-pipeline-preview.ts.
+        const latest = queryClient.getQueryData<PayrollBoardColumnData[]>(boardQueryKey)
+        if (!latest) return undefined
+        for (const column of latest) {
+          const card = column.cards.find((c) => c.id === cardId)
+          if (card) return card
+        }
+        return undefined
+      }),
   })
 
   const columns = data ?? []
@@ -378,9 +450,22 @@ export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
     [patchPresenceMutation],
   )
 
+  const [detailRefreshTick, setDetailRefreshTick] = React.useState(0)
+  const bumpDetailRefreshTick = React.useCallback(() => {
+    setDetailRefreshTick((current) => current + 1)
+  }, [])
+
   useRealtimeBoardSync({
     tables: PAYROLL_REALTIME_TABLES,
     reload: invalidateBoard,
+    // Re-fetch the open detail panel when a remote change arrives. The
+    // board fetch returns presenze: null, and Pattern A's
+    // preserveDetailFields restores presenze from the LOCAL previous
+    // card — so without this, remote presenze edits stay invisible
+    // until page reload. Self-echoes are filtered by the echo-window
+    // guard inside useRealtimeBoardSync, so the tick only bumps for
+    // genuinely remote changes.
+    reloadOpenDetail: bumpDetailRefreshTick,
   })
 
   const error =
@@ -394,6 +479,28 @@ export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
             ? queryError.message
             : null
 
+  const enrichCardFromDetail = React.useCallback(
+    (
+      cardId: string,
+      detail: Partial<PayrollBoardCardData>,
+    ): PayrollBoardCardData | undefined => {
+      let mergedCard: PayrollBoardCardData | undefined
+      queryClient.setQueryData<PayrollBoardColumnData[]>(boardQueryKey, (previous) => {
+        if (!previous) return previous
+        return previous.map((column) => ({
+          ...column,
+          cards: column.cards.map((card) => {
+            if (card.id !== cardId) return card
+            mergedCard = { ...card, ...detail }
+            return mergedCard
+          }),
+        }))
+      })
+      return mergedCard
+    },
+    [queryClient, boardQueryKey],
+  )
+
   return {
     loading: isLoading,
     error,
@@ -401,5 +508,7 @@ export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
     moveCard,
     patchCard,
     patchPresence,
+    enrichCardFromDetail,
+    detailRefreshTick,
   }
 }

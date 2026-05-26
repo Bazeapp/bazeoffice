@@ -299,10 +299,25 @@ function withCurrentPresenceOption(options: PresenceSelectOption[], currentValue
   ]
 }
 
-function buildPresenceDayRows(record: PayrollBoardCardData["presenze"]): PresenceDayRow[] {
+function getDaysInMonth(meseDataFine: string | null | undefined): number {
+  // data_fine looks like "2026-05-31" → 31, "2026-02-28" → 28. Falls back to
+  // 31 so we never under-show days when the field is missing or malformed.
+  if (!meseDataFine) return 31
+  const parsed = new Date(meseDataFine)
+  if (Number.isNaN(parsed.getTime())) return 31
+  return parsed.getUTCDate()
+}
+
+function buildPresenceDayRows(
+  record: PayrollBoardCardData["presenze"],
+  daysInMonth: number = 31,
+): PresenceDayRow[] {
   if (!record) return []
 
-  return Array.from({ length: 31 }, (_, index) => {
+  // Show every day of the month, even when all its fields are empty —
+  // otherwise the row "disappears" the moment the user clears tipo/ore/etc.
+  // and they have no way to enter the day back without page refresh.
+  return Array.from({ length: daysInMonth }, (_, index) => {
     const day = index + 1
     const type = String(record[`tipo_day_${day}`] ?? "").trim()
     const hours = String(record[`ore_day_${day}`] ?? "").trim()
@@ -318,7 +333,7 @@ function buildPresenceDayRows(record: PayrollBoardCardData["presenze"]): Presenc
       sicknessCode,
       note,
     }
-  }).filter((row) => row.type || row.hours || row.event || row.sicknessCode || row.note)
+  })
 }
 
 function sumPresenceHours(record: PayrollBoardCardData["presenzeRegolari"]): number | null {
@@ -480,7 +495,10 @@ export function CedolinoDetailSheet({
   const famiglia = card?.famiglia
   const pagamento = card?.pagamento
   const transazione = card?.transazione
-  const presenceRows = React.useMemo(() => buildPresenceDayRows(card?.presenze ?? null), [card?.presenze])
+  const presenceRows = React.useMemo(
+    () => buildPresenceDayRows(card?.presenze ?? null, getDaysInMonth(card?.mese?.data_fine)),
+    [card?.presenze, card?.mese?.data_fine],
+  )
   const rapporto = card?.rapporto
   const statoServizio = rapporto?.stato_servizio || "Non disponibile"
   const isRegularPresence = Boolean(card?.record.presenze_regolare_id)
@@ -687,10 +705,6 @@ export function CedolinoDetailSheet({
                   <div className="space-y-2">
                     <p className="ui-type-label">Email</p>
                     <p className="font-medium">{famiglia?.email ?? famiglia?.customer_email ?? "Non disponibile"}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="ui-type-label">ID</p>
-                    <p className="font-medium">{rapporto?.id_rapporto ?? rapporto?.id ?? "Non disponibile"}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="ui-type-label">Codice Datore Webcolf</p>
@@ -1292,11 +1306,19 @@ function DetailSheetSkeleton() {
 
 function CedoliniPayrollView() {
   const [selectedMonth, setSelectedMonth] = React.useState(getCurrentMonthValue)
-  const { loading, error, columns, moveCard, patchCard, patchPresence } = usePayrollBoard(selectedMonth)
+  const {
+    loading,
+    error,
+    columns,
+    moveCard,
+    patchCard,
+    patchPresence,
+    enrichCardFromDetail,
+    detailRefreshTick,
+  } = usePayrollBoard(selectedMonth)
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
-  const [selectedCard, setSelectedCard] = React.useState<PayrollBoardCardData | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
 
   const filteredColumns = React.useMemo(() => {
@@ -1353,42 +1375,38 @@ function CedoliniPayrollView() {
     [columns, selectedCardId]
   )
 
-  // Re-run on `selectedCardFromColumns` (not just its id) so a realtime board
-  // refetch — which produces a new card object with the same id — also
-  // refreshes the detail. Blank only when actually switching cards, otherwise
-  // keep the current detail visible and update in the background.
-  const previousSelectedCardIdRef = React.useRef<string | null>(null)
+  // Detail loader: fetch enriched fields and inject them into the BOARD
+  // cache via enrichCardFromDetail (same shape as CRM pipeline Pattern A).
+  // The detail panel binds to `selectedCardFromColumns` (board cache), so
+  // optimistic patches from onPatchCard / onPatchPresence flow directly to
+  // the UI without a separate React state to race against.
+  //
+  // Triggers:
+  // - selectedCardId change → card switch, fetch fresh detail.
+  // - detailRefreshTick increment → a remote realtime change arrived
+  //   (after the echo-window guard, so this is NOT our own echo). Pattern
+  //   A's preserveDetailFields keeps the local previous presenze during
+  //   board refetch, so without re-fetching the detail here a remote
+  //   change to presenze (tipo_day_X, ore_day_X, evento_day_X, note_day_X)
+  //   would stay invisible until page reload.
   React.useEffect(() => {
-    if (!selectedCardId) {
-      setSelectedCard(null)
-      previousSelectedCardIdRef.current = null
-      return
-    }
-    if (!selectedCardFromColumns) return
-
-    const isSwitchingCard = previousSelectedCardIdRef.current !== selectedCardId
-    previousSelectedCardIdRef.current = selectedCardId
-
+    if (!selectedCardId) return
     let isActive = true
     const currentCardId = selectedCardId
-    const currentCard = selectedCardFromColumns
-    if (isSwitchingCard) setSelectedCard(null)
 
     async function loadSelectedCard() {
       try {
         const detail = await fetchCedolinoDetail(currentCardId)
         if (!isActive || !detail || !detail.record) return
 
-        setSelectedCard({
-          ...currentCard,
+        enrichCardFromDetail(currentCardId, {
           record: detail.record as PayrollBoardCardData["record"],
-          rapporto: (detail.rapporto as PayrollBoardCardData["rapporto"]) ?? currentCard.rapporto,
-          famiglia: (detail.famiglia as PayrollBoardCardData["famiglia"]) ?? currentCard.famiglia,
-          mese: (detail.mese as PayrollBoardCardData["mese"]) ?? currentCard.mese,
-          presenze: (detail.presenze as PayrollBoardCardData["presenze"]) ?? currentCard.presenze,
+          rapporto: detail.rapporto as PayrollBoardCardData["rapporto"],
+          famiglia: detail.famiglia as PayrollBoardCardData["famiglia"],
+          mese: detail.mese as PayrollBoardCardData["mese"],
+          presenze: detail.presenze as PayrollBoardCardData["presenze"],
           presenzeRegolari:
-            (detail.presenzeRegolari as PayrollBoardCardData["presenzeRegolari"]) ??
-            currentCard.presenzeRegolari,
+            detail.presenzeRegolari as PayrollBoardCardData["presenzeRegolari"],
         })
       } catch (error) {
         if (!isActive) return
@@ -1401,7 +1419,7 @@ function CedoliniPayrollView() {
     return () => {
       isActive = false
     }
-  }, [selectedCardFromColumns, selectedCardId])
+  }, [selectedCardId, enrichCardFromDetail, detailRefreshTick])
 
   const monthSwitcher = (
     <div className="flex items-center gap-2">
@@ -1492,7 +1510,6 @@ function CedoliniPayrollView() {
                   draggingRecordId={draggingRecordId}
                   isDropTarget={dropTargetColumnId === column.id}
                   onOpenCard={(cardId) => {
-                    setSelectedCard(null)
                     setSelectedCardId(cardId)
                   }}
                   onDragStartCard={setDraggingRecordId}
@@ -1525,13 +1542,12 @@ function CedoliniPayrollView() {
         // (useDebouncedSave's hasUserEditedRef) instead of carrying it across
         // to a different cedolino.
         key={selectedCardId ?? "__empty__"}
-        card={selectedCard}
+        card={selectedCardFromColumns}
         columns={columns}
         open={Boolean(selectedCardId)}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedCardId(null)
-            setSelectedCard(null)
           }
         }}
         onStageChange={(recordId, targetStageId) => {
@@ -1539,26 +1555,9 @@ function CedoliniPayrollView() {
         }}
         onPatchCard={(recordId, patch) => {
           void patchCard(recordId, patch)
-          setSelectedCard((current) =>
-            current?.id === recordId
-              ? { ...current, record: { ...current.record, ...patch } }
-              : current
-          )
         }}
         onPatchPresence={(recordId, patch) => {
           void patchPresence(recordId, patch)
-          // Mirror the optimistic update onto the local detail state so
-          // the open panel reflects the change immediately. The hook's
-          // applyOptimistic targets the board cache, but `presenze` is
-          // `null` there (loaded lazily by fetchCedolinoDetail), so its
-          // guard `card.presenze?.id === recordId` is always false and
-          // the board-level optimistic is a no-op. Without this mirror
-          // the Select keeps the old value until page refresh.
-          setSelectedCard((current) =>
-            current?.presenze?.id === recordId
-              ? { ...current, presenze: { ...current.presenze, ...patch } }
-              : current
-          )
         }}
       />
     </section>
