@@ -122,6 +122,48 @@ della stessa classe di bug). 0 errors. Ogni rule ha un recipe di
 suppression in-comment con istruzioni esplicite. Nuovi PR non
 possono introdurre regression senza override scritto + spiegazione.
 
+## FASE 4 BIS — Eliminate `table-query` outside `/anagrafiche`
+
+**Obiettivo**: nel Network tab di qualunque pagina diversa da
+`/anagrafiche` non deve più comparire `table-query`. Ogni
+chiamata viene sostituita con una RPC dedicata `*_v1`.
+
+**Stima**: 5-7 giorni con agent in parallelo.
+
+### 4 BIS.1 — Census ✅
+
+- [x] Audit completo dei call site. Output:
+      `docs/audits/audit-table-query-callers.md`.
+      57 call site outside-anagrafiche, 17 RPC candidate, top 3
+      prioritari identificati.
+
+### 4 BIS.2 — Design RPC schema (1 giorno)
+
+- [ ] Per ogni RPC nuova: nome (`<entita>_<scopo>_v1`),
+      params, returns. Documento condiviso.
+
+### 4 BIS.3 — Migration SQL + tipi (1-2 giorni)
+
+- [ ] Una migration sola che crea tutte le RPC.
+- [ ] Regenerate tipi TS via `mcp__supabase__generate_typescript_types`.
+- [ ] Unit test sui mapping.
+
+### 4 BIS.4 — Rewrite FE callers (2-3 giorni, parallelizzabile)
+
+- [ ] Per ogni wrapper table-query-based, sostituire chiamate con la
+      RPC. Una agent per file/hook, parallelo.
+
+### 4 BIS.5 — Cleanup + lint rule (mezza giornata)
+
+- [ ] Rimuovere wrapper table-query da `anagrafiche-api.ts` (o
+      restringerli a uso interno della pagina anagrafiche).
+- [ ] Lint rule `no-restricted-imports` di quelle funzioni da
+      fuori `src/components/anagrafiche/**` e
+      `src/hooks/use-anagrafiche-*`.
+
+**Done**: 0 chiamate `table-query` nel Network tab fuori dalla
+pagina `/anagrafiche`.
+
 ## FASE 5 — Migrazione progressiva a react-hook-form
 
 **Stima**: 2-4 settimane.
