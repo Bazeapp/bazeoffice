@@ -116,6 +116,7 @@ import {
   normalizeAttachmentArray,
 } from "@/lib/attachments";
 import { supabase } from "@/lib/supabase-client";
+import { PROVINCIA_DROPDOWN_OPTIONS } from "@/lib/province-italiane";
 import { normalizeWorkerStatus } from "@/features/lavoratori/lib/status-utils";
 import type { LavoratoreRecord } from "@/types/entities/lavoratore";
 import { useProvincieOptions } from "@/hooks/use-provincie";
@@ -3107,25 +3108,10 @@ export function Gate1View({
     return rowsById;
   }, [workerRows]);
 
-  const gateProvinciaOptions = React.useMemo(() => {
-    const lookupLabels = (
-      lookupOptionsByDomain.get("lavoratori.provincia") ?? []
-    ).map((option) => option.label);
-    if (lookupLabels.length > 0) {
-      return Array.from(new Set(lookupLabels)).sort((a, b) =>
-        a.localeCompare(b, "it"),
-      );
-    }
-
-    const labels = new Map<string, string>();
-    for (const worker of baseGateWorkers) {
-      const value = asString(workerRowsById.get(worker.id)?.provincia);
-      if (!value) continue;
-      const key = value.trim().toLowerCase();
-      if (!labels.has(key)) labels.set(key, value);
-    }
-    return Array.from(labels.values()).sort((a, b) => a.localeCompare(b, "it"));
-  }, [baseGateWorkers, lookupOptionsByDomain, workerRowsById]);
+  // Dropdown provincia: value = sigla (TO, MI, MB…), label = nome esteso.
+  // Il filtro Gate 1/2 lavora su `indirizzi.provincia_sigla`, quindi qui
+  // restituiamo direttamente la lista canonica delle province italiane.
+  const gateProvinciaOptions = React.useMemo(() => PROVINCIA_DROPDOWN_OPTIONS, []);
 
   const followupValueToLabel = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -3992,9 +3978,9 @@ export function Gate1View({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tutte le province</SelectItem>
-                    {gateProvinciaOptions.map((provincia) => (
-                      <SelectItem key={provincia} value={provincia}>
-                        {provincia}
+                    {gateProvinciaOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -4298,7 +4284,7 @@ export function Gate1View({
                       selectedCivico={asString(selectedWorkerAddress?.civico) || null}
                       selectedCap={asString(selectedWorkerAddress?.cap) || null}
                       selectedCitta={asString(selectedWorkerAddress?.citta) || null}
-                      selectedProvincia={asString(selectedWorkerAddress?.provincia) || null}
+                      selectedProvincia={asString(selectedWorkerAddress?.provincia_sigla) || null}
 
                       selectedMobility={readArrayStrings(
                         selectedWorkerRow.come_ti_sposti,

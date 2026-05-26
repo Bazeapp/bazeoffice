@@ -2542,7 +2542,7 @@ export function RicercaWorkersPipelineView({
                     workerCivico={asString(selectedWorkerAddress?.civico) || null}
                     workerCap={asString(selectedWorkerAddress?.cap) || null}
                     workerCitta={asString(selectedWorkerAddress?.citta) || null}
-                    workerProvincia={asString(selectedWorkerAddress?.provincia) || null}
+                    workerProvincia={asString(selectedWorkerAddress?.provincia_sigla) || null}
                     workerCitofono={asString(selectedWorkerAddress?.citofono) || null}
                     processWeeklyHours={card.oreSettimana}
                     familyAddress={familyAddressDraft.address}

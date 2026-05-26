@@ -1762,7 +1762,7 @@ export function LavoratoriCercaView({
                     selectedCivico={asString(selectedWorkerAddress?.civico) || null}
                     selectedCap={asString(selectedWorkerAddress?.cap) || null}
                     selectedCitta={asString(selectedWorkerAddress?.citta) || null}
-                    selectedProvincia={asString(selectedWorkerAddress?.provincia) || null}
+                    selectedProvincia={asString(selectedWorkerAddress?.provincia_sigla) || null}
 
                     selectedMobility={readArrayStrings(
                       selectedWorkerRow?.come_ti_sposti,
@@ -2129,7 +2129,7 @@ export function LavoratoriCercaView({
                               {issue.id === "not-milano" ? (
                                 <DebouncedInput
                                   committedValue={
-                                    asString(selectedWorkerAddress?.provincia) ??
+                                    asString(selectedWorkerAddress?.provincia_sigla) ??
                                     ""
                                   }
                                   onSave={async (value) => {
@@ -2138,7 +2138,7 @@ export function LavoratoriCercaView({
                                       value || null,
                                     );
                                   }}
-                                  placeholder="Provincia"
+                                  placeholder="Provincia (sigla)"
                                 />
                               ) : null}
 

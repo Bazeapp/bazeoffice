@@ -235,7 +235,7 @@ export function getStripeAccountMissingRequirements({
     ...(formatWorkerAddressLine(address) ? [] : ["Indirizzo"]),
     ...(asString(resolvedAddress.cap) ? [] : ["CAP"]),
     ...(asString(resolvedAddress.citta) ? [] : ["Citta"]),
-    ...(asString(resolvedAddress.provincia) ? [] : ["Provincia"]),
+    ...(asString(resolvedAddress.provincia_sigla) ? [] : ["Provincia"]),
   ]
 }
 
