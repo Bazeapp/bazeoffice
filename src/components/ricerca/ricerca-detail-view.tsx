@@ -810,6 +810,10 @@ export function RicercaDetailView({
     giornatePreferite: normalizeWeekdayList(card?.giornatePreferite),
   });
   const [isSavingOrari, setIsSavingOrari] = React.useState(false);
+  // Serialize concurrent address-create calls per process so that field
+  // patches firing before the first INSERT returns don't each create a
+  // new `indirizzi` row.
+  const pendingAddressCreateRef = React.useRef<Map<string, Promise<string | null>>>(new Map());
   const provincieOptions = useProvincieOptions();
   const { options: operatorOptions, loading: operatorOptionsLoading } =
     useOperatoriOptions();
@@ -1351,13 +1355,31 @@ export function RicercaDetailView({
           return;
         }
 
-        const response = await createRecord("indirizzi", {
+        const pending = pendingAddressCreateRef.current.get(targetProcessId);
+        if (pending) {
+          const existingId = await pending;
+          if (existingId) {
+            await updateRecord("indirizzi", existingId, patch);
+            return;
+          }
+        }
+
+        const createPromise = createRecord("indirizzi", {
           entita_tabella: "processi_matching",
           entita_id: targetProcessId,
           tipo_indirizzo: "luogo",
           ...patch,
-        });
-        const createdAddressId = toStringValue(response.row.id);
+        }).then((response) => toStringValue(response.row.id));
+
+        pendingAddressCreateRef.current.set(targetProcessId, createPromise);
+        let createdAddressId: string | null = null;
+        try {
+          createdAddressId = await createPromise;
+        } finally {
+          if (pendingAddressCreateRef.current.get(targetProcessId) === createPromise) {
+            pendingAddressCreateRef.current.delete(targetProcessId);
+          }
+        }
         if (createdAddressId) {
           setCard((current) =>
             current ? { ...current, indirizzoId: createdAddressId } : current,
