@@ -185,7 +185,7 @@ function buildAddressDraft(
     civico: asString(address?.civico),
     cap: asString(address?.cap),
     citta: asString(address?.citta),
-    provincia: asString(address?.provincia),
+    provincia: asString(address?.provincia_sigla),
     citofono: asString(address?.citofono),
     come_ti_sposti: readArrayStrings(row?.come_ti_sposti),
   }
@@ -357,6 +357,10 @@ export function useSelectedWorkerEditor({
   )
 
   const activePatchesRef = React.useRef(0)
+  // Serialize concurrent address-create calls per worker so that field
+  // patches firing before the first INSERT returns don't each create a
+  // new `indirizzi` row.
+  const pendingAddressCreateRef = React.useRef<Map<string, Promise<Record<string, unknown> | null>>>(new Map())
 
   const selectedWorkerIsNonIdoneo = React.useMemo(
     () => isNonIdoneoStatus(selectedWorkerRow?.stato_lavoratore),
@@ -599,16 +603,44 @@ export function useSelectedWorkerEditor({
       setPatchLoading("nonQualificato", true)
       try {
         const addressId = asString(selectedWorkerAddress?.id)
-        const result = addressId
-          ? await updateRecord("indirizzi", addressId, patch)
-          : await createRecord("indirizzi", {
-              entita_tabella: "lavoratori",
-              entita_id: selectedWorkerId,
-              tipo_indirizzo: "residenza",
-              ...patch,
-            })
-        const nextAddress = result.row as Record<string, unknown>
-        applyUpdatedWorkerAddress(nextAddress)
+        if (addressId) {
+          const result = await updateRecord("indirizzi", addressId, patch)
+          const nextAddress = result.row as Record<string, unknown>
+          applyUpdatedWorkerAddress(nextAddress)
+          return nextAddress
+        }
+
+        const pending = pendingAddressCreateRef.current.get(selectedWorkerId)
+        if (pending) {
+          const existing = await pending
+          const existingId = asString(existing?.id)
+          if (existingId) {
+            const result = await updateRecord("indirizzi", existingId, patch)
+            const nextAddress = result.row as Record<string, unknown>
+            applyUpdatedWorkerAddress(nextAddress)
+            return nextAddress
+          }
+        }
+
+        const createPromise = createRecord("indirizzi", {
+          entita_tabella: "lavoratori",
+          entita_id: selectedWorkerId,
+          tipo_indirizzo: "residenza",
+          ...patch,
+        }).then((result) => result.row as Record<string, unknown>)
+
+        pendingAddressCreateRef.current.set(selectedWorkerId, createPromise)
+        let nextAddress: Record<string, unknown> | null = null
+        try {
+          nextAddress = await createPromise
+        } finally {
+          if (pendingAddressCreateRef.current.get(selectedWorkerId) === createPromise) {
+            pendingAddressCreateRef.current.delete(selectedWorkerId)
+          }
+        }
+        if (nextAddress) {
+          applyUpdatedWorkerAddress(nextAddress)
+        }
         return nextAddress
       } catch (caughtError) {
         setError(formatEditorError("Errore aggiornando indirizzo", caughtError))
