@@ -146,6 +146,12 @@ export type LavoratoreRecord = {
   permalink_foto: string | null
   presente_nel_cms_webflow: boolean | null
   provincia: string | null
+  /**
+   * Non è una colonna di `public.lavoratori`: arriva dalla RPC `gate1_lavoratori`
+   * che la espone facendo lateral join su `indirizzi.provincia_sigla`. Sempre
+   * `undefined` per query dirette su `lavoratori` (es. path Gate 2 / Cerca).
+   */
+  provincia_sigla?: string | null
   quantita_selezioni: number | null
   quanto_brava_bambini: string | null
   quanto_brava_giardinaggio: string | null
