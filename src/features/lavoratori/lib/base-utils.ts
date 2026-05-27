@@ -64,6 +64,17 @@ export function asLavoratoreRecord(value: unknown) {
   return asRecord(value) as LavoratoreRecord
 }
 
+/**
+ * `asString` returns `""` for any value that is not a string.
+ *
+ * The numeric overload below is a *compile-time guard*: it forbids passing a
+ * value typed as `number` / `bigint` to `asString`, because that always
+ * produces `""` and silently hides data on numeric DB columns (causing UI to
+ * show `-` instead of the real value). For numeric columns, use
+ * `asInputValue` instead.
+ */
+export function asString(value: number | bigint): never
+export function asString(value: unknown): string
 export function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : ""
 }

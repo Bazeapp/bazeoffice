@@ -10,6 +10,7 @@ import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card
 import {
   asLavoratoreRecord,
   getAgeFromBirthDate,
+  asInputValue,
   asString,
   formatWorkerLocationLabel,
   normalizeDomesticRoleLabels,
@@ -663,7 +664,7 @@ function formatRelatedFamilyName(row: GenericRow | null | undefined) {
 }
 
 function formatRelatedSearchLabel(processRow: GenericRow) {
-  const searchNumber = asString(processRow.numero_ricerca_attivata)
+  const searchNumber = asInputValue(processRow.numero_ricerca_attivata)
   if (searchNumber) return `Ricerca #${searchNumber}`
 
   const processId = asString(processRow.id)

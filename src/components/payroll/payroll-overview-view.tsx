@@ -609,7 +609,6 @@ export function CedolinoDetailSheet({
   }, [card?.presenze, card?.presenzeIrregolari])
   const paymentStatus = pagamento?.status ?? "Pagamento non ancora registrato"
   const paymentAmount = pagamento?.amount ?? card?.record.importo_busta_estratto ?? null
-  const paymentFee = pagamento?.fee ?? null
   const feeConcordata = card?.richiestaAttivazione?.fee_concordata ?? null
   const makeTransactionUrl = transazione?.id
     ? `${MAKE_TRANSACTION_WEBHOOK_URL}?recordId=${encodeURIComponent(transazione.id)}`

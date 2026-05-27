@@ -54,6 +54,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatAvailabilityComputedAt } from "@/features/lavoratori/lib/availability-utils";
 import {
+  asInputValue,
   asString,
   getAgeFromBirthDate,
   getDefaultWorkerAvatar,
@@ -418,7 +419,7 @@ function formatRelatedFamilyName(row: Record<string, unknown> | null | undefined
 }
 
 function formatRelatedSearchLabel(processRow: Record<string, unknown>) {
-  const searchNumber = asString(processRow.numero_ricerca_attivata);
+  const searchNumber = asInputValue(processRow.numero_ricerca_attivata);
   if (searchNumber) return `Ricerca #${searchNumber}`;
 
   const relatedProcessId = asString(processRow.id);
