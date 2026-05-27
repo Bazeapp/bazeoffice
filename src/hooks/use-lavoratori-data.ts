@@ -2201,6 +2201,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   return {
     workers,
     workerRows,
+    workerAddressesById,
     workersTotal,
     selectedWorkerId,
     setSelectedWorkerId,

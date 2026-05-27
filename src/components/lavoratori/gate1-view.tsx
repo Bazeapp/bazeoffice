@@ -2788,6 +2788,7 @@ export function Gate1View({
   const {
     workers,
     workerRows,
+    workerAddressesById,
     selectedWorkerId,
     setSelectedWorkerId,
     selectedWorker,
@@ -4056,7 +4057,23 @@ export function Gate1View({
                       isActive={worker.id === selectedWorkerId}
                       variant="gate1"
                       gate1Summary={{
-                        provincia: asString(row?.provincia),
+                        // Mostra la sigla (es. "TO") quando disponibile, altrimenti
+                        // ripiega sul nome esteso. La sigla è la sorgente canonica
+                        // usata anche dal filtro Gate 1/2.
+                        // Gate 1 RPC espone già `provincia_sigla` nella row;
+                        // per Gate 2 (no RPC) la prendiamo dall'indirizzo di residenza.
+                        provincia:
+                          asString(row?.provincia_sigla) ||
+                          asString(
+                            (workerAddressesById?.get(worker.id) ?? []).find(
+                              (a) =>
+                                asString(a.tipo_indirizzo).toLowerCase() ===
+                                "residenza",
+                            )?.provincia_sigla ??
+                              (workerAddressesById?.get(worker.id) ?? [])[0]
+                                ?.provincia_sigla,
+                          ) ||
+                          asString(row?.provincia),
                         createdAt:
                           asString(row?.data_ora_di_creazione) ||
                           asString(row?.creato_il),
