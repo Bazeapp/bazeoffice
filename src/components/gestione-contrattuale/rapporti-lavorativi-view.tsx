@@ -43,6 +43,7 @@ export function RapportiLavorativiView({
     ensureRelatedSectionLoaded,
     lookupColorsByDomain,
     createTicketForSelectedRapporto,
+    updateSelectedRapporto,
   } = useRapportiLavorativiData({ initialSelectedRapportoId })
 
   return (
@@ -89,6 +90,7 @@ export function RapportiLavorativiView({
         lookupColorsByDomain={lookupColorsByDomain}
         onSectionActive={ensureRelatedSectionLoaded}
         onCreateTicket={createTicketForSelectedRapporto}
+        onRapportoUpdated={updateSelectedRapporto}
       />
     </section>
   )

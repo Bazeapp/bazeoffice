@@ -506,6 +506,10 @@ function getColumnVisual(color: string): KanbanColumnVisual {
 function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
   const [famiglia, lavoratore] = card.nomeCompleto.split(" – ")
   const isPaid = card.stage === "Pagato" || card.pagamento?.status === "succeeded"
+  const ratingValue =
+    typeof card.record.rating_feedback_famiglia === "number" && card.record.rating_feedback_famiglia > 0
+      ? Math.max(0, Math.min(5, Math.round(card.record.rating_feedback_famiglia)))
+      : 0
 
   return (
     <Card className="border border-border/70 bg-surface py-0 transition-shadow hover:shadow-md">
@@ -524,7 +528,7 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
           ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {normalizeCaseFlag(card.record.caso_particolare) !== "no" ? (
             <Badge
               variant="secondary"
@@ -557,6 +561,25 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
           >
             <span>{card.presenzeIrregolari ? "Presenze irregolari" : "Presenze regolari"}</span>
           </Badge>
+          {ratingValue > 0 ? (
+            <div
+              className="ml-auto flex items-center gap-0.5"
+              title={card.record.testo_feedback_famiglia ?? `Rating famiglia: ${ratingValue}/5`}
+              aria-label={`Rating famiglia ${ratingValue} su 5`}
+            >
+              {Array.from({ length: 5 }).map((_, index) => (
+                <StarIcon
+                  key={index}
+                  className={cn(
+                    "size-3.5",
+                    index < ratingValue
+                      ? "fill-amber-400 text-amber-400"
+                      : "text-muted-foreground/30"
+                  )}
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>
