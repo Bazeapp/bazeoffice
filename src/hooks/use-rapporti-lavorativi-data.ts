@@ -410,6 +410,61 @@ export function useRapportiLavorativiData(
     void queryClient.invalidateQueries({ queryKey: ["rapporti-lavorativi-board"] })
   }, [queryClient])
 
+  /**
+   * Apply a freshly-saved rapporto row to local state.
+   *
+   * Called by `RapportoDetailPanel` after its own `updateRecord` calls so
+   * that `selectedRapporto` and the board cache don't lag behind the DB.
+   * Without this, the detail panel's locally-cached row would diverge from
+   * the prop the parent sends down, and any draft resync against that prop
+   * (the realtime-bug-class pattern) would wipe just-saved values from the
+   * UI. Mirrors the merge already done in `loadSelectedRapporto` so the
+   * four board-enriched columns (`cognome_nome_datore_proper`,
+   * `nome_lavoratore_per_url`, `data_fine_rapporto`, `stato_rapporto`)
+   * survive — they aren't real columns on `rapporti_lavorativi`, so the
+   * edge function's `response.row` doesn't return resolved values.
+   */
+  const updateSelectedRapporto = React.useCallback(
+    (updatedRow: RapportoLavorativoRecord) => {
+      if (!updatedRow?.id) return
+
+      setSelectedRapporto((previous) => {
+        if (!previous || previous.id !== updatedRow.id) return updatedRow
+        return {
+          ...previous,
+          ...updatedRow,
+          cognome_nome_datore_proper:
+            updatedRow.cognome_nome_datore_proper ?? previous.cognome_nome_datore_proper,
+          nome_lavoratore_per_url:
+            updatedRow.nome_lavoratore_per_url ?? previous.nome_lavoratore_per_url,
+          data_fine_rapporto:
+            updatedRow.data_fine_rapporto ?? previous.data_fine_rapporto,
+          stato_rapporto: updatedRow.stato_rapporto ?? previous.stato_rapporto,
+        }
+      })
+
+      queryClient.setQueryData(boardQueryKey, (previous: typeof boardData | undefined) => {
+        if (!previous) return previous
+        return {
+          ...previous,
+          rows: previous.rows.map((row) =>
+            row.id === updatedRow.id
+              ? {
+                  ...row,
+                  ...updatedRow,
+                  cognome_nome_datore_proper:
+                    updatedRow.cognome_nome_datore_proper ?? row.cognome_nome_datore_proper,
+                  nome_lavoratore_per_url:
+                    updatedRow.nome_lavoratore_per_url ?? row.nome_lavoratore_per_url,
+                }
+              : row,
+          ),
+        }
+      })
+    },
+    [queryClient, boardQueryKey],
+  )
+
   useRealtimeBoardSync({
     tables: RAPPORTI_REALTIME_TABLES,
     reload: invalidateBoard,
@@ -720,7 +775,19 @@ export function useRapportiLavorativiData(
     return () => {
       isActive = false
     }
-  }, [selectedRapporto])
+    // Depend on `selectedRapporto?.id`, NOT on the object reference. The
+    // detail panel's onRapportoUpdated callback calls setSelectedRapporto
+    // with a merged copy of the saved row after every save — same id, new
+    // reference. If we depended on the reference, every save would re-fire
+    // this effect, which starts by nulling out famiglia/lavoratore and
+    // refetching them: while the refetch is in flight the title falls back
+    // to "Famiglia senza nome – Lavoratore non associato" and flashes the
+    // user. famiglia_id / lavoratore_id / fine_rapporto_lavorativo_id and
+    // the proper-name fields the body reads are stable for a given
+    // rapporto-id (they are not changed by the detail-panel patches), so
+    // pinning the dep to the id is correct.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRapporto?.id])
 
   const ensureRelatedSectionLoaded = React.useCallback(
     async (sectionId: string) => {
@@ -864,5 +931,6 @@ export function useRapportiLavorativiData(
     ensureRelatedSectionLoaded,
     lookupColorsByDomain,
     createTicketForSelectedRapporto,
+    updateSelectedRapporto,
   }
 }

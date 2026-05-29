@@ -190,6 +190,18 @@ function formatDateTime(value: string | null | undefined) {
   }).format(parsed)
 }
 
+function formatDateOnly(value: string | null | undefined) {
+  if (!value) return "Non disponibile"
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(parsed)
+}
+
 function toInputDateValue(value: string | null | undefined) {
   if (!value) return ""
   return value.slice(0, 10)
@@ -299,10 +311,52 @@ function withCurrentPresenceOption(options: PresenceSelectOption[], currentValue
   ]
 }
 
-function buildPresenceDayRows(record: PayrollBoardCardData["presenze"]): PresenceDayRow[] {
+const WEEKDAY_LETTERS_IT = ["D", "L", "M", "M", "G", "V", "S"] as const
+
+function getWeekdayLetter(yearMonth: string | null | undefined, day: number): string {
+  if (!yearMonth) return ""
+  const year = Number(yearMonth.slice(0, 4))
+  const month = Number(yearMonth.slice(5, 7))
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return ""
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (Number.isNaN(date.getTime())) return ""
+  return WEEKDAY_LETTERS_IT[date.getUTCDay()]
+}
+
+function getPresenceRegolariHours(
+  record: PayrollBoardCardData["presenzeRegolari"],
+  day: number,
+): string {
+  if (!record) return ""
+  const raw = record[`ore_day_${day}`]
+  if (raw === null || raw === undefined) return ""
+  return String(raw).trim()
+}
+
+function getDayTypeLabel(type: string): string {
+  if (!type) return ""
+  return PRESENCE_DAY_TYPE_OPTIONS.find((o) => o.value === type)?.label ?? type
+}
+
+function getDaysInMonth(meseDataFine: string | null | undefined): number {
+  // data_fine looks like "2026-05-31" → 31, "2026-02-28" → 28. Falls back to
+  // 31 so we never under-show days when the field is missing or malformed.
+  if (!meseDataFine) return 31
+  const parsed = new Date(meseDataFine)
+  if (Number.isNaN(parsed.getTime())) return 31
+  return parsed.getUTCDate()
+}
+
+function buildPresenceDayRows(
+  record: PayrollBoardCardData["presenze"],
+  daysInMonth: number = 31,
+): PresenceDayRow[] {
   if (!record) return []
 
-  return Array.from({ length: 31 }, (_, index) => {
+  // Show every day of the month, even when all its fields are empty —
+  // otherwise the row "disappears" the moment the user clears tipo/ore/etc.
+  // and they have no way to enter the day back without page refresh.
+  return Array.from({ length: daysInMonth }, (_, index) => {
     const day = index + 1
     const type = String(record[`tipo_day_${day}`] ?? "").trim()
     const hours = String(record[`ore_day_${day}`] ?? "").trim()
@@ -318,17 +372,53 @@ function buildPresenceDayRows(record: PayrollBoardCardData["presenze"]): Presenc
       sicknessCode,
       note,
     }
-  }).filter((row) => row.type || row.hours || row.event || row.sicknessCode || row.note)
+  })
 }
 
-function sumPresenceHours(record: PayrollBoardCardData["presenzeRegolari"]): number | null {
+function sumPresenceHours(
+  record: PayrollBoardCardData["presenzeRegolari"],
+  range?: { startDay: number; endDay: number } | null,
+): number | null {
   if (!record) return null
 
-  return Array.from({ length: 31 }).reduce<number>((total, _, index) => {
-    const day = index + 1
+  const startDay = range?.startDay ?? 1
+  const endDay = range?.endDay ?? 31
+  if (endDay < startDay) return 0
+
+  let total = 0
+  for (let day = startDay; day <= endDay; day += 1) {
     const value = Number(record[`ore_day_${day}`])
-    return Number.isFinite(value) ? total + value : total
-  }, 0)
+    if (Number.isFinite(value)) total += value
+  }
+  return total
+}
+
+function getPayrollDayRange(
+  mese: { data_inizio: string | null; data_fine: string | null } | null | undefined,
+  rapporto: { data_inizio_rapporto?: string | null; data_fine_rapporto?: string | null } | null | undefined,
+): { startDay: number; endDay: number } | null {
+  const meseInizio = mese?.data_inizio
+  const meseFine = mese?.data_fine
+  if (!meseInizio || !meseFine) return null
+
+  const monthKey = meseInizio.slice(0, 7)
+  let startDay = Number(meseInizio.slice(8, 10))
+  let endDay = Number(meseFine.slice(8, 10))
+  if (!Number.isFinite(startDay) || !Number.isFinite(endDay)) return null
+
+  const dataInizioRapporto = rapporto?.data_inizio_rapporto
+  if (dataInizioRapporto && dataInizioRapporto.slice(0, 7) === monthKey) {
+    const day = Number(dataInizioRapporto.slice(8, 10))
+    if (Number.isFinite(day) && day > startDay) startDay = day
+  }
+
+  const dataFineRapporto = rapporto?.data_fine_rapporto
+  if (dataFineRapporto && dataFineRapporto.slice(0, 7) === monthKey) {
+    const day = Number(dataFineRapporto.slice(8, 10))
+    if (Number.isFinite(day) && day < endDay) endDay = day
+  }
+
+  return { startDay, endDay }
 }
 
 function formatHoursValue(value: unknown) {
@@ -346,10 +436,10 @@ function PresenceBadge({ isRegular }: { isRegular: boolean }) {
         "rounded-full px-3",
         isRegular
           ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
-          : "bg-amber-100 text-amber-700 hover:bg-amber-100"
+          : "bg-red-100 text-red-700 hover:bg-red-100"
       )}
     >
-      {isRegular ? "Presenze regolari" : "Presenze da verificare"}
+      {isRegular ? "Presenze regolari" : "Presenze irregolari"}
     </Badge>
   )
 }
@@ -416,6 +506,10 @@ function getColumnVisual(color: string): KanbanColumnVisual {
 function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
   const [famiglia, lavoratore] = card.nomeCompleto.split(" – ")
   const isPaid = card.stage === "Pagato" || card.pagamento?.status === "succeeded"
+  const ratingValue =
+    typeof card.record.rating_feedback_famiglia === "number" && card.record.rating_feedback_famiglia > 0
+      ? Math.max(0, Math.min(5, Math.round(card.record.rating_feedback_famiglia)))
+      : 0
 
   return (
     <Card className="border border-border/70 bg-surface py-0 transition-shadow hover:shadow-md">
@@ -434,17 +528,19 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
           ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          <Badge
-            variant="secondary"
-            className={cn(
-              "gap-1 rounded-full px-2.5 py-0.5 text-2xs",
-              getCedolinoTypeClassName(card.record.caso_particolare)
-            )}
-          >
-            <CircleCheckBigIcon className="size-3" />
-            <span>{getCedolinoTypeLabel(card.record.caso_particolare)}</span>
-          </Badge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {normalizeCaseFlag(card.record.caso_particolare) !== "no" ? (
+            <Badge
+              variant="secondary"
+              className={cn(
+                "gap-1 rounded-full px-2.5 py-0.5 text-2xs",
+                getCedolinoTypeClassName(card.record.caso_particolare)
+              )}
+            >
+              <CircleCheckBigIcon className="size-3" />
+              <span>{getCedolinoTypeLabel(card.record.caso_particolare)}</span>
+            </Badge>
+          ) : null}
           {isPaid ? (
             <Badge
               variant="secondary"
@@ -453,6 +549,36 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
               <CircleCheckBigIcon className="size-3" />
               <span>Pagato</span>
             </Badge>
+          ) : null}
+          <Badge
+            variant="secondary"
+            className={cn(
+              "gap-1 rounded-full px-2.5 py-0.5 text-2xs",
+              card.presenzeIrregolari
+                ? "bg-red-100 text-red-700 hover:bg-red-100"
+                : "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+            )}
+          >
+            <span>{card.presenzeIrregolari ? "Presenze irregolari" : "Presenze regolari"}</span>
+          </Badge>
+          {ratingValue > 0 ? (
+            <div
+              className="ml-auto flex items-center gap-0.5"
+              title={card.record.testo_feedback_famiglia ?? `Rating famiglia: ${ratingValue}/5`}
+              aria-label={`Rating famiglia ${ratingValue} su 5`}
+            >
+              {Array.from({ length: 5 }).map((_, index) => (
+                <StarIcon
+                  key={index}
+                  className={cn(
+                    "size-3.5",
+                    index < ratingValue
+                      ? "fill-amber-400 text-amber-400"
+                      : "text-muted-foreground/30"
+                  )}
+                />
+              ))}
+            </div>
           ) : null}
         </div>
       </CardContent>
@@ -480,9 +606,11 @@ export function CedolinoDetailSheet({
   const famiglia = card?.famiglia
   const pagamento = card?.pagamento
   const transazione = card?.transazione
-  const presenceRows = React.useMemo(() => buildPresenceDayRows(card?.presenze ?? null), [card?.presenze])
+  const presenceRows = React.useMemo(
+    () => buildPresenceDayRows(card?.presenze ?? null, getDaysInMonth(card?.mese?.data_fine)),
+    [card?.presenze, card?.mese?.data_fine],
+  )
   const rapporto = card?.rapporto
-  const statoServizio = rapporto?.stato_servizio || "Non disponibile"
   const lastWorkingDay = React.useMemo<number | null>(() => {
     const dataFine = rapporto?.data_fine_rapporto
     const meseInizio = card?.mese?.data_inizio
@@ -491,18 +619,39 @@ export function CedolinoDetailSheet({
     const day = Number(dataFine.slice(8, 10))
     return Number.isFinite(day) ? day : null
   }, [rapporto?.data_fine_rapporto, card?.mese?.data_inizio])
-  const isRegularPresence = Boolean(card?.record.presenze_regolare_id)
+  const isRegularPresence = React.useMemo(() => {
+    const presenze = card?.presenze
+    if (!presenze) return !(card?.presenzeIrregolari ?? false)
+    for (let day = 1; day <= 31; day += 1) {
+      const value = presenze[`evento_day_${day}`]
+      if (value !== null && value !== undefined && String(value).trim() !== "") {
+        return false
+      }
+    }
+    return true
+  }, [card?.presenze, card?.presenzeIrregolari])
   const paymentStatus = pagamento?.status ?? "Pagamento non ancora registrato"
   const paymentAmount = pagamento?.amount ?? card?.record.importo_busta_estratto ?? null
-  const paymentFee = pagamento?.fee ?? null
+  const feeConcordata = card?.richiestaAttivazione?.fee_concordata ?? null
   const makeTransactionUrl = transazione?.id
     ? `${MAKE_TRANSACTION_WEBHOOK_URL}?recordId=${encodeURIComponent(transazione.id)}`
     : null
-  const actualPresenceHours = React.useMemo(
-    () => sumPresenceHours(card?.presenze ?? null),
-    [card?.presenze]
+  const payrollDayRange = React.useMemo(
+    () => getPayrollDayRange(card?.mese ?? null, rapporto ?? null),
+    [card?.mese, rapporto]
   )
-  const workedHours = card?.record.ore_lavorate_estratte ?? actualPresenceHours
+  const contractHours = React.useMemo(
+    () => sumPresenceHours(card?.presenzeRegolari ?? null, payrollDayRange),
+    [card?.presenzeRegolari, payrollDayRange]
+  )
+  const workedHours = React.useMemo(
+    () => sumPresenceHours(card?.presenze ?? null, payrollDayRange),
+    [card?.presenze, payrollDayRange]
+  )
+  const hoursToPay = React.useMemo(() => {
+    if (contractHours === null && workedHours === null) return null
+    return Math.max(contractHours ?? 0, workedHours ?? 0)
+  }, [contractHours, workedHours])
   const [runningAutomationId, setRunningAutomationId] = React.useState<string | null>(null)
   const [uploadingCedolino, setUploadingCedolino] = React.useState(false)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
@@ -650,7 +799,7 @@ export function CedolinoDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
         <SheetHeader className="border-b bg-surface px-5 py-5">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <SheetTitle className="truncate text-xl font-semibold">
               {card?.nomeCompleto ?? "Dettaglio cedolino"}
             </SheetTitle>
@@ -663,13 +812,30 @@ export function CedolinoDetailSheet({
                 <span>{card.mese?.mese_lavorativo_copy ?? formatMonthLabel(card.mese?.data_inizio?.slice(0, 7) ?? "")}</span>
               </div>
             ) : null}
+            {card ? (
+              <Select
+                value={card.stage}
+                onValueChange={(nextValue) => onStageChange(card.id, nextValue)}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {columns.map((column) => (
+                    <SelectItem key={column.id} value={column.id}>
+                      {column.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
           </div>
         </SheetHeader>
 
         {card ? (
           <section className="h-full overflow-y-auto bg-surface-muted px-5 py-5">
             <div className="mx-auto max-w-5xl space-y-5">
-              <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} status={statoServizio} />
+              <LinkedRapportoSummaryCard title={card.nomeCompleto} rapporto={rapporto ?? null} />
 
               <DetailSectionBlock
                 title="Dettagli rapporto"
@@ -679,14 +845,21 @@ export function CedolinoDetailSheet({
               >
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <p className="ui-type-label">Stato del servizio</p>
-                    <Badge variant="secondary" className="w-fit rounded-full px-3">
-                      {statoServizio}
-                    </Badge>
+                    <p className="ui-type-label">Data creazione rapporto</p>
+                    <p className="font-medium">{formatDateOnly(rapporto?.creata ?? card.record.data_ora_creazione)}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="ui-type-label">Data creazione rapporto</p>
-                    <p className="font-medium">{formatDateTime(rapporto?.creata ?? card.record.data_ora_creazione)}</p>
+                    <p className="ui-type-label">Data fine rapporto</p>
+                    {rapporto?.data_fine_rapporto ? (
+                      <p className="font-medium">{formatDateOnly(rapporto.data_fine_rapporto)}</p>
+                    ) : (
+                      <Badge
+                        variant="secondary"
+                        className="w-fit rounded-full bg-emerald-100 px-3 text-emerald-700 hover:bg-emerald-100"
+                      >
+                        In corso
+                      </Badge>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <p className="ui-type-label">Nome</p>
@@ -697,10 +870,6 @@ export function CedolinoDetailSheet({
                     <p className="font-medium">{famiglia?.email ?? famiglia?.customer_email ?? "Non disponibile"}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="ui-type-label">ID</p>
-                    <p className="font-medium">{rapporto?.id_rapporto ?? rapporto?.id ?? "Non disponibile"}</p>
-                  </div>
-                  <div className="space-y-2">
                     <p className="ui-type-label">Codice Datore Webcolf</p>
                     <p className="font-medium">{rapporto?.codice_datore_webcolf ?? "Non disponibile"}</p>
                   </div>
@@ -708,12 +877,6 @@ export function CedolinoDetailSheet({
                     <p className="ui-type-label">Codice Lavoratore Webcolf</p>
                     <p className="font-medium">{rapporto?.codice_dipendente_webcolf ?? "Non disponibile"}</p>
                   </div>
-                  {rapporto?.data_fine_rapporto ? (
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Data fine rapporto</p>
-                      <p className="font-medium">{formatDateTime(rapporto.data_fine_rapporto)}</p>
-                    </div>
-                  ) : null}
                   <div className="space-y-2">
                     <label className="ui-type-label">Data invio famiglia</label>
                     <DebouncedInput
@@ -778,25 +941,6 @@ export function CedolinoDetailSheet({
                 })()}
                 contentClassName="space-y-5"
               >
-                <div className="space-y-2">
-                  <p className="ui-type-label">Stato cedolino</p>
-                  <Select
-                    value={card.stage}
-                    onValueChange={(nextValue) => onStageChange(card.id, nextValue)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {columns.map((column) => (
-                        <SelectItem key={column.id} value={column.id}>
-                          {column.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <AttachmentUploadSlot
                   label="Cedolino"
                   value={normalizeAttachmentValue(card.record.cedolino)}
@@ -860,7 +1004,7 @@ export function CedolinoDetailSheet({
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
                     <p className="ui-type-label">Ore da contratto</p>
-                    <p className="font-medium">{card.record.ore_contratto_mese ?? "Non disponibile"}</p>
+                    <p className="font-medium">{formatHoursValue(contractHours)}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="ui-type-label">Ore svolte</p>
@@ -907,6 +1051,28 @@ export function CedolinoDetailSheet({
                 contentClassName="space-y-5"
               >
                 <div className="space-y-5">
+                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Totale ore da pagare</p>
+                      <p className="font-medium">{formatHoursValue(hoursToPay)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Fee concordata</p>
+                      <p className="font-medium">{formatCurrencyAmount(feeConcordata)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Application fee</p>
+                      <p className="font-medium">
+                        {feeConcordata !== null && hoursToPay !== null
+                          ? formatCurrencyAmount(feeConcordata * hoursToPay)
+                          : formatCurrencyAmount(null)}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Importo cedolino</p>
+                      <p className="font-medium">{formatCurrencyAmount(paymentAmount)}</p>
+                    </div>
+                  </div>
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-2">
                       <p className="ui-type-label">Transazione</p>
@@ -925,14 +1091,6 @@ export function CedolinoDetailSheet({
                       <Badge variant="secondary" className="w-fit rounded-full px-3">
                         {paymentStatus}
                       </Badge>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Importo cedolino</p>
-                      <p className="font-medium">{formatCurrencyAmount(paymentAmount)}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="ui-type-label">Application fee</p>
-                      <p className="font-medium">{formatCurrencyAmount(paymentFee)}</p>
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Tipo pagamento</p>
@@ -1034,31 +1192,16 @@ export function CedolinoDetailSheet({
                 icon={<BadgeCheckIcon className="text-muted-foreground size-5" />}
                 contentClassName="space-y-5"
               >
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="ui-type-label">Presenze regolari?</span>
-                  <PresenceBadge isRegular={isRegularPresence} />
-                </div>
-
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <p className="ui-type-label">Presenze</p>
-                    <div className="rounded-xl border bg-surface p-4">
-                      <p className="truncate font-medium">{card.nomeCompleto}</p>
-                      <div className="text-muted-foreground mt-2 grid gap-2 text-sm sm:grid-cols-2">
-                        <div>
-                          <p className="text-xs uppercase tracking-wide">Totale ore da pagare</p>
-                          <p className="mt-1">{card.presenze?.presenze_mensili ?? card.record.ore_lavorate_estratte ?? "Non disponibile"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-wide">Data creazione</p>
-                          <p className="mt-1">{formatDateTime(card.presenze?.data_ora_creazione ?? card.record.data_ora_creazione)}</p>
-                        </div>
-                      </div>
-                    </div>
+                <div className="flex flex-wrap items-center gap-6">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="ui-type-label">Presenze regolari?</span>
+                    <PresenceBadge isRegular={isRegularPresence} />
                   </div>
-                  <div className="space-y-2">
-                    <p className="ui-type-label">Totale ore da pagare</p>
-                    <p className="font-medium">{card.presenze?.presenze_mensili ?? card.record.ore_lavorate_estratte ?? "Non disponibile"}</p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="ui-type-label">Distribuzione ore settimanali</span>
+                    <span className="font-mono text-sm">
+                      {rapporto?.distribuzione_ore_settimana ?? "—"}
+                    </span>
                   </div>
                 </div>
 
@@ -1069,8 +1212,10 @@ export function CedolinoDetailSheet({
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-14">G.</TableHead>
+                            <TableHead className="w-10">GG</TableHead>
                             <TableHead className="w-28">Tipo</TableHead>
                             <TableHead className="w-16">Ore</TableHead>
+                            <TableHead className="w-16">Ore r.</TableHead>
                             <TableHead className="min-w-40">Evento</TableHead>
                             <TableHead className="w-20">PNR</TableHead>
                             <TableHead>Note</TableHead>
@@ -1089,30 +1234,11 @@ export function CedolinoDetailSheet({
                               }
                             >
                               <TableCell className="font-mono text-xs">{row.day}</TableCell>
-                              <TableCell>
-                                <Select
-                                  value={row.type || EMPTY_PRESENCE_SELECT_VALUE}
-                                  onValueChange={(value) =>
-                                    card.presenze
-                                      ? onPatchPresence(card.presenze.id, {
-                                          [`tipo_day_${row.day}`]:
-                                            value === EMPTY_PRESENCE_SELECT_VALUE ? null : value,
-                                        })
-                                      : undefined
-                                  }
-                                >
-                                  <SelectTrigger className={cn(PRESENCE_SELECT_TRIGGER_CLASS, "w-40")}>
-                                    <SelectValue placeholder="Tipo" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value={EMPTY_PRESENCE_SELECT_VALUE}>Nessuno</SelectItem>
-                                    {withCurrentPresenceOption(PRESENCE_DAY_TYPE_OPTIONS, row.type).map((option) => (
-                                      <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                              <TableCell className="text-muted-foreground font-mono text-xs">
+                                {getWeekdayLetter(card.mese?.data_inizio, row.day)}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-sm">
+                                {getDayTypeLabel(row.type) || "—"}
                               </TableCell>
                               <TableCell>
                                 <DebouncedInput
@@ -1126,6 +1252,9 @@ export function CedolinoDetailSheet({
                                     })
                                   }}
                                 />
+                              </TableCell>
+                              <TableCell className="text-muted-foreground font-mono text-xs">
+                                {getPresenceRegolariHours(card.presenzeRegolari, row.day) || "—"}
                               </TableCell>
                               <TableCell>
                                 <Select
@@ -1315,11 +1444,19 @@ function DetailSheetSkeleton() {
 
 function CedoliniPayrollView() {
   const [selectedMonth, setSelectedMonth] = React.useState(getCurrentMonthValue)
-  const { loading, error, columns, moveCard, patchCard, patchPresence } = usePayrollBoard(selectedMonth)
+  const {
+    loading,
+    error,
+    columns,
+    moveCard,
+    patchCard,
+    patchPresence,
+    enrichCardFromDetail,
+    detailRefreshTick,
+  } = usePayrollBoard(selectedMonth)
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
-  const [selectedCard, setSelectedCard] = React.useState<PayrollBoardCardData | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
 
   const filteredColumns = React.useMemo(() => {
@@ -1376,42 +1513,40 @@ function CedoliniPayrollView() {
     [columns, selectedCardId]
   )
 
-  // Re-run on `selectedCardFromColumns` (not just its id) so a realtime board
-  // refetch — which produces a new card object with the same id — also
-  // refreshes the detail. Blank only when actually switching cards, otherwise
-  // keep the current detail visible and update in the background.
-  const previousSelectedCardIdRef = React.useRef<string | null>(null)
+  // Detail loader: fetch enriched fields and inject them into the BOARD
+  // cache via enrichCardFromDetail (same shape as CRM pipeline Pattern A).
+  // The detail panel binds to `selectedCardFromColumns` (board cache), so
+  // optimistic patches from onPatchCard / onPatchPresence flow directly to
+  // the UI without a separate React state to race against.
+  //
+  // Triggers:
+  // - selectedCardId change → card switch, fetch fresh detail.
+  // - detailRefreshTick increment → a remote realtime change arrived
+  //   (after the echo-window guard, so this is NOT our own echo). Pattern
+  //   A's preserveDetailFields keeps the local previous presenze during
+  //   board refetch, so without re-fetching the detail here a remote
+  //   change to presenze (tipo_day_X, ore_day_X, evento_day_X, note_day_X)
+  //   would stay invisible until page reload.
   React.useEffect(() => {
-    if (!selectedCardId) {
-      setSelectedCard(null)
-      previousSelectedCardIdRef.current = null
-      return
-    }
-    if (!selectedCardFromColumns) return
-
-    const isSwitchingCard = previousSelectedCardIdRef.current !== selectedCardId
-    previousSelectedCardIdRef.current = selectedCardId
-
+    if (!selectedCardId) return
     let isActive = true
     const currentCardId = selectedCardId
-    const currentCard = selectedCardFromColumns
-    if (isSwitchingCard) setSelectedCard(null)
 
     async function loadSelectedCard() {
       try {
         const detail = await fetchCedolinoDetail(currentCardId)
         if (!isActive || !detail || !detail.record) return
 
-        setSelectedCard({
-          ...currentCard,
+        enrichCardFromDetail(currentCardId, {
           record: detail.record as PayrollBoardCardData["record"],
-          rapporto: (detail.rapporto as PayrollBoardCardData["rapporto"]) ?? currentCard.rapporto,
-          famiglia: (detail.famiglia as PayrollBoardCardData["famiglia"]) ?? currentCard.famiglia,
-          mese: (detail.mese as PayrollBoardCardData["mese"]) ?? currentCard.mese,
-          presenze: (detail.presenze as PayrollBoardCardData["presenze"]) ?? currentCard.presenze,
+          rapporto: detail.rapporto as PayrollBoardCardData["rapporto"],
+          famiglia: detail.famiglia as PayrollBoardCardData["famiglia"],
+          mese: detail.mese as PayrollBoardCardData["mese"],
+          presenze: detail.presenze as PayrollBoardCardData["presenze"],
           presenzeRegolari:
-            (detail.presenzeRegolari as PayrollBoardCardData["presenzeRegolari"]) ??
-            currentCard.presenzeRegolari,
+            detail.presenzeRegolari as PayrollBoardCardData["presenzeRegolari"],
+          richiestaAttivazione:
+            detail.richiestaAttivazione as PayrollBoardCardData["richiestaAttivazione"],
         })
       } catch (error) {
         if (!isActive) return
@@ -1424,7 +1559,7 @@ function CedoliniPayrollView() {
     return () => {
       isActive = false
     }
-  }, [selectedCardFromColumns, selectedCardId])
+  }, [selectedCardId, enrichCardFromDetail, detailRefreshTick])
 
   const monthSwitcher = (
     <div className="flex items-center gap-2">
@@ -1515,7 +1650,6 @@ function CedoliniPayrollView() {
                   draggingRecordId={draggingRecordId}
                   isDropTarget={dropTargetColumnId === column.id}
                   onOpenCard={(cardId) => {
-                    setSelectedCard(null)
                     setSelectedCardId(cardId)
                   }}
                   onDragStartCard={setDraggingRecordId}
@@ -1548,13 +1682,12 @@ function CedoliniPayrollView() {
         // (useDebouncedSave's hasUserEditedRef) instead of carrying it across
         // to a different cedolino.
         key={selectedCardId ?? "__empty__"}
-        card={selectedCard}
+        card={selectedCardFromColumns}
         columns={columns}
         open={Boolean(selectedCardId)}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedCardId(null)
-            setSelectedCard(null)
           }
         }}
         onStageChange={(recordId, targetStageId) => {
@@ -1562,11 +1695,6 @@ function CedoliniPayrollView() {
         }}
         onPatchCard={(recordId, patch) => {
           void patchCard(recordId, patch)
-          setSelectedCard((current) =>
-            current?.id === recordId
-              ? { ...current, record: { ...current.record, ...patch } }
-              : current
-          )
         }}
         onPatchPresence={(recordId, patch) => {
           void patchPresence(recordId, patch)

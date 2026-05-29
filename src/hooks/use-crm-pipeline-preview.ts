@@ -2047,6 +2047,11 @@ export function useCrmPipelinePreview(
     [columns, setBoardData]
   )
 
+  // Serialize concurrent address-create calls per process so that field
+  // patches firing before the first INSERT returns don't each create a
+  // new `indirizzi` row.
+  const pendingAddressCreateRef = React.useRef<Map<string, Promise<string | null>>>(new Map())
+
   const updateAddressCard = React.useCallback(
     async (
       processId: string,
@@ -2102,13 +2107,31 @@ export function useCrmPipelinePreview(
           return
         }
 
-        const response = await createRecord("indirizzi", {
+        const pending = pendingAddressCreateRef.current.get(processId)
+        if (pending) {
+          const existingId = await pending
+          if (existingId) {
+            await updateRecord("indirizzi", existingId, patch)
+            return
+          }
+        }
+
+        const createPromise = createRecord("indirizzi", {
           entita_tabella: "processi_matching",
           entita_id: processId,
           tipo_indirizzo: "luogo",
           ...patch,
-        })
-        const createdAddressId = toStringValue(response.row.id)
+        }).then((response) => toStringValue(response.row.id))
+
+        pendingAddressCreateRef.current.set(processId, createPromise)
+        let createdAddressId: string | null = null
+        try {
+          createdAddressId = await createPromise
+        } finally {
+          if (pendingAddressCreateRef.current.get(processId) === createPromise) {
+            pendingAddressCreateRef.current.delete(processId)
+          }
+        }
         if (!createdAddressId) return
 
         setBoardData((prev) => {

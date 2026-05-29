@@ -16,6 +16,7 @@ import {
   PhoneIcon,
   RefreshCwIcon,
   ShieldAlertIcon,
+  StarIcon,
   TriangleAlertIcon,
   UserIcon,
   UsersIcon,
@@ -114,6 +115,14 @@ type RapportoDetailPanelProps = {
     causale: string
     note: string
   }) => Promise<void>
+  // Called after a successful contratto save with the fresh row returned by
+  // update-record. The parent uses this to keep `selectedRapporto` and the
+  // board cache aligned with what's now in the DB, so the prop the panel
+  // receives next render is no longer stale relative to local state. Without
+  // this callback, the parent's `selectedRapporto` would remain at the
+  // pre-save snapshot and any draft resync against the prop would clobber
+  // the just-saved value.
+  onRapportoUpdated?: (updatedRapporto: RapportoLavorativoRecord) => void
   hideHeader?: boolean
 }
 
@@ -649,6 +658,7 @@ export function RapportoDetailPanel({
   lookupColorsByDomain,
   onSectionActive,
   onCreateTicket,
+  onRapportoUpdated,
   hideHeader = false,
 }: RapportoDetailPanelProps) {
   const detailScrollRef = React.useRef<HTMLElement | null>(null)
@@ -679,11 +689,21 @@ export function RapportoDetailPanel({
     const isDifferentRapporto = previousRapportoIdRef.current !== nextRapportoId
     previousRapportoIdRef.current = nextRapportoId
 
+    // Same rapporto: do NOT resync local state from the prop here. The prop
+    // (`rapporto`) is owned by `useRapportiLavorativiData` and is not
+    // refetched after our own `updateRecord` calls, so for some time after
+    // a save it is strictly older than `rapportoState` (which holds the
+    // edge function's `response.row`). Clobbering `rapportoState` /
+    // `rapportoDraft` with the prop on `editingSection` toggling — the
+    // exact moment the user clicks the pencil to leave edit mode — used to
+    // wipe just-saved values from the UI (e.g. Cod. rapporto / Cod.
+    // lavoratore Webcolf). The parent is now informed via
+    // `onRapportoUpdated`, so by the time the prop changes for the same id
+    // it is already aligned with local state.
+    //
+    // Different rapporto id: full reset (in practice the parent unmounts us
+    // via `key={selectedRapportoId}`, but we keep this branch defensively).
     if (!isDifferentRapporto) {
-      if (editingSection === null) {
-        setRapportoState(rapporto)
-        setRapportoDraft(buildRapportoDraft(rapporto))
-      }
       return
     }
 
@@ -691,6 +711,11 @@ export function RapportoDetailPanel({
     setSelectedCedolinoId(null)
     setSelectedContributoId(null)
     setSelectedTicket(null)
+    // Initialization for a new rapporto-id, not a realtime echo: this
+    // branch only runs on actual id transition, which the parent already
+    // funnels through a remount via `key={selectedRapportoId}`. Safe to
+    // rebuild the draft here — there is no in-progress edit to clobber
+    // (editingSection is reset to null on the next line).
     setRapportoDraft(buildRapportoDraft(rapporto))
     setEditingSection(null)
     setSavingContratto(false)
@@ -699,7 +724,12 @@ export function RapportoDetailPanel({
       window.clearTimeout(autosaveTimeoutRef.current)
       autosaveTimeoutRef.current = null
     }
-  }, [editingSection, rapporto])
+    // NOTE: `editingSection` is deliberately omitted from the dep array.
+    // This effect must only run on rapporto-id transitions, never on
+    // edit-mode toggles. Keeping it in the deps was the original source of
+    // the "fields disappear on save" bug (e.g. Cod. rapporto Webcolf would
+    // be wiped after persistContrattoChanges completed).
+  }, [rapporto])
 
   React.useEffect(() => {
     const container = detailScrollRef.current
@@ -803,12 +833,16 @@ export function RapportoDetailPanel({
           const response = await updateRecord("rapporti_lavorativi", rapportoRecord.id, {
             metadati_migrazione: nextMetadata,
           })
-          setRapportoState(response.row as RapportoLavorativoRecord)
+          const updatedRow = response.row as RapportoLavorativoRecord
+          setRapportoState(updatedRow)
+          onRapportoUpdated?.(updatedRow)
         } else {
           const response = await updateRecord("rapporti_lavorativi", rapportoRecord.id, {
             [slot]: [...normalizeAttachmentArray(rapportoRecord[slot]), payload],
           })
-          setRapportoState(response.row as RapportoLavorativoRecord)
+          const updatedRow = response.row as RapportoLavorativoRecord
+          setRapportoState(updatedRow)
+          onRapportoUpdated?.(updatedRow)
         }
       } catch (caughtError) {
         setUploadError(
@@ -818,7 +852,7 @@ export function RapportoDetailPanel({
         setUploadingSlot(null)
       }
     },
-    [rapporto, rapportoState]
+    [rapporto, rapportoState, onRapportoUpdated]
   )
 
   const setDraftValue = React.useCallback(
@@ -913,10 +947,15 @@ export function RapportoDetailPanel({
 
     try {
       const response = await updateRecord("rapporti_lavorativi", currentRapporto.id, patch)
+      const updatedRow = response.row as RapportoLavorativoRecord
       setRapportoState((previous) => ({
         ...((previous ?? currentRapporto) as RapportoLavorativoRecord),
-        ...response.row,
+        ...updatedRow,
       }))
+      // Push the fresh row back up so the parent's `selectedRapporto` and
+      // the board cache stop being stale relative to local state. See the
+      // long comment on the `[rapporto]` effect above for why this matters.
+      onRapportoUpdated?.(updatedRow)
     } catch (caughtError) {
       // Senza questo catch, un updateRecord fallito lasciava lo stato
       // ottimistico applicato (UI mostrava il valore come "salvato") senza
@@ -938,7 +977,7 @@ export function RapportoDetailPanel({
     } finally {
       setSavingContratto(false)
     }
-  }, [currentRapporto, getChangedContrattoPatch])
+  }, [currentRapporto, getChangedContrattoPatch, onRapportoUpdated])
 
   const persistContrattoChangesRef = React.useRef(persistContrattoChanges)
   React.useEffect(() => {
@@ -970,7 +1009,17 @@ export function RapportoDetailPanel({
         endPendingWrite()
       }
     }
-  }, [editingSection, getChangedContrattoPatch])
+    // `rapportoDraft` MUST be in deps even though the body reads the patch via
+    // `getChangedContrattoPatch()` (which derives from `rapportoDraftRef.current`).
+    // Without it the effect only re-runs when `editingSection` toggles or when
+    // `getChangedContrattoPatch` reidentifies (i.e. when `currentRapporto`
+    // changes) — so a user typing into a field while in edit mode never
+    // re-arms the debounce timer and the autosave silently never fires. The
+    // user has to click the pencil-to-close as the only path that actually
+    // calls `persistContrattoChanges`. Including `rapportoDraft` makes every
+    // keystroke clear+set the timer; pendingWriteCount stays balanced because
+    // begin/end are always paired in cleanup.
+  }, [editingSection, getChangedContrattoPatch, rapportoDraft])
 
   React.useEffect(() => {
     return () => {
@@ -1077,6 +1126,17 @@ export function RapportoDetailPanel({
       presenzeRegolari,
       rapporto: rapportoView,
       mese: meseCalendario,
+      richiestaAttivazione: richiestaAttivazione
+        ? { id: richiestaAttivazione.id, fee_concordata: richiestaAttivazione.fee_concordata ?? null }
+        : null,
+      presenzeIrregolari: (() => {
+        if (!presenzeMese) return false
+        for (let day = 1; day <= 31; day += 1) {
+          const value = (presenzeMese as Record<string, unknown>)[`evento_day_${day}`]
+          if (value !== null && value !== undefined && String(value).trim() !== "") return true
+        }
+        return false
+      })(),
       nomeCompleto,
       importoLabel: typeof mese.importo_busta_estratto === "number" ? formatCurrency(mese.importo_busta_estratto) : null,
       dataInvioLabel: mese.data_invio_famiglia ? formatDate(mese.data_invio_famiglia) : null,
@@ -1325,6 +1385,11 @@ export function RapportoDetailPanel({
                         onChange={(event) => setDraftValue("codice_dipendente_webcolf", event.target.value)}
                       />
                     </DetailFieldControl>
+                    {/* ID rapporto INPS is populated by external workflows
+                        (e.g. assunzione automation) and must never be edited
+                        by hand from this panel — render it read-only even
+                        inside the edit mode grid. */}
+                    <DetailField label="ID rapporto INPS" value={rapportoView.id_rapporto ?? "-"} />
                   </div>
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -1342,6 +1407,7 @@ export function RapportoDetailPanel({
                           : "-"
                       }
                     />
+                    <DetailField label="ID rapporto INPS" value={rapportoView.id_rapporto ?? "-"} />
                   </div>
                 )}
               </div>
@@ -1653,6 +1719,10 @@ export function RapportoDetailPanel({
                   const meseCalendario = mese.mese_id ? meseCalendarioById.get(mese.mese_id) ?? null : null
                   const pagamento = mese.ticket_id ? pagamentiByTicketId.get(mese.ticket_id) ?? null : null
                   const presenzeMese = mese.presenze_id ? presenzeById.get(mese.presenze_id) ?? null : null
+                  const ratingValue =
+                    typeof mese.rating_feedback_famiglia === "number" && mese.rating_feedback_famiglia > 0
+                      ? Math.max(0, Math.min(5, Math.round(mese.rating_feedback_famiglia)))
+                      : 0
 
                   return (
                     <ListRowCard
@@ -1667,11 +1737,32 @@ export function RapportoDetailPanel({
                         .join(" • ")}
                       rightBadge={mese.stato_mese_lavorativo ?? undefined}
                       trailing={
-                        <span className="text-xs font-semibold whitespace-nowrap">
-                          {typeof mese.importo_busta_estratto === "number"
-                            ? formatCurrency(mese.importo_busta_estratto)
-                            : "-"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {ratingValue > 0 ? (
+                            <div
+                              className="flex items-center gap-0.5"
+                              title={mese.testo_feedback_famiglia ?? `Rating famiglia: ${ratingValue}/5`}
+                              aria-label={`Rating famiglia ${ratingValue} su 5`}
+                            >
+                              {Array.from({ length: 5 }).map((_, index) => (
+                                <StarIcon
+                                  key={index}
+                                  className={cn(
+                                    "size-3.5",
+                                    index < ratingValue
+                                      ? "fill-amber-400 text-amber-400"
+                                      : "text-muted-foreground/30",
+                                  )}
+                                />
+                              ))}
+                            </div>
+                          ) : null}
+                          <span className="text-xs font-semibold whitespace-nowrap">
+                            {typeof mese.importo_busta_estratto === "number"
+                              ? formatCurrency(mese.importo_busta_estratto)
+                              : "-"}
+                          </span>
+                        </div>
                       }
                       onClick={() => setSelectedCedolinoId(mese.id)}
                     />

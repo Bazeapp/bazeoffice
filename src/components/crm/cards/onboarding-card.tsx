@@ -62,8 +62,9 @@ import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
+import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
-import { runTrackedEdgeFunction, updateRecord } from "@/lib/anagrafiche-api";
+import { updateRecord } from "@/lib/anagrafiche-api";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { useProvincie } from "@/hooks/use-provincie";
 
@@ -358,17 +359,12 @@ export function OnboardingCard({
 }: OnboardingCardProps) {
   const resolvedSectionAction = sectionTitleAction ?? titleAction;
   const shouldCollapseSections = sectionsCollapsible ?? flattenSections;
-  // Derived directly from `card?.*` — matches the house style documented at
-  // lines below ("No local useState mirror to avoid Realtime echo resetting
-  // user edits."). Each Select/DatePicker below commits immediately, so the
-  // local mirror only created a window where a realtime echo could reset the
-  // input mid-edit.
-  const indirizzoProvinciaSigla = toInputValue(
-    card?.indirizzoProvinciaSigla || card?.indirizzoProvincia,
+  const [indirizzoProvincia, setIndirizzoProvincia] = React.useState(
+    toInputValue(card?.indirizzoProvinciaSigla || card?.indirizzoProvincia),
   );
   const anchor = useComboboxAnchor();
-  const deadline = toInputValue(card?.deadlineMobile);
-  const tipoIncontro = toInputValue(card?.tipoIncontroFamigliaLavoratore);
+  const [deadline, setDeadline] = React.useState("");
+  const [tipoIncontro, setTipoIncontro] = React.useState("");
   const [isSavingAvailability, setIsSavingAvailability] = React.useState(false);
 
   // Source of truth for availability fields = the card prop (server state).
@@ -401,6 +397,17 @@ export function OnboardingCard({
     [weekdayColorMap],
   );
 
+  React.useEffect(() => {
+    setIndirizzoProvincia(
+      toInputValue(card?.indirizzoProvinciaSigla || card?.indirizzoProvincia),
+    );
+  }, [card?.id, card?.indirizzoProvinciaSigla, card?.indirizzoProvincia]);
+
+  React.useEffect(() => {
+    setDeadline(toInputValue(card?.deadlineMobile));
+    setTipoIncontro(toInputValue(card?.tipoIncontroFamigliaLavoratore));
+  }, [card?.id, card?.deadlineMobile, card?.tipoIncontroFamigliaLavoratore]);
+
   const cardId = card?.id;
   const addressId = card?.indirizzoId ?? null;
   const richiestaAttivazioneId = card?.richiestaAttivazioneId;
@@ -425,10 +432,7 @@ export function OnboardingCard({
     async (showToast: boolean) => {
       if (!cardId) return;
       try {
-        // Tracked: family-availability writes derived fields on
-        // `processi_matching` (a subscribed table); without trackWrite the
-        // echo lands outside the 2.5s echo window and triggers a refetch.
-        await runTrackedEdgeFunction("family-availability", {
+        await invokeEdgeFunction("family-availability", {
           processo_matching_id: cardId,
         });
         if (showToast) toast.success("Disponibilita famiglia ricalcolata");
@@ -517,14 +521,6 @@ export function OnboardingCard({
     toInputValue(card?.indirizzoVia),
     async (value) => { await patchAddress({ via: value || null }); },
   );
-  const { value: indirizzoCivico, onChange: onIndirizzoCivicoChange } = useDebouncedSave(
-    toInputValue(card?.indirizzoCivico),
-    async (value) => { await patchAddress({ civico: value || null }); },
-  );
-  const { value: indirizzoComune, onChange: onIndirizzoComuneChange } = useDebouncedSave(
-    toInputValue(card?.indirizzoComune),
-    async (value) => { await patchAddress({ citta: value || null }); },
-  );
   const { value: indirizzoNote, onChange: onIndirizzoNoteChange } = useDebouncedSave(
     toInputValue(card?.indirizzoNote),
     async (value) => { await patchAddress({ note: value || null }); },
@@ -608,7 +604,7 @@ export function OnboardingCard({
     }));
   }, [provincieData]);
   const selectedIndirizzoProvincia = getSelectedLookupValue(
-    indirizzoProvinciaSigla,
+    indirizzoProvincia,
     orderedProvinciaOptions,
   );
   const isRequiredMissing = React.useCallback(
@@ -716,10 +712,6 @@ export function OnboardingCard({
           </div>
           <div className={compactGridClassName}>
             <DetailField label="Via" value={displayText(card?.indirizzoVia)} />
-            <DetailField label="Civico" value={displayText(card?.indirizzoCivico)} />
-          </div>
-          <div className={compactGridClassName}>
-            <DetailField label="Città" value={displayText(card?.indirizzoComune)} />
             <DetailField label="Quartiere" value={displayText(card?.indirizzoNote)} />
           </div>
           <DetailFieldControl label="SRC Maps">
@@ -1075,26 +1067,6 @@ export function OnboardingCard({
 	              onChange={(event) => onIndirizzoViaChange(event.target.value)}
 	            />
 	          </Field>
-	          <Field invalid={isRequiredMissing("indirizzoCivico")}>
-	            <FieldLabel htmlFor="onboarding-civico">Civico</FieldLabel>
-	            <Input
-	              id="onboarding-civico"
-	              className={cn(isRequiredMissing("indirizzoCivico") && REQUIRED_FIELD_CLASS)}
-	              value={indirizzoCivico}
-	              onChange={(event) => onIndirizzoCivicoChange(event.target.value)}
-	            />
-	          </Field>
-	        </div>
-	        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-	          <Field invalid={isRequiredMissing("indirizzoComune")}>
-	            <FieldLabel htmlFor="onboarding-citta">Città</FieldLabel>
-	            <Input
-	              id="onboarding-citta"
-	              className={cn(isRequiredMissing("indirizzoComune") && REQUIRED_FIELD_CLASS)}
-	              value={indirizzoComune}
-	              onChange={(event) => onIndirizzoComuneChange(event.target.value)}
-	            />
-	          </Field>
 	          <Field invalid={isRequiredMissing("indirizzoNote")}>
 	            <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
 	            <Input
@@ -1196,6 +1168,7 @@ export function OnboardingCard({
             <DatePicker
               value={deadline}
               onValueChange={(next) => {
+                setDeadline(next);
                 void patchProcess({
                   deadline_mobile: next ? toIsoDate(next) : null,
                 });
@@ -1223,6 +1196,7 @@ export function OnboardingCard({
               value={getSelectedLookupValue(tipoIncontro, tipoIncontroOptions)}
               onValueChange={(next) => {
                 const nextValue = getLookupLabelForSave(next, tipoIncontroOptions);
+                setTipoIncontro(nextValue);
                 void patchProcess({
                   tipo_incontro_famiglia_lavoratore: nextValue || null,
                 });
@@ -1522,24 +1496,6 @@ export function OnboardingCard({
 		              />
 		            </Field>
 		            <Field>
-		              <FieldLabel htmlFor="onboarding-civico">Civico</FieldLabel>
-		              <Input
-		                id="onboarding-civico"
-		                value={indirizzoCivico}
-		                onChange={(event) => onIndirizzoCivicoChange(event.target.value)}
-		              />
-		            </Field>
-		          </div>
-		          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-		            <Field>
-		              <FieldLabel htmlFor="onboarding-citta">Città</FieldLabel>
-		              <Input
-		                id="onboarding-citta"
-		                value={indirizzoComune}
-		                onChange={(event) => onIndirizzoComuneChange(event.target.value)}
-		              />
-		            </Field>
-		            <Field>
 		              <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
 		              <Input
 		                id="onboarding-quartiere"
@@ -1569,6 +1525,7 @@ export function OnboardingCard({
                 <DatePicker
                   value={deadline}
                   onValueChange={(next) => {
+                    setDeadline(next);
                     void patchProcess({
                       deadline_mobile: next ? toIsoDate(next) : null,
                     });
@@ -1596,6 +1553,7 @@ export function OnboardingCard({
                   value={getSelectedLookupValue(tipoIncontro, tipoIncontroOptions)}
                   onValueChange={(next) => {
                     const nextValue = getLookupLabelForSave(next, tipoIncontroOptions);
+                    setTipoIncontro(nextValue);
                     void patchProcess({
                       tipo_incontro_famiglia_lavoratore: nextValue || null,
                     });

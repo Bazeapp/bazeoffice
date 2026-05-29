@@ -70,11 +70,11 @@ import {
   fetchLookupValues,
   fetchProcessiMatching,
   createRecord,
-  runTrackedEdgeFunction,
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import { buildFamilyPrivateAreaUrl } from "@/lib/private-area-url";
 import { getRicercaCenter } from "@/lib/ricerca/center-coords";
+import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { useProvincieOptions } from "@/hooks/use-provincie";
@@ -810,6 +810,10 @@ export function RicercaDetailView({
     giornatePreferite: normalizeWeekdayList(card?.giornatePreferite),
   });
   const [isSavingOrari, setIsSavingOrari] = React.useState(false);
+  // Serialize concurrent address-create calls per process so that field
+  // patches firing before the first INSERT returns don't each create a
+  // new `indirizzi` row.
+  const pendingAddressCreateRef = React.useRef<Map<string, Promise<string | null>>>(new Map());
   const provincieOptions = useProvincieOptions();
   const { options: operatorOptions, loading: operatorOptionsLoading } =
     useOperatoriOptions();
@@ -1021,7 +1025,15 @@ export function RicercaDetailView({
           ) ??
           addressRows[0] ??
           null;
-        const ricercaCenter = getRicercaCenter(addressRows)
+        const ricercaCenter = getRicercaCenter(
+          {
+            tipo_incontro_famiglia_lavoratore: toStringValue(
+              processRow.tipo_incontro_famiglia_lavoratore,
+            ),
+            indirizzo_prova_via: toStringValue(processRow.indirizzo_prova_via),
+          },
+          addressRows,
+        )
 
         const familyName = [
           toStringValue(familyRow?.nome),
@@ -1343,13 +1355,31 @@ export function RicercaDetailView({
           return;
         }
 
-        const response = await createRecord("indirizzi", {
+        const pending = pendingAddressCreateRef.current.get(targetProcessId);
+        if (pending) {
+          const existingId = await pending;
+          if (existingId) {
+            await updateRecord("indirizzi", existingId, patch);
+            return;
+          }
+        }
+
+        const createPromise = createRecord("indirizzi", {
           entita_tabella: "processi_matching",
           entita_id: targetProcessId,
           tipo_indirizzo: "luogo",
           ...patch,
-        });
-        const createdAddressId = toStringValue(response.row.id);
+        }).then((response) => toStringValue(response.row.id));
+
+        pendingAddressCreateRef.current.set(targetProcessId, createPromise);
+        let createdAddressId: string | null = null;
+        try {
+          createdAddressId = await createPromise;
+        } finally {
+          if (pendingAddressCreateRef.current.get(targetProcessId) === createPromise) {
+            pendingAddressCreateRef.current.delete(targetProcessId);
+          }
+        }
         if (createdAddressId) {
           setCard((current) =>
             current ? { ...current, indirizzoId: createdAddressId } : current,
@@ -1393,10 +1423,7 @@ export function RicercaDetailView({
             ? orariDraft.giornatePreferite
             : null,
       });
-      // Tracked: family-availability writes derived fields on
-      // `processi_matching` (a subscribed table); without trackWrite the
-      // echo lands outside the 2.5s echo window and triggers a refetch.
-      await runTrackedEdgeFunction("family-availability", {
+      await invokeEdgeFunction("family-availability", {
         processo_matching_id: currentProcessId,
       });
       toast.success("Orari e frequenza salvati");
@@ -2044,48 +2071,55 @@ export function RicercaDetailView({
                             })
                           }
                         />
-                        <div className="grid grid-cols-2 gap-3">
-                          <EditableTextField
-                            label="Via"
-                            value={resolvedCard.indirizzoVia}
-                            editing={isEditingSection("luogo-lavoro")}
-                            onSave={(next) =>
-                              void saveAddressPatch("luogo-lavoro", {
-                                via: next,
-                              })
-                            }
-                          />
-                          <EditableTextField
-                            label="Civico"
-                            value={resolvedCard.indirizzoCivico}
-                            editing={isEditingSection("luogo-lavoro")}
-                            onSave={(next) =>
-                              void saveAddressPatch("luogo-lavoro", {
-                                civico: next,
-                              })
-                            }
-                          />
-                          <EditableTextField
-                            label="Città"
-                            value={resolvedCard.indirizzoComune}
-                            editing={isEditingSection("luogo-lavoro")}
-                            onSave={(next) =>
-                              void saveAddressPatch("luogo-lavoro", {
-                                citta: next,
-                              })
-                            }
-                          />
-                          <EditableTextField
-                            label="Citofono"
-                            value={resolvedCard.indirizzoCitofono}
-                            editing={isEditingSection("luogo-lavoro")}
-                            onSave={(next) =>
-                              void saveAddressPatch("luogo-lavoro", {
-                                citofono: next,
-                              })
-                            }
-                          />
-                        </div>
+                        {isEditingSection("luogo-lavoro") ? (
+                          <div className="grid grid-cols-2 gap-3">
+                            <EditableTextField
+                              label="Via"
+                              value={resolvedCard.indirizzoVia}
+                              editing
+                              onSave={(next) =>
+                                void saveAddressPatch("luogo-lavoro", {
+                                  via: next,
+                                })
+                              }
+                            />
+                            <EditableTextField
+                              label="Civico"
+                              value={resolvedCard.indirizzoCivico}
+                              editing
+                              onSave={(next) =>
+                                void saveAddressPatch("luogo-lavoro", {
+                                  civico: next,
+                                })
+                              }
+                            />
+                            <EditableTextField
+                              label="Comune"
+                              value={resolvedCard.indirizzoComune}
+                              editing
+                              onSave={(next) =>
+                                void saveAddressPatch("luogo-lavoro", {
+                                  citta: next,
+                                })
+                              }
+                            />
+                            <EditableTextField
+                              label="Citofono"
+                              value={resolvedCard.indirizzoCitofono}
+                              editing
+                              onSave={(next) =>
+                                void saveAddressPatch("luogo-lavoro", {
+                                  citofono: next,
+                                })
+                              }
+                            />
+                          </div>
+                        ) : (
+	                        renderField(
+	                          "Indirizzo completo",
+	                          resolvedCard.indirizzoCompleto,
+	                        )
+                        )}
 	                    </AccordionContent>
 	                  </AccordionItem>
 
@@ -2139,28 +2173,6 @@ export function RicercaDetailView({
                             )}
                           </Field>
                         </div>
-	                      <div className="grid grid-cols-2 gap-3">
-	                        <EditableTextField
-	                          label="Civico"
-	                          value={resolvedCard.indirizzoCivico}
-                            editing={isEditingSection("famiglia")}
-                            onSave={(next) =>
-                              void saveAddressPatch("famiglia", {
-                                civico: next,
-                              })
-                            }
-	                        />
-	                        <EditableTextField
-	                          label="Città"
-	                          value={resolvedCard.indirizzoComune}
-                            editing={isEditingSection("famiglia")}
-                            onSave={(next) =>
-                              void saveAddressPatch("famiglia", {
-                                citta: next,
-                              })
-                            }
-	                        />
-	                      </div>
 	                      <div className="grid grid-cols-2 gap-3">
 	                        <EditableTextField
 	                          label="Nucleo famigliare"

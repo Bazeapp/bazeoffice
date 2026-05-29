@@ -10,6 +10,7 @@ import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card
 import {
   asLavoratoreRecord,
   getAgeFromBirthDate,
+  asInputValue,
   asString,
   formatWorkerLocationLabel,
   normalizeDomesticRoleLabels,
@@ -299,7 +300,7 @@ function buildGate1RpcFilters({
 
   if (gate1ProvinciaFilter !== "all") {
     rpcFilters.push({
-      field: "provincia",
+      field: "provincia_sigla",
       operator: "is",
       value: gate1ProvinciaFilter,
     })
@@ -473,7 +474,7 @@ function buildWorkerBaseFilter({
       forcedNodes.push({
         kind: "condition",
         id: "gate1-provincia-filter",
-        field: "provincia",
+        field: "provincia_sigla",
         operator: "is",
         value: gate1ProvinciaFilter,
       })
@@ -663,7 +664,7 @@ function formatRelatedFamilyName(row: GenericRow | null | undefined) {
 }
 
 function formatRelatedSearchLabel(processRow: GenericRow) {
-  const searchNumber = asString(processRow.numero_ricerca_attivata)
+  const searchNumber = asInputValue(processRow.numero_ricerca_attivata)
   if (searchNumber) return `Ricerca #${searchNumber}`
 
   const processId = asString(processRow.id)
@@ -2200,6 +2201,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   return {
     workers,
     workerRows,
+    workerAddressesById,
     workersTotal,
     selectedWorkerId,
     setSelectedWorkerId,

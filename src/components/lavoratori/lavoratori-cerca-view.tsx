@@ -178,7 +178,7 @@ function formatRelatedFamilyName(row: Record<string, unknown> | null | undefined
 }
 
 function formatRelatedSearchLabel(processRow: Record<string, unknown>) {
-  const searchNumber = asString(processRow.numero_ricerca_attivata);
+  const searchNumber = asInputValue(processRow.numero_ricerca_attivata);
   if (searchNumber) return `Ricerca #${searchNumber}`;
 
   const processId = asString(processRow.id);
@@ -1149,15 +1149,15 @@ export function LavoratoriCercaView({
     async (v) => { await patchWorkerAvailabilityStatus({ data_ritorno_disponibilita: v || null }); },
   );
   const { value: anniEsperienzaColfValue, onChange: saveAnniEsperienzaColf } = useDebouncedSave(
-    asString(selectedWorkerRow?.anni_esperienza_colf),
+    asInputValue(selectedWorkerRow?.anni_esperienza_colf),
     async (v) => { await patchSelectedWorkerField("anni_esperienza_colf", v ? Number(v) : null); },
   );
   const { value: anniEsperienzaBadanteValue, onChange: saveAnniEsperienzaBadante } = useDebouncedSave(
-    asString(selectedWorkerRow?.anni_esperienza_badante),
+    asInputValue(selectedWorkerRow?.anni_esperienza_badante),
     async (v) => { await patchSelectedWorkerField("anni_esperienza_badante", v ? Number(v) : null); },
   );
   const { value: anniEsperienzaBabysitterValue, onChange: saveAnniEsperienzaBabysitter } = useDebouncedSave(
-    asString(selectedWorkerRow?.anni_esperienza_babysitter),
+    asInputValue(selectedWorkerRow?.anni_esperienza_babysitter),
     async (v) => { await patchSelectedWorkerField("anni_esperienza_babysitter", v ? Number(v) : null); },
   );
   const { value: situazioneLavorativaAttualeValue, onChange: saveSituazioneLavorativaAttuale } = useDebouncedSave(
@@ -1762,7 +1762,7 @@ export function LavoratoriCercaView({
                     selectedCivico={asString(selectedWorkerAddress?.civico) || null}
                     selectedCap={asString(selectedWorkerAddress?.cap) || null}
                     selectedCitta={asString(selectedWorkerAddress?.citta) || null}
-                    selectedProvincia={asString(selectedWorkerAddress?.provincia) || null}
+                    selectedProvincia={asString(selectedWorkerAddress?.provincia_sigla) || null}
 
                     selectedMobility={readArrayStrings(
                       selectedWorkerRow?.come_ti_sposti,
@@ -2129,7 +2129,7 @@ export function LavoratoriCercaView({
                               {issue.id === "not-milano" ? (
                                 <DebouncedInput
                                   committedValue={
-                                    asString(selectedWorkerAddress?.provincia) ??
+                                    asString(selectedWorkerAddress?.provincia_sigla) ??
                                     ""
                                   }
                                   onSave={async (value) => {
@@ -2138,7 +2138,7 @@ export function LavoratoriCercaView({
                                       value || null,
                                     );
                                   }}
-                                  placeholder="Provincia"
+                                  placeholder="Provincia (sigla)"
                                 />
                               ) : null}
 

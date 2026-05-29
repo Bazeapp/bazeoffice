@@ -116,6 +116,7 @@ import {
   normalizeAttachmentArray,
 } from "@/lib/attachments";
 import { supabase } from "@/lib/supabase-client";
+import { PROVINCIA_DROPDOWN_OPTIONS } from "@/lib/province-italiane";
 import { normalizeWorkerStatus } from "@/features/lavoratori/lib/status-utils";
 import type { LavoratoreRecord } from "@/types/entities/lavoratore";
 import { useProvincieOptions } from "@/hooks/use-provincie";
@@ -2787,6 +2788,7 @@ export function Gate1View({
   const {
     workers,
     workerRows,
+    workerAddressesById,
     selectedWorkerId,
     setSelectedWorkerId,
     selectedWorker,
@@ -3119,25 +3121,10 @@ export function Gate1View({
     return rowsById;
   }, [workerRows]);
 
-  const gateProvinciaOptions = React.useMemo(() => {
-    const lookupLabels = (
-      lookupOptionsByDomain.get("lavoratori.provincia") ?? []
-    ).map((option) => option.label);
-    if (lookupLabels.length > 0) {
-      return Array.from(new Set(lookupLabels)).sort((a, b) =>
-        a.localeCompare(b, "it"),
-      );
-    }
-
-    const labels = new Map<string, string>();
-    for (const worker of baseGateWorkers) {
-      const value = asString(workerRowsById.get(worker.id)?.provincia);
-      if (!value) continue;
-      const key = value.trim().toLowerCase();
-      if (!labels.has(key)) labels.set(key, value);
-    }
-    return Array.from(labels.values()).sort((a, b) => a.localeCompare(b, "it"));
-  }, [baseGateWorkers, lookupOptionsByDomain, workerRowsById]);
+  // Dropdown provincia: value = sigla (TO, MI, MB…), label = nome esteso.
+  // Il filtro Gate 1/2 lavora su `indirizzi.provincia_sigla`, quindi qui
+  // restituiamo direttamente la lista canonica delle province italiane.
+  const gateProvinciaOptions = React.useMemo(() => PROVINCIA_DROPDOWN_OPTIONS, []);
 
   const followupValueToLabel = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -4036,9 +4023,9 @@ export function Gate1View({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tutte le province</SelectItem>
-                    {gateProvinciaOptions.map((provincia) => (
-                      <SelectItem key={provincia} value={provincia}>
-                        {provincia}
+                    {gateProvinciaOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -4114,7 +4101,23 @@ export function Gate1View({
                       isActive={worker.id === selectedWorkerId}
                       variant="gate1"
                       gate1Summary={{
-                        provincia: asString(row?.provincia),
+                        // Mostra la sigla (es. "TO") quando disponibile, altrimenti
+                        // ripiega sul nome esteso. La sigla è la sorgente canonica
+                        // usata anche dal filtro Gate 1/2.
+                        // Gate 1 RPC espone già `provincia_sigla` nella row;
+                        // per Gate 2 (no RPC) la prendiamo dall'indirizzo di residenza.
+                        provincia:
+                          asString(row?.provincia_sigla) ||
+                          asString(
+                            (workerAddressesById?.get(worker.id) ?? []).find(
+                              (a) =>
+                                asString(a.tipo_indirizzo).toLowerCase() ===
+                                "residenza",
+                            )?.provincia_sigla ??
+                              (workerAddressesById?.get(worker.id) ?? [])[0]
+                                ?.provincia_sigla,
+                          ) ||
+                          asString(row?.provincia),
                         createdAt:
                           asString(row?.data_ora_di_creazione) ||
                           asString(row?.creato_il),
@@ -4342,7 +4345,7 @@ export function Gate1View({
                       selectedCivico={asString(selectedWorkerAddress?.civico) || null}
                       selectedCap={asString(selectedWorkerAddress?.cap) || null}
                       selectedCitta={asString(selectedWorkerAddress?.citta) || null}
-                      selectedProvincia={asString(selectedWorkerAddress?.provincia) || null}
+                      selectedProvincia={asString(selectedWorkerAddress?.provincia_sigla) || null}
 
                       selectedMobility={readArrayStrings(
                         selectedWorkerRow.come_ti_sposti,
