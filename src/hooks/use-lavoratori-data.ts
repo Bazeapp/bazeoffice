@@ -39,7 +39,7 @@ import {
   fetchFamiglieByIds,
   fetchGate1Lavoratori,
   fetchGate2Lavoratori,
-  fetchIndirizzi,
+  fetchIndirizziByEntity,
   fetchLavoratoreExtras,
   fetchLookupValues,
   fetchLavoratori,
@@ -720,62 +720,16 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
 
   for (let index = 0; index < workerIds.length; index += ADDRESS_BATCH_SIZE) {
     const batch = workerIds.slice(index, index + ADDRESS_BATCH_SIZE)
-    let offset = 0
+    // La RPC ritorna TUTTI gli indirizzi del batch in un colpo, quindi non
+    // serve più il loop di paginazione che table-query richiedeva.
+    const result = await fetchIndirizziByEntity("lavoratori", batch)
 
-    while (true) {
-      const result = await fetchIndirizzi({
-        select: [
-          "id",
-          "entita_id",
-          "tipo_indirizzo",
-          "via",
-          "civico",
-          "cap",
-          "citta",
-          "provincia",
-          "provincia_sigla",
-          "indirizzo_formattato",
-          "note",
-        ],
-        limit: ADDRESS_BATCH_SIZE,
-        offset,
-        orderBy: [{ field: "aggiornato_il", ascending: false }],
-        filters: {
-          kind: "group",
-          id: `lavoratori-addresses-${index}-${offset}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `lavoratori-addresses-table-${index}-${offset}`,
-              field: "entita_tabella",
-              operator: "is",
-              value: "lavoratori",
-            },
-            {
-              kind: "condition",
-              id: `lavoratori-addresses-id-${index}-${offset}`,
-              field: "entita_id",
-              operator: "in",
-              value: batch.join(","),
-            },
-          ],
-        },
-      })
-
-      for (const row of result.rows) {
-        const workerId = asString(row.entita_id)
-        if (!workerId) continue
-        const current = addressesByWorkerId.get(workerId) ?? []
-        current.push(row)
-        addressesByWorkerId.set(workerId, current)
-      }
-
-      if (result.rows.length < ADDRESS_BATCH_SIZE || offset + ADDRESS_BATCH_SIZE >= result.total) {
-        break
-      }
-
-      offset += ADDRESS_BATCH_SIZE
+    for (const row of result.rows) {
+      const workerId = asString(row.entita_id)
+      if (!workerId) continue
+      const current = addressesByWorkerId.get(workerId) ?? []
+      current.push(row)
+      addressesByWorkerId.set(workerId, current)
     }
   }
 

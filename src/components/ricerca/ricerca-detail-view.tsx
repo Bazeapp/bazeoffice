@@ -66,7 +66,7 @@ import { useRicercaWorkersPipeline } from "@/hooks/use-ricerca-workers-pipeline"
 import { STATI_RICERCA_CANONICI } from "@/features/ricerca/stati-ricerca";
 import {
   fetchFamiglieByIds,
-  fetchIndirizzi,
+  fetchIndirizziByEntity,
   fetchLookupValues,
   fetchProcessiMatchingByIds,
   createRecord,
@@ -928,53 +928,11 @@ export function RicercaDetailView({
             null;
         }
 
-        const addressResult = await fetchIndirizzi({
-          select: [
-            "id",
-            "tipo_indirizzo",
-            "via",
-            "civico",
-            "cap",
-            "citta",
-            "provincia",
-            "provincia_sigla",
-            "indirizzo_formattato",
-            "note",
-            "latitudine",
-            "longitudine",
-          ],
-          limit: 3,
-          offset: 0,
-          orderBy: [{ field: "aggiornato_il", ascending: false }],
-          filters: {
-            kind: "group",
-            id: "ricerca-detail-address-by-process",
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: "ricerca-detail-address-table-condition",
-                field: "entita_tabella",
-                operator: "is",
-                value: "processi_matching",
-              },
-              {
-                kind: "condition",
-                id: "ricerca-detail-address-id-condition",
-                field: "entita_id",
-                operator: "is",
-                value: currentProcessId,
-              },
-              {
-                kind: "condition",
-                id: "ricerca-detail-address-type-condition",
-                field: "tipo_indirizzo",
-                operator: "in",
-                value: "luogo,prova",
-              },
-            ],
-          },
-        });
+        const addressResult = await fetchIndirizziByEntity(
+          "processi_matching",
+          [currentProcessId],
+          ["luogo", "prova"],
+        );
         const addressRows = Array.isArray(addressResult.rows)
           ? (addressResult.rows as Record<string, unknown>[])
           : [];

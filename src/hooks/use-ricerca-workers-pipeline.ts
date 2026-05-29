@@ -21,7 +21,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useMoveMutation } from "@/hooks/use-board-mutations"
 import {
-  fetchIndirizzi,
+  fetchIndirizziByEntity,
   fetchLavoratoriByIds,
   fetchLookupValues,
   fetchRicercaWorkerRelatedSelectionSummaries,
@@ -672,48 +672,12 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
 
   for (let index = 0; index < workerIds.length; index += ADDRESS_BATCH_SIZE) {
     const batch = workerIds.slice(index, index + ADDRESS_BATCH_SIZE)
-    const result = await fetchIndirizzi({
-      select: [
-        "entita_id",
-        "tipo_indirizzo",
-        "via",
-        "civico",
-        "cap",
-        "citta",
-        "provincia",
-        "indirizzo_formattato",
-        "note",
-        "latitudine",
-        "longitudine",
-      ],
-      limit: Math.max(batch.length * 2, batch.length),
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: `pipeline-worker-addresses-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `pipeline-worker-addresses-table-${index}`,
-            field: "entita_tabella",
-            operator: "is",
-            value: "lavoratori",
-          },
-          {
-            kind: "condition",
-            id: `pipeline-worker-addresses-id-${index}`,
-            field: "entita_id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
+    const result = await fetchIndirizziByEntity("lavoratori", batch).catch(
+      (error) => {
+        const message = error instanceof Error ? error.message : String(error)
+        throw new Error(`indirizzi_by_entity(batch ${index}): ${message}`)
       },
-    }).catch((error) => {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`indirizzi(batch ${index}): ${message}`)
-    })
+    )
 
     for (const row of asRowArray(result.rows)) {
       const workerId = toStringValue(row.entita_id)

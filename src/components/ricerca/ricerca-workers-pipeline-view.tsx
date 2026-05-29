@@ -98,7 +98,7 @@ import {
   fetchEsperienzeLavoratoriByWorker,
   fetchDocumentiLavoratoriByWorker,
   fetchFamiglieByIds,
-  fetchIndirizzi,
+  fetchIndirizziByEntity,
   fetchLavoratori,
   fetchLavoratoriByIds,
   fetchLookupValues,
@@ -1370,52 +1370,10 @@ export function RicercaWorkersPipelineView({
               ],
             },
           }),
-          fetchIndirizzi({
-            select: [
-              "id",
-              "tipo_indirizzo",
-              "via",
-              "civico",
-              "cap",
-              "citta",
-              "provincia",
-              "paese",
-              "citofono",
-              "note",
-              "indirizzo_formattato",
-            ],
-            limit: 3,
-            offset: 0,
-            orderBy: [{ field: "aggiornato_il", ascending: false }],
-            filters: {
-              kind: "group",
-              id: "pipeline-selected-worker-address",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "pipeline-selected-worker-address-table",
-                  field: "entita_tabella",
-                  operator: "is",
-                  value: "lavoratori",
-                },
-                {
-                  kind: "condition",
-                  id: "pipeline-selected-worker-address-id",
-                  field: "entita_id",
-                  operator: "is",
-                  value: workerId,
-                },
-                {
-                  kind: "condition",
-                  id: "pipeline-selected-worker-address-type",
-                  field: "tipo_indirizzo",
-                  operator: "in",
-                  value: "residenza,domicilio",
-                },
-              ],
-            },
-          }),
+          fetchIndirizziByEntity("lavoratori", [workerId], [
+            "residenza",
+            "domicilio",
+          ]),
         ]);
 
         const row = Array.isArray(workerResult.rows)

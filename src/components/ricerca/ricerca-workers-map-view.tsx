@@ -29,8 +29,8 @@ import type {
 } from "@/hooks/use-ricerca-workers-pipeline"
 import {
   createRecord,
-  fetchIndirizzi,
-  fetchLavoratori,
+  fetchIndirizziInBbox,
+  fetchLavoratoriByIds,
   fetchLookupValues,
 } from "@/lib/anagrafiche-api"
 import {
@@ -408,61 +408,14 @@ async function fetchDiscoveryWorkerAddresses(
   const addressesByWorkerId = new Map<string, GenericRow[]>()
 
   for (let offset = 0; ; offset += DISCOVERY_ADDRESS_PAGE_SIZE) {
-    const result = await fetchIndirizzi({
-      select: [
-        "entita_id",
-        "tipo_indirizzo",
-        "cap",
-        "citta",
-        "note",
-        "latitudine",
-        "longitudine",
-      ],
+    const result = await fetchIndirizziInBbox({
+      minLat: bounds.minLat,
+      maxLat: bounds.maxLat,
+      minLng: bounds.minLng,
+      maxLng: bounds.maxLng,
+      entitaTabella: "lavoratori",
       limit: DISCOVERY_ADDRESS_PAGE_SIZE,
       offset,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: `map-discovery-addresses-root-${offset}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `map-discovery-addresses-table-${offset}`,
-            field: "entita_tabella",
-            operator: "is",
-            value: "lavoratori",
-          },
-          {
-            kind: "condition",
-            id: `map-discovery-addresses-lat-min-${offset}`,
-            field: "latitudine",
-            operator: "gte",
-            value: String(bounds.minLat),
-          },
-          {
-            kind: "condition",
-            id: `map-discovery-addresses-lat-max-${offset}`,
-            field: "latitudine",
-            operator: "lte",
-            value: String(bounds.maxLat),
-          },
-          {
-            kind: "condition",
-            id: `map-discovery-addresses-lng-min-${offset}`,
-            field: "longitudine",
-            operator: "gte",
-            value: String(bounds.minLng),
-          },
-          {
-            kind: "condition",
-            id: `map-discovery-addresses-lng-max-${offset}`,
-            field: "longitudine",
-            operator: "lte",
-            value: String(bounds.maxLng),
-          },
-        ],
-      },
     })
 
     const rows = result.rows as GenericRow[]
@@ -500,55 +453,10 @@ async function fetchDiscoveryWorkersByIds({
 
   for (let index = 0; index < workerIds.length; index += DISCOVERY_WORKER_BATCH_SIZE) {
     const batch = workerIds.slice(index, index + DISCOVERY_WORKER_BATCH_SIZE)
-    const result = await fetchLavoratori({
-      select: [
-        "id",
-        "nome",
-        "cognome",
-        "email",
-        "telefono",
-        "foto",
-        "check_blacklist",
-        "stato_lavoratore",
-        "disponibilita",
-        "data_ritorno_disponibilita",
-        "tipo_lavoro_domestico",
-        "tipo_rapporto_lavorativo",
-        "data_di_nascita",
-        "anni_esperienza_colf",
-        "anni_esperienza_babysitter",
-        "check_lavori_accettabili",
-        "cap",
-      ],
-      limit: batch.length,
-      offset: 0,
-      orderBy: [{ field: "data_ora_ultima_modifica", ascending: false }],
-      filters: {
-        kind: "group",
-        id: `map-discovery-workers-root-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `map-discovery-workers-id-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-          ...(roleFilterValues.length > 0
-            ? [
-                {
-                  kind: "condition" as const,
-                  id: `map-discovery-workers-role-${index}`,
-                  field: "tipo_lavoro_domestico",
-                  operator: "has_any" as const,
-                  value: roleFilterValues.join(","),
-                },
-              ]
-            : []),
-        ],
-      },
-    })
+    const result = await fetchLavoratoriByIds(
+      batch,
+      roleFilterValues.length > 0 ? roleFilterValues : undefined,
+    )
 
     rows.push(...(result.rows as GenericRow[]))
   }

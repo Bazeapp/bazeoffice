@@ -1031,6 +1031,44 @@ export async function fetchProcessiMatchingByIds(options: {
   return normalizeTableResponse(data as TableQueryResponse<ProcessoMatchingRecord>)
 }
 
+// FASE 4 BIS Wave 2 — indirizzi by entity + bbox geografico.
+export async function fetchIndirizziByEntity(
+  entitaTabella: string,
+  entitaIds: string[],
+  tipi?: string[],
+) {
+  if (entitaIds.length === 0) return { rows: [], total: 0, columns: [], groups: [] }
+  const { data, error } = await supabase.rpc("indirizzi_by_entity", {
+    p_entita_tabella: entitaTabella,
+    p_entita_ids: entitaIds,
+    p_tipi: tipi && tipi.length > 0 ? tipi : null,
+  })
+  if (error) throw new Error(`indirizzi_by_entity failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
+}
+
+export async function fetchIndirizziInBbox(options: {
+  minLat: number
+  maxLat: number
+  minLng: number
+  maxLng: number
+  entitaTabella?: string
+  limit?: number
+  offset?: number
+}) {
+  const { data, error } = await supabase.rpc("indirizzi_in_bbox", {
+    p_min_lat: options.minLat,
+    p_max_lat: options.maxLat,
+    p_min_lng: options.minLng,
+    p_max_lng: options.maxLng,
+    p_entita_tabella: options.entitaTabella ?? "lavoratori",
+    p_limit: options.limit ?? 1000,
+    p_offset: options.offset ?? 0,
+  })
+  if (error) throw new Error(`indirizzi_in_bbox failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
+}
+
 export async function fetchCrmPipelineFamiglieBoard(query: {
   limit: number
   offset: number

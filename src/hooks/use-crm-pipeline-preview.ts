@@ -5,7 +5,7 @@ import {
   fetchCrmPipelineFamigliaDetail,
   fetchCrmPipelineFamiglieBoard,
   fetchFamiglie,
-  fetchIndirizzi,
+  fetchIndirizziByEntity,
   fetchLookupValues,
   fetchProcessiMatching,
   createRecord,
@@ -138,20 +138,6 @@ const CRM_PIPELINE_FAMIGLIE_SELECT = [
   "data_call_prenotata",
   "aggiornato_il",
 ]
-const CRM_PIPELINE_ADDRESS_SELECT = [
-  "id",
-  "entita_id",
-  "tipo_indirizzo",
-  "via",
-  "civico",
-  "cap",
-  "citta",
-  "provincia",
-  "provincia_sigla",
-  "indirizzo_formattato",
-  "citofono",
-  "note",
-] as const
 const ADDRESS_BATCH_SIZE = 150
 
 type LookupOption = {
@@ -613,34 +599,8 @@ async function fetchProcessAddressesByIds(processIds: string[]) {
   }
 
   const results = await Promise.all(
-    chunks.map(({ index, batch }) =>
-      fetchIndirizzi({
-        select: [...CRM_PIPELINE_ADDRESS_SELECT],
-        limit: Math.max(batch.length * 3, batch.length),
-        offset: 0,
-        orderBy: [{ field: "aggiornato_il", ascending: false }],
-        filters: {
-          kind: "group",
-          id: `crm-pipeline-addresses-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `crm-pipeline-addresses-table-${index}`,
-              field: "entita_tabella",
-              operator: "is",
-              value: "processi_matching",
-            },
-            {
-              kind: "condition",
-              id: `crm-pipeline-addresses-id-${index}`,
-              field: "entita_id",
-              operator: "in",
-              value: batch.join(","),
-            },
-          ],
-        },
-      })
+    chunks.map(({ batch }) =>
+      fetchIndirizziByEntity("processi_matching", batch),
     )
   )
 
