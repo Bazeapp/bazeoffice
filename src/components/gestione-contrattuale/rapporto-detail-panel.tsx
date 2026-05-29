@@ -1,4 +1,5 @@
 import * as React from "react"
+import { toast } from "sonner"
 import {
   ArrowRightIcon,
   BriefcaseBusinessIcon,
@@ -916,6 +917,24 @@ export function RapportoDetailPanel({
         ...((previous ?? currentRapporto) as RapportoLavorativoRecord),
         ...response.row,
       }))
+    } catch (caughtError) {
+      // Senza questo catch, un updateRecord fallito lasciava lo stato
+      // ottimistico applicato (UI mostrava il valore come "salvato") senza
+      // alcun errore → perdita dato silente sul contratto. Mostriamo un toast
+      // così l'utente sa che NON è stato salvato e può ritentare.
+      //
+      // NB: NON facciamo rollback dello stato ottimistico di proposito. Qui
+      // siamo in un autosave con effect dipendente da getChangedContrattoPatch:
+      // un rollback ri-aprirebbe il diff draft↔stato e farebbe ri-schedulare il
+      // save ogni 500ms → toast-spam su errori persistenti (es. validazione).
+      // Lasciando lo stato ottimistico, getChangedContrattoPatch torna vuoto e
+      // non si rilancia; il valore reale viene riconciliato al prossimo
+      // refetch / evento realtime.
+      toast.error(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Errore salvando le modifiche al contratto",
+      )
     } finally {
       setSavingContratto(false)
     }

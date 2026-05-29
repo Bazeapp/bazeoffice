@@ -4590,6 +4590,10 @@ export function Gate1View({
                                 ...current,
                                 disponibilita_nel_giorno: values,
                               }));
+                              void patchSelectedWorkerField(
+                                "disponibilita_nel_giorno",
+                                values.length > 0 ? values : null,
+                              );
                             }}
                           />
                           <AvailabilityCalendarCard
@@ -4818,6 +4822,10 @@ export function Gate1View({
                             ...current,
                             disponibilita_nel_giorno: values,
                           }));
+                          void patchSelectedWorkerField(
+                            "disponibilita_nel_giorno",
+                            values.length > 0 ? values : null,
+                          );
                         }}
                       />
                       <AvailabilityStatusCard
