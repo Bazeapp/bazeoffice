@@ -987,6 +987,50 @@ export async function fetchProcessiMatching(query: TablePageQuery) {
   })
 }
 
+// ---------------------------------------------------------------------------
+// FASE 4 BIS — "by_ids" RPC wrappers
+//
+// Sostituiscono il pattern table-query più frequente fuori da Anagrafiche: il
+// lookup puntuale "id IN (...)". Le RPC (`<entita>_by_ids`) ritornano
+// `setof <table>` → `data` è già un array di righe, quindi `normalizeTableResponse`
+// lo avvolge nella stessa shape `{ rows, total, columns, groups }` dei fetch
+// table-query, così i call site cambiano al minimo.
+// ---------------------------------------------------------------------------
+
+export async function fetchLavoratoriByIds(ids: string[], roles?: string[]) {
+  if (ids.length === 0) return { rows: [], total: 0, columns: [], groups: [] }
+  const { data, error } = await supabase.rpc("lavoratori_by_ids", {
+    p_ids: ids,
+    p_roles: roles && roles.length > 0 ? roles : null,
+  })
+  if (error) throw new Error(`lavoratori_by_ids failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<LavoratoreRecord>)
+}
+
+export async function fetchFamiglieByIds(ids: string[]) {
+  if (ids.length === 0) return { rows: [], total: 0, columns: [], groups: [] }
+  const { data, error } = await supabase.rpc("famiglie_by_ids", { p_ids: ids })
+  if (error) throw new Error(`famiglie_by_ids failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<FamigliaRecord>)
+}
+
+export async function fetchProcessiMatchingByIds(options: {
+  ids?: string[]
+  famigliaIds?: string[]
+}) {
+  const ids = options.ids?.length ? options.ids : null
+  const famigliaIds = options.famigliaIds?.length ? options.famigliaIds : null
+  if (!ids && !famigliaIds) {
+    return { rows: [], total: 0, columns: [], groups: [] }
+  }
+  const { data, error } = await supabase.rpc("processi_matching_by_ids", {
+    p_ids: ids,
+    p_famiglia_ids: famigliaIds,
+  })
+  if (error) throw new Error(`processi_matching_by_ids failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<ProcessoMatchingRecord>)
+}
+
 export async function fetchCrmPipelineFamiglieBoard(query: {
   limit: number
   offset: number

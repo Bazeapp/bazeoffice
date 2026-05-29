@@ -22,7 +22,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMoveMutation } from "@/hooks/use-board-mutations"
 import {
   fetchIndirizzi,
-  fetchLavoratori,
+  fetchLavoratoriByIds,
   fetchLookupValues,
   fetchRicercaWorkerRelatedSelectionSummaries,
   fetchSelezioniLavoratori,
@@ -110,24 +110,6 @@ const PIPELINE_SELECTIONS_SELECT = [
   "data_ora_colloquio_famiglia_lavoratore",
   "data_ora_fine_colloquio_famiglia_lavoratore",
   "aggiornato_il",
-] satisfies string[]
-const PIPELINE_WORKERS_SELECT = [
-  "id",
-  "nome",
-  "cognome",
-  "foto",
-  "immagine",
-  "avatar_url",
-  "cap",
-  "telefono",
-  "check_blacklist",
-  "tipo_lavoro_domestico",
-  "tipo_rapporto_lavorativo",
-  "data_di_nascita",
-  "anni_esperienza_colf",
-  "anni_esperienza_babysitter",
-  "stato_lavoratore",
-  "disponibilita",
 ] satisfies string[]
 function asRowArray(input: unknown): GenericRow[] {
   if (!Array.isArray(input)) return []
@@ -670,27 +652,11 @@ async function fetchWorkersByIds(workerIds: string[]) {
 
   for (let index = 0; index < workerIds.length; index += WORKER_BATCH_SIZE) {
     const batch = workerIds.slice(index, index + WORKER_BATCH_SIZE)
-    const result = await fetchLavoratori({
-      select: PIPELINE_WORKERS_SELECT,
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `pipeline-workers-by-id-batch-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition" as const,
-            id: `pipeline-workers-id-in-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    }).catch((error) => {
+    // FASE 4 BIS — pilota: rimpiazza il table-query "id IN (...)" con la RPC
+    // dedicata lavoratori_by_ids. Stessa shape di ritorno ({ rows, ... }).
+    const result = await fetchLavoratoriByIds(batch).catch((error) => {
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`lavoratori(batch ${index}): ${message}`)
+      throw new Error(`lavoratori_by_ids(batch ${index}): ${message}`)
     })
 
     workerRows.push(...asRowArray(result.rows))
