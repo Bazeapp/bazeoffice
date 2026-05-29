@@ -3,15 +3,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
   createRecord,
-  fetchChiusureContratti,
+  fetchChiusureByIds,
   fetchContributiInps,
   fetchFamiglie,
+  fetchFamiglieByIds,
   fetchLavoratori,
+  fetchLavoratoriByIds,
   fetchLookupValues,
   fetchMesiCalendario,
   fetchMesiLavorati,
   fetchPagamenti,
-  fetchProcessiMatching,
+  fetchProcessiMatchingByIds,
   fetchPresenzeMensili,
   fetchRapportiLavorativi,
   fetchRapportiLavorativiBoard,
@@ -190,24 +192,6 @@ function buildEqualsFilter(field: string, value: string): QueryFilterGroup {
         value,
       },
     ],
-  }
-}
-
-function buildIdsFilter(ids: string[]): QueryFilterGroup | undefined {
-  const normalizedIds = Array.from(new Set(ids.filter(Boolean)))
-  if (normalizedIds.length === 0) return undefined
-
-  return {
-    kind: "group",
-    id: "ids-root",
-    logic: "or",
-    nodes: normalizedIds.map((id, index) => ({
-      kind: "condition" as const,
-      id: `id-${index}`,
-      field: "id",
-      operator: "is" as const,
-      value: id,
-    })),
   }
 }
 
@@ -672,36 +656,18 @@ export function useRapportiLavorativiData(
 
       try {
         const processIds = getRapportoProcessIds(selectedRapporto)
-        const processiFilter = buildIdsFilter(processIds)
         const [famigliaResponse, lavoratoreResponse, processiResponse, chiusuraResponse] = await Promise.all([
           selectedRapporto.famiglia_id
-            ? fetchFamiglie({
-                limit: 1,
-                offset: 0,
-                filters: buildEqualsFilter("id", selectedRapporto.famiglia_id),
-              })
+            ? fetchFamiglieByIds([selectedRapporto.famiglia_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
           selectedRapporto.lavoratore_id
-            ? fetchLavoratori({
-                limit: 1,
-                offset: 0,
-                filters: buildEqualsFilter("id", selectedRapporto.lavoratore_id),
-              })
+            ? fetchLavoratoriByIds([selectedRapporto.lavoratore_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
-          processiFilter
-            ? fetchProcessiMatching({
-                limit: 10,
-                offset: 0,
-                filters: processiFilter,
-              })
+          processIds.length > 0
+            ? fetchProcessiMatchingByIds({ ids: processIds })
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
           selectedRapporto.fine_rapporto_lavorativo_id
-            ? fetchChiusureContratti({
-                limit: 1,
-                offset: 0,
-                orderBy: [{ field: "data_fine_rapporto", ascending: false }],
-                filters: buildEqualsFilter("id", selectedRapporto.fine_rapporto_lavorativo_id),
-              })
+            ? fetchChiusureByIds([selectedRapporto.fine_rapporto_lavorativo_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
         ])
 
@@ -720,11 +686,7 @@ export function useRapportiLavorativiData(
           )
 
           if (fallbackFamigliaIds.length > 0) {
-            const fallbackFamiglieResponse = await fetchFamiglie({
-              limit: 1,
-              offset: 0,
-              filters: buildAnyOfFilter("id", fallbackFamigliaIds),
-            })
+            const fallbackFamiglieResponse = await fetchFamiglieByIds(fallbackFamigliaIds)
             nextFamiglia = (fallbackFamiglieResponse.rows[0] as FamigliaRecord | undefined) ?? null
           }
         }

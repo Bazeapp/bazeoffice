@@ -1069,6 +1069,14 @@ export async function fetchIndirizziInBbox(options: {
   return normalizeTableResponse(data as TableQueryResponse<TableRow>)
 }
 
+// FASE 4 BIS Wave 3 — chiusura per id (dettaglio rapporto, eager).
+export async function fetchChiusureByIds(ids: string[]) {
+  if (ids.length === 0) return { rows: [], total: 0, columns: [], groups: [] }
+  const { data, error } = await supabase.rpc("chiusure_by_ids", { p_ids: ids })
+  if (error) throw new Error(`chiusure_by_ids failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
+}
+
 export async function fetchCrmPipelineFamiglieBoard(query: {
   limit: number
   offset: number
