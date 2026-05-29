@@ -1277,7 +1277,12 @@ export function RicercaDetailView({
     return () => {
       cancelled = true;
     };
-  }, [currentProcessId]);
+    // pipelineState.detailRefreshTick: bumpa quando un altro utente modifica
+    // il processo (Pattern B). Senza, il loader dipendeva solo da
+    // currentProcessId e il dettaglio restava stantio fino a refresh manuale.
+    // I self-edit sono filtrati dall'echo-window dentro useRealtimeBoardSync,
+    // e la resync di orariDraft è guardata da editingSections.has("orari").
+  }, [currentProcessId, pipelineState.detailRefreshTick]);
 
   const updateProcessCard = React.useCallback(
     async (targetProcessId: string, patch: Record<string, unknown>) => {

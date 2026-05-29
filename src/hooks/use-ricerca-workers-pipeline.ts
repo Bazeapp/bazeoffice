@@ -84,6 +84,16 @@ type UseRicercaWorkersPipelineState = {
    * server-side e che non sono state riflesse via `moveCard`.
    */
   refresh: () => void
+  /**
+   * Incrementato da useRealtimeBoardSync quando arriva un cambio remoto (e
+   * passa il guard echo-window). Il pannello dettaglio processo (ricerca-
+   * detail-view) carica `card` con un loader proprio che dipende solo da
+   * `currentProcessId`, quindi un'invalidazione del board non lo aggiorna:
+   * legando il loader a questo tick il dettaglio aperto si ri-fetcha quando
+   * un altro utente modifica il processo. Le scritture locali sono filtrate
+   * dall'echo-window, così il tick non bumpa per i self-edit.
+   */
+  detailRefreshTick: number
 }
 
 export type RicercaWorkersPipelineState = UseRicercaWorkersPipelineState
@@ -1035,9 +1045,19 @@ export function useRicercaWorkersPipeline(
     void refetch()
   }, [refetch])
 
+  const [detailRefreshTick, setDetailRefreshTick] = React.useState(0)
+  const bumpDetailRefreshTick = React.useCallback(() => {
+    setDetailRefreshTick((current) => current + 1)
+  }, [])
+
   useRealtimeBoardSync({
     tables: RICERCA_WORKERS_REALTIME_TABLES,
     reload: invalidateBoard,
+    // Il board si invalida via React Query, ma il dettaglio processo ha un
+    // loader separato (setCard) che non osserva la cache del board. Bumpiamo
+    // un tick così ricerca-detail-view può ri-fetchare il dettaglio aperto
+    // sui cambi remoti. Self-echoes filtrati dall'echo-window interno.
+    reloadOpenDetail: bumpDetailRefreshTick,
   })
 
   const moveMutation = useMoveMutation<
@@ -1122,5 +1142,6 @@ export function useRicercaWorkersPipeline(
     columns,
     moveCard,
     refresh,
+    detailRefreshTick,
   }
 }
