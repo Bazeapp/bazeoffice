@@ -97,11 +97,12 @@ import {
   createRecord,
   fetchEsperienzeLavoratoriByWorker,
   fetchDocumentiLavoratoriByWorker,
-  fetchFamiglie,
+  fetchFamiglieByIds,
   fetchIndirizzi,
   fetchLavoratori,
+  fetchLavoratoriByIds,
   fetchLookupValues,
-  fetchProcessiMatching,
+  fetchProcessiMatchingByIds,
   fetchReferenzeLavoratoriByWorker,
   fetchSelezioniLavoratori,
   runSmartMatchingForwardPreview,
@@ -506,24 +507,7 @@ async function fetchRelatedProcessesByIds(processIds: string[]) {
     index += RELATED_PROCESS_BATCH_SIZE
   ) {
     const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE);
-    const result = await fetchProcessiMatching({
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `related-processes-batch-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `related-processes-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    });
+    const result = await fetchProcessiMatchingByIds({ ids: batch });
 
     if (Array.isArray(result.rows)) {
       rows.push(...(result.rows as Record<string, unknown>[]));
@@ -544,24 +528,7 @@ async function fetchRelatedFamiliesByIds(familyIds: string[]) {
     index += RELATED_FAMILY_BATCH_SIZE
   ) {
     const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE);
-    const result = await fetchFamiglie({
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `related-families-batch-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `related-families-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    });
+    const result = await fetchFamiglieByIds(batch);
 
     if (Array.isArray(result.rows)) {
       rows.push(...(result.rows as Record<string, unknown>[]));
@@ -1380,24 +1347,7 @@ export function RicercaWorkersPipelineView({
           selectionResult,
           addressResult,
         ] = await Promise.all([
-          fetchLavoratori({
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: "pipeline-selected-worker",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "pipeline-selected-worker-id",
-                  field: "id",
-                  operator: "is",
-                  value: workerId,
-                },
-              ],
-            },
-          }),
+          fetchLavoratoriByIds([workerId]),
           fetchLookupValues(),
           fetchEsperienzeLavoratoriByWorker(workerId),
           fetchDocumentiLavoratoriByWorker(workerId),
@@ -1870,24 +1820,7 @@ export function RicercaWorkersPipelineView({
         { id: selectedWorkerId },
       );
 
-      const result = await fetchLavoratori({
-        limit: 1,
-        offset: 0,
-        filters: {
-          kind: "group",
-          id: "ai-generated-worker-summary",
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: "ai-generated-worker-summary-id",
-              field: "id",
-              operator: "is",
-              value: selectedWorkerId,
-            },
-          ],
-        },
-      });
+      const result = await fetchLavoratoriByIds([selectedWorkerId]);
       const row = result.rows[0] as LavoratoreRecord | undefined;
       if (row) {
         applyUpdatedWorkerRow(row);

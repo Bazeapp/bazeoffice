@@ -65,10 +65,10 @@ import { normalizeLookupPatchLabels } from "@/hooks/use-crm-pipeline-preview";
 import { useRicercaWorkersPipeline } from "@/hooks/use-ricerca-workers-pipeline";
 import { STATI_RICERCA_CANONICI } from "@/features/ricerca/stati-ricerca";
 import {
-  fetchFamiglie,
+  fetchFamiglieByIds,
   fetchIndirizzi,
   fetchLookupValues,
-  fetchProcessiMatching,
+  fetchProcessiMatchingByIds,
   createRecord,
   updateRecord,
 } from "@/lib/anagrafiche-api";
@@ -902,24 +902,7 @@ export function RicercaDetailView({
       setError(null);
       try {
         const [processResult, lookupResult] = await Promise.all([
-          fetchProcessiMatching({
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: "ricerca-detail-by-id",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "ricerca-detail-id-condition",
-                  field: "id",
-                  operator: "is",
-                  value: currentProcessId,
-                },
-              ],
-            },
-          }),
+          fetchProcessiMatchingByIds({ ids: [currentProcessId] }),
           fetchLookupValues(),
         ]);
 
@@ -939,24 +922,7 @@ export function RicercaDetailView({
         let familyRow: Record<string, unknown> | null = null;
 
         if (famigliaId) {
-          const familyResult = await fetchFamiglie({
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: "ricerca-detail-family-by-id",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "ricerca-detail-family-id-condition",
-                  field: "id",
-                  operator: "is",
-                  value: famigliaId,
-                },
-              ],
-            },
-          });
+          const familyResult = await fetchFamiglieByIds([famigliaId]);
           familyRow =
             (familyResult.rows?.[0] as Record<string, unknown> | undefined) ??
             null;
