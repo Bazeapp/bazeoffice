@@ -22,15 +22,25 @@
  * from the inner call. That is the property the audit fix locks in.
  */
 import { act } from "react"
+import { QueryClient } from "@tanstack/react-query"
 import { waitFor } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() },
+}))
+
+import { toast } from "sonner"
 import { renderHookWithQueryClient } from "@/test/test-utils"
 import { usePatchMutation } from "@/hooks/use-board-mutations"
 import {
   getMillisSinceLastLocalWrite,
   getPendingWriteCount,
 } from "@/lib/anagrafiche-api"
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 describe("use-board-mutations: trackWrite coverage", () => {
   it("usePatchMutation wraps the mutationFn in trackWrite", async () => {
@@ -77,5 +87,69 @@ describe("use-board-mutations: trackWrite coverage", () => {
     expect(getMillisSinceLastLocalWrite()).toBeLessThan(100)
     // Assertion 3: counter back to 0.
     expect(getPendingWriteCount()).toBe(0)
+  })
+})
+
+describe("use-board-mutations: error visibility (FASE 4 TER.2)", () => {
+  it("usePatchMutation surfaces a toast.error and rolls the cache back on failure", async () => {
+    const queryKey = ["board-error-case"]
+    const mutationFn = vi.fn(async () => {
+      throw new Error("update rifiutato dal server")
+    })
+
+    // Custom client with gcTime: Infinity. The default test client uses
+    // gcTime: 0, which garbage-collects seeded data that has no active query
+    // observer (this hook is a mutation, not a query) before onMutate can
+    // snapshot it. In production the board always has a live useQuery on the
+    // key, so the data persists; gcTime: Infinity reproduces that here.
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Infinity },
+        mutations: { retry: false },
+      },
+    })
+    // Seed the cache so onMutate has a snapshot to roll back to.
+    queryClient.setQueryData(queryKey, { value: "originale" })
+
+    const { result } = renderHookWithQueryClient(
+      () =>
+        usePatchMutation<{ value: string }, unknown, { value: string }>({
+          queryKey,
+          mutationFn,
+          applyOptimistic: (_previous, variables) => ({ value: variables.value }),
+        }),
+      { client: queryClient },
+    )
+
+    await act(async () => {
+      // mutateAsync rejects; swallow so the test continues to the assertions.
+      await result.current.mutateAsync({ value: "ottimistico" }).catch(() => {})
+    })
+
+    // The failure is visible to the user.
+    expect(toast.error).toHaveBeenCalledWith("update rifiutato dal server")
+    // The optimistic value was rolled back to the snapshot.
+    expect(queryClient.getQueryData(queryKey)).toEqual({ value: "originale" })
+  })
+
+  it("uses the custom errorMessage option when provided", async () => {
+    const queryKey = ["board-error-custom-msg"]
+    const mutationFn = vi.fn(async () => {
+      throw new Error("dettaglio tecnico")
+    })
+
+    const { result } = renderHookWithQueryClient(() =>
+      usePatchMutation<{ value: string }, unknown, { value: string }>({
+        queryKey,
+        mutationFn,
+        errorMessage: "Impossibile salvare la modifica",
+      }),
+    )
+
+    await act(async () => {
+      await result.current.mutateAsync({ value: "x" }).catch(() => {})
+    })
+
+    expect(toast.error).toHaveBeenCalledWith("Impossibile salvare la modifica")
   })
 })

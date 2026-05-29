@@ -42,6 +42,8 @@ vi.mock("@/lib/stripe-connect-api", () => ({
   createStripeConnectAccount: vi.fn(),
 }))
 
+import { toast } from "sonner"
+import { updateRecord } from "@/lib/anagrafiche-api"
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor"
 
 // Minimal worker row factory. LavoratoreRecord has many optional fields;
@@ -273,5 +275,32 @@ describe("useSelectedWorkerEditor — realtime echo draft preservation", () => {
     expect(result.current.jobSearchDraft.check_accetta_funzionamento_baze).toBe(
       "user-pending"
     )
+  })
+})
+
+describe("useSelectedWorkerEditor — error visibility (C.2)", () => {
+  it("shows a toast.error when a field patch fails server-side", async () => {
+    vi.mocked(toast.error).mockClear()
+    // applyWorkerPatch awaits updateRecord; make it reject just for this call.
+    vi.mocked(updateRecord).mockRejectedValueOnce(new Error("update KO dal server"))
+
+    const { result } = renderHookWithQueryClient(
+      (props: ReturnType<typeof makeProps>) => useSelectedWorkerEditor(props),
+      { initialProps: makeProps(makeRow()) }
+    )
+
+    await act(async () => {
+      // patchSelectedWorkerField re-throws on failure; swallow so we reach the
+      // assertions (a `void` caller in the app wouldn't await, but the toast
+      // fires regardless).
+      await result.current
+        .patchSelectedWorkerField("nome", "Nuovo Nome")
+        .catch(() => {})
+    })
+
+    expect(updateRecord).toHaveBeenCalled()
+    // Before the C.2 fix this path called only setError (invisible side-panel
+    // banner) — now every failed patch is surfaced via toast.
+    expect(toast.error).toHaveBeenCalledWith("update KO dal server")
   })
 })
