@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { usePatchMutation } from "@/hooks/use-board-mutations"
 
 import {
-  fetchFamiglie,
+  fetchFamiglieByIds,
   fetchLookupValues,
   fetchProcessiMatching,
   updateRecord,
@@ -82,16 +82,6 @@ const ASSEGNAZIONE_PROCESSI_SELECT = [
   "orario_di_lavoro",
   "mansioni_richieste",
   "descrizione_lavoratore_ideale",
-  "aggiornato_il",
-]
-
-const ASSEGNAZIONE_FAMIGLIE_SELECT = [
-  "id",
-  "nome",
-  "cognome",
-  "email",
-  "telefono",
-  "creato_il",
   "aggiornato_il",
 ]
 
@@ -304,25 +294,7 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
   )
   const familiesResult =
     famigliaIds.length > 0
-      ? await fetchFamiglie({
-          select: ASSEGNAZIONE_FAMIGLIE_SELECT,
-          limit: famigliaIds.length,
-          offset: 0,
-          filters: {
-            kind: "group",
-            id: "crm-assegnazione-families-root",
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: "crm-assegnazione-family-ids",
-                field: "id",
-                operator: "in",
-                value: famigliaIds.join(","),
-              },
-            ],
-          },
-        })
+      ? await fetchFamiglieByIds(famigliaIds)
       : { rows: [] }
   const familyRows = asRowArray(familiesResult.rows)
   const lookupRows = lookupResult.rows

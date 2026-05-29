@@ -61,8 +61,10 @@ import { DebouncedInput } from "@/components/ui/debounced-input";
 import { Input } from "@/components/ui/input";
 import {
   fetchFamiglie,
-  fetchLavoratori,
+  fetchFamiglieByIds,
+  fetchLavoratoriByIds,
   fetchProcessiMatching,
+  fetchProcessiMatchingByIds,
   fetchSelezioniLavoratori,
   createRecord,
   updateRecord,
@@ -283,24 +285,7 @@ async function fetchRelatedProcessesByIds(processIds: string[]) {
     index += RELATED_PROCESS_BATCH_SIZE
   ) {
     const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE);
-    const result = await fetchProcessiMatching({
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `worker-processi-coinvolti-processes-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `worker-processi-coinvolti-process-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    });
+    const result = await fetchProcessiMatchingByIds({ ids: batch });
 
     if (Array.isArray(result.rows)) {
       rows.push(...(result.rows as Record<string, unknown>[]));
@@ -321,24 +306,7 @@ async function fetchRelatedFamiliesByIds(familyIds: string[]) {
     index += RELATED_FAMILY_BATCH_SIZE
   ) {
     const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE);
-    const result = await fetchFamiglie({
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `worker-processi-coinvolti-families-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `worker-processi-coinvolti-family-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    });
+    const result = await fetchFamiglieByIds(batch);
 
     if (Array.isArray(result.rows)) {
       rows.push(...(result.rows as Record<string, unknown>[]));
@@ -346,24 +314,6 @@ async function fetchRelatedFamiliesByIds(familyIds: string[]) {
   }
 
   return rows;
-}
-
-function buildAnyOfFilter(field: string, values: string[], idPrefix: string) {
-  const normalizedValues = Array.from(new Set(values.filter(Boolean)));
-  if (normalizedValues.length === 0) return undefined;
-
-  return {
-    kind: "group" as const,
-    id: `${idPrefix}-${field}`,
-    logic: "or" as const,
-    nodes: normalizedValues.map((value, index) => ({
-      kind: "condition" as const,
-      id: `${idPrefix}-${field}-${index}`,
-      field,
-      operator: "is" as const,
-      value,
-    })),
-  };
 }
 
 async function searchProcessesForWorkerAdd(query: string) {
@@ -424,18 +374,14 @@ async function searchProcessesForWorkerAdd(query: string) {
   ];
 
   if (familyIds.length > 0) {
-    const familyProcesses = await fetchProcessiMatching({
-      limit: 25,
-      offset: 0,
-      select: processSelect,
-      filters: buildAnyOfFilter(
-        "famiglia_id",
-        familyIds,
-        "worker-add-search-families",
-      ),
+    const familyProcesses = await fetchProcessiMatchingByIds({
+      famigliaIds: familyIds,
     });
 
-    for (const processRow of familyProcesses.rows as Record<string, unknown>[]) {
+    // Preserva il cap di 25 del fetch originale (la RPC non lima lato server).
+    for (const processRow of (
+      familyProcesses.rows as Record<string, unknown>[]
+    ).slice(0, 25)) {
       const processId = asString(processRow.id);
       if (processId) processRowsById.set(processId, processRow);
     }
@@ -1190,24 +1136,7 @@ export function LavoratoriCercaView({
         { id: selectedWorkerId },
       );
 
-      const result = await fetchLavoratori({
-        limit: 1,
-        offset: 0,
-        filters: {
-          kind: "group",
-          id: "ai-generated-worker-summary",
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: "ai-generated-worker-summary-id",
-              field: "id",
-              operator: "is",
-              value: selectedWorkerId,
-            },
-          ],
-        },
-      });
+      const result = await fetchLavoratoriByIds([selectedWorkerId]);
       const row = result.rows[0];
       if (row) {
         applyUpdatedWorkerRow(asLavoratoreRecord(row));

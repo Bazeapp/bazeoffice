@@ -36,14 +36,15 @@ import {
   type TableColumnMeta,
   clearReadCaches,
   fetchCercaLavoratori,
-  fetchFamiglie,
+  fetchFamiglieByIds,
   fetchGate1Lavoratori,
   fetchGate2Lavoratori,
   fetchIndirizzi,
   fetchLavoratoreExtras,
   fetchLookupValues,
   fetchLavoratori,
-  fetchProcessiMatching,
+  fetchLavoratoriByIds,
+  fetchProcessiMatchingByIds,
   fetchSelezioniLavoratori,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -111,64 +112,6 @@ const WORKER_LIST_SELECT = [
   "creato_il",
   "aggiornato_il",
 ]
-const WORKER_DETAIL_SELECT = Array.from(new Set([
-  ...WORKER_LIST_SELECT.filter((field) => field !== "cap"),
-  "anni_esperienza_badante",
-  "availability_final_json",
-  "check_accetta_babysitting_multipli_bambini",
-  "check_accetta_babysitting_neonati",
-  "check_accetta_case_con_cani",
-  "check_accetta_case_con_cani_grandi",
-  "check_accetta_case_con_gatti",
-  "check_accetta_lavori_con_trasferta",
-  "check_accetta_salire_scale_o_soffitti_alti",
-  "check_lavori_accettabili",
-  "compatibilita_babysitting_neonati",
-  "compatibilita_con_animali_in_casa",
-  "compatibilita_con_case_di_grandi_dimensioni",
-  "compatibilita_con_contesti_pacati",
-  "compatibilita_con_cucina_strutturata",
-  "compatibilita_con_elevata_autonomia_richiesta",
-  "compatibilita_con_stiro_esigente",
-  "compatibilita_famiglie_molto_esigenti",
-  "compatibilita_famiglie_numerose",
-  "compatibilita_lavoro_con_datore_presente_in_casa",
-  "disponibilita_domenica_mattina",
-  "disponibilita_domenica_pomeriggio",
-  "disponibilita_domenica_sera",
-  "disponibilita_giovedi_mattina",
-  "disponibilita_giovedi_pomeriggio",
-  "disponibilita_giovedi_sera",
-  "disponibilita_lunedi_mattina",
-  "disponibilita_lunedi_pomeriggio",
-  "disponibilita_lunedi_sera",
-  "disponibilita_martedi_mattina",
-  "disponibilita_martedi_pomeriggio",
-  "disponibilita_martedi_sera",
-  "disponibilita_mercoledi_mattina",
-  "disponibilita_mercoledi_pomeriggio",
-  "disponibilita_mercoledi_sera",
-  "disponibilita_nel_giorno",
-  "disponibilita_per_json",
-  "disponibilita_sabato_mattina",
-  "disponibilita_sabato_pomeriggio",
-  "disponibilita_sabato_sera",
-  "disponibilita_venerdi_mattina",
-  "disponibilita_venerdi_pomeriggio",
-  "disponibilita_venerdi_sera",
-  "iban",
-  "id_stripe_account",
-  "livello_babysitting",
-  "livello_cucina",
-  "livello_dogsitting",
-  "livello_giardinaggio",
-  "livello_inglese",
-  "livello_pulizie",
-  "livello_stiro",
-  "motivazione_non_idoneo",
-  "situazione_lavorativa_attuale",
-  "vincoli_orari_disponibilita",
-]))
 const WORKER_LIST_DATA_VERSION = "worker-list-gate-detail-v1"
 
 const GATE1_BLOCKING_SELECTION_STATUS_TOKENS = new Set([
@@ -979,37 +922,7 @@ async function fetchRelatedProcessesByIds(processIds: string[]) {
 
   for (let index = 0; index < processIds.length; index += RELATED_PROCESS_BATCH_SIZE) {
     const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE)
-    const result = await fetchProcessiMatching({
-      select: [
-        "id",
-        "famiglia_id",
-        "numero_ricerca_attivata",
-        "stato_res",
-        "recruiter_ricerca_e_selezione_id",
-        "orario_di_lavoro",
-        "indirizzo_prova_via",
-        "indirizzo_prova_comune",
-        "indirizzo_prova_provincia",
-        "indirizzo_prova_cap",
-        "indirizzo_prova_note",
-      ],
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `lavoratori-related-processes-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `lavoratori-related-process-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    })
+    const result = await fetchProcessiMatchingByIds({ ids: batch })
 
     rows.push(...((Array.isArray(result.rows) ? result.rows : []) as GenericRow[]))
   }
@@ -1024,25 +937,7 @@ async function fetchRelatedFamiliesByIds(familyIds: string[]) {
 
   for (let index = 0; index < familyIds.length; index += RELATED_FAMILY_BATCH_SIZE) {
     const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE)
-    const result = await fetchFamiglie({
-      select: ["id", "nome", "cognome"],
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `lavoratori-related-families-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `lavoratori-related-family-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    })
+    const result = await fetchFamiglieByIds(batch)
 
     rows.push(...((Array.isArray(result.rows) ? result.rows : []) as GenericRow[]))
   }
@@ -1870,26 +1765,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
       setSelectedWorkerRow(listRow)
 
       try {
-        const result = await fetchLavoratori({
-          select: WORKER_DETAIL_SELECT,
-          limit: 1,
-          offset: 0,
-          includeSchema: false,
-          filters: {
-            kind: "group",
-            id: "selected-worker-detail",
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: "selected-worker-detail-id",
-                field: "id",
-                operator: "is",
-                value: selectedWorkerId,
-              },
-            ],
-          },
-        })
+        const result = await fetchLavoratoriByIds([selectedWorkerId])
         if (isCancelled) return
         const detailRow = result.rows[0] ? asLavoratoreRecord(result.rows[0]) : listRow
         setSelectedWorkerRow(detailRow ?? null)
