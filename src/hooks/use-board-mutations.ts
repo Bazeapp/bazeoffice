@@ -4,6 +4,7 @@ import {
   type QueryKey,
   type UseMutationResult,
 } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import { runTracked } from "@/lib/anagrafiche-api"
 
@@ -34,6 +35,13 @@ type BoardMutationOptions<TVars, TData, TBoardData> = {
     previous: TBoardData | undefined,
     variables: TVars,
   ) => TBoardData | undefined
+  /**
+   * Custom message shown in the error toast when the mutation fails. Falls
+   * back to the thrown error's message. Without this, a rejected save used to
+   * roll back the optimistic state silently — the user never knew the change
+   * didn't persist ("salvataggio silenzioso").
+   */
+  errorMessage?: string
 }
 
 type MutationContext<TBoardData> = { snapshot: TBoardData | undefined }
@@ -44,7 +52,8 @@ function useBoardMutation<TVars, TData, TBoardData>(
   },
 ): UseMutationResult<TData, Error, TVars, MutationContext<TBoardData>> {
   const queryClient = useQueryClient()
-  const { queryKey, mutationFn, applyOptimistic, invalidateOnSettled } = options
+  const { queryKey, mutationFn, applyOptimistic, invalidateOnSettled, errorMessage } =
+    options
 
   return useMutation<TData, Error, TVars, MutationContext<TBoardData>>({
     // Defensive trackWrite wrapper: callers today pass a `mutationFn` that
@@ -67,10 +76,19 @@ function useBoardMutation<TVars, TData, TBoardData>(
       }
       return { snapshot }
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.snapshot !== undefined) {
         queryClient.setQueryData(queryKey, context.snapshot)
       }
+      // Surface the failure. Before this, onError rolled the optimistic state
+      // back to the snapshot but emitted nothing — the user saw the value
+      // revert with no explanation. Now every board save error is visible.
+      toast.error(
+        errorMessage ??
+          (error instanceof Error && error.message
+            ? error.message
+            : "Errore durante il salvataggio"),
+      )
     },
     onSettled: invalidateOnSettled
       ? () => {
