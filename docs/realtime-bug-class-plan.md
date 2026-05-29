@@ -127,7 +127,14 @@ della stessa classe di bug). 0 errors. Ogni rule ha un recipe di
 suppression in-comment con istruzioni esplicite. Nuovi PR non
 possono introdurre regression senza override scritto + spiegazione.
 
-## FASE 4 TER — Quick wins: visibility errori + fix segnalazioni aperte
+## FASE 4 TER — Quick wins: visibility errori + fix segnalazioni aperte ✅
+
+**Done (2026-05-28)**: livello di visibilità errori completato. Ogni save
+fallito mostra un toast — `use-board-mutations` onError (13 board),
+`useDebouncedSave` .catch (133 campi), `use-selected-worker-editor` (8 catch
++ applyWorkerPatch ~100 caller), `rapporto-detail-panel` autosave contratto.
+Più i fix Wave 1 critici (disponibilita autosave, key= cross-worker).
+tsc + 154 test + 0 errori lint. Commit `4332979` (Wave 1) + `6d10501` (toast).
 
 **Obiettivo**: smettere di avere bug invisibili. Da qui in poi, ogni save
 che fallisce server-side mostra un toast rosso visibile su qualunque
