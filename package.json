@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:nostrict": "VITE_DISABLE_STRICT_MODE=true vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "audit:lookup": "node scripts/audit-lookup-usage.mjs",
