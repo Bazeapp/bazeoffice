@@ -1133,6 +1133,19 @@ export async function fetchContributiInpsByIds(ids: string[]) {
   return rpcRows("contributi_inps_by_ids", { p_ids: ids })
 }
 
+// FASE 4 BIS Wave 4 — board contributi INPS.
+export async function fetchContributiInpsByPeriod(start: string, end: string) {
+  return rpcRows("contributi_inps_by_period", { p_start: start, p_end: end })
+}
+
+export async function fetchMesiCalendarioAll(limit = 500) {
+  return rpcRows("mesi_calendario_all", { p_limit: limit })
+}
+
+export async function fetchRapportiLavorativiAll(limit = 3000) {
+  return rpcRows("rapporti_lavorativi_all", { p_limit: limit })
+}
+
 // FASE 4 BIS Wave 4 — selezioni: lookup unico (id / lavoratore / processo /
 // stato, AND-combinati). Almeno un filtro deve essere fornito.
 export async function fetchSelezioniLookup(options: {
