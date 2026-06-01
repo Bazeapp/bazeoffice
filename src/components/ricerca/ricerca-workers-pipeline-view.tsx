@@ -95,15 +95,12 @@ import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
   createRecord,
-  fetchEsperienzeLavoratoriByWorker,
-  fetchDocumentiLavoratoriByWorker,
   fetchFamiglieByIds,
-  fetchIndirizziByEntity,
   fetchLavoratoriByIds,
   fetchLavoratoriSearch,
   fetchLookupValues,
   fetchProcessiMatchingByIds,
-  fetchReferenzeLavoratoriByWorker,
+  fetchRicercaWorkerScheda,
   fetchSelezioniLookup,
   runSmartMatchingForwardPreview,
   updateRecord,
@@ -1307,36 +1304,14 @@ export function RicercaWorkersPipelineView({
       setSelectedWorkerError(null);
 
       try {
-        const [
-          workerResult,
-          lookupResult,
-          experiencesResult,
-          documentsResult,
-          referencesResult,
-          selectionResult,
-          addressResult,
-        ] = await Promise.all([
-          fetchLavoratoriByIds([workerId]),
+        const [scheda, lookupResult] = await Promise.all([
+          fetchRicercaWorkerScheda(workerId, selectionId),
           fetchLookupValues(),
-          fetchEsperienzeLavoratoriByWorker(workerId),
-          fetchDocumentiLavoratoriByWorker(workerId),
-          fetchReferenzeLavoratoriByWorker(workerId),
-          fetchSelezioniLookup({ ids: [selectionId] }),
-          fetchIndirizziByEntity("lavoratori", [workerId], [
-            "residenza",
-            "domicilio",
-          ]),
         ]);
 
-        const row = Array.isArray(workerResult.rows)
-          ? workerResult.rows[0]
-          : null;
-        const selectionRow = Array.isArray(selectionResult.rows)
-          ? selectionResult.rows[0]
-          : null;
-        const addressRows = Array.isArray(addressResult.rows)
-          ? (addressResult.rows as Record<string, unknown>[])
-          : [];
+        const row = scheda.worker;
+        const selectionRow = scheda.selezione;
+        const addressRows = scheda.indirizzi as Record<string, unknown>[];
         const residenceAddressRow =
           addressRows.find(
             (address) =>
@@ -1356,9 +1331,15 @@ export function RicercaWorkersPipelineView({
         setSelectedSelectionRow(selectionRow ?? null);
         setLookupOptionsByDomain(normalizeLookupOptions(lookupResult.rows));
         setLookupColorsByDomain(normalizeLookupColors(lookupResult.rows));
-        setSelectedWorkerExperiences(experiencesResult.rows);
-        setSelectedWorkerDocuments(documentsResult.rows);
-        setSelectedWorkerReferences(referencesResult.rows);
+        setSelectedWorkerExperiences(
+          scheda.esperienze as typeof selectedWorkerExperiences,
+        );
+        setSelectedWorkerDocuments(
+          scheda.documenti as typeof selectedWorkerDocuments,
+        );
+        setSelectedWorkerReferences(
+          scheda.referenze as typeof selectedWorkerReferences,
+        );
       } catch (error) {
         if (isCancelled) return;
         const message = error instanceof Error ? error.message : String(error);

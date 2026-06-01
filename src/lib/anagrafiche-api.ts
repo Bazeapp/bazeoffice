@@ -1052,6 +1052,48 @@ export async function fetchLavoratoreScheda(workerId: string): Promise<Lavorator
   }
 }
 
+// FASE 4 BIS — scheda worker pipeline Ricerca in 1 chiamata (worker + indirizzi
+// + esperienze/documenti/referenze + selezione corrente). Sostituisce 6 fetch
+// parallele in ricerca-workers-pipeline-view.
+export type RicercaWorkerSchedaResult = {
+  worker: TableRow | null
+  indirizzi: TableRow[]
+  esperienze: TableRow[]
+  documenti: TableRow[]
+  referenze: TableRow[]
+  selezione: TableRow | null
+}
+
+export async function fetchRicercaWorkerScheda(
+  workerId: string,
+  selectionId?: string | null
+): Promise<RicercaWorkerSchedaResult> {
+  const empty: RicercaWorkerSchedaResult = {
+    worker: null,
+    indirizzi: [],
+    esperienze: [],
+    documenti: [],
+    referenze: [],
+    selezione: null,
+  }
+  if (!workerId) return empty
+  const { data, error } = await supabase.rpc("ricerca_worker_scheda", {
+    p_worker_id: workerId,
+    p_selection_id: selectionId ?? null,
+  })
+  if (error) throw new Error(`ricerca_worker_scheda failed: ${error.message}`)
+  const payload = (data ?? {}) as Record<string, unknown>
+  const arr = (value: unknown) => (Array.isArray(value) ? (value as TableRow[]) : [])
+  return {
+    worker: (payload.worker as TableRow | null) ?? null,
+    indirizzi: arr(payload.indirizzi),
+    esperienze: arr(payload.esperienze),
+    documenti: arr(payload.documenti),
+    referenze: arr(payload.referenze),
+    selezione: (payload.selezione as TableRow | null) ?? null,
+  }
+}
+
 // FASE 4 BIS Wave 2 — indirizzi by entity + bbox geografico.
 export async function fetchIndirizziByEntity(
   entitaTabella: string,
