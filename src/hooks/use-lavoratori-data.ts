@@ -31,7 +31,6 @@ import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import {
   type Gate1RpcFilter,
-  type QueryFilterCondition,
   type QueryFilterGroup,
   type TableColumnMeta,
   clearReadCaches,
@@ -42,7 +41,6 @@ import {
   fetchIndirizziByEntity,
   fetchLavoratoreExtras,
   fetchLookupValues,
-  fetchLavoratori,
   fetchLavoratoriByIds,
   fetchLavoratoriNazionalita,
   fetchProcessiMatchingByIds,
@@ -61,57 +59,9 @@ const DEFAULT_PAGE_SIZE = 50
 const SERVER_QUERY_DEBOUNCE_MS = 700
 const VIEWS_STORAGE_KEY = "lavoratori.cerca.saved-views"
 const ADDRESS_BATCH_SIZE = 120
-const GATE1_BASE_FETCH_PAGE_SIZE = 500
-const GATE1_BLOCKING_SELECTIONS_CACHE_TTL_MS = 60_000
 const RELATED_WORKER_BATCH_SIZE = 50
 const RELATED_PROCESS_BATCH_SIZE = 150
 const RELATED_FAMILY_BATCH_SIZE = 150
-const WORKER_LIST_SELECT = [
-  "id",
-  "nome",
-  "cognome",
-  "email",
-  "telefono",
-  "foto",
-  "sesso",
-  "nazionalita",
-  "descrizione_pubblica",
-  "livello_italiano",
-  "check_blacklist",
-  "stato_lavoratore",
-  "feedback_recruiter",
-  "disponibilita",
-  "data_ritorno_disponibilita",
-  "tipo_lavoro_domestico",
-  "tipo_rapporto_lavorativo",
-  "data_di_nascita",
-  "anni_esperienza_colf",
-  "anni_esperienza_babysitter",
-  "provincia",
-  "cap",
-  "indirizzo_residenza_completo",
-  "come_ti_sposti",
-  "documenti_in_regola",
-  "stato_verifica_documenti",
-  "hai_referenze",
-  "data_scadenza_naspi",
-  "referente_idoneita_id",
-  "referente_certificazione_id",
-  "followup_chiamata_idoneita",
-  "rating_atteggiamento",
-  "rating_cura_personale",
-  "rating_precisione_puntualita",
-  "rating_capacita_comunicative",
-  "rating_corporatura",
-  "check_accetta_funzionamento_baze",
-  "check_accetta_paga_9_euro_netti",
-  "paga_oraria_richiesta",
-  "check_accetta_multipli_contratti",
-  "data_ora_di_creazione",
-  "data_ora_ultima_modifica",
-  "creato_il",
-  "aggiornato_il",
-]
 const WORKER_LIST_DATA_VERSION = "worker-list-gate-detail-v1"
 
 // FASE 4 BIS — whitelist colonne ordinabili. Deve restare allineata agli helper
@@ -248,15 +198,6 @@ const GATE1_BLOCKING_SELECTION_STATUS_FILTER_VALUES = [
 
 type GenericRow = Record<string, unknown>
 
-let gate1BlockingWorkerIdsCache:
-  | {
-      expiresAt: number
-      promise: Promise<Set<string>>
-    }
-  | null = null
-
-const GATE1_RETURN_AVAILABILITY_WINDOW_DAYS = 14
-
 type UseLavoratoriDataOptions = {
   initialSelectedWorkerId?: string | null
   forcedWorkerStatus?: string | string[]
@@ -285,34 +226,6 @@ function toCanonicalWorkerStatus(value: string) {
   }
 }
 
-function mergeAndFilters(
-  baseFilters: QueryFilterGroup | undefined,
-  nodes: Array<QueryFilterCondition | QueryFilterGroup>,
-  id: string
-) {
-  const validNodes = nodes.filter(Boolean)
-  if (validNodes.length === 0) return baseFilters
-
-  if (!baseFilters || !Array.isArray(baseFilters.nodes) || baseFilters.nodes.length === 0) {
-    return {
-      kind: "group" as const,
-      id,
-      logic: "and" as const,
-      nodes: validNodes,
-    }
-  }
-
-  return {
-    kind: "group" as const,
-    id: `${id}-merge`,
-    logic: "and" as const,
-    nodes: [baseFilters, ...validNodes],
-  }
-}
-
-function hasFilterNodes(filters: QueryFilterGroup | undefined) {
-  return Boolean(filters && Array.isArray(filters.nodes) && filters.nodes.length > 0)
-}
 
 function collectGate1RpcFilters(
   group: QueryFilterGroup | undefined
@@ -437,153 +350,6 @@ function buildGate2RpcStatusFilters(
   return null
 }
 
-function hasForcedWorkerStatus(forcedWorkerStatus: string | string[] | undefined) {
-  return Array.isArray(forcedWorkerStatus)
-    ? forcedWorkerStatus.some((status) => Boolean(status?.trim()))
-    : Boolean(forcedWorkerStatus?.trim())
-}
-
-function formatDateFilterValue(date: Date) {
-  const year = date.getUTCFullYear()
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0")
-  const day = String(date.getUTCDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
-
-function isGate1AvailabilityEligible(row: GenericRow) {
-  const disponibilita = asString(row.disponibilita)
-    .toLowerCase()
-    .replaceAll("_", " ")
-    .trim()
-
-  if (disponibilita !== "non disponibile") return true
-
-  const returnDate = asString(row.data_ritorno_disponibilita)
-  if (!returnDate) return false
-
-  const returnDateLimit = new Date()
-  returnDateLimit.setUTCDate(
-    returnDateLimit.getUTCDate() + GATE1_RETURN_AVAILABILITY_WINDOW_DAYS
-  )
-
-  return returnDate <= formatDateFilterValue(returnDateLimit)
-}
-
-function buildGate1AvailabilityFilter(): QueryFilterGroup {
-  const returnDateLimit = new Date()
-  returnDateLimit.setUTCDate(
-    returnDateLimit.getUTCDate() + GATE1_RETURN_AVAILABILITY_WINDOW_DAYS
-  )
-
-  return {
-    kind: "group",
-    id: "gate1-disponibilita-rolling",
-    logic: "or",
-    nodes: [
-      {
-        kind: "condition",
-        id: "gate1-disponibilita-diversa-da-non-disponibile",
-        field: "disponibilita",
-        operator: "is_not",
-        value: "Non disponibile",
-      },
-      {
-        kind: "group",
-        id: "gate1-non-disponibile-rientro-vicino",
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: "gate1-non-disponibile",
-            field: "disponibilita",
-            operator: "is",
-            value: "Non disponibile",
-          },
-          {
-            kind: "condition",
-            id: "gate1-data-ritorno-entro-quattordici-giorni",
-            field: "data_ritorno_disponibilita",
-            operator: "lte",
-            value: formatDateFilterValue(returnDateLimit),
-          },
-        ],
-      },
-    ],
-  }
-}
-
-function buildWorkerBaseFilter({
-  baseFilters,
-  forcedWorkerStatus,
-  applyGate1BaseFilters,
-  gate1ProvinciaFilter,
-  gate1FollowupFilter,
-}: {
-  baseFilters: QueryFilterGroup | undefined
-  forcedWorkerStatus: string | string[] | undefined
-  applyGate1BaseFilters: boolean
-  gate1ProvinciaFilter?: string
-  gate1FollowupFilter?: string
-}) {
-  const normalizedStatuses = (
-    Array.isArray(forcedWorkerStatus) ? forcedWorkerStatus : [forcedWorkerStatus ?? ""]
-  )
-    .map((status) => toCanonicalWorkerStatus(status))
-    .filter(Boolean)
-  const uniqueStatuses = Array.from(new Set(normalizedStatuses))
-  const forcedNodes: Array<QueryFilterCondition | QueryFilterGroup> = []
-
-  if (uniqueStatuses.length > 0) {
-    forcedNodes.push(
-      uniqueStatuses.length === 1
-        ? {
-            kind: "condition",
-            id: "forced-stato-lavoratore",
-            field: "stato_lavoratore",
-            operator: "is",
-            value: uniqueStatuses[0],
-          }
-        : {
-            kind: "group",
-            id: "forced-stato-lavoratore-any",
-            logic: "or",
-            nodes: uniqueStatuses.map((status, index) => ({
-              kind: "condition",
-              id: `forced-stato-lavoratore-${index}`,
-              field: "stato_lavoratore",
-              operator: "is",
-              value: status,
-            })),
-          }
-    )
-  }
-
-  if (applyGate1BaseFilters) {
-    forcedNodes.push(buildGate1AvailabilityFilter())
-
-    if (gate1ProvinciaFilter && gate1ProvinciaFilter !== "all") {
-      forcedNodes.push({
-        kind: "condition",
-        id: "gate1-provincia-filter",
-        field: "provincia_sigla",
-        operator: "is",
-        value: gate1ProvinciaFilter,
-      })
-    }
-
-    if (gate1FollowupFilter && gate1FollowupFilter !== "all") {
-      forcedNodes.push({
-        kind: "condition",
-        id: "gate1-followup-filter",
-        field: "followup_chiamata_idoneita",
-        operator: "is",
-        value: gate1FollowupFilter,
-      })
-    }
-  }
-
-  return mergeAndFilters(baseFilters, forcedNodes, "worker-base-filter")
-}
 
 function isGate1BlockingSelection(selection: GenericRow) {
   return GATE1_BLOCKING_SELECTION_STATUS_TOKENS.has(
@@ -894,54 +660,6 @@ async function fetchSelectionsForWorkers(workerIds: string[], blockingOnly = fal
   }
 
   return rows
-}
-
-async function fetchGate1BlockingWorkerIds() {
-  const now = Date.now()
-  if (gate1BlockingWorkerIdsCache && gate1BlockingWorkerIdsCache.expiresAt > now) {
-    return gate1BlockingWorkerIdsCache.promise
-  }
-
-  const promise = fetchGate1BlockingWorkerIdsUncached()
-  gate1BlockingWorkerIdsCache = {
-    expiresAt: now + GATE1_BLOCKING_SELECTIONS_CACHE_TTL_MS,
-    promise,
-  }
-
-  try {
-    return await promise
-  } catch (error) {
-    gate1BlockingWorkerIdsCache = null
-    throw error
-  }
-}
-
-async function fetchGate1BlockingWorkerIdsUncached() {
-  const blockingStatusValues = Array.from(
-    new Set([
-      "Selezionato",
-      "Inviato al cliente",
-      "Colloquio schedulato",
-      "Colloquio rimandato",
-      "Colloquio fatto",
-      "Prova schedulata",
-      "Prova rimandata",
-    ])
-  )
-
-  // Una sola RPC con tutti gli stati bloccanti (prima: fan-out di 7 query).
-  const result = await fetchSelezioniLookup({
-    stati: blockingStatusValues,
-    columns: "lavoratore_id,stato_selezione",
-  })
-  const rows = (Array.isArray(result.rows) ? result.rows : []) as GenericRow[]
-
-  return new Set(
-    rows
-      .filter((row) => isGate1BlockingSelection(row))
-      .map((row) => asString(row.lavoratore_id))
-      .filter((workerId): workerId is string => Boolean(workerId))
-  )
 }
 
 async function fetchRelatedProcessesByIds(processIds: string[]) {
@@ -1303,44 +1021,17 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
       if (!silent) setLoading(true)
       if (!silent) setError(null)
       try {
-        const sortOrderBy =
-          debouncedQuery.sorting.length > 0
-            ? debouncedQuery.sorting.map((item) => ({ field: item.id, ascending: !item.desc }))
-            : [
-                { field: "stato_lavoratore", ascending: true },
-                { field: "data_ora_ultima_modifica", ascending: false },
-                { field: "creato_il", ascending: false },
-              ]
-        const hasUserFilters = hasFilterNodes(debouncedQuery.filters)
-        const workerBaseFilter = buildWorkerBaseFilter({
-          baseFilters: debouncedQuery.filters,
-          forcedWorkerStatus,
-          applyGate1BaseFilters,
-          gate1ProvinciaFilter,
-          gate1FollowupFilter,
-        })
-
         if (applyGate1BaseFilters) {
-          const forcedStatuses = Array.isArray(forcedWorkerStatus)
-            ? forcedWorkerStatus
-            : [forcedWorkerStatus ?? ""]
           const gate1RpcFilters = buildGate1RpcFilters({
             filters: debouncedQuery.filters,
             gate1ProvinciaFilter,
             gate1FollowupFilter,
           })
-          // gate1RpcFilters è null sui filtri OR: in quel caso passiamo il
-          // gruppo annidato (buildGate1RpcFilterGroup), che gate1_lavoratori
-          // valuta via lavoratore_matches_filter_group. Niente più fallback.
-          const canUseGate1Rpc =
-            isRpcSortable(debouncedQuery.sorting) &&
-            forcedStatuses.length === 1 &&
-            toCanonicalWorkerStatus(forcedStatuses[0] ?? "") === "Qualificato"
-          const fetchedRows: GenericRow[] = []
-          let offset = 0
-          let expectedTotal = 0
-
-          if (canUseGate1Rpc) {
+          // FASE 4 BIS — Gate 1 SEMPRE via RPC. gate1_lavoratori assume stato
+          // 'Qualificato' (l'unico usato con applyGate1BaseFilters) e applica
+          // disponibilità + blocco selezioni server-side. I filtri OR passano
+          // come gruppo annidato (matcher ricorsivo). Nessun fallback table-query.
+          {
             const result = await fetchGate1Lavoratori({
               limit: pageSize,
               offset: pageIndex * pageSize,
@@ -1399,89 +1090,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
             })
             return
           }
-
-          while (true) {
-            const pageResult = await fetchLavoratori({
-              select: hasUserFilters ? undefined : WORKER_LIST_SELECT,
-              limit: GATE1_BASE_FETCH_PAGE_SIZE,
-              offset,
-              includeSchema: false,
-              orderBy: sortOrderBy,
-              search: debouncedQuery.searchValue.trim() || undefined,
-              searchFields: ["nome", "cognome", "email", "telefono"],
-              filters: workerBaseFilter,
-            })
-
-            if (requestId !== requestIdRef.current) return
-
-            fetchedRows.push(...pageResult.rows)
-            expectedTotal = pageResult.total
-
-            if (
-              pageResult.rows.length < GATE1_BASE_FETCH_PAGE_SIZE ||
-              fetchedRows.length >= expectedTotal
-            ) {
-              break
-            }
-
-            offset += GATE1_BASE_FETCH_PAGE_SIZE
-          }
-
-          const allRows = fetchedRows.map(asLavoratoreRecord)
-          const gate1BlockedWorkerIds = await fetchGate1BlockingWorkerIds().catch(
-            () => new Set<string>()
-          )
-          if (requestId !== requestIdRef.current) return
-
-          const visibleRows = allRows.filter(
-            (row) =>
-              isGate1AvailabilityEligible(row) &&
-              !gate1BlockedWorkerIds.has(row.id)
-          )
-          const pageStart = pageIndex * pageSize
-          const pageRows = visibleRows.slice(pageStart, pageStart + pageSize)
-          const pageWorkerIds = pageRows.map((row) => row.id)
-
-          const relatedSelectionsPromise = includeRelatedSelectionDetails
-            ? fetchRelatedActiveSelectionsByWorkerIds({
-                workerIds: pageWorkerIds,
-                lookupColorsByDomain: lookupColorsByDomainRef.current,
-                recruiterLabelsById: recruiterLabelsByIdRef.current,
-                includeDetails: true,
-                blockingOnly: false,
-              }).catch(() => ({
-                relatedSelectionsByWorkerId: new Map<
-                  string,
-                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
-                >(),
-                gate1BlockedWorkerIds: new Set<string>(),
-              }))
-            : Promise.resolve({
-                relatedSelectionsByWorkerId: new Map<
-                  string,
-                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
-                >(),
-                gate1BlockedWorkerIds: new Set<string>(),
-              })
-
-          const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
-            fetchWorkerAddressesByIds(pageWorkerIds),
-            relatedSelectionsPromise,
-          ])
-          if (requestId !== requestIdRef.current) return
-
-          setWorkerRows(pageRows)
-          setWorkerAddressesById(addressesByWorkerId)
-          setRelatedSelectionsByWorkerId(relatedSelectionsResult.relatedSelectionsByWorkerId)
-          setWorkersTotal(visibleRows.length)
-          lastLoadedListQueryKeyRef.current = queryKey
-          setSelectedWorkerId((previous) => {
-            if (previous && (previous === initialSelectedWorkerId || pageRows.some((row) => row.id === previous))) {
-              return previous
-            }
-            return pageRows[0]?.id ?? null
-          })
-          return
         }
 
         const gate2UserRpcFilters = buildGate1RpcFilters({
@@ -1587,12 +1195,10 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         // appiattibili in array). In quel caso passiamo il GRUPPO annidato
         // grezzo: cerca_lavoratori lo valuta via lavoratore_matches_filter_group
         // (AND/OR ricorsivo). Niente più fallback table-query per i filtri OR.
-        const canUseCercaRpc =
-          !applyGate1BaseFilters &&
-          !hasForcedWorkerStatus(forcedWorkerStatus) &&
-          isRpcSortable(debouncedQuery.sorting)
-
-        if (canUseCercaRpc) {
+        // FASE 4 BIS — Cerca SEMPRE via RPC: gate1/gate2 ritornano dai rispettivi
+        // blocchi sopra, quindi qui arriva solo la vista Cerca (nessuno status
+        // forzato). Nessun fallback table-query.
+        {
           const result = await fetchCercaLavoratori({
             limit: pageSize,
             offset: pageIndex * pageSize,
@@ -1645,72 +1251,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           })
           return
         }
-
-        const result = await fetchLavoratori({
-          select: hasUserFilters ? undefined : WORKER_LIST_SELECT,
-          limit: pageSize,
-          offset: pageIndex * pageSize,
-          includeSchema: false,
-          orderBy: sortOrderBy,
-          search: debouncedQuery.searchValue.trim() || undefined,
-          searchFields: ["nome", "cognome", "email", "telefono"],
-          filters: workerBaseFilter,
-        })
-        if (requestId !== requestIdRef.current) return
-
-        const rows = result.rows.map(asLavoratoreRecord)
-        const workerIds = rows.map((row) => row.id)
-        const relatedSelectionsPromise =
-          includeRelatedSelectionDetails || applyGate1BaseFilters
-            ? fetchRelatedActiveSelectionsByWorkerIds({
-                workerIds,
-                lookupColorsByDomain: lookupColorsByDomainRef.current,
-                recruiterLabelsById: recruiterLabelsByIdRef.current,
-                includeDetails: includeRelatedSelectionDetails,
-                blockingOnly: applyGate1BaseFilters && !includeRelatedSelectionDetails,
-              }).catch(() => ({
-                relatedSelectionsByWorkerId: new Map<
-                  string,
-                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
-                >(),
-                gate1BlockedWorkerIds: new Set<string>(),
-              }))
-            : Promise.resolve({
-                relatedSelectionsByWorkerId: new Map<
-                  string,
-                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
-                >(),
-                gate1BlockedWorkerIds: new Set<string>(),
-              })
-        const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
-          fetchWorkerAddressesByIds(workerIds),
-          relatedSelectionsPromise,
-        ])
-        if (requestId !== requestIdRef.current) return
-
-        const visibleRows = applyGate1BaseFilters
-          ? rows.filter(
-              (row) =>
-                isGate1AvailabilityEligible(row) &&
-                !relatedSelectionsResult.gate1BlockedWorkerIds.has(row.id)
-            )
-          : rows
-
-        setWorkerRows(visibleRows)
-        setWorkerAddressesById(addressesByWorkerId)
-        setRelatedSelectionsByWorkerId(relatedSelectionsResult.relatedSelectionsByWorkerId)
-        setWorkersTotal(
-          applyGate1BaseFilters
-            ? Math.max(result.total - relatedSelectionsResult.gate1BlockedWorkerIds.size, visibleRows.length)
-            : result.total
-        )
-        lastLoadedListQueryKeyRef.current = queryKey
-        setSelectedWorkerId((previous) => {
-          if (previous && (previous === initialSelectedWorkerId || visibleRows.some((row) => row.id === previous))) {
-            return previous
-          }
-          return visibleRows[0]?.id ?? null
-        })
       } catch (caughtError) {
         if (requestId !== requestIdRef.current) return
         if (!silent) {
