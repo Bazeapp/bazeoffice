@@ -39,6 +39,38 @@ export default defineConfig([
     },
   },
 
+  // Rule 0 (FASE 4 BIS): la edge function `table-query` è consentita SOLO nel
+  // chokepoint `src/lib/anagrafiche-api.ts` (la helper `queryTable`, usata dalla
+  // pagina Anagrafiche e dal loader dello schema filtri). Ovunque altrove si
+  // devono usare RPC dedicate. Questa regola intercetta `invokeEdgeFunction(
+  // "table-query", ...)`. I glob già coperti da altri blocchi no-restricted-syntax
+  // sono esclusi qui per non sovrascriverli (nel flat-config l'ultimo blocco che
+  // matcha un file rimpiazza interamente la stessa regola).
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [
+      'src/lib/anagrafiche-api.ts',
+      'src/lib/supabase-edge.ts',
+      'src/hooks/use-*-board.ts',
+      'src/hooks/use-*-data.ts',
+      'src/hooks/use-*-pipeline.ts',
+      'src/hooks/use-crm-*.ts',
+      'src/components/**/*.tsx',
+      'src/pages/**/*.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.name='invokeEdgeFunction'] > Literal[value='table-query']",
+          message:
+            'table-query è consentita solo in src/lib/anagrafiche-api.ts (chokepoint queryTable: Anagrafiche + schema-loader filtri). Non aggiungere nuove chiamate table-query: crea una RPC dedicata (FASE 4 BIS).',
+        },
+      ],
+    },
+  },
+
   // Rule 1: board hooks must use the centralized mutation wrappers instead of
   // calling React Query's useMutation directly. The wrappers encode the rule
   // "don't invalidate the board on per-field saves" (it would cause a refetch
