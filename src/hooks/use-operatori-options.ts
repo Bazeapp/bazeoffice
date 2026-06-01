@@ -1,9 +1,8 @@
 import * as React from "react"
 
-import { invokeEdgeFunction } from "@/lib/supabase-edge"
+import { fetchOperatoriOptionsRows } from "@/lib/anagrafiche-api"
 
 type GenericRow = Record<string, unknown>
-type TableQueryResponse = GenericRow[] | { data?: GenericRow[]; rows?: GenericRow[] }
 
 const OPERATORI_OPTIONS_CACHE_TTL_MS = 5 * 60 * 1000
 
@@ -108,44 +107,10 @@ async function fetchOperatoriOptions(role: string | undefined, activeOnly: boole
 
   const roleTokens = getRoleTokens(role)
 
-  const promise = invokeEdgeFunction<TableQueryResponse>("table-query", {
-    table: "operatori",
-    select: ["id", "nome", "cognome", "ruolo", "attivo"],
-    orderBy: [
-      { field: "nome", ascending: true },
-      { field: "cognome", ascending: true },
-    ],
-    filters: {
-      kind: "group",
-      id: "operatori-options-root",
-      logic: "and",
-      nodes: [
-        ...(activeOnly
-          ? [
-              {
-                kind: "condition",
-                id: "operatori-options-attivo",
-                field: "attivo",
-                operator: "is_true",
-                value: "",
-              },
-            ]
-          : []),
-        ...(roleTokens.length > 0
-          ? [
-              {
-                kind: "condition",
-                id: "operatori-options-role",
-                field: "ruolo",
-                operator: "has_any",
-                value: roleTokens.join(","),
-              },
-            ]
-          : []),
-      ],
-    },
-  }).then((rows) => {
-    const rawRows = Array.isArray(rows) ? rows : rows.data ?? rows.rows ?? []
+  const promise = fetchOperatoriOptionsRows(roleTokens, activeOnly).then((rows) => {
+    const rawRows = (Array.isArray(rows) ? rows : []) as GenericRow[]
+    // L'RPC filtra già per ruolo/attivo; ri-applichiamo lato client come
+    // difesa in profondità (e per normalizzare eventuali edge case).
     const filteredRows = rawRows.filter((row) => isActive(row, activeOnly) && hasRole(row, role))
 
     return filteredRows

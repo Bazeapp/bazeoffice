@@ -878,78 +878,44 @@ export async function fetchVariazioniContrattuali(query: TablePageQuery) {
   })
 }
 
+// FASE 4 BIS — dettaglio lavoratore via RPC dedicate (ORDER BY identico al
+// vecchio table-query). Le RPC `*_by_lavoratore` ritornano setof <table>.
 export async function fetchEsperienzeLavoratoriByWorker(lavoratoreId: string) {
-  return queryTable<EsperienzaLavoratoreRecord>({
-    table: "esperienze_lavoratori",
-    select: ["*"],
-    orderBy: [
-      { field: "stato_esperienza_attiva", ascending: false },
-      { field: "data_inizio", ascending: false },
-      { field: "aggiornato_il", ascending: false },
-    ],
-    filters: {
-      kind: "group",
-      id: "esperienze-lavoratore-root",
-      logic: "and",
-      nodes: [
-        {
-          kind: "condition",
-          id: "esperienze-lavoratore-id",
-          field: "lavoratore_id",
-          operator: "is",
-          value: lavoratoreId,
-        },
-      ],
-    },
+  const { data, error } = await supabase.rpc("esperienze_lavoratori_by_lavoratore", {
+    p_lavoratore_id: lavoratoreId,
   })
+  if (error) throw new Error(`esperienze_lavoratori_by_lavoratore failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<EsperienzaLavoratoreRecord>)
 }
 
 export async function fetchDocumentiLavoratoriByWorker(lavoratoreId: string) {
-  return queryTable<DocumentoLavoratoreRecord>({
-    table: "documenti_lavoratori",
-    select: ["*"],
-    orderBy: [{ field: "aggiornato_il", ascending: false }],
-    filters: {
-      kind: "group",
-      id: "documenti-lavoratore-root",
-      logic: "and",
-      nodes: [
-        {
-          kind: "condition",
-          id: "documenti-lavoratore-id",
-          field: "lavoratore_id",
-          operator: "is",
-          value: lavoratoreId,
-        },
-      ],
-    },
+  const { data, error } = await supabase.rpc("documenti_lavoratori_by_lavoratore", {
+    p_lavoratore_id: lavoratoreId,
   })
+  if (error) throw new Error(`documenti_lavoratori_by_lavoratore failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<DocumentoLavoratoreRecord>)
 }
 
 export async function fetchReferenzeLavoratoriByWorker(lavoratoreId: string) {
-  return queryTable<ReferenzaLavoratoreRecord>({
-    table: "referenze_lavoratori",
-    select: ["*"],
-    orderBy: [
-      { field: "referenza_verificata", ascending: true },
-      { field: "data_inzio", ascending: false },
-      { field: "aggiornato_il", ascending: false },
-    ],
-    filters: {
-      kind: "group",
-      id: "referenze-lavoratore-root",
-      logic: "and",
-      nodes: [
-        {
-          kind: "condition",
-          id: "referenze-lavoratore-id",
-          field: "lavoratore_id",
-          operator: "is",
-          value: lavoratoreId,
-        },
-      ],
-    },
+  const { data, error } = await supabase.rpc("referenze_lavoratori_by_lavoratore", {
+    p_lavoratore_id: lavoratoreId,
   })
+  if (error) throw new Error(`referenze_lavoratori_by_lavoratore failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<ReferenzaLavoratoreRecord>)
+}
+
+// FASE 4 BIS — opzioni operatori (dropdown recruiter/operatori) via RPC.
+// I role tokens sono calcolati lato client (getRoleTokens) e passati come array.
+// `.select(...)` proietta solo le colonne usate dalla UI (Fix A — trim payload).
+export async function fetchOperatoriOptionsRows(roleTokens: string[], activeOnly: boolean) {
+  const { data, error } = await supabase
+    .rpc("operatori_options", {
+      p_role_tokens: roleTokens.length > 0 ? roleTokens : null,
+      p_active_only: activeOnly,
+    })
+    .select("id,nome,cognome,ruolo,attivo")
+  if (error) throw new Error(`operatori_options failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<TableRow>).rows
 }
 
 export async function fetchRicercaWorkerRelatedSelectionSummaries(query: {
