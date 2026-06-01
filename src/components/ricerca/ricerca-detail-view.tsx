@@ -1205,13 +1205,13 @@ export function RicercaDetailView({
     return () => {
       cancelled = true;
     };
-    // pipelineState.detailRefreshTick: bumpa quando un altro utente modifica
-    // il processo (Pattern B). Senza, il loader dipendeva solo da
-    // currentProcessId e il dettaglio restava stantio fino a refresh manuale.
-    // I self-edit sono filtrati dall'echo-window dentro useRealtimeBoardSync,
-    // e la resync di orariDraft è guardata da editingSections.has("orari").
-    // reloadVersion: bump dopo l'auto-geocode al mount (da origin/main).
-  }, [currentProcessId, pipelineState.detailRefreshTick, reloadVersion]);
+    // FASE 4 BIS — revert F.1: il dettaglio NON si auto-ricarica sui tick
+    // realtime (era `pipelineState.detailRefreshTick`). Su DB condiviso e
+    // attivo quel tick bumpava ad ogni evento → loadDetail ripartiva di
+    // continuo e restava bloccato su "Caricamento…". Torniamo al comportamento
+    // di prod: ricarica solo al cambio processo o dopo l'auto-geocode
+    // (reloadVersion). L'aggiornamento granulare sui cambi remoti è un follow-up.
+  }, [currentProcessId, reloadVersion]);
 
   const updateProcessCard = React.useCallback(
     async (targetProcessId: string, patch: Record<string, unknown>) => {
