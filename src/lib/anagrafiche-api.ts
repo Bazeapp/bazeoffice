@@ -781,12 +781,6 @@ export async function fetchProveColloquiBoard(startDate: string, endDate: string
   }
 }
 
-export async function fetchLavoratoreExtras(workerId: string) {
-  const { data, error } = await supabase.rpc("lavoratore_extras", { p_worker_id: workerId })
-  if (error) throw new Error(`lavoratore_extras failed: ${error.message}`)
-  return (data ?? {}) as LavoratoreExtrasRpcResponse
-}
-
 export async function fetchRicercaBoard(eagerStages: string[], deferredStages: string[]) {
   const { data, error } = await supabase.rpc("ricerca_board", {
     p_eager_stages: eagerStages,
@@ -878,30 +872,15 @@ export async function fetchVariazioniContrattuali(query: TablePageQuery) {
   })
 }
 
-// FASE 4 BIS — dettaglio lavoratore via RPC dedicate (ORDER BY identico al
-// vecchio table-query). Le RPC `*_by_lavoratore` ritornano setof <table>.
-export async function fetchEsperienzeLavoratoriByWorker(lavoratoreId: string) {
-  const { data, error } = await supabase.rpc("esperienze_lavoratori_by_lavoratore", {
-    p_lavoratore_id: lavoratoreId,
-  })
-  if (error) throw new Error(`esperienze_lavoratori_by_lavoratore failed: ${error.message}`)
-  return normalizeTableResponse(data as TableQueryResponse<EsperienzaLavoratoreRecord>)
-}
-
+// FASE 4 BIS — documenti lavoratore via RPC dedicata (ORDER BY identico al
+// vecchio table-query). Usata dalla assunzioni-detail-sheet.
+// (esperienze/referenze by_lavoratore rimosse: ora servite da ricerca_worker_scheda)
 export async function fetchDocumentiLavoratoriByWorker(lavoratoreId: string) {
   const { data, error } = await supabase.rpc("documenti_lavoratori_by_lavoratore", {
     p_lavoratore_id: lavoratoreId,
   })
   if (error) throw new Error(`documenti_lavoratori_by_lavoratore failed: ${error.message}`)
   return normalizeTableResponse(data as TableQueryResponse<DocumentoLavoratoreRecord>)
-}
-
-export async function fetchReferenzeLavoratoriByWorker(lavoratoreId: string) {
-  const { data, error } = await supabase.rpc("referenze_lavoratori_by_lavoratore", {
-    p_lavoratore_id: lavoratoreId,
-  })
-  if (error) throw new Error(`referenze_lavoratori_by_lavoratore failed: ${error.message}`)
-  return normalizeTableResponse(data as TableQueryResponse<ReferenzaLavoratoreRecord>)
 }
 
 // FASE 4 BIS — opzioni operatori (dropdown recruiter/operatori) via RPC.
@@ -1255,15 +1234,6 @@ export async function fetchLavoratoriByName(
     p_rest: rest,
     p_full: full,
   })
-}
-
-// FASE 4 BIS Wave 4 — opzioni nazionalità distinct (per il filtro).
-export async function fetchLavoratoriNazionalita(): Promise<string[]> {
-  const { data, error } = await supabase.rpc("lavoratori_nazionalita_options")
-  if (error) throw new Error(`lavoratori_nazionalita_options failed: ${error.message}`)
-  return ((data ?? []) as Array<{ nazionalita: string | null }>)
-    .map((row) => row.nazionalita)
-    .filter((value): value is string => Boolean(value))
 }
 
 // FASE 4 BIS Wave 4 — selezioni: lookup unico (id / lavoratore / processo /
