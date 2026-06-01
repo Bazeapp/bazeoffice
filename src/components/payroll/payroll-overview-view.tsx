@@ -44,6 +44,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input"
+import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
@@ -586,6 +587,78 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
   )
 }
 
+// Campo "Importo sconto": controllato e con clamp sul commit (blur/Enter).
+// Non usa DebouncedInput perché, dopo il primo input, quel hook tiene il
+// draft "sticky" e non rifletterebbe il valore limitato al cap. Qui invece
+// se si digita un valore oltre il massimo viene riportato al massimo, sia
+// nel valore salvato sia in quello mostrato.
+function ImportoScontoField({
+  value,
+  max,
+  onCommit,
+}: {
+  value: number | null
+  max: number
+  onCommit: (value: number | null) => Promise<void>
+}) {
+  const [draft, setDraft] = React.useState(value === null ? "" : String(value))
+  const isEditingRef = React.useRef(false)
+
+  // Riallinea dal server solo quando il campo non è in editing
+  // (mount iniziale + refresh remoto di un campo non toccato).
+  React.useEffect(() => {
+    if (isEditingRef.current) return
+    setDraft(value === null ? "" : String(value))
+  }, [value])
+
+  const commit = React.useCallback(
+    async (raw: string) => {
+      isEditingRef.current = false
+      const trimmed = raw.trim()
+
+      if (trimmed === "") {
+        setDraft("")
+        if (value !== null) await onCommit(null)
+        return
+      }
+
+      const parsed = Number(trimmed)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        // Valore non valido: ripristina l'ultimo salvato.
+        setDraft(value === null ? "" : String(value))
+        return
+      }
+
+      let next = parsed
+      if (next > max) {
+        next = max
+        toast.info(`Importo sconto limitato al massimo di ${formatCurrencyAmount(max)}`)
+      }
+
+      setDraft(String(next))
+      if (next !== value) await onCommit(next)
+    },
+    [max, value, onCommit],
+  )
+
+  return (
+    <Input
+      type="number"
+      step="0.01"
+      min="0"
+      value={draft}
+      onChange={(event) => {
+        isEditingRef.current = true
+        setDraft(event.target.value)
+      }}
+      onBlur={(event) => void commit(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur()
+      }}
+    />
+  )
+}
+
 export function CedolinoDetailSheet({
   card,
   columns,
@@ -652,6 +725,16 @@ export function CedolinoDetailSheet({
     if (contractHours === null && workedHours === null) return null
     return Math.max(contractHours ?? 0, workedHours ?? 0)
   }, [contractHours, workedHours])
+  const applicationFee = React.useMemo(() => {
+    if (feeConcordata === null || hoursToPay === null) return null
+    return feeConcordata * hoursToPay
+  }, [feeConcordata, hoursToPay])
+  // L'importo sconto non può superare il totale a carico della famiglia
+  // (importo cedolino + application fee) con una tolleranza di 2€.
+  const importoScontoMax = React.useMemo(
+    () => (paymentAmount ?? 0) + (applicationFee ?? 0) + 2,
+    [paymentAmount, applicationFee],
+  )
   const [runningAutomationId, setRunningAutomationId] = React.useState<string | null>(null)
   const [uploadingCedolino, setUploadingCedolino] = React.useState(false)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
@@ -1062,15 +1145,21 @@ export function CedolinoDetailSheet({
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Application fee</p>
-                      <p className="font-medium">
-                        {feeConcordata !== null && hoursToPay !== null
-                          ? formatCurrencyAmount(feeConcordata * hoursToPay)
-                          : formatCurrencyAmount(null)}
-                      </p>
+                      <p className="font-medium">{formatCurrencyAmount(applicationFee)}</p>
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Importo cedolino</p>
                       <p className="font-medium">{formatCurrencyAmount(paymentAmount)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="ui-type-label">Importo sconto</p>
+                      <ImportoScontoField
+                        value={card.record.importo_sconto_mese ?? null}
+                        max={importoScontoMax}
+                        onCommit={async (next) => {
+                          await onPatchCard(card.id, { importo_sconto_mese: next })
+                        }}
+                      />
                     </div>
                   </div>
                   <div className="grid gap-5 sm:grid-cols-2">

@@ -12,6 +12,7 @@ export type MeseLavoratoRecord = {
   data_ora_creazione: string | null
   estrazione_corretta: boolean | null
   importo_busta_estratto: number | null
+  importo_sconto_mese: number | null
   mese_id: string | null
   note: string | null
   opzione_licenziamento: boolean | null
