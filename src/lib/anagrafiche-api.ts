@@ -1122,6 +1122,17 @@ export async function fetchPresenzeByIds(ids: string[]) {
   return rpcRows("presenze_by_ids", { p_ids: ids })
 }
 
+// FASE 4 BIS Wave 4 — reload single-card board (by id).
+export async function fetchVariazioniByIds(ids: string[]) {
+  if (ids.length === 0) return EMPTY_ROWS
+  return rpcRows("variazioni_by_ids", { p_ids: ids })
+}
+
+export async function fetchContributiInpsByIds(ids: string[]) {
+  if (ids.length === 0) return EMPTY_ROWS
+  return rpcRows("contributi_inps_by_ids", { p_ids: ids })
+}
+
 // FASE 4 BIS Wave 4 — selezioni: lookup unico (id / lavoratore / processo /
 // stato, AND-combinati). Almeno un filtro deve essere fornito.
 export async function fetchSelezioniLookup(options: {

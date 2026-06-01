@@ -34,7 +34,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
-import { fetchChiusureContratti, fetchRapportiLavorativi, updateRecord } from "@/lib/anagrafiche-api"
+import { fetchChiusureByIds, fetchRapportiLavorativiByIds, updateRecord } from "@/lib/anagrafiche-api"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
@@ -791,43 +791,9 @@ export function ChiusureBoardView() {
     async function loadSelectedCard() {
       try {
         const [recordResponse, rapportoResponse] = await Promise.all([
-          fetchChiusureContratti({
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: "chiusure-selected-record",
-              logic: "and",
-              nodes: [
-                  {
-                    kind: "condition",
-                    id: "chiusure-selected-record-id",
-                    field: "id",
-                    operator: "is",
-                    value: currentCardId,
-                  },
-                ],
-              },
-            }),
+          fetchChiusureByIds([currentCardId]),
           currentCard.rapporto?.id
-            ? fetchRapportiLavorativi({
-                limit: 1,
-                offset: 0,
-                filters: {
-                  kind: "group",
-                  id: "chiusure-selected-rapporto",
-                  logic: "and",
-                  nodes: [
-                      {
-                        kind: "condition",
-                        id: "chiusure-selected-rapporto-id",
-                        field: "id",
-                        operator: "is",
-                        value: currentCard.rapporto.id,
-                      },
-                    ],
-                  },
-                })
+            ? fetchRapportiLavorativiByIds([currentCard.rapporto.id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
         ])
 
