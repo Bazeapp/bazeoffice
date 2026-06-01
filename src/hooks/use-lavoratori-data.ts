@@ -155,6 +155,76 @@ function isRpcSortable(sorting: { id: string; desc: boolean }[]): boolean {
   return sorting.length === 1 && WORKER_SORTABLE_FIELD_SET.has(sorting[0].id)
 }
 
+// FASE 4 BIS — catalogo campi filtro STATICO (sostituisce lo schema dinamico che
+// prima arrivava da table-query con includeSchema=true). La lista replica
+// esattamente ALLOWED_FIELDS['lavoratori'] dell'edge function; il filterType di
+// base è derivato col medesimo euristico (id / date / text), poiché lo schema
+// veniva inferito da una riga `select id` senza campioni di valore. La FE
+// sovrascrive comunque il tipo con quello dei lookup (enum/multi_enum) via
+// lookupFilterTypeByDomain, quindi qui basta id/date/text.
+const WORKER_FILTER_FIELD_NAMES = [
+  "id", "anni_esperienza_babysitter", "anni_esperienza_badante", "anni_esperienza_colf",
+  "check_accetta_babysitting_multipli_bambini", "check_accetta_babysitting_neonati",
+  "check_accetta_case_con_cani", "check_accetta_case_con_cani_grandi", "check_accetta_case_con_gatti",
+  "check_accetta_funzionamento_baze", "check_accetta_lavori_con_trasferta",
+  "check_accetta_multipli_contratti", "check_accetta_paga_9_euro_netti",
+  "check_accetta_salire_scale_o_soffitti_alti", "check_blacklist", "check_lavori_accettabili",
+  "nome", "cognome", "colloquio_in_presenza", "come_ti_sposti",
+  "compatibilita_babysitting_neonati", "compatibilita_con_animali_in_casa",
+  "compatibilita_con_case_di_grandi_dimensioni", "compatibilita_con_contesti_pacati",
+  "compatibilita_con_cucina_strutturata", "compatibilita_con_elevata_autonomia_richiesta",
+  "compatibilita_con_stiro_esigente", "compatibilita_famiglie_molto_esigenti",
+  "compatibilita_famiglie_numerose", "compatibilita_lavoro_con_datore_presente_in_casa",
+  "conoscenza_dellitaliano", "data_di_nascita", "data_ora_di_creazione",
+  "data_ritorno_disponibilita", "data_scadenza_naspi", "data_ultima_candidatura",
+  "data_ultima_modifica_profilo", "descrizione_pubblica", "descrizione_rivista",
+  "disponibilita", "disponibilita_per_json", "availability_final_json", "disponibilita_nel_giorno",
+  "disponibilita_domenica_mattina", "disponibilita_domenica_pomeriggio", "disponibilita_domenica_sera",
+  "disponibilita_giovedi_mattina", "disponibilita_giovedi_pomeriggio", "disponibilita_giovedi_sera",
+  "disponibilita_lunedi_mattina", "disponibilita_lunedi_pomeriggio", "disponibilita_lunedi_sera",
+  "disponibilita_martedi_mattina", "disponibilita_martedi_pomeriggio", "disponibilita_martedi_sera",
+  "disponibilita_mercoledi_mattina", "disponibilita_mercoledi_pomeriggio", "disponibilita_mercoledi_sera",
+  "disponibilita_sabato_mattina", "disponibilita_sabato_pomeriggio", "disponibilita_sabato_sera",
+  "disponibilita_venerdi_mattina", "disponibilita_venerdi_pomeriggio", "disponibilita_venerdi_sera",
+  "documenti_in_regola", "email", "fbclid", "feedback_recruiter", "followup_chiamata_idoneita",
+  "foto", "gclid", "hai_referenze", "iban", "id_stripe_account", "livello_babysitting",
+  "livello_cucina", "livello_dogsitting", "livello_giardinaggio", "livello_inglese",
+  "livello_italiano", "livello_pulizie", "livello_stiro", "motivazione_non_idoneo", "nazionalita",
+  "paga_oraria_richiesta", "provincia", "rating_atteggiamento", "rating_capacita_comunicative",
+  "rating_corporatura", "rating_cura_personale", "rating_precisione_puntualita",
+  "referente_certificazione_id", "referente_idoneita_id", "riassunto_profilo_breve", "sesso",
+  "situazione_lavorativa_attuale", "stato_lavoratore", "stato_profilo", "stato_selezioni",
+  "stato_verifica_documenti", "telefono", "tipo_lavoro_domestico", "tipo_rapporto_lavorativo",
+  "ultima_modifica", "url_onboarding_stripe", "utm_campaign", "utm_content", "utm_medium",
+  "utm_source", "utm_term", "vincoli_orari_disponibilita", "creato_il", "aggiornato_il",
+]
+
+function inferWorkerFilterType(name: string): TableColumnMeta["filterType"] {
+  if (name === "id") return "id"
+  const n = name.trim().toLowerCase()
+  const dateLike =
+    !n.endsWith("_id") &&
+    (n.startsWith("data_") ||
+      n.includes("deadline") ||
+      n.includes("scadenza") ||
+      n === "creata" ||
+      n === "creato_il" ||
+      n === "aggiornato_il" ||
+      n === "ultimo_aggiornamento")
+  return dateLike ? "date" : "text"
+}
+
+const WORKER_SCHEMA_COLUMNS: TableColumnMeta[] = WORKER_FILTER_FIELD_NAMES.map((name) => {
+  const filterType = inferWorkerFilterType(name)
+  return {
+    name,
+    filterType,
+    dataType:
+      filterType === "id" ? "uuid" : filterType === "date" ? "timestamp with time zone" : "text",
+    udtName: filterType === "id" ? "uuid" : filterType === "date" ? "timestamptz" : null,
+  }
+})
+
 const GATE1_BLOCKING_SELECTION_STATUS_TOKENS = new Set([
   "selezionato",
   "inviato al cliente",
@@ -1080,7 +1150,11 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   )
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [workersColumns, setWorkersColumns] = React.useState<TableColumnMeta[]>([])
+  // FASE 4 BIS — catalogo filtri STATICO: niente più table-query con includeSchema.
+  // L'elenco campi del filter-builder arriva dal catalogo hardcoded
+  // (WORKER_SCHEMA_COLUMNS); i tipi enum/multi_enum vengono comunque sovrascritti
+  // a runtime dai lookup. Stato di sola lettura (nessun setter).
+  const [workersColumns] = React.useState<TableColumnMeta[]>(WORKER_SCHEMA_COLUMNS)
   const [selectedWorkerExperiences, setSelectedWorkerExperiences] = React.useState<
     EsperienzaLavoratoreRecord[]
   >([])
@@ -1111,8 +1185,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   const [realtimeTick, setRealtimeTick] = React.useState(0)
   const silentReloadRef = React.useRef(false)
   const requestIdRef = React.useRef(0)
-  const workersSchemaLoadedRef = React.useRef(false)
-  const workersSchemaLoadingRef = React.useRef(false)
   const selectedWorkerAddressLoadAttemptsRef = React.useRef(new Set<string>())
   const lastLoadedListQueryKeyRef = React.useRef<string | null>(null)
   const inFlightListQueryKeyRef = React.useRef<string | null>(null)
@@ -1160,29 +1232,10 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     setPageIndex(0)
   }, [debouncedQuery.searchValue, filters, gate1FollowupFilter, gate1ProvinciaFilter, sorting])
 
-  const loadWorkersSchema = React.useCallback(() => {
-    if (workersSchemaLoadedRef.current || workersSchemaLoadingRef.current) return
-
-    workersSchemaLoadingRef.current = true
-    void fetchLavoratori({
-      select: ["id"],
-      limit: 1,
-      offset: 0,
-      includeSchema: true,
-      orderBy: [{ field: "id", ascending: true }],
-    })
-      .then((schemaResult) => {
-        if (schemaResult.columns.length === 0) return
-        workersSchemaLoadedRef.current = true
-        setWorkersColumns(schemaResult.columns)
-      })
-      .catch(() => {
-        // I filtri avanzati restano apribili anche se lo schema arriva in ritardo.
-      })
-      .finally(() => {
-        workersSchemaLoadingRef.current = false
-      })
-  }, [])
+  // FASE 4 BIS — lo schema filtri è ora STATICO (WORKER_SCHEMA_COLUMNS), quindi
+  // non c'è più nulla da caricare via table-query. Manteniamo il callback come
+  // no-op per non cambiare l'API dei consumer (onRequestSchema).
+  const loadWorkersSchema = React.useCallback(() => {}, [])
 
   React.useEffect(() => {
     let isCancelled = false
@@ -1258,7 +1311,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
                 { field: "data_ora_ultima_modifica", ascending: false },
                 { field: "creato_il", ascending: false },
               ]
-        const shouldLoadSchema = !workersSchemaLoadedRef.current
         const hasUserFilters = hasFilterNodes(debouncedQuery.filters)
         const workerBaseFilter = buildWorkerBaseFilter({
           baseFilters: debouncedQuery.filters,
@@ -1287,30 +1339,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           const fetchedRows: GenericRow[] = []
           let offset = 0
           let expectedTotal = 0
-
-          const loadGate1SchemaInBackground = () => {
-            if (!shouldLoadSchema) return
-
-            void fetchLavoratori({
-              select: ["id"],
-              limit: 1,
-              offset: 0,
-              includeSchema: true,
-              orderBy: sortOrderBy,
-              search: debouncedQuery.searchValue.trim() || undefined,
-              searchFields: ["nome", "cognome", "email", "telefono"],
-              filters: workerBaseFilter,
-            })
-              .then((schemaResult) => {
-                if (requestId !== requestIdRef.current) return
-                if (schemaResult.columns.length === 0) return
-                workersSchemaLoadedRef.current = true
-                setWorkersColumns(schemaResult.columns)
-              })
-              .catch(() => {
-                // Non blocchiamo Gate 1 se lo schema filtri arriva in ritardo.
-              })
-          }
 
           if (canUseGate1Rpc) {
             const result = await fetchGate1Lavoratori({
@@ -1398,8 +1426,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
 
             offset += GATE1_BASE_FETCH_PAGE_SIZE
           }
-
-          loadGate1SchemaInBackground()
 
           const allRows = fetchedRows.map(asLavoratoreRecord)
           const gate1BlockedWorkerIds = await fetchGate1BlockingWorkerIds().catch(
@@ -1624,21 +1650,13 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           select: hasUserFilters ? undefined : WORKER_LIST_SELECT,
           limit: pageSize,
           offset: pageIndex * pageSize,
-          includeSchema: shouldLoadSchema,
+          includeSchema: false,
           orderBy: sortOrderBy,
           search: debouncedQuery.searchValue.trim() || undefined,
           searchFields: ["nome", "cognome", "email", "telefono"],
           filters: workerBaseFilter,
         })
         if (requestId !== requestIdRef.current) return
-
-        if (result.columns.length > 0) {
-          workersSchemaLoadedRef.current = true
-          setWorkersColumns(result.columns)
-        } else if (shouldLoadSchema) {
-          setWorkersColumns([])
-          setError("Schema filtri lavoratori non disponibile (columns vuote da table-query).")
-        }
 
         const rows = result.rows.map(asLavoratoreRecord)
         const workerIds = rows.map((row) => row.id)
@@ -1706,7 +1724,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           setWorkerAddressesById(new Map())
           setRelatedSelectionsByWorkerId(new Map())
           setWorkersTotal(0)
-          setWorkersColumns([])
         }
       } finally {
         if (inFlightListQueryKeyRef.current === queryKey) {
