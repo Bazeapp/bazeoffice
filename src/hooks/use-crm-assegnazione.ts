@@ -6,7 +6,7 @@ import { usePatchMutation } from "@/hooks/use-board-mutations"
 import {
   fetchFamiglieByIds,
   fetchLookupValues,
-  fetchProcessiMatching,
+  fetchProcessiMatchingByStatoRes,
   updateRecord,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -59,31 +59,6 @@ type UseCrmAssegnazioneState = {
   patchCard: (processId: string, patch: Record<string, unknown>) => Promise<void>
 }
 
-const ASSEGNAZIONE_QUERY_LIMIT = 5000
-
-const ASSEGNAZIONE_PROCESSI_SELECT = [
-  "id",
-  "famiglia_id",
-  "stato_res",
-  "data_assegnazione",
-  "deadline_mobile",
-  "data_limite_invio_selezione",
-  "luogo_id",
-  "indirizzo_prova_note",
-  "indirizzo_prova_cap",
-  "indirizzo_prova_comune",
-  "tipo_lavoro",
-  "tipo_rapporto",
-  "numero_ricerca_attivata",
-  "recruiter_ricerca_e_selezione_id",
-  "ore_settimanale",
-  "numero_giorni_settimanali",
-  "frequenza_rapporto",
-  "orario_di_lavoro",
-  "mansioni_richieste",
-  "descrizione_lavoratore_ideale",
-  "aggiornato_il",
-]
 
 function asRowArray(input: unknown): GenericRow[] {
   if (!Array.isArray(input)) return []
@@ -261,26 +236,12 @@ function formatAssegnazioneZona(process: GenericRow) {
 
 async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
   const [processesResult, lookupResult] = await Promise.all([
-    fetchProcessiMatching({
-      select: ASSEGNAZIONE_PROCESSI_SELECT,
-      limit: ASSEGNAZIONE_QUERY_LIMIT,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: "crm-assegnazione-status-root",
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: "crm-assegnazione-status-values",
-            field: "stato_res",
-            operator: "in",
-            value: "da assegnare,fare ricerca,da_assegnare,fare_ricerca",
-          },
-        ],
-      },
-    }),
+    fetchProcessiMatchingByStatoRes([
+      "da assegnare",
+      "fare ricerca",
+      "da_assegnare",
+      "fare_ricerca",
+    ]),
     fetchLookupValues(),
   ])
 

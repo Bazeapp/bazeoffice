@@ -1146,6 +1146,12 @@ export async function fetchRapportiLavorativiAll(limit = 3000) {
   return rpcRows("rapporti_lavorativi_all", { p_limit: limit })
 }
 
+// FASE 4 BIS Wave 4 — CRM assegnazione: processi per stato_res.
+export async function fetchProcessiMatchingByStatoRes(stati: string[]) {
+  if (stati.length === 0) return EMPTY_ROWS
+  return rpcRows("processi_matching_by_stato_res", { p_stati: stati })
+}
+
 // FASE 4 BIS Wave 4 — selezioni: lookup unico (id / lavoratore / processo /
 // stato, AND-combinati). Almeno un filtro deve essere fornito.
 export async function fetchSelezioniLookup(options: {
