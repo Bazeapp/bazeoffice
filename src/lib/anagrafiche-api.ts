@@ -1276,6 +1276,7 @@ export async function fetchGate1Lavoratori(query: {
   offset: number
   search?: string
   filters?: Gate1RpcFilter[] | QueryFilterGroup
+  orderBy?: { field: string; ascending: boolean }
 }) {
   return fetchGateLavoratoriRpc("gate1_lavoratori", query)
 }
@@ -1285,6 +1286,7 @@ export async function fetchGate2Lavoratori(query: {
   offset: number
   search?: string
   filters?: Gate1RpcFilter[] | QueryFilterGroup
+  orderBy?: { field: string; ascending: boolean }
 }) {
   return fetchGateLavoratoriRpc("gate2_lavoratori", query)
 }
@@ -1296,6 +1298,7 @@ export async function fetchCercaLavoratori(query: {
   // Accetta sia l'array piatto (fast-path) sia il gruppo annidato AND/OR:
   // cerca_lavoratori applica lavoratore_matches_filter_group quando riceve un gruppo.
   filters?: Gate1RpcFilter[] | QueryFilterGroup
+  orderBy?: { field: string; ascending: boolean }
 }) {
   return fetchGateLavoratoriRpc("cerca_lavoratori", query)
 }
@@ -1307,6 +1310,7 @@ async function fetchGateLavoratoriRpc(
     offset: number
     search?: string
     filters?: Gate1RpcFilter[] | QueryFilterGroup
+    orderBy?: { field: string; ascending: boolean }
   }
 ) {
   const { data, error } = await supabase.rpc(functionName, {
@@ -1314,6 +1318,8 @@ async function fetchGateLavoratoriRpc(
     p_offset: query.offset,
     p_search: query.search ?? null,
     p_filters: query.filters ?? [],
+    p_order_by: query.orderBy?.field ?? null,
+    p_order_dir: query.orderBy ? (query.orderBy.ascending ? "asc" : "desc") : null,
   })
   if (error) {
     throw new Error(`${functionName} failed: ${error.message}`)

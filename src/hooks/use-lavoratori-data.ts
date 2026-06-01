@@ -114,6 +114,47 @@ const WORKER_LIST_SELECT = [
 ]
 const WORKER_LIST_DATA_VERSION = "worker-list-gate-detail-v1"
 
+// FASE 4 BIS — whitelist colonne ordinabili. Deve restare allineata agli helper
+// SQL public.lavoratore_sort_text / public.lavoratore_sort_num: solo queste
+// colonne sono instradate alle RPC (cerca/gate1/gate2) tramite p_order_by.
+// Tutto ciò che è fuori da questa lista non è offerto nella UI di ordinamento,
+// così non serve più alcun fallback table-query per il sort.
+const WORKER_SORTABLE_FIELDS = [
+  "nome",
+  "cognome",
+  "stato_lavoratore",
+  "disponibilita",
+  "provincia",
+  "data_di_nascita",
+  "anni_esperienza_colf",
+  "anni_esperienza_babysitter",
+  "followup_chiamata_idoneita",
+  "data_ora_di_creazione",
+  "data_ora_ultima_modifica",
+  "creato_il",
+  "aggiornato_il",
+] as const
+const WORKER_SORTABLE_FIELD_SET = new Set<string>(WORKER_SORTABLE_FIELDS)
+
+type RpcOrderBy = { field: string; ascending: boolean }
+
+// Le RPC ordinano per UNA colonna whitelisted. Sort vuoto o multi-colonna fuori
+// whitelist → undefined (default RPC).
+function toRpcOrderBy(
+  sorting: { id: string; desc: boolean }[]
+): RpcOrderBy | undefined {
+  const first = sorting[0]
+  if (!first || !WORKER_SORTABLE_FIELD_SET.has(first.id)) return undefined
+  return { field: first.id, ascending: !first.desc }
+}
+
+// Una richiesta è gestibile via RPC se il sort è vuoto oppure è un singolo
+// criterio su colonna whitelisted (le RPC non supportano sort multi-colonna).
+function isRpcSortable(sorting: { id: string; desc: boolean }[]): boolean {
+  if (sorting.length === 0) return true
+  return sorting.length === 1 && WORKER_SORTABLE_FIELD_SET.has(sorting[0].id)
+}
+
 const GATE1_BLOCKING_SELECTION_STATUS_TOKENS = new Set([
   "selezionato",
   "inviato al cliente",
@@ -1240,7 +1281,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           // gruppo annidato (buildGate1RpcFilterGroup), che gate1_lavoratori
           // valuta via lavoratore_matches_filter_group. Niente più fallback.
           const canUseGate1Rpc =
-            debouncedQuery.sorting.length === 0 &&
+            isRpcSortable(debouncedQuery.sorting) &&
             forcedStatuses.length === 1 &&
             toCanonicalWorkerStatus(forcedStatuses[0] ?? "") === "Qualificato"
           const fetchedRows: GenericRow[] = []
@@ -1283,6 +1324,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
                   gate1ProvinciaFilter,
                   gate1FollowupFilter,
                 }),
+              orderBy: toRpcOrderBy(debouncedQuery.sorting),
             })
             if (requestId !== requestIdRef.current) return
 
@@ -1454,7 +1496,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         const canUseGate2Rpc =
           !applyGate1BaseFilters &&
           (gate2RpcFilters !== null || gate2RpcFilterGroup !== null) &&
-          debouncedQuery.sorting.length === 0
+          isRpcSortable(debouncedQuery.sorting)
 
         if (canUseGate2Rpc) {
           const result = await fetchGate2Lavoratori({
@@ -1462,6 +1504,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
             offset: pageIndex * pageSize,
             search: debouncedQuery.searchValue.trim() || undefined,
             filters: gate2RpcFilters ?? (gate2RpcFilterGroup as QueryFilterGroup),
+            orderBy: toRpcOrderBy(debouncedQuery.sorting),
           })
           if (requestId !== requestIdRef.current) return
 
@@ -1521,7 +1564,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         const canUseCercaRpc =
           !applyGate1BaseFilters &&
           !hasForcedWorkerStatus(forcedWorkerStatus) &&
-          debouncedQuery.sorting.length === 0
+          isRpcSortable(debouncedQuery.sorting)
 
         if (canUseCercaRpc) {
           const result = await fetchCercaLavoratori({
@@ -1529,6 +1572,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
             offset: pageIndex * pageSize,
             search: debouncedQuery.searchValue.trim() || undefined,
             filters: cercaRpcFilters ?? debouncedQuery.filters,
+            orderBy: toRpcOrderBy(debouncedQuery.sorting),
           })
           if (requestId !== requestIdRef.current) return
 
@@ -1768,14 +1812,17 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     })
   }, [lookupFilterTypeByDomain, lookupOptionsByDomain, workersColumns])
 
+  // FASE 4 BIS — colonne ordinabili dalla whitelist (non più dallo schema
+  // table-query). Le RPC ordinano solo su questi campi, quindi la UI "Ordina
+  // per" deve offrire esattamente questi e nient'altro.
   const sortingColumns = React.useMemo<ColumnDef<LavoratoreRecord>[]>(
     () =>
-      workersColumns.map((column) => ({
-        id: column.name,
-        header: toReadableColumnLabel(column.name),
-        accessorFn: (row) => row[column.name as keyof LavoratoreRecord],
+      WORKER_SORTABLE_FIELDS.map((field) => ({
+        id: field,
+        header: toReadableColumnLabel(field),
+        accessorFn: (row) => row[field as keyof LavoratoreRecord],
       })),
-    [workersColumns]
+    []
   )
 
   const table = useReactTable({
