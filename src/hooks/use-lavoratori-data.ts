@@ -25,7 +25,6 @@ import {
   normalizeLookupOptions,
   resolveLookupColor,
 } from "@/features/lavoratori/lib/lookup-utils"
-import { isDirectInvolvementSelection } from "@/features/lavoratori/lib/involvement-utils"
 import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
@@ -35,7 +34,6 @@ import {
   type TableColumnMeta,
   clearReadCaches,
   fetchCercaLavoratori,
-  fetchFamiglieByIds,
   fetchGate1Lavoratori,
   fetchGate2Lavoratori,
   fetchIndirizziByEntity,
@@ -43,8 +41,7 @@ import {
   fetchLookupValues,
   fetchLavoratoriByIds,
   fetchLavoratoriNazionalita,
-  fetchProcessiMatchingByIds,
-  fetchSelezioniLookup,
+  fetchLavoratoriSelezioniCorrelate,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
@@ -59,9 +56,6 @@ const DEFAULT_PAGE_SIZE = 50
 const SERVER_QUERY_DEBOUNCE_MS = 700
 const VIEWS_STORAGE_KEY = "lavoratori.cerca.saved-views"
 const ADDRESS_BATCH_SIZE = 120
-const RELATED_WORKER_BATCH_SIZE = 50
-const RELATED_PROCESS_BATCH_SIZE = 150
-const RELATED_FAMILY_BATCH_SIZE = 150
 const WORKER_LIST_DATA_VERSION = "worker-list-gate-detail-v1"
 
 // FASE 4 BIS — whitelist colonne ordinabili. Deve restare allineata agli helper
@@ -174,27 +168,6 @@ const WORKER_SCHEMA_COLUMNS: TableColumnMeta[] = WORKER_FILTER_FIELD_NAMES.map((
     udtName: filterType === "id" ? "uuid" : filterType === "date" ? "timestamptz" : null,
   }
 })
-
-const GATE1_BLOCKING_SELECTION_STATUS_TOKENS = new Set([
-  "selezionato",
-  "inviato al cliente",
-  "colloquio schedulato",
-  "colloquio rimandato",
-  "colloquio fatto",
-  "prova schedulata",
-  "prova rimandata",
-])
-const GATE1_BLOCKING_SELECTION_STATUS_FILTER_VALUES = [
-  "Selezionato",
-  "Inviato al cliente",
-  "Inviato al Cliente",
-  "Colloquio schedulato",
-  "Colloquio rimandato",
-  "Colloquio fatto",
-  "Prova schedulata",
-  "Prova rimandata",
-  ...GATE1_BLOCKING_SELECTION_STATUS_TOKENS,
-]
 
 type GenericRow = Record<string, unknown>
 
@@ -350,12 +323,6 @@ function buildGate2RpcStatusFilters(
   return null
 }
 
-
-function isGate1BlockingSelection(selection: GenericRow) {
-  return GATE1_BLOCKING_SELECTION_STATUS_TOKENS.has(
-    normalizeStatusToken(selection.stato_selezione)
-  )
-}
 
 function buildLookupFilterTypeMap(rows: LookupValueRecord[]) {
   const filterTypeMap = new Map<string, TableColumnMeta["filterType"]>()
@@ -640,153 +607,53 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
   return addressesByWorkerId
 }
 
-async function fetchSelectionsForWorkers(workerIds: string[], blockingOnly = false) {
-  if (workerIds.length === 0) return []
-
-  const rows: GenericRow[] = []
-  const blockingStatusValues = Array.from(
-    new Set(GATE1_BLOCKING_SELECTION_STATUS_FILTER_VALUES)
-  )
-
-  for (let index = 0; index < workerIds.length; index += RELATED_WORKER_BATCH_SIZE) {
-    const batch = workerIds.slice(index, index + RELATED_WORKER_BATCH_SIZE)
-    const result = await fetchSelezioniLookup({
-      lavoratoreIds: batch,
-      stati: blockingOnly ? blockingStatusValues : undefined,
-      columns:
-        "id,lavoratore_id,processo_matching_id,stato_selezione,stato_situazione_lavorativa,note_selezione,aggiornato_il",
-    })
-    rows.push(...(Array.isArray(result.rows) ? (result.rows as GenericRow[]) : []))
-  }
-
-  return rows
-}
-
-async function fetchRelatedProcessesByIds(processIds: string[]) {
-  if (processIds.length === 0) return []
-
-  const rows: GenericRow[] = []
-
-  for (let index = 0; index < processIds.length; index += RELATED_PROCESS_BATCH_SIZE) {
-    const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE)
-    const result = await fetchProcessiMatchingByIds({
-      ids: batch,
-      columns:
-        "id,famiglia_id,stato_res,recruiter_ricerca_e_selezione_id,orario_di_lavoro,numero_ricerca_attivata,indirizzo_prova_comune,indirizzo_prova_provincia,indirizzo_prova_cap,indirizzo_prova_note,indirizzo_prova_via",
-    })
-
-    rows.push(...((Array.isArray(result.rows) ? result.rows : []) as GenericRow[]))
-  }
-
-  return rows
-}
-
-async function fetchRelatedFamiliesByIds(familyIds: string[]) {
-  if (familyIds.length === 0) return []
-
-  const rows: GenericRow[] = []
-
-  for (let index = 0; index < familyIds.length; index += RELATED_FAMILY_BATCH_SIZE) {
-    const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE)
-    const result = await fetchFamiglieByIds(batch, "id,nome,cognome")
-
-    rows.push(...((Array.isArray(result.rows) ? result.rows : []) as GenericRow[]))
-  }
-
-  return rows
-}
-
+// FASE 4 BIS — enrichment "altre selezioni attive" in UNA sola RPC
+// (lavoratori_selezioni_correlate): join selezioni+processi+famiglie già
+// filtrato server-side ai "direct involvement". Sostituisce il fan-out
+// selezioni_lookup + processi_matching_by_ids xN + famiglie_by_ids xN.
+// Per includeDetails=false (Gate 1, che esclude i bloccati via RPC) non c'è
+// nulla da arricchire: ritorniamo subito una mappa vuota senza query.
 async function fetchRelatedActiveSelectionsByWorkerIds({
   workerIds,
   lookupColorsByDomain,
   recruiterLabelsById,
   includeDetails,
-  blockingOnly,
 }: {
   workerIds: string[]
   lookupColorsByDomain: Map<string, string>
   recruiterLabelsById: Map<string, string>
   includeDetails: boolean
-  blockingOnly: boolean
 }) {
-  const selections = await fetchSelectionsForWorkers(workerIds, blockingOnly)
-  const gate1BlockedWorkerIds = new Set<string>()
-
-  for (const selection of selections) {
-    if (!isGate1BlockingSelection(selection)) continue
-    const workerId = asString(selection.lavoratore_id)
-    if (workerId) gate1BlockedWorkerIds.add(workerId)
-  }
-
-  if (!includeDetails) {
-    return {
-      relatedSelectionsByWorkerId: new Map<
-        string,
-        NonNullable<LavoratoreListItem["otherActiveSelections"]>
-      >(),
-      gate1BlockedWorkerIds,
-    }
-  }
-
-  const processIds = Array.from(
-    new Set(
-      selections
-        .map((selection) => asString(selection.processo_matching_id))
-        .filter((value): value is string => Boolean(value))
-    )
-  )
-  const processRows = await fetchRelatedProcessesByIds(processIds)
-  const processRowsById = new Map(
-    processRows
-      .map((row) => {
-        const rowId = asString(row.id)
-        if (!rowId) return null
-        return [rowId, row] as const
-      })
-      .filter((entry): entry is readonly [string, GenericRow] => Boolean(entry))
-  )
-  const familyIds = Array.from(
-    new Set(
-      processRows
-        .map((row) => asString(row.famiglia_id))
-        .filter((value): value is string => Boolean(value))
-    )
-  )
-  const familyRows = await fetchRelatedFamiliesByIds(familyIds)
-  const familyRowsById = new Map(
-    familyRows
-      .map((row) => {
-        const rowId = asString(row.id)
-        if (!rowId) return null
-        return [rowId, row] as const
-      })
-      .filter((entry): entry is readonly [string, GenericRow] => Boolean(entry))
-  )
   const relatedSelectionsByWorkerId = new Map<
     string,
     NonNullable<LavoratoreListItem["otherActiveSelections"]>
   >()
 
-  for (const workerId of workerIds) {
-    const workerSelections = selections.filter(
-      (selection) => asString(selection.lavoratore_id) === workerId
-    )
+  if (!includeDetails || workerIds.length === 0) {
+    return { relatedSelectionsByWorkerId }
+  }
+
+  const rows = await fetchLavoratoriSelezioniCorrelate(workerIds)
+  const rowsByWorker = new Map<string, GenericRow[]>()
+  for (const row of rows as GenericRow[]) {
+    const workerId = asString(row.lavoratore_id)
+    if (!workerId) continue
+    const bucket = rowsByWorker.get(workerId)
+    if (bucket) bucket.push(row)
+    else rowsByWorker.set(workerId, [row])
+  }
+
+  for (const [workerId, workerRows] of rowsByWorker) {
     const details: NonNullable<LavoratoreListItem["otherActiveSelections"]>["details"] = []
     const dots: NonNullable<LavoratoreListItem["otherActiveSelections"]>["dots"] = []
     const seenProcesses = new Set<string>()
 
-    for (const selection of workerSelections) {
-      const processId = asString(selection.processo_matching_id)
+    for (const row of workerRows) {
+      const processId = asString(row.processo_matching_id)
       if (!processId || seenProcesses.has(processId)) continue
 
-      const processRow = processRowsById.get(processId)
-      if (!processRow) continue
-      if (!isDirectInvolvementSelection(selection)) {
-        continue
-      }
-
-      const statoSelezione = asString(selection.stato_selezione) ?? "-"
-      const statoRicerca = asString(processRow.stato_res) ?? "-"
+      const statoSelezione = asString(row.stato_selezione) ?? "-"
+      const statoRicerca = asString(row.stato_res) ?? "-"
       const selectionColor = resolveLookupColorByStatusToken(
         lookupColorsByDomain,
         "selezioni_lavoratori.stato_selezione",
@@ -797,21 +664,26 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
         "processi_matching.stato_res",
         statoRicerca
       )
-      const recruiterId = asString(processRow.recruiter_ricerca_e_selezione_id)
-      const familyRow = familyRowsById.get(asString(processRow.famiglia_id) ?? "")
+      const recruiterId = asString(row.recruiter_ricerca_e_selezione_id)
 
       details.push({
         id: processId,
-        familyName: formatRelatedFamilyName(familyRow),
-        ricercaLabel: formatRelatedSearchLabel(processRow),
+        familyName: formatRelatedFamilyName({
+          nome: row.famiglia_nome,
+          cognome: row.famiglia_cognome,
+        }),
+        ricercaLabel: formatRelatedSearchLabel({
+          numero_ricerca_attivata: row.numero_ricerca_attivata,
+          id: processId,
+        }),
         recruiterLabel: recruiterId ? recruiterLabelsById.get(recruiterId) ?? "" : "",
         statoSelezione,
         statoSelezioneColor: selectionColor,
         statoRicerca,
         statoRicercaColor: processColor,
-        orarioDiLavoro: asString(processRow.orario_di_lavoro) ?? "",
-        zona: formatRelatedZona(processRow),
-        appunti: asString(selection.note_selezione) ?? "",
+        orarioDiLavoro: asString(row.orario_di_lavoro) ?? "",
+        zona: formatRelatedZona(row),
+        appunti: asString(row.note_selezione) ?? "",
       })
       if (dots.length < 4) {
         dots.push({
@@ -832,10 +704,7 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
     }
   }
 
-  return {
-    relatedSelectionsByWorkerId,
-    gate1BlockedWorkerIds,
-  }
+  return { relatedSelectionsByWorkerId }
 }
 
 export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
@@ -1054,27 +923,17 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
 
             const pageRows = result.rows.map(asLavoratoreRecord)
             const pageWorkerIds = pageRows.map((row) => row.id)
-            const relatedSelectionsPromise = includeRelatedSelectionDetails
-              ? fetchRelatedActiveSelectionsByWorkerIds({
-                  workerIds: pageWorkerIds,
-                  lookupColorsByDomain: lookupColorsByDomainRef.current,
-                  recruiterLabelsById: recruiterLabelsByIdRef.current,
-                  includeDetails: true,
-                  blockingOnly: false,
-                }).catch(() => ({
-                  relatedSelectionsByWorkerId: new Map<
-                    string,
-                    NonNullable<LavoratoreListItem["otherActiveSelections"]>
-                  >(),
-                  gate1BlockedWorkerIds: new Set<string>(),
-                }))
-              : Promise.resolve({
-                  relatedSelectionsByWorkerId: new Map<
-                    string,
-                    NonNullable<LavoratoreListItem["otherActiveSelections"]>
-                  >(),
-                  gate1BlockedWorkerIds: new Set<string>(),
-                })
+            const relatedSelectionsPromise = fetchRelatedActiveSelectionsByWorkerIds({
+              workerIds: pageWorkerIds,
+              lookupColorsByDomain: lookupColorsByDomainRef.current,
+              recruiterLabelsById: recruiterLabelsByIdRef.current,
+              includeDetails: includeRelatedSelectionDetails,
+            }).catch(() => ({
+              relatedSelectionsByWorkerId: new Map<
+                string,
+                NonNullable<LavoratoreListItem["otherActiveSelections"]>
+              >(),
+            }))
 
             const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
               fetchWorkerAddressesByIds(pageWorkerIds),
@@ -1149,27 +1008,17 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
 
           const pageRows = result.rows.map(asLavoratoreRecord)
           const pageWorkerIds = pageRows.map((row) => row.id)
-          const relatedSelectionsPromise = includeRelatedSelectionDetails
-            ? fetchRelatedActiveSelectionsByWorkerIds({
-                workerIds: pageWorkerIds,
-                lookupColorsByDomain: lookupColorsByDomainRef.current,
-                recruiterLabelsById: recruiterLabelsByIdRef.current,
-                includeDetails: true,
-                blockingOnly: false,
-              }).catch(() => ({
-                relatedSelectionsByWorkerId: new Map<
-                  string,
-                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
-                >(),
-                gate1BlockedWorkerIds: new Set<string>(),
-              }))
-            : Promise.resolve({
-                relatedSelectionsByWorkerId: new Map<
-                  string,
-                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
-                >(),
-                gate1BlockedWorkerIds: new Set<string>(),
-              })
+          const relatedSelectionsPromise = fetchRelatedActiveSelectionsByWorkerIds({
+            workerIds: pageWorkerIds,
+            lookupColorsByDomain: lookupColorsByDomainRef.current,
+            recruiterLabelsById: recruiterLabelsByIdRef.current,
+            includeDetails: includeRelatedSelectionDetails,
+          }).catch(() => ({
+            relatedSelectionsByWorkerId: new Map<
+              string,
+              NonNullable<LavoratoreListItem["otherActiveSelections"]>
+            >(),
+          }))
 
           const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
             fetchWorkerAddressesByIds(pageWorkerIds),
@@ -1215,27 +1064,17 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
 
           const pageRows = result.rows.map(asLavoratoreRecord)
           const pageWorkerIds = pageRows.map((row) => row.id)
-          const relatedSelectionsPromise = includeRelatedSelectionDetails
-            ? fetchRelatedActiveSelectionsByWorkerIds({
-                workerIds: pageWorkerIds,
-                lookupColorsByDomain: lookupColorsByDomainRef.current,
-                recruiterLabelsById: recruiterLabelsByIdRef.current,
-                includeDetails: true,
-                blockingOnly: false,
-              }).catch(() => ({
-                relatedSelectionsByWorkerId: new Map<
-                  string,
-                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
-                >(),
-                gate1BlockedWorkerIds: new Set<string>(),
-              }))
-            : Promise.resolve({
-                relatedSelectionsByWorkerId: new Map<
-                  string,
-                  NonNullable<LavoratoreListItem["otherActiveSelections"]>
-                >(),
-                gate1BlockedWorkerIds: new Set<string>(),
-              })
+          const relatedSelectionsPromise = fetchRelatedActiveSelectionsByWorkerIds({
+            workerIds: pageWorkerIds,
+            lookupColorsByDomain: lookupColorsByDomainRef.current,
+            recruiterLabelsById: recruiterLabelsByIdRef.current,
+            includeDetails: includeRelatedSelectionDetails,
+          }).catch(() => ({
+            relatedSelectionsByWorkerId: new Map<
+              string,
+              NonNullable<LavoratoreListItem["otherActiveSelections"]>
+            >(),
+          }))
 
           const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
             fetchWorkerAddressesByIds(pageWorkerIds),

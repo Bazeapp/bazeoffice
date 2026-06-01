@@ -1002,6 +1002,19 @@ export async function fetchProcessiMatchingByIds(options: {
   return normalizeTableResponse(data as TableQueryResponse<ProcessoMatchingRecord>)
 }
 
+// FASE 4 BIS — board RPC: enrichment "altre selezioni attive" in UNA chiamata.
+// Sostituisce il fan-out selezioni_lookup + processi_matching_by_ids + famiglie_by_ids.
+// Ritorna le righe già joinate (selezione + processo + famiglia) e già filtrate
+// ai soli "direct involvement" lato server.
+export async function fetchLavoratoriSelezioniCorrelate(workerIds: string[]) {
+  if (workerIds.length === 0) return [] as TableRow[]
+  const { data, error } = await supabase.rpc("lavoratori_selezioni_correlate", {
+    p_worker_ids: workerIds,
+  })
+  if (error) throw new Error(`lavoratori_selezioni_correlate failed: ${error.message}`)
+  return (Array.isArray(data) ? data : []) as TableRow[]
+}
+
 // FASE 4 BIS Wave 2 — indirizzi by entity + bbox geografico.
 export async function fetchIndirizziByEntity(
   entitaTabella: string,
