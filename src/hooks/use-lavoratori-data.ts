@@ -988,9 +988,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   }, [])
 
   React.useEffect(() => {
-    const requestId = requestIdRef.current + 1
-    requestIdRef.current = requestId
-
     async function load() {
       const silent = silentReloadRef.current
       silentReloadRef.current = false
@@ -1016,6 +1013,14 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         if (!silent) setLoading(true)
         return
       }
+
+      // FASE 4 BIS — bump del requestId SOLO quando partiamo davvero con un
+      // fetch (dopo i dedup). Bumparlo a ogni run dell'effect invalidava il
+      // fetch in volo a ogni re-render benigno (stessa queryKey): l'await
+      // vedeva requestId != current e usciva senza settare dati né loading=false
+      // → spinner infinito su query lente (es. ordinamento).
+      const requestId = requestIdRef.current + 1
+      requestIdRef.current = requestId
 
       inFlightListQueryKeyRef.current = queryKey
       if (!silent) setLoading(true)
