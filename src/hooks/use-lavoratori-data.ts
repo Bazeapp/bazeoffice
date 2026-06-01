@@ -776,6 +776,8 @@ async function fetchSelectionsForWorkers(workerIds: string[], blockingOnly = fal
     const result = await fetchSelezioniLookup({
       lavoratoreIds: batch,
       stati: blockingOnly ? blockingStatusValues : undefined,
+      columns:
+        "id,lavoratore_id,processo_matching_id,stato_selezione,stato_situazione_lavorativa,note_selezione,aggiornato_il",
     })
     rows.push(...(Array.isArray(result.rows) ? (result.rows as GenericRow[]) : []))
   }
@@ -817,7 +819,10 @@ async function fetchGate1BlockingWorkerIdsUncached() {
   )
 
   // Una sola RPC con tutti gli stati bloccanti (prima: fan-out di 7 query).
-  const result = await fetchSelezioniLookup({ stati: blockingStatusValues })
+  const result = await fetchSelezioniLookup({
+    stati: blockingStatusValues,
+    columns: "lavoratore_id,stato_selezione",
+  })
   const rows = (Array.isArray(result.rows) ? result.rows : []) as GenericRow[]
 
   return new Set(
@@ -835,7 +840,11 @@ async function fetchRelatedProcessesByIds(processIds: string[]) {
 
   for (let index = 0; index < processIds.length; index += RELATED_PROCESS_BATCH_SIZE) {
     const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE)
-    const result = await fetchProcessiMatchingByIds({ ids: batch })
+    const result = await fetchProcessiMatchingByIds({
+      ids: batch,
+      columns:
+        "id,famiglia_id,stato_res,recruiter_ricerca_e_selezione_id,orario_di_lavoro,numero_ricerca_attivata,indirizzo_prova_comune,indirizzo_prova_provincia,indirizzo_prova_cap,indirizzo_prova_note,indirizzo_prova_via",
+    })
 
     rows.push(...((Array.isArray(result.rows) ? result.rows : []) as GenericRow[]))
   }
@@ -850,7 +859,7 @@ async function fetchRelatedFamiliesByIds(familyIds: string[]) {
 
   for (let index = 0; index < familyIds.length; index += RELATED_FAMILY_BATCH_SIZE) {
     const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE)
-    const result = await fetchFamiglieByIds(batch)
+    const result = await fetchFamiglieByIds(batch, "id,nome,cognome")
 
     rows.push(...((Array.isArray(result.rows) ? result.rows : []) as GenericRow[]))
   }

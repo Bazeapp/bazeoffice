@@ -1007,9 +1007,10 @@ export async function fetchLavoratoriByIds(ids: string[], roles?: string[]) {
   return normalizeTableResponse(data as TableQueryResponse<LavoratoreRecord>)
 }
 
-export async function fetchFamiglieByIds(ids: string[]) {
+export async function fetchFamiglieByIds(ids: string[], columns?: string) {
   if (ids.length === 0) return { rows: [], total: 0, columns: [], groups: [] }
-  const { data, error } = await supabase.rpc("famiglie_by_ids", { p_ids: ids })
+  const builder = supabase.rpc("famiglie_by_ids", { p_ids: ids })
+  const { data, error } = columns ? await builder.select(columns) : await builder
   if (error) throw new Error(`famiglie_by_ids failed: ${error.message}`)
   return normalizeTableResponse(data as TableQueryResponse<FamigliaRecord>)
 }
@@ -1017,16 +1018,20 @@ export async function fetchFamiglieByIds(ids: string[]) {
 export async function fetchProcessiMatchingByIds(options: {
   ids?: string[]
   famigliaIds?: string[]
+  columns?: string
 }) {
   const ids = options.ids?.length ? options.ids : null
   const famigliaIds = options.famigliaIds?.length ? options.famigliaIds : null
   if (!ids && !famigliaIds) {
     return { rows: [], total: 0, columns: [], groups: [] }
   }
-  const { data, error } = await supabase.rpc("processi_matching_by_ids", {
+  const builder = supabase.rpc("processi_matching_by_ids", {
     p_ids: ids,
     p_famiglia_ids: famigliaIds,
   })
+  const { data, error } = options.columns
+    ? await builder.select(options.columns)
+    : await builder
   if (error) throw new Error(`processi_matching_by_ids failed: ${error.message}`)
   return normalizeTableResponse(data as TableQueryResponse<ProcessoMatchingRecord>)
 }
@@ -1078,8 +1083,17 @@ export async function fetchChiusureByIds(ids: string[]) {
 }
 
 // FASE 4 BIS Wave 3 (lazy) — sezioni dettaglio rapporto + rapporto-by-id.
-async function rpcRows(fn: string, params: Record<string, unknown>) {
-  const { data, error } = await supabase.rpc(fn, params)
+// columns: proiezione PostgREST per le RPC set-returning (returns setof <table>).
+// Senza, la RPC serializza TUTTE le colonne della riga → payload enormi. Passando
+// le sole colonne necessarie (come faceva il vecchio `select` di table-query) il
+// payload crolla. Vale per qualunque chiamata RPC pesante.
+async function rpcRows(
+  fn: string,
+  params: Record<string, unknown>,
+  columns?: string,
+) {
+  const builder = supabase.rpc(fn, params)
+  const { data, error } = columns ? await builder.select(columns) : await builder
   if (error) throw new Error(`${fn} failed: ${error.message}`)
   return normalizeTableResponse(data as TableQueryResponse<TableRow>)
 }
@@ -1201,18 +1215,18 @@ export async function fetchSelezioniLookup(options: {
   lavoratoreIds?: string[]
   processoIds?: string[]
   stati?: string[]
+  columns?: string
 }) {
   const p_ids = options.ids?.length ? options.ids : null
   const p_lavoratore_ids = options.lavoratoreIds?.length ? options.lavoratoreIds : null
   const p_processo_ids = options.processoIds?.length ? options.processoIds : null
   const p_stati = options.stati?.length ? options.stati : null
   if (!p_ids && !p_lavoratore_ids && !p_processo_ids && !p_stati) return EMPTY_ROWS
-  return rpcRows("selezioni_lookup", {
-    p_ids,
-    p_lavoratore_ids,
-    p_processo_ids,
-    p_stati,
-  })
+  return rpcRows(
+    "selezioni_lookup",
+    { p_ids, p_lavoratore_ids, p_processo_ids, p_stati },
+    options.columns,
+  )
 }
 
 // FASE 4 BIS Wave 4 — richieste_attivazione: lookup per id / processo_res_id.
