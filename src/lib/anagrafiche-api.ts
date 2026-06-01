@@ -1353,6 +1353,46 @@ export async function fetchCercaLavoratori(query: {
   return fetchGateLavoratoriRpc("cerca_lavoratori", query)
 }
 
+// FASE 4 BIS — board in UNA chiamata: list-RPC (cerca/gate1/gate2) + indirizzi
+// grezzi + selezioni correlate grezze, tutto server-side. La FE raggruppa/
+// processa con gli stessi builder di prima (colori/label client-side).
+export async function fetchLavoratoriBoard(
+  gate: "cerca" | "gate1" | "gate2",
+  query: {
+    limit: number
+    offset: number
+    search?: string
+    filters?: Gate1RpcFilter[] | QueryFilterGroup
+    orderBy?: { field: string; ascending: boolean }
+    includeRelated?: boolean
+  }
+): Promise<{
+  rows: TableRow[]
+  total: number
+  indirizzi: TableRow[]
+  selezioniCorrelate: TableRow[]
+}> {
+  const { data, error } = await supabase.rpc("lavoratori_board", {
+    p_gate: gate,
+    p_limit: query.limit,
+    p_offset: query.offset,
+    p_search: query.search ?? null,
+    p_filters: query.filters ?? [],
+    p_order_by: query.orderBy?.field ?? null,
+    p_order_dir: query.orderBy ? (query.orderBy.ascending ? "asc" : "desc") : null,
+    p_include_related: query.includeRelated ?? true,
+  })
+  if (error) throw new Error(`lavoratori_board(${gate}) failed: ${error.message}`)
+  const payload = (data ?? {}) as Record<string, unknown>
+  const arr = (value: unknown) => (Array.isArray(value) ? (value as TableRow[]) : [])
+  return {
+    rows: arr(payload.rows),
+    total: typeof payload.total === "number" ? payload.total : arr(payload.rows).length,
+    indirizzi: arr(payload.indirizzi),
+    selezioniCorrelate: arr(payload.selezioni_correlate),
+  }
+}
+
 async function fetchGateLavoratoriRpc(
   functionName: "gate1_lavoratori" | "gate2_lavoratori" | "cerca_lavoratori",
   query: {

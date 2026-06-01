@@ -33,13 +33,10 @@ import {
   type QueryFilterGroup,
   type TableColumnMeta,
   clearReadCaches,
-  fetchCercaLavoratori,
-  fetchGate1Lavoratori,
-  fetchGate2Lavoratori,
   fetchIndirizziByEntity,
   fetchLavoratoreScheda,
+  fetchLavoratoriBoard,
   fetchLookupValues,
-  fetchLavoratoriSelezioniCorrelate,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
@@ -566,58 +563,51 @@ function resolveWorkerAddress(
   )
 }
 
+// Pure: raggruppa righe indirizzi (da indirizzi_by_entity o da lavoratori_board)
+// per entita_id (worker id). Riusato sia dal fetch standalone sia dal board RPC.
+function groupAddressesByWorker(
+  rows: Record<string, unknown>[]
+): Map<string, Record<string, unknown>[]> {
+  const addressesByWorkerId = new Map<string, Record<string, unknown>[]>()
+  for (const row of rows) {
+    const workerId = asString(row.entita_id)
+    if (!workerId) continue
+    const current = addressesByWorkerId.get(workerId) ?? []
+    current.push(row)
+    addressesByWorkerId.set(workerId, current)
+  }
+  return addressesByWorkerId
+}
+
 async function fetchWorkerAddressesByIds(workerIds: string[]) {
   if (workerIds.length === 0) return new Map<string, Record<string, unknown>[]>()
 
-  const addressesByWorkerId = new Map<string, Record<string, unknown>[]>()
-
+  const allRows: Record<string, unknown>[] = []
   for (let index = 0; index < workerIds.length; index += ADDRESS_BATCH_SIZE) {
     const batch = workerIds.slice(index, index + ADDRESS_BATCH_SIZE)
     // La RPC ritorna TUTTI gli indirizzi del batch in un colpo, quindi non
     // serve più il loop di paginazione che table-query richiedeva.
     const result = await fetchIndirizziByEntity("lavoratori", batch)
-
-    for (const row of result.rows) {
-      const workerId = asString(row.entita_id)
-      if (!workerId) continue
-      const current = addressesByWorkerId.get(workerId) ?? []
-      current.push(row)
-      addressesByWorkerId.set(workerId, current)
-    }
+    allRows.push(...result.rows)
   }
 
-  return addressesByWorkerId
+  return groupAddressesByWorker(allRows)
 }
 
-// FASE 4 BIS — enrichment "altre selezioni attive" in UNA sola RPC
-// (lavoratori_selezioni_correlate): join selezioni+processi+famiglie già
-// filtrato server-side ai "direct involvement". Sostituisce il fan-out
-// selezioni_lookup + processi_matching_by_ids xN + famiglie_by_ids xN.
-// Per includeDetails=false (Gate 1, che esclude i bloccati via RPC) non c'è
-// nulla da arricchire: ritorniamo subito una mappa vuota senza query.
-async function fetchRelatedActiveSelectionsByWorkerIds({
-  workerIds,
-  lookupColorsByDomain,
-  recruiterLabelsById,
-  includeDetails,
-}: {
-  workerIds: string[]
-  lookupColorsByDomain: Map<string, string>
+// Pure: dalle righe grezze di lavoratori_selezioni_correlate (annidate nel
+// board RPC lavoratori_board) costruisce la mappa otherActiveSelections per
+// worker, risolvendo colori/label client-side.
+function buildRelatedSelectionsMap(
+  rows: GenericRow[],
+  lookupColorsByDomain: Map<string, string>,
   recruiterLabelsById: Map<string, string>
-  includeDetails: boolean
-}) {
+): Map<string, NonNullable<LavoratoreListItem["otherActiveSelections"]>> {
   const relatedSelectionsByWorkerId = new Map<
     string,
     NonNullable<LavoratoreListItem["otherActiveSelections"]>
   >()
-
-  if (!includeDetails || workerIds.length === 0) {
-    return { relatedSelectionsByWorkerId }
-  }
-
-  const rows = await fetchLavoratoriSelezioniCorrelate(workerIds)
   const rowsByWorker = new Map<string, GenericRow[]>()
-  for (const row of rows as GenericRow[]) {
+  for (const row of rows) {
     const workerId = asString(row.lavoratore_id)
     if (!workerId) continue
     const bucket = rowsByWorker.get(workerId)
@@ -686,7 +676,7 @@ async function fetchRelatedActiveSelectionsByWorkerIds({
     }
   }
 
-  return { relatedSelectionsByWorkerId }
+  return relatedSelectionsByWorkerId
 }
 
 export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
@@ -893,7 +883,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           // disponibilità + blocco selezioni server-side. I filtri OR passano
           // come gruppo annidato (matcher ricorsivo). Nessun fallback table-query.
           {
-            const result = await fetchGate1Lavoratori({
+            const board = await fetchLavoratoriBoard("gate1", {
               limit: pageSize,
               offset: pageIndex * pageSize,
               search: debouncedQuery.searchValue.trim() || undefined,
@@ -905,33 +895,23 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
                   gate1FollowupFilter,
                 }),
               orderBy: toRpcOrderBy(debouncedQuery.sorting),
+              includeRelated: includeRelatedSelectionDetails,
             })
             if (requestId !== requestIdRef.current) return
 
-            const pageRows = result.rows.map(asLavoratoreRecord)
-            const pageWorkerIds = pageRows.map((row) => row.id)
-            const relatedSelectionsPromise = fetchRelatedActiveSelectionsByWorkerIds({
-              workerIds: pageWorkerIds,
-              lookupColorsByDomain: lookupColorsByDomainRef.current,
-              recruiterLabelsById: recruiterLabelsByIdRef.current,
-              includeDetails: includeRelatedSelectionDetails,
-            }).catch(() => ({
-              relatedSelectionsByWorkerId: new Map<
-                string,
-                NonNullable<LavoratoreListItem["otherActiveSelections"]>
-              >(),
-            }))
-
-            const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
-              fetchWorkerAddressesByIds(pageWorkerIds),
-              relatedSelectionsPromise,
-            ])
-            if (requestId !== requestIdRef.current) return
-
+            const pageRows = board.rows.map(asLavoratoreRecord)
             setWorkerRows(pageRows)
-            setWorkerAddressesById(addressesByWorkerId)
-            setRelatedSelectionsByWorkerId(relatedSelectionsResult.relatedSelectionsByWorkerId)
-            setWorkersTotal(result.total)
+            setWorkerAddressesById(groupAddressesByWorker(board.indirizzi))
+            setRelatedSelectionsByWorkerId(
+              includeRelatedSelectionDetails
+                ? buildRelatedSelectionsMap(
+                    board.selezioniCorrelate as GenericRow[],
+                    lookupColorsByDomainRef.current,
+                    recruiterLabelsByIdRef.current
+                  )
+                : new Map()
+            )
+            setWorkersTotal(board.total)
             lastLoadedListQueryKeyRef.current = queryKey
             setSelectedWorkerId((previous) => {
               if (previous && (previous === initialSelectedWorkerId || pageRows.some((row) => row.id === previous))) {
@@ -984,39 +964,29 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           isRpcSortable(debouncedQuery.sorting)
 
         if (canUseGate2Rpc) {
-          const result = await fetchGate2Lavoratori({
+          const board = await fetchLavoratoriBoard("gate2", {
             limit: pageSize,
             offset: pageIndex * pageSize,
             search: debouncedQuery.searchValue.trim() || undefined,
             filters: gate2RpcFilters ?? (gate2RpcFilterGroup as QueryFilterGroup),
             orderBy: toRpcOrderBy(debouncedQuery.sorting),
+            includeRelated: includeRelatedSelectionDetails,
           })
           if (requestId !== requestIdRef.current) return
 
-          const pageRows = result.rows.map(asLavoratoreRecord)
-          const pageWorkerIds = pageRows.map((row) => row.id)
-          const relatedSelectionsPromise = fetchRelatedActiveSelectionsByWorkerIds({
-            workerIds: pageWorkerIds,
-            lookupColorsByDomain: lookupColorsByDomainRef.current,
-            recruiterLabelsById: recruiterLabelsByIdRef.current,
-            includeDetails: includeRelatedSelectionDetails,
-          }).catch(() => ({
-            relatedSelectionsByWorkerId: new Map<
-              string,
-              NonNullable<LavoratoreListItem["otherActiveSelections"]>
-            >(),
-          }))
-
-          const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
-            fetchWorkerAddressesByIds(pageWorkerIds),
-            relatedSelectionsPromise,
-          ])
-          if (requestId !== requestIdRef.current) return
-
+          const pageRows = board.rows.map(asLavoratoreRecord)
           setWorkerRows(pageRows)
-          setWorkerAddressesById(addressesByWorkerId)
-          setRelatedSelectionsByWorkerId(relatedSelectionsResult.relatedSelectionsByWorkerId)
-          setWorkersTotal(result.total)
+          setWorkerAddressesById(groupAddressesByWorker(board.indirizzi))
+          setRelatedSelectionsByWorkerId(
+            includeRelatedSelectionDetails
+              ? buildRelatedSelectionsMap(
+                  board.selezioniCorrelate as GenericRow[],
+                  lookupColorsByDomainRef.current,
+                  recruiterLabelsByIdRef.current
+                )
+              : new Map()
+          )
+          setWorkersTotal(board.total)
           lastLoadedListQueryKeyRef.current = queryKey
           setSelectedWorkerId((previous) => {
             if (previous && (previous === initialSelectedWorkerId || pageRows.some((row) => row.id === previous))) {
@@ -1040,39 +1010,29 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
         // blocchi sopra, quindi qui arriva solo la vista Cerca (nessuno status
         // forzato). Nessun fallback table-query.
         {
-          const result = await fetchCercaLavoratori({
+          const board = await fetchLavoratoriBoard("cerca", {
             limit: pageSize,
             offset: pageIndex * pageSize,
             search: debouncedQuery.searchValue.trim() || undefined,
             filters: cercaRpcFilters ?? debouncedQuery.filters,
             orderBy: toRpcOrderBy(debouncedQuery.sorting),
+            includeRelated: includeRelatedSelectionDetails,
           })
           if (requestId !== requestIdRef.current) return
 
-          const pageRows = result.rows.map(asLavoratoreRecord)
-          const pageWorkerIds = pageRows.map((row) => row.id)
-          const relatedSelectionsPromise = fetchRelatedActiveSelectionsByWorkerIds({
-            workerIds: pageWorkerIds,
-            lookupColorsByDomain: lookupColorsByDomainRef.current,
-            recruiterLabelsById: recruiterLabelsByIdRef.current,
-            includeDetails: includeRelatedSelectionDetails,
-          }).catch(() => ({
-            relatedSelectionsByWorkerId: new Map<
-              string,
-              NonNullable<LavoratoreListItem["otherActiveSelections"]>
-            >(),
-          }))
-
-          const [addressesByWorkerId, relatedSelectionsResult] = await Promise.all([
-            fetchWorkerAddressesByIds(pageWorkerIds),
-            relatedSelectionsPromise,
-          ])
-          if (requestId !== requestIdRef.current) return
-
+          const pageRows = board.rows.map(asLavoratoreRecord)
           setWorkerRows(pageRows)
-          setWorkerAddressesById(addressesByWorkerId)
-          setRelatedSelectionsByWorkerId(relatedSelectionsResult.relatedSelectionsByWorkerId)
-          setWorkersTotal(result.total)
+          setWorkerAddressesById(groupAddressesByWorker(board.indirizzi))
+          setRelatedSelectionsByWorkerId(
+            includeRelatedSelectionDetails
+              ? buildRelatedSelectionsMap(
+                  board.selezioniCorrelate as GenericRow[],
+                  lookupColorsByDomainRef.current,
+                  recruiterLabelsByIdRef.current
+                )
+              : new Map()
+          )
+          setWorkersTotal(board.total)
           lastLoadedListQueryKeyRef.current = queryKey
           setSelectedWorkerId((previous) => {
             if (previous && (previous === initialSelectedWorkerId || pageRows.some((row) => row.id === previous))) {
