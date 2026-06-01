@@ -1313,7 +1313,9 @@ export async function fetchCercaLavoratori(query: {
   limit: number
   offset: number
   search?: string
-  filters?: Gate1RpcFilter[]
+  // Accetta sia l'array piatto (fast-path) sia il gruppo annidato AND/OR:
+  // cerca_lavoratori applica lavoratore_matches_filter_group quando riceve un gruppo.
+  filters?: Gate1RpcFilter[] | QueryFilterGroup
 }) {
   return fetchGateLavoratoriRpc("cerca_lavoratori", query)
 }
@@ -1324,7 +1326,7 @@ async function fetchGateLavoratoriRpc(
     limit: number
     offset: number
     search?: string
-    filters?: Gate1RpcFilter[]
+    filters?: Gate1RpcFilter[] | QueryFilterGroup
   }
 ) {
   const { data, error } = await supabase.rpc(functionName, {

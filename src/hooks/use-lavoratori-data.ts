@@ -1435,10 +1435,13 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           gate1ProvinciaFilter: "all",
           gate1FollowupFilter: "all",
         })
+        // cercaRpcFilters è null quando i filtri usano la logica OR (non
+        // appiattibili in array). In quel caso passiamo il GRUPPO annidato
+        // grezzo: cerca_lavoratori lo valuta via lavoratore_matches_filter_group
+        // (AND/OR ricorsivo). Niente più fallback table-query per i filtri OR.
         const canUseCercaRpc =
           !applyGate1BaseFilters &&
           !hasForcedWorkerStatus(forcedWorkerStatus) &&
-          cercaRpcFilters !== null &&
           debouncedQuery.sorting.length === 0
 
         if (canUseCercaRpc) {
@@ -1446,7 +1449,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
             limit: pageSize,
             offset: pageIndex * pageSize,
             search: debouncedQuery.searchValue.trim() || undefined,
-            filters: cercaRpcFilters,
+            filters: cercaRpcFilters ?? debouncedQuery.filters,
           })
           if (requestId !== requestIdRef.current) return
 
