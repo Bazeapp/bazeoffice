@@ -1185,6 +1185,15 @@ export async function fetchLavoratoriByName(
   })
 }
 
+// FASE 4 BIS Wave 4 — opzioni nazionalità distinct (per il filtro).
+export async function fetchLavoratoriNazionalita(): Promise<string[]> {
+  const { data, error } = await supabase.rpc("lavoratori_nazionalita_options")
+  if (error) throw new Error(`lavoratori_nazionalita_options failed: ${error.message}`)
+  return ((data ?? []) as Array<{ nazionalita: string | null }>)
+    .map((row) => row.nazionalita)
+    .filter((value): value is string => Boolean(value))
+}
+
 // FASE 4 BIS Wave 4 — selezioni: lookup unico (id / lavoratore / processo /
 // stato, AND-combinati). Almeno un filtro deve essere fornito.
 export async function fetchSelezioniLookup(options: {

@@ -44,6 +44,7 @@ import {
   fetchLookupValues,
   fetchLavoratori,
   fetchLavoratoriByIds,
+  fetchLavoratoriNazionalita,
   fetchProcessiMatchingByIds,
   fetchSelezioniLookup,
 } from "@/lib/anagrafiche-api"
@@ -463,23 +464,13 @@ function buildLookupFilterTypeMap(rows: LookupValueRecord[]) {
 }
 
 async function fetchLavoratoriNazionalitaOptions(): Promise<LookupOption[]> {
-  const result = await fetchLavoratori({
-    select: ["nazionalita"],
-    limit: 1,
-    offset: 0,
-    includeSchema: false,
-    groupBy: ["nazionalita"],
-  })
+  const values = await fetchLavoratoriNazionalita()
   const optionsByToken = new Map<string, LookupOption>()
 
-  for (const group of result.groups) {
-    const label = asString(group.label)
-    const value = asString(group.value) || label
-    if (!value || label === "Senza valore") continue
-
+  for (const value of values) {
     const token = value.toLowerCase()
     if (!optionsByToken.has(token)) {
-      optionsByToken.set(token, { label: label || value, value })
+      optionsByToken.set(token, { label: value, value })
     }
   }
 
