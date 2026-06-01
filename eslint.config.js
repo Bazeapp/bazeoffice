@@ -150,6 +150,16 @@ export default defineConfig([
       'no-restricted-syntax': [
         'warn',
         {
+          // FASE 4 BIS — niente table-query nei componenti: usare una RPC
+          // dedicata (vedi src/lib/anagrafiche-api.ts). Qui è 'warn' perché
+          // condivide severità con le altre regole di questo blocco, ma
+          // resta visibile in IDE/CI.
+          selector:
+            "CallExpression[callee.name='invokeEdgeFunction'] > Literal[value='table-query']",
+          message:
+            'table-query non va usata nei componenti: crea/usa una RPC dedicata (FASE 4 BIS).',
+        },
+        {
           // Legacy: useState + onBlur save loses unsaved data when the
           // parent sheet closes before blur fires. Use DebouncedInput.
           selector:

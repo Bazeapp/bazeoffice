@@ -1472,19 +1472,21 @@ export async function fetchProvincie(): Promise<ProvinciaRecord[]> {
   }
 }
 
-export async function fetchAssunzioni(query: TablePageQuery) {
-  return queryTable<TableRow>({
-    table: "assunzioni",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
+// FASE 4 BIS — assunzioni via RPC dedicate (no table-query).
+// `.select(columns)` per proiettare solo le colonne usate (Fix A).
+export async function fetchAssunzioniByIds(ids: string[], columns?: string) {
+  if (ids.length === 0) return { rows: [], total: 0, columns: [], groups: [] }
+  const builder = supabase.rpc("assunzioni_by_ids", { p_ids: ids })
+  const { data, error } = columns ? await builder.select(columns) : await builder
+  if (error) throw new Error(`assunzioni_by_ids failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
+}
+
+export async function fetchAssunzioniByFormType(formType: string, columns?: string) {
+  const builder = supabase.rpc("assunzioni_by_form_type", { p_type: formType })
+  const { data, error } = columns ? await builder.select(columns) : await builder
+  if (error) throw new Error(`assunzioni_by_form_type failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
 }
 
 type UpdateProcessoStatoSalesResponse = {
