@@ -730,9 +730,9 @@ export function CedolinoDetailSheet({
     return feeConcordata * hoursToPay
   }, [feeConcordata, hoursToPay])
   // L'importo sconto non può superare il totale a carico della famiglia
-  // (importo cedolino + application fee) con una tolleranza di 2€.
+  // (importo cedolino + application fee) meno un margine di 2€.
   const importoScontoMax = React.useMemo(
-    () => (paymentAmount ?? 0) + (applicationFee ?? 0) + 2,
+    () => (paymentAmount ?? 0) + (applicationFee ?? 0) - 2,
     [paymentAmount, applicationFee],
   )
   const [runningAutomationId, setRunningAutomationId] = React.useState<string | null>(null)
