@@ -4,21 +4,21 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   createRecord,
   fetchChiusureByIds,
-  fetchContributiInps,
+  fetchContributiInpsByRapporto,
   fetchFamiglie,
   fetchFamiglieByIds,
   fetchLavoratori,
   fetchLavoratoriByIds,
   fetchLookupValues,
-  fetchMesiCalendario,
-  fetchMesiLavorati,
-  fetchPagamenti,
+  fetchMesiCalendarioByIds,
+  fetchMesiLavoratiByRapporto,
+  fetchPagamentiByTicketIds,
   fetchProcessiMatchingByIds,
-  fetchPresenzeMensili,
-  fetchRapportiLavorativi,
+  fetchPresenzeByIds,
+  fetchRapportiLavorativiByIds,
   fetchRapportiLavorativiBoard,
-  fetchTickets,
-  fetchVariazioniContrattuali,
+  fetchTicketByRapporto,
+  fetchVariazioniByRapporto,
   type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -176,41 +176,6 @@ function buildSearchQuery(value: string) {
   return tokens.reduce((longest, current) =>
     current.length > longest.length ? current : longest
   )
-}
-
-function buildEqualsFilter(field: string, value: string): QueryFilterGroup {
-  return {
-    kind: "group",
-    id: `${field}-eq-root`,
-    logic: "and",
-    nodes: [
-      {
-        kind: "condition",
-        id: `${field}-eq-condition`,
-        field,
-        operator: "is",
-        value,
-      },
-    ],
-  }
-}
-
-function buildAnyOfFilter(field: string, values: string[]): QueryFilterGroup | undefined {
-  const normalizedValues = Array.from(new Set(values.filter(Boolean)))
-  if (normalizedValues.length === 0) return undefined
-
-  return {
-    kind: "group",
-    id: `${field}-any-of-root`,
-    logic: "or",
-    nodes: normalizedValues.map((value, index) => ({
-      kind: "condition",
-      id: `${field}-any-of-${index}`,
-      field,
-      operator: "is",
-      value,
-    })),
-  }
 }
 
 function buildNamePartsFilter(
@@ -540,11 +505,7 @@ export function useRapportiLavorativiData(
       setSelectedRapporto(fallbackRapporto)
 
       try {
-        const response = await fetchRapportiLavorativi({
-          limit: 1,
-          offset: 0,
-          filters: buildEqualsFilter("id", selectedRapportoId),
-        })
+        const response = await fetchRapportiLavorativiByIds([selectedRapportoId])
         if (!isActive) return
 
         const freshRapporto = (response.rows[0] as RapportoLavorativoRecord | undefined) ?? null
@@ -762,45 +723,25 @@ export function useRapportiLavorativiData(
 
       try {
         if (sectionId === "tickets") {
-          const response = await fetchTickets({
-            limit: 100,
-            offset: 0,
-            orderBy: [{ field: "data_apertura", ascending: false }],
-            filters: buildEqualsFilter("rapporto_id", rapporto.id),
-          })
+          const response = await fetchTicketByRapporto(rapporto.id)
           if (selectedRapportoIdRef.current !== rapporto.id) return
           setSelectedTickets(response.rows as TicketRecord[])
         }
 
         if (sectionId === "contributi") {
-          const response = await fetchContributiInps({
-            limit: 200,
-            offset: 0,
-            orderBy: [{ field: "data_ora_creazione", ascending: false }],
-            filters: buildEqualsFilter("rapporto_lavorativo_id", rapporto.id),
-          })
+          const response = await fetchContributiInpsByRapporto(rapporto.id)
           if (selectedRapportoIdRef.current !== rapporto.id) return
           setSelectedContributi(response.rows as ContributoInpsRecord[])
         }
 
         if (sectionId === "variazioni") {
-          const response = await fetchVariazioniContrattuali({
-            limit: 200,
-            offset: 0,
-            orderBy: [{ field: "data_variazione", ascending: false }],
-            filters: buildEqualsFilter("rapporto_lavorativo_id", rapporto.id),
-          })
+          const response = await fetchVariazioniByRapporto(rapporto.id)
           if (selectedRapportoIdRef.current !== rapporto.id) return
           setSelectedVariazioni(response.rows as VariazioneContrattualeRecord[])
         }
 
         if (sectionId === "cedolini") {
-          const mesiResponse = await fetchMesiLavorati({
-            limit: 500,
-            offset: 0,
-            orderBy: [{ field: "creato_il", ascending: false }],
-            filters: buildEqualsFilter("rapporto_lavorativo_id", rapporto.id),
-          })
+          const mesiResponse = await fetchMesiLavoratiByRapporto(rapporto.id)
           const mesiRows = mesiResponse.rows as MeseLavoratoRecord[]
           const meseIds = mesiRows
             .map((mese) => mese.mese_id)
@@ -815,30 +756,9 @@ export function useRapportiLavorativiData(
           )
 
           const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse] = await Promise.all([
-            meseIds.length > 0
-              ? fetchMesiCalendario({
-                  limit: 200,
-                  offset: 0,
-                  orderBy: [{ field: "data_inizio", ascending: false }],
-                  filters: buildAnyOfFilter("id", meseIds),
-                })
-              : Promise.resolve({ rows: [], total: 0, columns: [] }),
-            ticketIds.length > 0
-              ? fetchPagamenti({
-                  limit: 500,
-                  offset: 0,
-                  orderBy: [{ field: "data_ora_di_pagamento", ascending: false }],
-                  filters: buildAnyOfFilter("ticket_id", ticketIds),
-                })
-              : Promise.resolve({ rows: [], total: 0, columns: [] }),
-            presenzaIds.length > 0
-              ? fetchPresenzeMensili({
-                  limit: 500,
-                  offset: 0,
-                  orderBy: [{ field: "creato_il", ascending: false }],
-                  filters: buildAnyOfFilter("id", presenzaIds),
-                })
-              : Promise.resolve({ rows: [], total: 0, columns: [] }),
+            fetchMesiCalendarioByIds(meseIds),
+            fetchPagamentiByTicketIds(ticketIds),
+            fetchPresenzeByIds(presenzaIds),
           ])
 
           if (selectedRapportoIdRef.current !== rapporto.id) return

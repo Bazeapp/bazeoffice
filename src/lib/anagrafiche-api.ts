@@ -1077,6 +1077,51 @@ export async function fetchChiusureByIds(ids: string[]) {
   return normalizeTableResponse(data as TableQueryResponse<TableRow>)
 }
 
+// FASE 4 BIS Wave 3 (lazy) — sezioni dettaglio rapporto + rapporto-by-id.
+async function rpcRows(fn: string, params: Record<string, unknown>) {
+  const { data, error } = await supabase.rpc(fn, params)
+  if (error) throw new Error(`${fn} failed: ${error.message}`)
+  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
+}
+
+const EMPTY_ROWS = { rows: [], total: 0, columns: [], groups: [] }
+
+export async function fetchRapportiLavorativiByIds(ids: string[]) {
+  if (ids.length === 0) return EMPTY_ROWS
+  return rpcRows("rapporti_lavorativi_by_ids", { p_ids: ids })
+}
+
+export async function fetchTicketByRapporto(rapportoId: string) {
+  return rpcRows("ticket_by_rapporto", { p_rapporto_id: rapportoId })
+}
+
+export async function fetchContributiInpsByRapporto(rapportoId: string) {
+  return rpcRows("contributi_inps_by_rapporto", { p_rapporto_id: rapportoId })
+}
+
+export async function fetchVariazioniByRapporto(rapportoId: string) {
+  return rpcRows("variazioni_by_rapporto", { p_rapporto_id: rapportoId })
+}
+
+export async function fetchMesiLavoratiByRapporto(rapportoId: string) {
+  return rpcRows("mesi_lavorati_by_rapporto", { p_rapporto_id: rapportoId })
+}
+
+export async function fetchMesiCalendarioByIds(ids: string[]) {
+  if (ids.length === 0) return EMPTY_ROWS
+  return rpcRows("mesi_calendario_by_ids", { p_ids: ids })
+}
+
+export async function fetchPagamentiByTicketIds(ticketIds: string[]) {
+  if (ticketIds.length === 0) return EMPTY_ROWS
+  return rpcRows("pagamenti_by_ticket_ids", { p_ticket_ids: ticketIds })
+}
+
+export async function fetchPresenzeByIds(ids: string[]) {
+  if (ids.length === 0) return EMPTY_ROWS
+  return rpcRows("presenze_by_ids", { p_ids: ids })
+}
+
 export async function fetchCrmPipelineFamiglieBoard(query: {
   limit: number
   offset: number
