@@ -104,7 +104,7 @@ import {
   fetchLookupValues,
   fetchProcessiMatchingByIds,
   fetchReferenzeLavoratoriByWorker,
-  fetchSelezioniLavoratori,
+  fetchSelezioniLookup,
   runSmartMatchingForwardPreview,
   updateRecord,
 } from "@/lib/anagrafiche-api";
@@ -353,7 +353,6 @@ const GROUPED_COLUMN_GROUPS: Record<string, GroupedColumnGroup[]> = {
 const DEFAULT_BLUE_BADGE_CLASS_NAME =
   "border-blue-200 bg-blue-100 text-blue-700";
 
-const RELATED_SELECTIONS_PAGE_SIZE = 500;
 const RELATED_PROCESS_BATCH_SIZE = 150;
 const RELATED_FAMILY_BATCH_SIZE = 150;
 const ADD_WORKER_SEARCH_LIMIT = 8;
@@ -460,40 +459,10 @@ function formatRelatedZona(processRow: Record<string, unknown>) {
 }
 
 async function fetchAllSelectionsForWorker(workerId: string) {
-  const rows: Record<string, unknown>[] = [];
-  let offset = 0;
-
-  while (true) {
-    const result = await fetchSelezioniLavoratori({
-      limit: RELATED_SELECTIONS_PAGE_SIZE,
-      offset,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: "related-active-searches-by-worker",
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: "related-active-searches-worker-id",
-            field: "lavoratore_id",
-            operator: "is",
-            value: workerId,
-          },
-        ],
-      },
-    });
-
-    const pageRows = Array.isArray(result.rows)
-      ? (result.rows as Record<string, unknown>[])
-      : [];
-    rows.push(...pageRows);
-
-    if (pageRows.length < RELATED_SELECTIONS_PAGE_SIZE) break;
-    offset += RELATED_SELECTIONS_PAGE_SIZE;
-  }
-
-  return rows;
+  const result = await fetchSelezioniLookup({ lavoratoreIds: [workerId] });
+  return Array.isArray(result.rows)
+    ? (result.rows as Record<string, unknown>[])
+    : [];
 }
 
 async function fetchRelatedProcessesByIds(processIds: string[]) {
@@ -1352,24 +1321,7 @@ export function RicercaWorkersPipelineView({
           fetchEsperienzeLavoratoriByWorker(workerId),
           fetchDocumentiLavoratoriByWorker(workerId),
           fetchReferenzeLavoratoriByWorker(workerId),
-          fetchSelezioniLavoratori({
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: "pipeline-selected-selection",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "pipeline-selected-selection-id",
-                  field: "id",
-                  operator: "is",
-                  value: selectionId,
-                },
-              ],
-            },
-          }),
+          fetchSelezioniLookup({ ids: [selectionId] }),
           fetchIndirizziByEntity("lavoratori", [workerId], [
             "residenza",
             "domicilio",
@@ -1810,24 +1762,8 @@ export function RicercaWorkersPipelineView({
       );
       const generatedFromFunction = extractGeneratedMessage(functionResult);
 
-      const fetchSelection = () => fetchSelezioniLavoratori({
-        limit: 1,
-        offset: 0,
-        filters: {
-          kind: "group",
-          id: "ai-generated-selection-feedback",
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: "ai-generated-selection-feedback-id",
-              field: "id",
-              operator: "is",
-              value: selectedCard.id,
-            },
-          ],
-        },
-      });
+      const fetchSelection = () =>
+        fetchSelezioniLookup({ ids: [selectedCard.id] });
       let result = await fetchSelection();
       let row = result.rows[0] ?? null;
       let generatedText =
@@ -2083,31 +2019,9 @@ export function RicercaWorkersPipelineView({
 
     setIsSubmittingAddWorker(true);
     try {
-      const existingSelections = await fetchSelezioniLavoratori({
-        limit: 1,
-        offset: 0,
-        select: ["id"],
-        filters: {
-          kind: "group",
-          id: "ricerca-workers-add-duplicate-check",
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: "ricerca-workers-add-process",
-              field: "processo_matching_id",
-              operator: "is",
-              value: processId,
-            },
-            {
-              kind: "condition",
-              id: "ricerca-workers-add-worker",
-              field: "lavoratore_id",
-              operator: "is",
-              value: workerId,
-            },
-          ],
-        },
+      const existingSelections = await fetchSelezioniLookup({
+        processoIds: [processId],
+        lavoratoreIds: [workerId],
       });
 
       if ((existingSelections.rows ?? []).length > 0) {

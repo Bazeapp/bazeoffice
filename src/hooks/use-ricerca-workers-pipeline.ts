@@ -25,7 +25,7 @@ import {
   fetchLavoratoriByIds,
   fetchLookupValues,
   fetchRicercaWorkerRelatedSelectionSummaries,
-  fetchSelezioniLavoratori,
+  fetchSelezioniLookup,
   updateRecord,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -98,19 +98,8 @@ type UseRicercaWorkersPipelineState = {
 
 export type RicercaWorkersPipelineState = UseRicercaWorkersPipelineState
 
-const SELEZIONI_PAGE_SIZE = 500
 const WORKER_BATCH_SIZE = 250
 const ADDRESS_BATCH_SIZE = 120
-const PIPELINE_SELECTIONS_SELECT = [
-  "id",
-  "lavoratore_id",
-  "stato_selezione",
-  "punteggio",
-  "travel_time_tra_cap",
-  "data_ora_colloquio_famiglia_lavoratore",
-  "data_ora_fine_colloquio_famiglia_lavoratore",
-  "aggiornato_il",
-] satisfies string[]
 function asRowArray(input: unknown): GenericRow[] {
   if (!Array.isArray(input)) return []
   return input.filter(
@@ -608,39 +597,14 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
 
 async function fetchAllSelectionsForProcess(processId: string) {
   const rows: GenericRow[] = []
-  let offset = 0
 
-  while (true) {
-    const result = await fetchSelezioniLavoratori({
-      select: PIPELINE_SELECTIONS_SELECT,
-      limit: SELEZIONI_PAGE_SIZE,
-      offset,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: "selezioni-lavoratori-by-process",
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: "processo-matching-id",
-            field: "processo_matching_id",
-            operator: "is",
-            value: processId,
-          },
-        ],
-      },
-    }).catch((error) => {
+  const result = await fetchSelezioniLookup({ processoIds: [processId] }).catch(
+    (error) => {
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`selezioni_lavoratori: ${message}`)
-    })
-
-    const pageRows = asRowArray(result.rows)
-    rows.push(...pageRows)
-
-    if (pageRows.length < SELEZIONI_PAGE_SIZE) break
-    offset += SELEZIONI_PAGE_SIZE
-  }
+      throw new Error(`selezioni_lookup: ${message}`)
+    },
+  )
+  rows.push(...asRowArray(result.rows))
 
   return rows
 }

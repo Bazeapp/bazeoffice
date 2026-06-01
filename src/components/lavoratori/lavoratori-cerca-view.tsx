@@ -65,7 +65,7 @@ import {
   fetchLavoratoriByIds,
   fetchProcessiMatching,
   fetchProcessiMatchingByIds,
-  fetchSelezioniLavoratori,
+  fetchSelezioniLookup,
   createRecord,
   updateRecord,
 } from "@/lib/anagrafiche-api";
@@ -166,7 +166,6 @@ type SearchProcessResult = {
   zona: string;
 };
 
-const RELATED_SELECTIONS_PAGE_SIZE = 500;
 const RELATED_PROCESS_BATCH_SIZE = 150;
 const RELATED_FAMILY_BATCH_SIZE = 150;
 
@@ -238,40 +237,10 @@ function getLookupArrayValues(value: unknown) {
 }
 
 async function fetchAllSelectionsForWorker(workerId: string) {
-  const rows: Record<string, unknown>[] = [];
-  let offset = 0;
-
-  while (true) {
-    const result = await fetchSelezioniLavoratori({
-      limit: RELATED_SELECTIONS_PAGE_SIZE,
-      offset,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: "worker-processi-coinvolti-by-worker",
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: "worker-processi-coinvolti-worker-id",
-            field: "lavoratore_id",
-            operator: "is",
-            value: workerId,
-          },
-        ],
-      },
-    });
-
-    const pageRows = Array.isArray(result.rows)
-      ? (result.rows as Record<string, unknown>[])
-      : [];
-    rows.push(...pageRows);
-
-    if (pageRows.length < RELATED_SELECTIONS_PAGE_SIZE) break;
-    offset += RELATED_SELECTIONS_PAGE_SIZE;
-  }
-
-  return rows;
+  const result = await fetchSelezioniLookup({ lavoratoreIds: [workerId] });
+  return Array.isArray(result.rows)
+    ? (result.rows as Record<string, unknown>[])
+    : [];
 }
 
 async function fetchRelatedProcessesByIds(processIds: string[]) {
@@ -1171,31 +1140,9 @@ export function LavoratoriCercaView({
 
     setIsSubmittingAddSearch(true);
     try {
-      const existingSelections = await fetchSelezioniLavoratori({
-        limit: 1,
-        offset: 0,
-        select: ["id", "stato_selezione", "processo_matching_id"],
-        filters: {
-          kind: "group",
-          id: "lavoratori-add-search-duplicate-check",
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: "lavoratori-add-search-process",
-              field: "processo_matching_id",
-              operator: "is",
-              value: processId,
-            },
-            {
-              kind: "condition",
-              id: "lavoratori-add-search-worker",
-              field: "lavoratore_id",
-              operator: "is",
-              value: workerId,
-            },
-          ],
-        },
+      const existingSelections = await fetchSelezioniLookup({
+        processoIds: [processId],
+        lavoratoreIds: [workerId],
       });
 
       const existingSelection = existingSelections.rows?.[0] as

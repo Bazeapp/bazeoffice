@@ -1122,6 +1122,27 @@ export async function fetchPresenzeByIds(ids: string[]) {
   return rpcRows("presenze_by_ids", { p_ids: ids })
 }
 
+// FASE 4 BIS Wave 4 — selezioni: lookup unico (id / lavoratore / processo /
+// stato, AND-combinati). Almeno un filtro deve essere fornito.
+export async function fetchSelezioniLookup(options: {
+  ids?: string[]
+  lavoratoreIds?: string[]
+  processoIds?: string[]
+  stati?: string[]
+}) {
+  const p_ids = options.ids?.length ? options.ids : null
+  const p_lavoratore_ids = options.lavoratoreIds?.length ? options.lavoratoreIds : null
+  const p_processo_ids = options.processoIds?.length ? options.processoIds : null
+  const p_stati = options.stati?.length ? options.stati : null
+  if (!p_ids && !p_lavoratore_ids && !p_processo_ids && !p_stati) return EMPTY_ROWS
+  return rpcRows("selezioni_lookup", {
+    p_ids,
+    p_lavoratore_ids,
+    p_processo_ids,
+    p_stati,
+  })
+}
+
 export async function fetchCrmPipelineFamiglieBoard(query: {
   limit: number
   offset: number

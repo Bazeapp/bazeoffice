@@ -45,7 +45,7 @@ import {
   fetchLavoratori,
   fetchLavoratoriByIds,
   fetchProcessiMatchingByIds,
-  fetchSelezioniLavoratori,
+  fetchSelezioniLookup,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
@@ -62,7 +62,6 @@ const VIEWS_STORAGE_KEY = "lavoratori.cerca.saved-views"
 const ADDRESS_BATCH_SIZE = 120
 const GATE1_BASE_FETCH_PAGE_SIZE = 500
 const GATE1_BLOCKING_SELECTIONS_CACHE_TTL_MS = 60_000
-const RELATED_SELECTIONS_PAGE_SIZE = 500
 const RELATED_WORKER_BATCH_SIZE = 50
 const RELATED_PROCESS_BATCH_SIZE = 150
 const RELATED_FAMILY_BATCH_SIZE = 150
@@ -742,59 +741,15 @@ async function fetchSelectionsForWorkers(workerIds: string[], blockingOnly = fal
   const rows: GenericRow[] = []
   const blockingStatusValues = Array.from(
     new Set(GATE1_BLOCKING_SELECTION_STATUS_FILTER_VALUES)
-  ).join(",")
+  )
 
   for (let index = 0; index < workerIds.length; index += RELATED_WORKER_BATCH_SIZE) {
     const batch = workerIds.slice(index, index + RELATED_WORKER_BATCH_SIZE)
-    let offset = 0
-
-    while (true) {
-      const result = await fetchSelezioniLavoratori({
-        select: [
-          "id",
-          "lavoratore_id",
-          "processo_matching_id",
-          "stato_selezione",
-          "stato_situazione_lavorativa",
-          "note_selezione",
-          "aggiornato_il",
-        ],
-        limit: RELATED_SELECTIONS_PAGE_SIZE,
-        offset,
-        orderBy: [{ field: "aggiornato_il", ascending: false }],
-        filters: {
-          kind: "group",
-          id: `lavoratori-related-selections-${index}-${offset}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `lavoratori-related-worker-ids-${index}-${offset}`,
-              field: "lavoratore_id",
-              operator: "in",
-              value: batch.join(","),
-            },
-            ...(blockingOnly
-              ? [
-                  {
-                    kind: "condition" as const,
-                    id: `lavoratori-related-blocking-status-${index}-${offset}`,
-                    field: "stato_selezione",
-                    operator: "in" as const,
-                    value: blockingStatusValues,
-                  },
-                ]
-              : []),
-          ],
-        },
-      })
-
-      const pageRows = Array.isArray(result.rows) ? (result.rows as GenericRow[]) : []
-      rows.push(...pageRows)
-
-      if (pageRows.length < RELATED_SELECTIONS_PAGE_SIZE) break
-      offset += RELATED_SELECTIONS_PAGE_SIZE
-    }
+    const result = await fetchSelezioniLookup({
+      lavoratoreIds: batch,
+      stati: blockingOnly ? blockingStatusValues : undefined,
+    })
+    rows.push(...(Array.isArray(result.rows) ? (result.rows as GenericRow[]) : []))
   }
 
   return rows
@@ -833,33 +788,9 @@ async function fetchGate1BlockingWorkerIdsUncached() {
     ])
   )
 
-  const results = await Promise.all(
-    blockingStatusValues.map((status, index) =>
-      fetchSelezioniLavoratori({
-        select: ["lavoratore_id", "stato_selezione"],
-        limit: RELATED_SELECTIONS_PAGE_SIZE,
-        offset: 0,
-        includeSchema: false,
-        filters: {
-          kind: "group",
-          id: `gate1-blocking-selection-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition" as const,
-              id: `gate1-blocking-status-${index}`,
-              field: "stato_selezione",
-              operator: "is" as const,
-              value: status,
-            },
-          ],
-        },
-      })
-    )
-  )
-  const rows = results.flatMap((result) =>
-    (Array.isArray(result.rows) ? result.rows : []) as GenericRow[]
-  )
+  // Una sola RPC con tutti gli stati bloccanti (prima: fan-out di 7 query).
+  const result = await fetchSelezioniLookup({ stati: blockingStatusValues })
+  const rows = (Array.isArray(result.rows) ? result.rows : []) as GenericRow[]
 
   return new Set(
     rows
