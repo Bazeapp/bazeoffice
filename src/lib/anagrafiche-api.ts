@@ -1143,6 +1143,17 @@ export async function fetchSelezioniLookup(options: {
   })
 }
 
+// FASE 4 BIS Wave 4 — richieste_attivazione: lookup per id / processo_res_id.
+export async function fetchRichiesteAttivazioneLookup(options: {
+  ids?: string[]
+  processoResIds?: string[]
+}) {
+  const p_ids = options.ids?.length ? options.ids : null
+  const p_processo_res_ids = options.processoResIds?.length ? options.processoResIds : null
+  if (!p_ids && !p_processo_res_ids) return EMPTY_ROWS
+  return rpcRows("richieste_attivazione_lookup", { p_ids, p_processo_res_ids })
+}
+
 export async function fetchCrmPipelineFamiglieBoard(query: {
   limit: number
   offset: number
