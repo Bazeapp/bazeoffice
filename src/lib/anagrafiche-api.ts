@@ -1015,6 +1015,43 @@ export async function fetchLavoratoriSelezioniCorrelate(workerIds: string[]) {
   return (Array.isArray(data) ? data : []) as TableRow[]
 }
 
+// FASE 4 BIS — Scheda RPC: tutto il dettaglio del lavoratore aperto in 1 chiamata
+// (worker + indirizzi + documenti/esperienze/referenze + related_searches).
+// Sostituisce lavoratori_by_ids + lavoratore_extras + indirizzi_by_entity +
+// (su Cerca) selezioni + processi + famiglie del worker selezionato.
+export type LavoratoreSchedaResult = {
+  worker: TableRow | null
+  indirizzi: TableRow[]
+  documenti: TableRow[]
+  esperienze: TableRow[]
+  referenze: TableRow[]
+  relatedSearches: TableRow[]
+}
+
+export async function fetchLavoratoreScheda(workerId: string): Promise<LavoratoreSchedaResult> {
+  const empty: LavoratoreSchedaResult = {
+    worker: null,
+    indirizzi: [],
+    documenti: [],
+    esperienze: [],
+    referenze: [],
+    relatedSearches: [],
+  }
+  if (!workerId) return empty
+  const { data, error } = await supabase.rpc("lavoratore_scheda", { p_id: workerId })
+  if (error) throw new Error(`lavoratore_scheda failed: ${error.message}`)
+  const payload = (data ?? {}) as Record<string, unknown>
+  const asArray = (value: unknown) => (Array.isArray(value) ? (value as TableRow[]) : [])
+  return {
+    worker: (payload.worker as TableRow | null) ?? null,
+    indirizzi: asArray(payload.indirizzi),
+    documenti: asArray(payload.documenti),
+    esperienze: asArray(payload.esperienze),
+    referenze: asArray(payload.referenze),
+    relatedSearches: asArray(payload.related_searches),
+  }
+}
+
 // FASE 4 BIS Wave 2 — indirizzi by entity + bbox geografico.
 export async function fetchIndirizziByEntity(
   entitaTabella: string,

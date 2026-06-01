@@ -37,9 +37,8 @@ import {
   fetchGate1Lavoratori,
   fetchGate2Lavoratori,
   fetchIndirizziByEntity,
-  fetchLavoratoreExtras,
+  fetchLavoratoreScheda,
   fetchLookupValues,
-  fetchLavoratoriByIds,
   fetchLavoratoriNazionalita,
   fetchLavoratoriSelezioniCorrelate,
 } from "@/lib/anagrafiche-api"
@@ -751,6 +750,14 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   const [selectedWorkerReferences, setSelectedWorkerReferences] = React.useState<
     ReferenzaLavoratoreRecord[]
   >([])
+  // FASE 4 BIS — "altre ricerche attive" del worker selezionato, dalla Scheda RPC
+  // (related_searches). Consumato da lavoratori-cerca-view per lo split direct/other.
+  const [selectedWorkerRelatedSearches, setSelectedWorkerRelatedSearches] = React.useState<
+    GenericRow[]
+  >([])
+  // Bumped per forzare il refetch della Scheda RPC senza cambiare worker
+  // (es. dopo aver aggiunto il lavoratore a una ricerca).
+  const [selectedWorkerSchedaTick, setSelectedWorkerSchedaTick] = React.useState(0)
   const [loadingSelectedWorkerDocuments, setLoadingSelectedWorkerDocuments] =
     React.useState(false)
   const [loadingSelectedWorkerExperiences, setLoadingSelectedWorkerExperiences] =
@@ -1155,46 +1162,72 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     )
   }, [lookupColorsByDomain, relatedSelectionsByWorkerId, workerAddressesById, workerRows])
 
+  // FASE 4 BIS — Scheda RPC: worker row + documenti/esperienze/referenze +
+  // altre-ricerche del worker selezionato in UNA chiamata (lavoratore_scheda),
+  // al posto di lavoratori_by_ids + lavoratore_extras (+ i fetch di cerca-view).
+  // Seed immediato della riga dalla lista per UI reattiva, poi rimpiazzo col
+  // dettaglio completo.
   React.useEffect(() => {
     let isCancelled = false
 
-    async function loadSelectedWorkerRow() {
+    async function loadSelectedWorkerScheda() {
       if (!selectedWorkerId) {
         setSelectedWorkerRow(null)
+        setSelectedWorkerDocuments([])
+        setSelectedWorkerExperiences([])
+        setSelectedWorkerReferences([])
+        setSelectedWorkerRelatedSearches([])
+        setLoadingSelectedWorkerDocuments(false)
+        setLoadingSelectedWorkerExperiences(false)
+        setLoadingSelectedWorkerReferences(false)
         return
       }
 
       const listRow = workerRowsRef.current.find((row) => row.id === selectedWorkerId) ?? null
       setSelectedWorkerRow(listRow)
+      setLoadingSelectedWorkerDocuments(true)
+      setLoadingSelectedWorkerExperiences(true)
+      setLoadingSelectedWorkerReferences(true)
 
       try {
-        const result = await fetchLavoratoriByIds([selectedWorkerId])
+        const scheda = await fetchLavoratoreScheda(selectedWorkerId)
         if (isCancelled) return
-        const detailRow = result.rows[0] ? asLavoratoreRecord(result.rows[0]) : listRow
+        const detailRow = scheda.worker ? asLavoratoreRecord(scheda.worker) : listRow
         setSelectedWorkerRow(detailRow ?? null)
+        setSelectedWorkerDocuments(scheda.documenti as DocumentoLavoratoreRecord[])
+        setSelectedWorkerExperiences(scheda.esperienze as EsperienzaLavoratoreRecord[])
+        setSelectedWorkerReferences(scheda.referenze as ReferenzaLavoratoreRecord[])
+        setSelectedWorkerRelatedSearches(scheda.relatedSearches as GenericRow[])
       } catch {
         if (isCancelled) return
         setSelectedWorkerRow(listRow)
+        setSelectedWorkerDocuments([])
+        setSelectedWorkerExperiences([])
+        setSelectedWorkerReferences([])
+        setSelectedWorkerRelatedSearches([])
+      } finally {
+        if (!isCancelled) {
+          setLoadingSelectedWorkerDocuments(false)
+          setLoadingSelectedWorkerExperiences(false)
+          setLoadingSelectedWorkerReferences(false)
+        }
       }
     }
 
-    void loadSelectedWorkerRow()
+    void loadSelectedWorkerScheda()
 
     return () => {
       isCancelled = true
     }
-    // NOTE: intentionally omits realtimeTick. Lavoratori saves DO go through
-    // trackWrite via updateRecord/createRecord/deleteRecord (and the board
-    // mutation wrappers in use-board-mutations.ts), so the echo-window
-    // suppression in useRealtimeBoardSync already deduplicates self-induced
-    // refetches at the board level. The reason this detail-effect still
-    // skips realtimeTick is different: it runs THREE detail effects per
-    // selected worker, and re-running them on every realtime tick — even
-    // one originating from a different worker — would multiply per-keystroke
-    // detail refetches across the page, regardless of echo-window status.
-    // The selected-worker draft anti-overwrite is handled inside
-    // use-selected-worker-editor via the `isEditingXxx` guards.
-  }, [selectedWorkerId])
+    // NOTE: omette volutamente realtimeTick (i save passano da trackWrite +
+    // echo-window di useRealtimeBoardSync; l'anti-overwrite del draft è gestito
+    // in use-selected-worker-editor via le guardie isEditingXxx).
+    // selectedWorkerSchedaTick: refetch forzato dopo mutazioni (es. aggiunta a ricerca).
+  }, [selectedWorkerId, selectedWorkerSchedaTick])
+
+  const reloadSelectedWorkerScheda = React.useCallback(() => {
+    setSelectedWorkerSchedaTick((current) => current + 1)
+  }, [])
 
   const filterFields = React.useMemo<FilterField[]>(() => {
     return workersColumns.map((column) => {
@@ -1252,52 +1285,6 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     if (!initialSelectedWorkerId) return
     setSelectedWorkerId(initialSelectedWorkerId)
   }, [initialSelectedWorkerId])
-
-  React.useEffect(() => {
-    let isCancelled = false
-
-    async function loadSelectedWorkerExtras() {
-      if (!selectedWorkerId) {
-        setSelectedWorkerDocuments([])
-        setSelectedWorkerExperiences([])
-        setSelectedWorkerReferences([])
-        setLoadingSelectedWorkerDocuments(false)
-        setLoadingSelectedWorkerExperiences(false)
-        setLoadingSelectedWorkerReferences(false)
-        return
-      }
-
-      setLoadingSelectedWorkerDocuments(true)
-      setLoadingSelectedWorkerExperiences(true)
-      setLoadingSelectedWorkerReferences(true)
-      try {
-        const result = await fetchLavoratoreExtras(selectedWorkerId)
-        if (isCancelled) return
-        setSelectedWorkerDocuments((result.documenti ?? []) as DocumentoLavoratoreRecord[])
-        setSelectedWorkerExperiences((result.esperienze ?? []) as EsperienzaLavoratoreRecord[])
-        setSelectedWorkerReferences((result.referenze ?? []) as ReferenzaLavoratoreRecord[])
-      } catch {
-        if (isCancelled) return
-        setSelectedWorkerDocuments([])
-        setSelectedWorkerExperiences([])
-        setSelectedWorkerReferences([])
-      } finally {
-        if (!isCancelled) {
-          setLoadingSelectedWorkerDocuments(false)
-          setLoadingSelectedWorkerExperiences(false)
-          setLoadingSelectedWorkerReferences(false)
-        }
-      }
-    }
-
-    void loadSelectedWorkerExtras()
-
-    return () => {
-      isCancelled = true
-    }
-    // NOTE: intentionally omits realtimeTick (see loadSelectedWorkerRow
-    // effect above for rationale).
-  }, [selectedWorkerId])
 
   const saveCurrentView = React.useCallback((name: string) => {
     saveView(name)
@@ -1496,6 +1483,8 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     loadingSelectedWorkerExperiences,
     selectedWorkerReferences,
     loadingSelectedWorkerReferences,
+    selectedWorkerRelatedSearches,
+    reloadSelectedWorkerScheda,
     loading,
     error,
     setError,
