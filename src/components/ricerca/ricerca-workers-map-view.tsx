@@ -42,6 +42,7 @@ import {
   type GeoCoordinates,
 } from "@/lib/geo-utils"
 import { isDisponibileRicerca } from "@/lib/lavoratori/is-disponibile-ricerca"
+import { invokeEdgeFunction } from "@/lib/supabase-edge"
 import { cn } from "@/lib/utils"
 
 const DEFAULT_RADIUS_KM = 5
@@ -98,6 +99,12 @@ type RicercaWorkersMapViewProps = {
   weeklyDays?: string | null
   pipelineState: RicercaWorkersPipelineState
   className?: string
+  /**
+   * Invocata quando il geocoding on-demand (lanciato perche' la mappa non ha
+   * coordinate al mount) e' andato a buon fine. Il parent deve reidratare la
+   * card del processo cosi' che `searchLat`/`searchLng` arrivino popolati.
+   */
+  onCoordinatesGeocoded?: () => void
 }
 
 type MapWorkerListItem = LavoratoreListItem & {
@@ -831,9 +838,56 @@ export function RicercaWorkersMapView({
   weeklyDays,
   pipelineState,
   className,
+  onCoordinatesGeocoded,
 }: RicercaWorkersMapViewProps) {
   const { loading, error, columns, moveCard, refresh } = pipelineState
   const [radiusKm, setRadiusKm] = React.useState(DEFAULT_RADIUS_KM)
+  // Stato del geocoding on-demand: lo lanciamo una sola volta per processo
+  // quando la mappa apre senza coord. Se la EF geocoder risolve, chiediamo al
+  // parent di reidratare la card; se fallisce mostriamo il banner statico.
+  const [geocodeState, setGeocodeState] = React.useState<{
+    status: "idle" | "running" | "done" | "error"
+    error: string | null
+  }>({ status: "idle", error: null })
+  const geocodeAttemptedRef = React.useRef<string | null>(null)
+  React.useEffect(() => {
+    geocodeAttemptedRef.current = null
+    setGeocodeState({ status: "idle", error: null })
+  }, [processId])
+  React.useEffect(() => {
+    if (typeof searchLat === "number" && typeof searchLng === "number") return
+    if (geocodeAttemptedRef.current === processId) return
+    geocodeAttemptedRef.current = processId
+
+    let cancelled = false
+    setGeocodeState({ status: "running", error: null })
+    void (async () => {
+      try {
+        await invokeEdgeFunction<unknown>("geocode-worker-addresses", {
+          entitaTabella: "processi_matching",
+          entitaId: processId,
+          dryRun: false,
+          limit: 5,
+        })
+        if (cancelled) return
+        setGeocodeState({ status: "done", error: null })
+        onCoordinatesGeocoded?.()
+      } catch (caughtError) {
+        if (cancelled) return
+        setGeocodeState({
+          status: "error",
+          error:
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Errore geocoding indirizzo",
+        })
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [processId, searchLat, searchLng, onCoordinatesGeocoded])
   const [hideDiscarded, setHideDiscarded] = React.useState(false)
   const [hidePipeline, setHidePipeline] = React.useState(false)
   const [selectedStatuses, setSelectedStatuses] = React.useState<string[]>([
@@ -1016,15 +1070,37 @@ export function RicercaWorkersMapView({
   }
 
   if (!searchCoordinates) {
+    if (geocodeState.status === "running") {
+      return (
+        <div className={cn("flex h-full items-center justify-center rounded-lg border border-border-subtle bg-surface p-6", className)}>
+          <div className="max-w-sm text-center">
+            <p className="text-sm font-medium text-foreground">
+              Geocodifica indirizzo in corso…
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Stiamo calcolando latitudine e longitudine dall'indirizzo della
+              ricerca. La mappa si aprirà appena pronto.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
+    const isErrorState = geocodeState.status === "error"
     return (
       <div className={cn("flex h-full items-center justify-center rounded-lg border border-border-subtle bg-surface p-6", className)}>
         <div className="max-w-sm text-center">
           <p className="text-sm font-medium text-foreground">
-            ⚠️ Indirizzo del processo mancante, impossibile centrare la mappa
+            {isErrorState
+              ? "⚠️ Geocodifica fallita"
+              : "⚠️ Indirizzo del processo mancante, impossibile centrare la mappa"}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Compila l'indirizzo (di prova o luogo) nella scheda della ricerca per
-            visualizzare i lavoratori geolocalizzati.
+            {isErrorState
+              ? `Non sono riuscito a calcolare le coordinate dall'indirizzo (${
+                  geocodeState.error ?? "errore sconosciuto"
+                }). Verifica via, civico, CAP e comune nella scheda della ricerca.`
+              : "Compila l'indirizzo (di prova o luogo) nella scheda della ricerca per visualizzare i lavoratori geolocalizzati."}
           </p>
         </div>
       </div>

@@ -792,6 +792,10 @@ export function RicercaDetailView({
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [card, setCard] = React.useState<ExtendedCardData | null>(null);
+  // Incrementato dalla mappa quando il geocoding on-demand popola lat/lng:
+  // forza il reload della card cosi' che `indirizzoProvaLatitudine` arrivi
+  // valorizzato e il map view riceva `searchCoordinates`.
+  const [reloadVersion, setReloadVersion] = React.useState(0);
   const [lookupOptionsByField, setLookupOptionsByField] =
     React.useState<LookupOptionsByField>({});
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
@@ -1206,7 +1210,8 @@ export function RicercaDetailView({
     // currentProcessId e il dettaglio restava stantio fino a refresh manuale.
     // I self-edit sono filtrati dall'echo-window dentro useRealtimeBoardSync,
     // e la resync di orariDraft è guardata da editingSections.has("orari").
-  }, [currentProcessId, pipelineState.detailRefreshTick]);
+    // reloadVersion: bump dopo l'auto-geocode al mount (da origin/main).
+  }, [currentProcessId, pipelineState.detailRefreshTick, reloadVersion]);
 
   const updateProcessCard = React.useCallback(
     async (targetProcessId: string, patch: Record<string, unknown>) => {
@@ -2699,6 +2704,9 @@ export function RicercaDetailView({
                   jobRole={resolvedCard.tipoLavoroBadge}
                   weeklyDays={resolvedCard.giorniSettimana}
                   pipelineState={pipelineState}
+                  onCoordinatesGeocoded={() =>
+                    setReloadVersion((current) => current + 1)
+                  }
                 />
               </TabsContent>
             </div>
