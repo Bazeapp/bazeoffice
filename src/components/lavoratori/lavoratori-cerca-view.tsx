@@ -60,11 +60,11 @@ import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board";
 import { DebouncedInput } from "@/components/ui/debounced-input";
 import { Input } from "@/components/ui/input";
 import {
-  fetchFamiglie,
   fetchFamiglieByIds,
+  fetchFamiglieSearch,
   fetchLavoratoriByIds,
-  fetchProcessiMatching,
   fetchProcessiMatchingByIds,
+  fetchProcessiMatchingSearch,
   fetchSelezioniLookup,
   createRecord,
   updateRecord,
@@ -289,28 +289,7 @@ async function searchProcessesForWorkerAdd(query: string) {
   const normalizedQuery = query.trim();
   if (normalizedQuery.length < 2) return [];
 
-  const familyRowsResult = await fetchFamiglie({
-    limit: 10,
-    offset: 0,
-    search: normalizedQuery,
-    searchFields: [
-      "email",
-      "customer_email",
-      "secondary_email",
-      "nome",
-      "cognome",
-      "telefono",
-    ],
-    select: [
-      "id",
-      "nome",
-      "cognome",
-      "email",
-      "customer_email",
-      "secondary_email",
-      "telefono",
-    ],
-  });
+  const familyRowsResult = await fetchFamiglieSearch(normalizedQuery, 10);
 
   const familyRows = Array.isArray(familyRowsResult.rows)
     ? (familyRowsResult.rows as Record<string, unknown>[])
@@ -327,20 +306,6 @@ async function searchProcessesForWorkerAdd(query: string) {
     .filter((value): value is string => Boolean(value));
 
   const processRowsById = new Map<string, Record<string, unknown>>();
-  const processSelect = [
-    "id",
-    "famiglia_id",
-    "numero_ricerca_attivata",
-    "stato_res",
-    "tipo_lavoro",
-    "tipo_rapporto",
-    "orario_di_lavoro",
-    "indirizzo_prova_comune",
-    "indirizzo_prova_provincia",
-    "indirizzo_prova_cap",
-    "indirizzo_prova_note",
-    "aggiornato_il",
-  ];
 
   if (familyIds.length > 0) {
     const familyProcesses = await fetchProcessiMatchingByIds({
@@ -356,13 +321,7 @@ async function searchProcessesForWorkerAdd(query: string) {
     }
   }
 
-  const directProcesses = await fetchProcessiMatching({
-    limit: 12,
-    offset: 0,
-    search: normalizedQuery,
-    searchFields: ["id", "stato_res", "orario_di_lavoro"],
-    select: processSelect,
-  });
+  const directProcesses = await fetchProcessiMatchingSearch(normalizedQuery, 12);
 
   for (const processRow of directProcesses.rows as Record<string, unknown>[]) {
     const processId = asString(processRow.id);

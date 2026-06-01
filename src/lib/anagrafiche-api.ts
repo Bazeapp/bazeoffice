@@ -1152,6 +1152,22 @@ export async function fetchProcessiMatchingByStatoRes(stati: string[]) {
   return rpcRows("processi_matching_by_stato_res", { p_stati: stati })
 }
 
+// FASE 4 BIS Wave 4 — ricerca testuale per dropdown "aggiungi".
+export async function fetchFamiglieSearch(query: string, limit = 10) {
+  if (!query.trim()) return EMPTY_ROWS
+  return rpcRows("famiglie_search", { p_query: query, p_limit: limit })
+}
+
+export async function fetchProcessiMatchingSearch(query: string, limit = 12) {
+  if (!query.trim()) return EMPTY_ROWS
+  return rpcRows("processi_matching_search", { p_query: query, p_limit: limit })
+}
+
+export async function fetchLavoratoriSearch(query: string, limit = 25) {
+  if (!query.trim()) return EMPTY_ROWS
+  return rpcRows("lavoratori_search", { p_query: query, p_limit: limit })
+}
+
 // FASE 4 BIS Wave 4 — selezioni: lookup unico (id / lavoratore / processo /
 // stato, AND-combinati). Almeno un filtro deve essere fornito.
 export async function fetchSelezioniLookup(options: {

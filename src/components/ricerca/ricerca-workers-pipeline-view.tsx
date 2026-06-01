@@ -99,8 +99,8 @@ import {
   fetchDocumentiLavoratoriByWorker,
   fetchFamiglieByIds,
   fetchIndirizziByEntity,
-  fetchLavoratori,
   fetchLavoratoriByIds,
+  fetchLavoratoriSearch,
   fetchLookupValues,
   fetchProcessiMatchingByIds,
   fetchReferenzeLavoratoriByWorker,
@@ -1907,24 +1907,9 @@ export function RicercaWorkersPipelineView({
       const searchTerms = Array.from(
         new Set([normalizedQuery, ...tokens].filter(Boolean)),
       );
-      const select = [
-        "id",
-        "nome",
-        "cognome",
-        "email",
-        "data_di_nascita",
-        "provincia",
-      ];
-
       void Promise.all(
         searchTerms.map((searchTerm) =>
-          fetchLavoratori({
-            limit: ADD_WORKER_SEARCH_FETCH_LIMIT,
-            offset: 0,
-            search: searchTerm,
-            searchFields: ["nome", "cognome", "email"],
-            select,
-          }),
+          fetchLavoratoriSearch(searchTerm, ADD_WORKER_SEARCH_FETCH_LIMIT),
         ),
       )
         .then((results) => {
