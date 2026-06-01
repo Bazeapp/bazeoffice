@@ -260,6 +260,43 @@ function buildGate1RpcFilters({
   return rpcFilters
 }
 
+// Variante per filtri con logica OR (non appiattibili in array): costruisce il
+// GRUPPO annidato { and: [filtriUtente, provincia?, followup?] } che gate1/gate2
+// valutano via lavoratore_matches_filter_group. Niente più fallback table-query.
+function buildGate1RpcFilterGroup({
+  filters,
+  gate1ProvinciaFilter,
+  gate1FollowupFilter,
+}: {
+  filters: QueryFilterGroup | undefined
+  gate1ProvinciaFilter: string
+  gate1FollowupFilter: string
+}): QueryFilterGroup {
+  const nodes: QueryFilterGroup["nodes"] = []
+  if (filters && Array.isArray(filters.nodes) && filters.nodes.length > 0) {
+    nodes.push(filters)
+  }
+  if (gate1ProvinciaFilter !== "all") {
+    nodes.push({
+      kind: "condition",
+      id: "gate-rpc-provincia",
+      field: "provincia_sigla",
+      operator: "is",
+      value: gate1ProvinciaFilter,
+    })
+  }
+  if (gate1FollowupFilter !== "all") {
+    nodes.push({
+      kind: "condition",
+      id: "gate-rpc-followup",
+      field: "followup_chiamata_idoneita",
+      operator: "is",
+      value: gate1FollowupFilter,
+    })
+  }
+  return { kind: "group", id: "gate-rpc-filter-group", logic: "and", nodes }
+}
+
 function buildGate2RpcStatusFilters(
   forcedWorkerStatus: string | string[] | undefined
 ): Gate1RpcFilter[] | null {
@@ -1190,8 +1227,10 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
             gate1ProvinciaFilter,
             gate1FollowupFilter,
           })
+          // gate1RpcFilters è null sui filtri OR: in quel caso passiamo il
+          // gruppo annidato (buildGate1RpcFilterGroup), che gate1_lavoratori
+          // valuta via lavoratore_matches_filter_group. Niente più fallback.
           const canUseGate1Rpc =
-            gate1RpcFilters !== null &&
             debouncedQuery.sorting.length === 0 &&
             forcedStatuses.length === 1 &&
             toCanonicalWorkerStatus(forcedStatuses[0] ?? "") === "Qualificato"
@@ -1228,7 +1267,13 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
               limit: pageSize,
               offset: pageIndex * pageSize,
               search: debouncedQuery.searchValue.trim() || undefined,
-              filters: gate1RpcFilters,
+              filters:
+                gate1RpcFilters ??
+                buildGate1RpcFilterGroup({
+                  filters: debouncedQuery.filters,
+                  gate1ProvinciaFilter,
+                  gate1FollowupFilter,
+                }),
             })
             if (requestId !== requestIdRef.current) return
 
@@ -1372,9 +1417,34 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
           gate2UserRpcFilters && gate2StatusRpcFilters
             ? [...gate2UserRpcFilters, ...gate2StatusRpcFilters]
             : null
+        // Filtri utente con OR (gate2UserRpcFilters null) ma stato esprimibile:
+        // costruiamo il gruppo annidato { and: [filtriUtente, ...stato] } che
+        // gate2_lavoratori valuta col matcher ricorsivo → niente fallback.
+        const gate2RpcFilterGroup: QueryFilterGroup | null =
+          gate2UserRpcFilters === null && gate2StatusRpcFilters !== null
+            ? {
+                kind: "group",
+                id: "gate2-rpc-filter-group",
+                logic: "and",
+                nodes: [
+                  ...(debouncedQuery.filters &&
+                  Array.isArray(debouncedQuery.filters.nodes) &&
+                  debouncedQuery.filters.nodes.length > 0
+                    ? [debouncedQuery.filters]
+                    : []),
+                  ...gate2StatusRpcFilters.map((filter, index) => ({
+                    kind: "condition" as const,
+                    id: `gate2-rpc-status-${index}`,
+                    field: filter.field,
+                    operator: filter.operator,
+                    value: filter.value,
+                  })),
+                ],
+              }
+            : null
         const canUseGate2Rpc =
           !applyGate1BaseFilters &&
-          gate2RpcFilters !== null &&
+          (gate2RpcFilters !== null || gate2RpcFilterGroup !== null) &&
           debouncedQuery.sorting.length === 0
 
         if (canUseGate2Rpc) {
@@ -1382,7 +1452,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
             limit: pageSize,
             offset: pageIndex * pageSize,
             search: debouncedQuery.searchValue.trim() || undefined,
-            filters: gate2RpcFilters,
+            filters: gate2RpcFilters ?? (gate2RpcFilterGroup as QueryFilterGroup),
           })
           if (requestId !== requestIdRef.current) return
 

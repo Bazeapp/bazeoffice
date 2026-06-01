@@ -1295,7 +1295,7 @@ export async function fetchGate1Lavoratori(query: {
   limit: number
   offset: number
   search?: string
-  filters?: Gate1RpcFilter[]
+  filters?: Gate1RpcFilter[] | QueryFilterGroup
 }) {
   return fetchGateLavoratoriRpc("gate1_lavoratori", query)
 }
@@ -1304,7 +1304,7 @@ export async function fetchGate2Lavoratori(query: {
   limit: number
   offset: number
   search?: string
-  filters?: Gate1RpcFilter[]
+  filters?: Gate1RpcFilter[] | QueryFilterGroup
 }) {
   return fetchGateLavoratoriRpc("gate2_lavoratori", query)
 }
