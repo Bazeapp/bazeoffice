@@ -60,7 +60,7 @@ AS $function$
     where l.stato_lavoratore = 'Qualificato'
       and (l.disponibilita is distinct from 'Non disponibile'
         or (l.disponibilita = 'Non disponibile' and l.data_ritorno_disponibilita <= current_date + 14))
-      and public.lavoratore_matches_search(l.nome, l.cognome, l.email, l.telefono, p.search_value)
+      and (p.search_value = '' or public.lavoratore_matches_search(l.nome, l.cognome, l.email, l.telefono, p.search_value))
       and public.lavoratore_matches_any(
         to_jsonb(l) || jsonb_build_object(
           'provincia', coalesce(nullif(address_row.provincia, ''), nullif(l.provincia, '')),
@@ -82,10 +82,10 @@ AS $function$
   page_rows as (
     select * from eligible
     order by
-      case when lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_num(to_jsonb(eligible), p_order_by) end asc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_num(to_jsonb(eligible), p_order_by) end desc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_text(to_jsonb(eligible), p_order_by) end asc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_text(to_jsonb(eligible), p_order_by) end desc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_num(to_jsonb(eligible), p_order_by) end asc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_num(to_jsonb(eligible), p_order_by) end desc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_text(to_jsonb(eligible), p_order_by) end asc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_text(to_jsonb(eligible), p_order_by) end desc nulls last,
       case
         when nullif(followup_chiamata_idoneita, '') is null then 0
         when followup_chiamata_idoneita = '1° chiamata senza risposta' then 1
@@ -98,10 +98,10 @@ AS $function$
   )
   select jsonb_build_object(
     'rows', coalesce(jsonb_agg(to_jsonb(page_rows) order by
-      case when lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_num(to_jsonb(page_rows), p_order_by) end asc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_num(to_jsonb(page_rows), p_order_by) end desc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_text(to_jsonb(page_rows), p_order_by) end asc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_text(to_jsonb(page_rows), p_order_by) end desc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_num(to_jsonb(page_rows), p_order_by) end asc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_num(to_jsonb(page_rows), p_order_by) end desc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_text(to_jsonb(page_rows), p_order_by) end asc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_text(to_jsonb(page_rows), p_order_by) end desc nulls last,
       case
         when nullif(page_rows.followup_chiamata_idoneita, '') is null then 0
         when page_rows.followup_chiamata_idoneita = '1° chiamata senza risposta' then 1

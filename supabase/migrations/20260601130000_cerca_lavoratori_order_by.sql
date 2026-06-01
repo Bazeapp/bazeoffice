@@ -97,7 +97,7 @@ AS $function$
     from public.lavoratori l
     cross join params p
     cross join normalized_filter_sets fs
-    where (public.lavoratore_matches_search(l.nome, l.cognome, l.email, l.telefono, p.search_value))
+    where (p.search_value = '' or public.lavoratore_matches_search(l.nome, l.cognome, l.email, l.telefono, p.search_value))
       and (cardinality(fs.provincia_include) = 0 or lower(coalesce(l.provincia, '')) = any (fs.provincia_include))
       and (cardinality(fs.provincia_exclude) = 0 or not (lower(coalesce(l.provincia, '')) = any (fs.provincia_exclude)))
       and (cardinality(fs.stato_include) = 0 or lower(coalesce(l.stato_lavoratore, '')) = any (fs.stato_include))
@@ -117,19 +117,19 @@ AS $function$
   page_rows as (
     select * from eligible
     order by
-      case when lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_num(to_jsonb(eligible), p_order_by) end asc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_num(to_jsonb(eligible), p_order_by) end desc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_text(to_jsonb(eligible), p_order_by) end asc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_text(to_jsonb(eligible), p_order_by) end desc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_num(to_jsonb(eligible), p_order_by) end asc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_num(to_jsonb(eligible), p_order_by) end desc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_text(to_jsonb(eligible), p_order_by) end asc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_text(to_jsonb(eligible), p_order_by) end desc nulls last,
       stato_lavoratore asc, data_ora_ultima_modifica desc nulls last, creato_il desc nulls last
     limit (select limit_value from params) offset (select offset_value from params)
   )
   select jsonb_build_object(
     'rows', coalesce(jsonb_agg(to_jsonb(page_rows) order by
-      case when lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_num(to_jsonb(page_rows), p_order_by) end asc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_num(to_jsonb(page_rows), p_order_by) end desc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_text(to_jsonb(page_rows), p_order_by) end asc nulls last,
-      case when lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_text(to_jsonb(page_rows), p_order_by) end desc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_num(to_jsonb(page_rows), p_order_by) end asc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_num(to_jsonb(page_rows), p_order_by) end desc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))='asc' then public.lavoratore_sort_text(to_jsonb(page_rows), p_order_by) end asc nulls last,
+      case when p_order_by is not null and lower(coalesce(p_order_dir,'asc'))<>'asc' then public.lavoratore_sort_text(to_jsonb(page_rows), p_order_by) end desc nulls last,
       page_rows.stato_lavoratore asc, page_rows.data_ora_ultima_modifica desc nulls last, page_rows.creato_il desc nulls last), '[]'::jsonb),
     'total', (select total from total_count),
     'limit', (select limit_value from params),
