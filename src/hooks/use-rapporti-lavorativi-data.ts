@@ -5,10 +5,10 @@ import {
   createRecord,
   fetchChiusureByIds,
   fetchContributiInpsByRapporto,
-  fetchFamiglie,
   fetchFamiglieByIds,
-  fetchLavoratori,
+  fetchFamiglieByName,
   fetchLavoratoriByIds,
+  fetchLavoratoriByName,
   fetchLookupValues,
   fetchMesiCalendarioByIds,
   fetchMesiLavoratiByRapporto,
@@ -19,7 +19,6 @@ import {
   fetchRapportiLavorativiBoard,
   fetchTicketByRapporto,
   fetchVariazioniByRapporto,
-  type QueryFilterGroup,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
@@ -178,73 +177,27 @@ function buildSearchQuery(value: string) {
   )
 }
 
-function buildNamePartsFilter(
-  label: string | null | undefined,
-  mode: "family" | "worker"
-): QueryFilterGroup | undefined {
-  const normalizedLabel = label?.trim().replace(/\s+/g, " ")
-  if (!normalizedLabel) return undefined
-
-  const [firstPart, ...restParts] = normalizedLabel.split(" ")
+function splitNameLabel(label: string | null | undefined) {
+  const full = label?.trim().replace(/\s+/g, " ")
+  if (!full) return null
+  const [firstPart, ...restParts] = full.split(" ")
   const restPart = restParts.join(" ").trim()
-  const nodes: QueryFilterGroup["nodes"] = []
-
-  if (firstPart && restPart) {
-    nodes.push(
-      {
-        kind: "group",
-        id: `${mode}-surname-first`,
-        logic: "and",
-        nodes: [
-          { kind: "condition", id: `${mode}-surname-first-cognome`, field: "cognome", operator: "is", value: firstPart },
-          { kind: "condition", id: `${mode}-surname-first-nome`, field: "nome", operator: "is", value: restPart },
-        ],
-      },
-      {
-        kind: "group",
-        id: `${mode}-name-first`,
-        logic: "and",
-        nodes: [
-          { kind: "condition", id: `${mode}-name-first-nome`, field: "nome", operator: "is", value: firstPart },
-          { kind: "condition", id: `${mode}-name-first-cognome`, field: "cognome", operator: "is", value: restPart },
-        ],
-      }
-    )
-  }
-
-  if (mode === "worker") {
-    nodes.push({
-      kind: "condition",
-      id: "worker-full-name-as-nome",
-      field: "nome",
-      operator: "is",
-      value: normalizedLabel,
-    })
-  }
-
-  if (nodes.length === 0) return undefined
-
-  return {
-    kind: "group",
-    id: `${mode}-name-fallback-root`,
-    logic: "or",
-    nodes,
-  }
+  return { full, first: firstPart || null, rest: restPart || null }
 }
 
 async function fetchUniqueFamigliaByLabel(label: string | null | undefined) {
-  const filters = buildNamePartsFilter(label, "family")
-  if (!filters) return null
+  const parts = splitNameLabel(label)
+  if (!parts?.first || !parts.rest) return null
 
-  const response = await fetchFamiglie({ limit: 2, offset: 0, filters })
+  const response = await fetchFamiglieByName(parts.first, parts.rest)
   return response.rows.length === 1 ? (response.rows[0] as FamigliaRecord) : null
 }
 
 async function fetchUniqueLavoratoreByLabel(label: string | null | undefined) {
-  const filters = buildNamePartsFilter(label, "worker")
-  if (!filters) return null
+  const parts = splitNameLabel(label)
+  if (!parts) return null
 
-  const response = await fetchLavoratori({ limit: 2, offset: 0, filters })
+  const response = await fetchLavoratoriByName(parts.first, parts.rest, parts.full)
   return response.rows.length === 1 ? (response.rows[0] as LavoratoreRecord) : null
 }
 

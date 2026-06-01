@@ -1168,6 +1168,23 @@ export async function fetchLavoratoriSearch(query: string, limit = 25) {
   return rpcRows("lavoratori_search", { p_query: query, p_limit: limit })
 }
 
+// FASE 4 BIS Wave 4 — heuristica nome (fallback): match esatto nome/cognome.
+export async function fetchFamiglieByName(first: string, rest: string) {
+  return rpcRows("famiglie_by_name", { p_first: first, p_rest: rest })
+}
+
+export async function fetchLavoratoriByName(
+  first: string | null,
+  rest: string | null,
+  full: string | null,
+) {
+  return rpcRows("lavoratori_by_name", {
+    p_first: first,
+    p_rest: rest,
+    p_full: full,
+  })
+}
+
 // FASE 4 BIS Wave 4 — selezioni: lookup unico (id / lavoratore / processo /
 // stato, AND-combinati). Almeno un filtro deve essere fornito.
 export async function fetchSelezioniLookup(options: {
