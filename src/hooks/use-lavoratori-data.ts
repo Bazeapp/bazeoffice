@@ -39,7 +39,6 @@ import {
   fetchIndirizziByEntity,
   fetchLavoratoreScheda,
   fetchLookupValues,
-  fetchLavoratoriNazionalita,
   fetchLavoratoriSelezioniCorrelate,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -341,22 +340,6 @@ function buildLookupFilterTypeMap(rows: LookupValueRecord[]) {
   }
 
   return filterTypeMap
-}
-
-async function fetchLavoratoriNazionalitaOptions(): Promise<LookupOption[]> {
-  const values = await fetchLavoratoriNazionalita()
-  const optionsByToken = new Map<string, LookupOption>()
-
-  for (const value of values) {
-    const token = value.toLowerCase()
-    if (!optionsByToken.has(token)) {
-      optionsByToken.set(token, { label: value, value })
-    }
-  }
-
-  return Array.from(optionsByToken.values()).sort((left, right) =>
-    left.label.localeCompare(right.label, "it")
-  )
 }
 
 function buildWorkerListItem(
@@ -837,13 +820,10 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     async function loadLookupOptions() {
       try {
         const lookup = await fetchLookupValues()
+        // FASE 4 BIS — le nazionalità sono ora in lookup_values
+        // (lavoratori.nazionalita), quindi arrivano da lookup-values come gli
+        // altri filtri: niente più chiamata dedicata lavoratori_nazionalita_options.
         const lookupOptions = normalizeLookupOptions(lookup.rows)
-        if (!lookupOptions.has("lavoratori.nazionalita")) {
-          const nazionalitaOptions = await fetchLavoratoriNazionalitaOptions()
-          if (nazionalitaOptions.length > 0) {
-            lookupOptions.set("lavoratori.nazionalita", nazionalitaOptions)
-          }
-        }
         if (isCancelled) return
         setLookupOptionsByDomain(lookupOptions)
         setLookupFilterTypeByDomain(buildLookupFilterTypeMap(lookup.rows))
