@@ -33,7 +33,7 @@ export default defineConfig([
         'error',
         {
           allowConstantExport: true,
-          allowExportNames: ['useCarousel', 'useComboboxAnchor', 'useField'],
+          allowExportNames: ['useCarousel', 'useComboboxAnchor', 'useField', 'useFormField'],
         },
       ],
     },
