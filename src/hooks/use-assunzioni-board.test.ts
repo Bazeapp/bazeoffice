@@ -130,7 +130,7 @@ function makePreviousCard(
       ore_di_lavoro: 40,
     }),
     richiestaAttivazione: makeRichiestaAttivazione(),
-    rapporto: makeRapporto({ codice_datore_webcolf: "WC-123" }),
+    rapporto: makeRapporto({ codice_datore_webcolf: 123 }),
     lavoratore: { id: "lav-1" } as LavoratoreRecord,
     famiglia: { id: "fam-1", nome: "F", cognome: "G" } as FamigliaRecord,
     famigliaId: "fam-1",
@@ -335,8 +335,8 @@ describe("mapAssunzioniBoardCard", () => {
 
     const previous = makePreviousCard({
       rapporto: makeRapporto({
-        codice_datore_webcolf: "WC-OLD",
-        codice_dipendente_webcolf: "WD-OLD",
+        codice_datore_webcolf: 1001,
+        codice_dipendente_webcolf: 1002,
       }),
     })
 
@@ -346,8 +346,8 @@ describe("mapAssunzioniBoardCard", () => {
       previous,
     )
 
-    expect(card!.rapporto!.codice_datore_webcolf).toBe("WC-OLD")
-    expect(card!.rapporto!.codice_dipendente_webcolf).toBe("WD-OLD")
+    expect(card!.rapporto!.codice_datore_webcolf).toBe(1001)
+    expect(card!.rapporto!.codice_dipendente_webcolf).toBe(1002)
   })
 
   it("preserves lavoratoreAssunzione columns absent from a narrow board sub-row", () => {

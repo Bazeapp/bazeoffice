@@ -31,8 +31,8 @@ import {
   type OnboardingDecisioneLavoroCheckboxDefaults,
 } from "@/components/crm/cards/onboarding-decisione-lavoro-card"
 
-type Defaults = React.ComponentProps<
-  typeof OnboardingDecisioneLavoroSection
+type Defaults = NonNullable<
+  React.ComponentProps<typeof OnboardingDecisioneLavoroSection>
 >["defaults"]
 
 function setup(props: {

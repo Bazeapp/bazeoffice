@@ -363,11 +363,17 @@ async function fetchContributiBoardData(
     fetchLookupValues(),
   ])
 
+  // Le RPC ritornano TableRow generico: castiamo ai record tipizzati una volta
+  // qui, così il resto della funzione resta type-safe (build tsc -b).
+  const contributiRows = contributiResult.rows as unknown as ContributoInpsRecord[]
+  const mesiRows = mesiResult.rows as unknown as MeseCalendarioRecord[]
+  const rapportiRows = rapportiResult.rows as unknown as RapportoLavorativoRecord[]
+
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
   const aliases = stageMetadata.aliases
   const rapportoById = new Map(
-    rapportiResult.rows
+    rapportiRows
       .map((rapporto) => {
         const key = normalizeRecordKey(rapporto.id)
         return key ? ([key, rapporto] as const) : null
@@ -375,7 +381,7 @@ async function fetchContributiBoardData(
       .filter(Boolean) as Array<readonly [string, RapportoLavorativoRecord]>
   )
   const rapportoByExternalId = new Map(
-    rapportiResult.rows
+    rapportiRows
       .flatMap((rapporto) =>
         [
           rapporto.id_rapporto,
@@ -386,10 +392,10 @@ async function fetchContributiBoardData(
           .map((key) => [key as string, rapporto] as const)
       )
   )
-  const quarterIndex = buildQuarterIndex(mesiResult.rows)
-  const activeRapportiCount = rapportiResult.rows.filter((rapporto) => isActiveRapporto(rapporto)).length
+  const quarterIndex = buildQuarterIndex(mesiRows)
+  const activeRapportiCount = rapportiRows.filter((rapporto) => isActiveRapporto(rapporto)).length
 
-  const cards = contributiResult.rows.flatMap((record) => {
+  const cards = contributiRows.flatMap((record) => {
     const resolvedQuarter =
       (record.trimestre_id ? quarterIndex.byId.get(record.trimestre_id) : null) ??
       (record.trimestre_id ? quarterIndex.byToken.get(normalizeToken(record.trimestre_id)) : null) ??

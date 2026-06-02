@@ -2281,7 +2281,7 @@ export function RicercaWorkersPipelineView({
                     })()}
                   >
                     <SchedaColloquioPanel
-                      key={selectedSelectionRow?.id ?? "__empty__"}
+                      key={asString(selectedSelectionRow?.id) || "__empty__"}
                       selectionRow={selectedSelectionRow}
                       nonSelezionatoOptions={
                         lookupOptionsByDomain.get(

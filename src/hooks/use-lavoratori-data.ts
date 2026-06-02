@@ -953,7 +953,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
                     id: `gate2-rpc-status-${index}`,
                     field: filter.field,
                     operator: filter.operator,
-                    value: filter.value,
+                    value: filter.value ?? "",
                   })),
                 ],
               }

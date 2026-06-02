@@ -762,7 +762,7 @@ export function LavoratoriCercaView({
 
       // La riga porta già i campi del processo: la usiamo come "processRow"
       // sostituendo l'id (qui è l'id della selezione) con il processId.
-      const processRow = { ...selection, id: processId };
+      const processRow: Record<string, unknown> = { ...selection, id: processId };
       const familyRow = {
         nome: selection.famiglia_nome,
         cognome: selection.famiglia_cognome,

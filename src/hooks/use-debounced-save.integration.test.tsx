@@ -41,7 +41,7 @@ describe("useDebouncedSave — error visibility (FASE 4 TER.3)", () => {
     const onSave = vi.fn().mockRejectedValue(new Error("save fallito sul server"))
 
     const { result } = renderHookWithQueryClient(() =>
-      useDebouncedSave("valore-iniziale", onSave, { debounceMs: 0 }),
+      useDebouncedSave<string>("valore-iniziale", onSave, { debounceMs: 0 }),
     )
 
     act(() => {
@@ -62,7 +62,7 @@ describe("useDebouncedSave — error visibility (FASE 4 TER.3)", () => {
     const onSave = vi.fn().mockResolvedValue(undefined)
 
     const { result } = renderHookWithQueryClient(() =>
-      useDebouncedSave("valore-iniziale", onSave, { debounceMs: 0 }),
+      useDebouncedSave<string>("valore-iniziale", onSave, { debounceMs: 0 }),
     )
 
     act(() => {
@@ -79,7 +79,7 @@ describe("useDebouncedSave — error visibility (FASE 4 TER.3)", () => {
     const onSave = vi.fn().mockRejectedValue("stringa di errore non-Error")
 
     const { result } = renderHookWithQueryClient(() =>
-      useDebouncedSave("x", onSave, { debounceMs: 0 }),
+      useDebouncedSave<string>("x", onSave, { debounceMs: 0 }),
     )
 
     act(() => {
