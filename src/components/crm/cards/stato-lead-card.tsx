@@ -26,9 +26,9 @@ import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
-import { useForm } from "react-hook-form";
-import { Form, FormField } from "@/components/ui/form";
-import { FieldTextarea } from "@/components/forms/field-components";
+import { useForm, useController } from "react-hook-form";
+import { Form } from "@/components/ui/form";
+import { FieldTextarea, FieldDatePicker } from "@/components/forms/field-components";
 import { useAutoSaveFormFields } from "@/hooks/use-auto-save-form-fields";
 
 type StatoLeadCardProps = {
@@ -59,17 +59,6 @@ function renderValue(value: string | null | undefined) {
   if (!value) return "-";
   const normalized = value.trim();
   return normalized ? normalized : "-";
-}
-
-function toIsoDate(value: string) {
-  const normalized = value.trim();
-  const parts = normalized.split("/");
-  if (parts.length !== 3) return normalized || null;
-  const day = parts[0]?.padStart(2, "0");
-  const month = parts[1]?.padStart(2, "0");
-  const year = parts[2];
-  if (!day || !month || !year) return null;
-  return `${year}-${month}-${day}`;
 }
 
 function hasValue(value: string | null | undefined) {
@@ -326,6 +315,28 @@ function ChoiceFieldSet({
   );
 }
 
+// FASE 5 BIS — thin wrapper form-aware del ChoiceFieldSet locale: si auto-aggancia
+// al form via useController (preserva resolveOptions/selectedOptionValue interni).
+function FieldChoiceSet({
+  name,
+  title,
+  options,
+}: {
+  name: string;
+  title: string;
+  options: LookupOption[];
+}) {
+  const { field } = useController({ name });
+  return (
+    <ChoiceFieldSet
+      title={title}
+      selected={typeof field.value === "string" ? field.value : ""}
+      options={options}
+      onValueChange={field.onChange}
+    />
+  );
+}
+
 function StageRules({ lines }: { lines: string[] }) {
   return (
     <FieldGroup>
@@ -398,16 +409,10 @@ export function StatoLeadCard({
     case "hot_in_attesa_di_primo_contatto":
       content = (
         <FieldSet>
-          <FormField
+          <FieldChoiceSet
             name="sales_cold_call_followup"
-            render={({ field }) => (
-              <ChoiceFieldSet
-                title="Tentativi di chiamata"
-                selected={field.value}
-                options={lookupOptionsByField.sales_cold_call_followup ?? []}
-                onValueChange={field.onChange}
-              />
-            )}
+            title="Tentativi di chiamata"
+            options={lookupOptionsByField.sales_cold_call_followup ?? []}
           />
         </FieldSet>
       );
@@ -455,16 +460,10 @@ export function StatoLeadCard({
     case "hot_no_show":
       content = (
         <FieldSet>
-          <FormField
+          <FieldChoiceSet
             name="sales_no_show_followup"
-            render={({ field }) => (
-              <ChoiceFieldSet
-                title="Tentativi di chiamata"
-                selected={field.value}
-                options={lookupOptionsByField.sales_no_show_followup ?? []}
-                onValueChange={field.onChange}
-              />
-            )}
+            title="Tentativi di chiamata"
+            options={lookupOptionsByField.sales_no_show_followup ?? []}
           />
         </FieldSet>
       );
@@ -473,16 +472,10 @@ export function StatoLeadCard({
     case "lost":
       content = (
         <FieldGroup>
-          <FormField
+          <FieldChoiceSet
             name="motivazione_lost"
-            render={({ field }) => (
-              <ChoiceFieldSet
-                title="Motivazione"
-                selected={field.value}
-                options={lookupOptionsByField.motivazione_lost ?? []}
-                onValueChange={field.onChange}
-              />
-            )}
+            title="Motivazione"
+            options={lookupOptionsByField.motivazione_lost ?? []}
           />
           <Field>
             <FieldLabel htmlFor="note-lost">Note</FieldLabel>
@@ -495,16 +488,10 @@ export function StatoLeadCard({
     case "out_of_target":
       content = (
         <FieldGroup>
-          <FormField
+          <FieldChoiceSet
             name="motivazione_oot"
-            render={({ field }) => (
-              <ChoiceFieldSet
-                title="Motivazione"
-                selected={field.value}
-                options={lookupOptionsByField.motivazione_oot ?? []}
-                onValueChange={field.onChange}
-              />
-            )}
+            title="Motivazione"
+            options={lookupOptionsByField.motivazione_oot ?? []}
           />
           <Field>
             <FieldLabel htmlFor="note-oot">Note</FieldLabel>
@@ -519,17 +506,7 @@ export function StatoLeadCard({
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="data-ricontatto">Data ricontatto</FieldLabel>
-            <FormField
-              name="data_per_ricerca_futura"
-              render={({ field }) => (
-                <DatePicker
-                  value={field.value || ""}
-                  onValueChange={(next) =>
-                    field.onChange(next ? toIsoDate(next) : "")
-                  }
-                />
-              )}
-            />
+            <FieldDatePicker name="data_per_ricerca_futura" />
           </Field>
           <Field>
             <FieldLabel htmlFor="note-cold">Note</FieldLabel>
