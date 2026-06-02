@@ -4,6 +4,18 @@ import { useController } from "react-hook-form";
 import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox";
 import { DatePicker, type DatePickerProps } from "@/components/ui/date-picker";
 import { Field, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -202,5 +214,72 @@ export function FieldDatePicker({ name, ...props }: FieldDatePickerProps) {
       onValueChange={(next) => field.onChange(next ? toIsoDate(next) : "")}
       {...props}
     />
+  );
+}
+
+// --- FieldCombobox: multi-select con chip (no debounce). Lavora sulle LABEL
+//     (come il pattern esistente); il form memorizza string[] di label. ---
+export function FieldCombobox({
+  name,
+  id,
+  options,
+  emptyText = "Nessuna opzione trovata.",
+}: {
+  name: string;
+  id?: string;
+  options: { value: string; label: string }[];
+  emptyText?: string;
+}) {
+  const { field } = useController({ name });
+  const anchor = useComboboxAnchor();
+  const labels = React.useMemo(
+    () =>
+      Array.from(
+        new Set(
+          options
+            .map((option) => option.label?.trim())
+            .filter((label): label is string => Boolean(label)),
+        ),
+      ),
+    [options],
+  );
+  const value = Array.isArray(field.value) ? (field.value as string[]) : [];
+  return (
+    <Combobox
+      multiple
+      autoHighlight
+      items={labels}
+      value={value}
+      onValueChange={(nextValues) =>
+        field.onChange(
+          Array.isArray(nextValues)
+            ? nextValues.filter((item): item is string => typeof item === "string")
+            : [],
+        )
+      }
+    >
+      <ComboboxChips ref={anchor} id={id} className="w-full">
+        <ComboboxValue>
+          {(values: string[]) => (
+            <>
+              {values.map((entry) => (
+                <ComboboxChip key={entry}>{entry}</ComboboxChip>
+              ))}
+              <ComboboxChipsInput />
+            </>
+          )}
+        </ComboboxValue>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor} className="max-h-80">
+        <ComboboxEmpty>{emptyText}</ComboboxEmpty>
+        <ComboboxList className="max-h-72">
+          {(item: string) => (
+            <ComboboxItem key={item} value={item}>
+              {item}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }
