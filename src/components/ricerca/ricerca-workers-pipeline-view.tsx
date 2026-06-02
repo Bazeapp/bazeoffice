@@ -95,15 +95,13 @@ import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
   createRecord,
-  fetchEsperienzeLavoratoriByWorker,
-  fetchDocumentiLavoratoriByWorker,
-  fetchFamiglie,
-  fetchIndirizzi,
-  fetchLavoratori,
+  fetchFamiglieByIds,
+  fetchLavoratoriByIds,
+  fetchLavoratoriSearch,
   fetchLookupValues,
-  fetchProcessiMatching,
-  fetchReferenzeLavoratoriByWorker,
-  fetchSelezioniLavoratori,
+  fetchProcessiMatchingByIds,
+  fetchRicercaWorkerScheda,
+  fetchSelezioniLookup,
   runSmartMatchingForwardPreview,
   updateRecord,
 } from "@/lib/anagrafiche-api";
@@ -352,7 +350,6 @@ const GROUPED_COLUMN_GROUPS: Record<string, GroupedColumnGroup[]> = {
 const DEFAULT_BLUE_BADGE_CLASS_NAME =
   "border-blue-200 bg-blue-100 text-blue-700";
 
-const RELATED_SELECTIONS_PAGE_SIZE = 500;
 const RELATED_PROCESS_BATCH_SIZE = 150;
 const RELATED_FAMILY_BATCH_SIZE = 150;
 const ADD_WORKER_SEARCH_LIMIT = 8;
@@ -459,40 +456,10 @@ function formatRelatedZona(processRow: Record<string, unknown>) {
 }
 
 async function fetchAllSelectionsForWorker(workerId: string) {
-  const rows: Record<string, unknown>[] = [];
-  let offset = 0;
-
-  while (true) {
-    const result = await fetchSelezioniLavoratori({
-      limit: RELATED_SELECTIONS_PAGE_SIZE,
-      offset,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: "related-active-searches-by-worker",
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: "related-active-searches-worker-id",
-            field: "lavoratore_id",
-            operator: "is",
-            value: workerId,
-          },
-        ],
-      },
-    });
-
-    const pageRows = Array.isArray(result.rows)
-      ? (result.rows as Record<string, unknown>[])
-      : [];
-    rows.push(...pageRows);
-
-    if (pageRows.length < RELATED_SELECTIONS_PAGE_SIZE) break;
-    offset += RELATED_SELECTIONS_PAGE_SIZE;
-  }
-
-  return rows;
+  const result = await fetchSelezioniLookup({ lavoratoreIds: [workerId] });
+  return Array.isArray(result.rows)
+    ? (result.rows as Record<string, unknown>[])
+    : [];
 }
 
 async function fetchRelatedProcessesByIds(processIds: string[]) {
@@ -506,24 +473,7 @@ async function fetchRelatedProcessesByIds(processIds: string[]) {
     index += RELATED_PROCESS_BATCH_SIZE
   ) {
     const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE);
-    const result = await fetchProcessiMatching({
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `related-processes-batch-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `related-processes-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    });
+    const result = await fetchProcessiMatchingByIds({ ids: batch });
 
     if (Array.isArray(result.rows)) {
       rows.push(...(result.rows as Record<string, unknown>[]));
@@ -544,24 +494,7 @@ async function fetchRelatedFamiliesByIds(familyIds: string[]) {
     index += RELATED_FAMILY_BATCH_SIZE
   ) {
     const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE);
-    const result = await fetchFamiglie({
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `related-families-batch-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `related-families-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    });
+    const result = await fetchFamiglieByIds(batch);
 
     if (Array.isArray(result.rows)) {
       rows.push(...(result.rows as Record<string, unknown>[]));
@@ -1371,112 +1304,14 @@ export function RicercaWorkersPipelineView({
       setSelectedWorkerError(null);
 
       try {
-        const [
-          workerResult,
-          lookupResult,
-          experiencesResult,
-          documentsResult,
-          referencesResult,
-          selectionResult,
-          addressResult,
-        ] = await Promise.all([
-          fetchLavoratori({
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: "pipeline-selected-worker",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "pipeline-selected-worker-id",
-                  field: "id",
-                  operator: "is",
-                  value: workerId,
-                },
-              ],
-            },
-          }),
+        const [scheda, lookupResult] = await Promise.all([
+          fetchRicercaWorkerScheda(workerId, selectionId),
           fetchLookupValues(),
-          fetchEsperienzeLavoratoriByWorker(workerId),
-          fetchDocumentiLavoratoriByWorker(workerId),
-          fetchReferenzeLavoratoriByWorker(workerId),
-          fetchSelezioniLavoratori({
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: "pipeline-selected-selection",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "pipeline-selected-selection-id",
-                  field: "id",
-                  operator: "is",
-                  value: selectionId,
-                },
-              ],
-            },
-          }),
-          fetchIndirizzi({
-            select: [
-              "id",
-              "tipo_indirizzo",
-              "via",
-              "civico",
-              "cap",
-              "citta",
-              "provincia",
-              "paese",
-              "citofono",
-              "note",
-              "indirizzo_formattato",
-            ],
-            limit: 3,
-            offset: 0,
-            orderBy: [{ field: "aggiornato_il", ascending: false }],
-            filters: {
-              kind: "group",
-              id: "pipeline-selected-worker-address",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "pipeline-selected-worker-address-table",
-                  field: "entita_tabella",
-                  operator: "is",
-                  value: "lavoratori",
-                },
-                {
-                  kind: "condition",
-                  id: "pipeline-selected-worker-address-id",
-                  field: "entita_id",
-                  operator: "is",
-                  value: workerId,
-                },
-                {
-                  kind: "condition",
-                  id: "pipeline-selected-worker-address-type",
-                  field: "tipo_indirizzo",
-                  operator: "in",
-                  value: "residenza,domicilio",
-                },
-              ],
-            },
-          }),
         ]);
 
-        const row = Array.isArray(workerResult.rows)
-          ? workerResult.rows[0]
-          : null;
-        const selectionRow = Array.isArray(selectionResult.rows)
-          ? selectionResult.rows[0]
-          : null;
-        const addressRows = Array.isArray(addressResult.rows)
-          ? (addressResult.rows as Record<string, unknown>[])
-          : [];
+        const row = scheda.worker;
+        const selectionRow = scheda.selezione;
+        const addressRows = scheda.indirizzi as Record<string, unknown>[];
         const residenceAddressRow =
           addressRows.find(
             (address) =>
@@ -1496,9 +1331,15 @@ export function RicercaWorkersPipelineView({
         setSelectedSelectionRow(selectionRow ?? null);
         setLookupOptionsByDomain(normalizeLookupOptions(lookupResult.rows));
         setLookupColorsByDomain(normalizeLookupColors(lookupResult.rows));
-        setSelectedWorkerExperiences(experiencesResult.rows);
-        setSelectedWorkerDocuments(documentsResult.rows);
-        setSelectedWorkerReferences(referencesResult.rows);
+        setSelectedWorkerExperiences(
+          scheda.esperienze as typeof selectedWorkerExperiences,
+        );
+        setSelectedWorkerDocuments(
+          scheda.documenti as typeof selectedWorkerDocuments,
+        );
+        setSelectedWorkerReferences(
+          scheda.referenze as typeof selectedWorkerReferences,
+        );
       } catch (error) {
         if (isCancelled) return;
         const message = error instanceof Error ? error.message : String(error);
@@ -1870,24 +1711,7 @@ export function RicercaWorkersPipelineView({
         { id: selectedWorkerId },
       );
 
-      const result = await fetchLavoratori({
-        limit: 1,
-        offset: 0,
-        filters: {
-          kind: "group",
-          id: "ai-generated-worker-summary",
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: "ai-generated-worker-summary-id",
-              field: "id",
-              operator: "is",
-              value: selectedWorkerId,
-            },
-          ],
-        },
-      });
+      const result = await fetchLavoratoriByIds([selectedWorkerId]);
       const row = result.rows[0] as LavoratoreRecord | undefined;
       if (row) {
         applyUpdatedWorkerRow(row);
@@ -1919,24 +1743,8 @@ export function RicercaWorkersPipelineView({
       );
       const generatedFromFunction = extractGeneratedMessage(functionResult);
 
-      const fetchSelection = () => fetchSelezioniLavoratori({
-        limit: 1,
-        offset: 0,
-        filters: {
-          kind: "group",
-          id: "ai-generated-selection-feedback",
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: "ai-generated-selection-feedback-id",
-              field: "id",
-              operator: "is",
-              value: selectedCard.id,
-            },
-          ],
-        },
-      });
+      const fetchSelection = () =>
+        fetchSelezioniLookup({ ids: [selectedCard.id] });
       let result = await fetchSelection();
       let row = result.rows[0] ?? null;
       let generatedText =
@@ -2080,24 +1888,9 @@ export function RicercaWorkersPipelineView({
       const searchTerms = Array.from(
         new Set([normalizedQuery, ...tokens].filter(Boolean)),
       );
-      const select = [
-        "id",
-        "nome",
-        "cognome",
-        "email",
-        "data_di_nascita",
-        "provincia",
-      ];
-
       void Promise.all(
         searchTerms.map((searchTerm) =>
-          fetchLavoratori({
-            limit: ADD_WORKER_SEARCH_FETCH_LIMIT,
-            offset: 0,
-            search: searchTerm,
-            searchFields: ["nome", "cognome", "email"],
-            select,
-          }),
+          fetchLavoratoriSearch(searchTerm, ADD_WORKER_SEARCH_FETCH_LIMIT),
         ),
       )
         .then((results) => {
@@ -2192,31 +1985,9 @@ export function RicercaWorkersPipelineView({
 
     setIsSubmittingAddWorker(true);
     try {
-      const existingSelections = await fetchSelezioniLavoratori({
-        limit: 1,
-        offset: 0,
-        select: ["id"],
-        filters: {
-          kind: "group",
-          id: "ricerca-workers-add-duplicate-check",
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: "ricerca-workers-add-process",
-              field: "processo_matching_id",
-              operator: "is",
-              value: processId,
-            },
-            {
-              kind: "condition",
-              id: "ricerca-workers-add-worker",
-              field: "lavoratore_id",
-              operator: "is",
-              value: workerId,
-            },
-          ],
-        },
+      const existingSelections = await fetchSelezioniLookup({
+        processoIds: [processId],
+        lavoratoreIds: [workerId],
       });
 
       if ((existingSelections.rows ?? []).length > 0) {
@@ -2428,6 +2199,7 @@ export function RicercaWorkersPipelineView({
                     collapsible
                   >
                     <WorkerProfileHeader
+                      key={selectedWorkerRow?.id ?? "__empty__"}
                       worker={selectedWorker ?? selectedCard.worker}
                       workerRow={{ ...selectedWorkerRow, data_ritorno_disponibilita: dataRitornoPipelineValue }}
                       statoLavoratoreOptions={
@@ -2509,6 +2281,7 @@ export function RicercaWorkersPipelineView({
                     })()}
                   >
                     <SchedaColloquioPanel
+                      key={asString(selectedSelectionRow?.id) || "__empty__"}
                       selectionRow={selectedSelectionRow}
                       nonSelezionatoOptions={
                         lookupOptionsByDomain.get(
@@ -2531,6 +2304,7 @@ export function RicercaWorkersPipelineView({
               <div className="scrollbar-hidden min-w-0 overflow-y-auto border-t border-border xl:border-t-0">
                 <div className="space-y-6 p-4">
                   <WorkerPipelineSummaryCards
+                    key={selectedWorkerRow?.id ?? "__empty__"}
                     workerRow={selectedWorkerRow}
                     selectionRow={selectedSelectionRow}
                     relatedActiveSearches={relatedActiveSearches}

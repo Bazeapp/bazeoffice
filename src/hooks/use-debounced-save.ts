@@ -1,8 +1,22 @@
 import * as React from "react"
+import { toast } from "sonner"
 
 import { beginPendingWrite, endPendingWrite } from "@/lib/anagrafiche-api"
 
 const DEFAULT_DEBOUNCE_MS = 300
+
+// Surface a failed debounced save. Before this, onSave was fire-and-forget
+// (`void ...finally()` with no `.catch`): a rejected save logged to the console
+// and the user kept seeing the typed value as if persisted. This hook backs
+// ~133 editable fields, so this single catch makes every one of them report
+// save failures.
+function notifySaveError(error: unknown) {
+  toast.error(
+    error instanceof Error && error.message
+      ? error.message
+      : "Errore durante il salvataggio",
+  )
+}
 
 export function useDebouncedSave<T>(
   committedValue: T,
@@ -55,10 +69,12 @@ export function useDebouncedSave<T>(
       if (isDirtyRef.current) {
         savesInFlightRef.current++
         isDirtyRef.current = false
-        void onSaveRef.current(draftRef.current).finally(() => {
-          savesInFlightRef.current--
-          endPendingWrite()
-        })
+        void onSaveRef.current(draftRef.current)
+          .catch(notifySaveError)
+          .finally(() => {
+            savesInFlightRef.current--
+            endPendingWrite()
+          })
       }
     }
   }, [])
@@ -83,10 +99,12 @@ export function useDebouncedSave<T>(
         timerRef.current = null
         isDirtyRef.current = false
         savesInFlightRef.current++
-        void onSaveRef.current(draftRef.current).finally(() => {
-          savesInFlightRef.current--
-          endPendingWrite()
-        })
+        void onSaveRef.current(draftRef.current)
+          .catch(notifySaveError)
+          .finally(() => {
+            savesInFlightRef.current--
+            endPendingWrite()
+          })
       }, debounceMs)
     },
     [debounceMs]

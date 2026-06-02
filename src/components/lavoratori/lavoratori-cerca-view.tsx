@@ -60,10 +60,12 @@ import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board";
 import { DebouncedInput } from "@/components/ui/debounced-input";
 import { Input } from "@/components/ui/input";
 import {
-  fetchFamiglie,
-  fetchLavoratori,
-  fetchProcessiMatching,
-  fetchSelezioniLavoratori,
+  fetchFamiglieByIds,
+  fetchFamiglieSearch,
+  fetchLavoratoriByIds,
+  fetchProcessiMatchingByIds,
+  fetchProcessiMatchingSearch,
+  fetchSelezioniLookup,
   createRecord,
   updateRecord,
 } from "@/lib/anagrafiche-api";
@@ -164,8 +166,6 @@ type SearchProcessResult = {
   zona: string;
 };
 
-const RELATED_SELECTIONS_PAGE_SIZE = 500;
-const RELATED_PROCESS_BATCH_SIZE = 150;
 const RELATED_FAMILY_BATCH_SIZE = 150;
 
 function formatRelatedFamilyName(row: Record<string, unknown> | null | undefined) {
@@ -235,81 +235,6 @@ function getLookupArrayValues(value: unknown) {
   return readArrayStrings(value);
 }
 
-async function fetchAllSelectionsForWorker(workerId: string) {
-  const rows: Record<string, unknown>[] = [];
-  let offset = 0;
-
-  while (true) {
-    const result = await fetchSelezioniLavoratori({
-      limit: RELATED_SELECTIONS_PAGE_SIZE,
-      offset,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: "worker-processi-coinvolti-by-worker",
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: "worker-processi-coinvolti-worker-id",
-            field: "lavoratore_id",
-            operator: "is",
-            value: workerId,
-          },
-        ],
-      },
-    });
-
-    const pageRows = Array.isArray(result.rows)
-      ? (result.rows as Record<string, unknown>[])
-      : [];
-    rows.push(...pageRows);
-
-    if (pageRows.length < RELATED_SELECTIONS_PAGE_SIZE) break;
-    offset += RELATED_SELECTIONS_PAGE_SIZE;
-  }
-
-  return rows;
-}
-
-async function fetchRelatedProcessesByIds(processIds: string[]) {
-  if (processIds.length === 0) return [];
-
-  const rows: Record<string, unknown>[] = [];
-
-  for (
-    let index = 0;
-    index < processIds.length;
-    index += RELATED_PROCESS_BATCH_SIZE
-  ) {
-    const batch = processIds.slice(index, index + RELATED_PROCESS_BATCH_SIZE);
-    const result = await fetchProcessiMatching({
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `worker-processi-coinvolti-processes-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `worker-processi-coinvolti-process-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    });
-
-    if (Array.isArray(result.rows)) {
-      rows.push(...(result.rows as Record<string, unknown>[]));
-    }
-  }
-
-  return rows;
-}
-
 async function fetchRelatedFamiliesByIds(familyIds: string[]) {
   if (familyIds.length === 0) return [];
 
@@ -321,24 +246,7 @@ async function fetchRelatedFamiliesByIds(familyIds: string[]) {
     index += RELATED_FAMILY_BATCH_SIZE
   ) {
     const batch = familyIds.slice(index, index + RELATED_FAMILY_BATCH_SIZE);
-    const result = await fetchFamiglie({
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `worker-processi-coinvolti-families-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `worker-processi-coinvolti-family-ids-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    });
+    const result = await fetchFamiglieByIds(batch);
 
     if (Array.isArray(result.rows)) {
       rows.push(...(result.rows as Record<string, unknown>[]));
@@ -348,50 +256,11 @@ async function fetchRelatedFamiliesByIds(familyIds: string[]) {
   return rows;
 }
 
-function buildAnyOfFilter(field: string, values: string[], idPrefix: string) {
-  const normalizedValues = Array.from(new Set(values.filter(Boolean)));
-  if (normalizedValues.length === 0) return undefined;
-
-  return {
-    kind: "group" as const,
-    id: `${idPrefix}-${field}`,
-    logic: "or" as const,
-    nodes: normalizedValues.map((value, index) => ({
-      kind: "condition" as const,
-      id: `${idPrefix}-${field}-${index}`,
-      field,
-      operator: "is" as const,
-      value,
-    })),
-  };
-}
-
 async function searchProcessesForWorkerAdd(query: string) {
   const normalizedQuery = query.trim();
   if (normalizedQuery.length < 2) return [];
 
-  const familyRowsResult = await fetchFamiglie({
-    limit: 10,
-    offset: 0,
-    search: normalizedQuery,
-    searchFields: [
-      "email",
-      "customer_email",
-      "secondary_email",
-      "nome",
-      "cognome",
-      "telefono",
-    ],
-    select: [
-      "id",
-      "nome",
-      "cognome",
-      "email",
-      "customer_email",
-      "secondary_email",
-      "telefono",
-    ],
-  });
+  const familyRowsResult = await fetchFamiglieSearch(normalizedQuery, 10);
 
   const familyRows = Array.isArray(familyRowsResult.rows)
     ? (familyRowsResult.rows as Record<string, unknown>[])
@@ -408,46 +277,22 @@ async function searchProcessesForWorkerAdd(query: string) {
     .filter((value): value is string => Boolean(value));
 
   const processRowsById = new Map<string, Record<string, unknown>>();
-  const processSelect = [
-    "id",
-    "famiglia_id",
-    "numero_ricerca_attivata",
-    "stato_res",
-    "tipo_lavoro",
-    "tipo_rapporto",
-    "orario_di_lavoro",
-    "indirizzo_prova_comune",
-    "indirizzo_prova_provincia",
-    "indirizzo_prova_cap",
-    "indirizzo_prova_note",
-    "aggiornato_il",
-  ];
 
   if (familyIds.length > 0) {
-    const familyProcesses = await fetchProcessiMatching({
-      limit: 25,
-      offset: 0,
-      select: processSelect,
-      filters: buildAnyOfFilter(
-        "famiglia_id",
-        familyIds,
-        "worker-add-search-families",
-      ),
+    const familyProcesses = await fetchProcessiMatchingByIds({
+      famigliaIds: familyIds,
     });
 
-    for (const processRow of familyProcesses.rows as Record<string, unknown>[]) {
+    // Preserva il cap di 25 del fetch originale (la RPC non lima lato server).
+    for (const processRow of (
+      familyProcesses.rows as Record<string, unknown>[]
+    ).slice(0, 25)) {
       const processId = asString(processRow.id);
       if (processId) processRowsById.set(processId, processRow);
     }
   }
 
-  const directProcesses = await fetchProcessiMatching({
-    limit: 12,
-    offset: 0,
-    search: normalizedQuery,
-    searchFields: ["id", "stato_res", "orario_di_lavoro"],
-    select: processSelect,
-  });
+  const directProcesses = await fetchProcessiMatchingSearch(normalizedQuery, 12);
 
   for (const processRow of directProcesses.rows as Record<string, unknown>[]) {
     const processId = asString(processRow.id);
@@ -587,6 +432,8 @@ export function LavoratoriCercaView({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
     upsertSelectedWorkerDocument,
+    selectedWorkerRelatedSearches,
+    reloadSelectedWorkerScheda,
   } = useLavoratoriData({ initialSelectedWorkerId });
   const motivazioniNonIdoneoOptions = React.useMemo(
     () => lookupOptionsByDomain.get("lavoratori.motivazione_non_idoneo") ?? [],
@@ -614,8 +461,6 @@ export function LavoratoriCercaView({
     React.useState("");
   const [isSubmittingAddSearch, setIsSubmittingAddSearch] =
     React.useState(false);
-  const [relatedSearchesRefreshKey, setRelatedSearchesRefreshKey] =
-    React.useState(0);
   const [relatedActiveSearches, setRelatedActiveSearches] = React.useState<
     { direct: WorkerRelatedSearchItem[]; other: WorkerRelatedSearchItem[] }
   >({ direct: [], other: [] });
@@ -894,6 +739,10 @@ export function LavoratoriCercaView({
     };
   }, [isAddSearchDialogOpen, searchProcessQuery]);
 
+  // FASE 4 BIS — "altre ricerche attive" derivate (sincrono) dalle righe già
+  // joinate fornite dalla Scheda RPC (selectedWorkerRelatedSearches), invece di
+  // fare 3 fetch (selezioni + processi + famiglie). Ogni riga è selezione +
+  // campi processo + famiglia_nome/cognome appiattiti.
   React.useEffect(() => {
     if (!selectedWorkerId) {
       setRelatedActiveSearches({ direct: [], other: [] });
@@ -901,166 +750,94 @@ export function LavoratoriCercaView({
       return;
     }
 
-    let isCancelled = false;
-    const workerId = selectedWorkerId;
+    const seenProcessIds = new Set<string>();
+    const nextDirectItems: WorkerRelatedSearchItem[] = [];
+    const nextOtherItems: WorkerRelatedSearchItem[] = [];
 
-    async function loadRelatedActiveSearches() {
-      setLoadingRelatedActiveSearches(true);
+    for (const selection of selectedWorkerRelatedSearches) {
+      const selectionId = asString(selection.id);
+      const processId = asString(selection.processo_matching_id);
+      if (!selectionId || !processId) continue;
+      if (seenProcessIds.has(processId)) continue;
 
-      try {
-        const workerSelections = await fetchAllSelectionsForWorker(workerId);
-        if (isCancelled) return;
-
-        const processIds = Array.from(
-          new Set(
-            workerSelections
-              .map((selection) => asString(selection.processo_matching_id))
-              .filter((value): value is string => Boolean(value)),
-          ),
-        );
-        const processRows = await fetchRelatedProcessesByIds(processIds);
-        if (isCancelled) return;
-        const processRowsById = new Map(
-          processRows
-            .map((row) => {
-              const rowId = asString(row.id);
-              if (!rowId) return null;
-              return [rowId, row] as const;
-            })
-            .filter(
-              (entry): entry is readonly [string, Record<string, unknown>] =>
-                Boolean(entry),
-            ),
-        );
-
-        const familyIds = Array.from(
-          new Set(
-            processRows
-              .map((row) => asString(row.famiglia_id))
-              .filter((value): value is string => Boolean(value)),
-          ),
-        );
-        const familyRows = await fetchRelatedFamiliesByIds(familyIds);
-        if (isCancelled) return;
-
-        const familyRowsById = new Map(
-          familyRows
-            .map((row) => {
-              const rowId = asString(row.id);
-              if (!rowId) return null;
-              return [rowId, row] as const;
-            })
-            .filter(
-              (entry): entry is readonly [string, Record<string, unknown>] =>
-                Boolean(entry),
-            ),
-        );
-
-        const seenProcessIds = new Set<string>();
-        const nextDirectItems: WorkerRelatedSearchItem[] = [];
-        const nextOtherItems: WorkerRelatedSearchItem[] = [];
-
-        for (const selection of workerSelections) {
-          const selectionId = asString(selection.id);
-          const processId = asString(selection.processo_matching_id);
-          if (!selectionId || !processId) continue;
-          if (seenProcessIds.has(processId)) continue;
-
-          const processRow = processRowsById.get(processId);
-          if (!processRow) continue;
-
-          const familyRow = familyRowsById.get(asString(processRow.famiglia_id) ?? "");
-          const recruiterId = asString(processRow.recruiter_ricerca_e_selezione_id);
-          const tipoLavoroBadges = getLookupArrayValues(processRow.tipo_lavoro);
-          const tipoLavoroBadge = tipoLavoroBadges[0] ?? null;
-          const tipoRapportoBadge = getFirstLookupArrayValue(processRow.tipo_rapporto);
-          const nextItem: WorkerRelatedSearchItem = {
-            selectionId,
-            processId,
-            familyName: formatRelatedFamilyName(familyRow),
-            ricercaLabel: formatRelatedSearchLabel(processRow),
-            recruiterLabel: recruiterId
-              ? recruiterLabelsById.get(recruiterId) ?? "Recruiter non assegnato"
-              : "Recruiter non assegnato",
-            statoSelezione: asString(selection.stato_selezione) || "-",
-            statoRicerca: asString(processRow.stato_res) || "-",
-            orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
-            zona: formatRelatedZona(processRow),
-            appunti: asString(selection.note_selezione) || "",
-            boardCard: {
-              id: processId,
-              stage: asString(processRow.stato_res) || "-",
-              nomeFamiglia: formatRelatedFamilyName(familyRow),
-              cognomeFamiglia: "",
-              email: "-",
-              telefono: "-",
-              operatorId: recruiterId,
-              oreSettimanali: asString(processRow.ore_settimanale) || "-",
-              giorniSettimanali: asString(processRow.giorni_a_settimana) || "-",
-              deadline: asString(processRow.deadline_mobile) || "-",
-              deadlineRaw: asString(processRow.deadline_mobile),
-              zona: formatRelatedZona(processRow),
-              tipoLavoroBadges,
-              tipoLavoroColors: Object.fromEntries(
-                tipoLavoroBadges.map((tipoLavoro) => [
-                  tipoLavoro,
-                  resolveLookupColor(
-                    lookupColorsByDomain,
-                    "processi_matching.tipo_lavoro",
-                    tipoLavoro,
-                  ),
-                ]),
-              ),
-              tipoLavoroBadge,
-              tipoLavoroColor: resolveLookupColor(
+      // La riga porta già i campi del processo: la usiamo come "processRow"
+      // sostituendo l'id (qui è l'id della selezione) con il processId.
+      const processRow: Record<string, unknown> = { ...selection, id: processId };
+      const familyRow = {
+        nome: selection.famiglia_nome,
+        cognome: selection.famiglia_cognome,
+      };
+      const recruiterId = asString(processRow.recruiter_ricerca_e_selezione_id);
+      const tipoLavoroBadges = getLookupArrayValues(processRow.tipo_lavoro);
+      const tipoLavoroBadge = tipoLavoroBadges[0] ?? null;
+      const tipoRapportoBadge = getFirstLookupArrayValue(processRow.tipo_rapporto);
+      const nextItem: WorkerRelatedSearchItem = {
+        selectionId,
+        processId,
+        familyName: formatRelatedFamilyName(familyRow),
+        ricercaLabel: formatRelatedSearchLabel(processRow),
+        recruiterLabel: recruiterId
+          ? recruiterLabelsById.get(recruiterId) ?? "Recruiter non assegnato"
+          : "Recruiter non assegnato",
+        statoSelezione: asString(selection.stato_selezione) || "-",
+        statoRicerca: asString(processRow.stato_res) || "-",
+        orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
+        zona: formatRelatedZona(processRow),
+        appunti: asString(selection.note_selezione) || "",
+        boardCard: {
+          id: processId,
+          stage: asString(processRow.stato_res) || "-",
+          nomeFamiglia: formatRelatedFamilyName(familyRow),
+          cognomeFamiglia: "",
+          email: "-",
+          telefono: "-",
+          operatorId: recruiterId,
+          oreSettimanali: asString(processRow.ore_settimanale) || "-",
+          giorniSettimanali: asString(processRow.giorni_a_settimana) || "-",
+          deadline: asString(processRow.deadline_mobile) || "-",
+          deadlineRaw: asString(processRow.deadline_mobile),
+          zona: formatRelatedZona(processRow),
+          tipoLavoroBadges,
+          tipoLavoroColors: Object.fromEntries(
+            tipoLavoroBadges.map((tipoLavoro) => [
+              tipoLavoro,
+              resolveLookupColor(
                 lookupColorsByDomain,
                 "processi_matching.tipo_lavoro",
-                tipoLavoroBadge,
+                tipoLavoro,
               ),
-              tipoRapportoBadge,
-              tipoRapportoColor: resolveLookupColor(
-                lookupColorsByDomain,
-                "processi_matching.tipo_rapporto",
-                tipoRapportoBadge,
-              ),
-            },
-          };
+            ]),
+          ),
+          tipoLavoroBadge,
+          tipoLavoroColor: resolveLookupColor(
+            lookupColorsByDomain,
+            "processi_matching.tipo_lavoro",
+            tipoLavoroBadge,
+          ),
+          tipoRapportoBadge,
+          tipoRapportoColor: resolveLookupColor(
+            lookupColorsByDomain,
+            "processi_matching.tipo_rapporto",
+            tipoRapportoBadge,
+          ),
+        },
+      };
 
-          if (isDirectInvolvementSelection(selection)) {
-            nextDirectItems.push(nextItem);
-            seenProcessIds.add(processId);
-            continue;
-          }
-
-          nextOtherItems.push(nextItem);
-          seenProcessIds.add(processId);
-        }
-
-        if (isCancelled) return;
-        setRelatedActiveSearches({
-          direct: nextDirectItems,
-          other: nextOtherItems,
-        });
-      } catch {
-        if (isCancelled) return;
-        setRelatedActiveSearches({ direct: [], other: [] });
-      } finally {
-        if (!isCancelled) {
-          setLoadingRelatedActiveSearches(false);
-        }
+      if (isDirectInvolvementSelection(selection)) {
+        nextDirectItems.push(nextItem);
+      } else {
+        nextOtherItems.push(nextItem);
       }
+      seenProcessIds.add(processId);
     }
 
-    void loadRelatedActiveSearches();
-
-    return () => {
-      isCancelled = true;
-    };
+    setRelatedActiveSearches({ direct: nextDirectItems, other: nextOtherItems });
+    setLoadingRelatedActiveSearches(false);
   }, [
     lookupColorsByDomain,
     recruiterLabelsById,
-    relatedSearchesRefreshKey,
     selectedWorkerId,
+    selectedWorkerRelatedSearches,
   ]);
   const {
     selectedWorkerIsNonIdoneo,
@@ -1190,24 +967,7 @@ export function LavoratoriCercaView({
         { id: selectedWorkerId },
       );
 
-      const result = await fetchLavoratori({
-        limit: 1,
-        offset: 0,
-        filters: {
-          kind: "group",
-          id: "ai-generated-worker-summary",
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: "ai-generated-worker-summary-id",
-              field: "id",
-              operator: "is",
-              value: selectedWorkerId,
-            },
-          ],
-        },
-      });
+      const result = await fetchLavoratoriByIds([selectedWorkerId]);
       const row = result.rows[0];
       if (row) {
         applyUpdatedWorkerRow(asLavoratoreRecord(row));
@@ -1242,31 +1002,9 @@ export function LavoratoriCercaView({
 
     setIsSubmittingAddSearch(true);
     try {
-      const existingSelections = await fetchSelezioniLavoratori({
-        limit: 1,
-        offset: 0,
-        select: ["id", "stato_selezione", "processo_matching_id"],
-        filters: {
-          kind: "group",
-          id: "lavoratori-add-search-duplicate-check",
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: "lavoratori-add-search-process",
-              field: "processo_matching_id",
-              operator: "is",
-              value: processId,
-            },
-            {
-              kind: "condition",
-              id: "lavoratori-add-search-worker",
-              field: "lavoratore_id",
-              operator: "is",
-              value: workerId,
-            },
-          ],
-        },
+      const existingSelections = await fetchSelezioniLookup({
+        processoIds: [processId],
+        lavoratoreIds: [workerId],
       });
 
       const existingSelection = existingSelections.rows?.[0] as
@@ -1303,7 +1041,7 @@ export function LavoratoriCercaView({
       );
 
       setIsAddSearchDialogOpen(false);
-      setRelatedSearchesRefreshKey((current) => current + 1);
+      reloadSelectedWorkerScheda();
       toast.success("Lavoratore aggiunto alla ricerca in Prospetto", {
         action: onOpenRicercaDetail
           ? {

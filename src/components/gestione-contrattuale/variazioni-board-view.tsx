@@ -47,8 +47,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  fetchRapportiLavorativi,
-  fetchVariazioniContrattuali,
+  fetchRapportiLavorativiByIds,
+  fetchVariazioniByIds,
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments";
@@ -1121,43 +1121,9 @@ export function VariazioniBoardView() {
     async function loadSelectedCard() {
       try {
         const [recordResponse, rapportoResponse] = await Promise.all([
-          fetchVariazioniContrattuali({
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: "variazioni-selected-record",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "variazioni-selected-record-id",
-                  field: "id",
-                  operator: "is",
-                  value: currentCardId,
-                },
-              ],
-            },
-          }),
+          fetchVariazioniByIds([currentCardId]),
           currentCard.rapporto?.id
-            ? fetchRapportiLavorativi({
-                limit: 1,
-                offset: 0,
-                filters: {
-                  kind: "group",
-                  id: "variazioni-selected-rapporto",
-                  logic: "and",
-                  nodes: [
-                    {
-                      kind: "condition",
-                      id: "variazioni-selected-rapporto-id",
-                      field: "id",
-                      operator: "is",
-                      value: currentCard.rapporto.id,
-                    },
-                  ],
-                },
-              })
+            ? fetchRapportiLavorativiByIds([currentCard.rapporto.id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
         ]);
 

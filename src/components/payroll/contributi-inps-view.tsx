@@ -19,8 +19,8 @@ import {
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
-  fetchContributiInps,
-  fetchRapportiLavorativi,
+  fetchContributiInpsByIds,
+  fetchRapportiLavorativiByIds,
 } from "@/lib/anagrafiche-api"
 import { useDebouncedSave } from "@/hooks/use-debounced-save"
 import {
@@ -693,24 +693,7 @@ export function ContributiInpsView() {
 
     async function loadSelectedCard() {
       try {
-        const recordResponse = await fetchContributiInps({
-          limit: 1,
-          offset: 0,
-          filters: {
-            kind: "group",
-            id: "contributi-selected-record",
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: "contributi-selected-record-id",
-                field: "id",
-                operator: "is",
-                value: currentCardId,
-              },
-            ],
-          },
-        })
+        const recordResponse = await fetchContributiInpsByIds([currentCardId])
 
         const freshRecord = recordResponse.rows[0] as ContributoInpsBoardCardData["record"] | undefined
         if (!isActive || !freshRecord) return
@@ -720,24 +703,7 @@ export function ContributiInpsView() {
           (typeof freshRecord.rapporto_lavorativo_id === "string" ? freshRecord.rapporto_lavorativo_id : null)
 
         const rapportoResponse = rapportoId
-          ? await fetchRapportiLavorativi({
-              limit: 1,
-              offset: 0,
-              filters: {
-                kind: "group",
-                id: "contributi-selected-rapporto",
-                logic: "and",
-                nodes: [
-                  {
-                    kind: "condition",
-                    id: "contributi-selected-rapporto-id",
-                    field: "id",
-                    operator: "is",
-                    value: rapportoId,
-                  },
-                ],
-              },
-            })
+          ? await fetchRapportiLavorativiByIds([rapportoId])
           : { rows: [], total: 0, columns: [] }
 
         const freshRapporto =

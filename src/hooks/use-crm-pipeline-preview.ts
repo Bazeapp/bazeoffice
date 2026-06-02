@@ -4,10 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   fetchCrmPipelineFamigliaDetail,
   fetchCrmPipelineFamiglieBoard,
-  fetchFamiglie,
-  fetchIndirizzi,
+  fetchIndirizziByEntity,
   fetchLookupValues,
-  fetchProcessiMatching,
   createRecord,
   updateRecord,
   updateProcessoMatchingStatoSales,
@@ -51,107 +49,6 @@ const CLOSED_STAGE_IDS = new Set(["won_ricerca_attivata", "lost", "out_of_target
 const PREVENTIVO_ACCEPTANCE_BASE_URL =
   "https://app.bazeapp.com/v2/checkout/accettare-preventivo"
 
-const CRM_PIPELINE_PROCESSI_SELECT = [
-  "id",
-  "famiglia_id",
-  "numero_ricerca_attivata",
-  "stato_sales",
-  "tipo_lavoro",
-  "tipo_rapporto",
-  "stato_res",
-  "qualificazione_lead",
-  "motivo_no_match",
-  "modello_smartmatching",
-  "ore_settimanale",
-  "numero_giorni_settimanali",
-  "frequenza_rapporto",
-  "preferenza_giorno",
-  "sales_cold_call_followup",
-  "sales_no_show_followup",
-  "motivazione_lost",
-  "motivazione_oot",
-  "appunti_chiamata_sales",
-  "data_per_ricerca_futura",
-  "preventivo_firmato",
-  "source_url",
-  "offerta",
-  "orario_di_lavoro",
-  "nucleo_famigliare",
-  "descrizione_casa",
-  "metratura_casa",
-  "descrizione_animali_in_casa",
-  "mansioni_richieste",
-  "informazioni_extra_riservate",
-  "eta_minima",
-  "eta_massima",
-  "indirizzo_prova_provincia",
-  "indirizzo_prova_cap",
-  "indirizzo_prova_note",
-  "indirizzo_prova_via",
-  "indirizzo_prova_civico",
-  "indirizzo_prova_comune",
-  "indirizzo_prova_citofono",
-  "src_embed_maps_annucio",
-  "deadline_mobile",
-  "disponibilita_colloqui_in_presenza",
-  "family_availability_json",
-  "tipo_incontro_famiglia_lavoratore",
-  "richiesta_patente",
-  "richiesta_trasferte",
-  "richiesta_ferie",
-  "descrizione_richiesta_trasferte",
-  "descrizione_richiesta_ferie",
-  "patente",
-  "sesso",
-  "nazionalita_escluse",
-  "nazionalita_obbligatorie",
-  "famiglia_molto_esigente",
-  "richiesta_autonomia",
-  "datore_spesso_presente",
-  "richiesta_discrezione",
-  "comunicare_bene_italiano",
-  "comunicare_bene_inglese",
-  "presenza_neonati",
-  "piu_bambini",
-  "famiglia_4_persone",
-  "cani_piccoli",
-  "cani_grandi",
-  "gatti",
-  "pulire_ripiani_alti",
-  "stirare",
-  "stirare_abiti_difficili",
-  "cucinare",
-  "cucinare_elaborato",
-  "cura_piante",
-  "testo_annuncio_whatsapp",
-  "aggiornato_il",
-  "creato_il",
-]
-
-const CRM_PIPELINE_FAMIGLIE_SELECT = [
-  "id",
-  "nome",
-  "cognome",
-  "email",
-  "telefono",
-  "creato_il",
-  "data_call_prenotata",
-  "aggiornato_il",
-]
-const CRM_PIPELINE_ADDRESS_SELECT = [
-  "id",
-  "entita_id",
-  "tipo_indirizzo",
-  "via",
-  "civico",
-  "cap",
-  "citta",
-  "provincia",
-  "provincia_sigla",
-  "indirizzo_formattato",
-  "citofono",
-  "note",
-] as const
 const ADDRESS_BATCH_SIZE = 150
 
 type LookupOption = {
@@ -613,34 +510,8 @@ async function fetchProcessAddressesByIds(processIds: string[]) {
   }
 
   const results = await Promise.all(
-    chunks.map(({ index, batch }) =>
-      fetchIndirizzi({
-        select: [...CRM_PIPELINE_ADDRESS_SELECT],
-        limit: Math.max(batch.length * 3, batch.length),
-        offset: 0,
-        orderBy: [{ field: "aggiornato_il", ascending: false }],
-        filters: {
-          kind: "group",
-          id: `crm-pipeline-addresses-${index}`,
-          logic: "and",
-          nodes: [
-            {
-              kind: "condition",
-              id: `crm-pipeline-addresses-table-${index}`,
-              field: "entita_tabella",
-              operator: "is",
-              value: "processi_matching",
-            },
-            {
-              kind: "condition",
-              id: `crm-pipeline-addresses-id-${index}`,
-              field: "entita_id",
-              operator: "in",
-              value: batch.join(","),
-            },
-          ],
-        },
-      })
+    chunks.map(({ batch }) =>
+      fetchIndirizziByEntity("processi_matching", batch),
     )
   )
 
@@ -1316,76 +1187,15 @@ async function fetchBoardRecordsWithRpc(
   }
 }
 
-async function fetchBoardRecordsWithTableQueries(): Promise<BoardRecordBundle> {
-  const [processesResult, familiesResult, stageCountsResult] = await Promise.all([
-    fetchProcessiMatching({
-      select: CRM_PIPELINE_PROCESSI_SELECT,
-      limit: CRM_PIPELINE_CARD_LIMIT,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
-    fetchFamiglie({
-      select: CRM_PIPELINE_FAMIGLIE_SELECT,
-      limit: CRM_PIPELINE_CARD_LIMIT,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
-    fetchProcessiMatching({
-      select: ["stato_sales"],
-      limit: 1,
-      offset: 0,
-      groupBy: ["stato_sales"],
-    }),
-  ])
-
-  const processRows = asRowArray(processesResult.rows)
-  const familyRows = asRowArray(familiesResult.rows)
-  const addressesByProcessId = await fetchProcessAddressesByIds(
-    processRows
-      .map((process) => toStringValue(process.id))
-      .filter((id): id is string => Boolean(id))
-  )
-
-  const familyById = new Map<string, GenericRow>()
-  for (const family of familyRows) {
-    const id = toStringValue(family.id)
-    if (!id) continue
-    familyById.set(id, family)
-  }
-
-  const entries = processRows
-    .map((process) => {
-      const famigliaId = toStringValue(process.famiglia_id)
-      const processId = toStringValue(process.id)
-      return {
-        process,
-        family: famigliaId ? familyById.get(famigliaId) ?? null : null,
-        address: processId ? addressesByProcessId.get(processId) ?? null : null,
-        richiestaAttivazione: null,
-      }
-    })
-    .filter((entry) => Boolean(entry.family))
-
-  return {
-    entries,
-    stageGroups: stageCountsResult.groups,
-  }
-}
-
 async function fetchBoardRecordsForStages(
   stageFilter: string[],
   searchQuery: string,
   filters: CrmPipelineFilters
 ): Promise<BoardRecordBundle> {
-  try {
-    return await fetchBoardRecordsWithRpc(stageFilter, searchQuery, filters)
-  } catch (caughtError) {
-    if (hasActiveServerFilters(searchQuery, filters)) {
-      throw caughtError
-    }
-
-    return fetchBoardRecordsWithTableQueries()
-  }
+  // FASE 4 BIS: rimosso il fallback table-query (fetchBoardRecordsWithTableQueries).
+  // La board RPC crm_pipeline_famiglie_board è la sola fonte; gli errori
+  // propagano e diventano visibili via toast invece di mascherarsi.
+  return fetchBoardRecordsWithRpc(stageFilter, searchQuery, filters)
 }
 
 async function fetchBoardData(

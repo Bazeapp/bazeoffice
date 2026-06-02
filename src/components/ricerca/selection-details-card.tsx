@@ -152,9 +152,15 @@ export function SelectionDetailsCard({
 }: SelectionDetailsCardProps) {
   const [draft, setDraft] = React.useState<SelectionDraft>(() => buildDraft(selectionRow))
 
+  // Identity-pin: only rebuild the draft when a different selectionRow is
+  // loaded (id changes), not on every field-level realtime echo. All field
+  // commits below already update the draft locally via setDraft + onPatchField,
+  // so a realtime echo on a sibling field would only wipe in-progress edits.
+  const selectionId = (selectionRow?.id ?? null) as string | number | null
   React.useEffect(() => {
     setDraft(buildDraft(selectionRow))
-  }, [selectionRow])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionId])
 
   const normalizedStatus = React.useMemo(
     () => normalizeStatusToken(draft.stato_selezione),

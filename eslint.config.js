@@ -12,7 +12,8 @@ export default defineConfig([
     'design-system',
     '.claude',
     // Deno edge functions have their own tooling (Deno's own linter and
-    // type checker). Linting them here produces noise.
+    // type checker). Linting them here produces noise because the config
+    // is tuned for the Vite/React frontend.
     'supabase/functions',
   ]),
   {
@@ -33,6 +34,38 @@ export default defineConfig([
         {
           allowConstantExport: true,
           allowExportNames: ['useCarousel', 'useComboboxAnchor', 'useField'],
+        },
+      ],
+    },
+  },
+
+  // Rule 0 (FASE 4 BIS): la edge function `table-query` è consentita SOLO nel
+  // chokepoint `src/lib/anagrafiche-api.ts` (la helper `queryTable`, usata dalla
+  // pagina Anagrafiche e dal loader dello schema filtri). Ovunque altrove si
+  // devono usare RPC dedicate. Questa regola intercetta `invokeEdgeFunction(
+  // "table-query", ...)`. I glob già coperti da altri blocchi no-restricted-syntax
+  // sono esclusi qui per non sovrascriverli (nel flat-config l'ultimo blocco che
+  // matcha un file rimpiazza interamente la stessa regola).
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [
+      'src/lib/anagrafiche-api.ts',
+      'src/lib/supabase-edge.ts',
+      'src/hooks/use-*-board.ts',
+      'src/hooks/use-*-data.ts',
+      'src/hooks/use-*-pipeline.ts',
+      'src/hooks/use-crm-*.ts',
+      'src/components/**/*.tsx',
+      'src/pages/**/*.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.name='invokeEdgeFunction'] > Literal[value='table-query']",
+          message:
+            'table-query è consentita solo in src/lib/anagrafiche-api.ts (chokepoint queryTable: Anagrafiche + schema-loader filtri). Non aggiungere nuove chiamate table-query: crea una RPC dedicata (FASE 4 BIS).',
         },
       ],
     },
@@ -76,7 +109,7 @@ export default defineConfig([
         'warn',
         {
           selector:
-            "CallExpression[callee.name='useEffect'] > ArrayExpression:has(> Identifier[name=/^selected.+Id$/]):not(:has(> Identifier[name='realtimeTick']))",
+            "CallExpression:matches([callee.name='useEffect'], [callee.property.name='useEffect']) > ArrayExpression:has(> Identifier[name=/^selected.+Id$/]):not(:has(> Identifier[name='realtimeTick']))",
           message:
             'useEffect with `selectedXxxId` in deps but missing `realtimeTick` — the open detail panel will not refresh on remote changes. Add `realtimeTick` to deps (see docs/realtime-board-pattern.md, Pattern B), or suppress this rule per-line if the effect does not fetch detail data.',
         },
@@ -116,6 +149,16 @@ export default defineConfig([
     rules: {
       'no-restricted-syntax': [
         'warn',
+        {
+          // FASE 4 BIS — niente table-query nei componenti: usare una RPC
+          // dedicata (vedi src/lib/anagrafiche-api.ts). Qui è 'warn' perché
+          // condivide severità con le altre regole di questo blocco, ma
+          // resta visibile in IDE/CI.
+          selector:
+            "CallExpression[callee.name='invokeEdgeFunction'] > Literal[value='table-query']",
+          message:
+            'table-query non va usata nei componenti: crea/usa una RPC dedicata (FASE 4 BIS).',
+        },
         {
           // Legacy: useState + onBlur save loses unsaved data when the
           // parent sheet closes before blur fires. Use DebouncedInput.
@@ -168,15 +211,95 @@ export default defineConfig([
             'Looks like save-on-every-keystroke (Input/Textarea onChange calling patch/save/update directly). Each character fires a network request and the field lags. Use <DebouncedInput committedValue={...} onSave={...}> (or DebouncedTextarea) which debounces 300ms and flushes on unmount.',
         },
         {
+          // FASE 4 — Rule "draft setter without isEditing guard" (bug class:
+          // realtime echo wipes user's in-progress edits when a setXxxDraft
+          // runs unconditionally inside a useEffect that re-fires on every
+          // server row change).
+          //
+          // The rule flags any `setXxxDraft(...)` call appearing as an
+          // ExpressionStatement directly inside a useEffect arrow body —
+          // i.e. NOT inside an `if (!isEditing...) return` guard, NOT inside
+          // a setState updater function with its own dirtyRef check.
+          //
+          // How to suppress per-line (with a comment explaining the actual
+          // guard used — either an `if (!isEditingX) return` earlier in the
+          // effect, a per-field dirtyRef.current check, or react-hook-form):
+          //
+          //   // eslint-disable-next-line no-restricted-syntax -- guarded by
+          //   // `if (!isEditingHeader) return` above; safe to resync.
+          //   setHeaderDraft(...)
+          //
+          // See docs/audits/audit-draft-resync.md for the bug class detail
+          // and docs/realtime-bug-class-plan.md FASE 3/4 for the prevention
+          // strategy.
+          selector:
+            "CallExpression:matches([callee.name='useEffect'], [callee.property.name='useEffect']) > ArrowFunctionExpression > BlockStatement > ExpressionStatement > CallExpression[callee.name=/^set.*Draft$/]",
+          message:
+            'setXxxDraft() called unconditionally inside useEffect — server-state echo can wipe user edits in progress. Add an `if (!isEditingXxx) return` early-return, use a per-field dirtyRef, or migrate to react-hook-form. Suppress per-line with `// eslint-disable-next-line no-restricted-syntax -- guarded by <explanation>` once you have a real guard.',
+        },
+        {
+          // FASE 4 — Rule "useEffect with setDraft and row-like deps" (same
+          // bug class as the rule above, but matched at the deps array level
+          // so the warning fires only when the effect depends on a known
+          // server-row identifier: card, serverRow, workerRow, *Row, *Record).
+          // More precise — flags the exact shape audited in
+          // docs/audits/audit-draft-resync.md (Findings #1, #2, #3...).
+          //
+          // Suppress per-line on the offending useEffect call:
+          //
+          //   // eslint-disable-next-line no-restricted-syntax -- effect uses
+          //   // a per-field dirtyRef.current check, not a top-level guard
+          //   useEffect(() => { ... }, [card, dirtyRef]);
+          selector:
+            "CallExpression:matches([callee.name='useEffect'], [callee.property.name='useEffect']):has(ArrayExpression > Identifier[name=/^(.*Row|.*Record|card|serverRow)$/]) ArrowFunctionExpression CallExpression[callee.name=/^set.*Draft$/]",
+          message:
+            'useEffect with `set*Draft` and a server-row dep (card / *Row / *Record / serverRow) — realtime echoes will wipe user edits unless guarded. Add an `if (!isEditingXxx) return`, use a per-field dirtyRef, or migrate to react-hook-form. Suppress per-line with an explanation of which guard is in place.',
+        },
+        {
+          // FASE 4 — Rule "useState mirror from prop without sync" (bug
+          // class: a `useState(buildDraft(card))` initializer captures the
+          // prop value only on first render. When `card` changes from a
+          // realtime update, the local state stays stale — and the next
+          // user edit overwrites the server update on save).
+          //
+          // Flags `useState(...)` whose argument expression references
+          // identifiers like `card`, `serverRow`, `workerRow`, `selectedXxx`
+          // (anywhere inside the initializer, including nested calls like
+          // `useState(toInputValue(card?.x))`).
+          //
+          // Preferred fix: use <DebouncedInput committedValue={card?.x}
+          // onSave={...}> for inputs (already handles re-sync on prop
+          // change), or derive the value directly from the prop for
+          // read-only displays. For genuinely-local state that must seed
+          // from a prop only once, suppress per-line with an explanation:
+          //
+          //   // eslint-disable-next-line no-restricted-syntax -- seeded
+          //   // once on mount on purpose; user choice supersedes server
+          //   const [val, setVal] = useState(toInputValue(card?.x))
+          selector:
+            "VariableDeclarator > CallExpression:matches([callee.name='useState'], [callee.property.name='useState']) Identifier[name=/^(card|serverRow|workerRow|selectedWorkerRow|selectedCard|defaults)$/]",
+          message:
+            'useState() initializer reads from a server-driven prop (card / *Row / defaults) without a re-sync mechanism. After a realtime update the local state stays stale and the next save overwrites the new server value. Prefer <DebouncedInput committedValue={...} onSave={...}> (auto-resyncs) or derive directly from the prop. Suppress per-line if the mount-time seed is intentional.',
+        },
+        {
           // Detail wrappers must declare a `key` tied to the selected entity
           // so debounced inputs inside reset their local draft when switching
           // record. The rule only fires for top-level wrappers (in *-view
           // files); generic composites used as children of a keyed parent
           // are not matched here.
+          //
+          // Naming convention enforced: the project uses two prefixes for
+          // selection-bound detail wrappers — `Detail*` (DetailSheet,
+          // DetailPanel, DetailShell) and `Scheda*` (SchedaColloquioPanel
+          // and similar Italian-named editors). Both convey "this component
+          // edits the currently selected record" and require a `key=` reset.
+          // If you add a new selection-bound wrapper, name it with one of
+          // these prefixes so the rule catches missing keys; if you name it
+          // differently, you must add a key= manually (no rule will help).
           selector:
-            "Program > :matches(FunctionDeclaration, VariableDeclaration) JSXOpeningElement[name.name=/Detail(Sheet|Panel|Shell)$/]:not(:has(JSXAttribute[name.name='key']))",
+            "Program > :matches(FunctionDeclaration, VariableDeclaration) JSXOpeningElement[name.name=/^(?:Detail.*|Scheda.*)(?:Sheet|Panel|Shell)$/]:not(:has(JSXAttribute[name.name='key']))",
           message:
-            'Detail wrappers (DetailSheet/DetailPanel/DetailShell) at the view level must declare key={selectedCardId ?? "__empty__"} so debounced inputs inside reset their local draft when switching cards.',
+            'Detail/Scheda wrappers (Detail*Sheet/Panel/Shell or Scheda*Sheet/Panel/Shell) at the view level must declare key={selectedCardId ?? "__empty__"} so debounced inputs inside reset their local draft when switching cards.',
         },
       ],
     },

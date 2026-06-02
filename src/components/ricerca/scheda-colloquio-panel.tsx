@@ -371,11 +371,17 @@ export function SchedaColloquioPanel({
   );
   const slotColloquioRef = React.useRef(draft.slotColloquio);
 
+  // Identity-pin: only resync the draft when a different selectionRow is
+  // loaded. Per-field commits below already update local state, so a
+  // realtime echo on any sibling field would otherwise reset the score /
+  // motivazione the user is currently editing.
+  const selectionId = (selectionRow?.id ?? null) as string | number | null;
   React.useEffect(() => {
     const nextDraft = buildDraft(selectionRow);
     slotColloquioRef.current = nextDraft.slotColloquio;
     setDraft(nextDraft);
-  }, [selectionRow]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionId]);
 
   const normalizedStatus = React.useMemo(
     () => normalizeStatusToken(draft.statoSelezione),

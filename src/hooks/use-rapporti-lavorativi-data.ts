@@ -3,21 +3,22 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
   createRecord,
-  fetchChiusureContratti,
-  fetchContributiInps,
-  fetchFamiglie,
-  fetchLavoratori,
+  fetchChiusureByIds,
+  fetchContributiInpsByRapporto,
+  fetchFamiglieByIds,
+  fetchFamiglieByName,
+  fetchLavoratoriByIds,
+  fetchLavoratoriByName,
   fetchLookupValues,
-  fetchMesiCalendario,
-  fetchMesiLavorati,
-  fetchPagamenti,
-  fetchProcessiMatching,
-  fetchPresenzeMensili,
-  fetchRapportiLavorativi,
+  fetchMesiCalendarioByIds,
+  fetchMesiLavoratiByRapporto,
+  fetchPagamentiByTicketIds,
+  fetchProcessiMatchingByIds,
+  fetchPresenzeByIds,
+  fetchRapportiLavorativiByIds,
   fetchRapportiLavorativiBoard,
-  fetchTickets,
-  fetchVariazioniContrattuali,
-  type QueryFilterGroup,
+  fetchTicketByRapporto,
+  fetchVariazioniByRapporto,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
@@ -61,6 +62,82 @@ type CreateRapportoTicketInput = {
 
 const PAGE_SIZE = 50
 
+/**
+ * Bindings between source DB/RPC columns and the card fields they populate
+ * on a board row.
+ *
+ * The board RPC `rapporti_lavorativi_board` enriches four display-only
+ * columns on top of `to_jsonb(rapporto)`:
+ *   - `cognome_nome_datore_proper`  (overridden with `famiglie.cognome nome`)
+ *   - `nome_lavoratore_per_url`     (overridden with `lavoratori.cognome nome`)
+ *   - `data_fine_rapporto`          (joined from `chiusure_contratti`)
+ *   - `stato_rapporto`              (computed: In attivazione / Attivo / Terminato / …)
+ *
+ * The detail loader (`fetchRapportiLavorativi`, raw SELECT *) may return these
+ * columns with stale or null values (`data_fine_rapporto` and `stato_rapporto`
+ * are NOT real columns on the table). When the detail loader writes back into
+ * the board cache via `setQueryData`, the merged row preserves the board's
+ * enriched values via the inline merge. But a subsequent realtime invalidate
+ * refetches the board RPC and rebuilds the row from scratch — without
+ * Pattern A, any field the refetch path doesn't return (e.g. if the RPC
+ * shape ever narrows, or a partial row arrives) would be wiped from the
+ * open detail panel. `preserveMissingFields` makes the board rebuild
+ * symmetric to the detail merge.
+ */
+export const RAPPORTO_FIELD_BINDINGS: Array<
+  readonly [string, keyof RapportoLavorativoRecord]
+> = [
+  ["cognome_nome_datore_proper", "cognome_nome_datore_proper"],
+  ["nome_lavoratore_per_url", "nome_lavoratore_per_url"],
+  ["data_fine_rapporto", "data_fine_rapporto"],
+  ["stato_rapporto", "stato_rapporto"],
+]
+
+/**
+ * For each binding, if the source column is NOT present in `row`, restore
+ * the previous card's value. Mutates `card` in place. If `row` is missing
+ * entirely, every bound field falls back to previous. If the column is
+ * present (even with value `null`), the fresh value wins — clearing in DB
+ * propagates correctly.
+ */
+export function preserveMissingFields<TCard extends Record<string, unknown>>(
+  card: TCard,
+  previousCard: TCard,
+  row: Record<string, unknown> | undefined | null,
+  bindings: Array<readonly [string, keyof TCard]>,
+) {
+  for (const [column, field] of bindings) {
+    if (row && column in row) continue
+    ;(card as Record<string, unknown>)[field as string] = previousCard[field]
+  }
+}
+
+/**
+ * Map a raw board row into a `RapportoLavorativoRecord` card, preserving
+ * detail-only fields from `previousCard` when their source columns are
+ * absent from the fresh `row`. The board RPC currently returns the full
+ * rapporto record so most fields come straight from `row`, but Pattern A
+ * keeps the open detail panel robust to RPC shape changes and concurrent
+ * detail-vs-board writes.
+ */
+export function mapRapportoBoardRow(
+  row: RapportoLavorativoRecord,
+  previousCard?: RapportoLavorativoRecord,
+): RapportoLavorativoRecord {
+  const card: RapportoLavorativoRecord = { ...row }
+  if (previousCard) {
+    preserveMissingFields(
+      card as unknown as Record<string, unknown>,
+      previousCard as unknown as Record<string, unknown>,
+      row as unknown as Record<string, unknown>,
+      RAPPORTO_FIELD_BINDINGS as unknown as Array<
+        readonly [string, keyof Record<string, unknown>]
+      >,
+    )
+  }
+  return card
+}
+
 export type RapportoStatusFilter =
   | "all"
   | "In attivazione"
@@ -100,126 +177,27 @@ function buildSearchQuery(value: string) {
   )
 }
 
-function buildEqualsFilter(field: string, value: string): QueryFilterGroup {
-  return {
-    kind: "group",
-    id: `${field}-eq-root`,
-    logic: "and",
-    nodes: [
-      {
-        kind: "condition",
-        id: `${field}-eq-condition`,
-        field,
-        operator: "is",
-        value,
-      },
-    ],
-  }
-}
-
-function buildIdsFilter(ids: string[]): QueryFilterGroup | undefined {
-  const normalizedIds = Array.from(new Set(ids.filter(Boolean)))
-  if (normalizedIds.length === 0) return undefined
-
-  return {
-    kind: "group",
-    id: "ids-root",
-    logic: "or",
-    nodes: normalizedIds.map((id, index) => ({
-      kind: "condition" as const,
-      id: `id-${index}`,
-      field: "id",
-      operator: "is" as const,
-      value: id,
-    })),
-  }
-}
-
-function buildAnyOfFilter(field: string, values: string[]): QueryFilterGroup | undefined {
-  const normalizedValues = Array.from(new Set(values.filter(Boolean)))
-  if (normalizedValues.length === 0) return undefined
-
-  return {
-    kind: "group",
-    id: `${field}-any-of-root`,
-    logic: "or",
-    nodes: normalizedValues.map((value, index) => ({
-      kind: "condition",
-      id: `${field}-any-of-${index}`,
-      field,
-      operator: "is",
-      value,
-    })),
-  }
-}
-
-function buildNamePartsFilter(
-  label: string | null | undefined,
-  mode: "family" | "worker"
-): QueryFilterGroup | undefined {
-  const normalizedLabel = label?.trim().replace(/\s+/g, " ")
-  if (!normalizedLabel) return undefined
-
-  const [firstPart, ...restParts] = normalizedLabel.split(" ")
+function splitNameLabel(label: string | null | undefined) {
+  const full = label?.trim().replace(/\s+/g, " ")
+  if (!full) return null
+  const [firstPart, ...restParts] = full.split(" ")
   const restPart = restParts.join(" ").trim()
-  const nodes: QueryFilterGroup["nodes"] = []
-
-  if (firstPart && restPart) {
-    nodes.push(
-      {
-        kind: "group",
-        id: `${mode}-surname-first`,
-        logic: "and",
-        nodes: [
-          { kind: "condition", id: `${mode}-surname-first-cognome`, field: "cognome", operator: "is", value: firstPart },
-          { kind: "condition", id: `${mode}-surname-first-nome`, field: "nome", operator: "is", value: restPart },
-        ],
-      },
-      {
-        kind: "group",
-        id: `${mode}-name-first`,
-        logic: "and",
-        nodes: [
-          { kind: "condition", id: `${mode}-name-first-nome`, field: "nome", operator: "is", value: firstPart },
-          { kind: "condition", id: `${mode}-name-first-cognome`, field: "cognome", operator: "is", value: restPart },
-        ],
-      }
-    )
-  }
-
-  if (mode === "worker") {
-    nodes.push({
-      kind: "condition",
-      id: "worker-full-name-as-nome",
-      field: "nome",
-      operator: "is",
-      value: normalizedLabel,
-    })
-  }
-
-  if (nodes.length === 0) return undefined
-
-  return {
-    kind: "group",
-    id: `${mode}-name-fallback-root`,
-    logic: "or",
-    nodes,
-  }
+  return { full, first: firstPart || null, rest: restPart || null }
 }
 
 async function fetchUniqueFamigliaByLabel(label: string | null | undefined) {
-  const filters = buildNamePartsFilter(label, "family")
-  if (!filters) return null
+  const parts = splitNameLabel(label)
+  if (!parts?.first || !parts.rest) return null
 
-  const response = await fetchFamiglie({ limit: 2, offset: 0, filters })
+  const response = await fetchFamiglieByName(parts.first, parts.rest)
   return response.rows.length === 1 ? (response.rows[0] as FamigliaRecord) : null
 }
 
 async function fetchUniqueLavoratoreByLabel(label: string | null | undefined) {
-  const filters = buildNamePartsFilter(label, "worker")
-  if (!filters) return null
+  const parts = splitNameLabel(label)
+  if (!parts) return null
 
-  const response = await fetchLavoratori({ limit: 2, offset: 0, filters })
+  const response = await fetchLavoratoriByName(parts.first, parts.rest, parts.full)
   return response.rows.length === 1 ? (response.rows[0] as LavoratoreRecord) : null
 }
 
@@ -292,13 +270,29 @@ export function useRapportiLavorativiData(
     refetch,
   } = useQuery({
     queryKey: boardQueryKey,
-    queryFn: () =>
-      fetchRapportiLavorativiBoard({
+    queryFn: async () => {
+      const result = await fetchRapportiLavorativiBoard({
         limit: PAGE_SIZE,
         offset: pageIndex * PAGE_SIZE,
         search: serverSearchQuery,
         statusFilter: rapportoStatusFilter,
-      }),
+      })
+
+      // Read the latest cached rows at mapping-time (after the fetch) so any
+      // concurrent setQueryData (e.g. loadSelectedRapporto resolving
+      // mid-fetch) is observed and we never reinstate a stale snapshot.
+      const getPreviousCard = (id: string): RapportoLavorativoRecord | undefined => {
+        const latest = queryClient.getQueryData<typeof result>(boardQueryKey)
+        return latest?.rows.find((rapporto) => rapporto.id === id)
+      }
+
+      return {
+        ...result,
+        rows: result.rows.map((row) =>
+          mapRapportoBoardRow(row, row.id ? getPreviousCard(row.id) : undefined),
+        ),
+      }
+    },
   })
 
   const rapporti = React.useMemo(() => boardData?.rows ?? [], [boardData?.rows])
@@ -464,11 +458,7 @@ export function useRapportiLavorativiData(
       setSelectedRapporto(fallbackRapporto)
 
       try {
-        const response = await fetchRapportiLavorativi({
-          limit: 1,
-          offset: 0,
-          filters: buildEqualsFilter("id", selectedRapportoId),
-        })
+        const response = await fetchRapportiLavorativiByIds([selectedRapportoId])
         if (!isActive) return
 
         const freshRapporto = (response.rows[0] as RapportoLavorativoRecord | undefined) ?? null
@@ -580,36 +570,18 @@ export function useRapportiLavorativiData(
 
       try {
         const processIds = getRapportoProcessIds(selectedRapporto)
-        const processiFilter = buildIdsFilter(processIds)
         const [famigliaResponse, lavoratoreResponse, processiResponse, chiusuraResponse] = await Promise.all([
           selectedRapporto.famiglia_id
-            ? fetchFamiglie({
-                limit: 1,
-                offset: 0,
-                filters: buildEqualsFilter("id", selectedRapporto.famiglia_id),
-              })
+            ? fetchFamiglieByIds([selectedRapporto.famiglia_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
           selectedRapporto.lavoratore_id
-            ? fetchLavoratori({
-                limit: 1,
-                offset: 0,
-                filters: buildEqualsFilter("id", selectedRapporto.lavoratore_id),
-              })
+            ? fetchLavoratoriByIds([selectedRapporto.lavoratore_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
-          processiFilter
-            ? fetchProcessiMatching({
-                limit: 10,
-                offset: 0,
-                filters: processiFilter,
-              })
+          processIds.length > 0
+            ? fetchProcessiMatchingByIds({ ids: processIds })
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
           selectedRapporto.fine_rapporto_lavorativo_id
-            ? fetchChiusureContratti({
-                limit: 1,
-                offset: 0,
-                orderBy: [{ field: "data_fine_rapporto", ascending: false }],
-                filters: buildEqualsFilter("id", selectedRapporto.fine_rapporto_lavorativo_id),
-              })
+            ? fetchChiusureByIds([selectedRapporto.fine_rapporto_lavorativo_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
         ])
 
@@ -628,11 +600,7 @@ export function useRapportiLavorativiData(
           )
 
           if (fallbackFamigliaIds.length > 0) {
-            const fallbackFamiglieResponse = await fetchFamiglie({
-              limit: 1,
-              offset: 0,
-              filters: buildAnyOfFilter("id", fallbackFamigliaIds),
-            })
+            const fallbackFamiglieResponse = await fetchFamiglieByIds(fallbackFamigliaIds)
             nextFamiglia = (fallbackFamiglieResponse.rows[0] as FamigliaRecord | undefined) ?? null
           }
         }
@@ -708,45 +676,25 @@ export function useRapportiLavorativiData(
 
       try {
         if (sectionId === "tickets") {
-          const response = await fetchTickets({
-            limit: 100,
-            offset: 0,
-            orderBy: [{ field: "data_apertura", ascending: false }],
-            filters: buildEqualsFilter("rapporto_id", rapporto.id),
-          })
+          const response = await fetchTicketByRapporto(rapporto.id)
           if (selectedRapportoIdRef.current !== rapporto.id) return
           setSelectedTickets(response.rows as TicketRecord[])
         }
 
         if (sectionId === "contributi") {
-          const response = await fetchContributiInps({
-            limit: 200,
-            offset: 0,
-            orderBy: [{ field: "data_ora_creazione", ascending: false }],
-            filters: buildEqualsFilter("rapporto_lavorativo_id", rapporto.id),
-          })
+          const response = await fetchContributiInpsByRapporto(rapporto.id)
           if (selectedRapportoIdRef.current !== rapporto.id) return
           setSelectedContributi(response.rows as ContributoInpsRecord[])
         }
 
         if (sectionId === "variazioni") {
-          const response = await fetchVariazioniContrattuali({
-            limit: 200,
-            offset: 0,
-            orderBy: [{ field: "data_variazione", ascending: false }],
-            filters: buildEqualsFilter("rapporto_lavorativo_id", rapporto.id),
-          })
+          const response = await fetchVariazioniByRapporto(rapporto.id)
           if (selectedRapportoIdRef.current !== rapporto.id) return
           setSelectedVariazioni(response.rows as VariazioneContrattualeRecord[])
         }
 
         if (sectionId === "cedolini") {
-          const mesiResponse = await fetchMesiLavorati({
-            limit: 500,
-            offset: 0,
-            orderBy: [{ field: "creato_il", ascending: false }],
-            filters: buildEqualsFilter("rapporto_lavorativo_id", rapporto.id),
-          })
+          const mesiResponse = await fetchMesiLavoratiByRapporto(rapporto.id)
           const mesiRows = mesiResponse.rows as MeseLavoratoRecord[]
           const meseIds = mesiRows
             .map((mese) => mese.mese_id)
@@ -761,30 +709,9 @@ export function useRapportiLavorativiData(
           )
 
           const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse] = await Promise.all([
-            meseIds.length > 0
-              ? fetchMesiCalendario({
-                  limit: 200,
-                  offset: 0,
-                  orderBy: [{ field: "data_inizio", ascending: false }],
-                  filters: buildAnyOfFilter("id", meseIds),
-                })
-              : Promise.resolve({ rows: [], total: 0, columns: [] }),
-            ticketIds.length > 0
-              ? fetchPagamenti({
-                  limit: 500,
-                  offset: 0,
-                  orderBy: [{ field: "data_ora_di_pagamento", ascending: false }],
-                  filters: buildAnyOfFilter("ticket_id", ticketIds),
-                })
-              : Promise.resolve({ rows: [], total: 0, columns: [] }),
-            presenzaIds.length > 0
-              ? fetchPresenzeMensili({
-                  limit: 500,
-                  offset: 0,
-                  orderBy: [{ field: "creato_il", ascending: false }],
-                  filters: buildAnyOfFilter("id", presenzaIds),
-                })
-              : Promise.resolve({ rows: [], total: 0, columns: [] }),
+            fetchMesiCalendarioByIds(meseIds),
+            fetchPagamentiByTicketIds(ticketIds),
+            fetchPresenzeByIds(presenzaIds),
           ])
 
           if (selectedRapportoIdRef.current !== rapporto.id) return

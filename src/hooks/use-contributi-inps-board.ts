@@ -4,10 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
 import {
-  fetchContributiInps,
+  fetchContributiInpsByPeriod,
   fetchLookupValues,
-  fetchMesiCalendario,
-  fetchRapportiLavorativi,
+  fetchMesiCalendarioAll,
+  fetchRapportiLavorativiAll,
   updateRecord,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -85,31 +85,7 @@ const LEGACY_STAGE_ALIASES: Record<string, string> = {
 
 const QUARTER_ORDER: ContributoQuarterValue[] = ["Q1", "Q2", "Q3", "Q4"]
 
-const CONTRIBUTI_RAPPORTI_SELECT = [
-  "id",
-  "id_rapporto",
-  "ticket_id",
-  "stato_assunzione",
-  "stato_servizio",
-  "fine_rapporto_lavorativo_id",
-  "cognome_nome_datore_proper",
-  "nome_lavoratore_per_url",
-  "tipo_rapporto",
-  "tipo_contratto",
-] satisfies string[]
 
-const CONTRIBUTI_SELECT = [
-  "id",
-  "rapporto_lavorativo_id",
-  "ticket_id",
-  "trimestre_id",
-  "stato_contributi_inps",
-  "importo_contributi_inps",
-  "valore_pagopa",
-  "data_ora_creazione",
-  "creato_il",
-  "aggiornato_il",
-] satisfies string[]
 
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
@@ -323,84 +299,6 @@ function getQuarterDateRange(year: number, quarter: ContributoQuarterValue) {
   }
 }
 
-function buildQuarterRowsFilter(
-  selectedYear: number,
-  selectedQuarter: ContributoQuarterValue
-) {
-  const range = getQuarterDateRange(selectedYear, selectedQuarter)
-  if (!range) return undefined
-
-  return {
-    kind: "group" as const,
-    id: `contributi-inps-quarter-${selectedQuarter}-${selectedYear}`,
-    logic: "or" as const,
-    nodes: [
-      {
-        kind: "group" as const,
-        id: `contributi-inps-data-ora-creazione-${selectedQuarter}-${selectedYear}`,
-        logic: "and" as const,
-        nodes: [
-          {
-            kind: "condition" as const,
-            id: `contributi-inps-data-ora-creazione-start-${selectedQuarter}-${selectedYear}`,
-            field: "data_ora_creazione",
-            operator: "gte" as const,
-            value: range.start,
-          },
-          {
-            kind: "condition" as const,
-            id: `contributi-inps-data-ora-creazione-end-${selectedQuarter}-${selectedYear}`,
-            field: "data_ora_creazione",
-            operator: "lte" as const,
-            value: range.end,
-          },
-        ],
-      },
-      {
-        kind: "group" as const,
-        id: `contributi-inps-creato-il-${selectedQuarter}-${selectedYear}`,
-        logic: "and" as const,
-        nodes: [
-          {
-            kind: "condition" as const,
-            id: `contributi-inps-creato-il-start-${selectedQuarter}-${selectedYear}`,
-            field: "creato_il",
-            operator: "gte" as const,
-            value: range.start,
-          },
-          {
-            kind: "condition" as const,
-            id: `contributi-inps-creato-il-end-${selectedQuarter}-${selectedYear}`,
-            field: "creato_il",
-            operator: "lte" as const,
-            value: range.end,
-          },
-        ],
-      },
-      {
-        kind: "group" as const,
-        id: `contributi-inps-aggiornato-il-${selectedQuarter}-${selectedYear}`,
-        logic: "and" as const,
-        nodes: [
-          {
-            kind: "condition" as const,
-            id: `contributi-inps-aggiornato-il-start-${selectedQuarter}-${selectedYear}`,
-            field: "aggiornato_il",
-            operator: "gte" as const,
-            value: range.start,
-          },
-          {
-            kind: "condition" as const,
-            id: `contributi-inps-aggiornato-il-end-${selectedQuarter}-${selectedYear}`,
-            field: "aggiornato_il",
-            operator: "lte" as const,
-            value: range.end,
-          },
-        ],
-      },
-    ],
-  }
-}
 
 function formatCurrency(value: number | null | undefined) {
   if (typeof value !== "number" || Number.isNaN(value)) return null
@@ -450,33 +348,32 @@ async function fetchContributiBoardData(
   cards: ContributoInpsBoardCardData[]
   activeRapportiCount: number
 }> {
+  const quarterRange = getQuarterDateRange(selectedYear, selectedQuarter)
   const [contributiResult, mesiResult, rapportiResult, lookupResult] = await Promise.all([
-    fetchContributiInps({
-      select: CONTRIBUTI_SELECT,
-      limit: 3000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: buildQuarterRowsFilter(selectedYear, selectedQuarter),
-    }),
-    fetchMesiCalendario({
-      limit: 500,
-      offset: 0,
-      orderBy: [{ field: "data_inizio", ascending: false }],
-    }),
-    fetchRapportiLavorativi({
-      select: CONTRIBUTI_RAPPORTI_SELECT,
-      limit: 3000,
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-    }),
+    quarterRange
+      ? fetchContributiInpsByPeriod(quarterRange.start, quarterRange.end)
+      : Promise.resolve({ rows: [], total: 0, columns: [], groups: [] }),
+    fetchMesiCalendarioAll(500),
+    fetchRapportiLavorativiAll(
+      3000,
+      // Solo le colonne usate dalla card contributi (board + view). Il dettaglio
+      // rifetcha il rapporto full via rapporti_lavorativi_by_ids → trim sicuro.
+      "id,id_rapporto,ticket_id,stato_assunzione,codice_datore_webcolf,codice_dipendente_webcolf,cognome_nome_datore_proper,nome_lavoratore_per_url,tipo_contratto,tipo_rapporto",
+    ),
     fetchLookupValues(),
   ])
+
+  // Le RPC ritornano TableRow generico: castiamo ai record tipizzati una volta
+  // qui, così il resto della funzione resta type-safe (build tsc -b).
+  const contributiRows = contributiResult.rows as unknown as ContributoInpsRecord[]
+  const mesiRows = mesiResult.rows as unknown as MeseCalendarioRecord[]
+  const rapportiRows = rapportiResult.rows as unknown as RapportoLavorativoRecord[]
 
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
   const aliases = stageMetadata.aliases
   const rapportoById = new Map(
-    rapportiResult.rows
+    rapportiRows
       .map((rapporto) => {
         const key = normalizeRecordKey(rapporto.id)
         return key ? ([key, rapporto] as const) : null
@@ -484,7 +381,7 @@ async function fetchContributiBoardData(
       .filter(Boolean) as Array<readonly [string, RapportoLavorativoRecord]>
   )
   const rapportoByExternalId = new Map(
-    rapportiResult.rows
+    rapportiRows
       .flatMap((rapporto) =>
         [
           rapporto.id_rapporto,
@@ -495,10 +392,10 @@ async function fetchContributiBoardData(
           .map((key) => [key as string, rapporto] as const)
       )
   )
-  const quarterIndex = buildQuarterIndex(mesiResult.rows)
-  const activeRapportiCount = rapportiResult.rows.filter((rapporto) => isActiveRapporto(rapporto)).length
+  const quarterIndex = buildQuarterIndex(mesiRows)
+  const activeRapportiCount = rapportiRows.filter((rapporto) => isActiveRapporto(rapporto)).length
 
-  const cards = contributiResult.rows.flatMap((record) => {
+  const cards = contributiRows.flatMap((record) => {
     const resolvedQuarter =
       (record.trimestre_id ? quarterIndex.byId.get(record.trimestre_id) : null) ??
       (record.trimestre_id ? quarterIndex.byToken.get(normalizeToken(record.trimestre_id)) : null) ??

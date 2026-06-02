@@ -65,10 +65,10 @@ import { normalizeLookupPatchLabels } from "@/hooks/use-crm-pipeline-preview";
 import { useRicercaWorkersPipeline } from "@/hooks/use-ricerca-workers-pipeline";
 import { STATI_RICERCA_CANONICI } from "@/features/ricerca/stati-ricerca";
 import {
-  fetchFamiglie,
-  fetchIndirizzi,
+  fetchFamiglieByIds,
+  fetchIndirizziByEntity,
   fetchLookupValues,
-  fetchProcessiMatching,
+  fetchProcessiMatchingByIds,
   createRecord,
   updateRecord,
 } from "@/lib/anagrafiche-api";
@@ -906,24 +906,7 @@ export function RicercaDetailView({
       setError(null);
       try {
         const [processResult, lookupResult] = await Promise.all([
-          fetchProcessiMatching({
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: "ricerca-detail-by-id",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "ricerca-detail-id-condition",
-                  field: "id",
-                  operator: "is",
-                  value: currentProcessId,
-                },
-              ],
-            },
-          }),
+          fetchProcessiMatchingByIds({ ids: [currentProcessId] }),
           fetchLookupValues(),
         ]);
 
@@ -943,76 +926,17 @@ export function RicercaDetailView({
         let familyRow: Record<string, unknown> | null = null;
 
         if (famigliaId) {
-          const familyResult = await fetchFamiglie({
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: "ricerca-detail-family-by-id",
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: "ricerca-detail-family-id-condition",
-                  field: "id",
-                  operator: "is",
-                  value: famigliaId,
-                },
-              ],
-            },
-          });
+          const familyResult = await fetchFamiglieByIds([famigliaId]);
           familyRow =
             (familyResult.rows?.[0] as Record<string, unknown> | undefined) ??
             null;
         }
 
-        const addressResult = await fetchIndirizzi({
-          select: [
-            "id",
-            "tipo_indirizzo",
-            "via",
-            "civico",
-            "cap",
-            "citta",
-            "provincia",
-            "provincia_sigla",
-            "indirizzo_formattato",
-            "note",
-            "latitudine",
-            "longitudine",
-          ],
-          limit: 3,
-          offset: 0,
-          orderBy: [{ field: "aggiornato_il", ascending: false }],
-          filters: {
-            kind: "group",
-            id: "ricerca-detail-address-by-process",
-            logic: "and",
-            nodes: [
-              {
-                kind: "condition",
-                id: "ricerca-detail-address-table-condition",
-                field: "entita_tabella",
-                operator: "is",
-                value: "processi_matching",
-              },
-              {
-                kind: "condition",
-                id: "ricerca-detail-address-id-condition",
-                field: "entita_id",
-                operator: "is",
-                value: currentProcessId,
-              },
-              {
-                kind: "condition",
-                id: "ricerca-detail-address-type-condition",
-                field: "tipo_indirizzo",
-                operator: "in",
-                value: "luogo,prova",
-              },
-            ],
-          },
-        });
+        const addressResult = await fetchIndirizziByEntity(
+          "processi_matching",
+          [currentProcessId],
+          ["luogo", "prova"],
+        );
         const addressRows = Array.isArray(addressResult.rows)
           ? (addressResult.rows as Record<string, unknown>[])
           : [];
@@ -1281,6 +1205,12 @@ export function RicercaDetailView({
     return () => {
       cancelled = true;
     };
+    // FASE 4 BIS — revert F.1: il dettaglio NON si auto-ricarica sui tick
+    // realtime (era `pipelineState.detailRefreshTick`). Su DB condiviso e
+    // attivo quel tick bumpava ad ogni evento → loadDetail ripartiva di
+    // continuo e restava bloccato su "Caricamento…". Torniamo al comportamento
+    // di prod: ricarica solo al cambio processo o dopo l'auto-geocode
+    // (reloadVersion). L'aggiornamento granulare sui cambi remoti è un follow-up.
   }, [currentProcessId, reloadVersion]);
 
   const updateProcessCard = React.useCallback(

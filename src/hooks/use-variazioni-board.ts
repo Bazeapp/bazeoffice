@@ -51,6 +51,80 @@ export type VariazioniBoardCardData = {
   variazioneDaApplicare: string | null
 }
 
+/**
+ * Pattern A field bindings — see `docs/realtime-board-pattern.md`.
+ *
+ * The Variazioni board has a "narrow board fetch + separate detail loader +
+ * shared cache" shape (`variazioni-board-view.tsx` writes detail results
+ * back into the board's React Query cache via `updateCard`). Without
+ * preservation, a board refetch triggered by realtime would blank out every
+ * column the board RPC does NOT return (but the detail RPC does).
+ *
+ * The variazione card stores two sub-source rows as full objects: `record`
+ * (variazioni_contrattuali row) and `rapporto` (rapporti_lavorativi row).
+ * The bindings below are the column names within each sub-source that need
+ * preservation when the column is absent from the fresh board payload.
+ *
+ * Treatment mirrors `preserveMissingFields`: if `column in freshRow` is
+ * false, restore previous; if the column is present (even when null),
+ * fresh wins so DB clears propagate.
+ */
+export const VARIAZIONE_RECORD_FIELD_BINDINGS: ReadonlyArray<
+  keyof VariazioneContrattualeRecord
+> = [
+  "accordo_variazione_contrattuale",
+  "data_variazione",
+  "rapporto_lavorativo_id",
+  "ricevuta_inps_variazione_rapporto",
+  "stato",
+  "ticket_id",
+  "variazione_da_applicare",
+  "airtable_id",
+  "airtable_record_id",
+  "creato_il",
+  "aggiornato_il",
+  "metadati_migrazione",
+] as const
+
+export const VARIAZIONE_RAPPORTO_FIELD_BINDINGS: ReadonlyArray<
+  keyof RapportoLavorativoRecord
+> = [
+  "stato_assunzione",
+  "stato_servizio",
+  "fine_rapporto_lavorativo_id",
+  "tipo_rapporto",
+  "tipo_contratto",
+  "ore_a_settimana",
+  "paga_oraria_lorda",
+  "data_inizio_rapporto",
+  "cognome_nome_datore_proper",
+  "famiglia_id",
+  "lavoratore_id",
+  "nome_lavoratore_per_url",
+  "aggiornato_il",
+] as const
+
+/**
+ * For each binding column, if the column is NOT present in `freshRow`,
+ * restore the value from `previousRow`. Mutates `targetRow` in place. If
+ * `freshRow` is missing entirely, every bound column falls back to
+ * `previousRow`. Mirrors the helper of the same name in
+ * `use-crm-pipeline-preview.ts` and `use-chiusure-board.ts` (Pattern A).
+ */
+export function preserveMissingFields<T extends Record<string, unknown>>(
+  targetRow: T,
+  previousRow: T | undefined | null,
+  freshRow: Record<string, unknown> | undefined | null,
+  columns: ReadonlyArray<keyof T>,
+) {
+  if (!previousRow) return
+  for (const column of columns) {
+    if (freshRow && (column as string) in freshRow) continue
+    ;(targetRow as Record<string, unknown>)[column as string] =
+      previousRow[column]
+  }
+}
+
 export type VariazioniBoardColumnData = {
   id: string
   label: string
@@ -212,7 +286,101 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
   }
 }
 
-async function fetchVariazioniBoardData(): Promise<{
+type VariazioneBoardRow = {
+  record: VariazioneContrattualeRecord
+  rapporto?: RapportoLavorativoRecord | null
+  famiglia?: GenericRow | null
+  lavoratore?: GenericRow | null
+  lavoratoreAddress?: GenericRow | null
+}
+
+/**
+ * Map a board row to a card. If `previousCard` is provided, columns of
+ * `record` and `rapporto` that are absent from the fresh board payload are
+ * restored from the previous card. This is Pattern A — see
+ * `docs/realtime-board-pattern.md`.
+ */
+export function mapVariazioneBoardCard(
+  row: VariazioneBoardRow,
+  stage: string,
+  previousCard?: VariazioniBoardCardData,
+): VariazioniBoardCardData {
+  const freshRecord = row.record
+  const freshRapporto = row.rapporto ?? null
+  const famiglia = (row.famiglia as GenericRow | null) ?? null
+  const baseLavoratore = (row.lavoratore as GenericRow | null) ?? null
+  const resolvedWorkerAddress =
+    (row.lavoratoreAddress as GenericRow | null) ?? null
+  const workerAddress = formatAddressLabel(resolvedWorkerAddress)
+  const workerAddressCap = getAddressCap(resolvedWorkerAddress)
+  const lavoratore = baseLavoratore
+    ? {
+        ...baseLavoratore,
+        indirizzo_residenza_completo: workerAddress,
+        cap: workerAddressCap,
+      }
+    : null
+
+  // Merge missing columns from previous card's record/rapporto into the
+  // fresh row objects. Shallow clones so we don't mutate the RPC response.
+  const record = { ...freshRecord } as VariazioneContrattualeRecord
+  if (previousCard) {
+    preserveMissingFields(
+      record as unknown as Record<string, unknown>,
+      previousCard.record as unknown as Record<string, unknown>,
+      freshRecord as unknown as Record<string, unknown>,
+      VARIAZIONE_RECORD_FIELD_BINDINGS as ReadonlyArray<string>,
+    )
+  }
+
+  let rapporto: RapportoLavorativoRecord | null = freshRapporto
+  if (previousCard) {
+    if (freshRapporto && previousCard.rapporto) {
+      const merged = { ...freshRapporto } as RapportoLavorativoRecord
+      preserveMissingFields(
+        merged as unknown as Record<string, unknown>,
+        previousCard.rapporto as unknown as Record<string, unknown>,
+        freshRapporto as unknown as Record<string, unknown>,
+        VARIAZIONE_RAPPORTO_FIELD_BINDINGS as ReadonlyArray<string>,
+      )
+      rapporto = merged
+    } else if (!freshRapporto && previousCard.rapporto) {
+      // Board fetch dropped the rapporto entirely — keep the previously
+      // known one so the detail panel doesn't blank out.
+      rapporto = previousCard.rapporto
+    }
+  }
+
+  const nomeCompleto = rapporto
+    ? getRapportoTitle(rapporto, {
+        famiglia: toPersonName(famiglia),
+        lavoratore: toPersonName(baseLavoratore),
+      })
+    : "Rapporto non disponibile"
+
+  return {
+    id: record.id,
+    stage,
+    record,
+    rapporto,
+    famiglia,
+    lavoratore,
+    nomeCompleto,
+    dataVariazione: formatItalianDate(record.data_variazione),
+    variazioneDaApplicare: record.variazione_da_applicare,
+  }
+}
+
+async function fetchVariazioniBoardData(
+  /**
+   * Read latest cached card at mapping time (after the network fetch) so any
+   * concurrent `setQueryData` (e.g. from `loadSelectedCard` in the view
+   * completing mid-fetch) is observed and we never reinstate a stale
+   * snapshot. Reading a snapshot at queryFn start would race against detail
+   * refetches.
+   */
+  getPreviousCard?: (cardId: string) => VariazioniBoardCardData | undefined,
+): Promise<{
   columns: VariazioniBoardColumnData[]
   rapportoOptions: VariazioniRapportoOption[]
 }> {
@@ -233,38 +401,8 @@ async function fetchVariazioniBoardData(): Promise<{
     const stage = aliases.get(normalizeToken(record.stato))
     if (!stage) continue
 
-    const rapporto = row.rapporto ?? null
-    const famiglia = (row.famiglia as GenericRow | null) ?? null
-    const baseLavoratore = (row.lavoratore as GenericRow | null) ?? null
-    const resolvedWorkerAddress = (row.lavoratoreAddress as GenericRow | null) ?? null
-    const workerAddress = formatAddressLabel(resolvedWorkerAddress)
-    const workerAddressCap = getAddressCap(resolvedWorkerAddress)
-    const lavoratore = baseLavoratore
-      ? {
-          ...baseLavoratore,
-          indirizzo_residenza_completo: workerAddress,
-          cap: workerAddressCap,
-        }
-      : null
-    const nomeCompleto = rapporto
-      ? getRapportoTitle(rapporto, {
-          famiglia: toPersonName(famiglia),
-          lavoratore: toPersonName(baseLavoratore),
-        })
-      : "Rapporto non disponibile"
-
-    const card: VariazioniBoardCardData = {
-      id: record.id,
-      stage,
-      record,
-      rapporto,
-      famiglia,
-      lavoratore,
-      nomeCompleto,
-      dataVariazione: formatItalianDate(record.data_variazione),
-      variazioneDaApplicare: record.variazione_da_applicare,
-    }
-
+    const previousCard = getPreviousCard?.(record.id)
+    const card = mapVariazioneBoardCard(row, stage, previousCard)
     cardsByStage.get(stage)?.push(card)
   }
 
@@ -298,7 +436,22 @@ export function useVariazioniBoard(): UseVariazioniBoardState {
     error: queryError,
   } = useQuery({
     queryKey: VARIAZIONI_BOARD_QUERY_KEY,
-    queryFn: fetchVariazioniBoardData,
+    queryFn: () =>
+      fetchVariazioniBoardData((cardId) => {
+        // Read latest cached card at mapping time (Pattern A — see
+        // docs/realtime-board-pattern.md) so any concurrent setQueryData
+        // from the view-level detail loader is observed and we never
+        // reinstate a stale snapshot.
+        const latest = queryClient.getQueryData<BoardData>(
+          VARIAZIONI_BOARD_QUERY_KEY,
+        )
+        if (!latest) return undefined
+        for (const column of latest.columns) {
+          const card = column.cards.find((c) => c.id === cardId)
+          if (card) return card
+        }
+        return undefined
+      }),
   })
 
   const columns = data?.columns ?? []

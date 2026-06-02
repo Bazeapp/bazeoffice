@@ -1,0 +1,24 @@
+# Lefthook git hooks.
+#
+# Run `npx lefthook install` once per checkout to install the hooks
+# (the postinstall script does it automatically; this is the fallback).
+#
+# Bypass in emergencies with `LEFTHOOK=0 git push` — but DON'T do it for
+# realtime/draft work; that's exactly the class these tests are guarding.
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: test
+      run: npm test
+      tags:
+        - ci
+    - name: typecheck
+      run: npx tsc --noEmit
+      tags:
+        - ci
+    - name: lint
+      run: npm run lint
+      tags:
+        - ci
+      fail_text: "Lint failed. Fix new errors before pushing. To bypass once: LEFTHOOK=0 git push"

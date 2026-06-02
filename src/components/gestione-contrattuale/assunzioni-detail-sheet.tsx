@@ -31,7 +31,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import {
   createRecord,
-  fetchAssunzioni,
+  fetchAssunzioniByIds,
+  fetchAssunzioniByFormType,
   fetchDocumentiLavoratoriByWorker,
   fetchLookupValues,
   updateRecord,
@@ -1723,54 +1724,16 @@ export function AssunzioniDetailSheet({
     }
 
     let isActive = true
-    const currentCard = card
 
     async function loadAssunzioneCandidates() {
       setLoadingAssunzioneCandidates(true)
       setPracticeError(null)
 
       try {
+        const candidatesColumns = ASSUNZIONE_DETAIL_SELECT.join(",")
         const [datoreResponse, lavoratoreResponse] = await Promise.all([
-          fetchAssunzioni({
-            select: ASSUNZIONE_DETAIL_SELECT,
-            limit: 1000,
-            offset: 0,
-            orderBy: [{ field: "creato_il", ascending: false }],
-            filters: {
-              kind: "group",
-              id: `assunzioni-candidates-datore-root-${currentCard.id}`,
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: `assunzioni-candidates-datore-type-${currentCard.id}`,
-                  field: "type_of_compilazione_form",
-                  operator: "is",
-                  value: ASSUNZIONE_DATORE_FORM_TYPE,
-                },
-              ],
-            },
-          }),
-          fetchAssunzioni({
-            select: ASSUNZIONE_DETAIL_SELECT,
-            limit: 1000,
-            offset: 0,
-            orderBy: [{ field: "creato_il", ascending: false }],
-            filters: {
-              kind: "group",
-              id: `assunzioni-candidates-lavoratore-root-${currentCard.id}`,
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition",
-                  id: `assunzioni-candidates-lavoratore-type-${currentCard.id}`,
-                  field: "type_of_compilazione_form",
-                  operator: "is",
-                  value: ASSUNZIONE_LAVORATORE_FORM_TYPE,
-                },
-              ],
-            },
-          }),
+          fetchAssunzioniByFormType(ASSUNZIONE_DATORE_FORM_TYPE, candidatesColumns),
+          fetchAssunzioniByFormType(ASSUNZIONE_LAVORATORE_FORM_TYPE, candidatesColumns),
         ])
 
         if (!isActive) return
@@ -1796,9 +1759,6 @@ export function AssunzioniDetailSheet({
     return () => {
       isActive = false
     }
-    // Loads candidates only on card switch or open toggle, not on every card
-    // object reference change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.id, open])
 
   React.useEffect(() => {
@@ -1848,30 +1808,13 @@ export function AssunzioniDetailSheet({
         const datoreAssunzioneId = currentCard.assunzione?.id ?? null
         const lavoratoreAssunzioneId = currentCard.lavoratoreAssunzione?.id ?? null
         const emptyResponse = { rows: [] as AssunzioneRecord[], total: 0, columns: [] }
-        const fetchById = (assunzioneId: string, key: string) =>
-          fetchAssunzioni({
-            select: ASSUNZIONE_DETAIL_SELECT,
-            limit: 1,
-            offset: 0,
-            filters: {
-              kind: "group",
-              id: `assunzioni-detail-${key}-${currentCard.id}`,
-              logic: "and",
-              nodes: [
-                {
-                  kind: "condition" as const,
-                  id: `assunzioni-detail-${key}-id-${currentCard.id}`,
-                  field: "id",
-                  operator: "is" as const,
-                  value: assunzioneId,
-                },
-              ],
-            },
-          })
+        const detailColumns = ASSUNZIONE_DETAIL_SELECT.join(",")
         const [datoreResponse, lavoratoreResponse] = await Promise.all([
-          datoreAssunzioneId ? fetchById(datoreAssunzioneId, "datore") : Promise.resolve(emptyResponse),
+          datoreAssunzioneId
+            ? fetchAssunzioniByIds([datoreAssunzioneId], detailColumns)
+            : Promise.resolve(emptyResponse),
           lavoratoreAssunzioneId
-            ? fetchById(lavoratoreAssunzioneId, "lavoratore")
+            ? fetchAssunzioniByIds([lavoratoreAssunzioneId], detailColumns)
             : Promise.resolve(emptyResponse),
         ])
 
@@ -1928,7 +1871,12 @@ export function AssunzioniDetailSheet({
 
   React.useEffect(() => {
     setPracticeDraft(makePracticeDraft())
-  }, [makePracticeDraft])
+    // Identity-pin to card/rapporto identity (matches sibling effects at
+    // lines 464/774/1194): a realtime echo on any source field of
+    // makePracticeDraft would otherwise wipe in-progress text edits in
+    // idRapportoInps / codiceRapportoWebcolf etc.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card?.id, card?.rapporto?.id])
 
   React.useEffect(() => {
     let isActive = true

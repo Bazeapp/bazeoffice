@@ -1,4 +1,4 @@
-import { invokeEdgeFunction } from "@/lib/supabase-edge"
+import { runTrackedEdgeFunction } from "@/lib/anagrafiche-api"
 
 const SELECTION_AVAILABILITY_FIELDS = new Set([
   "stato_selezione",
@@ -47,7 +47,11 @@ export async function invokeWorkerAvailability(workerId: string | null | undefin
   const normalizedWorkerId = toId(workerId)
   if (!normalizedWorkerId) return null
 
-  return invokeEdgeFunction("worker-availability", {
+  // Tracked so the resulting realtime echo on `lavoratori` (or any other
+  // table written by `worker-availability`) is recognised as ours by the
+  // echo-window suppression in `useRealtimeBoardSync` and does not trigger
+  // a self-induced refetch cascade.
+  return runTrackedEdgeFunction("worker-availability", {
     worker_id: normalizedWorkerId,
   })
 }

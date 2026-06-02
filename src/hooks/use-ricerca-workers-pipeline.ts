@@ -21,11 +21,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useMoveMutation } from "@/hooks/use-board-mutations"
 import {
-  fetchIndirizzi,
-  fetchLavoratori,
+  fetchIndirizziByEntity,
+  fetchLavoratoriByIds,
   fetchLookupValues,
   fetchRicercaWorkerRelatedSelectionSummaries,
-  fetchSelezioniLavoratori,
+  fetchSelezioniLookup,
   updateRecord,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -88,37 +88,8 @@ type UseRicercaWorkersPipelineState = {
 
 export type RicercaWorkersPipelineState = UseRicercaWorkersPipelineState
 
-const SELEZIONI_PAGE_SIZE = 500
 const WORKER_BATCH_SIZE = 250
 const ADDRESS_BATCH_SIZE = 120
-const PIPELINE_SELECTIONS_SELECT = [
-  "id",
-  "lavoratore_id",
-  "stato_selezione",
-  "punteggio",
-  "travel_time_tra_cap",
-  "data_ora_colloquio_famiglia_lavoratore",
-  "data_ora_fine_colloquio_famiglia_lavoratore",
-  "aggiornato_il",
-] satisfies string[]
-const PIPELINE_WORKERS_SELECT = [
-  "id",
-  "nome",
-  "cognome",
-  "foto",
-  "immagine",
-  "avatar_url",
-  "cap",
-  "telefono",
-  "check_blacklist",
-  "tipo_lavoro_domestico",
-  "tipo_rapporto_lavorativo",
-  "data_di_nascita",
-  "anni_esperienza_colf",
-  "anni_esperienza_babysitter",
-  "stato_lavoratore",
-  "disponibilita",
-] satisfies string[]
 function asRowArray(input: unknown): GenericRow[] {
   if (!Array.isArray(input)) return []
   return input.filter(
@@ -616,39 +587,14 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
 
 async function fetchAllSelectionsForProcess(processId: string) {
   const rows: GenericRow[] = []
-  let offset = 0
 
-  while (true) {
-    const result = await fetchSelezioniLavoratori({
-      select: PIPELINE_SELECTIONS_SELECT,
-      limit: SELEZIONI_PAGE_SIZE,
-      offset,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: "selezioni-lavoratori-by-process",
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: "processo-matching-id",
-            field: "processo_matching_id",
-            operator: "is",
-            value: processId,
-          },
-        ],
-      },
-    }).catch((error) => {
+  const result = await fetchSelezioniLookup({ processoIds: [processId] }).catch(
+    (error) => {
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`selezioni_lavoratori: ${message}`)
-    })
-
-    const pageRows = asRowArray(result.rows)
-    rows.push(...pageRows)
-
-    if (pageRows.length < SELEZIONI_PAGE_SIZE) break
-    offset += SELEZIONI_PAGE_SIZE
-  }
+      throw new Error(`selezioni_lookup: ${message}`)
+    },
+  )
+  rows.push(...asRowArray(result.rows))
 
   return rows
 }
@@ -660,27 +606,11 @@ async function fetchWorkersByIds(workerIds: string[]) {
 
   for (let index = 0; index < workerIds.length; index += WORKER_BATCH_SIZE) {
     const batch = workerIds.slice(index, index + WORKER_BATCH_SIZE)
-    const result = await fetchLavoratori({
-      select: PIPELINE_WORKERS_SELECT,
-      limit: batch.length,
-      offset: 0,
-      filters: {
-        kind: "group",
-        id: `pipeline-workers-by-id-batch-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition" as const,
-            id: `pipeline-workers-id-in-${index}`,
-            field: "id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
-      },
-    }).catch((error) => {
+    // FASE 4 BIS — pilota: rimpiazza il table-query "id IN (...)" con la RPC
+    // dedicata lavoratori_by_ids. Stessa shape di ritorno ({ rows, ... }).
+    const result = await fetchLavoratoriByIds(batch).catch((error) => {
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`lavoratori(batch ${index}): ${message}`)
+      throw new Error(`lavoratori_by_ids(batch ${index}): ${message}`)
     })
 
     workerRows.push(...asRowArray(result.rows))
@@ -696,48 +626,12 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
 
   for (let index = 0; index < workerIds.length; index += ADDRESS_BATCH_SIZE) {
     const batch = workerIds.slice(index, index + ADDRESS_BATCH_SIZE)
-    const result = await fetchIndirizzi({
-      select: [
-        "entita_id",
-        "tipo_indirizzo",
-        "via",
-        "civico",
-        "cap",
-        "citta",
-        "provincia",
-        "indirizzo_formattato",
-        "note",
-        "latitudine",
-        "longitudine",
-      ],
-      limit: Math.max(batch.length * 2, batch.length),
-      offset: 0,
-      orderBy: [{ field: "aggiornato_il", ascending: false }],
-      filters: {
-        kind: "group",
-        id: `pipeline-worker-addresses-${index}`,
-        logic: "and",
-        nodes: [
-          {
-            kind: "condition",
-            id: `pipeline-worker-addresses-table-${index}`,
-            field: "entita_tabella",
-            operator: "is",
-            value: "lavoratori",
-          },
-          {
-            kind: "condition",
-            id: `pipeline-worker-addresses-id-${index}`,
-            field: "entita_id",
-            operator: "in",
-            value: batch.join(","),
-          },
-        ],
+    const result = await fetchIndirizziByEntity("lavoratori", batch).catch(
+      (error) => {
+        const message = error instanceof Error ? error.message : String(error)
+        throw new Error(`indirizzi_by_entity(batch ${index}): ${message}`)
       },
-    }).catch((error) => {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`indirizzi(batch ${index}): ${message}`)
-    })
+    )
 
     for (const row of asRowArray(result.rows)) {
       const workerId = toStringValue(row.entita_id)
@@ -1038,6 +932,9 @@ export function useRicercaWorkersPipeline(
   useRealtimeBoardSync({
     tables: RICERCA_WORKERS_REALTIME_TABLES,
     reload: invalidateBoard,
+    // FASE 4 BIS — revert F.1: niente reloadOpenDetail. Il bump del tick ad
+    // ogni evento realtime causava il loop di "Caricamento dettaglio…" su DB
+    // condiviso. L'auto-refresh granulare del dettaglio è un follow-up.
   })
 
   const moveMutation = useMoveMutation<

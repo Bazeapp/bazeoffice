@@ -529,7 +529,15 @@ export function useSelectedWorkerEditor({
         applyUpdatedWorkerRow(nextRow)
         return nextRow
       } catch (caughtError) {
-        setError(formatEditorError(options.errorMessage, caughtError))
+        const message = formatEditorError(options.errorMessage, caughtError)
+        setError(message)
+        // Toast esplicito: setError finisce in un banner del list-panel laterale
+        // che non è visibile mentre l'utente edita il detail panel. Senza questo,
+        // un save fallito sui ~100 caller di patchSelectedWorkerField/Address/...
+        // era invisibile (classe "salvataggio silenzioso"). Manteniamo il throw
+        // per i caller che fanno await (es. saveWorkerAvailability che a sua
+        // volta gestisce l'errore); i caller void mostrano comunque il toast.
+        toast.error(message)
         throw caughtError
       } finally {
         activePatchesRef.current--
@@ -643,7 +651,11 @@ export function useSelectedWorkerEditor({
         }
         return nextAddress
       } catch (caughtError) {
-        setError(formatEditorError("Errore aggiornando indirizzo", caughtError))
+        {
+          const addressMessage = formatEditorError("Errore aggiornando indirizzo", caughtError)
+          setError(addressMessage)
+          toast.error(addressMessage)
+        }
         throw caughtError
       } finally {
         activePatchesRef.current--
@@ -832,7 +844,11 @@ export function useSelectedWorkerEditor({
         const result = await updateRecord("esperienze_lavoratori", experienceId, patch)
         applyUpdatedWorkerExperience(result.row as EsperienzaLavoratoreRecord)
       } catch (caughtError) {
-        setError(formatEditorError("Errore aggiornando esperienza", caughtError))
+        {
+          const message = formatEditorError("Errore aggiornando esperienza", caughtError)
+          setError(message)
+          toast.error(message)
+        }
         throw caughtError
       } finally {
         setUpdatingExperience(false)
@@ -851,7 +867,11 @@ export function useSelectedWorkerEditor({
         )
         appendCreatedWorkerExperience(result.row as EsperienzaLavoratoreRecord)
       } catch (caughtError) {
-        setError(formatEditorError("Errore creando esperienza", caughtError))
+        {
+          const message = formatEditorError("Errore creando esperienza", caughtError)
+          setError(message)
+          toast.error(message)
+        }
         throw caughtError
       } finally {
         setUpdatingExperience(false)
@@ -868,7 +888,11 @@ export function useSelectedWorkerEditor({
 
         removeWorkerExperience(experienceId)
       } catch (caughtError) {
-        setError(formatEditorError("Errore eliminando esperienza", caughtError))
+        {
+          const message = formatEditorError("Errore eliminando esperienza", caughtError)
+          setError(message)
+          toast.error(message)
+        }
         throw caughtError
       } finally {
         setUpdatingExperience(false)
@@ -884,7 +908,11 @@ export function useSelectedWorkerEditor({
         const result = await updateRecord("referenze_lavoratori", referenceId, patch)
         applyUpdatedWorkerReference(result.row as ReferenzaLavoratoreRecord)
       } catch (caughtError) {
-        setError(formatEditorError("Errore aggiornando referenza", caughtError))
+        {
+          const message = formatEditorError("Errore aggiornando referenza", caughtError)
+          setError(message)
+          toast.error(message)
+        }
         throw caughtError
       } finally {
         setUpdatingExperience(false)
@@ -903,7 +931,11 @@ export function useSelectedWorkerEditor({
         )
         appendCreatedWorkerReference(result.row as ReferenzaLavoratoreRecord)
       } catch (caughtError) {
-        setError(formatEditorError("Errore creando referenza", caughtError))
+        {
+          const message = formatEditorError("Errore creando referenza", caughtError)
+          setError(message)
+          toast.error(message)
+        }
         throw caughtError
       } finally {
         setUpdatingExperience(false)
@@ -1007,7 +1039,11 @@ export function useSelectedWorkerEditor({
       )
       return result
     } catch (caughtError) {
-      setError(formatEditorError("Errore creazione account Stripe", caughtError))
+      {
+        const message = formatEditorError("Errore creazione account Stripe", caughtError)
+        setError(message)
+        toast.error(message)
+      }
       throw caughtError
     } finally {
       setUpdatingDocuments(false)
