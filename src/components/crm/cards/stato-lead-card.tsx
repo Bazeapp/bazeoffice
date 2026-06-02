@@ -26,10 +26,10 @@ import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
-import { useForm, useController } from "react-hook-form";
+import { useController } from "react-hook-form";
 import { Form } from "@/components/ui/form";
 import { FieldTextarea, FieldDatePicker } from "@/components/forms/field-components";
-import { useAutoSaveFormFields } from "@/hooks/use-auto-save-form-fields";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 
 type StatoLeadCardProps = {
   card: CrmPipelineCardData | null;
@@ -374,21 +374,11 @@ export function StatoLeadCard({
   onChangeStage,
   onPatchProcess,
 }: StatoLeadCardProps) {
-  // FASE 5 BIS — il form è la source of truth dei campi editabili; l'autosave
-  // (useAutoSaveFormFields) persiste i cambi → niente handler inline per campo.
-  const form = useForm({ defaultValues: buildStatoLeadDefaults(card) });
-
-  // Resync sui cambi server (anche realtime stesso id) MANTENENDO gli edit in
-  // corso (keepDirtyValues): i campi puliti si aggiornano, quelli che l'utente
-  // sta modificando no. Keyed sulla firma dei dati per non resettare ad ogni render.
-  const cardSignature = JSON.stringify(buildStatoLeadDefaults(card));
-  React.useEffect(() => {
-    form.reset(buildStatoLeadDefaults(card), { keepDirtyValues: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardSignature]);
-
-  useAutoSaveFormFields({
-    form,
+  // FASE 5 BIS — form + autosave in un hook. Il form è la source of truth dei
+  // campi editabili; useAutoSaveForm persiste i cambi e gestisce il resync
+  // realtime senza clobberare gli edit in corso.
+  const form = useAutoSaveForm({
+    defaults: buildStatoLeadDefaults(card),
     onSave: async (patch) => {
       if (!card || !onPatchProcess) return;
       const out: Record<string, unknown> = {};
