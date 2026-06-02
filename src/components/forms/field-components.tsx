@@ -3,6 +3,7 @@ import { useController } from "react-hook-form";
 
 import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker, type DatePickerProps } from "@/components/ui/date-picker";
 import { Field, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -169,6 +170,24 @@ function toIsoDate(value: string): string {
   const year = parts[2];
   if (!day || !month || !year) return "";
   return `${year}-${month}-${day}`;
+}
+
+// --- FieldCheckbox: booleano (no debounce). ---
+type FieldCheckboxProps = Omit<
+  React.ComponentProps<typeof Checkbox>,
+  "checked" | "onCheckedChange"
+> & { name: string };
+
+export function FieldCheckbox({ name, ...props }: FieldCheckboxProps) {
+  const { field } = useController({ name });
+  return (
+    <Checkbox
+      checked={Boolean(field.value)}
+      onCheckedChange={(checked) => field.onChange(checked === true)}
+      onBlur={field.onBlur}
+      {...props}
+    />
+  );
 }
 
 type FieldDatePickerProps = Omit<DatePickerProps, "value" | "onValueChange"> & {
