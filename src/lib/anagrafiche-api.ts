@@ -1193,8 +1193,8 @@ export async function fetchMesiCalendarioAll(limit = 500) {
   return rpcRows("mesi_calendario_all", { p_limit: limit })
 }
 
-export async function fetchRapportiLavorativiAll(limit = 3000) {
-  return rpcRows("rapporti_lavorativi_all", { p_limit: limit })
+export async function fetchRapportiLavorativiAll(limit = 3000, columns?: string) {
+  return rpcRows("rapporti_lavorativi_all", { p_limit: limit }, columns)
 }
 
 // FASE 4 BIS Wave 4 — CRM assegnazione: processi per stato_res.

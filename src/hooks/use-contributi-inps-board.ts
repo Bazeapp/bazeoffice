@@ -354,7 +354,12 @@ async function fetchContributiBoardData(
       ? fetchContributiInpsByPeriod(quarterRange.start, quarterRange.end)
       : Promise.resolve({ rows: [], total: 0, columns: [], groups: [] }),
     fetchMesiCalendarioAll(500),
-    fetchRapportiLavorativiAll(3000),
+    fetchRapportiLavorativiAll(
+      3000,
+      // Solo le colonne usate dalla card contributi (board + view). Il dettaglio
+      // rifetcha il rapporto full via rapporti_lavorativi_by_ids → trim sicuro.
+      "id,id_rapporto,ticket_id,stato_assunzione,codice_datore_webcolf,codice_dipendente_webcolf,cognome_nome_datore_proper,nome_lavoratore_per_url,tipo_contratto,tipo_rapporto",
+    ),
     fetchLookupValues(),
   ])
 
