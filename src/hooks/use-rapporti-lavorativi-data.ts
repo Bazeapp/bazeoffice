@@ -238,19 +238,10 @@ export function useRapportiLavorativiData(
     RichiestaAttivazioneRecord[]
   >([])
   const [loadingRelated, setLoadingRelated] = React.useState(false)
-  const [loadingRelatedSections, setLoadingRelatedSections] = React.useState<
-    Partial<Record<string, boolean>>
-  >({})
-  const loadedRelatedSectionsRef = React.useRef<Set<string>>(new Set())
-  const selectedRapportoIdRef = React.useRef<string | null>(selectedRapportoId)
   const [lookupColorsByDomain, setLookupColorsByDomain] = React.useState<Map<string, string>>(
     new Map()
   )
   const serverSearchQuery = React.useMemo(() => buildSearchQuery(searchValue), [searchValue])
-
-  React.useEffect(() => {
-    selectedRapportoIdRef.current = selectedRapportoId
-  }, [selectedRapportoId])
 
   const boardQueryKey = React.useMemo(
     () =>
@@ -535,8 +526,6 @@ export function useRapportiLavorativiData(
     async function loadRelatedRecords() {
       if (!selectedRapporto) {
         setLoadingRelated(false)
-        setLoadingRelatedSections({})
-        loadedRelatedSectionsRef.current = new Set()
         setSelectedFamiglia(null)
         setSelectedLavoratore(null)
         setSelectedProcessi([])
@@ -553,8 +542,6 @@ export function useRapportiLavorativiData(
       }
 
       setLoadingRelated(true)
-      setLoadingRelatedSections({})
-      loadedRelatedSectionsRef.current = new Set()
       setSelectedFamiglia(null)
       setSelectedLavoratore(null)
       setSelectedProcessi([])
@@ -570,7 +557,22 @@ export function useRapportiLavorativiData(
 
       try {
         const processIds = getRapportoProcessIds(selectedRapporto)
-        const [famigliaResponse, lavoratoreResponse, processiResponse, chiusuraResponse] = await Promise.all([
+        // Tutte le sezioni collegate del rapporto sono caricate eager
+        // all'apertura della scheda. Prima erano lazy (caricate solo quando
+        // l'IntersectionObserver del pannello marcava la sezione "attiva"
+        // durante lo scroll): con rootMargin -60% in basso le sezioni in coda
+        // non raggiungevano mai la fascia attiva e restavano vuote anche con
+        // dati collegati. Sono tutte query leggere, quindi le prendiamo qui.
+        const [
+          famigliaResponse,
+          lavoratoreResponse,
+          processiResponse,
+          chiusuraResponse,
+          ticketResponse,
+          contributiResponse,
+          variazioniResponse,
+          mesiResponse,
+        ] = await Promise.all([
           selectedRapporto.famiglia_id
             ? fetchFamiglieByIds([selectedRapporto.famiglia_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
@@ -583,6 +585,31 @@ export function useRapportiLavorativiData(
           selectedRapporto.fine_rapporto_lavorativo_id
             ? fetchChiusureByIds([selectedRapporto.fine_rapporto_lavorativo_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
+          fetchTicketByRapporto(selectedRapporto.id),
+          fetchContributiInpsByRapporto(selectedRapporto.id),
+          fetchVariazioniByRapporto(selectedRapporto.id),
+          fetchMesiLavoratiByRapporto(selectedRapporto.id),
+        ])
+
+        // Cedolini: i mesi lavorati guidano le fetch dipendenti (calendario,
+        // pagamenti, presenze) tramite gli id referenziati.
+        const mesiRows = mesiResponse.rows as MeseLavoratoRecord[]
+        const meseIds = mesiRows
+          .map((mese) => mese.mese_id)
+          .filter((meseId): meseId is string => Boolean(meseId))
+        const cedoliniTicketIds = mesiRows
+          .map((mese) => mese.ticket_id)
+          .filter((ticketId): ticketId is string => Boolean(ticketId))
+        const presenzaIds = mesiRows.flatMap((mese) =>
+          [mese.presenze_id, mese.presenze_regolare_id].filter(
+            (presenzaId): presenzaId is string => Boolean(presenzaId)
+          )
+        )
+
+        const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse] = await Promise.all([
+          fetchMesiCalendarioByIds(meseIds),
+          fetchPagamentiByTicketIds(cedoliniTicketIds),
+          fetchPresenzeByIds(presenzaIds),
         ])
 
         const processiRows = processiResponse.rows as ProcessoMatchingRecord[]
@@ -623,10 +650,14 @@ export function useRapportiLavorativiData(
         setSelectedLavoratore(nextLavoratore)
         setSelectedProcessi(processiRows)
         setSelectedChiusure(chiusuraResponse.rows as ChiusuraContrattoRecord[])
+        setSelectedTickets(ticketResponse.rows as TicketRecord[])
+        setSelectedContributi(contributiResponse.rows as ContributoInpsRecord[])
+        setSelectedVariazioni(variazioniResponse.rows as VariazioneContrattualeRecord[])
+        setSelectedMesi(mesiRows)
+        setSelectedMesiCalendario(mesiCalendarioResponse.rows as MeseCalendarioRecord[])
+        setSelectedPagamenti(pagamentiResponse.rows as PagamentoRecord[])
+        setSelectedPresenze(presenzeResponse.rows as PresenzaMensileRecord[])
         setSelectedRichiesteAttivazione(Array.from(richiesteByProcessId.values()))
-        loadedRelatedSectionsRef.current.add("preventivo")
-        loadedRelatedSectionsRef.current.add("gestione")
-        loadedRelatedSectionsRef.current.add("chiusure")
       } catch (loadError) {
         if (!isActive) return
         console.error("Errore caricando record collegati al rapporto", loadError)
@@ -665,73 +696,6 @@ export function useRapportiLavorativiData(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRapporto?.id])
 
-  const ensureRelatedSectionLoaded = React.useCallback(
-    async (sectionId: string) => {
-      const rapporto = selectedRapporto
-      if (!rapporto) return
-      if (!["tickets", "cedolini", "contributi", "variazioni"].includes(sectionId)) return
-      if (loadedRelatedSectionsRef.current.has(sectionId) || loadingRelatedSections[sectionId]) return
-
-      setLoadingRelatedSections((current) => ({ ...current, [sectionId]: true }))
-
-      try {
-        if (sectionId === "tickets") {
-          const response = await fetchTicketByRapporto(rapporto.id)
-          if (selectedRapportoIdRef.current !== rapporto.id) return
-          setSelectedTickets(response.rows as TicketRecord[])
-        }
-
-        if (sectionId === "contributi") {
-          const response = await fetchContributiInpsByRapporto(rapporto.id)
-          if (selectedRapportoIdRef.current !== rapporto.id) return
-          setSelectedContributi(response.rows as ContributoInpsRecord[])
-        }
-
-        if (sectionId === "variazioni") {
-          const response = await fetchVariazioniByRapporto(rapporto.id)
-          if (selectedRapportoIdRef.current !== rapporto.id) return
-          setSelectedVariazioni(response.rows as VariazioneContrattualeRecord[])
-        }
-
-        if (sectionId === "cedolini") {
-          const mesiResponse = await fetchMesiLavoratiByRapporto(rapporto.id)
-          const mesiRows = mesiResponse.rows as MeseLavoratoRecord[]
-          const meseIds = mesiRows
-            .map((mese) => mese.mese_id)
-            .filter((meseId): meseId is string => Boolean(meseId))
-          const ticketIds = mesiRows
-            .map((mese) => mese.ticket_id)
-            .filter((ticketId): ticketId is string => Boolean(ticketId))
-          const presenzaIds = mesiRows.flatMap((mese) =>
-            [mese.presenze_id, mese.presenze_regolare_id].filter(
-              (presenzaId): presenzaId is string => Boolean(presenzaId)
-            )
-          )
-
-          const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse] = await Promise.all([
-            fetchMesiCalendarioByIds(meseIds),
-            fetchPagamentiByTicketIds(ticketIds),
-            fetchPresenzeByIds(presenzaIds),
-          ])
-
-          if (selectedRapportoIdRef.current !== rapporto.id) return
-          setSelectedMesi(mesiRows)
-          setSelectedMesiCalendario(mesiCalendarioResponse.rows as MeseCalendarioRecord[])
-          setSelectedPagamenti(pagamentiResponse.rows as PagamentoRecord[])
-          setSelectedPresenze(presenzeResponse.rows as PresenzaMensileRecord[])
-        }
-
-        loadedRelatedSectionsRef.current.add(sectionId)
-      } catch (loadError) {
-        console.error(`Errore caricando sezione rapporto ${sectionId}`, loadError)
-        setDetailError("Errore nel caricamento dei record collegati. Riprova tra qualche secondo.")
-      } finally {
-        setLoadingRelatedSections((current) => ({ ...current, [sectionId]: false }))
-      }
-    },
-    [loadingRelatedSections, selectedRapporto],
-  )
-
   return {
     rapporti,
     rapportiTotal,
@@ -762,8 +726,6 @@ export function useRapportiLavorativiData(
     selectedTickets,
     selectedRichiesteAttivazione,
     loadingRelated,
-    loadingRelatedSections,
-    ensureRelatedSectionLoaded,
     lookupColorsByDomain,
     createTicketForSelectedRapporto,
     updateSelectedRapporto,

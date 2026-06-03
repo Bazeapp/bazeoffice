@@ -39,8 +39,6 @@ export function RapportiLavorativiView({
     selectedTickets,
     selectedRichiesteAttivazione,
     loadingRelated,
-    loadingRelatedSections,
-    ensureRelatedSectionLoaded,
     lookupColorsByDomain,
     createTicketForSelectedRapporto,
     updateSelectedRapporto,
@@ -86,9 +84,7 @@ export function RapportiLavorativiView({
         tickets={selectedTickets}
         richiesteAttivazione={selectedRichiesteAttivazione}
         loadingRelated={loadingRelated}
-        loadingSections={loadingRelatedSections}
         lookupColorsByDomain={lookupColorsByDomain}
-        onSectionActive={ensureRelatedSectionLoaded}
         onCreateTicket={createTicketForSelectedRapporto}
         onRapportoUpdated={updateSelectedRapporto}
       />

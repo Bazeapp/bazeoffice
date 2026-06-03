@@ -104,9 +104,7 @@ type RapportoDetailPanelProps = {
   tickets?: TicketRecord[]
   richiesteAttivazione?: RichiestaAttivazioneRecord[]
   loadingRelated: boolean
-  loadingSections?: Partial<Record<string, boolean>>
   lookupColorsByDomain: Map<string, string>
-  onSectionActive?: (sectionId: string) => void
   onCreateTicket?: (input: {
     tipo: SupportTicketType
     rapportoId: string
@@ -654,9 +652,7 @@ export function RapportoDetailPanel({
   tickets = [],
   richiesteAttivazione = [],
   loadingRelated,
-  loadingSections = {},
   lookupColorsByDomain,
-  onSectionActive,
   onCreateTicket,
   onRapportoUpdated,
   hideHeader = false,
@@ -745,7 +741,6 @@ export function RapportoDetailPanel({
           const sectionId = visible[0].target.getAttribute("data-section-id")
           if (sectionId) {
             setActiveSection(sectionId)
-            onSectionActive?.(sectionId)
           }
         }
       },
@@ -757,7 +752,7 @@ export function RapportoDetailPanel({
     })
 
     return () => observer.disconnect()
-  }, [onSectionActive, rapporto])
+  }, [rapporto])
 
   const setSectionRef = React.useCallback(
     (sectionId: string) => (element: HTMLDivElement | null) => {
@@ -773,13 +768,12 @@ export function RapportoDetailPanel({
 
   const scrollToSection = React.useCallback((sectionId: string) => {
     setActiveSection(sectionId)
-    onSectionActive?.(sectionId)
     isScrollingByClickRef.current = true
     sectionRefs.current[sectionId]?.scrollIntoView({ behavior: "smooth", block: "start" })
     window.setTimeout(() => {
       isScrollingByClickRef.current = false
     }, 700)
-  }, [onSectionActive])
+  }, [])
 
   const handleUploadRapportoAttachment = React.useCallback(
     async (
@@ -1178,8 +1172,6 @@ export function RapportoDetailPanel({
   }))
   const selectedContributo =
     contributoCards.find((card) => card.id === selectedContributoId) ?? null
-  const isSectionLoading = (sectionId: string) => Boolean(loadingSections[sectionId])
-
   const headerContent = (
     <div className="space-y-3">
       <div>
@@ -1664,7 +1656,7 @@ export function RapportoDetailPanel({
               }
               contentClassName="space-y-3 pt-2"
             >
-              {isSectionLoading("tickets") ? (
+              {loadingRelated ? (
                 <LinkedRowsSkeleton />
               ) : tickets.length > 0 ? (
                 tickets.map((ticket) => (
@@ -1712,7 +1704,7 @@ export function RapportoDetailPanel({
                 ) : undefined
               }
             >
-              {isSectionLoading("cedolini") ? (
+              {loadingRelated ? (
                 <LinkedRowsSkeleton />
               ) : sortedMesi.length > 0 ? (
                 sortedMesi.map((mese) => {
@@ -1783,7 +1775,7 @@ export function RapportoDetailPanel({
               icon={<CalendarDaysIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
-              {isSectionLoading("contributi") ? (
+              {loadingRelated ? (
                 <LinkedRowsSkeleton />
               ) : contributi.length > 0 ? (
                 contributi.map((contributo) => (
@@ -1828,7 +1820,7 @@ export function RapportoDetailPanel({
               icon={<RefreshCwIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
-              {isSectionLoading("variazioni") ? (
+              {loadingRelated ? (
                 <LinkedRowsSkeleton rows={2} />
               ) : variazioni.length > 0 ? (
                 variazioni.map((variazione) => (
