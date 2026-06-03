@@ -110,12 +110,24 @@ const DEFAULT_STAGE_DEFINITIONS: PayrollStageDefinition[] = [
   { id: "Inviato cedolino", label: "Inviato cedolino", color: "green" },
   { id: "Richiesta chiarimenti", label: "Richiesta chiarimenti", color: "orange" },
   { id: "Pagato", label: "Pagato", color: "green" },
+  { id: "DONE", label: "DONE", color: "emerald" },
 ]
 
+// `done` is intentionally NOT aliased to "Pagato": "DONE" is a DISTINCT,
+// terminal stage written by the `wk-conferma-pagamento-cedolino` edge function
+// AFTER the payment-confirmation email/WhatsApp have been sent. Collapsing it
+// onto "Pagato" (as before) hid whether the confirmation actually went out.
 const LEGACY_STAGE_ALIASES: Record<string, string> = {
-  done: "Pagato",
   "cedolino pronto saf acli": "Cedolino Pronto",
 }
+
+/**
+ * Stages set automatically by the backend (edge functions) — they must NOT be
+ * a manual drop/select target. The payment-confirmation trigger fires only on
+ * "Pagato"; dropping a card straight into "DONE" would skip sending the
+ * confirmation. The card reaches "DONE" on its own once the EF completes.
+ */
+export const TERMINAL_STAGE_IDS = new Set<string>(["DONE"])
 
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
