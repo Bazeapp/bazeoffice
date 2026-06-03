@@ -2177,14 +2177,29 @@ export function RicercaWorkersPipelineView({
                 {selectedWorker?.nomeCompleto ?? "Lavoratore"}
               </BreadcrumbItem>
             </Breadcrumb>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={handleCloseWorkerOverlay}
-            >
-              <XIcon />
-            </Button>
+            <div className="flex items-center gap-1">
+              {selectedWorkerRow ? (
+                <RecruiterFeedbackButton
+                  variant="inline"
+                  value={asString(selectedWorkerRow?.feedback_recruiter)}
+                  operatorName={operatorName}
+                  onSave={(next) =>
+                    patchSelectedWorkerField(
+                      "feedback_recruiter",
+                      next.trim() || null,
+                    )
+                  }
+                />
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleCloseWorkerOverlay}
+              >
+                <XIcon />
+              </Button>
+            </div>
           </div>
 
           {selectedWorkerError ? (
@@ -2522,16 +2537,6 @@ export function RicercaWorkersPipelineView({
                     onDocumentStripeAccountChange={saveDocumentStripeAccount}
                     onDocumentUpsert={upsertSelectedWorkerDocument}
                     onDocumentUploadError={setSelectedWorkerError}
-                  />
-                  <RecruiterFeedbackButton
-                    value={asString(selectedWorkerRow?.feedback_recruiter)}
-                    operatorName={operatorName}
-                    onSave={(next) =>
-                      patchSelectedWorkerField(
-                        "feedback_recruiter",
-                        next.trim() || null,
-                      )
-                    }
                   />
                 </div>
               </div>

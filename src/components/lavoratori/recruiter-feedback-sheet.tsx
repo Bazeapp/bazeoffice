@@ -52,35 +52,54 @@ type RecruiterFeedbackButtonProps = {
   operatorName: string
   onSave: (nextValue: string) => Promise<void> | void
   disabled?: boolean
+  /**
+   * `floating` (default): round icon pinned bottom-right of the detail scroll
+   * area. `inline`: a bare ghost icon to drop into a header/toolbar row.
+   */
+  variant?: "floating" | "inline"
 }
 
 /**
- * Floating icon (bottom-right of the detail scroll area) that opens the
- * editable recruiter-feedback sheet. Drop into any worker detail panel.
+ * Icon that opens the editable recruiter-feedback sheet. Drop into any worker
+ * detail panel (floating) or into a header/toolbar (inline).
  */
 export function RecruiterFeedbackButton({
   value,
   operatorName,
   onSave,
   disabled = false,
+  variant = "floating",
 }: RecruiterFeedbackButtonProps) {
   const [open, setOpen] = React.useState(false)
 
   return (
     <>
-      <div className="sticky right-0 bottom-1 z-20 mt-4 flex justify-end">
+      {variant === "inline" ? (
         <Button
           type="button"
           variant="ghost"
-          size="icon"
-          className="rounded-full border-2 border-black bg-background/95"
+          size="icon-sm"
           title="Apri feedback recruiter"
           aria-label="Apri feedback recruiter"
           onClick={() => setOpen(true)}
         >
-          <MessageSquareTextIcon className="size-5" />
+          <MessageSquareTextIcon className="size-4" />
         </Button>
-      </div>
+      ) : (
+        <div className="sticky right-0 bottom-1 z-20 mt-4 flex justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="rounded-full border-2 border-black bg-background/95"
+            title="Apri feedback recruiter"
+            aria-label="Apri feedback recruiter"
+            onClick={() => setOpen(true)}
+          >
+            <MessageSquareTextIcon className="size-5" />
+          </Button>
+        </div>
+      )}
       <RecruiterFeedbackSheet
         open={open}
         onOpenChange={setOpen}
