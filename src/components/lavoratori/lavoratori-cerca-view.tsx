@@ -33,7 +33,8 @@ import { LavoratoriCercaListPanel } from "@/components/lavoratori/lavoratori-cer
 import { WorkerDetailShell } from "@/components/lavoratori/worker-detail-shell";
 import { RicercaActiveSearchCard } from "@/components/ricerca/ricerca-active-search-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
-import { RecruiterFeedbackSheet } from "@/components/lavoratori/recruiter-feedback-sheet";
+import { RecruiterFeedbackButton } from "@/components/lavoratori/recruiter-feedback-sheet";
+import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
 import type { OpenRicercaDetailOptions } from "@/routes/app-routes";
 import {
@@ -440,7 +441,6 @@ export function LavoratoriCercaView({
     [lookupOptionsByDomain],
   );
   const addressMobilityAnchor = useComboboxAnchor();
-  const [feedbackSheetOpen, setFeedbackSheetOpen] = React.useState(false);
   const workerPhotoInputRef = React.useRef<HTMLInputElement | null>(null);
   const detailScrollRef = React.useRef<HTMLElement | null>(null);
   const sectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
@@ -843,7 +843,6 @@ export function LavoratoriCercaView({
     selectedWorkerIsNonIdoneo,
     selectedWorkerNonQualificatoIssues,
     selectedWorkerIsNonQualificato,
-    recruiterFeedbackEntries,
     availabilityPayload,
     availabilityReadOnlyRows,
     presentationPhotoSlots,
@@ -920,6 +919,8 @@ export function LavoratoriCercaView({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
+
+  const operatorName = useCurrentOperatorName();
 
   const { value: dataRitornoLCVValue, onChange: saveDataRitornoLCV } = useDebouncedSave(
     asString(selectedWorkerRow?.data_ritorno_disponibilita),
@@ -2157,23 +2158,15 @@ export function LavoratoriCercaView({
               </div>
             </div>
           ) : null}
-          <div className="sticky right-0 bottom-1 z-20 mt-4 flex justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="rounded-full border-2 border-black bg-background/95"
-              title="Apri feedback recruiter"
-              aria-label="Apri feedback recruiter"
-              onClick={() => setFeedbackSheetOpen(true)}
-            >
-              <MessageSquareTextIcon className="size-5" />
-            </Button>
-          </div>
-          <RecruiterFeedbackSheet
-            open={feedbackSheetOpen}
-            onOpenChange={setFeedbackSheetOpen}
-            entries={recruiterFeedbackEntries}
+          <RecruiterFeedbackButton
+            value={asString(selectedWorkerRow?.feedback_recruiter)}
+            operatorName={operatorName}
+            onSave={(next) =>
+              patchSelectedWorkerField(
+                "feedback_recruiter",
+                next.trim() || null,
+              )
+            }
           />
         </WorkerDetailShell>
         <Dialog

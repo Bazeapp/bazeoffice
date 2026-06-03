@@ -15,6 +15,7 @@ import {
   type WorkerOtherSelectionSummaryItem,
 } from "@/components/lavoratori/lavoratore-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
+import { RecruiterFeedbackButton } from "@/components/lavoratori/recruiter-feedback-sheet";
 import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
 import {
   type RelatedActiveSearchItem,
@@ -92,6 +93,7 @@ import {
   type RicercaWorkersPipelineState,
 } from "@/hooks/use-ricerca-workers-pipeline";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
+import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
   createRecord,
@@ -1205,6 +1207,8 @@ export function RicercaWorkersPipelineView({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
+
+  const operatorName = useCurrentOperatorName();
 
   const { value: dataRitornoPipelineValue, onChange: saveDataRitornoPipeline } = useDebouncedSave(
     asString(selectedWorkerRow?.data_ritorno_disponibilita),
@@ -2520,6 +2524,23 @@ export function RicercaWorkersPipelineView({
                     onDocumentUploadError={setSelectedWorkerError}
                   />
                 </div>
+              </div>
+            </div>
+          ) : null}
+          {selectedWorkerRow ? (
+            <div className="pointer-events-none absolute right-4 bottom-4 z-[60]">
+              <div className="pointer-events-auto">
+                <RecruiterFeedbackButton
+                  variant="fab"
+                  value={asString(selectedWorkerRow?.feedback_recruiter)}
+                  operatorName={operatorName}
+                  onSave={(next) =>
+                    patchSelectedWorkerField(
+                      "feedback_recruiter",
+                      next.trim() || null,
+                    )
+                  }
+                />
               </div>
             </div>
           ) : null}
