@@ -62,6 +62,7 @@ function makeAssunzione(
     info_anagrafiche_numero_fisso: null,
     info_anagrafiche_numero_mobile: null,
     luogo_lavoro_se_diverso_da_residenza: null,
+    mansione_lavoratore: null,
     mezza_giornata_di_riposo: null,
     ore_di_lavoro: null,
     ore_giovedi: null,
