@@ -63,6 +63,14 @@ type DetailTarget = "datore" | "lavoratore"
 type LookupOption = { value: string; label: string }
 
 const TIPO_CONTRATTO_OPTIONS = ["A", "B", "BS", "C", "CS", "D", "DS"] as const
+
+// Il campo "Tipologia contratto" accetta solo i livelli CCNL qui sopra. Valori
+// che arrivano da altre fonti (es. "Indeterminato" dal sync esterno) non sono
+// validi: li trattiamo come vuoto così il campo mostra il placeholder invece di
+// un'opzione inesistente.
+function isValidTipoContratto(value: string | null | undefined) {
+  return Boolean(value) && (TIPO_CONTRATTO_OPTIONS as readonly string[]).includes(value as string)
+}
 const REGIME_NON_CONVIVENTE = "Il lavoratore NON è convivente"
 const REGIME_CONVIVENTE = "Il lavoratore è convivente"
 const TIPO_UTENTE_OPTIONS = ["DATORE LAVORO", "LAVORATORE"] as const
@@ -102,6 +110,7 @@ const ASSUNZIONE_DETAIL_SELECT = [
   "info_anagrafiche_numero_fisso",
   "info_anagrafiche_numero_mobile",
   "luogo_lavoro_se_diverso_da_residenza",
+  "mansione_lavoratore",
   "mezza_giornata_di_riposo",
   "ore_di_lavoro",
   "ore_giovedi",
@@ -979,6 +988,11 @@ function DatoreDetail({
         icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
         contentClassName="space-y-4"
       >
+        <EditableField label="Mansione indicata dalla famiglia">
+          <div className="flex min-h-10 items-center rounded-md border bg-surface px-3 py-2 text-sm">
+            {assunzione?.mansione_lavoratore || "—"}
+          </div>
+        </EditableField>
         <EditableField label="Regime di convivenza">
           <Select
             value={draft.regimeConvivenza}
@@ -1641,7 +1655,9 @@ export function AssunzioniDetailSheet({
     () => ({
       statoAssunzione: card?.stage ?? "",
       tipoRapporto: card?.tipoRapporto ?? "",
-      tipoContratto: card?.rapporto?.tipo_contratto ?? "",
+      tipoContratto: isValidTipoContratto(card?.rapporto?.tipo_contratto)
+        ? (card?.rapporto?.tipo_contratto ?? "")
+        : "",
       dataAssunzione: card?.rapporto?.data_inizio_rapporto ?? "",
       idRapportoInps: card?.rapporto?.id_rapporto ?? "",
       codiceRapportoWebcolf:
