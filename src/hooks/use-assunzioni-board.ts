@@ -62,6 +62,7 @@ export type AssunzioneRecord = {
   info_anagrafiche_numero_fisso: string | null
   info_anagrafiche_numero_mobile: string | null
   luogo_lavoro_se_diverso_da_residenza: string | null
+  mansione_lavoratore: string | null
   mezza_giornata_di_riposo: string | null
   ore_di_lavoro: number | string | null
   ore_giovedi: number | string | null
@@ -366,6 +367,7 @@ export const ASSUNZIONE_FIELD_BINDINGS: readonly string[] = [
   "info_anagrafiche_numero_fisso",
   "info_anagrafiche_numero_mobile",
   "luogo_lavoro_se_diverso_da_residenza",
+  "mansione_lavoratore",
   "mezza_giornata_di_riposo",
   "ore_di_lavoro",
   "ore_giovedi",
