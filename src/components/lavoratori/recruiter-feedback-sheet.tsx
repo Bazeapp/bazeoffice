@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
@@ -30,12 +29,11 @@ export function RecruiterFeedbackSheet({
 }: RecruiterFeedbackSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-130">
+      <SheetContent side="right" className="flex w-full flex-col sm:max-w-130">
         <SheetHeader>
           <SheetTitle>Feedback recruiter</SheetTitle>
-          <SheetDescription>Storico note su questo lavoratore</SheetDescription>
         </SheetHeader>
-        <div className="p-4 pt-0">
+        <div className="flex min-h-0 flex-1 flex-col p-4 pt-0">
           <RecruiterFeedbackPanel
             embedded
             value={value}

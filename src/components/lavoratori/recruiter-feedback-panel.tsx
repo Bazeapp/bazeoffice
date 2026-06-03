@@ -11,15 +11,6 @@ import {
   parseRecruiterFeedback,
 } from "@/features/lavoratori/lib/feedback-utils"
 
-function formatTodayItalian(): string {
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date())
-}
-
 type RecruiterFeedbackPanelProps = {
   value: string
   operatorName: string
@@ -64,69 +55,69 @@ export function RecruiterFeedbackPanel({
     }
   }, [draft, onSave, operatorName, saving, value])
 
-  const content = (
-    <>
-      {entries.length > 0 ? (
-        <div className="space-y-3">
-          {entries.map((entry, index) => (
-            <div
-              key={`${entry.name}-${entry.date}-${index}`}
-              className="space-y-1.5"
-            >
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold">{entry.name}</p>
-                {entry.date ? (
-                  <Badge variant="outline">{entry.date}</Badge>
-                ) : null}
-              </div>
-              {entry.text ? (
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {entry.text}
-                </p>
-              ) : null}
-              {index < entries.length - 1 ? <Separator /> : null}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-muted-foreground text-sm">Nessun appunto ancora.</p>
-      )}
-
-      <div className="space-y-2 border-t pt-4">
-        <Textarea
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          rows={3}
-          disabled={disabled || saving}
-          placeholder="Scrivi un nuovo appunto… (verrà firmato in automatico)"
-          className="min-h-20 w-full text-sm"
-          onKeyDown={(event) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-              event.preventDefault()
-              void handleAdd()
-            }
-          }}
-        />
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-muted-foreground text-xs">
-            Firmato come <span className="font-medium">{operatorName}</span> ·{" "}
-            {formatTodayItalian()}
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => void handleAdd()}
-            disabled={disabled || saving || !draft.trim()}
+  const historyBlock =
+    entries.length > 0 ? (
+      <div className="space-y-3">
+        {entries.map((entry, index) => (
+          <div
+            key={`${entry.name}-${entry.date}-${index}`}
+            className="space-y-1.5"
           >
-            {saving ? "Salvataggio…" : "Aggiungi commento"}
-          </Button>
-        </div>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold">{entry.name}</p>
+              {entry.date ? <Badge variant="outline">{entry.date}</Badge> : null}
+            </div>
+            {entry.text ? (
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                {entry.text}
+              </p>
+            ) : null}
+            {index < entries.length - 1 ? <Separator /> : null}
+          </div>
+        ))}
       </div>
-    </>
+    ) : (
+      <p className="text-muted-foreground text-sm">Nessun appunto ancora.</p>
+    )
+
+  const inputBlock = (
+    <div className="space-y-2 border-t pt-4">
+      <Textarea
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        rows={3}
+        disabled={disabled || saving}
+        placeholder="Scrivi un nuovo appunto… (verrà firmato in automatico)"
+        className="min-h-20 w-full text-sm"
+        onKeyDown={(event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+            event.preventDefault()
+            void handleAdd()
+          }
+        }}
+      />
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void handleAdd()}
+          disabled={disabled || saving || !draft.trim()}
+        >
+          {saving ? "Salvataggio…" : "Aggiungi commento"}
+        </Button>
+      </div>
+    </div>
   )
 
+  // Embedded (sheet): fill the available height so the input stays pinned to
+  // the bottom and the history scrolls above it — even with no history yet.
   if (embedded) {
-    return <div className="space-y-4">{content}</div>
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        <div className="min-h-0 flex-1 overflow-y-auto">{historyBlock}</div>
+        {inputBlock}
+      </div>
+    )
   }
 
   return (
@@ -136,7 +127,8 @@ export function RecruiterFeedbackPanel({
       showDefaultAction={false}
       contentClassName="space-y-4"
     >
-      {content}
+      {historyBlock}
+      {inputBlock}
     </DetailSectionBlock>
   )
 }
