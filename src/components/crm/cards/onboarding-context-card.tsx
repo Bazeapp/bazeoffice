@@ -34,7 +34,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DebouncedTextarea } from "@/components/ui/debounced-input";
+import { useController } from "react-hook-form";
+import { Form } from "@/components/ui/form";
+import { FieldTextarea } from "@/components/forms/field-components";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
@@ -509,6 +512,133 @@ function MultiCheckboxField({
   );
 }
 
+// FASE 5 BIS — thin wrapper form-aware del ChoiceFieldSet locale.
+function FieldChoiceSet({
+  name,
+  title,
+  options,
+}: {
+  name: string;
+  title: string;
+  options: LookupOption[];
+}) {
+  const { field } = useController({ name });
+  return (
+    <ChoiceFieldSet
+      title={title}
+      selected={typeof field.value === "string" ? field.value : ""}
+      options={options}
+      onValueChange={field.onChange}
+    />
+  );
+}
+
+// FASE 5 BIS — thin wrapper form-aware del MultiCheckboxField locale (array).
+function FieldMultiCheckbox({
+  name,
+  title,
+  options,
+  maxVisibleOptions,
+  sequential,
+}: {
+  name: string;
+  title: string;
+  options: LookupOption[];
+  maxVisibleOptions?: number;
+  sequential?: boolean;
+}) {
+  const { field } = useController({ name });
+  const value = Array.isArray(field.value) ? (field.value as string[]) : [];
+  return (
+    <MultiCheckboxField
+      title={title}
+      options={options}
+      value={value}
+      maxVisibleOptions={maxVisibleOptions}
+      sequential={sequential}
+      onChange={field.onChange}
+    />
+  );
+}
+
+// FASE 5 BIS — input nativi date/datetime-local agganciati al form. La conversione
+// timezone (romaWallclockToUtcIso) avviene in onSave; qui si tiene il wallclock.
+function FieldDateInput({
+  name,
+  id,
+  type,
+}: {
+  name: string;
+  id?: string;
+  type: "date" | "datetime-local";
+}) {
+  const { field } = useController({ name });
+  return (
+    <Input
+      id={id}
+      type={type}
+      value={typeof field.value === "string" ? field.value : ""}
+      onChange={(event) => field.onChange(event.target.value)}
+    />
+  );
+}
+
+// FASE 5 BIS — Select "stato operativo" agganciato al form (preserva il fallback
+// option e la normalizzazione selectedOptionValue interni).
+function FieldStatoOperativo({
+  name,
+  options,
+}: {
+  name: string;
+  options: LookupOption[];
+}) {
+  const { field } = useController({ name });
+  const selected = typeof field.value === "string" ? field.value : "";
+  const renderOptions =
+    options.length > 0
+      ? options
+      : hasValue(selected)
+        ? [{ valueKey: selected, valueLabel: selected, color: null, sortOrder: null }]
+        : [];
+  return (
+    <Select value={selectedOptionValue(selected, options)} onValueChange={field.onChange}>
+      <SelectTrigger id="onboarding-stato-operativo" className="w-full">
+        <SelectValue placeholder="Seleziona stato operativo" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {renderOptions.map((option) => (
+            <SelectItem key={option.valueKey} value={option.valueKey}>
+              {option.valueLabel}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function cleanValue(value: string | null | undefined) {
+  return value && value !== "-" ? value : "";
+}
+
+// FASE 5 BIS — defaults del form (chiavi = nomi logici; il routing colonna/target
+// process|family avviene in onSave). Ricostruiti ad ogni render dal card.
+function buildContextDefaults(card: CrmPipelineCardData | null) {
+  return {
+    coldAttempts: splitStoredValues(card?.salesColdCallFollowup),
+    noShowAttempts: splitStoredValues(card?.salesNoShowFollowup),
+    dataRicontatto: card?.dataPerRicercaFuturaRaw
+      ? card.dataPerRicercaFuturaRaw.slice(0, 10)
+      : "",
+    dataCall: toDateTimeLocalValue(card?.dataCallPrenotataRaw),
+    noteStato: cleanValue(card?.appuntiChiamataSales),
+    motivazioneLost: cleanValue(card?.motivazioneLost),
+    motivazioneOot: cleanValue(card?.motivazioneOot),
+    statoRes: cleanValue(card?.statoRes),
+  };
+}
+
 export function OnboardingContextCard({
   card,
   lookupOptionsByField,
@@ -519,59 +649,54 @@ export function OnboardingContextCard({
   onPatchProcess,
   onPatchFamily,
 }: OnboardingContextCardProps) {
-  const noteStatoCommitted =
-    card?.appuntiChiamataSales === "-" ? "" : card?.appuntiChiamataSales ?? "";
-  const [dataRicontatto, setDataRicontatto] = React.useState(
-    card?.dataPerRicercaFuturaRaw ? card.dataPerRicercaFuturaRaw.slice(0, 10) : ""
-  );
-  const [dataCall, setDataCall] = React.useState(
-    toDateTimeLocalValue(card?.dataCallPrenotataRaw)
-  );
-  const [coldAttempts, setColdAttempts] = React.useState<string[]>(
-    splitStoredValues(card?.salesColdCallFollowup)
-  );
-  const [noShowAttempts, setNoShowAttempts] = React.useState<string[]>(
-    splitStoredValues(card?.salesNoShowFollowup)
-  );
-  // Per-field dirty flags: prevent a realtime echo on any other field from
-  // wiping the in-progress draft for the field the user is editing. The flag
-  // is set when the user changes the value and cleared when the card id flips
-  // (different record loaded).
-  const isEditingDataRicontattoRef = React.useRef(false);
-  const isEditingDataCallRef = React.useRef(false);
-  const isEditingColdAttemptsRef = React.useRef(false);
-  const isEditingNoShowAttemptsRef = React.useRef(false);
-  const previousCardIdRef = React.useRef(card?.id);
-
-  React.useEffect(() => {
-    const cardIdChanged = previousCardIdRef.current !== card?.id;
-    if (cardIdChanged) {
-      previousCardIdRef.current = card?.id;
-      isEditingDataRicontattoRef.current = false;
-      isEditingDataCallRef.current = false;
-      isEditingColdAttemptsRef.current = false;
-      isEditingNoShowAttemptsRef.current = false;
-    }
-    if (!isEditingDataRicontattoRef.current) {
-      setDataRicontatto(card?.dataPerRicercaFuturaRaw ? card.dataPerRicercaFuturaRaw.slice(0, 10) : "");
-    }
-    if (!isEditingDataCallRef.current) {
-      setDataCall(toDateTimeLocalValue(card?.dataCallPrenotataRaw));
-    }
-    if (!isEditingColdAttemptsRef.current) {
-      setColdAttempts(splitStoredValues(card?.salesColdCallFollowup));
-    }
-    if (!isEditingNoShowAttemptsRef.current) {
-      setNoShowAttempts(splitStoredValues(card?.salesNoShowFollowup));
-    }
-  }, [
-    card?.appuntiChiamataSales,
-    card?.dataPerRicercaFuturaRaw,
-    card?.dataCallPrenotataRaw,
-    card?.salesColdCallFollowup,
-    card?.salesNoShowFollowup,
-    card?.id,
-  ]);
+  // FASE 5 BIS — form + autosave. Il form è la source of truth: niente più
+  // useState per-campo né dirty-ref manuali (il resync realtime senza clobber è
+  // gestito da useAutoSaveForm via keepDirtyValues). onSave instrada ogni campo
+  // al target giusto: quasi tutto sul processo, la data call sulla famiglia.
+  const form = useAutoSaveForm({
+    defaults: buildContextDefaults(card),
+    onSave: async (patch) => {
+      if (!card) return;
+      const processPatch: Record<string, unknown> = {};
+      const familyPatch: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(patch)) {
+        switch (key) {
+          case "coldAttempts":
+            processPatch.sales_cold_call_followup = (value as string[]).join(", ");
+            break;
+          case "noShowAttempts":
+            processPatch.sales_no_show_followup = (value as string[]).join(", ");
+            break;
+          case "dataRicontatto":
+            processPatch.data_per_ricerca_futura = (value as string) || null;
+            break;
+          case "noteStato":
+            processPatch.appunti_chiamata_sales = (value as string) || null;
+            break;
+          case "motivazioneLost":
+            processPatch.motivazione_lost = (value as string) || null;
+            break;
+          case "motivazioneOot":
+            processPatch.motivazione_oot = (value as string) || null;
+            break;
+          case "statoRes":
+            processPatch.stato_res = (value as string) || null;
+            break;
+          case "dataCall":
+            familyPatch.data_call_prenotata = value
+              ? romaWallclockToUtcIso(value as string)
+              : null;
+            break;
+        }
+      }
+      if (Object.keys(processPatch).length > 0) {
+        await onPatchProcess?.(card.id, processPatch);
+      }
+      if (Object.keys(familyPatch).length > 0) {
+        await onPatchFamily?.(card.famigliaId, familyPatch);
+      }
+    },
+  });
 
   if (!card) return null;
 
@@ -585,19 +710,12 @@ export function OnboardingContextCard({
   switch (card.stage) {
     case "hot_in_attesa_di_primo_contatto":
       contextualFields = (
-        <MultiCheckboxField
+        <FieldMultiCheckbox
+          name="coldAttempts"
           title="Tentativi di chiamata"
           options={lookupOptionsByField.sales_cold_call_followup ?? []}
-          value={coldAttempts}
           maxVisibleOptions={3}
           sequential
-          onChange={(next) => {
-            isEditingColdAttemptsRef.current = true;
-            setColdAttempts(next);
-            void onPatchProcess?.(card.id, {
-              sales_cold_call_followup: next.join(", "),
-            });
-          }}
         />
       );
       break;
@@ -616,18 +734,10 @@ export function OnboardingContextCard({
                 ? "Data e ora callback"
                 : "Data chiamata prenotata"}
             </FieldLabel>
-            <Input
+            <FieldDateInput
+              name="dataCall"
               id="onboarding-data-call"
               type="datetime-local"
-              value={dataCall}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                isEditingDataCallRef.current = true;
-                setDataCall(nextValue);
-                void onPatchFamily?.(card.famigliaId, {
-                  data_call_prenotata: romaWallclockToUtcIso(nextValue),
-                });
-              }}
             />
           </Field>
         </FieldGroup>
@@ -635,19 +745,12 @@ export function OnboardingContextCard({
       break;
     case "hot_no_show":
       contextualFields = (
-        <MultiCheckboxField
+        <FieldMultiCheckbox
+          name="noShowAttempts"
           title="Tentativi di chiamata"
           options={lookupOptionsByField.sales_no_show_followup ?? []}
-          value={noShowAttempts}
           maxVisibleOptions={2}
           sequential
-          onChange={(next) => {
-            isEditingNoShowAttemptsRef.current = true;
-            setNoShowAttempts(next);
-            void onPatchProcess?.(card.id, {
-              sales_no_show_followup: next.join(", "),
-            });
-          }}
         />
       );
       break;
@@ -656,31 +759,15 @@ export function OnboardingContextCard({
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="onboarding-data-ricontatto">Data ricontatto</FieldLabel>
-            <Input
+            <FieldDateInput
+              name="dataRicontatto"
               id="onboarding-data-ricontatto"
               type="date"
-              value={dataRicontatto}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                isEditingDataRicontattoRef.current = true;
-                setDataRicontatto(nextValue);
-                void onPatchProcess?.(card.id, {
-                  data_per_ricerca_futura: nextValue || null,
-                });
-              }}
             />
           </Field>
           <Field>
             <FieldLabel htmlFor="onboarding-note-cold">Note</FieldLabel>
-            <DebouncedTextarea
-              id="onboarding-note-cold"
-              committedValue={noteStatoCommitted}
-              onSave={async (value) => {
-                await onPatchProcess?.(card.id, {
-                  appunti_chiamata_sales: value || null,
-                });
-              }}
-            />
+            <FieldTextarea name="noteStato" id="onboarding-note-cold" />
           </Field>
         </FieldGroup>
       );
@@ -689,64 +776,21 @@ export function OnboardingContextCard({
       contextualFields = (
         <Field>
           <FieldLabel htmlFor="onboarding-stato-operativo">Stato operativo</FieldLabel>
-          <Select
-            value={selectedOptionValue(card.statoRes, statoOperativoOptions)}
-            onValueChange={(next) => {
-              void onPatchProcess?.(card.id, {
-                stato_res: next || null,
-              });
-            }}
-          >
-            <SelectTrigger id="onboarding-stato-operativo" className="w-full">
-              <SelectValue placeholder="Seleziona stato operativo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {(statoOperativoOptions.length > 0
-                  ? statoOperativoOptions
-                  : hasValue(card.statoRes)
-                    ? [{
-                        valueKey: card.statoRes,
-                        valueLabel: card.statoRes,
-                        color: null,
-                        sortOrder: null,
-                      }]
-                    : []
-                ).map((option) => (
-                  <SelectItem key={option.valueKey} value={option.valueKey}>
-                    {option.valueLabel}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <FieldStatoOperativo name="statoRes" options={statoOperativoOptions} />
         </Field>
       );
       break;
     case "lost":
       contextualFields = (
         <FieldGroup>
-          <ChoiceFieldSet
+          <FieldChoiceSet
+            name="motivazioneLost"
             title="Motivazione"
-            selected={card.motivazioneLost}
             options={lookupOptionsByField.motivazione_lost ?? []}
-            onValueChange={(next) => {
-              void onPatchProcess?.(card.id, {
-                motivazione_lost: next || null,
-              });
-            }}
           />
           <Field>
             <FieldLabel htmlFor="onboarding-note-lost">Note</FieldLabel>
-            <DebouncedTextarea
-              id="onboarding-note-lost"
-              committedValue={noteStatoCommitted}
-              onSave={async (value) => {
-                await onPatchProcess?.(card.id, {
-                  appunti_chiamata_sales: value || null,
-                });
-              }}
-            />
+            <FieldTextarea name="noteStato" id="onboarding-note-lost" />
           </Field>
         </FieldGroup>
       );
@@ -754,27 +798,14 @@ export function OnboardingContextCard({
     case "out_of_target":
       contextualFields = (
         <FieldGroup>
-          <ChoiceFieldSet
+          <FieldChoiceSet
+            name="motivazioneOot"
             title="Motivazione"
-            selected={card.motivazioneOot}
             options={lookupOptionsByField.motivazione_oot ?? []}
-            onValueChange={(next) => {
-              void onPatchProcess?.(card.id, {
-                motivazione_oot: next || null,
-              });
-            }}
           />
           <Field>
             <FieldLabel htmlFor="onboarding-note-oot">Note</FieldLabel>
-            <DebouncedTextarea
-              id="onboarding-note-oot"
-              committedValue={noteStatoCommitted}
-              onSave={async (value) => {
-                await onPatchProcess?.(card.id, {
-                  appunti_chiamata_sales: value || null,
-                });
-              }}
-            />
+            <FieldTextarea name="noteStato" id="onboarding-note-oot" />
           </Field>
         </FieldGroup>
       );
@@ -784,6 +815,7 @@ export function OnboardingContextCard({
   }
 
   return (
+    <Form {...form}>
     <DetailSectionBlock
       title="Onboarding"
       icon={<StageIcon className="size-4" />}
@@ -824,5 +856,6 @@ export function OnboardingContextCard({
         </div>
       ) : null}
     </DetailSectionBlock>
+    </Form>
   );
 }
