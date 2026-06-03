@@ -66,7 +66,33 @@ export function RecruiterFeedbackPanel({
 
   const content = (
     <>
-      <div className="space-y-2">
+      {entries.length > 0 ? (
+        <div className="space-y-3">
+          {entries.map((entry, index) => (
+            <div
+              key={`${entry.name}-${entry.date}-${index}`}
+              className="space-y-1.5"
+            >
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold">{entry.name}</p>
+                {entry.date ? (
+                  <Badge variant="outline">{entry.date}</Badge>
+                ) : null}
+              </div>
+              {entry.text ? (
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {entry.text}
+                </p>
+              ) : null}
+              {index < entries.length - 1 ? <Separator /> : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-sm">Nessun appunto ancora.</p>
+      )}
+
+      <div className="space-y-2 border-t pt-4">
         <Textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
@@ -96,32 +122,6 @@ export function RecruiterFeedbackPanel({
           </Button>
         </div>
       </div>
-
-      {entries.length > 0 ? (
-        <div className="space-y-3">
-          {entries.map((entry, index) => (
-            <div
-              key={`${entry.name}-${entry.date}-${index}`}
-              className="space-y-1.5"
-            >
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold">{entry.name}</p>
-                {entry.date ? (
-                  <Badge variant="outline">{entry.date}</Badge>
-                ) : null}
-              </div>
-              {entry.text ? (
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {entry.text}
-                </p>
-              ) : null}
-              {index < entries.length - 1 ? <Separator /> : null}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-muted-foreground text-sm">Nessun appunto ancora.</p>
-      )}
     </>
   )
 

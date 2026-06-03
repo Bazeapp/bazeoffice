@@ -33,8 +33,7 @@ import { LavoratoriCercaListPanel } from "@/components/lavoratori/lavoratori-cer
 import { WorkerDetailShell } from "@/components/lavoratori/worker-detail-shell";
 import { RicercaActiveSearchCard } from "@/components/ricerca/ricerca-active-search-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
-import { RecruiterFeedbackSheet } from "@/components/lavoratori/recruiter-feedback-sheet";
-import { RecruiterFeedbackPanel } from "@/components/lavoratori/recruiter-feedback-panel";
+import { RecruiterFeedbackButton } from "@/components/lavoratori/recruiter-feedback-sheet";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
 import type { OpenRicercaDetailOptions } from "@/routes/app-routes";
@@ -442,7 +441,6 @@ export function LavoratoriCercaView({
     [lookupOptionsByDomain],
   );
   const addressMobilityAnchor = useComboboxAnchor();
-  const [feedbackSheetOpen, setFeedbackSheetOpen] = React.useState(false);
   const workerPhotoInputRef = React.useRef<HTMLInputElement | null>(null);
   const detailScrollRef = React.useRef<HTMLElement | null>(null);
   const sectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
@@ -1492,18 +1490,6 @@ export function LavoratoriCercaView({
             <div className="space-y-6">
               <div className="space-y-6 text-sm">
 
-                <RecruiterFeedbackPanel
-                  key={selectedWorkerId}
-                  value={asString(selectedWorkerRow?.feedback_recruiter)}
-                  operatorName={operatorName}
-                  onSave={(next) =>
-                    patchSelectedWorkerField(
-                      "feedback_recruiter",
-                      next.trim() || null,
-                    )
-                  }
-                />
-
                 <div ref={setWorkerSectionRef("residenza")}>
                   <AddressSectionCard
                     isEditing={isEditingAddress}
@@ -2172,22 +2158,7 @@ export function LavoratoriCercaView({
               </div>
             </div>
           ) : null}
-          <div className="sticky right-0 bottom-1 z-20 mt-4 flex justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="rounded-full border-2 border-black bg-background/95"
-              title="Apri feedback recruiter"
-              aria-label="Apri feedback recruiter"
-              onClick={() => setFeedbackSheetOpen(true)}
-            >
-              <MessageSquareTextIcon className="size-5" />
-            </Button>
-          </div>
-          <RecruiterFeedbackSheet
-            open={feedbackSheetOpen}
-            onOpenChange={setFeedbackSheetOpen}
+          <RecruiterFeedbackButton
             value={asString(selectedWorkerRow?.feedback_recruiter)}
             operatorName={operatorName}
             onSave={(next) =>

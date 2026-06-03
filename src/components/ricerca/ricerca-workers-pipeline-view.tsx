@@ -15,7 +15,7 @@ import {
   type WorkerOtherSelectionSummaryItem,
 } from "@/components/lavoratori/lavoratore-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
-import { RecruiterFeedbackPanel } from "@/components/lavoratori/recruiter-feedback-panel";
+import { RecruiterFeedbackButton } from "@/components/lavoratori/recruiter-feedback-sheet";
 import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
 import {
   type RelatedActiveSearchItem,
@@ -2307,17 +2307,6 @@ export function RicercaWorkersPipelineView({
 
               <div className="scrollbar-hidden min-w-0 overflow-y-auto border-t border-border xl:border-t-0">
                 <div className="space-y-6 p-4">
-                  <RecruiterFeedbackPanel
-                    key={`feedback-${selectedWorkerId ?? "__empty__"}`}
-                    value={asString(selectedWorkerRow?.feedback_recruiter)}
-                    operatorName={operatorName}
-                    onSave={(next) =>
-                      patchSelectedWorkerField(
-                        "feedback_recruiter",
-                        next.trim() || null,
-                      )
-                    }
-                  />
                   <WorkerPipelineSummaryCards
                     key={selectedWorkerRow?.id ?? "__empty__"}
                     workerRow={selectedWorkerRow}
@@ -2533,6 +2522,16 @@ export function RicercaWorkersPipelineView({
                     onDocumentStripeAccountChange={saveDocumentStripeAccount}
                     onDocumentUpsert={upsertSelectedWorkerDocument}
                     onDocumentUploadError={setSelectedWorkerError}
+                  />
+                  <RecruiterFeedbackButton
+                    value={asString(selectedWorkerRow?.feedback_recruiter)}
+                    operatorName={operatorName}
+                    onSave={(next) =>
+                      patchSelectedWorkerField(
+                        "feedback_recruiter",
+                        next.trim() || null,
+                      )
+                    }
                   />
                 </div>
               </div>
