@@ -3,26 +3,28 @@
  *
  * Regression coverage for the audit finding at
  * `docs/audits/audit-draft-resync.md` — Section 2:
- * the two resync `useEffect`s at lines 431/497 used to overwrite every
- * controlled input whenever any `defaults.*` dep changed, wiping the
- * user's in-progress edits when a realtime echo arrived for an unrelated
- * field.
+ * the two resync `useEffect`s used to overwrite every controlled input
+ * whenever any `defaults.*` dep changed, wiping the user's in-progress edits
+ * when a realtime echo arrived for an unrelated field.
  *
- * The fix is per-field `dirty*Ref` guards (see source file). These tests
- * verify both halves of the contract:
- *   1. During an in-flight edit, an unrelated `defaults.*` change must
- *      NOT overwrite the user's value.
- *   2. After the save settles, the field must accept future server
- *      resyncs (so concurrent remote edits aren't permanently masked).
+ * FASE 5 BIS — the section now uses react-hook-form + `useAutoSaveForm`
+ * (the form is the source of truth). The anti-clobber contract is enforced by
+ * `form.reset(defaults, { keepDirtyValues: true })`: a field the user has
+ * touched is never overwritten by an incoming `defaults.*` change. Two
+ * behavioural differences vs the old per-field dirty-ref implementation:
+ *   1. Saves are debounced/coalesced (fire on the next tick), so the
+ *      `onPatchProcess` assertion is wrapped in `waitFor`.
+ *   2. `keepDirtyValues` keeps a touched field pinned to the user's value
+ *      until the panel REMOUNTS (record switch via `key=`); a later remote
+ *      change to that same field while still mounted stays masked. This is the
+ *      same trade-off accepted across the other FASE 5 BIS cards.
  *
- * Free-text inputs are wrapped in `DebouncedInput`/`DebouncedTextarea`,
- * which already have their own internal `hasUserEditedRef` guard
- * (see `use-debounced-save.ts`), so the explicit dirty refs in this
- * component cover the controls WITHOUT an internal guard: checkboxes
- * (`CheckboxChip`), `RadioGroup`, `Select`, `Combobox`.
+ * These tests verify the core contract: the optimistic value is applied
+ * immediately, the save fires, and an unrelated realtime echo does NOT wipe
+ * the in-progress edit.
  */
 import * as React from "react"
-import { act, fireEvent } from "@testing-library/react"
+import { act, fireEvent, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/test-utils"
@@ -75,13 +77,15 @@ describe("OnboardingDecisioneLavoroSection draft resync guards", () => {
     const neonati = getByRole("checkbox", { name: "Sono presenti neonati" })
     expect(neonati.getAttribute("aria-checked")).toBe("false")
 
-    // User clicks the checkbox — optimistic update fires, patchProcess
-    // is in flight.
+    // User clicks the checkbox — the form value flips immediately (optimistic),
+    // the autosave fires on the next tick.
     await act(async () => {
       fireEvent.click(neonati)
     })
     expect(neonati.getAttribute("aria-checked")).toBe("true")
-    expect(onPatchProcess).toHaveBeenCalledWith({ presenza_neonati: true })
+    await waitFor(() =>
+      expect(onPatchProcess).toHaveBeenCalledWith({ presenza_neonati: true }),
+    )
 
     // BEFORE the save settles, a realtime echo arrives for an UNRELATED
     // field. The whole `defaults` object identity changes, but
@@ -98,17 +102,15 @@ describe("OnboardingDecisioneLavoroSection draft resync guards", () => {
       />,
     )
 
-    // Without the dirty-ref guard, the resync effect would replace
-    // `persistedCheckboxes` and reset `presenza_neonati` to false.
+    // keepDirtyValues keeps the touched checkbox pinned to the user's value.
     expect(neonati.getAttribute("aria-checked")).toBe("true")
 
-    // After the save resolves, the dirty flag clears and a NEW resync
-    // (with the true value reflected on the server) flows through.
     await act(async () => {
       resolvePatch()
       await patchPromise
     })
 
+    // The server now reflects the saved value — the field stays consistent.
     rerender(
       <OnboardingDecisioneLavoroSection
         defaults={{
@@ -121,20 +123,6 @@ describe("OnboardingDecisioneLavoroSection draft resync guards", () => {
       />,
     )
     expect(neonati.getAttribute("aria-checked")).toBe("true")
-
-    // And a subsequent remote toggle DOES resync (no permanent masking).
-    rerender(
-      <OnboardingDecisioneLavoroSection
-        defaults={{
-          ...initialDefaults,
-          presenzaNeonati: false,
-          nucleoFamigliare: "famiglia A (edited remotely)",
-        }}
-        checkboxDefaults={{}}
-        onPatchProcess={onPatchProcess}
-      />,
-    )
-    expect(neonati.getAttribute("aria-checked")).toBe("false")
 
     queryClient.clear()
   })
@@ -166,7 +154,9 @@ describe("OnboardingDecisioneLavoroSection draft resync guards", () => {
       fireEvent.click(trasferte)
     })
     expect(trasferte.getAttribute("aria-checked")).toBe("true")
-    expect(onPatchProcess).toHaveBeenCalledWith({ richiesta_trasferte: true })
+    await waitFor(() =>
+      expect(onPatchProcess).toHaveBeenCalledWith({ richiesta_trasferte: true }),
+    )
 
     // Realtime echo on an unrelated field.
     rerender(
