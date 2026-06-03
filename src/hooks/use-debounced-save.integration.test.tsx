@@ -91,3 +91,44 @@ describe("useDebouncedSave — error visibility (FASE 4 TER.3)", () => {
     })
   })
 })
+
+describe("useDebouncedSave — identity switch (gate feedback regression)", () => {
+  it("flushes the pending edit to the PREVIOUS record and resets the draft when identity changes", async () => {
+    // Each render binds onSave to the current identity, mirroring how the gate
+    // views bind the save to the selected worker.
+    const saved: Array<{ identity: string; value: string }> = []
+
+    const { result, rerender } = renderHookWithQueryClient(
+      ({ committed, identity }: { committed: string; identity: string }) =>
+        useDebouncedSave<string>(
+          committed,
+          async (value) => {
+            saved.push({ identity, value })
+          },
+          // Long debounce so the timer never fires on its own — only the
+          // identity-change flush should persist the edit.
+          { debounceMs: 5000, identity },
+        ),
+      { initialProps: { committed: "commento di A", identity: "worker-A" } },
+    )
+
+    // Operator types a comment while worker A is selected.
+    act(() => {
+      result.current.onChange("nuovo commento per A")
+    })
+    expect(result.current.value).toBe("nuovo commento per A")
+
+    // Operator switches to worker B before the debounce fires.
+    act(() => {
+      rerender({ committed: "commento di B", identity: "worker-B" })
+    })
+
+    // The pending edit is flushed to worker A (not B).
+    await waitFor(() => {
+      expect(saved).toEqual([{ identity: "worker-A", value: "nuovo commento per A" }])
+    })
+
+    // The draft no longer shows A's text: it resets to B's committed value.
+    expect(result.current.value).toBe("commento di B")
+  })
+})

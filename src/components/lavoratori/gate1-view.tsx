@@ -2937,62 +2937,77 @@ export function Gate1View({
   const { value: anniEsperienzaColfValue, onChange: saveAnniEsperienzaColf } = useDebouncedSave(
     asInputValue(selectedWorkerRow?.anni_esperienza_colf),
     async (v) => { await patchSelectedWorkerField("anni_esperienza_colf", v ? Number(v) : null); },
+    { identity: selectedWorkerId },
   );
   const { value: anniEsperienzaBadanteValue, onChange: saveAnniEsperienzaBadante } = useDebouncedSave(
     asInputValue(selectedWorkerRow?.anni_esperienza_badante),
     async (v) => { await patchSelectedWorkerField("anni_esperienza_badante", v ? Number(v) : null); },
+    { identity: selectedWorkerId },
   );
   const { value: anniEsperienzaBabysitterValue, onChange: saveAnniEsperienzaBabysitter } = useDebouncedSave(
     asInputValue(selectedWorkerRow?.anni_esperienza_babysitter),
     async (v) => { await patchSelectedWorkerField("anni_esperienza_babysitter", v ? Number(v) : null); },
+    { identity: selectedWorkerId },
   );
   const { value: dataRitornoValue, onChange: saveDataRitorno } = useDebouncedSave(
     asString(selectedWorkerRow?.data_ritorno_disponibilita),
     async (v) => { await patchWorkerAvailabilityStatus({ data_ritorno_disponibilita: v || null }); },
+    { identity: selectedWorkerId },
   );
   const { value: descrizionePubblicaValue, onChange: saveDescrizionePubblica } = useDebouncedSave(
     asString(selectedWorkerRow?.descrizione_pubblica),
     async (v) => { await patchSelectedWorkerField("descrizione_pubblica", v || null); },
+    { identity: selectedWorkerId },
   );
   const { value: pagaOrariaRichiestaValue, onChange: savePagaOrariaRichiesta } = useDebouncedSave(
     asInputValue(selectedWorkerRow?.paga_oraria_richiesta),
     async (v) => { await patchSelectedWorkerField("paga_oraria_richiesta", parseNumberValue(v)); },
+    { identity: selectedWorkerId },
   );
   const { value: dataScadenzaNaspiGateValue, onChange: saveDataScadenzaNaspiGate } = useDebouncedSave(
     asString(selectedWorkerRow?.data_scadenza_naspi),
     async (v) => { await patchSelectedWorkerField("data_scadenza_naspi", v || null); },
+    { identity: selectedWorkerId },
   );
   const { value: assessmentFeedbackValue, onChange: saveAssessmentFeedback } = useDebouncedSave(
     asString(selectedWorkerRow?.feedback_recruiter),
     async (v) => { await patchSelectedWorkerField("feedback_recruiter", v.trim() || null); },
+    { identity: selectedWorkerId },
   );
   const { value: naspiDocValue, onChange: saveNaspiDoc } = useDebouncedSave(
     asString(selectedWorkerRow?.data_scadenza_naspi),
     async (v) => { await patchDocumentField("data_scadenza_naspi", v || null); },
+    { identity: selectedWorkerId },
   );
   const { value: ibanValue, onChange: saveIban } = useDebouncedSave(
     resolvedIban,
     async (v) => { await patchDocumentField("iban", v || null); },
+    { identity: selectedWorkerId },
   );
   const { value: headerNomeValue, onChange: saveHeaderNome } = useDebouncedSave(
     asString(selectedWorkerRow?.nome),
     async (v) => { await patchSelectedWorkerField("nome", v.trim() || null); },
+    { identity: selectedWorkerId },
   );
   const { value: headerCognomeValue, onChange: saveHeaderCognome } = useDebouncedSave(
     asString(selectedWorkerRow?.cognome),
     async (v) => { await patchSelectedWorkerField("cognome", v.trim() || null); },
+    { identity: selectedWorkerId },
   );
   const { value: headerEmailValue, onChange: saveHeaderEmail } = useDebouncedSave(
     asString(selectedWorkerRow?.email),
     async (v) => { await patchSelectedWorkerField("email", v.trim() || null); },
+    { identity: selectedWorkerId },
   );
   const { value: headerTelefonoValue, onChange: saveHeaderTelefono } = useDebouncedSave(
     asString(selectedWorkerRow?.telefono),
     async (v) => { await patchSelectedWorkerField("telefono", v.trim() || null); },
+    { identity: selectedWorkerId },
   );
   const { value: headerDataNascitaValue, onChange: saveHeaderDataNascita } = useDebouncedSave(
     asString(selectedWorkerRow?.data_di_nascita),
     async (v) => { await patchSelectedWorkerField("data_di_nascita", v || null); },
+    { identity: selectedWorkerId },
   );
 
   const retainSelectedWorkerAfterStatusChange = React.useCallback(
