@@ -2177,29 +2177,14 @@ export function RicercaWorkersPipelineView({
                 {selectedWorker?.nomeCompleto ?? "Lavoratore"}
               </BreadcrumbItem>
             </Breadcrumb>
-            <div className="flex items-center gap-1">
-              {selectedWorkerRow ? (
-                <RecruiterFeedbackButton
-                  variant="inline"
-                  value={asString(selectedWorkerRow?.feedback_recruiter)}
-                  operatorName={operatorName}
-                  onSave={(next) =>
-                    patchSelectedWorkerField(
-                      "feedback_recruiter",
-                      next.trim() || null,
-                    )
-                  }
-                />
-              ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={handleCloseWorkerOverlay}
-              >
-                <XIcon />
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleCloseWorkerOverlay}
+            >
+              <XIcon />
+            </Button>
           </div>
 
           {selectedWorkerError ? (
@@ -2539,6 +2524,23 @@ export function RicercaWorkersPipelineView({
                     onDocumentUploadError={setSelectedWorkerError}
                   />
                 </div>
+              </div>
+            </div>
+          ) : null}
+          {selectedWorkerRow ? (
+            <div className="pointer-events-none absolute right-4 bottom-4 z-[60]">
+              <div className="pointer-events-auto">
+                <RecruiterFeedbackButton
+                  variant="fab"
+                  value={asString(selectedWorkerRow?.feedback_recruiter)}
+                  operatorName={operatorName}
+                  onSave={(next) =>
+                    patchSelectedWorkerField(
+                      "feedback_recruiter",
+                      next.trim() || null,
+                    )
+                  }
+                />
               </div>
             </div>
           ) : null}

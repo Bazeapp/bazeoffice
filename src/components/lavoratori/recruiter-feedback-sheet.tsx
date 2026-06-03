@@ -53,10 +53,11 @@ type RecruiterFeedbackButtonProps = {
   onSave: (nextValue: string) => Promise<void> | void
   disabled?: boolean
   /**
-   * `floating` (default): round icon pinned bottom-right of the detail scroll
-   * area. `inline`: a bare ghost icon to drop into a header/toolbar row.
+   * `floating` (default): round icon in a sticky bottom-right wrapper.
+   * `fab`: the round icon alone (host positions it, e.g. absolute in an
+   * overlay). `inline`: a bare ghost icon for a header/toolbar row.
    */
-  variant?: "floating" | "inline"
+  variant?: "floating" | "fab" | "inline"
 }
 
 /**
@@ -72,6 +73,20 @@ export function RecruiterFeedbackButton({
 }: RecruiterFeedbackButtonProps) {
   const [open, setOpen] = React.useState(false)
 
+  const roundTrigger = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="rounded-full border-2 border-black bg-background/95"
+      title="Apri feedback recruiter"
+      aria-label="Apri feedback recruiter"
+      onClick={() => setOpen(true)}
+    >
+      <MessageSquareTextIcon className="size-5" />
+    </Button>
+  )
+
   return (
     <>
       {variant === "inline" ? (
@@ -85,19 +100,11 @@ export function RecruiterFeedbackButton({
         >
           <MessageSquareTextIcon className="size-4" />
         </Button>
+      ) : variant === "fab" ? (
+        roundTrigger
       ) : (
         <div className="sticky right-0 bottom-1 z-20 mt-4 flex justify-end">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="rounded-full border-2 border-black bg-background/95"
-            title="Apri feedback recruiter"
-            aria-label="Apri feedback recruiter"
-            onClick={() => setOpen(true)}
-          >
-            <MessageSquareTextIcon className="size-5" />
-          </Button>
+          {roundTrigger}
         </div>
       )}
       <RecruiterFeedbackSheet
