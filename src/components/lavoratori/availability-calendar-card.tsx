@@ -8,6 +8,7 @@ import { FieldLabel } from "@/components/ui/field"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { DebouncedTextarea } from "@/components/ui/debounced-input"
 
 type AvailabilityEditDay = {
   field: string
@@ -43,6 +44,15 @@ type AvailabilityCalendarCardProps = {
   onSave?: () => void
   onMatrixChange: (dayField: string, bandField: string, checked: boolean) => void
   onVincoliChange: (value: string) => void
+  /**
+   * Se fornito, "Vincoli orari" autosalva (debounced) tramite DebouncedTextarea
+   * invece del solo aggiornamento bozza + bottone Salva. Robusto contro il
+   * clobber da resync realtime (useDebouncedSave ignora committedValue dopo che
+   * l'utente ha digitato) e non perde il testo se il save batch non parte.
+   */
+  onVincoliSave?: (value: string) => Promise<void> | void
+  /** Record a cui i vincoli sono legati (id worker): flush/resync al cambio. */
+  vincoliIdentity?: unknown
   children?: React.ReactNode
 }
 
@@ -65,6 +75,8 @@ export function AvailabilityCalendarCard({
   onSave,
   onMatrixChange,
   onVincoliChange,
+  onVincoliSave,
+  vincoliIdentity,
   children,
 }: AvailabilityCalendarCardProps) {
   const comparisonByDay = React.useMemo(() => {
@@ -270,14 +282,27 @@ export function AvailabilityCalendarCard({
           </div>
           {isEditing ? (
             <div className="w-full max-w-2xl">
-              <Textarea
-                value={vincoliOrari}
-                onChange={(event) => onVincoliChange(event.target.value)}
-                disabled={isUpdating}
-                placeholder="Inserisci vincoli orari"
-                rows={3}
-                className="min-h-[5.25rem] w-full text-sm"
-              />
+              {onVincoliSave ? (
+                <DebouncedTextarea
+                  committedValue={vincoliOrari}
+                  onSave={async (value) => {
+                    await onVincoliSave(value)
+                  }}
+                  identity={vincoliIdentity}
+                  placeholder="Inserisci vincoli orari"
+                  rows={3}
+                  className="min-h-[5.25rem] w-full text-sm"
+                />
+              ) : (
+                <Textarea
+                  value={vincoliOrari}
+                  onChange={(event) => onVincoliChange(event.target.value)}
+                  disabled={isUpdating}
+                  placeholder="Inserisci vincoli orari"
+                  rows={3}
+                  className="min-h-[5.25rem] w-full text-sm"
+                />
+              )}
             </div>
           ) : (
             <div className="w-full max-w-2xl">
