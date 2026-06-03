@@ -1570,6 +1570,17 @@ export function LavoratoriCercaView({
                         vincoli_orari_disponibilita: value,
                       }))
                     }
+                    onVincoliSave={async (value) => {
+                      setAvailabilityDraft((current) => ({
+                        ...current,
+                        vincoli_orari_disponibilita: value,
+                      }))
+                      await patchSelectedWorkerField(
+                        "vincoli_orari_disponibilita",
+                        value.trim() || null,
+                      )
+                    }}
+                    vincoliIdentity={selectedWorkerId}
                     onSave={() => void saveWorkerAvailability()}
                   />
                 </div>

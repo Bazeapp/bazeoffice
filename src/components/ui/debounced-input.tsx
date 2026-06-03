@@ -7,10 +7,12 @@ type DebouncedInputProps = Omit<React.ComponentProps<typeof Input>, "value" | "o
   committedValue: string
   onSave: (value: string) => Promise<void>
   debounceMs?: number
+  /** Record a cui il campo è legato (es. id worker): flush+resync al cambio. */
+  identity?: unknown
 }
 
-export function DebouncedInput({ committedValue, onSave, debounceMs, ...props }: DebouncedInputProps) {
-  const { value, onChange } = useDebouncedSave(committedValue, onSave, debounceMs ? { debounceMs } : undefined)
+export function DebouncedInput({ committedValue, onSave, debounceMs, identity, ...props }: DebouncedInputProps) {
+  const { value, onChange } = useDebouncedSave(committedValue, onSave, { debounceMs, identity })
   return <Input {...props} value={value} onChange={(e) => onChange(e.target.value)} />
 }
 
@@ -18,9 +20,11 @@ type DebouncedTextareaProps = Omit<React.ComponentProps<typeof Textarea>, "value
   committedValue: string
   onSave: (value: string) => Promise<void>
   debounceMs?: number
+  /** Record a cui il campo è legato (es. id worker): flush+resync al cambio. */
+  identity?: unknown
 }
 
-export function DebouncedTextarea({ committedValue, onSave, debounceMs, ...props }: DebouncedTextareaProps) {
-  const { value, onChange } = useDebouncedSave(committedValue, onSave, debounceMs ? { debounceMs } : undefined)
+export function DebouncedTextarea({ committedValue, onSave, debounceMs, identity, ...props }: DebouncedTextareaProps) {
+  const { value, onChange } = useDebouncedSave(committedValue, onSave, { debounceMs, identity })
   return <Textarea {...props} value={value} onChange={(e) => onChange(e.target.value)} />
 }

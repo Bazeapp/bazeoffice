@@ -4636,6 +4636,17 @@ export function Gate1View({
                                 vincoli_orari_disponibilita: value,
                               }))
                             }
+                            onVincoliSave={async (value) => {
+                              setAvailabilityDraft((current) => ({
+                                ...current,
+                                vincoli_orari_disponibilita: value,
+                              }))
+                              await patchSelectedWorkerField(
+                                "vincoli_orari_disponibilita",
+                                value.trim() || null,
+                              )
+                            }}
+                            vincoliIdentity={selectedWorkerId}
                             onSave={() => void saveWorkerAvailability()}
                           />
                         </GateStepSection>
@@ -4906,6 +4917,17 @@ export function Gate1View({
                             vincoli_orari_disponibilita: value,
                           }))
                         }
+                        onVincoliSave={async (value) => {
+                          setAvailabilityDraft((current) => ({
+                            ...current,
+                            vincoli_orari_disponibilita: value,
+                          }))
+                          await patchSelectedWorkerField(
+                            "vincoli_orari_disponibilita",
+                            value.trim() || null,
+                          )
+                        }}
+                        vincoliIdentity={selectedWorkerId}
                         onSave={() => void saveWorkerAvailability()}
                       />
                     </GateStepSection>
