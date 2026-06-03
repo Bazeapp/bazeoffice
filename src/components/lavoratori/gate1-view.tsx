@@ -707,29 +707,48 @@ function GateAssessmentCard({
   const [pendingStatusValue, setPendingStatusValue] = React.useState<
     string | null
   >(null);
+  const [pendingNonIdoneoReason, setPendingNonIdoneoReason] =
+    React.useState("");
   const [isStatusConfirmOpen, setIsStatusConfirmOpen] = React.useState(false);
+
+  const isPendingNonIdoneo =
+    pendingStatusValue != null &&
+    normalizeLookupComparableToken(pendingStatusValue) === "non idoneo";
 
   const handleStatusSelection = React.useCallback(
     (value: string) => {
       const nextValue = getLookupLabelForSave(value, orderedStatusOptions);
       if (!nextValue || nextValue === statusValue) return;
       setPendingStatusValue(nextValue);
+      setPendingNonIdoneoReason(nonIdoneoReasonValue);
       setIsStatusConfirmOpen(true);
     },
-    [orderedStatusOptions, statusValue],
+    [orderedStatusOptions, statusValue, nonIdoneoReasonValue],
   );
 
   const handleStatusConfirm = React.useCallback(() => {
     if (!pendingStatusValue) return;
+    const willBeNonIdoneo =
+      normalizeLookupComparableToken(pendingStatusValue) === "non idoneo";
     onStatusChange(pendingStatusValue);
+    if (willBeNonIdoneo) {
+      onNonIdoneoReasonChange(pendingNonIdoneoReason);
+    }
     setIsStatusConfirmOpen(false);
     setPendingStatusValue(null);
-  }, [onStatusChange, pendingStatusValue]);
+    setPendingNonIdoneoReason("");
+  }, [
+    onStatusChange,
+    onNonIdoneoReasonChange,
+    pendingStatusValue,
+    pendingNonIdoneoReason,
+  ]);
 
   const handleStatusConfirmOpenChange = React.useCallback((open: boolean) => {
     setIsStatusConfirmOpen(open);
     if (!open) {
       setPendingStatusValue(null);
+      setPendingNonIdoneoReason("");
     }
   }, []);
 
@@ -841,9 +860,45 @@ function GateAssessmentCard({
               <strong>{pendingStatusValue || "nessuno"}</strong>.
             </AlertDialogDescription>
           </div>
+          {isPendingNonIdoneo ? (
+            <div className="space-y-2 text-left">
+              <p className="text-sm font-medium">Perchè non è idoneo?</p>
+              <p className="text-muted-foreground text-sm">
+                Seleziona una motivazione per confermare.
+              </p>
+              <Select
+                value={getLookupSelectValue(
+                  pendingNonIdoneoReason,
+                  nonIdoneoReasonOptions,
+                  EMPTY_SELECT_VALUE,
+                )}
+                onValueChange={(value) => {
+                  const nextValue =
+                    value === EMPTY_SELECT_VALUE
+                      ? ""
+                      : getLookupLabelForSave(value, nonIdoneoReasonOptions);
+                  setPendingNonIdoneoReason(nextValue);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona motivazione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {nonIdoneoReasonOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStatusConfirm}>
+            <AlertDialogAction
+              onClick={handleStatusConfirm}
+              disabled={isPendingNonIdoneo && !pendingNonIdoneoReason}
+            >
               Conferma
             </AlertDialogAction>
           </AlertDialogFooter>
