@@ -1,6 +1,4 @@
-import { Badge } from "@/components/ui/badge"
-import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
-import { Separator } from "@/components/ui/separator"
+import { RecruiterFeedbackPanel } from "@/components/lavoratori/recruiter-feedback-panel"
 import {
   Sheet,
   SheetContent,
@@ -9,22 +7,22 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 
-type RecruiterFeedbackEntry = {
-  name: string
-  date?: string | null
-  text?: string | null
-}
-
 type RecruiterFeedbackSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  entries: RecruiterFeedbackEntry[]
+  value: string
+  operatorName: string
+  onSave: (nextValue: string) => Promise<void> | void
+  disabled?: boolean
 }
 
 export function RecruiterFeedbackSheet({
   open,
   onOpenChange,
-  entries,
+  value,
+  operatorName,
+  onSave,
+  disabled = false,
 }: RecruiterFeedbackSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -34,28 +32,13 @@ export function RecruiterFeedbackSheet({
           <SheetDescription>Storico note su questo lavoratore</SheetDescription>
         </SheetHeader>
         <div className="p-4 pt-0">
-          <DetailSectionBlock
-            title="Storico feedback"
-            showDefaultAction={false}
-            contentClassName="space-y-4"
-          >
-            {entries.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                Nessun feedback disponibile.
-              </p>
-            ) : (
-              entries.map((entry, index) => (
-                <div key={`${entry.name}-${entry.date}-${index}`} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold">{entry.name}</p>
-                    {entry.date ? <Badge variant="outline">{entry.date}</Badge> : null}
-                  </div>
-                  {entry.text ? <p className="text-sm leading-relaxed">{entry.text}</p> : null}
-                  {index < entries.length - 1 ? <Separator /> : null}
-                </div>
-              ))
-            )}
-          </DetailSectionBlock>
+          <RecruiterFeedbackPanel
+            embedded
+            value={value}
+            operatorName={operatorName}
+            onSave={onSave}
+            disabled={disabled}
+          />
         </div>
       </SheetContent>
     </Sheet>

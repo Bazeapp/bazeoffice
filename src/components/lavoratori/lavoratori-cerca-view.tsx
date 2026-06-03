@@ -845,7 +845,6 @@ export function LavoratoriCercaView({
     selectedWorkerIsNonIdoneo,
     selectedWorkerNonQualificatoIssues,
     selectedWorkerIsNonQualificato,
-    recruiterFeedbackEntries,
     availabilityPayload,
     availabilityReadOnlyRows,
     presentationPhotoSlots,
@@ -2189,7 +2188,14 @@ export function LavoratoriCercaView({
           <RecruiterFeedbackSheet
             open={feedbackSheetOpen}
             onOpenChange={setFeedbackSheetOpen}
-            entries={recruiterFeedbackEntries}
+            value={asString(selectedWorkerRow?.feedback_recruiter)}
+            operatorName={operatorName}
+            onSave={(next) =>
+              patchSelectedWorkerField(
+                "feedback_recruiter",
+                next.trim() || null,
+              )
+            }
           />
         </WorkerDetailShell>
         <Dialog
