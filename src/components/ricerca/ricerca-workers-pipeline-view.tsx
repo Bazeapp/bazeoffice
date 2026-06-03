@@ -15,6 +15,7 @@ import {
   type WorkerOtherSelectionSummaryItem,
 } from "@/components/lavoratori/lavoratore-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
+import { RecruiterFeedbackPanel } from "@/components/lavoratori/recruiter-feedback-panel";
 import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
 import {
   type RelatedActiveSearchItem,
@@ -92,6 +93,7 @@ import {
   type RicercaWorkersPipelineState,
 } from "@/hooks/use-ricerca-workers-pipeline";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
+import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
   createRecord,
@@ -1206,6 +1208,8 @@ export function RicercaWorkersPipelineView({
     appendCreatedWorkerReference,
   });
 
+  const operatorName = useCurrentOperatorName();
+
   const { value: dataRitornoPipelineValue, onChange: saveDataRitornoPipeline } = useDebouncedSave(
     asString(selectedWorkerRow?.data_ritorno_disponibilita),
     async (v) => { await patchSelectedWorkerField("data_ritorno_disponibilita", v || null); },
@@ -2303,6 +2307,17 @@ export function RicercaWorkersPipelineView({
 
               <div className="scrollbar-hidden min-w-0 overflow-y-auto border-t border-border xl:border-t-0">
                 <div className="space-y-6 p-4">
+                  <RecruiterFeedbackPanel
+                    key={`feedback-${selectedWorkerId ?? "__empty__"}`}
+                    value={asString(selectedWorkerRow?.feedback_recruiter)}
+                    operatorName={operatorName}
+                    onSave={(next) =>
+                      patchSelectedWorkerField(
+                        "feedback_recruiter",
+                        next.trim() || null,
+                      )
+                    }
+                  />
                   <WorkerPipelineSummaryCards
                     key={selectedWorkerRow?.id ?? "__empty__"}
                     workerRow={selectedWorkerRow}

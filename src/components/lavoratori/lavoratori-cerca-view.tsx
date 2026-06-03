@@ -34,6 +34,8 @@ import { WorkerDetailShell } from "@/components/lavoratori/worker-detail-shell";
 import { RicercaActiveSearchCard } from "@/components/ricerca/ricerca-active-search-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { RecruiterFeedbackSheet } from "@/components/lavoratori/recruiter-feedback-sheet";
+import { RecruiterFeedbackPanel } from "@/components/lavoratori/recruiter-feedback-panel";
+import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
 import type { OpenRicercaDetailOptions } from "@/routes/app-routes";
 import {
@@ -921,6 +923,8 @@ export function LavoratoriCercaView({
     appendCreatedWorkerReference,
   });
 
+  const operatorName = useCurrentOperatorName();
+
   const { value: dataRitornoLCVValue, onChange: saveDataRitornoLCV } = useDebouncedSave(
     asString(selectedWorkerRow?.data_ritorno_disponibilita),
     async (v) => { await patchWorkerAvailabilityStatus({ data_ritorno_disponibilita: v || null }); },
@@ -1488,6 +1492,18 @@ export function LavoratoriCercaView({
           {selectedWorker ? (
             <div className="space-y-6">
               <div className="space-y-6 text-sm">
+
+                <RecruiterFeedbackPanel
+                  key={selectedWorkerId}
+                  value={asString(selectedWorkerRow?.feedback_recruiter)}
+                  operatorName={operatorName}
+                  onSave={(next) =>
+                    patchSelectedWorkerField(
+                      "feedback_recruiter",
+                      next.trim() || null,
+                    )
+                  }
+                />
 
                 <div ref={setWorkerSectionRef("residenza")}>
                   <AddressSectionCard

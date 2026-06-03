@@ -73,7 +73,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
 import {
   formatAvailabilityComputedAt,
   type AvailabilityEditBandField,
@@ -109,6 +108,8 @@ import {
 } from "@/hooks/use-operatori-options";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
+import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
+import { RecruiterFeedbackPanel } from "@/components/lavoratori/recruiter-feedback-panel";
 import { updateRecord } from "@/lib/anagrafiche-api";
 import {
   buildAttachmentPayload,
@@ -668,8 +669,9 @@ function GateAssessmentCard({
   nonIdoneoReasonValue,
   nonIdoneoReasonOptions,
   onNonIdoneoReasonChange,
-  feedbackValue,
-  onFeedbackChange,
+  feedbackRaw,
+  operatorName,
+  onFeedbackSave,
   lookupColorsByDomain,
 }: {
   statusValue: string;
@@ -678,14 +680,11 @@ function GateAssessmentCard({
   nonIdoneoReasonValue: string;
   nonIdoneoReasonOptions: Array<{ label: string; value: string }>;
   onNonIdoneoReasonChange: (value: string) => void;
-  feedbackValue: string;
-  onFeedbackChange: (value: string) => void;
+  feedbackRaw: string;
+  operatorName: string;
+  onFeedbackSave: (nextValue: string) => Promise<void> | void;
   lookupColorsByDomain: Map<string, string>;
 }) {
-  const helperDate = React.useMemo(
-    () => new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome" }).format(new Date()),
-    [],
-  );
   const orderedStatusOptions = React.useMemo(() => {
     const desiredOrder = new Map([
       ["Non qualificato", 1],
@@ -760,17 +759,16 @@ function GateAssessmentCard({
           Inserisci i tuoi appunti e valutazione su questo profilo.
         </p>
         <p className="text-muted-foreground text-sm">
-          Scrivi questa dicitura prima del feedback: [Nome - {helperDate}]
+          Scrivi solo il testo: la firma e la data vengono aggiunte in automatico.
         </p>
       </div>
 
-      <div className="max-w-5xl space-y-2">
-        <Textarea
-          value={feedbackValue}
-          onChange={(event) => onFeedbackChange(event.target.value)}
-          rows={4}
-          className="min-h-28 w-full"
-          placeholder="Aggiungi note di screening"
+      <div className="max-w-5xl">
+        <RecruiterFeedbackPanel
+          embedded
+          value={feedbackRaw}
+          operatorName={operatorName}
+          onSave={onFeedbackSave}
         />
       </div>
 
@@ -2969,11 +2967,7 @@ export function Gate1View({
     async (v) => { await patchSelectedWorkerField("data_scadenza_naspi", v || null); },
     { identity: selectedWorkerId },
   );
-  const { value: assessmentFeedbackValue, onChange: saveAssessmentFeedback } = useDebouncedSave(
-    asString(selectedWorkerRow?.feedback_recruiter),
-    async (v) => { await patchSelectedWorkerField("feedback_recruiter", v.trim() || null); },
-    { identity: selectedWorkerId },
-  );
+  const operatorName = useCurrentOperatorName();
   const { value: naspiDocValue, onChange: saveNaspiDoc } = useDebouncedSave(
     asString(selectedWorkerRow?.data_scadenza_naspi),
     async (v) => { await patchDocumentField("data_scadenza_naspi", v || null); },
@@ -5668,6 +5662,7 @@ export function Gate1View({
                       info={stepInfoBySection.assessment}
                     >
                       <GateAssessmentCard
+                        key={selectedWorkerId}
                         statusValue={gateDraft.assessmentStatus}
                         statusOptions={statoLavoratoreOptions}
                         onStatusChange={(value) => {
@@ -5692,8 +5687,14 @@ export function Gate1View({
                             value ? [value] : [],
                           );
                         }}
-                        feedbackValue={assessmentFeedbackValue}
-                        onFeedbackChange={saveAssessmentFeedback}
+                        feedbackRaw={asString(selectedWorkerRow?.feedback_recruiter)}
+                        operatorName={operatorName}
+                        onFeedbackSave={(next) =>
+                          patchSelectedWorkerField(
+                            "feedback_recruiter",
+                            next.trim() || null,
+                          )
+                        }
                         lookupColorsByDomain={lookupColorsByDomain}
                       />
                     </GateStepSection>
