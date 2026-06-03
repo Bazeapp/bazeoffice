@@ -702,8 +702,6 @@ function GateAssessmentCard({
       return leftOrder - rightOrder || left.label.localeCompare(right.label);
     });
   }, [statusOptions]);
-  const isNonIdoneo =
-    normalizeLookupComparableToken(statusValue) === "non idoneo";
   const [pendingStatusValue, setPendingStatusValue] = React.useState<
     string | null
   >(null);
@@ -776,73 +774,35 @@ function GateAssessmentCard({
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:items-start">
-        <div className="max-w-xs space-y-3">
-          <p className="text-sm font-medium">
-            Aggiorna lo stato del lavoratore dopo il colloquio
-          </p>
-          <RadioGroup
-            value={getLookupSelectValue(statusValue, orderedStatusOptions, "")}
-            onValueChange={handleStatusSelection}
-            className="gap-3"
-          >
-            {orderedStatusOptions.map((option) => (
-              <label
-                key={option.value}
-                className="flex items-center gap-3 text-sm"
-              >
-                <RadioGroupItem value={option.value} />
-                <span
-                  className={`inline-flex items-center rounded-4xl border px-2.5 py-0.5 text-xs ${getTagClassName(
-                    resolveLookupColor(
-                      lookupColorsByDomain,
-                      "lavoratori.stato_lavoratore",
-                      option.label,
-                    ),
-                  )}`}
-                >
-                  {option.label}
-                </span>
-              </label>
-            ))}
-          </RadioGroup>
-        </div>
-
-        <div className={isNonIdoneo ? "space-y-2" : "space-y-2 opacity-50"}>
-          <p className="text-sm">Perchè non è idoneo?</p>
-          <p className="text-muted-foreground text-sm">
-            Se non trovi una motivazione giusta, aggiungila
-          </p>
-          <div className="max-w-md">
-            <Select
-              value={getLookupSelectValue(
-                nonIdoneoReasonValue,
-                nonIdoneoReasonOptions,
-                EMPTY_SELECT_VALUE,
-              )}
-              onValueChange={(value) => {
-                const nextValue =
-                  value === EMPTY_SELECT_VALUE
-                    ? ""
-                    : getLookupLabelForSave(value, nonIdoneoReasonOptions);
-                onNonIdoneoReasonChange(nextValue);
-              }}
-              disabled={!isNonIdoneo}
+      <div className="max-w-xs space-y-3">
+        <p className="text-sm font-medium">
+          Aggiorna lo stato del lavoratore dopo il colloquio
+        </p>
+        <RadioGroup
+          value={getLookupSelectValue(statusValue, orderedStatusOptions, "")}
+          onValueChange={handleStatusSelection}
+          className="gap-3"
+        >
+          {orderedStatusOptions.map((option) => (
+            <label
+              key={option.value}
+              className="flex items-center gap-3 text-sm"
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona motivazione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
-                {nonIdoneoReasonOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+              <RadioGroupItem value={option.value} />
+              <span
+                className={`inline-flex items-center rounded-4xl border px-2.5 py-0.5 text-xs ${getTagClassName(
+                  resolveLookupColor(
+                    lookupColorsByDomain,
+                    "lavoratori.stato_lavoratore",
+                    option.label,
+                  ),
+                )}`}
+              >
+                {option.label}
+              </span>
+            </label>
+          ))}
+        </RadioGroup>
       </div>
 
       <AlertDialog
