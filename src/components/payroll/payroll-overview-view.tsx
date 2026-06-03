@@ -17,7 +17,7 @@ import {
   StarIcon,
 } from "lucide-react"
 
-import { usePayrollBoard, type PayrollBoardCardData, type PayrollBoardColumnData } from "@/hooks/use-payroll-board"
+import { usePayrollBoard, TERMINAL_STAGE_IDS, type PayrollBoardCardData, type PayrollBoardColumnData } from "@/hooks/use-payroll-board"
 import { ContributiInpsView } from "@/components/payroll/contributi-inps-view"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import { flattenAttachmentLinks, type AttachmentLink } from "@/components/shared-next/attachment-utils"
@@ -499,6 +499,10 @@ function getColumnVisual(color: string): KanbanColumnVisual {
       return { columnClassName: "bg-lime-400", headerClassName: "", iconClassName: "text-lime-500" }
     case "green":
       return { columnClassName: "bg-green-400", headerClassName: "", iconClassName: "text-green-500" }
+    case "emerald":
+      return { columnClassName: "bg-emerald-400", headerClassName: "", iconClassName: "text-emerald-500" }
+    case "teal":
+      return { columnClassName: "bg-teal-400", headerClassName: "", iconClassName: "text-teal-500" }
     default:
       return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
   }
@@ -506,7 +510,10 @@ function getColumnVisual(color: string): KanbanColumnVisual {
 
 function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
   const [famiglia, lavoratore] = card.nomeCompleto.split(" – ")
-  const isPaid = card.stage === "Pagato" || card.pagamento?.status === "succeeded"
+  const isPaid =
+    card.stage === "Pagato" ||
+    card.stage === "DONE" ||
+    card.pagamento?.status === "succeeded"
   const ratingValue =
     typeof card.record.rating_feedback_famiglia === "number" && card.record.rating_feedback_famiglia > 0
       ? Math.max(0, Math.min(5, Math.round(card.record.rating_feedback_famiglia)))
@@ -898,14 +905,27 @@ export function CedolinoDetailSheet({
             {card ? (
               <Select
                 value={card.stage}
-                onValueChange={(nextValue) => onStageChange(card.id, nextValue)}
+                onValueChange={(nextValue) => {
+                  // Guard: "DONE" is terminal/system-set — never set it manually
+                  // (it would bypass the "Pagato" confirmation trigger).
+                  if (TERMINAL_STAGE_IDS.has(nextValue)) return
+                  onStageChange(card.id, nextValue)
+                }}
               >
                 <SelectTrigger className="w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {columns.map((column) => (
-                    <SelectItem key={column.id} value={column.id}>
+                    <SelectItem
+                      key={column.id}
+                      value={column.id}
+                      // Keep DONE visible (so an already-DONE card shows its
+                      // label) but not selectable.
+                      disabled={
+                        TERMINAL_STAGE_IDS.has(column.id) && card.stage !== column.id
+                      }
+                    >
                       {column.label}
                     </SelectItem>
                   ))}
@@ -1759,6 +1779,10 @@ function CedoliniPayrollView() {
                     setDropTargetColumnId(null)
                     setDraggingRecordId(null)
                     if (!recordId) return
+                    // "DONE" is terminal/system-set: a card reaches it only when
+                    // the confirmation EF completes. Block manual drops there so
+                    // nobody skips the "Pagato" trigger that sends the emails.
+                    if (TERMINAL_STAGE_IDS.has(columnId)) return
                     void moveCard(recordId, columnId)
                   }}
                 />
