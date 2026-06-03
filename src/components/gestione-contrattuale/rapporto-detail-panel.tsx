@@ -1664,7 +1664,7 @@ export function RapportoDetailPanel({
               }
               contentClassName="space-y-3 pt-2"
             >
-              {isSectionLoading("tickets") ? (
+              {loadingRelated ? (
                 <LinkedRowsSkeleton />
               ) : tickets.length > 0 ? (
                 tickets.map((ticket) => (
@@ -1783,7 +1783,7 @@ export function RapportoDetailPanel({
               icon={<CalendarDaysIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
-              {isSectionLoading("contributi") ? (
+              {loadingRelated ? (
                 <LinkedRowsSkeleton />
               ) : contributi.length > 0 ? (
                 contributi.map((contributo) => (
@@ -1828,7 +1828,7 @@ export function RapportoDetailPanel({
               icon={<RefreshCwIcon className="size-5" />}
               contentClassName="space-y-3 pt-2"
             >
-              {isSectionLoading("variazioni") ? (
+              {loadingRelated ? (
                 <LinkedRowsSkeleton rows={2} />
               ) : variazioni.length > 0 ? (
                 variazioni.map((variazione) => (

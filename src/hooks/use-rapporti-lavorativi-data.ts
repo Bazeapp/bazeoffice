@@ -570,13 +570,24 @@ export function useRapportiLavorativiData(
 
       try {
         const processIds = getRapportoProcessIds(selectedRapporto)
-        // Le variazioni sono caricate eager (non lazy come tickets/cedolini/
-        // contributi): la sezione "Variazioni" è penultima e con
-        // l'IntersectionObserver del pannello (rootMargin -60% in basso) il suo
-        // bordo superiore non raggiunge mai la fascia "attiva" a fine scroll,
-        // quindi il caricamento lazy non si innescava mai. È una singola RPC
-        // leggera, quindi la prendiamo qui insieme agli altri record collegati.
-        const [famigliaResponse, lavoratoreResponse, processiResponse, chiusuraResponse, variazioniResponse] = await Promise.all([
+        // Tickets, contributi e variazioni sono caricati eager (non più lazy
+        // via IntersectionObserver). Il lazy-load si appoggiava all'observer
+        // del pannello (rootMargin -60% in basso): le sezioni in coda — in
+        // particolare "Variazioni" (penultima) — non raggiungevano mai la
+        // fascia "attiva" a fine scroll, quindi il caricamento non partiva e
+        // restavano vuote anche con dati collegati. Sono tutte singole RPC
+        // leggere, quindi le prendiamo qui insieme agli altri record collegati.
+        // Solo i cedolini restano lazy (fetch pesante: mesi + calendario +
+        // pagamenti + presenze) e sono abbastanza in alto da attivarsi.
+        const [
+          famigliaResponse,
+          lavoratoreResponse,
+          processiResponse,
+          chiusuraResponse,
+          ticketResponse,
+          contributiResponse,
+          variazioniResponse,
+        ] = await Promise.all([
           selectedRapporto.famiglia_id
             ? fetchFamiglieByIds([selectedRapporto.famiglia_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
@@ -589,6 +600,8 @@ export function useRapportiLavorativiData(
           selectedRapporto.fine_rapporto_lavorativo_id
             ? fetchChiusureByIds([selectedRapporto.fine_rapporto_lavorativo_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
+          fetchTicketByRapporto(selectedRapporto.id),
+          fetchContributiInpsByRapporto(selectedRapporto.id),
           fetchVariazioniByRapporto(selectedRapporto.id),
         ])
 
@@ -630,11 +643,15 @@ export function useRapportiLavorativiData(
         setSelectedLavoratore(nextLavoratore)
         setSelectedProcessi(processiRows)
         setSelectedChiusure(chiusuraResponse.rows as ChiusuraContrattoRecord[])
+        setSelectedTickets(ticketResponse.rows as TicketRecord[])
+        setSelectedContributi(contributiResponse.rows as ContributoInpsRecord[])
         setSelectedVariazioni(variazioniResponse.rows as VariazioneContrattualeRecord[])
         setSelectedRichiesteAttivazione(Array.from(richiesteByProcessId.values()))
         loadedRelatedSectionsRef.current.add("preventivo")
         loadedRelatedSectionsRef.current.add("gestione")
         loadedRelatedSectionsRef.current.add("chiusure")
+        loadedRelatedSectionsRef.current.add("tickets")
+        loadedRelatedSectionsRef.current.add("contributi")
         loadedRelatedSectionsRef.current.add("variazioni")
       } catch (loadError) {
         if (!isActive) return
