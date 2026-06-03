@@ -570,7 +570,13 @@ export function useRapportiLavorativiData(
 
       try {
         const processIds = getRapportoProcessIds(selectedRapporto)
-        const [famigliaResponse, lavoratoreResponse, processiResponse, chiusuraResponse] = await Promise.all([
+        // Le variazioni sono caricate eager (non lazy come tickets/cedolini/
+        // contributi): la sezione "Variazioni" è penultima e con
+        // l'IntersectionObserver del pannello (rootMargin -60% in basso) il suo
+        // bordo superiore non raggiunge mai la fascia "attiva" a fine scroll,
+        // quindi il caricamento lazy non si innescava mai. È una singola RPC
+        // leggera, quindi la prendiamo qui insieme agli altri record collegati.
+        const [famigliaResponse, lavoratoreResponse, processiResponse, chiusuraResponse, variazioniResponse] = await Promise.all([
           selectedRapporto.famiglia_id
             ? fetchFamiglieByIds([selectedRapporto.famiglia_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
@@ -583,6 +589,7 @@ export function useRapportiLavorativiData(
           selectedRapporto.fine_rapporto_lavorativo_id
             ? fetchChiusureByIds([selectedRapporto.fine_rapporto_lavorativo_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
+          fetchVariazioniByRapporto(selectedRapporto.id),
         ])
 
         const processiRows = processiResponse.rows as ProcessoMatchingRecord[]
@@ -623,10 +630,12 @@ export function useRapportiLavorativiData(
         setSelectedLavoratore(nextLavoratore)
         setSelectedProcessi(processiRows)
         setSelectedChiusure(chiusuraResponse.rows as ChiusuraContrattoRecord[])
+        setSelectedVariazioni(variazioniResponse.rows as VariazioneContrattualeRecord[])
         setSelectedRichiesteAttivazione(Array.from(richiesteByProcessId.values()))
         loadedRelatedSectionsRef.current.add("preventivo")
         loadedRelatedSectionsRef.current.add("gestione")
         loadedRelatedSectionsRef.current.add("chiusure")
+        loadedRelatedSectionsRef.current.add("variazioni")
       } catch (loadError) {
         if (!isActive) return
         console.error("Errore caricando record collegati al rapporto", loadError)
