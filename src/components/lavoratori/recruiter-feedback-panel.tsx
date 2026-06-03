@@ -19,6 +19,8 @@ type RecruiterFeedbackPanelProps = {
   disabled?: boolean
   /** Render the inner content only, without the card wrapper (for nesting). */
   embedded?: boolean
+  /** Show the existing feedback history above/around the input. */
+  showHistory?: boolean
 }
 
 /**
@@ -37,6 +39,7 @@ export function RecruiterFeedbackPanel({
   title = "Feedback recruiter",
   disabled = false,
   embedded = false,
+  showHistory = true,
 }: RecruiterFeedbackPanelProps) {
   const [draft, setDraft] = React.useState("")
   const [saving, setSaving] = React.useState(false)
@@ -81,7 +84,7 @@ export function RecruiterFeedbackPanel({
     )
 
   const inputBlock = (
-    <div className="space-y-2 border-t pt-4">
+    <div className={`space-y-2 ${showHistory ? "border-t pt-4" : ""}`}>
       <Textarea
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
@@ -112,6 +115,9 @@ export function RecruiterFeedbackPanel({
   // Embedded (sheet): fill the available height so the input stays pinned to
   // the bottom and the history scrolls above it — even with no history yet.
   if (embedded) {
+    if (!showHistory) {
+      return inputBlock
+    }
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         <div className="min-h-0 flex-1 overflow-y-auto">{historyBlock}</div>
@@ -127,7 +133,7 @@ export function RecruiterFeedbackPanel({
       showDefaultAction={false}
       contentClassName="space-y-4"
     >
-      {historyBlock}
+      {showHistory ? historyBlock : null}
       {inputBlock}
     </DetailSectionBlock>
   )
