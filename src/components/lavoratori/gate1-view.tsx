@@ -759,9 +759,6 @@ function GateAssessmentCard({
         <p className="text-sm">
           Inserisci i tuoi appunti e valutazione su questo profilo.
         </p>
-        <p className="text-muted-foreground text-sm">
-          Scrivi solo il testo: la firma e la data vengono aggiunte in automatico.
-        </p>
       </div>
 
       <div className="max-w-5xl">
