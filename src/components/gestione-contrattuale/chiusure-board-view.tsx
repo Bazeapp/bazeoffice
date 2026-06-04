@@ -2,6 +2,7 @@ import * as React from "react"
 import {
   CalendarIcon,
   CalendarX2Icon,
+  CheckIcon,
   FileTextIcon,
   MailIcon,
   PencilIcon,
@@ -1061,12 +1062,17 @@ function CreateAnnullamentoDialog({
                   key={option.id}
                   type="button"
                   className={cn(
-                    "w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted",
-                    selectedRapportoId === option.id && "bg-primary/10 text-primary",
+                    "flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    selectedRapportoId === option.id
+                      ? "border-primary bg-primary/10 font-semibold text-foreground"
+                      : "border-transparent hover:bg-muted",
                   )}
                   onClick={() => handleSelectRapporto(option)}
                 >
-                  {option.label}
+                  <span>{option.label}</span>
+                  {selectedRapportoId === option.id ? (
+                    <CheckIcon className="size-4 shrink-0 text-primary" />
+                  ) : null}
                 </button>
               ))
             ) : (
