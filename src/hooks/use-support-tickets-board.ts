@@ -8,9 +8,11 @@ import {
 } from "@/hooks/use-board-mutations"
 import {
   createRecord,
+  fetchAssunzioniNamesByRapportoIds,
   fetchLookupValues,
   fetchSupportTicketsBundle,
   updateRecord,
+  type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
@@ -272,7 +274,8 @@ type PersonNameInput = { cognome?: string | null; nome?: string | null }
 function buildRapportoIndex(
   rows: RapportoLavorativoRecord[],
   famiglieById?: Map<string, PersonNameInput>,
-  lavoratoriById?: Map<string, PersonNameInput>
+  lavoratoriById?: Map<string, PersonNameInput>,
+  assunzioneNamesById?: Map<string, RapportoAssunzioneNames>
 ) {
   const byId = new Map<string, RapportoLavorativoRecord>()
   const byExternalId = new Map<string, RapportoLavorativoRecord>()
@@ -319,6 +322,7 @@ function buildRapportoIndex(
     byAssunzioneId,
     personNamesById,
     famigliaNameById: famiglieById ?? new Map<string, PersonNameInput>(),
+    assunzioneNamesById: assunzioneNamesById ?? new Map<string, RapportoAssunzioneNames>(),
   }
 }
 
@@ -602,11 +606,14 @@ function mapRecordToCard(
           return famigliaId ? rapportoIndex.famigliaNameById.get(famigliaId) ?? null : null
         })()
       : null
+  const assunzioneNames = rapporto
+    ? rapportoIndex.assunzioneNamesById.get(rapporto.id) ?? null
+    : null
   const nomeFamiglia = rapporto
-    ? getRapportoFamilyLabel(rapporto, personNames?.famiglia)
+    ? getRapportoFamilyLabel(rapporto, personNames?.famiglia, assunzioneNames?.datore)
     : formatPersonName(pagamentoFamiglia) ?? "Famiglia non disponibile"
   const nomeLavoratore = rapporto
-    ? getRapportoWorkerLabel(rapporto, personNames?.lavoratore)
+    ? getRapportoWorkerLabel(rapporto, personNames?.lavoratore, assunzioneNames?.lavoratore)
     : "Lavoratore non disponibile"
 
   return {
@@ -620,7 +627,12 @@ function mapRecordToCard(
     nomeFamiglia,
     nomeLavoratore,
     nomeCompleto: rapporto
-      ? getRapportoTitle(rapporto, { famiglia: personNames?.famiglia, lavoratore: personNames?.lavoratore })
+      ? getRapportoTitle(rapporto, {
+          famiglia: personNames?.famiglia,
+          lavoratore: personNames?.lavoratore,
+          assunzioneDatore: assunzioneNames?.datore,
+          assunzioneLavoratore: assunzioneNames?.lavoratore,
+        })
       : `${nomeFamiglia} – ${nomeLavoratore}`,
     dataAperturaLabel: formatDateLabel(record.data_apertura ?? record.creato_il),
     tag,
@@ -654,7 +666,18 @@ async function fetchSupportTicketsData(ticketType: SupportTicketType) {
       { cognome: row.cognome ?? null, nome: row.nome ?? null },
     ])
   )
-  const rapportoIndex = buildRapportoIndex(rapportiRows, famiglieById, lavoratoriById)
+  const assunzioneNamesByRapporto = await fetchAssunzioniNamesByRapportoIds(
+    rapportiRows.map((rapporto) => rapporto.id)
+  )
+  const assunzioneNamesById = new Map<string, RapportoAssunzioneNames>(
+    Object.entries(assunzioneNamesByRapporto)
+  )
+  const rapportoIndex = buildRapportoIndex(
+    rapportiRows,
+    famiglieById,
+    lavoratoriById,
+    assunzioneNamesById
+  )
   const chiusuraIndex = buildChiusuraIndex(chiusureRows)
   const linkedRecordIndexes: LinkedRecordIndexes = {
     assunzioni: buildRecordIndex((bundle.assunzioni ?? []) as unknown as AssunzioneRecord[]),
@@ -691,11 +714,14 @@ async function fetchSupportTicketsData(ticketType: SupportTicketType) {
     })
     .map((rapporto) => {
       const personNames = rapportoIndex.personNamesById.get(rapporto.id) ?? null
+      const assunzioneNames = rapportoIndex.assunzioneNamesById.get(rapporto.id) ?? null
       return {
         id: rapporto.id,
         label: getRapportoTitle(rapporto, {
           famiglia: personNames?.famiglia,
           lavoratore: personNames?.lavoratore,
+          assunzioneDatore: assunzioneNames?.datore,
+          assunzioneLavoratore: assunzioneNames?.lavoratore,
         }),
       }
     })

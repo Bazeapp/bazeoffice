@@ -28,6 +28,8 @@ export function RapportiLavorativiView({
     loadingSelectedRapporto,
     selectedFamiglia,
     selectedLavoratore,
+    selectedAssunzioneNames,
+    rapportoAssunzioneNames,
     selectedProcessi,
     selectedContributi,
     selectedMesi,
@@ -63,6 +65,7 @@ export function RapportiLavorativiView({
         selectedRapportoId={selectedRapportoId}
         onSelect={setSelectedRapportoId}
         lookupColorsByDomain={lookupColorsByDomain}
+        assunzioneNamesByRapporto={rapportoAssunzioneNames}
       />
 
       <RapportoDetailPanel
@@ -74,6 +77,12 @@ export function RapportiLavorativiView({
         loadingRapporto={loadingSelectedRapporto}
         famiglia={selectedFamiglia}
         lavoratore={selectedLavoratore}
+        // Seed dai nomi già caricati per la lista così il titolo non fa flash
+        // sul nome di fallback mentre il dettaglio carica le sue assunzioni.
+        assunzioneNames={
+          selectedAssunzioneNames ??
+          (selectedRapportoId ? rapportoAssunzioneNames[selectedRapportoId] ?? null : null)
+        }
         processi={selectedProcessi}
         contributi={selectedContributi}
         mesi={selectedMesi}

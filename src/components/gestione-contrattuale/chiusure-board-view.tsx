@@ -2,9 +2,11 @@ import * as React from "react"
 import {
   CalendarIcon,
   CalendarX2Icon,
+  CheckIcon,
   FileTextIcon,
   MailIcon,
   PencilIcon,
+  PlusIcon,
   UserCheckIcon,
   UsersIcon,
 } from "lucide-react"
@@ -12,6 +14,7 @@ import {
 import {
   type ChiusureBoardCardData,
   type ChiusureBoardColumnData,
+  type TipoLicenziamentoOption,
   useChiusureBoard,
 } from "@/hooks/use-chiusure-board"
 import { AssociationSearchField } from "@/components/shared-next/association-search-field"
@@ -29,6 +32,14 @@ import { SectionHeader } from "@/components/shared-next/section-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -47,6 +58,19 @@ const CHIUSURA_FORM_URLS = {
   dimissione: "https://airtable.com/appevZURCPFkSG3CJ/pagC4sFam0eGz07Rh/form",
   annullamento: "https://airtable.com/appevZURCPFkSG3CJ/pagW6G5AUa4tJOWYX/form",
 } as const
+
+// Valori validi per "Tipo licenziamento/dimissione" (nessun lookup_values a DB).
+const TIPO_LICENZIAMENTO_OPTIONS: string[] = [
+  "Mancato superamento periodo di prova",
+  "Licenziamento con preavviso",
+  "Licenziamento senza preavviso",
+  "Dimissioni durante il periodo di prova",
+  "Dimissioni con preavviso",
+  "Dimissioni senza preavviso",
+  "Annullamento contratto",
+  "Fine contratto a tempo determinato",
+  "Rescissione abbonamento",
+]
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "-"
@@ -117,6 +141,7 @@ function ChiusureDetailSheet({
   card,
   columns,
   rapportoOptions,
+  tipoLicenziamentoOptions,
   open,
   onOpenChange,
   onStatusChange,
@@ -127,6 +152,7 @@ function ChiusureDetailSheet({
   card: ChiusureBoardCardData | null
   columns: ChiusureBoardColumnData[]
   rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
+  tipoLicenziamentoOptions: TipoLicenziamentoOption[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onStatusChange: (recordId: string, targetStageId: string) => Promise<void>
@@ -406,14 +432,37 @@ function ChiusureDetailSheet({
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Tipo licenziamento/dimissione</span>
-                      <DebouncedInput
-                        committedValue={card.record.tipo_licenziamento ?? ""}
-                        onSave={async (value) => {
-                          await onPatchChiusura(card.id, {
+                      <Select
+                        value={card.record.tipo_licenziamento ?? ""}
+                        onValueChange={(value) => {
+                          void onPatchChiusura(card.id, {
                             tipo_licenziamento: value || null,
                           })
                         }}
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(() => {
+                            const options =
+                              tipoLicenziamentoOptions.length > 0
+                                ? tipoLicenziamentoOptions
+                                : TIPO_LICENZIAMENTO_OPTIONS.map((value) => ({ value, label: value }))
+                            const current = card.record.tipo_licenziamento
+                            // Mantieni selezionabile un valore già salvato fuori lista.
+                            const withCurrent =
+                              current && !options.some((option) => option.value === current)
+                                ? [{ value: current, label: current }, ...options]
+                                : options
+                            return withCurrent.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))
+                          })()}
+                        </SelectContent>
+                      </Select>
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Tipo decesso</span>
@@ -728,6 +777,8 @@ export function ChiusureBoardView() {
     error,
     columns,
     rapportoOptions,
+    tipoLicenziamentoOptions,
+    createChiusura,
     linkRapporto,
     moveCard,
     updateCard,
@@ -738,6 +789,7 @@ export function ChiusureBoardView() {
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [selectedFreshCard, setSelectedFreshCard] = React.useState<ChiusureBoardCardData | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
+  const [isAnnullamentoDialogOpen, setIsAnnullamentoDialogOpen] = React.useState(false)
 
   const filteredColumns = React.useMemo(() => {
     const mappedColumns = columns.map((column) => ({
@@ -853,10 +905,9 @@ export function ChiusureBoardView() {
                 Apri una dimissione
               </a>
             </Button>
-            <Button variant="outline" asChild>
-              <a href={CHIUSURA_FORM_URLS.annullamento} target="_blank" rel="noreferrer">
-                Apri un annullamento
-              </a>
+            <Button onClick={() => setIsAnnullamentoDialogOpen(true)}>
+              <PlusIcon className="size-4" />
+              Apri un annullamento
             </Button>
           </SectionHeader.Actions>
           <SectionHeader.Toolbar>
@@ -922,6 +973,7 @@ export function ChiusureBoardView() {
         card={selectedFreshCard}
         columns={columns}
         rapportoOptions={rapportoOptions}
+        tipoLicenziamentoOptions={tipoLicenziamentoOptions}
         open={Boolean(selectedCardId)}
         onOpenChange={(open) => {
           if (!open) {
@@ -937,6 +989,174 @@ export function ChiusureBoardView() {
           setSelectedFreshCard(nextCard)
         }}
       />
+
+      <CreateAnnullamentoDialog
+        open={isAnnullamentoDialogOpen}
+        onOpenChange={setIsAnnullamentoDialogOpen}
+        rapportoOptions={rapportoOptions}
+        onCreate={async ({ rapportoId, dataFineRapporto }) => {
+          await createChiusura({
+            rapportoId,
+            tipo: "annullamento",
+            dataFineRapporto,
+            note: "",
+          })
+        }}
+      />
     </>
+  )
+}
+
+const TIPO_ANNULLAMENTO = "Annullamento contratto"
+
+function CreateAnnullamentoDialog({
+  open,
+  onOpenChange,
+  rapportoOptions,
+  onCreate,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
+  onCreate: (input: { rapportoId: string; dataFineRapporto: string }) => Promise<void>
+}) {
+  const [query, setQuery] = React.useState("")
+  const [selectedRapportoId, setSelectedRapportoId] = React.useState("")
+  const [dataFineRapporto, setDataFineRapporto] = React.useState("")
+  const [saving, setSaving] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  const filteredOptions = React.useMemo(() => {
+    const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return rapportoOptions.slice(0, 20)
+    return rapportoOptions
+      .filter((option) => {
+        const haystack = option.label.toLowerCase()
+        return tokens.every((token) => haystack.includes(token))
+      })
+      .slice(0, 20)
+  }, [query, rapportoOptions])
+
+  const selectedRapporto = rapportoOptions.find((option) => option.id === selectedRapportoId)
+
+  React.useEffect(() => {
+    if (!open) {
+      setQuery("")
+      setSelectedRapportoId("")
+      setDataFineRapporto("")
+      setError(null)
+      setSaving(false)
+    }
+  }, [open])
+
+  // Default the data chiusura to the selected rapporto's start date.
+  function handleSelectRapporto(option: { id: string; rapporto: RapportoLavorativoRecord }) {
+    setSelectedRapportoId(option.id)
+    const inizio = option.rapporto.data_inizio_rapporto
+    setDataFineRapporto(inizio ? inizio.slice(0, 10) : "")
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedRapportoId) {
+      setError("Seleziona un rapporto di lavoro.")
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+    try {
+      await onCreate({ rapportoId: selectedRapportoId, dataFineRapporto })
+      onOpenChange(false)
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error ? caughtError.message : "Errore creando annullamento",
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Apri un annullamento</DialogTitle>
+          <DialogDescription>
+            Seleziona il rapporto di lavoro da annullare e conferma la data.
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <label className="space-y-2 block">
+            <span className="ui-type-label">Rapporto di lavoro</span>
+            <SearchInput
+              placeholder="Cerca per famiglia o lavoratore..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onClear={() => setQuery("")}
+            />
+          </label>
+          <div className="max-h-60 space-y-2 overflow-y-auto rounded-xl border bg-surface p-2">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    selectedRapportoId === option.id
+                      ? "border-primary bg-primary/10 font-semibold text-foreground"
+                      : "border-transparent hover:bg-muted",
+                  )}
+                  onClick={() => handleSelectRapporto(option)}
+                >
+                  <span>{option.label}</span>
+                  {selectedRapportoId === option.id ? (
+                    <CheckIcon className="size-4 shrink-0 text-primary" />
+                  ) : null}
+                </button>
+              ))
+            ) : (
+              <p className="text-muted-foreground px-3 py-4 text-sm">
+                Nessun rapporto trovato.
+              </p>
+            )}
+          </div>
+          {selectedRapporto ? (
+            <p className="text-muted-foreground text-xs">
+              Selezionato: <span className="font-medium text-foreground">{selectedRapporto.label}</span>
+            </p>
+          ) : null}
+          <label className="space-y-2 block">
+            <span className="ui-type-label">Data chiusura</span>
+            <Input
+              type="date"
+              value={dataFineRapporto}
+              onChange={(event) => setDataFineRapporto(event.target.value)}
+            />
+          </label>
+          <label className="space-y-2 block">
+            <span className="ui-type-label">Tipo licenziamento/dimissione</span>
+            <Select value={TIPO_ANNULLAMENTO} disabled>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TIPO_ANNULLAMENTO}>{TIPO_ANNULLAMENTO}</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
+          {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annulla
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Creazione..." : "Crea annullamento"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

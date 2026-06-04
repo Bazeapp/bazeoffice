@@ -38,6 +38,7 @@ import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/features/rappo
 import { getRapportoStatusColor, resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 import { cn } from "@/lib/utils"
 import type { RapportoStatusFilter } from "@/hooks/use-rapporti-lavorativi-data"
+import type { RapportoAssunzioneNames } from "@/lib/anagrafiche-api"
 import type { RapportoLavorativoRecord } from "@/types"
 
 type RapportiListItem = {
@@ -72,6 +73,7 @@ type RapportiListPanelProps = {
   selectedRapportoId: string | null
   onSelect: (id: string) => void
   lookupColorsByDomain: Map<string, string>
+  assunzioneNamesByRapporto?: Record<string, RapportoAssunzioneNames>
 }
 
 const VIEWS_STORAGE_KEY = "gestione-contrattuale.rapporti.saved-views"
@@ -306,6 +308,7 @@ export function RapportiListPanel({
   selectedRapportoId,
   onSelect,
   lookupColorsByDomain,
+  assunzioneNamesByRapporto,
 }: RapportiListPanelProps) {
   const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({})
   const initialQuery = React.useMemo(
@@ -358,10 +361,11 @@ export function RapportiListPanel({
     () =>
       rapporti.map((rapporto) => {
         const statoRapporto = resolveRapportoStatus(rapporto)
+        const assunzioneNames = assunzioneNamesByRapporto?.[rapporto.id] ?? null
         return {
           id: rapporto.id,
-          famigliaLabel: getRapportoFamilyLabel(rapporto),
-          lavoratoreLabel: getRapportoWorkerLabel(rapporto),
+          famigliaLabel: getRapportoFamilyLabel(rapporto, null, assunzioneNames?.datore),
+          lavoratoreLabel: getRapportoWorkerLabel(rapporto, null, assunzioneNames?.lavoratore),
           stato_rapporto: statoRapporto,
           stato_servizio: rapporto.stato_servizio,
           stato_assunzione: rapporto.stato_assunzione,
@@ -374,7 +378,7 @@ export function RapportiListPanel({
           raw: { ...rapporto, stato_rapporto: statoRapporto },
         }
       }),
-    [rapporti],
+    [rapporti, assunzioneNamesByRapporto],
   )
 
   const columns = React.useMemo<ColumnDef<RapportiListItem>[]>(

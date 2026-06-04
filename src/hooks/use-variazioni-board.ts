@@ -5,9 +5,11 @@ import { useCreateMutation, useMoveMutation } from "@/hooks/use-board-mutations"
 
 import {
   createRecord,
+  fetchAssunzioniNamesByRapportoIds,
   fetchLookupValues,
   fetchVariazioniBoard,
   updateRecord,
+  type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
@@ -304,6 +306,7 @@ export function mapVariazioneBoardCard(
   row: VariazioneBoardRow,
   stage: string,
   previousCard?: VariazioniBoardCardData,
+  assunzioneNames?: RapportoAssunzioneNames | null,
 ): VariazioniBoardCardData {
   const freshRecord = row.record
   const freshRapporto = row.rapporto ?? null
@@ -355,6 +358,8 @@ export function mapVariazioneBoardCard(
     ? getRapportoTitle(rapporto, {
         famiglia: toPersonName(famiglia),
         lavoratore: toPersonName(baseLavoratore),
+        assunzioneDatore: assunzioneNames?.datore,
+        assunzioneLavoratore: assunzioneNames?.lavoratore,
       })
     : "Rapporto non disponibile"
 
@@ -389,6 +394,14 @@ async function fetchVariazioniBoardData(
     fetchLookupValues(),
   ])
 
+  // Nomi dalle assunzioni collegate (priorità sul nome del rapporto) per card
+  // e opzioni della modale.
+  const rapportoIds = [
+    ...boardResult.cards.map((row) => row.rapporto?.id),
+    ...boardResult.rapporti.map((row) => row.rapporto.id),
+  ].filter((id): id is string => Boolean(id))
+  const assunzioneNamesByRapporto = await fetchAssunzioniNamesByRapportoIds(rapportoIds)
+
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
   const aliases = stageMetadata.aliases
@@ -402,7 +415,10 @@ async function fetchVariazioniBoardData(
     if (!stage) continue
 
     const previousCard = getPreviousCard?.(record.id)
-    const card = mapVariazioneBoardCard(row, stage, previousCard)
+    const assunzioneNames = row.rapporto?.id
+      ? assunzioneNamesByRapporto[row.rapporto.id] ?? null
+      : null
+    const card = mapVariazioneBoardCard(row, stage, previousCard, assunzioneNames)
     cardsByStage.get(stage)?.push(card)
   }
 
@@ -414,14 +430,19 @@ async function fetchVariazioniBoardData(
   }))
 
   const rapportoOptions = boardResult.rapporti
-    .map((row) => ({
-      id: row.rapporto.id,
-      label: getRapportoTitle(row.rapporto, {
-        famiglia: toPersonName((row.famiglia as GenericRow | null) ?? null),
-        lavoratore: toPersonName((row.lavoratore as GenericRow | null) ?? null),
-      }),
-      rapporto: row.rapporto,
-    }))
+    .map((row) => {
+      const assunzioneNames = assunzioneNamesByRapporto[row.rapporto.id] ?? null
+      return {
+        id: row.rapporto.id,
+        label: getRapportoTitle(row.rapporto, {
+          famiglia: toPersonName((row.famiglia as GenericRow | null) ?? null),
+          lavoratore: toPersonName((row.lavoratore as GenericRow | null) ?? null),
+          assunzioneDatore: assunzioneNames?.datore,
+          assunzioneLavoratore: assunzioneNames?.lavoratore,
+        }),
+        rapporto: row.rapporto,
+      }
+    })
     .sort((left, right) => left.label.localeCompare(right.label, "it"))
 
   return { columns, rapportoOptions }

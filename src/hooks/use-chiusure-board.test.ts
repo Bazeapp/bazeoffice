@@ -168,6 +168,7 @@ describe("mapChiusuraBoardCard", () => {
   const tipoMetadata = {
     labels: new Map<string, string>([["licenziamento", "Licenziamento"]]),
     colors: new Map<string, string>([["licenziamento", "red"]]),
+    tipoLicenziamentoOptions: [],
   }
 
   it("returns a card from a fresh row when no previousCard is provided", () => {

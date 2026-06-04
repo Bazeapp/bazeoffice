@@ -4,10 +4,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { flattenAttachmentLinks } from "@/components/shared-next/attachment-utils"
 import { normalizeLookupColors, normalizeLookupOptions } from "@/features/lavoratori/lib/lookup-utils"
 import { getRapportoProcessIds } from "@/features/rapporti/rapporti-processi"
+import { formatAssunzioneName } from "@/features/rapporti/rapporti-labels"
 import {
+  fetchAssunzioniNamesByRapportoIds,
   fetchLookupValues,
   fetchProveColloquiBoard,
   updateRecord,
+  type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
@@ -122,12 +125,30 @@ function formatPersonName(row: FamigliaRecord | LavoratoreRecord | null | undefi
   return [first, last].filter(Boolean).join(" ").trim() || null
 }
 
-function getRapportoFamilyLabel(rapporto: RapportoLavorativoRecord, famiglia: FamigliaRecord | null) {
-  return formatPersonName(famiglia) ?? toStringValue(rapporto.cognome_nome_datore_proper) ?? "Famiglia"
+function getRapportoFamilyLabel(
+  rapporto: RapportoLavorativoRecord,
+  famiglia: FamigliaRecord | null,
+  assunzioneDatore?: RapportoAssunzioneNames["datore"],
+) {
+  return (
+    formatAssunzioneName(assunzioneDatore) ??
+    formatPersonName(famiglia) ??
+    toStringValue(rapporto.cognome_nome_datore_proper) ??
+    "Famiglia"
+  )
 }
 
-function getRapportoWorkerLabel(rapporto: RapportoLavorativoRecord, lavoratore: LavoratoreRecord | null) {
-  return formatPersonName(lavoratore) ?? toStringValue(rapporto.nome_lavoratore_per_url) ?? "Lavoratore"
+function getRapportoWorkerLabel(
+  rapporto: RapportoLavorativoRecord,
+  lavoratore: LavoratoreRecord | null,
+  assunzioneLavoratore?: RapportoAssunzioneNames["lavoratore"],
+) {
+  return (
+    formatAssunzioneName(assunzioneLavoratore) ??
+    formatPersonName(lavoratore) ??
+    toStringValue(rapporto.nome_lavoratore_per_url) ??
+    "Lavoratore"
+  )
 }
 
 function getWorkerAvatarUrl(lavoratore: LavoratoreRecord | null) {
@@ -236,9 +257,10 @@ function buildProvaCard(
   rapporto: RapportoLavorativoRecord,
   famiglia: FamigliaRecord | null,
   lavoratore: LavoratoreRecord | null,
+  assunzioneNames: RapportoAssunzioneNames | null = null,
 ): ProvaCardData {
-  const famigliaLabel = getRapportoFamilyLabel(rapporto, famiglia)
-  const lavoratoreLabel = getRapportoWorkerLabel(rapporto, lavoratore)
+  const famigliaLabel = getRapportoFamilyLabel(rapporto, famiglia, assunzioneNames?.datore)
+  const lavoratoreLabel = getRapportoWorkerLabel(rapporto, lavoratore, assunzioneNames?.lavoratore)
 
   return {
     id: rapporto.id,
@@ -278,6 +300,12 @@ async function fetchProveColloquiData(
   const rapporti = boardResponse.rapporti.map((entry) => entry.rapporto)
   const selections = boardResponse.selezioni.map((entry) => entry.selezione as Record<string, unknown>)
 
+  // Nomi dalle assunzioni collegate (priorità sul nome del rapporto). In fase
+  // di prova/colloquio l'assunzione di solito non esiste ancora → fallback.
+  const assunzioneNamesByRapporto = await fetchAssunzioniNamesByRapportoIds(
+    rapporti.map((rapporto) => rapporto.id).filter((id): id is string => Boolean(id)),
+  )
+
   const familiesById = new Map<string, FamigliaRecord>()
   const workersById = new Map<string, LavoratoreRecord>()
   for (const entry of boardResponse.rapporti) {
@@ -298,6 +326,7 @@ async function fetchProveColloquiData(
       rapporto,
       rapporto.famiglia_id ? familiesById.get(rapporto.famiglia_id) ?? null : null,
       rapporto.lavoratore_id ? workersById.get(rapporto.lavoratore_id) ?? null : null,
+      assunzioneNamesByRapporto[rapporto.id] ?? null,
     ),
   )
 

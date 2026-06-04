@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
 import {
+  fetchAssunzioniNamesByRapportoIds,
   fetchCedoliniBoard,
   fetchLookupValues,
   updateRecord,
@@ -266,6 +267,13 @@ async function fetchPayrollBoardData(
     fetchCedoliniBoard(selectedMonth),
   ])
 
+  // Nomi dalle assunzioni collegate (priorità sul nome del rapporto).
+  const assunzioneNamesByRapporto = await fetchAssunzioniNamesByRapportoIds(
+    boardResult.rows
+      .map((row) => row.rapporto?.id)
+      .filter((id): id is string => Boolean(id))
+  )
+
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
   const aliases = stageMetadata.aliases
@@ -283,9 +291,15 @@ async function fetchPayrollBoardData(
     const rapporto = row.rapporto ?? null
     const famiglia = row.famiglia ?? null
     const lavoratore = row.lavoratore ?? null
+    const assunzioneNames = rapporto ? assunzioneNamesByRapporto[rapporto.id] ?? null : null
 
     const nomeCompleto = rapporto
-      ? getRapportoTitle(rapporto, { famiglia, lavoratore })
+      ? getRapportoTitle(rapporto, {
+          famiglia,
+          lavoratore,
+          assunzioneDatore: assunzioneNames?.datore,
+          assunzioneLavoratore: assunzioneNames?.lavoratore,
+        })
       : "Rapporto non disponibile"
 
     // presenze / presenzeRegolari are not loaded by the board RPC; the detail

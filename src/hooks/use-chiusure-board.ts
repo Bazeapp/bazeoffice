@@ -4,7 +4,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
-import { createRecord, fetchChiusureBoard, fetchLookupValues, updateRecord } from "@/lib/anagrafiche-api"
+import {
+  createRecord,
+  fetchAssunzioniNamesByRapportoIds,
+  fetchChiusureBoard,
+  fetchLookupValues,
+  updateRecord,
+  type RapportoAssunzioneNames,
+} from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
 import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
@@ -14,6 +21,7 @@ const CHIUSURE_BOARD_QUERY_KEY = ["chiusure-board"] as const
 type ChiusureBoardData = {
   columns: ChiusureBoardColumnData[]
   rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
+  tipoLicenziamentoOptions: TipoLicenziamentoOption[]
 }
 
 /**
@@ -98,9 +106,12 @@ type StageMetadata = {
   aliases: Map<string, string>
 }
 
+export type TipoLicenziamentoOption = { value: string; label: string }
+
 type TipoMetadata = {
   labels: Map<string, string>
   colors: Map<string, string>
+  tipoLicenziamentoOptions: TipoLicenziamentoOption[]
 }
 
 export type ChiusureBoardCardData = {
@@ -130,6 +141,7 @@ type UseChiusureBoardState = {
   error: string | null
   columns: ChiusureBoardColumnData[]
   rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
+  tipoLicenziamentoOptions: TipoLicenziamentoOption[]
   createChiusura: (input: {
     rapportoId: string
     tipo: "licenziamento" | "dimissione" | "annullamento"
@@ -267,6 +279,23 @@ function buildTipoMetadata(rows: LookupValueRecord[]): TipoMetadata {
       (row.entity_field === "tipo_licenziamento" || row.entity_field === "tipo_decesso")
   )
 
+  // Opzioni ordinate per la select "Tipo licenziamento/dimissione".
+  const tipoLicenziamentoOptions: TipoLicenziamentoOption[] = rows
+    .filter(
+      (row) =>
+        row.is_active &&
+        row.entity_table === "chiusure_contratti" &&
+        row.entity_field === "tipo_licenziamento"
+    )
+    .map((row) => ({
+      value: toStringValue(row.value_key) ?? toStringValue(row.value_label) ?? "",
+      label: toStringValue(row.value_label) ?? toStringValue(row.value_key) ?? "",
+      sortOrder: typeof row.sort_order === "number" ? row.sort_order : Number.MAX_SAFE_INTEGER,
+    }))
+    .filter((option) => option.value)
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .map(({ value, label }) => ({ value, label }))
+
   for (const row of lookupRows) {
     const valueKey = toStringValue(row.value_key)
     const valueLabel = toStringValue(row.value_label)
@@ -285,7 +314,7 @@ function buildTipoMetadata(rows: LookupValueRecord[]): TipoMetadata {
     }
   }
 
-  return { labels, colors }
+  return { labels, colors, tipoLicenziamentoOptions }
 }
 
 type ChiusuraBoardRow = {
@@ -306,6 +335,7 @@ export function mapChiusuraBoardCard(
   stage: string,
   tipoMetadata: TipoMetadata,
   previousCard?: ChiusureBoardCardData,
+  assunzioneNames?: RapportoAssunzioneNames | null,
 ): ChiusureBoardCardData {
   const freshRecord = row.record
   const freshRapporto = row.rapporto ?? null
@@ -348,6 +378,8 @@ export function mapChiusuraBoardCard(
       ? getRapportoTitle(rapporto, {
           famiglia: row.famiglia ? { cognome: row.famiglia.cognome, nome: row.famiglia.nome } : null,
           lavoratore: row.lavoratore ? { cognome: row.lavoratore.cognome, nome: row.lavoratore.nome } : null,
+          assunzioneDatore: assunzioneNames?.datore,
+          assunzioneLavoratore: assunzioneNames?.lavoratore,
         })
       : null) ||
     [record.nome, record.cognome].filter(Boolean).join(" ").trim() ||
@@ -383,11 +415,20 @@ async function fetchChiusureBoardData(
 ): Promise<{
   columns: ChiusureBoardColumnData[]
   rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
+  tipoLicenziamentoOptions: TipoLicenziamentoOption[]
 }> {
   const [boardResult, lookupResult] = await Promise.all([
     fetchChiusureBoard(),
     fetchLookupValues(),
   ])
+
+  // Nomi dalle assunzioni collegate (priorità sul nome del rapporto) per tutti
+  // i rapporti coinvolti: card delle chiusure + opzioni della modale.
+  const rapportoIds = [
+    ...boardResult.cards.map((row) => row.rapporto?.id),
+    ...boardResult.rapporti.map((row) => row.rapporto.id),
+  ].filter((id): id is string => Boolean(id))
+  const assunzioneNamesByRapporto = await fetchAssunzioniNamesByRapportoIds(rapportoIds)
 
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const tipoMetadata = buildTipoMetadata(lookupResult.rows)
@@ -403,7 +444,10 @@ async function fetchChiusureBoardData(
     if (!stage) continue
 
     const previousCard = getPreviousCard?.(record.id)
-    const card = mapChiusuraBoardCard(row, stage, tipoMetadata, previousCard)
+    const assunzioneNames = row.rapporto?.id
+      ? assunzioneNamesByRapporto[row.rapporto.id] ?? null
+      : null
+    const card = mapChiusuraBoardCard(row, stage, tipoMetadata, previousCard, assunzioneNames)
     cardsByStage.get(stage)?.push(card)
   }
 
@@ -414,17 +458,22 @@ async function fetchChiusureBoardData(
     cards: cardsByStage.get(stage.id) ?? [],
   }))
   const rapportoOptions = boardResult.rapporti
-    .map((row) => ({
-      id: row.rapporto.id,
-      label: getRapportoTitle(row.rapporto, {
-        famiglia: row.famiglia ? { cognome: row.famiglia.cognome, nome: row.famiglia.nome } : null,
-        lavoratore: row.lavoratore ? { cognome: row.lavoratore.cognome, nome: row.lavoratore.nome } : null,
-      }),
-      rapporto: row.rapporto,
-    }))
+    .map((row) => {
+      const assunzioneNames = assunzioneNamesByRapporto[row.rapporto.id] ?? null
+      return {
+        id: row.rapporto.id,
+        label: getRapportoTitle(row.rapporto, {
+          famiglia: row.famiglia ? { cognome: row.famiglia.cognome, nome: row.famiglia.nome } : null,
+          lavoratore: row.lavoratore ? { cognome: row.lavoratore.cognome, nome: row.lavoratore.nome } : null,
+          assunzioneDatore: assunzioneNames?.datore,
+          assunzioneLavoratore: assunzioneNames?.lavoratore,
+        }),
+        rapporto: row.rapporto,
+      }
+    })
     .sort((left, right) => left.label.localeCompare(right.label, "it"))
 
-  return { columns, rapportoOptions }
+  return { columns, rapportoOptions, tipoLicenziamentoOptions: tipoMetadata.tipoLicenziamentoOptions }
 }
 
 function errorMessage(error: unknown, fallback: string) {
@@ -462,6 +511,10 @@ export function useChiusureBoard(): UseChiusureBoardState {
   const rapportoOptions = React.useMemo(
     () => data?.rapportoOptions ?? [],
     [data?.rapportoOptions],
+  )
+  const tipoLicenziamentoOptions = React.useMemo(
+    () => data?.tipoLicenziamentoOptions ?? [],
+    [data?.tipoLicenziamentoOptions],
   )
 
   const setBoardData = React.useCallback(
@@ -573,7 +626,7 @@ export function useChiusureBoard(): UseChiusureBoardState {
             input.tipo === "licenziamento"
               ? "Licenziamento"
               : input.tipo === "annullamento"
-                ? "Annullamento"
+                ? "Annullamento contratto"
                 : null,
           motivazione_cessazione_rapporto:
             input.tipo === "dimissione" ? "Dimissioni" : input.note || null,
@@ -674,6 +727,7 @@ export function useChiusureBoard(): UseChiusureBoardState {
     error,
     columns,
     rapportoOptions,
+    tipoLicenziamentoOptions,
     createChiusura,
     linkRapporto,
     moveCard,

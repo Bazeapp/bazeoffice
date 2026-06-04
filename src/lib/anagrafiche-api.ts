@@ -804,6 +804,34 @@ export async function fetchChiusureBoard() {
   }
 }
 
+export type AssunzioneNamePair = {
+  info_anagrafiche_cognome: string | null
+  info_anagrafiche_nome: string | null
+}
+
+export type RapportoAssunzioneNames = {
+  datore: AssunzioneNamePair | null
+  lavoratore: AssunzioneNamePair | null
+}
+
+/**
+ * Mappa rapporto_id → nomi anagrafici delle assunzioni collegate (datore e
+ * lavoratore). Usata dai board hook per dare priorità al nominativo del form
+ * di assunzione nella composizione del nome del rapporto. Vedi
+ * `getRapportoTitle` in features/rapporti/rapporti-labels.ts.
+ */
+export async function fetchAssunzioniNamesByRapportoIds(
+  rapportoIds: string[]
+): Promise<Record<string, RapportoAssunzioneNames>> {
+  if (rapportoIds.length === 0) return {}
+  const uniqueIds = Array.from(new Set(rapportoIds))
+  const { data, error } = await supabase.rpc("assunzioni_names_by_rapporto_ids", {
+    p_ids: uniqueIds,
+  })
+  if (error) throw new Error(`assunzioni_names_by_rapporto_ids failed: ${error.message}`)
+  return (data ?? {}) as Record<string, RapportoAssunzioneNames>
+}
+
 export async function fetchSupportTicketsBundle(tipo: string) {
   const { data, error } = await supabase.rpc("support_tickets_bundle", { p_tipo: tipo })
   if (error) {

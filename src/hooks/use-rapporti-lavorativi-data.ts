@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
   createRecord,
+  fetchAssunzioniNamesByRapportoIds,
   fetchChiusureByIds,
   fetchContributiInpsByRapporto,
   fetchFamiglieByIds,
@@ -20,6 +21,7 @@ import {
   fetchTicketByRapporto,
   fetchTransazioniByMeseLavoratoIds,
   fetchVariazioniByRapporto,
+  type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
@@ -162,21 +164,14 @@ function getRapportiLoadErrorMessage(error: unknown) {
 }
 
 function buildSearchQuery(value: string) {
-  const normalizedValue = value.trim()
+  const normalizedValue = value.trim().replace(/\s+/g, " ")
   if (!normalizedValue) return undefined
 
-  const tokens = normalizedValue
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter(Boolean)
-
-  if (tokens.length === 0) return undefined
-
-  // Use the longest token on the server query to avoid missing inverted names
-  // like "Jacquet Coline" when the stored value is "Coline Jacquet".
-  return tokens.reduce((longest, current) =>
-    current.length > longest.length ? current : longest
-  )
+  // La RPC `rapporti_lavorativi_board` tokenizza la query e richiede che ogni
+  // parola compaia nel testo di ricerca (AND). Passiamo quindi la frase intera
+  // così funzionano anche i nomi completi multi-parola (inclusi i nominativi
+  // delle assunzioni), non solo un singolo token.
+  return normalizedValue
 }
 
 function splitNameLabel(label: string | null | undefined) {
@@ -227,6 +222,8 @@ export function useRapportiLavorativiData(
   const [loadingSelectedRapporto, setLoadingSelectedRapporto] = React.useState(false)
   const [selectedFamiglia, setSelectedFamiglia] = React.useState<FamigliaRecord | null>(null)
   const [selectedLavoratore, setSelectedLavoratore] = React.useState<LavoratoreRecord | null>(null)
+  const [selectedAssunzioneNames, setSelectedAssunzioneNames] =
+    React.useState<RapportoAssunzioneNames | null>(null)
   const [selectedProcessi, setSelectedProcessi] = React.useState<ProcessoMatchingRecord[]>([])
   const [selectedContributi, setSelectedContributi] = React.useState<ContributoInpsRecord[]>([])
   const [selectedMesi, setSelectedMesi] = React.useState<MeseLavoratoRecord[]>([])
@@ -280,16 +277,29 @@ export function useRapportiLavorativiData(
         return latest?.rows.find((rapporto) => rapporto.id === id)
       }
 
+      // Nomi dalle assunzioni collegate (priorità sul nome del rapporto) per la
+      // pagina corrente della lista.
+      const assunzioneNames = await fetchAssunzioniNamesByRapportoIds(
+        result.rows
+          .map((row) => row.id)
+          .filter((id): id is string => Boolean(id)),
+      )
+
       return {
         ...result,
         rows: result.rows.map((row) =>
           mapRapportoBoardRow(row, row.id ? getPreviousCard(row.id) : undefined),
         ),
+        assunzioneNames,
       }
     },
   })
 
   const rapporti = React.useMemo(() => boardData?.rows ?? [], [boardData?.rows])
+  const rapportoAssunzioneNames = React.useMemo(
+    () => boardData?.assunzioneNames ?? {},
+    [boardData?.assunzioneNames],
+  )
   const rapportiTotal = boardData?.total ?? 0
   const error =
     queryError instanceof Error
@@ -531,6 +541,7 @@ export function useRapportiLavorativiData(
         setLoadingRelated(false)
         setSelectedFamiglia(null)
         setSelectedLavoratore(null)
+        setSelectedAssunzioneNames(null)
         setSelectedProcessi([])
         setSelectedContributi([])
         setSelectedMesi([])
@@ -548,6 +559,7 @@ export function useRapportiLavorativiData(
       setLoadingRelated(true)
       setSelectedFamiglia(null)
       setSelectedLavoratore(null)
+      setSelectedAssunzioneNames(null)
       setSelectedProcessi([])
       setSelectedContributi([])
       setSelectedMesi([])
@@ -613,11 +625,12 @@ export function useRapportiLavorativiData(
           .map((mese) => mese.id)
           .filter((id): id is string => Boolean(id))
 
-        const [mesiCalendarioResponse, presenzeResponse, transazioniResponse] =
+        const [mesiCalendarioResponse, presenzeResponse, transazioniResponse, assunzioneNamesResponse] =
           await Promise.all([
             fetchMesiCalendarioByIds(meseIds),
             fetchPresenzeByIds(presenzaIds),
             fetchTransazioniByMeseLavoratoIds(meseLavoratoIds),
+            fetchAssunzioniNamesByRapportoIds([selectedRapporto.id]),
           ])
 
         // Il pagamento si collega al cedolino tramite la transazione
@@ -665,6 +678,7 @@ export function useRapportiLavorativiData(
 
         setSelectedFamiglia(nextFamiglia)
         setSelectedLavoratore(nextLavoratore)
+        setSelectedAssunzioneNames(assunzioneNamesResponse[selectedRapporto.id] ?? null)
         setSelectedProcessi(processiRows)
         setSelectedChiusure(chiusuraResponse.rows as ChiusuraContrattoRecord[])
         setSelectedTickets(ticketResponse.rows as TicketRecord[])
@@ -717,6 +731,7 @@ export function useRapportiLavorativiData(
 
   return {
     rapporti,
+    rapportoAssunzioneNames,
     rapportiTotal,
     loading,
     error: error ?? detailError,
@@ -734,6 +749,7 @@ export function useRapportiLavorativiData(
     loadingSelectedRapporto,
     selectedFamiglia,
     selectedLavoratore,
+    selectedAssunzioneNames,
     selectedProcessi,
     selectedContributi,
     selectedMesi,
