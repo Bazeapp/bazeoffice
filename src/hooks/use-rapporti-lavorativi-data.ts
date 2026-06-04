@@ -18,6 +18,7 @@ import {
   fetchRapportiLavorativiByIds,
   fetchRapportiLavorativiBoard,
   fetchTicketByRapporto,
+  fetchTransazioniByMeseLavoratoIds,
   fetchVariazioniByRapporto,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -48,6 +49,7 @@ import type {
   RapportoLavorativoRecord,
   RichiestaAttivazioneRecord,
   TicketRecord,
+  TransazioneFinanziariaRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
 
@@ -230,6 +232,7 @@ export function useRapportiLavorativiData(
   const [selectedMesi, setSelectedMesi] = React.useState<MeseLavoratoRecord[]>([])
   const [selectedMesiCalendario, setSelectedMesiCalendario] = React.useState<MeseCalendarioRecord[]>([])
   const [selectedPagamenti, setSelectedPagamenti] = React.useState<PagamentoRecord[]>([])
+  const [selectedTransazioni, setSelectedTransazioni] = React.useState<TransazioneFinanziariaRecord[]>([])
   const [selectedPresenze, setSelectedPresenze] = React.useState<PresenzaMensileRecord[]>([])
   const [selectedVariazioni, setSelectedVariazioni] = React.useState<VariazioneContrattualeRecord[]>([])
   const [selectedChiusure, setSelectedChiusure] = React.useState<ChiusuraContrattoRecord[]>([])
@@ -533,6 +536,7 @@ export function useRapportiLavorativiData(
         setSelectedMesi([])
         setSelectedMesiCalendario([])
         setSelectedPagamenti([])
+        setSelectedTransazioni([])
         setSelectedPresenze([])
         setSelectedVariazioni([])
         setSelectedChiusure([])
@@ -606,11 +610,19 @@ export function useRapportiLavorativiData(
           )
         )
 
-        const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse] = await Promise.all([
-          fetchMesiCalendarioByIds(meseIds),
-          fetchPagamentiByTicketIds(cedoliniTicketIds),
-          fetchPresenzeByIds(presenzaIds),
-        ])
+        // La transazione (link pagamento) si lega al mese lavorato via
+        // `mese_lavorativo_id` = id del mese lavorato, non al ticket.
+        const meseLavoratoIds = mesiRows
+          .map((mese) => mese.id)
+          .filter((id): id is string => Boolean(id))
+
+        const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse, transazioniResponse] =
+          await Promise.all([
+            fetchMesiCalendarioByIds(meseIds),
+            fetchPagamentiByTicketIds(cedoliniTicketIds),
+            fetchPresenzeByIds(presenzaIds),
+            fetchTransazioniByMeseLavoratoIds(meseLavoratoIds),
+          ])
 
         const processiRows = processiResponse.rows as ProcessoMatchingRecord[]
         const richiesteByProcessId = await fetchRichiesteAttivazioneByProcessIds(processIds)
@@ -656,6 +668,7 @@ export function useRapportiLavorativiData(
         setSelectedMesi(mesiRows)
         setSelectedMesiCalendario(mesiCalendarioResponse.rows as MeseCalendarioRecord[])
         setSelectedPagamenti(pagamentiResponse.rows as PagamentoRecord[])
+        setSelectedTransazioni(transazioniResponse.rows as TransazioneFinanziariaRecord[])
         setSelectedPresenze(presenzeResponse.rows as PresenzaMensileRecord[])
         setSelectedRichiesteAttivazione(Array.from(richiesteByProcessId.values()))
       } catch (loadError) {
@@ -667,6 +680,7 @@ export function useRapportiLavorativiData(
         setSelectedMesi([])
         setSelectedMesiCalendario([])
         setSelectedPagamenti([])
+        setSelectedTransazioni([])
         setSelectedPresenze([])
         setSelectedVariazioni([])
         setSelectedChiusure([])
@@ -720,6 +734,7 @@ export function useRapportiLavorativiData(
     selectedMesi,
     selectedMesiCalendario,
     selectedPagamenti,
+    selectedTransazioni,
     selectedPresenze,
     selectedVariazioni,
     selectedChiusure,

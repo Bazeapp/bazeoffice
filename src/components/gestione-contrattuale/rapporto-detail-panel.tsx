@@ -78,6 +78,7 @@ import type {
   RapportoLavorativoRecord,
   RichiestaAttivazioneRecord,
   TicketRecord,
+  TransazioneFinanziariaRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "@/hooks/use-payroll-board"
@@ -98,6 +99,7 @@ type RapportoDetailPanelProps = {
   mesi: MeseLavoratoRecord[]
   mesiCalendario: MeseCalendarioRecord[]
   pagamenti: PagamentoRecord[]
+  transazioni: TransazioneFinanziariaRecord[]
   presenze: PresenzaMensileRecord[]
   variazioni: VariazioneContrattualeRecord[]
   chiusure: ChiusuraContrattoRecord[]
@@ -646,6 +648,7 @@ export function RapportoDetailPanel({
   mesi,
   mesiCalendario,
   pagamenti,
+  transazioni,
   presenze,
   variazioni,
   chiusure,
@@ -1085,6 +1088,16 @@ export function RapportoDetailPanel({
       .map((item) => [item.ticket_id as string, item])
   )
   const presenzeById = new Map(presenze.map((item) => [item.id, item]))
+  // `transazioni` arriva ordinato per creato_il desc: tenendo la prima per
+  // mese_lavorativo_id si conserva la transazione più recente (come la RPC
+  // cedolini_board lato pagina cedolini).
+  const transazioniByMeseId = new Map<string, TransazioneFinanziariaRecord>()
+  for (const item of transazioni) {
+    if (!item.mese_lavorativo_id) continue
+    if (!transazioniByMeseId.has(item.mese_lavorativo_id)) {
+      transazioniByMeseId.set(item.mese_lavorativo_id, item)
+    }
+  }
   const sortedMesi = [...mesi].sort((left, right) => {
     const leftDate =
       (left.mese_id ? meseCalendarioById.get(left.mese_id)?.data_inizio : null) ??
@@ -1115,7 +1128,7 @@ export function RapportoDetailPanel({
       record: mese,
       famiglia,
       pagamento,
-      transazione: null,
+      transazione: transazioniByMeseId.get(mese.id) ?? null,
       presenze: presenzeMese,
       presenzeRegolari,
       rapporto: rapportoView,
