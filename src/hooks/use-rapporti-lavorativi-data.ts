@@ -12,7 +12,7 @@ import {
   fetchLookupValues,
   fetchMesiCalendarioByIds,
   fetchMesiLavoratiByRapporto,
-  fetchPagamentiByTicketIds,
+  fetchPagamentiByTransazioneIds,
   fetchProcessiMatchingByIds,
   fetchPresenzeByIds,
   fetchRapportiLavorativiByIds,
@@ -596,14 +596,11 @@ export function useRapportiLavorativiData(
         ])
 
         // Cedolini: i mesi lavorati guidano le fetch dipendenti (calendario,
-        // pagamenti, presenze) tramite gli id referenziati.
+        // presenze, transazioni) tramite gli id referenziati.
         const mesiRows = mesiResponse.rows as MeseLavoratoRecord[]
         const meseIds = mesiRows
           .map((mese) => mese.mese_id)
           .filter((meseId): meseId is string => Boolean(meseId))
-        const cedoliniTicketIds = mesiRows
-          .map((mese) => mese.ticket_id)
-          .filter((ticketId): ticketId is string => Boolean(ticketId))
         const presenzaIds = mesiRows.flatMap((mese) =>
           [mese.presenze_id, mese.presenze_regolare_id].filter(
             (presenzaId): presenzaId is string => Boolean(presenzaId)
@@ -616,13 +613,21 @@ export function useRapportiLavorativiData(
           .map((mese) => mese.id)
           .filter((id): id is string => Boolean(id))
 
-        const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse, transazioniResponse] =
+        const [mesiCalendarioResponse, presenzeResponse, transazioniResponse] =
           await Promise.all([
             fetchMesiCalendarioByIds(meseIds),
-            fetchPagamentiByTicketIds(cedoliniTicketIds),
             fetchPresenzeByIds(presenzaIds),
             fetchTransazioniByMeseLavoratoIds(meseLavoratoIds),
           ])
+
+        // Il pagamento si collega al cedolino tramite la transazione
+        // (pagamento.transazione_id), non tramite il ticket: stesso percorso
+        // della RPC cedolini_board della pagina cedolini.
+        const transazioniRows = transazioniResponse.rows as TransazioneFinanziariaRecord[]
+        const transazioneIds = transazioniRows
+          .map((transazione) => transazione.id)
+          .filter((id): id is string => Boolean(id))
+        const pagamentiResponse = await fetchPagamentiByTransazioneIds(transazioneIds)
 
         const processiRows = processiResponse.rows as ProcessoMatchingRecord[]
         const richiesteByProcessId = await fetchRichiesteAttivazioneByProcessIds(processIds)

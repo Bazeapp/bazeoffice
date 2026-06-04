@@ -1201,6 +1201,35 @@ export async function fetchTransazioniByMeseLavoratoIds(meseLavoratoIds: string[
   })
 }
 
+// Pagamenti collegati ai cedolini via transazione (pagamento.transazione_id =
+// transazione.id), come la RPC cedolini_board. Sostituisce il lookup per
+// ticket_id, inaffidabile sui cedolini (ticket spesso assente o senza pagamenti).
+export async function fetchPagamentiByTransazioneIds(transazioneIds: string[]) {
+  if (transazioneIds.length === 0) return EMPTY_ROWS
+  return fetchPagamenti({
+    select: ["*"],
+    // Margine ampio: l'ordinamento globale per data non deve tagliare le
+    // transazioni più vecchie del set filtrato.
+    limit: Math.max(transazioneIds.length * 4, 200),
+    offset: 0,
+    orderBy: [{ field: "creato_il", ascending: false }],
+    filters: {
+      kind: "group",
+      id: "pagamenti-by-transazione",
+      logic: "and",
+      nodes: [
+        {
+          kind: "condition",
+          id: "pagamenti-by-transazione-in",
+          field: "transazione_id",
+          operator: "in",
+          value: transazioneIds.join(","),
+        },
+      ],
+    },
+  })
+}
+
 // FASE 4 BIS Wave 4 — reload single-card board (by id).
 export async function fetchVariazioniByIds(ids: string[]) {
   if (ids.length === 0) return EMPTY_ROWS
