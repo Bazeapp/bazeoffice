@@ -301,6 +301,28 @@ export default defineConfig([
           message:
             'Detail/Scheda wrappers (Detail*Sheet/Panel/Shell or Scheda*Sheet/Panel/Shell) at the view level must declare key={selectedCardId ?? "__empty__"} so debounced inputs inside reset their local draft when switching cards.',
         },
+        {
+          // FASE 5 BIS — migrazione a form-context. `committedValue` compare
+          // SOLO su <DebouncedInput>/<DebouncedTextarea> usati direttamente.
+          // Fuori dal toolkit (src/components/forms/field-components.tsx) ogni
+          // occorrenza è un campo cablato a mano che deve diventare
+          // <FieldInput name="...">/<FieldTextarea name="..."> (react-hook-form
+          // + useAutoSaveForm). 'warn' durante la migrazione: promuovere a
+          // 'error' quando la lista è vuota. Nel toolkit è soppresso per-riga.
+          selector: "JSXAttribute[name.name='committedValue']",
+          message:
+            'Campo cablato a mano (DebouncedInput committedValue=...). Usa <FieldInput name="...">/<FieldTextarea name="..."> con useAutoSaveForm (form-context, FASE 5 BIS).',
+        },
+        {
+          // FASE 5 BIS — `useDebouncedSave` è il salvataggio per-campo cablato a
+          // mano: ogni file che lo importa ha campi NON ancora migrati a
+          // form-context. La firma autosave (debounce + dirty + resync) ora vive
+          // in useAutoSaveForm + Field*. 'warn' durante la migrazione.
+          selector:
+            "ImportDeclaration[source.value='@/hooks/use-debounced-save']",
+          message:
+            'Salvataggio per-campo a mano (useDebouncedSave). Migra i campi a form-context: useAutoSaveForm + <FieldInput/FieldTextarea/...> (FASE 5 BIS).',
+        },
       ],
     },
   },
