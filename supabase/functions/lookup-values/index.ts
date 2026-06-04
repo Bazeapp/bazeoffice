@@ -54,41 +54,67 @@ Deno.serve(async (req) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  let query = supabase
-    .from("lookup_values")
-    .select(
-      "id, entity_table, entity_field, value_key, value_label, sort_order, is_active, metadata",
-      { count: "exact" }
-    )
-    .order("entity_table", { ascending: true })
-    .order("entity_field", { ascending: true })
-    .order("sort_order", { ascending: true, nullsFirst: false })
-    .order("value_label", { ascending: true });
+  // PostgREST caps each response at `db-max-rows` (1000 on this project).
+  // Without paginating, lookup values beyond row 1000 (ordered globally)
+  // are silently dropped — e.g. `selezioni_lavoratori.stato_selezione`
+  // "Non selezionato". Fetch in pages until every row is collected.
+  const PAGE_SIZE = 1000;
 
-  if (payload.entity_table) {
-    query = query.eq("entity_table", payload.entity_table);
-  }
+  const buildQuery = () => {
+    let query = supabase
+      .from("lookup_values")
+      .select(
+        "id, entity_table, entity_field, value_key, value_label, sort_order, is_active, metadata",
+        { count: "exact" }
+      )
+      .order("entity_table", { ascending: true })
+      .order("entity_field", { ascending: true })
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("value_label", { ascending: true });
 
-  if (payload.entity_field) {
-    query = query.eq("entity_field", payload.entity_field);
-  }
+    if (payload.entity_table) {
+      query = query.eq("entity_table", payload.entity_table);
+    }
+    if (payload.entity_field) {
+      query = query.eq("entity_field", payload.entity_field);
+    }
+    if (typeof payload.is_active === "boolean") {
+      query = query.eq("is_active", payload.is_active);
+    }
+    return query;
+  };
 
-  if (typeof payload.is_active === "boolean") {
-    query = query.eq("is_active", payload.is_active);
-  }
+  const rows: unknown[] = [];
+  let total = 0;
 
-  const { data, error, count } = await query;
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error, count } = await buildQuery().range(
+      from,
+      from + PAGE_SIZE - 1
+    );
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (typeof count === "number") {
+      total = count;
+    }
+
+    const batch = data ?? [];
+    rows.push(...batch);
+
+    if (batch.length < PAGE_SIZE) break;
+    // Safety stop against an unexpected runaway loop.
+    if (from > 100_000) break;
   }
 
   return new Response(
     JSON.stringify({
-      rows: data ?? [],
-      total: count ?? 0,
+      rows,
+      total,
     }),
     {
       status: 200,
