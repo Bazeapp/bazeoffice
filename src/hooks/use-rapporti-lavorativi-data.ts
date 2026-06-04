@@ -162,21 +162,14 @@ function getRapportiLoadErrorMessage(error: unknown) {
 }
 
 function buildSearchQuery(value: string) {
-  const normalizedValue = value.trim()
+  const normalizedValue = value.trim().replace(/\s+/g, " ")
   if (!normalizedValue) return undefined
 
-  const tokens = normalizedValue
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter(Boolean)
-
-  if (tokens.length === 0) return undefined
-
-  // Use the longest token on the server query to avoid missing inverted names
-  // like "Jacquet Coline" when the stored value is "Coline Jacquet".
-  return tokens.reduce((longest, current) =>
-    current.length > longest.length ? current : longest
-  )
+  // La RPC `rapporti_lavorativi_board` tokenizza la query e richiede che ogni
+  // parola compaia nel testo di ricerca (AND). Passiamo quindi la frase intera
+  // così funzionano anche i nomi completi multi-parola (inclusi i nominativi
+  // delle assunzioni), non solo un singolo token.
+  return normalizedValue
 }
 
 function splitNameLabel(label: string | null | undefined) {
