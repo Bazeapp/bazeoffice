@@ -435,7 +435,15 @@ function ChiusureDetailSheet({
                       <Select
                         value={card.record.tipo_licenziamento ?? ""}
                         onValueChange={(value) => {
-                          void onPatchChiusura(card.id, {
+                          const currentCard = latestCardRef.current ?? card
+                          if (!currentCard) return
+                          // Aggiorna subito la card mostrata (la Select è
+                          // controllata da card.record), poi persisti.
+                          applyCardChange({
+                            ...currentCard,
+                            record: { ...currentCard.record, tipo_licenziamento: value || null },
+                          })
+                          void onPatchChiusura(currentCard.id, {
                             tipo_licenziamento: value || null,
                           })
                         }}
