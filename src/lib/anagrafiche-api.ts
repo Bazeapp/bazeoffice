@@ -1173,6 +1173,64 @@ export async function fetchPresenzeByIds(ids: string[]) {
   return rpcRows("presenze_by_ids", { p_ids: ids })
 }
 
+// Transazioni finanziarie collegate ai mesi lavorati (cedolini). Usata dalla
+// scheda rapporto per abilitare "Copia link pagamento": la transazione si lega
+// al cedolino via `mese_lavorativo_id` (= id del mese lavorato).
+export async function fetchTransazioniByMeseLavoratoIds(meseLavoratoIds: string[]) {
+  if (meseLavoratoIds.length === 0) return EMPTY_ROWS
+  return fetchTransazioniFinanziarie({
+    select: ["*"],
+    // Margine ampio: un mese può avere più di una transazione e l'ordinamento
+    // globale per data non deve tagliare i mesi più vecchi del set filtrato.
+    limit: Math.max(meseLavoratoIds.length * 4, 200),
+    offset: 0,
+    orderBy: [{ field: "creato_il", ascending: false }],
+    filters: {
+      kind: "group",
+      id: "transazioni-by-mese-lavorato",
+      logic: "and",
+      nodes: [
+        {
+          kind: "condition",
+          id: "transazioni-by-mese-lavorato-in",
+          field: "mese_lavorativo_id",
+          operator: "in",
+          value: meseLavoratoIds.join(","),
+        },
+      ],
+    },
+  })
+}
+
+// Pagamenti collegati ai cedolini via transazione (pagamento.transazione_id =
+// transazione.id), come la RPC cedolini_board. Sostituisce il lookup per
+// ticket_id, inaffidabile sui cedolini (ticket spesso assente o senza pagamenti).
+export async function fetchPagamentiByTransazioneIds(transazioneIds: string[]) {
+  if (transazioneIds.length === 0) return EMPTY_ROWS
+  return fetchPagamenti({
+    select: ["*"],
+    // Margine ampio: l'ordinamento globale per data non deve tagliare le
+    // transazioni più vecchie del set filtrato.
+    limit: Math.max(transazioneIds.length * 4, 200),
+    offset: 0,
+    orderBy: [{ field: "creato_il", ascending: false }],
+    filters: {
+      kind: "group",
+      id: "pagamenti-by-transazione",
+      logic: "and",
+      nodes: [
+        {
+          kind: "condition",
+          id: "pagamenti-by-transazione-in",
+          field: "transazione_id",
+          operator: "in",
+          value: transazioneIds.join(","),
+        },
+      ],
+    },
+  })
+}
+
 // FASE 4 BIS Wave 4 — reload single-card board (by id).
 export async function fetchVariazioniByIds(ids: string[]) {
   if (ids.length === 0) return EMPTY_ROWS
