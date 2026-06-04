@@ -1183,6 +1183,7 @@ export async function fetchTransazioniByMeseLavoratoIds(meseLavoratoIds: string[
     // Margine ampio: un mese può avere più di una transazione e l'ordinamento
     // globale per data non deve tagliare i mesi più vecchi del set filtrato.
     limit: Math.max(meseLavoratoIds.length * 4, 200),
+    offset: 0,
     orderBy: [{ field: "creato_il", ascending: false }],
     filters: {
       kind: "group",
