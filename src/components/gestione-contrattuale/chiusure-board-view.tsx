@@ -14,6 +14,7 @@ import {
 import {
   type ChiusureBoardCardData,
   type ChiusureBoardColumnData,
+  type TipoLicenziamentoOption,
   useChiusureBoard,
 } from "@/hooks/use-chiusure-board"
 import { AssociationSearchField } from "@/components/shared-next/association-search-field"
@@ -140,6 +141,7 @@ function ChiusureDetailSheet({
   card,
   columns,
   rapportoOptions,
+  tipoLicenziamentoOptions,
   open,
   onOpenChange,
   onStatusChange,
@@ -150,6 +152,7 @@ function ChiusureDetailSheet({
   card: ChiusureBoardCardData | null
   columns: ChiusureBoardColumnData[]
   rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
+  tipoLicenziamentoOptions: TipoLicenziamentoOption[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onStatusChange: (recordId: string, targetStageId: string) => Promise<void>
@@ -441,15 +444,23 @@ function ChiusureDetailSheet({
                           <SelectValue placeholder="Seleziona tipo" />
                         </SelectTrigger>
                         <SelectContent>
-                          {(card.record.tipo_licenziamento &&
-                          !TIPO_LICENZIAMENTO_OPTIONS.includes(card.record.tipo_licenziamento)
-                            ? [card.record.tipo_licenziamento, ...TIPO_LICENZIAMENTO_OPTIONS]
-                            : TIPO_LICENZIAMENTO_OPTIONS
-                          ).map((option) => (
-                            <SelectItem key={option} value={option}>
-                              {option}
-                            </SelectItem>
-                          ))}
+                          {(() => {
+                            const options =
+                              tipoLicenziamentoOptions.length > 0
+                                ? tipoLicenziamentoOptions
+                                : TIPO_LICENZIAMENTO_OPTIONS.map((value) => ({ value, label: value }))
+                            const current = card.record.tipo_licenziamento
+                            // Mantieni selezionabile un valore già salvato fuori lista.
+                            const withCurrent =
+                              current && !options.some((option) => option.value === current)
+                                ? [{ value: current, label: current }, ...options]
+                                : options
+                            return withCurrent.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))
+                          })()}
                         </SelectContent>
                       </Select>
                     </label>
@@ -766,6 +777,7 @@ export function ChiusureBoardView() {
     error,
     columns,
     rapportoOptions,
+    tipoLicenziamentoOptions,
     createChiusura,
     linkRapporto,
     moveCard,
@@ -961,6 +973,7 @@ export function ChiusureBoardView() {
         card={selectedFreshCard}
         columns={columns}
         rapportoOptions={rapportoOptions}
+        tipoLicenziamentoOptions={tipoLicenziamentoOptions}
         open={Boolean(selectedCardId)}
         onOpenChange={(open) => {
           if (!open) {
