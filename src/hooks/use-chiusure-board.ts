@@ -573,7 +573,7 @@ export function useChiusureBoard(): UseChiusureBoardState {
             input.tipo === "licenziamento"
               ? "Licenziamento"
               : input.tipo === "annullamento"
-                ? "Annullamento"
+                ? "Annullamento contratto"
                 : null,
           motivazione_cessazione_rapporto:
             input.tipo === "dimissione" ? "Dimissioni" : input.note || null,
