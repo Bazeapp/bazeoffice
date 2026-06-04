@@ -13,12 +13,13 @@ import {
   fetchLookupValues,
   fetchMesiCalendarioByIds,
   fetchMesiLavoratiByRapporto,
-  fetchPagamentiByTicketIds,
+  fetchPagamentiByTransazioneIds,
   fetchProcessiMatchingByIds,
   fetchPresenzeByIds,
   fetchRapportiLavorativiByIds,
   fetchRapportiLavorativiBoard,
   fetchTicketByRapporto,
+  fetchTransazioniByMeseLavoratoIds,
   fetchVariazioniByRapporto,
   type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
@@ -50,6 +51,7 @@ import type {
   RapportoLavorativoRecord,
   RichiestaAttivazioneRecord,
   TicketRecord,
+  TransazioneFinanziariaRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
 
@@ -227,6 +229,7 @@ export function useRapportiLavorativiData(
   const [selectedMesi, setSelectedMesi] = React.useState<MeseLavoratoRecord[]>([])
   const [selectedMesiCalendario, setSelectedMesiCalendario] = React.useState<MeseCalendarioRecord[]>([])
   const [selectedPagamenti, setSelectedPagamenti] = React.useState<PagamentoRecord[]>([])
+  const [selectedTransazioni, setSelectedTransazioni] = React.useState<TransazioneFinanziariaRecord[]>([])
   const [selectedPresenze, setSelectedPresenze] = React.useState<PresenzaMensileRecord[]>([])
   const [selectedVariazioni, setSelectedVariazioni] = React.useState<VariazioneContrattualeRecord[]>([])
   const [selectedChiusure, setSelectedChiusure] = React.useState<ChiusuraContrattoRecord[]>([])
@@ -544,6 +547,7 @@ export function useRapportiLavorativiData(
         setSelectedMesi([])
         setSelectedMesiCalendario([])
         setSelectedPagamenti([])
+        setSelectedTransazioni([])
         setSelectedPresenze([])
         setSelectedVariazioni([])
         setSelectedChiusure([])
@@ -604,27 +608,39 @@ export function useRapportiLavorativiData(
         ])
 
         // Cedolini: i mesi lavorati guidano le fetch dipendenti (calendario,
-        // pagamenti, presenze) tramite gli id referenziati.
+        // presenze, transazioni) tramite gli id referenziati.
         const mesiRows = mesiResponse.rows as MeseLavoratoRecord[]
         const meseIds = mesiRows
           .map((mese) => mese.mese_id)
           .filter((meseId): meseId is string => Boolean(meseId))
-        const cedoliniTicketIds = mesiRows
-          .map((mese) => mese.ticket_id)
-          .filter((ticketId): ticketId is string => Boolean(ticketId))
         const presenzaIds = mesiRows.flatMap((mese) =>
           [mese.presenze_id, mese.presenze_regolare_id].filter(
             (presenzaId): presenzaId is string => Boolean(presenzaId)
           )
         )
 
-        const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse, assunzioneNamesResponse] =
+        // La transazione (link pagamento) si lega al mese lavorato via
+        // `mese_lavorativo_id` = id del mese lavorato, non al ticket.
+        const meseLavoratoIds = mesiRows
+          .map((mese) => mese.id)
+          .filter((id): id is string => Boolean(id))
+
+        const [mesiCalendarioResponse, presenzeResponse, transazioniResponse, assunzioneNamesResponse] =
           await Promise.all([
             fetchMesiCalendarioByIds(meseIds),
-            fetchPagamentiByTicketIds(cedoliniTicketIds),
             fetchPresenzeByIds(presenzaIds),
+            fetchTransazioniByMeseLavoratoIds(meseLavoratoIds),
             fetchAssunzioniNamesByRapportoIds([selectedRapporto.id]),
           ])
+
+        // Il pagamento si collega al cedolino tramite la transazione
+        // (pagamento.transazione_id), non tramite il ticket: stesso percorso
+        // della RPC cedolini_board della pagina cedolini.
+        const transazioniRows = transazioniResponse.rows as TransazioneFinanziariaRecord[]
+        const transazioneIds = transazioniRows
+          .map((transazione) => transazione.id)
+          .filter((id): id is string => Boolean(id))
+        const pagamentiResponse = await fetchPagamentiByTransazioneIds(transazioneIds)
 
         const processiRows = processiResponse.rows as ProcessoMatchingRecord[]
         const richiesteByProcessId = await fetchRichiesteAttivazioneByProcessIds(processIds)
@@ -671,6 +687,7 @@ export function useRapportiLavorativiData(
         setSelectedMesi(mesiRows)
         setSelectedMesiCalendario(mesiCalendarioResponse.rows as MeseCalendarioRecord[])
         setSelectedPagamenti(pagamentiResponse.rows as PagamentoRecord[])
+        setSelectedTransazioni(transazioniResponse.rows as TransazioneFinanziariaRecord[])
         setSelectedPresenze(presenzeResponse.rows as PresenzaMensileRecord[])
         setSelectedRichiesteAttivazione(Array.from(richiesteByProcessId.values()))
       } catch (loadError) {
@@ -682,6 +699,7 @@ export function useRapportiLavorativiData(
         setSelectedMesi([])
         setSelectedMesiCalendario([])
         setSelectedPagamenti([])
+        setSelectedTransazioni([])
         setSelectedPresenze([])
         setSelectedVariazioni([])
         setSelectedChiusure([])
@@ -737,6 +755,7 @@ export function useRapportiLavorativiData(
     selectedMesi,
     selectedMesiCalendario,
     selectedPagamenti,
+    selectedTransazioni,
     selectedPresenze,
     selectedVariazioni,
     selectedChiusure,

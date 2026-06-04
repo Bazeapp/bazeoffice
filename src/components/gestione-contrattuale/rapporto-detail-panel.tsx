@@ -83,6 +83,7 @@ import type {
   RapportoLavorativoRecord,
   RichiestaAttivazioneRecord,
   TicketRecord,
+  TransazioneFinanziariaRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "@/hooks/use-payroll-board"
@@ -104,6 +105,7 @@ type RapportoDetailPanelProps = {
   mesi: MeseLavoratoRecord[]
   mesiCalendario: MeseCalendarioRecord[]
   pagamenti: PagamentoRecord[]
+  transazioni: TransazioneFinanziariaRecord[]
   presenze: PresenzaMensileRecord[]
   variazioni: VariazioneContrattualeRecord[]
   chiusure: ChiusuraContrattoRecord[]
@@ -653,6 +655,7 @@ export function RapportoDetailPanel({
   mesi,
   mesiCalendario,
   pagamenti,
+  transazioni,
   presenze,
   variazioni,
   chiusure,
@@ -1091,12 +1094,32 @@ export function RapportoDetailPanel({
       `rapporti_lavorativi.stato_rapporto:${normalizeToken(rapportoStatus)}`
     ) ?? getRapportoStatusColor(rapportoStatus)
   const meseCalendarioById = new Map(mesiCalendario.map((item) => [item.id, item]))
-  const pagamentiByTicketId = new Map(
-    pagamenti
-      .filter((item) => item.ticket_id)
-      .map((item) => [item.ticket_id as string, item])
-  )
   const presenzeById = new Map(presenze.map((item) => [item.id, item]))
+  // `transazioni` arriva ordinato per creato_il desc: tenendo la prima per
+  // mese_lavorativo_id si conserva la transazione più recente (come la RPC
+  // cedolini_board lato pagina cedolini).
+  const transazioniByMeseId = new Map<string, TransazioneFinanziariaRecord>()
+  for (const item of transazioni) {
+    if (!item.mese_lavorativo_id) continue
+    if (!transazioniByMeseId.has(item.mese_lavorativo_id)) {
+      transazioniByMeseId.set(item.mese_lavorativo_id, item)
+    }
+  }
+  // Il pagamento si collega al cedolino tramite la transazione, non il ticket
+  // (idem RPC cedolini_board). `pagamenti` è ordinato per creato_il desc: la
+  // prima per transazione_id è la più recente.
+  const pagamentoByTransazioneId = new Map<string, PagamentoRecord>()
+  for (const item of pagamenti) {
+    if (!item.transazione_id) continue
+    if (!pagamentoByTransazioneId.has(item.transazione_id)) {
+      pagamentoByTransazioneId.set(item.transazione_id, item)
+    }
+  }
+  // Risolve il pagamento di un cedolino seguendo mese → transazione → pagamento.
+  const getPagamentoForMese = (meseLavoratoId: string) => {
+    const transazione = transazioniByMeseId.get(meseLavoratoId)
+    return transazione ? pagamentoByTransazioneId.get(transazione.id) ?? null : null
+  }
   const sortedMesi = [...mesi].sort((left, right) => {
     const leftDate =
       (left.mese_id ? meseCalendarioById.get(left.mese_id)?.data_inizio : null) ??
@@ -1110,7 +1133,7 @@ export function RapportoDetailPanel({
   })
   const cedolinoCards = sortedMesi.map((mese) => {
     const meseCalendario = mese.mese_id ? meseCalendarioById.get(mese.mese_id) ?? null : null
-    const pagamento = mese.ticket_id ? pagamentiByTicketId.get(mese.ticket_id) ?? null : null
+    const pagamento = getPagamentoForMese(mese.id)
     const presenzeMese = mese.presenze_id ? presenzeById.get(mese.presenze_id) ?? null : null
     const presenzeRegolari = mese.presenze_regolare_id
       ? presenzeById.get(mese.presenze_regolare_id) ?? null
@@ -1127,7 +1150,7 @@ export function RapportoDetailPanel({
       record: mese,
       famiglia,
       pagamento,
-      transazione: null,
+      transazione: transazioniByMeseId.get(mese.id) ?? null,
       presenze: presenzeMese,
       presenzeRegolari,
       rapporto: rapportoView,
@@ -1721,7 +1744,7 @@ export function RapportoDetailPanel({
               ) : sortedMesi.length > 0 ? (
                 sortedMesi.map((mese) => {
                   const meseCalendario = mese.mese_id ? meseCalendarioById.get(mese.mese_id) ?? null : null
-                  const pagamento = mese.ticket_id ? pagamentiByTicketId.get(mese.ticket_id) ?? null : null
+                  const pagamento = getPagamentoForMese(mese.id)
                   const presenzeMese = mese.presenze_id ? presenzeById.get(mese.presenze_id) ?? null : null
                   const ratingValue =
                     typeof mese.rating_feedback_famiglia === "number" && mese.rating_feedback_famiglia > 0

@@ -35,6 +35,7 @@ export function RapportiLavorativiView({
     selectedMesi,
     selectedMesiCalendario,
     selectedPagamenti,
+    selectedTransazioni,
     selectedPresenze,
     selectedVariazioni,
     selectedChiusure,
@@ -87,6 +88,7 @@ export function RapportiLavorativiView({
         mesi={selectedMesi}
         mesiCalendario={selectedMesiCalendario}
         pagamenti={selectedPagamenti}
+        transazioni={selectedTransazioni}
         presenze={selectedPresenze}
         variazioni={selectedVariazioni}
         chiusure={selectedChiusure}
