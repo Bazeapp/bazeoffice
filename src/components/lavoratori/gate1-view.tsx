@@ -110,6 +110,7 @@ import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { RecruiterFeedbackButton } from "@/components/lavoratori/recruiter-feedback-sheet";
+import { RecruiterFeedbackPanel } from "@/components/lavoratori/recruiter-feedback-panel";
 import { updateRecord } from "@/lib/anagrafiche-api";
 import {
   buildAttachmentPayload,
@@ -669,6 +670,9 @@ function GateAssessmentCard({
   nonIdoneoReasonValue,
   nonIdoneoReasonOptions,
   onNonIdoneoReasonChange,
+  feedbackRaw,
+  operatorName,
+  onFeedbackSave,
   lookupColorsByDomain,
 }: {
   statusValue: string;
@@ -677,6 +681,9 @@ function GateAssessmentCard({
   nonIdoneoReasonValue: string;
   nonIdoneoReasonOptions: Array<{ label: string; value: string }>;
   onNonIdoneoReasonChange: (value: string) => void;
+  feedbackRaw: string;
+  operatorName: string;
+  onFeedbackSave: (nextValue: string) => Promise<void> | void;
   lookupColorsByDomain: Map<string, string>;
 }) {
   const orderedStatusOptions = React.useMemo(() => {
@@ -748,6 +755,22 @@ function GateAssessmentCard({
       title="Assessment finale"
       icon={<NotebookPenIcon className="text-muted-foreground size-4" />}
     >
+      <div className="space-y-1">
+        <p className="text-sm">
+          Inserisci i tuoi appunti e valutazione su questo profilo.
+        </p>
+      </div>
+
+      <div className="max-w-5xl">
+        <RecruiterFeedbackPanel
+          embedded
+          showHistory={false}
+          value={feedbackRaw}
+          operatorName={operatorName}
+          onSave={onFeedbackSave}
+        />
+      </div>
+
       <div className="max-w-xs space-y-3">
         <p className="text-sm font-medium">
           Aggiorna lo stato del lavoratore dopo il colloquio
@@ -5685,6 +5708,14 @@ export function Gate1View({
                             value ? [value] : [],
                           );
                         }}
+                        feedbackRaw={asString(selectedWorkerRow?.feedback_recruiter)}
+                        operatorName={operatorName}
+                        onFeedbackSave={(next) =>
+                          patchSelectedWorkerField(
+                            "feedback_recruiter",
+                            next.trim() || null,
+                          )
+                        }
                         lookupColorsByDomain={lookupColorsByDomain}
                       />
                     </GateStepSection>
