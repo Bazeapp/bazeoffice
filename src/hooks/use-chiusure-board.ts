@@ -4,7 +4,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
-import { createRecord, fetchChiusureBoard, fetchLookupValues, updateRecord } from "@/lib/anagrafiche-api"
+import {
+  createRecord,
+  fetchAssunzioniNamesByRapportoIds,
+  fetchChiusureBoard,
+  fetchLookupValues,
+  updateRecord,
+  type RapportoAssunzioneNames,
+} from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
 import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
@@ -306,6 +313,7 @@ export function mapChiusuraBoardCard(
   stage: string,
   tipoMetadata: TipoMetadata,
   previousCard?: ChiusureBoardCardData,
+  assunzioneNames?: RapportoAssunzioneNames | null,
 ): ChiusureBoardCardData {
   const freshRecord = row.record
   const freshRapporto = row.rapporto ?? null
@@ -348,6 +356,8 @@ export function mapChiusuraBoardCard(
       ? getRapportoTitle(rapporto, {
           famiglia: row.famiglia ? { cognome: row.famiglia.cognome, nome: row.famiglia.nome } : null,
           lavoratore: row.lavoratore ? { cognome: row.lavoratore.cognome, nome: row.lavoratore.nome } : null,
+          assunzioneDatore: assunzioneNames?.datore,
+          assunzioneLavoratore: assunzioneNames?.lavoratore,
         })
       : null) ||
     [record.nome, record.cognome].filter(Boolean).join(" ").trim() ||
@@ -389,6 +399,14 @@ async function fetchChiusureBoardData(
     fetchLookupValues(),
   ])
 
+  // Nomi dalle assunzioni collegate (priorità sul nome del rapporto) per tutti
+  // i rapporti coinvolti: card delle chiusure + opzioni della modale.
+  const rapportoIds = [
+    ...boardResult.cards.map((row) => row.rapporto?.id),
+    ...boardResult.rapporti.map((row) => row.rapporto.id),
+  ].filter((id): id is string => Boolean(id))
+  const assunzioneNamesByRapporto = await fetchAssunzioniNamesByRapportoIds(rapportoIds)
+
   const stageMetadata = buildStageMetadata(lookupResult.rows)
   const tipoMetadata = buildTipoMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
@@ -403,7 +421,10 @@ async function fetchChiusureBoardData(
     if (!stage) continue
 
     const previousCard = getPreviousCard?.(record.id)
-    const card = mapChiusuraBoardCard(row, stage, tipoMetadata, previousCard)
+    const assunzioneNames = row.rapporto?.id
+      ? assunzioneNamesByRapporto[row.rapporto.id] ?? null
+      : null
+    const card = mapChiusuraBoardCard(row, stage, tipoMetadata, previousCard, assunzioneNames)
     cardsByStage.get(stage)?.push(card)
   }
 
@@ -414,14 +435,19 @@ async function fetchChiusureBoardData(
     cards: cardsByStage.get(stage.id) ?? [],
   }))
   const rapportoOptions = boardResult.rapporti
-    .map((row) => ({
-      id: row.rapporto.id,
-      label: getRapportoTitle(row.rapporto, {
-        famiglia: row.famiglia ? { cognome: row.famiglia.cognome, nome: row.famiglia.nome } : null,
-        lavoratore: row.lavoratore ? { cognome: row.lavoratore.cognome, nome: row.lavoratore.nome } : null,
-      }),
-      rapporto: row.rapporto,
-    }))
+    .map((row) => {
+      const assunzioneNames = assunzioneNamesByRapporto[row.rapporto.id] ?? null
+      return {
+        id: row.rapporto.id,
+        label: getRapportoTitle(row.rapporto, {
+          famiglia: row.famiglia ? { cognome: row.famiglia.cognome, nome: row.famiglia.nome } : null,
+          lavoratore: row.lavoratore ? { cognome: row.lavoratore.cognome, nome: row.lavoratore.nome } : null,
+          assunzioneDatore: assunzioneNames?.datore,
+          assunzioneLavoratore: assunzioneNames?.lavoratore,
+        }),
+        rapporto: row.rapporto,
+      }
+    })
     .sort((left, right) => left.label.localeCompare(right.label, "it"))
 
   return { columns, rapportoOptions }

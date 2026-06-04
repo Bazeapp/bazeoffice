@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
 import {
+  fetchAssunzioniNamesByRapportoIds,
   fetchContributiInpsByPeriod,
   fetchLookupValues,
   fetchMesiCalendarioAll,
@@ -395,6 +396,27 @@ async function fetchContributiBoardData(
   const quarterIndex = buildQuarterIndex(mesiRows)
   const activeRapportiCount = rapportiRows.filter((rapporto) => isActiveRapporto(rapporto)).length
 
+  const resolveRapporto = (record: ContributoInpsRecord) => {
+    const rapportoKey = normalizeRecordKey(record.rapporto_lavorativo_id)
+    const ticketKey = normalizeRecordKey(record.ticket_id)
+    return rapportoKey
+      ? rapportoById.get(rapportoKey) ?? rapportoByExternalId.get(rapportoKey) ?? null
+      : ticketKey
+        ? rapportoByExternalId.get(ticketKey) ?? null
+        : null
+  }
+
+  // Nomi dalle assunzioni collegate (priorità sul nome del rapporto), solo per
+  // i rapporti effettivamente referenziati dai contributi del periodo.
+  const referencedRapportoIds = Array.from(
+    new Set(
+      contributiRows
+        .map((record) => resolveRapporto(record)?.id)
+        .filter((id): id is string => Boolean(id))
+    )
+  )
+  const assunzioneNamesByRapporto = await fetchAssunzioniNamesByRapportoIds(referencedRapportoIds)
+
   const cards = contributiRows.flatMap((record) => {
     const resolvedQuarter =
       (record.trimestre_id ? quarterIndex.byId.get(record.trimestre_id) : null) ??
@@ -421,18 +443,15 @@ async function fetchContributiBoardData(
 
     const stage =
       aliases.get(normalizeToken(record.stato_contributi_inps)) ?? DEFAULT_STAGE_DEFINITIONS[0]?.id ?? ""
-    const rapportoKey = normalizeRecordKey(record.rapporto_lavorativo_id)
-    const ticketKey = normalizeRecordKey(record.ticket_id)
-    const rapporto = rapportoKey
-      ? rapportoById.get(rapportoKey) ??
-        rapportoByExternalId.get(rapportoKey) ??
-        null
-      : ticketKey
-        ? rapportoByExternalId.get(ticketKey) ?? null
-      : null
+    const rapporto = resolveRapporto(record)
+    const assunzioneNames = rapporto ? assunzioneNamesByRapporto[rapporto.id] ?? null : null
 
-    const nomeFamiglia = rapporto ? getRapportoFamilyLabel(rapporto) : "Famiglia non disponibile"
-    const nomeLavoratore = rapporto ? getRapportoWorkerLabel(rapporto) : "Lavoratore non disponibile"
+    const nomeFamiglia = rapporto
+      ? getRapportoFamilyLabel(rapporto, null, assunzioneNames?.datore)
+      : "Famiglia non disponibile"
+    const nomeLavoratore = rapporto
+      ? getRapportoWorkerLabel(rapporto, null, assunzioneNames?.lavoratore)
+      : "Lavoratore non disponibile"
     const quarterValue =
       recordQuarter ??
       getQuarterValueFromDate(resolvedQuarter?.data_inizio ?? null) ??

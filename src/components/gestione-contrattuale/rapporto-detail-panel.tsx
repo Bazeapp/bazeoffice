@@ -56,7 +56,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { beginPendingWrite, endPendingWrite, updateRecord } from "@/lib/anagrafiche-api"
+import {
+  beginPendingWrite,
+  endPendingWrite,
+  updateRecord,
+  type RapportoAssunzioneNames,
+} from "@/lib/anagrafiche-api"
 import { useDebouncedSave } from "@/hooks/use-debounced-save"
 import {
   buildAttachmentPayload,
@@ -93,6 +98,7 @@ type RapportoDetailPanelProps = {
   loadingRapporto?: boolean
   famiglia: FamigliaRecord | null
   lavoratore: LavoratoreRecord | null
+  assunzioneNames?: RapportoAssunzioneNames | null
   processi: ProcessoMatchingRecord[]
   contributi: ContributoInpsRecord[]
   mesi: MeseLavoratoRecord[]
@@ -641,6 +647,7 @@ export function RapportoDetailPanel({
   loadingRapporto = false,
   famiglia,
   lavoratore,
+  assunzioneNames,
   processi,
   contributi,
   mesi,
@@ -1046,8 +1053,8 @@ export function RapportoDetailPanel({
   }
 
   const rapportoView = currentRapporto ?? rapporto
-  const familyName = getRapportoFamilyLabel(rapportoView, famiglia)
-  const workerName = getRapportoWorkerLabel(rapportoView, lavoratore)
+  const familyName = getRapportoFamilyLabel(rapportoView, famiglia, assunzioneNames?.datore)
+  const workerName = getRapportoWorkerLabel(rapportoView, lavoratore, assunzioneNames?.lavoratore)
   const familyEmail = firstAvailableText(
     famiglia?.email,
     famiglia?.customer_email,
@@ -1057,7 +1064,12 @@ export function RapportoDetailPanel({
   const workerEmail = firstAvailableText(lavoratore?.email)
   const workerPhone = firstAvailableText(lavoratore?.telefono)
   const presenzeUrl = buildFamilyPresenzeUrl(famiglia?.email, famiglia?.id)
-  const relationshipTitle = getRapportoTitle(rapportoView, { famiglia, lavoratore })
+  const relationshipTitle = getRapportoTitle(rapportoView, {
+    famiglia,
+    lavoratore,
+    assunzioneDatore: assunzioneNames?.datore,
+    assunzioneLavoratore: assunzioneNames?.lavoratore,
+  })
   const rapportoMetadata =
     rapportoView.metadati_migrazione && typeof rapportoView.metadati_migrazione === "object"
       ? rapportoView.metadati_migrazione

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMoveMutation } from "@/hooks/use-board-mutations"
 
 import {
+  fetchAssunzioniNamesByRapportoIds,
   fetchRiattivazioniBoard,
   updateRecord,
 } from "@/lib/anagrafiche-api"
@@ -169,6 +170,13 @@ async function fetchRiattivazioniBoardData(): Promise<BoardData> {
     if (row.lavoratore) lavoratoreById.set(row.lavoratore.id, row.lavoratore as RiattivazioneLavoratoreLookup)
   }
 
+  // Nomi dalle assunzioni collegate (priorità sul nome del rapporto).
+  const assunzioneNamesByRapporto = await fetchAssunzioniNamesByRapportoIds(
+    baseCards
+      .map(({ rapporto }) => rapporto?.id)
+      .filter((id): id is string => Boolean(id))
+  )
+
   const cardsByStage = new Map<RiattivazioneStageId, RiattivazioniBoardCardData[]>(
     RIATTIVAZIONI_STAGE_DEFINITIONS.map((stage) => [stage.id, []]),
   )
@@ -178,11 +186,12 @@ async function fetchRiattivazioniBoardData(): Promise<BoardData> {
     const lavoratore = rapporto?.lavoratore_id
       ? lavoratoreById.get(rapporto.lavoratore_id) ?? null
       : null
+    const assunzioneNames = rapporto ? assunzioneNamesByRapporto[rapporto.id] ?? null : null
     const famigliaLabel = rapporto
-      ? getRapportoFamilyLabel(rapporto, famiglia as FamigliaRecord | null)
+      ? getRapportoFamilyLabel(rapporto, famiglia as FamigliaRecord | null, assunzioneNames?.datore)
       : getFallbackFamigliaLabel(record)
     const lavoratoreLabel = rapporto
-      ? getRapportoWorkerLabel(rapporto, lavoratore as LavoratoreRecord | null)
+      ? getRapportoWorkerLabel(rapporto, lavoratore as LavoratoreRecord | null, assunzioneNames?.lavoratore)
       : "Lavoratore non associato"
     const nomeCompleto = rapporto ? `${famigliaLabel} – ${lavoratoreLabel}` : famigliaLabel
 

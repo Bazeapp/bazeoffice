@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
   createRecord,
+  fetchAssunzioniNamesByRapportoIds,
   fetchChiusureByIds,
   fetchContributiInpsByRapporto,
   fetchFamiglieByIds,
@@ -19,6 +20,7 @@ import {
   fetchRapportiLavorativiBoard,
   fetchTicketByRapporto,
   fetchVariazioniByRapporto,
+  type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
@@ -225,6 +227,8 @@ export function useRapportiLavorativiData(
   const [loadingSelectedRapporto, setLoadingSelectedRapporto] = React.useState(false)
   const [selectedFamiglia, setSelectedFamiglia] = React.useState<FamigliaRecord | null>(null)
   const [selectedLavoratore, setSelectedLavoratore] = React.useState<LavoratoreRecord | null>(null)
+  const [selectedAssunzioneNames, setSelectedAssunzioneNames] =
+    React.useState<RapportoAssunzioneNames | null>(null)
   const [selectedProcessi, setSelectedProcessi] = React.useState<ProcessoMatchingRecord[]>([])
   const [selectedContributi, setSelectedContributi] = React.useState<ContributoInpsRecord[]>([])
   const [selectedMesi, setSelectedMesi] = React.useState<MeseLavoratoRecord[]>([])
@@ -277,16 +281,29 @@ export function useRapportiLavorativiData(
         return latest?.rows.find((rapporto) => rapporto.id === id)
       }
 
+      // Nomi dalle assunzioni collegate (priorità sul nome del rapporto) per la
+      // pagina corrente della lista.
+      const assunzioneNames = await fetchAssunzioniNamesByRapportoIds(
+        result.rows
+          .map((row) => row.id)
+          .filter((id): id is string => Boolean(id)),
+      )
+
       return {
         ...result,
         rows: result.rows.map((row) =>
           mapRapportoBoardRow(row, row.id ? getPreviousCard(row.id) : undefined),
         ),
+        assunzioneNames,
       }
     },
   })
 
   const rapporti = React.useMemo(() => boardData?.rows ?? [], [boardData?.rows])
+  const rapportoAssunzioneNames = React.useMemo(
+    () => boardData?.assunzioneNames ?? {},
+    [boardData?.assunzioneNames],
+  )
   const rapportiTotal = boardData?.total ?? 0
   const error =
     queryError instanceof Error
@@ -528,6 +545,7 @@ export function useRapportiLavorativiData(
         setLoadingRelated(false)
         setSelectedFamiglia(null)
         setSelectedLavoratore(null)
+        setSelectedAssunzioneNames(null)
         setSelectedProcessi([])
         setSelectedContributi([])
         setSelectedMesi([])
@@ -544,6 +562,7 @@ export function useRapportiLavorativiData(
       setLoadingRelated(true)
       setSelectedFamiglia(null)
       setSelectedLavoratore(null)
+      setSelectedAssunzioneNames(null)
       setSelectedProcessi([])
       setSelectedContributi([])
       setSelectedMesi([])
@@ -606,11 +625,13 @@ export function useRapportiLavorativiData(
           )
         )
 
-        const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse] = await Promise.all([
-          fetchMesiCalendarioByIds(meseIds),
-          fetchPagamentiByTicketIds(cedoliniTicketIds),
-          fetchPresenzeByIds(presenzaIds),
-        ])
+        const [mesiCalendarioResponse, pagamentiResponse, presenzeResponse, assunzioneNamesResponse] =
+          await Promise.all([
+            fetchMesiCalendarioByIds(meseIds),
+            fetchPagamentiByTicketIds(cedoliniTicketIds),
+            fetchPresenzeByIds(presenzaIds),
+            fetchAssunzioniNamesByRapportoIds([selectedRapporto.id]),
+          ])
 
         const processiRows = processiResponse.rows as ProcessoMatchingRecord[]
         const richiesteByProcessId = await fetchRichiesteAttivazioneByProcessIds(processIds)
@@ -648,6 +669,7 @@ export function useRapportiLavorativiData(
 
         setSelectedFamiglia(nextFamiglia)
         setSelectedLavoratore(nextLavoratore)
+        setSelectedAssunzioneNames(assunzioneNamesResponse[selectedRapporto.id] ?? null)
         setSelectedProcessi(processiRows)
         setSelectedChiusure(chiusuraResponse.rows as ChiusuraContrattoRecord[])
         setSelectedTickets(ticketResponse.rows as TicketRecord[])
@@ -698,6 +720,7 @@ export function useRapportiLavorativiData(
 
   return {
     rapporti,
+    rapportoAssunzioneNames,
     rapportiTotal,
     loading,
     error: error ?? detailError,
@@ -715,6 +738,7 @@ export function useRapportiLavorativiData(
     loadingSelectedRapporto,
     selectedFamiglia,
     selectedLavoratore,
+    selectedAssunzioneNames,
     selectedProcessi,
     selectedContributi,
     selectedMesi,
