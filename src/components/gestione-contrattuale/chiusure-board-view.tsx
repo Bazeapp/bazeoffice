@@ -58,6 +58,19 @@ const CHIUSURA_FORM_URLS = {
   annullamento: "https://airtable.com/appevZURCPFkSG3CJ/pagW6G5AUa4tJOWYX/form",
 } as const
 
+// Valori validi per "Tipo licenziamento/dimissione" (nessun lookup_values a DB).
+const TIPO_LICENZIAMENTO_OPTIONS: string[] = [
+  "Mancato superamento periodo di prova",
+  "Licenziamento con preavviso",
+  "Licenziamento senza preavviso",
+  "Dimissioni durante il periodo di prova",
+  "Dimissioni con preavviso",
+  "Dimissioni senza preavviso",
+  "Annullamento contratto",
+  "Fine contratto a tempo determinato",
+  "Rescissione abbonamento",
+]
+
 function formatDate(value: string | null | undefined) {
   if (!value) return "-"
   const date = new Date(value)
@@ -416,14 +429,29 @@ function ChiusureDetailSheet({
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Tipo licenziamento/dimissione</span>
-                      <DebouncedInput
-                        committedValue={card.record.tipo_licenziamento ?? ""}
-                        onSave={async (value) => {
-                          await onPatchChiusura(card.id, {
+                      <Select
+                        value={card.record.tipo_licenziamento ?? ""}
+                        onValueChange={(value) => {
+                          void onPatchChiusura(card.id, {
                             tipo_licenziamento: value || null,
                           })
                         }}
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(card.record.tipo_licenziamento &&
+                          !TIPO_LICENZIAMENTO_OPTIONS.includes(card.record.tipo_licenziamento)
+                            ? [card.record.tipo_licenziamento, ...TIPO_LICENZIAMENTO_OPTIONS]
+                            : TIPO_LICENZIAMENTO_OPTIONS
+                          ).map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Tipo decesso</span>
