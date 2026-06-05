@@ -1005,8 +1005,8 @@ export function CedolinoDetailSheet({
               <Select
                 value={card.stage}
                 onValueChange={(nextValue) => {
-                  // Guard: "DONE" is terminal/system-set — never set it manually
-                  // (it would bypass the "Pagato" confirmation trigger).
+                  // Stages in TERMINAL_STAGE_IDS can't be set manually
+                  // (currently none — DONE è spostabile a mano).
                   if (TERMINAL_STAGE_IDS.has(nextValue)) return
                   onStageChange(card.id, nextValue)
                 }}
@@ -1019,8 +1019,9 @@ export function CedolinoDetailSheet({
                     <SelectItem
                       key={column.id}
                       value={column.id}
-                      // Keep DONE visible (so an already-DONE card shows its
-                      // label) but not selectable.
+                      // Terminal stages (TERMINAL_STAGE_IDS) aren't manually
+                      // selectable; kept visible so a card already there shows
+                      // its label. Currently empty → DONE selezionabile.
                       disabled={
                         TERMINAL_STAGE_IDS.has(column.id) && card.stage !== column.id
                       }
@@ -1792,9 +1793,9 @@ function CedoliniPayrollView() {
                     setDropTargetColumnId(null)
                     setDraggingRecordId(null)
                     if (!recordId) return
-                    // "DONE" is terminal/system-set: a card reaches it only when
-                    // the confirmation EF completes. Block manual drops there so
-                    // nobody skips the "Pagato" trigger that sends the emails.
+                    // Block manual drops onto terminal stages
+                    // (TERMINAL_STAGE_IDS). Currently empty → drop in DONE
+                    // consentito. NB: non invia la conferma di pagamento.
                     if (TERMINAL_STAGE_IDS.has(columnId)) return
                     void moveCard(recordId, columnId)
                   }}

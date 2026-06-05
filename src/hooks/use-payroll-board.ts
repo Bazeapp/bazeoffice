@@ -123,12 +123,14 @@ const LEGACY_STAGE_ALIASES: Record<string, string> = {
 }
 
 /**
- * Stages set automatically by the backend (edge functions) — they must NOT be
- * a manual drop/select target. The payment-confirmation trigger fires only on
- * "Pagato"; dropping a card straight into "DONE" would skip sending the
- * confirmation. The card reaches "DONE" on its own once the EF completes.
+ * Stages that cannot be set manually (drop/select). "DONE" used to live here
+ * because it's normally written by the `wk-conferma-pagamento-cedolino` edge
+ * function after the payment-confirmation message is sent; per richiesta
+ * operativa lo spostamento manuale in DONE è ora consentito, quindi il set è
+ * vuoto. NB: spostare a mano in DONE NON invia la conferma di pagamento.
+ * Per ri-bloccarlo, reinserire "DONE" qui.
  */
-export const TERMINAL_STAGE_IDS = new Set<string>(["DONE"])
+export const TERMINAL_STAGE_IDS = new Set<string>([])
 
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
