@@ -70,7 +70,8 @@ import {
 import { GateWorkTypesCard } from "@/components/lavoratori/gate1/gate-work-types-card";
 import { GateSkillConfirmationsCard } from "@/components/lavoratori/gate1/gate-skill-confirmations-card";
 import { GateStepSection } from "@/components/lavoratori/gate1/gate-field-primitives";
-import { useDebouncedSave } from "@/hooks/use-debounced-save";
+import { useController } from "react-hook-form";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { RecruiterFeedbackButton } from "@/components/lavoratori/recruiter-feedback-sheet";
 import { updateRecord } from "@/lib/anagrafiche-api";
@@ -89,6 +90,26 @@ type GateTab = {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+};
+
+// FASE 5 BIS — campi di dettaglio di gate1 (autosave via useController).
+// data_scadenza_naspi ha due chiavi distinte: _worker (lavoratori) e _doc
+// (documento), instradate a patch diverse.
+type GateFieldsFormDraft = {
+  anni_esperienza_colf: string;
+  anni_esperienza_badante: string;
+  anni_esperienza_babysitter: string;
+  data_ritorno_disponibilita: string;
+  descrizione_pubblica: string;
+  paga_oraria_richiesta: string;
+  data_scadenza_naspi_worker: string;
+  data_scadenza_naspi_doc: string;
+  iban: string;
+  nome: string;
+  cognome: string;
+  email: string;
+  telefono: string;
+  data_di_nascita: string;
 };
 
 function sanitizeFileName(name: string) {
@@ -367,77 +388,178 @@ export function Gate1View({
     AVAILABILITY_HOUR_LABELS,
   } = gate1Editor;
 
-  const { value: anniEsperienzaColfValue, onChange: saveAnniEsperienzaColf } = useDebouncedSave(
-    asInputValue(selectedWorkerRow?.anni_esperienza_colf),
-    async (v) => { await patchSelectedWorkerField("anni_esperienza_colf", v ? Number(v) : null); },
-    { identity: selectedWorkerId },
-  );
-  const { value: anniEsperienzaBadanteValue, onChange: saveAnniEsperienzaBadante } = useDebouncedSave(
-    asInputValue(selectedWorkerRow?.anni_esperienza_badante),
-    async (v) => { await patchSelectedWorkerField("anni_esperienza_badante", v ? Number(v) : null); },
-    { identity: selectedWorkerId },
-  );
-  const { value: anniEsperienzaBabysitterValue, onChange: saveAnniEsperienzaBabysitter } = useDebouncedSave(
-    asInputValue(selectedWorkerRow?.anni_esperienza_babysitter),
-    async (v) => { await patchSelectedWorkerField("anni_esperienza_babysitter", v ? Number(v) : null); },
-    { identity: selectedWorkerId },
-  );
-  const { value: dataRitornoValue, onChange: saveDataRitorno } = useDebouncedSave(
-    asString(selectedWorkerRow?.data_ritorno_disponibilita),
-    async (v) => { await patchWorkerAvailabilityStatus({ data_ritorno_disponibilita: v || null }); },
-    { identity: selectedWorkerId },
-  );
-  const { value: descrizionePubblicaValue, onChange: saveDescrizionePubblica } = useDebouncedSave(
-    asString(selectedWorkerRow?.descrizione_pubblica),
-    async (v) => { await patchSelectedWorkerField("descrizione_pubblica", v || null); },
-    { identity: selectedWorkerId },
-  );
-  const { value: pagaOrariaRichiestaValue, onChange: savePagaOrariaRichiesta } = useDebouncedSave(
-    asInputValue(selectedWorkerRow?.paga_oraria_richiesta),
-    async (v) => { await patchSelectedWorkerField("paga_oraria_richiesta", parseNumberValue(v)); },
-    { identity: selectedWorkerId },
-  );
-  const { value: dataScadenzaNaspiGateValue, onChange: saveDataScadenzaNaspiGate } = useDebouncedSave(
-    asString(selectedWorkerRow?.data_scadenza_naspi),
-    async (v) => { await patchSelectedWorkerField("data_scadenza_naspi", v || null); },
-    { identity: selectedWorkerId },
-  );
   const operatorName = useCurrentOperatorName();
-  const { value: naspiDocValue, onChange: saveNaspiDoc } = useDebouncedSave(
-    asString(selectedWorkerRow?.data_scadenza_naspi),
-    async (v) => { await patchDocumentField("data_scadenza_naspi", v || null); },
-    { identity: selectedWorkerId },
-  );
-  const { value: ibanValue, onChange: saveIban } = useDebouncedSave(
-    resolvedIban,
-    async (v) => { await patchDocumentField("iban", v || null); },
-    { identity: selectedWorkerId },
-  );
-  const { value: headerNomeValue, onChange: saveHeaderNome } = useDebouncedSave(
-    asString(selectedWorkerRow?.nome),
-    async (v) => { await patchSelectedWorkerField("nome", v.trim() || null); },
-    { identity: selectedWorkerId },
-  );
-  const { value: headerCognomeValue, onChange: saveHeaderCognome } = useDebouncedSave(
-    asString(selectedWorkerRow?.cognome),
-    async (v) => { await patchSelectedWorkerField("cognome", v.trim() || null); },
-    { identity: selectedWorkerId },
-  );
-  const { value: headerEmailValue, onChange: saveHeaderEmail } = useDebouncedSave(
-    asString(selectedWorkerRow?.email),
-    async (v) => { await patchSelectedWorkerField("email", v.trim() || null); },
-    { identity: selectedWorkerId },
-  );
-  const { value: headerTelefonoValue, onChange: saveHeaderTelefono } = useDebouncedSave(
-    asString(selectedWorkerRow?.telefono),
-    async (v) => { await patchSelectedWorkerField("telefono", v.trim() || null); },
-    { identity: selectedWorkerId },
-  );
-  const { value: headerDataNascitaValue, onChange: saveHeaderDataNascita } = useDebouncedSave(
-    asString(selectedWorkerRow?.data_di_nascita),
-    async (v) => { await patchSelectedWorkerField("data_di_nascita", v || null); },
-    { identity: selectedWorkerId },
-  );
+  // FASE 5 BIS — tutti i campi di dettaglio di gate1 su un unico form autosave.
+  // Le card consumano value/onChange: ogni campo è agganciato via useController,
+  // così field.onChange emette un vero evento "change" e l'autosave scatta (a
+  // differenza di setValue). Il resync per-worker è dato dal reset keyed-on-
+  // signature di useAutoSaveForm (sostituisce il vecchio { identity }). onSave
+  // instrada ogni chiave alla STESSA patch fn con le STESSE trasformazioni.
+  // Nota: data_scadenza_naspi compare due volte (worker vs document) con due
+  // chiavi-form distinte instradate a patch diverse.
+  const gateFieldsForm = useAutoSaveForm<GateFieldsFormDraft>({
+    defaults: {
+      anni_esperienza_colf: asInputValue(
+        selectedWorkerRow?.anni_esperienza_colf,
+      ),
+      anni_esperienza_badante: asInputValue(
+        selectedWorkerRow?.anni_esperienza_badante,
+      ),
+      anni_esperienza_babysitter: asInputValue(
+        selectedWorkerRow?.anni_esperienza_babysitter,
+      ),
+      data_ritorno_disponibilita: asString(
+        selectedWorkerRow?.data_ritorno_disponibilita,
+      ),
+      descrizione_pubblica: asString(selectedWorkerRow?.descrizione_pubblica),
+      paga_oraria_richiesta: asInputValue(
+        selectedWorkerRow?.paga_oraria_richiesta,
+      ),
+      data_scadenza_naspi_worker: asString(
+        selectedWorkerRow?.data_scadenza_naspi,
+      ),
+      data_scadenza_naspi_doc: asString(selectedWorkerRow?.data_scadenza_naspi),
+      iban: resolvedIban,
+      nome: asString(selectedWorkerRow?.nome),
+      cognome: asString(selectedWorkerRow?.cognome),
+      email: asString(selectedWorkerRow?.email),
+      telefono: asString(selectedWorkerRow?.telefono),
+      data_di_nascita: asString(selectedWorkerRow?.data_di_nascita),
+    },
+    onSave: async (patch) => {
+      for (const [key, rawValue] of Object.entries(patch)) {
+        const v = typeof rawValue === "string" ? rawValue : "";
+        switch (key) {
+          case "anni_esperienza_colf":
+            await patchSelectedWorkerField(
+              "anni_esperienza_colf",
+              v ? Number(v) : null,
+            );
+            break;
+          case "anni_esperienza_badante":
+            await patchSelectedWorkerField(
+              "anni_esperienza_badante",
+              v ? Number(v) : null,
+            );
+            break;
+          case "anni_esperienza_babysitter":
+            await patchSelectedWorkerField(
+              "anni_esperienza_babysitter",
+              v ? Number(v) : null,
+            );
+            break;
+          case "data_ritorno_disponibilita":
+            await patchWorkerAvailabilityStatus({
+              data_ritorno_disponibilita: v || null,
+            });
+            break;
+          case "descrizione_pubblica":
+            await patchSelectedWorkerField("descrizione_pubblica", v || null);
+            break;
+          case "paga_oraria_richiesta":
+            await patchSelectedWorkerField(
+              "paga_oraria_richiesta",
+              parseNumberValue(v),
+            );
+            break;
+          case "data_scadenza_naspi_worker":
+            await patchSelectedWorkerField("data_scadenza_naspi", v || null);
+            break;
+          case "data_scadenza_naspi_doc":
+            await patchDocumentField("data_scadenza_naspi", v || null);
+            break;
+          case "iban":
+            await patchDocumentField("iban", v || null);
+            break;
+          case "nome":
+            await patchSelectedWorkerField("nome", v.trim() || null);
+            break;
+          case "cognome":
+            await patchSelectedWorkerField("cognome", v.trim() || null);
+            break;
+          case "email":
+            await patchSelectedWorkerField("email", v.trim() || null);
+            break;
+          case "telefono":
+            await patchSelectedWorkerField("telefono", v.trim() || null);
+            break;
+          case "data_di_nascita":
+            await patchSelectedWorkerField("data_di_nascita", v || null);
+            break;
+        }
+      }
+    },
+  });
+  const anniColfCtrl = useController({
+    name: "anni_esperienza_colf",
+    control: gateFieldsForm.control,
+  });
+  const anniBadanteCtrl = useController({
+    name: "anni_esperienza_badante",
+    control: gateFieldsForm.control,
+  });
+  const anniBabysitterCtrl = useController({
+    name: "anni_esperienza_babysitter",
+    control: gateFieldsForm.control,
+  });
+  const dataRitornoCtrl = useController({
+    name: "data_ritorno_disponibilita",
+    control: gateFieldsForm.control,
+  });
+  const descrizioneCtrl = useController({
+    name: "descrizione_pubblica",
+    control: gateFieldsForm.control,
+  });
+  const pagaCtrl = useController({
+    name: "paga_oraria_richiesta",
+    control: gateFieldsForm.control,
+  });
+  const naspiWorkerCtrl = useController({
+    name: "data_scadenza_naspi_worker",
+    control: gateFieldsForm.control,
+  });
+  const naspiDocCtrl = useController({
+    name: "data_scadenza_naspi_doc",
+    control: gateFieldsForm.control,
+  });
+  const ibanCtrl = useController({
+    name: "iban",
+    control: gateFieldsForm.control,
+  });
+  const nomeCtrl = useController({
+    name: "nome",
+    control: gateFieldsForm.control,
+  });
+  const cognomeCtrl = useController({
+    name: "cognome",
+    control: gateFieldsForm.control,
+  });
+  const emailCtrl = useController({
+    name: "email",
+    control: gateFieldsForm.control,
+  });
+  const telefonoCtrl = useController({
+    name: "telefono",
+    control: gateFieldsForm.control,
+  });
+  const dataNascitaCtrl = useController({
+    name: "data_di_nascita",
+    control: gateFieldsForm.control,
+  });
+  const anniEsperienzaColfValue = anniColfCtrl.field.value;
+  const anniEsperienzaBadanteValue = anniBadanteCtrl.field.value;
+  const anniEsperienzaBabysitterValue = anniBabysitterCtrl.field.value;
+  const dataRitornoValue = dataRitornoCtrl.field.value;
+  const descrizionePubblicaValue = descrizioneCtrl.field.value;
+  const pagaOrariaRichiestaValue = pagaCtrl.field.value;
+  const dataScadenzaNaspiGateValue = naspiWorkerCtrl.field.value;
+  const naspiDocValue = naspiDocCtrl.field.value;
+  const ibanValue = ibanCtrl.field.value;
+  const headerNomeValue = nomeCtrl.field.value;
+  const headerCognomeValue = cognomeCtrl.field.value;
+  const headerEmailValue = emailCtrl.field.value;
+  const headerTelefonoValue = telefonoCtrl.field.value;
+  const headerDataNascitaValue = dataNascitaCtrl.field.value;
 
   const retainSelectedWorkerAfterStatusChange = React.useCallback(
     (workerId: string) => {
@@ -1742,15 +1864,15 @@ export function Gate1View({
                       livelloItalianoOptions={livelloItalianoOptions}
                       onHeaderChange={(field, value) => {
                         if (field === "descrizione_pubblica") {
-                          saveDescrizionePubblica(value);
+                          descrizioneCtrl.field.onChange(value);
                           return;
                         }
 
-                        if (field === "nome") saveHeaderNome(value);
-                        else if (field === "cognome") saveHeaderCognome(value);
-                        else if (field === "email") saveHeaderEmail(value);
-                        else if (field === "telefono") saveHeaderTelefono(value);
-                        else if (field === "data_di_nascita") saveHeaderDataNascita(value);
+                        if (field === "nome") nomeCtrl.field.onChange(value);
+                        else if (field === "cognome") cognomeCtrl.field.onChange(value);
+                        else if (field === "email") emailCtrl.field.onChange(value);
+                        else if (field === "telefono") telefonoCtrl.field.onChange(value);
+                        else if (field === "data_di_nascita") dataNascitaCtrl.field.onChange(value);
                         else if (field === "sesso" || field === "nazionalita") {
                           void patchSelectedWorkerField(field, value || null);
                         }
@@ -1913,13 +2035,13 @@ export function Gate1View({
                         );
                       }}
                       onAnniEsperienzaColfChange={(value) => {
-                        saveAnniEsperienzaColf(value);
+                        anniColfCtrl.field.onChange(value);
                       }}
                       onAnniEsperienzaBadanteChange={(value) => {
-                        saveAnniEsperienzaBadante(value);
+                        anniBadanteCtrl.field.onChange(value);
                       }}
                       onAnniEsperienzaBabysitterChange={(value) => {
-                        saveAnniEsperienzaBabysitter(value);
+                        anniBabysitterCtrl.field.onChange(value);
                       }}
                       onExperiencePatch={(experienceId, patch) =>
                         void patchExperienceRecord(experienceId, patch)
@@ -1989,7 +2111,7 @@ export function Gate1View({
                                 disponibilita: value || null,
                               });
                             }}
-                            onDataRitornoChange={saveDataRitorno}
+                            onDataRitornoChange={dataRitornoCtrl.field.onChange}
                             onDataRitornoBlur={() => undefined}
                           />
                           <GateShiftPreferencesCard
@@ -2154,7 +2276,7 @@ export function Gate1View({
                               );
                             }}
                             onPagaOrariaRichiestaChange={(value) => {
-                              savePagaOrariaRichiesta(value);
+                              pagaCtrl.field.onChange(value);
                             }}
                             onMultipliContrattiChange={(value) => {
                               setGateDraft((current) => ({
@@ -2167,7 +2289,7 @@ export function Gate1View({
                               );
                             }}
                             onDataScadenzaNaspiChange={(value) => {
-                              saveDataScadenzaNaspiGate(value);
+                              naspiWorkerCtrl.field.onChange(value);
                             }}
                           />
                         </GateStepSection>
@@ -2219,7 +2341,7 @@ export function Gate1View({
                           );
                         }}
                         onPagaOrariaRichiestaChange={(value) => {
-                          savePagaOrariaRichiesta(value);
+                          pagaCtrl.field.onChange(value);
                         }}
                         onMultipliContrattiChange={(value) => {
                           setGateDraft((current) => ({
@@ -2232,7 +2354,7 @@ export function Gate1View({
                           );
                         }}
                         onDataScadenzaNaspiChange={(value) => {
-                          saveDataScadenzaNaspiGate(value);
+                          naspiWorkerCtrl.field.onChange(value);
                         }}
                       />
                       <GateShiftPreferencesCard
@@ -3044,7 +3166,7 @@ export function Gate1View({
                           );
                         }}
                         onNaspiChange={(value) => {
-                          saveNaspiDoc(value);
+                          naspiDocCtrl.field.onChange(value);
                         }}
                         onDocumentUpsert={upsertSelectedWorkerDocument}
                         onUploadError={setError}
@@ -3059,9 +3181,9 @@ export function Gate1View({
                         nazionalitaOptions={nazionalitaLookupOptions}
                         isEditing={true}
                         onHeaderChange={(field, value) => {
-                          if (field === "nome") saveHeaderNome(value);
-                          else if (field === "cognome") saveHeaderCognome(value);
-                          else if (field === "data_di_nascita") saveHeaderDataNascita(value);
+                          if (field === "nome") nomeCtrl.field.onChange(value);
+                          else if (field === "cognome") cognomeCtrl.field.onChange(value);
+                          else if (field === "data_di_nascita") dataNascitaCtrl.field.onChange(value);
                           else if (field === "nazionalita") {
                             setHeaderDraft((current) => ({ ...current, nazionalita: value }));
                             void patchSelectedWorkerField("nazionalita", value || null);
@@ -3082,7 +3204,7 @@ export function Gate1View({
                             iban: ibanValue,
                           })}
                           onIbanChange={(value) => {
-                            saveIban(value);
+                            ibanCtrl.field.onChange(value);
                           }}
                           onGenerateStripeAccount={generateStripeAccount}
                         />

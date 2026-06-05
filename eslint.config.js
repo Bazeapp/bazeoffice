@@ -337,18 +337,19 @@ export default defineConfig([
     },
   },
 
-  // FASE 5 BIS — ENFORCEMENT: i file GIÀ convertiti a form-context non possono
+  // FASE 5 BIS — ENFORCEMENT: i file convertiti a form-context non possono
   // regredire. Qui i selettori FASE5 (committedValue / import useDebouncedSave)
-  // sono 'error'. Restano fuori (a 'warn') solo gate1-view (orchestratore con
-  // gateDraft, scope D2) e worker-pipeline-summary-cards (card condivisa) + infra
-  // (debounced-input, field-components, use-debounced-save).
+  // sono 'error'. Fuori restano SOLO i file infrastrutturali che IMPLEMENTANO il
+  // pattern (forms/field-components, ui/debounced-input, hooks/use-debounced-save)
+  // e i file di test.
   // Nota flat-config: questo blocco SOSTITUISCE no-restricted-syntax per questi
-  // file (le regole FASE 4 a 'warn' non si applicano qui, ma questi file sono
-  // già puliti quindi non le violavano).
-  // lavoratori-cerca-view + ricerca-workers-pipeline-view: i campi di dettaglio
-  // sono ora su useAutoSaveForm + useController (FASE 5 BIS). In ricerca resta il
-  // SOLO familyAddressDraft, mirror di display dell'indirizzo processo con save
-  // esplicito e re-sync dai prop (documentato inline): non è un campo form.
+  // file (le regole FASE 4 a 'warn' non si applicano qui).
+  // I campi di dettaglio di cerca/ricerca/gate1/summary sono su useAutoSaveForm +
+  // useController. Restano alcuni stati locali NON-form documentati inline, che
+  // non sono salvataggi per-campo e hanno guard espliciti di anti-clobber:
+  //   - ricerca: familyAddressDraft (mirror di display, save esplicito + re-sync);
+  //   - gate1-view: gateDraft (merge per-campo anti-echo);
+  //   - crm-assegnazione: schedulingDraft (form edit-mode con guard isEditing).
   {
     files: [
       'src/components/crm/cards/stato-lead-card.tsx',
@@ -373,6 +374,9 @@ export default defineConfig([
       'src/components/lavoratori/worker-profile-header.tsx',
       'src/components/lavoratori/lavoratori-cerca-view.tsx',
       'src/components/ricerca/ricerca-workers-pipeline-view.tsx',
+      'src/components/ricerca/worker-pipeline-summary-cards.tsx',
+      'src/components/lavoratori/gate1-view.tsx',
+      'src/components/crm/crm-assegnazione-view.tsx',
     ],
     rules: {
       'no-restricted-syntax': [

@@ -13,7 +13,6 @@ import {
 import { useController } from "react-hook-form";
 
 import { AvailabilityCalendarCard } from "@/components/lavoratori/availability-calendar-card";
-import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { DocumentsCard } from "@/components/lavoratori/documents-card";
 import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
@@ -483,6 +482,15 @@ type FamilyAddressDraft = {
   indirizzo_prova_comune: string;
   indirizzo_prova_citofono: string;
   indirizzo_prova_note: string;
+};
+
+// FASE 5 BIS — campi esperienza che alimentano ExperienceReferencesCard
+// (presentazionale), instradati a onFieldSave via useController.
+type ExperienceSummaryDraft = {
+  anni_esperienza_colf: string;
+  anni_esperienza_badante: string;
+  anni_esperienza_babysitter: string;
+  situazione_lavorativa_attuale: string;
 };
 
 // FASE 5 BIS — Select provincia lavoratore agganciata al form. Preserva il
@@ -1070,22 +1078,46 @@ function ExperienceBlock({
     values: Partial<ReferenzaLavoratoreRecord>,
   ) => Promise<void> | void;
 }) {
-  const { value: colfValue, onChange: saveColf } = useDebouncedSave(
-    asInputValue(workerRow.anni_esperienza_colf),
-    async (v) => { onFieldSave("anni_esperienza_colf", v); },
-  );
-  const { value: badanteValue, onChange: saveBadante } = useDebouncedSave(
-    asInputValue(workerRow.anni_esperienza_badante),
-    async (v) => { onFieldSave("anni_esperienza_badante", v); },
-  );
-  const { value: babysitterValue, onChange: saveBabysitter } = useDebouncedSave(
-    asInputValue(workerRow.anni_esperienza_babysitter),
-    async (v) => { onFieldSave("anni_esperienza_babysitter", v); },
-  );
-  const { value: situazioneValue, onChange: saveSituazione } = useDebouncedSave(
-    asString(workerRow.situazione_lavorativa_attuale),
-    async (v) => { onFieldSave("situazione_lavorativa_attuale", v); },
-  );
+  // FASE 5 BIS — i campi esperienza alimentano ExperienceReferencesCard
+  // (presentazionale, value/onChange). Agganciati al form via useController:
+  // field.onChange emette un vero "change" -> autosave (a differenza di setValue).
+  const experienceForm = useAutoSaveForm<ExperienceSummaryDraft>({
+    defaults: {
+      anni_esperienza_colf: asInputValue(workerRow.anni_esperienza_colf),
+      anni_esperienza_badante: asInputValue(workerRow.anni_esperienza_badante),
+      anni_esperienza_babysitter: asInputValue(
+        workerRow.anni_esperienza_babysitter,
+      ),
+      situazione_lavorativa_attuale: asString(
+        workerRow.situazione_lavorativa_attuale,
+      ),
+    },
+    onSave: async (patch) => {
+      for (const [key, rawValue] of Object.entries(patch)) {
+        onFieldSave(key, typeof rawValue === "string" ? rawValue : "");
+      }
+    },
+  });
+  const colfCtrl = useController({
+    name: "anni_esperienza_colf",
+    control: experienceForm.control,
+  });
+  const badanteCtrl = useController({
+    name: "anni_esperienza_badante",
+    control: experienceForm.control,
+  });
+  const babysitterCtrl = useController({
+    name: "anni_esperienza_babysitter",
+    control: experienceForm.control,
+  });
+  const situazioneCtrl = useController({
+    name: "situazione_lavorativa_attuale",
+    control: experienceForm.control,
+  });
+  const colfValue = colfCtrl.field.value;
+  const badanteValue = badanteCtrl.field.value;
+  const babysitterValue = babysitterCtrl.field.value;
+  const situazioneValue = situazioneCtrl.field.value;
 
   return (
     <ExperienceReferencesCard
@@ -1112,18 +1144,10 @@ function ExperienceBlock({
       selectedAnniEsperienzaBabysitter={babysitterValue}
       selectedSituazioneLavorativaAttuale={situazioneValue}
       onToggleEdit={onToggleEdit}
-      onAnniEsperienzaColfChange={(value) => {
-        saveColf(value);
-      }}
-      onAnniEsperienzaBadanteChange={(value) => {
-        saveBadante(value);
-      }}
-      onAnniEsperienzaBabysitterChange={(value) => {
-        saveBabysitter(value);
-      }}
-      onSituazioneLavorativaAttualeChange={(value) => {
-        saveSituazione(value);
-      }}
+      onAnniEsperienzaColfChange={colfCtrl.field.onChange}
+      onAnniEsperienzaBadanteChange={badanteCtrl.field.onChange}
+      onAnniEsperienzaBabysitterChange={babysitterCtrl.field.onChange}
+      onSituazioneLavorativaAttualeChange={situazioneCtrl.field.onChange}
       onExperiencePatch={onExperiencePatch}
       onExperienceCreate={onExperienceCreate}
       onExperienceDelete={onExperienceDelete}
