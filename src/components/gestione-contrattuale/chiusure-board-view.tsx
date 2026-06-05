@@ -29,9 +29,15 @@ import {
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
 import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
+import {
+  FieldInput,
+  FieldSelect,
+  FieldTextarea,
+  type FieldSelectOption,
+} from "@/components/forms/field-components"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input"
 import {
   Dialog,
   DialogContent,
@@ -39,6 +45,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Form } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -340,7 +347,56 @@ function ChiusureDetailSheet({
     }
   }
 
+  // FASE 5 BIS — form + autosave (sostituisce i DebouncedInput/Textarea e la
+  // Select tipo_licenziamento cablati a mano). Le chiavi del form sono i nomi
+  // colonna DB; onSave instrada tutto su onPatchChiusura(card.id, …) con la
+  // stessa trasformazione ""→null dell'originale. Per tipo_licenziamento si
+  // preserva l'optimistic merge nella card (applyCardChange) prima di persistere.
+  // Hook chiamato PRIMA dell'early-return su card null (defaults null-safe).
+  const form = useAutoSaveForm({
+    defaults: {
+      data_fine_rapporto: card?.record.data_fine_rapporto ?? "",
+      tipo_licenziamento: card?.record.tipo_licenziamento ?? "",
+      tipo_decesso: card?.record.tipo_decesso ?? "",
+      presenze_ultimo_mese: card?.record.presenze_ultimo_mese ?? "",
+      motivazione_cessazione_rapporto: card?.record.motivazione_cessazione_rapporto ?? "",
+      informazioni_aggiuntive: card?.record.informazioni_aggiuntive ?? "",
+    },
+    onSave: async (patch) => {
+      const currentCard = latestCardRef.current ?? card
+      if (!currentCard) return
+      const out: Partial<ChiusureBoardCardData["record"]> = {}
+      for (const [key, value] of Object.entries(patch)) {
+        ;(out as Record<string, unknown>)[key] = (value as string) || null
+      }
+      if ("tipo_licenziamento" in patch) {
+        // Aggiorna subito la card mostrata (board + ref), poi persisti.
+        applyCardChange({
+          ...currentCard,
+          record: { ...currentCard.record, tipo_licenziamento: (patch.tipo_licenziamento as string) || null },
+        })
+      }
+      await onPatchChiusura(currentCard.id, out)
+    },
+  })
+
+  // Opzioni "Tipo licenziamento/dimissione": lookup se presente, altrimenti la
+  // lista statica; mantiene selezionabile un valore già salvato fuori lista.
+  const tipoLicenziamentoSelectOptions = React.useMemo<FieldSelectOption[]>(() => {
+    const options =
+      tipoLicenziamentoOptions.length > 0
+        ? tipoLicenziamentoOptions
+        : TIPO_LICENZIAMENTO_OPTIONS.map((value) => ({ value, label: value }))
+    const current = card?.record.tipo_licenziamento
+    const withCurrent =
+      current && !options.some((option) => option.value === current)
+        ? [{ value: current, label: current }, ...options]
+        : options
+    return withCurrent.map((option) => ({ value: option.value, label: option.label }))
+  }, [tipoLicenziamentoOptions, card?.record.tipo_licenziamento])
+
   return (
+    <Form {...form}>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
         <SheetHeader className="border-b bg-surface px-5 py-5">
@@ -420,101 +476,31 @@ function ChiusureDetailSheet({
                   <div className="grid gap-4 md:grid-cols-2">
                     <label className="space-y-2">
                       <span className="ui-type-label">Data fine rapporto</span>
-                      <DebouncedInput
-                        type="date"
-                        committedValue={card.record.data_fine_rapporto ?? ""}
-                        onSave={async (value) => {
-                          await onPatchChiusura(card.id, {
-                            data_fine_rapporto: value || null,
-                          })
-                        }}
-                      />
+                      <FieldInput name="data_fine_rapporto" type="date" />
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Tipo licenziamento/dimissione</span>
-                      <Select
-                        value={card.record.tipo_licenziamento ?? ""}
-                        onValueChange={(value) => {
-                          const currentCard = latestCardRef.current ?? card
-                          if (!currentCard) return
-                          // Aggiorna subito la card mostrata (la Select è
-                          // controllata da card.record), poi persisti.
-                          applyCardChange({
-                            ...currentCard,
-                            record: { ...currentCard.record, tipo_licenziamento: value || null },
-                          })
-                          void onPatchChiusura(currentCard.id, {
-                            tipo_licenziamento: value || null,
-                          })
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(() => {
-                            const options =
-                              tipoLicenziamentoOptions.length > 0
-                                ? tipoLicenziamentoOptions
-                                : TIPO_LICENZIAMENTO_OPTIONS.map((value) => ({ value, label: value }))
-                            const current = card.record.tipo_licenziamento
-                            // Mantieni selezionabile un valore già salvato fuori lista.
-                            const withCurrent =
-                              current && !options.some((option) => option.value === current)
-                                ? [{ value: current, label: current }, ...options]
-                                : options
-                            return withCurrent.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))
-                          })()}
-                        </SelectContent>
-                      </Select>
+                      <FieldSelect
+                        name="tipo_licenziamento"
+                        placeholder="Seleziona tipo"
+                        options={tipoLicenziamentoSelectOptions}
+                      />
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Tipo decesso</span>
-                      <DebouncedInput
-                        committedValue={card.record.tipo_decesso ?? ""}
-                        onSave={async (value) => {
-                          await onPatchChiusura(card.id, {
-                            tipo_decesso: value || null,
-                          })
-                        }}
-                      />
+                      <FieldInput name="tipo_decesso" />
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Presenze ultimo mese</span>
-                      <DebouncedInput
-                        committedValue={card.record.presenze_ultimo_mese ?? ""}
-                        onSave={async (value) => {
-                          await onPatchChiusura(card.id, {
-                            presenze_ultimo_mese: value || null,
-                          })
-                        }}
-                      />
+                      <FieldInput name="presenze_ultimo_mese" />
                     </label>
                     <label className="space-y-2 md:col-span-2">
                       <span className="ui-type-label">Motivazione</span>
-                      <DebouncedTextarea
-                        committedValue={card.record.motivazione_cessazione_rapporto ?? ""}
-                        onSave={async (value) => {
-                          await onPatchChiusura(card.id, {
-                            motivazione_cessazione_rapporto: value || null,
-                          })
-                        }}
-                      />
+                      <FieldTextarea name="motivazione_cessazione_rapporto" />
                     </label>
                     <label className="space-y-2 md:col-span-2">
                       <span className="ui-type-label">Informazioni aggiuntive</span>
-                      <DebouncedTextarea
-                        committedValue={card.record.informazioni_aggiuntive ?? ""}
-                        onSave={async (value) => {
-                          await onPatchChiusura(card.id, {
-                            informazioni_aggiuntive: value || null,
-                          })
-                        }}
-                      />
+                      <FieldTextarea name="informazioni_aggiuntive" />
                     </label>
                     {detailsError ? (
                       <p className="text-xs font-medium text-red-600 md:col-span-2">
@@ -599,6 +585,7 @@ function ChiusureDetailSheet({
         )}
       </SheetContent>
     </Sheet>
+    </Form>
   )
 }
 

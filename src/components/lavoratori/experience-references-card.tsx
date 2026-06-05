@@ -60,8 +60,11 @@ import {
 } from "@/components/ui/dialog";
 import { FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input";
 import { Card, CardContent } from "@/components/ui/card";
+import { useController, useFormContext } from "react-hook-form";
+import { Form } from "@/components/ui/form";
+import { FieldInput, FieldTextarea } from "@/components/forms/field-components";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { formatDateOnly } from "@/features/lavoratori/lib/availability-utils";
 import {
   getLookupOptionLabel,
@@ -267,6 +270,97 @@ function ExperienceRoleField({
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
+  );
+}
+
+// FASE 5 BIS — wrapper form-aware del Combobox ruoli (preserva la
+// normalizzazione bespoke label↔value dentro ExperienceRoleField).
+function FieldExperienceRole({
+  name,
+  options,
+  disabled,
+}: {
+  name: string;
+  options: LookupOption[];
+  disabled: boolean;
+}) {
+  const { field } = useController({ name });
+  const value = Array.isArray(field.value) ? (field.value as string[]) : [];
+  return (
+    <ExperienceRoleField
+      value={value}
+      options={options}
+      disabled={disabled}
+      onChange={field.onChange}
+    />
+  );
+}
+
+// FASE 5 BIS — Select tipo rapporto form-aware (value = LABEL, come l'originale;
+// EMPTY_SELECT_VALUE ↔ "" interno).
+function FieldTipoRapportoSelect({
+  name,
+  options,
+  disabled,
+}: {
+  name: string;
+  options: LookupOption[];
+  disabled: boolean;
+}) {
+  const { field } = useController({ name });
+  const value = typeof field.value === "string" ? field.value : "";
+  return (
+    <Select
+      value={value || EMPTY_SELECT_VALUE}
+      onValueChange={(next) =>
+        field.onChange(next === EMPTY_SELECT_VALUE ? "" : next)
+      }
+      disabled={disabled}
+    >
+      <SelectTrigger className="h-9 w-full">
+        <SelectValue placeholder="Seleziona tipo rapporto" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.label}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// FASE 5 BIS — checkbox "rapporto attivo" form-aware. Caso speciale: quando si
+// attiva, azzera anche data_fine (setValue marca dirty → autosave persiste null).
+function FieldRapportoAttivo({
+  name,
+  dataFineName,
+  disabled,
+}: {
+  name: string;
+  dataFineName: string;
+  disabled: boolean;
+}) {
+  const { field } = useController({ name });
+  const { setValue } = useFormContext();
+  const checked = Boolean(field.value);
+  return (
+    <label className="flex h-9 items-center gap-2 text-sm">
+      <Checkbox
+        checked={checked}
+        onCheckedChange={(next) => {
+          const nextValue = next === true;
+          field.onChange(nextValue);
+          if (nextValue) {
+            setValue(dataFineName, "", { shouldDirty: true });
+          }
+        }}
+        disabled={disabled}
+      />
+      <span>{checked ? "Si" : "No"}</span>
+    </label>
   );
 }
 
@@ -765,25 +859,115 @@ type EditableReferenceCardProps = {
   ) => Promise<void> | void;
 };
 
+// FASE 5 BIS — Select "stato verifica" form-aware. Le opzioni usano la LABEL
+// come value (come il pattern originale); EMPTY_SELECT_VALUE ↔ "" interno.
+function FieldReferenceStatusSelect({
+  name,
+  options,
+  disabled,
+}: {
+  name: string;
+  options: LookupOption[];
+  disabled: boolean;
+}) {
+  const { field } = useController({ name });
+  const value = typeof field.value === "string" ? field.value : "";
+  return (
+    <Select
+      value={value || EMPTY_SELECT_VALUE}
+      onValueChange={(next) =>
+        field.onChange(next === EMPTY_SELECT_VALUE ? "" : next)
+      }
+      disabled={disabled}
+    >
+      <SelectTrigger className="h-9 w-full">
+        <SelectValue placeholder="Seleziona stato" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.label}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// FASE 5 BIS — rating a stelle form-aware (numero 0..5).
+function FieldStarRating({
+  name,
+  disabled,
+}: {
+  name: string;
+  disabled: boolean;
+}) {
+  const { field } = useController({ name });
+  const current = typeof field.value === "number" ? field.value : 0;
+  return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: 5 }, (_, index) => {
+        const score = index + 1;
+        const active = current >= score;
+        return (
+          <button
+            key={score}
+            type="button"
+            onClick={() => field.onChange(score)}
+            disabled={disabled}
+            className="disabled:opacity-50"
+          >
+            <StarIcon
+              className={
+                active
+                  ? "fill-primary text-primary size-4"
+                  : "text-muted-foreground/35 size-4"
+              }
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// FASE 5 BIS — checkbox booleana form-aware con label Si/No accanto.
+function FieldDisponibileCheckbox({
+  name,
+  disabled,
+}: {
+  name: string;
+  disabled: boolean;
+}) {
+  const { field } = useController({ name });
+  const checked = Boolean(field.value);
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <Checkbox
+        checked={checked}
+        onCheckedChange={(next) => field.onChange(next === true)}
+        disabled={disabled}
+      />
+      <span className="inline-flex items-center gap-1">
+        <CheckIcon className="size-3.5" />
+        {checked ? "Si" : "No"}
+      </span>
+    </label>
+  );
+}
+
 function EditableReferenceCard({
   reference,
   referenceStatusOptions,
   disabled,
   onPatch,
 }: EditableReferenceCardProps) {
-  const [draft, setDraft] = React.useState(() => ({
-    referenza_verificata: reference.referenza_verificata ?? "",
-    nome_datore: reference.nome_datore ?? "",
-    cognome_datore: reference.cognome_datore ?? "",
-    telefono_datore: reference.telefono_datore ?? "",
-    valutazione: reference.valutazione ?? 0,
-    commento_esperienza: reference.commento_esperienza ?? "",
-    referenza_verificata_da_baze:
-      reference.referenza_verificata_da_baze ?? false,
-  }));
-
-  React.useEffect(() => {
-    setDraft({
+  // FASE 5 BIS — form + autosave. I defaults vengono dal record (resync realtime
+  // senza clobber via useAutoSaveForm); onSave instrada ogni campo cambiato a
+  // onPatch con la colonna DB e la normalizzazione ("" → null sui testi).
+  const form = useAutoSaveForm({
+    defaults: {
       referenza_verificata: reference.referenza_verificata ?? "",
       nome_datore: reference.nome_datore ?? "",
       cognome_datore: reference.cognome_datore ?? "",
@@ -792,12 +976,43 @@ function EditableReferenceCard({
       commento_esperienza: reference.commento_esperienza ?? "",
       referenza_verificata_da_baze:
         reference.referenza_verificata_da_baze ?? false,
-    });
-  }, [reference]);
+    },
+    onSave: async (patch) => {
+      const out: Partial<ReferenzaLavoratoreRecord> = {};
+      for (const [key, value] of Object.entries(patch)) {
+        switch (key) {
+          case "referenza_verificata":
+            out.referenza_verificata = value as string;
+            break;
+          case "nome_datore":
+            out.nome_datore = (value as string).trim() || null;
+            break;
+          case "cognome_datore":
+            out.cognome_datore = (value as string).trim() || null;
+            break;
+          case "telefono_datore":
+            out.telefono_datore = (value as string).trim() || null;
+            break;
+          case "commento_esperienza":
+            out.commento_esperienza = (value as string).trim() || null;
+            break;
+          case "valutazione":
+            out.valutazione = value as number;
+            break;
+          case "referenza_verificata_da_baze":
+            out.referenza_verificata_da_baze = value as boolean;
+            break;
+        }
+      }
+      await onPatch(reference.id, out);
+    },
+  });
 
-  const isVerified = draft.referenza_verificata === "Referenza verificata";
+  const isVerified =
+    form.watch("referenza_verificata") === "Referenza verificata";
 
   return (
+    <Form {...form}>
     <Card className="gap-0 py-0 shadow-none">
       <CardContent className="space-y-4 p-4 pt-3 pb-3">
         <div className="space-y-2">
@@ -805,30 +1020,11 @@ function EditableReferenceCard({
             Stato verifica referenza
           </FieldLabel>
           <div className="max-w-sm">
-            <Select
-              value={draft.referenza_verificata || EMPTY_SELECT_VALUE}
-              onValueChange={(value) => {
-                const nextValue = value === EMPTY_SELECT_VALUE ? "" : value;
-                setDraft((current) => ({
-                  ...current,
-                  referenza_verificata: nextValue,
-                }));
-                void onPatch(reference.id, { referenza_verificata: nextValue });
-              }}
+            <FieldReferenceStatusSelect
+              name="referenza_verificata"
+              options={referenceStatusOptions}
               disabled={disabled}
-            >
-              <SelectTrigger className="h-9 w-full">
-                <SelectValue placeholder="Seleziona stato" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                {referenceStatusOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.label}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
         </div>
 
@@ -838,52 +1034,21 @@ function EditableReferenceCard({
               <UserIcon className="size-3.5" />
               Nome referenza
             </FieldLabel>
-            <DebouncedInput
-              committedValue={draft.nome_datore}
-              onSave={async (raw) => {
-                const nextValue = raw.trim();
-                setDraft((current) => ({ ...current, nome_datore: raw }));
-                if (nextValue === (reference.nome_datore ?? "")) return;
-                await onPatch(reference.id, { nome_datore: nextValue || null });
-              }}
-              className="h-9 text-sm"
-            />
+            <FieldInput name="nome_datore" disabled={disabled} className="h-9 text-sm" />
           </div>
           <div className="space-y-2">
             <FieldLabel>
               <UserIcon className="size-3.5" />
               Cognome referenza
             </FieldLabel>
-            <DebouncedInput
-              committedValue={draft.cognome_datore}
-              onSave={async (raw) => {
-                const nextValue = raw.trim();
-                setDraft((current) => ({ ...current, cognome_datore: raw }));
-                if (nextValue === (reference.cognome_datore ?? "")) return;
-                await onPatch(reference.id, {
-                  cognome_datore: nextValue || null,
-                });
-              }}
-              className="h-9 text-sm"
-            />
+            <FieldInput name="cognome_datore" disabled={disabled} className="h-9 text-sm" />
           </div>
           <div className="space-y-2">
             <FieldLabel>
               <PhoneIcon className="size-3.5" />
               Numero referenza
             </FieldLabel>
-            <DebouncedInput
-              committedValue={draft.telefono_datore}
-              onSave={async (raw) => {
-                const nextValue = raw.trim();
-                setDraft((current) => ({ ...current, telefono_datore: raw }));
-                if (nextValue === (reference.telefono_datore ?? "")) return;
-                await onPatch(reference.id, {
-                  telefono_datore: nextValue || null,
-                });
-              }}
-              className="h-9 text-sm"
-            />
+            <FieldInput name="telefono_datore" disabled={disabled} className="h-9 text-sm" />
           </div>
         </div>
 
@@ -894,77 +1059,25 @@ function EditableReferenceCard({
                 <StarIcon className="size-3.5" />
                 Valutazione
               </FieldLabel>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: 5 }, (_, index) => {
-                  const score = index + 1;
-                  const active = draft.valutazione >= score;
-                  return (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => {
-                        setDraft((current) => ({
-                          ...current,
-                          valutazione: score,
-                        }));
-                        void onPatch(reference.id, { valutazione: score });
-                      }}
-                      disabled={disabled}
-                      className="disabled:opacity-50"
-                    >
-                      <StarIcon
-                        className={
-                          active
-                            ? "fill-primary text-primary size-4"
-                            : "text-muted-foreground/35 size-4"
-                        }
-                      />
-                    </button>
-                  );
-                })}
-              </div>
+              <FieldStarRating name="valutazione" disabled={disabled} />
             </div>
             <div className="space-y-2 md:col-span-2">
               <FieldLabel>
                 <CheckCircle2Icon className="size-3.5" />
                 Disponibile a essere chiamata
               </FieldLabel>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={draft.referenza_verificata_da_baze}
-                  onCheckedChange={(checked) => {
-                    const nextValue = checked === true;
-                    setDraft((current) => ({
-                      ...current,
-                      referenza_verificata_da_baze: nextValue,
-                    }));
-                    void onPatch(reference.id, {
-                      referenza_verificata_da_baze: nextValue,
-                    });
-                  }}
-                  disabled={disabled}
-                />
-                <span className="inline-flex items-center gap-1">
-                  <CheckIcon className="size-3.5" />
-                  {draft.referenza_verificata_da_baze ? "Si" : "No"}
-                </span>
-              </label>
+              <FieldDisponibileCheckbox
+                name="referenza_verificata_da_baze"
+                disabled={disabled}
+              />
             </div>
             <div className="space-y-2 md:col-span-3">
               <FieldLabel>
                 <MessageSquareTextIcon className="size-3.5" />
                 Feedback della referenza
               </FieldLabel>
-              <DebouncedTextarea
-                committedValue={draft.commento_esperienza}
-                onSave={async (raw) => {
-                  const nextValue = raw.trim();
-                  setDraft((current) => ({ ...current, commento_esperienza: raw }));
-                  if (nextValue === (reference.commento_esperienza ?? "")) return;
-                  await onPatch(reference.id, {
-                    commento_esperienza: nextValue || null,
-                  });
-                }}
+              <FieldTextarea
+                name="commento_esperienza"
                 className="min-h-24 w-full text-sm"
               />
             </div>
@@ -972,6 +1085,7 @@ function EditableReferenceCard({
         ) : null}
       </CardContent>
     </Card>
+    </Form>
   );
 }
 
@@ -1008,20 +1122,12 @@ function EditableExperienceCard({
   onReferencePatch,
   onReferenceCreate,
 }: EditableExperienceCardProps) {
-  const [draft, setDraft] = React.useState(() => ({
-    tipo_lavoro: experience.tipo_lavoro ?? [],
-    tipo_rapporto: experience.tipo_rapporto ?? "",
-    data_inizio: experience.data_inizio ?? "",
-    data_fine: experience.data_fine ?? "",
-    stato_esperienza_attiva: experience.stato_esperienza_attiva ?? false,
-    descrizione: experience.descrizione ?? "",
-    descrizione_contesto_lavorativo:
-      experience.descrizione_contesto_lavorativo ?? "",
-    motivazione_fine_rapporto: experience.motivazione_fine_rapporto ?? "",
-  }));
-
-  React.useEffect(() => {
-    setDraft({
+  // FASE 5 BIS — form + autosave. I defaults vengono dal record; onSave instrada
+  // ogni campo cambiato a onExperiencePatch con colonna DB e normalizzazione.
+  // Caso speciale "rapporto attivo": il toggle azzera anche data_fine (gestito
+  // dal wrapper FieldRapportoAttivo via setValue, così il form resta coerente).
+  const form = useAutoSaveForm({
+    defaults: {
       tipo_lavoro: experience.tipo_lavoro ?? [],
       tipo_rapporto: experience.tipo_rapporto ?? "",
       data_inizio: experience.data_inizio ?? "",
@@ -1031,10 +1137,47 @@ function EditableExperienceCard({
       descrizione_contesto_lavorativo:
         experience.descrizione_contesto_lavorativo ?? "",
       motivazione_fine_rapporto: experience.motivazione_fine_rapporto ?? "",
-    });
-  }, [experience]);
+    },
+    onSave: async (patch) => {
+      const out: Partial<EsperienzaLavoratoreRecord> = {};
+      for (const [key, value] of Object.entries(patch)) {
+        switch (key) {
+          case "tipo_lavoro":
+            out.tipo_lavoro =
+              (value as string[]).length > 0 ? (value as string[]) : null;
+            break;
+          case "tipo_rapporto":
+            out.tipo_rapporto = (value as string) || null;
+            break;
+          case "data_inizio":
+            out.data_inizio = (value as string) || null;
+            break;
+          case "data_fine":
+            out.data_fine = (value as string) || null;
+            break;
+          case "stato_esperienza_attiva":
+            out.stato_esperienza_attiva = value as boolean;
+            break;
+          case "descrizione":
+            out.descrizione = (value as string).trim() || null;
+            break;
+          case "descrizione_contesto_lavorativo":
+            out.descrizione_contesto_lavorativo =
+              (value as string).trim() || null;
+            break;
+          case "motivazione_fine_rapporto":
+            out.motivazione_fine_rapporto = (value as string).trim() || null;
+            break;
+        }
+      }
+      await onExperiencePatch(experience.id, out);
+    },
+  });
+
+  const statoAttiva = Boolean(form.watch("stato_esperienza_attiva"));
 
   return (
+    <Form {...form}>
     <Card className="bg-background gap-0 py-0 shadow-none">
       <CardContent className="space-y-4 px-0 pt-1 pb-2">
         <div className="space-y-2">
@@ -1043,45 +1186,21 @@ function EditableExperienceCard({
               <FieldLabel>
                 Tipo lavoro
               </FieldLabel>
-              <ExperienceRoleField
-                value={draft.tipo_lavoro}
+              <FieldExperienceRole
+                name="tipo_lavoro"
                 options={experienceTipoLavoroOptions}
                 disabled={disabled}
-                onChange={(values) => {
-                  setDraft((current) => ({ ...current, tipo_lavoro: values }));
-                  void onExperiencePatch(experience.id, {
-                    tipo_lavoro: values.length > 0 ? values : null,
-                  });
-                }}
               />
             </div>
             <div className="space-y-2">
               <FieldLabel>
                 Tipo rapporto
               </FieldLabel>
-              <Select
-                value={draft.tipo_rapporto || EMPTY_SELECT_VALUE}
-                onValueChange={(value) => {
-                  const nextValue = value === EMPTY_SELECT_VALUE ? "" : value;
-                  setDraft((current) => ({ ...current, tipo_rapporto: nextValue }));
-                  void onExperiencePatch(experience.id, {
-                    tipo_rapporto: nextValue || null,
-                  });
-                }}
+              <FieldTipoRapportoSelect
+                name="tipo_rapporto"
+                options={experienceTipoRapportoOptions}
                 disabled={disabled}
-              >
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue placeholder="Seleziona tipo rapporto" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                  {experienceTipoRapportoOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.label}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
           </div>
 
@@ -1090,16 +1209,10 @@ function EditableExperienceCard({
               <FieldLabel>
                 Data inizio
               </FieldLabel>
-              <DebouncedInput
+              <FieldInput
+                name="data_inizio"
                 type="date"
-                committedValue={draft.data_inizio}
-                onSave={async (raw) => {
-                  setDraft((current) => ({ ...current, data_inizio: raw }));
-                  if (raw === (experience.data_inizio ?? "")) return;
-                  await onExperiencePatch(experience.id, {
-                    data_inizio: raw || null,
-                  });
-                }}
+                disabled={disabled}
                 className="h-9 text-sm"
               />
             </div>
@@ -1107,16 +1220,10 @@ function EditableExperienceCard({
               <FieldLabel>
                 Data fine
               </FieldLabel>
-              <DebouncedInput
+              <FieldInput
+                name="data_fine"
                 type="date"
-                committedValue={draft.data_fine}
-                onSave={async (raw) => {
-                  setDraft((current) => ({ ...current, data_fine: raw }));
-                  if (raw === (experience.data_fine ?? "")) return;
-                  await onExperiencePatch(experience.id, {
-                    data_fine: raw || null,
-                  });
-                }}
+                disabled={disabled || statoAttiva}
                 className="h-9 text-sm"
               />
             </div>
@@ -1124,25 +1231,11 @@ function EditableExperienceCard({
               <FieldLabel>
                 Rapporto attivo
               </FieldLabel>
-              <label className="flex h-9 items-center gap-2 text-sm">
-                <Checkbox
-                  checked={draft.stato_esperienza_attiva}
-                  onCheckedChange={(checked) => {
-                    const nextValue = checked === true;
-                    setDraft((current) => ({
-                      ...current,
-                      stato_esperienza_attiva: nextValue,
-                      data_fine: nextValue ? "" : current.data_fine,
-                    }));
-                    void onExperiencePatch(experience.id, {
-                      stato_esperienza_attiva: nextValue,
-                      data_fine: nextValue ? null : draft.data_fine || null,
-                    });
-                  }}
-                  disabled={disabled}
-                />
-                <span>{draft.stato_esperienza_attiva ? "Si" : "No"}</span>
-              </label>
+              <FieldRapportoAttivo
+                name="stato_esperienza_attiva"
+                dataFineName="data_fine"
+                disabled={disabled}
+              />
             </div>
           </div>
         </div>
@@ -1152,16 +1245,9 @@ function EditableExperienceCard({
             <FieldLabel>
               Descrizione Mansioni ed Esperienza
             </FieldLabel>
-            <DebouncedTextarea
-              committedValue={draft.descrizione}
-              onSave={async (raw) => {
-                const nextValue = raw.trim();
-                setDraft((current) => ({ ...current, descrizione: raw }));
-                if (nextValue === (experience.descrizione ?? "")) return;
-                await onExperiencePatch(experience.id, {
-                  descrizione: nextValue || null,
-                });
-              }}
+            <FieldTextarea
+              name="descrizione"
+              disabled={disabled}
               className="min-h-28 w-full text-sm"
             />
           </div>
@@ -1169,47 +1255,22 @@ function EditableExperienceCard({
             <FieldLabel>
               Descrizione Famiglia e Contesto
             </FieldLabel>
-            <DebouncedTextarea
-              committedValue={draft.descrizione_contesto_lavorativo}
-              onSave={async (raw) => {
-                const nextValue = raw.trim();
-                setDraft((current) => ({
-                  ...current,
-                  descrizione_contesto_lavorativo: raw,
-                }));
-                if (
-                  nextValue ===
-                  (experience.descrizione_contesto_lavorativo ?? "")
-                )
-                  return;
-                await onExperiencePatch(experience.id, {
-                  descrizione_contesto_lavorativo: nextValue || null,
-                });
-              }}
+            <FieldTextarea
+              name="descrizione_contesto_lavorativo"
+              disabled={disabled}
               className="min-h-28 w-full text-sm"
             />
           </div>
         </div>
 
-        {!draft.stato_esperienza_attiva ? (
+        {!statoAttiva ? (
           <div className="space-y-2">
             <FieldLabel>
               Motivazione fine rapporto
             </FieldLabel>
-            <DebouncedTextarea
-              committedValue={draft.motivazione_fine_rapporto}
-              onSave={async (raw) => {
-                const nextValue = raw.trim();
-                setDraft((current) => ({
-                  ...current,
-                  motivazione_fine_rapporto: raw,
-                }));
-                if (nextValue === (experience.motivazione_fine_rapporto ?? ""))
-                  return;
-                await onExperiencePatch(experience.id, {
-                  motivazione_fine_rapporto: nextValue || null,
-                });
-              }}
+            <FieldTextarea
+              name="motivazione_fine_rapporto"
+              disabled={disabled}
               className="min-h-24 w-full text-sm"
             />
           </div>
@@ -1246,6 +1307,7 @@ function EditableExperienceCard({
         </div>
       </CardContent>
     </Card>
+    </Form>
   );
 }
 

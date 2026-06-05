@@ -22,7 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { DebouncedTextarea } from "@/components/ui/debounced-input"
+import { useController } from "react-hook-form"
+import { Form } from "@/components/ui/form"
+import { FieldTextarea } from "@/components/forms/field-components"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils"
 import {
   getLookupLabelForSave,
@@ -139,6 +142,77 @@ function MultiLookupField({
   )
 }
 
+// FASE 5 BIS — thin wrapper form-aware del Select con mappatura label↔db
+// (getLookupSelectValue/getLookupLabelForSave). Il form memorizza la LABEL DB.
+function FieldLookupSelect({
+  name,
+  options,
+  placeholder,
+  noneLabel,
+  disabled,
+  triggerClassName,
+  getItemClassName,
+}: {
+  name: string
+  options: LookupOption[]
+  placeholder: string
+  noneLabel: string
+  disabled?: boolean
+  triggerClassName?: string
+  getItemClassName?: (option: LookupOption) => string | undefined
+}) {
+  const { field } = useController({ name })
+  const current = typeof field.value === "string" ? field.value : ""
+  return (
+    <Select
+      value={getLookupSelectValue(current, options, "none")}
+      onValueChange={(value) =>
+        field.onChange(value === "none" ? "" : getLookupLabelForSave(value, options))
+      }
+      disabled={disabled}
+    >
+      <SelectTrigger className={triggerClassName ?? "h-9 w-full"}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">{noneLabel}</SelectItem>
+        {options.map((option) => (
+          <SelectItem
+            key={option.value}
+            value={option.value}
+            className={getItemClassName?.(option)}
+          >
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+// FASE 5 BIS — thin wrapper form-aware del MultiLookupField (preserva la
+// normalizzazione value-key↔db-label interna).
+function FieldMultiLookup({
+  name,
+  options,
+  disabled,
+}: {
+  name: string
+  options: LookupOption[]
+  disabled: boolean
+}) {
+  const { field } = useController({ name })
+  const value = Array.isArray(field.value) ? (field.value as string[]) : []
+  return (
+    <MultiLookupField
+      value={value}
+      options={options}
+      disabled={disabled}
+      onChange={field.onChange}
+    />
+  )
+}
+
 export function SelectionDetailsCard({
   selectionRow,
   lookupColorsByDomain,
@@ -150,22 +224,27 @@ export function SelectionDetailsCard({
   onPatchField,
   disabled = false,
 }: SelectionDetailsCardProps) {
-  const [draft, setDraft] = React.useState<SelectionDraft>(() => buildDraft(selectionRow))
+  // FASE 5 BIS — form + autosave. Il resync realtime (keepDirtyValues) e il
+  // dirty-tracking sono gestiti da useAutoSaveForm; ogni campo si salva da solo
+  // via onPatchField. La normalizzazione "" / [] → null è centralizzata qui.
+  const form = useAutoSaveForm({
+    defaults: buildDraft(selectionRow),
+    onSave: async (patch) => {
+      for (const [fieldName, value] of Object.entries(patch)) {
+        const out = Array.isArray(value)
+          ? value.length > 0
+            ? value
+            : null
+          : typeof value === "string"
+            ? value.trim() || null
+            : value ?? null
+        await onPatchField(fieldName, out)
+      }
+    },
+  })
 
-  // Identity-pin: only rebuild the draft when a different selectionRow is
-  // loaded (id changes), not on every field-level realtime echo. All field
-  // commits below already update the draft locally via setDraft + onPatchField,
-  // so a realtime echo on a sibling field would only wipe in-progress edits.
-  const selectionId = (selectionRow?.id ?? null) as string | number | null
-  React.useEffect(() => {
-    setDraft(buildDraft(selectionRow))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectionId])
-
-  const normalizedStatus = React.useMemo(
-    () => normalizeStatusToken(draft.stato_selezione),
-    [draft.stato_selezione]
-  )
+  const statoSelezione = form.watch("stato_selezione")
+  const normalizedStatus = normalizeStatusToken(statoSelezione)
   const showFollowupSenzaRisposta = normalizedStatus === "non risponde"
   const showMotivazioneArchivio = normalizedStatus.includes("archivio")
   const isCandidatoPoorFit =
@@ -182,9 +261,10 @@ export function SelectionDetailsCard({
       resolveLookupColor(lookupColorsByDomain, "selezioni_lavoratori.stato_selezione", value),
     [lookupColorsByDomain]
   )
-  const selectedStatusClassName = getTagClassName(resolveStatusColor(draft.stato_selezione))
+  const selectedStatusClassName = getTagClassName(resolveStatusColor(statoSelezione))
 
   return (
+    <Form {...form}>
     <DetailSectionBlock
       title="Selezione"
       icon={<ClipboardListIcon className="text-muted-foreground size-4" />}
@@ -197,31 +277,17 @@ export function SelectionDetailsCard({
           Stato selezione
         </FieldLabel>
         <div className="max-w-sm">
-          <Select
-            value={getLookupSelectValue(draft.stato_selezione, statusOptions, "none")}
-            onValueChange={(value) => {
-              const nextValue = value === "none" ? "" : getLookupLabelForSave(value, statusOptions)
-              setDraft((current) => ({ ...current, stato_selezione: nextValue }))
-              void onPatchField("stato_selezione", nextValue || null)
-            }}
+          <FieldLookupSelect
+            name="stato_selezione"
+            options={statusOptions}
+            placeholder="Seleziona stato"
+            noneLabel="Nessuno stato"
             disabled={disabled}
-          >
-            <SelectTrigger className={`h-9 w-full ${selectedStatusClassName}`}>
-              <SelectValue placeholder="Seleziona stato" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Nessuno stato</SelectItem>
-              {statusOptions.map((option) => (
-                <SelectItem
-                  key={option.value}
-                  value={option.value}
-                  className={getTagClassName(resolveStatusColor(option.label || option.value))}
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            triggerClassName={`h-9 w-full ${selectedStatusClassName}`}
+            getItemClassName={(option) =>
+              getTagClassName(resolveStatusColor(option.label || option.value))
+            }
+          />
         </div>
       </div>
 
@@ -229,12 +295,8 @@ export function SelectionDetailsCard({
         <FieldLabel>
           Appunti generali
         </FieldLabel>
-        <DebouncedTextarea
-          committedValue={draft.note_selezione}
-          onSave={async (value) => {
-            setDraft((current) => ({ ...current, note_selezione: value }))
-            await onPatchField("note_selezione", value.trim() || null)
-          }}
+        <FieldTextarea
+          name="note_selezione"
           className="min-h-28 w-full text-sm"
         />
       </div>
@@ -243,18 +305,8 @@ export function SelectionDetailsCard({
         <FieldLabel>
           Perché è stata inserita manualmente?
         </FieldLabel>
-        <DebouncedTextarea
-          committedValue={draft.motivo_inserimento_manuale}
-          onSave={async (value) => {
-            setDraft((current) => ({
-              ...current,
-              motivo_inserimento_manuale: value,
-            }))
-            await onPatchField(
-              "motivo_inserimento_manuale",
-              value.trim() || null,
-            )
-          }}
+        <FieldTextarea
+          name="motivo_inserimento_manuale"
           className="min-h-24 w-full text-sm"
         />
       </div>
@@ -265,27 +317,13 @@ export function SelectionDetailsCard({
             Followup senza risposta
           </FieldLabel>
           <div className="max-w-sm">
-            <Select
-              value={getLookupSelectValue(draft.followup_senza_risposta, followupOptions, "none")}
-              onValueChange={(value) => {
-                const nextValue = value === "none" ? "" : getLookupLabelForSave(value, followupOptions)
-                setDraft((current) => ({ ...current, followup_senza_risposta: nextValue }))
-                void onPatchField("followup_senza_risposta", nextValue || null)
-              }}
+            <FieldLookupSelect
+              name="followup_senza_risposta"
+              options={followupOptions}
+              placeholder="Seleziona followup"
+              noneLabel="Nessun followup"
               disabled={disabled}
-            >
-              <SelectTrigger className="h-9 w-full">
-                <SelectValue placeholder="Seleziona followup" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nessun followup</SelectItem>
-                {followupOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
         </div>
       ) : null}
@@ -296,27 +334,13 @@ export function SelectionDetailsCard({
             Motivazione archivio
           </FieldLabel>
           <div className="max-w-sm">
-            <Select
-              value={getLookupSelectValue(draft.motivo_archivio, archivioOptions, "none")}
-              onValueChange={(value) => {
-                const nextValue = value === "none" ? "" : getLookupLabelForSave(value, archivioOptions)
-                setDraft((current) => ({ ...current, motivo_archivio: nextValue }))
-                void onPatchField("motivo_archivio", nextValue || null)
-              }}
+            <FieldLookupSelect
+              name="motivo_archivio"
+              options={archivioOptions}
+              placeholder="Seleziona motivazione"
+              noneLabel="Nessuna motivazione"
               disabled={disabled}
-            >
-              <SelectTrigger className="h-9 w-full">
-                <SelectValue placeholder="Seleziona motivazione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nessuna motivazione</SelectItem>
-                {archivioOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
         </div>
       ) : null}
@@ -326,14 +350,10 @@ export function SelectionDetailsCard({
           <FieldLabel>
             Motivazione non selezionato
           </FieldLabel>
-          <MultiLookupField
-            value={draft.motivo_non_selezionato}
+          <FieldMultiLookup
+            name="motivo_non_selezionato"
             options={nonSelezionatoOptions}
             disabled={disabled}
-            onChange={(values) => {
-              setDraft((current) => ({ ...current, motivo_non_selezionato: values }))
-              void onPatchField("motivo_non_selezionato", values.length > 0 ? values : null)
-            }}
           />
         </div>
       ) : null}
@@ -344,30 +364,17 @@ export function SelectionDetailsCard({
             Motivazione no match
           </FieldLabel>
           <div className="max-w-sm">
-            <Select
-              value={getLookupSelectValue(draft.motivo_no_match, noMatchOptions, "none")}
-              onValueChange={(value) => {
-                const nextValue = value === "none" ? "" : getLookupLabelForSave(value, noMatchOptions)
-                setDraft((current) => ({ ...current, motivo_no_match: nextValue }))
-                void onPatchField("motivo_no_match", nextValue || null)
-              }}
+            <FieldLookupSelect
+              name="motivo_no_match"
+              options={noMatchOptions}
+              placeholder="Seleziona motivazione"
+              noneLabel="Nessuna motivazione"
               disabled={disabled}
-            >
-              <SelectTrigger className="h-9 w-full">
-                <SelectValue placeholder="Seleziona motivazione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nessuna motivazione</SelectItem>
-                {noMatchOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
         </div>
       ) : null}
     </DetailSectionBlock>
+    </Form>
   )
 }

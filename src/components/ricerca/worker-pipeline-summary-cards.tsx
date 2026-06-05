@@ -10,9 +10,9 @@ import {
   UserRoundIcon,
   XIcon,
 } from "lucide-react";
+import { useController } from "react-hook-form";
 
 import { AvailabilityCalendarCard } from "@/components/lavoratori/availability-calendar-card";
-import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { DocumentsCard } from "@/components/lavoratori/documents-card";
 import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
@@ -32,7 +32,8 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@/components/ui/combobox";
-import { DebouncedInput } from "@/components/ui/debounced-input";
+import { FieldInput } from "@/components/forms/field-components";
+import { Form } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -43,6 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { cn } from "@/lib/utils";
 import {
   AVAILABILITY_EDIT_BANDS,
@@ -457,6 +459,162 @@ function getTravelTimeTone(minutes: number | null) {
   return { label: "Alto", tone: "low" as const };
 }
 
+// FASE 5 BIS — indirizzo lavoratore (form-context). I valori sono le label DB
+// (così i defaults da workerVia/... funzionano e onSave li passa a
+// commitAddressField). Le chiavi testuali usano FieldInput; la provincia e la
+// mobilita hanno wrapper locali che preservano i loro mapping bespoke.
+type WorkerAddressDraft = {
+  via: string;
+  civico: string;
+  cap: string;
+  citta: string;
+  provincia: string;
+  citofono: string;
+  come_ti_sposti: string[];
+};
+
+// FASE 5 BIS — indirizzo prova (form-context, instradato a commitFamilyAddressField).
+type FamilyAddressDraft = {
+  indirizzo_prova_provincia: string;
+  indirizzo_prova_cap: string;
+  indirizzo_prova_via: string;
+  indirizzo_prova_civico: string;
+  indirizzo_prova_comune: string;
+  indirizzo_prova_citofono: string;
+  indirizzo_prova_note: string;
+};
+
+// FASE 5 BIS — campi esperienza che alimentano ExperienceReferencesCard
+// (presentazionale), instradati a onFieldSave via useController.
+type ExperienceSummaryDraft = {
+  anni_esperienza_colf: string;
+  anni_esperienza_badante: string;
+  anni_esperienza_babysitter: string;
+  situazione_lavorativa_attuale: string;
+};
+
+// FASE 5 BIS — Select provincia lavoratore agganciata al form. Preserva il
+// mapping valore-form ↔ "none" (campo vuoto) e value=value (sigla).
+function FieldWorkerProvinciaSelect({
+  name,
+  options,
+}: {
+  name: string;
+  options: LookupOption[];
+}) {
+  const { field } = useController({ name });
+  const value = typeof field.value === "string" ? field.value : "";
+  return (
+    <Select
+      value={value || "none"}
+      onValueChange={(next) => field.onChange(next === "none" ? "" : next)}
+    >
+      <SelectTrigger className="h-9 text-sm">
+        <SelectValue placeholder="Seleziona provincia" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+}
+
+// FASE 5 BIS — Select provincia indirizzo prova agganciata al form. Preserva
+// l'originale: SelectItem value=label, "none" → campo vuoto.
+function FieldFamilyProvinciaSelect({
+  name,
+  options,
+  placeholder,
+  disabled,
+}: {
+  name: string;
+  options: LookupOption[];
+  placeholder: string;
+  disabled?: boolean;
+}) {
+  const { field } = useController({ name });
+  const value = typeof field.value === "string" ? field.value : "";
+  return (
+    <Select
+      value={value || "none"}
+      onValueChange={(next) => field.onChange(next === "none" ? "" : next)}
+      disabled={disabled}
+    >
+      <SelectTrigger className="h-9">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">Nessuna provincia</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.label}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// FASE 5 BIS — Combobox multi "Mobilita" agganciata al form. Preserva la
+// normalizzazione bespoke value↔label (normalizeLookupOptionValues per i chip;
+// normalizeLookupDbLabels per il commit verso il DB).
+function FieldMobilityCombobox({
+  name,
+  options,
+  anchor,
+}: {
+  name: string;
+  options: LookupOption[];
+  anchor: React.RefObject<HTMLDivElement | null>;
+}) {
+  const { field } = useController({ name });
+  const stored = Array.isArray(field.value) ? (field.value as string[]) : [];
+  return (
+    <Combobox
+      multiple
+      autoHighlight
+      items={options.map((option) => option.value)}
+      value={normalizeLookupOptionValues(stored, options)}
+      onValueChange={(nextValues) =>
+        field.onChange(
+          normalizeLookupDbLabels(nextValues as string[], options),
+        )
+      }
+    >
+      <ComboboxChips ref={anchor} className="w-full">
+        <ComboboxValue>
+          {(values) => (
+            <React.Fragment>
+              {values.map((value: string) => (
+                <ComboboxChip key={value}>
+                  {getLookupOptionLabel(options, value)}
+                </ComboboxChip>
+              ))}
+              <ComboboxChipsInput placeholder="Seleziona opzioni" />
+            </React.Fragment>
+          )}
+        </ComboboxValue>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor} className="max-h-80">
+        <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
+        <ComboboxList className="max-h-72 overflow-y-auto">
+          {(item) => (
+            <ComboboxItem key={item} value={item}>
+              {getLookupOptionLabel(options, item)}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
 function TravelTimeCard({
   workerRow,
   selectionRow,
@@ -526,74 +684,7 @@ function TravelTimeCard({
   const roundedTravelMinutes =
     travelMinutes != null ? Math.round(travelMinutes) : null;
   const [isEditing, setIsEditing] = React.useState(false);
-  const [addressDraft, setAddressDraft] = React.useState({
-    via: asString(workerVia),
-    civico: asString(workerCivico),
-    cap: asString(workerCap),
-    citta: asString(workerCitta),
-    provincia: asString(workerProvincia),
-    citofono: asString(workerCitofono),
-    mobilita: readArrayStrings(workerRow.come_ti_sposti).join(", "),
-  });
-  const [familyAddressDraft, setFamilyAddressDraft] = React.useState({
-    provincia: asString(familyProvince),
-    cap: asString(familyCap),
-    indirizzo: asString(familyAddress),
-    via: asString(familyStreet),
-    civico: asString(familyCivicNumber),
-    comune: asString(familyCity),
-    citofono: asString(familyIntercom),
-    note: asString(familyAddressNote),
-  });
   const mobilityAnchor = useComboboxAnchor();
-
-  React.useEffect(() => {
-    // Skip resync while the user is editing the address card: a realtime
-    // echo on a sibling field would wipe the in-progress input otherwise.
-    if (isEditing) return;
-    setAddressDraft({
-      via: asString(workerVia),
-      civico: asString(workerCivico),
-      cap: asString(workerCap),
-      citta: asString(workerCitta),
-      provincia: asString(workerProvincia),
-      citofono: asString(workerCitofono),
-      mobilita: readArrayStrings(workerRow.come_ti_sposti).join(", "),
-    });
-  }, [
-    isEditing,
-    workerVia,
-    workerCivico,
-    workerCap,
-    workerCitta,
-    workerProvincia,
-    workerCitofono,
-    workerRow.come_ti_sposti,
-  ]);
-
-  React.useEffect(() => {
-    if (isEditing) return;
-    setFamilyAddressDraft({
-      provincia: asString(familyProvince),
-      cap: asString(familyCap),
-      indirizzo: asString(familyAddress),
-      via: asString(familyStreet),
-      civico: asString(familyCivicNumber),
-      comune: asString(familyCity),
-      citofono: asString(familyIntercom),
-      note: asString(familyAddressNote),
-    });
-  }, [
-    isEditing,
-    familyAddress,
-    familyAddressNote,
-    familyCap,
-    familyCivicNumber,
-    familyCity,
-    familyIntercom,
-    familyProvince,
-    familyStreet,
-  ]);
 
   const workerProvincieOptions = useProvincieOptions();
 
@@ -653,20 +744,71 @@ function TravelTimeCard({
     ],
   );
 
-  const handleMobilitaChange = React.useCallback(async (values: string[]) => {
-    const nextValues = values.map((item) => item.trim()).filter(Boolean);
-    setAddressDraft((current) => ({
-      ...current,
-      mobilita: nextValues.join(", "),
-    }));
-    if (!onPatchWorkerField) return;
-    const currentValues = readArrayStrings(workerRow.come_ti_sposti);
-    if (JSON.stringify(nextValues) === JSON.stringify(currentValues)) return;
-    await onPatchWorkerField(
-      "come_ti_sposti",
-      nextValues.length > 0 ? nextValues : null,
-    );
-  }, [onPatchWorkerField, setAddressDraft, workerRow.come_ti_sposti]);
+  const handleMobilitaChange = React.useCallback(
+    async (values: string[]) => {
+      const nextValues = values.map((item) => item.trim()).filter(Boolean);
+      if (!onPatchWorkerField) return;
+      const currentValues = readArrayStrings(workerRow.come_ti_sposti);
+      if (JSON.stringify(nextValues) === JSON.stringify(currentValues)) return;
+      await onPatchWorkerField(
+        "come_ti_sposti",
+        nextValues.length > 0 ? nextValues : null,
+      );
+    },
+    [onPatchWorkerField, workerRow.come_ti_sposti],
+  );
+
+  // FASE 5 BIS — form indirizzo lavoratore + mobilita. I defaults sono i valori
+  // server (le stesse init dei vecchi draft). onSave instrada ogni chiave
+  // cambiata a commitAddressField (testi + provincia) o handleMobilitaChange
+  // (come_ti_sposti). Il resync senza-clobber è gestito da keepDirtyValues.
+  const workerForm = useAutoSaveForm<WorkerAddressDraft>({
+    defaults: {
+      via: asString(workerVia),
+      civico: asString(workerCivico),
+      cap: asString(workerCap),
+      citta: asString(workerCitta),
+      provincia: asString(workerProvincia),
+      citofono: asString(workerCitofono),
+      come_ti_sposti: readArrayStrings(workerRow.come_ti_sposti),
+    },
+    onSave: async (patch) => {
+      for (const [key, value] of Object.entries(patch)) {
+        if (key === "come_ti_sposti") {
+          await handleMobilitaChange(
+            Array.isArray(value) ? (value as string[]) : [],
+          );
+        } else {
+          await commitAddressField(
+            key as "via" | "civico" | "cap" | "citta" | "provincia" | "citofono",
+            (value as string) ?? "",
+          );
+        }
+      }
+    },
+  });
+
+  // FASE 5 BIS — form indirizzo prova (process). onSave instrada ogni chiave a
+  // commitFamilyAddressField (che preserva il guard no-op verso il valore server).
+  const familyForm = useAutoSaveForm<FamilyAddressDraft>({
+    defaults: {
+      indirizzo_prova_provincia: asString(familyProvince),
+      indirizzo_prova_cap: asString(familyCap),
+      indirizzo_prova_via: asString(familyStreet),
+      indirizzo_prova_civico: asString(familyCivicNumber),
+      indirizzo_prova_comune: asString(familyCity),
+      indirizzo_prova_citofono: asString(familyIntercom),
+      indirizzo_prova_note: asString(familyAddressNote),
+    },
+    onSave: async (patch) => {
+      for (const [key, value] of Object.entries(patch)) {
+        await commitFamilyAddressField(
+          key as keyof FamilyAddressDraft,
+          (value as string) ?? "",
+        );
+      }
+    },
+  });
 
   const travelTone = getTravelTimeTone(travelMinutes);
   const mobility = readArrayStrings(workerRow.come_ti_sposti);
@@ -674,57 +816,22 @@ function TravelTimeCard({
     roundedTravelMinutes != null
       ? `${roundedTravelMinutes} min`
       : "Non dichiarato";
-  const familyAddressFields = [
+  const familyAddressFields: Array<{
+    label: string;
+    name: keyof FamilyAddressDraft;
+    type?: "province";
+  }> = [
     {
-      key: "provincia",
       label: "Provincia",
-      value: familyProvince,
-      draftValue: familyAddressDraft.provincia,
-      field: "indirizzo_prova_provincia" as const,
-      type: "province" as const,
+      name: "indirizzo_prova_provincia",
+      type: "province",
     },
-    {
-      key: "cap",
-      label: "CAP",
-      value: familyCap,
-      draftValue: familyAddressDraft.cap,
-      field: "indirizzo_prova_cap" as const,
-    },
-    {
-      key: "via",
-      label: "Via",
-      value: familyStreet,
-      draftValue: familyAddressDraft.via,
-      field: "indirizzo_prova_via" as const,
-    },
-    {
-      key: "civico",
-      label: "Civico",
-      value: familyCivicNumber,
-      draftValue: familyAddressDraft.civico,
-      field: "indirizzo_prova_civico" as const,
-    },
-    {
-      key: "comune",
-      label: "Comune",
-      value: familyCity,
-      draftValue: familyAddressDraft.comune,
-      field: "indirizzo_prova_comune" as const,
-    },
-    {
-      key: "citofono",
-      label: "Citofono",
-      value: familyIntercom,
-      draftValue: familyAddressDraft.citofono,
-      field: "indirizzo_prova_citofono" as const,
-    },
-    {
-      key: "note",
-      label: "Nota",
-      value: familyAddressNote,
-      draftValue: familyAddressDraft.note,
-      field: "indirizzo_prova_note" as const,
-    },
+    { label: "CAP", name: "indirizzo_prova_cap" },
+    { label: "Via", name: "indirizzo_prova_via" },
+    { label: "Civico", name: "indirizzo_prova_civico" },
+    { label: "Comune", name: "indirizzo_prova_comune" },
+    { label: "Citofono", name: "indirizzo_prova_citofono" },
+    { label: "Nota", name: "indirizzo_prova_note" },
   ];
 
   return (
@@ -768,215 +875,128 @@ function TravelTimeCard({
         )}
       </div>
 
-      <div className="space-y-1.5 text-sm">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide">
-          Indirizzo lavoratore
-        </p>
-        {isEditing ? (
-          <div className="grid gap-2">
-            {(
-              [
-                { key: "provincia" as const, label: "Provincia" },
-                { key: "cap" as const, label: "CAP" },
-                { key: "via" as const, label: "Via" },
-                { key: "civico" as const, label: "Civico" },
-                { key: "citta" as const, label: "Comune" },
-                { key: "citofono" as const, label: "Citofono" },
-              ] as Array<{
-                key: "provincia" | "cap" | "via" | "civico" | "citta" | "citofono";
-                label: string;
-              }>
-            ).map((item) => (
-              <label key={item.key} className="grid gap-1">
-                <span className="text-muted-foreground text-xs font-medium">
-                  {item.label}
-                </span>
-                {item.key === "provincia" ? (
-                  <Select
-                    value={addressDraft.provincia || "none"}
-                    onValueChange={(value) => {
-                      const nextValue = value === "none" ? "" : value;
-                      setAddressDraft((current) => ({
-                        ...current,
-                        provincia: nextValue,
-                      }));
-                      void commitAddressField("provincia", nextValue);
-                    }}
-                  >
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Seleziona provincia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {workerProvincieOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <DebouncedInput
-                    committedValue={addressDraft[item.key]}
-                    onSave={async (value) => {
-                      setAddressDraft((current) => ({
-                        ...current,
-                        [item.key]: value,
-                      }));
-                      await commitAddressField(item.key, value);
-                    }}
-                    className="h-9 text-sm"
-                    placeholder={item.label}
-                  />
-                )}
-              </label>
-            ))}
-          </div>
-        ) : (
-          <p>
-            {[workerVia, workerCivico, workerCap, workerCitta, workerProvincia]
-              .map((v) => (typeof v === "string" ? v.trim() : ""))
-              .filter((v) => v && v !== "-")
-              .join(" • ") || "-"}
+      <Form {...workerForm}>
+        <div className="space-y-1.5 text-sm">
+          <p className="text-muted-foreground text-xs font-medium tracking-wide">
+            Indirizzo lavoratore
           </p>
-        )}
-      </div>
+          {isEditing ? (
+            <div className="grid gap-2">
+              {(
+                [
+                  { key: "provincia" as const, label: "Provincia" },
+                  { key: "cap" as const, label: "CAP" },
+                  { key: "via" as const, label: "Via" },
+                  { key: "civico" as const, label: "Civico" },
+                  { key: "citta" as const, label: "Comune" },
+                  { key: "citofono" as const, label: "Citofono" },
+                ] as Array<{
+                  key: "provincia" | "cap" | "via" | "civico" | "citta" | "citofono";
+                  label: string;
+                }>
+              ).map((item) => (
+                <label key={item.key} className="grid gap-1">
+                  <span className="text-muted-foreground text-xs font-medium">
+                    {item.label}
+                  </span>
+                  {item.key === "provincia" ? (
+                    <FieldWorkerProvinciaSelect
+                      name="provincia"
+                      options={workerProvincieOptions}
+                    />
+                  ) : (
+                    <FieldInput
+                      name={item.key}
+                      className="h-9 text-sm"
+                      placeholder={item.label}
+                    />
+                  )}
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p>
+              {[workerVia, workerCivico, workerCap, workerCitta, workerProvincia]
+                .map((v) => (typeof v === "string" ? v.trim() : ""))
+                .filter((v) => v && v !== "-")
+                .join(" • ") || "-"}
+            </p>
+          )}
+        </div>
 
-      <div className="space-y-1.5 text-sm">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide">
-          Indirizzo prova
-        </p>
-        {isEditing ? (
-          <div className="grid gap-2">
-            {familyAddressFields.map((item) => (
-              <label key={item.key} className="grid gap-1">
-                <span className="text-muted-foreground text-xs font-medium">
-                  {item.label}
-                </span>
-                {item.type === "province" ? (
-                  <Select
-                    value={item.draftValue || "none"}
-                    onValueChange={(value) => {
-                      const nextValue = value === "none" ? "" : value;
-                      setFamilyAddressDraft((current) => ({
-                        ...current,
-                        provincia: nextValue,
-                      }));
-                      void commitFamilyAddressField(item.field, nextValue);
-                    }}
-                    disabled={updatingProcessAddress}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder={item.label} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessuna provincia</SelectItem>
-                      {provinceOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.label}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <DebouncedInput
-                    committedValue={item.draftValue}
-                    onSave={async (value) => {
-                      setFamilyAddressDraft((current) => ({
-                        ...current,
-                        [item.key]: value,
-                      }));
-                      await commitFamilyAddressField(item.field, value);
-                    }}
-                    // No `disabled={updatingProcessAddress}`: would force-blur
-                    // the input mid-typing.
-                    className="h-9 text-sm"
-                    placeholder={item.label}
-                  />
-                )}
-              </label>
-            ))}
-          </div>
-        ) : (
-          <p>
-            {[
-              familyProvince,
-              familyCap,
-              familyStreet || familyAddress,
-              familyCivicNumber,
-              familyCity,
-              asString(familyIntercom) && asString(familyIntercom) !== "-"
-                ? `Citofono ${familyIntercom}`
-                : null,
-              familyAddressNote,
-            ]
-              .map((value) => (typeof value === "string" ? value.trim() : ""))
-              .filter((value) => value && value !== "-")
-              .join(" • ") || "-"}
+        <div className="space-y-1.5 text-sm">
+          <p className="text-muted-foreground text-xs font-medium tracking-wide">
+            Mobilita
           </p>
-        )}
-      </div>
+          {isEditing ? (
+            <FieldMobilityCombobox
+              name="come_ti_sposti"
+              options={mobilityOptions}
+              anchor={mobilityAnchor}
+            />
+          ) : mobility.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {mobility.map((value) => (
+                <Badge key={value} variant="outline">
+                  {value}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p>-</p>
+          )}
+        </div>
+      </Form>
 
-      <div className="space-y-1.5 text-sm">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide">
-          Mobilita
-        </p>
-        {isEditing ? (
-          <Combobox
-            multiple
-            autoHighlight
-            items={mobilityOptions.map((option) => option.value)}
-            value={normalizeLookupOptionValues(
-              addressDraft.mobilita
-                .split(",")
-                .map((item) => item.trim())
-                .filter(Boolean),
-              mobilityOptions,
-            )}
-            onValueChange={(nextValues) => {
-              void handleMobilitaChange(
-                normalizeLookupDbLabels(nextValues as string[], mobilityOptions),
-              );
-            }}
-          >
-            <ComboboxChips ref={mobilityAnchor} className="w-full">
-              <ComboboxValue>
-                {(values) => (
-                  <React.Fragment>
-                    {values.map((value: string) => (
-                      <ComboboxChip key={value}>
-                        {getLookupOptionLabel(mobilityOptions, value)}
-                      </ComboboxChip>
-                    ))}
-                    <ComboboxChipsInput placeholder="Seleziona opzioni" />
-                  </React.Fragment>
-                )}
-              </ComboboxValue>
-            </ComboboxChips>
-            <ComboboxContent anchor={mobilityAnchor} className="max-h-80">
-              <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
-              <ComboboxList className="max-h-72 overflow-y-auto">
-                {(item) => (
-                  <ComboboxItem key={item} value={item}>
-                    {getLookupOptionLabel(mobilityOptions, item)}
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-        ) : mobility.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {mobility.map((value) => (
-              <Badge key={value} variant="outline">
-                {value}
-              </Badge>
-            ))}
-          </div>
-        ) : (
-          <p>-</p>
-        )}
-      </div>
+      <Form {...familyForm}>
+        <div className="space-y-1.5 text-sm">
+          <p className="text-muted-foreground text-xs font-medium tracking-wide">
+            Indirizzo prova
+          </p>
+          {isEditing ? (
+            <div className="grid gap-2">
+              {familyAddressFields.map((item) => (
+                <label key={item.name} className="grid gap-1">
+                  <span className="text-muted-foreground text-xs font-medium">
+                    {item.label}
+                  </span>
+                  {item.type === "province" ? (
+                    <FieldFamilyProvinciaSelect
+                      name={item.name}
+                      options={provinceOptions}
+                      placeholder={item.label}
+                      disabled={updatingProcessAddress}
+                    />
+                  ) : (
+                    <FieldInput
+                      name={item.name}
+                      className="h-9 text-sm"
+                      placeholder={item.label}
+                    />
+                  )}
+                </label>
+              ))}
+            </div>
+          ) : (
+            <p>
+              {[
+                familyProvince,
+                familyCap,
+                familyStreet || familyAddress,
+                familyCivicNumber,
+                familyCity,
+                asString(familyIntercom) && asString(familyIntercom) !== "-"
+                  ? `Citofono ${familyIntercom}`
+                  : null,
+                familyAddressNote,
+              ]
+                .map((value) => (typeof value === "string" ? value.trim() : ""))
+                .filter((value) => value && value !== "-")
+                .join(" • ") || "-"}
+            </p>
+          )}
+        </div>
+      </Form>
     </DetailSectionBlock>
   );
 }
@@ -1058,22 +1078,46 @@ function ExperienceBlock({
     values: Partial<ReferenzaLavoratoreRecord>,
   ) => Promise<void> | void;
 }) {
-  const { value: colfValue, onChange: saveColf } = useDebouncedSave(
-    asInputValue(workerRow.anni_esperienza_colf),
-    async (v) => { onFieldSave("anni_esperienza_colf", v); },
-  );
-  const { value: badanteValue, onChange: saveBadante } = useDebouncedSave(
-    asInputValue(workerRow.anni_esperienza_badante),
-    async (v) => { onFieldSave("anni_esperienza_badante", v); },
-  );
-  const { value: babysitterValue, onChange: saveBabysitter } = useDebouncedSave(
-    asInputValue(workerRow.anni_esperienza_babysitter),
-    async (v) => { onFieldSave("anni_esperienza_babysitter", v); },
-  );
-  const { value: situazioneValue, onChange: saveSituazione } = useDebouncedSave(
-    asString(workerRow.situazione_lavorativa_attuale),
-    async (v) => { onFieldSave("situazione_lavorativa_attuale", v); },
-  );
+  // FASE 5 BIS — i campi esperienza alimentano ExperienceReferencesCard
+  // (presentazionale, value/onChange). Agganciati al form via useController:
+  // field.onChange emette un vero "change" -> autosave (a differenza di setValue).
+  const experienceForm = useAutoSaveForm<ExperienceSummaryDraft>({
+    defaults: {
+      anni_esperienza_colf: asInputValue(workerRow.anni_esperienza_colf),
+      anni_esperienza_badante: asInputValue(workerRow.anni_esperienza_badante),
+      anni_esperienza_babysitter: asInputValue(
+        workerRow.anni_esperienza_babysitter,
+      ),
+      situazione_lavorativa_attuale: asString(
+        workerRow.situazione_lavorativa_attuale,
+      ),
+    },
+    onSave: async (patch) => {
+      for (const [key, rawValue] of Object.entries(patch)) {
+        onFieldSave(key, typeof rawValue === "string" ? rawValue : "");
+      }
+    },
+  });
+  const colfCtrl = useController({
+    name: "anni_esperienza_colf",
+    control: experienceForm.control,
+  });
+  const badanteCtrl = useController({
+    name: "anni_esperienza_badante",
+    control: experienceForm.control,
+  });
+  const babysitterCtrl = useController({
+    name: "anni_esperienza_babysitter",
+    control: experienceForm.control,
+  });
+  const situazioneCtrl = useController({
+    name: "situazione_lavorativa_attuale",
+    control: experienceForm.control,
+  });
+  const colfValue = colfCtrl.field.value;
+  const badanteValue = badanteCtrl.field.value;
+  const babysitterValue = babysitterCtrl.field.value;
+  const situazioneValue = situazioneCtrl.field.value;
 
   return (
     <ExperienceReferencesCard
@@ -1100,18 +1144,10 @@ function ExperienceBlock({
       selectedAnniEsperienzaBabysitter={babysitterValue}
       selectedSituazioneLavorativaAttuale={situazioneValue}
       onToggleEdit={onToggleEdit}
-      onAnniEsperienzaColfChange={(value) => {
-        saveColf(value);
-      }}
-      onAnniEsperienzaBadanteChange={(value) => {
-        saveBadante(value);
-      }}
-      onAnniEsperienzaBabysitterChange={(value) => {
-        saveBabysitter(value);
-      }}
-      onSituazioneLavorativaAttualeChange={(value) => {
-        saveSituazione(value);
-      }}
+      onAnniEsperienzaColfChange={colfCtrl.field.onChange}
+      onAnniEsperienzaBadanteChange={badanteCtrl.field.onChange}
+      onAnniEsperienzaBabysitterChange={babysitterCtrl.field.onChange}
+      onSituazioneLavorativaAttualeChange={situazioneCtrl.field.onChange}
       onExperiencePatch={onExperiencePatch}
       onExperienceCreate={onExperienceCreate}
       onExperienceDelete={onExperienceDelete}

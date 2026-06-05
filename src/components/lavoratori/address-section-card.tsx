@@ -1,5 +1,6 @@
 import * as React from "react"
 import { MapPinIcon, PencilIcon } from "lucide-react"
+import { useController } from "react-hook-form"
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +17,8 @@ import {
   ComboboxValue,
 } from "@/components/ui/combobox"
 import { FieldLabel } from "@/components/ui/field"
-import { DebouncedInput } from "@/components/ui/debounced-input"
+import { Form } from "@/components/ui/form"
+import { FieldInput } from "@/components/forms/field-components"
 import {
   Select,
   SelectContent,
@@ -25,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import {
   getLookupOptionLabel,
   normalizeLookupDbLabels,
@@ -69,17 +72,104 @@ type AddressSectionCardProps = {
   onMobilityChange: (values: string[]) => void
 }
 
-const ADDRESS_FIELDS: Array<{
-  key: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono"
-  label: string
-}> = [
-  { key: "provincia", label: "Provincia" },
+type AddressTextKey = "via" | "civico" | "cap" | "citta" | "citofono"
+
+const ADDRESS_TEXT_FIELDS: Array<{ key: AddressTextKey; label: string }> = [
   { key: "cap", label: "CAP" },
   { key: "via", label: "Via" },
   { key: "civico", label: "Civico" },
   { key: "citta", label: "Comune" },
   { key: "citofono", label: "Citofono" },
 ]
+
+// FASE 5 BIS — Select "Provincia" agganciata al form. Preserva il mapping
+// valore-form ↔ "none" (campo vuoto) interno al wrapper.
+function FieldProvinciaSelect({
+  name,
+  options,
+}: {
+  name: string
+  options: LookupOption[]
+}) {
+  const { field } = useController({ name })
+  const value = typeof field.value === "string" ? field.value : ""
+  return (
+    <Select
+      value={value || "none"}
+      onValueChange={(next) => field.onChange(next === "none" ? "" : next)}
+    >
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Seleziona provincia" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  )
+}
+
+// FASE 5 BIS — Combobox multi "Mobilità" agganciata al form. Preserva la
+// normalizzazione bespoke value↔label (normalizeLookupOptionValues per il
+// rendering dei chip; normalizeLookupDbLabels per il commit verso il DB).
+function FieldMobilityCombobox({
+  name,
+  options,
+  anchor,
+  disabled,
+}: {
+  name: string
+  options: LookupOption[]
+  anchor: React.RefObject<HTMLDivElement | null>
+  disabled?: boolean
+}) {
+  const { field } = useController({ name })
+  const stored = Array.isArray(field.value) ? (field.value as string[]) : []
+  return (
+    <Combobox
+      multiple
+      autoHighlight
+      items={options.map((option) => option.value)}
+      value={normalizeLookupOptionValues(stored, options)}
+      onValueChange={(nextValues) =>
+        field.onChange(
+          normalizeLookupDbLabels(nextValues as string[], options),
+        )
+      }
+      disabled={disabled}
+    >
+      <ComboboxChips ref={anchor} className="w-full">
+        <ComboboxValue>
+          {(values) => (
+            <React.Fragment>
+              {values.map((value: string) => (
+                <ComboboxChip key={value}>
+                  {getLookupOptionLabel(options, value)}
+                </ComboboxChip>
+              ))}
+              <ComboboxChipsInput placeholder="Seleziona opzioni" />
+            </React.Fragment>
+          )}
+        </ComboboxValue>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor} className="max-h-80">
+        <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
+        <ComboboxList className="max-h-72 overflow-y-auto">
+          {(item) => (
+            <ComboboxItem key={item} value={item}>
+              {getLookupOptionLabel(options, item)}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  )
+}
 
 export function AddressSectionCard({
   isEditing,
@@ -99,16 +189,44 @@ export function AddressSectionCard({
   selectedMobility,
   mobilityAnchor,
   onToggleEdit,
-  onFieldChange,
   onFieldCommit,
   onMobilityChange,
 }: AddressSectionCardProps) {
+  // FASE 5 BIS — form + autosave. I defaults sono i valori che la card riceve
+  // come prop (addressDraft). onSave instrada ogni chiave cambiata alla callback
+  // di salvataggio già ricevuta dalla card: i campi indirizzo → onFieldCommit
+  // (che accetta l'override-value come 2° arg), la mobilità → onMobilityChange.
+  const form = useAutoSaveForm<AddressDraft>({
+    defaults: {
+      via: addressDraft.via,
+      civico: addressDraft.civico,
+      cap: addressDraft.cap,
+      citta: addressDraft.citta,
+      provincia: addressDraft.provincia,
+      citofono: addressDraft.citofono,
+      come_ti_sposti: addressDraft.come_ti_sposti,
+    },
+    onSave: async (patch) => {
+      for (const [key, value] of Object.entries(patch)) {
+        if (key === "come_ti_sposti") {
+          onMobilityChange(Array.isArray(value) ? (value as string[]) : [])
+        } else {
+          await onFieldCommit(
+            key as AddressTextKey | "provincia",
+            (value as string) ?? "",
+          )
+        }
+      }
+    },
+  })
+
   const composedAddress = [selectedVia, selectedCivico, selectedCap, selectedCitta, selectedProvincia]
     .map((v) => (typeof v === "string" ? v.trim() : ""))
     .filter((v) => v && v !== "-")
     .join(" • ")
 
   return (
+    <Form {...form}>
     <DetailSectionBlock
       title="Indirizzo"
       icon={<MapPinIcon className="text-muted-foreground size-4" />}
@@ -131,41 +249,14 @@ export function AddressSectionCard({
     >
       {isEditing ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {ADDRESS_FIELDS.map((item) => (
+          <div className="space-y-1">
+            <FieldLabel>Provincia</FieldLabel>
+            <FieldProvinciaSelect name="provincia" options={provinciaOptions} />
+          </div>
+          {ADDRESS_TEXT_FIELDS.map((item) => (
             <div key={item.key} className="space-y-1">
               <FieldLabel>{item.label}</FieldLabel>
-              {item.key === "provincia" ? (
-                <Select
-                  value={addressDraft.provincia || "none"}
-                  onValueChange={(next) => {
-                    const value = next === "none" ? "" : next
-                    onFieldChange("provincia", value)
-                    void onFieldCommit("provincia", value)
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleziona provincia" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {provinciaOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <DebouncedInput
-                  committedValue={addressDraft[item.key]}
-                  onSave={async (value) => {
-                    onFieldChange(item.key, value)
-                    await onFieldCommit(item.key, value)
-                  }}
-                  placeholder={item.label}
-                />
-              )}
+              <FieldInput name={item.key} placeholder={item.label} />
             </div>
           ))}
         </div>
@@ -177,46 +268,12 @@ export function AddressSectionCard({
         <div className="space-y-1">
           <FieldLabel>Mobilita</FieldLabel>
           {isEditing ? (
-            <Combobox
-              multiple
-              autoHighlight
-              items={mobilityOptions.map((option) => option.value)}
-              value={normalizeLookupOptionValues(
-                addressDraft.come_ti_sposti,
-                mobilityOptions,
-              )}
-              onValueChange={(nextValues) =>
-                onMobilityChange(
-                  normalizeLookupDbLabels(nextValues as string[], mobilityOptions),
-                )
-              }
+            <FieldMobilityCombobox
+              name="come_ti_sposti"
+              options={mobilityOptions}
+              anchor={mobilityAnchor}
               disabled={isUpdating}
-            >
-              <ComboboxChips ref={mobilityAnchor} className="w-full">
-                <ComboboxValue>
-                  {(values) => (
-                    <React.Fragment>
-                      {values.map((value: string) => (
-                        <ComboboxChip key={value}>
-                          {getLookupOptionLabel(mobilityOptions, value)}
-                        </ComboboxChip>
-                      ))}
-                      <ComboboxChipsInput placeholder="Seleziona opzioni" />
-                    </React.Fragment>
-                  )}
-                </ComboboxValue>
-              </ComboboxChips>
-              <ComboboxContent anchor={mobilityAnchor} className="max-h-80">
-                <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
-                <ComboboxList className="max-h-72 overflow-y-auto">
-                  {(item) => (
-                    <ComboboxItem key={item} value={item}>
-                      {getLookupOptionLabel(mobilityOptions, item)}
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
+            />
           ) : selectedMobility.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {selectedMobility.map((value) => (
@@ -231,5 +288,6 @@ export function AddressSectionCard({
         </div>
       ) : null}
     </DetailSectionBlock>
+    </Form>
   )
 }

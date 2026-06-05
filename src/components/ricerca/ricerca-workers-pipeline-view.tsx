@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useController } from "react-hook-form";
 import { toast } from "sonner";
 import {
   CalendarDaysIcon,
@@ -94,7 +95,7 @@ import {
 } from "@/hooks/use-ricerca-workers-pipeline";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
-import { useDebouncedSave } from "@/hooks/use-debounced-save";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import {
   createRecord,
   fetchFamiglieByIds,
@@ -238,6 +239,15 @@ function mergeWorkerResidenceAddress(
       asString(worker.indirizzo_residenza_completo) || address.address,
   } as LavoratoreRecord;
 }
+
+// FASE 5 BIS — campi di dettaglio del lavoratore che pilotano card condivise
+// (header + documenti/amministrativi) via useController.
+type PipelineDetailFormDraft = {
+  data_ritorno_disponibilita: string;
+  data_scadenza_naspi: string;
+  iban: string;
+  id_stripe_account: string;
+};
 
 type GroupedColumnGroup = {
   key: string;
@@ -1004,6 +1014,12 @@ export function RicercaWorkersPipelineView({
   const [generatingSelectionFeedback, setGeneratingSelectionFeedback] =
     React.useState(false);
   const [updatingFamilyAddress, setUpdatingFamilyAddress] = React.useState(false);
+  // familyAddressDraft è un MIRROR DI DISPLAY dell'indirizzo del processo: NON è
+  // un campo editato localmente. Gli edit passano da patchSelectedProcessAddressField
+  // (save esplicito su processi_matching, poi update ottimistico del mirror) e il
+  // mirror viene ri-sincronizzato dai prop server `card.*` dall'effetto più sotto.
+  // Non esiste quindi un "edit locale in volo" che l'echo realtime possa clobberare:
+  // l'anti-pattern che le regole form-context targettizzano qui non si applica.
   const [familyAddressDraft, setFamilyAddressDraft] = React.useState({
     province: card.indirizzoProvaProvincia ?? "-",
     cap: card.indirizzoProvaCap ?? "-",
@@ -1210,22 +1226,64 @@ export function RicercaWorkersPipelineView({
 
   const operatorName = useCurrentOperatorName();
 
-  const { value: dataRitornoPipelineValue, onChange: saveDataRitornoPipeline } = useDebouncedSave(
-    asString(selectedWorkerRow?.data_ritorno_disponibilita),
-    async (v) => { await patchSelectedWorkerField("data_ritorno_disponibilita", v || null); },
-  );
-  const { value: documentNaspiValue, onChange: saveDocumentNaspi } = useDebouncedSave(
-    asString(selectedWorkerRow?.data_scadenza_naspi),
-    async (v) => { await patchDocumentField("data_scadenza_naspi", v || null); },
-  );
-  const { value: documentIbanValue, onChange: saveDocumentIban } = useDebouncedSave(
-    resolvedIban,
-    async (v) => { await patchDocumentField("iban", v || null); },
-  );
-  const { value: documentStripeValue, onChange: saveDocumentStripeAccount } = useDebouncedSave(
-    asString(selectedWorkerRow?.id_stripe_account),
-    async (v) => { await patchDocumentField("id_stripe_account", v || null); },
-  );
+  // FASE 5 BIS — form autosave per i campi di dettaglio che alimentano card
+  // presentazionali condivise (header + documenti/amministrativi). Le card
+  // espongono value/onChange: ogni campo è agganciato via useController, così
+  // `field.onChange` emette un vero evento "change" e l'autosave scatta (a
+  // differenza di setValue), senza clobber sul resync realtime. onSave instrada
+  // alla STESSA patch fn con le STESSE trasformazioni dei vecchi useDebouncedSave.
+  const pipelineDetailForm = useAutoSaveForm<PipelineDetailFormDraft>({
+    defaults: {
+      data_ritorno_disponibilita: asString(
+        selectedWorkerRow?.data_ritorno_disponibilita,
+      ),
+      data_scadenza_naspi: asString(selectedWorkerRow?.data_scadenza_naspi),
+      iban: resolvedIban,
+      id_stripe_account: asString(selectedWorkerRow?.id_stripe_account),
+    },
+    onSave: async (patch) => {
+      for (const [key, rawValue] of Object.entries(patch)) {
+        const v = typeof rawValue === "string" ? rawValue : "";
+        switch (key) {
+          case "data_ritorno_disponibilita":
+            await patchSelectedWorkerField(
+              "data_ritorno_disponibilita",
+              v || null,
+            );
+            break;
+          case "data_scadenza_naspi":
+            await patchDocumentField("data_scadenza_naspi", v || null);
+            break;
+          case "iban":
+            await patchDocumentField("iban", v || null);
+            break;
+          case "id_stripe_account":
+            await patchDocumentField("id_stripe_account", v || null);
+            break;
+        }
+      }
+    },
+  });
+  const dataRitornoPipelineCtrl = useController({
+    name: "data_ritorno_disponibilita",
+    control: pipelineDetailForm.control,
+  });
+  const naspiCtrl = useController({
+    name: "data_scadenza_naspi",
+    control: pipelineDetailForm.control,
+  });
+  const ibanCtrl = useController({
+    name: "iban",
+    control: pipelineDetailForm.control,
+  });
+  const stripeCtrl = useController({
+    name: "id_stripe_account",
+    control: pipelineDetailForm.control,
+  });
+  const dataRitornoPipelineValue = dataRitornoPipelineCtrl.field.value;
+  const documentNaspiValue = naspiCtrl.field.value;
+  const documentIbanValue = ibanCtrl.field.value;
+  const documentStripeValue = stripeCtrl.field.value;
 
   const updateDropTargetColumnId = React.useCallback((next: string | null) => {
     setDropTargetColumnId((current) => (current === next ? current : next));
@@ -1613,6 +1671,9 @@ export function RicercaWorkersPipelineView({
   );
 
   React.useEffect(() => {
+    // Re-sync del mirror di display dai prop server (card.*). Nessun edit locale
+    // in volo da preservare: gli edit passano dal save esplicito (vedi nota sulla
+    // useState di familyAddressDraft).
     setFamilyAddressDraft({
       province: card.indirizzoProvaProvincia ?? "-",
       cap: card.indirizzoProvaCap ?? "-",
@@ -2233,7 +2294,9 @@ export function RicercaWorkersPipelineView({
                       onDisponibilitaChange={(value) =>
                         patchSelectedWorkerField("disponibilita", value)
                       }
-                      onDataRitornoDisponibilitaChange={saveDataRitornoPipeline}
+                      onDataRitornoDisponibilitaChange={
+                        dataRitornoPipelineCtrl.field.onChange
+                      }
                       onMotivazioneChange={(value) =>
                         patchSelectedWorkerField(
                           "motivazione_non_idoneo",
@@ -2517,9 +2580,9 @@ export function RicercaWorkersPipelineView({
                     naspiInputValue={documentNaspiValue}
                     ibanInputValue={documentIbanValue}
                     stripeAccountInputValue={documentStripeValue}
-                    onDocumentNaspiChange={saveDocumentNaspi}
-                    onDocumentIbanChange={saveDocumentIban}
-                    onDocumentStripeAccountChange={saveDocumentStripeAccount}
+                    onDocumentNaspiChange={naspiCtrl.field.onChange}
+                    onDocumentIbanChange={ibanCtrl.field.onChange}
+                    onDocumentStripeAccountChange={stripeCtrl.field.onChange}
                     onDocumentUpsert={upsertSelectedWorkerDocument}
                     onDocumentUploadError={setSelectedWorkerError}
                   />

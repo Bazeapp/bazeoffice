@@ -33,7 +33,7 @@ export default defineConfig([
         'error',
         {
           allowConstantExport: true,
-          allowExportNames: ['useCarousel', 'useComboboxAnchor', 'useField'],
+          allowExportNames: ['useCarousel', 'useComboboxAnchor', 'useField', 'useFormField', 'useGate1WorkerEditor', 'getLookupDisplayOption'],
         },
       ],
     },
@@ -300,6 +300,97 @@ export default defineConfig([
             "Program > :matches(FunctionDeclaration, VariableDeclaration) JSXOpeningElement[name.name=/^(?:Detail.*|Scheda.*)(?:Sheet|Panel|Shell)$/]:not(:has(JSXAttribute[name.name='key']))",
           message:
             'Detail/Scheda wrappers (Detail*Sheet/Panel/Shell or Scheda*Sheet/Panel/Shell) at the view level must declare key={selectedCardId ?? "__empty__"} so debounced inputs inside reset their local draft when switching cards.',
+        },
+        {
+          // FASE 5 BIS — migrazione a form-context. `committedValue` compare
+          // SOLO su <DebouncedInput>/<DebouncedTextarea> usati direttamente.
+          // Fuori dal toolkit (src/components/forms/field-components.tsx) ogni
+          // occorrenza è un campo cablato a mano che deve diventare
+          // <FieldInput name="...">/<FieldTextarea name="..."> (react-hook-form
+          // + useAutoSaveForm).
+          //
+          // STATO (FASE 5 BIS chiusa): 22/24 aree convertite. Le occorrenze
+          // residue vivono SOLO nei 4 god-component del dettaglio lavoratore —
+          // gate1-view, lavoratori-cerca-view, ricerca-workers-pipeline-view,
+          // worker-pipeline-summary-cards — che riceveranno il form-context
+          // durante il refactor D2 (split god-component, vedi docs/audit-response.md).
+          // Resta 'warn': la migrazione di quei file è scope di D2, non un TODO
+          // sciolto. Promuovere a 'error' SOLO a valle di D2 (lista vuota).
+          // Limite flat-config: questi selettori condividono il blocco con le
+          // regole FASE 4 (debito a 'warn'), quindi non è separabile la severità
+          // per-selettore senza spezzarle.
+          selector: "JSXAttribute[name.name='committedValue']",
+          message:
+            'Campo cablato a mano (DebouncedInput committedValue=...). Usa <FieldInput name="...">/<FieldTextarea name="..."> con useAutoSaveForm (form-context, FASE 5 BIS).',
+        },
+        {
+          // FASE 5 BIS — `useDebouncedSave` è il salvataggio per-campo cablato a
+          // mano: ogni file che lo importa ha campi NON ancora migrati a
+          // form-context. La firma autosave (debounce + dirty + resync) ora vive
+          // in useAutoSaveForm + Field*. 'warn' durante la migrazione.
+          selector:
+            "ImportDeclaration[source.value='@/hooks/use-debounced-save']",
+          message:
+            'Salvataggio per-campo a mano (useDebouncedSave). Migra i campi a form-context: useAutoSaveForm + <FieldInput/FieldTextarea/...> (FASE 5 BIS).',
+        },
+      ],
+    },
+  },
+
+  // FASE 5 BIS — ENFORCEMENT: i file convertiti a form-context non possono
+  // regredire. Qui i selettori FASE5 (committedValue / import useDebouncedSave)
+  // sono 'error'. Fuori restano SOLO i file infrastrutturali che IMPLEMENTANO il
+  // pattern (forms/field-components, ui/debounced-input, hooks/use-debounced-save)
+  // e i file di test.
+  // Nota flat-config: questo blocco SOSTITUISCE no-restricted-syntax per questi
+  // file (le regole FASE 4 a 'warn' non si applicano qui).
+  // I campi di dettaglio di cerca/ricerca/gate1/summary sono su useAutoSaveForm +
+  // useController. Restano alcuni stati locali NON-form documentati inline, che
+  // non sono salvataggi per-campo e hanno guard espliciti di anti-clobber:
+  //   - ricerca: familyAddressDraft (mirror di display, save esplicito + re-sync);
+  //   - gate1-view: gateDraft (merge per-campo anti-echo);
+  //   - crm-assegnazione: schedulingDraft (form edit-mode con guard isEditing).
+  {
+    files: [
+      'src/components/crm/cards/stato-lead-card.tsx',
+      'src/components/crm/cards/selection-details-card.tsx',
+      'src/components/crm/cards/onboarding-context-card.tsx',
+      'src/components/crm/cards/onboarding-decisione-lavoro-card.tsx',
+      'src/components/crm/cards/onboarding-card.tsx',
+      'src/components/crm/famiglia-processo-detail-content.tsx',
+      'src/components/gestione-contrattuale/assunzioni-detail-sheet.tsx',
+      'src/components/gestione-contrattuale/variazioni-board-view.tsx',
+      'src/components/gestione-contrattuale/chiusure-board-view.tsx',
+      'src/components/gestione-contrattuale/riattivazioni-board-view.tsx',
+      'src/components/gestione-contrattuale/rapporto-detail-panel.tsx',
+      'src/components/ricerca/ricerca-detail-view.tsx',
+      'src/components/ricerca/scheda-colloquio-panel.tsx',
+      'src/components/payroll/contributi-inps-view.tsx',
+      'src/components/payroll/payroll-overview-view.tsx',
+      'src/components/prove-colloqui/prove-colloqui-view.tsx',
+      'src/components/lavoratori/address-section-card.tsx',
+      'src/components/lavoratori/availability-calendar-card.tsx',
+      'src/components/lavoratori/experience-references-card.tsx',
+      'src/components/lavoratori/worker-profile-header.tsx',
+      'src/components/lavoratori/lavoratori-cerca-view.tsx',
+      'src/components/ricerca/ricerca-workers-pipeline-view.tsx',
+      'src/components/ricerca/worker-pipeline-summary-cards.tsx',
+      'src/components/lavoratori/gate1-view.tsx',
+      'src/components/crm/crm-assegnazione-view.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "JSXAttribute[name.name='committedValue']",
+          message:
+            'FASE 5 BIS (enforced): questo file è form-context. Non reintrodurre <DebouncedInput committedValue=...>: usa <FieldInput/FieldTextarea name="...">.',
+        },
+        {
+          selector:
+            "ImportDeclaration[source.value='@/hooks/use-debounced-save']",
+          message:
+            'FASE 5 BIS (enforced): questo file è form-context. Non reintrodurre useDebouncedSave: usa useAutoSaveForm + Field*.',
         },
       ],
     },

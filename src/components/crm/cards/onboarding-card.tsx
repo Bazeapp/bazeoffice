@@ -41,6 +41,10 @@ import {
   useComboboxAnchor,
 } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
+import { useController } from "react-hook-form";
+import { Form } from "@/components/ui/form";
+import { FieldInput } from "@/components/forms/field-components";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import {
   Field,
   FieldDescription,
@@ -48,7 +52,6 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { DebouncedInput } from "@/components/ui/debounced-input";
 import {
   Select,
   SelectContent,
@@ -65,7 +68,6 @@ import type {
 import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
 import { updateRecord } from "@/lib/anagrafiche-api";
-import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { useProvincie } from "@/hooks/use-provincie";
 
 type OnboardingCardProps = {
@@ -332,6 +334,172 @@ function CopyableUrlField({
   );
 }
 
+// FASE 5 BIS — wrapper form-aware (Select lookup con label↔key, provincia,
+// picker giorni, datepicker). FieldInput dal toolkit copre i campi testo/numero.
+function FieldOnboardingLookupSelect({
+  name,
+  options,
+  placeholder,
+  triggerId,
+  triggerClassName,
+}: {
+  name: string;
+  options: LookupOption[];
+  placeholder: string;
+  triggerId?: string;
+  triggerClassName?: string;
+}) {
+  const { field } = useController({ name });
+  const current = typeof field.value === "string" ? field.value : "";
+  return (
+    <Select
+      value={getSelectedLookupValue(current, options) || undefined}
+      onValueChange={(key) => field.onChange(getLookupLabelForSave(key, options))}
+    >
+      <SelectTrigger id={triggerId} className={triggerClassName}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {options.map((option) => (
+            <SelectItem key={option.valueKey} value={option.valueKey}>
+              {option.valueLabel}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function FieldProvinciaSelect({
+  name,
+  options,
+  invalid,
+}: {
+  name: string;
+  options: LookupOption[];
+  invalid?: boolean;
+}) {
+  const { field } = useController({ name });
+  const current = typeof field.value === "string" ? field.value : "";
+  return (
+    <Select
+      value={getSelectedLookupValue(current, options)}
+      onValueChange={(next) => field.onChange(next)}
+    >
+      <SelectTrigger
+        id="onboarding-provincia"
+        className={cn("w-full", invalid && REQUIRED_FIELD_CLASS)}
+      >
+        <SelectValue placeholder="Seleziona provincia" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {options.map((option) => (
+            <SelectItem key={option.valueKey} value={option.valueKey}>
+              {option.valueLabel}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function FieldWeekdayPicker({ name, invalid }: { name: string; invalid?: boolean }) {
+  const { field } = useController({ name });
+  const anchor = useComboboxAnchor();
+  const value = Array.isArray(field.value) ? (field.value as string[]) : [];
+  return (
+    <Combobox
+      multiple
+      autoHighlight
+      items={WEEKDAY_ITEMS}
+      value={value}
+      onValueChange={(next) => field.onChange(normalizeWeekdayList(next as string[]))}
+    >
+      <ComboboxChips
+        ref={anchor}
+        id="onboarding-giornate-preferite"
+        className={cn("w-full", invalid && REQUIRED_FIELD_CLASS)}
+      >
+        <ComboboxValue>
+          {(values) => (
+            <>
+              {values.map((entry: string) => (
+                <ComboboxChip key={entry}>{entry}</ComboboxChip>
+              ))}
+              <ComboboxChipsInput />
+            </>
+          )}
+        </ComboboxValue>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor}>
+        <ComboboxEmpty>Nessun giorno trovato.</ComboboxEmpty>
+        <ComboboxList>
+          {(item) => (
+            <ComboboxItem key={item} value={item}>
+              {item}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
+function FieldDeadline({ name }: { name: string }) {
+  const { field } = useController({ name });
+  return (
+    <DatePicker
+      value={typeof field.value === "string" ? field.value : ""}
+      onValueChange={field.onChange}
+      placeholder="dd/mm/yyyy"
+    />
+  );
+}
+
+const ONBOARDING_ADDRESS_KEYS = new Set([
+  "provincia_sigla",
+  "cap",
+  "via",
+  "note",
+]);
+const ONBOARDING_AVAILABILITY_KEYS = new Set([
+  "orario_di_lavoro",
+  "ore_settimanale",
+  "numero_giorni_settimanali",
+  "preferenza_giorno",
+]);
+
+// FASE 5 BIS — defaults del form (chiavi = colonne DB; fee_concordata gestita a
+// parte verso richieste_attivazione). Ricostruiti ad ogni render dal card.
+function buildOnboardingDefaults(card: CrmPipelineCardData | null) {
+  return {
+    orario_di_lavoro: toInputValue(card?.orarioDiLavoro),
+    ore_settimanale: toInputValue(card?.oreSettimana),
+    numero_giorni_settimanali: toInputValue(card?.giorniSettimana),
+    preferenza_giorno: normalizeWeekdayList(card?.giornatePreferite),
+    provincia_sigla: toInputValue(
+      card?.indirizzoProvinciaSigla || card?.indirizzoProvincia,
+    ),
+    cap: toInputValue(card?.indirizzoCap),
+    via: toInputValue(card?.indirizzoVia),
+    note: toInputValue(card?.indirizzoNote),
+    src_embed_maps_annucio: toInputValue(card?.srcEmbedMapsAnnucio),
+    deadline_mobile: toInputValue(card?.deadlineMobile),
+    disponibilita_colloqui_in_presenza: toInputValue(
+      card?.disponibilitaColloquiInPresenza,
+    ),
+    tipo_incontro_famiglia_lavoratore: toInputValue(
+      card?.tipoIncontroFamigliaLavoratore,
+    ),
+    fee_concordata: card?.feeConcordata != null ? String(card.feeConcordata) : "",
+    offerta: toInputValue(card?.scontoApplicatoRaw ?? card?.scontoApplicato),
+  };
+}
+
 export function OnboardingCard({
   card,
   lookupOptionsByField,
@@ -359,23 +527,7 @@ export function OnboardingCard({
 }: OnboardingCardProps) {
   const resolvedSectionAction = sectionTitleAction ?? titleAction;
   const shouldCollapseSections = sectionsCollapsible ?? flattenSections;
-  const [indirizzoProvincia, setIndirizzoProvincia] = React.useState(
-    toInputValue(card?.indirizzoProvinciaSigla || card?.indirizzoProvincia),
-  );
-  const anchor = useComboboxAnchor();
-  const [deadline, setDeadline] = React.useState("");
-  const [tipoIncontro, setTipoIncontro] = React.useState("");
   const [isSavingAvailability, setIsSavingAvailability] = React.useState(false);
-
-  // Source of truth for availability fields = the card prop (server state).
-  // No local useState mirror to avoid Realtime echo resetting user edits.
-  const orarioDiLavoro = toInputValue(card?.orarioDiLavoro);
-  const oreSettimanali = toInputValue(card?.oreSettimana);
-  const giorniSettimanali = toInputValue(card?.giorniSettimana);
-  const giornatePreferite = React.useMemo(
-    () => normalizeWeekdayList(card?.giornatePreferite),
-    [card?.giornatePreferite],
-  );
 
   const weekdayColorMap = React.useMemo(() => {
     const options = (lookupOptionsByField?.preferenza_giorno ??
@@ -396,17 +548,6 @@ export function OnboardingCard({
     },
     [weekdayColorMap],
   );
-
-  React.useEffect(() => {
-    setIndirizzoProvincia(
-      toInputValue(card?.indirizzoProvinciaSigla || card?.indirizzoProvincia),
-    );
-  }, [card?.id, card?.indirizzoProvinciaSigla, card?.indirizzoProvincia]);
-
-  React.useEffect(() => {
-    setDeadline(toInputValue(card?.deadlineMobile));
-    setTipoIncontro(toInputValue(card?.tipoIncontroFamigliaLavoratore));
-  }, [card?.id, card?.deadlineMobile, card?.tipoIncontroFamigliaLavoratore]);
 
   const cardId = card?.id;
   const addressId = card?.indirizzoId ?? null;
@@ -513,39 +654,52 @@ export function OnboardingCard({
     [addressId, cardId, onPatchAddress],
   );
 
-  const { value: indirizzoCap, onChange: onIndirizzoCapChange } = useDebouncedSave(
-    toInputValue(card?.indirizzoCap),
-    async (value) => { await patchAddress({ cap: value || null }); },
-  );
-  const { value: indirizzoVia, onChange: onIndirizzoViaChange } = useDebouncedSave(
-    toInputValue(card?.indirizzoVia),
-    async (value) => { await patchAddress({ via: value || null }); },
-  );
-  const { value: indirizzoNote, onChange: onIndirizzoNoteChange } = useDebouncedSave(
-    toInputValue(card?.indirizzoNote),
-    async (value) => { await patchAddress({ note: value || null }); },
-  );
-  const { value: srcMapsUrl, onChange: onSrcMapsUrlChange } = useDebouncedSave(
-    toInputValue(card?.srcEmbedMapsAnnucio),
-    async (value) => { await patchProcess({ src_embed_maps_annucio: value || null }); },
-  );
-  const { value: disponibilitaColloqui, onChange: onDisponibilitaColloquiChange } = useDebouncedSave(
-    toInputValue(card?.disponibilitaColloquiInPresenza),
-    async (value) => { await patchProcess({ disponibilita_colloqui_in_presenza: value || null }); },
-  );
-  const { value: feeConcordata, onChange: onFeeConcordataChange } = useDebouncedSave(
-    card?.feeConcordata != null ? String(card.feeConcordata) : "",
-    async (value) => {
-      if (!richiestaAttivazioneId) return;
-      const normalized = value.trim().replace(",", ".");
-      const nextValue = normalized ? Number(normalized) : null;
-      if (normalized && Number.isNaN(nextValue)) {
-        toast.error("Fee concordata non valida");
-        return;
+  // FASE 5 BIS — form + autosave: source of truth unica per i campi editabili.
+  // Sostituisce i 6 useDebouncedSave, i 3 useState locali + 2 useEffect di
+  // resync. onSave instrada per chiave ai 3 target: indirizzo, processo, e
+  // richieste_attivazione (fee). I campi disponibilità innescano il ricalcolo
+  // family-availability (throttled). Resync realtime senza clobber: keepDirtyValues.
+  const form = useAutoSaveForm({
+    defaults: buildOnboardingDefaults(card),
+    onSave: async (patch) => {
+      const processPatch: Record<string, unknown> = {};
+      const addressPatch: Record<string, unknown> = {};
+      let touchedAvailability = false;
+      for (const [key, value] of Object.entries(patch)) {
+        if (key === "fee_concordata") {
+          if (!richiestaAttivazioneId) continue;
+          const normalized = String(value ?? "").trim().replace(",", ".");
+          const nextValue = normalized ? Number(normalized) : null;
+          if (normalized && Number.isNaN(nextValue)) {
+            toast.error("Fee concordata non valida");
+            continue;
+          }
+          await updateRecord("richieste_attivazione", richiestaAttivazioneId, {
+            fee_concordata: nextValue,
+          });
+          continue;
+        }
+        if (ONBOARDING_AVAILABILITY_KEYS.has(key)) touchedAvailability = true;
+        if (ONBOARDING_ADDRESS_KEYS.has(key)) {
+          addressPatch[key] = (value as string) || null;
+        } else if (key === "ore_settimanale") {
+          processPatch.ore_settimanale = clampNumericInput(value as string, 52) || null;
+        } else if (key === "numero_giorni_settimanali") {
+          processPatch.numero_giorni_settimanali =
+            clampNumericInput(value as string, 7) || null;
+        } else if (key === "preferenza_giorno") {
+          processPatch.preferenza_giorno = value;
+        } else if (key === "deadline_mobile") {
+          processPatch.deadline_mobile = value ? toIsoDate(value as string) : null;
+        } else {
+          processPatch[key] = (value as string) || null;
+        }
       }
-      await updateRecord("richieste_attivazione", richiestaAttivazioneId, { fee_concordata: nextValue });
+      if (Object.keys(addressPatch).length > 0) await patchAddress(addressPatch);
+      if (Object.keys(processPatch).length > 0) await patchProcess(processPatch);
+      if (touchedAvailability) scheduleFamilyAvailabilityRefresh();
     },
-  );
+  });
 
   const copyToClipboard = React.useCallback(async (value: string, label: string) => {
     try {
@@ -603,10 +757,6 @@ export function OnboardingCard({
       sortOrder: index,
     }));
   }, [provincieData]);
-  const selectedIndirizzoProvincia = getSelectedLookupValue(
-    indirizzoProvincia,
-    orderedProvinciaOptions,
-  );
   const isRequiredMissing = React.useCallback(
     (field: string) => requiredMissingFields.includes(field),
     [requiredMissingFields],
@@ -615,10 +765,6 @@ export function OnboardingCard({
     const fromLookup = lookupOptionsByField?.offerta ?? [];
     return fromLookup.length > 0 ? fromLookup : SCONTO_APPLICATO_OPTIONS;
   }, [lookupOptionsByField]);
-  const selectedScontoApplicato = getSelectedLookupValue(
-    card?.scontoApplicatoRaw ?? card?.scontoApplicato,
-    scontoApplicatoOptions,
-  );
   const preventivoAcceptanceUrl = card?.preventivoAcceptanceUrl ?? "";
 
   const lookupLabel = React.useCallback(
@@ -896,15 +1042,11 @@ export function OnboardingCard({
             placeholder; in caso di più giornate specifica indicando
             &quot;OPPURE&quot;.
           </FieldDescription>
-          <DebouncedInput
+          <FieldInput
+            name="orario_di_lavoro"
             id="onboarding-orario-lavoro"
             className={cn(isRequiredMissing("orarioDiLavoro") && REQUIRED_FIELD_CLASS)}
             placeholder="da lunedì a venerdì, dalle 9:00 alle 19:00"
-            committedValue={orarioDiLavoro}
-            onSave={async (value) => {
-              await patchProcess({ orario_di_lavoro: value || null });
-              scheduleFamilyAvailabilityRefresh();
-            }}
           />
         </Field>
 
@@ -913,20 +1055,15 @@ export function OnboardingCard({
             <FieldLabel htmlFor="onboarding-ore-settimanali">
               Ore Settimanali
             </FieldLabel>
-            <DebouncedInput
+            <FieldInput
+              name="ore_settimanale"
               id="onboarding-ore-settimanali"
               className={cn(isRequiredMissing("oreSettimana") && REQUIRED_FIELD_CLASS)}
               type="number"
               inputMode="numeric"
               min={0}
               max={52}
-              committedValue={oreSettimanali}
               placeholder="8"
-              onSave={async (raw) => {
-                const value = clampNumericInput(raw, 52);
-                await patchProcess({ ore_settimanale: value || null });
-                scheduleFamilyAvailabilityRefresh();
-              }}
             />
           </Field>
 
@@ -934,20 +1071,15 @@ export function OnboardingCard({
             <FieldLabel htmlFor="onboarding-giorni-settimanali">
               Giorni Settimanali
             </FieldLabel>
-            <DebouncedInput
+            <FieldInput
+              name="numero_giorni_settimanali"
               id="onboarding-giorni-settimanali"
               className={cn(isRequiredMissing("giorniSettimana") && REQUIRED_FIELD_CLASS)}
               type="number"
               inputMode="numeric"
               min={0}
               max={7}
-              committedValue={giorniSettimanali}
               placeholder="8"
-              onSave={async (raw) => {
-                const value = clampNumericInput(raw, 7);
-                await patchProcess({ numero_giorni_settimanali: value || null });
-                scheduleFamilyAvailabilityRefresh();
-              }}
             />
           </Field>
 
@@ -955,52 +1087,12 @@ export function OnboardingCard({
             <FieldLabel htmlFor="onboarding-giornate-preferite">
               Giornate preferite
             </FieldLabel>
-            <Combobox
-              key={`giornate-preferite-${card?.id ?? "new"}`}
-              multiple
-              autoHighlight
-              items={WEEKDAY_ITEMS}
-              value={giornatePreferite}
-              onValueChange={(nextValues) => {
-                const normalized = normalizeWeekdayList(nextValues as string[]);
-                void patchProcess({ preferenza_giorno: normalized });
-                scheduleFamilyAvailabilityRefresh();
-              }}
-            >
-              <ComboboxChips
-                ref={anchor}
-                id="onboarding-giornate-preferite"
-                className={cn(
-                  "w-full",
-                  isRequiredMissing("giornatePreferite") && REQUIRED_FIELD_CLASS,
-                )}
-              >
-                <ComboboxValue>
-                  {(values) => (
-                    <>
-                      {values.map((value: string) => (
-                        <ComboboxChip key={value}>
-                          {value}
-                        </ComboboxChip>
-                      ))}
-                      <ComboboxChipsInput />
-                    </>
-                  )}
-                </ComboboxValue>
-              </ComboboxChips>
-              <ComboboxContent anchor={anchor}>
-                <ComboboxEmpty>Nessun giorno trovato.</ComboboxEmpty>
-                <ComboboxList>
-                  {(item) => (
-                    <ComboboxItem key={item} value={item}>
-                      {item}
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
-		          </Field>
-		        </div>
+            <FieldWeekdayPicker
+              name="preferenza_giorno"
+              invalid={isRequiredMissing("giornatePreferite")}
+            />
+              </Field>
+            </div>
         </DetailSectionBlock>
       </div>
       ) : null}
@@ -1019,71 +1111,47 @@ export function OnboardingCard({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Field invalid={isRequiredMissing("indirizzoProvincia")}>
             <FieldLabel htmlFor="onboarding-provincia">Provincia</FieldLabel>
-            <Select
-              value={selectedIndirizzoProvincia}
-              onValueChange={(next) => {
-                void patchAddress({ provincia_sigla: next || null });
-              }}
-            >
-              <SelectTrigger
-                id="onboarding-provincia"
-                className={cn(
-                  "w-full",
-                  isRequiredMissing("indirizzoProvincia") && REQUIRED_FIELD_CLASS,
-                )}
-              >
-                <SelectValue placeholder="Seleziona provincia" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {orderedProvinciaOptions.map((option) => (
-                    <SelectItem key={option.valueKey} value={option.valueKey}>
-                      {option.valueLabel}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <FieldProvinciaSelect
+              name="provincia_sigla"
+              options={orderedProvinciaOptions}
+              invalid={isRequiredMissing("indirizzoProvincia")}
+            />
           </Field>
           <Field invalid={isRequiredMissing("indirizzoCap")}>
             <FieldLabel htmlFor="onboarding-cap">CAP</FieldLabel>
-            <Input
+            <FieldInput
+              name="cap"
               id="onboarding-cap"
               className={cn(isRequiredMissing("indirizzoCap") && REQUIRED_FIELD_CLASS)}
               placeholder="20158"
-              value={indirizzoCap}
-              onChange={(event) => onIndirizzoCapChange(event.target.value)}
             />
           </Field>
         </div>
 
-	        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-	          <Field invalid={isRequiredMissing("indirizzoVia")}>
-	            <FieldLabel htmlFor="onboarding-via">Via</FieldLabel>
-	            <Input
-	              id="onboarding-via"
-	              className={cn(isRequiredMissing("indirizzoVia") && REQUIRED_FIELD_CLASS)}
-	              value={indirizzoVia}
-	              onChange={(event) => onIndirizzoViaChange(event.target.value)}
-	            />
-	          </Field>
-	          <Field invalid={isRequiredMissing("indirizzoNote")}>
-	            <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
-	            <Input
-	              id="onboarding-quartiere"
-	              className={cn(isRequiredMissing("indirizzoNote") && REQUIRED_FIELD_CLASS)}
-	              value={indirizzoNote}
-	              onChange={(event) => onIndirizzoNoteChange(event.target.value)}
-	            />
-	          </Field>
-	        </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Field invalid={isRequiredMissing("indirizzoVia")}>
+              <FieldLabel htmlFor="onboarding-via">Via</FieldLabel>
+              <FieldInput
+                name="via"
+                id="onboarding-via"
+                className={cn(isRequiredMissing("indirizzoVia") && REQUIRED_FIELD_CLASS)}
+              />
+            </Field>
+            <Field invalid={isRequiredMissing("indirizzoNote")}>
+              <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
+              <FieldInput
+                name="note"
+                id="onboarding-quartiere"
+                className={cn(isRequiredMissing("indirizzoNote") && REQUIRED_FIELD_CLASS)}
+              />
+            </Field>
+          </div>
         <Field invalid={isRequiredMissing("srcEmbedMapsAnnucio")}>
           <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
-          <Input
+          <FieldInput
+            name="src_embed_maps_annucio"
             id="onboarding-src-maps-edit"
             className={cn(isRequiredMissing("srcEmbedMapsAnnucio") && REQUIRED_FIELD_CLASS)}
-            value={srcMapsUrl}
-            onChange={(event) => onSrcMapsUrlChange(event.target.value)}
           />
         </Field>
         </DetailSectionBlock>
@@ -1165,26 +1233,16 @@ export function OnboardingCard({
           >
           <Field>
             <FieldLabel htmlFor="onboarding-deadline">Deadline</FieldLabel>
-            <DatePicker
-              value={deadline}
-              onValueChange={(next) => {
-                setDeadline(next);
-                void patchProcess({
-                  deadline_mobile: next ? toIsoDate(next) : null,
-                });
-              }}
-              placeholder="dd/mm/yyyy"
-            />
+            <FieldDeadline name="deadline_mobile" />
           </Field>
 
           <Field>
             <FieldLabel htmlFor="onboarding-disponibilita-incontro">
               Inserire 3 disponibilità di giorno e fascia oraria, es. 12/10 dalle 8 alle 12
             </FieldLabel>
-            <Input
+            <FieldInput
+              name="disponibilita_colloqui_in_presenza"
               id="onboarding-disponibilita-incontro"
-              value={disponibilitaColloqui}
-              onChange={(event) => onDisponibilitaColloquiChange(event.target.value)}
             />
           </Field>
 
@@ -1192,39 +1250,22 @@ export function OnboardingCard({
             <FieldLabel htmlFor="onboarding-tipologia-primo-incontro">
               Seleziona la tipologia del primo incontro
             </FieldLabel>
-            <Select
-              value={getSelectedLookupValue(tipoIncontro, tipoIncontroOptions)}
-              onValueChange={(next) => {
-                const nextValue = getLookupLabelForSave(next, tipoIncontroOptions);
-                setTipoIncontro(nextValue);
-                void patchProcess({
-                  tipo_incontro_famiglia_lavoratore: nextValue || null,
-                });
-              }}
-            >
-              <SelectTrigger id="onboarding-tipologia-primo-incontro" className="w-full">
-                <SelectValue placeholder="Seleziona tipologia" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {tipoIncontroOptions.map((option) => (
-                    <SelectItem key={option.valueKey} value={option.valueKey}>
-                      {option.valueLabel}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <FieldOnboardingLookupSelect
+              name="tipo_incontro_famiglia_lavoratore"
+              options={tipoIncontroOptions}
+              placeholder="Seleziona tipologia"
+              triggerId="onboarding-tipologia-primo-incontro"
+              triggerClassName="w-full"
+            />
           </Field>
 
           <Field>
             <FieldLabel>Fee concordata</FieldLabel>
-            <Input
+            <FieldInput
+              name="fee_concordata"
               type="number"
               step="0.01"
-              value={feeConcordata}
               disabled={!card?.richiestaAttivazioneId}
-              onChange={(event) => onFeeConcordataChange(event.target.value)}
               placeholder="-"
             />
           </Field>
@@ -1262,26 +1303,11 @@ export function OnboardingCard({
           </Field>
           <Field>
             <FieldLabel>Sconto applicato</FieldLabel>
-            <Select
-              value={selectedScontoApplicato || undefined}
-              onValueChange={(value) => {
-                const nextValue = getLookupLabelForSave(value, scontoApplicatoOptions);
-                void patchProcess({ offerta: nextValue || null });
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona sconto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {scontoApplicatoOptions.map((option) => (
-                    <SelectItem key={option.valueKey} value={option.valueKey}>
-                      {option.valueLabel}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <FieldOnboardingLookupSelect
+              name="offerta"
+              options={scontoApplicatoOptions}
+              placeholder="Seleziona sconto"
+            />
           </Field>
           </DetailSectionBlock>
         </div>
@@ -1290,10 +1316,11 @@ export function OnboardingCard({
   );
 
   if (flattenSections) {
-    return flattenedContent;
+    return <Form {...form}>{flattenedContent}</Form>;
   }
 
   return (
+    <Form {...form}>
     <CrmDetailCard title={showTitle ? "Onboarding" : ""} titleAction={availabilitySaveAction}>
       <FieldGroup>
         <p className="text-base font-semibold">Orari e frequenza</p>
@@ -1306,14 +1333,10 @@ export function OnboardingCard({
             placeholder; in caso di più giornate specifica indicando
             &quot;OPPURE&quot;.
           </FieldDescription>
-          <DebouncedInput
+          <FieldInput
+            name="orario_di_lavoro"
             id="onboarding-orario-lavoro"
             placeholder="da lunedì a venerdì, dalle 9:00 alle 19:00"
-            committedValue={orarioDiLavoro}
-            onSave={async (value) => {
-              await patchProcess({ orario_di_lavoro: value || null });
-              scheduleFamilyAvailabilityRefresh();
-            }}
           />
         </Field>
 
@@ -1322,19 +1345,14 @@ export function OnboardingCard({
             <FieldLabel htmlFor="onboarding-ore-settimanali">
               Ore Settimanali
             </FieldLabel>
-            <DebouncedInput
+            <FieldInput
+              name="ore_settimanale"
               id="onboarding-ore-settimanali"
               type="number"
               inputMode="numeric"
               min={0}
               max={52}
-              committedValue={oreSettimanali}
               placeholder="8"
-              onSave={async (raw) => {
-                const value = clampNumericInput(raw, 52);
-                await patchProcess({ ore_settimanale: value || null });
-                scheduleFamilyAvailabilityRefresh();
-              }}
             />
           </Field>
 
@@ -1342,19 +1360,14 @@ export function OnboardingCard({
             <FieldLabel htmlFor="onboarding-giorni-settimanali">
               Giorni Settimanali
             </FieldLabel>
-            <DebouncedInput
+            <FieldInput
+              name="numero_giorni_settimanali"
               id="onboarding-giorni-settimanali"
               type="number"
               inputMode="numeric"
               min={0}
               max={7}
-              committedValue={giorniSettimanali}
               placeholder="8"
-              onSave={async (raw) => {
-                const value = clampNumericInput(raw, 7);
-                await patchProcess({ numero_giorni_settimanali: value || null });
-                scheduleFamilyAvailabilityRefresh();
-              }}
             />
           </Field>
 
@@ -1362,43 +1375,7 @@ export function OnboardingCard({
             <FieldLabel htmlFor="onboarding-giornate-preferite">
               Giornate preferite
             </FieldLabel>
-            <Combobox
-              key={`giornate-preferite-${card?.id ?? "new"}`}
-              multiple
-              autoHighlight
-              items={WEEKDAY_ITEMS}
-              value={giornatePreferite}
-              onValueChange={(nextValues) => {
-                const normalized = normalizeWeekdayList(nextValues as string[]);
-                void patchProcess({ preferenza_giorno: normalized });
-                scheduleFamilyAvailabilityRefresh();
-              }}
-            >
-              <ComboboxChips ref={anchor} id="onboarding-giornate-preferite" className="w-full">
-                <ComboboxValue>
-                  {(values) => (
-                    <>
-                      {values.map((value: string) => (
-                        <ComboboxChip key={value}>
-                          {value}
-                        </ComboboxChip>
-                      ))}
-                      <ComboboxChipsInput />
-                    </>
-                  )}
-                </ComboboxValue>
-              </ComboboxChips>
-              <ComboboxContent anchor={anchor}>
-                <ComboboxEmpty>Nessun giorno trovato.</ComboboxEmpty>
-                <ComboboxList>
-                  {(item) => (
-                    <ComboboxItem key={item} value={item}>
-                      {item}
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
+            <FieldWeekdayPicker name="preferenza_giorno" />
           </Field>
         </div>
 
@@ -1450,69 +1427,41 @@ export function OnboardingCard({
 
         <Separator />
 
-	        <p className="text-base font-semibold">Luogo di lavoro</p>
-	        <div className="space-y-4">
-	          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-	            <Field>
-	              <FieldLabel htmlFor="onboarding-provincia">Provincia</FieldLabel>
-	              <Select
-	                value={selectedIndirizzoProvincia}
-	                onValueChange={(next) => {
-	                  void patchAddress({ provincia_sigla: next || null });
-	                }}
-	              >
-                <SelectTrigger id="onboarding-provincia" className="w-full">
-                  <SelectValue placeholder="Seleziona provincia" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {orderedProvinciaOptions.map((option) => (
-                      <SelectItem key={option.valueKey} value={option.valueKey}>
-                        {option.valueLabel}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+          <p className="text-base font-semibold">Luogo di lavoro</p>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="onboarding-provincia">Provincia</FieldLabel>
+                <FieldProvinciaSelect
+                  name="provincia_sigla"
+                  options={orderedProvinciaOptions}
+                />
             </Field>
             <Field>
               <FieldLabel htmlFor="onboarding-cap">CAP</FieldLabel>
-	              <Input
-	                id="onboarding-cap"
-	                placeholder="20158"
-	                value={indirizzoCap}
-	                onChange={(event) => onIndirizzoCapChange(event.target.value)}
-	              />
-	            </Field>
-	          </div>
+                <FieldInput
+                  name="cap"
+                  id="onboarding-cap"
+                  placeholder="20158"
+                />
+              </Field>
+            </div>
 
-		          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-		            <Field>
-		              <FieldLabel htmlFor="onboarding-via">Via</FieldLabel>
-		              <Input
-		                id="onboarding-via"
-		                value={indirizzoVia}
-		                onChange={(event) => onIndirizzoViaChange(event.target.value)}
-		              />
-		            </Field>
-		            <Field>
-		              <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
-		              <Input
-		                id="onboarding-quartiere"
-		                value={indirizzoNote}
-		                onChange={(event) => onIndirizzoNoteChange(event.target.value)}
-		              />
-			            </Field>
-		          </div>
-	          <Field>
-	            <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
-	            <Input
-	              id="onboarding-src-maps-edit"
-	              value={srcMapsUrl}
-	              onChange={(event) => onSrcMapsUrlChange(event.target.value)}
-	            />
-	          </Field>
-		        </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="onboarding-via">Via</FieldLabel>
+                  <FieldInput name="via" id="onboarding-via" />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="onboarding-quartiere">Quartiere</FieldLabel>
+                  <FieldInput name="note" id="onboarding-quartiere" />
+                  </Field>
+              </div>
+            <Field>
+              <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
+              <FieldInput name="src_embed_maps_annucio" id="onboarding-src-maps-edit" />
+            </Field>
+            </div>
 
         {showTempistiche ? (
           <>
@@ -1522,26 +1471,16 @@ export function OnboardingCard({
             <div className="space-y-4">
               <Field>
                 <FieldLabel htmlFor="onboarding-deadline">Deadline</FieldLabel>
-                <DatePicker
-                  value={deadline}
-                  onValueChange={(next) => {
-                    setDeadline(next);
-                    void patchProcess({
-                      deadline_mobile: next ? toIsoDate(next) : null,
-                    });
-                  }}
-                  placeholder="dd/mm/yyyy"
-                />
+                <FieldDeadline name="deadline_mobile" />
               </Field>
 
               <Field>
                 <FieldLabel htmlFor="onboarding-disponibilita-incontro">
                   Inserire 3 disponibilità di giorno e fascia oraria, es. 12/10 dalle 8 alle 12
                 </FieldLabel>
-                <Input
+                <FieldInput
+                  name="disponibilita_colloqui_in_presenza"
                   id="onboarding-disponibilita-incontro"
-                  value={disponibilitaColloqui}
-                  onChange={(event) => onDisponibilitaColloquiChange(event.target.value)}
                 />
               </Field>
 
@@ -1549,39 +1488,22 @@ export function OnboardingCard({
                 <FieldLabel htmlFor="onboarding-tipologia-primo-incontro">
                   Seleziona la tipologia del primo incontro
                 </FieldLabel>
-                <Select
-                  value={getSelectedLookupValue(tipoIncontro, tipoIncontroOptions)}
-                  onValueChange={(next) => {
-                    const nextValue = getLookupLabelForSave(next, tipoIncontroOptions);
-                    setTipoIncontro(nextValue);
-                    void patchProcess({
-                      tipo_incontro_famiglia_lavoratore: nextValue || null,
-                    });
-                  }}
-                >
-                  <SelectTrigger id="onboarding-tipologia-primo-incontro" className="w-full">
-                    <SelectValue placeholder="Seleziona tipologia" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {tipoIncontroOptions.map((option) => (
-                        <SelectItem key={option.valueKey} value={option.valueKey}>
-                          {option.valueLabel}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                <FieldOnboardingLookupSelect
+                  name="tipo_incontro_famiglia_lavoratore"
+                  options={tipoIncontroOptions}
+                  placeholder="Seleziona tipologia"
+                  triggerId="onboarding-tipologia-primo-incontro"
+                  triggerClassName="w-full"
+                />
               </Field>
 
               <Field>
                 <FieldLabel>Fee concordata</FieldLabel>
-                <Input
+                <FieldInput
+                  name="fee_concordata"
                   type="number"
                   step="0.01"
-                  value={feeConcordata}
                   disabled={!card?.richiestaAttivazioneId}
-                  onChange={(event) => onFeeConcordataChange(event.target.value)}
                   placeholder="-"
                 />
               </Field>
@@ -1619,31 +1541,17 @@ export function OnboardingCard({
               </Field>
               <Field>
                 <FieldLabel>Sconto applicato</FieldLabel>
-                <Select
-                  value={selectedScontoApplicato || undefined}
-                  onValueChange={(value) => {
-                    const nextValue = getLookupLabelForSave(value, scontoApplicatoOptions);
-                    void patchProcess({ offerta: nextValue || null });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona sconto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {scontoApplicatoOptions.map((option) => (
-                        <SelectItem key={option.valueKey} value={option.valueKey}>
-                          {option.valueLabel}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                <FieldOnboardingLookupSelect
+                  name="offerta"
+                  options={scontoApplicatoOptions}
+                  placeholder="Seleziona sconto"
+                />
               </Field>
             </div>
           </>
         ) : null}
       </FieldGroup>
     </CrmDetailCard>
+    </Form>
   );
 }

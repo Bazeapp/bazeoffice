@@ -23,12 +23,17 @@ import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rappo
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { DebouncedInput } from "@/components/ui/debounced-input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Textarea } from "@/components/ui/textarea"
+import { Form } from "@/components/ui/form"
+import {
+  FieldInput,
+  FieldTextarea,
+} from "@/components/forms/field-components"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
+import { useController } from "react-hook-form"
 import {
   createRecord,
   fetchAssunzioniByIds,
@@ -37,7 +42,6 @@ import {
   fetchLookupValues,
   updateRecord,
 } from "@/lib/anagrafiche-api"
-import { useDebouncedSave } from "@/hooks/use-debounced-save"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import {
   findLookupOption,
@@ -133,35 +137,6 @@ const ASSUNZIONE_DETAIL_SELECT = [
   "data_assunzione",
   "type_of_compilazione_form",
 ] satisfies string[]
-
-function SingleSelectField({
-  value,
-  placeholder,
-  options,
-  onValueChange,
-}: {
-  value: string
-  placeholder: string
-  options: readonly string[]
-  onValueChange: (value: string) => void
-}) {
-  const optionValues = value && !options.includes(value) ? [value, ...options] : options
-
-  return (
-    <Select value={value || undefined} onValueChange={onValueChange}>
-      <SelectTrigger>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {optionValues.map((option) => (
-          <SelectItem key={option} value={option}>
-            {option}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-}
 
 function toNullableNumber(value: string) {
   if (!value.trim()) return null
@@ -331,6 +306,74 @@ function getLookupLabelForSave(value: string, options: LookupOption[]) {
   return findLookupOption(options, value)?.label ?? value
 }
 
+// FASE 5 BIS — wrapper form-aware per i Select a opzioni fisse (Si/No,
+// tipo documento, regime, tipo utente, tipologia contratto). Il form
+// memorizza il valore da salvare; eventuali valori esterni non in lista
+// vengono mostrati comunque (come SingleSelectField).
+function FieldSingleSelect({
+  name,
+  placeholder,
+  options,
+}: {
+  name: string
+  placeholder: string
+  options: readonly string[]
+}) {
+  const { field } = useController({ name })
+  const value = typeof field.value === "string" ? field.value : ""
+  const optionValues = value && !options.includes(value) ? [value, ...options] : options
+  return (
+    <Select value={value || undefined} onValueChange={field.onChange}>
+      <SelectTrigger>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {optionValues.map((option) => (
+          <SelectItem key={option} value={option}>
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+// FASE 5 BIS — wrapper form-aware per i Select di lookup (label↔key). Il form
+// memorizza la LABEL da salvare (come l'originale: getLookupLabelForSave),
+// mentre il trigger mostra la value_key risolta.
+function FieldLookupSelect({
+  name,
+  options,
+  placeholder,
+  disabled,
+}: {
+  name: string
+  options: LookupOption[]
+  placeholder: string
+  disabled?: boolean
+}) {
+  const { field } = useController({ name })
+  const current = typeof field.value === "string" ? field.value : ""
+  return (
+    <Select
+      value={getLookupSelectDisplayValue(current, options)}
+      onValueChange={(value) => field.onChange(getLookupLabelForSave(value, options))}
+      disabled={disabled}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 function hasAssunzioneCoreDetails(assunzione: AssunzioneRecord | null | undefined) {
   return Boolean(
     assunzione?.info_anagrafiche_codice_fiscale ||
@@ -462,84 +505,60 @@ function RapportoDetailSections({
 }) {
   const rapporto = card.rapporto
 
-  const { value: totaleOreLavorative, onChange: onTotaleOreLavorativeChange } = useDebouncedSave(
-    rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : "",
-    async (value) => {
-      await onRapportoPatch({ ore_a_settimana: toNullableNumber(value) })
-    }
-  )
-
-  const { value: distribuzioneOreSettimanali, onChange: onDistribuzioneChange } = useDebouncedSave(
-    rapporto?.distribuzione_ore_settimana ?? "",
-    async (value) => { await onRapportoPatch({ distribuzione_ore_settimana: value || null }) }
-  )
-
-  const { value: pagaOraria, onChange: onPagaOrariaChange } = useDebouncedSave(
-    rapporto?.paga_oraria_lorda ? String(rapporto.paga_oraria_lorda) : "",
-    async (value) => { await onRapportoPatch({ paga_oraria_lorda: toNullableNumber(value) }) }
-  )
-
-  const { value: pagaMensile, onChange: onPagaMensileChange } = useDebouncedSave(
-    rapporto?.paga_mensile_lorda ? String(rapporto.paga_mensile_lorda) : "",
-    async (value) => { await onRapportoPatch({ paga_mensile_lorda: toNullableNumber(value) }) }
-  )
-
-  const { value: dataAssunzioneRapporto, onChange: onDataAssunzioneRapportoChange } = useDebouncedSave(
-    rapporto?.data_inizio_rapporto ?? "",
-    async (value) => {
-      await onRapportoPatch({ data_inizio_rapporto: value || null })
-    }
-  )
+  // FASE 5 BIS — form + autosave (sostituisce i 5 useDebouncedSave). onSave
+  // instrada tutto su onRapportoPatch con le trasformazioni originali
+  // (toNullableNumber per ore/paga, ||null per distribuzione/data).
+  const form = useAutoSaveForm({
+    defaults: {
+      ore_a_settimana: rapporto?.ore_a_settimana ? String(rapporto.ore_a_settimana) : "",
+      distribuzione_ore_settimana: rapporto?.distribuzione_ore_settimana ?? "",
+      paga_oraria_lorda: rapporto?.paga_oraria_lorda ? String(rapporto.paga_oraria_lorda) : "",
+      paga_mensile_lorda: rapporto?.paga_mensile_lorda ? String(rapporto.paga_mensile_lorda) : "",
+      data_inizio_rapporto: rapporto?.data_inizio_rapporto ?? "",
+    },
+    onSave: async (patch) => {
+      const out: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(patch)) {
+        out[key] =
+          key === "ore_a_settimana" ||
+          key === "paga_oraria_lorda" ||
+          key === "paga_mensile_lorda"
+            ? toNullableNumber(value as string)
+            : (value as string) || null
+      }
+      await onRapportoPatch(out)
+    },
+  })
 
   return (
-    <DetailSectionBlock
-      title="Orario e paga rapporto"
-      icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
-      contentClassName="space-y-4"
-    >
-      <EditableField label="Ore di lavoro a settimana">
-        <Input
-          type="number"
-          value={totaleOreLavorative}
-          onChange={(event) => onTotaleOreLavorativeChange(event.target.value)}
-        />
-      </EditableField>
-      <EditableField label="Distribuzione ore settimanali">
-        <div className="space-y-2">
-          <p className="ui-type-meta">Parte da domenica</p>
-          <Input
-            value={distribuzioneOreSettimanali}
-            placeholder="0-0-0-0-0-0-0"
-            onChange={(event) => onDistribuzioneChange(event.target.value)}
-          />
+    <Form {...form}>
+      <DetailSectionBlock
+        title="Orario e paga rapporto"
+        icon={<BriefcaseBusinessIcon className="text-muted-foreground size-4" />}
+        contentClassName="space-y-4"
+      >
+        <EditableField label="Ore di lavoro a settimana">
+          <FieldInput name="ore_a_settimana" type="number" />
+        </EditableField>
+        <EditableField label="Distribuzione ore settimanali">
+          <div className="space-y-2">
+            <p className="ui-type-meta">Parte da domenica</p>
+            <FieldInput name="distribuzione_ore_settimana" placeholder="0-0-0-0-0-0-0" />
+          </div>
+        </EditableField>
+        <div className="grid gap-4 md:grid-cols-2">
+          <EditableField label="Paga oraria">
+            <FieldInput name="paga_oraria_lorda" type="number" step="0.01" />
+          </EditableField>
+          <EditableField label="Paga mensile">
+            <FieldInput name="paga_mensile_lorda" type="number" step="0.01" />
+          </EditableField>
         </div>
-      </EditableField>
-      <div className="grid gap-4 md:grid-cols-2">
-        <EditableField label="Paga oraria">
-          <Input
-            type="number"
-            step="0.01"
-            value={pagaOraria}
-            onChange={(event) => onPagaOrariaChange(event.target.value)}
-          />
+        <EditableField label="Data di assunzione">
+          <FieldInput name="data_inizio_rapporto" type="date" />
         </EditableField>
-        <EditableField label="Paga mensile">
-          <Input
-            type="number"
-            step="0.01"
-            value={pagaMensile}
-            onChange={(event) => onPagaMensileChange(event.target.value)}
-          />
-        </EditableField>
-      </div>
-      <EditableField label="Data di assunzione">
-        <Input
-          type="date"
-          value={dataAssunzioneRapporto}
-          onChange={(event) => onDataAssunzioneRapportoChange(event.target.value)}
-        />
-      </EditableField>
-    </DetailSectionBlock>
+      </DetailSectionBlock>
+    </Form>
   )
 }
 
@@ -560,180 +579,89 @@ function DatoreDetail({
   onAttachmentPreview: (link: AttachmentLink) => void
   uploadingAttachment: string | null
 }) {
-  const rapporto = card.rapporto
   const famiglia = card.famiglia
   const assunzione = card.assunzione
-  const [draft, setDraft] = React.useState(() => ({
-    tipoUtente: assunzione?.type_of_compilazione_form ?? "DATORE LAVORO",
-    rapportoCorrispondeResidenza: assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
-    tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
-    cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
-    regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
-    tredicesimaRateizzata: assunzione?.tredicesima_rateizzata_mensile ?? "",
-    telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
-  }))
 
-  React.useEffect(() => {
-    setDraft({
-      tipoUtente: assunzione?.type_of_compilazione_form ?? "DATORE LAVORO",
-      rapportoCorrispondeResidenza: assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
-      tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
-      cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
-      regimeConvivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
-      tredicesimaRateizzata: assunzione?.tredicesima_rateizzata_mensile ?? "",
-      telecamerePostoLavoro: assunzione?.telecamere_posto_lavoro ?? "No",
-    })
-    // Resync only on identity change of related entities.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assunzione?.id, card.id, famiglia?.id, rapporto?.id])
-
-  const setValue = (key: keyof typeof draft, value: string) =>
-    setDraft((current) => ({ ...current, [key]: value }))
-
-  const { value: nomeD, onChange: onNomeDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_nome ?? famiglia?.nome ?? card.nomeFamiglia.split(" ")[0] ?? "",
-    async (value) => { await onFamigliaPatch({ nome: value || null }) }
-  )
-
-  const { value: cognomeD, onChange: onCognomeDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_cognome ?? famiglia?.cognome ?? card.nomeFamiglia.split(" ").slice(1).join(" ") ?? "",
-    async (value) => { await onFamigliaPatch({ cognome: value || null }) }
-  )
-
-  const { value: emailD, onChange: onEmailDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_email ?? famiglia?.email ?? "",
-    async (value) => { await onFamigliaPatch({ email: value || null }) }
-  )
-
-  const { value: cellulareD, onChange: onCellulareDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_numero_mobile ?? famiglia?.telefono ?? "",
-    async (value) => { await onFamigliaPatch({ telefono: value || null }) }
-  )
-
-  const { value: codiceFiscaleD, onChange: onCodiceFiscaleDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_codice_fiscale ?? "",
-    async (value) => { await onAssunzionePatch({ info_anagrafiche_codice_fiscale: value || null }) }
-  )
-
-  const { value: cittadinanzaD, onChange: onCittadinanzaDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_cittadidanza ?? "Italiana",
-    async (value) => { await onAssunzionePatch({ info_anagrafiche_cittadidanza: value || null }) }
-  )
-
-  const { value: telefonoFissoD, onChange: onTelefonoFissoDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_numero_fisso ?? "",
-    async (value) => { await onAssunzionePatch({ info_anagrafiche_numero_fisso: value || null }) }
-  )
-
-  const { value: dataNascitaD, onChange: onDataNascitaDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_data_di_nascita ?? "",
-    async (value) => { await onAssunzionePatch({ info_anagrafiche_data_di_nascita: value || null }) }
-  )
-
-  const { value: luogoNascitaD, onChange: onLuogoNascitaDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_luogo_di_nascita ?? "",
-    async (value) => { await onAssunzionePatch({ info_anagrafiche_luogo_di_nascita: value || null }) }
-  )
-
-  const { value: indirizzoResidenzaD, onChange: onIndirizzoResidenzaDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_indirizzo ?? "",
-    async (value) => { await onAssunzionePatch({ info_anagrafiche_indirizzo: value || null }) }
-  )
-
-  const { value: civicoD, onChange: onCivicoDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_civico ?? "",
-    async (value) => { await onAssunzionePatch({ info_anagrafiche_civico: value || null }) }
-  )
-
-  const { value: localitaD, onChange: onLocalitaDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_localita ?? "",
-    async (value) => { await onAssunzionePatch({ info_anagrafiche_localita: value || null }) }
-  )
-
-  const { value: capD, onChange: onCapDChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_cap ?? "",
-    async (value) => { await onAssunzionePatch({ info_anagrafiche_cap: value || null }) }
-  )
-
-  const { value: luogoLavoroIndirizzoD, onChange: onLuogoLavoroIndirizzoDChange } = useDebouncedSave(
-    assunzione?.luogo_lavoro_se_diverso_da_residenza ?? "",
-    async (value) => { await onAssunzionePatch({ luogo_lavoro_se_diverso_da_residenza: value || null }) }
-  )
-
-  const { value: luogoLavoroCivicoD, onChange: onLuogoLavoroCivicoDChange } = useDebouncedSave(
-    assunzione?.civico_se_diverso_residenza ?? "",
-    async (value) => { await onAssunzionePatch({ civico_se_diverso_residenza: value || null }) }
-  )
-
-  const { value: luogoLavoroComuneD, onChange: onLuogoLavoroComuneDChange } = useDebouncedSave(
-    assunzione?.comune_se_diverso_residenza ?? "",
-    async (value) => { await onAssunzionePatch({ comune_se_diverso_residenza: value || null }) }
-  )
-
-  const { value: luogoLavoroProvinciaD, onChange: onLuogoLavoroProvinciaDChange } = useDebouncedSave(
-    assunzione?.provincia ?? "",
-    async (value) => { await onAssunzionePatch({ provincia: value || null }) }
-  )
-
-  const { value: numeroDocumentoD, onChange: onNumeroDocumentoDChange } = useDebouncedSave(
-    assunzione?.documento_identita_numero ?? "",
-    async (value) => { await onAssunzionePatch({ documento_identita_numero: value || null }) }
-  )
-
-  const { value: scadenzaDocumentoD, onChange: onScadenzaDocumentoDChange } = useDebouncedSave(
-    assunzione?.documento_identita_scadenza ?? "",
-    async (value) => { await onAssunzionePatch({ documento_identita_scadenza: value || null }) }
-  )
-
-  const { value: oreDiLavoroD, onChange: onOreDiLavoroDChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_di_lavoro),
-    async (value) => { await onAssunzionePatch({ ore_di_lavoro: toNullableNumber(value) }) }
-  )
-
-  const { value: oreLunediD, onChange: onOreLunediDChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_lunedi),
-    async (value) => { await onAssunzionePatch({ ore_lunedi: toNullableNumber(value) }) }
-  )
-
-  const { value: oreMartediD, onChange: onOreMartediDChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_martedi),
-    async (value) => { await onAssunzionePatch({ ore_martedi: toNullableNumber(value) }) }
-  )
-
-  const { value: oreMercolediD, onChange: onOreMercolediDChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_mercoledi),
-    async (value) => { await onAssunzionePatch({ ore_mercoledi: toNullableNumber(value) }) }
-  )
-
-  const { value: oreGiovediD, onChange: onOreGiovediDChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_giovedi),
-    async (value) => { await onAssunzionePatch({ ore_giovedi: toNullableNumber(value) }) }
-  )
-
-  const { value: oreVenerdiD, onChange: onOreVenerdiDChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_venerdi),
-    async (value) => { await onAssunzionePatch({ ore_venerdi: toNullableNumber(value) }) }
-  )
-
-  const { value: oreSabatoD, onChange: onOreSabatoDChange } = useDebouncedSave(
-    toInputValue(assunzione?.ore_sabato),
-    async (value) => { await onAssunzionePatch({ ore_sabato: toNullableNumber(value) }) }
-  )
-
-  const { value: mezzaGiornataRiposoD, onChange: onMezzaGiornataRiposoDChange } = useDebouncedSave(
-    assunzione?.mezza_giornata_di_riposo ?? "",
-    async (value) => { await onAssunzionePatch({ mezza_giornata_di_riposo: value || null }) }
-  )
-
-  const { value: dataAssunzioneAssD, onChange: onDataAssunzioneAssDChange } = useDebouncedSave(
-    assunzione?.data_assunzione ?? "",
-    async (value) => { await onAssunzionePatch({ data_assunzione: value || null }) }
-  )
-
-  const { value: appuntiExtraD, onChange: onAppuntiExtraDChange } = useDebouncedSave(
-    assunzione?.note_aggiuntive ?? "",
-    async (value) => { await onAssunzionePatch({ note_aggiuntive: value || null }) }
-  )
+  // FASE 5 BIS — form + autosave: unica source of truth per i campi editabili
+  // del datore. Sostituisce i ~25 useDebouncedSave + draft/setDraft per i Select.
+  // onSave instrada per chiave a 2 target: nome/cognome/email/telefono →
+  // onFamigliaPatch, tutto il resto → onAssunzionePatch (con le stesse
+  // trasformazioni: ore_* numeriche → toNullableNumber, rapporto_di_lavoro_residenza
+  // Si/No → boolean, resto ""→null). Resync realtime senza clobber: keepDirtyValues.
+  const form = useAutoSaveForm({
+    defaults: {
+      nome: assunzione?.info_anagrafiche_nome ?? famiglia?.nome ?? card.nomeFamiglia.split(" ")[0] ?? "",
+      cognome:
+        assunzione?.info_anagrafiche_cognome ??
+        famiglia?.cognome ??
+        card.nomeFamiglia.split(" ").slice(1).join(" ") ??
+        "",
+      email: assunzione?.info_anagrafiche_email ?? famiglia?.email ?? "",
+      telefono: assunzione?.info_anagrafiche_numero_mobile ?? famiglia?.telefono ?? "",
+      type_of_compilazione_form: assunzione?.type_of_compilazione_form ?? "DATORE LAVORO",
+      rapporto_di_lavoro_residenza:
+        assunzione?.rapporto_di_lavoro_residenza === false ? "No" : "Si",
+      documento_identita_tipo: assunzione?.documento_identita_tipo ?? "Carta d'identita",
+      cittadino_extracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
+      regime_convivenza: normalizeRegimeConvivenza(assunzione?.regime_convivenza),
+      tredicesima_rateizzata_mensile: assunzione?.tredicesima_rateizzata_mensile ?? "",
+      telecamere_posto_lavoro: assunzione?.telecamere_posto_lavoro ?? "No",
+      info_anagrafiche_codice_fiscale: assunzione?.info_anagrafiche_codice_fiscale ?? "",
+      info_anagrafiche_cittadidanza: assunzione?.info_anagrafiche_cittadidanza ?? "Italiana",
+      info_anagrafiche_numero_fisso: assunzione?.info_anagrafiche_numero_fisso ?? "",
+      info_anagrafiche_data_di_nascita: assunzione?.info_anagrafiche_data_di_nascita ?? "",
+      info_anagrafiche_luogo_di_nascita: assunzione?.info_anagrafiche_luogo_di_nascita ?? "",
+      info_anagrafiche_indirizzo: assunzione?.info_anagrafiche_indirizzo ?? "",
+      info_anagrafiche_civico: assunzione?.info_anagrafiche_civico ?? "",
+      info_anagrafiche_localita: assunzione?.info_anagrafiche_localita ?? "",
+      info_anagrafiche_cap: assunzione?.info_anagrafiche_cap ?? "",
+      luogo_lavoro_se_diverso_da_residenza:
+        assunzione?.luogo_lavoro_se_diverso_da_residenza ?? "",
+      civico_se_diverso_residenza: assunzione?.civico_se_diverso_residenza ?? "",
+      comune_se_diverso_residenza: assunzione?.comune_se_diverso_residenza ?? "",
+      provincia: assunzione?.provincia ?? "",
+      documento_identita_numero: assunzione?.documento_identita_numero ?? "",
+      documento_identita_scadenza: assunzione?.documento_identita_scadenza ?? "",
+      ore_di_lavoro: toInputValue(assunzione?.ore_di_lavoro),
+      ore_lunedi: toInputValue(assunzione?.ore_lunedi),
+      ore_martedi: toInputValue(assunzione?.ore_martedi),
+      ore_mercoledi: toInputValue(assunzione?.ore_mercoledi),
+      ore_giovedi: toInputValue(assunzione?.ore_giovedi),
+      ore_venerdi: toInputValue(assunzione?.ore_venerdi),
+      ore_sabato: toInputValue(assunzione?.ore_sabato),
+      mezza_giornata_di_riposo: assunzione?.mezza_giornata_di_riposo ?? "",
+      data_assunzione: assunzione?.data_assunzione ?? "",
+      note_aggiuntive: assunzione?.note_aggiuntive ?? "",
+    },
+    onSave: async (patch) => {
+      const famigliaKeys = new Set(["nome", "cognome", "email", "telefono"])
+      const oreKeys = new Set([
+        "ore_di_lavoro",
+        "ore_lunedi",
+        "ore_martedi",
+        "ore_mercoledi",
+        "ore_giovedi",
+        "ore_venerdi",
+        "ore_sabato",
+      ])
+      const famigliaPatch: Record<string, unknown> = {}
+      const assunzionePatch: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(patch)) {
+        if (famigliaKeys.has(key)) {
+          famigliaPatch[key] = (value as string) || null
+        } else if (key === "rapporto_di_lavoro_residenza") {
+          assunzionePatch[key] = value === "Si"
+        } else if (oreKeys.has(key)) {
+          assunzionePatch[key] = toNullableNumber(value as string)
+        } else {
+          assunzionePatch[key] = (value as string) || null
+        }
+      }
+      if (Object.keys(famigliaPatch).length > 0) await onFamigliaPatch(famigliaPatch)
+      if (Object.keys(assunzionePatch).length > 0) await onAssunzionePatch(assunzionePatch)
+    },
+  })
+  const rapportoCorrispondeResidenza = form.watch("rapporto_di_lavoro_residenza")
 
   const documentoIdentitaAllegati = collectAttachmentValues(
     assunzione?.documento_identita_allegati
@@ -750,6 +678,7 @@ function DatoreDetail({
   )
 
   return (
+    <Form {...form}>
     <div className="space-y-5">
       <DetailSectionBlock
         title="Riepilogo datore"
@@ -757,28 +686,16 @@ function DatoreDetail({
         contentClassName="grid gap-4 md:grid-cols-2"
       >
         <EditableField label="Nome">
-          <Input
-            value={nomeD}
-            onChange={(event) => onNomeDChange(event.target.value)}
-          />
+          <FieldInput name="nome" />
         </EditableField>
         <EditableField label="Cognome">
-          <Input
-            value={cognomeD}
-            onChange={(event) => onCognomeDChange(event.target.value)}
-          />
+          <FieldInput name="cognome" />
         </EditableField>
         <EditableField label="Email">
-          <Input
-            value={emailD}
-            onChange={(event) => onEmailDChange(event.target.value)}
-          />
+          <FieldInput name="email" />
         </EditableField>
         <EditableField label="Cellulare">
-          <Input
-            value={cellulareD}
-            onChange={(event) => onCellulareDChange(event.target.value)}
-          />
+          <FieldInput name="telefono" />
         </EditableField>
       </DetailSectionBlock>
 
@@ -788,173 +705,89 @@ function DatoreDetail({
         contentClassName="space-y-4"
       >
           <EditableField label="Tipo utente">
-          <SingleSelectField
-            value={draft.tipoUtente}
+          <FieldSingleSelect
+            name="type_of_compilazione_form"
             placeholder="Seleziona tipo utente"
             options={TIPO_UTENTE_OPTIONS}
-            onValueChange={(value) => {
-              setValue("tipoUtente", value)
-              void onAssunzionePatch({ type_of_compilazione_form: value || null })
-            }}
           />
         </EditableField>
         <div className="grid gap-4 md:grid-cols-2">
           <EditableField label="Nome">
-            <Input
-              value={nomeD}
-              onChange={(event) => onNomeDChange(event.target.value)}
-            />
+            <FieldInput name="nome" />
           </EditableField>
           <EditableField label="Cognome">
-            <Input
-              value={cognomeD}
-              onChange={(event) => onCognomeDChange(event.target.value)}
-            />
+            <FieldInput name="cognome" />
           </EditableField>
           <EditableField label="Codice fiscale">
-            <Input
-              value={codiceFiscaleD}
-              onChange={(event) => onCodiceFiscaleDChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_codice_fiscale" />
           </EditableField>
           <EditableField label="Cittadinanza">
-            <Input
-              value={cittadinanzaD}
-              onChange={(event) => onCittadinanzaDChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_cittadidanza" />
           </EditableField>
           <EditableField label="Email">
-            <Input
-              value={emailD}
-              onChange={(event) => onEmailDChange(event.target.value)}
-            />
+            <FieldInput name="email" />
           </EditableField>
           <EditableField label="Cellulare">
-            <Input
-              value={cellulareD}
-              onChange={(event) => onCellulareDChange(event.target.value)}
-            />
+            <FieldInput name="telefono" />
           </EditableField>
           <EditableField label="Telefono fisso">
-            <Input
-              value={telefonoFissoD}
-              onChange={(event) => onTelefonoFissoDChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_numero_fisso" />
           </EditableField>
           <EditableField label="Data di nascita">
-            <Input
-              type="date"
-              value={dataNascitaD}
-              onChange={(event) => onDataNascitaDChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_data_di_nascita" type="date" />
           </EditableField>
           <EditableField label="Luogo di nascita">
-            <Input
-              value={luogoNascitaD}
-              onChange={(event) => onLuogoNascitaDChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_luogo_di_nascita" />
           </EditableField>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <EditableField label="Indirizzo di residenza">
-            <Input
-              value={indirizzoResidenzaD}
-              onChange={(event) => onIndirizzoResidenzaDChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_indirizzo" />
           </EditableField>
           <EditableField label="Civico">
-            <Input
-              value={civicoD}
-              onChange={(event) => onCivicoDChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_civico" />
           </EditableField>
           <EditableField label="Localita">
-            <Input
-              value={localitaD}
-              onChange={(event) => onLocalitaDChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_localita" />
           </EditableField>
           <EditableField label="CAP">
-            <Input
-              value={capD}
-              onChange={(event) => onCapDChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_cap" />
           </EditableField>
           <EditableField label="Il luogo di residenza corrisponde al luogo di lavoro?">
-            <Select
-              value={draft.rapportoCorrispondeResidenza}
-              onValueChange={(value) => {
-                setValue("rapportoCorrispondeResidenza", value)
-                void onAssunzionePatch({ rapporto_di_lavoro_residenza: value === "Si" })
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Si">Si</SelectItem>
-                <SelectItem value="No">No</SelectItem>
-              </SelectContent>
-            </Select>
+            <FieldSingleSelect
+              name="rapporto_di_lavoro_residenza"
+              placeholder="Seleziona..."
+              options={["Si", "No"]}
+            />
           </EditableField>
-          {draft.rapportoCorrispondeResidenza === "No" ? (
+          {rapportoCorrispondeResidenza === "No" ? (
             <>
               <EditableField label="Indirizzo luogo lavoro">
-                <Input
-                  value={luogoLavoroIndirizzoD}
-                  onChange={(event) => onLuogoLavoroIndirizzoDChange(event.target.value)}
-                />
+                <FieldInput name="luogo_lavoro_se_diverso_da_residenza" />
               </EditableField>
               <EditableField label="Civico luogo lavoro">
-                <Input
-                  value={luogoLavoroCivicoD}
-                  onChange={(event) => onLuogoLavoroCivicoDChange(event.target.value)}
-                />
+                <FieldInput name="civico_se_diverso_residenza" />
               </EditableField>
               <EditableField label="Comune luogo lavoro">
-                <Input
-                  value={luogoLavoroComuneD}
-                  onChange={(event) => onLuogoLavoroComuneDChange(event.target.value)}
-                />
+                <FieldInput name="comune_se_diverso_residenza" />
               </EditableField>
               <EditableField label="Provincia luogo lavoro">
-                <Input
-                  value={luogoLavoroProvinciaD}
-                  onChange={(event) => onLuogoLavoroProvinciaDChange(event.target.value)}
-                />
+                <FieldInput name="provincia" />
               </EditableField>
             </>
           ) : null}
           <EditableField label="Tipo documento">
-            <Select
-              value={draft.tipoDocumento}
-              onValueChange={(value) => {
-                setValue("tipoDocumento", value)
-                void onAssunzionePatch({ documento_identita_tipo: value || null })
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona tipo documento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Carta d'identita">Carta d'identita</SelectItem>
-                <SelectItem value="Passaporto">Passaporto</SelectItem>
-                <SelectItem value="Patente">Patente</SelectItem>
-              </SelectContent>
-            </Select>
+            <FieldSingleSelect
+              name="documento_identita_tipo"
+              placeholder="Seleziona tipo documento"
+              options={["Carta d'identita", "Passaporto", "Patente"]}
+            />
           </EditableField>
           <EditableField label="Numero documento">
-            <Input
-              value={numeroDocumentoD}
-              onChange={(event) => onNumeroDocumentoDChange(event.target.value)}
-            />
+            <FieldInput name="documento_identita_numero" />
           </EditableField>
           <EditableField label="Scadenza documento">
-            <Input
-              type="date"
-              value={scadenzaDocumentoD}
-              onChange={(event) => onScadenzaDocumentoDChange(event.target.value)}
-            />
+            <FieldInput name="documento_identita_scadenza" type="date" />
           </EditableField>
         </div>
       </DetailSectionBlock>
@@ -965,21 +798,11 @@ function DatoreDetail({
         contentClassName="space-y-4"
       >
         <EditableField label="E extracomunitario?">
-          <Select
-            value={draft.cittadinoExtracomunitario}
-            onValueChange={(value) => {
-              setValue("cittadinoExtracomunitario", value)
-              void onAssunzionePatch({ cittadino_extracomunitario: value || null })
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Si">Si</SelectItem>
-              <SelectItem value="No">No</SelectItem>
-            </SelectContent>
-          </Select>
+          <FieldSingleSelect
+            name="cittadino_extracomunitario"
+            placeholder="Seleziona..."
+            options={["Si", "No"]}
+          />
         </EditableField>
       </DetailSectionBlock>
 
@@ -994,83 +817,36 @@ function DatoreDetail({
           </div>
         </EditableField>
         <EditableField label="Regime di convivenza">
-          <Select
-            value={draft.regimeConvivenza}
-            onValueChange={(value) => {
-              setValue("regimeConvivenza", value)
-              void onAssunzionePatch({ regime_convivenza: value || null })
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={REGIME_NON_CONVIVENTE}>{REGIME_NON_CONVIVENTE}</SelectItem>
-              <SelectItem value={REGIME_CONVIVENTE}>{REGIME_CONVIVENTE}</SelectItem>
-            </SelectContent>
-          </Select>
+          <FieldSingleSelect
+            name="regime_convivenza"
+            placeholder="Seleziona..."
+            options={[REGIME_NON_CONVIVENTE, REGIME_CONVIVENTE]}
+          />
         </EditableField>
         <EditableField label="Ore di lavoro a settimana">
-          <Input
-            type="number"
-            value={oreDiLavoroD}
-            onChange={(event) => onOreDiLavoroDChange(event.target.value)}
-          />
+          <FieldInput name="ore_di_lavoro" type="number" />
         </EditableField>
         <div className="grid gap-4 md:grid-cols-3">
           <EditableField label="Ore lunedi">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreLunediD}
-              onChange={(event) => onOreLunediDChange(event.target.value)}
-            />
+            <FieldInput name="ore_lunedi" type="number" step="0.25" />
           </EditableField>
           <EditableField label="Ore martedi">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreMartediD}
-              onChange={(event) => onOreMartediDChange(event.target.value)}
-            />
+            <FieldInput name="ore_martedi" type="number" step="0.25" />
           </EditableField>
           <EditableField label="Ore mercoledi">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreMercolediD}
-              onChange={(event) => onOreMercolediDChange(event.target.value)}
-            />
+            <FieldInput name="ore_mercoledi" type="number" step="0.25" />
           </EditableField>
           <EditableField label="Ore giovedi">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreGiovediD}
-              onChange={(event) => onOreGiovediDChange(event.target.value)}
-            />
+            <FieldInput name="ore_giovedi" type="number" step="0.25" />
           </EditableField>
           <EditableField label="Ore venerdi">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreVenerdiD}
-              onChange={(event) => onOreVenerdiDChange(event.target.value)}
-            />
+            <FieldInput name="ore_venerdi" type="number" step="0.25" />
           </EditableField>
           <EditableField label="Ore sabato">
-            <Input
-              type="number"
-              step="0.25"
-              value={oreSabatoD}
-              onChange={(event) => onOreSabatoDChange(event.target.value)}
-            />
+            <FieldInput name="ore_sabato" type="number" step="0.25" />
           </EditableField>
           <EditableField label="Giorno/mezza giornata di riposo">
-            <Input
-              value={mezzaGiornataRiposoD}
-              onChange={(event) => onMezzaGiornataRiposoDChange(event.target.value)}
-            />
+            <FieldInput name="mezza_giornata_di_riposo" />
           </EditableField>
         </div>
       </DetailSectionBlock>
@@ -1081,50 +857,25 @@ function DatoreDetail({
         contentClassName="space-y-4"
       >
         <EditableField label="Tredicesima rateizzata?">
-          <Select
-            value={draft.tredicesimaRateizzata}
-            onValueChange={(value) => {
-              setValue("tredicesimaRateizzata", value)
-              void onAssunzionePatch({ tredicesima_rateizzata_mensile: value || null })
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Si">Si</SelectItem>
-              <SelectItem value="No">No</SelectItem>
-            </SelectContent>
-          </Select>
-        </EditableField>
-        <EditableField label="Ci sono telecamere sul posto di lavoro?">
-          <Select
-            value={draft.telecamerePostoLavoro}
-            onValueChange={(value) => {
-              setValue("telecamerePostoLavoro", value)
-              void onAssunzionePatch({ telecamere_posto_lavoro: value || null })
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Si">Si</SelectItem>
-              <SelectItem value="No">No</SelectItem>
-            </SelectContent>
-          </Select>
-        </EditableField>
-        <EditableField label="Data di assunzione">
-          <Input
-            type="date"
-            value={dataAssunzioneAssD}
-            onChange={(event) => onDataAssunzioneAssDChange(event.target.value)}
+          <FieldSingleSelect
+            name="tredicesima_rateizzata_mensile"
+            placeholder="Seleziona..."
+            options={["Si", "No"]}
           />
         </EditableField>
+        <EditableField label="Ci sono telecamere sul posto di lavoro?">
+          <FieldSingleSelect
+            name="telecamere_posto_lavoro"
+            placeholder="Seleziona..."
+            options={["Si", "No"]}
+          />
+        </EditableField>
+        <EditableField label="Data di assunzione">
+          <FieldInput name="data_assunzione" type="date" />
+        </EditableField>
         <EditableField label="Appunti extra">
-          <Textarea
-            value={appuntiExtraD}
-            onChange={(event) => onAppuntiExtraDChange(event.target.value)}
+          <FieldTextarea
+            name="note_aggiuntive"
             className="min-h-24"
             placeholder="Aggiungi note sul rapporto o sulla pratica"
           />
@@ -1174,6 +925,7 @@ function DatoreDetail({
         />
       </DetailSectionBlock>
     </div>
+    </Form>
   )
 }
 
@@ -1200,124 +952,70 @@ function LavoratoreDetail({
   const lavoratore = card.lavoratore
   const assunzione = card.lavoratoreAssunzione
   const fullName = card.nomeLavoratore
-  const [draft, setDraft] = React.useState(() => ({
-    tipoUtente: assunzione?.type_of_compilazione_form ?? "LAVORATORE",
-    tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
-    cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
-  }))
 
-  React.useEffect(() => {
-    setDraft({
-      tipoUtente: assunzione?.type_of_compilazione_form ?? "LAVORATORE",
-      tipoDocumento: assunzione?.documento_identita_tipo ?? "Carta d'identita",
-      cittadinoExtracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
-    })
-    // Resync only on identity change of related entities.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assunzione?.id, card.id, lavoratore?.id, rapporto?.id])
-
-  const setValue = (key: keyof typeof draft, value: string) =>
-    setDraft((current) => ({ ...current, [key]: value }))
-
-  const { value: nomeL, onChange: onNomeLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_nome ?? lavoratore?.nome ?? fullName.split(" ")[0] ?? "",
-    async (value) => { await onLavoratorePatch({ nome: value || null }) }
-  )
-
-  const { value: cognomeL, onChange: onCognomeLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_cognome ?? lavoratore?.cognome ?? fullName.split(" ").slice(1).join(" ") ?? "",
-    async (value) => { await onLavoratorePatch({ cognome: value || null }) }
-  )
-
-  const { value: emailL, onChange: onEmailLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_email ?? lavoratore?.email ?? "",
-    async (value) => { await onLavoratorePatch({ email: value || null }) }
-  )
-
-  const { value: cellulareL, onChange: onCellulareLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_numero_mobile ?? lavoratore?.telefono ?? "",
-    async (value) => { await onLavoratorePatch({ telefono: value || null }) }
-  )
-
-  const { value: cittadinanzaL, onChange: onCittadinanzaLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_cittadidanza ?? lavoratore?.nazionalita ?? "",
-    async (value) => {
+  // FASE 5 BIS — form + autosave: unica source of truth per i campi editabili
+  // del lavoratore. Sostituisce i ~18 useDebouncedSave + draft/setDraft per i
+  // Select. onSave instrada per chiave a 2 target: nome/cognome/email/telefono
+  // → onLavoratorePatch (lavoratori), il resto → onLavoratoreAssunzionePatch
+  // (assunzioni). Due campi a doppio target come l'originale: cittadinanza →
+  // nazionalita + info_anagrafiche_cittadidanza, dati_bancari → iban +
+  // dati_bancari_lavoratore. Resync realtime senza clobber: keepDirtyValues.
+  const form = useAutoSaveForm({
+    defaults: {
+      nome: assunzione?.info_anagrafiche_nome ?? lavoratore?.nome ?? fullName.split(" ")[0] ?? "",
+      cognome:
+        assunzione?.info_anagrafiche_cognome ??
+        lavoratore?.cognome ??
+        fullName.split(" ").slice(1).join(" ") ??
+        "",
+      email: assunzione?.info_anagrafiche_email ?? lavoratore?.email ?? "",
+      telefono: assunzione?.info_anagrafiche_numero_mobile ?? lavoratore?.telefono ?? "",
+      cittadinanza: assunzione?.info_anagrafiche_cittadidanza ?? lavoratore?.nazionalita ?? "",
+      data_assunzione: rapporto?.data_inizio_rapporto ?? "",
+      type_of_compilazione_form: assunzione?.type_of_compilazione_form ?? "LAVORATORE",
+      documento_identita_tipo: assunzione?.documento_identita_tipo ?? "Carta d'identita",
+      cittadino_extracomunitario: assunzione?.cittadino_extracomunitario ?? "No",
+      info_anagrafiche_codice_fiscale: assunzione?.info_anagrafiche_codice_fiscale ?? "",
+      info_anagrafiche_numero_fisso: assunzione?.info_anagrafiche_numero_fisso ?? "",
+      info_anagrafiche_data_di_nascita: assunzione?.info_anagrafiche_data_di_nascita ?? "",
+      info_anagrafiche_luogo_di_nascita: assunzione?.info_anagrafiche_luogo_di_nascita ?? "",
+      info_anagrafiche_indirizzo: assunzione?.info_anagrafiche_indirizzo ?? "",
+      info_anagrafiche_civico: assunzione?.info_anagrafiche_civico ?? "",
+      info_anagrafiche_localita: assunzione?.info_anagrafiche_localita ?? "",
+      info_anagrafiche_cap: assunzione?.info_anagrafiche_cap ?? "",
+      documento_identita_numero: assunzione?.documento_identita_numero ?? "",
+      documento_identita_scadenza: assunzione?.documento_identita_scadenza ?? "",
+      dati_bancari: lavoratore?.iban ?? assunzione?.dati_bancari_lavoratore ?? "",
+      note_aggiuntive: "",
+    },
+    onSave: async (patch) => {
+      const lavoratoreKeys = new Set(["nome", "cognome", "email", "telefono"])
+      const lavoratorePatch: Record<string, unknown> = {}
+      const assunzionePatch: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(patch)) {
+        const next = (value as string) || null
+        if (lavoratoreKeys.has(key)) {
+          lavoratorePatch[key] = next
+        } else if (key === "cittadinanza") {
+          lavoratorePatch.nazionalita = next
+          assunzionePatch.info_anagrafiche_cittadidanza = next
+        } else if (key === "dati_bancari") {
+          lavoratorePatch.iban = next
+          assunzionePatch.dati_bancari_lavoratore = next
+        } else {
+          assunzionePatch[key] = next
+        }
+      }
       await Promise.all([
-        onLavoratorePatch({ nazionalita: value || null }),
-        onLavoratoreAssunzionePatch({ info_anagrafiche_cittadidanza: value || null }),
+        Object.keys(lavoratorePatch).length > 0
+          ? onLavoratorePatch(lavoratorePatch)
+          : Promise.resolve(),
+        Object.keys(assunzionePatch).length > 0
+          ? onLavoratoreAssunzionePatch(assunzionePatch)
+          : Promise.resolve(),
       ])
-    }
-  )
-
-  const { value: dataAssunzioneL, onChange: onDataAssunzioneLChange } = useDebouncedSave(
-    rapporto?.data_inizio_rapporto ?? "",
-    async (value) => { await onLavoratoreAssunzionePatch({ data_assunzione: value || null }) }
-  )
-
-  const { value: codiceFiscaleL, onChange: onCodiceFiscaleLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_codice_fiscale ?? "",
-    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_codice_fiscale: value || null }) }
-  )
-
-  const { value: telefonoFissoL, onChange: onTelefonoFissoLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_numero_fisso ?? "",
-    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_numero_fisso: value || null }) }
-  )
-
-  const { value: dataNascitaL, onChange: onDataNascitaLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_data_di_nascita ?? "",
-    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_data_di_nascita: value || null }) }
-  )
-
-  const { value: luogoNascitaL, onChange: onLuogoNascitaLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_luogo_di_nascita ?? "",
-    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_luogo_di_nascita: value || null }) }
-  )
-
-  const { value: indirizzoResidenzaL, onChange: onIndirizzoResidenzaLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_indirizzo ?? "",
-    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_indirizzo: value || null }) }
-  )
-
-  const { value: civicoL, onChange: onCivicoLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_civico ?? "",
-    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_civico: value || null }) }
-  )
-
-  const { value: localitaL, onChange: onLocalitaLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_localita ?? "",
-    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_localita: value || null }) }
-  )
-
-  const { value: capL, onChange: onCapLChange } = useDebouncedSave(
-    assunzione?.info_anagrafiche_cap ?? "",
-    async (value) => { await onLavoratoreAssunzionePatch({ info_anagrafiche_cap: value || null }) }
-  )
-
-  const { value: numeroDocumentoL, onChange: onNumeroDocumentoLChange } = useDebouncedSave(
-    assunzione?.documento_identita_numero ?? "",
-    async (value) => { await onLavoratoreAssunzionePatch({ documento_identita_numero: value || null }) }
-  )
-
-  const { value: scadenzaDocumentoL, onChange: onScadenzaDocumentoLChange } = useDebouncedSave(
-    assunzione?.documento_identita_scadenza ?? "",
-    async (value) => { await onLavoratoreAssunzionePatch({ documento_identita_scadenza: value || null }) }
-  )
-
-  const { value: datiBancariL, onChange: onDatiBancariLChange } = useDebouncedSave(
-    lavoratore?.iban ?? assunzione?.dati_bancari_lavoratore ?? "",
-    async (value) => {
-      await Promise.all([
-        onLavoratorePatch({ iban: value || null }),
-        onLavoratoreAssunzionePatch({ dati_bancari_lavoratore: value || null }),
-      ])
-    }
-  )
-
-  const { value: appuntiExtraL, onChange: onAppuntiExtraLChange } = useDebouncedSave(
-    "",
-    async (value) => { await onLavoratoreAssunzionePatch({ note_aggiuntive: value || null }) }
-  )
+    },
+  })
 
   const documentoIdentitaAllegati =
     collectDocumentAttachments(documents, [
@@ -1341,6 +1039,7 @@ function LavoratoreDetail({
     )
 
   return (
+    <Form {...form}>
     <div className="space-y-5">
       <DetailSectionBlock
         title="Riepilogo lavoratore"
@@ -1348,41 +1047,22 @@ function LavoratoreDetail({
         contentClassName="grid gap-4 md:grid-cols-2"
       >
         <EditableField label="Nome">
-          <Input
-            value={nomeL}
-            onChange={(event) => onNomeLChange(event.target.value)}
-          />
+          <FieldInput name="nome" />
         </EditableField>
         <EditableField label="Cognome">
-          <Input
-            value={cognomeL}
-            onChange={(event) => onCognomeLChange(event.target.value)}
-          />
+          <FieldInput name="cognome" />
         </EditableField>
         <EditableField label="Email">
-          <Input
-            value={emailL}
-            onChange={(event) => onEmailLChange(event.target.value)}
-          />
+          <FieldInput name="email" />
         </EditableField>
         <EditableField label="Cellulare">
-          <Input
-            value={cellulareL}
-            onChange={(event) => onCellulareLChange(event.target.value)}
-          />
+          <FieldInput name="telefono" />
         </EditableField>
         <EditableField label="Cittadinanza">
-          <Input
-            value={cittadinanzaL}
-            onChange={(event) => onCittadinanzaLChange(event.target.value)}
-          />
+          <FieldInput name="cittadinanza" />
         </EditableField>
         <EditableField label="Data assunzione">
-          <Input
-            type="date"
-            value={dataAssunzioneL}
-            onChange={(event) => onDataAssunzioneLChange(event.target.value)}
-          />
+          <FieldInput name="data_assunzione" type="date" />
         </EditableField>
       </DetailSectionBlock>
 
@@ -1392,126 +1072,64 @@ function LavoratoreDetail({
         contentClassName="space-y-4"
       >
         <EditableField label="Tipo utente">
-          <SingleSelectField
-            value={draft.tipoUtente}
+          <FieldSingleSelect
+            name="type_of_compilazione_form"
             placeholder="Seleziona tipo utente"
             options={TIPO_UTENTE_OPTIONS}
-            onValueChange={(value) => {
-              setValue("tipoUtente", value)
-              void onLavoratoreAssunzionePatch({ type_of_compilazione_form: value || null })
-            }}
           />
         </EditableField>
         <div className="grid gap-4 md:grid-cols-2">
           <EditableField label="Nome">
-            <Input
-              value={nomeL}
-              onChange={(event) => onNomeLChange(event.target.value)}
-            />
+            <FieldInput name="nome" />
           </EditableField>
           <EditableField label="Cognome">
-            <Input
-              value={cognomeL}
-              onChange={(event) => onCognomeLChange(event.target.value)}
-            />
+            <FieldInput name="cognome" />
           </EditableField>
           <EditableField label="Codice fiscale">
-            <Input
-              value={codiceFiscaleL}
-              onChange={(event) => onCodiceFiscaleLChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_codice_fiscale" />
           </EditableField>
           <EditableField label="Cittadinanza">
-            <Input
-              value={cittadinanzaL}
-              onChange={(event) => onCittadinanzaLChange(event.target.value)}
-            />
+            <FieldInput name="cittadinanza" />
           </EditableField>
           <EditableField label="Email">
-            <Input
-              value={emailL}
-              onChange={(event) => onEmailLChange(event.target.value)}
-            />
+            <FieldInput name="email" />
           </EditableField>
           <EditableField label="Cellulare">
-            <Input
-              value={cellulareL}
-              onChange={(event) => onCellulareLChange(event.target.value)}
-            />
+            <FieldInput name="telefono" />
           </EditableField>
           <EditableField label="Telefono fisso">
-            <Input
-              value={telefonoFissoL}
-              onChange={(event) => onTelefonoFissoLChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_numero_fisso" />
           </EditableField>
           <EditableField label="Data di nascita">
-            <Input
-              type="date"
-              value={dataNascitaL}
-              onChange={(event) => onDataNascitaLChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_data_di_nascita" type="date" />
           </EditableField>
           <EditableField label="Luogo di nascita">
-            <Input
-              value={luogoNascitaL}
-              onChange={(event) => onLuogoNascitaLChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_luogo_di_nascita" />
           </EditableField>
           <EditableField label="Indirizzo di residenza">
-            <Input
-              value={indirizzoResidenzaL}
-              onChange={(event) => onIndirizzoResidenzaLChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_indirizzo" />
           </EditableField>
           <EditableField label="Civico">
-            <Input
-              value={civicoL}
-              onChange={(event) => onCivicoLChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_civico" />
           </EditableField>
           <EditableField label="Localita">
-            <Input
-              value={localitaL}
-              onChange={(event) => onLocalitaLChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_localita" />
           </EditableField>
           <EditableField label="CAP">
-            <Input
-              value={capL}
-              onChange={(event) => onCapLChange(event.target.value)}
-            />
+            <FieldInput name="info_anagrafiche_cap" />
           </EditableField>
           <EditableField label="Tipo documento">
-            <Select
-              value={draft.tipoDocumento}
-              onValueChange={(value) => {
-                setValue("tipoDocumento", value)
-                void onLavoratoreAssunzionePatch({ documento_identita_tipo: value || null })
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona tipo documento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Carta d'identita">Carta d'identita</SelectItem>
-                <SelectItem value="Passaporto">Passaporto</SelectItem>
-                <SelectItem value="Patente">Patente</SelectItem>
-              </SelectContent>
-            </Select>
+            <FieldSingleSelect
+              name="documento_identita_tipo"
+              placeholder="Seleziona tipo documento"
+              options={["Carta d'identita", "Passaporto", "Patente"]}
+            />
           </EditableField>
           <EditableField label="Numero documento">
-            <Input
-              value={numeroDocumentoL}
-              onChange={(event) => onNumeroDocumentoLChange(event.target.value)}
-            />
+            <FieldInput name="documento_identita_numero" />
           </EditableField>
           <EditableField label="Scadenza documento">
-            <Input
-              type="date"
-              value={scadenzaDocumentoL}
-              onChange={(event) => onScadenzaDocumentoLChange(event.target.value)}
-            />
+            <FieldInput name="documento_identita_scadenza" type="date" />
           </EditableField>
         </div>
       </DetailSectionBlock>
@@ -1522,9 +1140,8 @@ function LavoratoreDetail({
         contentClassName="space-y-4"
       >
         <EditableField label="Dati bancari">
-          <Textarea
-            value={datiBancariL}
-            onChange={(event) => onDatiBancariLChange(event.target.value)}
+          <FieldTextarea
+            name="dati_bancari"
             className="min-h-24 font-mono"
             placeholder="IBAN..."
           />
@@ -1537,21 +1154,11 @@ function LavoratoreDetail({
         contentClassName="space-y-4"
       >
         <EditableField label="E extracomunitario?">
-          <Select
-            value={draft.cittadinoExtracomunitario}
-            onValueChange={(value) => {
-              setValue("cittadinoExtracomunitario", value)
-              void onLavoratoreAssunzionePatch({ cittadino_extracomunitario: value || null })
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Si">Si</SelectItem>
-              <SelectItem value="No">No</SelectItem>
-            </SelectContent>
-          </Select>
+          <FieldSingleSelect
+            name="cittadino_extracomunitario"
+            placeholder="Seleziona..."
+            options={["Si", "No"]}
+          />
         </EditableField>
       </DetailSectionBlock>
 
@@ -1561,9 +1168,8 @@ function LavoratoreDetail({
         contentClassName="space-y-4"
       >
         <EditableField label="Appunti extra">
-          <Textarea
-            value={appuntiExtraL}
-            onChange={(event) => onAppuntiExtraLChange(event.target.value)}
+          <FieldTextarea
+            name="note_aggiuntive"
             className="min-h-24"
             placeholder="Aggiungi note sul lavoratore o sulla pratica"
           />
@@ -1605,6 +1211,7 @@ function LavoratoreDetail({
       </DetailSectionBlock>
 
     </div>
+    </Form>
   )
 }
 
@@ -1651,35 +1258,6 @@ export function AssunzioniDetailSheet({
     [onCardChange]
   )
 
-  const makePracticeDraft = React.useCallback(
-    () => ({
-      statoAssunzione: card?.stage ?? "",
-      tipoRapporto: card?.tipoRapporto ?? "",
-      tipoContratto: isValidTipoContratto(card?.rapporto?.tipo_contratto)
-        ? (card?.rapporto?.tipo_contratto ?? "")
-        : "",
-      dataAssunzione: card?.rapporto?.data_inizio_rapporto ?? "",
-      idRapportoInps: card?.rapporto?.id_rapporto ?? "",
-      codiceRapportoWebcolf:
-        typeof card?.rapporto?.codice_datore_webcolf === "number"
-          ? String(card.rapporto.codice_datore_webcolf)
-          : "",
-      codiceLavoratoreWebcolf:
-        typeof card?.rapporto?.codice_dipendente_webcolf === "number"
-          ? String(card.rapporto.codice_dipendente_webcolf)
-          : "",
-    }),
-    [
-      card?.rapporto?.codice_datore_webcolf,
-      card?.rapporto?.codice_dipendente_webcolf,
-      card?.rapporto?.data_inizio_rapporto,
-      card?.rapporto?.id_rapporto,
-      card?.rapporto?.tipo_contratto,
-      card?.stage,
-      card?.tipoRapporto,
-    ]
-  )
-  const [practiceDraft, setPracticeDraft] = React.useState(makePracticeDraft)
   const datoreIsLinked = React.useMemo(
     () => Boolean(card?.assunzione?.id),
     [card]
@@ -1886,15 +1464,6 @@ export function AssunzioniDetailSheet({
   }, [applyCardChange, card, open])
 
   React.useEffect(() => {
-    setPracticeDraft(makePracticeDraft())
-    // Identity-pin to card/rapporto identity (matches sibling effects at
-    // lines 464/774/1194): a realtime echo on any source field of
-    // makePracticeDraft would otherwise wipe in-progress text edits in
-    // idRapportoInps / codiceRapportoWebcolf etc.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card?.id, card?.rapporto?.id])
-
-  React.useEffect(() => {
     let isActive = true
 
     async function loadLookupOptions() {
@@ -2011,6 +1580,63 @@ export function AssunzioniDetailSheet({
     },
     [applyCardChange, card]
   )
+
+  // FASE 5 BIS — form + autosave per la sezione "Contesto pratica" (sostituisce
+  // i 5 DebouncedInput committedValue + practiceDraft/setPracticeDraft + il
+  // resync effect). onSave instrada per chiave a 3 target con le trasformazioni
+  // originali: stato/tipo/data/id/codici → saveRapportoPatch (lookup label per
+  // stato_assunzione/tipo_rapporto, toNullableNumber per i codici), offerta →
+  // saveProcessPatch, fee_concordata → updateRecord("richieste_attivazione")
+  // con la stessa validazione (guard se manca id, skip se non numerico).
+  const richiestaAttivazioneId = card?.richiestaAttivazione?.id
+  const practiceForm = useAutoSaveForm({
+    defaults: {
+      stato_assunzione: card?.stage ?? "",
+      tipo_rapporto: card?.tipoRapporto ?? "",
+      tipo_contratto: isValidTipoContratto(card?.rapporto?.tipo_contratto)
+        ? (card?.rapporto?.tipo_contratto ?? "")
+        : "",
+      data_inizio_rapporto: card?.rapporto?.data_inizio_rapporto ?? "",
+      id_rapporto: card?.rapporto?.id_rapporto ?? "",
+      codice_datore_webcolf:
+        typeof card?.rapporto?.codice_datore_webcolf === "number"
+          ? String(card.rapporto.codice_datore_webcolf)
+          : "",
+      codice_dipendente_webcolf:
+        typeof card?.rapporto?.codice_dipendente_webcolf === "number"
+          ? String(card.rapporto.codice_dipendente_webcolf)
+          : "",
+      offerta: card?.process?.offerta ?? "",
+      fee_concordata:
+        card?.richiestaAttivazione?.fee_concordata != null
+          ? String(card.richiestaAttivazione.fee_concordata)
+          : "",
+    },
+    onSave: async (patch) => {
+      const rapportoPatch: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(patch)) {
+        if (key === "offerta") {
+          await saveProcessPatch({ offerta: (value as string) || null })
+        } else if (key === "fee_concordata") {
+          if (!richiestaAttivazioneId) continue
+          const rawValue = String(value ?? "").trim()
+          const nextValue = rawValue ? Number(rawValue) : null
+          if (rawValue && Number.isNaN(nextValue)) continue
+          await updateRecord("richieste_attivazione", richiestaAttivazioneId, {
+            fee_concordata: nextValue,
+          })
+        } else if (
+          key === "codice_datore_webcolf" ||
+          key === "codice_dipendente_webcolf"
+        ) {
+          rapportoPatch[key] = toNullableNumber(value as string)
+        } else {
+          rapportoPatch[key] = (value as string) || null
+        }
+      }
+      if (Object.keys(rapportoPatch).length > 0) await saveRapportoPatch(rapportoPatch)
+    },
+  })
 
   const saveFamigliaPatch = React.useCallback(
     async (patch: Record<string, unknown>) => {
@@ -2509,6 +2135,7 @@ export function AssunzioniDetailSheet({
   }
 
   return (
+    <Form {...practiceForm}>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
         <SheetHeader className="border-b bg-surface px-5 py-5">
@@ -2553,140 +2180,42 @@ export function AssunzioniDetailSheet({
               >
                 <div className="grid gap-4 md:grid-cols-3">
                   <EditableField label="Stato assunzione">
-                    <Select
-                      value={getLookupSelectDisplayValue(
-                        practiceDraft.statoAssunzione,
-                        statoAssunzioneOptions
-                      )}
-                      onValueChange={(value) => {
-                        const nextValue = getLookupLabelForSave(value, statoAssunzioneOptions)
-                        setPracticeDraft((current) => ({
-                          ...current,
-                          statoAssunzione: nextValue,
-                        }))
-                        void saveRapportoPatch({ stato_assunzione: nextValue || null })
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona stato" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statoAssunzioneOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FieldLookupSelect
+                      name="stato_assunzione"
+                      options={statoAssunzioneOptions}
+                      placeholder="Seleziona stato"
+                    />
                   </EditableField>
                   <EditableField label="Tipologia contratto">
-                    <SingleSelectField
-                      value={practiceDraft.tipoContratto}
+                    <FieldSingleSelect
+                      name="tipo_contratto"
                       placeholder="Seleziona tipologia contratto"
                       options={TIPO_CONTRATTO_OPTIONS}
-                      onValueChange={(value) => {
-                        setPracticeDraft((current) => ({
-                          ...current,
-                          tipoContratto: value,
-                        }))
-                        void saveRapportoPatch({
-                          tipo_contratto: value || null,
-                        })
-                      }}
                     />
                   </EditableField>
                   <EditableField label="Tipo rapporto">
-                    <Select
-                      value={getLookupSelectDisplayValue(
-                        practiceDraft.tipoRapporto,
-                        tipoRapportoOptions
-                      )}
-                      onValueChange={(value) => {
-                        const nextValue = getLookupLabelForSave(value, tipoRapportoOptions)
-                        setPracticeDraft((current) => ({
-                          ...current,
-                          tipoRapporto: nextValue,
-                        }))
-                        void saveRapportoPatch({ tipo_rapporto: nextValue || null })
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona tipo rapporto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tipoRapportoOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FieldLookupSelect
+                      name="tipo_rapporto"
+                      options={tipoRapportoOptions}
+                      placeholder="Seleziona tipo rapporto"
+                    />
                   </EditableField>
                   <EditableField label="Data di assunzione">
-                    <DebouncedInput
-                      type="date"
-                      committedValue={practiceDraft.dataAssunzione}
-                      onSave={async (value) => {
-                        setPracticeDraft((current) => ({
-                          ...current,
-                          dataAssunzione: value,
-                        }))
-                        await saveRapportoPatch({
-                          data_inizio_rapporto: value || null,
-                        })
-                      }}
-                    />
+                    <FieldInput name="data_inizio_rapporto" type="date" />
                   </EditableField>
                   <EditableField label="ID rapporto INPS">
-                    <DebouncedInput
-                      committedValue={practiceDraft.idRapportoInps}
-                      onSave={async (value) => {
-                        setPracticeDraft((current) => ({
-                          ...current,
-                          idRapportoInps: value,
-                        }))
-                        await saveRapportoPatch({
-                          id_rapporto: value || null,
-                        })
-                      }}
-                    />
+                    <FieldInput name="id_rapporto" />
                   </EditableField>
                   <EditableField label="Cod. Rapporto WebColf">
-                    <DebouncedInput
-                      type="number"
-                      committedValue={practiceDraft.codiceRapportoWebcolf}
-                      onSave={async (value) => {
-                        setPracticeDraft((current) => ({
-                          ...current,
-                          codiceRapportoWebcolf: value,
-                        }))
-                        await saveRapportoPatch({
-                          codice_datore_webcolf: toNullableNumber(value),
-                        })
-                      }}
-                    />
+                    <FieldInput name="codice_datore_webcolf" type="number" />
                   </EditableField>
                   <EditableField label="Fee concordata">
-                    <DebouncedInput
-                      key={card.richiestaAttivazione?.id ?? "no-richiesta"}
+                    <FieldInput
+                      name="fee_concordata"
                       type="number"
                       step="0.01"
-                      committedValue={
-                        card.richiestaAttivazione?.fee_concordata != null
-                          ? String(card.richiestaAttivazione.fee_concordata)
-                          : ""
-                      }
                       placeholder="-"
-                      onSave={async (value) => {
-                        const richiestaId = card.richiestaAttivazione?.id
-                        if (!richiestaId) return
-                        const rawValue = value.trim()
-                        const nextValue = rawValue ? Number(rawValue) : null
-                        if (rawValue && Number.isNaN(nextValue)) return
-                        await updateRecord("richieste_attivazione", richiestaId, {
-                          fee_concordata: nextValue,
-                        })
-                      }}
+                      disabled={!card.richiestaAttivazione?.id}
                     />
                   </EditableField>
                   <EditableField label="URL origine">
@@ -2706,43 +2235,15 @@ export function AssunzioniDetailSheet({
                     )}
                   </EditableField>
                   <EditableField label="Sconto applicato">
-                    <Select
-                      value={getLookupSelectDisplayValue(
-                        card.process?.offerta,
-                        currentOffertaOptions
-                      )}
-                      onValueChange={(value) => {
-                        const nextValue = getLookupLabelForSave(value, currentOffertaOptions)
-                        void saveProcessPatch({ offerta: nextValue || null })
-                      }}
+                    <FieldLookupSelect
+                      name="offerta"
+                      options={currentOffertaOptions}
+                      placeholder="Seleziona sconto"
                       disabled={!card.process?.id}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona sconto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {currentOffertaOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                   </EditableField>
                   <EditableField label="Cod. Lavoratore WebColf">
-                    <DebouncedInput
-                      type="number"
-                      committedValue={practiceDraft.codiceLavoratoreWebcolf}
-                      onSave={async (value) => {
-                        setPracticeDraft((current) => ({
-                          ...current,
-                          codiceLavoratoreWebcolf: value,
-                        }))
-                        await saveRapportoPatch({
-                          codice_dipendente_webcolf: toNullableNumber(value),
-                        })
-                      }}
-                    />
+                    <FieldInput name="codice_dipendente_webcolf" type="number" />
                   </EditableField>
                 </div>
                 {practiceError ? (
@@ -2868,6 +2369,7 @@ export function AssunzioniDetailSheet({
         )}
       </SheetContent>
     </Sheet>
+    </Form>
   )
 }
 

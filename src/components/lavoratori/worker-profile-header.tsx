@@ -18,6 +18,7 @@ import {
   VenusAndMarsIcon,
 } from "lucide-react"
 import { toast } from "sonner"
+import { useController } from "react-hook-form"
 
 import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import { Avatar } from "@/components/ui/avatar"
@@ -38,8 +39,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { useDebouncedSave } from "@/hooks/use-debounced-save"
+import { FieldInput, FieldTextarea } from "@/components/forms/field-components"
+import { Form } from "@/components/ui/form"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { cn } from "@/lib/utils"
 import {
   asString,
@@ -123,7 +125,7 @@ function initialsFromName(name: string) {
   )
 }
 
-function buildDraft(row: LavoratoreRecord): WorkerProfileHeaderDraft {
+function buildFormDefaults(row: LavoratoreRecord): WorkerProfileHeaderDraft {
   return {
     nome: asString(row.nome),
     cognome: asString(row.cognome),
@@ -192,6 +194,52 @@ function selectedOptionValue(selected: string | null, options: LookupOption[]) {
   return getLookupSelectValue(selected, options, "none")
 }
 
+// FASE 5 BIS — Select lookup (sesso/nazionalita) agganciato al form. La chiave
+// del form contiene la LABEL DB (così i defaults da workerRow.X funzionano e
+// onSave la passa direttamente a onPatchField). Il wrapper preserva il mapping
+// label DB ↔ option-value (getLookupSelectValue / getLookupLabelForSave),
+// resolveLookupSingleValueOptions per le opzioni e l'opzione "none" → "".
+function FieldLookupSelect({
+  name,
+  options,
+  placeholder,
+  emptyLabel,
+  triggerClassName,
+  disabled,
+}: {
+  name: string
+  options: LookupOption[]
+  placeholder: string
+  emptyLabel: string
+  triggerClassName?: string
+  disabled?: boolean
+}) {
+  const { field } = useController({ name })
+  const stored = typeof field.value === "string" ? field.value : ""
+  const resolvedOptions = resolveLookupSingleValueOptions(stored || null, options)
+  return (
+    <Select
+      value={getLookupSelectValue(stored, resolvedOptions, "none")}
+      onValueChange={(next) =>
+        field.onChange(next === "none" ? "" : getLookupLabelForSave(next, resolvedOptions))
+      }
+      disabled={disabled}
+    >
+      <SelectTrigger className={triggerClassName}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">{emptyLabel}</SelectItem>
+        {resolvedOptions.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 export function WorkerProfileHeader({
   worker,
   workerRow,
@@ -226,17 +274,6 @@ export function WorkerProfileHeader({
   const disponibilita = asString(workerRow.disponibilita)
   const motivazione = readArrayStrings(workerRow.motivazione_non_idoneo)[0] ?? null
   const [isEditing, setIsEditing] = React.useState(false)
-  const [draft, setDraft] = React.useState<WorkerProfileHeaderDraft>(() =>
-    buildDraft(workerRow)
-  )
-
-  // Sync the draft from the server row ONLY when the user is not currently
-  // editing the header. Without this guard, a Realtime echo (e.g. a colleague
-  // saving on another tab) would overwrite the user's in-progress edits.
-  React.useEffect(() => {
-    if (isEditing) return
-    setDraft(buildDraft(workerRow))
-  }, [workerRow, isEditing])
 
   React.useEffect(() => {
     setIsEditing(false)
@@ -296,53 +333,28 @@ export function WorkerProfileHeader({
     dataRitornoDisponibilitaDisabled ?? !onDataRitornoDisponibilitaChange
   const resolvedMotivazioneDisabled = motivazioneDisabled ?? !onMotivazioneChange
 
-  const updateDraftField = React.useCallback(
-    (field: WorkerProfileHeaderField, value: string) => {
-      setDraft((current) => ({
-        ...current,
-        [field]: value,
-      }))
+  // FASE 5 BIS — form + autosave. I defaults sono i valori server del record
+  // (gli stessi init dei vecchi useDebouncedSave). onSave instrada ogni chiave
+  // cambiata a onPatchField con le STESSE trasformazioni dell'originale:
+  //  - testi → value.trim() || null
+  //  - data_di_nascita → value || null
+  //  - sesso/nazionalita (lookup) → la chiave del form contiene già la label DB
+  //    (i wrapper sotto convertono option-value ↔ label), "" → null.
+  const form = useAutoSaveForm<WorkerProfileHeaderDraft>({
+    defaults: buildFormDefaults(workerRow),
+    onSave: async (patch) => {
+      for (const [key, rawValue] of Object.entries(patch)) {
+        const field = key as WorkerProfileHeaderField
+        const value = typeof rawValue === "string" ? rawValue : ""
+        if (field === "data_di_nascita") {
+          await onPatchField?.(field, value || null)
+        } else {
+          // testi + lookup (sesso/nazionalita): la label DB è già nel form.
+          await onPatchField?.(field, value.trim() || null)
+        }
+      }
     },
-    []
-  )
-
-  const { value: nomeValue, onChange: onNomeChange } = useDebouncedSave(
-    asString(workerRow.nome),
-    async (value) => { await onPatchField?.("nome", value.trim() || null) }
-  )
-  const { value: cognomeValue, onChange: onCognomeChange } = useDebouncedSave(
-    asString(workerRow.cognome),
-    async (value) => { await onPatchField?.("cognome", value.trim() || null) }
-  )
-  const { value: descrizioneValue, onChange: onDescrizioneChange } = useDebouncedSave(
-    asString(workerRow.descrizione_pubblica),
-    async (value) => { await onPatchField?.("descrizione_pubblica", value.trim() || null) }
-  )
-  const { value: emailValue, onChange: onEmailChange } = useDebouncedSave(
-    asString(workerRow.email),
-    async (value) => { await onPatchField?.("email", value.trim() || null) }
-  )
-  const { value: telefonoValue, onChange: onTelefonoChange } = useDebouncedSave(
-    asString(workerRow.telefono),
-    async (value) => { await onPatchField?.("telefono", value.trim() || null) }
-  )
-  const { value: sessoInputValue, onChange: onSessoInputChange } = useDebouncedSave(
-    asString(workerRow.sesso),
-    async (value) => { await onPatchField?.("sesso", value.trim() || null) }
-  )
-  const { value: dataNascitaValue, onChange: onDataNascitaChange } = useDebouncedSave(
-    asString(workerRow.data_di_nascita),
-    async (value) => { await onPatchField?.("data_di_nascita", value || null) }
-  )
-
-  const handleLookupFieldChange = React.useCallback(
-    async (field: "sesso" | "nazionalita", value: string, options: LookupOption[]) => {
-      const nextValue = value === "none" ? "" : getLookupLabelForSave(value, options)
-      updateDraftField(field, nextValue)
-      await onPatchField?.(field, nextValue || null)
-    },
-    [onPatchField, updateDraftField]
-  )
+  })
 
   const renderInlineLookupSelect = (
     label: string,
@@ -383,6 +395,7 @@ export function WorkerProfileHeader({
   )
 
   return (
+    <Form {...form}>
     <div className="flex items-start gap-4">
       <div className="flex shrink-0 flex-col items-start gap-2 self-start">
         {isEditing && presentationPhotoSlots.length > 0 ? (
@@ -497,16 +510,14 @@ export function WorkerProfileHeader({
             <div className="flex min-w-0 items-start gap-2">
               {isEditing ? (
                 <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-                  <Input
-                    value={nomeValue}
-                    onChange={(event) => onNomeChange(event.target.value)}
+                  <FieldInput
+                    name="nome"
                     disabled={fieldsDisabled}
                     placeholder="Nome"
                     className="w-40"
                   />
-                  <Input
-                    value={cognomeValue}
-                    onChange={(event) => onCognomeChange(event.target.value)}
+                  <FieldInput
+                    name="cognome"
                     disabled={fieldsDisabled}
                     placeholder="Cognome"
                     className="w-40"
@@ -551,9 +562,8 @@ export function WorkerProfileHeader({
             </div>
 
             {isEditing ? (
-              <Textarea
-                value={descrizioneValue}
-                onChange={(event) => onDescrizioneChange(event.target.value)}
+              <FieldTextarea
+                name="descrizione_pubblica"
                 disabled={fieldsDisabled}
                 className="mt-2 min-h-20"
               />
@@ -620,10 +630,9 @@ export function WorkerProfileHeader({
           <span className="inline-flex items-center gap-1.5 min-w-0">
             <MailIcon className="size-3.5 shrink-0" />
             {isEditing ? (
-              <Input
+              <FieldInput
+                name="email"
                 type="email"
-                value={emailValue}
-                onChange={(event) => onEmailChange(event.target.value)}
                 disabled={fieldsDisabled}
                 className="w-64"
               />
@@ -635,10 +644,9 @@ export function WorkerProfileHeader({
           <span className="inline-flex items-center gap-1.5">
             <PhoneIcon className="size-3.5 shrink-0" />
             {isEditing ? (
-              <Input
+              <FieldInput
+                name="telefono"
                 type="tel"
-                value={telefonoValue}
-                onChange={(event) => onTelefonoChange(event.target.value)}
                 disabled={fieldsDisabled}
                 className="w-40"
               />
@@ -656,29 +664,17 @@ export function WorkerProfileHeader({
             <VenusAndMarsIcon className="size-3.5 shrink-0" />
             {isEditing ? (
               canUseSessoSelect ? (
-                <Select
-                  value={getLookupSelectValue(draft.sesso, resolvedSessoOptions, "none")}
-                  onValueChange={(value) =>
-                    void handleLookupFieldChange("sesso", value, resolvedSessoOptions)
-                  }
+                <FieldLookupSelect
+                  name="sesso"
+                  options={resolvedSessoOptions}
+                  placeholder="Sesso"
+                  emptyLabel="Non indicato"
+                  triggerClassName="w-36"
                   disabled={fieldsDisabled}
-                >
-                  <SelectTrigger className="w-36">
-                    <SelectValue placeholder="Sesso" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Non indicato</SelectItem>
-                    {resolvedSessoOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               ) : (
-                <Input
-                  value={sessoInputValue}
-                  onChange={(event) => onSessoInputChange(event.target.value)}
+                <FieldInput
+                  name="sesso"
                   disabled={fieldsDisabled}
                   placeholder="Sesso"
                   className="w-36"
@@ -692,25 +688,14 @@ export function WorkerProfileHeader({
           <span className="inline-flex items-center gap-1.5">
             <FlagIcon className="size-3.5 shrink-0" />
             {isEditing ? (
-              <Select
-                value={getLookupSelectValue(draft.nazionalita, resolvedNazionalitaOptions, "none")}
-                onValueChange={(value) =>
-                  void handleLookupFieldChange("nazionalita", value, resolvedNazionalitaOptions)
-                }
+              <FieldLookupSelect
+                name="nazionalita"
+                options={resolvedNazionalitaOptions}
+                placeholder="Nazionalita"
+                emptyLabel="Non indicata"
+                triggerClassName="w-44"
                 disabled={fieldsDisabled}
-              >
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder="Nazionalita" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Non indicata</SelectItem>
-                  {resolvedNazionalitaOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             ) : (
               <span>{asString(workerRow.nazionalita) || "-"}</span>
             )}
@@ -719,10 +704,9 @@ export function WorkerProfileHeader({
           <span className="inline-flex items-center gap-1.5">
             <CalendarDaysIcon className="size-3.5 shrink-0" />
             {isEditing ? (
-              <Input
+              <FieldInput
+                name="data_di_nascita"
                 type="date"
-                value={dataNascitaValue}
-                onChange={(event) => onDataNascitaChange(event.target.value)}
                 disabled={fieldsDisabled}
                 className="w-40"
               />
@@ -820,5 +804,6 @@ export function WorkerProfileHeader({
         </div>
       </div>
     </div>
+    </Form>
   )
 }

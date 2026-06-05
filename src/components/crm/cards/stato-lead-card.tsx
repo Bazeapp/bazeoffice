@@ -22,12 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/hooks/use-crm-pipeline-preview";
-import { useDebouncedSave } from "@/hooks/use-debounced-save";
+import { useController } from "react-hook-form";
+import { Form } from "@/components/ui/form";
+import { FieldTextarea, FieldDatePicker } from "@/components/forms/field-components";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 
 type StatoLeadCardProps = {
   card: CrmPipelineCardData | null;
@@ -57,17 +59,6 @@ function renderValue(value: string | null | undefined) {
   if (!value) return "-";
   const normalized = value.trim();
   return normalized ? normalized : "-";
-}
-
-function toIsoDate(value: string) {
-  const normalized = value.trim();
-  const parts = normalized.split("/");
-  if (parts.length !== 3) return normalized || null;
-  const day = parts[0]?.padStart(2, "0");
-  const month = parts[1]?.padStart(2, "0");
-  const year = parts[2];
-  if (!day || !month || !year) return null;
-  return `${year}-${month}-${day}`;
 }
 
 function hasValue(value: string | null | undefined) {
@@ -324,6 +315,28 @@ function ChoiceFieldSet({
   );
 }
 
+// FASE 5 BIS — thin wrapper form-aware del ChoiceFieldSet locale: si auto-aggancia
+// al form via useController (preserva resolveOptions/selectedOptionValue interni).
+function FieldChoiceSet({
+  name,
+  title,
+  options,
+}: {
+  name: string;
+  title: string;
+  options: LookupOption[];
+}) {
+  const { field } = useController({ name });
+  return (
+    <ChoiceFieldSet
+      title={title}
+      selected={typeof field.value === "string" ? field.value : ""}
+      options={options}
+      onValueChange={field.onChange}
+    />
+  );
+}
+
 function StageRules({ lines }: { lines: string[] }) {
   return (
     <FieldGroup>
@@ -336,6 +349,22 @@ function StageRules({ lines }: { lines: string[] }) {
   );
 }
 
+function normalizeFieldValue(value: string | null | undefined) {
+  return value && value !== "-" ? value : "";
+}
+
+// FASE 5 BIS — defaults del form (chiavi = nomi colonna DB).
+function buildStatoLeadDefaults(card: CrmPipelineCardData | null) {
+  return {
+    appunti_chiamata_sales: normalizeFieldValue(card?.appuntiChiamataSales),
+    sales_cold_call_followup: normalizeFieldValue(card?.salesColdCallFollowup),
+    sales_no_show_followup: normalizeFieldValue(card?.salesNoShowFollowup),
+    motivazione_lost: normalizeFieldValue(card?.motivazioneLost),
+    motivazione_oot: normalizeFieldValue(card?.motivazioneOot),
+    data_per_ricerca_futura: normalizeFieldValue(card?.dataPerRicercaFutura),
+  };
+}
+
 export function StatoLeadCard({
   card,
   lookupOptionsByField,
@@ -345,18 +374,20 @@ export function StatoLeadCard({
   onChangeStage,
   onPatchProcess,
 }: StatoLeadCardProps) {
-  // Source of truth = card prop (server state). No local mirror so a
-  // Realtime refetch can't reset the user's selection.
-  const dataRicontatto = card?.dataPerRicercaFutura ?? "-";
-
-  const { value: noteStato, onChange: onNoteStatoChange } = useDebouncedSave(
-    card?.appuntiChiamataSales === "-" ? "" : (card?.appuntiChiamataSales ?? ""),
-    async (value) => {
-      if (card && onPatchProcess) {
-        await onPatchProcess(card.id, { appunti_chiamata_sales: value || null })
+  // FASE 5 BIS — form + autosave in un hook. Il form è la source of truth dei
+  // campi editabili; useAutoSaveForm persiste i cambi e gestisce il resync
+  // realtime senza clobberare gli edit in corso.
+  const form = useAutoSaveForm({
+    defaults: buildStatoLeadDefaults(card),
+    onSave: async (patch) => {
+      if (!card || !onPatchProcess) return;
+      const out: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(patch)) {
+        out[key] = value ? value : null; // "" → null (clear campo)
       }
-    }
-  );
+      await onPatchProcess(card.id, out);
+    },
+  });
 
   if (!card) {
     return null;
@@ -368,15 +399,10 @@ export function StatoLeadCard({
     case "hot_in_attesa_di_primo_contatto":
       content = (
         <FieldSet>
-          <ChoiceFieldSet
+          <FieldChoiceSet
+            name="sales_cold_call_followup"
             title="Tentativi di chiamata"
-            selected={card.salesColdCallFollowup}
             options={lookupOptionsByField.sales_cold_call_followup ?? []}
-            onValueChange={(next) => {
-              void onPatchProcess?.(card.id, {
-                sales_cold_call_followup: next || null,
-              });
-            }}
           />
         </FieldSet>
       );
@@ -424,15 +450,10 @@ export function StatoLeadCard({
     case "hot_no_show":
       content = (
         <FieldSet>
-          <ChoiceFieldSet
+          <FieldChoiceSet
+            name="sales_no_show_followup"
             title="Tentativi di chiamata"
-            selected={card.salesNoShowFollowup}
             options={lookupOptionsByField.sales_no_show_followup ?? []}
-            onValueChange={(next) => {
-              void onPatchProcess?.(card.id, {
-                sales_no_show_followup: next || null,
-              });
-            }}
           />
         </FieldSet>
       );
@@ -441,23 +462,14 @@ export function StatoLeadCard({
     case "lost":
       content = (
         <FieldGroup>
-          <ChoiceFieldSet
+          <FieldChoiceSet
+            name="motivazione_lost"
             title="Motivazione"
-            selected={card.motivazioneLost}
             options={lookupOptionsByField.motivazione_lost ?? []}
-            onValueChange={(next) => {
-              void onPatchProcess?.(card.id, {
-                motivazione_lost: next || null,
-              });
-            }}
           />
           <Field>
             <FieldLabel htmlFor="note-lost">Note</FieldLabel>
-            <Textarea
-              id="note-lost"
-              value={noteStato}
-              onChange={(event) => onNoteStatoChange(event.target.value)}
-            />
+            <FieldTextarea id="note-lost" name="appunti_chiamata_sales" />
           </Field>
         </FieldGroup>
       );
@@ -466,23 +478,14 @@ export function StatoLeadCard({
     case "out_of_target":
       content = (
         <FieldGroup>
-          <ChoiceFieldSet
+          <FieldChoiceSet
+            name="motivazione_oot"
             title="Motivazione"
-            selected={card.motivazioneOot}
             options={lookupOptionsByField.motivazione_oot ?? []}
-            onValueChange={(next) => {
-              void onPatchProcess?.(card.id, {
-                motivazione_oot: next || null,
-              });
-            }}
           />
           <Field>
             <FieldLabel htmlFor="note-oot">Note</FieldLabel>
-            <Textarea
-              id="note-oot"
-              value={noteStato}
-              onChange={(event) => onNoteStatoChange(event.target.value)}
-            />
+            <FieldTextarea id="note-oot" name="appunti_chiamata_sales" />
           </Field>
         </FieldGroup>
       );
@@ -493,22 +496,11 @@ export function StatoLeadCard({
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="data-ricontatto">Data ricontatto</FieldLabel>
-            <DatePicker
-              value={dataRicontatto === "-" ? "" : dataRicontatto}
-              onValueChange={(next) => {
-                void onPatchProcess?.(card.id, {
-                  data_per_ricerca_futura: next ? toIsoDate(next) : null,
-                });
-              }}
-            />
+            <FieldDatePicker name="data_per_ricerca_futura" />
           </Field>
           <Field>
             <FieldLabel htmlFor="note-cold">Note</FieldLabel>
-            <Textarea
-              id="note-cold"
-              value={noteStato}
-              onChange={(event) => onNoteStatoChange(event.target.value)}
-            />
+            <FieldTextarea id="note-cold" name="appunti_chiamata_sales" />
           </Field>
         </FieldGroup>
       );
@@ -541,6 +533,7 @@ export function StatoLeadCard({
   const resolvedTitle = title ?? (showStageField ? "Stato Lead" : getContextualCardTitle(card.stage));
 
   return (
+    <Form {...form}>
     <CrmDetailCard title={resolvedTitle} titleAction={titleAction}>
       <FieldGroup>
         {showStageField ? (
@@ -584,5 +577,6 @@ export function StatoLeadCard({
         {content}
       </FieldGroup>
     </CrmDetailCard>
+    </Form>
   );
 }

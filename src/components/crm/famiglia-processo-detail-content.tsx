@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useDebouncedSave } from "@/hooks/use-debounced-save"
+import { useController } from "react-hook-form"
 import {
   BriefcaseBusinessIcon,
   CalendarIcon,
@@ -32,7 +32,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Form } from "@/components/ui/form"
+import { FieldInput } from "@/components/forms/field-components"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { OnboardingContextCard } from "@/components/crm/cards/onboarding-context-card"
 import { CreazioneAnnuncioCard } from "@/components/crm/cards/creazione-annuncio-card"
 import {
@@ -205,110 +207,43 @@ function splitReferenteName(value: string) {
   }
 }
 
-type HeaderInlineFieldProps = {
-  label: string
-  value: string | null | undefined
-  icon: React.ComponentType<{ className?: string }>
-  editing: boolean
-  autoFocus?: boolean
-  inputType?: React.HTMLInputTypeAttribute
-  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]
-  onSave: (nextValue: string) => void | Promise<void>
-  normalize?: (value: string) => string
-  validate?: (value: string) => string | null
-}
-
-function HeaderInlineField({
+// FASE 5 BIS — campo inline header form-aware. Quando `editing` mostra il
+// FieldInput agganciato al form (debounce + resync senza clobber); altrimenti il
+// testo read-only. normalize/validate/save vivono ora in onSave del form, per
+// chiave: qui resta solo la UI (icona, Enter/Escape) e il display del valore
+// corrente del form quando non in editing.
+function FieldHeaderInline({
+  name,
   label,
-  value,
   icon: Icon,
   editing,
   autoFocus = false,
   inputType = "text",
   inputMode,
-  onSave,
-  normalize,
-  validate,
-}: HeaderInlineFieldProps) {
-  const inputRef = React.useRef<HTMLInputElement | null>(null)
-  const [saving, setSaving] = React.useState(false)
-
-  const { value: hookDraft, onChange: debouncedSave } = useDebouncedSave(
-    editableValue(value),
-    async (v) => {
-      const normalized = normalize ? normalize(v.trim()) : v.trim()
-      const currentValue = editableValue(value)
-      if (normalized === currentValue) return
-      const errorMessage = validate?.(normalized) ?? null
-      if (errorMessage) { toast.error(errorMessage); return }
-      await onSave(normalized)
-    },
-  )
-
-  React.useEffect(() => {
-    if (!editing || !autoFocus) return
-    inputRef.current?.focus()
-    inputRef.current?.select()
-  }, [autoFocus, editing])
-
-  const cancel = React.useCallback(() => {
-    debouncedSave(editableValue(value))
-  }, [debouncedSave, value])
-
-  const commit = React.useCallback(async () => {
-    const normalized = normalize ? normalize(hookDraft.trim()) : hookDraft.trim()
-    const currentValue = editableValue(value)
-    if (normalized === currentValue) {
-      return
-    }
-
-    const errorMessage = validate?.(normalized) ?? null
-    if (errorMessage) {
-      toast.error(errorMessage)
-      window.setTimeout(() => inputRef.current?.focus(), 0)
-      return
-    }
-
-    setSaving(true)
-    try {
-      await onSave(normalized)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Errore salvataggio campo")
-      window.setTimeout(() => inputRef.current?.focus(), 0)
-    } finally {
-      setSaving(false)
-    }
-  }, [hookDraft, normalize, onSave, validate, value])
+}: {
+  name: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  editing: boolean
+  autoFocus?: boolean
+  inputType?: React.HTMLInputTypeAttribute
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]
+}) {
+  const { field } = useController({ name })
+  const currentValue = typeof field.value === "string" ? field.value : ""
 
   if (editing) {
     return (
       <span className="inline-flex min-w-44 items-center gap-1.5">
         <Icon className="text-muted-foreground size-3.5 shrink-0" />
-        <Input
-          ref={inputRef}
+        <FieldInput
+          name={name}
           type={inputType}
           inputMode={inputMode}
           aria-label={label}
-          value={hookDraft}
-          disabled={saving}
+          autoFocus={autoFocus}
           className="h-7 min-w-0 px-2 text-xs"
-          onChange={(event) => {
-            debouncedSave(event.target.value)
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault()
-              void commit()
-            }
-            if (event.key === "Escape") {
-              event.preventDefault()
-              cancel()
-            }
-          }}
         />
-        {saving ? (
-          <CheckIcon className="text-muted-foreground size-3.5 shrink-0" />
-        ) : null}
       </span>
     )
   }
@@ -316,7 +251,7 @@ function HeaderInlineField({
   return (
     <span className="text-muted-foreground inline-flex min-w-0 items-center gap-1.5 text-xs">
       <Icon className="size-3.5 shrink-0" />
-      <span className="truncate">{renderValue(value)}</span>
+      <span className="truncate">{renderValue(currentValue)}</span>
     </span>
   )
 }
@@ -478,26 +413,30 @@ function normalizeLookupMultiValues(
   return result
 }
 
-type HeaderLookupMultiSelectProps = {
-  value: string[]
-  options: LookupOptionsByField[string]
-  colorsByValue: Record<string, string | null>
-  disabled: boolean
-  placeholder: string
-  icon: React.ComponentType<{ className?: string }>
-  onChange: (values: string[]) => void
-}
-
-function HeaderLookupMultiSelect({
-  value,
+// FASE 5 BIS — multi-select tipo_lavoro form-aware (label[]). Legge/scrive il
+// campo via useController; l'onChange originale (onPatchProcess) è ora in onSave.
+function FieldHeaderLookupMultiSelect({
+  name,
   options,
   colorsByValue,
   disabled,
   placeholder,
   icon: Icon,
-  onChange,
-}: HeaderLookupMultiSelectProps) {
+}: {
+  name: string
+  options: LookupOptionsByField[string]
+  colorsByValue: Record<string, string | null>
+  disabled: boolean
+  placeholder: string
+  icon: React.ComponentType<{ className?: string }>
+}) {
   const anchor = useComboboxAnchor()
+  const { field } = useController({ name })
+  const value = React.useMemo(
+    () => (Array.isArray(field.value) ? (field.value as string[]) : []),
+    [field.value]
+  )
+  const onChange = (values: string[]) => field.onChange(values)
   const normalizedValue = React.useMemo(
     () => normalizeLookupMultiValues(value, options),
     [options, value]
@@ -578,6 +517,53 @@ function HeaderLookupMultiSelect({
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
+  )
+}
+
+// FASE 5 BIS — Select tipo_rapporto form-aware (label↔key). Il form memorizza la
+// LABEL (come l'originale salvava { tipo_rapporto: [label] }); l'onSave instrada.
+function FieldHeaderRapportoSelect({
+  name,
+  options,
+  colorClassName,
+  disabled,
+}: {
+  name: string
+  options: LookupOptionsByField[string]
+  colorClassName: string
+  disabled: boolean
+}) {
+  const { field } = useController({ name })
+  const current = typeof field.value === "string" ? field.value : ""
+  return (
+    <Select
+      value={getSelectedLookupValue(current, options) || undefined}
+      onValueChange={(nextValue) => {
+        if (!nextValue) return
+        const label =
+          options.find((o) => o.valueKey === nextValue)?.valueLabel ?? nextValue
+        field.onChange(label)
+      }}
+      disabled={disabled}
+    >
+      <SelectTrigger
+        className={cn(
+          "h-7 w-auto gap-1.5 rounded-full pl-2.5 pr-1.5 text-xs font-medium shadow-none",
+          "[&_svg]:!text-current",
+          colorClassName
+        )}
+      >
+        <Clock3Icon className="size-3.5 shrink-0" />
+        <SelectValue placeholder="Tipo rapporto" />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.valueKey} value={option.valueKey}>
+            {option.valueLabel}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 
@@ -724,6 +710,77 @@ export function FamigliaProcessoDetailContent({
       setIsDuplicating(false)
     }
   }, [card?.id, isDuplicating])
+
+  // FASE 5 BIS — form + autosave dei campi header gestiti a mano in questo file
+  // (i 3 HeaderInlineField via useDebouncedSave + i 2 badge tipo lavoro/rapporto).
+  // onSave instrada per chiave a 2 target con le STESSE trasformazioni:
+  //  - referente/email/telefono → onPatchFamily (split nome/cognome, normalize +
+  //    validate con toast inline, skip se invalido);
+  //  - tipo_lavoro/tipo_rapporto → onPatchProcess (label[], [label]).
+  // I campi onboarding/stato lead restano nei loro componenti figli (non qui).
+  const familyId = card?.famigliaId
+  const processId = card?.id
+  const form = useAutoSaveForm({
+    defaults: {
+      nomeFamiglia: editableValue(card?.nomeFamiglia),
+      email: editableValue(card?.email),
+      telefono: editableValue(card?.telefono),
+      tipo_lavoro: card?.tipoLavoroBadges ?? [],
+      tipo_rapporto: card?.tipoRapportoBadge ?? "",
+    },
+    onSave: async (patch) => {
+      const familyPatch: Record<string, unknown> = {}
+      const processPatch: Record<string, unknown> = {}
+
+      for (const [key, value] of Object.entries(patch)) {
+        if (key === "nomeFamiglia") {
+          const normalized = String(value ?? "").replace(/\s+/g, " ").trim()
+          if (!normalized) {
+            toast.error("Il nome referente non puo essere vuoto")
+            continue
+          }
+          Object.assign(familyPatch, splitReferenteName(normalized))
+        } else if (key === "email") {
+          const normalized = String(value ?? "").trim().toLowerCase()
+          if (!normalized) {
+            toast.error("L'email famiglia non puo essere vuota")
+            continue
+          }
+          if (!isValidEmail(normalized)) {
+            toast.error("Email famiglia non valida")
+            continue
+          }
+          familyPatch.email = normalized
+        } else if (key === "telefono") {
+          const normalized = normalizePhoneValue(String(value ?? ""))
+          if (!normalized) {
+            toast.error("Il telefono famiglia non puo essere vuoto")
+            continue
+          }
+          if (!validatePhoneValue(normalized)) {
+            toast.error(
+              "Telefono famiglia non valido: usa formato internazionale, es. +393331234567"
+            )
+            continue
+          }
+          familyPatch.telefono = normalized
+        } else if (key === "tipo_lavoro") {
+          processPatch.tipo_lavoro = Array.isArray(value) ? value : []
+        } else if (key === "tipo_rapporto") {
+          const label = String(value ?? "").trim()
+          processPatch.tipo_rapporto = label ? [label] : []
+        }
+      }
+
+      if (Object.keys(familyPatch).length > 0 && familyId && familyId !== "-") {
+        await onPatchFamily?.(familyId, familyPatch)
+      }
+      if (Object.keys(processPatch).length > 0 && processId) {
+        await onPatchProcess?.(processId, processPatch)
+      }
+    },
+  })
+
   const [announcementMissingFields, setAnnouncementMissingFields] = React.useState<
     AnnouncementRequiredField[]
   >([])
@@ -946,6 +1003,7 @@ export function FamigliaProcessoDetailContent({
   }, [card?.id, visibleTabs, isActive])
 
   return (
+    <Form {...form}>
     <section
       ref={detailScrollRef}
       className={cn("bg-surface-muted relative h-full min-h-0 overflow-y-auto", className)}
@@ -1030,56 +1088,28 @@ export function FamigliaProcessoDetailContent({
                 </SelectContent>
               </Select>
 
-              <HeaderInlineField
+              <FieldHeaderInline
+                name="nomeFamiglia"
                 label="referente famiglia"
-                value={card?.nomeFamiglia}
                 icon={UsersIcon}
                 editing={isEditingFamilyHeader}
                 autoFocus
-                normalize={(nextValue) => nextValue.replace(/\s+/g, " ").trim()}
-                validate={(nextValue) =>
-                  nextValue ? null : "Il nome referente non puo essere vuoto"
-                }
-                onSave={async (nextValue) => {
-                  if (!card?.famigliaId || card.famigliaId === "-") return
-                  await onPatchFamily?.(card.famigliaId, splitReferenteName(nextValue))
-                }}
               />
-              <HeaderInlineField
+              <FieldHeaderInline
+                name="email"
                 label="email famiglia"
-                value={card?.email}
                 icon={MailIcon}
                 editing={isEditingFamilyHeader}
                 inputType="email"
                 inputMode="email"
-                normalize={(nextValue) => nextValue.trim().toLowerCase()}
-                validate={(nextValue) => {
-                  if (!nextValue) return "L'email famiglia non puo essere vuota"
-                  return isValidEmail(nextValue) ? null : "Email famiglia non valida"
-                }}
-                onSave={async (nextValue) => {
-                  if (!card?.famigliaId || card.famigliaId === "-") return
-                  await onPatchFamily?.(card.famigliaId, { email: nextValue })
-                }}
               />
-              <HeaderInlineField
+              <FieldHeaderInline
+                name="telefono"
                 label="telefono famiglia"
-                value={card?.telefono}
                 icon={PhoneIcon}
                 editing={isEditingFamilyHeader}
                 inputType="tel"
                 inputMode="tel"
-                normalize={normalizePhoneValue}
-                validate={(nextValue) => {
-                  if (!nextValue) return "Il telefono famiglia non puo essere vuoto"
-                  return validatePhoneValue(nextValue)
-                    ? null
-                    : "Telefono famiglia non valido: usa formato internazionale, es. +393331234567"
-                }}
-                onSave={async (nextValue) => {
-                  if (!card?.famigliaId || card.famigliaId === "-") return
-                  await onPatchFamily?.(card.famigliaId, { telefono: nextValue })
-                }}
               />
               <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
                 <MapPinnedIcon className="size-3.5 shrink-0" />
@@ -1094,48 +1124,21 @@ export function FamigliaProcessoDetailContent({
 
           {showPrimaryControls ? (
             <div className="flex flex-wrap items-center gap-2">
-              <HeaderLookupMultiSelect
-                value={card?.tipoLavoroBadges ?? []}
+              <FieldHeaderLookupMultiSelect
+                name="tipo_lavoro"
                 options={tipoLavoroOptions}
                 colorsByValue={card?.tipoLavoroColors ?? {}}
                 placeholder="Tipo lavoro"
                 icon={BriefcaseBusinessIcon}
-                onChange={(nextValues) => {
-                  if (!card) return
-                  void onPatchProcess?.(card.id, { tipo_lavoro: nextValues })
-                }}
                 disabled={!canEditStatoLead}
               />
 
-              <Select
-                value={getSelectedLookupValue(card?.tipoRapportoBadge, tipoRapportoOptions)}
-                onValueChange={(nextValue) => {
-                  if (!card || !nextValue) return
-                  const label =
-                    tipoRapportoOptions.find((o) => o.valueKey === nextValue)
-                      ?.valueLabel ?? nextValue
-                  void onPatchProcess?.(card.id, { tipo_rapporto: [label] })
-                }}
+              <FieldHeaderRapportoSelect
+                name="tipo_rapporto"
+                options={tipoRapportoOptions}
+                colorClassName={getBadgeClassName(card?.tipoRapportoColor)}
                 disabled={!canEditStatoLead}
-              >
-                <SelectTrigger
-                  className={cn(
-                    "h-7 w-auto gap-1.5 rounded-full pl-2.5 pr-1.5 text-xs font-medium shadow-none",
-                    "[&_svg]:!text-current",
-                    getBadgeClassName(card?.tipoRapportoColor)
-                  )}
-                >
-                  <Clock3Icon className="size-3.5 shrink-0" />
-                  <SelectValue placeholder="Tipo rapporto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tipoRapportoOptions.map((option) => (
-                    <SelectItem key={option.valueKey} value={option.valueKey}>
-                      {option.valueLabel}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
           ) : null}
 
@@ -1274,5 +1277,6 @@ export function FamigliaProcessoDetailContent({
         ) : null}
       </div>
     </section>
+    </Form>
   )
 }

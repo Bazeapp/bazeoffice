@@ -13,6 +13,7 @@ import {
   asInputValue,
   asString,
   formatWorkerLocationLabel,
+  normalizeDomesticRoleDbLabel,
   normalizeDomesticRoleLabels,
   readArrayStrings,
   toListItem,
@@ -141,6 +142,7 @@ const WORKER_FILTER_FIELD_NAMES = [
 function inferWorkerFilterType(name: string): TableColumnMeta["filterType"] {
   if (name === "id") return "id"
   const n = name.trim().toLowerCase()
+  if (n.startsWith("anni_")) return "number"
   const dateLike =
     !n.endsWith("_id") &&
     (n.startsWith("data_") ||
@@ -1174,14 +1176,25 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
       const domain = `lavoratori.${column.name}`
       const options = lookupOptionsByDomain.get(domain) ?? []
       const resolvedFilterType = lookupFilterTypeByDomain.get(domain) ?? column.filterType
+      // The DB stores value_label (not value_key) for lookup-backed fields. Use
+      // label as the filter option value so filter conditions match the stored value.
+      // tipo_lavoro_domestico stores canonical DB labels via normalizeDomesticRoleDbLabel
+      // (e.g. "Colf / Pulizie", "Assistenza Domestica / Badante").
+      const filterOptions =
+        resolvedFilterType === "enum" || resolvedFilterType === "multi_enum"
+          ? options.map((opt) => ({
+              value:
+                column.name === "tipo_lavoro_domestico"
+                  ? normalizeDomesticRoleDbLabel(opt.label)
+                  : opt.label,
+              label: opt.label,
+            }))
+          : undefined
       return {
         label: toReadableColumnLabel(column.name),
         value: column.name,
         type: resolvedFilterType,
-        options:
-          resolvedFilterType === "enum" || resolvedFilterType === "multi_enum"
-            ? options
-            : undefined,
+        options: filterOptions,
       } satisfies FilterField
     })
   }, [lookupFilterTypeByDomain, lookupOptionsByDomain, workersColumns])
