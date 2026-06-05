@@ -519,7 +519,6 @@ export function Gate1View({
   const [gateDraft, setGateDraft] = React.useState({
     referenteIdoneita: "",
     referenteCertificazione: "",
-    followupStatus: "",
     descrizionePubblica: "",
     livelloItaliano: "",
     ratingAtteggiamento: "",
@@ -1204,7 +1203,6 @@ export function Gate1View({
       referenteCertificazione: asString(
         selectedWorkerRow?.referente_certificazione_id,
       ),
-      followupStatus: asString(selectedWorkerRow?.followup_chiamata_idoneita),
       descrizionePubblica: asString(selectedWorkerRow?.descrizione_pubblica),
       livelloItaliano: asString(selectedWorkerRow?.livello_italiano),
       ratingAtteggiamento: asInputValue(
