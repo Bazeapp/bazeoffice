@@ -22,7 +22,9 @@ import {
   fetchContributiInpsByIds,
   fetchRapportiLavorativiByIds,
 } from "@/lib/anagrafiche-api"
-import { useDebouncedSave } from "@/hooks/use-debounced-save"
+import { Form } from "@/components/ui/form"
+import { FieldInput } from "@/components/forms/field-components"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import {
   buildAttachmentPayload,
   normalizeAttachmentArray,
@@ -39,7 +41,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
@@ -242,35 +243,31 @@ export function ContributoInpsDetailSheet({
     setIsUploadingAttachment(false)
   }, [card?.id, card?.stage])
 
-  const { value: importoValue, onChange: onImportoChange } = useDebouncedSave(
-    card?.record.importo_contributi_inps?.toString() ?? "",
-    async (value) => {
+  // FASE 5 BIS — form + autosave (sostituisce i 3 useDebouncedSave). onSave
+  // instrada su onPatchCard(card.id, …) con le trasformazioni originali
+  // (parseNullableNumber per gli importi, ||null per la data). Il dirty-tracking
+  // del form sostituisce le guardie "skip se invariato".
+  const form = useAutoSaveForm({
+    defaults: {
+      importo_contributi_inps: card?.record.importo_contributi_inps?.toString() ?? "",
+      valore_pagopa: card?.record.valore_pagopa?.toString() ?? "",
+      data_invio_famiglia: toInputDateValue(card?.record.data_invio_famiglia),
+    },
+    onSave: async (patch) => {
       if (!card) return
-      const nextValue = parseNullableNumber(value)
-      if ((card.record.importo_contributi_inps ?? null) === nextValue) return
-      await onPatchCard(card.id, { importo_contributi_inps: nextValue })
-    }
-  )
-
-  const { value: pagopaValue, onChange: onPagopaChange } = useDebouncedSave(
-    card?.record.valore_pagopa?.toString() ?? "",
-    async (value) => {
-      if (!card) return
-      const nextValue = parseNullableNumber(value)
-      if ((card.record.valore_pagopa ?? null) === nextValue) return
-      await onPatchCard(card.id, { valore_pagopa: nextValue })
-    }
-  )
-
-  const { value: dataInvioValue, onChange: onDataInvioChange } = useDebouncedSave(
-    toInputDateValue(card?.record.data_invio_famiglia),
-    async (value) => {
-      if (!card) return
-      const nextValue = value || null
-      if ((card.record.data_invio_famiglia ?? null) === nextValue) return
-      await onPatchCard(card.id, { data_invio_famiglia: nextValue })
-    }
-  )
+      const out: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(patch)) {
+        out[key] =
+          key === "data_invio_famiglia"
+            ? (value as string) || null
+            : parseNullableNumber(value as string)
+      }
+      await onPatchCard(
+        card.id,
+        out as Partial<ContributoInpsBoardCardData["record"]>,
+      )
+    },
+  })
 
   const handleStageValueChange = React.useCallback(
     async (nextValue: string) => {
@@ -357,7 +354,7 @@ export function ContributoInpsDetailSheet({
   }, [open])
 
   return (
-    <>
+    <Form {...form}>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
           <SheetHeader className="border-b bg-surface px-5 py-5">
@@ -412,29 +409,23 @@ export function ContributoInpsDetailSheet({
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Importo contributo INPS</p>
-                      <Input
+                      <FieldInput
+                        name="importo_contributi_inps"
                         type="number"
                         step="0.01"
-                        value={importoValue}
-                        onChange={(event) => onImportoChange(event.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Valore PagoPA</p>
-                      <Input
+                      <FieldInput
+                        name="valore_pagopa"
                         type="number"
                         step="0.01"
-                        value={pagopaValue}
-                        onChange={(event) => onPagopaChange(event.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Data invio famiglia</p>
-                      <Input
-                        type="date"
-                        value={dataInvioValue}
-                        onChange={(event) => onDataInvioChange(event.target.value)}
-                      />
+                      <FieldInput name="data_invio_famiglia" type="date" />
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Creato il</p>
@@ -493,7 +484,7 @@ export function ContributoInpsDetailSheet({
           ) : null}
         </DialogContent>
       </Dialog>
-    </>
+    </Form>
   )
 }
 
