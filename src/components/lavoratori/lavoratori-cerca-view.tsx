@@ -80,7 +80,6 @@ import {
   normalizeAttachmentArray,
 } from "@/lib/attachments";
 import { invokeAiGenerationFunction } from "@/lib/ai-generation";
-import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { FieldInput } from "@/components/forms/field-components";
 import { Form } from "@/components/ui/form";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
@@ -401,6 +400,19 @@ type NonQualificatoFormDraft = {
   tipo_lavoro_domestico: string[];
   anni_esperienza_colf: string;
   anni_esperienza_babysitter: string;
+};
+
+// FASE 5 BIS — campi di dettaglio del lavoratore che pilotano card condivise
+// (header/esperienze/documenti) via useController.
+type LeadDetailFormDraft = {
+  data_ritorno_disponibilita: string;
+  anni_esperienza_colf: string;
+  anni_esperienza_badante: string;
+  anni_esperienza_babysitter: string;
+  situazione_lavorativa_attuale: string;
+  data_scadenza_naspi: string;
+  iban: string;
+  id_stripe_account: string;
 };
 
 // Select "documenti_in_regola": il value memorizzato è la LABEL DB (come
@@ -1038,38 +1050,120 @@ export function LavoratoriCercaView({
 
   const operatorName = useCurrentOperatorName();
 
-  const { value: dataRitornoLCVValue, onChange: saveDataRitornoLCV } = useDebouncedSave(
-    asString(selectedWorkerRow?.data_ritorno_disponibilita),
-    async (v) => { await patchWorkerAvailabilityStatus({ data_ritorno_disponibilita: v || null }); },
-  );
-  const { value: anniEsperienzaColfValue, onChange: saveAnniEsperienzaColf } = useDebouncedSave(
-    asInputValue(selectedWorkerRow?.anni_esperienza_colf),
-    async (v) => { await patchSelectedWorkerField("anni_esperienza_colf", v ? Number(v) : null); },
-  );
-  const { value: anniEsperienzaBadanteValue, onChange: saveAnniEsperienzaBadante } = useDebouncedSave(
-    asInputValue(selectedWorkerRow?.anni_esperienza_badante),
-    async (v) => { await patchSelectedWorkerField("anni_esperienza_badante", v ? Number(v) : null); },
-  );
-  const { value: anniEsperienzaBabysitterValue, onChange: saveAnniEsperienzaBabysitter } = useDebouncedSave(
-    asInputValue(selectedWorkerRow?.anni_esperienza_babysitter),
-    async (v) => { await patchSelectedWorkerField("anni_esperienza_babysitter", v ? Number(v) : null); },
-  );
-  const { value: situazioneLavorativaAttualeValue, onChange: saveSituazioneLavorativaAttuale } = useDebouncedSave(
-    asString(selectedWorkerRow?.situazione_lavorativa_attuale),
-    async (v) => { await patchSelectedWorkerField("situazione_lavorativa_attuale", v.trim() || null); },
-  );
-  const { value: naspiLCVValue, onChange: saveNaspiLCV } = useDebouncedSave(
-    asString(selectedWorkerRow?.data_scadenza_naspi),
-    async (v) => { await patchDocumentField("data_scadenza_naspi", v || null); },
-  );
-  const { value: ibanLCVValue, onChange: saveIbanLCV } = useDebouncedSave(
-    resolvedIban,
-    async (v) => { await patchDocumentField("iban", v || null); },
-  );
-  const { value: stripeAccountLCVValue, onChange: saveStripeAccountLCV } = useDebouncedSave(
-    asString(selectedWorkerRow?.id_stripe_account),
-    async (v) => { await patchDocumentField("id_stripe_account", v || null); },
-  );
+  // FASE 5 BIS — form autosave per i campi di dettaglio del lavoratore che
+  // alimentano card presentazionali condivise (WorkerProfileHeader, esperienze,
+  // documenti/amministrativi). Le card espongono `value`/`onChange`, quindi ogni
+  // campo è agganciato al form via useController: `field.onChange` emette un vero
+  // evento "change" -> l'autosave scatta (a differenza di setValue), niente
+  // clobber sul resync realtime. onSave instrada ogni chiave cambiata alla STESSA
+  // patch fn con le STESSE trasformazioni dei vecchi useDebouncedSave.
+  const leadDetailForm = useAutoSaveForm<LeadDetailFormDraft>({
+    defaults: {
+      data_ritorno_disponibilita: asString(
+        selectedWorkerRow?.data_ritorno_disponibilita,
+      ),
+      anni_esperienza_colf: asInputValue(
+        selectedWorkerRow?.anni_esperienza_colf,
+      ),
+      anni_esperienza_badante: asInputValue(
+        selectedWorkerRow?.anni_esperienza_badante,
+      ),
+      anni_esperienza_babysitter: asInputValue(
+        selectedWorkerRow?.anni_esperienza_babysitter,
+      ),
+      situazione_lavorativa_attuale: asString(
+        selectedWorkerRow?.situazione_lavorativa_attuale,
+      ),
+      data_scadenza_naspi: asString(selectedWorkerRow?.data_scadenza_naspi),
+      iban: resolvedIban,
+      id_stripe_account: asString(selectedWorkerRow?.id_stripe_account),
+    },
+    onSave: async (patch) => {
+      for (const [key, rawValue] of Object.entries(patch)) {
+        const v = typeof rawValue === "string" ? rawValue : "";
+        switch (key) {
+          case "data_ritorno_disponibilita":
+            await patchWorkerAvailabilityStatus({
+              data_ritorno_disponibilita: v || null,
+            });
+            break;
+          case "anni_esperienza_colf":
+            await patchSelectedWorkerField(
+              "anni_esperienza_colf",
+              v ? Number(v) : null,
+            );
+            break;
+          case "anni_esperienza_badante":
+            await patchSelectedWorkerField(
+              "anni_esperienza_badante",
+              v ? Number(v) : null,
+            );
+            break;
+          case "anni_esperienza_babysitter":
+            await patchSelectedWorkerField(
+              "anni_esperienza_babysitter",
+              v ? Number(v) : null,
+            );
+            break;
+          case "situazione_lavorativa_attuale":
+            await patchSelectedWorkerField(
+              "situazione_lavorativa_attuale",
+              v.trim() || null,
+            );
+            break;
+          case "data_scadenza_naspi":
+            await patchDocumentField("data_scadenza_naspi", v || null);
+            break;
+          case "iban":
+            await patchDocumentField("iban", v || null);
+            break;
+          case "id_stripe_account":
+            await patchDocumentField("id_stripe_account", v || null);
+            break;
+        }
+      }
+    },
+  });
+  const dataRitornoCtrl = useController({
+    name: "data_ritorno_disponibilita",
+    control: leadDetailForm.control,
+  });
+  const anniColfCtrl = useController({
+    name: "anni_esperienza_colf",
+    control: leadDetailForm.control,
+  });
+  const anniBadanteCtrl = useController({
+    name: "anni_esperienza_badante",
+    control: leadDetailForm.control,
+  });
+  const anniBabysitterCtrl = useController({
+    name: "anni_esperienza_babysitter",
+    control: leadDetailForm.control,
+  });
+  const situazioneCtrl = useController({
+    name: "situazione_lavorativa_attuale",
+    control: leadDetailForm.control,
+  });
+  const naspiCtrl = useController({
+    name: "data_scadenza_naspi",
+    control: leadDetailForm.control,
+  });
+  const ibanCtrl = useController({
+    name: "iban",
+    control: leadDetailForm.control,
+  });
+  const stripeAccountCtrl = useController({
+    name: "id_stripe_account",
+    control: leadDetailForm.control,
+  });
+  const dataRitornoLCVValue = dataRitornoCtrl.field.value;
+  const anniEsperienzaColfValue = anniColfCtrl.field.value;
+  const anniEsperienzaBadanteValue = anniBadanteCtrl.field.value;
+  const anniEsperienzaBabysitterValue = anniBabysitterCtrl.field.value;
+  const situazioneLavorativaAttualeValue = situazioneCtrl.field.value;
+  const naspiLCVValue = naspiCtrl.field.value;
+  const ibanLCVValue = ibanCtrl.field.value;
+  const stripeAccountLCVValue = stripeAccountCtrl.field.value;
 
   // FASE 5 BIS — form autosave per il blocco "Non qualificato". I defaults sono
   // i valori server (gli stessi committedValue dei vecchi DebouncedInput/Select).
@@ -1648,7 +1742,9 @@ export function LavoratoriCercaView({
                         disponibilita: value || null,
                       });
                     }}
-                    onDataRitornoDisponibilitaChange={saveDataRitornoLCV}
+                    onDataRitornoDisponibilitaChange={
+                      dataRitornoCtrl.field.onChange
+                    }
                     onMotivazioneChange={(value) =>
                       void handleNonIdoneoReasonsChange(value ? [value] : [])
                     }
@@ -1909,18 +2005,16 @@ export function LavoratoriCercaView({
                     onToggleEdit={() =>
                       setIsEditingExperience((current) => !current)
                     }
-                    onAnniEsperienzaColfChange={(value) => {
-                      saveAnniEsperienzaColf(value);
-                    }}
-                    onAnniEsperienzaBadanteChange={(value) => {
-                      saveAnniEsperienzaBadante(value);
-                    }}
-                    onAnniEsperienzaBabysitterChange={(value) => {
-                      saveAnniEsperienzaBabysitter(value);
-                    }}
-                    onSituazioneLavorativaAttualeChange={(value) => {
-                      saveSituazioneLavorativaAttuale(value);
-                    }}
+                    onAnniEsperienzaColfChange={anniColfCtrl.field.onChange}
+                    onAnniEsperienzaBadanteChange={
+                      anniBadanteCtrl.field.onChange
+                    }
+                    onAnniEsperienzaBabysitterChange={
+                      anniBabysitterCtrl.field.onChange
+                    }
+                    onSituazioneLavorativaAttualeChange={
+                      situazioneCtrl.field.onChange
+                    }
                     onExperiencePatch={(experienceId, patch) =>
                       void patchExperienceRecord(experienceId, patch)
                     }
@@ -2016,15 +2110,9 @@ export function LavoratoriCercaView({
                         value || null,
                       );
                     }}
-                    onNaspiChange={(value) => {
-                      saveNaspiLCV(value);
-                    }}
-                    onIbanChange={(value) => {
-                      saveIbanLCV(value);
-                    }}
-                    onStripeAccountChange={(value) => {
-                      saveStripeAccountLCV(value);
-                    }}
+                    onNaspiChange={naspiCtrl.field.onChange}
+                    onIbanChange={ibanCtrl.field.onChange}
+                    onStripeAccountChange={stripeAccountCtrl.field.onChange}
                     onGenerateStripeAccount={generateStripeAccount}
                     onDocumentUpsert={upsertSelectedWorkerDocument}
                     onUploadError={setError}

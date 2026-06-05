@@ -339,12 +339,16 @@ export default defineConfig([
 
   // FASE 5 BIS — ENFORCEMENT: i file GIÀ convertiti a form-context non possono
   // regredire. Qui i selettori FASE5 (committedValue / import useDebouncedSave)
-  // sono 'error'. La lista esclude i 4 god-component (gate1-view,
-  // lavoratori-cerca-view, ricerca-workers-pipeline-view,
-  // worker-pipeline-summary-cards) che restano 'warn' → scope refactor D2.
+  // sono 'error'. Restano fuori (a 'warn') solo gate1-view (orchestratore con
+  // gateDraft, scope D2) e worker-pipeline-summary-cards (card condivisa) + infra
+  // (debounced-input, field-components, use-debounced-save).
   // Nota flat-config: questo blocco SOSTITUISCE no-restricted-syntax per questi
   // file (le regole FASE 4 a 'warn' non si applicano qui, ma questi file sono
   // già puliti quindi non le violavano).
+  // lavoratori-cerca-view + ricerca-workers-pipeline-view: i campi di dettaglio
+  // sono ora su useAutoSaveForm + useController (FASE 5 BIS). In ricerca resta il
+  // SOLO familyAddressDraft, mirror di display dell'indirizzo processo con save
+  // esplicito e re-sync dai prop (documentato inline): non è un campo form.
   {
     files: [
       'src/components/crm/cards/stato-lead-card.tsx',
@@ -367,6 +371,8 @@ export default defineConfig([
       'src/components/lavoratori/availability-calendar-card.tsx',
       'src/components/lavoratori/experience-references-card.tsx',
       'src/components/lavoratori/worker-profile-header.tsx',
+      'src/components/lavoratori/lavoratori-cerca-view.tsx',
+      'src/components/ricerca/ricerca-workers-pipeline-view.tsx',
     ],
     rules: {
       'no-restricted-syntax': [
