@@ -33,7 +33,7 @@ export default defineConfig([
         'error',
         {
           allowConstantExport: true,
-          allowExportNames: ['useCarousel', 'useComboboxAnchor', 'useField', 'useFormField'],
+          allowExportNames: ['useCarousel', 'useComboboxAnchor', 'useField', 'useFormField', 'useGate1WorkerEditor'],
         },
       ],
     },

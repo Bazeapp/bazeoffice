@@ -107,6 +107,7 @@ import {
   useOperatoriOptions,
 } from "@/hooks/use-operatori-options";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
+import { Gate1WorkerProvider } from "@/components/lavoratori/gate1/gate1-worker-context";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { RecruiterFeedbackButton } from "@/components/lavoratori/recruiter-feedback-sheet";
@@ -2855,6 +2856,24 @@ export function Gate1View({
     [filterFields],
   );
 
+  // D2 — cattura l'oggetto editor per il <Gate1WorkerProvider>: le card estratte
+  // lo consumeranno via useGate1WorkerEditor() invece del prop-drilling.
+  const gate1Editor = useSelectedWorkerEditor({
+    selectedWorkerId,
+    selectedWorker,
+    selectedWorkerRow,
+    selectedWorkerAddress,
+    lookupColorsByDomain,
+    setError,
+    applyUpdatedWorkerRow,
+    applyUpdatedWorkerAddress,
+    applyUpdatedWorkerExperience,
+    appendCreatedWorkerExperience,
+    removeWorkerExperience,
+    applyUpdatedWorkerReference,
+    appendCreatedWorkerReference,
+  });
+
   const {
     selectedWorkerIsNonIdoneo,
     selectedWorkerNonQualificatoIssues,
@@ -2915,21 +2934,7 @@ export function Gate1View({
     AVAILABILITY_EDIT_DAYS,
     AVAILABILITY_EDIT_BANDS,
     AVAILABILITY_HOUR_LABELS,
-  } = useSelectedWorkerEditor({
-    selectedWorkerId,
-    selectedWorker,
-    selectedWorkerRow,
-    selectedWorkerAddress,
-    lookupColorsByDomain,
-    setError,
-    applyUpdatedWorkerRow,
-    applyUpdatedWorkerAddress,
-    applyUpdatedWorkerExperience,
-    appendCreatedWorkerExperience,
-    removeWorkerExperience,
-    applyUpdatedWorkerReference,
-    appendCreatedWorkerReference,
-  });
+  } = gate1Editor;
 
   const { value: anniEsperienzaColfValue, onChange: saveAnniEsperienzaColf } = useDebouncedSave(
     asInputValue(selectedWorkerRow?.anni_esperienza_colf),
@@ -3971,6 +3976,7 @@ export function Gate1View({
   ]);
 
   return (
+    <Gate1WorkerProvider value={gate1Editor}>
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <input
         ref={workerPhotoInputRef}
@@ -5739,5 +5745,6 @@ export function Gate1View({
         ) : null}
       </div>
     </section>
+    </Gate1WorkerProvider>
   );
 }
