@@ -8,7 +8,9 @@ import { FieldLabel } from "@/components/ui/field"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { DebouncedTextarea } from "@/components/ui/debounced-input"
+import { Form } from "@/components/ui/form"
+import { FieldTextarea } from "@/components/forms/field-components"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 
 type AvailabilityEditDay = {
   field: string
@@ -76,9 +78,26 @@ export function AvailabilityCalendarCard({
   onMatrixChange,
   onVincoliChange,
   onVincoliSave,
-  vincoliIdentity,
+  // vincoliIdentity: non più usato — il resync realtime è gestito da
+  // useAutoSaveForm (keyed sui defaults che riflettono vincoliOrari).
+  // Mantenuto nei props/type perché i parent continuano a passarlo.
   children,
 }: AvailabilityCalendarCardProps) {
+  // FASE 5 BIS — form + autosave per "Vincoli orari" (unico campo testo
+  // autosalvabile della card). Il form è la source of truth del campo: il resync
+  // realtime (keyed sui defaults, che riflettono vincoliOrari) sostituisce il
+  // vecchio prop `identity` del DebouncedTextarea. onSave instrada il valore alla
+  // callback di salvataggio che la card già riceve (onVincoliSave).
+  const form = useAutoSaveForm({
+    defaults: { vincoli_orari: vincoliOrari },
+    onSave: async (patch) => {
+      if (!onVincoliSave) return
+      if ("vincoli_orari" in patch) {
+        await onVincoliSave(patch.vincoli_orari ?? "")
+      }
+    },
+  })
+
   const comparisonByDay = React.useMemo(() => {
     const map = new Map<string, boolean[]>()
     for (const row of comparisonRows) {
@@ -89,6 +108,7 @@ export function AvailabilityCalendarCard({
   const hasComparisonRows = comparisonRows.length > 0
 
   return (
+    <Form {...form}>
     <DetailSectionBlock
       title={
         <span className="flex items-center gap-2">
@@ -283,12 +303,8 @@ export function AvailabilityCalendarCard({
           {isEditing ? (
             <div className="w-full max-w-2xl">
               {onVincoliSave ? (
-                <DebouncedTextarea
-                  committedValue={vincoliOrari}
-                  onSave={async (value) => {
-                    await onVincoliSave(value)
-                  }}
-                  identity={vincoliIdentity}
+                <FieldTextarea
+                  name="vincoli_orari"
                   placeholder="Inserisci vincoli orari"
                   rows={3}
                   className="min-h-[5.25rem] w-full text-sm"
@@ -316,5 +332,6 @@ export function AvailabilityCalendarCard({
         {children}
       </div>
     </DetailSectionBlock>
+    </Form>
   )
 }
