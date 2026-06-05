@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import * as CollapsiblePrimitive from "@radix-ui/react-collapsible";
+import { useController } from "react-hook-form";
 import {
   Combobox,
   ComboboxChip,
@@ -35,12 +36,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Form } from "@/components/ui/form";
+import { FieldTextarea } from "@/components/forms/field-components";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { asString, readArrayStrings } from "@/features/lavoratori/lib/base-utils";
 import { romaDateTimeToUtcIso, utcIsoToRomaParts } from "@/lib/datetime";
-import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
   getLookupLabelForSave,
   getLookupOptionLabel,
@@ -54,34 +56,6 @@ type SelectionRow = Record<string, unknown>;
 
 type ScoreCardValue = "Basso" | "Medio" | "Alto";
 
-type SchedaSlotDraft = {
-  inizioData: string;
-  inizioOra: string;
-  fineData: string;
-  fineOra: string;
-};
-
-type SchedaColloquioDraft = {
-  statoSelezione: string;
-  vannoBeneGiorni: string;
-  vannoBeneOrari: string;
-  distanzaImpegni: string;
-  accettaStipendio: string;
-  proMotivazioni: string;
-  aspettiDivergenza: string;
-  scoreDistanzaOrari: ScoreCardValue | "";
-  scoreEsperienze: ScoreCardValue | "";
-  scorePaga9Euro: ScoreCardValue | "";
-  scoreOverall: ScoreCardValue | "";
-  tipologiaIncontro: string;
-  feedbackBaze: string;
-  motivoNonSelezionato: string[];
-  motivoNoMatch: string;
-  dataOraColloquioFamigliaLavoratore: string;
-  colloquioEffettuato: string;
-  slotColloquio: [SchedaSlotDraft, SchedaSlotDraft, SchedaSlotDraft];
-};
-
 type SchedaColloquioPanelProps = {
   selectionRow: SelectionRow;
   nonSelezionatoOptions: LookupOption[];
@@ -93,6 +67,15 @@ type SchedaColloquioPanelProps = {
 };
 
 const SCORE_OPTIONS: ScoreCardValue[] = ["Basso", "Medio", "Alto"];
+
+const SLOT_INDEXES = [0, 1, 2] as const;
+
+const COLLOQUIO_EFFETTUATO_OPTIONS = [
+  "Effettuato",
+  "No show",
+  "Annullato dalla famiglia",
+  "Annullato dal lavoratore",
+] as const;
 
 function toDateInputParts(value: unknown): { date: string; time: string } {
   const raw = asString(value);
@@ -128,21 +111,202 @@ function normalizeStatusToken(value: string) {
     .trim();
 }
 
-function MultiLookupField({
-  value,
+// --- form keys per gli slot (split data/ora; ricomposti in timestamp in onSave) ---
+function slotDataKey(slotIndex: number, boundary: "inizio" | "fine") {
+  return `slot_${slotIndex + 1}_${boundary}_data` as const;
+}
+function slotOraKey(slotIndex: number, boundary: "inizio" | "fine") {
+  return `slot_${slotIndex + 1}_${boundary}_ora` as const;
+}
+function slotTimestampColumn(slotIndex: number, boundary: "inizio" | "fine") {
+  return `disponibilita_colloquio_lavoratore_slot${slotIndex + 1}_${boundary}` as const;
+}
+
+// FASE 5 BIS — defaults del form: chiavi = colonne DB esatte (testo/score/
+// lookup) + chiavi locali split per gli slot (ricomposti in onSave). Stessa
+// init dell'originale (asString, readArrayStrings, toDatetimeLocalValue, ...).
+function buildDefaults(selectionRow: SelectionRow) {
+  const defaults: Record<string, unknown> = {
+    intervista_giorni_lavoro: asString(selectionRow.intervista_giorni_lavoro),
+    intervista_orario_e_giorni: asString(selectionRow.intervista_orario_e_giorni),
+    intervista_distanza: asString(selectionRow.intervista_distanza),
+    intervista_stipendio: asString(selectionRow.intervista_stipendio),
+    intervista_punti_forza: asString(selectionRow.intervista_punti_forza),
+    intervista_punti_debolezza: asString(selectionRow.intervista_punti_debolezza),
+    messaggio_famiglia_selezione_lavoratore: asString(
+      selectionRow.messaggio_famiglia_selezione_lavoratore,
+    ),
+    score_orario_e_giorni:
+      (asString(selectionRow.score_orario_e_giorni) as ScoreCardValue | "") || "",
+    score_esperienze_simili:
+      (asString(selectionRow.score_esperienze_simili) as ScoreCardValue | "") || "",
+    score_stipendio:
+      (asString(selectionRow.score_stipendio) as ScoreCardValue | "") || "",
+    score_job_fit:
+      (asString(selectionRow.score_job_fit) as ScoreCardValue | "") || "",
+    colloquio_effettuato: asString(selectionRow.colloquio_effettuato),
+    motivo_non_selezionato: readArrayStrings(selectionRow.motivo_non_selezionato),
+    motivo_no_match: asString(selectionRow.motivo_no_match),
+    data_ora_colloquio_famiglia_lavoratore: toDatetimeLocalValue(
+      selectionRow.data_ora_colloquio_famiglia_lavoratore,
+    ),
+  };
+
+  for (const slotIndex of SLOT_INDEXES) {
+    const inizio = toDateInputParts(
+      selectionRow[slotTimestampColumn(slotIndex, "inizio")],
+    );
+    const fine = toDateInputParts(
+      selectionRow[slotTimestampColumn(slotIndex, "fine")],
+    );
+    defaults[slotDataKey(slotIndex, "inizio")] = inizio.date;
+    defaults[slotOraKey(slotIndex, "inizio")] = inizio.time;
+    defaults[slotDataKey(slotIndex, "fine")] = fine.date;
+    defaults[slotOraKey(slotIndex, "fine")] = fine.time;
+  }
+
+  return defaults;
+}
+
+const SLOT_FORM_KEYS = new Set<string>(
+  SLOT_INDEXES.flatMap((slotIndex) => [
+    slotDataKey(slotIndex, "inizio"),
+    slotOraKey(slotIndex, "inizio"),
+    slotDataKey(slotIndex, "fine"),
+    slotOraKey(slotIndex, "fine"),
+  ]),
+);
+
+const TEXT_FIELD_KEYS = new Set([
+  "intervista_giorni_lavoro",
+  "intervista_orario_e_giorni",
+  "intervista_distanza",
+  "intervista_stipendio",
+  "intervista_punti_forza",
+  "intervista_punti_debolezza",
+  "messaggio_famiglia_selezione_lavoratore",
+]);
+
+function CollapsibleSection({
+  title,
+  icon: Icon,
+  defaultOpen = true,
+  children,
+}: {
+  title: string;
+  icon: React.ElementType;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = React.useState(defaultOpen);
+
+  return (
+    <CollapsiblePrimitive.Root open={open} onOpenChange={setOpen}>
+      <CollapsiblePrimitive.Trigger className="bg-muted hover:bg-muted/80 sticky top-0 z-10 flex w-full items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold text-foreground transition-colors">
+        <Icon className="text-muted-foreground size-3.5" />
+        <span className="flex-1 text-left">{title}</span>
+        <ChevronDownIcon
+          className={`text-muted-foreground size-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </CollapsiblePrimitive.Trigger>
+      <CollapsiblePrimitive.Content className="space-y-3 px-2 py-3">
+        {children}
+      </CollapsiblePrimitive.Content>
+    </CollapsiblePrimitive.Root>
+  );
+}
+
+// --- FASE 5 BIS — wrapper form-aware locali (Select score con sentinel "none",
+//     Select lookup label↔key, multi-lookup combo, datetime-local). ---
+function FieldLabeledTextarea({
+  name,
+  label,
+  icon: Icon,
+  disabled,
+}: {
+  name: string;
+  label: string;
+  icon: React.ElementType;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-foreground flex items-center gap-2 text-sm font-medium leading-5">
+        <Icon className="text-muted-foreground size-4 shrink-0" />
+        {label}
+      </label>
+      <FieldTextarea
+        name={name}
+        disabled={disabled}
+        className="min-h-27 w-full resize-y text-sm leading-6"
+        placeholder="..."
+      />
+    </div>
+  );
+}
+
+function FieldScoreSelect({
+  name,
+  label,
+  icon: Icon,
+  disabled,
+}: {
+  name: string;
+  label: string;
+  icon: React.ElementType;
+  disabled?: boolean;
+}) {
+  const { field } = useController({ name });
+  const current = typeof field.value === "string" ? field.value : "";
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <label className="text-foreground flex items-center gap-2 text-sm font-medium">
+        <Icon className="text-muted-foreground size-4 shrink-0" />
+        {label}
+      </label>
+      <Select
+        value={current || "none"}
+        onValueChange={(nextValue) => {
+          if (nextValue === "none") return;
+          field.onChange(nextValue as ScoreCardValue);
+        }}
+        disabled={disabled}
+      >
+        <SelectTrigger className="w-45">
+          <SelectValue placeholder="—" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">—</SelectItem>
+          {SCORE_OPTIONS.map((option) => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function FieldMultiLookup({
+  name,
   options,
   disabled,
-  onChange,
 }: {
-  value: string[];
+  name: string;
   options: LookupOption[];
   disabled: boolean;
-  onChange: (values: string[]) => void;
 }) {
+  const { field } = useController({ name });
   const anchor = useComboboxAnchor();
+  const fieldValue = field.value;
   const normalizedValue = React.useMemo(
-    () => normalizeLookupOptionValues(value, options),
-    [options, value],
+    () =>
+      normalizeLookupOptionValues(
+        Array.isArray(fieldValue) ? (fieldValue as string[]) : [],
+        options,
+      ),
+    [options, fieldValue],
   );
 
   return (
@@ -152,7 +316,7 @@ function MultiLookupField({
       items={options.map((option) => option.value)}
       value={normalizedValue}
       onValueChange={(nextValues) =>
-        onChange(normalizeLookupDbLabels(nextValues as string[], options))
+        field.onChange(normalizeLookupDbLabels(nextValues as string[], options))
       }
       disabled={disabled}
     >
@@ -186,173 +350,189 @@ function MultiLookupField({
   );
 }
 
-function buildDraft(selectionRow: SelectionRow): SchedaColloquioDraft {
-  const slot1Inizio = toDateInputParts(
-    selectionRow.disponibilita_colloquio_lavoratore_slot1_inizio,
-  );
-  const slot1Fine = toDateInputParts(
-    selectionRow.disponibilita_colloquio_lavoratore_slot1_fine,
-  );
-  const slot2Inizio = toDateInputParts(
-    selectionRow.disponibilita_colloquio_lavoratore_slot2_inizio,
-  );
-  const slot2Fine = toDateInputParts(
-    selectionRow.disponibilita_colloquio_lavoratore_slot2_fine,
-  );
-  const slot3Inizio = toDateInputParts(
-    selectionRow.disponibilita_colloquio_lavoratore_slot3_inizio,
-  );
-  const slot3Fine = toDateInputParts(
-    selectionRow.disponibilita_colloquio_lavoratore_slot3_fine,
-  );
-
-  return {
-    statoSelezione: asString(selectionRow.stato_selezione),
-    vannoBeneGiorni: asString(selectionRow.intervista_giorni_lavoro),
-    vannoBeneOrari: asString(selectionRow.intervista_orario_e_giorni),
-    distanzaImpegni: asString(selectionRow.intervista_distanza),
-    accettaStipendio: asString(selectionRow.intervista_stipendio),
-    proMotivazioni: asString(selectionRow.intervista_punti_forza),
-    aspettiDivergenza: asString(selectionRow.intervista_punti_debolezza),
-    scoreDistanzaOrari:
-      (asString(selectionRow.score_orario_e_giorni) as ScoreCardValue | "") || "",
-    scoreEsperienze:
-      (asString(selectionRow.score_esperienze_simili) as ScoreCardValue | "") || "",
-    scorePaga9Euro:
-      (asString(selectionRow.score_stipendio) as ScoreCardValue | "") || "",
-    scoreOverall:
-      (asString(selectionRow.score_job_fit) as ScoreCardValue | "") || "",
-    tipologiaIncontro: asString(selectionRow.colloquio_effettuato),
-    feedbackBaze: asString(
-      selectionRow.messaggio_famiglia_selezione_lavoratore,
-    ),
-    motivoNonSelezionato: readArrayStrings(selectionRow.motivo_non_selezionato),
-    motivoNoMatch: asString(selectionRow.motivo_no_match),
-    dataOraColloquioFamigliaLavoratore: toDatetimeLocalValue(
-      selectionRow.data_ora_colloquio_famiglia_lavoratore,
-    ),
-    colloquioEffettuato: asString(selectionRow.colloquio_effettuato),
-    slotColloquio: [
-      {
-        inizioData: slot1Inizio.date,
-        inizioOra: slot1Inizio.time,
-        fineData: slot1Fine.date,
-        fineOra: slot1Fine.time,
-      },
-      {
-        inizioData: slot2Inizio.date,
-        inizioOra: slot2Inizio.time,
-        fineData: slot2Fine.date,
-        fineOra: slot2Fine.time,
-      },
-      {
-        inizioData: slot3Inizio.date,
-        inizioOra: slot3Inizio.time,
-        fineData: slot3Fine.date,
-        fineOra: slot3Fine.time,
-      },
-    ],
-  };
-}
-
-function CollapsibleSection({
-  title,
-  icon: Icon,
-  defaultOpen = true,
-  children,
-}: {
-  title: string;
-  icon: React.ElementType;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = React.useState(defaultOpen);
-
-  return (
-    <CollapsiblePrimitive.Root open={open} onOpenChange={setOpen}>
-      <CollapsiblePrimitive.Trigger className="bg-muted hover:bg-muted/80 sticky top-0 z-10 flex w-full items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold text-foreground transition-colors">
-        <Icon className="text-muted-foreground size-3.5" />
-        <span className="flex-1 text-left">{title}</span>
-        <ChevronDownIcon
-          className={`text-muted-foreground size-3.5 transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </CollapsiblePrimitive.Trigger>
-      <CollapsiblePrimitive.Content className="space-y-3 px-2 py-3">
-        {children}
-      </CollapsiblePrimitive.Content>
-    </CollapsiblePrimitive.Root>
-  );
-}
-
-function LabeledTextarea({
-  label,
-  icon: Icon,
-  value,
-  onChange,
+function FieldNoMatchSelect({
+  name,
+  options,
   disabled,
 }: {
-  label: string;
-  icon: React.ElementType;
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
+  name: string;
+  options: LookupOption[];
+  disabled: boolean;
 }) {
+  const { field } = useController({ name });
+  const current = typeof field.value === "string" ? field.value : "";
   return (
-    <div className="space-y-2">
-      <label className="text-foreground flex items-center gap-2 text-sm font-medium leading-5">
-        <Icon className="text-muted-foreground size-4 shrink-0" />
-        {label}
-      </label>
-      <Textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-        className="min-h-27 w-full resize-y text-sm leading-6"
-        placeholder="..."
-      />
-    </div>
+    <Select
+      value={getLookupSelectValue(current, options, "none")}
+      onValueChange={(value) => {
+        field.onChange(
+          value === "none" ? "" : getLookupLabelForSave(value, options),
+        );
+      }}
+      disabled={disabled}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Seleziona motivo" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">Nessun motivo</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
-function ScoreSelect({
-  label,
-  icon: Icon,
-  value,
-  onChange,
+function FieldColloquioEffettuatoSelect({
+  name,
   disabled,
 }: {
-  label: string;
-  icon: React.ElementType;
-  value?: ScoreCardValue | "";
-  onChange: (value: ScoreCardValue) => void;
-  disabled?: boolean;
+  name: string;
+  disabled: boolean;
 }) {
+  const { field } = useController({ name });
+  const current = typeof field.value === "string" ? field.value : "";
   return (
-    <div className="flex items-center justify-between gap-3">
-      <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-        <Icon className="text-muted-foreground size-4 shrink-0" />
-        {label}
-      </label>
-      <Select
-        value={value || "none"}
-        onValueChange={(nextValue) => {
-          if (nextValue === "none") return;
-          onChange(nextValue as ScoreCardValue);
-        }}
-        disabled={disabled}
-      >
-        <SelectTrigger className="w-45">
-          <SelectValue placeholder="—" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">—</SelectItem>
-          {SCORE_OPTIONS.map((option) => (
-            <SelectItem key={option} value={option}>
-              {option}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <Select
+      value={current || "none"}
+      onValueChange={(value) => field.onChange(value === "none" ? "" : value)}
+      disabled={disabled}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Seleziona..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">Non segnato</SelectItem>
+        {COLLOQUIO_EFFETTUATO_OPTIONS.map((option) => (
+          <SelectItem key={option} value={option}>
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function FieldDatetimeLocal({
+  name,
+  disabled,
+}: {
+  name: string;
+  disabled: boolean;
+}) {
+  const { field } = useController({ name });
+  const current = typeof field.value === "string" ? field.value : "";
+  return (
+    <Input
+      type="datetime-local"
+      value={current}
+      disabled={disabled}
+      onChange={(event) => field.onChange(event.target.value)}
+    />
+  );
+}
+
+function FieldSlotInput({
+  name,
+  type,
+  className,
+  disabled,
+}: {
+  name: string;
+  type: "date" | "time";
+  className?: string;
+  disabled: boolean;
+}) {
+  const { field } = useController({ name });
+  const current = typeof field.value === "string" ? field.value : "";
+  return (
+    <Input
+      type={type}
+      className={className}
+      value={current}
+      disabled={disabled}
+      onChange={(event) => field.onChange(event.target.value)}
+    />
+  );
+}
+
+function SlotRow({
+  slotIndex,
+  disabled,
+  onClear,
+}: {
+  slotIndex: number;
+  disabled: boolean;
+  onClear: (slotIndex: number) => void;
+}) {
+  // Riflette i 4 sotto-campi del form per mostrare/nascondere il bottone clear.
+  const inizioData = useController({ name: slotDataKey(slotIndex, "inizio") }).field
+    .value;
+  const inizioOra = useController({ name: slotOraKey(slotIndex, "inizio") }).field
+    .value;
+  const fineData = useController({ name: slotDataKey(slotIndex, "fine") }).field
+    .value;
+  const fineOra = useController({ name: slotOraKey(slotIndex, "fine") }).field.value;
+  const hasAnyValue = Boolean(inizioData || inizioOra || fineData || fineOra);
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <p className="text-foreground text-sm font-medium">Slot {slotIndex + 1}</p>
+        {hasAnyValue ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={disabled}
+            onClick={() => onClear(slotIndex)}
+            aria-label="Cancella slot"
+          >
+            <XIcon className="size-3.5" />
+          </Button>
+        ) : null}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-0.5">
+          <label className="text-muted-foreground text-xs">
+            Inizio disponibilità
+          </label>
+          <div className="flex gap-1">
+            <FieldSlotInput
+              name={slotDataKey(slotIndex, "inizio")}
+              type="date"
+              className="flex-1"
+              disabled={disabled}
+            />
+            <FieldSlotInput
+              name={slotOraKey(slotIndex, "inizio")}
+              type="time"
+              className="w-28"
+              disabled={disabled}
+            />
+          </div>
+        </div>
+        <div className="space-y-0.5">
+          <label className="text-muted-foreground text-xs">Fine disponibilità</label>
+          <div className="flex gap-1">
+            <FieldSlotInput
+              name={slotDataKey(slotIndex, "fine")}
+              type="date"
+              className="flex-1"
+              disabled={disabled}
+            />
+            <FieldSlotInput
+              name={slotOraKey(slotIndex, "fine")}
+              type="time"
+              className="w-28"
+              disabled={disabled}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -366,26 +546,70 @@ export function SchedaColloquioPanel({
   onGenerateFeedback,
   onPatchField,
 }: SchedaColloquioPanelProps) {
-  const [draft, setDraft] = React.useState<SchedaColloquioDraft>(() =>
-    buildDraft(selectionRow),
-  );
-  const slotColloquioRef = React.useRef(draft.slotColloquio);
+  // FASE 5 BIS — form + autosave: source of truth unica per i campi editabili.
+  // Sostituisce gli 8 useDebouncedSave, lo useState `draft` + lo useEffect di
+  // resync (l'identity-pin è ora coperto da keepDirtyValues del form). onSave
+  // instrada ogni chiave a onPatchField con le stesse trasformazioni
+  // dell'originale; gli slot ricompongono data+ora in timestamp (salvati solo
+  // quando entrambi presenti).
+  const form = useAutoSaveForm({
+    defaults: buildDefaults(selectionRow),
+    onSave: async (patch) => {
+      for (const [key, value] of Object.entries(patch)) {
+        if (SLOT_FORM_KEYS.has(key)) {
+          // Ricostruisce inizio/fine dello slot toccato dai valori correnti del
+          // form; salva solo se data+ora sono entrambe presenti (come l'originale).
+          const match = /^slot_(\d)_(inizio|fine)_(?:data|ora)$/.exec(key);
+          if (!match) continue;
+          const slotIndex = Number(match[1]) - 1;
+          const boundary = match[2] as "inizio" | "fine";
+          const date = String(
+            form.getValues(slotDataKey(slotIndex, boundary)) ?? "",
+          );
+          const time = String(
+            form.getValues(slotOraKey(slotIndex, boundary)) ?? "",
+          );
+          if (!date || !time) continue;
+          await onPatchField(
+            slotTimestampColumn(slotIndex, boundary),
+            toTimestampValue(date, time),
+          );
+          continue;
+        }
 
-  // Identity-pin: only resync the draft when a different selectionRow is
-  // loaded. Per-field commits below already update local state, so a
-  // realtime echo on any sibling field would otherwise reset the score /
-  // motivazione the user is currently editing.
-  const selectionId = (selectionRow?.id ?? null) as string | number | null;
-  React.useEffect(() => {
-    const nextDraft = buildDraft(selectionRow);
-    slotColloquioRef.current = nextDraft.slotColloquio;
-    setDraft(nextDraft);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectionId]);
+        if (TEXT_FIELD_KEYS.has(key)) {
+          await onPatchField(key, String(value ?? "").trim() || null);
+          continue;
+        }
+
+        if (key === "data_ora_colloquio_famiglia_lavoratore") {
+          await onPatchField(
+            key,
+            datetimeLocalToTimestampValue(String(value ?? "")) || null,
+          );
+          continue;
+        }
+
+        if (key === "motivo_non_selezionato") {
+          const values = Array.isArray(value) ? (value as string[]) : [];
+          await onPatchField(key, values.length > 0 ? values : null);
+          continue;
+        }
+
+        if (key === "motivo_no_match" || key === "colloquio_effettuato") {
+          await onPatchField(key, String(value ?? "") || null);
+          continue;
+        }
+
+        // Score: valore grezzo (nessuna trasformazione).
+        await onPatchField(key, value);
+      }
+    },
+  });
 
   const normalizedStatus = React.useMemo(
-    () => normalizeStatusToken(draft.statoSelezione),
-    [draft.statoSelezione],
+    () => normalizeStatusToken(asString(selectionRow.stato_selezione)),
+    [selectionRow.stato_selezione],
   );
   const isCandidatoPoorFit =
     normalizedStatus.includes("candidato") &&
@@ -402,415 +626,206 @@ export function SchedaColloquioPanel({
     normalizedStatus === "match" ||
     normalizedStatus === "inviato al cliente";
 
-  const { value: vannoBeneGiorni, onChange: onVannoBeneGiorni } = useDebouncedSave(
-    asString(selectionRow.intervista_giorni_lavoro),
-    async (v) => { await onPatchField("intervista_giorni_lavoro", v.trim() || null) }
-  )
-  const { value: vannoBeneOrari, onChange: onVannoBeneOrari } = useDebouncedSave(
-    asString(selectionRow.intervista_orario_e_giorni),
-    async (v) => { await onPatchField("intervista_orario_e_giorni", v.trim() || null) }
-  )
-  const { value: distanzaImpegni, onChange: onDistanzaImpegni } = useDebouncedSave(
-    asString(selectionRow.intervista_distanza),
-    async (v) => { await onPatchField("intervista_distanza", v.trim() || null) }
-  )
-  const { value: accettaStipendio, onChange: onAccettaStipendio } = useDebouncedSave(
-    asString(selectionRow.intervista_stipendio),
-    async (v) => { await onPatchField("intervista_stipendio", v.trim() || null) }
-  )
-  const { value: proMotivazioni, onChange: onProMotivazioni } = useDebouncedSave(
-    asString(selectionRow.intervista_punti_forza),
-    async (v) => { await onPatchField("intervista_punti_forza", v.trim() || null) }
-  )
-  const { value: aspettiDivergenza, onChange: onAspettiDivergenza } = useDebouncedSave(
-    asString(selectionRow.intervista_punti_debolezza),
-    async (v) => { await onPatchField("intervista_punti_debolezza", v.trim() || null) }
-  )
-  const { value: feedbackBaze, onChange: onFeedbackBaze } = useDebouncedSave(
-    asString(selectionRow.messaggio_famiglia_selezione_lavoratore),
-    async (v) => { await onPatchField("messaggio_famiglia_selezione_lavoratore", v.trim() || null) }
-  )
-  const { value: dataOraColloquio, onChange: onDataOraColloquio } = useDebouncedSave(
-    toDatetimeLocalValue(selectionRow.data_ora_colloquio_famiglia_lavoratore),
-    async (v) => { await onPatchField("data_ora_colloquio_famiglia_lavoratore", datetimeLocalToTimestampValue(v) || null) }
-  )
-
-  const updateSlotDraft = React.useCallback(
-    (slotIndex: number, patch: Partial<SchedaSlotDraft>) => {
-      const nextSlots = [...slotColloquioRef.current] as [
-        SchedaSlotDraft,
-        SchedaSlotDraft,
-        SchedaSlotDraft,
-      ];
-      nextSlots[slotIndex] = {
-        ...nextSlots[slotIndex],
-        ...patch,
-      };
-      slotColloquioRef.current = nextSlots;
-      setDraft((current) => ({ ...current, slotColloquio: nextSlots }));
-    },
-    [],
-  );
-
-  const patchSlotField = React.useCallback(
-    (
-      slotIndex: number,
-      boundary: "inizio" | "fine",
-      latestPatch: Partial<SchedaSlotDraft> = {},
-    ) => {
-      const slot = {
-        ...slotColloquioRef.current[slotIndex],
-        ...latestPatch,
-      };
-      const field =
-        boundary === "inizio"
-          ? (`disponibilita_colloquio_lavoratore_slot${slotIndex + 1}_inizio` as const)
-          : (`disponibilita_colloquio_lavoratore_slot${slotIndex + 1}_fine` as const);
-      const date = boundary === "inizio" ? slot.inizioData : slot.fineData;
-      const time = boundary === "inizio" ? slot.inizioOra : slot.fineOra;
-      if (!date || !time) return;
-      void onPatchField(field, toTimestampValue(date, time));
-    },
-    [onPatchField],
+  const hasFeedbackBaze = Boolean(
+    String(form.watch("messaggio_famiglia_selezione_lavoratore") ?? "").trim(),
   );
 
   const clearSlot = React.useCallback(
     (slotIndex: number) => {
-      updateSlotDraft(slotIndex, { inizioData: "", inizioOra: "", fineData: "", fineOra: "" });
-      void onPatchField(`disponibilita_colloquio_lavoratore_slot${slotIndex + 1}_inizio`, null);
-      void onPatchField(`disponibilita_colloquio_lavoratore_slot${slotIndex + 1}_fine`, null);
+      form.setValue(slotDataKey(slotIndex, "inizio"), "", { shouldDirty: false });
+      form.setValue(slotOraKey(slotIndex, "inizio"), "", { shouldDirty: false });
+      form.setValue(slotDataKey(slotIndex, "fine"), "", { shouldDirty: false });
+      form.setValue(slotOraKey(slotIndex, "fine"), "", { shouldDirty: false });
+      void onPatchField(slotTimestampColumn(slotIndex, "inizio"), null);
+      void onPatchField(slotTimestampColumn(slotIndex, "fine"), null);
     },
-    [onPatchField, updateSlotDraft],
+    [form, onPatchField],
   );
 
   return (
-    <div className="bg-card">
-      <div className="space-y-2 px-4 py-3">
-        {showMotivazioneNonSelezionato ? (
-          <div className="space-y-1.5">
-            <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-              Motivo non selezionato
-            </label>
-            <MultiLookupField
-              value={draft.motivoNonSelezionato}
-              options={nonSelezionatoOptions}
-              disabled={disabled}
-              onChange={(values) => {
-                setDraft((current) => ({
-                  ...current,
-                  motivoNonSelezionato: values,
-                }));
-                void onPatchField(
-                  "motivo_non_selezionato",
-                  values.length > 0 ? values : null,
-                );
-              }}
-            />
-          </div>
-        ) : null}
-
-        {showMotivazioneNoMatch ? (
-          <div className="space-y-1.5">
-            <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-              Motivo no match
-            </label>
-            <Select
-              value={getLookupSelectValue(draft.motivoNoMatch, noMatchOptions, "none")}
-              onValueChange={(value) => {
-                const nextValue = value === "none" ? "" : getLookupLabelForSave(value, noMatchOptions);
-                setDraft((current) => ({
-                  ...current,
-                  motivoNoMatch: nextValue,
-                }));
-                void onPatchField("motivo_no_match", nextValue || null);
-              }}
-              disabled={disabled}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona motivo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nessun motivo</SelectItem>
-                {noMatchOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
-
-      </div>
-
-      <div className="space-y-3 p-3">
-        <CollapsibleSection
-          title="Completa la scheda colloquio"
-          icon={ClipboardListIcon}
-        >
-          <LabeledTextarea
-            label="1. Vanno bene i giorni?"
-            icon={CalendarCheckIcon}
-            value={vannoBeneGiorni}
-            onChange={onVannoBeneGiorni}
-            disabled={disabled}
-          />
-          <LabeledTextarea
-            label="2. Vanno bene gli orari?"
-            icon={Clock3Icon}
-            value={vannoBeneOrari}
-            onChange={onVannoBeneOrari}
-            disabled={disabled}
-          />
-          <LabeledTextarea
-            label="3. Quanto è distante? Ha altri impegni ravvicinati?"
-            icon={MapPinIcon}
-            value={distanzaImpegni}
-            onChange={onDistanzaImpegni}
-            disabled={disabled}
-          />
-          <LabeledTextarea
-            label="4. Accetta lo stipendio e la paga?"
-            icon={CoinsIcon}
-            value={accettaStipendio}
-            onChange={onAccettaStipendio}
-            disabled={disabled}
-          />
-          <LabeledTextarea
-            label="5. Indica tutti i pro per i quali stai presentando il profilo"
-            icon={ThumbsUpIcon}
-            value={proMotivazioni}
-            onChange={onProMotivazioni}
-            disabled={disabled}
-          />
-          <LabeledTextarea
-            label="6. Indica tutti gli aspetti di divergenza dal profilo ideale per la famiglia"
-            icon={AlertTriangleIcon}
-            value={aspettiDivergenza}
-            onChange={onAspettiDivergenza}
-            disabled={disabled}
-          />
-        </CollapsibleSection>
-
-        <CollapsibleSection title="Completa la score-card" icon={TargetIcon}>
-          <ScoreSelect
-            label="Compatibilità Distanza e Orari"
-            icon={Clock3Icon}
-            value={draft.scoreDistanzaOrari}
-            onChange={(value) => {
-              setDraft((current) => ({ ...current, scoreDistanzaOrari: value }));
-              void onPatchField("score_orario_e_giorni", value);
-            }}
-            disabled={disabled}
-          />
-          <ScoreSelect
-            label="Compatibilità Esperienze"
-            icon={ClipboardListIcon}
-            value={draft.scoreEsperienze}
-            onChange={(value) => {
-              setDraft((current) => ({ ...current, scoreEsperienze: value }));
-              void onPatchField("score_esperienze_simili", value);
-            }}
-            disabled={disabled}
-          />
-          <ScoreSelect
-            label="Compatibilità Paga 9€ netti"
-            icon={CoinsIcon}
-            value={draft.scorePaga9Euro}
-            onChange={(value) => {
-              setDraft((current) => ({ ...current, scorePaga9Euro: value }));
-              void onPatchField("score_stipendio", value);
-            }}
-            disabled={disabled}
-          />
-          <ScoreSelect
-            label="Compatibilità Overall"
-            icon={TargetIcon}
-            value={draft.scoreOverall}
-            onChange={(value) => {
-              setDraft((current) => ({ ...current, scoreOverall: value }));
-              void onPatchField("score_job_fit", value);
-            }}
-            disabled={disabled}
-          />
-        </CollapsibleSection>
-
-        <CollapsibleSection
-          title="Segna gli slot di disponibilità per fare il colloquio"
-          icon={CalendarDaysIcon}
-        >
-          {draft.slotColloquio.map((slot, index) => {
-            const hasAnyValue = slot.inizioData || slot.inizioOra || slot.fineData || slot.fineOra;
-            return (
-              <div key={index} className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-foreground text-sm font-medium">
-                    Slot {index + 1}
-                  </p>
-                  {hasAnyValue ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={disabled}
-                      onClick={() => clearSlot(index)}
-                      aria-label="Cancella slot"
-                    >
-                      <XIcon className="size-3.5" />
-                    </Button>
-                  ) : null}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-0.5">
-                    <label className="text-muted-foreground text-xs">
-                      Inizio disponibilità
-                    </label>
-                    <div className="flex gap-1">
-                      <Input
-                        type="date"
-                        className="flex-1"
-                        value={slot.inizioData}
-                        disabled={disabled}
-                        onChange={(event) => {
-                          updateSlotDraft(index, { inizioData: event.target.value });
-                          patchSlotField(index, "inizio", { inizioData: event.target.value });
-                        }}
-                      />
-                      <Input
-                        type="time"
-                        className="w-28"
-                        value={slot.inizioOra}
-                        disabled={disabled}
-                        onChange={(event) => {
-                          updateSlotDraft(index, { inizioOra: event.target.value });
-                          patchSlotField(index, "inizio", { inizioOra: event.target.value });
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-0.5">
-                    <label className="text-muted-foreground text-xs">
-                      Fine disponibilità
-                    </label>
-                    <div className="flex gap-1">
-                      <Input
-                        type="date"
-                        className="flex-1"
-                        value={slot.fineData}
-                        disabled={disabled}
-                        onChange={(event) => {
-                          updateSlotDraft(index, { fineData: event.target.value });
-                          patchSlotField(index, "fine", { fineData: event.target.value });
-                        }}
-                      />
-                      <Input
-                        type="time"
-                        className="w-28"
-                        value={slot.fineOra}
-                        disabled={disabled}
-                        onChange={(event) => {
-                          updateSlotDraft(index, { fineOra: event.target.value });
-                          patchSlotField(index, "fine", { fineOra: event.target.value });
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </CollapsibleSection>
-
-        {showColloquioFamigliaFields ? (
-          <CollapsibleSection
-            title="Colloquio famiglia lavoratore"
-            icon={CalendarCheckIcon}
-          >
+    <Form {...form}>
+      <div className="bg-card">
+        <div className="space-y-2 px-4 py-3">
+          {showMotivazioneNonSelezionato ? (
             <div className="space-y-1.5">
-              <label className="text-foreground text-sm font-medium">
-                Data/ora colloquio famiglia lavoratore
+              <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                Motivo non selezionato
               </label>
-              <Input
-                type="datetime-local"
-                value={dataOraColloquio}
+              <FieldMultiLookup
+                name="motivo_non_selezionato"
+                options={nonSelezionatoOptions}
                 disabled={disabled}
-                onChange={(event) => onDataOraColloquio(event.target.value)}
               />
             </div>
+          ) : null}
 
+          {showMotivazioneNoMatch ? (
             <div className="space-y-1.5">
-              <label className="text-foreground text-sm font-medium">
-                Colloquio effettuato
+              <label className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                Motivo no match
               </label>
-              <Select
-                value={draft.colloquioEffettuato || "none"}
-                onValueChange={(value) => {
-                  const nextValue = value === "none" ? "" : value;
-                  setDraft((current) => ({
-                    ...current,
-                    colloquioEffettuato: nextValue,
-                  }));
-                  void onPatchField("colloquio_effettuato", nextValue || null);
-                }}
+              <FieldNoMatchSelect
+                name="motivo_no_match"
+                options={noMatchOptions}
                 disabled={disabled}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Non segnato</SelectItem>
-                  <SelectItem value="Effettuato">Effettuato</SelectItem>
-                  <SelectItem value="No show">No show</SelectItem>
-                  <SelectItem value="Annullato dalla famiglia">
-                    Annullato dalla famiglia
-                  </SelectItem>
-                  <SelectItem value="Annullato dal lavoratore">
-                    Annullato dal lavoratore
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              />
+            </div>
+          ) : null}
+        </div>
+
+        <div className="space-y-3 p-3">
+          <CollapsibleSection
+            title="Completa la scheda colloquio"
+            icon={ClipboardListIcon}
+          >
+            <FieldLabeledTextarea
+              name="intervista_giorni_lavoro"
+              label="1. Vanno bene i giorni?"
+              icon={CalendarCheckIcon}
+              disabled={disabled}
+            />
+            <FieldLabeledTextarea
+              name="intervista_orario_e_giorni"
+              label="2. Vanno bene gli orari?"
+              icon={Clock3Icon}
+              disabled={disabled}
+            />
+            <FieldLabeledTextarea
+              name="intervista_distanza"
+              label="3. Quanto è distante? Ha altri impegni ravvicinati?"
+              icon={MapPinIcon}
+              disabled={disabled}
+            />
+            <FieldLabeledTextarea
+              name="intervista_stipendio"
+              label="4. Accetta lo stipendio e la paga?"
+              icon={CoinsIcon}
+              disabled={disabled}
+            />
+            <FieldLabeledTextarea
+              name="intervista_punti_forza"
+              label="5. Indica tutti i pro per i quali stai presentando il profilo"
+              icon={ThumbsUpIcon}
+              disabled={disabled}
+            />
+            <FieldLabeledTextarea
+              name="intervista_punti_debolezza"
+              label="6. Indica tutti gli aspetti di divergenza dal profilo ideale per la famiglia"
+              icon={AlertTriangleIcon}
+              disabled={disabled}
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Completa la score-card" icon={TargetIcon}>
+            <FieldScoreSelect
+              name="score_orario_e_giorni"
+              label="Compatibilità Distanza e Orari"
+              icon={Clock3Icon}
+              disabled={disabled}
+            />
+            <FieldScoreSelect
+              name="score_esperienze_simili"
+              label="Compatibilità Esperienze"
+              icon={ClipboardListIcon}
+              disabled={disabled}
+            />
+            <FieldScoreSelect
+              name="score_stipendio"
+              label="Compatibilità Paga 9€ netti"
+              icon={CoinsIcon}
+              disabled={disabled}
+            />
+            <FieldScoreSelect
+              name="score_job_fit"
+              label="Compatibilità Overall"
+              icon={TargetIcon}
+              disabled={disabled}
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Segna gli slot di disponibilità per fare il colloquio"
+            icon={CalendarDaysIcon}
+          >
+            {SLOT_INDEXES.map((slotIndex) => (
+              <SlotRow
+                key={slotIndex}
+                slotIndex={slotIndex}
+                disabled={disabled}
+                onClear={clearSlot}
+              />
+            ))}
+          </CollapsibleSection>
+
+          {showColloquioFamigliaFields ? (
+            <CollapsibleSection
+              title="Colloquio famiglia lavoratore"
+              icon={CalendarCheckIcon}
+            >
+              <div className="space-y-1.5">
+                <label className="text-foreground text-sm font-medium">
+                  Data/ora colloquio famiglia lavoratore
+                </label>
+                <FieldDatetimeLocal
+                  name="data_ora_colloquio_famiglia_lavoratore"
+                  disabled={disabled}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-foreground text-sm font-medium">
+                  Colloquio effettuato
+                </label>
+                <FieldColloquioEffettuatoSelect
+                  name="colloquio_effettuato"
+                  disabled={disabled}
+                />
+              </div>
+            </CollapsibleSection>
+          ) : null}
+
+          <CollapsibleSection
+            title="Lavoratore selezionato – finalizza la scheda colloquio"
+            icon={TrophyIcon}
+          >
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-foreground text-sm font-medium">
+                  Crea feedback Baze – il messaggio che spiega perché è perfetta per
+                  la richiesta
+                </label>
+                {onGenerateFeedback ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      const generated = await onGenerateFeedback();
+                      if (typeof generated === "string") {
+                        form.setValue(
+                          "messaggio_famiglia_selezione_lavoratore",
+                          generated,
+                          { shouldDirty: true },
+                        );
+                      }
+                    }}
+                    disabled={disabled || isGeneratingFeedback}
+                  >
+                    <BotIcon className="size-4" />
+                    {hasFeedbackBaze ? "Rigenera" : "Genera"}
+                  </Button>
+                ) : null}
+              </div>
+              <FieldTextarea
+                name="messaggio_famiglia_selezione_lavoratore"
+                disabled={disabled}
+                className="min-h-20 resize-none text-xs"
+                placeholder="Scrivi il feedback..."
+              />
             </div>
           </CollapsibleSection>
-        ) : null}
-
-        <CollapsibleSection
-          title="Lavoratore selezionato – finalizza la scheda colloquio"
-          icon={TrophyIcon}
-        >
-          <div className="space-y-1">
-            <div className="flex items-center justify-between gap-3">
-              <label className="text-foreground text-sm font-medium">
-                Crea feedback Baze – il messaggio che spiega perché è perfetta per
-                la richiesta
-              </label>
-              {onGenerateFeedback ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    const generated = await onGenerateFeedback();
-                    if (typeof generated === "string") {
-                      onFeedbackBaze(generated);
-                    }
-                  }}
-                  disabled={disabled || isGeneratingFeedback}
-                >
-                  <BotIcon className="size-4" />
-                  {feedbackBaze ? "Rigenera" : "Genera"}
-                </Button>
-              ) : null}
-            </div>
-            <Textarea
-              value={feedbackBaze}
-              onChange={(event) => onFeedbackBaze(event.target.value)}
-              disabled={disabled}
-              className="min-h-20 resize-none text-xs"
-              placeholder="Scrivi il feedback..."
-            />
-          </div>
-        </CollapsibleSection>
+        </div>
       </div>
-    </div>
+    </Form>
   );
 }

@@ -1,5 +1,4 @@
 import * as React from "react";
-import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import {
   CalendarIcon,
   ChevronLeftIcon,
@@ -27,7 +26,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox, CheckboxChip } from "@/components/ui/checkbox";
+import { CheckboxChip } from "@/components/ui/checkbox";
 import {
   Combobox,
   ComboboxChip,
@@ -42,7 +41,13 @@ import {
 } from "@/components/ui/combobox";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { DebouncedInput } from "@/components/ui/debounced-input";
+import { Form } from "@/components/ui/form";
+import {
+  FieldInput,
+  FieldTextarea,
+  FieldCheckbox,
+} from "@/components/forms/field-components";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import {
   Select,
   SelectContent,
@@ -417,6 +422,30 @@ function toIsoDateInputValue(value: string | null | undefined) {
   return `${year.padStart(4, "0")}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
+// FASE 5 BIS — routing per chiave del form editForm verso i 3 target di save.
+// Le chiavi NON elencate qui sono campi di testo del processo.
+const EDIT_FAMILY_KEYS = new Set(["telefono", "email"]);
+const EDIT_ADDRESS_KEYS = new Set([
+  "cap",
+  "note",
+  "via",
+  "civico",
+  "citta",
+  "citofono",
+]);
+const EDIT_DATE_KEYS = new Set(["deadline_mobile", "data_assegnazione"]);
+const EDIT_BOOLEAN_KEYS = new Set([
+  "richiesta_patente",
+  "richiesta_trasferte",
+  "richiesta_ferie",
+  "comunicare_bene_italiano",
+  "comunicare_bene_inglese",
+  "famiglia_molto_esigente",
+  "richiesta_autonomia",
+  "datore_spesso_presente",
+  "richiesta_discrezione",
+]);
+
 function SectionEditBar({
   section,
   editing,
@@ -457,26 +486,24 @@ function SectionEditBar({
   );
 }
 
+// FASE 5 BIS — form-aware: in editing rende i Field* del toolkit (agganciati al
+// form via `name`, autosave gestito da useAutoSaveForm); in lettura mostra il
+// valore. La trasformazione ""→null e il routing al target avvengono in onSave.
 function EditableTextField({
   label,
+  name,
   value,
   editing,
   multiline = false,
   labelClassName,
-  onSave,
 }: {
   label: string;
+  name: string;
   value: unknown;
   editing: boolean;
   multiline?: boolean;
   labelClassName?: string;
-  onSave: (next: string | null) => void;
 }) {
-  const { value: draft, onChange } = useDebouncedSave(
-    editableValue(value),
-    async (next) => { onSave(next.trim() || null) }
-  );
-
   if (!editing) {
     return (
       <Field>
@@ -494,15 +521,10 @@ function EditableTextField({
         {label}
       </FieldLabel>
       {multiline ? (
-        <Textarea
-          value={draft}
-          onChange={(event) => onChange(event.target.value)}
-          rows={4}
-        />
+        <FieldTextarea name={name} rows={4} />
       ) : (
-        <Input
-          value={draft}
-          onChange={(event) => onChange(event.target.value)}
+        <FieldInput
+          name={name}
           onKeyDown={(event) => {
             if (event.key === "Enter") event.currentTarget.blur();
           }}
@@ -514,14 +536,14 @@ function EditableTextField({
 
 function EditableDateField({
   label,
+  name,
   value,
   editing,
-  onSave,
 }: {
   label: string;
+  name: string;
   value: string | null | undefined;
   editing: boolean;
-  onSave: (next: string | null) => void;
 }) {
   if (!editing) {
     return (
@@ -535,25 +557,21 @@ function EditableDateField({
   return (
     <Field>
       <FieldLabel variant="eyebrow">{label}</FieldLabel>
-      <DebouncedInput
-        type="date"
-        committedValue={toIsoDateInputValue(value)}
-        onSave={async (next) => onSave(next || null)}
-      />
+      <FieldInput name={name} type="date" />
     </Field>
   );
 }
 
 function EditableCheckboxField({
   label,
+  name,
   value,
   editing,
-  onSave,
 }: {
   label: string;
+  name: string;
   value: boolean;
   editing: boolean;
-  onSave: (next: boolean) => void;
 }) {
   if (!editing) {
     return (
@@ -566,10 +584,7 @@ function EditableCheckboxField({
 
   return (
     <label className="flex items-center gap-2 rounded-md border border-border-subtle bg-surface-muted px-3 py-2 text-sm">
-      <Checkbox
-        checked={value}
-        onCheckedChange={(checked) => onSave(checked === true)}
-      />
+      <FieldCheckbox name={name} />
       <span>{label}</span>
     </label>
   );
@@ -1394,6 +1409,93 @@ export function RicercaDetailView({
     [currentProcessId, updateAddressCard],
   );
 
+  // FASE 5 BIS — form + autosave: source of truth unica per i campi testo/data/
+  // checkbox editabili (sostituisce i useDebouncedSave/DebouncedInput dentro
+  // Editable*). onSave instrada per chiave ai 3 target originali (processo,
+  // famiglia, indirizzo) con le STESSE trasformazioni: ""→null per i testi,
+  // data→null se vuota (il type=date dà già ISO), booleano grezzo per i check.
+  // Resync realtime senza clobber: keepDirtyValues dentro useAutoSaveForm.
+  const editForm = useAutoSaveForm({
+    defaults: {
+      // famiglia
+      telefono: editableValue(card?.telefono),
+      email: editableValue(card?.email),
+      // indirizzo (luogo di lavoro) — la provincia resta una Select inline
+      cap: editableValue(card?.indirizzoCap),
+      note: editableValue(card?.indirizzoNote),
+      via: editableValue(card?.indirizzoVia),
+      civico: editableValue(card?.indirizzoCivico),
+      citta: editableValue(card?.indirizzoComune),
+      citofono: editableValue(card?.indirizzoCitofono),
+      // processo — testi
+      nucleo_famigliare: editableValue(card?.nucleoFamigliare),
+      descrizione_casa: editableValue(card?.descrizioneCasa),
+      metratura_casa: editableValue(card?.metraturaCasa),
+      descrizione_animali_in_casa: editableValue(card?.descrizioneAnimaliInCasa),
+      mansioni_richieste: editableValue(card?.mansioniRichieste),
+      eta_minima: editableValue(card?.etaMinima),
+      eta_massima: editableValue(card?.etaMassima),
+      descrizione_richiesta_trasferte: editableValue(
+        card?.descrizioneRichiestaTrasferte,
+      ),
+      descrizione_richiesta_ferie: editableValue(
+        card?.descrizioneRichiestaFerie,
+      ),
+      informazioni_extra_riservate: editableValue(
+        card?.informazioniExtraRiservate,
+      ),
+      disponibilita_colloqui_in_presenza: editableValue(
+        card?.disponibilitaColloquiInPresenza,
+      ),
+      testo_annuncio_whatsapp: editableValue(card?.testoAnnuncioWhatsapp),
+      // processo — date (type=date → ISO yyyy-mm-dd)
+      deadline_mobile: toIsoDateInputValue(
+        card?.deadlineMobileRaw || card?.deadlineMobile,
+      ),
+      data_assegnazione: toIsoDateInputValue(
+        card?.dataAssegnazioneRaw || card?.dataAssegnazione,
+      ),
+      // processo — checkbox
+      richiesta_patente: Boolean(card?.richiestaPatente),
+      richiesta_trasferte: Boolean(card?.richiestaTrasferte),
+      richiesta_ferie: Boolean(card?.richiestaFerie),
+      comunicare_bene_italiano: Boolean(card?.comunicareBeneItaliano),
+      comunicare_bene_inglese: Boolean(card?.comunicareBeneInglese),
+      famiglia_molto_esigente: Boolean(card?.famigliaMoltoEsigente),
+      richiesta_autonomia: Boolean(card?.richiestaAutonomia),
+      datore_spesso_presente: Boolean(card?.datoreSpessoPresente),
+      richiesta_discrezione: Boolean(card?.richiestaDiscrezione),
+    },
+    onSave: async (patch) => {
+      if (!card) return;
+      const familyPatch: Record<string, unknown> = {};
+      const addressPatch: Record<string, unknown> = {};
+      const processPatch: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(patch)) {
+        if (EDIT_FAMILY_KEYS.has(key)) {
+          familyPatch[key] = (value as string).trim() || null;
+        } else if (EDIT_ADDRESS_KEYS.has(key)) {
+          addressPatch[key] = (value as string).trim() || null;
+        } else if (EDIT_DATE_KEYS.has(key)) {
+          processPatch[key] = (value as string) || null;
+        } else if (EDIT_BOOLEAN_KEYS.has(key)) {
+          processPatch[key] = Boolean(value);
+        } else {
+          processPatch[key] = (value as string).trim() || null;
+        }
+      }
+      if (Object.keys(familyPatch).length > 0) {
+        await saveFamilyPatch("form", familyPatch);
+      }
+      if (Object.keys(addressPatch).length > 0) {
+        await saveAddressPatch("form", addressPatch);
+      }
+      if (Object.keys(processPatch).length > 0) {
+        await saveProcessPatch("form", processPatch);
+      }
+    },
+  });
+
   const resolvedCard = React.useMemo<ExtendedCardData | null>(() => {
     return card;
   }, [card]);
@@ -1459,6 +1561,7 @@ export function RicercaDetailView({
   );
 
   return (
+    <Form {...editForm}>
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <Tabs
         defaultValue="pipeline"
@@ -1740,33 +1843,25 @@ export function RicercaDetailView({
                     <div className="grid grid-cols-2 gap-3">
                       <EditableTextField
                         label="Telefono"
+                        name="telefono"
                         value={resolvedCard.telefono}
                         editing
-                        onSave={(next) =>
-                          void saveFamilyPatch("header", { telefono: next })
-                        }
                       />
                       <EditableTextField
                         label="Email"
+                        name="email"
                         value={resolvedCard.email}
                         editing
-                        onSave={(next) =>
-                          void saveFamilyPatch("header", { email: next })
-                        }
                       />
                     </div>
                     <EditableDateField
                       label="Deadline"
+                      name="deadline_mobile"
                       value={
                         resolvedCard.deadlineMobileRaw ||
                         resolvedCard.deadlineMobile
                       }
                       editing
-                      onSave={(next) =>
-                        void saveProcessPatch("header", {
-                          deadline_mobile: next,
-                        })
-                      }
                     />
                   </div>
                 ) : null}
@@ -1986,66 +2081,42 @@ export function RicercaDetailView({
                           </div>
 	                        <EditableTextField
                             label="CAP"
+                            name="cap"
                             value={resolvedCard.indirizzoCap}
                             editing={isEditingSection("luogo-lavoro")}
-                            onSave={(next) =>
-                              void saveAddressPatch("luogo-lavoro", {
-                                cap: next,
-                              })
-                            }
                           />
 	                      </div>
 	                      <EditableTextField
                           label="Quartiere"
+                          name="note"
                           value={resolvedCard.indirizzoNote}
                           editing={isEditingSection("luogo-lavoro")}
-                          onSave={(next) =>
-                            void saveAddressPatch("luogo-lavoro", {
-                              note: next,
-                            })
-                          }
                         />
                         {isEditingSection("luogo-lavoro") ? (
                           <div className="grid grid-cols-2 gap-3">
                             <EditableTextField
                               label="Via"
+                              name="via"
                               value={resolvedCard.indirizzoVia}
                               editing
-                              onSave={(next) =>
-                                void saveAddressPatch("luogo-lavoro", {
-                                  via: next,
-                                })
-                              }
                             />
                             <EditableTextField
                               label="Civico"
+                              name="civico"
                               value={resolvedCard.indirizzoCivico}
                               editing
-                              onSave={(next) =>
-                                void saveAddressPatch("luogo-lavoro", {
-                                  civico: next,
-                                })
-                              }
                             />
                             <EditableTextField
                               label="Comune"
+                              name="citta"
                               value={resolvedCard.indirizzoComune}
                               editing
-                              onSave={(next) =>
-                                void saveAddressPatch("luogo-lavoro", {
-                                  citta: next,
-                                })
-                              }
                             />
                             <EditableTextField
                               label="Citofono"
+                              name="citofono"
                               value={resolvedCard.indirizzoCitofono}
                               editing
-                              onSave={(next) =>
-                                void saveAddressPatch("luogo-lavoro", {
-                                  citofono: next,
-                                })
-                              }
                             />
                           </div>
                         ) : (
@@ -2110,48 +2181,32 @@ export function RicercaDetailView({
 	                      <div className="grid grid-cols-2 gap-3">
 	                        <EditableTextField
 	                          label="Nucleo famigliare"
+	                          name="nucleo_famigliare"
 	                          value={resolvedCard.nucleoFamigliare}
                             editing={isEditingSection("famiglia")}
-                            onSave={(next) =>
-                              void saveProcessPatch("famiglia", {
-                                nucleo_famigliare: next,
-                              })
-                            }
 	                        />
 	                      </div>
 	                      <EditableTextField
 	                        label="Descrizione casa"
+	                        name="descrizione_casa"
 	                        value={resolvedCard.descrizioneCasa}
                           editing={isEditingSection("famiglia")}
                           multiline
-                          onSave={(next) =>
-                            void saveProcessPatch("famiglia", {
-                              descrizione_casa: next,
-                            })
-                          }
 	                      />
 	                      <div className="grid grid-cols-2 gap-3">
 	                        <EditableTextField
 	                          label="Metratura casa"
+	                          name="metratura_casa"
 	                          value={resolvedCard.metraturaCasa}
                             editing={isEditingSection("famiglia")}
-                            onSave={(next) =>
-                              void saveProcessPatch("famiglia", {
-                                metratura_casa: next,
-                              })
-                            }
 	                        />
 	                      </div>
 	                      <EditableTextField
 	                        label="Animali in casa"
+	                        name="descrizione_animali_in_casa"
 	                        value={resolvedCard.descrizioneAnimaliInCasa}
                           editing={isEditingSection("famiglia")}
                           multiline
-                          onSave={(next) =>
-                            void saveProcessPatch("famiglia", {
-                              descrizione_animali_in_casa: next,
-                            })
-                          }
 	                      />
 	                    </AccordionContent>
 	                  </AccordionItem>
@@ -2171,14 +2226,10 @@ export function RicercaDetailView({
 	                    <AccordionContent className="space-y-3">
 	                      <EditableTextField
 	                        label="Mansioni richieste"
+	                        name="mansioni_richieste"
 	                        value={resolvedCard.mansioniRichieste}
                           editing={isEditingSection("mansioni")}
                           multiline
-                          onSave={(next) =>
-                            void saveProcessPatch("mansioni", {
-                              mansioni_richieste: next,
-                            })
-                          }
 	                      />
 	                    </AccordionContent>
 	                  </AccordionItem>
@@ -2199,35 +2250,23 @@ export function RicercaDetailView({
 	                      <div className="grid grid-cols-2 gap-3">
 	                        <EditableCheckboxField
 	                          label="Richiesta patente"
+	                          name="richiesta_patente"
 	                          value={Boolean(resolvedCard.richiestaPatente)}
                             editing={isEditingSection("richieste-specifiche")}
-                            onSave={(next) =>
-                              void saveProcessPatch("richieste-specifiche", {
-                                richiesta_patente: next,
-                              })
-                            }
 	                        />
 	                        <EditableCheckboxField
 	                          label="Richiesta trasferte"
+	                          name="richiesta_trasferte"
 	                          value={Boolean(resolvedCard.richiestaTrasferte)}
                             editing={isEditingSection("richieste-specifiche")}
-                            onSave={(next) =>
-                              void saveProcessPatch("richieste-specifiche", {
-                                richiesta_trasferte: next,
-                              })
-                            }
 	                        />
 	                      </div>
 	                      <div className="grid grid-cols-2 gap-3">
 	                        <EditableCheckboxField
 	                          label="Richiesta ferie"
+	                          name="richiesta_ferie"
 	                          value={Boolean(resolvedCard.richiestaFerie)}
                             editing={isEditingSection("richieste-specifiche")}
-                            onSave={(next) =>
-                              void saveProcessPatch("richieste-specifiche", {
-                                richiesta_ferie: next,
-                              })
-                            }
 	                        />
 	                      </div>
 	                      <div className="grid grid-cols-2 gap-3">
@@ -2235,23 +2274,15 @@ export function RicercaDetailView({
                             <>
                               <EditableTextField
                                 label="Età minima"
+                                name="eta_minima"
                                 value={resolvedCard.etaMinima}
                                 editing
-                                onSave={(next) =>
-                                  void saveProcessPatch("richieste-specifiche", {
-                                    eta_minima: next,
-                                  })
-                                }
                               />
                               <EditableTextField
                                 label="Età massima"
+                                name="eta_massima"
                                 value={resolvedCard.etaMassima}
                                 editing
-                                onSave={(next) =>
-                                  void saveProcessPatch("richieste-specifiche", {
-                                    eta_massima: next,
-                                  })
-                                }
                               />
                             </>
                           ) : (
@@ -2296,67 +2327,43 @@ export function RicercaDetailView({
 	                      <div className="grid grid-cols-2 gap-3">
 	                        <EditableCheckboxField
 	                          label="Comunica in italiano"
+	                          name="comunicare_bene_italiano"
 	                          value={Boolean(resolvedCard.comunicareBeneItaliano)}
                             editing={isEditingSection("richieste-specifiche")}
-                            onSave={(next) =>
-                              void saveProcessPatch("richieste-specifiche", {
-                                comunicare_bene_italiano: next,
-                              })
-                            }
 	                        />
 	                        <EditableCheckboxField
 	                          label="Comunica in inglese"
+	                          name="comunicare_bene_inglese"
 	                          value={Boolean(resolvedCard.comunicareBeneInglese)}
                             editing={isEditingSection("richieste-specifiche")}
-                            onSave={(next) =>
-                              void saveProcessPatch("richieste-specifiche", {
-                                comunicare_bene_inglese: next,
-                              })
-                            }
 	                        />
 	                      </div>
 	                      <div className="grid grid-cols-2 gap-3">
 	                        <EditableCheckboxField
 	                          label="Famiglia molto esigente"
+	                          name="famiglia_molto_esigente"
 	                          value={Boolean(resolvedCard.famigliaMoltoEsigente)}
                             editing={isEditingSection("richieste-specifiche")}
-                            onSave={(next) =>
-                              void saveProcessPatch("richieste-specifiche", {
-                                famiglia_molto_esigente: next,
-                              })
-                            }
 	                        />
 	                        <EditableCheckboxField
 	                          label="Richiesta autonomia"
+	                          name="richiesta_autonomia"
 	                          value={Boolean(resolvedCard.richiestaAutonomia)}
                             editing={isEditingSection("richieste-specifiche")}
-                            onSave={(next) =>
-                              void saveProcessPatch("richieste-specifiche", {
-                                richiesta_autonomia: next,
-                              })
-                            }
 	                        />
 	                      </div>
 	                      <div className="grid grid-cols-2 gap-3">
 	                        <EditableCheckboxField
 	                          label="Datore spesso presente"
+	                          name="datore_spesso_presente"
 	                          value={Boolean(resolvedCard.datoreSpessoPresente)}
                             editing={isEditingSection("richieste-specifiche")}
-                            onSave={(next) =>
-                              void saveProcessPatch("richieste-specifiche", {
-                                datore_spesso_presente: next,
-                              })
-                            }
 	                        />
 	                        <EditableCheckboxField
 	                          label="Richiesta discrezione"
+	                          name="richiesta_discrezione"
 	                          value={Boolean(resolvedCard.richiestaDiscrezione)}
                             editing={isEditingSection("richieste-specifiche")}
-                            onSave={(next) =>
-                              void saveProcessPatch("richieste-specifiche", {
-                                richiesta_discrezione: next,
-                              })
-                            }
 	                        />
 	                      </div>
 	                      <Field>
@@ -2453,36 +2460,24 @@ export function RicercaDetailView({
                         </Field>
 	                      <EditableTextField
 	                        label="Descrizione trasferte"
+	                        name="descrizione_richiesta_trasferte"
 	                        value={resolvedCard.descrizioneRichiestaTrasferte}
                           editing={isEditingSection("richieste-specifiche")}
                           multiline
-                          onSave={(next) =>
-                            void saveProcessPatch("richieste-specifiche", {
-                              descrizione_richiesta_trasferte: next,
-                            })
-                          }
 	                      />
 	                      <EditableTextField
 	                        label="Descrizione ferie"
+	                        name="descrizione_richiesta_ferie"
 	                        value={resolvedCard.descrizioneRichiestaFerie}
                           editing={isEditingSection("richieste-specifiche")}
                           multiline
-                          onSave={(next) =>
-                            void saveProcessPatch("richieste-specifiche", {
-                              descrizione_richiesta_ferie: next,
-                            })
-                          }
 	                      />
 	                      <EditableTextField
 	                        label="Informazioni extra riservate"
+	                        name="informazioni_extra_riservate"
 	                        value={resolvedCard.informazioniExtraRiservate}
                           editing={isEditingSection("richieste-specifiche")}
                           multiline
-                          onSave={(next) =>
-                            void saveProcessPatch("richieste-specifiche", {
-                              informazioni_extra_riservate: next,
-                            })
-                          }
 	                      />
 	                    </AccordionContent>
 	                  </AccordionItem>
@@ -2532,16 +2527,12 @@ export function RicercaDetailView({
                       </Field>
                       <EditableDateField
                         label="Data assegnazione"
+                        name="data_assegnazione"
                         value={
                           resolvedCard.dataAssegnazioneRaw ||
                           resolvedCard.dataAssegnazione
                         }
                         editing={isEditingSection("recruiter")}
-                        onSave={(next) =>
-                          void saveProcessPatch("recruiter", {
-                            data_assegnazione: next,
-                          })
-                        }
                       />
                     </AccordionContent>
                   </AccordionItem>
@@ -2561,40 +2552,28 @@ export function RicercaDetailView({
 	                    <AccordionContent className="space-y-3">
 	                      <EditableDateField
                           label="Deadline"
+                          name="deadline_mobile"
                           value={
                             resolvedCard.deadlineMobileRaw ||
                             resolvedCard.deadlineMobile
                           }
                           editing={isEditingSection("tempistiche")}
-                          onSave={(next) =>
-                            void saveProcessPatch("tempistiche", {
-                              deadline_mobile: next,
-                            })
-                          }
                         />
 	                      <EditableTextField
 	                        label="Disponibilità colloqui"
+	                        name="disponibilita_colloqui_in_presenza"
 	                        value={resolvedCard.disponibilitaColloquiInPresenza}
                           editing={isEditingSection("tempistiche")}
                           multiline
-                          onSave={(next) =>
-                            void saveProcessPatch("tempistiche", {
-                              disponibilita_colloqui_in_presenza: next,
-                            })
-                          }
 	                      />
                         <EditableDateField
                           label="Data assegnazione"
+                          name="data_assegnazione"
                           value={
                             resolvedCard.dataAssegnazioneRaw ||
                             resolvedCard.dataAssegnazione
                           }
                           editing={isEditingSection("tempistiche")}
-                          onSave={(next) =>
-                            void saveProcessPatch("tempistiche", {
-                              data_assegnazione: next,
-                            })
-                          }
                         />
 	                    </AccordionContent>
 	                  </AccordionItem>
@@ -2615,14 +2594,10 @@ export function RicercaDetailView({
                         {isEditingSection("annuncio") ? (
                           <EditableTextField
                             label="Testo per WhatsApp"
+                            name="testo_annuncio_whatsapp"
                             value={resolvedCard.testoAnnuncioWhatsapp}
                             editing
                             multiline
-                            onSave={(next) =>
-                              void saveProcessPatch("annuncio", {
-                                testo_annuncio_whatsapp: next,
-                              })
-                            }
                           />
                         ) : null}
 	                      {(() => {
@@ -2714,5 +2689,6 @@ export function RicercaDetailView({
         )}
       </Tabs>
     </section>
+    </Form>
   );
 }

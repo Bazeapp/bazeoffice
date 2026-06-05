@@ -23,12 +23,14 @@ import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckboxChip } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DebouncedTextarea } from "@/components/ui/debounced-input"
+import { useController } from "react-hook-form"
+import { Form } from "@/components/ui/form"
+import { FieldInput, FieldTextarea } from "@/components/forms/field-components"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import {
   getLookupLabelForSave,
   getLookupSelectValue,
@@ -73,6 +75,13 @@ const CALENDAR_STATUS_OPTIONS: Array<{ value: CalendarStatusKey; label: string }
 ]
 const AUDIO_ACCEPT = "audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/ogg,audio/opus,audio/aac,.mp3,.m4a,.wav,.ogg,.opus,.aac"
 type TrialRecordingSlot = "registrazione_chiamate_lavoratori" | "registrazione_chiamate_famiglia"
+
+// FASE 5 BIS — chiavi del form prova che sono textarea (trim()||null in onSave).
+const PROVA_TEXTAREA_KEYS = new Set([
+  "prova_priorita_famiglia",
+  "prova_note_cs_lavoratore",
+  "prova_note_cs_famiglia",
+])
 
 function toStringValue(value: unknown): string | null {
   if (value === null || value === undefined) return null
@@ -286,28 +295,119 @@ function buildDistributionItems(source: string | null, totalHours: number | null
   }))
 }
 
-function EditableTextarea({
-  value,
-  placeholder,
-  onCommit,
+// FASE 5 BIS — wrapper locale per lo "Stato CS Prova": come FieldLookupSelect ma
+// con tag-class colorata sul trigger (derivata dal valore corrente del form) e
+// label "Nessuno stato" come l'originale.
+function FieldStatoProvaSelect({
+  name,
+  options,
+  resolveColor,
 }: {
-  value: string | null | undefined
-  placeholder?: string
-  onCommit: (next: string | null) => Promise<void>
+  name: string
+  options: LookupOption[]
+  resolveColor: (label: string | null) => string | null
 }) {
-  const committedValue = value ?? ""
-
+  const { field } = useController({ name })
+  const current = typeof field.value === "string" ? field.value : null
   return (
-    <DebouncedTextarea
-      committedValue={committedValue}
-      placeholder={placeholder}
-      className="min-h-24 resize-y"
-      onSave={async (next) => {
-        const normalized = next.trim() || null
-        if (normalized === (value ?? null)) return
-        await onCommit(normalized)
-      }}
-    />
+    <Select
+      value={getLookupSelectValue(current, options, "none")}
+      onValueChange={(next) =>
+        field.onChange(next === "none" ? null : getLookupLabelForSave(next, options))
+      }
+    >
+      <SelectTrigger className={cn("bg-surface", getTagClassName(resolveColor(current)))}>
+        <SelectValue placeholder="Stato prova" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">Nessuno stato</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+// FASE 5 BIS — wrapper locale per l'esito colloquio (processi_matching). Come
+// FieldLookupSelect ma con: stato disabled (no processId), label "Non segnato"
+// e "Seleziona...", e l'item legacy quando il valore corrente non è tra le
+// opzioni lookup (preserva la logica bespoke originale).
+function FieldColloquioEsitoSelect({
+  name,
+  options,
+  disabled,
+}: {
+  name: string
+  options: LookupOption[]
+  disabled?: boolean
+}) {
+  const { field } = useController({ name })
+  const rawValue = typeof field.value === "string" ? field.value : ""
+  const selectValue = getLookupSelectValue(rawValue, options, "none")
+  const hasCurrent =
+    selectValue === "none" || options.some((option) => option.value === selectValue)
+  return (
+    <Select
+      value={selectValue}
+      disabled={disabled}
+      onValueChange={(next) =>
+        field.onChange(next === "none" ? null : getLookupLabelForSave(next, options))
+      }
+    >
+      <SelectTrigger className="bg-surface">
+        <SelectValue placeholder="Seleziona..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">Non segnato</SelectItem>
+        {!hasCurrent ? <SelectItem value={selectValue}>{rawValue}</SelectItem> : null}
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+// FASE 5 BIS — wrapper locale: select lookup (label↔key) agganciato al form via
+// useController. Sostituisce i <Select value=getLookupSelectValue onValueChange>
+// cablati a mano; il form memorizza la LABEL (come l'originale salvava).
+function FieldLookupSelect({
+  name,
+  options,
+  placeholder,
+  triggerClassName,
+}: {
+  name: string
+  options: LookupOption[]
+  placeholder?: string
+  triggerClassName?: string
+}) {
+  const { field } = useController({ name })
+  const current = typeof field.value === "string" ? field.value : ""
+  return (
+    <Select
+      value={getLookupSelectValue(current, options, "none")}
+      onValueChange={(next) =>
+        field.onChange(next === "none" ? null : getLookupLabelForSave(next, options))
+      }
+    >
+      <SelectTrigger className={triggerClassName ?? "bg-surface"}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">Nessuna selezione</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 
@@ -405,7 +505,6 @@ function ProvaDetailSheet({
   const rapporto = card?.rapporto ?? null
   const famiglia = card?.famiglia ?? null
   const lavoratore = card?.lavoratore ?? null
-  const statusColor = resolveLookupColor(lookupColorsByDomain, "rapporti_lavorativi.prova_stato_cs", rapporto?.prova_stato_cs ?? null)
   const distribution = buildDistributionItems(rapporto?.distribuzione_ore_settimana ?? null, rapporto?.ore_a_settimana ?? null)
   const trialElapsedDays = getTrialElapsedDays(rapporto?.data_inizio_rapporto)
   const rapportoPath = rapporto
@@ -424,10 +523,44 @@ function ProvaDetailSheet({
     rapportoRef.current = rapporto
   }, [rapporto])
 
-  async function updateRapporto(patch: Partial<RapportoLavorativoRecord>) {
-    if (!rapporto) return
-    await patchRapporto(rapporto.id, patch)
-  }
+  // FASE 5 BIS — form + autosave (sostituisce i 4 Select lookup cablati a mano e
+  // le 4 EditableTextarea/Input data). onSave instrada tutto su
+  // patchRapporto(rapporto.id, …) con le trasformazioni originali: i lookup
+  // memorizzano già la label (o null) via FieldLookupSelect; le textarea fanno
+  // trim()||null; la data ""→null. Lo stato prova mantiene il toast.error inline.
+  const form = useAutoSaveForm({
+    defaults: {
+      prova_stato_cs: rapporto?.prova_stato_cs ?? null,
+      prova_priorita_famiglia: rapporto?.prova_priorita_famiglia ?? "",
+      prova_feedback_famiglia: rapporto?.prova_feedback_famiglia ?? null,
+      prova_feedback_lavoratore: rapporto?.prova_feedback_lavoratore ?? null,
+      prova_ramo_d2: rapporto?.prova_ramo_d2 ?? null,
+      prova_note_cs_lavoratore: rapporto?.prova_note_cs_lavoratore ?? "",
+      prova_note_cs_famiglia: rapporto?.prova_note_cs_famiglia ?? "",
+      prova_data_checkin: toIsoDateInput(rapporto?.prova_data_checkin),
+    } as Record<string, unknown>,
+    onSave: async (patch) => {
+      if (!rapporto) return
+      const out: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(patch)) {
+        if (PROVA_TEXTAREA_KEYS.has(key)) {
+          out[key] = (value as string)?.trim() || null
+        } else if (key === "prova_data_checkin") {
+          out[key] = (value as string) || null
+        } else {
+          // lookup select: il form contiene già label o null
+          out[key] = (value as string | null) ?? null
+        }
+      }
+      try {
+        await patchRapporto(rapporto.id, out as Partial<RapportoLavorativoRecord>)
+      } catch (caughtError) {
+        toast.error(
+          caughtError instanceof Error ? caughtError.message : "Errore aggiornando prova",
+        )
+      }
+    },
+  })
 
   async function handleUploadRecording(slot: TrialRecordingSlot, file: File) {
     const currentRapporto = rapportoRef.current
@@ -515,6 +648,7 @@ function ProvaDetailSheet({
   }
 
   return (
+    <Form {...form}>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,720px)]! max-w-none! p-0 sm:max-w-none">
         <SheetHeader className="border-b bg-surface px-5 py-5">
@@ -533,27 +667,13 @@ function ProvaDetailSheet({
 
             {rapporto ? (
               <DetailFieldControl label="Stato CS Prova" className="max-w-sm">
-                <Select
-                  value={getLookupSelectValue(rapporto.prova_stato_cs, statusOptions, "none")}
-                  onValueChange={(next) => {
-                    const nextValue = next === "none" ? null : getLookupLabelForSave(next, statusOptions)
-                    void updateRapporto({ prova_stato_cs: nextValue }).catch((caughtError) => {
-                      toast.error(caughtError instanceof Error ? caughtError.message : "Errore aggiornando stato prova")
-                    })
-                  }}
-                >
-                  <SelectTrigger className={cn("bg-surface", getTagClassName(statusColor))}>
-                    <SelectValue placeholder="Stato prova" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nessuno stato</SelectItem>
-                    {statusOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FieldStatoProvaSelect
+                  name="prova_stato_cs"
+                  options={statusOptions}
+                  resolveColor={(label) =>
+                    resolveLookupColor(lookupColorsByDomain, "rapporti_lavorativi.prova_stato_cs", label)
+                  }
+                />
               </DetailFieldControl>
             ) : null}
           </div>
@@ -614,12 +734,10 @@ function ProvaDetailSheet({
                   Da compilare durante/dopo la call onboarding per segnare le priorità della famiglia a livello di pulizia, organizzazione e rapporto con il lavoratore.
                 </p>
                 <DetailFieldControl label="Priorità famiglia">
-                  <EditableTextarea
-                    value={rapporto.prova_priorita_famiglia}
+                  <FieldTextarea
+                    name="prova_priorita_famiglia"
                     placeholder="Pulizia, organizzazione, rapporto con il lavoratore..."
-                    onCommit={async (next) => {
-                      await updateRapporto({ prova_priorita_famiglia: next })
-                    }}
+                    className="min-h-24 resize-y"
                   />
                 </DetailFieldControl>
               </DetailSectionBlock>
@@ -631,61 +749,25 @@ function ProvaDetailSheet({
                 contentClassName="grid gap-4 md:grid-cols-2"
               >
                 <DetailFieldControl label="Feedback Famiglia">
-                  <Select
-                    value={getLookupSelectValue(rapporto.prova_feedback_famiglia, feedbackFamigliaOptions, "none")}
-                    onValueChange={(next) => {
-                      const nextValue = next === "none" ? null : getLookupLabelForSave(next, feedbackFamigliaOptions)
-                      void updateRapporto({ prova_feedback_famiglia: nextValue })
-                    }}
-                  >
-                    <SelectTrigger className="bg-surface">
-                      <SelectValue placeholder="Feedback famiglia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessuna selezione</SelectItem>
-                      {feedbackFamigliaOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FieldLookupSelect
+                    name="prova_feedback_famiglia"
+                    options={feedbackFamigliaOptions}
+                    placeholder="Feedback famiglia"
+                  />
                 </DetailFieldControl>
                 <DetailFieldControl label="Feedback Lavoratore">
-                  <Select
-                    value={getLookupSelectValue(rapporto.prova_feedback_lavoratore, feedbackLavoratoreOptions, "none")}
-                    onValueChange={(next) => {
-                      const nextValue = next === "none" ? null : getLookupLabelForSave(next, feedbackLavoratoreOptions)
-                      void updateRapporto({ prova_feedback_lavoratore: nextValue })
-                    }}
-                  >
-                    <SelectTrigger className="bg-surface">
-                      <SelectValue placeholder="Feedback lavoratore" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessuna selezione</SelectItem>
-                      {feedbackLavoratoreOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FieldLookupSelect
+                    name="prova_feedback_lavoratore"
+                    options={feedbackLavoratoreOptions}
+                    placeholder="Feedback lavoratore"
+                  />
                 </DetailFieldControl>
                 <DetailFieldControl label="Ramificazione D2">
-                  <Select
-                    value={getLookupSelectValue(rapporto.prova_ramo_d2, ramoD2Options, "none")}
-                    onValueChange={(next) => {
-                      const nextValue = next === "none" ? null : getLookupLabelForSave(next, ramoD2Options)
-                      void updateRapporto({ prova_ramo_d2: nextValue })
-                    }}
-                  >
-                    <SelectTrigger className="bg-surface">
-                      <SelectValue placeholder="Ramificazione D2" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nessuna selezione</SelectItem>
-                      {ramoD2Options.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FieldLookupSelect
+                    name="prova_ramo_d2"
+                    options={ramoD2Options}
+                    placeholder="Ramificazione D2"
+                  />
                 </DetailFieldControl>
               </DetailSectionBlock>
 
@@ -696,21 +778,17 @@ function ProvaDetailSheet({
                 contentClassName="space-y-4"
               >
                 <DetailFieldControl label="Note CS Lavoratore">
-                  <EditableTextarea
-                    value={rapporto.prova_note_cs_lavoratore}
+                  <FieldTextarea
+                    name="prova_note_cs_lavoratore"
                     placeholder="Appunti CS sul lavoratore al D2"
-                    onCommit={async (next) => {
-                      await updateRapporto({ prova_note_cs_lavoratore: next })
-                    }}
+                    className="min-h-24 resize-y"
                   />
                 </DetailFieldControl>
                 <DetailFieldControl label="Note CS Famiglia">
-                  <EditableTextarea
-                    value={rapporto.prova_note_cs_famiglia}
+                  <FieldTextarea
+                    name="prova_note_cs_famiglia"
                     placeholder="Appunti CS sulla famiglia al D2"
-                    onCommit={async (next) => {
-                      await updateRapporto({ prova_note_cs_famiglia: next })
-                    }}
+                    className="min-h-24 resize-y"
                   />
                 </DetailFieldControl>
               </DetailSectionBlock>
@@ -725,14 +803,7 @@ function ProvaDetailSheet({
                   Il check-in deve essere impostato almeno dopo il secondo giorno di prova, a distanza di una settimana dal D2. In caso di rapporti part-time o full-time, impostarlo al quinto giorno di prova. Può essere spostato per esigenze operative della situazione.
                 </p>
                 <DetailFieldControl label="Data Check-in" className="max-w-sm">
-                  <Input
-                    type="date"
-                    value={toIsoDateInput(rapporto.prova_data_checkin)}
-                    onChange={(event) => {
-                      void updateRapporto({ prova_data_checkin: event.target.value || null })
-                    }}
-                    className="bg-surface"
-                  />
+                  <FieldInput name="prova_data_checkin" type="date" className="bg-surface" />
                 </DetailFieldControl>
               </DetailSectionBlock>
 
@@ -770,6 +841,7 @@ function ProvaDetailSheet({
         ) : null}
       </SheetContent>
     </Sheet>
+    </Form>
   )
 }
 
@@ -1114,12 +1186,31 @@ function ColloquioSheet({
   const workerLabel = [event?.lavoratore?.nome, event?.lavoratore?.cognome].filter(Boolean).join(" ") || "Lavoratore"
   const familyLabel = [event?.famiglia?.nome, event?.famiglia?.cognome].filter(Boolean).join(" ") || event?.famiglia?.email || "Famiglia"
   const address = [event?.process?.indirizzo_prova_via, event?.process?.indirizzo_prova_civico].filter(Boolean).join(" ") || "-"
-  const rawTipoIncontroValue = event?.process?.tipo_incontro_famiglia_lavoratore ?? ""
-  const tipoIncontroValue = getLookupSelectValue(rawTipoIncontroValue, tipoIncontroOptions, "none")
-  const hasCurrentTipoIncontro =
-    tipoIncontroValue === "none" || tipoIncontroOptions.some((option) => option.value === tipoIncontroValue)
+
+  // FASE 5 BIS — form + autosave (sostituisce il Select cablato a mano). onSave
+  // instrada su patchProcess(processId, …); il form contiene già la label (o
+  // null) via FieldColloquioEsitoSelect. Errore inline → toast.error come prima.
+  // Sheet non viene rimontato per evento: i defaults (keyed sulla firma) fanno
+  // resync quando cambia l'evento selezionato.
+  const form = useAutoSaveForm({
+    defaults: {
+      tipo_incontro_famiglia_lavoratore:
+        event?.process?.tipo_incontro_famiglia_lavoratore ?? null,
+    } as Record<string, unknown>,
+    onSave: async (patch) => {
+      if (!processId) return
+      try {
+        await patchProcess(processId, patch as Partial<ProcessoMatchingRecord>)
+      } catch (caughtError) {
+        toast.error(
+          caughtError instanceof Error ? caughtError.message : "Errore aggiornando colloquio",
+        )
+      }
+    },
+  })
 
   return (
+    <Form {...form}>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,720px)]! max-w-none! p-0 sm:max-w-none">
         <SheetHeader className="border-b bg-surface px-5 py-5">
@@ -1168,34 +1259,11 @@ function ColloquioSheet({
                 contentClassName="space-y-4"
               >
                 <DetailFieldControl label="prova_colloquio_res" className="max-w-sm">
-                  <Select
-                    value={tipoIncontroValue}
+                  <FieldColloquioEsitoSelect
+                    name="tipo_incontro_famiglia_lavoratore"
+                    options={tipoIncontroOptions}
                     disabled={!processId}
-                    onValueChange={(next) => {
-                      if (!processId) return
-                      const nextValue = next === "none" ? null : getLookupLabelForSave(next, tipoIncontroOptions)
-                      void patchProcess(processId, {
-                        tipo_incontro_famiglia_lavoratore: nextValue,
-                      }).catch((caughtError) => {
-                        toast.error(caughtError instanceof Error ? caughtError.message : "Errore aggiornando colloquio")
-                      })
-                    }}
-                  >
-                    <SelectTrigger className="bg-surface">
-                      <SelectValue placeholder="Seleziona..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Non segnato</SelectItem>
-                      {!hasCurrentTipoIncontro ? (
-                        <SelectItem value={tipoIncontroValue}>{rawTipoIncontroValue}</SelectItem>
-                      ) : null}
-                      {tipoIncontroOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </DetailFieldControl>
               </DetailSectionBlock>
             </div>
@@ -1203,6 +1271,7 @@ function ColloquioSheet({
         ) : null}
       </SheetContent>
     </Sheet>
+    </Form>
   )
 }
 

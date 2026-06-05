@@ -33,10 +33,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form } from "@/components/ui/form";
+import { FieldInput, FieldTextarea } from "@/components/forms/field-components";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
+import { useController } from "react-hook-form";
 import {
   Sheet,
   SheetContent,
@@ -80,22 +83,6 @@ function formatCurrency(value: number | null | undefined) {
     minimumFractionDigits: 1,
     maximumFractionDigits: 2,
   }).format(value);
-}
-
-function buildVariazioneDetailsDraft(card: VariazioniBoardCardData | null) {
-  return {
-    dataVariazione: toDateInputValue(card?.record.data_variazione),
-    variazioneDaApplicare: card?.record.variazione_da_applicare ?? "",
-  };
-}
-
-function buildVariazioneRapportoDraft(card: VariazioniBoardCardData | null) {
-  return {
-    pagaOraria: card?.rapporto?.paga_oraria_lorda ? String(card.rapporto.paga_oraria_lorda) : "",
-    oreSettimanali: card?.rapporto?.ore_a_settimana ? String(card.rapporto.ore_a_settimana) : "",
-    tipoRapporto: card?.rapporto?.tipo_rapporto ?? "",
-    tipoContratto: card?.rapporto?.tipo_contratto ?? "",
-  };
 }
 
 type AnagraficaField = {
@@ -159,6 +146,11 @@ function EditableAnagraficaSection({
   const [isEditing, setIsEditing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const previousRowIdRef = React.useRef(rowId);
+  const latestRowRef = React.useRef(row);
+
+  React.useEffect(() => {
+    latestRowRef.current = row;
+  }, [row]);
 
   React.useEffect(() => {
     const isDifferentRow = previousRowIdRef.current !== rowId;
@@ -169,27 +161,40 @@ function EditableAnagraficaSection({
     }
   }, [rowId]);
 
-  async function saveFieldValue(field: AnagraficaField, value: string) {
-    if (!rowId || field.readOnly) return;
-    const nextValue = value.trim();
-    const currentValue = toDisplayValue(row?.[field.key]).trim();
-    if (nextValue === currentValue) return;
-
-    setError(null);
-    try {
-      const response = await updateRecord(table, rowId, {
-        [field.key]: nextValue || null,
-      });
-      onRowChange({
-        ...(row ?? {}),
-        ...response.row,
-      });
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : `Errore salvando ${title}`);
-    }
-  }
+  // FASE 5 BIS — form + autosave per i campi anagrafici editabili. onSave
+  // instrada ogni chiave cambiata a updateRecord(table, rowId, …) con ""→null,
+  // mergiando la risposta via onRowChange (optimistic local-merge originale).
+  // L'errore resta inline (setError), non toast.
+  const form = useAutoSaveForm({
+    defaults: Object.fromEntries(
+      fields
+        .filter((field) => !field.readOnly)
+        .map((field) => [field.key, toDisplayValue(row?.[field.key])]),
+    ) as Record<string, string>,
+    onSave: async (patch) => {
+      if (!rowId) return;
+      const out: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(patch)) {
+        out[key] = (value as string).trim() || null;
+      }
+      if (Object.keys(out).length === 0) return;
+      setError(null);
+      try {
+        const response = await updateRecord(table, rowId, out);
+        onRowChange({
+          ...(latestRowRef.current ?? row ?? {}),
+          ...response.row,
+        });
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error ? caughtError.message : `Errore salvando ${title}`,
+        );
+      }
+    },
+  });
 
   return (
+    <Form {...form}>
     <DetailSectionBlock
       title={title}
       icon={<PencilIcon className="size-4" />}
@@ -212,11 +217,7 @@ function EditableAnagraficaSection({
             <label key={field.key} className="space-y-2">
               <span className="ui-type-label">{field.label}</span>
               {isEditing && !field.readOnly ? (
-                <DebouncedInput
-                  committedValue={toDisplayValue(row?.[field.key])}
-                  placeholder={field.placeholder}
-                  onSave={(value) => saveFieldValue(field, value)}
-                />
+                <FieldInput name={field.key} placeholder={field.placeholder} />
               ) : (
                 <p className="min-h-9 rounded-md bg-muted/50 px-3 py-2 text-sm">
                   {toDisplayValue(row?.[field.key]) || "-"}
@@ -232,6 +233,29 @@ function EditableAnagraficaSection({
         <p className="text-muted-foreground text-sm">Anagrafica non collegata.</p>
       )}
     </DetailSectionBlock>
+    </Form>
+  );
+}
+
+const TIPO_CONTRATTO_OPTIONS = ["A", "B", "BS", "C", "CS", "D", "DS"];
+
+// FASE 5 BIS — wrapper locale per il select "Tipo contratto" agganciato al form.
+function FieldTipoContrattoSelect({ name }: { name: string }) {
+  const { field } = useController({ name });
+  const current = typeof field.value === "string" ? field.value : "";
+  return (
+    <Select value={current || undefined} onValueChange={field.onChange}>
+      <SelectTrigger>
+        <SelectValue placeholder="Seleziona tipo contratto" />
+      </SelectTrigger>
+      <SelectContent>
+        {TIPO_CONTRATTO_OPTIONS.map((option) => (
+          <SelectItem key={option} value={option}>
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -248,16 +272,12 @@ function VariazioniDetailSheet({
 }) {
   const [editingDetails, setEditingDetails] = React.useState(false);
   const [editingRapporto, setEditingRapporto] = React.useState(false);
-  const [savingDetails, setSavingDetails] = React.useState(false);
-  const [savingRapporto, setSavingRapporto] = React.useState(false);
   const [detailsError, setDetailsError] = React.useState<string | null>(null);
   const [rapportoError, setRapportoError] = React.useState<string | null>(null);
   const [uploadingSlot, setUploadingSlot] = React.useState<VariazioneAttachmentSlot | null>(null);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const previousCardIdRef = React.useRef<string | null>(card?.id ?? null);
   const latestCardRef = React.useRef<VariazioniBoardCardData | null>(card);
-  const [, setDetailsDraft] = React.useState(() => buildVariazioneDetailsDraft(card));
-  const [rapportoDraft, setRapportoDraft] = React.useState(() => buildVariazioneRapportoDraft(card));
 
   React.useEffect(() => {
     latestCardRef.current = card;
@@ -272,16 +292,6 @@ function VariazioniDetailSheet({
   );
 
   React.useEffect(() => {
-    const nextDetailsDraft = {
-      dataVariazione: toDateInputValue(card?.record.data_variazione),
-      variazioneDaApplicare: card?.record.variazione_da_applicare ?? "",
-    };
-    const nextRapportoDraft = {
-      pagaOraria: card?.rapporto?.paga_oraria_lorda ? String(card.rapporto.paga_oraria_lorda) : "",
-      oreSettimanali: card?.rapporto?.ore_a_settimana ? String(card.rapporto.ore_a_settimana) : "",
-      tipoRapporto: card?.rapporto?.tipo_rapporto ?? "",
-      tipoContratto: card?.rapporto?.tipo_contratto ?? "",
-    };
     const nextCardId = card?.id ?? null;
     const isDifferentCard = previousCardIdRef.current !== nextCardId;
     previousCardIdRef.current = nextCardId;
@@ -292,34 +302,13 @@ function VariazioniDetailSheet({
       setDetailsError(null);
       setRapportoError(null);
       setUploadError(null);
-      setDetailsDraft(nextDetailsDraft);
-      setRapportoDraft(nextRapportoDraft);
-      return;
     }
-
-    if (!editingDetails) {
-      setDetailsDraft(nextDetailsDraft);
-    }
-    if (!editingRapporto) {
-      setRapportoDraft(nextRapportoDraft);
-    }
-  }, [
-    card?.id,
-    card?.rapporto?.ore_a_settimana,
-    card?.rapporto?.paga_oraria_lorda,
-    card?.rapporto?.tipo_contratto,
-    card?.rapporto?.tipo_rapporto,
-    card?.record.data_variazione,
-    card?.record.variazione_da_applicare,
-    editingDetails,
-    editingRapporto,
-  ]);
+  }, [card?.id]);
 
   async function saveDetailsPatch(patch: Record<string, unknown>) {
     const currentCard = latestCardRef.current ?? card;
     if (!currentCard || Object.keys(patch).length === 0) return;
 
-    setSavingDetails(true);
     setDetailsError(null);
 
     try {
@@ -340,8 +329,7 @@ function VariazioniDetailSheet({
       setDetailsError(
         caughtError instanceof Error ? caughtError.message : "Errore salvando variazione",
       );
-    } finally {
-      setSavingDetails(false);
+      throw caughtError;
     }
   }
 
@@ -349,7 +337,6 @@ function VariazioniDetailSheet({
     const currentCard = latestCardRef.current ?? card;
     if (!currentCard?.rapporto?.id || Object.keys(patch).length === 0) return;
 
-    setSavingRapporto(true);
     setRapportoError(null);
 
     try {
@@ -367,10 +354,59 @@ function VariazioniDetailSheet({
       setRapportoError(
         caughtError instanceof Error ? caughtError.message : "Errore salvando rapporto",
       );
-    } finally {
-      setSavingRapporto(false);
+      throw caughtError;
     }
   }
+
+  // FASE 5 BIS — form + autosave: sostituisce i DebouncedInput/DebouncedTextarea
+  // cablati a mano e i draft+effect di resync. onSave instrada per chiave ai due
+  // target originali: i campi del record variazione → saveDetailsPatch
+  // (variazioni_contrattuali), i campi rapporto → saveRapportoPatch
+  // (rapporti_lavorativi), con le stesse trasformazioni (date ||null, numerici
+  // Number(v)||null, ""→null). Gli errori restano inline (detailsError /
+  // rapportoError); i throw evitano che il dirty-tracking marchi come committato
+  // un valore non salvato.
+  const DETAILS_KEYS = new Set([
+    "data_variazione",
+    "variazione_da_applicare",
+  ]);
+  const NUMERIC_RAPPORTO_KEYS = new Set([
+    "paga_oraria_lorda",
+    "ore_a_settimana",
+  ]);
+  const form = useAutoSaveForm({
+    defaults: {
+      data_variazione: toDateInputValue(card?.record.data_variazione),
+      variazione_da_applicare: card?.record.variazione_da_applicare ?? "",
+      paga_oraria_lorda:
+        card?.rapporto?.paga_oraria_lorda != null
+          ? String(card.rapporto.paga_oraria_lorda)
+          : "",
+      ore_a_settimana:
+        card?.rapporto?.ore_a_settimana != null
+          ? String(card.rapporto.ore_a_settimana)
+          : "",
+      tipo_rapporto: card?.rapporto?.tipo_rapporto ?? "",
+      tipo_contratto: card?.rapporto?.tipo_contratto ?? "",
+      distribuzione_ore_settimana: card?.rapporto?.distribuzione_ore_settimana ?? "",
+    },
+    onSave: async (patch) => {
+      if (!card) return;
+      const detailsPatch: Record<string, unknown> = {};
+      const rapportoPatch: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(patch)) {
+        if (DETAILS_KEYS.has(key)) {
+          detailsPatch[key] = (value as string) || null;
+        } else if (NUMERIC_RAPPORTO_KEYS.has(key)) {
+          rapportoPatch[key] = value ? Number(value as string) : null;
+        } else {
+          rapportoPatch[key] = (value as string) || null;
+        }
+      }
+      if (Object.keys(detailsPatch).length > 0) await saveDetailsPatch(detailsPatch);
+      if (Object.keys(rapportoPatch).length > 0) await saveRapportoPatch(rapportoPatch);
+    },
+  });
 
   async function handleUploadAttachment(slot: VariazioneAttachmentSlot, file: File) {
     const currentCard = latestCardRef.current ?? card;
@@ -462,6 +498,7 @@ function VariazioniDetailSheet({
   }
 
   return (
+    <Form {...form}>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
@@ -539,22 +576,12 @@ function VariazioniDetailSheet({
                   <div className="grid gap-4">
                     <label className="space-y-2">
                       <span className="ui-type-label">Data di partenza</span>
-                      <DebouncedInput
-                        type="date"
-                        committedValue={card?.record.data_variazione ?? ""}
-                        onSave={async (v) => { await saveDetailsPatch({ data_variazione: v || null }); }}
-                      />
+                      <FieldInput name="data_variazione" type="date" />
                     </label>
                     <label className="space-y-2">
                       <span className="ui-type-label">Variazione da applicare</span>
-                      <DebouncedTextarea
-                        committedValue={card?.record.variazione_da_applicare ?? ""}
-                        onSave={async (v) => { await saveDetailsPatch({ variazione_da_applicare: v || null }); }}
-                      />
+                      <FieldTextarea name="variazione_da_applicare" />
                     </label>
-                    {savingDetails ? (
-                      <p className="text-muted-foreground text-xs">Salvataggio in corso...</p>
-                    ) : null}
                     {detailsError ? (
                       <p className="text-xs font-medium text-red-600">{detailsError}</p>
                     ) : null}
@@ -603,67 +630,28 @@ function VariazioniDetailSheet({
                     <div className="grid gap-4 md:grid-cols-2">
                       <label className="space-y-2">
                         <span className="ui-type-label">Paga oraria lorda</span>
-                        <DebouncedInput
-                          type="number"
-                          step="0.01"
-                          committedValue={card?.rapporto?.paga_oraria_lorda != null ? String(card.rapporto.paga_oraria_lorda) : ""}
-                          onSave={async (v) => { await saveRapportoPatch({ paga_oraria_lorda: v ? Number(v) : null }); }}
-                        />
+                        <FieldInput name="paga_oraria_lorda" type="number" step="0.01" />
                       </label>
                       <label className="space-y-2">
                         <span className="ui-type-label">Ore settimanali</span>
-                        <DebouncedInput
-                          type="number"
-                          step="0.5"
-                          committedValue={card?.rapporto?.ore_a_settimana != null ? String(card.rapporto.ore_a_settimana) : ""}
-                          onSave={async (v) => { await saveRapportoPatch({ ore_a_settimana: v ? Number(v) : null }); }}
-                        />
+                        <FieldInput name="ore_a_settimana" type="number" step="0.5" />
                       </label>
                       <label className="space-y-2">
                         <span className="ui-type-label">Tipo rapporto</span>
-                        <DebouncedInput
-                          committedValue={card?.rapporto?.tipo_rapporto ?? ""}
-                          onSave={async (v) => { await saveRapportoPatch({ tipo_rapporto: v || null }); }}
-                        />
+                        <FieldInput name="tipo_rapporto" />
                       </label>
                       <label className="space-y-2">
                         <span className="ui-type-label">Tipo contratto</span>
-                        <Select
-                          value={rapportoDraft.tipoContratto || undefined}
-                          onValueChange={(value) => {
-                            setRapportoDraft((current) => ({
-                              ...current,
-                              tipoContratto: value,
-                            }));
-                            void saveRapportoPatch({ tipo_contratto: value || null });
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleziona tipo contratto" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {["A", "B", "BS", "C", "CS", "D", "DS"].map((option) => (
-                              <SelectItem key={option} value={option}>
-                                {option}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FieldTipoContrattoSelect name="tipo_contratto" />
                       </label>
                       <label className="space-y-2 md:col-span-2">
                         <span className="ui-type-label">Distribuzione ore settimanali</span>
                         <p className="ui-type-meta">Parte da domenica</p>
-                        <DebouncedInput
-                          committedValue={card?.rapporto?.distribuzione_ore_settimana ?? ""}
+                        <FieldInput
+                          name="distribuzione_ore_settimana"
                           placeholder="0-0-0-0-0-0-0"
-                          onSave={async (v) => { await saveRapportoPatch({ distribuzione_ore_settimana: v || null }); }}
                         />
                       </label>
-                      {savingRapporto ? (
-                        <p className="text-muted-foreground text-xs md:col-span-2">
-                          Salvataggio rapporto in corso...
-                        </p>
-                      ) : null}
                       {rapportoError ? (
                         <p className="text-xs font-medium text-red-600 md:col-span-2">
                           {rapportoError}
@@ -752,6 +740,7 @@ function VariazioniDetailSheet({
         )}
       </SheetContent>
     </Sheet>
+    </Form>
   );
 }
 

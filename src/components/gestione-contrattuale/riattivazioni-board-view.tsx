@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useController } from "react-hook-form"
 import {
   CalendarClockIcon,
   CalendarIcon,
@@ -27,8 +28,10 @@ import {
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
 import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
+import { FieldInput } from "@/components/forms/field-components"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { Badge } from "@/components/ui/badge"
-import { DebouncedInput } from "@/components/ui/debounced-input"
+import { Form } from "@/components/ui/form"
 import { SearchInput } from "@/components/ui/search-input"
 import {
   Select,
@@ -128,6 +131,32 @@ function sanitizeFileName(name: string) {
     .replace(/-+/g, "-")
 }
 
+// FASE 5 BIS — wrapper form-aware per lo sconto: il form memorizza il valore DB
+// (stringa o "" per "nessuno"), ma il Select usa il sentinel EMPTY_SELECT_VALUE
+// per l'opzione vuota. Qui mappiamo sentinel↔"" senza che la card lo sappia.
+function FieldScontoSelect({ name }: { name: string }) {
+  const { field } = useController({ name })
+  const current = typeof field.value === "string" && field.value ? field.value : EMPTY_SELECT_VALUE
+  return (
+    <Select
+      value={current}
+      onValueChange={(next) =>
+        field.onChange(next === EMPTY_SELECT_VALUE ? "" : next)
+      }
+    >
+      <SelectTrigger className="bg-surface">
+        <SelectValue placeholder="Seleziona sconto" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={EMPTY_SELECT_VALUE}>Nessuno sconto</SelectItem>
+        <SelectItem value={SCONTO_RIATTIVAZIONE_OPTION}>
+          {SCONTO_RIATTIVAZIONE_OPTION}
+        </SelectItem>
+      </SelectContent>
+    </Select>
+  )
+}
+
 function RiattivazioniDetailSheet({
   card,
   columns,
@@ -144,7 +173,6 @@ function RiattivazioniDetailSheet({
   onCardChange: (card: RiattivazioniBoardCardData) => void
 }) {
   const [updatingStatus, setUpdatingStatus] = React.useState(false)
-  const [savingSconto, setSavingSconto] = React.useState(false)
   const [uploadingSlot, setUploadingSlot] = React.useState<ChiusuraAttachmentSlot | null>(null)
   const [detailsError, setDetailsError] = React.useState<string | null>(null)
   const latestCardRef = React.useRef<RiattivazioniBoardCardData | null>(card)
@@ -177,65 +205,45 @@ function RiattivazioniDetailSheet({
     }
   }
 
-  async function handleScontoChange(nextValue: string) {
-    const currentCard = latestCardRef.current ?? card
-    if (!currentCard) return
-    const normalizedValue = nextValue === EMPTY_SELECT_VALUE ? null : nextValue
-    if (normalizedValue === (currentCard.record.sconto_proposto_riattivazione ?? null)) return
-
-    setSavingSconto(true)
-    setDetailsError(null)
-    try {
-      const response = await updateRecord("chiusure_contratti", currentCard.id, {
-        sconto_proposto_riattivazione: normalizedValue,
-      })
-      const baseCard = latestCardRef.current ?? currentCard
-      const nextRecord = {
-        ...baseCard.record,
-        ...response.row,
-      } as RiattivazioniBoardCardData["record"]
-      applyCardChange({
-        ...baseCard,
-        record: nextRecord,
-      })
-    } catch (caughtError) {
-      setDetailsError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Errore aggiornando sconto riattivazione",
-      )
-    } finally {
-      setSavingSconto(false)
-    }
-  }
-
-  async function handleRecallDateChange(nextValue: string) {
-    const currentCard = latestCardRef.current ?? card
-    if (!currentCard) return
-    const normalizedValue = nextValue || null
-    if (normalizedValue === formatDateInputValue(currentCard.record.data_per_riattivazione)) return
-    setDetailsError(null)
-    try {
-      const response = await updateRecord("chiusure_contratti", currentCard.id, {
-        data_per_riattivazione: normalizedValue,
-      })
-      const baseCard = latestCardRef.current ?? currentCard
-      const nextRecord = {
-        ...baseCard.record,
-        ...response.row,
-      } as RiattivazioniBoardCardData["record"]
-      applyCardChange({
-        ...baseCard,
-        record: nextRecord,
-      })
-    } catch (caughtError) {
-      setDetailsError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Errore aggiornando data recall riattivazione",
-      )
-    }
-  }
+  // FASE 5 BIS — form + autosave: sostituisce DebouncedInput committedValue (data
+  // recall) e il Select onValueChange (sconto). onSave instrada ogni chiave al
+  // medesimo updateRecord("chiusure_contratti", …) dell'originale, con le stesse
+  // trasformazioni (""→null) e preservando l'optimistic local-merge via
+  // applyCardChange(response.row) e l'errore inline (setDetailsError). Il
+  // dirty-tracking del form sostituisce le guardie "skip se invariato".
+  const form = useAutoSaveForm({
+    defaults: {
+      data_per_riattivazione: formatDateInputValue(card?.record.data_per_riattivazione),
+      sconto_proposto_riattivazione: card?.record.sconto_proposto_riattivazione ?? "",
+    },
+    onSave: async (patch) => {
+      const currentCard = latestCardRef.current ?? card
+      if (!currentCard) return
+      const out: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(patch)) {
+        out[key] = (value as string) || null
+      }
+      setDetailsError(null)
+      try {
+        const response = await updateRecord("chiusure_contratti", currentCard.id, out)
+        const baseCard = latestCardRef.current ?? currentCard
+        const nextRecord = {
+          ...baseCard.record,
+          ...response.row,
+        } as RiattivazioniBoardCardData["record"]
+        applyCardChange({
+          ...baseCard,
+          record: nextRecord,
+        })
+      } catch (caughtError) {
+        setDetailsError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Errore aggiornando riattivazione",
+        )
+      }
+    },
+  })
 
   async function handleUploadAttachment(slot: ChiusuraAttachmentSlot, file: File) {
     const currentCard = latestCardRef.current ?? card
@@ -326,6 +334,7 @@ function RiattivazioniDetailSheet({
   }
 
   return (
+    <Form {...form}>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,900px)]! max-w-none! p-0 sm:max-w-none">
         <SheetHeader className="border-b bg-surface px-5 py-5">
@@ -374,10 +383,9 @@ function RiattivazioniDetailSheet({
                   <span className="text-sm font-medium text-foreground">
                     Data recall riattivazione
                   </span>
-                  <DebouncedInput
+                  <FieldInput
+                    name="data_per_riattivazione"
                     type="date"
-                    committedValue={formatDateInputValue(card.record.data_per_riattivazione)}
-                    onSave={(value) => handleRecallDateChange(value)}
                     className="bg-surface"
                   />
                 </label>
@@ -388,21 +396,7 @@ function RiattivazioniDetailSheet({
                   <span className="text-sm font-medium text-foreground">
                     Sconto proposto riattivazione
                   </span>
-                  <Select
-                    value={card.record.sconto_proposto_riattivazione || EMPTY_SELECT_VALUE}
-                    onValueChange={handleScontoChange}
-                    disabled={savingSconto}
-                  >
-                    <SelectTrigger className="bg-surface">
-                      <SelectValue placeholder="Seleziona sconto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={EMPTY_SELECT_VALUE}>Nessuno sconto</SelectItem>
-                      <SelectItem value={SCONTO_RIATTIVAZIONE_OPTION}>
-                        {SCONTO_RIATTIVAZIONE_OPTION}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FieldScontoSelect name="sconto_proposto_riattivazione" />
                 </div>
                 <DetailField
                   label="Motivazione"
@@ -448,6 +442,7 @@ function RiattivazioniDetailSheet({
         ) : null}
       </SheetContent>
     </Sheet>
+    </Form>
   )
 }
 

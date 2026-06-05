@@ -43,7 +43,14 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input"
+import { Form } from "@/components/ui/form"
+import {
+  FieldInput,
+  FieldTextarea,
+  FieldSelect,
+  type FieldSelectOption,
+} from "@/components/forms/field-components"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -278,6 +285,16 @@ type PresenceSelectOption = {
 const EMPTY_PRESENCE_SELECT_VALUE = "__empty__"
 const PRESENCE_SELECT_TRIGGER_CLASS =
   "h-8 justify-between text-left [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left"
+
+// Campi giornalieri della tabella presenze instradati su onPatchPresence.
+const PRESENCE_DAY_FIELD_REGEX =
+  /^(ore_day_|evento_day_|codice_malattia_day_|note_day_)\d+$/
+
+const CASO_PARTICOLARE_OPTIONS: FieldSelectOption[] = [
+  { value: "no", label: "Regolare" },
+  { value: "si", label: "Caso particolare" },
+  { value: "chiusura", label: "Chiusura rapporto" },
+]
 
 const PRESENCE_DAY_TYPE_OPTIONS: PresenceSelectOption[] = [
   { value: "festivo", label: "Festivo" },
@@ -752,6 +769,87 @@ export function CedolinoDetailSheet({
     return sourceUrl ? toInlineDocumentUrl(sourceUrl) : null
   }, [card?.record.cedolino, card?.record.cedolino_url])
 
+  // FASE 5 BIS — form + autosave. Sostituisce i DebouncedInput/DebouncedTextarea
+  // e i Select cablati a mano (caso_particolare + eventi presenza). Le chiavi del
+  // form sono i NOMI COLONNA DB; onSave instrada per chiave su due target:
+  //  - i campi del cedolino → onPatchCard(card.id, …) (stesse trasformazioni:
+  //    importo_busta_estratto → Number|null, data/url/note/caso → string|null,
+  //    label↔key del caso particolare);
+  //  - i campi giornalieri di presenza (ore_day_N, evento_day_N,
+  //    codice_malattia_day_N, note_day_N) → onPatchPresence(card.presenze.id, …)
+  //    (string|null, sentinel evento "nessuno" → null).
+  const presenzeRecord = card?.presenze
+  const presenceFieldDefaults = React.useMemo(() => {
+    const out: Record<string, string> = {}
+    for (const row of presenceRows) {
+      out[`ore_day_${row.day}`] = row.hours
+      out[`evento_day_${row.day}`] = row.event || EMPTY_PRESENCE_SELECT_VALUE
+      out[`codice_malattia_day_${row.day}`] = row.sicknessCode
+      out[`note_day_${row.day}`] = row.note
+    }
+    return out
+  }, [presenceRows])
+
+  const form = useAutoSaveForm<Record<string, string>>({
+    defaults: {
+      data_invio_famiglia: toInputDateValue(card?.record.data_invio_famiglia),
+      caso_particolare: normalizeCaseFlag(card?.record.caso_particolare),
+      cedolino_url: card?.record.cedolino_url ?? "",
+      importo_busta_estratto: String(card?.record.importo_busta_estratto ?? ""),
+      note: card?.record.note ?? "",
+      ...presenceFieldDefaults,
+    },
+    onSave: async (patch) => {
+      if (!card) return
+      const cardPatch: Record<string, unknown> = {}
+      const presencePatch: Record<string, unknown> = {}
+
+      for (const [key, raw] of Object.entries(patch)) {
+        const value = raw as string
+        if (PRESENCE_DAY_FIELD_REGEX.test(key)) {
+          presencePatch[key] =
+            key.startsWith("evento_day_")
+              ? value === EMPTY_PRESENCE_SELECT_VALUE
+                ? null
+                : value
+              : value || null
+          continue
+        }
+
+        switch (key) {
+          case "data_invio_famiglia":
+          case "cedolino_url":
+          case "note":
+            cardPatch[key] = value || null
+            break
+          case "importo_busta_estratto":
+            cardPatch[key] = value ? Number(value) : null
+            break
+          case "caso_particolare":
+            cardPatch[key] =
+              value === "chiusura"
+                ? "Chiusura rapporto"
+                : value === "si"
+                  ? "Caso particolare"
+                  : null
+            break
+          default:
+            cardPatch[key] = value || null
+        }
+      }
+
+      if (Object.keys(cardPatch).length > 0) {
+        await onPatchCard(card.id, cardPatch as Partial<PayrollBoardCardData["record"]>)
+      }
+      if (Object.keys(presencePatch).length > 0 && presenzeRecord) {
+        await onPatchPresence(
+          presenzeRecord.id,
+          presencePatch as Partial<NonNullable<PayrollBoardCardData["presenze"]>>,
+        )
+      }
+    },
+  })
+
   React.useEffect(() => {
     setShowCedolinoPreview(false)
   }, [card?.id])
@@ -886,6 +984,7 @@ export function CedolinoDetailSheet({
   }
 
   return (
+    <Form {...form}>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
         <SheetHeader className="border-b bg-surface px-5 py-5">
@@ -982,40 +1081,11 @@ export function CedolinoDetailSheet({
                   </div>
                   <div className="space-y-2">
                     <label className="ui-type-label">Data invio famiglia</label>
-                    <DebouncedInput
-                      type="date"
-                      committedValue={toInputDateValue(card.record.data_invio_famiglia)}
-                      onSave={async (value) => {
-                        await onPatchCard(card.id, {
-                          data_invio_famiglia: value || null,
-                        })
-                      }}
-                    />
+                    <FieldInput name="data_invio_famiglia" type="date" />
                   </div>
                   <div className="space-y-2">
                     <p className="ui-type-label">Caso particolare?</p>
-                    <Select
-                      value={normalizeCaseFlag(card.record.caso_particolare)}
-                      onValueChange={(value) =>
-                        onPatchCard(card.id, {
-                          caso_particolare:
-                            value === "chiusura"
-                              ? "Chiusura rapporto"
-                              : value === "si"
-                                ? "Caso particolare"
-                                : null,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no">Regolare</SelectItem>
-                        <SelectItem value="si">Caso particolare</SelectItem>
-                        <SelectItem value="chiusura">Chiusura rapporto</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FieldSelect name="caso_particolare" options={CASO_PARTICOLARE_OPTIONS} />
                   </div>
                 </div>
               </DetailSectionBlock>
@@ -1079,16 +1149,7 @@ export function CedolinoDetailSheet({
                 <div className="space-y-2">
                   <p className="ui-type-label">URL cedolino</p>
                   <div className="flex gap-2">
-                    <DebouncedInput
-                      type="url"
-                      committedValue={card.record.cedolino_url ?? ""}
-                      placeholder="https://..."
-                      onSave={async (value) => {
-                        await onPatchCard(card.id, {
-                          cedolino_url: value || null,
-                        })
-                      }}
-                    />
+                    <FieldInput name="cedolino_url" type="url" placeholder="https://..." />
                     {card.record.cedolino_url ? (
                       <Button variant="outline" size="icon" asChild>
                         <a
@@ -1115,18 +1176,7 @@ export function CedolinoDetailSheet({
                   </div>
                   <div className="space-y-2">
                     <p className="ui-type-label">Importo busta paga</p>
-                    <DebouncedInput
-                      type="number"
-                      step="0.01"
-                      committedValue={String(card.record.importo_busta_estratto ?? "")}
-                      onSave={async (value) => {
-                        await onPatchCard(card.id, {
-                          importo_busta_estratto: value
-                            ? Number(value)
-                            : null,
-                        })
-                      }}
-                    />
+                    <FieldInput name="importo_busta_estratto" type="number" step="0.01" />
                   </div>
                   <div className="space-y-2">
                     <p className="ui-type-label">Cedolino corretto?</p>
@@ -1138,13 +1188,7 @@ export function CedolinoDetailSheet({
 
                 <div className="space-y-2">
                   <p className="ui-type-label">Note interne</p>
-                  <DebouncedTextarea
-                    committedValue={card.record.note ?? ""}
-                    className="min-h-24 w-full"
-                    onSave={async (value) => {
-                      await onPatchCard(card.id, { note: value || null })
-                    }}
-                  />
+                  <FieldTextarea name="note" className="min-h-24 w-full" />
                 </div>
               </DetailSectionBlock>
 
@@ -1350,70 +1394,38 @@ export function CedolinoDetailSheet({
                                 {getDayTypeLabel(row.type) || "—"}
                               </TableCell>
                               <TableCell>
-                                <DebouncedInput
-                                  committedValue={row.hours}
+                                <FieldInput
+                                  name={`ore_day_${row.day}`}
                                   className="h-8 w-20"
                                   placeholder="Ore"
-                                  onSave={async (value) => {
-                                    if (!card.presenze) return
-                                    await onPatchPresence(card.presenze.id, {
-                                      [`ore_day_${row.day}`]: value || null,
-                                    })
-                                  }}
                                 />
                               </TableCell>
                               <TableCell className="text-muted-foreground font-mono text-xs">
                                 {getPresenceRegolariHours(card.presenzeRegolari, row.day) || "—"}
                               </TableCell>
                               <TableCell>
-                                <Select
-                                  value={row.event || EMPTY_PRESENCE_SELECT_VALUE}
-                                  onValueChange={(value) =>
-                                    card.presenze
-                                      ? onPatchPresence(card.presenze.id, {
-                                          [`evento_day_${row.day}`]:
-                                            value === EMPTY_PRESENCE_SELECT_VALUE ? null : value,
-                                        })
-                                      : undefined
-                                  }
-                                >
-                                  <SelectTrigger className={cn(PRESENCE_SELECT_TRIGGER_CLASS, "w-56")}>
-                                    <SelectValue placeholder="Evento" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value={EMPTY_PRESENCE_SELECT_VALUE}>Nessuno</SelectItem>
-                                    {withCurrentPresenceOption(PRESENCE_EVENT_OPTIONS, row.event).map((option) => (
-                                      <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <FieldSelect
+                                  name={`evento_day_${row.day}`}
+                                  placeholder="Evento"
+                                  triggerClassName={cn(PRESENCE_SELECT_TRIGGER_CLASS, "w-56")}
+                                  options={[
+                                    { value: EMPTY_PRESENCE_SELECT_VALUE, label: "Nessuno" },
+                                    ...withCurrentPresenceOption(PRESENCE_EVENT_OPTIONS, row.event),
+                                  ]}
+                                />
                               </TableCell>
                               <TableCell>
-                                <DebouncedInput
-                                  committedValue={row.sicknessCode}
+                                <FieldInput
+                                  name={`codice_malattia_day_${row.day}`}
                                   className="h-8 w-24"
                                   placeholder="PNR"
-                                  onSave={async (value) => {
-                                    if (!card.presenze) return
-                                    await onPatchPresence(card.presenze.id, {
-                                      [`codice_malattia_day_${row.day}`]: value || null,
-                                    })
-                                  }}
                                 />
                               </TableCell>
                               <TableCell className="min-w-72">
-                                <DebouncedInput
-                                  committedValue={row.note}
+                                <FieldInput
+                                  name={`note_day_${row.day}`}
                                   className="h-8"
                                   placeholder="Note"
-                                  onSave={async (value) => {
-                                    if (!card.presenze) return
-                                    await onPatchPresence(card.presenze.id, {
-                                      [`note_day_${row.day}`]: value || null,
-                                    })
-                                  }}
                                 />
                               </TableCell>
                             </TableRow>
@@ -1457,6 +1469,7 @@ export function CedolinoDetailSheet({
         )}
       </SheetContent>
     </Sheet>
+    </Form>
   )
 }
 

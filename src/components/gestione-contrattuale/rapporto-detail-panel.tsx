@@ -1,5 +1,4 @@
 import * as React from "react"
-import { toast } from "sonner"
 import {
   ArrowRightIcon,
   BriefcaseBusinessIcon,
@@ -57,12 +56,13 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import {
-  beginPendingWrite,
-  endPendingWrite,
   updateRecord,
   type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
-import { useDebouncedSave } from "@/hooks/use-debounced-save"
+import { useController } from "react-hook-form"
+import { Form } from "@/components/ui/form"
+import { FieldInput } from "@/components/forms/field-components"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import {
   buildAttachmentPayload,
   normalizeAttachmentArray,
@@ -622,26 +622,46 @@ function EmptyLinkedState({
   )
 }
 
-function buildRapportoDraft(rapporto: RapportoLavorativoRecord | null | undefined) {
-  return {
-    tipo_contratto_durata: rapporto?.tipo_contratto_durata ?? "",
-    tipo_contratto: rapporto?.tipo_contratto ?? "",
-    tipo_rapporto: rapporto?.tipo_rapporto ?? "",
-    ore_a_settimana:
-      typeof rapporto?.ore_a_settimana === "number" ? String(rapporto.ore_a_settimana) : "",
-    distribuzione_ore_settimana: rapporto?.distribuzione_ore_settimana ?? "",
-    data_inizio_rapporto: rapporto?.data_inizio_rapporto ?? "",
-    stato_assunzione: rapporto?.stato_assunzione ?? "",
-    relazione_lavorativa: rapporto?.relazione_lavorativa ?? "",
-    paga_oraria_lorda:
-      typeof rapporto?.paga_oraria_lorda === "number" ? String(rapporto.paga_oraria_lorda) : "",
-    paga_mensile_lorda:
-      typeof rapporto?.paga_mensile_lorda === "number" ? String(rapporto.paga_mensile_lorda) : "",
-    codice_datore_webcolf:
-      typeof rapporto?.codice_datore_webcolf === "number" ? String(rapporto.codice_datore_webcolf) : "",
-    codice_dipendente_webcolf:
-      typeof rapporto?.codice_dipendente_webcolf === "number" ? String(rapporto.codice_dipendente_webcolf) : "",
-  }
+// FASE 5 BIS — wrapper locale: il Select "Sconto applicato" salva su
+// processi_matching.offerta (label = key, niente lookup). Gestisce `disabled`
+// e l'opzione extra per un valore corrente fuori lista (logica bespoke
+// preservata dall'originale).
+function FieldScontoSelect({
+  name,
+  disabled,
+  placeholder,
+}: {
+  name: string
+  disabled?: boolean
+  placeholder?: string
+}) {
+  const { field } = useController({ name })
+  const current = typeof field.value === "string" ? field.value : ""
+  const options = [
+    ...SCONTO_APPLICATO_OPTIONS,
+    ...(current &&
+    !SCONTO_APPLICATO_OPTIONS.includes(current as (typeof SCONTO_APPLICATO_OPTIONS)[number])
+      ? [current]
+      : []),
+  ]
+  return (
+    <Select
+      value={current || undefined}
+      disabled={disabled}
+      onValueChange={(value) => field.onChange(value)}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option} value={option}>
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
 }
 
 export function RapportoDetailPanel({
@@ -675,20 +695,12 @@ export function RapportoDetailPanel({
   const [uploadingSlot, setUploadingSlot] = React.useState<string | null>(null)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
   const [editingSection, setEditingSection] = React.useState<"contratto" | null>(null)
-  const [savingContratto, setSavingContratto] = React.useState(false)
   const [selectedCedolinoId, setSelectedCedolinoId] = React.useState<string | null>(null)
   const [selectedContributoId, setSelectedContributoId] = React.useState<string | null>(null)
   const [selectedTicket, setSelectedTicket] = React.useState<TicketRecord | null>(null)
   const [isCreateTicketOpen, setIsCreateTicketOpen] = React.useState(false)
   const [rapportoState, setRapportoState] = React.useState<RapportoLavorativoRecord | null>(rapporto)
-  const autosaveTimeoutRef = React.useRef<number | null>(null)
   const previousRapportoIdRef = React.useRef<string | null>(rapporto?.id ?? null)
-  const [rapportoDraft, setRapportoDraft] = React.useState(() => buildRapportoDraft(rapporto))
-  const rapportoDraftRef = React.useRef(rapportoDraft)
-
-  React.useEffect(() => {
-    rapportoDraftRef.current = rapportoDraft
-  }, [rapportoDraft])
 
   React.useEffect(() => {
     const nextRapportoId = rapporto?.id ?? null
@@ -699,13 +711,10 @@ export function RapportoDetailPanel({
     // (`rapporto`) is owned by `useRapportiLavorativiData` and is not
     // refetched after our own `updateRecord` calls, so for some time after
     // a save it is strictly older than `rapportoState` (which holds the
-    // edge function's `response.row`). Clobbering `rapportoState` /
-    // `rapportoDraft` with the prop on `editingSection` toggling — the
-    // exact moment the user clicks the pencil to leave edit mode — used to
-    // wipe just-saved values from the UI (e.g. Cod. rapporto / Cod.
-    // lavoratore Webcolf). The parent is now informed via
-    // `onRapportoUpdated`, so by the time the prop changes for the same id
-    // it is already aligned with local state.
+    // edge function's `response.row`). The form resync (keepDirtyValues) is
+    // keyed on the data signature, so in-progress edits are never clobbered;
+    // the parent is also informed via `onRapportoUpdated`, so by the time the
+    // prop changes for the same id it is already aligned with local state.
     //
     // Different rapporto id: full reset (in practice the parent unmounts us
     // via `key={selectedRapportoId}`, but we keep this branch defensively).
@@ -717,24 +726,11 @@ export function RapportoDetailPanel({
     setSelectedCedolinoId(null)
     setSelectedContributoId(null)
     setSelectedTicket(null)
-    // Initialization for a new rapporto-id, not a realtime echo: this
-    // branch only runs on actual id transition, which the parent already
-    // funnels through a remount via `key={selectedRapportoId}`. Safe to
-    // rebuild the draft here — there is no in-progress edit to clobber
-    // (editingSection is reset to null on the next line).
-    setRapportoDraft(buildRapportoDraft(rapporto))
     setEditingSection(null)
-    setSavingContratto(false)
     setActiveSection("contratto")
-    if (autosaveTimeoutRef.current) {
-      window.clearTimeout(autosaveTimeoutRef.current)
-      autosaveTimeoutRef.current = null
-    }
     // NOTE: `editingSection` is deliberately omitted from the dep array.
     // This effect must only run on rapporto-id transitions, never on
-    // edit-mode toggles. Keeping it in the deps was the original source of
-    // the "fields disappear on save" bug (e.g. Cod. rapporto Webcolf would
-    // be wiped after persistContrattoChanges completed).
+    // edit-mode toggles.
   }, [rapporto])
 
   React.useEffect(() => {
@@ -859,17 +855,6 @@ export function RapportoDetailPanel({
     [rapporto, rapportoState, onRapportoUpdated]
   )
 
-  const setDraftValue = React.useCallback(
-    (field: keyof typeof rapportoDraft, value: string) => {
-      setRapportoDraft((current) => {
-        const nextDraft = { ...current, [field]: value }
-        rapportoDraftRef.current = nextDraft
-        return nextDraft
-      })
-    },
-    []
-  )
-
   const currentRapporto = rapportoState ?? rapporto
   const currentProcesso =
     processi.find((processo) =>
@@ -885,156 +870,75 @@ export function RapportoDetailPanel({
       : null) ??
     richiesteAttivazione[0] ??
     null
-  const [processOfferta, setProcessOfferta] = React.useState(currentProcesso?.offerta ?? "")
 
-  const { value: feeConcordata, onChange: onFeeConcordataChange } = useDebouncedSave(
-    richiestaAttivazione?.fee_concordata?.toString() ?? "",
-    async (value) => {
-      if (!richiestaAttivazione?.id) return
-      const rawValue = value.trim()
-      const nextValue = rawValue ? Number(rawValue) : null
-      if (rawValue && Number.isNaN(nextValue)) return
-      await updateRecord("richieste_attivazione", richiestaAttivazione.id, { fee_concordata: nextValue })
-    }
-  )
-
-  React.useEffect(() => {
-    setProcessOfferta(currentProcesso?.offerta ?? "")
-  }, [currentProcesso?.offerta])
-
-  const buildContrattoPatch = React.useCallback(
-    (draft = rapportoDraftRef.current) => ({
-      tipo_contratto_durata: draft.tipo_contratto_durata || null,
-      tipo_contratto: draft.tipo_contratto || null,
-      tipo_rapporto: draft.tipo_rapporto || null,
-      ore_a_settimana: draft.ore_a_settimana ? Number(draft.ore_a_settimana) : null,
-      distribuzione_ore_settimana: draft.distribuzione_ore_settimana || null,
-      data_inizio_rapporto: draft.data_inizio_rapporto || null,
-      stato_assunzione: draft.stato_assunzione || null,
-      relazione_lavorativa: draft.relazione_lavorativa || null,
-      paga_oraria_lorda: draft.paga_oraria_lorda ? Number(draft.paga_oraria_lorda) : null,
-      paga_mensile_lorda: draft.paga_mensile_lorda ? Number(draft.paga_mensile_lorda) : null,
-      codice_datore_webcolf: draft.codice_datore_webcolf
-        ? Number(draft.codice_datore_webcolf)
-        : null,
-      codice_dipendente_webcolf: draft.codice_dipendente_webcolf
-        ? Number(draft.codice_dipendente_webcolf)
-        : null,
-    }),
-    []
-  )
-
-  const getChangedContrattoPatch = React.useCallback(() => {
-    if (!currentRapporto) return {}
-
-    const nextValues = buildContrattoPatch()
-    const patch: Record<string, string | number | null> = {}
-
-    for (const [key, nextValue] of Object.entries(nextValues)) {
-      const currentValue = currentRapporto[key as keyof RapportoLavorativoRecord] ?? null
-      if (currentValue !== nextValue) {
-        patch[key] = nextValue
+  // FASE 5 BIS — form + autosave: source of truth unica per i campi editabili
+  // di questo pannello. Sostituisce il draft/debounce bespoke del contratto
+  // (i 2 codici Webcolf), il `useDebouncedSave` della fee e lo useState +
+  // Select dello sconto. onSave instrada per chiave ai 3 target:
+  //  - codice_*_webcolf → rapporti_lavorativi (con merge ottimistico locale +
+  //    onRapportoUpdated, logica preservata dall'originale);
+  //  - fee_concordata → richieste_attivazione;
+  //  - offerta → processi_matching.
+  // Resync realtime senza clobber: keepDirtyValues (firma sui valori server).
+  const form = useAutoSaveForm({
+    defaults: {
+      codice_datore_webcolf:
+        typeof currentRapporto?.codice_datore_webcolf === "number"
+          ? String(currentRapporto.codice_datore_webcolf)
+          : "",
+      codice_dipendente_webcolf:
+        typeof currentRapporto?.codice_dipendente_webcolf === "number"
+          ? String(currentRapporto.codice_dipendente_webcolf)
+          : "",
+      fee_concordata: richiestaAttivazione?.fee_concordata?.toString() ?? "",
+      offerta: currentProcesso?.offerta ?? "",
+    },
+    onSave: async (patch) => {
+      const rapportoPatch: Record<string, number | null> = {}
+      for (const [key, raw] of Object.entries(patch)) {
+        const value = raw as string
+        if (key === "fee_concordata") {
+          if (!richiestaAttivazione?.id) continue
+          const rawValue = value.trim()
+          const nextValue = rawValue ? Number(rawValue) : null
+          if (rawValue && Number.isNaN(nextValue)) continue
+          await updateRecord("richieste_attivazione", richiestaAttivazione.id, {
+            fee_concordata: nextValue,
+          })
+          continue
+        }
+        if (key === "offerta") {
+          if (!currentProcesso?.id) continue
+          await updateRecord("processi_matching", currentProcesso.id, {
+            offerta: value || null,
+          })
+          continue
+        }
+        // codice_datore_webcolf / codice_dipendente_webcolf
+        rapportoPatch[key] = value ? Number(value) : null
       }
-    }
 
-    return patch
-  }, [buildContrattoPatch, currentRapporto])
-
-  const persistContrattoChanges = React.useCallback(async () => {
-    if (!currentRapporto) return
-
-    const patch = getChangedContrattoPatch()
-    if (Object.keys(patch).length === 0) return
-
-    setSavingContratto(true)
-    setRapportoState((previous) => (previous ? { ...previous, ...patch } : previous))
-
-    try {
-      const response = await updateRecord("rapporti_lavorativi", currentRapporto.id, patch)
-      const updatedRow = response.row as RapportoLavorativoRecord
-      setRapportoState((previous) => ({
-        ...((previous ?? currentRapporto) as RapportoLavorativoRecord),
-        ...updatedRow,
-      }))
-      // Push the fresh row back up so the parent's `selectedRapporto` and
-      // the board cache stop being stale relative to local state. See the
-      // long comment on the `[rapporto]` effect above for why this matters.
-      onRapportoUpdated?.(updatedRow)
-    } catch (caughtError) {
-      // Senza questo catch, un updateRecord fallito lasciava lo stato
-      // ottimistico applicato (UI mostrava il valore come "salvato") senza
-      // alcun errore → perdita dato silente sul contratto. Mostriamo un toast
-      // così l'utente sa che NON è stato salvato e può ritentare.
-      //
-      // NB: NON facciamo rollback dello stato ottimistico di proposito. Qui
-      // siamo in un autosave con effect dipendente da getChangedContrattoPatch:
-      // un rollback ri-aprirebbe il diff draft↔stato e farebbe ri-schedulare il
-      // save ogni 500ms → toast-spam su errori persistenti (es. validazione).
-      // Lasciando lo stato ottimistico, getChangedContrattoPatch torna vuoto e
-      // non si rilancia; il valore reale viene riconciliato al prossimo
-      // refetch / evento realtime.
-      toast.error(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Errore salvando le modifiche al contratto",
-      )
-    } finally {
-      setSavingContratto(false)
-    }
-  }, [currentRapporto, getChangedContrattoPatch, onRapportoUpdated])
-
-  const persistContrattoChangesRef = React.useRef(persistContrattoChanges)
-  React.useEffect(() => {
-    persistContrattoChangesRef.current = persistContrattoChanges
+      if (Object.keys(rapportoPatch).length > 0 && currentRapporto) {
+        // Merge ottimistico locale (come prima), poi riconciliazione con la
+        // riga fresca della edge function + push al parent via onRapportoUpdated
+        // così `selectedRapporto`/board cache non restano stale.
+        setRapportoState((previous) =>
+          previous ? { ...previous, ...rapportoPatch } : previous,
+        )
+        const response = await updateRecord(
+          "rapporti_lavorativi",
+          currentRapporto.id,
+          rapportoPatch,
+        )
+        const updatedRow = response.row as RapportoLavorativoRecord
+        setRapportoState((previous) => ({
+          ...((previous ?? currentRapporto) as RapportoLavorativoRecord),
+          ...updatedRow,
+        }))
+        onRapportoUpdated?.(updatedRow)
+      }
+    },
   })
-
-  React.useEffect(() => {
-    if (editingSection !== "contratto") return
-
-    const patch = getChangedContrattoPatch()
-    if (Object.keys(patch).length === 0) return
-
-    const hadTimer = autosaveTimeoutRef.current !== null
-    if (autosaveTimeoutRef.current) {
-      window.clearTimeout(autosaveTimeoutRef.current)
-    }
-
-    if (!hadTimer) beginPendingWrite()
-
-    autosaveTimeoutRef.current = window.setTimeout(() => {
-      autosaveTimeoutRef.current = null
-      void persistContrattoChangesRef.current().finally(() => endPendingWrite())
-    }, 500)
-
-    return () => {
-      if (autosaveTimeoutRef.current) {
-        window.clearTimeout(autosaveTimeoutRef.current)
-        autosaveTimeoutRef.current = null
-        endPendingWrite()
-      }
-    }
-    // `rapportoDraft` MUST be in deps even though the body reads the patch via
-    // `getChangedContrattoPatch()` (which derives from `rapportoDraftRef.current`).
-    // Without it the effect only re-runs when `editingSection` toggles or when
-    // `getChangedContrattoPatch` reidentifies (i.e. when `currentRapporto`
-    // changes) — so a user typing into a field while in edit mode never
-    // re-arms the debounce timer and the autosave silently never fires. The
-    // user has to click the pencil-to-close as the only path that actually
-    // calls `persistContrattoChanges`. Including `rapportoDraft` makes every
-    // keystroke clear+set the timer; pendingWriteCount stays balanced because
-    // begin/end are always paired in cleanup.
-  }, [editingSection, getChangedContrattoPatch, rapportoDraft])
-
-  React.useEffect(() => {
-    return () => {
-      if (autosaveTimeoutRef.current) {
-        window.clearTimeout(autosaveTimeoutRef.current)
-        autosaveTimeoutRef.current = null
-        endPendingWrite()
-        void persistContrattoChangesRef.current()
-      }
-    }
-  }, [])
 
   if (loadingRapporto) {
     return <RapportoDetailPanelSkeleton />
@@ -1241,15 +1145,16 @@ export function RapportoDetailPanel({
   )
 
   return (
-    <RecordDetailShell
-      key={rapporto?.id ?? "__empty__"}
-      sectionRef={detailScrollRef}
-      tabs={SECTION_TABS}
-      activeSection={activeSection}
-      onSectionChange={scrollToSection}
-      header={hideHeader ? undefined : headerContent}
-      embedded={hideHeader}
-    >
+    <Form {...form}>
+      <RecordDetailShell
+        key={rapporto?.id ?? "__empty__"}
+        sectionRef={detailScrollRef}
+        tabs={SECTION_TABS}
+        activeSection={activeSection}
+        onSectionChange={scrollToSection}
+        header={hideHeader ? undefined : headerContent}
+        embedded={hideHeader}
+      >
       <>
         <div className="space-y-6 text-sm">
           <div ref={setSectionRef("contratto")}>
@@ -1261,19 +1166,12 @@ export function RapportoDetailPanel({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  disabled={savingContratto}
-                  onClick={async () => {
-                    if (editingSection === "contratto") {
-                      if (autosaveTimeoutRef.current) {
-                        window.clearTimeout(autosaveTimeoutRef.current)
-                        autosaveTimeoutRef.current = null
-                      }
-                      await persistContrattoChanges()
-                      setEditingSection(null)
-                      return
-                    }
-
-                    setEditingSection("contratto")
+                  onClick={() => {
+                    // L'autosave (debounce form) persiste mentre si digita:
+                    // chiudere la modifica si limita a nascondere i campi.
+                    setEditingSection(
+                      editingSection === "contratto" ? null : "contratto",
+                    )
                   }}
                   aria-label={
                     editingSection === "contratto"
@@ -1294,20 +1192,12 @@ export function RapportoDetailPanel({
                 {editingSection === "contratto" ? (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <DetailFieldControl label="Tipo contratto">
-                      <Input
-                        value={rapportoDraft.tipo_contratto}
-                        readOnly
-                        onChange={(event) => setDraftValue("tipo_contratto", event.target.value)}
-                      />
+                      {/* Campo non editabile dal pannello: mostrato read-only
+                          anche in modalità modifica (popolato da workflow). */}
+                      <Input value={rapportoView.tipo_contratto ?? ""} readOnly />
                     </DetailFieldControl>
                     <DetailFieldControl label="Tipo rapporto">
-                      <Select
-                        value={rapportoDraft.tipo_rapporto || "__empty__"}
-                        disabled
-                        onValueChange={(value) =>
-                          setDraftValue("tipo_rapporto", value === "__empty__" ? "" : value)
-                        }
-                      >
+                      <Select value={rapportoView.tipo_rapporto || "__empty__"} disabled>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleziona tipo rapporto" />
                         </SelectTrigger>
@@ -1317,15 +1207,15 @@ export function RapportoDetailPanel({
                           <SelectItem value="Part time">Part time</SelectItem>
                           <SelectItem value="Convivente">Convivente</SelectItem>
                           <SelectItem value="Non convivente full-time">Non convivente full-time</SelectItem>
-                          {rapportoDraft.tipo_rapporto &&
+                          {rapportoView.tipo_rapporto &&
                           ![
                             "Lavoro ad ore",
                             "Part time",
                             "Convivente",
                             "Non convivente full-time",
-                          ].includes(rapportoDraft.tipo_rapporto) ? (
-                            <SelectItem value={rapportoDraft.tipo_rapporto}>
-                              {rapportoDraft.tipo_rapporto}
+                          ].includes(rapportoView.tipo_rapporto) ? (
+                            <SelectItem value={rapportoView.tipo_rapporto}>
+                              {rapportoView.tipo_rapporto}
                             </SelectItem>
                           ) : null}
                         </SelectContent>
@@ -1334,25 +1224,16 @@ export function RapportoDetailPanel({
                     <DetailFieldControl label="Data inizio">
                       <Input
                         type="date"
-                        value={rapportoDraft.data_inizio_rapporto.slice(0, 10)}
+                        value={(rapportoView.data_inizio_rapporto ?? "").slice(0, 10)}
                         readOnly
-                        onChange={(event) => setDraftValue("data_inizio_rapporto", event.target.value)}
                       />
                     </DetailFieldControl>
-                    <DetailField label="Durata" value={getDurationLabel(rapportoDraft.data_inizio_rapporto || null)} />
+                    <DetailField label="Durata" value={getDurationLabel(rapportoView.data_inizio_rapporto)} />
                     <DetailFieldControl label="Stato assunzione">
-                      <Input
-                        value={rapportoDraft.stato_assunzione}
-                        readOnly
-                        onChange={(event) => setDraftValue("stato_assunzione", event.target.value)}
-                      />
+                      <Input value={rapportoView.stato_assunzione ?? ""} readOnly />
                     </DetailFieldControl>
                     <DetailFieldControl label="Relazione lavorativa">
-                      <Input
-                        value={rapportoDraft.relazione_lavorativa}
-                        readOnly
-                        onChange={(event) => setDraftValue("relazione_lavorativa", event.target.value)}
-                      />
+                      <Input value={rapportoView.relazione_lavorativa ?? ""} readOnly />
                     </DetailFieldControl>
                   </div>
                 ) : (
@@ -1384,33 +1265,31 @@ export function RapportoDetailPanel({
                       <Input
                         type="number"
                         step="0.01"
-                        value={rapportoDraft.paga_oraria_lorda}
+                        value={
+                          typeof rapportoView.paga_oraria_lorda === "number"
+                            ? String(rapportoView.paga_oraria_lorda)
+                            : ""
+                        }
                         readOnly
-                        onChange={(event) => setDraftValue("paga_oraria_lorda", event.target.value)}
                       />
                     </DetailFieldControl>
                     <DetailFieldControl label="Paga mensile lorda">
                       <Input
                         type="number"
                         step="0.01"
-                        value={rapportoDraft.paga_mensile_lorda}
+                        value={
+                          typeof rapportoView.paga_mensile_lorda === "number"
+                            ? String(rapportoView.paga_mensile_lorda)
+                            : ""
+                        }
                         readOnly
-                        onChange={(event) => setDraftValue("paga_mensile_lorda", event.target.value)}
                       />
                     </DetailFieldControl>
                     <DetailFieldControl label="Cod. rapporto Webcolf">
-                      <Input
-                        type="number"
-                        value={rapportoDraft.codice_datore_webcolf}
-                        onChange={(event) => setDraftValue("codice_datore_webcolf", event.target.value)}
-                      />
+                      <FieldInput name="codice_datore_webcolf" type="number" />
                     </DetailFieldControl>
                     <DetailFieldControl label="Cod. lavoratore Webcolf">
-                      <Input
-                        type="number"
-                        value={rapportoDraft.codice_dipendente_webcolf}
-                        onChange={(event) => setDraftValue("codice_dipendente_webcolf", event.target.value)}
-                      />
+                      <FieldInput name="codice_dipendente_webcolf" type="number" />
                     </DetailFieldControl>
                     {/* ID rapporto INPS is populated by external workflows
                         (e.g. assunzione automation) and must never be edited
@@ -1455,13 +1334,12 @@ export function RapportoDetailPanel({
               ) : (
                 <div className="grid gap-3 md:grid-cols-3">
                   <DetailFieldControl label="Fee concordata">
-                    <Input
+                    <FieldInput
+                      name="fee_concordata"
                       type="number"
                       step="0.01"
-                      value={feeConcordata}
                       disabled={!richiestaAttivazione?.id}
                       placeholder="-"
-                      onChange={(event) => onFeeConcordataChange(event.target.value)}
                     />
                   </DetailFieldControl>
                   <div className="rounded-lg border bg-surface px-3 py-2">
@@ -1484,36 +1362,11 @@ export function RapportoDetailPanel({
                     )}
                   </div>
                   <DetailFieldControl label="Sconto applicato">
-                    <Select
-                      value={processOfferta || undefined}
+                    <FieldScontoSelect
+                      name="offerta"
                       disabled={!currentProcesso?.id}
-                      onValueChange={(value) => {
-                        setProcessOfferta(value)
-                        if (!currentProcesso?.id) return
-                        void updateRecord("processi_matching", currentProcesso.id, {
-                          offerta: value || null,
-                        })
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona sconto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[
-                          ...SCONTO_APPLICATO_OPTIONS,
-                          ...(processOfferta &&
-                          !SCONTO_APPLICATO_OPTIONS.includes(
-                            processOfferta as (typeof SCONTO_APPLICATO_OPTIONS)[number]
-                          )
-                            ? [processOfferta]
-                            : []),
-                        ].map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Seleziona sconto"
+                    />
                   </DetailFieldControl>
                 </div>
               )}
@@ -2012,6 +1865,7 @@ export function RapportoDetailPanel({
         </DialogContent>
       </Dialog>
       </>
-    </RecordDetailShell>
+      </RecordDetailShell>
+    </Form>
   )
 }
