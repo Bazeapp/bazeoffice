@@ -307,8 +307,18 @@ export default defineConfig([
           // Fuori dal toolkit (src/components/forms/field-components.tsx) ogni
           // occorrenza è un campo cablato a mano che deve diventare
           // <FieldInput name="...">/<FieldTextarea name="..."> (react-hook-form
-          // + useAutoSaveForm). 'warn' durante la migrazione: promuovere a
-          // 'error' quando la lista è vuota. Nel toolkit è soppresso per-riga.
+          // + useAutoSaveForm).
+          //
+          // STATO (FASE 5 BIS chiusa): 22/24 aree convertite. Le occorrenze
+          // residue vivono SOLO nei 4 god-component del dettaglio lavoratore —
+          // gate1-view, lavoratori-cerca-view, ricerca-workers-pipeline-view,
+          // worker-pipeline-summary-cards — che riceveranno il form-context
+          // durante il refactor D2 (split god-component, vedi docs/audit-response.md).
+          // Resta 'warn': la migrazione di quei file è scope di D2, non un TODO
+          // sciolto. Promuovere a 'error' SOLO a valle di D2 (lista vuota).
+          // Limite flat-config: questi selettori condividono il blocco con le
+          // regole FASE 4 (debito a 'warn'), quindi non è separabile la severità
+          // per-selettore senza spezzarle.
           selector: "JSXAttribute[name.name='committedValue']",
           message:
             'Campo cablato a mano (DebouncedInput committedValue=...). Usa <FieldInput name="...">/<FieldTextarea name="..."> con useAutoSaveForm (form-context, FASE 5 BIS).',
