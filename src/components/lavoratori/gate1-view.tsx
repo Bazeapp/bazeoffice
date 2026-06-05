@@ -30,10 +30,7 @@ import { SkillsChoiceMatrix } from "@/components/lavoratori/skills-choice-matrix
 import { WorkerShiftPreferencesFields } from "@/components/lavoratori/worker-shift-preferences-fields";
 import { WorkerDetailShell } from "@/components/lavoratori/worker-detail-shell";
 import { WorkerProfileOverview } from "@/components/lavoratori/worker-profile-overview";
-import {
-  DetailSectionBlock,
-  DetailSectionCard,
-} from "@/components/shared-next/detail-section-card";
+import { DetailSectionCard } from "@/components/shared-next/detail-section-card";
 import { SideCardsPanel } from "@/components/shared-next/side-cards-panel";
 import {
   Combobox,
@@ -108,6 +105,8 @@ import {
 } from "@/hooks/use-operatori-options";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import { Gate1WorkerProvider } from "@/components/lavoratori/gate1/gate1-worker-context";
+import { GateInfoCard } from "@/components/lavoratori/gate1/gate-info-card";
+import { GateContactsCard } from "@/components/lavoratori/gate1/gate-contacts-card";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { RecruiterFeedbackButton } from "@/components/lavoratori/recruiter-feedback-sheet";
@@ -230,29 +229,7 @@ function includesBabysitterType(
     });
 }
 
-function GateInfoCard({
-  title,
-  icon,
-  titleAction,
-  children,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  titleAction?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <DetailSectionBlock
-      title={title}
-      icon={icon}
-      action={titleAction}
-      showDefaultAction={false}
-      contentClassName="space-y-4"
-    >
-      {children}
-    </DetailSectionBlock>
-  );
-}
+// GateInfoCard estratto in ./gate1/gate-info-card (D2).
 
 function GateStepSection({
   step,
@@ -329,47 +306,8 @@ function GateStepSection({
   );
 }
 
-function GateContactsCard({
-  followupStatus,
-  onFollowupStatusChange,
-  options,
-}: {
-  followupStatus: string;
-  onFollowupStatusChange: (value: string) => void;
-  options: Array<{ label: string; value: string }>;
-}) {
-  return (
-    <GateInfoCard
-      title="Follow-up"
-      icon={<PhoneIcon className="text-muted-foreground size-4" />}
-    >
-      <div className="flex items-start gap-3 text-sm">
-        <FieldLabel className="w-24 shrink-0">
-          Follow-up chiamata idoneita
-        </FieldLabel>
-        <div className="min-w-0 flex-1 text-foreground">
-          <RadioGroup
-            value={getLookupSelectValue(followupStatus, options, "")}
-            onValueChange={(value) =>
-              onFollowupStatusChange(getLookupLabelForSave(value, options))
-            }
-            variant="card"
-            className="pt-1"
-          >
-            {options.map((option) => (
-              <RadioGroupItem
-                key={option.value}
-                value={option.value}
-                id={`followup-${option.value}`}
-                title={option.label}
-              />
-            ))}
-          </RadioGroup>
-        </div>
-      </div>
-    </GateInfoCard>
-  );
-}
+// GateContactsCard estratto in ./gate1/gate-contacts-card (D2): consuma il
+// Context di dominio (workerRow + patchSelectedWorkerField), niente prop-drilling.
 
 function GateReferenteCard({
   title = "Referente idoneità",
@@ -3976,7 +3914,7 @@ export function Gate1View({
   ]);
 
   return (
-    <Gate1WorkerProvider value={gate1Editor}>
+    <Gate1WorkerProvider editor={gate1Editor} workerRow={selectedWorkerRow}>
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <input
         ref={workerPhotoInputRef}
@@ -4259,20 +4197,7 @@ export function Gate1View({
                           );
                         }}
                       />
-                      <GateContactsCard
-                        followupStatus={gateDraft.followupStatus}
-                        options={followupStatusOptions}
-                        onFollowupStatusChange={(value) => {
-                          setGateDraft((current) => ({
-                            ...current,
-                            followupStatus: value,
-                          }));
-                          void patchSelectedWorkerField(
-                            "followup_chiamata_idoneita",
-                            value || null,
-                          );
-                        }}
-                      />
+                      <GateContactsCard options={followupStatusOptions} />
                     </GateStepSection>
                   </div>
                 ) : null}

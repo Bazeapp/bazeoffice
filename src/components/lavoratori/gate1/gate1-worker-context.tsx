@@ -1,33 +1,47 @@
 import * as React from "react";
 
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
+import type { LavoratoreRecord } from "@/types/entities/lavoratore";
 
 /**
  * D2 — Context di dominio per lo sheet di dettaglio di Gate 1.
  *
  * gate1-view è un god-component compositivo: ~22 `Gate*Card` inline che oggi
  * ricevono valori e patch-fn via prop-drilling dall'orchestratore. Questo
- * Context wrappa l'intero output di `useSelectedWorkerEditor` (workerRow,
- * patch-fn, opzioni, flag edit) e lo espone ai sotto-componenti, così possono
- * essere:
+ * Context espone l'output di `useSelectedWorkerEditor` (`editor`: patch-fn,
+ * draft, opzioni, flag edit) + la riga server `workerRow` (alcune card leggono
+ * direttamente dalla riga, non dai draft per-sezione). Così i sotto-componenti
+ * possono essere:
  *   1. estratti in file separati (components/lavoratori/gate1/);
  *   2. avvolti in `React.memo` (leggono dal Context, niente prop che cambiano);
- *   3. resi auto-contenuti col proprio `useAutoSaveForm` (FASE 5 BIS).
+ *   3. resi auto-contenuti col proprio `useAutoSaveForm` (FASE 5 BIS) dove serve.
  *
- * Senza Context lo split sarebbe prop-drilling puro; con Context ogni card
- * dichiara da sé cosa le serve via `useGate1WorkerEditor()`.
+ * Le opzioni di lookup restano prop delle card (config statica memoizzata).
  */
 type Gate1WorkerEditor = ReturnType<typeof useSelectedWorkerEditor>;
 
-const Gate1WorkerContext = React.createContext<Gate1WorkerEditor | null>(null);
+type Gate1WorkerContextValue = {
+  editor: Gate1WorkerEditor;
+  workerRow: LavoratoreRecord | null;
+};
+
+const Gate1WorkerContext = React.createContext<Gate1WorkerContextValue | null>(
+  null,
+);
 
 export function Gate1WorkerProvider({
-  value,
+  editor,
+  workerRow,
   children,
 }: {
-  value: Gate1WorkerEditor;
+  editor: Gate1WorkerEditor;
+  workerRow: LavoratoreRecord | null;
   children: React.ReactNode;
 }) {
+  const value = React.useMemo<Gate1WorkerContextValue>(
+    () => ({ editor, workerRow }),
+    [editor, workerRow],
+  );
   return (
     <Gate1WorkerContext.Provider value={value}>
       {children}
@@ -35,7 +49,7 @@ export function Gate1WorkerProvider({
   );
 }
 
-export function useGate1WorkerEditor(): Gate1WorkerEditor {
+export function useGate1WorkerEditor(): Gate1WorkerContextValue {
   const ctx = React.useContext(Gate1WorkerContext);
   if (!ctx) {
     throw new Error(
