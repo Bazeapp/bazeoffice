@@ -336,4 +336,53 @@ export default defineConfig([
       ],
     },
   },
+
+  // FASE 5 BIS — ENFORCEMENT: i file GIÀ convertiti a form-context non possono
+  // regredire. Qui i selettori FASE5 (committedValue / import useDebouncedSave)
+  // sono 'error'. La lista esclude i 4 god-component (gate1-view,
+  // lavoratori-cerca-view, ricerca-workers-pipeline-view,
+  // worker-pipeline-summary-cards) che restano 'warn' → scope refactor D2.
+  // Nota flat-config: questo blocco SOSTITUISCE no-restricted-syntax per questi
+  // file (le regole FASE 4 a 'warn' non si applicano qui, ma questi file sono
+  // già puliti quindi non le violavano).
+  {
+    files: [
+      'src/components/crm/cards/stato-lead-card.tsx',
+      'src/components/crm/cards/selection-details-card.tsx',
+      'src/components/crm/cards/onboarding-context-card.tsx',
+      'src/components/crm/cards/onboarding-decisione-lavoro-card.tsx',
+      'src/components/crm/cards/onboarding-card.tsx',
+      'src/components/crm/famiglia-processo-detail-content.tsx',
+      'src/components/gestione-contrattuale/assunzioni-detail-sheet.tsx',
+      'src/components/gestione-contrattuale/variazioni-board-view.tsx',
+      'src/components/gestione-contrattuale/chiusure-board-view.tsx',
+      'src/components/gestione-contrattuale/riattivazioni-board-view.tsx',
+      'src/components/gestione-contrattuale/rapporto-detail-panel.tsx',
+      'src/components/ricerca/ricerca-detail-view.tsx',
+      'src/components/ricerca/scheda-colloquio-panel.tsx',
+      'src/components/payroll/contributi-inps-view.tsx',
+      'src/components/payroll/payroll-overview-view.tsx',
+      'src/components/prove-colloqui/prove-colloqui-view.tsx',
+      'src/components/lavoratori/address-section-card.tsx',
+      'src/components/lavoratori/availability-calendar-card.tsx',
+      'src/components/lavoratori/experience-references-card.tsx',
+      'src/components/lavoratori/worker-profile-header.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "JSXAttribute[name.name='committedValue']",
+          message:
+            'FASE 5 BIS (enforced): questo file è form-context. Non reintrodurre <DebouncedInput committedValue=...>: usa <FieldInput/FieldTextarea name="...">.',
+        },
+        {
+          selector:
+            "ImportDeclaration[source.value='@/hooks/use-debounced-save']",
+          message:
+            'FASE 5 BIS (enforced): questo file è form-context. Non reintrodurre useDebouncedSave: usa useAutoSaveForm + Field*.',
+        },
+      ],
+    },
+  },
 ])
