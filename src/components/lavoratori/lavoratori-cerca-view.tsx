@@ -1,5 +1,6 @@
 import * as React from "react";
 import { toast } from "sonner";
+import { useController } from "react-hook-form";
 import {
   AlertTriangleIcon,
   BriefcaseBusinessIcon,
@@ -58,7 +59,6 @@ import { Button } from "@/components/ui/button";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board";
-import { DebouncedInput } from "@/components/ui/debounced-input";
 import { Input } from "@/components/ui/input";
 import {
   fetchFamiglieByIds,
@@ -81,6 +81,9 @@ import {
 } from "@/lib/attachments";
 import { invokeAiGenerationFunction } from "@/lib/ai-generation";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
+import { FieldInput } from "@/components/forms/field-components";
+import { Form } from "@/components/ui/form";
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { supabase } from "@/lib/supabase-client";
 import {
   Select,
@@ -377,6 +380,119 @@ function NonQualificatoTipoLavoroField({
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
+  );
+}
+
+// FASE 5 BIS — i campi auto-contenuti del blocco "Non qualificato" sono ora
+// agganciati a un form (useAutoSaveForm) invece di DebouncedInput/Select inline
+// con onSave→patch fn. La chiave del form contiene il valore "form-side" e
+// onSave instrada alla STESSA patch fn con le STESSE trasformazioni
+// dell'originale. I wrapper sotto preservano il mapping bespoke value↔label dei
+// lookup (documenti_in_regola via label diretta; hai_referenze via
+// getLookupSelectValue/getLookupLabelForSave; tipo_lavoro_domestico via
+// normalizeDomesticRole*).
+
+type NonQualificatoFormDraft = {
+  descrizione_pubblica: string;
+  provincia: string;
+  documenti_in_regola: string;
+  hai_referenze: string;
+  data_di_nascita: string;
+  tipo_lavoro_domestico: string[];
+  anni_esperienza_colf: string;
+  anni_esperienza_babysitter: string;
+};
+
+// Select "documenti_in_regola": il value memorizzato è la LABEL DB (come
+// l'originale che usava SelectItem value={option.label}).
+function FieldDocumentiInRegolaSelect({
+  name,
+  options,
+  disabled,
+}: {
+  name: string;
+  options: Array<{ label: string; value: string }>;
+  disabled?: boolean;
+}) {
+  const { field } = useController({ name });
+  const value = typeof field.value === "string" ? field.value : "";
+  return (
+    <Select
+      value={value || undefined}
+      onValueChange={(next) => field.onChange(next || "")}
+      disabled={disabled}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Seleziona stato documenti" />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.label}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// Select "hai_referenze": il value memorizzato è la LABEL DB. Il wrapper
+// preserva il mapping label DB ↔ option-value (getLookupSelectValue per
+// renderizzare la selezione, getLookupLabelForSave per il commit).
+function FieldHaiReferenzeSelect({
+  name,
+  options,
+  disabled,
+}: {
+  name: string;
+  options: Array<{ label: string; value: string }>;
+  disabled?: boolean;
+}) {
+  const { field } = useController({ name });
+  const stored = typeof field.value === "string" ? field.value : "";
+  return (
+    <Select
+      value={getLookupSelectValue(stored, options, "") || undefined}
+      onValueChange={(next) =>
+        field.onChange(getLookupLabelForSave(next, options))
+      }
+      disabled={disabled}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Seleziona referenze" />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// Combobox multi "tipo_lavoro_domestico" agganciato al form. Riusa
+// NonQualificatoTipoLavoroField preservando normalizeDomesticRole* (la
+// normalizzazione DB-label la fa già il componente interno).
+function FieldNonQualificatoTipoLavoro({
+  name,
+  options,
+  disabled,
+}: {
+  name: string;
+  options: Array<{ label: string; value: string }>;
+  disabled: boolean;
+}) {
+  const { field } = useController({ name });
+  const value = Array.isArray(field.value) ? (field.value as string[]) : [];
+  return (
+    <NonQualificatoTipoLavoroField
+      value={value}
+      options={options}
+      disabled={disabled}
+      onChange={(values) => field.onChange(values)}
+    />
   );
 }
 
@@ -954,6 +1070,89 @@ export function LavoratoriCercaView({
     asString(selectedWorkerRow?.id_stripe_account),
     async (v) => { await patchDocumentField("id_stripe_account", v || null); },
   );
+
+  // FASE 5 BIS — form autosave per il blocco "Non qualificato". I defaults sono
+  // i valori server (gli stessi committedValue dei vecchi DebouncedInput/Select).
+  // onSave instrada ogni chiave cambiata alla STESSA patch fn con le STESSE
+  // trasformazioni dell'originale.
+  const nonQualificatoForm = useAutoSaveForm<NonQualificatoFormDraft>({
+    defaults: {
+      descrizione_pubblica: asString(selectedWorkerRow?.descrizione_pubblica),
+      provincia: asString(selectedWorkerAddress?.provincia_sigla),
+      documenti_in_regola: asString(selectedWorkerRow?.documenti_in_regola),
+      hai_referenze: asString(selectedWorkerRow?.hai_referenze),
+      data_di_nascita: asString(selectedWorkerRow?.data_di_nascita),
+      tipo_lavoro_domestico: readArrayStrings(
+        selectedWorkerRow?.tipo_lavoro_domestico,
+      ),
+      anni_esperienza_colf: asInputValue(selectedWorkerRow?.anni_esperienza_colf),
+      anni_esperienza_babysitter: asInputValue(
+        selectedWorkerRow?.anni_esperienza_babysitter,
+      ),
+    },
+    onSave: async (patch) => {
+      for (const [key, rawValue] of Object.entries(patch)) {
+        switch (key) {
+          case "descrizione_pubblica":
+            await patchSelectedWorkerField(
+              "descrizione_pubblica",
+              (typeof rawValue === "string" ? rawValue : "") || null,
+            );
+            break;
+          case "provincia":
+            await patchWorkerAddressField(
+              "provincia",
+              (typeof rawValue === "string" ? rawValue : "") || null,
+            );
+            break;
+          case "documenti_in_regola":
+            await patchSelectedWorkerField(
+              "documenti_in_regola",
+              (typeof rawValue === "string" ? rawValue : "") || null,
+            );
+            break;
+          case "hai_referenze":
+            await patchSelectedWorkerField(
+              "hai_referenze",
+              (typeof rawValue === "string" ? rawValue : "") || null,
+            );
+            break;
+          case "data_di_nascita":
+            await patchSelectedWorkerField(
+              "data_di_nascita",
+              (typeof rawValue === "string" ? rawValue : "") || null,
+            );
+            break;
+          case "tipo_lavoro_domestico": {
+            const values = Array.isArray(rawValue) ? (rawValue as string[]) : [];
+            await patchSelectedWorkerField(
+              "tipo_lavoro_domestico",
+              values.length > 0 ? values : null,
+            );
+            break;
+          }
+          case "anni_esperienza_colf": {
+            const v = typeof rawValue === "string" ? rawValue : "";
+            await patchSelectedWorkerField(
+              "anni_esperienza_colf",
+              v ? Number(v) : null,
+            );
+            break;
+          }
+          case "anni_esperienza_babysitter": {
+            const v = typeof rawValue === "string" ? rawValue : "";
+            await patchSelectedWorkerField(
+              "anni_esperienza_babysitter",
+              v ? Number(v) : null,
+            );
+            break;
+          }
+          default:
+            break;
+        }
+      }
+    },
+  });
 
   const handleGenerateWorkerSummary = React.useCallback(async () => {
     if (!selectedWorkerId) return;
@@ -1834,6 +2033,7 @@ export function LavoratoriCercaView({
 
                 {selectedWorkerIsNonQualificato ? (
                   <div ref={setWorkerSectionRef("non-qualificato")}>
+                    <Form {...nonQualificatoForm}>
                     <DetailSectionBlock
                       title="Questo lavoratore non è qualificato"
                       icon={
@@ -1847,16 +2047,8 @@ export function LavoratoriCercaView({
                             <p className="font-medium">{issue.title}</p>
                             <div>
                               {issue.id === "missing-description" ? (
-                                <DebouncedInput
-                                  committedValue={asString(
-                                    selectedWorkerRow?.descrizione_pubblica,
-                                  )}
-                                  onSave={async (v) => {
-                                    await patchSelectedWorkerField(
-                                      "descrizione_pubblica",
-                                      v || null,
-                                    );
-                                  }}
+                                <FieldInput
+                                  name="descrizione_pubblica"
                                   placeholder="Inserisci descrizione"
                                 />
                               ) : null}
@@ -1877,148 +2069,55 @@ export function LavoratoriCercaView({
                               ) : null}
 
                               {issue.id === "not-milano" ? (
-                                <DebouncedInput
-                                  committedValue={
-                                    asString(selectedWorkerAddress?.provincia_sigla) ??
-                                    ""
-                                  }
-                                  onSave={async (value) => {
-                                    await patchWorkerAddressField(
-                                      "provincia",
-                                      value || null,
-                                    );
-                                  }}
+                                <FieldInput
+                                  name="provincia"
                                   placeholder="Provincia (sigla)"
                                 />
                               ) : null}
 
                               {issue.id === "documenti" ? (
-                                <Select
-                                  value={
-                                    asString(
-                                      selectedWorkerRow?.documenti_in_regola,
-                                    ) || undefined
-                                  }
-                                  onValueChange={(value) =>
-                                    void patchSelectedWorkerField(
-                                      "documenti_in_regola",
-                                      value || null,
-                                    )
-                                  }
+                                <FieldDocumentiInRegolaSelect
+                                  name="documenti_in_regola"
+                                  options={documentiInRegolaOptions}
                                   disabled={updatingNonQualificato}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Seleziona stato documenti" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {documentiInRegolaOptions.map((option) => (
-                                      <SelectItem
-                                        key={option.value}
-                                        value={option.label}
-                                      >
-                                        {option.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                />
                               ) : null}
 
                               {issue.id === "referenze" ? (
-                                <Select
-                                  value={
-                                    getLookupSelectValue(
-                                      asString(selectedWorkerRow?.hai_referenze),
-                                      haiReferenzeOptions,
-                                      ""
-                                    ) || undefined
-                                  }
-                                  onValueChange={(value) => {
-                                    const nextValue = getLookupLabelForSave(
-                                      value,
-                                      haiReferenzeOptions
-                                    )
-                                    void patchSelectedWorkerField(
-                                      "hai_referenze",
-                                      nextValue || null,
-                                    )
-                                  }}
+                                <FieldHaiReferenzeSelect
+                                  name="hai_referenze"
+                                  options={haiReferenzeOptions}
                                   disabled={updatingNonQualificato}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Seleziona referenze" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {haiReferenzeOptions.map((option) => (
-                                      <SelectItem
-                                        key={option.value}
-                                        value={option.value}
-                                      >
-                                        {option.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                />
                               ) : null}
 
                               {issue.id === "age" ? (
-                                <DebouncedInput
+                                <FieldInput
+                                  name="data_di_nascita"
                                   type="date"
-                                  committedValue={asString(
-                                    selectedWorkerRow?.data_di_nascita,
-                                  )}
-                                  onSave={async (v) => {
-                                    await patchSelectedWorkerField(
-                                      "data_di_nascita",
-                                      v || null,
-                                    );
-                                  }}
                                 />
                               ) : null}
 
                               {issue.id === "tipo-lavoro" ? (
-                                <NonQualificatoTipoLavoroField
-                                  value={readArrayStrings(
-                                    selectedWorkerRow?.tipo_lavoro_domestico,
-                                  )}
+                                <FieldNonQualificatoTipoLavoro
+                                  name="tipo_lavoro_domestico"
                                   options={tipoLavoroDomesticoOptions}
                                   disabled={updatingNonQualificato}
-                                  onChange={(values) =>
-                                    void patchSelectedWorkerField(
-                                      "tipo_lavoro_domestico",
-                                      values.length > 0 ? values : null,
-                                    )
-                                  }
                                 />
                               ) : null}
 
                               {issue.id === "esperienza" ? (
                                 <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                                  <DebouncedInput
+                                  <FieldInput
+                                    name="anni_esperienza_colf"
                                     type="number"
                                     inputMode="decimal"
-                                    committedValue={asInputValue(
-                                      selectedWorkerRow?.anni_esperienza_colf,
-                                    )}
-                                    onSave={async (v) => {
-                                      await patchSelectedWorkerField(
-                                        "anni_esperienza_colf",
-                                        v ? Number(v) : null,
-                                      );
-                                    }}
                                     placeholder="Anni esperienza colf"
                                   />
-                                  <DebouncedInput
+                                  <FieldInput
+                                    name="anni_esperienza_babysitter"
                                     type="number"
                                     inputMode="decimal"
-                                    committedValue={asInputValue(
-                                      selectedWorkerRow?.anni_esperienza_babysitter,
-                                    )}
-                                    onSave={async (v) => {
-                                      await patchSelectedWorkerField(
-                                        "anni_esperienza_babysitter",
-                                        v ? Number(v) : null,
-                                      );
-                                    }}
                                     placeholder="Anni esperienza babysitter"
                                   />
                                 </div>
@@ -2028,6 +2127,7 @@ export function LavoratoriCercaView({
                         ))}
                       </div>
                     </DetailSectionBlock>
+                    </Form>
                   </div>
                 ) : null}
 
