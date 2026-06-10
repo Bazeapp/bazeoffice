@@ -125,11 +125,11 @@ function normalizeAgeInput(value: string) {
   return clampNumberInRange(value, AGE_MIN, AGE_MAX);
 }
 
-function normalizeGenderValue(value: string | null | undefined): "donna" | "uomo" | "indifferente" | "" {
+function normalizeGenderValue(value: string | null | undefined): "Donna" | "Uomo" | "Indifferente" | "" {
   const normalized = toInputValue(value).toLowerCase();
-  if (normalized === "donna" || normalized === "uomo" || normalized === "indifferente") {
-    return normalized;
-  }
+  if (normalized === "donna") return "Donna";
+  if (normalized === "uomo") return "Uomo";
+  if (normalized === "indifferente") return "Indifferente";
   return "";
 }
 
@@ -332,19 +332,19 @@ function FieldGenereRadio({ name }: { name: string }) {
       className="gap-3"
     >
       <Field orientation="horizontal">
-        <RadioGroupItem id="onboarding-genere-donna" value="donna" />
+        <RadioGroupItem id="onboarding-genere-donna" value="Donna" />
         <FieldLabel htmlFor="onboarding-genere-donna" className="font-normal">
           Donna
         </FieldLabel>
       </Field>
       <Field orientation="horizontal">
-        <RadioGroupItem id="onboarding-genere-uomo" value="uomo" />
+        <RadioGroupItem id="onboarding-genere-uomo" value="Uomo" />
         <FieldLabel htmlFor="onboarding-genere-uomo" className="font-normal">
           Uomo
         </FieldLabel>
       </Field>
       <Field orientation="horizontal">
-        <RadioGroupItem id="onboarding-genere-indifferente" value="indifferente" />
+        <RadioGroupItem id="onboarding-genere-indifferente" value="Indifferente" />
         <FieldLabel htmlFor="onboarding-genere-indifferente" className="font-normal">
           Indifferente
         </FieldLabel>
