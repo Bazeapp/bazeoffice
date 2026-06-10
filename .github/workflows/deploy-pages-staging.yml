@@ -1,0 +1,64 @@
+name: Deploy Staging To GitHub Pages
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "pages-staging"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    # Secrets are read from the "staging" GitHub Environment.
+    # Go to Settings → Environments → New environment → name it "staging"
+    # and add VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_SUPABASE_FUNCTIONS_URL.
+    # If you want staging to hit the same Supabase as prod, copy the prod secrets there.
+    environment: staging
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_SUPABASE_FUNCTIONS_URL: ${{ secrets.VITE_SUPABASE_FUNCTIONS_URL }}
+      VITE_APP_ENV: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Validate Supabase Env
+        run: |
+          test -n "$VITE_SUPABASE_URL" || (echo "Missing VITE_SUPABASE_URL" && exit 1)
+          test -n "$VITE_SUPABASE_ANON_KEY" || (echo "Missing VITE_SUPABASE_ANON_KEY" && exit 1)
+          test -n "$VITE_SUPABASE_FUNCTIONS_URL" || (echo "Missing VITE_SUPABASE_FUNCTIONS_URL" && exit 1)
+
+      - name: Build
+        # Build with the staging repo's base path so all assets resolve correctly
+        run: npx tsc -b && npx vite build --base=/staging-bazeoffice/
+
+      - name: Enable SPA Fallback On Pages
+        run: cp dist/index.html dist/404.html
+
+      - name: Deploy to staging-bazeoffice
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          # Personal Access Token with repo scope, added as a secret in this repo.
+          # Required to push to a different repository.
+          token: ${{ secrets.STAGING_DEPLOY_TOKEN }}
+          repository-name: Bazeapp/staging-bazeoffice
+          branch: gh-pages
+          folder: dist
+          clean: true
