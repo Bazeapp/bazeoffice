@@ -839,7 +839,12 @@ export function useSelectedWorkerEditor({
 
   const patchExperienceRecord = React.useCallback(
     async (experienceId: string, patch: Partial<EsperienzaLavoratoreRecord>) => {
-      setUpdatingExperience(true)
+      // NB: niente setUpdatingExperience qui. Questo è un autosave per-campo
+      // (DebouncedTextarea/Input, debounce 300ms): updatingExperience diventa
+      // `disabled` sugli input del pannello esperienze e disabilitare un input a
+      // metà salvataggio gli toglie il focus mentre l'utente scrive (footgun
+      // documentato in CLAUDE.md: "Do not add `disabled` to a DebouncedInput").
+      // Il flag resta per le mutazioni strutturali (create/delete qui sotto).
       try {
         const result = await updateRecord("esperienze_lavoratori", experienceId, patch)
         applyUpdatedWorkerExperience(result.row as EsperienzaLavoratoreRecord)
@@ -850,8 +855,6 @@ export function useSelectedWorkerEditor({
           toast.error(message)
         }
         throw caughtError
-      } finally {
-        setUpdatingExperience(false)
       }
     },
     [applyUpdatedWorkerExperience, setError]
@@ -903,7 +906,8 @@ export function useSelectedWorkerEditor({
 
   const patchReferenceRecord = React.useCallback(
     async (referenceId: string, patch: Partial<ReferenzaLavoratoreRecord>) => {
-      setUpdatingExperience(true)
+      // Stesso motivo di patchExperienceRecord: autosave per-campo, niente flag
+      // globale che disabiliterebbe (e sfocerebbe) gli input mentre si scrive.
       try {
         const result = await updateRecord("referenze_lavoratori", referenceId, patch)
         applyUpdatedWorkerReference(result.row as ReferenzaLavoratoreRecord)
@@ -914,8 +918,6 @@ export function useSelectedWorkerEditor({
           toast.error(message)
         }
         throw caughtError
-      } finally {
-        setUpdatingExperience(false)
       }
     },
     [applyUpdatedWorkerReference, setError]
