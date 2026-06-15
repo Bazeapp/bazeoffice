@@ -413,6 +413,7 @@ type LeadDetailFormDraft = {
   data_scadenza_naspi: string;
   iban: string;
   id_stripe_account: string;
+  riassunto_profilo_breve: string;
 };
 
 // Select "documenti_in_regola": il value memorizzato è la LABEL DB (come
@@ -1077,6 +1078,9 @@ export function LavoratoriCercaView({
       data_scadenza_naspi: asString(selectedWorkerRow?.data_scadenza_naspi),
       iban: resolvedIban,
       id_stripe_account: asString(selectedWorkerRow?.id_stripe_account),
+      riassunto_profilo_breve: asString(
+        selectedWorkerRow?.riassunto_profilo_breve,
+      ),
     },
     onSave: async (patch) => {
       for (const [key, rawValue] of Object.entries(patch)) {
@@ -1120,6 +1124,12 @@ export function LavoratoriCercaView({
           case "id_stripe_account":
             await patchDocumentField("id_stripe_account", v || null);
             break;
+          case "riassunto_profilo_breve":
+            await patchSelectedWorkerField(
+              "riassunto_profilo_breve",
+              v.trim() || null,
+            );
+            break;
         }
       }
     },
@@ -1154,6 +1164,10 @@ export function LavoratoriCercaView({
   });
   const stripeAccountCtrl = useController({
     name: "id_stripe_account",
+    control: leadDetailForm.control,
+  });
+  const riassuntoProfiloCtrl = useController({
+    name: "riassunto_profilo_breve",
     control: leadDetailForm.control,
   });
   const dataRitornoLCVValue = dataRitornoCtrl.field.value;
@@ -1985,9 +1999,8 @@ export function LavoratoriCercaView({
                     draft={experienceDraft}
                     experiences={selectedWorkerExperiences}
                     experiencesLoading={loadingSelectedWorkerExperiences}
-                    aiSummaryValue={asString(
-                      selectedWorkerRow?.riassunto_profilo_breve,
-                    )}
+                    aiSummaryValue={riassuntoProfiloCtrl.field.value}
+                    onAiSummaryChange={riassuntoProfiloCtrl.field.onChange}
                     isGeneratingAiSummary={generatingWorkerSummary}
                     onGenerateAiSummary={handleGenerateWorkerSummary}
                     references={selectedWorkerReferences}
