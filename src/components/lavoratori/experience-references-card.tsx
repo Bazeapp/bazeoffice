@@ -1325,6 +1325,7 @@ type ExperienceReferencesCardProps = {
   aiSummaryValue?: string;
   isGeneratingAiSummary?: boolean;
   onGenerateAiSummary?: () => Promise<void> | void;
+  onAiSummaryChange?: (value: string) => void;
   children?: React.ReactNode;
   isUpdating: boolean;
   draft?: ExperienceDraft;
@@ -1376,6 +1377,7 @@ export function ExperienceReferencesCard({
   aiSummaryValue,
   isGeneratingAiSummary = false,
   onGenerateAiSummary,
+  onAiSummaryChange,
   children,
   isUpdating,
   experiences,
@@ -1469,8 +1471,9 @@ export function ExperienceReferencesCard({
           </div>
           <Textarea
             value={aiSummaryValue || ""}
-            readOnly
-            placeholder="Nessun riassunto generato."
+            onChange={(event) => onAiSummaryChange?.(event.target.value)}
+            readOnly={!onAiSummaryChange || isGeneratingAiSummary}
+            placeholder="Nessun riassunto generato. Genera con AI o scrivi manualmente."
             className="min-h-24 w-full resize-y bg-background text-sm"
           />
         </div>

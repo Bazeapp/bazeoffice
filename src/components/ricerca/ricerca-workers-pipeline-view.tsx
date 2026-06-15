@@ -2523,7 +2523,10 @@ export function RicercaWorkersPipelineView({
                       setExperienceDraft((current) => ({ ...current, ...patch }))
                     }
                     onExperienceFieldSave={(field, value) => {
-                      if (field === "situazione_lavorativa_attuale") {
+                      if (
+                        field === "situazione_lavorativa_attuale" ||
+                        field === "riassunto_profilo_breve"
+                      ) {
                         void patchSelectedWorkerField(field, value.trim() || null);
                       } else {
                         void patchSelectedWorkerField(field as keyof LavoratoreRecord, parseNumberValue(value));

@@ -491,6 +491,7 @@ type ExperienceSummaryDraft = {
   anni_esperienza_badante: string;
   anni_esperienza_babysitter: string;
   situazione_lavorativa_attuale: string;
+  riassunto_profilo_breve: string;
 };
 
 // FASE 5 BIS — Select provincia lavoratore agganciata al form. Preserva il
@@ -1091,6 +1092,7 @@ function ExperienceBlock({
       situazione_lavorativa_attuale: asString(
         workerRow.situazione_lavorativa_attuale,
       ),
+      riassunto_profilo_breve: asString(workerRow.riassunto_profilo_breve),
     },
     onSave: async (patch) => {
       for (const [key, rawValue] of Object.entries(patch)) {
@@ -1114,6 +1116,10 @@ function ExperienceBlock({
     name: "situazione_lavorativa_attuale",
     control: experienceForm.control,
   });
+  const riassuntoProfiloCtrl = useController({
+    name: "riassunto_profilo_breve",
+    control: experienceForm.control,
+  });
   const colfValue = colfCtrl.field.value;
   const badanteValue = badanteCtrl.field.value;
   const babysitterValue = babysitterCtrl.field.value;
@@ -1130,7 +1136,8 @@ function ExperienceBlock({
       isUpdating={isUpdating}
       experiences={experiences}
       experiencesLoading={experiencesLoading}
-      aiSummaryValue={asString(workerRow.riassunto_profilo_breve)}
+      aiSummaryValue={riassuntoProfiloCtrl.field.value}
+      onAiSummaryChange={riassuntoProfiloCtrl.field.onChange}
       isGeneratingAiSummary={isGeneratingAiSummary}
       onGenerateAiSummary={onGenerateAiSummary}
       references={references}
