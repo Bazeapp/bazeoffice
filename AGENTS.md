@@ -129,7 +129,10 @@ Consequences — these **override** the `nextjs-fe-api` profile where they confl
 - **Testing tier:** no local DB to integration-test. Adapters and pure logic → Vitest
   unit tests; hooks → black-box tests with the data layer mocked at the module boundary;
   critical flows → E2E. Stack: **Vitest + happy-dom + Testing Library** (E2E not yet set
-  up). Pre-push gate via **lefthook**: `test` + `tsc` + `lint`.
+  up). Gate runs in two places: **lefthook** pre-push (local first line of defense) and
+  **GitHub Actions** (`.github/workflows/ci.yml`) on every PR to `main`/`staging`/`dev` —
+  same checks (`test` + `tsc` + `lint`). CI is what protects `main`; the local hook can be
+  bypassed with `LEFTHOOK=0`, CI cannot.
 - This is a **legacy-but-in-production** codebase mid-stabilization. New work follows the
   module anatomy above; **do not bulk-migrate** existing `components/`, `hooks/`,
   `lib/anagrafiche-api.ts`. See `docs/piano-stabilizzazione.md` (master plan) and
@@ -143,6 +146,7 @@ npm run dev:nostrict         # dev server with React StrictMode disabled
 npm run build                # tsc -b && vite build
 npm run lint                 # eslint .
 npm run test                 # vitest run (the pre-push gate)
+npm run coverage             # vitest run --coverage (coverage = a map, not a gate)
 npm run test:watch           # vitest (watch mode)
 npm run test:unit            # vitest run, excludes *.integration.test.*
 npm run test:integration     # vitest run, only *.integration.test.*
@@ -151,8 +155,9 @@ npm run audit:lookup         # report Supabase lookup-table usage
 npm run audit:autosave       # autosave/draft risk analysis (add :strict for stricter)
 ```
 
-> Coverage provider (`@vitest/coverage-v8`) is not yet installed — see Phase 0 of
-> `docs/piano-stabilizzazione.md`.
+> Coverage provider (`@vitest/coverage-v8`) is installed (Phase 0). Use `npm run coverage`
+> as a **map** of what the safety net does/doesn't cover — never as a % target to chase
+> (see Anti-pattern in `docs/piano-stabilizzazione.md`).
 
 ### Environment
 
