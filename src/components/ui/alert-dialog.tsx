@@ -163,6 +163,7 @@ const AlertDialogAction = React.forwardRef<HTMLButtonElement, AlertDialogConfirm
       confirmationLabel = "Confermo l'operazione",
       children,
       variant = "destructive-strong",
+      disabled,
       ...props
     },
     ref
@@ -193,7 +194,7 @@ const AlertDialogAction = React.forwardRef<HTMLButtonElement, AlertDialogConfirm
           <Button
             ref={ref}
             variant={variant}
-            disabled={requireConfirmation && confirmed!}
+            disabled={disabled || (requireConfirmation && !confirmed)}
             {...props}
           >
             {children}

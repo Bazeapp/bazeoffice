@@ -1,9 +1,10 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { useMoveMutation } from "@/hooks/use-board-mutations"
+import { useCreateMutation, useMoveMutation } from "@/hooks/use-board-mutations"
 
 import {
+  deleteRecord,
   fetchAssunzioniBoard,
   fetchLookupValues,
   updateRecord,
@@ -128,6 +129,7 @@ type UseAssunzioniBoardState = {
     rapportoId: string,
     updater: (card: AssunzioniBoardCardData) => AssunzioniBoardCardData
   ) => void
+  deleteRapporto: (rapportoId: string) => Promise<void>
 }
 
 type StageMetadata = {
@@ -719,6 +721,29 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
     [moveMutation],
   )
 
+  const deleteMutation = useCreateMutation<
+    { rapportoId: string },
+    unknown,
+    AssunzioniBoardColumnData[]
+  >({
+    queryKey: ASSUNZIONI_BOARD_QUERY_KEY,
+    mutationFn: ({ rapportoId }) => deleteRecord("rapporti_lavorativi", rapportoId),
+    applyOptimistic: (previous, { rapportoId }) => {
+      if (!previous) return previous
+      return previous.map((column) => ({
+        ...column,
+        cards: column.cards.filter((card) => card.id !== rapportoId),
+      }))
+    },
+  })
+
+  const deleteRapporto = React.useCallback(
+    async (rapportoId: string) => {
+      await deleteMutation.mutateAsync({ rapportoId })
+    },
+    [deleteMutation],
+  )
+
   const loadDeferredColumn = React.useCallback(
     async (stageId: string) => {
       if (!DEFERRED_STAGE_IDS.has(stageId) || loadedDeferredStageIdsRef.current.has(stageId)) return
@@ -800,5 +825,6 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
     loadDeferredColumn,
     moveCard,
     updateCard,
+    deleteRapporto,
   }
 }
