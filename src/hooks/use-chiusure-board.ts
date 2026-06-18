@@ -2,10 +2,11 @@ import * as React from "react"
 import { toast } from "sonner"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
+import { useCreateMutation, useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
 import {
   createRecord,
+  deleteRecord,
   fetchAssunzioniNamesByRapportoIds,
   fetchChiusureBoard,
   fetchLookupValues,
@@ -164,6 +165,7 @@ type UseChiusureBoardState = {
     recordId: string,
     updater: (card: ChiusureBoardCardData) => ChiusureBoardCardData
   ) => void
+  deleteChiusura: (recordId: string) => Promise<void>
 }
 
 const LICENZIAMENTO_STAGE_ID = "Datore comunica licenziamento"
@@ -711,6 +713,32 @@ export function useChiusureBoard(): UseChiusureBoardState {
     [setBoardData]
   )
 
+  const deleteMutation = useCreateMutation<
+    { recordId: string },
+    unknown,
+    ChiusureBoardData
+  >({
+    queryKey: CHIUSURE_BOARD_QUERY_KEY,
+    mutationFn: ({ recordId }) => deleteRecord("chiusure_contratti", recordId),
+    applyOptimistic: (previous, { recordId }) => {
+      if (!previous) return previous
+      return {
+        ...previous,
+        columns: previous.columns.map((column) => ({
+          ...column,
+          cards: column.cards.filter((card) => card.id !== recordId),
+        })),
+      }
+    },
+  })
+
+  const deleteChiusura = React.useCallback(
+    async (recordId: string) => {
+      await deleteMutation.mutateAsync({ recordId })
+    },
+    [deleteMutation],
+  )
+
   // Realtime → invalidate the query. React Query then refetches the board
   // and re-renders consumers. The orchestrator still debounces and defers
   // while local writes are pending so we don't clobber optimistic state.
@@ -733,6 +761,7 @@ export function useChiusureBoard(): UseChiusureBoardState {
     moveCard,
     patchChiusura,
     updateCard,
+    deleteChiusura,
   }
 }
 

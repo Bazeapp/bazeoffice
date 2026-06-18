@@ -18,6 +18,7 @@ import {
   useChiusureBoard,
 } from "@/hooks/use-chiusure-board"
 import { AssociationSearchField } from "@/components/shared-next/association-search-field"
+import { DeleteRecordAction } from "@/components/shared-next/delete-record-action"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import { type AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
@@ -155,6 +156,7 @@ function ChiusureDetailSheet({
   onLinkRapporto,
   onCardChange,
   onPatchChiusura,
+  onDeleteChiusura,
 }: {
   card: ChiusureBoardCardData | null
   columns: ChiusureBoardColumnData[]
@@ -169,6 +171,7 @@ function ChiusureDetailSheet({
     recordId: string,
     patch: Partial<ChiusureBoardCardData["record"]>
   ) => Promise<void>
+  onDeleteChiusura?: (recordId: string) => Promise<void>
 }) {
   const [updatingStatus, setUpdatingStatus] = React.useState(false)
   const [rapportoSearchQuery, setRapportoSearchQuery] = React.useState("")
@@ -401,16 +404,33 @@ function ChiusureDetailSheet({
       <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
         <SheetHeader className="border-b bg-surface px-5 py-5">
           <div className="space-y-3">
-            <div className="min-w-0">
-              <SheetTitle className="truncate text-xl font-semibold">
-                {card?.nomeCompleto ?? "Dettaglio chiusura"}
-              </SheetTitle>
-              <SheetDescription className="sr-only">
-                Dettaglio pratica di chiusura con stato, riepilogo rapporto e allegati.
-              </SheetDescription>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Creata il {formatDate(card?.record.creato_il)}
-              </p>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <SheetTitle className="truncate text-xl font-semibold">
+                  {card?.nomeCompleto ?? "Dettaglio chiusura"}
+                </SheetTitle>
+                <SheetDescription className="sr-only">
+                  Dettaglio pratica di chiusura con stato, riepilogo rapporto e allegati.
+                </SheetDescription>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Creata il {formatDate(card?.record.creato_il)}
+                </p>
+              </div>
+              {card && onDeleteChiusura ? (
+                <DeleteRecordAction
+                  title="Eliminare questa chiusura?"
+                  description="La pratica di chiusura verrà eliminata definitivamente. I rapporti e i ticket collegati verranno scollegati. Questa azione non è reversibile."
+                  toastMessages={{
+                    loading: "Eliminazione chiusura in corso…",
+                    success: "Chiusura eliminata",
+                    error: "Errore durante l'eliminazione della chiusura",
+                  }}
+                  onDelete={async () => {
+                    await onDeleteChiusura(card.id)
+                    onOpenChange(false)
+                  }}
+                />
+              ) : null}
             </div>
 
             {card ? (
@@ -778,6 +798,7 @@ export function ChiusureBoardView() {
     moveCard,
     updateCard,
     patchChiusura,
+    deleteChiusura,
   } = useChiusureBoard()
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
@@ -983,6 +1004,7 @@ export function ChiusureBoardView() {
           updateCard(nextCard.id, () => nextCard)
           setSelectedFreshCard(nextCard)
         }}
+        onDeleteChiusura={deleteChiusura}
       />
 
       <CreateAnnullamentoDialog

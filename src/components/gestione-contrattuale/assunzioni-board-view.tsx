@@ -233,7 +233,7 @@ function AssunzioniBoardSkeletonColumn() {
 }
 
 export function AssunzioniBoardView() {
-  const { loading, error, columns, loadDeferredColumn, moveCard, updateCard } = useAssunzioniBoard()
+  const { loading, error, columns, loadDeferredColumn, moveCard, updateCard, deleteRapporto } = useAssunzioniBoard()
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
@@ -404,6 +404,7 @@ export function AssunzioniBoardView() {
             setSelectedCard(null)
           }
         }}
+        onDeleteRapporto={deleteRapporto}
       />
     </section>
   )

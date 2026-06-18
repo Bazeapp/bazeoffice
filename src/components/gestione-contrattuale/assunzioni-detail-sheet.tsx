@@ -16,6 +16,7 @@ import {
 
 import type { AssunzioneRecord, AssunzioniBoardCardData } from "@/hooks/use-assunzioni-board"
 import { AssociationSearchField } from "@/components/shared-next/association-search-field"
+import { DeleteRecordAction } from "@/components/shared-next/delete-record-action"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
@@ -1220,11 +1221,13 @@ export function AssunzioniDetailSheet({
   open,
   onCardChange,
   onOpenChange,
+  onDeleteRapporto,
 }: {
   card: AssunzioniBoardCardData | null
   open: boolean
   onCardChange: (card: AssunzioniBoardCardData) => void
   onOpenChange: (open: boolean) => void
+  onDeleteRapporto?: (rapportoId: string) => Promise<void>
 }) {
   const [target, setTarget] = React.useState<DetailTarget>("datore")
   const [statoAssunzioneOptions, setStatoAssunzioneOptions] = React.useState<LookupOption[]>([])
@@ -2159,6 +2162,23 @@ export function AssunzioniDetailSheet({
                   </span>
                 </div>
               </div>
+              {card?.rapporto?.id && onDeleteRapporto ? (
+                <div className="flex shrink-0 items-center gap-1">
+                  <DeleteRecordAction
+                    title="Eliminare questo rapporto lavorativo?"
+                    description="Il rapporto lavorativo verrà eliminato definitivamente. I form di assunzione (datore e lavoratore), i cedolini, i contributi, i CUD, le variazioni e i ticket collegati verranno scollegati ma NON eliminati. Questa azione non è reversibile."
+                    toastMessages={{
+                      loading: "Eliminazione rapporto in corso…",
+                      success: "Rapporto lavorativo eliminato",
+                      error: "Errore durante l'eliminazione del rapporto",
+                    }}
+                    onDelete={async () => {
+                      await onDeleteRapporto(card.rapporto!.id)
+                      onOpenChange(false)
+                    }}
+                  />
+                </div>
+              ) : null}
             </div>
 
           </div>
