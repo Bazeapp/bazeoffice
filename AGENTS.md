@@ -179,4 +179,13 @@ module candidates: `lavoratori`, `ricerca`, `crm`, `gestione-contrattuale`, `pay
 Branching: `main` = production (protected, PR-only deploy), `staging`, `dev`. Work on
 `dev`; hotfix from `main` then forward-port to `dev`.
 
+### Knowledge Store
+
+`docs/solutions/` — solved-problem library, one Markdown file per issue, with YAML
+frontmatter (`problem_type`, `component`, `severity`, `tags`). Subdirectory categories:
+`integration-issues/`, `architecture/`, etc. **Read before implementing or debugging in a
+documented area** — past failures and their root causes are indexed here so the same
+investigation is never repeated. Companion: `docs/testing-strategy.md` for test coverage
+decisions, `docs/piano-stabilizzazione.md` for the overall stabilisation plan.
+
 <!-- project:end -->
