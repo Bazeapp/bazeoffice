@@ -188,4 +188,7 @@ documented area** — past failures and their root causes are indexed here so th
 investigation is never repeated. Companion: `docs/testing-strategy.md` for test coverage
 decisions, `docs/piano-stabilizzazione.md` for the overall stabilisation plan.
 
+`CONCEPTS.md` (repo root) — shared domain vocabulary (entities, named processes, status
+concepts); relevant when orienting to the codebase or discussing domain concepts.
+
 <!-- project:end -->

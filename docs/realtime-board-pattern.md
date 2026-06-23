@@ -108,3 +108,10 @@ In questi casi, sopprimi con:
 //   detail; refresh on realtime not needed
 React.useEffect(() => { ... }, [selectedWorkerId])
 ```
+
+## Vedi anche
+
+- [`solutions/best-practices/characterization-testing-module-level-state.md`](solutions/best-practices/characterization-testing-module-level-state.md)
+  — come caratterizzare con i test i primitivi di write-tracking /
+  echo-suppression (`pendingWriteCount`, `lastLocalWriteAt`) su cui si appoggia
+  la soppressione dell'echo realtime descritta qui.
