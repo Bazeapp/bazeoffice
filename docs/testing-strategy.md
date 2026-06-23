@@ -137,6 +137,11 @@ the highest bug-risk class.
 - **Supabase calls** → test via the hooks that consume them (below) with the
   module mocked, rather than mocking the Supabase client chain directly. Verify
   the _contract_ (which args go in, how the response is mapped) at the hook level.
+- **Module-level write-tracking state** (`pendingWriteCount` / `lastLocalWriteAt`)
+  is a third category — a mutable singleton, not a pure transform. Characterize it
+  with `vi.resetModules()` + fake timers; see
+  [`solutions/best-practices/characterization-testing-module-level-state.md`](solutions/best-practices/characterization-testing-module-level-state.md)
+  (the realized U3 recipe, including the mutation-test-the-floor lesson).
 
 ### A2. Draft / autosave / realtime cluster (highest risk)
 
