@@ -77,6 +77,32 @@ just-in-time per file.
 **Definition of done:** `npm run coverage` produces a report; baseline numbers
 recorded in this doc.
 
+### Baseline coverage (recorded 2026-06-19)
+
+Global: **5% lines** (845/15991). This is the _before_ map of which refactor
+targets are naked — NOT a number to chase.
+
+| Target file                          | Lines % | Status                          |
+| ------------------------------------ | ------- | ------------------------------- |
+| `lib/anagrafiche-api.ts`             | 6%      | naked monolith (Target A1 → U3) |
+| `lib/datetime.ts`                    | 0%      | Tier 1 gap → U2                 |
+| `lib/geo-utils.ts`                   | 0%      | Tier 1 gap → U2                 |
+| `lib/search-utils.ts`                | 0%      | Tier 1 gap → U2                 |
+| `lib/private-area-url.ts`            | 0%      | Tier 1 gap → U2                 |
+| `lib/availability-functions.ts`      | 0%      | Tier 1 gap → U2                 |
+| `lib/lookup-color-styles.ts`         | 62%     | partial (indirect) → U2         |
+| `hooks/use-auto-save-form.ts`        | ~0%     | Target A2 gap → U4              |
+| `hooks/use-realtime-rows.ts`         | 0%      | Target A2 gap → U4              |
+| `hooks/use-realtime-board-sync.ts`   | 100%    | already netted                  |
+| `hooks/use-debounced-save.ts`        | 88%     | already netted                  |
+| `hooks/use-auto-save-form-fields.ts` | 87%     | already netted                  |
+| `hooks/use-board-mutations.ts`       | 83%     | already netted                  |
+
+Giant refactor targets (Fase 3), all near-zero and to be characterized
+just-in-time before splitting: `use-crm-pipeline-preview` (10%),
+`use-ricerca-workers-pipeline` (0%), `use-ricerca-board` (0%),
+`use-selected-worker-editor` (41%), and the giant views (~0%).
+
 ---
 
 ## Tier 1 — Pure logic in `lib/` (cheap, deterministic, no mocks)
@@ -111,6 +137,11 @@ the highest bug-risk class.
 - **Supabase calls** → test via the hooks that consume them (below) with the
   module mocked, rather than mocking the Supabase client chain directly. Verify
   the _contract_ (which args go in, how the response is mapped) at the hook level.
+- **Module-level write-tracking state** (`pendingWriteCount` / `lastLocalWriteAt`)
+  is a third category — a mutable singleton, not a pure transform. Characterize it
+  with `vi.resetModules()` + fake timers; see
+  [`solutions/best-practices/characterization-testing-module-level-state.md`](solutions/best-practices/characterization-testing-module-level-state.md)
+  (the realized U3 recipe, including the mutation-test-the-floor lesson).
 
 ### A2. Draft / autosave / realtime cluster (highest risk)
 
