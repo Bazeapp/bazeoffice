@@ -115,3 +115,6 @@ React.useEffect(() => { ... }, [selectedWorkerId])
   — come caratterizzare con i test i primitivi di write-tracking /
   echo-suppression (`pendingWriteCount`, `lastLocalWriteAt`) su cui si appoggia
   la soppressione dell'echo realtime descritta qui.
+- [`solutions/best-practices/characterization-testing-rhf-realtime-false-greens.md`](solutions/best-practices/characterization-testing-rhf-realtime-false-greens.md)
+  — i tranelli "test verde ma vuoto" nel testare gli hook di autosave (RHF) e di
+  sottoscrizione realtime (`useRealtimeRows`) che alimentano questi pattern.

@@ -156,6 +156,10 @@ coverage — extend it:
   `src/test/draft-resync-tier2.integration.test.tsx`,
   `key-unmount-pattern.integration.test.tsx`. See
   `docs/realtime-board-pattern.md` and `docs/realtime-bug-class-plan.md`.
+- Realized U4 learning — the false-green traps when testing these hooks (RHF
+  `setValue` no-save, vacuous `?? null` coercion, masked compound guards, supabase
+  channel mocking, real-timer coupling):
+  [`solutions/best-practices/characterization-testing-rhf-realtime-false-greens.md`](solutions/best-practices/characterization-testing-rhf-realtime-false-greens.md).
 
 Behaviors to pin: debounce timing (use fake timers), echo-suppression (don't
 clobber local edits with an echoed realtime row), resync on identity change,
