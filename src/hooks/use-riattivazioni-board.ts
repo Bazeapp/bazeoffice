@@ -129,7 +129,7 @@ function formatItalianDate(value: unknown) {
   }).format(parsed)
 }
 
-function resolveStage(value: string | null | undefined): RiattivazioneStageId {
+export function resolveStage(value: string | null | undefined): RiattivazioneStageId {
   const normalized = normalizeToken(value)
   const matchedStage = RIATTIVAZIONI_STAGE_DEFINITIONS.find(
     (stage) => normalizeToken(stage.id) === normalized || normalizeToken(stage.label) === normalized,
@@ -137,15 +137,15 @@ function resolveStage(value: string | null | undefined): RiattivazioneStageId {
   return matchedStage?.id ?? DEFAULT_STAGE_ID
 }
 
-function hasRiattivazioneStatus(value: string | null | undefined) {
+export function hasRiattivazioneStatus(value: string | null | undefined) {
   return normalizeToken(value).length > 0
 }
 
-function shouldShowUnclassifiedChiusura(rapporto: RapportoLavorativoRecord | null) {
+export function shouldShowUnclassifiedChiusura(rapporto: RapportoLavorativoRecord | null) {
   return normalizeToken(rapporto?.stato_servizio) === "non attivo"
 }
 
-function getChiusuraTipoLabel(record: ChiusuraContrattoRecord) {
+export function getChiusuraTipoLabel(record: ChiusuraContrattoRecord) {
   return record.tipo_licenziamento ?? record.tipo_decesso ?? "-"
 }
 
