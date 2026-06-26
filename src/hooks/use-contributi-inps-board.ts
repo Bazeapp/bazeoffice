@@ -276,7 +276,7 @@ function getYearFromDate(value: string | null | undefined) {
   return date.getUTCFullYear()
 }
 
-function getQuarterDateRange(year: number, quarter: ContributoQuarterValue) {
+export function getQuarterDateRange(year: number, quarter: ContributoQuarterValue) {
   const quarterIndex = QUARTER_ORDER.indexOf(quarter)
   if (quarterIndex < 0) return null
 

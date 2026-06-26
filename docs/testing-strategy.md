@@ -168,6 +168,40 @@ no-save-on-unmount-without-commit.
 **Definition of done:** every behavior described in `realtime-bug-class-plan.md`
 has a failing-without-the-fix test. Then refactor the data layer freely.
 
+### Status — Target A complete (2026-06-24)
+
+Net built; suite at 302 green / 32 files. Every guard below was mutation-verified
+(deleted in source → test reds → restored).
+
+- **A1 pure transform** — `normalizeTableResponse` netted
+  (`src/lib/anagrafiche-api.test`→ `anagrafiche-api.normalize.test.ts`); the
+  function was `export`ed for the test (it is the data layer's only pure
+  transform — the rest is thin `fetch*` wrappers, so the "row mappers/validators"
+  the strategy imagined live in the board hooks, covered below).
+- **A1 contract via consuming hooks** — pinned the high-value pure helpers of the
+  four in-scope board hooks: `use-payroll-board` `preserveDetailFields`
+  (Pattern A — the realtime stale-detail guard), `use-riattivazioni-board`
+  `resolveStage` + inclusion filter + tipo label, `use-contributi-inps-board`
+  `getQuarterDateRange`. The orchestrators are testable directly (module-level
+  async functions) — the rendered-hook fetcher-args path and the lowest-value
+  `use-prove-colloqui-data` mapping were left lean per scope (the one
+  realtime-bug-class behavior, Pattern A, is pinned).
+- **A2 cluster** — `use-debounced-save`, `use-auto-save-form`,
+  `use-auto-save-form-fields`, `use-realtime-board-sync`, `use-realtime-rows`,
+  `use-board-mutations` (U3/U4 prior work).
+- **A2 highest-risk hook** — `use-selected-worker-editor` fully characterized: all
+  8 draft-resync-without-clobber guards + the unconditional-resync asymmetry,
+  identity-switch flag reset (no cross-record bleed), no-save on switch/unmount,
+  null-id guards, the `activePatchesRef` in-flight gate, the
+  `pendingAddressCreateRef` single-INSERT serialization, error visibility on every
+  write path, and the commit no-op short-circuits. Recipe:
+  [`solutions/best-practices/characterization-testing-selected-worker-editor.md`](solutions/best-practices/characterization-testing-selected-worker-editor.md).
+
+The four **giant board hooks** (`use-anagrafiche-data`, `use-ricerca-board`,
+`use-ricerca-workers-pipeline`, `use-support-tickets-board`) are **not** part of
+the data-layer net — they belong to Target B (characterize just-in-time before
+splitting).
+
 ---
 
 ## Target B — Breaking up giant files safety net
