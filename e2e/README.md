@@ -32,6 +32,7 @@ E2E seed files (local only, never migrations):
 
 - `supabase/seed_e2e_operators.sql` — four operator users (`e2e-<role>@local.test`)
 - `supabase/seed_e2e_famiglia.sql` — famiglia fixture for mutation template
+- `supabase/seed_e2e_pipeline.sql` — multi-stage Sales Pipeline board fixture
 
 These run on every `supabase db reset` via `config.toml` `sql_paths`.
 
@@ -62,10 +63,26 @@ Filter by operator role (Playwright project):
 
 ```bash
 npx playwright test --project=recruiter
+npx playwright test --project=sales
 npx playwright test --project=payroll
 ```
 
-Projects map to role tokens: `customer`, `sales`, `recruiter`, `payroll`.
+Projects map to role tokens: `customer`, `sales`, `recruiter`, `payroll`. Each project runs
+`e2e/shared/` smoke specs plus specs under its own `e2e/<role>/` folder — no cross-role skips.
+
+## Layout
+
+```
+e2e/
+├── shared/          # smoke — runs on every project
+├── sales/           # Sales Pipeline feature specs
+├── recruiter/       # recruiter-domain specs
+├── customer/        # (smoke only until feature specs land here)
+├── payroll/         # (smoke only until feature specs land here)
+├── support/         # shared helpers
+├── constants.ts
+└── global-setup.ts
+```
 
 ## Operator credentials (local seed)
 
@@ -82,10 +99,38 @@ Session tokens are written to `e2e/.auth/` on each run (gitignored).
 
 Copy patterns from:
 
-- `e2e/smoke.spec.ts` — authenticated shell per project
-- `e2e/example.spec.ts` — famiglia mutation via service role (recruiter project)
+- `e2e/shared/smoke.spec.ts` — authenticated shell (all roles)
+- `e2e/recruiter/famiglia-mutation.spec.ts` — famiglia mutation via service role
+- `e2e/sales/pipeline-filters.spec.ts` — Sales Pipeline toolbar filters
+- `e2e/sales/pipeline-moves.spec.ts` — kanban moves, acquisition flow, native DnD
+- `e2e/sales/pipeline-sheet.spec.ts` — detail sheet, autosave, duplica dialog
+- `e2e/support/pipeline.ts` — navigation, filters, synthetic DnD helpers
+- `e2e/support/processo-mutations.ts` — service-role `processi_matching` read/write + fixture reset
 - `e2e/support/famiglia-mutations.ts` — simulate external family webapp writes
 - `e2e/support/route-errors.ts` — `page.route` error injection (for future feature specs)
+
+Add new role-specific specs under `e2e/<role>/`. Playwright picks them up automatically via
+`testMatch` in `playwright.config.ts` — no `test.skip` gating needed.
+
+**Navigation:** use relative paths from `selectors.routes` (e.g. `pipeline`, not
+`/pipeline`) — a leading `/` escapes Vite's `/bazeoffice/` base and loads a blank page.
+
+**Board data:** local `seed.sql` adds many pipeline rows beyond the 8-row E2E fixture.
+Filter assertions target `E2E_PIPELINE` card ids via `expectE2eFixtureCardVisibility`,
+not total card count on the board.
+
+### Pipeline specs (`e2e/sales/`)
+
+Fixture map: `E2E_PIPELINE` in `e2e/constants.ts` (8 `processi_matching` rows seeded by
+`seed_e2e_pipeline.sql`).
+
+- **Filters** require clicking **Applica filtri**; only toolbar filters persist in
+  `localStorage` (`bazeoffice.crmPipelineFamiglie.filters.v1`) — search does not.
+- **Moves + persistence:** prefer the sheet **Stato lead** `Select` (same `moveCard` path as
+  drag-drop). `pipeline-moves.spec.ts` also includes a **best-effort** synthetic HTML5 DnD test
+  (`dragCardToColumn`); treat it as supplementary — quarantine with `test.fixme` if flaky.
+- **Mutating tests** call `resetPipelineFixture()` in `afterEach` / `finally` so parallel runs
+  stay order-independent.
 
 ## Troubleshooting
 

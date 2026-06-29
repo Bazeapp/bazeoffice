@@ -1,17 +1,10 @@
 import { expect, test } from "@playwright/test"
 
-import { E2E_FAMIGLIA } from "./constants"
-import { updateFamigliaField } from "./support/famiglia-mutations"
-import { selectors } from "./support/selectors"
+import { E2E_FAMIGLIA } from "../constants"
+import { updateFamigliaField } from "../support/famiglia-mutations"
+import { selectors } from "../support/selectors"
 
-test.describe("template: external famiglia write", () => {
-  test.beforeEach((_, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "recruiter",
-      "Example runs on recruiter project only",
-    )
-  })
-
+test.describe("anagrafiche: external famiglia write", () => {
   test("service-role mutation is visible after reload", async ({ page }) => {
     const mutatedCognome = `Rossi E2E ${Date.now()}`
     const famiglieSearch = page.getByPlaceholder("Cerca in famiglie...")

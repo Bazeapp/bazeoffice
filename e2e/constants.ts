@@ -129,6 +129,108 @@ export const E2E_FAMIGLIA = {
   processoId: "00000000-0000-0000-0000-00000000b001",
 } as const
 
+/** Seeded in baze-supabase/supabase/seed_e2e_pipeline.sql */
+export const E2E_PIPELINE = {
+  famiglie: {
+    rossi: E2E_FAMIGLIA,
+    bianchi: {
+      id: "00000000-0000-0000-0000-00000000f002",
+      nome: "E2E",
+      cognome: "Famiglia Bianchi",
+      displayName: "Famiglia Bianchi",
+      searchText: "Famiglia Bianchi",
+      email: "e2e-bianchi@local.test",
+      hasChiamataPrenotata: true,
+    },
+  },
+  stages: {
+    warmLead: "warm_lead",
+    hotAttesaPrimoContatto: "hot_in_attesa_di_primo_contatto",
+    hotCallAttivazionePrenotata: "hot_call_attivazione_prenotata",
+    hotIngresso: "hot_ingresso",
+    coldRicercaFutura: "cold_ricerca_futura",
+    wonInAttesaConferma: "won_in_attesa_di_conferma",
+  },
+  stageLabels: {
+    warmLead: "WARM - Lead",
+    hotAttesaPrimoContatto: "HOT - In attesa di primo contatto",
+    hotIngresso: "HOT - Ingresso",
+    coldRicercaFutura: "COLD - Ricerca futura",
+    wonInAttesaConferma: "WON - In attesa di conferma",
+  },
+  tipoLavoro: {
+    colf: "Colf / Pulizie",
+    babysitter: "Babysitter / Tata-Colf",
+  },
+  processi: {
+    template: {
+      id: "00000000-0000-0000-0000-00000000b001",
+      famigliaId: E2E_FAMIGLIA.id,
+      stage: "warm_lead",
+      preventivoAccettato: false,
+      tipoLavoro: "Colf / Pulizie",
+      creatoRecent: true,
+    },
+    warmPreventivo: {
+      id: "00000000-0000-0000-0000-00000000b002",
+      famigliaId: E2E_FAMIGLIA.id,
+      stage: "warm_lead",
+      preventivoAccettato: true,
+      tipoLavoro: "Babysitter / Tata-Colf",
+      creatoRecent: false,
+    },
+    mover: {
+      id: "00000000-0000-0000-0000-00000000b003",
+      famigliaId: E2E_FAMIGLIA.id,
+      stage: "warm_lead",
+      preventivoAccettato: false,
+      tipoLavoro: "Colf / Pulizie",
+      creatoRecent: true,
+    },
+    hotAttesa: {
+      id: "00000000-0000-0000-0000-00000000b004",
+      famigliaId: E2E_FAMIGLIA.id,
+      stage: "hot_in_attesa_di_primo_contatto",
+      preventivoAccettato: false,
+      tipoLavoro: "Colf / Pulizie",
+      creatoRecent: true,
+    },
+    bianchiWarm: {
+      id: "00000000-0000-0000-0000-00000000b005",
+      famigliaId: "00000000-0000-0000-0000-00000000f002",
+      stage: "warm_lead",
+      preventivoAccettato: false,
+      tipoLavoro: "Colf / Pulizie",
+      creatoRecent: true,
+      chiamataPrenotata: true,
+    },
+    cold: {
+      id: "00000000-0000-0000-0000-00000000b006",
+      famigliaId: E2E_FAMIGLIA.id,
+      stage: "cold_ricerca_futura",
+      preventivoAccettato: false,
+      tipoLavoro: "Colf / Pulizie",
+      creatoRecent: true,
+    },
+    wonAttesa: {
+      id: "00000000-0000-0000-0000-00000000b007",
+      famigliaId: E2E_FAMIGLIA.id,
+      stage: "won_in_attesa_di_conferma",
+      preventivoAccettato: true,
+      tipoLavoro: "Colf / Pulizie",
+      creatoRecent: true,
+    },
+    acquisition: {
+      id: "00000000-0000-0000-0000-00000000b008",
+      famigliaId: E2E_FAMIGLIA.id,
+      stage: "warm_lead",
+      preventivoAccettato: false,
+      tipoLavoro: "Babysitter / Tata-Colf",
+      creatoRecent: true,
+    },
+  },
+} as const
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { selectors } from "./support/selectors"
+import { selectors } from "../support/selectors"
 
 test.describe("authenticated app shell", () => {
   test("loads without login form", async ({ page }) => {

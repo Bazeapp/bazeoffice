@@ -17,6 +17,8 @@ const webServerEnv = {
   ...(useDevServer ? { VITE_DISABLE_STRICT_MODE: "true" } : {}),
 }
 
+const SHARED_TEST_MATCH = "shared/**/*.spec.ts"
+
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: true,
@@ -32,6 +34,7 @@ export default defineConfig({
   },
   projects: OPERATOR_ROLES.map((role) => ({
     name: role,
+    testMatch: [SHARED_TEST_MATCH, `${role}/**/*.spec.ts`],
     use: {
       storageState: OPERATORS[role].storageStatePath,
     },
