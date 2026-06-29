@@ -64,6 +64,10 @@ describe("cardMatchesCedoliniFilters — default (tutti flagged)", () => {
       expect(cardMatchesCedoliniFilters(card, filters)).toBe(true)
     }
   })
+
+  it("gestisce una card con record null senza errori (bucket regolare)", () => {
+    expect(cardMatchesCedoliniFilters(makeCard({ record: null }), filters)).toBe(true)
+  })
 })
 
 describe("caso particolare", () => {
@@ -75,6 +79,12 @@ describe("caso particolare", () => {
     expect(getCasoParticolareFilterValue("si")).toBe("caso_particolare")
     expect(getCasoParticolareFilterValue("Caso particolare")).toBe("caso_particolare")
     expect(getCasoParticolareFilterValue("chiusura rapporto")).toBe("chiusura")
+    // trim + case-insensitive + alias set + uppercase chiusura
+    expect(getCasoParticolareFilterValue("  SÌ ")).toBe("caso_particolare")
+    expect(getCasoParticolareFilterValue("yes")).toBe("caso_particolare")
+    expect(getCasoParticolareFilterValue("true")).toBe("caso_particolare")
+    expect(getCasoParticolareFilterValue("CHIUSURA RAPPORTO")).toBe("chiusura")
+    expect(getCasoParticolareFilterValue(undefined)).toBe("regolare")
   })
 
   it("filtra le card per caso particolare", () => {
@@ -97,6 +107,13 @@ describe("stato pagamento", () => {
       getStatoPagamentoFilterValue(makeCard({ stage: "TODO", pagamento: { status: "succeeded" } })),
     ).toBe("pagato")
     expect(getStatoPagamentoFilterValue(makeCard({ stage: "TODO" }))).toBe("da_pagare")
+    // qualsiasi status != 'succeeded' su una card baze pay resta "da_pagare"
+    expect(
+      getStatoPagamentoFilterValue(makeCard({ stage: "TODO", pagamento: { status: "failed" } })),
+    ).toBe("da_pagare")
+    expect(
+      getStatoPagamentoFilterValue(makeCard({ stage: "TODO", pagamento: { status: "pending" } })),
+    ).toBe("da_pagare")
   })
 
   it("EDGE: un abbonamento (nessuna richiesta_attivazione) conta sempre come Pagato", () => {

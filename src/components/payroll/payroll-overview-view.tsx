@@ -1575,8 +1575,8 @@ function CedoliniFilterBar({
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
       {CEDOLINI_FILTER_GROUPS.map((group) => (
-        <div key={group.key} className="flex flex-wrap items-center gap-2">
-          <span className="text-2xs text-muted-foreground font-semibold uppercase tracking-wide">
+        <div key={group.key} role="group" aria-label={group.label} className="flex flex-wrap items-center gap-2">
+          <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
             {group.label}
           </span>
           {group.options.map((option) => (

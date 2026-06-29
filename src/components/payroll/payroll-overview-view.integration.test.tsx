@@ -69,6 +69,8 @@ describe("CedoliniPayrollView — filtri toolbar (BAZ-36)", () => {
     mockBoard([{ id: "Inviato cedolino", label: "Inviato cedolino", color: "green", cards: [makeCard()] }])
     renderWithProviders(<PayrollOverviewView defaultTab="cedolini" />)
 
+    // NB: "Caso particolare" non si asserisce con getByText — l'etichetta del
+    // gruppo collide con la chip omonima dello stesso gruppo (2 match → throw).
     expect(screen.getByText("Stato pagamento")).toBeTruthy()
     expect(screen.getByText("Tipo utente")).toBeTruthy()
     expect(screen.getByText("Presenze")).toBeTruthy()
@@ -94,5 +96,39 @@ describe("CedoliniPayrollView — filtri toolbar (BAZ-36)", () => {
 
     expect(screen.getByText("Rossi")).toBeTruthy()
     expect(screen.queryByText("Bianchi")).toBeNull()
+    // la chip riflette lo stato deselezionato
+    expect(screen.getByRole("checkbox", { name: "Irregolari" }).getAttribute("data-state")).toBe("unchecked")
+  })
+
+  it("combina ricerca testuale E filtri (AND): mostra solo l'intersezione", () => {
+    // 3 card: due "Rossi" (una regolare, una irregolare) + una "Bianchi".
+    // Asserzioni sul nome lavoratore (univoco); la famiglia "Rossi" comparirebbe 2 volte.
+    const rossiReg = makeCard({ id: "m-1", nomeCompleto: "Rossi – Maria", presenzeIrregolari: false })
+    const rossiIrr = makeCard({ id: "m-2", nomeCompleto: "Rossi – Luca", presenzeIrregolari: true })
+    const bianchi = makeCard({ id: "m-3", nomeCompleto: "Bianchi – Anna", presenzeIrregolari: false })
+    mockBoard([
+      { id: "Inviato cedolino", label: "Inviato cedolino", color: "green", cards: [rossiReg, rossiIrr, bianchi] },
+    ])
+
+    renderWithProviders(<PayrollOverviewView defaultTab="cedolini" />)
+
+    // default: tutte e tre visibili
+    expect(screen.getByText("Maria")).toBeTruthy()
+    expect(screen.getByText("Luca")).toBeTruthy()
+    expect(screen.getByText("Anna")).toBeTruthy()
+
+    // ricerca "Rossi" → restano solo le due card Rossi
+    fireEvent.change(screen.getByPlaceholderText("Cerca per famiglia, lavoratore, email..."), {
+      target: { value: "Rossi" },
+    })
+    expect(screen.getByText("Maria")).toBeTruthy()
+    expect(screen.getByText("Luca")).toBeTruthy()
+    expect(screen.queryByText("Anna")).toBeNull()
+
+    // + deseleziona "Irregolari" → resta solo Rossi–Maria (intersezione ricerca AND filtro)
+    fireEvent.click(screen.getByRole("checkbox", { name: "Irregolari" }))
+    expect(screen.getByText("Maria")).toBeTruthy()
+    expect(screen.queryByText("Luca")).toBeNull()
+    expect(screen.queryByText("Anna")).toBeNull()
   })
 })
