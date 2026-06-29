@@ -20,7 +20,6 @@
  * hook uses no QueryClient, so plain `render` / `renderHook` are intentional here
  * (not the `*WithQueryClient` helpers from test-utils).
  */
-import * as React from "react"
 import {
   fireEvent,
   render,
