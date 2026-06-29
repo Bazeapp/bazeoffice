@@ -256,6 +256,23 @@ file at a time.
 
 ---
 
+## E2E (Playwright, local-only)
+
+**Status:** harness in place (2026-06-29). Feature specs (Ricerca U6) deferred.
+
+- **Runner:** `@playwright/test` — separate from Vitest (`npm run e2e`, not `npm test`).
+- **Backend:** local Supabase in sibling `baze-supabase` (`supabase db reset`).
+- **Auth:** four Playwright projects (`customer`, `sales`, `recruiter`, `payroll`),
+  each with its own `storageState` from `e2e/global-setup.ts`.
+- **Famiglia data:** seeded domain records + service-role mutation helpers (simulates
+  the external family webapp — no famiglia login in BazeOffice).
+- **Gate:** E2E is opt-in local only — not in lefthook or CI.
+
+Runbook: [`e2e/README.md`](../e2e/README.md). Plan:
+[`docs/plans/2026-06-29-001-test-e2e-playwright-harness-plan.md`](plans/2026-06-29-001-test-e2e-playwright-harness-plan.md).
+
+---
+
 ## Anti-patterns to avoid
 
 - ❌ DOM/serializer snapshots of giant components (brittle, catch nothing).
