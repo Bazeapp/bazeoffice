@@ -21,7 +21,6 @@ const { daSentire: daSentireStage, inAttesa: inAttesaStage, riattivato: riattiva
   E2E_RIATTIVAZIONI.stages
 const {
   daSentire: daSentireLabel,
-  inAttesa: inAttesaLabel,
   riattivato: riattivatoLabel,
 } = E2E_RIATTIVAZIONI.stageLabels
 

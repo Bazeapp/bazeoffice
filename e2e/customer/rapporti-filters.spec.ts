@@ -19,7 +19,7 @@ test.describe("rapporti lavorativi: list filters", () => {
     test.describe.configure({ mode: "serial" })
 
     let rapportiPage: Page
-    const { inAttivazione, attivo, terminato, errore } = E2E_RAPPORTI.rapporti
+    const { inAttivazione, attivo, terminato } = E2E_RAPPORTI.rapporti
 
     test.beforeAll(async ({ browser }) => {
       rapportiPage = await browser.newPage()

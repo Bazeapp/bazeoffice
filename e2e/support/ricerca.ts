@@ -167,7 +167,6 @@ export async function expectCardNotInColumn(
 }
 
 export function processIdsInStage(stageId: keyof typeof E2E_RICERCA.stages) {
-  const { daAssegnare, fareRicerca } = E2E_RICERCA.stages
   const {
     unassignedNuova,
     unassignedWithRecruiter,
