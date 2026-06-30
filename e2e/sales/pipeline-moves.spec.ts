@@ -9,6 +9,7 @@ import {
   expectPersistedStatoSales,
   gotoPipeline,
   openCardSheet,
+  reloadPipeline,
   setStatoInSheet,
 } from "../support/pipeline"
 import {
@@ -21,7 +22,7 @@ const { mover, acquisition } = E2E_PIPELINE.processi
 const { stages, stageLabels } = E2E_PIPELINE
 
 test.describe("pipeline: kanban moves", () => {
-  test.describe.configure({ timeout: 60_000 })
+  test.describe.configure({ mode: "serial", timeout: 60_000 })
 
   test.afterEach(async () => {
     await resetPipelineFixture()
@@ -38,10 +39,7 @@ test.describe("pipeline: kanban moves", () => {
     await expectCardNotInColumn(page, mover.id, stages.warmLead)
     await expectCardInColumn(page, mover.id, stages.hotAttesaPrimoContatto)
 
-    await page.reload()
-    await expect(page.getByRole("heading", { name: "Sales Pipeline" })).toBeVisible({
-      timeout: 30_000,
-    })
+    await reloadPipeline(page)
     await expectCardInColumn(page, mover.id, stages.hotAttesaPrimoContatto)
 
     const persisted = await readProcessoStatoSales(mover.id)
@@ -90,7 +88,7 @@ test.describe("pipeline: kanban moves", () => {
       stageLabels.wonInAttesaConferma,
     )
 
-    await page.reload()
+    await reloadPipeline(page)
     await expectCardInColumn(page, acquisition.id, stages.wonInAttesaConferma)
   })
 
@@ -102,8 +100,11 @@ test.describe("pipeline: kanban moves", () => {
       test.skip(true, "No deferred pipeline columns with pending rows in this seed")
     }
 
+    const deferredPlaceholder = page.getByText("Colonna non caricata di default.")
+    const initialDeferredCount = await deferredPlaceholder.count()
+
     await loadButton.click()
-    await expect(page.getByText("Colonna non caricata di default.")).toHaveCount(0, {
+    await expect(deferredPlaceholder).toHaveCount(initialDeferredCount - 1, {
       timeout: 30_000,
     })
   })
@@ -125,9 +126,7 @@ test.describe("pipeline: kanban moves", () => {
     )
   })
 
-  test.fixme("native drag-and-drop moves card to target column (best-effort)", async ({
-    page,
-  }) => {
+  test("native drag-and-drop moves card to target column", async ({ page }) => {
     await gotoPipeline(page)
     await expectCardInColumn(page, mover.id, stages.warmLead)
 

@@ -4,8 +4,14 @@ import { E2E_PIPELINE } from "../constants"
 import { selectors } from "./selectors"
 
 const BOARD_LOAD_TIMEOUT_MS = 30_000
+const BOARD_APPLY_RESPONSE_TIMEOUT_MS = 5_000
+
 export const PIPELINE_FILTERS_STORAGE_KEY =
   "bazeoffice.crmPipelineFamiglie.filters.v1"
+
+function isPipelineBoardResponse(response: { url: () => string; ok: () => boolean }) {
+  return response.url().includes("crm_pipeline_famiglie_board") && response.ok()
+}
 
 const ALL_PIPELINE_PROCESS_IDS = Object.values(E2E_PIPELINE.processi).map(
   (processo) => processo.id,
@@ -32,13 +38,18 @@ export function allPipelineCards(page: Page) {
 }
 
 export async function countVisibleE2eFixtureCards(page: Page) {
-  let count = 0
-  for (const processId of ALL_PIPELINE_PROCESS_IDS) {
-    if (await getCard(page, processId).isVisible()) {
-      count += 1
-    }
-  }
-  return count
+  const visibility = await Promise.all(
+    ALL_PIPELINE_PROCESS_IDS.map((processId) => getCard(page, processId).isVisible()),
+  )
+  return visibility.filter(Boolean).length
+}
+
+export async function expectE2eFixtureCardsVisible(page: Page, processIds: string[]) {
+  await Promise.all(
+    processIds.map((processId) =>
+      expect(getCard(page, processId)).toBeVisible({ timeout: BOARD_LOAD_TIMEOUT_MS }),
+    ),
+  )
 }
 
 export async function expectVisibleE2eFixtureCount(page: Page, expected: number) {
@@ -71,6 +82,12 @@ export async function clearPipelineFiltersStorage(page: Page) {
     `(key) => { window.localStorage.removeItem(key) }`,
     PIPELINE_FILTERS_STORAGE_KEY,
   )
+}
+
+/** Clears persisted pipeline filters before each navigation (including reload). */
+export async function installCleanPipelineFiltersStorage(page: Page) {
+  const storageKey = JSON.stringify(PIPELINE_FILTERS_STORAGE_KEY)
+  await page.addInitScript(`() => { window.localStorage.removeItem(${storageKey}) }`)
 }
 
 /** @deprecated Prefer expectVisibleE2eFixtureCount — the local board also contains seed.sql rows. */
@@ -151,6 +168,16 @@ export async function gotoPipeline(page: Page) {
   })
 }
 
+export async function reloadPipeline(page: Page) {
+  await page.reload()
+  await expect(page.getByRole("heading", { name: selectors.pipeline.heading })).toBeVisible({
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+  await expect(getColumn(page, E2E_PIPELINE.stages.warmLead)).toBeVisible({
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+}
+
 export async function openCardSheet(page: Page, processId: string) {
   const card = getCard(page, processId)
   await card.scrollIntoViewIfNeeded()
@@ -167,21 +194,27 @@ export async function closeCardSheet(page: Page) {
   })
 }
 
-export async function applyFilters(page: Page) {
+export async function applyFilters(
+  page: Page,
+  options: { waitForBoard?: boolean } = {},
+) {
+  const { waitForBoard = true } = options
   const applyButton = page.locator(selectors.pipeline.applyFilters)
   if (!(await applyButton.isEnabled())) {
     return
   }
 
-  const boardResponse = page
-    .waitForResponse(
-      (response) =>
-        response.url().includes("crm_pipeline_famiglie_board") && response.ok(),
-      { timeout: BOARD_LOAD_TIMEOUT_MS },
-    )
-    .catch(() => null)
+  const boardResponse = waitForBoard
+    ? page
+        .waitForResponse(isPipelineBoardResponse, {
+          timeout: BOARD_APPLY_RESPONSE_TIMEOUT_MS,
+        })
+        .catch(() => null)
+    : null
   await applyButton.click()
-  await boardResponse
+  if (boardResponse) {
+    await boardResponse
+  }
 }
 
 export async function resetFilters(page: Page) {
@@ -226,45 +259,31 @@ export function expectPersistedStatoSales(
 }
 
 /**
- * Synthetic native HTML5 drag-and-drop (best-effort). Dispatches dragstart/drop
- * with a shared DataTransfer carrying the process id as text/plain.
+ * Native HTML5 drag-and-drop via Playwright Locator.drop.
+ * Drops text/plain payload on the target column (KanbanColumnShell onDrop → moveCard).
  */
 export async function dragCardToColumn(
   page: Page,
   processId: string,
   targetStageId: string,
 ) {
-  const cardSelector = selectors.pipeline.card(processId)
-  const columnSelector = selectors.pipeline.column(targetStageId)
+  const card = getCard(page, processId)
+  const column = getColumn(page, targetStageId)
 
-  await page.evaluate(
-    `({ cardSel, columnSel, id }) => {
-      const card = document.querySelector(cardSel)
-      const column = document.querySelector(columnSel)
-      if (!card || !column) {
-        throw new Error(
-          "dragCardToColumn: missing element (card=" + Boolean(card) + ", column=" + Boolean(column) + ")",
-        )
-      }
+  await card.scrollIntoViewIfNeeded()
+  await column.scrollIntoViewIfNeeded()
 
-      const dataTransfer = new DataTransfer()
-      dataTransfer.setData("text/plain", id)
-      dataTransfer.effectAllowed = "move"
+  const updateResponse = page
+    .waitForResponse(
+      (response) =>
+        response.url().includes("/functions/v1/update-record") &&
+        response.request().method() === "POST",
+      { timeout: BOARD_LOAD_TIMEOUT_MS },
+    )
+    .catch(() => null)
 
-      const eventInit = {
-        bubbles: true,
-        cancelable: true,
-        dataTransfer,
-      }
-
-      card.dispatchEvent(new DragEvent("dragstart", eventInit))
-      column.dispatchEvent(new DragEvent("dragenter", eventInit))
-      column.dispatchEvent(new DragEvent("dragover", eventInit))
-      column.dispatchEvent(new DragEvent("drop", eventInit))
-      card.dispatchEvent(new DragEvent("dragend", eventInit))
-    }`,
-    { cardSel: cardSelector, columnSel: columnSelector, id: processId },
-  )
+  await column.drop({ data: { "text/plain": processId } })
+  await updateResponse
 }
 
 export async function expectCardInColumn(

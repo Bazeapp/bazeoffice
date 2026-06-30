@@ -110,6 +110,81 @@ function parseStatus(stdout) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function tryStartEdgeRuntimeContainer() {
+  const result = spawnSync(
+    "docker",
+    ["ps", "-a", "--filter", "name=supabase_edge_runtime", "--format", "{{.Names}}"],
+    { encoding: "utf8" },
+  )
+
+  if (result.status !== 0) {
+    return false
+  }
+
+  const containerNames = result.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  if (containerNames.length === 0) {
+    return false
+  }
+
+  for (const name of containerNames) {
+    spawnSync("docker", ["start", name], { encoding: "utf8" })
+  }
+
+  return true
+}
+
+async function ensureEdgeFunctionsReady(runtimeEnv) {
+  const probeUrl = `${runtimeEnv.VITE_SUPABASE_URL}/functions/v1/lookup-values`
+  const maxAttempts = 8
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(probeUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${runtimeEnv.VITE_SUPABASE_ANON_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ is_active: true }),
+      })
+
+      if (response.ok) {
+        console.log("✓ Edge functions ready (lookup-values)")
+        return
+      }
+
+      console.warn(
+        `E2E ensure-supabase: lookup-values probe returned HTTP ${response.status} (attempt ${attempt}/${maxAttempts})`,
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(
+        `E2E ensure-supabase: lookup-values probe failed (attempt ${attempt}/${maxAttempts}): ${message}`,
+      )
+    }
+
+    if (attempt < maxAttempts) {
+      console.log("→ starting edge runtime container (if stopped)")
+      tryStartEdgeRuntimeContainer()
+      await sleep(2_000)
+    }
+  }
+
+  fail(
+    "Edge functions are not reachable (lookup-values). " +
+      "Run `supabase stop && supabase start` in your baze-supabase checkout, " +
+      "or ensure Docker can start `supabase_edge_runtime_*`.",
+  )
+}
+
 function main() {
   assertSupabaseCli()
   assertWorkdir()
@@ -129,6 +204,16 @@ function main() {
   fs.writeFileSync(runtimeEnvPath, `${JSON.stringify(runtimeEnv, null, 2)}\n`)
   console.log(`\n✓ Wrote ${runtimeEnvPath}`)
   console.log(`  API: ${runtimeEnv.VITE_SUPABASE_URL}`)
+
+  return runtimeEnv
 }
 
-main()
+async function run() {
+  const runtimeEnv = main()
+  console.log("\n→ edge functions health check")
+  await ensureEdgeFunctionsReady(runtimeEnv)
+}
+
+run().catch((error) => {
+  fail(error instanceof Error ? error.message : String(error))
+})

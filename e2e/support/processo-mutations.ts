@@ -84,22 +84,19 @@ export async function setProcessoField(
 
 /** Restore all seeded pipeline processi to their db reset state. */
 export async function resetPipelineFixture() {
-  for (const processo of Object.values(E2E_PIPELINE.processi)) {
-    await setProcessoField(
-      processo.id,
-      "stato_sales",
-      stageIdToSalesLabel(processo.stage),
-    )
-    await setProcessoField(
-      processo.id,
-      "preventivo_firmato",
-      processo.preventivoAccettato,
-    )
-    await setProcessoField(processo.id, "tipo_lavoro", [processo.tipoLavoro])
-    await setProcessoField(
-      processo.id,
-      "creato_il",
-      creatoIlForSeed(processo.creatoRecent),
-    )
-  }
+  await Promise.all(
+    Object.values(E2E_PIPELINE.processi).map(async (processo) => {
+      const creatoIl = creatoIlForSeed(processo.creatoRecent)
+      await Promise.all([
+        setProcessoField(
+          processo.id,
+          "stato_sales",
+          stageIdToSalesLabel(processo.stage),
+        ),
+        setProcessoField(processo.id, "preventivo_firmato", processo.preventivoAccettato),
+        setProcessoField(processo.id, "tipo_lavoro", [processo.tipoLavoro]),
+        setProcessoField(processo.id, "creato_il", creatoIl),
+      ])
+    }),
+  )
 }

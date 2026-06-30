@@ -22,7 +22,7 @@ import { selectors } from "../support/selectors"
 const templateProcess = E2E_PIPELINE.processi.template
 
 test.describe("pipeline: detail sheet", () => {
-  test.describe.configure({ timeout: 60_000 })
+  test.describe.configure({ mode: "serial", timeout: 60_000 })
 
   test.afterEach(async () => {
     await resetPipelineFixture()

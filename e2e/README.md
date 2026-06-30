@@ -127,8 +127,8 @@ Fixture map: `E2E_PIPELINE` in `e2e/constants.ts` (8 `processi_matching` rows se
 - **Filters** require clicking **Applica filtri**; only toolbar filters persist in
   `localStorage` (`bazeoffice.crmPipelineFamiglie.filters.v1`) — search does not.
 - **Moves + persistence:** prefer the sheet **Stato lead** `Select` (same `moveCard` path as
-  drag-drop). `pipeline-moves.spec.ts` also includes a **best-effort** synthetic HTML5 DnD test
-  (`dragCardToColumn`); treat it as supplementary — quarantine with `test.fixme` if flaky.
+  drag-drop). `pipeline-moves.spec.ts` also covers native HTML5 DnD via Playwright
+  `Locator.drop` (`dragCardToColumn`).
 - **Mutating tests** call `resetPipelineFixture()` in `afterEach` / `finally` so parallel runs
   stay order-independent.
 
