@@ -881,6 +881,66 @@ export function proveColloquiStageTestId(stageLabel: string) {
   return stageLabel.replace(/\s+/g, "_").replace(/—/g, "-")
 }
 
+/** Riattivazioni board fixtures — reuse chiusure_contratti rows from rapporti/tickets seeds. */
+export const E2E_RIATTIVAZIONI = {
+  stages: {
+    daSentire: "da sentire",
+    inAttesa: "in attesa",
+    riattivato: "riattivato",
+    nonRiattiva: "non riattiva",
+  },
+  stageLabels: {
+    daSentire: "Da sentire",
+    inAttesa: "In attesa",
+    riattivato: "Riattivato",
+    nonRiattiva: "Non riattiva",
+  },
+  chiusure: {
+    daSentire: {
+      id: E2E_CHIUSURE.chiusure.dimissioni.id,
+      rapportoId: E2E_CHIUSURE.chiusure.dimissioni.rapportoId,
+      famigliaSearchText: E2E_CHIUSURE.chiusure.dimissioni.famigliaSearchText,
+      lavoratoreSearchText: E2E_CHIUSURE.chiusure.dimissioni.lavoratoreSearchText,
+      emailSearchText: E2E_CHIUSURE.chiusure.dimissioni.emailSearchText,
+      motivazioneSearchText: E2E_CHIUSURE.chiusure.dimissioni.motivazioneSearchText,
+      statoRiattivazione: "da sentire" as const,
+    },
+    inAttesa: {
+      id: E2E_CHIUSURE.chiusure.licenziamento.id,
+      rapportoId: E2E_CHIUSURE.chiusure.licenziamento.rapportoId,
+      famigliaSearchText: E2E_CHIUSURE.chiusure.licenziamento.famigliaSearchText,
+      lavoratoreSearchText: E2E_CHIUSURE.chiusure.licenziamento.lavoratoreSearchText,
+      emailSearchText: E2E_CHIUSURE.chiusure.licenziamento.emailSearchText,
+      motivazioneSearchText: E2E_CHIUSURE.chiusure.licenziamento.motivazioneSearchText,
+      statoRiattivazione: "in attesa" as const,
+    },
+    riattivato: {
+      id: E2E_CHIUSURE.chiusure.elaborata.id,
+      rapportoId: E2E_CHIUSURE.chiusure.elaborata.rapportoId,
+      famigliaSearchText: E2E_CHIUSURE.chiusure.elaborata.famigliaSearchText,
+      lavoratoreSearchText: E2E_CHIUSURE.chiusure.elaborata.lavoratoreSearchText,
+      emailSearchText: E2E_CHIUSURE.chiusure.elaborata.emailSearchText,
+      motivazioneSearchText: E2E_CHIUSURE.chiusure.elaborata.motivazioneSearchText,
+      statoRiattivazione: "riattivato" as const,
+    },
+    ticketOrfana: {
+      id: "00000000-0000-0000-0000-00000000f8c1",
+      emailSearchText: "e2e-ticket-chiusura@local.test",
+      motivazioneSearchText: "E2E ticket chiusura senza rapporto collegato",
+      statoRiattivazione: "non riattiva" as const,
+    },
+  },
+} as const
+
+export const E2E_RIATTIVAZIONI_VISIBLE_FIXTURE_IDS = [
+  E2E_RIATTIVAZIONI.chiusure.daSentire.id,
+  E2E_RIATTIVAZIONI.chiusure.inAttesa.id,
+] as const
+
+export function riattivazioniStageTestId(stageLabel: string) {
+  return stageLabel.replace(/\s+/g, "_")
+}
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {

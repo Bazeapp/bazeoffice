@@ -23,6 +23,7 @@ export const selectors = {
     ticketCustomer: "customer-support/ticket-customer",
     ticketPayroll: "customer-support/ticket-payroll",
     proveColloqui: "customer-support/prove-e-colloqui",
+    riattivazioni: "customer-support/riattivazioni",
   },
   pipeline: {
     heading: "Sales Pipeline",
@@ -131,6 +132,14 @@ export const selectors = {
     column: (stageId: string) => `[data-testid="kanban-column-${stageId}"]`,
     card: (rapportoId: string) => `[data-testid="prove-colloqui-card-${rapportoId}"]`,
     calendarEvent: (eventId: string) => `[data-testid="prove-colloqui-event-${eventId}"]`,
+    sheetDialog: '[role="dialog"]',
+    sheetClose: '[aria-label="Chiudi"]',
+  },
+  riattivazioni: {
+    heading: "Riattivazioni",
+    searchInput: '[data-testid="riattivazioni-search-input"]',
+    column: (stageId: string) => `[data-testid="kanban-column-${stageId}"]`,
+    card: (chiusuraId: string) => `[data-testid="riattivazioni-card-${chiusuraId}"]`,
     sheetDialog: '[role="dialog"]',
     sheetClose: '[aria-label="Chiudi"]',
   },

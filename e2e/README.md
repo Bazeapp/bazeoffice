@@ -152,6 +152,11 @@ Copy patterns from:
 - `e2e/customer/prove-colloqui-colloqui.spec.ts` — Colloqui calendar, filters, colloquio sheet
 - `e2e/support/prove-colloqui.ts` — navigation, search, sheet helpers
 - `e2e/support/prove-colloqui-mutations.ts` — service-role `rapporti_lavorativi.prova_stato_cs` reset
+- `e2e/customer/riattivazioni-filters.spec.ts` — Riattivazioni board search and workflow columns
+- `e2e/customer/riattivazioni-moves.spec.ts` — Riattivazioni kanban moves and stato persistence
+- `e2e/customer/riattivazioni-sheet.spec.ts` — Riattivazioni detail sheet and autosave
+- `e2e/support/riattivazioni.ts` — navigation, search, DnD, sheet helpers
+- `e2e/support/riattivazioni-mutations.ts` — service-role `chiusure_contratti.stato_riattivazione_famiglia` reset
 
 Add new role-specific specs under `e2e/<role>/`. Playwright picks them up automatically via
 `testMatch` in `playwright.config.ts` — no `test.skip` gating needed.
