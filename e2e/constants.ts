@@ -675,6 +675,57 @@ export function cedoliniStageTestId(stageLabel: string) {
   return stageLabel.replace(/\s+/g, "_")
 }
 
+/** Contributi INPS board fixtures — seeded in baze-supabase/supabase/seed_e2e_contributi_inps.sql */
+export const E2E_CONTRIBUTI_INPS = {
+  fixedQuarter: "Q2" as const,
+  fixedYear: 2026,
+  quarterLabel: "Q2 2026",
+  stages: {
+    daRichiedere: "Da richiedere",
+    pagopaRicevuto: "PagoPA ricevuto",
+    inviatoAllaFamiglia: "Inviato alla famiglia",
+    pagato: "Pagato",
+  },
+  contributi: {
+    daRichiedere: {
+      id: "00000000-0000-0000-0000-00000000f711",
+      rapportoId: "00000000-0000-0000-0000-00000000d002",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+      importoSearchText: "150",
+      stato: "Da richiedere" as const,
+    },
+    pagopaRicevuto: {
+      id: "00000000-0000-0000-0000-00000000f712",
+      rapportoId: "00000000-0000-0000-0000-00000000d001",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Rossi",
+      importoSearchText: "280",
+      pagopaSearchText: "275",
+      stato: "PagoPA ricevuto" as const,
+    },
+    inviatoAllaFamiglia: {
+      id: "00000000-0000-0000-0000-00000000f713",
+      rapportoId: "00000000-0000-0000-0000-00000000d003",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      importoSearchText: "420",
+      pagopaSearchText: "415",
+      stato: "Inviato alla famiglia" as const,
+    },
+  },
+} as const
+
+export const E2E_CONTRIBUTI_INPS_VISIBLE_FIXTURE_IDS = [
+  E2E_CONTRIBUTI_INPS.contributi.daRichiedere.id,
+  E2E_CONTRIBUTI_INPS.contributi.pagopaRicevuto.id,
+  E2E_CONTRIBUTI_INPS.contributi.inviatoAllaFamiglia.id,
+] as const
+
+export function contributiInpsStageTestId(stageLabel: string) {
+  return stageLabel.replace(/\s+/g, "_")
+}
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {

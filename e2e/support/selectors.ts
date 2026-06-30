@@ -19,6 +19,7 @@ export const selectors = {
     chiusure: "gestione-contrattuale/chiusure",
     variazioni: "gestione-contrattuale/variazioni",
     cedolini: "payroll/cedolini",
+    contributiInps: "payroll/contributi-inps",
   },
   pipeline: {
     heading: "Sales Pipeline",
@@ -90,6 +91,14 @@ export const selectors = {
     column: (stageId: string) => `[data-testid="kanban-column-${stageId}"]`,
     card: (cedolinoId: string) => `[data-testid="cedolini-card-${cedolinoId}"]`,
     sheetDialog: '[data-testid="cedolini-sheet-dialog"]',
+  },
+  contributiInps: {
+    heading: "Contributi INPS",
+    searchInput: '[data-testid="contributi-inps-search-input"]',
+    stageFilter: '[data-testid="contributi-inps-stage-filter"]',
+    column: (stageId: string) => `[data-testid="kanban-column-${stageId}"]`,
+    card: (contributoId: string) => `[data-testid="contributi-inps-card-${contributoId}"]`,
+    sheetDialog: '[data-testid="contributi-inps-sheet-dialog"]',
   },
   lavoratori: {
     listPanel: '[data-testid="lavoratori-list-panel"]',

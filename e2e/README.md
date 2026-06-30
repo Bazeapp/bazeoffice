@@ -35,6 +35,7 @@ E2E seed files (local only, never migrations):
 - `supabase/seed_e2e_lavoratori.sql` — Cerca / Gate 1 / Gate 2 board fixture
 - `supabase/seed_e2e_rapporti.sql` — Rapporti lavorativi board fixture (7 rows; assunzioni, chiusure, and variazioni boards reuse rapporti / related rows)
 - `supabase/seed_e2e_cedolini.sql` — Cedolini payroll board fixture (3 mesi_lavorati for Giugno 2026)
+- `supabase/seed_e2e_contributi_inps.sql` — Contributi INPS board fixture (3 contributi for Q2 2026)
 
 These run on every `supabase db reset` via `config.toml` `sql_paths`.
 
@@ -130,6 +131,11 @@ Copy patterns from:
 - `e2e/payroll/cedolini-sheet.spec.ts` — Cedolini detail sheet
 - `e2e/support/cedolini.ts` — navigation, search, DnD, sheet helpers
 - `e2e/support/cedolini-mutations.ts` — service-role `mesi_lavorati.stato_mese_lavorativo` reset
+- `e2e/payroll/contributi-inps-filters.spec.ts` — Contributi INPS board search, metrics, columns, quarter navigation
+- `e2e/payroll/contributi-inps-moves.spec.ts` — Contributi INPS kanban moves and stato persistence
+- `e2e/payroll/contributi-inps-sheet.spec.ts` — Contributi INPS detail sheet
+- `e2e/support/contributi-inps.ts` — navigation, search, DnD, sheet helpers
+- `e2e/support/contributi-inps-mutations.ts` — service-role `contributi_inps.stato_contributi_inps` reset
 
 Add new role-specific specs under `e2e/<role>/`. Playwright picks them up automatically via
 `testMatch` in `playwright.config.ts` — no `test.skip` gating needed.
