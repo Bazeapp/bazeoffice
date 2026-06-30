@@ -33,7 +33,7 @@ E2E seed files (local only, never migrations):
 - `supabase/seed_e2e_operators.sql` — four operator users (`e2e-<role>@local.test`)
 - `supabase/seed_e2e_famiglia.sql` — famiglia fixture for mutation template
 - `supabase/seed_e2e_lavoratori.sql` — Cerca / Gate 1 / Gate 2 board fixture
-- `supabase/seed_e2e_rapporti.sql` — Rapporti lavorativi board fixture (7 rows; assunzioni board reuses rapporti with stato_assunzione)
+- `supabase/seed_e2e_rapporti.sql` — Rapporti lavorativi board fixture (7 rows; assunzioni + chiusure boards reuse rapporti / chiusure_contratti)
 
 These run on every `supabase db reset` via `config.toml` `sql_paths`.
 
@@ -114,6 +114,11 @@ Copy patterns from:
 - `e2e/customer/assunzioni-sheet.spec.ts` — Assunzioni detail sheet
 - `e2e/support/assunzioni.ts` — navigation, search, DnD, sheet helpers
 - `e2e/support/rapporti-mutations.ts` — service-role `rapporti_lavorativi.stato_assunzione` reset
+- `e2e/customer/chiusure-filters.spec.ts` — Chiusure board search, columns, annullamento dialog
+- `e2e/customer/chiusure-moves.spec.ts` — Chiusure kanban moves and stato persistence
+- `e2e/customer/chiusure-sheet.spec.ts` — Chiusure detail sheet
+- `e2e/support/chiusure.ts` — navigation, search, DnD, sheet helpers
+- `e2e/support/chiusure-mutations.ts` — service-role `chiusure_contratti.stato` reset
 
 Add new role-specific specs under `e2e/<role>/`. Playwright picks them up automatically via
 `testMatch` in `playwright.config.ts` — no `test.skip` gating needed.

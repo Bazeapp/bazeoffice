@@ -67,6 +67,10 @@ const CHIUSURA_FORM_URLS = {
   annullamento: "https://airtable.com/appevZURCPFkSG3CJ/pagW6G5AUa4tJOWYX/form",
 } as const
 
+function chiusureStageTestId(stageId: string) {
+  return `kanban-column-${stageId.replace(/\s+/g, "_")}`
+}
+
 // Valori validi per "Tipo licenziamento/dimissione" (nessun lookup_values a DB).
 const TIPO_LICENZIAMENTO_OPTIONS: string[] = [
   "Mancato superamento periodo di prova",
@@ -650,6 +654,7 @@ function ChiusureBoardCard({
   return (
     <div
       draggable
+      data-testid={`chiusure-card-${card.id}`}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onOpen}
@@ -737,6 +742,7 @@ function ChiusureBoardColumn({
       title={column.label}
       countLabel={`${column.cards.length} ${column.cards.length === 1 ? "chiusura" : "chiusure"}`}
       visual={visual}
+      testId={chiusureStageTestId(column.id)}
       isDropTarget={isDropTarget}
       emptyMessage="Nessuna chiusura"
       onDragEnter={onDragEnterColumn}
@@ -921,7 +927,7 @@ export function ChiusureBoardView() {
                 Apri una dimissione
               </a>
             </Button>
-            <Button onClick={() => setIsAnnullamentoDialogOpen(true)}>
+            <Button onClick={() => setIsAnnullamentoDialogOpen(true)} data-testid="chiusure-open-annullamento">
               <PlusIcon className="size-4" />
               Apri un annullamento
             </Button>
@@ -929,6 +935,7 @@ export function ChiusureBoardView() {
           <SectionHeader.Toolbar>
             <SearchInput
               className="md:max-w-sm"
+              data-testid="chiusure-search-input"
               placeholder="Cerca per famiglia, lavoratore, email, motivazione..."
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
@@ -1096,7 +1103,7 @@ function CreateAnnullamentoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" data-testid="chiusure-annullamento-dialog">
         <DialogHeader>
           <DialogTitle>Apri un annullamento</DialogTitle>
           <DialogDescription>

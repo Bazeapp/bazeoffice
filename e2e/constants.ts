@@ -506,6 +506,64 @@ export function assunzioniStageTestId(stageLabel: string) {
   return stageLabel.replace(/\s+/g, "_")
 }
 
+/** Chiusure board fixtures — seeded in baze-supabase/supabase/seed_e2e_rapporti.sql */
+export const E2E_CHIUSURE = {
+  stages: {
+    lavoratoreComunicaDimissioni: "Lavoratore comunica dimissioni",
+    datoreComunicaLicenziamento: "Datore comunica licenziamento",
+    chiusuraPronta: "Chiusura pronta",
+    inviatoComunicazioneFirma: "Inviato comunicazione per firma documento",
+    ricevutoDocumentoFirmato: "Ricevuto documento firmato",
+    chiusuraElaborata: "Chiusura elaborata",
+    inviatoDocumentiChiusura: "Inviato documenti di chiusura",
+    richiestaChiarimenti: "Richiesta chiarimenti famiglia",
+    chiusuraTerminata: "Chiusura terminata",
+  },
+  chiusure: {
+    dimissioni: {
+      id: "00000000-0000-0000-0000-00000000d0c2",
+      rapportoId: "00000000-0000-0000-0000-00000000d002",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+      emailSearchText: "e2e-chiusura-dimissioni@local.test",
+      motivazioneSearchText: "E2E dimissioni fixture",
+      stato: "Lavoratore comunica dimissioni" as const,
+    },
+    licenziamento: {
+      id: "00000000-0000-0000-0000-00000000d0c3",
+      rapportoId: "00000000-0000-0000-0000-00000000d001",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Rossi",
+      emailSearchText: "e2e-chiusura-licenziamento@local.test",
+      motivazioneSearchText: "E2E licenziamento fixture",
+      stato: "Datore comunica licenziamento" as const,
+    },
+    elaborata: {
+      id: "00000000-0000-0000-0000-00000000d0c1",
+      rapportoId: "00000000-0000-0000-0000-00000000d003",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      emailSearchText: "e2e-chiusura-terminato@local.test",
+      motivazioneSearchText: "E2E chiusura terminata fixture",
+      stato: "Chiusura elaborata" as const,
+    },
+  },
+  annullamentoRapporto: {
+    id: "00000000-0000-0000-0000-00000000d005",
+    famigliaSearchText: "Famiglia Bianchi",
+    lavoratoreSearchText: "Lavoratore Neri",
+  },
+} as const
+
+export const E2E_CHIUSURE_VISIBLE_FIXTURE_IDS = [
+  E2E_CHIUSURE.chiusure.dimissioni.id,
+  E2E_CHIUSURE.chiusure.licenziamento.id,
+] as const
+
+export function chiusureStageTestId(stageLabel: string) {
+  return stageLabel.replace(/\s+/g, "_")
+}
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {
