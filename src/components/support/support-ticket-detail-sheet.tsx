@@ -268,6 +268,7 @@ type SupportTicketDetailSheetProps = {
   onOpenChange: (open: boolean) => void
   onMoveTicket: (ticketId: string, targetStageId: string) => Promise<void>
   onPatchTicket: (ticketId: string, patch: Partial<TicketRecord>) => Promise<void>
+  sheetTestId?: string
 }
 
 export function SupportTicketDetailSheet({
@@ -278,6 +279,7 @@ export function SupportTicketDetailSheet({
   onOpenChange,
   onMoveTicket,
   onPatchTicket,
+  sheetTestId,
 }: SupportTicketDetailSheetProps) {
   const [selectedPreview, setSelectedPreview] = React.useState<AttachmentLink | null>(null)
   const [isUploadingAttachment, setIsUploadingAttachment] = React.useState(false)
@@ -411,7 +413,11 @@ export function SupportTicketDetailSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
+        <SheetContent
+          side="right"
+          className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
+          data-testid={sheetTestId}
+        >
           <SheetHeader className="border-b bg-surface px-5 py-5">
             <div className="min-w-0 space-y-3">
               <SheetTitle className="max-w-full text-xl leading-snug font-semibold whitespace-normal break-words">

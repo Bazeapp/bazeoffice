@@ -36,6 +36,7 @@ E2E seed files (local only, never migrations):
 - `supabase/seed_e2e_rapporti.sql` — Rapporti lavorativi board fixture (7 rows; assunzioni, chiusure, and variazioni boards reuse rapporti / related rows)
 - `supabase/seed_e2e_cedolini.sql` — Cedolini payroll board fixture (3 mesi_lavorati for Giugno 2026)
 - `supabase/seed_e2e_contributi_inps.sql` — Contributi INPS board fixture (3 contributi for Q2 2026)
+- `supabase/seed_e2e_tickets.sql` — Customer Support ticket board fixtures (3 customer + 3 payroll tickets)
 
 These run on every `supabase db reset` via `config.toml` `sql_paths`.
 
@@ -136,6 +137,14 @@ Copy patterns from:
 - `e2e/payroll/contributi-inps-sheet.spec.ts` — Contributi INPS detail sheet
 - `e2e/support/contributi-inps.ts` — navigation, search, DnD, sheet helpers
 - `e2e/support/contributi-inps-mutations.ts` — service-role `contributi_inps.stato_contributi_inps` reset
+- `e2e/customer/ticket-customer-filters.spec.ts` — Ticket Customer board search, columns, deferred chiusi, create dialog
+- `e2e/customer/ticket-customer-moves.spec.ts` — Ticket Customer kanban moves and create flow
+- `e2e/customer/ticket-customer-sheet.spec.ts` — Ticket Customer detail sheet
+- `e2e/customer/ticket-payroll-filters.spec.ts` — Ticket Payroll board search, columns, deferred chiusi, create dialog
+- `e2e/customer/ticket-payroll-moves.spec.ts` — Ticket Payroll kanban moves and create flow
+- `e2e/customer/ticket-payroll-sheet.spec.ts` — Ticket Payroll detail sheet
+- `e2e/support/tickets.ts` — navigation, search, DnD, sheet helpers
+- `e2e/support/tickets-mutations.ts` — service-role `ticket.stato` reset
 
 Add new role-specific specs under `e2e/<role>/`. Playwright picks them up automatically via
 `testMatch` in `playwright.config.ts` — no `test.skip` gating needed.

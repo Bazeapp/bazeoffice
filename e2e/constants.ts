@@ -726,6 +726,103 @@ export function contributiInpsStageTestId(stageLabel: string) {
   return stageLabel.replace(/\s+/g, "_")
 }
 
+/** Support ticket board fixtures — seeded in baze-supabase/supabase/seed_e2e_tickets.sql */
+export const E2E_TICKET_STAGES = {
+  aperto: "aperto",
+  presoInCarico: "preso in carico",
+  inAttesaDiInfo: "in attesa di info",
+  inCorso: "in corso",
+  chiuso: "chiuso",
+} as const
+
+export const E2E_TICKET_CUSTOMER = {
+  stages: E2E_TICKET_STAGES,
+  tickets: {
+    chiusuraAperto: {
+      id: "00000000-0000-0000-0000-00000000f801",
+      causaleSearchText: "E2E customer chiusura fixture",
+      famigliaSearchText: "Famiglia non disponibile",
+      lavoratoreSearchText: "Lavoratore non disponibile",
+      stato: "aperto" as const,
+      tag: "Chiusura",
+    },
+    rapportoPresoInCarico: {
+      id: "00000000-0000-0000-0000-00000000f802",
+      causaleSearchText: "E2E customer rapporto fixture",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+      stato: "preso in carico" as const,
+      tag: "Rapporto",
+    },
+    chiuso: {
+      id: "00000000-0000-0000-0000-00000000f803",
+      causaleSearchText: "E2E customer chiuso fixture",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Rossi",
+      stato: "chiuso" as const,
+      tag: "Altro",
+    },
+  },
+  createRapporto: {
+    id: "00000000-0000-0000-0000-00000000d002",
+    famigliaSearchText: "Famiglia Bianchi",
+    lavoratoreSearchText: "Lavoratore Bianchi",
+  },
+} as const
+
+export const E2E_TICKET_PAYROLL = {
+  stages: E2E_TICKET_STAGES,
+  tickets: {
+    cedolinoAperto: {
+      id: "00000000-0000-0000-0000-00000000f811",
+      causaleSearchText: "E2E payroll cedolino fixture",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+      stato: "aperto" as const,
+      tag: "Cedolino",
+    },
+    contributiPresoInCarico: {
+      id: "00000000-0000-0000-0000-00000000f812",
+      causaleSearchText: "E2E payroll contributi fixture",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+      stato: "preso in carico" as const,
+      tag: "Contributi",
+    },
+    chiuso: {
+      id: "00000000-0000-0000-0000-00000000f813",
+      causaleSearchText: "E2E payroll chiuso fixture",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      stato: "chiuso" as const,
+      tag: "Altro",
+    },
+  },
+  createRapporto: E2E_TICKET_CUSTOMER.createRapporto,
+} as const
+
+export const E2E_TICKET_CUSTOMER_VISIBLE_FIXTURE_IDS = [
+  E2E_TICKET_CUSTOMER.tickets.chiusuraAperto.id,
+  E2E_TICKET_CUSTOMER.tickets.rapportoPresoInCarico.id,
+] as const
+
+export const E2E_TICKET_PAYROLL_VISIBLE_FIXTURE_IDS = [
+  E2E_TICKET_PAYROLL.tickets.cedolinoAperto.id,
+  E2E_TICKET_PAYROLL.tickets.contributiPresoInCarico.id,
+] as const
+
+export const E2E_TICKET_CUSTOMER_FIXTURE_IDS = Object.values(E2E_TICKET_CUSTOMER.tickets).map(
+  (ticket) => ticket.id,
+)
+
+export const E2E_TICKET_PAYROLL_FIXTURE_IDS = Object.values(E2E_TICKET_PAYROLL.tickets).map(
+  (ticket) => ticket.id,
+)
+
+export function ticketsStageTestId(stageLabel: string) {
+  return stageLabel.replace(/\s+/g, "_")
+}
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {
