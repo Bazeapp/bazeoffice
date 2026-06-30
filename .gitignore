@@ -35,3 +35,6 @@ shared-inventory.txt
 # Other
 .claude/
 CLAUDE.md
+
+# Compound Engineering (machine-local config; the .example.yaml stays tracked)
+.compound-engineering/*.local.yaml

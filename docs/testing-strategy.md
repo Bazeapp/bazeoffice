@@ -77,6 +77,32 @@ just-in-time per file.
 **Definition of done:** `npm run coverage` produces a report; baseline numbers
 recorded in this doc.
 
+### Baseline coverage (recorded 2026-06-19)
+
+Global: **5% lines** (845/15991). This is the _before_ map of which refactor
+targets are naked — NOT a number to chase.
+
+| Target file                          | Lines % | Status                          |
+| ------------------------------------ | ------- | ------------------------------- |
+| `lib/anagrafiche-api.ts`             | 6%      | naked monolith (Target A1 → U3) |
+| `lib/datetime.ts`                    | 0%      | Tier 1 gap → U2                 |
+| `lib/geo-utils.ts`                   | 0%      | Tier 1 gap → U2                 |
+| `lib/search-utils.ts`                | 0%      | Tier 1 gap → U2                 |
+| `lib/private-area-url.ts`            | 0%      | Tier 1 gap → U2                 |
+| `lib/availability-functions.ts`      | 0%      | Tier 1 gap → U2                 |
+| `lib/lookup-color-styles.ts`         | 62%     | partial (indirect) → U2         |
+| `hooks/use-auto-save-form.ts`        | ~0%     | Target A2 gap → U4              |
+| `hooks/use-realtime-rows.ts`         | 0%      | Target A2 gap → U4              |
+| `hooks/use-realtime-board-sync.ts`   | 100%    | already netted                  |
+| `hooks/use-debounced-save.ts`        | 88%     | already netted                  |
+| `hooks/use-auto-save-form-fields.ts` | 87%     | already netted                  |
+| `hooks/use-board-mutations.ts`       | 83%     | already netted                  |
+
+Giant refactor targets (Fase 3), all near-zero and to be characterized
+just-in-time before splitting: `use-crm-pipeline-preview` (10%),
+`use-ricerca-workers-pipeline` (0%), `use-ricerca-board` (0%),
+`use-selected-worker-editor` (41%), and the giant views (~0%).
+
 ---
 
 ## Tier 1 — Pure logic in `lib/` (cheap, deterministic, no mocks)
@@ -111,6 +137,11 @@ the highest bug-risk class.
 - **Supabase calls** → test via the hooks that consume them (below) with the
   module mocked, rather than mocking the Supabase client chain directly. Verify
   the _contract_ (which args go in, how the response is mapped) at the hook level.
+- **Module-level write-tracking state** (`pendingWriteCount` / `lastLocalWriteAt`)
+  is a third category — a mutable singleton, not a pure transform. Characterize it
+  with `vi.resetModules()` + fake timers; see
+  [`solutions/best-practices/characterization-testing-module-level-state.md`](solutions/best-practices/characterization-testing-module-level-state.md)
+  (the realized U3 recipe, including the mutation-test-the-floor lesson).
 
 ### A2. Draft / autosave / realtime cluster (highest risk)
 
@@ -125,6 +156,10 @@ coverage — extend it:
   `src/test/draft-resync-tier2.integration.test.tsx`,
   `key-unmount-pattern.integration.test.tsx`. See
   `docs/realtime-board-pattern.md` and `docs/realtime-bug-class-plan.md`.
+- Realized U4 learning — the false-green traps when testing these hooks (RHF
+  `setValue` no-save, vacuous `?? null` coercion, masked compound guards, supabase
+  channel mocking, real-timer coupling):
+  [`solutions/best-practices/characterization-testing-rhf-realtime-false-greens.md`](solutions/best-practices/characterization-testing-rhf-realtime-false-greens.md).
 
 Behaviors to pin: debounce timing (use fake timers), echo-suppression (don't
 clobber local edits with an echoed realtime row), resync on identity change,
@@ -132,6 +167,40 @@ no-save-on-unmount-without-commit.
 
 **Definition of done:** every behavior described in `realtime-bug-class-plan.md`
 has a failing-without-the-fix test. Then refactor the data layer freely.
+
+### Status — Target A complete (2026-06-24)
+
+Net built; suite at 302 green / 32 files. Every guard below was mutation-verified
+(deleted in source → test reds → restored).
+
+- **A1 pure transform** — `normalizeTableResponse` netted
+  (`src/lib/anagrafiche-api.test`→ `anagrafiche-api.normalize.test.ts`); the
+  function was `export`ed for the test (it is the data layer's only pure
+  transform — the rest is thin `fetch*` wrappers, so the "row mappers/validators"
+  the strategy imagined live in the board hooks, covered below).
+- **A1 contract via consuming hooks** — pinned the high-value pure helpers of the
+  four in-scope board hooks: `use-payroll-board` `preserveDetailFields`
+  (Pattern A — the realtime stale-detail guard), `use-riattivazioni-board`
+  `resolveStage` + inclusion filter + tipo label, `use-contributi-inps-board`
+  `getQuarterDateRange`. The orchestrators are testable directly (module-level
+  async functions) — the rendered-hook fetcher-args path and the lowest-value
+  `use-prove-colloqui-data` mapping were left lean per scope (the one
+  realtime-bug-class behavior, Pattern A, is pinned).
+- **A2 cluster** — `use-debounced-save`, `use-auto-save-form`,
+  `use-auto-save-form-fields`, `use-realtime-board-sync`, `use-realtime-rows`,
+  `use-board-mutations` (U3/U4 prior work).
+- **A2 highest-risk hook** — `use-selected-worker-editor` fully characterized: all
+  8 draft-resync-without-clobber guards + the unconditional-resync asymmetry,
+  identity-switch flag reset (no cross-record bleed), no-save on switch/unmount,
+  null-id guards, the `activePatchesRef` in-flight gate, the
+  `pendingAddressCreateRef` single-INSERT serialization, error visibility on every
+  write path, and the commit no-op short-circuits. Recipe:
+  [`solutions/best-practices/characterization-testing-selected-worker-editor.md`](solutions/best-practices/characterization-testing-selected-worker-editor.md).
+
+The four **giant board hooks** (`use-anagrafiche-data`, `use-ricerca-board`,
+`use-ricerca-workers-pipeline`, `use-support-tickets-board`) are **not** part of
+the data-layer net — they belong to Target B (characterize just-in-time before
+splitting).
 
 ---
 
