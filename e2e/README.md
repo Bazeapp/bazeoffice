@@ -37,6 +37,7 @@ E2E seed files (local only, never migrations):
 - `supabase/seed_e2e_cedolini.sql` — Cedolini payroll board fixture (3 mesi_lavorati for Giugno 2026)
 - `supabase/seed_e2e_contributi_inps.sql` — Contributi INPS board fixture (3 contributi for Q2 2026)
 - `supabase/seed_e2e_tickets.sql` — Customer Support ticket board fixtures (3 customer + 3 payroll tickets)
+- `supabase/seed_e2e_prove_colloqui.sql` — Prove e Colloqui board fixtures (3 prove rapporti + 2 colloqui)
 
 These run on every `supabase db reset` via `config.toml` `sql_paths`.
 
@@ -145,6 +146,12 @@ Copy patterns from:
 - `e2e/customer/ticket-payroll-sheet.spec.ts` — Ticket Payroll detail sheet
 - `e2e/support/tickets.ts` — navigation, search, DnD, sheet helpers
 - `e2e/support/tickets-mutations.ts` — service-role `ticket.stato` reset
+- `e2e/customer/prove-colloqui-filters.spec.ts` — Prove e Colloqui board search, columns, tab switcher
+- `e2e/customer/prove-colloqui-moves.spec.ts` — Prove kanban stato change via sheet
+- `e2e/customer/prove-colloqui-sheet.spec.ts` — Prova detail sheet
+- `e2e/customer/prove-colloqui-colloqui.spec.ts` — Colloqui calendar, filters, colloquio sheet
+- `e2e/support/prove-colloqui.ts` — navigation, search, sheet helpers
+- `e2e/support/prove-colloqui-mutations.ts` — service-role `rapporti_lavorativi.prova_stato_cs` reset
 
 Add new role-specific specs under `e2e/<role>/`. Playwright picks them up automatically via
 `testMatch` in `playwright.config.ts` — no `test.skip` gating needed.

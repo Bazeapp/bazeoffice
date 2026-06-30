@@ -823,6 +823,64 @@ export function ticketsStageTestId(stageLabel: string) {
   return stageLabel.replace(/\s+/g, "_")
 }
 
+/** Prove e Colloqui board fixtures — seeded in baze-supabase/supabase/seed_e2e_prove_colloqui.sql */
+export const E2E_PROVE_COLLOQUI = {
+  stages: {
+    chiamareFamigliaPreProva: "Chiamare famiglia — pre-prova",
+    chiamareLavoratorePreProva: "Chiamare lavoratore — pre-prova",
+    inAttesaInizioProva: "In attesa di inizio prova",
+    provaInCorsoOggi: "Prova in corso oggi",
+    conclusoEsitoPositivo: "Concluso — esito positivo",
+    conclusoEsitoNegativo: "Concluso — esito negativo",
+  },
+  rapporti: {
+    chiamareFamiglia: {
+      id: "00000000-0000-0000-0000-00000000d006",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      provaStatoCs: "Chiamare famiglia — pre-prova" as const,
+    },
+    chiamareLavoratore: {
+      id: "00000000-0000-0000-0000-00000000d001",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Rossi",
+      provaStatoCs: "Chiamare lavoratore — pre-prova" as const,
+    },
+    inAttesaInizio: {
+      id: "00000000-0000-0000-0000-00000000d005",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Neri",
+      provaStatoCs: "In attesa di inizio prova" as const,
+    },
+  },
+  colloqui: {
+    rossi: {
+      id: "00000000-0000-0000-0000-00000000f901",
+      eventDomId: "colloquio-00000000-0000-0000-0000-00000000f901",
+      processoId: "00000000-0000-0000-0000-00000000b00c",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Rossi",
+    },
+    bianchi: {
+      id: "00000000-0000-0000-0000-00000000f902",
+      eventDomId: "colloquio-00000000-0000-0000-0000-00000000f902",
+      processoId: "00000000-0000-0000-0000-00000000b00d",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+    },
+  },
+} as const
+
+export const E2E_PROVE_COLLOQUI_VISIBLE_FIXTURE_IDS = [
+  E2E_PROVE_COLLOQUI.rapporti.chiamareFamiglia.id,
+  E2E_PROVE_COLLOQUI.rapporti.chiamareLavoratore.id,
+  E2E_PROVE_COLLOQUI.rapporti.inAttesaInizio.id,
+] as const
+
+export function proveColloquiStageTestId(stageLabel: string) {
+  return stageLabel.replace(/\s+/g, "_").replace(/—/g, "-")
+}
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {

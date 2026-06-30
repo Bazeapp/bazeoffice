@@ -453,6 +453,7 @@ function ProvaCard({
       worker={worker}
       isActive={false}
       onClick={onClick}
+      cardTestId={`prove-colloqui-card-${card.id}`}
       subtitle={<span>{card.famigliaLabel}</span>}
       rightSlot={null}
       showQualificationStatus={false}
@@ -906,6 +907,7 @@ function ProveKanban({
                 visual={getColumnVisual(column.color)}
                 widthClassName="w-80"
                 emptyMessage="Nessuna prova"
+                testId={`kanban-column-${column.label.replace(/\s+/g, "_").replace(/—/g, "-")}`}
               >
                 {column.cards.map((card) => (
                   <ProvaCard
@@ -945,6 +947,7 @@ function CalendarEventButton({
     <button
       type="button"
       onClick={onClick}
+      data-testid={`prove-colloqui-event-${event.id}`}
       className={cn(
         "relative w-full overflow-hidden rounded-md border bg-white px-2 py-1.5 pl-3 text-left text-xs text-foreground transition hover:border-border hover:bg-white",
       )}
@@ -1332,6 +1335,7 @@ export function ProveColloquiView({ onOpenRicercaDetail }: ProveColloquiViewProp
         <SectionHeader.Toolbar>
           <div className="min-w-0 flex-1 max-w-120">
             <SearchInput
+              data-testid="prove-colloqui-search-input"
               placeholder="Cerca famiglia, lavoratore, email..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}

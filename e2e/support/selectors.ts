@@ -22,6 +22,7 @@ export const selectors = {
     contributiInps: "payroll/contributi-inps",
     ticketCustomer: "customer-support/ticket-customer",
     ticketPayroll: "customer-support/ticket-payroll",
+    proveColloqui: "customer-support/prove-e-colloqui",
   },
   pipeline: {
     heading: "Sales Pipeline",
@@ -123,6 +124,15 @@ export const selectors = {
     sheetDialog: '[data-testid="ticket-payroll-sheet-dialog"]',
     column: (stageId: string) => `[data-testid="kanban-column-${stageId}"]`,
     card: (ticketId: string) => `[data-testid="ticket-payroll-card-${ticketId}"]`,
+  },
+  proveColloqui: {
+    heading: "Prove e Colloqui",
+    searchInput: '[data-testid="prove-colloqui-search-input"]',
+    column: (stageId: string) => `[data-testid="kanban-column-${stageId}"]`,
+    card: (rapportoId: string) => `[data-testid="prove-colloqui-card-${rapportoId}"]`,
+    calendarEvent: (eventId: string) => `[data-testid="prove-colloqui-event-${eventId}"]`,
+    sheetDialog: '[role="dialog"]',
+    sheetClose: '[aria-label="Chiudi"]',
   },
   lavoratori: {
     listPanel: '[data-testid="lavoratori-list-panel"]',
