@@ -15,6 +15,7 @@ export const selectors = {
     gate1: "gate-1",
     gate2: "gate-2",
     rapportiLavorativi: "gestione-contrattuale/rapporti-lavorativi",
+    assunzioni: "gestione-contrattuale/assunzioni",
   },
   pipeline: {
     heading: "Sales Pipeline",
@@ -51,6 +52,14 @@ export const selectors = {
     statusFilter: '[data-testid="rapporti-status-filter"]',
     resetFilters: '[data-testid="rapporti-reset-filtri"]',
     card: (rapportoId: string) => `[data-testid="rapporti-card-${rapportoId}"]`,
+  },
+  assunzioni: {
+    heading: "Assunzioni",
+    searchInput: '[data-testid="assunzioni-search-input"]',
+    column: (stageId: string) => `[data-testid="kanban-column-${stageId}"]`,
+    card: (rapportoId: string) => `[data-testid="assunzioni-card-${rapportoId}"]`,
+    sheetDialog: '[role="dialog"]',
+    sheetClose: '[aria-label="Chiudi"]',
   },
   lavoratori: {
     listPanel: '[data-testid="lavoratori-list-panel"]',

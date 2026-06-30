@@ -31,6 +31,10 @@ const ASSUNZIONI_FORM_URLS = {
   lavoratore: "https://airtable.com/appevZURCPFkSG3CJ/pagyXYipcEfKXSUVj/form",
 } as const
 
+function assunzioniStageTestId(stageId: string) {
+  return `kanban-column-${stageId.replace(/\s+/g, "_")}`
+}
+
 function getColumnVisual(color: string): KanbanColumnVisual {
   switch (color.toLowerCase()) {
     case "sky":
@@ -112,6 +116,7 @@ function AssunzioniBoardCard({
   return (
     <div
       draggable
+      data-testid={`assunzioni-card-${card.id}`}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
@@ -184,6 +189,7 @@ function AssunzioniBoardColumn({
   return (
     <KanbanColumnShell
       columnId={column.id}
+      testId={assunzioniStageTestId(column.id)}
       title={column.label}
       countLabel={`${column.cards.length} ${column.cards.length === 1 ? "processo" : "processi"}`}
       visual={visual}
@@ -334,6 +340,7 @@ export function AssunzioniBoardView() {
         <SectionHeader.Toolbar>
           <SearchInput
             className="md:max-w-sm"
+            data-testid="assunzioni-search-input"
             placeholder="Cerca per famiglia, lavoratore, email..."
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}

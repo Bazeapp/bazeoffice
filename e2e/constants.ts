@@ -442,6 +442,70 @@ export function rapportiIdsWithStatoRapporto(
     .map((rapporto) => rapporto.id)
 }
 
+/** Assunzioni board fixtures — subset of E2E_RAPPORTI with stato_assunzione. */
+export const E2E_ASSUNZIONI = {
+  stages: {
+    avviarePratica: "Avviare pratica",
+    inviataRichiestaDati: "Inviata richiesta dati",
+    inAttesaDatiFamiglia: "In attesa di dati famiglia",
+    inAttesaDatiLavoratore: "In attesa di dati lavoratore",
+    datiPronti: "Dati pronti per assunzione",
+    assunzioneFatta: "Assunzione fatta",
+    documentiInviati: "Documenti assunzione inviati",
+    contrattoFirmato: "Contratto firmato",
+    nonAssumeConBaze: "Non assume con Baze",
+  },
+  /** Rapporti shown on the board without loading deferred columns. */
+  rapporti: {
+    inviataRichiestaDati: {
+      id: "00000000-0000-0000-0000-00000000d001",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Rossi",
+      statoAssunzione: "Inviata richiesta dati" as const,
+    },
+    avviarePratica: {
+      id: "00000000-0000-0000-0000-00000000d005",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Neri",
+      statoAssunzione: "Avviare pratica" as const,
+    },
+    inAttesaDatiFamiglia: {
+      id: "00000000-0000-0000-0000-00000000d006",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      statoAssunzione: "In attesa di dati famiglia" as const,
+    },
+    contrattoFirmatoAttivo: {
+      id: "00000000-0000-0000-0000-00000000d002",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+      statoAssunzione: "Contratto firmato" as const,
+    },
+    contrattoFirmatoTerminato: {
+      id: "00000000-0000-0000-0000-00000000d003",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      statoAssunzione: "Contratto firmato" as const,
+    },
+    nonAssumeConBaze: {
+      id: "00000000-0000-0000-0000-00000000d007",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+      statoAssunzione: "Non assume con Baze" as const,
+    },
+  },
+} as const
+
+export const E2E_ASSUNZIONI_VISIBLE_FIXTURE_IDS = [
+  E2E_ASSUNZIONI.rapporti.avviarePratica.id,
+  E2E_ASSUNZIONI.rapporti.inviataRichiestaDati.id,
+  E2E_ASSUNZIONI.rapporti.inAttesaDatiFamiglia.id,
+] as const
+
+export function assunzioniStageTestId(stageLabel: string) {
+  return stageLabel.replace(/\s+/g, "_")
+}
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {
