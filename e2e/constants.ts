@@ -564,6 +564,56 @@ export function chiusureStageTestId(stageLabel: string) {
   return stageLabel.replace(/\s+/g, "_")
 }
 
+/** Variazioni board fixtures — seeded in baze-supabase/supabase/seed_e2e_rapporti.sql */
+export const E2E_VARIAZIONI = {
+  stages: {
+    presaInCarico: "presa in carico",
+    variazioneEffettuata: "variazione effettuata",
+    documentiInviati: "documenti inviati",
+  },
+  variazioni: {
+    presaInCarico: {
+      id: "00000000-0000-0000-0000-00000000d0e1",
+      rapportoId: "00000000-0000-0000-0000-00000000d002",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+      variazioneSearchText: "E2E aumento ore fixture",
+      stato: "presa in carico" as const,
+    },
+    variazioneEffettuata: {
+      id: "00000000-0000-0000-0000-00000000d0e2",
+      rapportoId: "00000000-0000-0000-0000-00000000d001",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Rossi",
+      variazioneSearchText: "E2E cambio paga fixture",
+      emailSearchText: "e2e-lavoratore-rossi@local.test",
+      stato: "variazione effettuata" as const,
+    },
+    documentiInviati: {
+      id: "00000000-0000-0000-0000-00000000d0e3",
+      rapportoId: "00000000-0000-0000-0000-00000000d003",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      variazioneSearchText: "E2E modifica giornata fixture",
+      stato: "documenti inviati" as const,
+    },
+  },
+  createRapporto: {
+    id: "00000000-0000-0000-0000-00000000d005",
+    famigliaSearchText: "Famiglia Bianchi",
+    lavoratoreSearchText: "Lavoratore Neri",
+  },
+} as const
+
+export const E2E_VARIAZIONI_VISIBLE_FIXTURE_IDS = [
+  E2E_VARIAZIONI.variazioni.presaInCarico.id,
+  E2E_VARIAZIONI.variazioni.variazioneEffettuata.id,
+] as const
+
+export function variazioniStageTestId(stageLabel: string) {
+  return stageLabel.replace(/\s+/g, "_")
+}
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {
