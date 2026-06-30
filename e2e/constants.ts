@@ -614,6 +614,67 @@ export function variazioniStageTestId(stageLabel: string) {
   return stageLabel.replace(/\s+/g, "_")
 }
 
+/** Cedolini board fixtures — seeded in baze-supabase/supabase/seed_e2e_cedolini.sql */
+export const E2E_CEDOLINI = {
+  fixedMonth: "2026-06",
+  monthLabel: "Giugno 2026",
+  stages: {
+    todo: "TODO",
+    inviateRichiestaPresenze: "Inviate richiesta presenze",
+    followUpRichiestaPresenze: "Follow up richiesta presenze",
+    followupFatti: "Followup fatti",
+    problemaComunicazione: "Problema in comunicazione presenze",
+    ricezionePresenze: "Ricezione presenze",
+    cedolinoDaControllare: "Cedolino da controllare",
+    cedolinoPronto: "Cedolino Pronto",
+    inviatoCedolino: "Inviato cedolino",
+    richiestaChiarimenti: "Richiesta chiarimenti",
+    pagato: "Pagato",
+    done: "DONE",
+  },
+  cedolini: {
+    todo: {
+      id: "00000000-0000-0000-0000-00000000f611",
+      rapportoId: "00000000-0000-0000-0000-00000000d002",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+      emailSearchText: "e2e-lavoratore-bianchi@local.test",
+      famigliaEmailSearchText: "e2e-bianchi@local.test",
+      stato: "TODO" as const,
+    },
+    ricezionePresenze: {
+      id: "00000000-0000-0000-0000-00000000f612",
+      rapportoId: "00000000-0000-0000-0000-00000000d001",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Rossi",
+      emailSearchText: "e2e-lavoratore-rossi@local.test",
+      famigliaEmailSearchText: "e2e-famiglia@local.test",
+      importoSearchText: "850",
+      stato: "Ricezione presenze" as const,
+    },
+    inviatoCedolino: {
+      id: "00000000-0000-0000-0000-00000000f613",
+      rapportoId: "00000000-0000-0000-0000-00000000d003",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      emailSearchText: "e2e-lavoratore-verdi@local.test",
+      famigliaEmailSearchText: "e2e-famiglia@local.test",
+      importoSearchText: "1200",
+      stato: "Inviato cedolino" as const,
+    },
+  },
+} as const
+
+export const E2E_CEDOLINI_VISIBLE_FIXTURE_IDS = [
+  E2E_CEDOLINI.cedolini.todo.id,
+  E2E_CEDOLINI.cedolini.ricezionePresenze.id,
+  E2E_CEDOLINI.cedolini.inviatoCedolino.id,
+] as const
+
+export function cedoliniStageTestId(stageLabel: string) {
+  return stageLabel.replace(/\s+/g, "_")
+}
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {

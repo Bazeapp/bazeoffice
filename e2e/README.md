@@ -34,6 +34,7 @@ E2E seed files (local only, never migrations):
 - `supabase/seed_e2e_famiglia.sql` — famiglia fixture for mutation template
 - `supabase/seed_e2e_lavoratori.sql` — Cerca / Gate 1 / Gate 2 board fixture
 - `supabase/seed_e2e_rapporti.sql` — Rapporti lavorativi board fixture (7 rows; assunzioni, chiusure, and variazioni boards reuse rapporti / related rows)
+- `supabase/seed_e2e_cedolini.sql` — Cedolini payroll board fixture (3 mesi_lavorati for Giugno 2026)
 
 These run on every `supabase db reset` via `config.toml` `sql_paths`.
 
@@ -79,7 +80,7 @@ e2e/
 ├── sales/           # Sales Pipeline feature specs
 ├── recruiter/       # recruiter-domain specs
 ├── customer/        # Gestione contrattuale / customer-support specs
-├── payroll/         # (smoke only until feature specs land here)
+├── payroll/         # Payroll Cedolini feature specs
 ├── support/         # shared helpers
 ├── constants.ts
 └── global-setup.ts
@@ -124,6 +125,11 @@ Copy patterns from:
 - `e2e/customer/variazioni-sheet.spec.ts` — Variazioni detail sheet
 - `e2e/support/variazioni.ts` — navigation, search, DnD, sheet helpers
 - `e2e/support/variazioni-mutations.ts` — service-role `variazioni_contrattuali.stato` reset
+- `e2e/payroll/cedolini-filters.spec.ts` — Cedolini board search, metrics, columns, month navigation
+- `e2e/payroll/cedolini-moves.spec.ts` — Cedolini kanban moves and stato persistence
+- `e2e/payroll/cedolini-sheet.spec.ts` — Cedolini detail sheet
+- `e2e/support/cedolini.ts` — navigation, search, DnD, sheet helpers
+- `e2e/support/cedolini-mutations.ts` — service-role `mesi_lavorati.stato_mese_lavorativo` reset
 
 Add new role-specific specs under `e2e/<role>/`. Playwright picks them up automatically via
 `testMatch` in `playwright.config.ts` — no `test.skip` gating needed.

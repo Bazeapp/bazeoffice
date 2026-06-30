@@ -499,6 +499,10 @@ function EditableStars({
   )
 }
 
+function cedoliniStageTestId(stageId: string) {
+  return `kanban-column-${stageId.replace(/\s+/g, "_")}`
+}
+
 function getColumnVisual(color: string): KanbanColumnVisual {
   switch (color.toLowerCase()) {
     case "sky":
@@ -986,7 +990,11 @@ export function CedolinoDetailSheet({
   return (
     <Form {...form}>
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
+      <SheetContent
+        side="right"
+        className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
+        data-testid="cedolini-sheet-dialog"
+      >
         <SheetHeader className="border-b bg-surface px-5 py-5">
           <div className="space-y-3">
             <SheetTitle className="truncate text-xl font-semibold">
@@ -1502,6 +1510,7 @@ function PayrollBoardColumn({
   return (
     <KanbanColumnShell
       columnId={column.id}
+      testId={cedoliniStageTestId(column.id)}
       title={column.label}
       countLabel={`${column.cards.length} ${column.cards.length === 1 ? "cedolino" : "cedolini"}`}
       visual={visual}
@@ -1521,6 +1530,7 @@ function PayrollBoardColumn({
       {column.cards.map((card) => (
         <div
           key={card.id}
+          data-testid={`cedolini-card-${card.id}`}
           draggable
           onClick={() => onOpenCard(card.id)}
           onDragStart={(event) => {
@@ -1723,6 +1733,7 @@ function CedoliniPayrollView() {
         <SectionHeader.Toolbar>
           <SearchInput
             className="md:max-w-sm"
+            data-testid="cedolini-search-input"
             placeholder="Cerca per famiglia, lavoratore, email..."
             value={searchValue}
             onChange={(event) => setSearchValue(event.target.value)}

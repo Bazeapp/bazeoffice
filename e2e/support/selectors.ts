@@ -18,6 +18,7 @@ export const selectors = {
     assunzioni: "gestione-contrattuale/assunzioni",
     chiusure: "gestione-contrattuale/chiusure",
     variazioni: "gestione-contrattuale/variazioni",
+    cedolini: "payroll/cedolini",
   },
   pipeline: {
     heading: "Sales Pipeline",
@@ -82,6 +83,13 @@ export const selectors = {
     card: (variazioneId: string) => `[data-testid="variazioni-card-${variazioneId}"]`,
     sheetDialog: '[role="dialog"]',
     sheetClose: '[aria-label="Chiudi"]',
+  },
+  cedolini: {
+    heading: "Cedolini",
+    searchInput: '[data-testid="cedolini-search-input"]',
+    column: (stageId: string) => `[data-testid="kanban-column-${stageId}"]`,
+    card: (cedolinoId: string) => `[data-testid="cedolini-card-${cedolinoId}"]`,
+    sheetDialog: '[data-testid="cedolini-sheet-dialog"]',
   },
   lavoratori: {
     listPanel: '[data-testid="lavoratori-list-panel"]',
