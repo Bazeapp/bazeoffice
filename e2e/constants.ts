@@ -305,6 +305,73 @@ export const E2E_RICERCA = {
   processi: E2E_ASSEGNAZIONE.processi,
 } as const
 
+/** Seeded in baze-supabase/supabase/seed_e2e_lavoratori.sql */
+export const E2E_LAVORATORI = {
+  lavoratori: {
+    qualificatoMi: {
+      id: "00000000-0000-0000-0000-00000000c001",
+      displayName: "E2E Lavoratore Rossi",
+      searchText: "Lavoratore Rossi",
+      stato: "Qualificato",
+      provinciaSigla: "MI",
+      followup: null,
+      inGate1: true,
+      inGate2Idonei: false,
+      inGate2IdoneiQualificati: true,
+    },
+    qualificatoTo: {
+      id: "00000000-0000-0000-0000-00000000c002",
+      displayName: "E2E Lavoratore Bianchi",
+      searchText: "Lavoratore Bianchi",
+      stato: "Qualificato",
+      provinciaSigla: "TO",
+      followup: "1° chiamata senza risposta",
+      inGate1: true,
+      inGate2Idonei: false,
+      inGate2IdoneiQualificati: true,
+    },
+    idoneoMi: {
+      id: "00000000-0000-0000-0000-00000000c003",
+      displayName: "E2E Lavoratore Verdi",
+      searchText: "Lavoratore Verdi",
+      stato: "Idoneo",
+      provinciaSigla: "MI",
+      followup: null,
+      inGate1: false,
+      inGate2Idonei: true,
+      inGate2IdoneiQualificati: true,
+    },
+    nonQualificatoMi: {
+      id: "00000000-0000-0000-0000-00000000c004",
+      displayName: "E2E Lavoratore Neri",
+      searchText: "Lavoratore Neri",
+      stato: "Non qualificato",
+      provinciaSigla: "MI",
+      followup: null,
+      inGate1: false,
+      inGate2Idonei: false,
+      inGate2IdoneiQualificati: false,
+    },
+  },
+  province: {
+    milano: "MI",
+    torino: "TO",
+  },
+  followup: {
+    primaChiamata: "1° chiamata senza risposta",
+  },
+} as const
+
+export function getE2eLavoratoreIdsMatching(
+  predicate: (lavoratore: (typeof E2E_LAVORATORI.lavoratori)[keyof typeof E2E_LAVORATORI.lavoratori]) => boolean,
+) {
+  return Object.values(E2E_LAVORATORI.lavoratori)
+    .filter(predicate)
+    .map((lavoratore) => lavoratore.id)
+}
+
+export const E2E_LAVORATORI_FIXTURE_COUNT = Object.values(E2E_LAVORATORI.lavoratori).length
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {

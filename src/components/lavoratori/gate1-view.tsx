@@ -1556,7 +1556,7 @@ export function Gate1View({
             : "grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-2 pt-4"
         }
       >
-        <div className="flex min-h-0 flex-col gap-2">
+        <div className="flex min-h-0 flex-col gap-2" data-testid="lavoratori-list-panel">
           <SideCardsPanel
             title={gateLabel}
             headerClassName="hidden"

@@ -11,6 +11,9 @@ export const selectors = {
     pipeline: "pipeline",
     assegnazione: "assegnazione",
     ricerca: "ricerca",
+    cercaLavoratori: "cerca-lavoratori",
+    gate1: "gate-1",
+    gate2: "gate-2",
   },
   pipeline: {
     heading: "Sales Pipeline",
@@ -41,5 +44,13 @@ export const selectors = {
     column: (stageId: string) => `[data-testid="kanban-column-${stageId}"]`,
     card: (processId: string) => `[data-testid="ricerca-card-${processId}"]`,
     backToBoard: 'button:has-text("Torna alle ricerche")',
+  },
+  lavoratori: {
+    listPanel: '[data-testid="lavoratori-list-panel"]',
+    searchInput: '[data-testid="lavoratori-list-panel"] input[placeholder="Cerca lavoratori..."]',
+    card: (workerId: string) => `[data-testid="lavoratore-card-${workerId}"]`,
+    closeDetail: '[aria-label="Chiudi scheda lavoratore"]',
+    applyFilters: 'button:has-text("Applica filtri")',
+    resetGateFilters: 'button:has-text("Reset filtri")',
   },
 } as const

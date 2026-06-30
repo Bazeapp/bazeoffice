@@ -352,7 +352,12 @@ export function LavoratoreCard({
 
   if (variant === "gate1") {
     return (
-      <RecordCard onClick={onClick} selected={isActive} className={cardClassName}>
+      <RecordCard
+        onClick={onClick}
+        selected={isActive}
+        className={cardClassName}
+        data-testid={`lavoratore-card-${worker.id}`}
+      >
         <RecordCard.Header
           media={
             <WorkerAvatarMedia
@@ -391,7 +396,12 @@ export function LavoratoreCard({
   }
 
   return (
-    <RecordCard onClick={onClick} selected={isActive} className={cardClassName}>
+    <RecordCard
+      onClick={onClick}
+      selected={isActive}
+      className={cardClassName}
+      data-testid={`lavoratore-card-${worker.id}`}
+    >
       <RecordCard.Header
         media={
             <WorkerAvatarMedia
