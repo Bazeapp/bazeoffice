@@ -10,6 +10,7 @@ export const selectors = {
     home: ".",
     pipeline: "pipeline",
     assegnazione: "assegnazione",
+    ricerca: "ricerca",
   },
   pipeline: {
     heading: "Sales Pipeline",
@@ -32,5 +33,13 @@ export const selectors = {
     resetFilters: '[data-testid="assegnazione-reset-filters"]',
     sheetDialog: '[role="dialog"]',
     sheetClose: '[aria-label="Chiudi"]',
+  },
+  ricerca: {
+    heading: "Ricerche",
+    searchInput: '[data-testid="ricerca-search-input"]',
+    filterRecruiter: '[data-testid="ricerca-filter-recruiter"]',
+    column: (stageId: string) => `[data-testid="kanban-column-${stageId}"]`,
+    card: (processId: string) => `[data-testid="ricerca-card-${processId}"]`,
+    backToBoard: 'button:has-text("Torna alle ricerche")',
   },
 } as const

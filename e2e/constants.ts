@@ -286,6 +286,25 @@ export const E2E_ASSEGNAZIONE = {
   },
 } as const
 
+/** Seeded in baze-supabase/supabase/seed_e2e_assegnazione.sql — same rows on the Ricerca board. */
+export const E2E_RICERCA = {
+  stages: {
+    daAssegnare: "da_assegnare",
+    fareRicerca: "fare_ricerca",
+    match: "match",
+    noMatch: "no_match",
+  },
+  stageLabels: {
+    daAssegnare: "da assegnare",
+    fareRicerca: "fare ricerca",
+    match: "match",
+    noMatch: "no match",
+  },
+  operatori: E2E_ASSEGNAZIONE.operatori,
+  famiglie: E2E_ASSEGNAZIONE.famiglie,
+  processi: E2E_ASSEGNAZIONE.processi,
+} as const
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {
