@@ -14,6 +14,7 @@ export const selectors = {
     cercaLavoratori: "cerca-lavoratori",
     gate1: "gate-1",
     gate2: "gate-2",
+    rapportiLavorativi: "gestione-contrattuale/rapporti-lavorativi",
   },
   pipeline: {
     heading: "Sales Pipeline",
@@ -44,6 +45,12 @@ export const selectors = {
     column: (stageId: string) => `[data-testid="kanban-column-${stageId}"]`,
     card: (processId: string) => `[data-testid="ricerca-card-${processId}"]`,
     backToBoard: 'button:has-text("Torna alle ricerche")',
+  },
+  rapporti: {
+    searchInput: '[data-testid="rapporti-search-input"]',
+    statusFilter: '[data-testid="rapporti-status-filter"]',
+    resetFilters: '[data-testid="rapporti-reset-filtri"]',
+    card: (rapportoId: string) => `[data-testid="rapporti-card-${rapportoId}"]`,
   },
   lavoratori: {
     listPanel: '[data-testid="lavoratori-list-panel"]',

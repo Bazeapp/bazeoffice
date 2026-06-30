@@ -372,6 +372,76 @@ export function getE2eLavoratoreIdsMatching(
 
 export const E2E_LAVORATORI_FIXTURE_COUNT = Object.values(E2E_LAVORATORI.lavoratori).length
 
+/** Seeded in baze-supabase/supabase/seed_e2e_rapporti.sql */
+export const E2E_RAPPORTI = {
+  famiglie: {
+    rossi: E2E_FAMIGLIA,
+    bianchi: E2E_PIPELINE.famiglie.bianchi,
+  },
+  lavoratori: {
+    rossi: E2E_LAVORATORI.lavoratori.qualificatoMi,
+    bianchi: E2E_LAVORATORI.lavoratori.qualificatoTo,
+    verdi: E2E_LAVORATORI.lavoratori.idoneoMi,
+    neri: E2E_LAVORATORI.lavoratori.nonQualificatoMi,
+  },
+  statoRapporto: {
+    inAttivazione: "In attivazione",
+    attivo: "Attivo",
+    terminato: "Terminato",
+    errore: "Errore",
+  },
+  rapporti: {
+    inAttivazione: {
+      id: "00000000-0000-0000-0000-00000000d001",
+      famigliaId: E2E_FAMIGLIA.id,
+      lavoratoreId: E2E_LAVORATORI.lavoratori.qualificatoMi.id,
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Rossi",
+      statoRapporto: "In attivazione" as const,
+      oreSettimanali: 20,
+    },
+    attivo: {
+      id: "00000000-0000-0000-0000-00000000d002",
+      famigliaId: E2E_PIPELINE.famiglie.bianchi.id,
+      lavoratoreId: E2E_LAVORATORI.lavoratori.qualificatoTo.id,
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+      statoRapporto: "Attivo" as const,
+      oreSettimanali: 15,
+    },
+    terminato: {
+      id: "00000000-0000-0000-0000-00000000d003",
+      famigliaId: E2E_FAMIGLIA.id,
+      lavoratoreId: E2E_LAVORATORI.lavoratori.idoneoMi.id,
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      statoRapporto: "Terminato" as const,
+      oreSettimanali: 40,
+    },
+    errore: {
+      id: "00000000-0000-0000-0000-00000000d004",
+      famigliaId: E2E_PIPELINE.famiglie.bianchi.id,
+      lavoratoreId: E2E_LAVORATORI.lavoratori.nonQualificatoMi.id,
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Neri",
+      statoRapporto: "Errore" as const,
+      oreSettimanali: 10,
+    },
+  },
+} as const
+
+export const E2E_RAPPORTI_FIXTURE_IDS = Object.values(E2E_RAPPORTI.rapporti).map(
+  (rapporto) => rapporto.id,
+)
+
+export function rapportiIdsWithStatoRapporto(
+  stato: (typeof E2E_RAPPORTI.statoRapporto)[keyof typeof E2E_RAPPORTI.statoRapporto],
+) {
+  return Object.values(E2E_RAPPORTI.rapporti)
+    .filter((rapporto) => rapporto.statoRapporto === stato)
+    .map((rapporto) => rapporto.id)
+}
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {

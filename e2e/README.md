@@ -32,7 +32,8 @@ E2E seed files (local only, never migrations):
 
 - `supabase/seed_e2e_operators.sql` — four operator users (`e2e-<role>@local.test`)
 - `supabase/seed_e2e_famiglia.sql` — famiglia fixture for mutation template
-- `supabase/seed_e2e_pipeline.sql` — multi-stage Sales Pipeline board fixture
+- `supabase/seed_e2e_lavoratori.sql` — Cerca / Gate 1 / Gate 2 board fixture
+- `supabase/seed_e2e_rapporti.sql` — Rapporti lavorativi board fixture (4 rows)
 
 These run on every `supabase db reset` via `config.toml` `sql_paths`.
 
@@ -77,7 +78,7 @@ e2e/
 ├── shared/          # smoke — runs on every project
 ├── sales/           # Sales Pipeline feature specs
 ├── recruiter/       # recruiter-domain specs
-├── customer/        # (smoke only until feature specs land here)
+├── customer/        # Gestione contrattuale / customer-support specs
 ├── payroll/         # (smoke only until feature specs land here)
 ├── support/         # shared helpers
 ├── constants.ts
