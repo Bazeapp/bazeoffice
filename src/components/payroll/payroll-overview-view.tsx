@@ -19,6 +19,16 @@ import {
 
 import { usePayrollBoard, TERMINAL_STAGE_IDS, type PayrollBoardCardData, type PayrollBoardColumnData } from "@/hooks/use-payroll-board"
 import { ContributiInpsView } from "@/components/payroll/contributi-inps-view"
+import {
+  CEDOLINI_FILTER_GROUPS,
+  cardMatchesCedoliniFilters,
+  createDefaultCedoliniFilters,
+  isCardPaid,
+  normalizeCaseFlag,
+  toggleCedoliniFilter,
+  type CedoliniFilters,
+  type CedoliniFilterGroupKey,
+} from "@/components/payroll/cedolini-filters"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import { flattenAttachmentLinks, type AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
@@ -43,6 +53,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { CheckboxChip } from "@/components/ui/checkbox"
 import { Form } from "@/components/ui/form"
 import {
   FieldInput,
@@ -223,14 +234,6 @@ function formatCurrencyAmount(value: number | null | undefined) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value)
-}
-
-function normalizeCaseFlag(value: string | null | undefined) {
-  const token = String(value ?? "").trim().toLowerCase()
-  if (!token) return "no"
-  if (token === "chiusura rapporto") return "chiusura"
-  if (["si", "sì", "yes", "true", "caso particolare"].includes(token)) return "si"
-  return "no"
 }
 
 function getCedolinoTypeLabel(value: string | null | undefined) {
@@ -527,10 +530,7 @@ function getColumnVisual(color: string): KanbanColumnVisual {
 
 function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
   const [famiglia, lavoratore] = card.nomeCompleto.split(" – ")
-  const isPaid =
-    card.stage === "Pagato" ||
-    card.stage === "DONE" ||
-    card.pagamento?.status === "succeeded"
+  const isPaid = isCardPaid(card)
   const ratingValue =
     typeof card.record.rating_feedback_famiglia === "number" && card.record.rating_feedback_famiglia > 0
       ? Math.max(0, Math.min(5, Math.round(card.record.rating_feedback_famiglia)))
@@ -1565,6 +1565,35 @@ function DetailSheetSkeleton() {
   )
 }
 
+function CedoliniFilterBar({
+  filters,
+  onToggle,
+}: {
+  filters: CedoliniFilters
+  onToggle: (group: CedoliniFilterGroupKey, value: string) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      {CEDOLINI_FILTER_GROUPS.map((group) => (
+        <div key={group.key} role="group" aria-label={group.label} className="flex flex-wrap items-center gap-2">
+          <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {group.label}
+          </span>
+          {group.options.map((option) => (
+            <CheckboxChip
+              key={option.value}
+              checked={filters[group.key].has(option.value)}
+              onCheckedChange={() => onToggle(group.key, option.value)}
+            >
+              {option.label}
+            </CheckboxChip>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function CedoliniPayrollView() {
   const [selectedMonth, setSelectedMonth] = React.useState(getCurrentMonthValue)
   const {
@@ -1581,11 +1610,17 @@ function CedoliniPayrollView() {
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
+  const [filters, setFilters] = React.useState<CedoliniFilters>(createDefaultCedoliniFilters)
+
+  const toggleFilter = React.useCallback((group: CedoliniFilterGroupKey, value: string) => {
+    setFilters((current) => toggleCedoliniFilter(current, group, value))
+  }, [])
 
   const filteredColumns = React.useMemo(() => {
     const mappedColumns = columns.map((column) => ({
       ...column,
       cards: column.cards.filter((card) => {
+        if (!cardMatchesCedoliniFilters(card, filters)) return false
         return matchesSearchQuery(
           [
             card.id,
@@ -1614,7 +1649,7 @@ function CedoliniPayrollView() {
     }))
 
     return mappedColumns
-  }, [columns, searchValue])
+  }, [columns, searchValue, filters])
 
   const payrollMetrics = React.useMemo(
     () => buildPayrollMetrics(filteredColumns),
@@ -1728,6 +1763,7 @@ function CedoliniPayrollView() {
             onChange={(event) => setSearchValue(event.target.value)}
             onClear={() => setSearchValue("")}
           />
+          <CedoliniFilterBar filters={filters} onToggle={toggleFilter} />
         </SectionHeader.Toolbar>
       </SectionHeader>
 
