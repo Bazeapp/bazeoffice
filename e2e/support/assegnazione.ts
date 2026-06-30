@@ -102,7 +102,7 @@ export async function gotoAssegnazione(page: Page) {
 }
 
 export async function reloadAssegnazione(page: Page) {
-  await page.reload()
+  await page.goto(selectors.routes.assegnazione)
   await expect(
     page.getByRole("heading", { name: selectors.assegnazione.heading }),
   ).toBeVisible({ timeout: BOARD_LOAD_TIMEOUT_MS })
@@ -165,6 +165,32 @@ export async function closeCardSheet(page: Page) {
   await expect(page.locator(selectors.assegnazione.sheetDialog)).toHaveCount(0, {
     timeout: BOARD_LOAD_TIMEOUT_MS,
   })
+}
+
+export async function waitForAssegnazionePatch(page: Page) {
+  await page.waitForResponse(
+    (response) =>
+      response.url().includes("/functions/v1/update-record") &&
+      response.request().method() === "POST" &&
+      response.ok(),
+    { timeout: BOARD_LOAD_TIMEOUT_MS },
+  )
+}
+
+export async function enterSchedulingEditMode(dialog: Locator) {
+  await dialog.getByRole("button", { name: "Modifica stato e assegnazione" }).click()
+  await expect(dialog.getByText("Salvataggio automatico attivo")).toBeVisible()
+}
+
+export async function assignRecruiterInSheet(
+  page: Page,
+  dialog: Locator,
+  recruiterLabel: string,
+) {
+  await enterSchedulingEditMode(dialog)
+  await dialog.getByRole("combobox").nth(1).click()
+  await page.getByRole("option", { name: new RegExp(recruiterLabel, "i") }).first().click()
+  await waitForAssegnazionePatch(page)
 }
 
 export async function assignRecruiterOnCard(
