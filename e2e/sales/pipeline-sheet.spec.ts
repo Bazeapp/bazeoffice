@@ -20,6 +20,8 @@ import {
 import { selectors } from "../support/selectors"
 
 const templateProcess = E2E_PIPELINE.processi.template
+const { hotAttesa, bianchiWarm } = E2E_PIPELINE.processi
+const { stageLabels, tipoLavoro } = E2E_PIPELINE
 
 test.describe("pipeline: detail sheet", () => {
   test.describe.configure({ mode: "serial", timeout: 60_000 })
@@ -38,6 +40,53 @@ test.describe("pipeline: detail sheet", () => {
 
     await closeCardSheet(page)
     await expect(page.locator(selectors.pipeline.sheetDialog)).toHaveCount(0)
+  })
+
+  test("header shows stato, contact meta and tipo lavoro for hot card", async ({ page }) => {
+    const famigliaEmail =
+      (await readFamigliaField(E2E_FAMIGLIA.id, "email")) ?? "e2e-famiglia@local.test"
+
+    await gotoPipeline(page)
+    const dialog = await openCardSheet(page, hotAttesa.id)
+
+    await expect(dialog.getByRole("combobox").first()).toContainText(
+      stageLabels.hotAttesaPrimoContatto,
+    )
+    await expect(dialog.getByText(famigliaEmail, { exact: true })).toBeVisible()
+    await expect(dialog.getByText(/Creata il \d{2}\/\d{2}\/\d{4}/)).toBeVisible()
+    await expect(dialog.getByText(tipoLavoro.colf, { exact: true })).toBeVisible()
+    await expect(dialog.getByText("Tipo rapporto", { exact: true })).toBeVisible()
+  })
+
+  test("onboarding sidebar tabs and primary sections are visible", async ({ page }) => {
+    await gotoPipeline(page)
+    const dialog = await openCardSheet(page, templateProcess.id)
+
+    await expect(dialog.getByRole("tab", { name: "Orari e frequenza" })).toBeVisible()
+    await expect(dialog.getByRole("tab", { name: "Luogo di lavoro" })).toBeVisible()
+    await expect(dialog.getByRole("tab", { name: "Famiglia" })).toBeVisible()
+    await expect(dialog.getByRole("tab", { name: "Annuncio" })).toBeVisible()
+    await expect(dialog.getByText("Onboarding", { exact: true })).toBeVisible()
+    await expect(dialog.getByText("Orari e frequenza", { exact: true }).first()).toBeVisible()
+    await expect(dialog.getByText("Luogo di lavoro", { exact: true }).first()).toBeVisible()
+  })
+
+  test("switching cards remounts detail without stale heading", async ({ page }) => {
+    await gotoPipeline(page)
+
+    await openCardSheet(page, templateProcess.id)
+    await expect(
+      page.getByRole("heading", { name: "E2E Famiglia Rossi", exact: true }),
+    ).toBeVisible()
+
+    await closeCardSheet(page)
+    await openCardSheet(page, bianchiWarm.id)
+    await expect(
+      page.getByRole("heading", { name: "E2E Famiglia Bianchi", exact: true }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "E2E Famiglia Rossi", exact: true }),
+    ).toHaveCount(0)
   })
 
   test("contact email autosave persists after reopen", async ({ page }) => {
