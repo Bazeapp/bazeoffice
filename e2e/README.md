@@ -145,7 +145,7 @@ Copy patterns from:
 - `e2e/customer/ticket-payroll-moves.spec.ts` — Ticket Payroll kanban moves and create flow
 - `e2e/customer/ticket-payroll-sheet.spec.ts` — Ticket Payroll detail sheet
 - `e2e/support/tickets.ts` — navigation, search, DnD, sheet helpers
-- `e2e/support/tickets-mutations.ts` — service-role `ticket.stato` reset
+- `e2e/support/tickets-mutations.ts` — service-role `ticket.stato` / `ticket.rapporto_id` reset
 - `e2e/customer/prove-colloqui-filters.spec.ts` — Prove e Colloqui board search, columns, tab switcher
 - `e2e/customer/prove-colloqui-moves.spec.ts` — Prove kanban stato change via sheet
 - `e2e/customer/prove-colloqui-sheet.spec.ts` — Prova detail sheet

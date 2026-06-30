@@ -745,6 +745,7 @@ export const E2E_TICKET_CUSTOMER = {
       lavoratoreSearchText: "Lavoratore non disponibile",
       stato: "aperto" as const,
       tag: "Chiusura",
+      rapportoId: null,
     },
     rapportoPresoInCarico: {
       id: "00000000-0000-0000-0000-00000000f802",
@@ -753,6 +754,7 @@ export const E2E_TICKET_CUSTOMER = {
       lavoratoreSearchText: "Lavoratore Bianchi",
       stato: "preso in carico" as const,
       tag: "Rapporto",
+      rapportoId: "00000000-0000-0000-0000-00000000d002",
     },
     chiuso: {
       id: "00000000-0000-0000-0000-00000000f803",

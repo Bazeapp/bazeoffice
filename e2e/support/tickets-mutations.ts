@@ -8,22 +8,42 @@ import {
 } from "../constants"
 import { getSupabaseAdmin } from "./supabase-admin"
 
+type TicketFixturePatch = {
+  stato?: string | null
+  rapporto_id?: string | null
+}
+
 export async function readTicketStato(ticketId: string) {
+  return readTicketField(ticketId, "stato")
+}
+
+export async function readTicketRapportoId(ticketId: string) {
+  return readTicketField(ticketId, "rapporto_id")
+}
+
+export async function readTicketField(
+  ticketId: string,
+  field: "stato" | "rapporto_id",
+) {
   const { data, error } = await getSupabaseAdmin()
     .from("ticket")
-    .select("stato")
+    .select(field)
     .eq("id", ticketId)
     .maybeSingle()
 
   if (error) {
-    throw new Error(`E2E readTicketStato failed for ${ticketId}: ${error.message}`)
+    throw new Error(`E2E readTicketField(${field}) failed for ${ticketId}: ${error.message}`)
   }
 
-  const row = data as { stato: string | null } | null
-  return row?.stato ?? null
+  const row = data as Record<string, string | null> | null
+  return row?.[field] ?? null
 }
 
 export async function setTicketStato(ticketId: string, stato: string | null) {
+  await setTicketFields(ticketId, { stato })
+}
+
+export async function setTicketFields(ticketId: string, patch: TicketFixturePatch) {
   assertLocalKeysConfigured()
   const { VITE_SUPABASE_URL, LOCAL_SERVICE_ROLE_KEY } = getLocalSupabaseConfig()
 
@@ -36,7 +56,7 @@ export async function setTicketStato(ticketId: string, stato: string | null) {
       Prefer: "return=minimal",
     },
     body: JSON.stringify({
-      stato,
+      ...patch,
       aggiornato_il: new Date().toISOString(),
     }),
   })
@@ -44,7 +64,7 @@ export async function setTicketStato(ticketId: string, stato: string | null) {
   if (!response.ok) {
     const body = await response.text()
     throw new Error(
-      `E2E ticket mutation failed (stato=${String(stato)}): HTTP ${response.status} ${body}`,
+      `E2E ticket mutation failed (${JSON.stringify(patch)}): HTTP ${response.status} ${body}`,
     )
   }
 }
@@ -65,11 +85,19 @@ export async function deleteTicket(ticketId: string) {
 
 /** Restore customer ticket board fixture rows to their db reset state. */
 export async function resetTicketCustomerFixture() {
-  await Promise.all(
-    Object.values(E2E_TICKET_CUSTOMER.tickets).map((fixture) =>
-      setTicketStato(fixture.id, fixture.stato),
-    ),
-  )
+  const { chiusuraAperto, rapportoPresoInCarico, chiuso } = E2E_TICKET_CUSTOMER.tickets
+
+  await Promise.all([
+    setTicketFields(chiusuraAperto.id, {
+      stato: chiusuraAperto.stato,
+      rapporto_id: chiusuraAperto.rapportoId,
+    }),
+    setTicketFields(rapportoPresoInCarico.id, {
+      stato: rapportoPresoInCarico.stato,
+      rapporto_id: rapportoPresoInCarico.rapportoId,
+    }),
+    setTicketStato(chiuso.id, chiuso.stato),
+  ])
 }
 
 /** Restore payroll ticket board fixture rows to their db reset state. */

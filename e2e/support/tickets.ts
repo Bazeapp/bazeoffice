@@ -235,3 +235,25 @@ export async function setStatoTicketInSheet(
   await dialog.getByRole("combobox").first().click()
   await page.getByRole("option", { name: targetStageLabel, exact: true }).click()
 }
+
+export function getTicketSheetSection(sheet: Locator, sectionTitle: string) {
+  return sheet
+    .getByText(sectionTitle, { exact: true })
+    .locator('xpath=ancestor::*[@data-slot="card"][1]')
+}
+
+export function getTicketRapportoSection(sheet: Locator) {
+  return sheet
+    .getByText(/^(Rapporto collegato|Collega rapporto)$/, { exact: true })
+    .locator('xpath=ancestor::*[@data-slot="card"][1]')
+}
+
+export async function waitForTicketPatch(page: Page) {
+  await page.waitForResponse(
+    (response) =>
+      response.url().includes("/functions/v1/update-record") &&
+      response.request().method() === "POST" &&
+      response.ok(),
+    { timeout: BOARD_LOAD_TIMEOUT_MS },
+  )
+}
