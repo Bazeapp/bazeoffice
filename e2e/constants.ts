@@ -231,6 +231,61 @@ export const E2E_PIPELINE = {
   },
 } as const
 
+/** Seeded in baze-supabase/supabase/seed_e2e_assegnazione.sql */
+export const E2E_ASSEGNAZIONE = {
+  operatori: {
+    recruiter: {
+      id: "00000000-0000-0000-0000-000000000e03",
+      displayName: "E2E Recruiter",
+    },
+    sales: {
+      id: "00000000-0000-0000-0000-000000000e02",
+      displayName: "E2E Sales",
+    },
+  },
+  famiglie: {
+    rossi: E2E_FAMIGLIA.displayName,
+    bianchi: E2E_PIPELINE.famiglie.bianchi.displayName,
+  },
+  processi: {
+    unassignedNuova: {
+      id: "00000000-0000-0000-0000-00000000b009",
+      famigliaDisplayName: E2E_FAMIGLIA.displayName,
+      tipoRicerca: "nuova" as const,
+      hasRecruiter: false,
+      hasAssignmentDate: false,
+    },
+    unassignedWithRecruiter: {
+      id: "00000000-0000-0000-0000-00000000b00a",
+      famigliaDisplayName: E2E_FAMIGLIA.displayName,
+      tipoRicerca: "nuova" as const,
+      hasRecruiter: true,
+      hasAssignmentDate: false,
+    },
+    unassignedSostituzione: {
+      id: "00000000-0000-0000-0000-00000000b00b",
+      famigliaDisplayName: E2E_PIPELINE.famiglie.bianchi.displayName,
+      tipoRicerca: "sostituzione" as const,
+      hasRecruiter: false,
+      hasAssignmentDate: false,
+    },
+    assignedToday: {
+      id: "00000000-0000-0000-0000-00000000b00c",
+      famigliaDisplayName: E2E_FAMIGLIA.displayName,
+      tipoRicerca: "nuova" as const,
+      hasRecruiter: true,
+      hasAssignmentDate: true,
+    },
+    assignedTomorrow: {
+      id: "00000000-0000-0000-0000-00000000b00d",
+      famigliaDisplayName: E2E_PIPELINE.famiglie.bianchi.displayName,
+      tipoRicerca: "sostituzione" as const,
+      hasRecruiter: true,
+      hasAssignmentDate: true,
+    },
+  },
+} as const
+
 export function getViteEnv() {
   const config = getLocalSupabaseConfig()
   return {

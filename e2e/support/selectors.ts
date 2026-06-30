@@ -9,6 +9,7 @@ export const selectors = {
   routes: {
     home: ".",
     pipeline: "pipeline",
+    assegnazione: "assegnazione",
   },
   pipeline: {
     heading: "Sales Pipeline",
@@ -20,5 +21,16 @@ export const selectors = {
     sheetDialog: '[role="dialog"]',
     sheetClose: '[aria-label="Chiudi dettaglio"]',
     duplicaRicerca: 'button:has-text("Duplica ricerca")',
+  },
+  assegnazione: {
+    heading: "Assegnazione",
+    unassignedPanel: '[data-testid="assegnazione-unassigned"]',
+    card: (processId: string) => `[data-testid="assegnazione-card-${processId}"]`,
+    dayColumn: (dateKey: string) => `[data-testid="assegnazione-day-${dateKey}"]`,
+    filterRecruiter: '[data-testid="assegnazione-filter-recruiter"]',
+    filterTipoRicerca: '[data-testid="assegnazione-filter-tipo-ricerca"]',
+    resetFilters: '[data-testid="assegnazione-reset-filters"]',
+    sheetDialog: '[role="dialog"]',
+    sheetClose: '[aria-label="Chiudi"]',
   },
 } as const

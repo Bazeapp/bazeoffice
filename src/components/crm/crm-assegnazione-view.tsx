@@ -1212,7 +1212,10 @@ export function CrmAssegnazioneView({
               setAssigneeFilter(value as AssigneeValue | "all")
             }
           >
-            <SelectTrigger className="w-55">
+            <SelectTrigger
+              className="w-55"
+              data-testid="assegnazione-filter-recruiter"
+            >
               {selectedAssigneeFilterOperator ? (
                 <OperatorSelectOption operator={selectedAssigneeFilterOperator} />
               ) : (
@@ -1239,7 +1242,10 @@ export function CrmAssegnazioneView({
               setTipoRicercaFilter(value as "all" | "nuova" | "sostituzione")
             }
           >
-            <SelectTrigger className="w-47.5">
+            <SelectTrigger
+              className="w-47.5"
+              data-testid="assegnazione-filter-tipo-ricerca"
+            >
               <FilterIcon className="size-4" />
               <SelectValue placeholder="Tutte le ricerche" />
             </SelectTrigger>
@@ -1255,6 +1261,7 @@ export function CrmAssegnazioneView({
               type="button"
               variant="outline"
               size="sm"
+              data-testid="assegnazione-reset-filters"
               onClick={() => {
                 setAssigneeFilter("all");
                 setTipoRicercaFilter("all");
@@ -1269,6 +1276,7 @@ export function CrmAssegnazioneView({
 
       <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 overflow-hidden px-6 xl:grid-cols-[292px_minmax(0,1fr)]">
         <SideCardsPanel
+          data-testid="assegnazione-unassigned"
           title="Da assegnare"
           icon={CalendarDaysIcon}
           subtitle={
@@ -1345,6 +1353,7 @@ export function CrmAssegnazioneView({
                       <div
                         key={card.id}
                         draggable
+                        data-testid={`assegnazione-card-${card.id}`}
                         onClick={() => handleOpenCardDetails(card)}
                         onDragStart={(event) => onCardDragStart(event, card.id)}
                         onDragEnd={onCardDragEnd}
@@ -1402,6 +1411,7 @@ export function CrmAssegnazioneView({
                       <div
                         key={card.id}
                         draggable
+                        data-testid={`assegnazione-card-${card.id}`}
                         onClick={() => handleOpenCardDetails(card)}
                         onDragStart={(event) => onCardDragStart(event, card.id)}
                         onDragEnd={onCardDragEnd}
@@ -1501,6 +1511,7 @@ export function CrmAssegnazioneView({
                 return (
                   <div
                     key={day.key}
+                    data-testid={`assegnazione-day-${day.key}`}
                     className={cn(
                       "flex h-full min-h-0 flex-col p-4 transition-colors",
                       isToday && "bg-blue-50/40",
@@ -1565,6 +1576,7 @@ export function CrmAssegnazioneView({
                             <div
                               key={card.id}
                               draggable
+                              data-testid={`assegnazione-card-${card.id}`}
                               onClick={() => handleOpenCardDetails(card)}
                               onDragStart={(event) =>
                                 onCardDragStart(event, card.id)
