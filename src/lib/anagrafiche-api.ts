@@ -375,7 +375,10 @@ export type SupportTicketsBundleRpcResponse = {
   lavoratori?: Array<{ id: string; nome: string | null; cognome: string | null }>
 }
 
-function normalizeTableResponse<TRecord>(
+// Exported for the U1 characterization test (the data layer's only pure
+// transform). Pure, zero behavior change; mirrors the existing exported-mapper
+// pattern used by the board contract tests.
+export function normalizeTableResponse<TRecord>(
   response: TableQueryResponse<TRecord>
 ): { rows: TRecord[]; total: number; columns: TableColumnMeta[]; groups: TableGroupResult[] } {
   if (Array.isArray(response)) {

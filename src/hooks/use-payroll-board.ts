@@ -241,12 +241,13 @@ function formatItalianDate(value: string | null | undefined) {
  * previous card had a value, restore the previous value. If the fresh card
  * has a non-null value (even if narrower than detail), keep the fresh value.
  */
-const PRESERVED_DETAIL_FIELDS: ReadonlyArray<keyof PayrollBoardCardData> = [
+// Exported for the U2 contract test (Pattern A — the realtime stale-detail guard).
+export const PRESERVED_DETAIL_FIELDS: ReadonlyArray<keyof PayrollBoardCardData> = [
   "presenze",
   "presenzeRegolari",
 ]
 
-function preserveDetailFields(
+export function preserveDetailFields(
   card: PayrollBoardCardData,
   previousCard: PayrollBoardCardData | undefined,
 ): PayrollBoardCardData {
