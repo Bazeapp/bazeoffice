@@ -128,6 +128,48 @@ export function rapportoDetailTab(page: Page, label: string) {
   return page.getByRole("tab", { name: label, exact: true })
 }
 
+export function rapportoDetailPanel(page: Page) {
+  return page
+    .locator("section.bg-surface-muted")
+    .filter({ has: page.getByRole("tab", { name: "Contratto", exact: true }) })
+}
+
+export function rapportoDetailSection(page: Page, title: string) {
+  return rapportoDetailPanel(page)
+    .locator("[class*='rounded-xl']")
+    .filter({ has: page.getByText(title, { exact: true }) })
+    .first()
+}
+
+export async function scrollToRapportoDetailTab(page: Page, label: string) {
+  await rapportoDetailTab(page, label).click()
+}
+
+export async function openRapportoContrattoEdit(page: Page) {
+  await rapportoDetailPanel(page)
+    .getByRole("button", { name: "Modifica caratteristiche del rapporto", exact: true })
+    .click()
+}
+
+export function rapportoDetailLabeledInput(page: Page, label: string) {
+  return rapportoDetailPanel(page)
+    .getByText(label, { exact: true })
+    .locator("xpath=..")
+    .locator("input, textarea")
+    .first()
+}
+
+export async function waitForRapportoUpdateRecord(page: Page) {
+  await page.waitForResponse(
+    (response) =>
+      (response.url().includes("/functions/v1/update-record") ||
+        response.url().includes("/functions/v1/create-record")) &&
+      response.request().method() === "POST" &&
+      response.ok(),
+    { timeout: 15_000 },
+  )
+}
+
 export async function expectFixtureVisibilityForStatoRapporto(
   page: Page,
   stato: (typeof E2E_RAPPORTI.statoRapporto)[keyof typeof E2E_RAPPORTI.statoRapporto],

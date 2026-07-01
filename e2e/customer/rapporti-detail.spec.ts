@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { E2E_RAPPORTI } from "../constants"
+import { E2E_RAPPORTI, E2E_TICKET_CUSTOMER } from "../constants"
 import {
   gotoRapporti,
   rapportoDetailHeading,
@@ -83,7 +83,9 @@ test.describe("rapporti lavorativi: detail panel", () => {
 
     await rapportoDetailTab(page, "Tickets").click()
     await expect(rapportoDetailTab(page, "Tickets")).toHaveAttribute("data-state", "active")
-    await expect(page.getByText("Nessun ticket collegato", { exact: true })).toBeVisible()
+    await expect(
+      page.getByText(E2E_TICKET_CUSTOMER.tickets.chiuso.causaleSearchText, { exact: false }),
+    ).toBeVisible({ timeout: 10_000 })
   })
 
   test("contratto section shows rapporto metadata and edit affordance", async ({ page }) => {
