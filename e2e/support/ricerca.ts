@@ -114,6 +114,113 @@ export async function openCardDetail(page: Page, processId: string) {
   await expect(page).toHaveURL(new RegExp(`/ricerca/${processId}`), {
     timeout: BOARD_LOAD_TIMEOUT_MS,
   })
+  await waitForRicercaDetail(page)
+}
+
+export async function gotoRicercaDetail(page: Page, processId: string) {
+  await page.goto(`${selectors.routes.ricerca}/${encodeURIComponent(processId)}`)
+  await expect(page.locator(selectors.appSidebar)).toBeVisible({
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+  await waitForRicercaDetail(page)
+}
+
+export async function waitForRicercaDetail(page: Page) {
+  await expect(page.getByText("Caricamento dettaglio ricerca...")).toHaveCount(0, {
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+  await expect(page.locator(selectors.ricerca.backToBoard)).toBeVisible({
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+}
+
+export function ricercaDetailHeading(page: Page, familyDisplayName: string) {
+  return page.getByRole("heading", { name: familyDisplayName, exact: true })
+}
+
+export function ricercaDetailTab(page: Page, label: "Pipeline" | "Mappa") {
+  return page.getByRole("tab", { name: label })
+}
+
+/** Matches seed_e2e_assegnazione.sql `v_deadline := v_today + 5`. */
+export function getFixtureDeadlineLabel(daysFromToday = 5) {
+  const date = new Date()
+  date.setUTCDate(date.getUTCDate() + daysFromToday)
+  const isoDate = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`
+  return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(isoDate))
+}
+
+export function e2eFamigliaDetailName(displayName: string) {
+  return `E2E ${displayName}`
+}
+
+export function ricercaPipelineSmartMatchingButton(page: Page) {
+  return page.getByRole("button", { name: "Smart Matching" })
+}
+
+export function ricercaPipelineAddButton(page: Page) {
+  return page.getByRole("button", { name: "Aggiungi", exact: true })
+}
+
+export function ricercaAddWorkerDialog(page: Page) {
+  return page.getByRole("dialog", { name: "Aggiungi lavoratore" })
+}
+
+export function ricercaDetailAside(page: Page) {
+  return page.locator("aside").filter({
+    has: page.getByText("Orari e frequenza", { exact: true }),
+  })
+}
+
+export function ricercaAccordionSection(page: Page, label: string) {
+  return page.locator(".group\\/accordion-item").filter({
+    has: page.getByText(label, { exact: true }),
+  })
+}
+
+export async function expandRicercaAccordionSection(page: Page, label: string) {
+  const section = ricercaAccordionSection(page, label)
+  if ((await section.getAttribute("data-state")) !== "open") {
+    await section.getByRole("button", { name: "Apri o chiudi sezione" }).click()
+  }
+  return section
+}
+
+export async function openRicercaHeaderSectionEdit(page: Page) {
+  await ricercaDetailAside(page)
+    .getByRole("button", { name: "Modifica sezione" })
+    .first()
+    .click()
+}
+
+export function ricercaFieldInput(page: Page, label: string) {
+  return ricercaDetailAside(page)
+    .getByRole("group")
+    .filter({ has: page.getByText(label, { exact: true }) })
+    .locator("input, textarea")
+    .first()
+}
+
+export async function openRicercaAccordionSectionEdit(page: Page, label: string) {
+  const section = ricercaAccordionSection(page, label)
+  await section.getByRole("button", { name: "Modifica sezione" }).click()
+  return section
+}
+
+export async function waitForRicercaUpdateRecord(page: Page) {
+  await page.waitForResponse(
+    (response) =>
+      (response.url().includes("/functions/v1/update-record") ||
+        response.url().includes("/functions/v1/create-record")) &&
+      response.request().method() === "POST" &&
+      response.ok(),
+    { timeout: 15_000 },
+  )
 }
 
 export async function backToRicercaBoard(page: Page) {
