@@ -2,9 +2,13 @@ import { expect, test, type Page } from "@playwright/test"
 
 import { E2E_LAVORATORI } from "../constants"
 import {
+  addCercaTextFilterCondition,
+  applyCercaAdvancedFilters,
+  clearCercaAdvancedFilterConditions,
   clearSearchQuery,
   expectLavoratoreCardVisibility,
   gotoCercaLavoratori,
+  openCercaAdvancedFilters,
   setSearchQuery,
 } from "../support/lavoratori"
 
@@ -76,26 +80,15 @@ test.describe("cerca lavoratori: list filters", () => {
     })
 
     test("apply and reset toolbar filters narrow the worker list", async () => {
-      await cercaPage.getByRole("button", { name: /Filtri/i }).click()
-      await cercaPage.getByRole("button", { name: "Applica filtri" }).click()
-      await cercaPage.waitForTimeout(700)
-
-      await cercaPage.getByRole("button", { name: /Filtri/i }).click()
-      const provinciaField = cercaPage.getByRole("combobox").filter({ hasText: /Provincia/i }).first()
-      if (await provinciaField.isVisible()) {
-        await provinciaField.click()
-        await cercaPage.getByRole("option", { name: "TO", exact: true }).click()
-      }
-      await cercaPage.getByRole("button", { name: "Applica filtri" }).click()
-      await cercaPage.waitForTimeout(700)
+      await openCercaAdvancedFilters(cercaPage)
+      await addCercaTextFilterCondition(cercaPage, qualificatoTo.id)
+      await applyCercaAdvancedFilters(cercaPage)
       await expectLavoratoreCardVisibility(cercaPage, qualificatoTo.id, true)
       await expectLavoratoreCardVisibility(cercaPage, qualificatoMi.id, false)
 
-      const resetButton = cercaPage.getByRole("button", { name: "Reset filtri" })
-      if (await resetButton.isVisible()) {
-        await resetButton.click()
-        await cercaPage.waitForTimeout(700)
-      }
+      await openCercaAdvancedFilters(cercaPage)
+      await clearCercaAdvancedFilterConditions(cercaPage)
+      await applyCercaAdvancedFilters(cercaPage)
       await expectLavoratoreCardVisibility(cercaPage, qualificatoMi.id, true)
       await expectLavoratoreCardVisibility(cercaPage, nonQualificatoMi.id, true)
     })

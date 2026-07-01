@@ -63,14 +63,15 @@ test.describe("ticket-customer: detail sheet", () => {
     await gotoSupportTickets(page, "customer")
     const sheet = await openCardSheet(page, "customer", rapportoPresoInCarico.id)
     const categoriaSection = getTicketSheetSection(sheet, "Categoria e urgenza")
+    const rapportoSection = getTicketRapportoSection(sheet)
 
     await expect(
-      sheet.getByText(rapportoPresoInCarico.famigliaSearchText, { exact: false }),
+      rapportoSection.getByText(rapportoPresoInCarico.famigliaSearchText, { exact: false }).first(),
     ).toBeVisible()
     await expect(
-      sheet.getByText(rapportoPresoInCarico.lavoratoreSearchText, { exact: false }),
+      rapportoSection.getByText(rapportoPresoInCarico.lavoratoreSearchText, { exact: false }).first(),
     ).toBeVisible()
-    await expect(sheet.getByText("Rapporto collegato", { exact: true })).toBeVisible()
+    await expect(rapportoSection.getByText("Rapporto collegato", { exact: true })).toBeVisible()
     await expect(categoriaSection.getByText(rapportoPresoInCarico.tag, { exact: true })).toBeVisible()
     await expect(
       categoriaSection.getByText(/^(Bassa|Media|Alta)$/, { exact: true }),

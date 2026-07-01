@@ -182,6 +182,52 @@ export async function resetGateListFilters(page: Page) {
   }
 }
 
+function cercaAdvancedFiltersPanel(page: Page) {
+  return page.locator("div.space-y-3").filter({
+    has: page.getByText("In this view, show rows where"),
+    has: page.getByRole("button", { name: "Add condition" }),
+  }).first()
+}
+
+export async function openCercaAdvancedFilters(page: Page) {
+  await page.getByRole("button", { name: /Filtri avanzati/i }).click()
+  await expect(cercaAdvancedFiltersPanel(page)).toBeVisible({ timeout: 10_000 })
+}
+
+export async function addCercaTextFilterCondition(
+  page: Page,
+  value: string,
+  fieldLabel?: string,
+) {
+  const panel = cercaAdvancedFiltersPanel(page)
+  await panel.getByRole("button", { name: "Add condition", exact: true }).click()
+
+  const conditionRow = panel.locator(".rounded-lg.border.bg-background").last()
+  if (fieldLabel) {
+    await conditionRow.getByRole("combobox").first().click()
+    await page.getByRole("option", { name: fieldLabel, exact: true }).first().click()
+  }
+  await conditionRow.locator('input[placeholder="Valore"]').fill(value)
+}
+
+export async function applyCercaAdvancedFilters(page: Page) {
+  const applyButton = page.getByRole("button", { name: "Applica filtri" })
+  await expect(applyButton).toBeEnabled({ timeout: 5_000 })
+  await applyButton.click()
+  await page.waitForTimeout(SEARCH_DEBOUNCE_MS)
+}
+
+export async function clearCercaAdvancedFilterConditions(page: Page) {
+  const panel = cercaAdvancedFiltersPanel(page)
+  const trashButton = panel.locator(
+    ".rounded-lg.border.bg-background div.flex.items-center.px-1 button",
+  )
+
+  while ((await trashButton.count()) > 0) {
+    await trashButton.first().click()
+  }
+}
+
 export async function setGate2StatusFilter(
   page: Page,
   option: "idonei" | "idonei_qualificati",

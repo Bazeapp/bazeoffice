@@ -1126,6 +1126,7 @@ function CreateAnnullamentoDialog({
                 <button
                   key={option.id}
                   type="button"
+                  data-testid={`chiusure-annullamento-rapporto-${option.id}`}
                   className={cn(
                     "flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                     selectedRapportoId === option.id

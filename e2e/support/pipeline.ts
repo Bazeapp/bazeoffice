@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
 import { E2E_PIPELINE } from "../constants"
+import { dropPayloadOnSelector } from "./drag-and-drop"
 import { selectors } from "./selectors"
 
 const BOARD_LOAD_TIMEOUT_MS = 30_000
@@ -258,10 +259,7 @@ export function expectPersistedStatoSales(
   expect([stageId, stageLabel]).toContain(persisted)
 }
 
-/**
- * Native HTML5 drag-and-drop via Playwright Locator.drop.
- * Drops text/plain payload on the target column (KanbanColumnShell onDrop → moveCard).
- */
+/** Native HTML5 drag-and-drop (KanbanColumnShell onDrop → moveCard). */
 export async function dragCardToColumn(
   page: Page,
   processId: string,
@@ -282,7 +280,12 @@ export async function dragCardToColumn(
     )
     .catch(() => null)
 
-  await column.drop({ data: { "text/plain": processId } })
+  await dropPayloadOnSelector(
+    page,
+    selectors.pipeline.column(targetStageId),
+    processId,
+    selectors.pipeline.card(processId),
+  )
   await updateResponse
 }
 

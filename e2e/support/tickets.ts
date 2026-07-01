@@ -7,6 +7,7 @@ import {
   E2E_TICKET_PAYROLL_VISIBLE_FIXTURE_IDS,
   ticketsStageTestId,
 } from "../constants"
+import { dropPayloadOnSelector } from "./drag-and-drop"
 import { selectors } from "./selectors"
 
 const BOARD_LOAD_TIMEOUT_MS = 30_000
@@ -198,7 +199,13 @@ export async function dragCardToColumn(
     )
     .catch(() => null)
 
-  await column.drop({ data: { "text/plain": ticketId } })
+  const boardSelectors = getBoardSelectors(kind)
+  await dropPayloadOnSelector(
+    page,
+    boardSelectors.column(ticketsStageTestId(targetStageLabel)),
+    ticketId,
+    boardSelectors.card(ticketId),
+  )
   if (updateResponse) {
     await updateResponse
   }

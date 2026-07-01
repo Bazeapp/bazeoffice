@@ -140,10 +140,15 @@ test.describe("ricerca: detail pipeline actions", () => {
     // E2E fixture UUIDs are nil-version and are not resolved by smartmatching-v21's
     // isUuid() check (it queries airtable_record_id instead). Mock the EF to exercise
     // the recruiter-facing action wiring: request, loading state, toast, refresh.
-    await mockEdgeFunctionSuccess(page, "smartmatching-v21", {
-      selected_count: 2,
-      selected_workers: [],
-    })
+    await mockEdgeFunctionSuccess(
+      page,
+      "smartmatching-v21",
+      {
+        selected_count: 2,
+        selected_workers: [],
+      },
+      { delayMs: 800 },
+    )
 
     await gotoRicercaDetail(page, unassignedNuova.id)
 

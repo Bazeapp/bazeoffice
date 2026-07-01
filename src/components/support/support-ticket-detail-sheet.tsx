@@ -16,6 +16,7 @@ import {
 } from "@/components/shared-next/attachment-upload-slot"
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
+import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
 import {
   Accordion,
   AccordionContent,
@@ -479,6 +480,13 @@ export function SupportTicketDetailSheet({
                   icon={<FileTextIcon className="text-muted-foreground size-5" />}
                   contentClassName="space-y-3"
                 >
+                  {card.rapporto ? (
+                    <LinkedRapportoSummaryCard
+                      embedded
+                      title={card.nomeCompleto}
+                      rapporto={card.rapporto}
+                    />
+                  ) : null}
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Select
                       value={card.rapporto?.id ?? card.record.rapporto_id ?? "__none__"}

@@ -3,17 +3,24 @@ import { expect, test } from "@playwright/test"
 import { E2E_LAVORATORI } from "../constants"
 import {
   getWorkerCard,
+  gotoCercaLavoratori,
   gotoGate1,
+  setSearchQuery,
   waitForLavoratoreUpdateRecord,
   workerDetailTab,
 } from "../support/lavoratori"
-import { setLavoratoreLookupField } from "../support/lavoratori-mutations"
+import { resetGate1Fixture } from "../support/lavoratori-mutations"
 
 test.describe("gate 1: worker detail", () => {
   test.describe.configure({ timeout: 60_000 })
 
   test.beforeEach(async ({ page }) => {
+    await resetGate1Fixture()
     await gotoGate1(page)
+  })
+
+  test.afterEach(async () => {
+    await resetGate1Fixture()
   })
 
   test("auto-selects first worker and shows gate stepper sections", async ({ page }) => {
@@ -46,12 +53,10 @@ test.describe("gate 1: worker detail", () => {
     await waitForLavoratoreUpdateRecord(page)
 
     await page.reload()
-    await gotoGate1(page)
-    await getWorkerCard(page, qualificatoTo.id).click()
-    await workerDetailTab(page, "Assessment").click()
-    await expect(page.getByText("Non idoneo", { exact: true })).toBeVisible()
-
-    await setLavoratoreLookupField(qualificatoTo.id, "stato_lavoratore", "Qualificato")
-    await setLavoratoreLookupField(qualificatoTo.id, "motivazione_non_idoneo", null)
+    await gotoCercaLavoratori(page)
+    await setSearchQuery(page, qualificatoTo.searchText)
+    const card = getWorkerCard(page, qualificatoTo.id)
+    await expect(card).toBeVisible({ timeout: 30_000 })
+    await expect(card.getByText("Non idoneo", { exact: true })).toBeVisible()
   })
 })

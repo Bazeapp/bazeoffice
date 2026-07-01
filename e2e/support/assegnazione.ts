@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
 import { E2E_ASSEGNAZIONE } from "../constants"
+import { dropPayloadOnSelector } from "./drag-and-drop"
 import { selectors } from "./selectors"
 
 const BOARD_LOAD_TIMEOUT_MS = 30_000
@@ -227,7 +228,12 @@ export async function dragCardToDay(page: Page, processId: string, dateKey: stri
     )
     .catch(() => null)
 
-  await column.drop({ data: { "text/plain": processId } })
+  await dropPayloadOnSelector(
+    page,
+    selectors.assegnazione.dayColumn(dateKey),
+    processId,
+    selectors.assegnazione.card(processId),
+  )
   if (updateResponse) {
     await updateResponse
   }
@@ -246,7 +252,12 @@ export async function dragCardToUnassigned(page: Page, processId: string) {
     )
     .catch(() => null)
 
-  await panel.drop({ data: { "text/plain": processId } })
+  await dropPayloadOnSelector(
+    page,
+    selectors.assegnazione.unassignedPanel,
+    processId,
+    selectors.assegnazione.card(processId),
+  )
   if (updateResponse) {
     await updateResponse
   }

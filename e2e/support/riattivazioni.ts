@@ -5,6 +5,7 @@ import {
   E2E_RIATTIVAZIONI_VISIBLE_FIXTURE_IDS,
   riattivazioniStageTestId,
 } from "../constants"
+import { dropPayloadOnSelector } from "./drag-and-drop"
 import { selectors } from "./selectors"
 
 const BOARD_LOAD_TIMEOUT_MS = 30_000
@@ -128,7 +129,12 @@ export async function dragCardToColumn(
     )
     .catch(() => null)
 
-  await column.drop({ data: { "text/plain": chiusuraId } })
+  await dropPayloadOnSelector(
+    page,
+    selectors.riattivazioni.column(riattivazioniStageTestId(targetStageId)),
+    chiusuraId,
+    selectors.riattivazioni.card(chiusuraId),
+  )
   if (updateResponse) {
     await updateResponse
   }

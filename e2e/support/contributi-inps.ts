@@ -5,6 +5,7 @@ import {
   E2E_CONTRIBUTI_INPS_VISIBLE_FIXTURE_IDS,
   contributiInpsStageTestId,
 } from "../constants"
+import { dropPayloadOnSelector } from "./drag-and-drop"
 import { selectors } from "./selectors"
 
 const BOARD_LOAD_TIMEOUT_MS = 30_000
@@ -177,7 +178,12 @@ export async function dragCardToColumn(
     )
     .catch(() => null)
 
-  await column.drop({ data: { "text/plain": contributoId } })
+  await dropPayloadOnSelector(
+    page,
+    selectors.contributiInps.column(contributiInpsStageTestId(targetStageLabel)),
+    contributoId,
+    selectors.contributiInps.card(contributoId),
+  )
   if (updateResponse) {
     await updateResponse
   }

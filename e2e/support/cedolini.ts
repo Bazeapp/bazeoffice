@@ -5,6 +5,7 @@ import {
   E2E_CEDOLINI_VISIBLE_FIXTURE_IDS,
   cedoliniStageTestId,
 } from "../constants"
+import { dropPayloadOnSelector } from "./drag-and-drop"
 import { selectors } from "./selectors"
 
 const BOARD_LOAD_TIMEOUT_MS = 30_000
@@ -176,7 +177,12 @@ export async function dragCardToColumn(
     )
     .catch(() => null)
 
-  await column.drop({ data: { "text/plain": cedolinoId } })
+  await dropPayloadOnSelector(
+    page,
+    selectors.cedolini.column(cedoliniStageTestId(targetStageLabel)),
+    cedolinoId,
+    selectors.cedolini.card(cedolinoId),
+  )
   if (updateResponse) {
     await updateResponse
   }

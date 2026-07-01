@@ -5,6 +5,7 @@ import {
   E2E_VARIAZIONI_VISIBLE_FIXTURE_IDS,
   variazioniStageTestId,
 } from "../constants"
+import { dropPayloadOnSelector } from "./drag-and-drop"
 import { selectors } from "./selectors"
 
 const BOARD_LOAD_TIMEOUT_MS = 30_000
@@ -128,7 +129,12 @@ export async function dragCardToColumn(
     )
     .catch(() => null)
 
-  await column.drop({ data: { "text/plain": variazioneId } })
+  await dropPayloadOnSelector(
+    page,
+    selectors.variazioni.column(variazioniStageTestId(targetStageLabel)),
+    variazioneId,
+    selectors.variazioni.card(variazioneId),
+  )
   if (updateResponse) {
     await updateResponse
   }

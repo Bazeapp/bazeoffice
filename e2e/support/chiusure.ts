@@ -5,6 +5,7 @@ import {
   E2E_CHIUSURE_VISIBLE_FIXTURE_IDS,
   chiusureStageTestId,
 } from "../constants"
+import { dropPayloadOnSelector } from "./drag-and-drop"
 import { selectors } from "./selectors"
 
 const BOARD_LOAD_TIMEOUT_MS = 30_000
@@ -132,7 +133,12 @@ export async function dragCardToColumn(
         .catch(() => null)
     : null
 
-  await column.drop({ data: { "text/plain": chiusuraId } })
+  await dropPayloadOnSelector(
+    page,
+    selectors.chiusure.column(chiusureStageTestId(targetStageLabel)),
+    chiusuraId,
+    selectors.chiusure.card(chiusuraId),
+  )
   if (updateResponse) {
     await updateResponse
   }

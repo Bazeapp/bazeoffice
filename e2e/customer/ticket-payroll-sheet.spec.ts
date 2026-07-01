@@ -5,6 +5,7 @@ import {
   closeCardSheet,
   expectCardInColumn,
   expectCardNotInColumn,
+  getTicketRapportoSection,
   gotoSupportTickets,
   openCardSheet,
   reloadSupportTickets,
@@ -29,13 +30,14 @@ test.describe("ticket-payroll: detail sheet", () => {
   }) => {
     await gotoSupportTickets(page, "payroll")
     const sheet = await openCardSheet(page, "payroll", cedolinoAperto.id)
+    const rapportoSection = getTicketRapportoSection(sheet)
 
     await expect(
       sheet.getByRole("heading", { name: cedolinoAperto.causaleSearchText }),
     ).toBeVisible()
     await expect(sheet.getByText("Record collegato", { exact: true })).toBeVisible()
     await expect(sheet.getByText("Cedolino", { exact: true }).first()).toBeVisible()
-    await expect(sheet.getByText("Rapporto collegato", { exact: true })).toBeVisible()
+    await expect(rapportoSection.getByText("Rapporto collegato", { exact: true })).toBeVisible()
     await expect(sheet.getByText("Categoria e urgenza", { exact: true })).toBeVisible()
     await expect(sheet.getByText("Allegati", { exact: true })).toBeVisible()
 
@@ -46,12 +48,13 @@ test.describe("ticket-payroll: detail sheet", () => {
   test("contributi-linked ticket shows payroll category context", async ({ page }) => {
     await gotoSupportTickets(page, "payroll")
     const sheet = await openCardSheet(page, "payroll", contributiPresoInCarico.id)
+    const rapportoSection = getTicketRapportoSection(sheet)
 
     await expect(
-      sheet.getByText(contributiPresoInCarico.famigliaSearchText, { exact: false }),
+      sheet.getByText(contributiPresoInCarico.famigliaSearchText, { exact: false }).first(),
     ).toBeVisible()
     await expect(sheet.getByText("Contributi", { exact: true }).first()).toBeVisible()
-    await expect(sheet.getByText("Rapporto collegato", { exact: true })).toBeVisible()
+    await expect(rapportoSection.getByText("Rapporto collegato", { exact: true })).toBeVisible()
   })
 
   test("sheet stato change moves card and persists after reload", async ({ page }) => {

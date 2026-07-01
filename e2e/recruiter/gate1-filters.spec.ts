@@ -11,6 +11,7 @@ import {
   setProvinciaFilter,
   setSearchQuery,
 } from "../support/lavoratori"
+import { resetGate1Fixture } from "../support/lavoratori-mutations"
 
 test.describe("gate 1: list filters", () => {
   test.describe.configure({ timeout: 90_000 })
@@ -22,6 +23,7 @@ test.describe("gate 1: list filters", () => {
     const { qualificatoMi, qualificatoTo } = E2E_LAVORATORI.lavoratori
 
     test.beforeAll(async ({ browser }) => {
+      await resetGate1Fixture()
       gatePage = await browser.newPage()
       await gotoGate1(gatePage)
       for (const workerId of gate1FixtureIds()) {

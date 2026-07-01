@@ -107,6 +107,17 @@ export async function setLavoratoreAddressField(
   }
 }
 
+/** Restore Gate 1 fixture workers after detail tests mutate stato. */
+export async function resetGate1Fixture() {
+  const { qualificatoMi, qualificatoTo } = E2E_LAVORATORI.lavoratori
+  await Promise.all([
+    setLavoratoreStringField(qualificatoMi.id, "stato_lavoratore", "Qualificato"),
+    setLavoratoreStringField(qualificatoMi.id, "motivazione_non_idoneo", null),
+    setLavoratoreStringField(qualificatoTo.id, "stato_lavoratore", "Qualificato"),
+    setLavoratoreStringField(qualificatoTo.id, "motivazione_non_idoneo", null),
+  ])
+}
+
 /** Restore Gate 2 idoneo fixture worker status after certification tests. */
 export async function resetGate2IdoneoFixture() {
   await setLavoratoreStringField(

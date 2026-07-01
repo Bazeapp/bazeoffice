@@ -5,6 +5,7 @@ import {
   E2E_ASSUNZIONI_VISIBLE_FIXTURE_IDS,
   assunzioniStageTestId,
 } from "../constants"
+import { dropPayloadOnSelector } from "./drag-and-drop"
 import { selectors } from "./selectors"
 
 const BOARD_LOAD_TIMEOUT_MS = 30_000
@@ -151,7 +152,12 @@ export async function dragCardToColumn(
     )
     .catch(() => null)
 
-  await column.drop({ data: { "text/plain": rapportoId } })
+  await dropPayloadOnSelector(
+    page,
+    selectors.assunzioni.column(assunzioniStageTestId(targetStageLabel)),
+    rapportoId,
+    selectors.assunzioni.card(rapportoId),
+  )
   if (updateResponse) {
     await updateResponse
   }

@@ -861,14 +861,14 @@ export const E2E_PROVE_COLLOQUI = {
       eventDomId: "colloquio-00000000-0000-0000-0000-00000000f901",
       processoId: "00000000-0000-0000-0000-00000000b00c",
       famigliaSearchText: "Famiglia Rossi",
-      lavoratoreSearchText: "Lavoratore Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
     },
     bianchi: {
       id: "00000000-0000-0000-0000-00000000f902",
       eventDomId: "colloquio-00000000-0000-0000-0000-00000000f902",
       processoId: "00000000-0000-0000-0000-00000000b00d",
       famigliaSearchText: "Famiglia Bianchi",
-      lavoratoreSearchText: "Lavoratore Bianchi",
+      lavoratoreSearchText: "Lavoratore Neri",
     },
   },
 } as const

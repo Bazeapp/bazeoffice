@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
 import { E2E_RICERCA } from "../constants"
+import { dropPayloadOnSelector } from "./drag-and-drop"
 import { selectors } from "./selectors"
 
 const BOARD_LOAD_TIMEOUT_MS = 30_000
@@ -251,7 +252,12 @@ export async function dragCardToColumn(
     )
     .catch(() => null)
 
-  await column.drop({ data: { "text/plain": processId } })
+  await dropPayloadOnSelector(
+    page,
+    selectors.ricerca.column(targetStageId),
+    processId,
+    selectors.ricerca.card(processId),
+  )
   if (updateResponse) {
     await updateResponse
   }

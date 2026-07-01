@@ -22,11 +22,7 @@ test.describe("chiusure: annullamento create", () => {
       .getByPlaceholder("Cerca per famiglia o lavoratore...")
       .fill(annullamentoRapporto.lavoratoreSearchText)
     await dialog
-      .getByRole("button", {
-        name: new RegExp(
-          `${annullamentoRapporto.famigliaSearchText}.*${annullamentoRapporto.lavoratoreSearchText}`,
-        ),
-      })
+      .locator(`[data-testid="chiusure-annullamento-rapporto-${annullamentoRapporto.id}"]`)
       .click()
 
     const createResponse = page.waitForResponse(

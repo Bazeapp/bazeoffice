@@ -54,13 +54,18 @@ export async function mockEdgeFunctionSuccess(
   page: Page,
   functionName: string,
   body: Record<string, unknown>,
+  options: { delayMs?: number } = {},
 ) {
+  const { delayMs = 0 } = options
   const functionsOrigin = getLocalSupabaseConfig().VITE_SUPABASE_URL.replace(
     /\/$/,
     "",
   )
   const pattern = `${functionsOrigin}/functions/v1/${functionName}*`
   await page.route(pattern, async (route) => {
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
     await route.fulfill({
       status: 200,
       contentType: "application/json",
