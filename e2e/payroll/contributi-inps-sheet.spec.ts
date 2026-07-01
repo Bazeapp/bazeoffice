@@ -52,6 +52,29 @@ test.describe("contributi-inps: detail sheet", () => {
     await expect(page.locator(selectors.contributiInps.sheetDialog)).toHaveCount(0)
   })
 
+  test("header shows quarter label and editable workflow stato", async ({ page }) => {
+    await gotoContributiInps(page)
+    const dialog = await openCardSheet(page, daRichiedere.id)
+    await waitForContributoInpsDetail(page)
+
+    await expect(dialog.getByText(E2E_CONTRIBUTI_INPS.quarterLabel, { exact: true }).first()).toBeVisible()
+    await expect(dialog.getByRole("combobox").first()).toContainText(
+      E2E_CONTRIBUTI_INPS.stages.daRichiedere,
+    )
+  })
+
+  test("linked rapporto summary shows navigation and contract context", async ({ page }) => {
+    await gotoContributiInps(page)
+    const dialog = await openCardSheet(page, daRichiedere.id)
+    await waitForContributoInpsDetail(page)
+
+    await expect(dialog.getByText("Rapporto collegato", { exact: true })).toBeVisible()
+    await expect(dialog.getByRole("link", { name: "Vai al rapporto" })).toBeVisible()
+    await expect(dialog.getByText("Tipo", { exact: true }).first()).toBeVisible()
+    await expect(dialog.getByText("Ore sett.", { exact: true })).toBeVisible()
+    await expect(dialog.getByText("Inizio", { exact: true })).toBeVisible()
+  })
+
   test("contributo section shows importo and editable fields", async ({ page }) => {
     await gotoContributiInps(page)
     const dialog = await openCardSheet(page, pagopaRicevuto.id)
@@ -60,6 +83,7 @@ test.describe("contributi-inps: detail sheet", () => {
     await expect(dialog.getByText("Importo contributo INPS", { exact: true })).toBeVisible()
     await expect(dialog.getByText("Valore PagoPA", { exact: true })).toBeVisible()
     await expect(dialog.getByText("Data invio famiglia", { exact: true })).toBeVisible()
+    await expect(dialog.getByText("Creato il", { exact: true })).toBeVisible()
     await expect(dialog.getByText("Importo attuale", { exact: true })).toBeVisible()
     await expect(dialog.getByText("PagoPA attuale", { exact: true })).toBeVisible()
   })
