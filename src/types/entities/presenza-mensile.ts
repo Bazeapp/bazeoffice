@@ -9,7 +9,6 @@ export type PresenzaMensileRecord = {
   note_interne: string | null
   ticket_id: string | null
   airtable_id: string | null
-  airtable_record_id: string | null
   creato_il: string | null
   aggiornato_il: string | null
   metadati_migrazione: JsonObject | null
