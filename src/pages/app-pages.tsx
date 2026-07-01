@@ -86,6 +86,9 @@ type AppPageContentProps = {
   onOpenAnagraficheTab: (tab: AppRoute["anagraficheTab"]) => void
   onOpenRicercaDetail: (processId: string, options?: OpenRicercaDetailOptions) => void
   onBackFromRicercaDetail: () => void
+  onOpenRelatedRicerca: (processId: string, selectionId: string) => void
+  onFocusRicercaSelection: (selectionId: string | null) => void
+  onSelectRapporto: (rapportoId: string | null) => void
 }
 
 export function AppPageContent({
@@ -93,6 +96,9 @@ export function AppPageContent({
   onOpenAnagraficheTab,
   onOpenRicercaDetail,
   onBackFromRicercaDetail,
+  onOpenRelatedRicerca,
+  onFocusRicercaSelection,
+  onSelectRapporto,
 }: AppPageContentProps) {
   if (route.mainSection === "crm_pipeline_famiglie") {
     return <CrmPipelineFamigliePage />
@@ -106,7 +112,10 @@ export function AppPageContent({
     return route.ricercaProcessId ? (
       <RicercaDetailPage
         processId={route.ricercaProcessId}
+        selectionId={route.ricercaSelectionId ?? null}
         onBack={onBackFromRicercaDetail}
+        onOpenRelatedRicerca={onOpenRelatedRicerca}
+        onFocusSelection={onFocusRicercaSelection}
       />
     ) : (
       <RicercaBoardPage onOpenDetail={onOpenRicercaDetail} />
@@ -134,12 +143,17 @@ export function AppPageContent({
     return (
       <RapportiLavorativiPage
         initialSelectedRapportoId={route.selectedRapportoId ?? null}
+        onSelectRapporto={onSelectRapporto}
       />
     )
   }
 
   if (route.mainSection === "gestione_contrattuale_assunzioni") {
-    return <AssunzioniPage />
+    return (
+      <AssunzioniPage
+        initialSelectedRapportoId={route.selectedAssunzioneRapportoId ?? null}
+      />
+    )
   }
 
   if (route.mainSection === "gestione_contrattuale_chiusure") {
