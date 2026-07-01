@@ -78,6 +78,29 @@ test.describe("prove-colloqui: colloqui calendar", () => {
       await closeSheet(provePage)
     })
 
+    test("colloquio esito change persists after reopen", async () => {
+      const dialog = await openColloquioEvent(provePage, rossi.eventDomId)
+      const esitoSelect = dialog.getByRole("combobox").first()
+      await esitoSelect.click()
+      const option = provePage.getByRole("option").nth(1)
+      const optionLabel = (await option.textContent()) ?? ""
+      await option.click()
+
+      const updateResponse = provePage.waitForResponse(
+        (response) =>
+          response.url().includes("/functions/v1/update-record") &&
+          response.request().method() === "POST" &&
+          response.ok(),
+        { timeout: 30_000 },
+      )
+      await updateResponse
+
+      await closeSheet(provePage)
+      const reopened = await openColloquioEvent(provePage, rossi.eventDomId)
+      await expect(reopened.getByRole("combobox").first()).toContainText(optionLabel.trim())
+      await closeSheet(provePage)
+    })
+
     test("week navigation keeps fixture events discoverable", async () => {
       await provePage.getByRole("button", { name: "Periodo precedente" }).click()
       await expect(getCalendarEvent(provePage, rossi.eventDomId)).toHaveCount(0)

@@ -68,3 +68,8 @@ export async function mockEdgeFunctionSuccess(
     })
   })
 }
+
+/** Intercept the anagrafiche `table-query` edge function. */
+export async function interceptTableQuery(page: Page, status = 500) {
+  return interceptEdgeFunction(page, "table-query", status)
+}

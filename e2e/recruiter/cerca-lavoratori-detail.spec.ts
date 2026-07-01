@@ -47,4 +47,13 @@ test.describe("cerca lavoratori: worker detail", () => {
       timeout: 30_000,
     })
   })
+
+  test("deep link opens the requested worker detail", async ({ page }) => {
+    await page.goto(`${selectors.routes.cercaLavoratori}/${qualificatoMi.id}`)
+    await expect(page.locator(selectors.appSidebar)).toBeVisible({ timeout: 30_000 })
+    await expect(workerDetailHeading(page, qualificatoMi.displayName)).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(getWorkerCard(page, qualificatoMi.id)).toHaveAttribute("data-selected", "true")
+  })
 })

@@ -71,4 +71,15 @@ test.describe("ticket-payroll: detail sheet", () => {
     const persisted = await readTicketStato(cedolinoAperto.id)
     expect(persisted).toBe(presoInCarico)
   })
+
+  test("rapporto-linked ticket navigates to rapporto detail", async ({ page }) => {
+    await gotoSupportTickets(page, "payroll")
+    const sheet = await openCardSheet(page, "payroll", cedolinoAperto.id)
+
+    await sheet.getByRole("link", { name: "Vai al rapporto" }).click()
+    await expect(page).toHaveURL(new RegExp(`/gestione-contrattuale/rapporti-lavorativi/`))
+    await expect(page.getByRole("tab", { name: "Contratto", exact: true })).toBeVisible({
+      timeout: 30_000,
+    })
+  })
 })

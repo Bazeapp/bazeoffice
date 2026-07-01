@@ -96,12 +96,10 @@ test.describe("ricerca: detail view", () => {
 
     await ricercaDetailTab(page, "Mappa").click()
     await expect(ricercaDetailTab(page, "Mappa")).toHaveAttribute("data-state", "active")
-    await expect(
-      page
-        .getByText("Mappa lavoratori", { exact: true })
-        .or(page.getByText("Indirizzo del processo mancante", { exact: false }))
-        .or(page.getByText("Geocodifica indirizzo in corso", { exact: false })),
-    ).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByText("Mappa lavoratori", { exact: true })).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(page.locator(".leaflet-container")).toBeVisible({ timeout: 30_000 })
 
     await ricercaDetailTab(page, "Pipeline").click()
     await expect(ricercaDetailTab(page, "Pipeline")).toHaveAttribute("data-state", "active")

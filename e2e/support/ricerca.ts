@@ -223,8 +223,12 @@ export async function waitForRicercaUpdateRecord(page: Page) {
   )
 }
 
-export async function backToRicercaBoard(page: Page) {
+export async function clickBackFromRicercaDetail(page: Page) {
   await page.locator(selectors.ricerca.backToBoard).click()
+}
+
+export async function backToRicercaBoard(page: Page) {
+  await clickBackFromRicercaDetail(page)
   await expect(
     page.getByRole("heading", { name: selectors.ricerca.heading }),
   ).toBeVisible({ timeout: BOARD_LOAD_TIMEOUT_MS })
@@ -271,6 +275,58 @@ export async function expectCardNotInColumn(
   await expect(
     getColumn(page, stageId).locator(selectors.ricerca.card(processId)),
   ).toHaveCount(0)
+}
+
+export async function dragWorkerSelectionToGroup(
+  page: Page,
+  workerDisplayName: string,
+  targetGroupLabel: string,
+  selectionId: string,
+) {
+  const updateResponse = page
+    .waitForResponse(
+      (response) =>
+        response.url().includes("/functions/v1/update-record") &&
+        response.request().method() === "POST" &&
+        response.ok(),
+      { timeout: BOARD_LOAD_TIMEOUT_MS },
+    )
+    .catch(() => null)
+
+  await page.evaluate(
+    ({ workerName, groupLabel, selezioneId }) => {
+      const card = Array.from(document.querySelectorAll<HTMLElement>('[draggable="true"]')).find(
+        (element) => element.textContent?.includes(workerName),
+      )
+      if (!card) {
+        throw new Error(`Worker card not found for ${workerName}`)
+      }
+
+      const dataTransfer = new DataTransfer()
+      dataTransfer.setData("text/plain", selezioneId)
+      card.dispatchEvent(
+        new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer }),
+      )
+
+      const zone = Array.from(document.querySelectorAll<HTMLElement>("div.border-dashed")).find(
+        (element) => element.textContent?.includes(groupLabel),
+      )
+      if (!zone) {
+        throw new Error(`Drop zone not found for ${groupLabel}`)
+      }
+
+      zone.dispatchEvent(
+        new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer }),
+      )
+      zone.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }))
+    },
+    { workerName: workerDisplayName, groupLabel: targetGroupLabel, selezioneId: selectionId },
+  )
+
+  if (updateResponse) {
+    await updateResponse
+  }
+  await page.waitForTimeout(500)
 }
 
 export function processIdsInStage(stageId: keyof typeof E2E_RICERCA.stages) {

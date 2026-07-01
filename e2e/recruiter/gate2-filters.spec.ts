@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import { E2E_LAVORATORI } from "../constants"
+import { resetGate2IdoneoFixture } from "../support/lavoratori-mutations"
 import {
   clearSearchQuery,
   expectLavoratoreCardVisibility,
@@ -23,6 +24,7 @@ test.describe("gate 2: list filters", () => {
     const { qualificatoMi, qualificatoTo, idoneoMi } = E2E_LAVORATORI.lavoratori
 
     test.beforeAll(async ({ browser }) => {
+      await resetGate2IdoneoFixture()
       gatePage = await browser.newPage()
       await gotoGate2(gatePage)
     })

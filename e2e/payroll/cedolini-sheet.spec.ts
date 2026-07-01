@@ -73,6 +73,20 @@ test.describe("cedolini: detail sheet", () => {
     await expect(dialog.getByText("Inizio", { exact: true })).toBeVisible()
   })
 
+  test("linked rapporto navigation opens rapporto detail page", async ({ page }) => {
+    await gotoCedolini(page)
+    const dialog = await openCardSheet(page, todo.id)
+    await waitForCedolinoDetail(page)
+
+    await dialog.getByRole("link", { name: "Vai al rapporto" }).click()
+    await expect(page).toHaveURL(
+      new RegExp(`/gestione-contrattuale/rapporti-lavorativi/${todo.rapportoId}`),
+    )
+    await expect(page.getByRole("tab", { name: "Contratto", exact: true })).toBeVisible({
+      timeout: 30_000,
+    })
+  })
+
   test("dettagli rapporto section shows relationship metadata fields", async ({ page }) => {
     await gotoCedolini(page)
     const dialog = await openCardSheet(page, todo.id)

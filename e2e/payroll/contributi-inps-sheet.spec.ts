@@ -75,6 +75,20 @@ test.describe("contributi-inps: detail sheet", () => {
     await expect(dialog.getByText("Inizio", { exact: true })).toBeVisible()
   })
 
+  test("linked rapporto navigation opens rapporto detail page", async ({ page }) => {
+    await gotoContributiInps(page)
+    const dialog = await openCardSheet(page, daRichiedere.id)
+    await waitForContributoInpsDetail(page)
+
+    await dialog.getByRole("link", { name: "Vai al rapporto" }).click()
+    await expect(page).toHaveURL(
+      new RegExp(`/gestione-contrattuale/rapporti-lavorativi/${daRichiedere.rapportoId}`),
+    )
+    await expect(page.getByRole("tab", { name: "Contratto", exact: true })).toBeVisible({
+      timeout: 30_000,
+    })
+  })
+
   test("contributo section shows importo and editable fields", async ({ page }) => {
     await gotoContributiInps(page)
     const dialog = await openCardSheet(page, pagopaRicevuto.id)

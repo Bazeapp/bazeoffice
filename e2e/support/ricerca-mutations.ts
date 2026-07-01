@@ -1,5 +1,51 @@
 import { getSupabaseAdmin } from "./supabase-admin"
 
+export async function readWorkerSelezioneId(processId: string, workerId: string) {
+  const { data, error } = await getSupabaseAdmin()
+    .from("selezioni_lavoratori")
+    .select("id")
+    .eq("processo_matching_id", processId)
+    .eq("lavoratore_id", workerId)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(
+      `E2E readWorkerSelezioneId failed for ${processId}/${workerId}: ${error.message}`,
+    )
+  }
+
+  return (data as { id: string } | null)?.id ?? null
+}
+
+/** Ensure a worker selection exists for cerca-lavoratori → ricerca navigation tests. */
+export async function ensureWorkerSelezione(
+  processId: string,
+  workerId: string,
+  statoSelezione = "Prospetto",
+) {
+  const existingId = await readWorkerSelezioneId(processId, workerId)
+  if (existingId) return existingId
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("selezioni_lavoratori")
+    .insert({
+      processo_matching_id: processId,
+      lavoratore_id: workerId,
+      stato_selezione: statoSelezione,
+      source: "manuale",
+    })
+    .select("id")
+    .single()
+
+  if (error) {
+    throw new Error(
+      `E2E ensureWorkerSelezione failed for ${processId}/${workerId}: ${error.message}`,
+    )
+  }
+
+  return (data as { id: string }).id
+}
+
 /** Remove all worker selections for a process (E2E cleanup after manual add / smart matching). */
 export async function deleteAllSelezioneForProcess(processId: string) {
   const { error } = await getSupabaseAdmin()

@@ -163,4 +163,17 @@ test.describe("ticket-customer: detail sheet", () => {
       page.getByRole("heading", { name: new RegExp(chiusuraAperto.causaleSearchText) }),
     ).toHaveCount(0)
   })
+
+  test("rapporto-linked ticket navigates to rapporto detail", async ({ page }) => {
+    await gotoSupportTickets(page, "customer")
+    const sheet = await openCardSheet(page, "customer", rapportoPresoInCarico.id)
+
+    await sheet.getByRole("link", { name: "Vai al rapporto" }).click()
+    await expect(page).toHaveURL(
+      new RegExp(`/gestione-contrattuale/rapporti-lavorativi/${rapportoPresoInCarico.rapportoId}`),
+    )
+    await expect(page.getByRole("tab", { name: "Contratto", exact: true })).toBeVisible({
+      timeout: 30_000,
+    })
+  })
 })

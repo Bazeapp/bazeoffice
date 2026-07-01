@@ -1,3 +1,5 @@
+import { E2E_LAVORATORI } from "../constants"
+
 import { getSupabaseAdmin } from "./supabase-admin"
 
 export async function readLavoratoreStringField(workerId: string, field: string) {
@@ -105,6 +107,15 @@ export async function setLavoratoreAddressField(
   }
 }
 
+/** Restore Gate 2 idoneo fixture worker status after certification tests. */
+export async function resetGate2IdoneoFixture() {
+  await setLavoratoreStringField(
+    E2E_LAVORATORI.lavoratori.idoneoMi.id,
+    "stato_lavoratore",
+    "Idoneo",
+  )
+}
+
 /** Restore sidebar-editable fields on the qualificatoMi cerca-lavoratori fixture. */
 export async function resetCercaLavoratoriDetailFixture(workerId: string) {
   await Promise.all([
@@ -117,4 +128,45 @@ export async function resetCercaLavoratoriDetailFixture(workerId: string) {
     setLavoratoreStringField(workerId, "stato_verifica_documenti", null),
     setLavoratoreAddressField(workerId, "citta", "Milano"),
   ])
+}
+
+export async function readLavoratoreLookupField(workerId: string, field: string) {
+  const value = await readLavoratoreStringField(workerId, field)
+  if (!value) return null
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const first = parsed[0]
+      if (typeof first === "string") return first
+    }
+  } catch {
+    // plain string lookup value
+  }
+  return value
+}
+
+export async function setLavoratoreLookupField(
+  workerId: string,
+  field: string,
+  value: string | null,
+) {
+  await setLavoratoreStringField(workerId, field, value ? JSON.stringify([value]) : null)
+}
+
+export async function readWorkerSelezioneStato(processId: string, workerId: string) {
+  const { data, error } = await getSupabaseAdmin()
+    .from("selezioni_lavoratori")
+    .select("stato_selezione")
+    .eq("processo_matching_id", processId)
+    .eq("lavoratore_id", workerId)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(
+      `E2E readWorkerSelezioneStato failed for ${processId}/${workerId}: ${error.message}`,
+    )
+  }
+
+  const row = data as { stato_selezione: string | null } | null
+  return row?.stato_selezione ?? null
 }
