@@ -1389,11 +1389,16 @@ export function RapportoDetailPanel({
                       email={familyEmail}
                       phone={familyPhone}
                       href={
-                        famiglia
+                        rapporto?.id
                           ? buildPathForRoute({
-                              mainSection: "anagrafiche",
+                              // BAZ-20: apre la pagina Assunzioni con la card di
+                              // questo rapporto già selezionata (il board è
+                              // indicizzato per rapporto id). Il CS ha bisogno
+                              // dei dati dell'assunzione per i controlli INPS.
+                              mainSection: "gestione_contrattuale_assunzioni",
                               anagraficheTab: "famiglie",
                               ricercaProcessId: null,
+                              selectedAssunzioneRapportoId: rapporto.id,
                             })
                           : undefined
                       }
