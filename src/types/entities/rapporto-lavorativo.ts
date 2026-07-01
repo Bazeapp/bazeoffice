@@ -16,11 +16,9 @@ export type RapportoLavorativoRecord = {
   id_rapporto: string | null
   lavoratore_id: string | null
   nome_lavoratore_per_url: string | null
-  numero_rapporto_attivato_con_baze: number | null
   ore_a_settimana: number | null
   paga_mensile_lorda: number | null
   paga_oraria_lorda: number | null
-  preventivo_id: string | null
   processi_matching_id: string | null
   assunzione_datore_id: string | null
   assunzione_lavoratore_id: string | null
@@ -36,24 +34,17 @@ export type RapportoLavorativoRecord = {
   registrazione_chiamate_famiglia: JsonObject | JsonObject[] | null
   registrazione_chiamate_lavoratori: JsonObject | JsonObject[] | null
   relazione_lavorativa: string | null
-  request_lavoratore_referenza: string | null
-  request_trustpilot_review: boolean | null
   ricevuta_inps_allegati: JsonObject | JsonObject[] | null
   richiesta_attivazione_id: string | null
-  richiedere_trustpilot_temp: boolean | null
   stato_assunzione: string | null
   stato_rapporto: string | null
   stato_riattivazione: string | null
   stato_servizio: string | null
-  temp_check_errore_email: boolean | null
   ticket_id: string | null
   tipo_contratto: string | null
   tipo_contratto_durata: string | null
   tipo_rapporto: string | null
-  ultimo_aggiornamento: string | null
-  webcolf: boolean | null
   airtable_id: string | null
-  airtable_record_id: string | null
   creato_il: string | null
   aggiornato_il: string | null
   metadati_migrazione: JsonObject | null

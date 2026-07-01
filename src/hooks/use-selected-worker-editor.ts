@@ -347,9 +347,7 @@ export function useSelectedWorkerEditor({
   )
   const resolvedIban = asString(selectedWorkerRow?.iban)
   const availabilityPayload = React.useMemo(
-    () =>
-      parseAvailabilityPayload(selectedWorkerRow?.availability_final_json) ??
-      parseAvailabilityPayload(selectedWorkerRow?.disponibilita_per_json),
+    () => parseAvailabilityPayload(selectedWorkerRow?.availability_final_json),
     [selectedWorkerRow]
   )
   const [availabilityDraft, setAvailabilityDraft] = React.useState<WorkerAvailabilityDraft>(() =>
