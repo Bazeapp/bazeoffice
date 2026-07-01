@@ -59,8 +59,50 @@ export function workerDetailTab(page: Page, label: string) {
   return page.getByRole("tab", { name: label, exact: true })
 }
 
+export function workerDetailPanel(page: Page) {
+  return page
+    .locator("section.bg-surface-muted")
+    .filter({ has: page.locator(selectors.lavoratori.closeDetail) })
+}
+
 export function workerDetailHeading(page: Page, name: string) {
   return page.locator("h2").filter({ hasText: name })
+}
+
+export function workerDetailSection(page: Page, title: string) {
+  return workerDetailPanel(page)
+    .locator("[class*='rounded-xl']")
+    .filter({ has: page.getByText(title, { exact: true }) })
+    .first()
+}
+
+export async function scrollToWorkerDetailTab(page: Page, label: string) {
+  await workerDetailTab(page, label).click()
+}
+
+export async function openWorkerSectionEdit(page: Page, buttonName: string) {
+  await workerDetailPanel(page)
+    .getByRole("button", { name: buttonName, exact: true })
+    .click()
+}
+
+export function workerDetailLabeledInput(page: Page, label: string) {
+  return workerDetailPanel(page)
+    .locator("div.space-y-1, div.space-y-2")
+    .filter({ has: page.getByText(label, { exact: true }) })
+    .locator("input, textarea")
+    .first()
+}
+
+export async function waitForLavoratoreUpdateRecord(page: Page) {
+  await page.waitForResponse(
+    (response) =>
+      (response.url().includes("/functions/v1/update-record") ||
+        response.url().includes("/functions/v1/create-record")) &&
+      response.request().method() === "POST" &&
+      response.ok(),
+    { timeout: 15_000 },
+  )
 }
 
 async function selectDropdownOption(page: Page, label: string) {
@@ -151,7 +193,7 @@ export async function setGate2StatusFilter(
 
 export async function openWorkerDetail(page: Page, workerId: string) {
   const card = getWorkerCard(page, workerId)
-  await card.scrollIntoViewIfNeeded()
+  await expect(card).toBeVisible({ timeout: BOARD_LOAD_TIMEOUT_MS })
   await card.click()
   await expect(page.locator(selectors.lavoratori.closeDetail)).toBeVisible({
     timeout: BOARD_LOAD_TIMEOUT_MS,

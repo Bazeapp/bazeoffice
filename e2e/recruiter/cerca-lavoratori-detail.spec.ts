@@ -31,6 +31,9 @@ test.describe("cerca lavoratori: worker detail", () => {
     await expect(workerDetailTab(page, "Calendario")).toBeVisible()
     await expect(workerDetailTab(page, "Ricerca")).toBeVisible()
     await expect(workerDetailTab(page, "Esperienze")).toBeVisible()
+    await expect(workerDetailTab(page, "Competenze")).toBeVisible()
+    await expect(workerDetailTab(page, "Documenti e dati amministrativi")).toBeVisible()
+    await expect(workerDetailTab(page, "Ricerche")).toBeVisible()
 
     await closeWorkerDetail(page)
     await expect(page.locator(selectors.lavoratori.closeDetail)).toHaveCount(0)
