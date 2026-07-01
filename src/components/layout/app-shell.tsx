@@ -189,6 +189,21 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     []
   )
 
+  const handleSelectRapporto = React.useCallback(
+    (rapportoId: string | null) => {
+      // Annota la URL del board rapporti con il rapporto aperto (replace, nessuna
+      // nuova entry di history) così il Back del browser — es. dopo il deep-link
+      // "Datore" verso Assunzioni — ripristina il rapporto che era aperto invece
+      // del board vuoto. Stesso pattern di handleFocusRicercaSelection.
+      setRoute((prev) => {
+        if (prev.mainSection !== "gestione_contrattuale_rapporti") return prev
+        if ((prev.selectedRapportoId ?? null) === (rapportoId ?? null)) return prev
+        return { ...prev, selectedRapportoId: rapportoId }
+      })
+    },
+    []
+  )
+
   const handleOpenGate1 = React.useCallback(() => {
     const nextRoute: AppRoute = {
       mainSection: "gate_1",
@@ -363,6 +378,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
                 onBackFromRicercaDetail={handleBackFromRicercaDetail}
                 onOpenRelatedRicerca={handleOpenRelatedRicerca}
                 onFocusRicercaSelection={handleFocusRicercaSelection}
+                onSelectRapporto={handleSelectRapporto}
               />
             </React.Suspense>
           </div>

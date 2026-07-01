@@ -88,6 +88,7 @@ type AppPageContentProps = {
   onBackFromRicercaDetail: () => void
   onOpenRelatedRicerca: (processId: string, selectionId: string) => void
   onFocusRicercaSelection: (selectionId: string | null) => void
+  onSelectRapporto: (rapportoId: string | null) => void
 }
 
 export function AppPageContent({
@@ -97,6 +98,7 @@ export function AppPageContent({
   onBackFromRicercaDetail,
   onOpenRelatedRicerca,
   onFocusRicercaSelection,
+  onSelectRapporto,
 }: AppPageContentProps) {
   if (route.mainSection === "crm_pipeline_famiglie") {
     return <CrmPipelineFamigliePage />
@@ -141,6 +143,7 @@ export function AppPageContent({
     return (
       <RapportiLavorativiPage
         initialSelectedRapportoId={route.selectedRapportoId ?? null}
+        onSelectRapporto={onSelectRapporto}
       />
     )
   }

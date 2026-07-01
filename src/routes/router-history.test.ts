@@ -8,11 +8,13 @@ import {
 } from "@/routes/app-routes"
 
 /**
- * BAZ-19 relies on a push-vs-replace decision when navigating the ricerca
- * detail. This mirrors `syncBrowserUrl` from `app-shell.tsx` (module-private
+ * Browser-history semantics for the custom slug router (no router library):
+ * the push-vs-replace decisions and the popstate restore that the deep ricerca
+ * navigation (BAZ-19) and the rapporti -> "Datore" -> Assunzioni Back flow both
+ * depend on. This mirrors `syncBrowserUrl` from `app-shell.tsx` (module-private
  * there) and exercises it against the REAL `buildPathForRoute` /
- * `resolveRouteStateFromPath` and the real `window.history`, so the guard
- * survives even if the shell handler is refactored.
+ * `resolveRouteStateFromPath` and the real `window.history`, so the guards
+ * survive even if the shell handlers are refactored.
  */
 function syncBrowserUrl(route: AppRoute, mode: "push" | "replace" = "push") {
   const target = buildPathForRoute(route)
@@ -74,5 +76,47 @@ describe("BAZ-19 — history semantics for deep ricerca navigation", () => {
       "replace",
     )
     expect(window.history.length).toBe(len)
+  })
+})
+
+describe("Datore deep-link → Assunzioni → browser Back restores the open rapporto", () => {
+  const rapportiBoard = (over: Partial<AppRoute> = {}): AppRoute => ({
+    mainSection: "gestione_contrattuale_rapporti",
+    anagraficheTab: "famiglie",
+    ricercaProcessId: null,
+    ...over,
+  })
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", buildPathForRoute(rapportiBoard()))
+  })
+
+  it("selecting a rapporto replaces (no new entry); Datore push; Back restores selectedRapportoId", () => {
+    const lenAtBoard = window.history.length
+
+    // 1) User opens rapporto R in the board -> shell annotates the URL (replace).
+    syncBrowserUrl(rapportiBoard({ selectedRapportoId: "R" }), "replace")
+    expect(window.location.pathname).toContain("rapporti-lavorativi/R")
+    expect(window.history.length).toBe(lenAtBoard)
+
+    const urlBeforeDatore = window.location.pathname
+
+    // 2) "Datore" card deep-link to the assunzione (a real <a href> nav = push).
+    syncBrowserUrl(
+      {
+        mainSection: "gestione_contrattuale_assunzioni",
+        anagraficheTab: "famiglie",
+        ricercaProcessId: null,
+        selectedAssunzioneRapportoId: "R",
+      },
+      "push",
+    )
+    expect(window.location.pathname).toContain("gestione-contrattuale/assunzioni/R")
+    expect(window.history.length).toBe(lenAtBoard + 1)
+
+    // 3) Browser Back -> popstate resolves the previous URL back to rapporto R.
+    const restored = resolveRouteStateFromPath(urlBeforeDatore)
+    expect(restored.mainSection).toBe("gestione_contrattuale_rapporti")
+    expect(restored.selectedRapportoId).toBe("R")
   })
 })
