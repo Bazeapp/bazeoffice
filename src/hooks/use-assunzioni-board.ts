@@ -75,8 +75,6 @@ export type AssunzioneRecord = {
   provincia: string | null
   permesso_di_soggiorno_allegati: Record<string, unknown> | Record<string, unknown>[] | null
   rapporto_di_lavoro_residenza: boolean | null
-  rapporto_lavorativo_datore_lavoro_id: string | null
-  rapporto_lavorativo_lavoratore_id: string | null
   lavoratore_id: string | null
   regime_convivenza: string | null
   ricevuta_rinnovo_permesso_allegati: Record<string, unknown> | Record<string, unknown>[] | null
@@ -381,8 +379,6 @@ export const ASSUNZIONE_FIELD_BINDINGS: readonly string[] = [
   "provincia",
   "permesso_di_soggiorno_allegati",
   "rapporto_di_lavoro_residenza",
-  "rapporto_lavorativo_datore_lavoro_id",
-  "rapporto_lavorativo_lavoratore_id",
   "lavoratore_id",
   "regime_convivenza",
   "ricevuta_rinnovo_permesso_allegati",
@@ -404,12 +400,9 @@ export const LAVORATORE_ASSUNZIONE_FIELD_BINDINGS: readonly string[] = [
 export const RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS: readonly string[] = [
   "id",
   "data_submission",
-  "document_id",
   "email",
   "fee_concordata",
-  "firmatario",
   "processo_res_id",
-  "signed_document_id",
   "signed_document_title",
   "signed_document_url",
   "airtable_id",
