@@ -12,6 +12,8 @@ import {
   useAssunzioniBoard,
 } from "@/hooks/use-assunzioni-board"
 import { fetchAssunzioneDetail } from "@/lib/anagrafiche-api"
+import { resolveDeepLinkSelection } from "@/lib/assunzioni/deep-link-selection"
+import { toast } from "sonner"
 import { AssunzioniDetailSheet } from "@/components/gestione-contrattuale/assunzioni-detail-sheet"
 import {
   KanbanColumnShell,
@@ -232,7 +234,18 @@ function AssunzioniBoardSkeletonColumn() {
   return <KanbanColumnSkeleton showBadgeRow />
 }
 
-export function AssunzioniBoardView() {
+type AssunzioniBoardViewProps = {
+  /**
+   * BAZ-20: deep-link dalla card "Datore" del rapporto. È un id di
+   * `rapporti_lavorativi` — il board Assunzioni è indicizzato per rapporto id
+   * (`card.id === rapporto.id`), quindi combacia direttamente senza lookup.
+   */
+  initialSelectedRapportoId?: string | null
+}
+
+export function AssunzioniBoardView({
+  initialSelectedRapportoId = null,
+}: AssunzioniBoardViewProps) {
   const { loading, error, columns, loadDeferredColumn, moveCard, updateCard, deleteRapporto } = useAssunzioniBoard()
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
@@ -309,6 +322,39 @@ export function AssunzioniBoardView() {
   // `columns` changes identity: optimistic updates would re-trigger the
   // fetch → updateCard → columns identity change → fetch loop and freeze
   // the page (observed: 70s of cumulative main-thread blocking).
+
+  // BAZ-20: deep-link dalla card "Datore". Auto-seleziona la card del rapporto
+  // UNA sola volta per id. La guardia è sull'id via ref (NON sull'identità di
+  // `columns`, per non riaprire l'anti-pattern del loop descritto sopra). La
+  // decisione (seleziona / carica colonne deferred / nessuna assunzione) è nel
+  // helper puro `resolveDeepLinkSelection` così è testabile senza renderizzare.
+  const autoSelectDoneRef = React.useRef<string | null>(null)
+  const deferredKickedRef = React.useRef<string | null>(null)
+
+  React.useEffect(() => {
+    const targetId = initialSelectedRapportoId
+    if (!targetId) return
+    if (autoSelectDoneRef.current === targetId) return
+    if (loading) return
+
+    const action = resolveDeepLinkSelection(columns, targetId)
+    if (action.type === "wait") return
+    if (action.type === "load-deferred") {
+      if (deferredKickedRef.current === targetId) return
+      deferredKickedRef.current = targetId
+      action.stageIds.forEach((stageId) => void loadDeferredColumn(stageId))
+      return
+    }
+
+    autoSelectDoneRef.current = targetId
+    if (action.type === "select") {
+      void handleSelectCard(action.card)
+    } else if (action.type === "load-error") {
+      toast.error("Impossibile caricare l'assunzione, riprova")
+    } else {
+      toast.error("Nessuna assunzione per questo rapporto")
+    }
+  }, [initialSelectedRapportoId, loading, columns, handleSelectCard, loadDeferredColumn])
 
   const totalProcesses = React.useMemo(
     () => filteredColumns.reduce((sum, column) => sum + column.cards.length, 0),

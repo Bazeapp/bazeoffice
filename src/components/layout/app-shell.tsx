@@ -156,6 +156,39 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     handleOpenRicercaPipeline()
   }, [handleOpenRicercaPipeline])
 
+  const handleOpenRelatedRicerca = React.useCallback(
+    (nextProcessId: string, nextSelectionId: string) => {
+      // BAZ-19: la navigazione verso una ricerca correlata passa dallo shell e
+      // fa un push ESPLICITO (come handleOpenRicercaDetail), così il Back del
+      // browser torna alla ricerca precedente con la selezione focalizzata,
+      // invece che alla pipeline. NON tocca ricercaDetailReturnRouteRef.
+      const nextRoute: AppRoute = {
+        mainSection: "ricerca_pipeline",
+        anagraficheTab: route.anagraficheTab,
+        ricercaProcessId: nextProcessId,
+        ricercaSelectionId: nextSelectionId,
+      }
+
+      setRoute(nextRoute)
+      syncBrowserUrl(nextRoute, "push")
+    },
+    [route.anagraficheTab]
+  )
+
+  const handleFocusRicercaSelection = React.useCallback(
+    (selectionId: string | null) => {
+      // BAZ-19: annota la URL corrente con la selezione (lavoratore) focalizzata
+      // così il Back la può ripristinare. Solo setRoute: l'effect globale
+      // [route] sincronizza in "replace" (nessuna nuova entry di history).
+      setRoute((prev) => {
+        if (prev.mainSection !== "ricerca_pipeline") return prev
+        if ((prev.ricercaSelectionId ?? null) === (selectionId ?? null)) return prev
+        return { ...prev, ricercaSelectionId: selectionId }
+      })
+    },
+    []
+  )
+
   const handleOpenGate1 = React.useCallback(() => {
     const nextRoute: AppRoute = {
       mainSection: "gate_1",
@@ -328,6 +361,8 @@ export function AppShell({ user, onLogout }: AppShellProps) {
                 onOpenAnagraficheTab={handleOpenAnagraficheTab}
                 onOpenRicercaDetail={handleOpenRicercaDetail}
                 onBackFromRicercaDetail={handleBackFromRicercaDetail}
+                onOpenRelatedRicerca={handleOpenRelatedRicerca}
+                onFocusRicercaSelection={handleFocusRicercaSelection}
               />
             </React.Suspense>
           </div>

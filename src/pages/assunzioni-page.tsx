@@ -1,5 +1,13 @@
 import { AssunzioniBoardView } from "@/components/gestione-contrattuale/assunzioni-board-view"
 
-export function AssunzioniPage() {
-  return <AssunzioniBoardView />
+type AssunzioniPageProps = {
+  initialSelectedRapportoId?: string | null
+}
+
+export function AssunzioniPage({
+  initialSelectedRapportoId = null,
+}: AssunzioniPageProps) {
+  return (
+    <AssunzioniBoardView initialSelectedRapportoId={initialSelectedRapportoId} />
+  )
 }
