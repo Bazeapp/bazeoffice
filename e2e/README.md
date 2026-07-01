@@ -116,6 +116,7 @@ Copy patterns from:
 - `e2e/customer/assunzioni-filters.spec.ts` — Assunzioni board search and column shell
 - `e2e/customer/assunzioni-moves.spec.ts` — Assunzioni kanban moves, deferred columns
 - `e2e/customer/assunzioni-sheet.spec.ts` — Assunzioni detail sheet
+- `e2e/customer/assunzioni-detail-sections.spec.ts` — Assunzioni detail sheet section coverage and autosave
 - `e2e/support/assunzioni.ts` — navigation, search, DnD, sheet helpers
 - `e2e/support/rapporti-mutations.ts` — service-role `rapporti_lavorativi.stato_assunzione` reset
 - `e2e/customer/chiusure-filters.spec.ts` — Chiusure board search, columns, annullamento dialog

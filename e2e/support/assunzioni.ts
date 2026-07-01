@@ -111,6 +111,29 @@ export async function waitForAssunzioniDetail(page: Page) {
   })
 }
 
+export function assunzioneSheetDialog(page: Page) {
+  return page.locator(selectors.assunzioni.sheetDialog)
+}
+
+export function assunzioneSheetLabeledInput(page: Page, label: string) {
+  return assunzioneSheetDialog(page)
+    .getByText(label, { exact: true })
+    .locator("xpath=..")
+    .locator("input, textarea")
+    .first()
+}
+
+export async function waitForAssunzioneUpdateRecord(page: Page) {
+  await page.waitForResponse(
+    (response) =>
+      (response.url().includes("/functions/v1/update-record") ||
+        response.url().includes("/functions/v1/create-record")) &&
+      response.request().method() === "POST" &&
+      response.ok(),
+    { timeout: BOARD_LOAD_TIMEOUT_MS },
+  )
+}
+
 export async function dragCardToColumn(
   page: Page,
   rapportoId: string,

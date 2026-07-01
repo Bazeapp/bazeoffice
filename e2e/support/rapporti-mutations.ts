@@ -101,6 +101,12 @@ export async function resetRapportoDetailFixture(rapportoId: string) {
   await setRapportoNumberField(rapportoId, "codice_dipendente_webcolf", null)
 }
 
+/** Restore sidebar-editable fields on the assunzioni detail sheet fixture. */
+export async function resetAssunzioneSheetFixture(rapportoId: string) {
+  await setRapportoNumberField(rapportoId, "codice_datore_webcolf", null)
+  await setRapportoNumberField(rapportoId, "codice_dipendente_webcolf", null)
+}
+
 /** Restore assunzioni board fixture rapporti to their db reset state. */
 export async function resetAssunzioniFixture() {
   const {
