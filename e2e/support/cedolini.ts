@@ -120,9 +120,23 @@ export async function clearSearchQuery(page: Page) {
 export async function openCardSheet(page: Page, cedolinoId: string) {
   const card = getCard(page, cedolinoId)
   await card.scrollIntoViewIfNeeded()
+
+  const detailResponse = page
+    .waitForResponse(
+      (response) =>
+        response.url().includes("/rpc/cedolino_detail") &&
+        response.request().method() === "POST" &&
+        response.ok(),
+      { timeout: BOARD_LOAD_TIMEOUT_MS },
+    )
+    .catch(() => null)
+
   await card.click()
   const dialog = page.locator(selectors.cedolini.sheetDialog)
   await expect(dialog).toBeVisible({ timeout: BOARD_LOAD_TIMEOUT_MS })
+  if (detailResponse) {
+    await detailResponse
+  }
   return dialog
 }
 
@@ -133,6 +147,14 @@ export async function closeCardSheet(page: Page) {
 
 export async function waitForCedolinoDetail(page: Page) {
   await expect(page.getByText("Dettagli rapporto", { exact: true })).toBeVisible({
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+}
+
+export async function waitForCedolinoPresenzeSection(page: Page) {
+  const dialog = page.locator(selectors.cedolini.sheetDialog)
+  await dialog.getByText("Presenze", { exact: true }).scrollIntoViewIfNeeded()
+  await expect(dialog.getByText("Presenze regolari?", { exact: true })).toBeVisible({
     timeout: BOARD_LOAD_TIMEOUT_MS,
   })
 }

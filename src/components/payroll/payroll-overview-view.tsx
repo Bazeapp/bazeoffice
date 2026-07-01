@@ -1662,14 +1662,16 @@ function CedoliniPayrollView() {
   //   would stay invisible until page reload.
   React.useEffect(() => {
     if (!selectedCardId) return
-    let isActive = true
     const currentCardId = selectedCardId
 
     async function loadSelectedCard() {
       try {
         const detail = await fetchCedolinoDetail(currentCardId)
-        if (!isActive || !detail || !detail.record) return
+        if (!detail?.record) return
 
+        // Apply enrichment even if a newer effect run started (e.g. detailRefreshTick
+        // after realtime). Stale responses target currentCardId from this closure;
+        // skipping here left presenze null despite a successful cedolino_detail RPC.
         enrichCardFromDetail(currentCardId, {
           record: detail.record as PayrollBoardCardData["record"],
           rapporto: detail.rapporto as PayrollBoardCardData["rapporto"],
@@ -1682,16 +1684,11 @@ function CedoliniPayrollView() {
             detail.richiestaAttivazione as PayrollBoardCardData["richiestaAttivazione"],
         })
       } catch (error) {
-        if (!isActive) return
         console.error("Errore caricando dettaglio cedolino", error)
       }
     }
 
     void loadSelectedCard()
-
-    return () => {
-      isActive = false
-    }
   }, [selectedCardId, enrichCardFromDetail, detailRefreshTick])
 
   const monthSwitcher = (
