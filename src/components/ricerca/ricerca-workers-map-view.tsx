@@ -76,8 +76,8 @@ const DEFAULT_MAP_ZOOM = 13
 const DISCOVERY_ADDRESS_PAGE_SIZE = 1000
 const DISCOVERY_WORKER_BATCH_SIZE = 100
 const MAP_ACTIONS = [
+  { label: "Prospetto", status: "Prospetto" },
   { label: "Da colloquiare", status: "Da colloquiare" },
-  { label: "Selezionato", status: "Selezionato" },
   { label: "Non selezionato", status: "Non selezionato" },
 ] as const
 const STATUS_FILTER_OPTIONS = ["Qualificato", "Idoneo", "Certificato"] as const
