@@ -45,6 +45,7 @@ import {
   createRecord,
   fetchIndirizziInBbox,
   fetchLavoratoriByIds,
+  fetchLavoratoriSelezioniCorrelate,
   fetchLookupValues,
 } from "@/lib/anagrafiche-api"
 import {
@@ -69,6 +70,9 @@ import {
   workerMatchesAdvancedFilters,
   type MapAdvancedFilters,
 } from "./ricerca-workers-map-filters"
+import { excludeCurrentProcess } from "./ricerca-map-related-selections"
+import { buildRelatedSelectionsMap } from "@/hooks/use-lavoratori-data"
+import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 
 const DEFAULT_RADIUS_KM = 5
 const RADIUS_OPTIONS_KM = [2, 5, 10] as const
@@ -303,7 +307,11 @@ function toggleFilterValue(values: string[], value: string, checked: boolean) {
 function buildDiscoveryWorkerListItem(
   worker: GenericRow,
   lookupColorsByDomain: Map<string, string>,
-  addressesByWorkerId: Map<string, GenericRow[]>
+  addressesByWorkerId: Map<string, GenericRow[]>,
+  otherSelectionsByWorkerId: Map<
+    string,
+    NonNullable<LavoratoreListItem["otherActiveSelections"]>
+  >
 ): MapWorkerListItem {
   const workerId = asString(worker.id) || "unknown-worker"
   const nome = asString(worker.nome)
@@ -382,7 +390,7 @@ function buildDiscoveryWorkerListItem(
     isQualified: statusFlags.isQualified,
     isIdoneo: statusFlags.isIdoneo,
     isCertificato: statusFlags.isCertificato,
-    otherActiveSelections: null,
+    otherActiveSelections: otherSelectionsByWorkerId.get(workerId) ?? null,
     checkLavoriAccettabili: readArrayStrings(worker.check_lavori_accettabili),
   }
 }
@@ -513,14 +521,21 @@ function WorkerPopupCard({
   worker,
   actionColors,
   onMoveWorker,
+  onOtherActiveSelectionsOpenChange,
 }: {
   worker: MapWorker
   actionColors: MapActionColor[]
   onMoveWorker: (workerId: string, targetStatus: string) => void
+  onOtherActiveSelectionsOpenChange?: (open: boolean) => void
 }) {
   return (
     <div className="w-[340px] space-y-2">
-      <LavoratoreCard worker={worker.worker} isActive={false} onClick={() => undefined} />
+      <LavoratoreCard
+        worker={worker.worker}
+        isActive={false}
+        onClick={() => undefined}
+        onOtherActiveSelectionsOpenChange={onOtherActiveSelectionsOpenChange}
+      />
       <div className="grid grid-cols-3 gap-1.5">
         {MAP_ACTIONS.map((action) => {
           const color =
@@ -558,7 +573,8 @@ function bindWorkerPopup(
   worker: MapWorker,
   actionColors: MapActionColor[],
   onMoveWorker: (workerId: string, targetStatus: string) => void,
-  isPinned: () => boolean
+  isPinned: () => boolean,
+  pinMarker: () => void
 ) {
   const container = document.createElement("div")
   const root = createRoot(container)
@@ -584,6 +600,12 @@ function bindWorkerPopup(
       worker={worker}
       actionColors={actionColors}
       onMoveWorker={onMoveWorker}
+      onOtherActiveSelectionsOpenChange={(open) => {
+        if (open) {
+          cancelClose()
+          pinMarker()
+        }
+      }}
     />
   )
 
@@ -620,10 +642,14 @@ function useDiscoveryWorkers({
   searchCoordinates,
   jobRole,
   radiusKm,
+  processId,
+  recruiterLabelsById,
 }: {
   searchCoordinates: GeoCoordinates | null
   jobRole?: string | null
   radiusKm: number
+  processId: string
+  recruiterLabelsById: Map<string, string>
 }) {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -651,11 +677,16 @@ function useDiscoveryWorkers({
           fetchLookupValues(),
         ])
         const workerIds = Array.from(addressesByWorkerId.keys())
-        const workerRows = await fetchDiscoveryWorkersByIds({
-          workerIds,
-          jobRole,
-        })
+        const [workerRows, correlateRows] = await Promise.all([
+          fetchDiscoveryWorkersByIds({ workerIds, jobRole }),
+          fetchLavoratoriSelezioniCorrelate(workerIds),
+        ])
         const lookupColorsByDomain = normalizeLookupColors(lookupResult.rows)
+        const otherSelectionsByWorkerId = buildRelatedSelectionsMap(
+          excludeCurrentProcess(correlateRows, processId),
+          lookupColorsByDomain,
+          recruiterLabelsById
+        )
         const workers = workerRows
           .filter((row) =>
             isDisponibileRicerca({
@@ -668,7 +699,8 @@ function useDiscoveryWorkers({
             const worker = buildDiscoveryWorkerListItem(
               row,
               lookupColorsByDomain,
-              addressesByWorkerId
+              addressesByWorkerId,
+              otherSelectionsByWorkerId
             )
             const coordinates = worker.coordinates
             if (!coordinates) return null
@@ -712,7 +744,7 @@ function useDiscoveryWorkers({
     return () => {
       cancelled = true
     }
-  }, [jobRole, radiusKm, searchCoordinates])
+  }, [jobRole, processId, radiusKm, recruiterLabelsById, searchCoordinates])
 
   return { ...result, loading, error }
 }
@@ -795,7 +827,14 @@ function RicercaLeafletMap({
         worker,
         actionColors,
         onMoveWorker,
-        () => pinnedMarkerRef.current === marker
+        () => pinnedMarkerRef.current === marker,
+        () => {
+          if (pinnedMarkerRef.current && pinnedMarkerRef.current !== marker) {
+            pinnedMarkerRef.current.closePopup()
+          }
+          pinnedMarkerRef.current = marker
+          hoverMarkerRef.current = null
+        }
       )
 
       marker
@@ -960,10 +999,20 @@ export function RicercaWorkersMapView({
     () => normalizeFilterValues(selectedWorkDays),
     [selectedWorkDays]
   )
+  const { options: recruiterOptions } = useOperatoriOptions({
+    role: "recruiter",
+    activeOnly: true,
+  })
+  const recruiterLabelsById = React.useMemo(
+    () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
+    [recruiterOptions]
+  )
   const discovery = useDiscoveryWorkers({
     searchCoordinates,
     jobRole,
     radiusKm,
+    processId,
+    recruiterLabelsById,
   })
   const pipelineByWorkerId = React.useMemo(() => {
     const map = new Map<
@@ -1017,6 +1066,7 @@ export function RicercaWorkersMapView({
               ...item.worker,
               ...pipeline.card.worker,
               checkLavoriAccettabili: item.worker.checkLavoriAccettabili,
+              otherActiveSelections: item.worker.otherActiveSelections,
             }
           : item.worker
 

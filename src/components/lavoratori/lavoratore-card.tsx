@@ -6,6 +6,7 @@ import {
   CalendarDaysIcon,
   Clock3Icon,
   CheckCircle2Icon,
+  FlagIcon,
   HomeIcon,
   MapPinIcon,
   MinusCircleIcon,
@@ -66,6 +67,7 @@ export type LavoratoreListItem = {
   sesso?: string | null
   nazionalita?: string | null
   comeTiSposti?: string[]
+  checkLavoriAccettabili?: string[]
   anniEsperienzaColf?: number | null
   anniEsperienzaBabysitter?: number | null
   statoLavoratore: string | null
@@ -107,6 +109,12 @@ type LavoratoreCardProps = {
   onLoadOtherActiveSelectionDetails?: (
     workerId: string
   ) => Promise<WorkerOtherSelectionSummaryItem[]>
+  /**
+   * Notifica l'apertura/chiusura del popover "altre selezioni". La mappa lo usa
+   * per fissare (pin) il popup del marker quando l'utente apre il popover, così
+   * spostando il mouse sulla lista (portalata su body) la card non si chiude.
+   */
+  onOtherActiveSelectionsOpenChange?: (open: boolean) => void
   gate1Summary?: {
     provincia: string | null
     createdAt: string | null
@@ -274,6 +282,7 @@ export function LavoratoreCard({
   showQualificationStatus = true,
   bottomSlot,
   onLoadOtherActiveSelectionDetails,
+  onOtherActiveSelectionsOpenChange,
   gate1Summary,
 }: LavoratoreCardProps) {
   const qualificationStatus = getWorkerQualificationStatus(worker)
@@ -471,6 +480,28 @@ export function LavoratoreCard({
           <p className="text-muted-foreground text-2xs leading-none">-</p>
         )}
 
+        {worker.nazionalita || (worker.checkLavoriAccettabili?.length ?? 0) > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {worker.nazionalita ? (
+              <Badge className={cn("h-5 px-2 text-2xs font-medium", getBadgeClassName(null))}>
+                <FlagIcon />
+                {worker.nazionalita}
+              </Badge>
+            ) : null}
+            {worker.checkLavoriAccettabili?.map((giorno) => (
+              <Badge
+                key={`${worker.id}-giorno-${giorno}`}
+                className={cn("h-5 px-2 text-2xs font-medium", getBadgeClassName(null))}
+              >
+                {giorno
+                  .replace("Lavori di ", "")
+                  .replace(" giorno", "g")
+                  .replace(" giorni", "g")}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+
         <Separator className="my-1" />
 
         <div className="space-y-2">
@@ -478,6 +509,7 @@ export function LavoratoreCard({
             <Popover
               onOpenChange={(open) => {
                 if (open) loadOtherSelectionDetails()
+                onOtherActiveSelectionsOpenChange?.(open)
               }}
             >
               <PopoverTrigger asChild>

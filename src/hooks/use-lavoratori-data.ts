@@ -596,7 +596,7 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
 // Pure: dalle righe grezze di lavoratori_selezioni_correlate (annidate nel
 // board RPC lavoratori_board) costruisce la mappa otherActiveSelections per
 // worker, risolvendo colori/label client-side.
-function buildRelatedSelectionsMap(
+export function buildRelatedSelectionsMap(
   rows: GenericRow[],
   lookupColorsByDomain: Map<string, string>,
   recruiterLabelsById: Map<string, string>
