@@ -3,10 +3,24 @@ import * as L from "leaflet"
 import { createRoot } from "react-dom/client"
 import { toast } from "sonner"
 import "leaflet/dist/leaflet.css"
+import { ListFilterIcon, RotateCcwIcon } from "lucide-react"
 
 import { LavoratoreCard, type LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
 import { Button } from "@/components/ui/button"
 import { CheckboxChip } from "@/components/ui/checkbox"
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from "@/components/ui/combobox"
 import {
   asString,
   getAgeFromBirthDate,
@@ -44,6 +58,17 @@ import {
 import { isDisponibileRicerca } from "@/lib/lavoratori/is-disponibile-ricerca"
 import { invokeEdgeFunction } from "@/lib/supabase-edge"
 import { cn } from "@/lib/utils"
+import {
+  AUTOMUNITI_FILTER_OPTIONS,
+  ETA_FILTER_BUCKETS,
+  GENERE_FILTER_OPTIONS,
+  createDefaultAdvancedFilters,
+  deriveNazionalitaOptions,
+  hasActiveAdvancedFilters,
+  isSameSet,
+  workerMatchesAdvancedFilters,
+  type MapAdvancedFilters,
+} from "./ricerca-workers-map-filters"
 
 const DEFAULT_RADIUS_KM = 5
 const RADIUS_OPTIONS_KM = [2, 5, 10] as const
@@ -335,6 +360,9 @@ function buildDiscoveryWorkerListItem(
     ),
     ruoliDomestici,
     eta: getAgeFromBirthDate(worker.data_di_nascita),
+    sesso: asString(worker.sesso) || null,
+    nazionalita: asString(worker.nazionalita) || null,
+    comeTiSposti: readArrayStrings(worker.come_ti_sposti),
     anniEsperienzaColf: toNumberValue(worker.anni_esperienza_colf),
     anniEsperienzaBabysitter: toNumberValue(worker.anni_esperienza_babysitter),
     statoLavoratore,
@@ -784,6 +812,19 @@ function RicercaLeafletMap({
           hoverMarkerRef.current = null
           popupControls.scheduleClose()
         })
+        .on("popupopen", (event) => {
+          // Il popup di Leaflet cresce verso l'alto dal marker. Se non c'entra
+          // sopra (marker vicino al bordo superiore della mappa) lo apriamo
+          // sotto, aggiungendo la classe .is-below (vedi <style> translateY).
+          const marker = event.target as L.Marker
+          const element = marker.getPopup()?.getElement()
+          if (!element) return
+          const cardHeight =
+            element.querySelector<HTMLElement>(".leaflet-popup-content-wrapper")
+              ?.offsetHeight || 280
+          const markerY = map.latLngToContainerPoint(marker.getLatLng()).y
+          element.classList.toggle("is-below", markerY - cardHeight - 18 < 8)
+        })
         .on("click", (event) => {
           const marker = event.target as L.Marker
           popupControls.cancelClose()
@@ -896,6 +937,11 @@ export function RicercaWorkersMapView({
   const [selectedWorkDays, setSelectedWorkDays] = React.useState<string[]>(() =>
     defaultWorkDaysFromSearch(weeklyDays)
   )
+  const [advancedFilters, setAdvancedFilters] = React.useState<MapAdvancedFilters>(
+    createDefaultAdvancedFilters
+  )
+  const [filtersExpanded, setFiltersExpanded] = React.useState(true)
+  const nazionalitaAnchor = useComboboxAnchor()
   const searchCoordinates = React.useMemo(
     () =>
       typeof searchLat === "number" && typeof searchLng === "number"
@@ -947,7 +993,8 @@ export function RicercaWorkersMapView({
             item.worker,
             normalizedSelectedStatuses,
             normalizedSelectedWorkDays
-          )
+          ) ||
+          !workerMatchesAdvancedFilters(item.worker, advancedFilters)
         ) {
           continue
         }
@@ -993,6 +1040,7 @@ export function RicercaWorkersMapView({
       })
       .sort((left, right) => (left.distanceKm ?? 0) - (right.distanceKm ?? 0))
   }, [
+    advancedFilters,
     discovery.workers,
     hideDiscarded,
     hidePipeline,
@@ -1001,6 +1049,31 @@ export function RicercaWorkersMapView({
     pipelineByWorkerId,
     searchCoordinates,
   ])
+  const nazionalitaOptions = React.useMemo(
+    () => deriveNazionalitaOptions(discovery.workers.map((item) => item.worker)),
+    [discovery.workers]
+  )
+  const filtersActive = React.useMemo(
+    () =>
+      hasActiveAdvancedFilters(advancedFilters) ||
+      !isSameSet(selectedStatuses, [...STATUS_FILTER_OPTIONS]) ||
+      !isSameSet(selectedWorkDays, defaultWorkDaysFromSearch(weeklyDays)),
+    [advancedFilters, selectedStatuses, selectedWorkDays, weeklyDays]
+  )
+  const toggleAdvancedFilter = React.useCallback(
+    (group: "genere" | "automuniti" | "eta", value: string, checked: boolean) => {
+      setAdvancedFilters((current) => ({
+        ...current,
+        [group]: toggleFilterValue(current[group], value, checked),
+      }))
+    },
+    []
+  )
+  const resetFilters = React.useCallback(() => {
+    setSelectedStatuses([...STATUS_FILTER_OPTIONS])
+    setSelectedWorkDays(defaultWorkDaysFromSearch(weeklyDays))
+    setAdvancedFilters(createDefaultAdvancedFilters())
+  }, [weeklyDays])
   const actionColors = React.useMemo(
     () =>
       MAP_ACTIONS.map((action) => ({
@@ -1137,9 +1210,23 @@ export function RicercaWorkersMapView({
             </div>
             <span>{insideRadius} dentro</span>
             <span>{outsideRadius} fuori</span>
+            <button
+              type="button"
+              className="relative inline-flex size-7 items-center justify-center rounded-lg text-foreground shadow-[inset_0_0_0_1px_var(--border-strong)] transition-colors hover:bg-neutral-100"
+              title="Filtri avanzati"
+              aria-label="Filtri avanzati"
+              aria-expanded={filtersExpanded}
+              onClick={() => setFiltersExpanded((open) => !open)}
+            >
+              <ListFilterIcon className="size-4" />
+              {filtersActive ? (
+                <span className="absolute -right-1 -top-1 size-2 rounded-full bg-blue-600" />
+              ) : null}
+            </button>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Collapsible open={filtersExpanded} onOpenChange={setFiltersExpanded}>
+          <CollapsibleContent className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
           <MapFilterGroup label="Stato">
             {STATUS_FILTER_OPTIONS.map((status) => (
               <CheckboxChip
@@ -1172,6 +1259,85 @@ export function RicercaWorkersMapView({
               </CheckboxChip>
             ))}
           </MapFilterGroup>
+          <MapFilterGroup label="Genere">
+            {GENERE_FILTER_OPTIONS.map((genere) => (
+              <CheckboxChip
+                key={genere}
+                checked={advancedFilters.genere.includes(genere)}
+                onCheckedChange={(checked) =>
+                  toggleAdvancedFilter("genere", genere, checked === true)
+                }
+                className="h-7 px-2.5 text-xs"
+              >
+                {genere}
+              </CheckboxChip>
+            ))}
+          </MapFilterGroup>
+          <MapFilterGroup label="Automuniti">
+            {AUTOMUNITI_FILTER_OPTIONS.map((option) => (
+              <CheckboxChip
+                key={option}
+                checked={advancedFilters.automuniti.includes(option)}
+                onCheckedChange={(checked) =>
+                  toggleAdvancedFilter("automuniti", option, checked === true)
+                }
+                className="h-7 px-2.5 text-xs"
+              >
+                {option}
+              </CheckboxChip>
+            ))}
+          </MapFilterGroup>
+          <MapFilterGroup label="Età">
+            {ETA_FILTER_BUCKETS.map((bucket) => (
+              <CheckboxChip
+                key={bucket.key}
+                checked={advancedFilters.eta.includes(bucket.key)}
+                onCheckedChange={(checked) =>
+                  toggleAdvancedFilter("eta", bucket.key, checked === true)
+                }
+                className="h-7 px-2.5 text-xs"
+              >
+                {bucket.label}
+              </CheckboxChip>
+            ))}
+          </MapFilterGroup>
+          <MapFilterGroup label="Nazionalità">
+            <Combobox
+              multiple
+              autoHighlight
+              items={nazionalitaOptions}
+              value={advancedFilters.nazionalita}
+              onValueChange={(next) =>
+                setAdvancedFilters((current) => ({
+                  ...current,
+                  nazionalita: next as string[],
+                }))
+              }
+            >
+              <ComboboxChips ref={nazionalitaAnchor} className="min-w-52">
+                <ComboboxValue>
+                  {(values) => (
+                    <React.Fragment>
+                      {values.map((value: string) => (
+                        <ComboboxChip key={value}>{value}</ComboboxChip>
+                      ))}
+                      <ComboboxChipsInput placeholder="Nazionalità" />
+                    </React.Fragment>
+                  )}
+                </ComboboxValue>
+              </ComboboxChips>
+              <ComboboxContent anchor={nazionalitaAnchor} className="max-h-80">
+                <ComboboxEmpty>Nessuna nazionalità</ComboboxEmpty>
+                <ComboboxList className="max-h-72 overflow-y-auto">
+                  {(item) => (
+                    <ComboboxItem key={item} value={item}>
+                      {item}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </MapFilterGroup>
           <MapFilterGroup label="Vista">
             <CheckboxChip
               checked={hidePipeline}
@@ -1188,7 +1354,21 @@ export function RicercaWorkersMapView({
               Nascondi scartati
             </CheckboxChip>
           </MapFilterGroup>
-        </div>
+          {filtersActive ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 px-2 text-xs"
+              title="Reset filtri"
+              onClick={resetFilters}
+            >
+              <RotateCcwIcon className="size-3.5" />
+              Reset
+            </Button>
+          ) : null}
+          </CollapsibleContent>
+        </Collapsible>
       </header>
 
       {workers.length === 0 ? (
@@ -1196,7 +1376,7 @@ export function RicercaWorkersMapView({
           0 lavoratori disponibili nel raggio con i filtri attivi.
         </div>
       ) : null}
-      <div className="relative min-h-0 flex-1">
+      <div className="relative isolate min-h-0 flex-1">
           <style>{`
             .ricerca-map-worker-marker span {
               display: block;
@@ -1233,6 +1413,14 @@ export function RicercaWorkersMapView({
             }
             .ricerca-map-worker-popup .leaflet-popup-tip-container {
               display: none;
+            }
+            /* Il tip è nascosto: azzera il margin-bottom da 20px che Leaflet
+               riserva per il tip, altrimenti la card resta ~20px troppo in alto. */
+            .leaflet-popup.ricerca-map-worker-popup {
+              margin-bottom: 0;
+            }
+            .ricerca-map-worker-popup.is-below .leaflet-popup-content-wrapper {
+              transform: translateY(calc(100% + 30px));
             }
           `}</style>
           <RicercaLeafletMap

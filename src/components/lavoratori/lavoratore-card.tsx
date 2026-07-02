@@ -63,6 +63,9 @@ export type LavoratoreListItem = {
   tipoLavoroColor: string | null
   ruoliDomestici?: string[]
   eta?: number | null
+  sesso?: string | null
+  nazionalita?: string | null
+  comeTiSposti?: string[]
   anniEsperienzaColf?: number | null
   anniEsperienzaBabysitter?: number | null
   statoLavoratore: string | null
