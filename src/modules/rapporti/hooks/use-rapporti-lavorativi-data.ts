@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord } from "@/lib/record-crud"
-import { fetchTicketByRapporto } from "@/modules/rapporti"
+import { fetchTicketByRapporto } from "../queries/fetch-ticket-by-rapporto"
 import {
   fetchAssunzioniNamesByRapportoIds,
   fetchChiusureByIds,

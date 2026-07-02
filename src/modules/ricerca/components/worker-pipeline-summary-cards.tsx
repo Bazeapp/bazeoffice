@@ -70,10 +70,12 @@ import {
   resolveLookupColor,
   type LookupOption,
 } from "@/modules/lavoratori";
-import type { DocumentoLavoratoreRecord } from "@/modules/lavoratori/types/documento-lavoratore";
-import type { EsperienzaLavoratoreRecord } from "@/modules/lavoratori/types/esperienza-lavoratore";
-import type { LavoratoreRecord } from "@/modules/lavoratori/types/lavoratore";
-import type { ReferenzaLavoratoreRecord } from "@/modules/lavoratori/types/referenza-lavoratore";
+import type {
+  DocumentoLavoratoreRecord,
+  EsperienzaLavoratoreRecord,
+  LavoratoreRecord,
+  ReferenzaLavoratoreRecord,
+} from "@/modules/lavoratori";
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles";
 import { useProvincieOptions } from "@/hooks/use-provincie";
 

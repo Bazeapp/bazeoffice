@@ -65,7 +65,7 @@ import {
   fetchFamiglieSearch,
 } from "@/modules/crm";
 import { createRecord, updateRecord } from "@/lib/record-crud"
-import { fetchLavoratoriByIds } from "@/modules/lavoratori";
+import { fetchLavoratoriByIds } from "../queries/fetch-lavoratori-by-ids";
 import {
   fetchProcessiMatchingByIds,
   fetchProcessiMatchingSearch,

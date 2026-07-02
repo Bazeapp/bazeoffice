@@ -7,23 +7,11 @@ import {
   type TableQueryResponse,
 } from "@/lib/table-query"
 import { supabase } from "@/lib/supabase-client"
+import { rpcRows, type TableRow } from "@/lib/rpc-rows"
 
 import type { DocumentoLavoratoreRecord } from "./types/documento-lavoratore"
 import type { LavoratoreRecord } from "./types/lavoratore"
 import type { LavoratoreSchedaResult } from "./types/lavoratori-rpc"
-
-type TableRow = Record<string, unknown>
-
-async function rpcRows(
-  fn: string,
-  params: Record<string, unknown>,
-  columns?: string,
-) {
-  const builder = supabase.rpc(fn, params)
-  const { data, error } = columns ? await builder.select(columns) : await builder
-  if (error) throw new Error(`${fn} failed: ${error.message}`)
-  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
-}
 
 async function fetchGateLavoratoriRpc(
   functionName: "gate1_lavoratori" | "gate2_lavoratori" | "cerca_lavoratori",

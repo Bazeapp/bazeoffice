@@ -47,7 +47,7 @@ import {
 } from "@/modules/lavoratori"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
-import type { DocumentoLavoratoreRecord } from "@/modules/lavoratori/types/documento-lavoratore"
+import type { DocumentoLavoratoreRecord } from "@/modules/lavoratori"
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "-"

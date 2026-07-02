@@ -1,5 +1,5 @@
 import { invokeEdgeFunction } from "@/lib/supabase-edge"
-import type { LavoratoreRecord } from "@/modules/lavoratori/types/lavoratore"
+import type { LavoratoreRecord } from "@/modules/lavoratori"
 
 export type CreateStripeConnectAccountResponse = {
   id_stripe_account: string

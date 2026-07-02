@@ -132,10 +132,14 @@ Consequences — these **override** the `nextjs-fe-api` profile where they confl
   `payroll`. Entity table CRUD lives in the **home module**; the `anagrafiche` module
   renders tabs and imports queries from home barrels (e.g. `fetchLavoratori` from
   `@/modules/lavoratori`). ESLint blocks deep imports of `*.api.ts` / `*.adapters.ts`
-  across module boundaries.
+  from consumers **outside** `src/modules/` (components, pages, hooks); cross-module
+  deep-import enforcement *inside* `src/modules/` is planned follow-up work (see
+  eslint.config.js Rule 3) — until then it is convention, so honor it manually.
 - **Shared Supabase infra** in `src/lib/`: `write-tracking`, `record-crud`, `table-query`
-  (Anagrafiche chokepoint only), `lookup-values`, `indirizzi-api`, etc. — not the
-  dissolved `anagrafiche-api.ts` monolith.
+  (`queryTable` is the shared wrapper for the `table-query` edge function — never call
+  `invokeEdgeFunction("table-query", ...)` directly, and prefer dedicated RPCs for new
+  fetchers), `rpc-rows`, `lookup-values`, `indirizzi-api`, etc. — not the dissolved
+  `anagrafiche-api.ts` monolith.
 - **Testing tier:** no local DB to integration-test. Adapters and pure logic → Vitest
   unit tests; hooks → black-box tests with the data layer mocked at the module boundary;
   critical flows → E2E. Stack: **Vitest + happy-dom + Testing Library** (E2E not yet set

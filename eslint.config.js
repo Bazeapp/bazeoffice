@@ -5,6 +5,18 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
+// FASE 4 BIS follow-up: queryTable was private to the anagrafiche-api
+// monolith; the module split had to export it. Only module repositories
+// (<dominio>.api.ts) and the legacy indirizzi wrapper may import it — new
+// fetchers use a dedicated RPC. Enforced by the blocks that reference this
+// constant; the allowed importers are excluded via block-level `ignores`.
+const QUERY_TABLE_RESTRICTION = {
+  name: '@/lib/table-query',
+  importNames: ['queryTable'],
+  message:
+    'queryTable è riservata ai repository di modulo (<dominio>.api.ts). Per nuovi fetcher usa una RPC dedicata (FASE 4 BIS).',
+}
+
 const MODULE_BOUNDARY_RESTRICTIONS = {
   patterns: [
     {
@@ -140,7 +152,11 @@ export default defineConfig([
   // Query as the source of truth, cache lifecycle is owned by queryClient /
   // hook abstractions, not by the components.
   {
-    files: ['src/components/**/*.{ts,tsx}', 'src/pages/**/*.{ts,tsx}'],
+    files: [
+      'src/components/**/*.{ts,tsx}',
+      'src/pages/**/*.{ts,tsx}',
+      'src/modules/*/components/**/*.{ts,tsx}',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -152,6 +168,7 @@ export default defineConfig([
               message:
                 'Do not invalidate read caches from components. Expose a callback on the hook or use queryClient.invalidateQueries.',
             },
+            QUERY_TABLE_RESTRICTION,
           ],
           ...MODULE_BOUNDARY_RESTRICTIONS,
         },
@@ -165,7 +182,15 @@ export default defineConfig([
   // gradually. New occurrences still surface in IDE + CI logs. Promote to
   // "error" once the existing debt is cleared.
   {
-    files: ['src/components/**/*.tsx', 'src/pages/**/*.tsx'],
+    files: [
+      'src/components/**/*.tsx',
+      'src/pages/**/*.tsx',
+      'src/modules/*/components/**/*.tsx',
+    ],
+    // Test harnesses reproduce unguarded save patterns on purpose (e.g.
+    // characterization tests for the echo bug class) — keep the rule on
+    // production components only.
+    ignores: ['**/*.test.tsx', '**/*.integration.test.tsx'],
     rules: {
       'no-restricted-syntax': [
         'warn',
@@ -373,7 +398,7 @@ export default defineConfig([
   {
     files: [
       'src/modules/crm/components/crm/cards/stato-lead-card.tsx',
-      'src/components/crm/cards/selection-details-card.tsx',
+      'src/modules/ricerca/components/selection-details-card.tsx',
       'src/modules/crm/components/crm/cards/onboarding-context-card.tsx',
       'src/modules/crm/components/crm/cards/onboarding-decisione-lavoro-card.tsx',
       'src/modules/crm/components/crm/cards/onboarding-card.tsx',
@@ -422,9 +447,32 @@ export default defineConfig([
   // cross-module deep-import enforcement inside modules lands with U3+.
   {
     files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/modules/**', 'src/components/**', 'src/pages/**'],
+    ignores: [
+      'src/modules/**',
+      'src/components/**',
+      'src/pages/**',
+      // Grandfathered queryTable importer (verbatim move from the monolith).
+      'src/lib/indirizzi-api.ts',
+    ],
     rules: {
-      'no-restricted-imports': ['error', MODULE_BOUNDARY_RESTRICTIONS],
+      'no-restricted-imports': [
+        'error',
+        { paths: [QUERY_TABLE_RESTRICTION], ...MODULE_BOUNDARY_RESTRICTIONS },
+      ],
+    },
+  },
+
+  // Rule 4 (table-query containment, module internals): queryTable was
+  // private to the monolith; the module split had to export it. Only the
+  // module .api.ts repositories and the legacy indirizzi wrapper may import
+  // it — everything else uses a dedicated RPC (FASE 4 BIS). Module
+  // components are covered by the components block above; this block covers
+  // the remaining module-internal files (hooks, queries, lib, types).
+  {
+    files: ['src/modules/**/*.{ts,tsx}'],
+    ignores: ['src/modules/*/*.api.ts', 'src/modules/*/components/**'],
+    rules: {
+      'no-restricted-imports': ['error', { paths: [QUERY_TABLE_RESTRICTION] }],
     },
   },
 ])

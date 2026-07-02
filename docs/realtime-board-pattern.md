@@ -46,7 +46,7 @@ Fix in 3 punti:
    `setQueryData` concorrente di un detail loader che è arrivato per
    primo.
 
-Vedi `src/hooks/use-crm-pipeline-preview.ts` come riferimento:
+Vedi `src/modules/crm/hooks/use-crm-pipeline-preview.ts` come riferimento:
 - `PROCESS_FIELD_BINDINGS` / `FAMILY_FIELD_BINDINGS` / `ADDRESS_FIELD_BINDINGS`
 - `preserveMissingFields(card, previous, row, bindings)`
 - `getPreviousCard` callback nel `queryFn`
@@ -68,7 +68,7 @@ Per effect che hanno gate interni (es.
 l'ultimo `realtimeTick` per cui è stato fatto il fetch e bypassare il
 gate quando il tick cambia.
 
-Vedi `src/hooks/use-lavoratori-data.ts` come riferimento:
+Vedi `src/modules/lavoratori/hooks/use-lavoratori-data.ts` come riferimento:
 - `loadSelectedWorkerRow` con deps `[selectedWorkerId, realtimeTick]`
 - `loadSelectedWorkerExtras` stesso pattern
 - `loadSelectedWorkerAddress` con

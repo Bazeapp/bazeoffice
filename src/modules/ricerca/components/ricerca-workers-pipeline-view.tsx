@@ -104,10 +104,12 @@ import { fetchLavoratoriSearch } from "../queries/fetch-lavoratori-search";
 import { fetchProcessiMatchingByIds } from "../queries/fetch-processi-matching-by-ids";
 import { fetchRicercaWorkerScheda } from "../queries/fetch-ricerca-worker-scheda";
 import { fetchSelezioniLookup } from "../queries/fetch-selezioni-lookup";
-import type { EsperienzaLavoratoreRecord } from "@/modules/lavoratori/types/esperienza-lavoratore";
-import type { DocumentoLavoratoreRecord } from "@/modules/lavoratori/types/documento-lavoratore";
-import type { LavoratoreRecord } from "@/modules/lavoratori/types/lavoratore";
-import type { ReferenzaLavoratoreRecord } from "@/modules/lavoratori/types/referenza-lavoratore";
+import type {
+  DocumentoLavoratoreRecord,
+  EsperienzaLavoratoreRecord,
+  LavoratoreRecord,
+  ReferenzaLavoratoreRecord,
+} from "@/modules/lavoratori";
 
 type RicercaWorkersPipelineViewProps = {
   processId: string;

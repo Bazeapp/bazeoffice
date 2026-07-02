@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = process.cwd();
-const SOURCE_ROOTS = ["src/components", "src/hooks", "src/features"];
+const SOURCE_ROOTS = ["src/components", "src/hooks", "src/features", "src/modules"];
 
 const EXTENSIONS = new Set([".ts", ".tsx"]);
 
@@ -40,95 +40,95 @@ const REVIEWED_PATHS = new Map([
     "anagrafiche grouping/filter UI, not persisted lookup edit",
   ],
   [
-    "src/components/gestione-contrattuale/assunzioni-detail-sheet.tsx",
+    "src/modules/gestione-contrattuale/components/assunzioni-detail-sheet.tsx",
     "uses lookup key for Select.value and label for save",
   ],
   [
-    "src/components/prove-colloqui/prove-colloqui-view.tsx",
+    "src/modules/support/components/prove-colloqui/prove-colloqui-view.tsx",
     "lookup selects normalized with getLookupSelectValue/getLookupLabelForSave",
   ],
   [
-    "src/components/ricerca/selection-details-card.tsx",
+    "src/modules/ricerca/components/selection-details-card.tsx",
     "lookup selects normalized with getLookupSelectValue/getLookupLabelForSave",
   ],
   [
-    "src/components/ricerca/scheda-colloquio-panel.tsx",
+    "src/modules/ricerca/components/scheda-colloquio-panel.tsx",
     "lookup select normalized; other select values are hardcoded non-lookup",
   ],
   [
-    "src/components/ricerca/ricerca-family-summary-card.tsx",
+    "src/modules/ricerca/components/ricerca-family-summary-card.tsx",
     "selectedOptionValue matches key and label",
   ],
   [
-    "src/components/ricerca/worker-pipeline-summary-cards.tsx",
+    "src/modules/ricerca/components/worker-pipeline-summary-cards.tsx",
     "delegates lookup persistence to normalized parent/component callbacks",
   ],
   [
-    "src/components/crm/cards/stato-lead-card.tsx",
+    "src/modules/crm/components/crm/cards/stato-lead-card.tsx",
     "CRM patch path normalizes lookup values before update; selectedOptionValue matches key/label",
   ],
   [
-    "src/components/crm/cards/onboarding-card.tsx",
+    "src/modules/crm/components/crm/cards/onboarding-card.tsx",
     "CRM lookup selects use selected key and label save where persisted",
   ],
   [
-    "src/components/crm/cards/onboarding-context-card.tsx",
+    "src/modules/crm/components/crm/cards/onboarding-context-card.tsx",
     "CRM contextual selects/checkboxes normalize key/label for value and checked state",
   ],
   [
-    "src/components/crm/cards/onboarding-decisione-lavoro-card.tsx",
+    "src/modules/crm/components/crm/cards/onboarding-decisione-lavoro-card.tsx",
     "uses label-valued select or boolean checkboxes, not key-backed persistence",
   ],
   [
-    "src/components/crm/famiglia-processo-detail-content.tsx",
+    "src/modules/crm/components/crm/famiglia-processo-detail-content.tsx",
     "CRM detail normalizes selected key/label and saves labels for lookup-backed fields",
   ],
   [
-    "src/components/lavoratori/documents-card.tsx",
+    "src/modules/lavoratori/components/documents-card.tsx",
     "uses getLookupSelectValue for display and backend normalizes saved lookup values",
   ],
   [
-    "src/components/lavoratori/worker-profile-overview.tsx",
+    "src/modules/lavoratori/components/worker-profile-overview.tsx",
     "uses getLookupSelectValue for display and backend normalizes saved lookup values",
   ],
   [
-    "src/components/lavoratori/worker-profile-header.tsx",
+    "src/modules/lavoratori/components/worker-profile-header.tsx",
     "lookup inline selects normalize key/label and save label",
   ],
   [
-    "src/components/lavoratori/availability-status-card.tsx",
+    "src/modules/lavoratori/components/availability-status-card.tsx",
     "availability lookup select normalizes key/label and saves label",
   ],
   [
-    "src/components/lavoratori/gate1-view.tsx",
+    "src/modules/lavoratori/components/gate1-view.tsx",
     "Gate lookup selects/radios normalize key/label for value and save paths",
   ],
   [
-    "src/components/lavoratori/lavoratori-cerca-view.tsx",
+    "src/modules/lavoratori/components/lavoratori-cerca-view.tsx",
     "passes through normalized child values; address province uses label-valued AddressSectionCard",
   ],
   [
-    "src/components/ricerca/ricerca-workers-pipeline-view.tsx",
+    "src/modules/ricerca/components/ricerca-workers-pipeline-view.tsx",
     "passes through normalized WorkerProfileHeader values; status select uses getLookupSelectValue",
   ],
   [
-    "src/hooks/use-selected-worker-editor.ts",
+    "src/modules/lavoratori/hooks/use-selected-worker-editor.ts",
     "central worker editor patch path; lookup UI callers normalize display/save values before invoking it",
   ],
   [
-    "src/components/lavoratori/skills-competenze-card.tsx",
+    "src/modules/lavoratori/components/skills-competenze-card.tsx",
     "skill controls are label-valued domain controls",
   ],
   [
-    "src/components/lavoratori/experience-references-card.tsx",
+    "src/modules/lavoratori/components/experience-references-card.tsx",
     "experience/reference controls use label-valued selects or normalized multi lookups",
   ],
   [
-    "src/components/payroll/payroll-overview-view.tsx",
+    "src/modules/payroll/components/payroll/payroll-overview-view.tsx",
     "presence day selects use local hardcoded options, not lookup_values",
   ],
   [
-    "src/components/payroll/contributi-inps-view.tsx",
+    "src/modules/payroll/components/payroll/contributi-inps-view.tsx",
     "board stage select uses stage ids with board alias mapping",
   ],
 ]);

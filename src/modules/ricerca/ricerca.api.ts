@@ -5,6 +5,7 @@ import {
   type TableQueryResponse,
 } from "@/lib/table-query"
 import { supabase } from "@/lib/supabase-client"
+import { rpcRows, type TableRow } from "@/lib/rpc-rows"
 
 import type { ProcessoMatchingRecord } from "./types/processi-matching"
 import type {
@@ -13,20 +14,7 @@ import type {
   RicercaWorkerSchedaResult,
 } from "./types/ricerca-rpc"
 
-type TableRow = Record<string, unknown>
-
 const EMPTY_ROWS = { rows: [], total: 0, columns: [], groups: [] }
-
-async function rpcRows(
-  fn: string,
-  params: Record<string, unknown>,
-  columns?: string,
-) {
-  const builder = supabase.rpc(fn, params)
-  const { data, error } = columns ? await builder.select(columns) : await builder
-  if (error) throw new Error(`${fn} failed: ${error.message}`)
-  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
-}
 
 export async function fetchRicercaBoard(eagerStages: string[], deferredStages: string[]) {
   const { data, error } = await supabase.rpc("ricerca_board", {
