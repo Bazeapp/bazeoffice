@@ -69,8 +69,6 @@ const WORKER_SORTABLE_FIELDS = [
   "anni_esperienza_colf",
   "anni_esperienza_babysitter",
   "followup_chiamata_idoneita",
-  "data_ora_di_creazione",
-  "data_ora_ultima_modifica",
   "creato_il",
   "aggiornato_il",
 ] as const
@@ -109,16 +107,16 @@ const WORKER_FILTER_FIELD_NAMES = [
   "check_accetta_funzionamento_baze", "check_accetta_lavori_con_trasferta",
   "check_accetta_multipli_contratti", "check_accetta_paga_9_euro_netti",
   "check_accetta_salire_scale_o_soffitti_alti", "check_blacklist", "check_lavori_accettabili",
-  "nome", "cognome", "colloquio_in_presenza", "come_ti_sposti",
+  "nome", "cognome", "come_ti_sposti",
   "compatibilita_babysitting_neonati", "compatibilita_con_animali_in_casa",
   "compatibilita_con_case_di_grandi_dimensioni", "compatibilita_con_contesti_pacati",
   "compatibilita_con_cucina_strutturata", "compatibilita_con_elevata_autonomia_richiesta",
   "compatibilita_con_stiro_esigente", "compatibilita_famiglie_molto_esigenti",
   "compatibilita_famiglie_numerose", "compatibilita_lavoro_con_datore_presente_in_casa",
-  "conoscenza_dellitaliano", "data_di_nascita", "data_ora_di_creazione",
+  "conoscenza_dellitaliano", "data_di_nascita",
   "data_ritorno_disponibilita", "data_scadenza_naspi", "data_ultima_candidatura",
-  "data_ultima_modifica_profilo", "descrizione_pubblica", "descrizione_rivista",
-  "disponibilita", "disponibilita_per_json", "availability_final_json", "disponibilita_nel_giorno",
+  "descrizione_pubblica", "descrizione_rivista",
+  "disponibilita", "availability_final_json", "disponibilita_nel_giorno",
   "disponibilita_domenica_mattina", "disponibilita_domenica_pomeriggio", "disponibilita_domenica_sera",
   "disponibilita_giovedi_mattina", "disponibilita_giovedi_pomeriggio", "disponibilita_giovedi_sera",
   "disponibilita_lunedi_mattina", "disponibilita_lunedi_pomeriggio", "disponibilita_lunedi_sera",
@@ -133,9 +131,9 @@ const WORKER_FILTER_FIELD_NAMES = [
   "paga_oraria_richiesta", "provincia", "rating_atteggiamento", "rating_capacita_comunicative",
   "rating_corporatura", "rating_cura_personale", "rating_precisione_puntualita",
   "referente_certificazione_id", "referente_idoneita_id", "riassunto_profilo_breve", "sesso",
-  "situazione_lavorativa_attuale", "stato_lavoratore", "stato_profilo", "stato_selezioni",
+  "situazione_lavorativa_attuale", "stato_lavoratore",
   "stato_verifica_documenti", "telefono", "tipo_lavoro_domestico", "tipo_rapporto_lavorativo",
-  "ultima_modifica", "url_onboarding_stripe", "utm_campaign", "utm_content", "utm_medium",
+  "ultima_modifica", "utm_campaign", "utm_content", "utm_medium",
   "utm_source", "utm_term", "vincoli_orari_disponibilita", "creato_il", "aggiornato_il",
 ]
 
@@ -150,8 +148,7 @@ function inferWorkerFilterType(name: string): TableColumnMeta["filterType"] {
       n.includes("scadenza") ||
       n === "creata" ||
       n === "creato_il" ||
-      n === "aggiornato_il" ||
-      n === "ultimo_aggiornamento")
+      n === "aggiornato_il")
   return dateLike ? "date" : "text"
 }
 
@@ -599,7 +596,7 @@ async function fetchWorkerAddressesByIds(workerIds: string[]) {
 // Pure: dalle righe grezze di lavoratori_selezioni_correlate (annidate nel
 // board RPC lavoratori_board) costruisce la mappa otherActiveSelections per
 // worker, risolvendo colori/label client-side.
-function buildRelatedSelectionsMap(
+export function buildRelatedSelectionsMap(
   rows: GenericRow[],
   lookupColorsByDomain: Map<string, string>,
   recruiterLabelsById: Map<string, string>

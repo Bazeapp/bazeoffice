@@ -127,8 +127,6 @@ const ASSUNZIONE_DETAIL_SELECT = [
   "provincia",
   "permesso_di_soggiorno_allegati",
   "rapporto_di_lavoro_residenza",
-  "rapporto_lavorativo_datore_lavoro_id",
-  "rapporto_lavorativo_lavoratore_id",
   "lavoratore_id",
   "regime_convivenza",
   "ricevuta_rinnovo_permesso_allegati",

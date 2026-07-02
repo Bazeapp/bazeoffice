@@ -127,6 +127,9 @@ type RicercaWorkersPipelineViewProps = {
     }>;
   focusSelectionId?: string | null;
   onOpenRelatedSearch?: (processId: string, selectionId: string) => void;
+  // BAZ-19: notifica lo shell quando cambia la selezione (lavoratore) aperta,
+  // così viene codificata nella URL e ripristinata al Back del browser.
+  onFocusSelectionChange?: (selectionId: string | null) => void;
   onPatchProcess?: (
     processId: string,
     patch: Record<string, unknown>,
@@ -942,6 +945,7 @@ export function RicercaWorkersPipelineView({
   card,
   focusSelectionId = null,
   onOpenRelatedSearch,
+  onFocusSelectionChange,
   pipelineState,
   recruiterLabelsById,
   className,
@@ -1292,12 +1296,25 @@ export function RicercaWorkersPipelineView({
     (card: RicercaWorkerSelectionCard) => {
       setSelectedCard(card);
       setIsWorkerOverlayOpen(true);
+      // BAZ-19: codifica la selezione aperta nella URL (via shell) per il Back.
+      onFocusSelectionChange?.(card.id);
     },
-    [],
+    [onFocusSelectionChange],
   );
 
+  // BAZ-19: `focusSelectionId` now persists for the whole time the worker
+  // overlay is open (it lives in the URL). Open the worker ONCE per selection —
+  // do NOT re-sync `selectedCard` on every realtime `columns` refresh, which
+  // would re-fire the profile fetch + "Caricamento profilo..." toast and could
+  // reopen a just-closed overlay. The ref resets when the focus clears.
+  const openedFocusRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (!focusSelectionId || loading) return;
+    if (!focusSelectionId) {
+      openedFocusRef.current = null;
+      return;
+    }
+    if (loading) return;
+    if (openedFocusRef.current === focusSelectionId) return;
 
     const nextCard =
       columns
@@ -1306,6 +1323,7 @@ export function RicercaWorkersPipelineView({
 
     if (!nextCard) return;
 
+    openedFocusRef.current = focusSelectionId;
     setSelectedCard(nextCard);
     setIsWorkerOverlayOpen(true);
   }, [columns, focusSelectionId, loading]);
@@ -1313,7 +1331,9 @@ export function RicercaWorkersPipelineView({
   const handleCloseWorkerOverlay = React.useCallback(() => {
     setIsWorkerOverlayOpen(false);
     setSelectedCard(null);
-  }, []);
+    // BAZ-19: chiudendo il lavoratore, rimuovi la selezione dalla URL.
+    onFocusSelectionChange?.(null);
+  }, [onFocusSelectionChange]);
 
   React.useEffect(() => {
     if (selectedWorkerLoading) {

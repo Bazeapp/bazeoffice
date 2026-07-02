@@ -3,16 +3,12 @@ type JsonObject = Record<string, unknown>
 export type LavoratoreRecord = {
   id: string
   active_selection_json: string | null
-  allegati: JsonObject | null
   anni_esperienza_babysitter: number | null
   anni_esperienza_badante: number | null
   anni_esperienza_colf: number | null
   availability_final_json: string | null
-  baze_score: number | null
   bio_personale: string | null
-  candidature_mandate: number | null
   cap: string | null
-  cap_link_id: string | null
   check_accetta_babysitting_multipli_bambini: string | null
   check_accetta_babysitting_neonati: string | null
   check_accetta_case_con_cani: string | null
@@ -28,9 +24,7 @@ export type LavoratoreRecord = {
   check_conferma_idoneita_inviata: boolean | null
   check_lavori_accettabili: string[] | null
   cognome: string | null
-  colloquio_in_presenza: string | null
   come_hai_conosciuto_baze: string | null
-  come_ti_racconteresti: string | null
   come_ti_sposti: string[] | null
   compatibilita_babysitting_neonati: string | null
   compatibilita_con_animali_in_casa: string | null
@@ -45,21 +39,15 @@ export type LavoratoreRecord = {
   conoscenza_dellitaliano: string | null
   consenso_newsletter: boolean | null
   cosa_so_fare: string[] | null
-  count_follow_up_fatti: number | null
   creato_da_candidatura: boolean | null
   cv: JsonObject | null
   data_di_nascita: string | null
-  data_ora_di_creazione: string | null
-  data_ora_ultima_modifica: string | null
   data_ritorno_disponibilita: string | null
   data_scadenza_naspi: string | null
   data_ultima_candidatura: string | null
-  data_ultima_modifica_profilo: string | null
-  data_ultimo_form_completato: string | null
   descrizione: string | null
   descrizione_pubblica: string | null
   descrizione_rivista: string | null
-  disponibile_a_lavorare_con_bambini: string | null
   disponibilita: string | null
   disponibilita_domenica_mattina: boolean | null
   disponibilita_domenica_notte: boolean | null
@@ -82,8 +70,6 @@ export type LavoratoreRecord = {
   disponibilita_mercoledi_pomeriggio: boolean | null
   disponibilita_mercoledi_sera: boolean | null
   disponibilita_nel_giorno: string[] | null
-  disponibilita_ore_a_settimana: string[] | null
-  disponibilita_per_json: string | null
   disponibilita_sabato_mattina: boolean | null
   disponibilita_sabato_notte: boolean | null
   disponibilita_sabato_pomeriggio: boolean | null
@@ -92,37 +78,20 @@ export type LavoratoreRecord = {
   disponibilita_venerdi_notte: boolean | null
   disponibilita_venerdi_pomeriggio: boolean | null
   disponibilita_venerdi_sera: boolean | null
-  docs_codice_fiscale: string | null
-  docs_codice_fiscale_fronte: JsonObject | null
-  docs_codice_fiscale_retro: JsonObject | null
-  docs_documento_identita_fronte: JsonObject | null
-  docs_documento_identita_retro: JsonObject | null
-  docs_permesso_di_soggiorno_fronte: JsonObject | null
-  docs_permesso_di_soggiorno_retro: JsonObject | null
-  docs_ricevuta_rinnovo_permesso_di_soggiorno: JsonObject | null
   docs_scadenza_permesso_di_soggiorno: string | null
   documenti_in_regola: string | null
   email: string | null
-  errore_su_brevo: boolean | null
   fbclid: string | null
   feedback_recruiter: string | null
   followup_chiamata_idoneita: string | null
-  form_3_completato: boolean | null
   foto: JsonObject | null
   gclid: string | null
-  geocache: string | null
   hai_referenze: string | null
   iban: string | null
   id_stripe_account: string | null
-  id_stripe_price: string | null
-  idoneita: string | null
   indirizzo_residenza_completo: string | null
   referente_idoneita_id: string | null
   referente_certificazione_id: string | null
-  invito: string | null
-  invito_link: string | null
-  invito_referrer: string | null
-  is_qualified: string | null
   livello_babysitting: string | null
   livello_cucina: string | null
   livello_dogsitting: string | null
@@ -131,20 +100,11 @@ export type LavoratoreRecord = {
   livello_italiano: string | null
   livello_pulizie: string | null
   livello_stiro: string | null
-  massimo_ore_settimanale: number | null
   motivazione_non_idoneo: string[] | null
   nazionalita: string | null
   nome: string | null
-  nome_della_migliore_referenza: string | null
-  numero_della_migliore_referenza: string | null
-  old_nome_della_migliore_referenza: string | null
-  old_numero_della_migliore_referenza: string | null
-  origin_source: string[] | null
   paga_oraria_richiesta: number | null
-  paga_richiesta: string | null
-  password: string | null
   permalink_foto: string | null
-  presente_nel_cms_webflow: boolean | null
   provincia: string | null
   /**
    * Non è una colonna di `public.lavoratori`: arriva dalla RPC `gate1_lavoratori`
@@ -152,69 +112,31 @@ export type LavoratoreRecord = {
    * `undefined` per query dirette su `lavoratori` (es. path Gate 2 / Cerca).
    */
   provincia_sigla?: string | null
-  quantita_selezioni: number | null
-  quanto_brava_bambini: string | null
-  quanto_brava_giardinaggio: string | null
-  quanto_brava_in_cucina: string | null
-  quanto_brava_stirare: string | null
-  quanto_vorresti_essere_pagata: string | null
-  rapporti_lavorativi_2_copy: string | null
-  rapporti_lavorativi_2_copy_2: string | null
-  rating: string | null
   rating_atteggiamento: number | null
   rating_capacita_comunicative: number | null
   rating_corporatura: string | null
   rating_cura_personale: number | null
   rating_precisione_puntualita: number | null
-  recensione_pubblica: string | null
-  recruiting_day_20_12: boolean | null
   referrer_id: string | null
   riassunto_profilo_breve: string | null
-  saresti_disposta_a_trasferirti: boolean | null
   sesso: string | null
   situazione_lavorativa_attuale: string | null
-  sono_una_persona: string[] | null
-  stato: string | null
   stato_lavoratore: string | null
-  stato_profilo: string | null
-  stato_recensione_pubblica: string | null
-  stato_selezioni: string[] | null
   stato_verifica_documenti: string | null
   telefono: string | null
-  temp_selezione_statica: boolean | null
-  test_attitudinale_comunicazione_assistito_badante: string | null
-  test_attitudinale_comunicazione_datore_colf: string | null
-  test_attitudinale_comunicazione_famiglia_badante: string | null
-  test_attitudinale_critica_colf: string | null
-  test_attitudinale_esperienze_lavori_colf: string[] | null
-  test_attitudinale_finisco_in_anticipo_colf: string | null
-  test_attitudinale_gestione_lavoro_badante: string | null
-  test_attitudinale_gestione_lavoro_colf: string | null
-  test_attitudinale_igiene_badante: string | null
-  test_attitudinale_lamenta_aggressiva_badante: string | null
-  test_attitudinale_malatie_badante: string[] | null
-  test_attitudinale_organizzazione_lavoro_colf: string | null
-  test_attitudinale_peso_badante: string | null
-  test_attitudinale_stato_motorio_badante: string | null
-  test_attitudinale_task_straordinarie_colf: string | null
   tipo_lavoro_domestico: string[] | null
   tipo_rapporto_lavorativo: string[] | null
   ultima_modifica: string | null
-  ultima_modifica_calendario: string | null
   ultima_modifica_disponibilita: string | null
-  ultima_modifica_idoneita: string | null
-  url_onboarding_stripe: string | null
   utm_campaign: string | null
   utm_content: string | null
   utm_medium: string | null
   utm_source: string | null
   utm_term: string | null
-  verified: boolean | null
   vincoli_orari_disponibilita: string | null
   vincoli_orari_disponibilita_json: string | null
   worker_availability_last_modified: string | null
   airtable_id: string | null
-  airtable_record_id: string | null
   creato_il: string | null
   aggiornato_il: string | null
   metadati_migrazione: JsonObject | null

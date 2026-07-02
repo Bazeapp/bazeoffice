@@ -32,6 +32,14 @@ export type AppRoute = {
   ricercaProcessId: string | null
   selectedRapportoId?: string | null
   selectedWorkerId?: string | null
+  // BAZ-20: id del rapporto_lavorativo selezionato nel board Assunzioni.
+  // Il board Assunzioni è indicizzato per `rapporti_lavorativi.id` (la card ha
+  // `id === rapporto.id`), quindi questo campo trasporta un id di rapporto, non
+  // un id della tabella `assunzioni`.
+  selectedAssunzioneRapportoId?: string | null
+  // BAZ-19: id della selezione (selezioni_lavoratori) focalizzata nel dettaglio
+  // ricerca, codificato nella URL per ripristinare la riga al Back del browser.
+  ricercaSelectionId?: string | null
 }
 
 export type OpenRicercaDetailOptions = {
@@ -44,6 +52,8 @@ export const DEFAULT_ROUTE: AppRoute = {
   ricercaProcessId: null,
   selectedRapportoId: null,
   selectedWorkerId: null,
+  selectedAssunzioneRapportoId: null,
+  ricercaSelectionId: null,
 }
 
 function getBasePrefix() {
@@ -98,6 +108,8 @@ export function resolveRouteStateFromPath(pathname: string): AppRoute {
       mainSection: "ricerca_pipeline",
       anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
       ricercaProcessId: detailId,
+      // BAZ-19: 3° segmento opzionale = id della selezione focalizzata.
+      ricercaSelectionId: parts[2] ? decodeURIComponent(parts[2]) : null,
     }
   }
 
@@ -126,11 +138,13 @@ export function resolveRouteStateFromPath(pathname: string): AppRoute {
     }
   }
 
-  if (slug === "gestione-contrattuale/assunzioni") {
+  if (section === "gestione-contrattuale" && parts[1] === "assunzioni") {
     return {
       mainSection: "gestione_contrattuale_assunzioni",
       anagraficheTab: DEFAULT_ROUTE.anagraficheTab,
       ricercaProcessId: null,
+      // BAZ-20: parts[2] è un id di rapporti_lavorativi (board indicizzato per rapporto id).
+      selectedAssunzioneRapportoId: parts[2] ? decodeURIComponent(parts[2]) : null,
     }
   }
 
@@ -223,9 +237,11 @@ export function buildPathForRoute(route: AppRoute) {
     if (route.mainSection === "crm_pipeline_famiglie") return "pipeline"
     if (route.mainSection === "crm_assegnazione") return "assegnazione"
     if (route.mainSection === "ricerca_pipeline") {
-      return route.ricercaProcessId
-        ? `ricerca/${encodeURIComponent(route.ricercaProcessId)}`
-        : "ricerca"
+      if (!route.ricercaProcessId) return "ricerca"
+      // BAZ-19: codifica la selezione focalizzata come 3° segmento.
+      return route.ricercaSelectionId
+        ? `ricerca/${encodeURIComponent(route.ricercaProcessId)}/${encodeURIComponent(route.ricercaSelectionId)}`
+        : `ricerca/${encodeURIComponent(route.ricercaProcessId)}`
     }
     if (route.mainSection === "lavoratori_cerca") {
       return route.selectedWorkerId
@@ -240,7 +256,10 @@ export function buildPathForRoute(route: AppRoute) {
         : "gestione-contrattuale/rapporti-lavorativi"
     }
     if (route.mainSection === "gestione_contrattuale_assunzioni") {
-      return "gestione-contrattuale/assunzioni"
+      // BAZ-20: il segmento id è un id di rapporti_lavorativi (board indicizzato per rapporto id).
+      return route.selectedAssunzioneRapportoId
+        ? `gestione-contrattuale/assunzioni/${encodeURIComponent(route.selectedAssunzioneRapportoId)}`
+        : "gestione-contrattuale/assunzioni"
     }
     if (route.mainSection === "gestione_contrattuale_chiusure") {
       return "gestione-contrattuale/chiusure"
