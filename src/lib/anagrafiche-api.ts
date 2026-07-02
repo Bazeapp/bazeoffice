@@ -27,20 +27,14 @@ import {
 } from "@/lib/write-tracking"
 import type { LookupValueRecord } from "@/types"
 import type { ChiusuraContrattoRecord } from "@/types/entities/chiusura-contratto"
-import type { ContributoInpsRecord } from "@/types/entities/contributo-inps"
 import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
 import type { FamigliaRecord } from "@/types"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
-import type { MeseCalendarioRecord } from "@/types/entities/mese-calendario"
-import type { MeseLavoratoRecord } from "@/types/entities/mese-lavorato"
-import type { PagamentoRecord } from "@/types/entities/pagamento"
-import type { PresenzaMensileRecord } from "@/types/entities/presenza-mensile"
 import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
 import type { RapportoLavorativoRecord } from "@/types/entities/rapporto-lavorativo"
 import type { RichiestaAttivazioneRecord } from "@/types"
-import type { TransazioneFinanziariaRecord } from "@/types/entities/transazione-finanziaria"
 import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-contrattuale"
 
 type TableRow = Record<string, unknown>
@@ -88,38 +82,6 @@ export type RicercaWorkerRelatedSelectionSummary = {
 
 export type RicercaWorkerRelatedSelectionSummariesRpcResponse = {
   rows?: RicercaWorkerRelatedSelectionSummary[]
-}
-
-export type CedoliniRichiestaAttivazioneSlim = {
-  id: string
-  fee_concordata: number | null
-}
-
-export type CedoliniBoardRpcRow = {
-  record: MeseLavoratoRecord
-  mese: MeseCalendarioRecord | null
-  rapporto: RapportoLavorativoRecord | null
-  famiglia: FamigliaRecord | null
-  lavoratore: LavoratoreRecord | null
-  transazione: TransazioneFinanziariaRecord | null
-  pagamento: PagamentoRecord | null
-  richiestaAttivazione: CedoliniRichiestaAttivazioneSlim | null
-  presenzeIrregolari: boolean | null
-}
-
-export type CedoliniBoardRpcResponse = {
-  rows?: CedoliniBoardRpcRow[]
-  total?: number
-}
-
-export type CedolinoDetailRpcResponse = {
-  record: MeseLavoratoRecord
-  rapporto: RapportoLavorativoRecord | null
-  famiglia: FamigliaRecord | null
-  mese: MeseCalendarioRecord | null
-  presenze: PresenzaMensileRecord | null
-  presenzeRegolari: PresenzaMensileRecord | null
-  richiestaAttivazione: CedoliniRichiestaAttivazioneSlim | null
 }
 
 export type AssunzioniBoardRpcRow = {
@@ -253,21 +215,6 @@ export async function fetchChiusureContratti(query: TablePageQuery) {
   })
 }
 
-export async function fetchContributiInps(query: TablePageQuery) {
-  return queryTable<ContributoInpsRecord>({
-    table: "contributi_inps",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
-}
-
 export async function fetchIndirizzi(query: TablePageQuery) {
   return queryTable<TableRow>({
     table: "indirizzi",
@@ -290,66 +237,6 @@ export async function fetchLavoratori(query: TablePageQuery) {
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
-}
-
-export async function fetchMesiCalendario(query: TablePageQuery) {
-  return queryTable<MeseCalendarioRecord>({
-    table: "mesi_calendario",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "data_inizio", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
-}
-
-export async function fetchMesiLavorati(query: TablePageQuery) {
-  return queryTable<MeseLavoratoRecord>({
-    table: "mesi_lavorati",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
-}
-
-export async function fetchPagamenti(query: TablePageQuery) {
-  return queryTable<PagamentoRecord>({
-    table: "pagamenti",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
-}
-
-export async function fetchPresenzeMensili(query: TablePageQuery) {
-  return queryTable<PresenzaMensileRecord>({
-    table: "presenze_mensili",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
     includeSchema: query.includeSchema,
     search: query.search,
     searchFields: query.searchFields,
@@ -395,29 +282,6 @@ export async function fetchRapportiLavorativiBoard(query: {
     rows: Array.isArray(response?.rows) ? response.rows : [],
     total: typeof response?.total === "number" ? response.total : 0,
   }
-}
-
-export async function fetchCedoliniBoard(yearMonth: string) {
-  const { data, error } = await supabase.rpc("cedolini_board", { p_year_month: yearMonth })
-  if (error) {
-    throw new Error(`cedolini_board failed: ${error.message}`)
-  }
-  const response = data as CedoliniBoardRpcResponse | null
-  return {
-    rows: Array.isArray(response?.rows) ? response.rows : [],
-    total: typeof response?.total === "number" ? response.total : 0,
-  }
-}
-
-export async function fetchCedolinoDetail(id: string) {
-  const { data, error } = await supabase.rpc("cedolino_detail", { p_id: id })
-  if (error) {
-    throw new Error(`cedolino_detail failed: ${error.message}`)
-  }
-  if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
-    return null
-  }
-  return data as CedolinoDetailRpcResponse
 }
 
 export async function fetchAssunzioniBoard(statoFilter?: string | null) {
@@ -507,21 +371,6 @@ export async function fetchAssunzioniNamesByRapportoIds(
   })
   if (error) throw new Error(`assunzioni_names_by_rapporto_ids failed: ${error.message}`)
   return (data ?? {}) as Record<string, RapportoAssunzioneNames>
-}
-
-export async function fetchTransazioniFinanziarie(query: TablePageQuery) {
-  return queryTable<TransazioneFinanziariaRecord>({
-    table: "transazioni_finanziarie",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "creato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
 }
 
 export async function fetchVariazioniContrattuali(query: TablePageQuery) {
@@ -805,109 +654,14 @@ export async function fetchTicketByRapporto(rapportoId: string) {
   return rpcRows("ticket_by_rapporto", { p_rapporto_id: rapportoId })
 }
 
-export async function fetchContributiInpsByRapporto(rapportoId: string) {
-  return rpcRows("contributi_inps_by_rapporto", { p_rapporto_id: rapportoId })
-}
-
 export async function fetchVariazioniByRapporto(rapportoId: string) {
   return rpcRows("variazioni_by_rapporto", { p_rapporto_id: rapportoId })
-}
-
-export async function fetchMesiLavoratiByRapporto(rapportoId: string) {
-  return rpcRows("mesi_lavorati_by_rapporto", { p_rapporto_id: rapportoId })
-}
-
-export async function fetchMesiCalendarioByIds(ids: string[]) {
-  if (ids.length === 0) return EMPTY_ROWS
-  return rpcRows("mesi_calendario_by_ids", { p_ids: ids })
-}
-
-export async function fetchPagamentiByTicketIds(ticketIds: string[]) {
-  if (ticketIds.length === 0) return EMPTY_ROWS
-  return rpcRows("pagamenti_by_ticket_ids", { p_ticket_ids: ticketIds })
-}
-
-export async function fetchPresenzeByIds(ids: string[]) {
-  if (ids.length === 0) return EMPTY_ROWS
-  return rpcRows("presenze_by_ids", { p_ids: ids })
-}
-
-// Transazioni finanziarie collegate ai mesi lavorati (cedolini). Usata dalla
-// scheda rapporto per abilitare "Copia link pagamento": la transazione si lega
-// al cedolino via `mese_lavorativo_id` (= id del mese lavorato).
-export async function fetchTransazioniByMeseLavoratoIds(meseLavoratoIds: string[]) {
-  if (meseLavoratoIds.length === 0) return EMPTY_ROWS
-  return fetchTransazioniFinanziarie({
-    select: ["*"],
-    // Margine ampio: un mese può avere più di una transazione e l'ordinamento
-    // globale per data non deve tagliare i mesi più vecchi del set filtrato.
-    limit: Math.max(meseLavoratoIds.length * 4, 200),
-    offset: 0,
-    orderBy: [{ field: "creato_il", ascending: false }],
-    filters: {
-      kind: "group",
-      id: "transazioni-by-mese-lavorato",
-      logic: "and",
-      nodes: [
-        {
-          kind: "condition",
-          id: "transazioni-by-mese-lavorato-in",
-          field: "mese_lavorativo_id",
-          operator: "in",
-          value: meseLavoratoIds.join(","),
-        },
-      ],
-    },
-  })
-}
-
-// Pagamenti collegati ai cedolini via transazione (pagamento.transazione_id =
-// transazione.id), come la RPC cedolini_board. Sostituisce il lookup per
-// ticket_id, inaffidabile sui cedolini (ticket spesso assente o senza pagamenti).
-export async function fetchPagamentiByTransazioneIds(transazioneIds: string[]) {
-  if (transazioneIds.length === 0) return EMPTY_ROWS
-  return fetchPagamenti({
-    select: ["*"],
-    // Margine ampio: l'ordinamento globale per data non deve tagliare le
-    // transazioni più vecchie del set filtrato.
-    limit: Math.max(transazioneIds.length * 4, 200),
-    offset: 0,
-    orderBy: [{ field: "creato_il", ascending: false }],
-    filters: {
-      kind: "group",
-      id: "pagamenti-by-transazione",
-      logic: "and",
-      nodes: [
-        {
-          kind: "condition",
-          id: "pagamenti-by-transazione-in",
-          field: "transazione_id",
-          operator: "in",
-          value: transazioneIds.join(","),
-        },
-      ],
-    },
-  })
 }
 
 // FASE 4 BIS Wave 4 — reload single-card board (by id).
 export async function fetchVariazioniByIds(ids: string[]) {
   if (ids.length === 0) return EMPTY_ROWS
   return rpcRows("variazioni_by_ids", { p_ids: ids })
-}
-
-export async function fetchContributiInpsByIds(ids: string[]) {
-  if (ids.length === 0) return EMPTY_ROWS
-  return rpcRows("contributi_inps_by_ids", { p_ids: ids })
-}
-
-// FASE 4 BIS Wave 4 — board contributi INPS.
-export async function fetchContributiInpsByPeriod(start: string, end: string) {
-  return rpcRows("contributi_inps_by_period", { p_start: start, p_end: end })
-}
-
-export async function fetchMesiCalendarioAll(limit = 500) {
-  return rpcRows("mesi_calendario_all", { p_limit: limit })
 }
 
 export async function fetchRapportiLavorativiAll(limit = 3000, columns?: string) {

@@ -17,8 +17,8 @@ import {
   StarIcon,
 } from "lucide-react"
 
-import { usePayrollBoard, TERMINAL_STAGE_IDS, type PayrollBoardCardData, type PayrollBoardColumnData } from "@/hooks/use-payroll-board"
-import { ContributiInpsView } from "@/components/payroll/contributi-inps-view"
+import { usePayrollBoard, TERMINAL_STAGE_IDS, type PayrollBoardCardData, type PayrollBoardColumnData } from "../../hooks/use-payroll-board"
+import { ContributiInpsView } from "./contributi-inps-view"
 import {
   CEDOLINI_FILTER_GROUPS,
   cardMatchesCedoliniFilters,
@@ -28,7 +28,7 @@ import {
   toggleCedoliniFilter,
   type CedoliniFilters,
   type CedoliniFilterGroupKey,
-} from "@/components/payroll/cedolini-filters"
+} from "./cedolini-filters"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import { flattenAttachmentLinks, type AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
@@ -70,8 +70,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import { fetchCedolinoDetail } from "../../queries/fetch-cedolino-detail"
 import {
-  fetchCedolinoDetail,
   runAutomationWebhook,
   updateRecord,
 } from "@/lib/anagrafiche-api"

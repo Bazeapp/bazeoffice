@@ -5,10 +5,10 @@ import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
 import {
   fetchAssunzioniNamesByRapportoIds,
-  fetchCedoliniBoard,
   fetchLookupValues,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { fetchCedoliniBoard } from "../queries/fetch-cedolini-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
 

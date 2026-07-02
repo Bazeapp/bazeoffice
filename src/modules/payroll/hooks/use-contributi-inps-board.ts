@@ -5,12 +5,12 @@ import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
 import {
   fetchAssunzioniNamesByRapportoIds,
-  fetchContributiInpsByPeriod,
   fetchLookupValues,
-  fetchMesiCalendarioAll,
   fetchRapportiLavorativiAll,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { fetchContributiInpsByPeriod } from "../queries/fetch-contributi-inps-by-period"
+import { fetchMesiCalendarioAll } from "../queries/fetch-mesi-calendario-all"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
 const CONTRIBUTI_REALTIME_TABLES = [

@@ -5,19 +5,13 @@ import {
   createRecord,
   fetchAssunzioniNamesByRapportoIds,
   fetchChiusureByIds,
-  fetchContributiInpsByRapporto,
   fetchLavoratoriByIds,
   fetchLavoratoriByName,
   fetchLookupValues,
-  fetchMesiCalendarioByIds,
-  fetchMesiLavoratiByRapporto,
-  fetchPagamentiByTransazioneIds,
   fetchProcessiMatchingByIds,
-  fetchPresenzeByIds,
   fetchRapportiLavorativiByIds,
   fetchRapportiLavorativiBoard,
   fetchTicketByRapporto,
-  fetchTransazioniByMeseLavoratoIds,
   fetchVariazioniByRapporto,
   type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
@@ -26,6 +20,14 @@ import {
   fetchFamiglieByName,
   fetchRichiesteAttivazioneByProcessIds,
 } from "@/modules/crm"
+import {
+  fetchContributiInpsByRapporto,
+  fetchMesiCalendarioByIds,
+  fetchMesiLavoratiByRapporto,
+  fetchPagamentiByTransazioneIds,
+  fetchPresenzeByIds,
+  fetchTransazioniByMeseLavoratoIds,
+} from "@/modules/payroll"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
 // The board lists rapporti; related tables are loaded only for the selected

@@ -12,14 +12,14 @@ import {
   useContributiInpsBoard,
   type ContributoInpsBoardCardData,
   type ContributoQuarterValue,
-} from "@/hooks/use-contributi-inps-board"
+} from "../../hooks/use-contributi-inps-board"
 import {
   AttachmentUploadSlot,
 } from "@/components/shared-next/attachment-upload-slot"
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
+import { fetchContributiInpsByIds } from "../../queries/fetch-contributi-inps-by-ids"
 import {
-  fetchContributiInpsByIds,
   fetchRapportiLavorativiByIds,
 } from "@/lib/anagrafiche-api"
 import { Form } from "@/components/ui/form"

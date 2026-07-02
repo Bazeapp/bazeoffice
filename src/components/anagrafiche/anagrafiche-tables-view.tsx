@@ -43,14 +43,13 @@ import {
 } from "@/hooks/use-anagrafiche-data"
 import {
   fetchLavoratori,
-  fetchMesiLavorati,
-  fetchPagamenti,
   fetchProcessiMatching,
   fetchRapportiLavorativi,
   fetchSelezioniLavoratori,
   type TableColumnMeta,
 } from "@/lib/anagrafiche-api"
 import { fetchFamiglie } from "@/modules/crm"
+import { fetchMesiLavorati, fetchPagamenti } from "@/modules/payroll"
 
 type TabValue = AnagraficheTab
 type PaginationState = {

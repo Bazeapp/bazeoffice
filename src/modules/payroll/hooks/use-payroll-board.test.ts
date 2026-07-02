@@ -14,7 +14,7 @@ import {
   preserveDetailFields,
   PRESERVED_DETAIL_FIELDS,
   type PayrollBoardCardData,
-} from "@/hooks/use-payroll-board"
+} from "./use-payroll-board"
 
 function makeCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCardData {
   return {

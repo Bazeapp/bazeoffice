@@ -41,10 +41,11 @@ import { RecordDetailShell } from "@/components/shared-next/record-detail-shell"
 import {
   ContributoInpsDetailSheet,
   type ContributiColumnData,
-} from "@/components/payroll/contributi-inps-view"
-import {
   CedolinoDetailSheet,
-} from "@/components/payroll/payroll-overview-view"
+  type ContributoInpsBoardCardData,
+  type PayrollBoardCardData,
+  type PayrollBoardColumnData,
+} from "@/modules/payroll"
 import {
   SupportTicketCreateDialog,
   type SupportTicketTag,
@@ -91,8 +92,6 @@ import type {
   TransazioneFinanziariaRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
-import type { PayrollBoardCardData, PayrollBoardColumnData } from "@/hooks/use-payroll-board"
-import type { ContributoInpsBoardCardData } from "@/hooks/use-contributi-inps-board"
 
 type RapportoDetailPanelProps = {
   rapporto: RapportoLavorativoRecord | null
