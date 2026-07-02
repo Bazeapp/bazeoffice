@@ -1,13 +1,17 @@
+import * as React from "react"
+
 import { RapportiListPanel } from "@/components/gestione-contrattuale/rapporti-list-panel"
 import { RapportoDetailPanel } from "@/components/gestione-contrattuale/rapporto-detail-panel"
 import { useRapportiLavorativiData } from "@/hooks/use-rapporti-lavorativi-data"
 
 type RapportiLavorativiViewProps = {
   initialSelectedRapportoId?: string | null
+  onSelectRapporto?: (rapportoId: string | null) => void
 }
 
 export function RapportiLavorativiView({
   initialSelectedRapportoId = null,
+  onSelectRapporto,
 }: RapportiLavorativiViewProps) {
   const {
     rapporti,
@@ -46,6 +50,13 @@ export function RapportiLavorativiView({
     createTicketForSelectedRapporto,
     updateSelectedRapporto,
   } = useRapportiLavorativiData({ initialSelectedRapportoId })
+
+  // Riporta la selezione del board nella route (URL) così il Back del browser
+  // ripristina il rapporto aperto — incluso il ritorno dal deep-link "Datore"
+  // verso Assunzioni. Copre sia il click esplicito sia l'auto-select del primo.
+  React.useEffect(() => {
+    onSelectRapporto?.(selectedRapportoId)
+  }, [selectedRapportoId, onSelectRapporto])
 
   return (
     <section className="ui grid h-full w-full min-w-0 min-h-0 gap-3 overflow-hidden px-4 pb-2 pt-4 xl:grid-cols-[22rem_minmax(0,1fr)]">

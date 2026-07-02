@@ -70,7 +70,7 @@ GitHub Pages** distinti. Ogni sito parla con il proprio progetto Supabase.
 | Ambiente   | Ramo git  | Workflow                                         | Repo Pages di destinazione | `base` | URL pubblico | Backend Supabase |
 |------------|-----------|--------------------------------------------------|----------------------------|--------|--------------|------------------|
 | Produzione | `main`    | `.github/workflows/deploy-pages.yml`             | `Bazeapp/bazeoffice` (questo repo) | `/bazeoffice/`         | https://bazeapp.github.io/bazeoffice/         | prod (`vrrusyyxqgitgovazbfe`)   |
-| Staging    | `staging` | `.github/workflows/deploy-pages-staging.yml`     | `Bazeapp/staging-bazeoffice`       | `/staging-bazeoffice/` | https://bazeapp.github.io/staging-bazeoffice/ | staging (`yvhcjetzyicwoapdvpgl`) |
+| Staging    | `staging` | `.github/workflows/deploy-pages-staging.yml`     | `Bazeapp/staging-bazeoffice`       | `/staging-bazeoffice/` | https://bazeapp.github.io/staging-bazeoffice/ | staging (`zpjafcnpdiekzegcecjn`) |
 
 Come funziona:
 
@@ -122,7 +122,7 @@ npm run dev              # http://localhost:5173/bazeoffice/
 ```
 
 Per sviluppare contro **staging** (consigliato, così non si toccano dati di produzione) usa le
-chiavi del progetto `yvhcjetzyicwoapdvpgl`. Le chiavi sono nella dashboard Supabase del
+chiavi del progetto `zpjafcnpdiekzegcecjn`. Le chiavi sono nella dashboard Supabase del
 progetto → **Project Settings → API**.
 
 ---

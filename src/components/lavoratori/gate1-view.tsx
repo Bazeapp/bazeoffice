@@ -1698,9 +1698,7 @@ export function Gate1View({
                                 ?.provincia_sigla,
                           ) ||
                           asString(row?.provincia),
-                        createdAt:
-                          asString(row?.data_ora_di_creazione) ||
-                          asString(row?.creato_il),
+                        createdAt: asString(row?.creato_il),
                         followup: followupOption?.label ?? followupRaw,
                       }}
                       onClick={() =>

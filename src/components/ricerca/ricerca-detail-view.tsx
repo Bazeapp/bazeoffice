@@ -88,7 +88,12 @@ import { Avatar } from "@/components/ui/avatar";
 
 type RicercaDetailViewProps = {
   processId: string;
+  selectionId?: string | null;
   onBack: () => void;
+  // BAZ-19: instrada la navigazione verso una ricerca correlata attraverso lo
+  // shell (push di history) e riporta la selezione focalizzata nella route.
+  onOpenRelatedRicerca?: (processId: string, selectionId: string) => void;
+  onFocusSelection?: (selectionId: string | null) => void;
 };
 
 /**
@@ -798,12 +803,15 @@ function applyFamilyPatchToCard(
 
 export function RicercaDetailView({
   processId,
+  selectionId = null,
   onBack,
+  onOpenRelatedRicerca,
+  onFocusSelection,
 }: RicercaDetailViewProps) {
   const [currentProcessId, setCurrentProcessId] = React.useState(processId);
   const [focusedSelectionId, setFocusedSelectionId] = React.useState<
     string | null
-  >(null);
+  >(selectionId ?? null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [card, setCard] = React.useState<ExtendedCardData | null>(null);
@@ -848,9 +856,14 @@ export function RicercaDetailView({
 
   React.useEffect(() => {
     setCurrentProcessId(processId);
-    setFocusedSelectionId(null);
     setEditingSections(new Set());
   }, [processId]);
+
+  // BAZ-19: la selezione focalizzata è guidata dalla route (prop `selectionId`)
+  // così il Back del browser (popstate) ripristina il lavoratore aperto.
+  React.useEffect(() => {
+    setFocusedSelectionId(selectionId ?? null);
+  }, [selectionId]);
 
   React.useEffect(() => {
     if (editingSections.has("orari")) return;
@@ -1514,10 +1527,12 @@ export function RicercaDetailView({
 
   const handleOpenRelatedSearch = React.useCallback(
     (nextProcessId: string, nextSelectionId: string) => {
-      setCurrentProcessId(nextProcessId);
-      setFocusedSelectionId(nextSelectionId);
+      // BAZ-19: passa dallo shell (push di history) invece di mutare solo lo
+      // stato locale, così il Back del browser torna a questa ricerca con il
+      // lavoratore precedente ancora focalizzato.
+      onOpenRelatedRicerca?.(nextProcessId, nextSelectionId);
     },
-    [],
+    [onOpenRelatedRicerca],
   );
 
   const headerTitle = resolvedCard?.nomeFamiglia
@@ -2662,6 +2677,7 @@ export function RicercaDetailView({
                   card={resolvedCard}
                   focusSelectionId={focusedSelectionId}
                   onOpenRelatedSearch={handleOpenRelatedSearch}
+                  onFocusSelectionChange={onFocusSelection}
                   onPatchProcess={updateProcessCard}
                   pipelineState={pipelineState}
                   recruiterLabelsById={recruiterLabelsById}
