@@ -8,7 +8,7 @@ import {
   SUPPORT_TICKET_URGENCIES,
   type SupportTicketType,
   type SupportTicketUrgency,
-} from "@/components/support/support-ticket-config"
+} from "./support-ticket-config"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,

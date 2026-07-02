@@ -8,10 +8,10 @@ import { formatAssunzioneName } from "@/features/rapporti/rapporti-labels"
 import {
   fetchAssunzioniNamesByRapportoIds,
   fetchLookupValues,
-  fetchProveColloquiBoard,
   updateRecord,
   type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
+import { fetchProveColloquiBoard } from "../queries/fetch-prove-colloqui-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
 const PROVE_COLLOQUI_REALTIME_TABLES = [

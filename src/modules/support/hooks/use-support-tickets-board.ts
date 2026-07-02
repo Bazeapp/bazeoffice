@@ -10,10 +10,10 @@ import {
   createRecord,
   fetchAssunzioniNamesByRapportoIds,
   fetchLookupValues,
-  fetchSupportTicketsBundle,
   updateRecord,
   type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
+import { fetchSupportTicketsBundle } from "../queries/fetch-support-tickets-bundle"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
 // The board's primary entity is the ticket; linked records are contextual, so
@@ -42,7 +42,7 @@ import {
   type SupportTicketTag,
   type SupportTicketType,
   type SupportTicketUrgency,
-} from "@/components/support/support-ticket-config"
+} from "../components/support/support-ticket-config"
 import { formatPersonName, getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
 import { resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
 

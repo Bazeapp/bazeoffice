@@ -45,7 +45,12 @@ import {
 import {
   CedolinoDetailSheet,
 } from "@/components/payroll/payroll-overview-view"
-import { SupportTicketCreateDialog } from "@/components/support/support-ticket-create-dialog"
+import {
+  SupportTicketCreateDialog,
+  type SupportTicketTag,
+  type SupportTicketType,
+  type SupportTicketUrgency,
+} from "@/modules/support"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -88,11 +93,6 @@ import type {
 } from "@/types"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "@/hooks/use-payroll-board"
 import type { ContributoInpsBoardCardData } from "@/hooks/use-contributi-inps-board"
-import type {
-  SupportTicketTag,
-  SupportTicketType,
-  SupportTicketUrgency,
-} from "@/components/support/support-ticket-config"
 
 type RapportoDetailPanelProps = {
   rapporto: RapportoLavorativoRecord | null

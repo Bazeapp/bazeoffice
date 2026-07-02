@@ -13,7 +13,7 @@ import {
   hasRiattivazioneStatus,
   shouldShowUnclassifiedChiusura,
   getChiusuraTipoLabel,
-} from "@/hooks/use-riattivazioni-board"
+} from "@/modules/support"
 import type { ChiusuraContrattoRecord, RapportoLavorativoRecord } from "@/types"
 
 const rapporto = (stato: string | null): RapportoLavorativoRecord =>

@@ -40,7 +40,6 @@ import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
 import type { RapportoLavorativoRecord } from "@/types/entities/rapporto-lavorativo"
 import type { RichiestaAttivazioneRecord } from "@/types/entities/richiesta-attivazione"
-import type { TicketRecord } from "@/types/entities/ticket"
 import type { TransazioneFinanziariaRecord } from "@/types/entities/transazione-finanziaria"
 import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-contrattuale"
 
@@ -216,49 +215,6 @@ export type LavoratoreExtrasRpcResponse = {
   documenti?: DocumentoLavoratoreRecord[]
   esperienze?: EsperienzaLavoratoreRecord[]
   referenze?: ReferenzaLavoratoreRecord[]
-}
-
-export type ProveColloquiBoardRpcRapportoEntry = {
-  rapporto: RapportoLavorativoRecord
-  famiglia: FamigliaRecord | null
-  lavoratore: LavoratoreRecord | null
-}
-
-export type ProveColloquiBoardRpcSelezioneEntry = {
-  selezione: Record<string, unknown>
-  processo: ProcessoMatchingRecord | null
-  processoFamiglia: FamigliaRecord | null
-  lavoratore: LavoratoreRecord | null
-}
-
-export type RiattivazioniBoardRpcCard = {
-  record: ChiusuraContrattoRecord & { stato_riattivazione_famiglia?: string | null; motivazione_lost?: string | null; data_per_riattivazione?: string | null; sconto_proposto_riattivazione?: unknown }
-  rapporto: RapportoLavorativoRecord | null
-  famiglia: { id: string; nome: string | null; cognome: string | null; email: string | null } | null
-  lavoratore: { id: string; nome: string | null; cognome: string | null; email: string | null } | null
-}
-
-export type RiattivazioniBoardRpcResponse = {
-  cards?: RiattivazioniBoardRpcCard[]
-}
-
-export type ProveColloquiBoardRpcResponse = {
-  rapporti?: ProveColloquiBoardRpcRapportoEntry[]
-  selezioni?: ProveColloquiBoardRpcSelezioneEntry[]
-}
-
-export type SupportTicketsBundleRpcResponse = {
-  tickets?: TicketRecord[]
-  rapporti?: RapportoLavorativoRecord[]
-  chiusure?: ChiusuraContrattoRecord[]
-  assunzioni?: Array<Record<string, unknown>>
-  contributi?: ContributoInpsRecord[]
-  cedolini?: MeseLavoratoRecord[]
-  pagamenti?: PagamentoRecord[]
-  presenze?: PresenzaMensileRecord[]
-  variazioni?: VariazioneContrattualeRecord[]
-  famiglie?: Array<{ id: string; nome: string | null; cognome: string | null }>
-  lavoratori?: Array<{ id: string; nome: string | null; cognome: string | null }>
 }
 
 const LOOKUP_VALUES_CACHE_TTL_MS = 5 * 60 * 1000
@@ -529,28 +485,6 @@ export async function fetchVariazioniBoard() {
   }
 }
 
-export async function fetchRiattivazioniBoard() {
-  const { data, error } = await supabase.rpc("riattivazioni_board", {})
-  if (error) throw new Error(`riattivazioni_board failed: ${error.message}`)
-  const response = (data ?? {}) as RiattivazioniBoardRpcResponse
-  return {
-    cards: Array.isArray(response.cards) ? response.cards : [],
-  }
-}
-
-export async function fetchProveColloquiBoard(startDate: string, endDate: string) {
-  const { data, error } = await supabase.rpc("prove_colloqui_board", {
-    p_start_date: startDate,
-    p_end_date: endDate,
-  })
-  if (error) throw new Error(`prove_colloqui_board failed: ${error.message}`)
-  const response = (data ?? {}) as ProveColloquiBoardRpcResponse
-  return {
-    rapporti: Array.isArray(response.rapporti) ? response.rapporti : [],
-    selezioni: Array.isArray(response.selezioni) ? response.selezioni : [],
-  }
-}
-
 export async function fetchRicercaBoard(eagerStages: string[], deferredStages: string[]) {
   const { data, error } = await supabase.rpc("ricerca_board", {
     p_eager_stages: eagerStages,
@@ -602,14 +536,6 @@ export async function fetchAssunzioniNamesByRapportoIds(
   return (data ?? {}) as Record<string, RapportoAssunzioneNames>
 }
 
-export async function fetchSupportTicketsBundle(tipo: string) {
-  const { data, error } = await supabase.rpc("support_tickets_bundle", { p_tipo: tipo })
-  if (error) {
-    throw new Error(`support_tickets_bundle failed: ${error.message}`)
-  }
-  return (data ?? {}) as SupportTicketsBundleRpcResponse
-}
-
 export async function fetchRichiesteAttivazione(query: TablePageQuery) {
   return queryTable<RichiestaAttivazioneRecord>({
     table: "richieste_attivazione",
@@ -617,21 +543,6 @@ export async function fetchRichiesteAttivazione(query: TablePageQuery) {
     limit: query.limit,
     offset: query.offset,
     orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
-}
-
-export async function fetchTickets(query: TablePageQuery) {
-  return queryTable<TicketRecord>({
-    table: "ticket",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "data_apertura", ascending: false }],
     includeSchema: query.includeSchema,
     search: query.search,
     searchFields: query.searchFields,

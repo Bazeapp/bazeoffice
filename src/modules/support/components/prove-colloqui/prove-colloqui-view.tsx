@@ -49,7 +49,7 @@ import {
   type ProvaCardData,
   type ProvaColumnData,
   useProveColloquiData,
-} from "@/hooks/use-prove-colloqui-data"
+} from "../../hooks/use-prove-colloqui-data"
 import type { ProcessoMatchingRecord, RapportoLavorativoRecord } from "@/types"
 
 type ProveColloquiViewProps = {

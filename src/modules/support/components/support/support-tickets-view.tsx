@@ -1,17 +1,17 @@
 import * as React from "react";
 import { Clock3Icon, PaperclipIcon, PlusIcon } from "lucide-react";
 
-import { SupportTicketCreateDialog } from "@/components/support/support-ticket-create-dialog";
-import { SupportTicketDetailSheet } from "@/components/support/support-ticket-detail-sheet";
+import { SupportTicketCreateDialog } from "./support-ticket-create-dialog";
+import { SupportTicketDetailSheet } from "./support-ticket-detail-sheet";
 import {
   resolveSupportTicketTag,
   resolveSupportTicketUrgency,
   type SupportTicketType,
-} from "@/components/support/support-ticket-config";
+} from "./support-ticket-config";
 import {
   type SupportTicketBoardCardData,
   useSupportTicketsBoard,
-} from "@/hooks/use-support-tickets-board";
+} from "../../hooks/use-support-tickets-board";
 import {
   KanbanColumnShell,
   KanbanColumnSkeleton,

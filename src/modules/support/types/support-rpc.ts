@@ -1,0 +1,60 @@
+import type { ChiusuraContrattoRecord } from "@/types/entities/chiusura-contratto"
+import type { ContributoInpsRecord } from "@/types/entities/contributo-inps"
+import type { FamigliaRecord } from "@/types/entities/famiglie"
+import type { LavoratoreRecord } from "@/types/entities/lavoratore"
+import type { MeseLavoratoRecord } from "@/types/entities/mese-lavorato"
+import type { PagamentoRecord } from "@/types/entities/pagamento"
+import type { PresenzaMensileRecord } from "@/types/entities/presenza-mensile"
+import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
+import type { RapportoLavorativoRecord } from "@/types/entities/rapporto-lavorativo"
+import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-contrattuale"
+
+import type { TicketRecord } from "./ticket"
+
+export type SupportTicketsBundleRpcResponse = {
+  tickets?: TicketRecord[]
+  rapporti?: RapportoLavorativoRecord[]
+  chiusure?: ChiusuraContrattoRecord[]
+  assunzioni?: Array<Record<string, unknown>>
+  contributi?: ContributoInpsRecord[]
+  cedolini?: MeseLavoratoRecord[]
+  pagamenti?: PagamentoRecord[]
+  presenze?: PresenzaMensileRecord[]
+  variazioni?: VariazioneContrattualeRecord[]
+  famiglie?: Array<{ id: string; nome: string | null; cognome: string | null }>
+  lavoratori?: Array<{ id: string; nome: string | null; cognome: string | null }>
+}
+
+export type ProveColloquiBoardRpcRapportoEntry = {
+  rapporto: RapportoLavorativoRecord
+  famiglia: FamigliaRecord | null
+  lavoratore: LavoratoreRecord | null
+}
+
+export type ProveColloquiBoardRpcSelezioneEntry = {
+  selezione: Record<string, unknown>
+  processo: ProcessoMatchingRecord | null
+  processoFamiglia: FamigliaRecord | null
+  lavoratore: LavoratoreRecord | null
+}
+
+export type ProveColloquiBoardRpcResponse = {
+  rapporti?: ProveColloquiBoardRpcRapportoEntry[]
+  selezioni?: ProveColloquiBoardRpcSelezioneEntry[]
+}
+
+export type RiattivazioniBoardRpcCard = {
+  record: ChiusuraContrattoRecord & {
+    stato_riattivazione_famiglia?: string | null
+    motivazione_lost?: string | null
+    data_per_riattivazione?: string | null
+    sconto_proposto_riattivazione?: unknown
+  }
+  rapporto: RapportoLavorativoRecord | null
+  famiglia: { id: string; nome: string | null; cognome: string | null; email: string | null } | null
+  lavoratore: { id: string; nome: string | null; cognome: string | null; email: string | null } | null
+}
+
+export type RiattivazioniBoardRpcResponse = {
+  cards?: RiattivazioniBoardRpcCard[]
+}

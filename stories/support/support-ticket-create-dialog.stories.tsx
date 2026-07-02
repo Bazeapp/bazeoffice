@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { SupportTicketCreateDialog } from "@/components/support/support-ticket-create-dialog";
+import { SupportTicketCreateDialog } from "@/modules/support";
 
 const meta = {
   title: "Support/SupportTicketCreateDialog",

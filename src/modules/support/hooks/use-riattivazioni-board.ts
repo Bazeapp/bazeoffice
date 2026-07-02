@@ -5,9 +5,9 @@ import { useMoveMutation } from "@/hooks/use-board-mutations"
 
 import {
   fetchAssunzioniNamesByRapportoIds,
-  fetchRiattivazioniBoard,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { fetchRiattivazioniBoard } from "../queries/fetch-riattivazioni-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import {
   getRapportoFamilyLabel,

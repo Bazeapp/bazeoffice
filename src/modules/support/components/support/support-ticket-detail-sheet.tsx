@@ -4,13 +4,13 @@ import { CalendarIcon, FileTextIcon, Link2Icon, Loader2Icon, StickyNoteIcon, Tag
 import {
   type SupportTicketBoardCardData,
   type SupportTicketLinkedRecord,
-} from "@/hooks/use-support-tickets-board"
+} from "../../hooks/use-support-tickets-board"
 import {
   resolveSupportTicketStatus,
   resolveSupportTicketTag,
   resolveSupportTicketUrgency,
   type SupportTicketStatusDefinition,
-} from "@/components/support/support-ticket-config"
+} from "./support-ticket-config"
 import {
   AttachmentUploadSlot,
 } from "@/components/shared-next/attachment-upload-slot"

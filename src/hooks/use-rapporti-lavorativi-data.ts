@@ -37,7 +37,7 @@ import type {
   SupportTicketTag,
   SupportTicketType,
   SupportTicketUrgency,
-} from "@/components/support/support-ticket-config"
+} from "@/modules/support"
 import type {
   ChiusuraContrattoRecord,
   ContributoInpsRecord,

@@ -16,7 +16,7 @@ import {
   type RiattivazioniBoardCardData,
   type RiattivazioniBoardColumnData,
   useRiattivazioniBoard,
-} from "@/hooks/use-riattivazioni-board"
+} from "../hooks/use-riattivazioni-board"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import { type AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailField, DetailSectionBlock } from "@/components/shared-next/detail-section-card"
