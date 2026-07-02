@@ -5,8 +5,8 @@ import {
   type TableColumnMeta,
   type QueryFilterGroup,
   type TableGroupResult,
-  fetchLookupValues,
-} from "@/lib/anagrafiche-api"
+} from "@/lib/table-query"
+import { fetchLookupValues } from "@/lib/anagrafiche-api"
 import { fetchLavoratori } from "@/modules/lavoratori"
 import {
   fetchProcessiMatching,

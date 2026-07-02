@@ -3,17 +3,17 @@ import type { SortingState } from "@tanstack/react-table"
 import type { RuleGroupType } from "react-querybuilder"
 import { DownloadIcon, FunnelIcon, LayersIcon, PlusIcon, XIcon } from "lucide-react"
 
-import { AnagraficheAgGrid } from "@/components/anagrafiche/anagrafiche-ag-grid"
-import { formatCellValue, toReadableColumnLabel } from "@/components/anagrafiche/anagrafiche-formatters"
+import { AnagraficheAgGrid } from "./anagrafiche-ag-grid"
+import { formatCellValue, toReadableColumnLabel } from "./anagrafiche-formatters"
 import {
   AnagraficheQueryBuilder,
-} from "@/components/anagrafiche/anagrafiche-query-builder"
+} from "./anagrafiche-query-builder"
 import {
   emptyServerFilterGroup,
   makeEmptyRuleGroup,
   queryBuilderToFilterGroup,
   toQueryBuilderFields,
-} from "@/components/anagrafiche/anagrafiche-query-utils"
+} from "./anagrafiche-query-utils"
 import { createEmptyGroup } from "@/components/data-table/data-table-filters"
 import { Button } from "@/components/ui/button"
 import {
@@ -40,9 +40,9 @@ import {
   type AnagraficaRow,
   type AnagraficheTab,
   useAnagraficheData,
-} from "@/hooks/use-anagrafiche-data"
+} from "../hooks/use-anagrafiche-data"
 import { fetchLavoratori } from "@/modules/lavoratori"
-import { type TableColumnMeta } from "@/lib/anagrafiche-api"
+import { type TableColumnMeta } from "@/lib/table-query"
 import {
   fetchProcessiMatching,
   fetchSelezioniLavoratori,

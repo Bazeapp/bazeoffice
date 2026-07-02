@@ -15,8 +15,8 @@ import type {
   AnagraficaRow,
   AnagraficheGroupResult,
   LookupColorMap,
-} from "@/hooks/use-anagrafiche-data"
-import type { TableColumnMeta } from "@/lib/anagrafiche-api"
+} from "../hooks/use-anagrafiche-data"
+import type { TableColumnMeta } from "@/lib/table-query"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

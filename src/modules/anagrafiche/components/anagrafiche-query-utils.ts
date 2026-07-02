@@ -4,7 +4,7 @@ import {
   createEmptyGroup,
   type FilterFieldType,
 } from "@/components/data-table/data-table-filters"
-import type { QueryFilterCondition, QueryFilterGroup } from "@/lib/anagrafiche-api"
+import type { QueryFilterCondition, QueryFilterGroup } from "@/lib/table-query"
 
 import { toReadableColumnLabel } from "./anagrafiche-formatters"
 
