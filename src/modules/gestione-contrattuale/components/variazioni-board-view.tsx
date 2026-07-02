@@ -12,7 +12,7 @@ import {
   type VariazioniBoardColumnData,
   type VariazioniRapportoOption,
   useVariazioniBoard,
-} from "@/hooks/use-variazioni-board";
+} from "../hooks/use-variazioni-board";
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot";
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
@@ -51,8 +51,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   fetchVariazioniByIds,
-  updateRecord,
-} from "@/lib/anagrafiche-api";
+} from "../queries/fetch-variazioni-by-ids";
+import { updateRecord } from "@/lib/anagrafiche-api";
 import { fetchRapportiLavorativiByIds } from "@/modules/rapporti";
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments";
 import { matchesSearchQuery } from "@/lib/search-utils";

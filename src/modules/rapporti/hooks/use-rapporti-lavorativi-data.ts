@@ -3,16 +3,18 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
   createRecord,
-  fetchAssunzioniNamesByRapportoIds,
-  fetchChiusureByIds,
   fetchLavoratoriByIds,
   fetchLavoratoriByName,
   fetchLookupValues,
   fetchProcessiMatchingByIds,
   fetchTicketByRapporto,
+} from "@/lib/anagrafiche-api"
+import {
+  fetchAssunzioniNamesByRapportoIds,
+  fetchChiusureByIds,
   fetchVariazioniByRapporto,
   type RapportoAssunzioneNames,
-} from "@/lib/anagrafiche-api"
+} from "@/modules/gestione-contrattuale"
 import {
   fetchFamiglieByIds,
   fetchFamiglieByName,

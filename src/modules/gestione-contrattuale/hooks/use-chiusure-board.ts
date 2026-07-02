@@ -7,12 +7,12 @@ import { useCreateMutation, useMoveMutation, usePatchMutation } from "@/hooks/us
 import {
   createRecord,
   deleteRecord,
-  fetchAssunzioniNamesByRapportoIds,
-  fetchChiusureBoard,
   fetchLookupValues,
   updateRecord,
-  type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
+import { fetchAssunzioniNamesByRapportoIds } from "../queries/fetch-assunzioni-names-by-rapporto-ids"
+import { fetchChiusureBoard } from "../queries/fetch-chiusure-board"
+import type { RapportoAssunzioneNames } from "../types/gestione-rpc"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/modules/rapporti/features/rapporti/rapporti-labels"
 import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"

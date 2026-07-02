@@ -6,7 +6,7 @@ import {
   mapVariazioneBoardCard,
   preserveMissingFields,
   type VariazioniBoardCardData,
-} from "@/hooks/use-variazioni-board"
+} from "./use-variazioni-board"
 import type {
   RapportoLavorativoRecord,
   VariazioneContrattualeRecord,

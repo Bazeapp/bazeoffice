@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { resolveDeepLinkSelection } from "@/lib/assunzioni/deep-link-selection"
+import { resolveDeepLinkSelection } from "./deep-link-selection"
 import type {
   AssunzioniBoardCardData,
   AssunzioniBoardColumnData,
-} from "@/hooks/use-assunzioni-board"
+} from "../../hooks/use-assunzioni-board"
 
 const card = (id: string) => ({ id }) as AssunzioniBoardCardData
 

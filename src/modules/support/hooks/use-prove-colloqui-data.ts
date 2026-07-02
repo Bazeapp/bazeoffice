@@ -7,9 +7,11 @@ import { getRapportoProcessIds } from "@/modules/rapporti/features/rapporti/rapp
 import { formatAssunzioneName } from "@/modules/rapporti/features/rapporti/rapporti-labels"
 import {
   fetchAssunzioniNamesByRapportoIds,
+  type RapportoAssunzioneNames,
+} from "@/modules/gestione-contrattuale"
+import {
   fetchLookupValues,
   updateRecord,
-  type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
 import { fetchProveColloquiBoard } from "../queries/fetch-prove-colloqui-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"

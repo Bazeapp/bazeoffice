@@ -1,4 +1,4 @@
-import { AssunzioniBoardView } from "@/components/gestione-contrattuale/assunzioni-board-view"
+import { AssunzioniBoardView } from "@/modules/gestione-contrattuale"
 
 type AssunzioniPageProps = {
   initialSelectedRapportoId?: string | null

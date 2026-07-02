@@ -14,7 +14,7 @@ import {
   UsersIcon,
 } from "lucide-react"
 
-import type { AssunzioneRecord, AssunzioniBoardCardData } from "@/hooks/use-assunzioni-board"
+import type { AssunzioneRecord, AssunzioniBoardCardData } from "../hooks/use-assunzioni-board"
 import { AssociationSearchField } from "@/components/shared-next/association-search-field"
 import { DeleteRecordAction } from "@/components/shared-next/delete-record-action"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
@@ -37,12 +37,12 @@ import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { useController } from "react-hook-form"
 import {
   createRecord,
-  fetchAssunzioniByIds,
-  fetchAssunzioniByFormType,
   fetchDocumentiLavoratoriByWorker,
   fetchLookupValues,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { fetchAssunzioniByIds } from "../queries/fetch-assunzioni-by-ids"
+import { fetchAssunzioniByFormType } from "../queries/fetch-assunzioni-by-form-type"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import {
   findLookupOption,

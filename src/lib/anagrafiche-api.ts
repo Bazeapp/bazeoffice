@@ -26,16 +26,11 @@ import {
   runTrackedEdgeFunction,
 } from "@/lib/write-tracking"
 import type { LookupValueRecord } from "@/types"
-import type { ChiusuraContrattoRecord } from "@/types/entities/chiusura-contratto"
-import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
-import type { FamigliaRecord } from "@/types"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
-import type { RapportoLavorativoRecord } from "@/types"
-import type { RichiestaAttivazioneRecord } from "@/types"
-import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-contrattuale"
+import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
 
 type TableRow = Record<string, unknown>
 
@@ -77,63 +72,6 @@ export type RicercaWorkerRelatedSelectionSummary = {
 
 export type RicercaWorkerRelatedSelectionSummariesRpcResponse = {
   rows?: RicercaWorkerRelatedSelectionSummary[]
-}
-
-export type AssunzioniBoardRpcRow = {
-  rapporto: RapportoLavorativoRecord | null
-  process: ProcessoMatchingRecord | null
-  famiglia: FamigliaRecord | null
-  lavoratore: LavoratoreRecord | null
-  assunzione: Record<string, unknown> | null
-  lavoratoreAssunzione: Record<string, unknown> | null
-}
-
-export type AssunzioniBoardRpcResponse = {
-  rows?: AssunzioniBoardRpcRow[]
-}
-
-export type AssunzioneDetailRpcResponse = {
-  rapporto: RapportoLavorativoRecord | null
-  assunzione: Record<string, unknown> | null
-  lavoratoreAssunzione: Record<string, unknown> | null
-  richiestaAttivazione: RichiestaAttivazioneRecord | null
-}
-
-export type VariazioniBoardRpcCard = {
-  record: VariazioneContrattualeRecord
-  rapporto: RapportoLavorativoRecord | null
-  famiglia: Record<string, unknown> | null
-  lavoratore: Record<string, unknown> | null
-  lavoratoreAddress: Record<string, unknown> | null
-}
-
-export type VariazioniBoardRpcRapporto = {
-  rapporto: RapportoLavorativoRecord
-  famiglia: Record<string, unknown> | null
-  lavoratore: Record<string, unknown> | null
-}
-
-export type VariazioniBoardRpcResponse = {
-  cards?: VariazioniBoardRpcCard[]
-  rapporti?: VariazioniBoardRpcRapporto[]
-}
-
-export type ChiusureBoardRpcCard = {
-  record: ChiusuraContrattoRecord
-  rapporto: RapportoLavorativoRecord | null
-  famiglia: { id: string; nome: string | null; cognome: string | null } | null
-  lavoratore: { id: string; nome: string | null; cognome: string | null } | null
-}
-
-export type ChiusureBoardRpcRapporto = {
-  rapporto: RapportoLavorativoRecord
-  famiglia: { id: string; nome: string | null; cognome: string | null } | null
-  lavoratore: { id: string; nome: string | null; cognome: string | null } | null
-}
-
-export type ChiusureBoardRpcResponse = {
-  cards?: ChiusureBoardRpcCard[]
-  rapporti?: ChiusureBoardRpcRapporto[]
 }
 
 export type RicercaBoardRpcProcess = {
@@ -195,21 +133,6 @@ let provincieCache:
     }
   | null = null
 
-export async function fetchChiusureContratti(query: TablePageQuery) {
-  return queryTable<ChiusuraContrattoRecord>({
-    table: "chiusure_contratti",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
-}
-
 export async function fetchIndirizzi(query: TablePageQuery) {
   return queryTable<TableRow>({
     table: "indirizzi",
@@ -240,44 +163,6 @@ export async function fetchLavoratori(query: TablePageQuery) {
   })
 }
 
-export async function fetchAssunzioniBoard(statoFilter?: string | null) {
-  const { data, error } = await supabase.rpc("assunzioni_board", {
-    p_stato_filter: statoFilter ?? null,
-  })
-  if (error) {
-    throw new Error(`assunzioni_board failed: ${error.message}`)
-  }
-  const response = data as AssunzioniBoardRpcResponse | null
-  return {
-    rows: Array.isArray(response?.rows) ? response.rows : [],
-  }
-}
-
-export async function fetchAssunzioneDetail(rapportoId: string) {
-  const { data, error } = await supabase.rpc("assunzione_detail", {
-    p_rapporto_id: rapportoId,
-  })
-  if (error) {
-    throw new Error(`assunzione_detail failed: ${error.message}`)
-  }
-  if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
-    return null
-  }
-  return data as AssunzioneDetailRpcResponse
-}
-
-export async function fetchVariazioniBoard() {
-  const { data, error } = await supabase.rpc("variazioni_board", {})
-  if (error) {
-    throw new Error(`variazioni_board failed: ${error.message}`)
-  }
-  const response = data as VariazioniBoardRpcResponse | null
-  return {
-    cards: Array.isArray(response?.cards) ? response.cards : [],
-    rapporti: Array.isArray(response?.rapporti) ? response.rapporti : [],
-  }
-}
-
 export async function fetchRicercaBoard(eagerStages: string[], deferredStages: string[]) {
   const { data, error } = await supabase.rpc("ricerca_board", {
     p_eager_stages: eagerStages,
@@ -289,59 +174,6 @@ export async function fetchRicercaBoard(eagerStages: string[], deferredStages: s
     processes: Array.isArray(response?.processes) ? response.processes : [],
     deferredCounts: (response?.deferredCounts ?? {}) as Record<string, number>,
   }
-}
-
-export async function fetchChiusureBoard() {
-  const { data, error } = await supabase.rpc("chiusure_board", {})
-  if (error) throw new Error(`chiusure_board failed: ${error.message}`)
-  const response = data as ChiusureBoardRpcResponse | null
-  return {
-    cards: Array.isArray(response?.cards) ? response.cards : [],
-    rapporti: Array.isArray(response?.rapporti) ? response.rapporti : [],
-  }
-}
-
-export type AssunzioneNamePair = {
-  info_anagrafiche_cognome: string | null
-  info_anagrafiche_nome: string | null
-}
-
-export type RapportoAssunzioneNames = {
-  datore: AssunzioneNamePair | null
-  lavoratore: AssunzioneNamePair | null
-}
-
-/**
- * Mappa rapporto_id → nomi anagrafici delle assunzioni collegate (datore e
- * lavoratore). Usata dai board hook per dare priorità al nominativo del form
- * di assunzione nella composizione del nome del rapporto. Vedi
- * `getRapportoTitle` in features/rapporti/rapporti-labels.ts.
- */
-export async function fetchAssunzioniNamesByRapportoIds(
-  rapportoIds: string[]
-): Promise<Record<string, RapportoAssunzioneNames>> {
-  if (rapportoIds.length === 0) return {}
-  const uniqueIds = Array.from(new Set(rapportoIds))
-  const { data, error } = await supabase.rpc("assunzioni_names_by_rapporto_ids", {
-    p_ids: uniqueIds,
-  })
-  if (error) throw new Error(`assunzioni_names_by_rapporto_ids failed: ${error.message}`)
-  return (data ?? {}) as Record<string, RapportoAssunzioneNames>
-}
-
-export async function fetchVariazioniContrattuali(query: TablePageQuery) {
-  return queryTable<VariazioneContrattualeRecord>({
-    table: "variazioni_contrattuali",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
 }
 
 // FASE 4 BIS — documenti lavoratore via RPC dedicata (ORDER BY identico al
@@ -575,14 +407,6 @@ export async function fetchIndirizziInBbox(options: {
   return normalizeTableResponse(data as TableQueryResponse<TableRow>)
 }
 
-// FASE 4 BIS Wave 3 — chiusura per id (dettaglio rapporto, eager).
-export async function fetchChiusureByIds(ids: string[]) {
-  if (ids.length === 0) return { rows: [], total: 0, columns: [], groups: [] }
-  const { data, error } = await supabase.rpc("chiusure_by_ids", { p_ids: ids })
-  if (error) throw new Error(`chiusure_by_ids failed: ${error.message}`)
-  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
-}
-
 // FASE 4 BIS Wave 3 (lazy) — sezioni dettaglio rapporto + rapporto-by-id.
 // columns: proiezione PostgREST per le RPC set-returning (returns setof <table>).
 // Senza, la RPC serializza TUTTE le colonne della riga → payload enormi. Passando
@@ -603,16 +427,6 @@ const EMPTY_ROWS = { rows: [], total: 0, columns: [], groups: [] }
 
 export async function fetchTicketByRapporto(rapportoId: string) {
   return rpcRows("ticket_by_rapporto", { p_rapporto_id: rapportoId })
-}
-
-export async function fetchVariazioniByRapporto(rapportoId: string) {
-  return rpcRows("variazioni_by_rapporto", { p_rapporto_id: rapportoId })
-}
-
-// FASE 4 BIS Wave 4 — reload single-card board (by id).
-export async function fetchVariazioniByIds(ids: string[]) {
-  if (ids.length === 0) return EMPTY_ROWS
-  return rpcRows("variazioni_by_ids", { p_ids: ids })
 }
 
 // FASE 4 BIS Wave 4 — CRM assegnazione: processi per stato_res.
@@ -824,23 +638,6 @@ export async function fetchProvincie(): Promise<ProvinciaRecord[]> {
     provincieCache = null
     throw error
   }
-}
-
-// FASE 4 BIS — assunzioni via RPC dedicate (no table-query).
-// `.select(columns)` per proiettare solo le colonne usate (Fix A).
-export async function fetchAssunzioniByIds(ids: string[], columns?: string) {
-  if (ids.length === 0) return { rows: [], total: 0, columns: [], groups: [] }
-  const builder = supabase.rpc("assunzioni_by_ids", { p_ids: ids })
-  const { data, error } = columns ? await builder.select(columns) : await builder
-  if (error) throw new Error(`assunzioni_by_ids failed: ${error.message}`)
-  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
-}
-
-export async function fetchAssunzioniByFormType(formType: string, columns?: string) {
-  const builder = supabase.rpc("assunzioni_by_form_type", { p_type: formType })
-  const { data, error } = columns ? await builder.select(columns) : await builder
-  if (error) throw new Error(`assunzioni_by_form_type failed: ${error.message}`)
-  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
 }
 
 export type AutomationWebhookId =

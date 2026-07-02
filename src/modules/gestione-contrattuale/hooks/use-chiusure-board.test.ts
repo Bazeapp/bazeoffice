@@ -6,7 +6,7 @@ import {
   mapChiusuraBoardCard,
   preserveMissingFields,
   type ChiusureBoardCardData,
-} from "@/hooks/use-chiusure-board"
+} from "./use-chiusure-board"
 import type { ChiusuraContrattoRecord, RapportoLavorativoRecord } from "@/types"
 
 function makeRecord(

@@ -3,10 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useMoveMutation } from "@/hooks/use-board-mutations"
 
-import {
-  fetchAssunzioniNamesByRapportoIds,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { updateRecord } from "@/lib/anagrafiche-api"
+import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale"
 import { fetchRiattivazioniBoard } from "../queries/fetch-riattivazioni-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import {

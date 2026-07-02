@@ -5,11 +5,11 @@ import { useCreateMutation, useMoveMutation } from "@/hooks/use-board-mutations"
 
 import {
   deleteRecord,
-  fetchAssunzioniBoard,
   fetchLookupValues,
   updateRecord,
-  type AssunzioniBoardRpcRow,
 } from "@/lib/anagrafiche-api"
+import { fetchAssunzioniBoard } from "../queries/fetch-assunzioni-board"
+import type { AssunzioniBoardRpcRow } from "../types/gestione-rpc"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
 const ASSUNZIONI_REALTIME_TABLES = [

@@ -1,4 +1,4 @@
-import type { ChiusuraContrattoRecord } from "@/types/entities/chiusura-contratto"
+import type { ChiusuraContrattoRecord } from "@/modules/gestione-contrattuale/types/chiusura-contratto"
 import type { ContributoInpsRecord } from "@/types"
 import type { FamigliaRecord } from "@/types"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
@@ -7,7 +7,7 @@ import type { PagamentoRecord } from "@/types"
 import type { PresenzaMensileRecord } from "@/types"
 import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
 import type { RapportoLavorativoRecord } from "@/types"
-import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-contrattuale"
+import type { VariazioneContrattualeRecord } from "@/modules/gestione-contrattuale/types/variazione-contrattuale"
 
 import type { TicketRecord } from "./ticket"
 

@@ -38,7 +38,7 @@ import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "../features/rapp
 import { getRapportoStatusColor, resolveRapportoStatus } from "../features/rapporti/rapporti-status"
 import { cn } from "@/lib/utils"
 import type { RapportoStatusFilter } from "../hooks/use-rapporti-lavorativi-data"
-import type { RapportoAssunzioneNames } from "@/lib/anagrafiche-api"
+import type { RapportoAssunzioneNames } from "@/modules/gestione-contrattuale"
 import type { RapportoLavorativoRecord } from "@/types"
 
 type RapportiListItem = {

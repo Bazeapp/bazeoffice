@@ -16,7 +16,7 @@ import {
   type ChiusureBoardColumnData,
   type TipoLicenziamentoOption,
   useChiusureBoard,
-} from "@/hooks/use-chiusure-board"
+} from "../hooks/use-chiusure-board"
 import { AssociationSearchField } from "@/components/shared-next/association-search-field"
 import { DeleteRecordAction } from "@/components/shared-next/delete-record-action"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
@@ -53,7 +53,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
-import { fetchChiusureByIds, updateRecord } from "@/lib/anagrafiche-api"
+import { fetchChiusureByIds } from "../queries/fetch-chiusure-by-ids"
+import { updateRecord } from "@/lib/anagrafiche-api"
 import { fetchRapportiLavorativiByIds } from "@/modules/rapporti"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"

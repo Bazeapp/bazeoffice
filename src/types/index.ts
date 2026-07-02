@@ -1,5 +1,5 @@
 export type { FamigliaRecord, FamilyRow } from "@/modules/crm/types/famiglie"
-export * from "./entities/chiusura-contratto"
+export type { ChiusuraContrattoRecord } from "@/modules/gestione-contrattuale/types/chiusura-contratto"
 export type { ContributoInpsRecord } from "@/modules/payroll/types/contributo-inps"
 export * from "./entities/documento-lavoratore"
 export * from "./entities/esperienza-lavoratore"
@@ -15,4 +15,4 @@ export type { RapportoLavorativoRecord } from "@/modules/rapporti/types/rapporto
 export type { RichiestaAttivazioneRecord } from "@/modules/crm/types/richiesta-attivazione"
 export type { TicketRecord } from "@/modules/support/types/ticket"
 export type { TransazioneFinanziariaRecord } from "@/modules/payroll/types/transazione-finanziaria"
-export * from "./entities/variazione-contrattuale"
+export type { VariazioneContrattualeRecord } from "@/modules/gestione-contrattuale/types/variazione-contrattuale"

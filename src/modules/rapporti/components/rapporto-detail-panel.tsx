@@ -63,8 +63,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import {
   updateRecord,
-  type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
+import type { RapportoAssunzioneNames } from "@/modules/gestione-contrattuale"
 import { useController } from "react-hook-form"
 import { Form } from "@/components/ui/form"
 import { FieldInput } from "@/components/forms/field-components"

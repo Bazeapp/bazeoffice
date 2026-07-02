@@ -10,11 +10,11 @@ import {
   type AssunzioniBoardCardData,
   type AssunzioniBoardColumnData,
   useAssunzioniBoard,
-} from "@/hooks/use-assunzioni-board"
-import { fetchAssunzioneDetail } from "@/lib/anagrafiche-api"
-import { resolveDeepLinkSelection } from "@/lib/assunzioni/deep-link-selection"
+} from "../hooks/use-assunzioni-board"
+import { fetchAssunzioneDetail } from "../queries/fetch-assunzione-detail"
+import { resolveDeepLinkSelection } from "../lib/assunzioni/deep-link-selection"
 import { toast } from "sonner"
-import { AssunzioniDetailSheet } from "@/components/gestione-contrattuale/assunzioni-detail-sheet"
+import { AssunzioniDetailSheet } from "./assunzioni-detail-sheet"
 import {
   KanbanColumnShell,
   KanbanColumnSkeleton,

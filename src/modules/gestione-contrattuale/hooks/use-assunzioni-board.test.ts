@@ -9,8 +9,8 @@ import {
   preserveMissingFields,
   type AssunzioneRecord,
   type AssunzioniBoardCardData,
-} from "@/hooks/use-assunzioni-board"
-import type { AssunzioniBoardRpcRow } from "@/lib/anagrafiche-api"
+} from "./use-assunzioni-board"
+import type { AssunzioniBoardRpcRow } from "../types/gestione-rpc"
 import type {
   FamigliaRecord,
   LavoratoreRecord,

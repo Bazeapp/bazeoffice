@@ -5,12 +5,12 @@ import { useCreateMutation, useMoveMutation } from "@/hooks/use-board-mutations"
 
 import {
   createRecord,
-  fetchAssunzioniNamesByRapportoIds,
   fetchLookupValues,
-  fetchVariazioniBoard,
   updateRecord,
-  type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
+import { fetchAssunzioniNamesByRapportoIds } from "../queries/fetch-assunzioni-names-by-rapporto-ids"
+import { fetchVariazioniBoard } from "../queries/fetch-variazioni-board"
+import type { RapportoAssunzioneNames } from "../types/gestione-rpc"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/modules/rapporti/features/rapporti/rapporti-labels"
 import type { LookupValueRecord, RapportoLavorativoRecord, VariazioneContrattualeRecord } from "@/types"

@@ -8,17 +8,16 @@ import {
 } from "@/hooks/use-board-mutations"
 import {
   createRecord,
-  fetchAssunzioniNamesByRapportoIds,
   fetchLookupValues,
   updateRecord,
-  type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
+import {
+  fetchAssunzioniNamesByRapportoIds,
+  type AssunzioneRecord,
+  type RapportoAssunzioneNames,
+} from "@/modules/gestione-contrattuale"
 import { fetchSupportTicketsBundle } from "../queries/fetch-support-tickets-bundle"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-
-// The board's primary entity is the ticket; linked records are contextual, so
-// we subscribe only to `ticket` to avoid refetching on unrelated table churn.
-const SUPPORT_TICKETS_REALTIME_TABLES = ["ticket"]
 import type {
   ChiusuraContrattoRecord,
   ContributoInpsRecord,
@@ -30,7 +29,6 @@ import type {
   TicketRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
-import type { AssunzioneRecord } from "@/hooks/use-assunzioni-board"
 import {
   SUPPORT_TICKET_STATUSES,
   getSupportTicketMetadata,
@@ -45,6 +43,10 @@ import {
 } from "../components/support/support-ticket-config"
 import { formatPersonName, getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "@/modules/rapporti/features/rapporti/rapporti-labels"
 import { resolveRapportoStatus } from "@/modules/rapporti/features/rapporti/rapporti-status"
+
+// The board's primary entity is the ticket; linked records are contextual, so
+// we subscribe only to `ticket` to avoid refetching on unrelated table churn.
+const SUPPORT_TICKETS_REALTIME_TABLES = ["ticket"]
 
 type SupportTicketStageMetadata = {
   definitions: SupportTicketStatusDefinition[]

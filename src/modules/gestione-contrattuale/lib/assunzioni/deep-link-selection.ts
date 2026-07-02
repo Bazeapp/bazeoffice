@@ -1,7 +1,7 @@
 import type {
   AssunzioniBoardCardData,
   AssunzioniBoardColumnData,
-} from "@/hooks/use-assunzioni-board"
+} from "../../hooks/use-assunzioni-board"
 
 /**
  * BAZ-20: what the assunzioni board should do when opened via a deep-link from
