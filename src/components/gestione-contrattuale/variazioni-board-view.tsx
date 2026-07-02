@@ -764,6 +764,10 @@ function DetailSheetSkeleton() {
   );
 }
 
+function variazioniStageTestId(stageId: string) {
+  return `kanban-column-${stageId.replace(/\s+/g, "_")}`;
+}
+
 function getColumnVisual(color: string): KanbanColumnVisual {
   switch (color.toLowerCase()) {
     case "sky":
@@ -793,6 +797,7 @@ function VariazioniBoardCard({
   return (
     <div
       draggable
+      data-testid={`variazioni-card-${card.id}`}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onOpen}
@@ -849,6 +854,7 @@ function VariazioniBoardColumn({
   return (
     <KanbanColumnShell
       columnId={column.id}
+      testId={variazioniStageTestId(column.id)}
       title={column.label}
       countLabel={`${column.cards.length} ${
         column.cards.length === 1 ? "variazione" : "variazioni"
@@ -958,7 +964,7 @@ function CreateVariazioneDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" data-testid="variazioni-create-dialog">
         <DialogHeader>
           <DialogTitle>Apri una variazione</DialogTitle>
           <DialogDescription>
@@ -1164,7 +1170,7 @@ export function VariazioniBoardView() {
             Variazioni
           </SectionHeader.Title>
           <SectionHeader.Actions>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button onClick={() => setIsCreateDialogOpen(true)} data-testid="variazioni-open-create">
               <PlusIcon className="size-4" />
               Apri una variazione
             </Button>
@@ -1172,6 +1178,7 @@ export function VariazioniBoardView() {
           <SectionHeader.Toolbar>
             <SearchInput
               className="md:max-w-sm"
+              data-testid="variazioni-search-input"
               placeholder="Cerca per famiglia, lavoratore, tipo rapporto..."
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}

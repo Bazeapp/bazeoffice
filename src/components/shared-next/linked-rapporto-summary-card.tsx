@@ -18,6 +18,8 @@ type LinkedRapportoSummaryCardProps = {
   hoursPerWeek?: number | string | null
   startDate?: string | null
   className?: string
+  /** When nested inside a section that already has a "Rapporto collegato" heading. */
+  embedded?: boolean
 }
 
 function toTextValue(value: string | number | null | undefined) {
@@ -67,6 +69,7 @@ export function LinkedRapportoSummaryCard({
   hoursPerWeek,
   startDate,
   className,
+  embedded = false,
 }: LinkedRapportoSummaryCardProps) {
   const resolvedLevel = toTextValue(level)
   const resolvedStatus = toTextValue(status) ?? toTextValue(rapporto?.stato_servizio) ?? toTextValue(rapporto?.stato_rapporto)
@@ -85,24 +88,41 @@ export function LinkedRapportoSummaryCard({
 
   return (
     <Card className={cn("py-0 gap-0", className)}>
-      <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Link2Icon className="size-4" />
-          </div>
-          <p className="ui-type-section truncate uppercase">Rapporto collegato</p>
-        </div>
-        {rapportoPath ? (
-          <Button variant="ghost" size="sm" asChild className="shrink-0 gap-1.5">
-            <a href={rapportoPath}>
+      {!embedded ? (
+        <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Link2Icon className="size-4" />
-              Vai al rapporto
-            </a>
-          </Button>
-        ) : null}
-      </CardContent>
-      <CardContent className="space-y-3 border-t border-border-subtle px-4 py-4">
-        <p className="truncate text-base font-semibold sm:text-[17px]">{title}</p>
+            </div>
+            <p className="ui-type-section truncate uppercase">Rapporto collegato</p>
+          </div>
+          {rapportoPath ? (
+            <Button variant="ghost" size="sm" asChild className="shrink-0 gap-1.5">
+              <a href={rapportoPath}>
+                <Link2Icon className="size-4" />
+                Vai al rapporto
+              </a>
+            </Button>
+          ) : null}
+        </CardContent>
+      ) : null}
+      <CardContent
+        className={cn(
+          "space-y-3 px-4 py-4",
+          embedded ? undefined : "border-t border-border-subtle",
+        )}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <p className="truncate text-base font-semibold sm:text-[17px]">{title}</p>
+          {embedded && rapportoPath ? (
+            <Button variant="ghost" size="sm" asChild className="shrink-0 gap-1.5">
+              <a href={rapportoPath}>
+                <Link2Icon className="size-4" />
+                Vai al rapporto
+              </a>
+            </Button>
+          ) : null}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {resolvedStatus ? (
             <Badge variant="outline" className={cn("rounded-full px-3 text-xs font-medium", statusBadgeClassName)}>

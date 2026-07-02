@@ -64,6 +64,10 @@ export type ContributiColumnData = {
 
 const QUARTERS: ContributoQuarterValue[] = ["Q1", "Q2", "Q3", "Q4"]
 
+function contributiInpsStageTestId(stageId: string) {
+  return `kanban-column-${stageId.replace(/\s+/g, "_")}`
+}
+
 function getCurrentQuarterState(): QuarterState {
   const now = new Date()
   const month = now.getUTCMonth()
@@ -356,7 +360,11 @@ export function ContributoInpsDetailSheet({
   return (
     <Form {...form}>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
+        <SheetContent
+          side="right"
+          className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
+          data-testid="contributi-inps-sheet-dialog"
+        >
           <SheetHeader className="border-b bg-surface px-5 py-5">
             <div className="space-y-2">
               <SheetTitle className="truncate text-xl font-semibold">
@@ -516,6 +524,7 @@ function ContributoInpsBoardColumn({
   return (
     <KanbanColumnShell
       columnId={column.id}
+      testId={contributiInpsStageTestId(column.id)}
       title={column.label}
       countLabel={`${column.cards.length} ${column.cards.length === 1 ? "contributo" : "contributi"}`}
       visual={visual}
@@ -535,6 +544,7 @@ function ContributoInpsBoardColumn({
       {column.cards.map((card) => (
         <div
           key={card.id}
+          data-testid={`contributi-inps-card-${card.id}`}
           draggable
           onClick={() => onOpenCard(card.id)}
           onDragStart={(event) => {
@@ -762,6 +772,7 @@ export function ContributiInpsView() {
         <SectionHeader.Toolbar>
           <div className="w-full md:max-w-sm">
             <SearchInput
+              data-testid="contributi-inps-search-input"
               placeholder="Cerca famiglia o lavoratore..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -782,7 +793,7 @@ export function ContributiInpsView() {
               </Button>
             ) : null}
             <Select value={stageFilter} onValueChange={setStageFilter}>
-              <SelectTrigger className="min-w-50">
+              <SelectTrigger className="min-w-50" data-testid="contributi-inps-stage-filter">
                 <SelectValue placeholder="Tutti gli stati" />
               </SelectTrigger>
               <SelectContent>

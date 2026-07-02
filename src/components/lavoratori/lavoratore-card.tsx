@@ -120,6 +120,7 @@ type LavoratoreCardProps = {
     createdAt: string | null
     followup: string | null
   }
+  cardTestId?: string
 }
 
 type WorkerQualificationStatus = {
@@ -284,6 +285,7 @@ export function LavoratoreCard({
   onLoadOtherActiveSelectionDetails,
   onOtherActiveSelectionsOpenChange,
   gate1Summary,
+  cardTestId,
 }: LavoratoreCardProps) {
   const qualificationStatus = getWorkerQualificationStatus(worker)
   const workerStatusLabel = worker.statoLavoratore || qualificationStatus.label
@@ -364,7 +366,12 @@ export function LavoratoreCard({
 
   if (variant === "gate1") {
     return (
-      <RecordCard onClick={onClick} selected={isActive} className={cardClassName}>
+      <RecordCard
+        onClick={onClick}
+        selected={isActive}
+        className={cardClassName}
+        data-testid={cardTestId ?? `lavoratore-card-${worker.id}`}
+      >
         <RecordCard.Header
           media={
             <WorkerAvatarMedia
@@ -403,7 +410,12 @@ export function LavoratoreCard({
   }
 
   return (
-    <RecordCard onClick={onClick} selected={isActive} className={cardClassName}>
+    <RecordCard
+      onClick={onClick}
+      selected={isActive}
+      className={cardClassName}
+      data-testid={cardTestId ?? `lavoratore-card-${worker.id}`}
+    >
       <RecordCard.Header
         media={
             <WorkerAvatarMedia

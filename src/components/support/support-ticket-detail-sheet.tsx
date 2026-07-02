@@ -16,6 +16,7 @@ import {
 } from "@/components/shared-next/attachment-upload-slot"
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
+import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
 import {
   Accordion,
   AccordionContent,
@@ -268,6 +269,7 @@ type SupportTicketDetailSheetProps = {
   onOpenChange: (open: boolean) => void
   onMoveTicket: (ticketId: string, targetStageId: string) => Promise<void>
   onPatchTicket: (ticketId: string, patch: Partial<TicketRecord>) => Promise<void>
+  sheetTestId?: string
 }
 
 export function SupportTicketDetailSheet({
@@ -278,6 +280,7 @@ export function SupportTicketDetailSheet({
   onOpenChange,
   onMoveTicket,
   onPatchTicket,
+  sheetTestId,
 }: SupportTicketDetailSheetProps) {
   const [selectedPreview, setSelectedPreview] = React.useState<AttachmentLink | null>(null)
   const [isUploadingAttachment, setIsUploadingAttachment] = React.useState(false)
@@ -411,7 +414,11 @@ export function SupportTicketDetailSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
+        <SheetContent
+          side="right"
+          className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
+          data-testid={sheetTestId}
+        >
           <SheetHeader className="border-b bg-surface px-5 py-5">
             <div className="min-w-0 space-y-3">
               <SheetTitle className="max-w-full text-xl leading-snug font-semibold whitespace-normal break-words">
@@ -473,6 +480,13 @@ export function SupportTicketDetailSheet({
                   icon={<FileTextIcon className="text-muted-foreground size-5" />}
                   contentClassName="space-y-3"
                 >
+                  {card.rapporto ? (
+                    <LinkedRapportoSummaryCard
+                      embedded
+                      title={card.nomeCompleto}
+                      rapporto={card.rapporto}
+                    />
+                  ) : null}
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <Select
                       value={card.rapporto?.id ?? card.record.rapporto_id ?? "__none__"}
