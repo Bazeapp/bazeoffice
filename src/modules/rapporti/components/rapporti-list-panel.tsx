@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
-import { getTagClassName, resolveLookupColor } from "@/features/lavoratori/lib/lookup-utils"
+import { getTagClassName, resolveLookupColor } from "@/modules/lavoratori"
 import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "../features/rapporti/rapporti-labels"
 import { getRapportoStatusColor, resolveRapportoStatus } from "../features/rapporti/rapporti-status"
 import { cn } from "@/lib/utils"

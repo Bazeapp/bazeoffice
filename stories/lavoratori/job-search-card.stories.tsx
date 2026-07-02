@@ -1,4 +1,4 @@
-import { JobSearchCard } from "@/components/lavoratori/job-search-card";
+import { JobSearchCard } from "@/modules/lavoratori/components/job-search-card";
 import { lookupColorsByDomain, lookupOptions } from "../mocks";
 
 const draft = {

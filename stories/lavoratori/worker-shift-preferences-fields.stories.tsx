@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { WorkerShiftPreferencesFields } from "@/components/lavoratori/worker-shift-preferences-fields";
+import { WorkerShiftPreferencesFields } from "@/modules/lavoratori/components/worker-shift-preferences-fields";
 import { lookupColorsByDomain, lookupOptions } from "../mocks";
 
 const meta = {

@@ -21,7 +21,7 @@ import {
   UsersIcon,
 } from "lucide-react"
 
-import { getTagClassName } from "@/features/lavoratori/lib/lookup-utils"
+import { getTagClassName } from "@/modules/lavoratori"
 import { getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "../features/rapporti/rapporti-labels"
 import { getRapportoStatusColor, resolveRapportoStatus } from "../features/rapporti/rapporti-status"
 import {

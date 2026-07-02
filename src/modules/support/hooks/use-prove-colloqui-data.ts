@@ -2,7 +2,7 @@ import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { flattenAttachmentLinks } from "@/components/shared-next/attachment-utils"
-import { normalizeLookupColors, normalizeLookupOptions } from "@/features/lavoratori/lib/lookup-utils"
+import { normalizeLookupColors, normalizeLookupOptions } from "@/modules/lavoratori"
 import { getRapportoProcessIds } from "@/modules/rapporti/features/rapporti/rapporti-processi"
 import { formatAssunzioneName } from "@/modules/rapporti/features/rapporti/rapporti-labels"
 import {

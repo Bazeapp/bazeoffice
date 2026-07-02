@@ -13,7 +13,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { LavoratoreCard, type LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
+import { LavoratoreCard, type LavoratoreListItem } from "@/modules/lavoratori/components/lavoratore-card"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailField, DetailFieldControl, DetailSectionBlock } from "@/components/shared-next/detail-section-card"
@@ -36,7 +36,7 @@ import {
   getLookupSelectValue,
   getTagClassName,
   resolveLookupColor,
-} from "@/features/lavoratori/lib/lookup-utils"
+} from "@/modules/lavoratori"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"

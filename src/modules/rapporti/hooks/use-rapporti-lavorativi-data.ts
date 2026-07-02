@@ -3,8 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
   createRecord,
-  fetchLavoratoriByIds,
-  fetchLavoratoriByName,
   fetchLookupValues,
   fetchTicketByRapporto,
 } from "@/lib/anagrafiche-api"
@@ -15,6 +13,7 @@ import {
   type RapportoAssunzioneNames,
 } from "@/modules/gestione-contrattuale"
 import { fetchProcessiMatchingByIds } from "@/modules/ricerca"
+import { fetchLavoratoriByIds, fetchLavoratoriByName } from "@/modules/lavoratori"
 import {
   fetchFamiglieByIds,
   fetchFamiglieByName,
@@ -37,7 +36,7 @@ import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 // detail and would cause excessive refetches if subscribed here. Detail-level
 // realtime is a follow-up refinement.
 const RAPPORTI_REALTIME_TABLES = ["rapporti_lavorativi"]
-import { normalizeLookupColors } from "@/features/lavoratori/lib/lookup-utils"
+import { normalizeLookupColors } from "@/modules/lavoratori"
 import type {
   SupportTicketMetadata,
   SupportTicketTag,

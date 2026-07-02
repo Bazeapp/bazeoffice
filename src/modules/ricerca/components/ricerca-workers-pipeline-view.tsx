@@ -14,9 +14,9 @@ import {
 import {
   LavoratoreCard,
   type WorkerOtherSelectionSummaryItem,
-} from "@/components/lavoratori/lavoratore-card";
-import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
-import { RecruiterFeedbackButton } from "@/components/lavoratori/recruiter-feedback-sheet";
+} from "@/modules/lavoratori/components/lavoratore-card";
+import { WorkerProfileHeader } from "@/modules/lavoratori/components/worker-profile-header";
+import { RecruiterFeedbackButton } from "@/modules/lavoratori/components/recruiter-feedback-sheet";
 import { SchedaColloquioPanel } from "./scheda-colloquio-panel";
 import {
   type RelatedActiveSearchItem,
@@ -54,7 +54,7 @@ import {
 } from "@/components/ui/dialog";
 import { SearchInput } from "@/components/ui/search-input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatAvailabilityComputedAt } from "@/features/lavoratori/lib/availability-utils";
+import { formatAvailabilityComputedAt } from "@/modules/lavoratori";
 import {
   asInputValue,
   asString,
@@ -64,8 +64,8 @@ import {
   parseNumberValue,
   readArrayStrings,
   toAvatarUrl,
-} from "@/features/lavoratori/lib/base-utils";
-import { isDirectInvolvementSelection } from "@/features/lavoratori/lib/involvement-utils";
+} from "@/modules/lavoratori";
+import { isDirectInvolvementSelection } from "@/modules/lavoratori";
 import {
   getLookupSelectValue,
   isBlacklistValue,
@@ -73,8 +73,8 @@ import {
   normalizeLookupOptions,
   resolveLookupColor,
   type LookupOption,
-} from "@/features/lavoratori/lib/lookup-utils";
-import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils";
+} from "@/modules/lavoratori";
+import { toWorkerStatusFlags } from "@/modules/lavoratori";
 import {
   getLookupDropZoneActiveClassName,
   getLookupDropZoneClassName,
@@ -93,24 +93,24 @@ import {
   type RicercaWorkerSelectionCard,
   type RicercaWorkersPipelineState,
 } from "../hooks/use-ricerca-workers-pipeline";
-import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
+import { useSelectedWorkerEditor } from "@/modules/lavoratori";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import {
   createRecord,
-  fetchLavoratoriByIds,
   fetchLookupValues,
   runSmartMatchingForwardPreview,
   updateRecord,
 } from "@/lib/anagrafiche-api";
+import { fetchLavoratoriByIds } from "@/modules/lavoratori";
 import { fetchLavoratoriSearch } from "../queries/fetch-lavoratori-search";
 import { fetchProcessiMatchingByIds } from "../queries/fetch-processi-matching-by-ids";
 import { fetchRicercaWorkerScheda } from "../queries/fetch-ricerca-worker-scheda";
 import { fetchSelezioniLookup } from "../queries/fetch-selezioni-lookup";
-import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore";
-import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore";
-import type { LavoratoreRecord } from "@/types/entities/lavoratore";
-import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore";
+import type { EsperienzaLavoratoreRecord } from "@/modules/lavoratori/types/esperienza-lavoratore";
+import type { DocumentoLavoratoreRecord } from "@/modules/lavoratori/types/documento-lavoratore";
+import type { LavoratoreRecord } from "@/modules/lavoratori/types/lavoratore";
+import type { ReferenzaLavoratoreRecord } from "@/modules/lavoratori/types/referenza-lavoratore";
 
 type RicercaWorkersPipelineViewProps = {
   processId: string;

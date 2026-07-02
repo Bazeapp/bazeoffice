@@ -49,7 +49,7 @@ import {
 import {
   getLookupOptionLabel,
   normalizeLookupOptionValues,
-} from "@/features/lavoratori/lib/lookup-utils"
+} from "@/modules/lavoratori"
 import { cn } from "@/lib/utils"
 import type { AnagraficheQueryBuilderField } from "./anagrafiche-query-utils"
 

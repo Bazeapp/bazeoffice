@@ -1,7 +1,7 @@
 import * as React from "react"
 import { toast } from "sonner"
 
-import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
+import type { LavoratoreListItem } from "@/modules/lavoratori/components/lavoratore-card"
 import {
   asString,
   getAgeFromBirthDate,
@@ -10,22 +10,22 @@ import {
   readArrayStrings,
   toAvatarThumbnailUrl,
   toAvatarUrl,
-} from "@/features/lavoratori/lib/base-utils"
+} from "@/modules/lavoratori"
 import {
   isBlacklistValue,
   normalizeLookupColors,
   resolveLookupColor,
-} from "@/features/lavoratori/lib/lookup-utils"
-import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
+} from "@/modules/lavoratori"
+import { toWorkerStatusFlags } from "@/modules/lavoratori"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useMoveMutation } from "@/hooks/use-board-mutations"
 import {
   fetchIndirizziByEntity,
-  fetchLavoratoriByIds,
   fetchLookupValues,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { fetchLavoratoriByIds } from "@/modules/lavoratori"
 import { fetchRicercaWorkerRelatedSelectionSummaries } from "../queries/fetch-ricerca-worker-related-selection-summaries"
 import { fetchSelezioniLookup } from "../queries/fetch-selezioni-lookup"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"

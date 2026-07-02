@@ -12,11 +12,11 @@ import {
 } from "lucide-react";
 import { useController } from "react-hook-form";
 
-import { AvailabilityCalendarCard } from "@/components/lavoratori/availability-calendar-card";
-import { DocumentsCard } from "@/components/lavoratori/documents-card";
-import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
-import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
-import { WorkerShiftPreferencesFields } from "@/components/lavoratori/worker-shift-preferences-fields";
+import { AvailabilityCalendarCard } from "@/modules/lavoratori/components/availability-calendar-card";
+import { DocumentsCard } from "@/modules/lavoratori/components/documents-card";
+import { ExperienceReferencesCard } from "@/modules/lavoratori/components/experience-references-card";
+import { SkillsCompetenzeCard } from "@/modules/lavoratori/components/skills-competenze-card";
+import { WorkerShiftPreferencesFields } from "@/modules/lavoratori/components/worker-shift-preferences-fields";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,12 +56,12 @@ import {
   isAvailabilityHourActive,
   parseAvailabilityPayload,
   readAvailabilitySlots,
-} from "@/features/lavoratori/lib/availability-utils";
+} from "@/modules/lavoratori";
 import {
   asInputValue,
   asString,
   readArrayStrings,
-} from "@/features/lavoratori/lib/base-utils";
+} from "@/modules/lavoratori";
 import {
   getLookupOptionLabel,
   getTagClassName,
@@ -69,11 +69,11 @@ import {
   normalizeLookupOptionValues,
   resolveLookupColor,
   type LookupOption,
-} from "@/features/lavoratori/lib/lookup-utils";
-import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore";
-import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore";
-import type { LavoratoreRecord } from "@/types/entities/lavoratore";
-import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore";
+} from "@/modules/lavoratori";
+import type { DocumentoLavoratoreRecord } from "@/modules/lavoratori/types/documento-lavoratore";
+import type { EsperienzaLavoratoreRecord } from "@/modules/lavoratori/types/esperienza-lavoratore";
+import type { LavoratoreRecord } from "@/modules/lavoratori/types/lavoratore";
+import type { ReferenzaLavoratoreRecord } from "@/modules/lavoratori/types/referenza-lavoratore";
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles";
 import { useProvincieOptions } from "@/hooks/use-provincie";
 

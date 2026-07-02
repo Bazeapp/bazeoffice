@@ -41,10 +41,8 @@ import {
   type AnagraficheTab,
   useAnagraficheData,
 } from "@/hooks/use-anagrafiche-data"
-import {
-  fetchLavoratori,
-  type TableColumnMeta,
-} from "@/lib/anagrafiche-api"
+import { fetchLavoratori } from "@/modules/lavoratori"
+import { type TableColumnMeta } from "@/lib/anagrafiche-api"
 import {
   fetchProcessiMatching,
   fetchSelezioniLavoratori,

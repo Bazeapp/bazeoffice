@@ -3,7 +3,7 @@ import type * as React from "react";
 import { FilterIcon, PlusIcon, UsersIcon } from "lucide-react";
 
 import { SideCardsPanel } from "@/components/shared-next/side-cards-panel";
-import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
+import { LavoratoreCard } from "@/modules/lavoratori/components/lavoratore-card";
 import { Button } from "@/components/ui/button";
 import { mockWorker } from "../mocks";
 

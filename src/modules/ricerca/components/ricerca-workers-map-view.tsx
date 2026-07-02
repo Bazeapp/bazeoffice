@@ -5,7 +5,7 @@ import { toast } from "sonner"
 import "leaflet/dist/leaflet.css"
 import { ListFilterIcon, RotateCcwIcon } from "lucide-react"
 
-import { LavoratoreCard, type LavoratoreListItem } from "@/components/lavoratori/lavoratore-card"
+import { LavoratoreCard, type LavoratoreListItem } from "@/modules/lavoratori/components/lavoratore-card"
 import { Button } from "@/components/ui/button"
 import { CheckboxChip } from "@/components/ui/checkbox"
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
@@ -29,13 +29,13 @@ import {
   readArrayStrings,
   toAvatarThumbnailUrl,
   toAvatarUrl,
-} from "@/features/lavoratori/lib/base-utils"
+} from "@/modules/lavoratori"
 import {
   isBlacklistValue,
   normalizeLookupColors,
   resolveLookupColor,
-} from "@/features/lavoratori/lib/lookup-utils"
-import { toWorkerStatusFlags } from "@/features/lavoratori/lib/status-utils"
+} from "@/modules/lavoratori"
+import { toWorkerStatusFlags } from "@/modules/lavoratori"
 import type {
   RicercaWorkerSelectionCard,
   RicercaWorkerSelectionColumn,
@@ -43,9 +43,9 @@ import type {
 } from "../hooks/use-ricerca-workers-pipeline"
 import {
   createRecord,
-  fetchLavoratoriByIds,
   fetchLookupValues,
 } from "@/lib/anagrafiche-api"
+import { fetchLavoratoriByIds } from "@/modules/lavoratori"
 import { fetchIndirizziInBbox } from "../queries/fetch-indirizzi-in-bbox"
 import { fetchLavoratoriSelezioniCorrelate } from "../queries/fetch-lavoratori-selezioni-correlate"
 import {
@@ -56,7 +56,7 @@ import {
   distanceKmBetweenCoordinates,
   type GeoCoordinates,
 } from "@/lib/geo-utils"
-import { isDisponibileRicerca } from "@/lib/lavoratori/is-disponibile-ricerca"
+import { isDisponibileRicerca } from "@/modules/lavoratori"
 import { invokeEdgeFunction } from "@/lib/supabase-edge"
 import { cn } from "@/lib/utils"
 import {
@@ -71,7 +71,7 @@ import {
   type MapAdvancedFilters,
 } from "./ricerca-workers-map-filters"
 import { excludeCurrentProcess } from "./ricerca-map-related-selections"
-import { buildRelatedSelectionsMap } from "@/hooks/use-lavoratori-data"
+import { buildRelatedSelectionsMap } from "@/modules/lavoratori"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 
 const DEFAULT_RADIUS_KM = 5

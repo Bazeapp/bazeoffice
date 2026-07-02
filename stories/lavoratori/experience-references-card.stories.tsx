@@ -1,4 +1,4 @@
-import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
+import { ExperienceReferencesCard } from "@/modules/lavoratori/components/experience-references-card";
 import { lookupColorsByDomain, lookupOptions } from "../mocks";
 
 const draft = {

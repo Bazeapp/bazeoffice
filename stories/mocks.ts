@@ -1,10 +1,10 @@
-import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card";
+import type { LavoratoreListItem } from "@/modules/lavoratori/components/lavoratore-card";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/modules/crm";
 import type { RicercaBoardCardData } from "@/modules/ricerca";
-import type { LavoratoreRecord } from "@/types/entities/lavoratore";
+import type { LavoratoreRecord } from "@/modules/lavoratori/types/lavoratore";
 
 export const mockWorker: LavoratoreListItem = {
   id: "worker-story-1",

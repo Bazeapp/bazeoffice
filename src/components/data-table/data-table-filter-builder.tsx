@@ -44,7 +44,7 @@ import {
 import {
   getLookupOptionLabel,
   normalizeLookupOptionValues,
-} from "@/features/lavoratori/lib/lookup-utils"
+} from "@/modules/lavoratori"
 import { cn } from "@/lib/utils"
 
 type DataTableFilterBuilderProps = {

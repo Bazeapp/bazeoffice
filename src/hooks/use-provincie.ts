@@ -2,7 +2,7 @@ import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { fetchProvincie, type ProvinciaRecord } from "@/lib/anagrafiche-api"
-import type { LookupOption } from "@/features/lavoratori/lib/lookup-utils"
+import type { LookupOption } from "@/modules/lavoratori"
 
 export const PROVINCIE_QUERY_KEY = ["provincie"] as const
 

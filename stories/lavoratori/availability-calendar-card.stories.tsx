@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { AvailabilityCalendarCard } from "@/components/lavoratori/availability-calendar-card";
+import { AvailabilityCalendarCard } from "@/modules/lavoratori/components/availability-calendar-card";
 
 const editDays = [
   { field: "mon", label: "Lun" },

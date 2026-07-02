@@ -1,7 +1,7 @@
 import type { ChiusuraContrattoRecord } from "@/modules/gestione-contrattuale/types/chiusura-contratto"
 import type { ContributoInpsRecord } from "@/types"
 import type { FamigliaRecord } from "@/types"
-import type { LavoratoreRecord } from "@/types/entities/lavoratore"
+import type { LavoratoreRecord } from "@/modules/lavoratori/types/lavoratore"
 import type { MeseLavoratoRecord } from "@/types"
 import type { PagamentoRecord } from "@/types"
 import type { PresenzaMensileRecord } from "@/types"

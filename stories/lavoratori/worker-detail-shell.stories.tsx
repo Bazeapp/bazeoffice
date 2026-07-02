@@ -16,15 +16,15 @@ import {
   XIcon,
 } from "lucide-react";
 
-import { AddressSectionCard } from "@/components/lavoratori/address-section-card";
-import { AvailabilityCalendarCard } from "@/components/lavoratori/availability-calendar-card";
-import { AvailabilityStatusCard } from "@/components/lavoratori/availability-status-card";
-import { DocumentsCard } from "@/components/lavoratori/documents-card";
-import { ExperienceReferencesCard } from "@/components/lavoratori/experience-references-card";
-import { JobSearchCard } from "@/components/lavoratori/job-search-card";
-import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
-import { WorkerDetailComposite } from "@/components/lavoratori/worker-detail-composite";
-import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
+import { AddressSectionCard } from "@/modules/lavoratori/components/address-section-card";
+import { AvailabilityCalendarCard } from "@/modules/lavoratori/components/availability-calendar-card";
+import { AvailabilityStatusCard } from "@/modules/lavoratori/components/availability-status-card";
+import { DocumentsCard } from "@/modules/lavoratori/components/documents-card";
+import { ExperienceReferencesCard } from "@/modules/lavoratori/components/experience-references-card";
+import { JobSearchCard } from "@/modules/lavoratori/components/job-search-card";
+import { SkillsCompetenzeCard } from "@/modules/lavoratori/components/skills-competenze-card";
+import { WorkerDetailComposite } from "@/modules/lavoratori/components/worker-detail-composite";
+import { WorkerProfileHeader } from "@/modules/lavoratori/components/worker-profile-header";
 import { SchedaColloquioPanel } from "@/modules/ricerca/components/scheda-colloquio-panel";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { Button } from "@/components/ui/button";

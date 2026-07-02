@@ -6,8 +6,8 @@ import {
   type QueryFilterGroup,
   type TableGroupResult,
   fetchLookupValues,
-  fetchLavoratori,
 } from "@/lib/anagrafiche-api"
+import { fetchLavoratori } from "@/modules/lavoratori"
 import {
   fetchProcessiMatching,
   fetchSelezioniLavoratori,
