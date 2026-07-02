@@ -1,5 +1,30 @@
+import { createRecord, deleteRecord, updateRecord } from "@/lib/record-crud"
 import { invokeEdgeFunction } from "@/lib/supabase-edge"
 import { supabase } from "@/lib/supabase-client"
+import {
+  normalizeTableResponse,
+  queryTable,
+  type Gate1RpcFilter,
+  type QueryFilterCondition,
+  type QueryFilterGroup,
+  type QueryFilterNode,
+  type QueryFilterOperator,
+  type TableColumnMeta,
+  type TableFilterFieldType,
+  type TableGroupResult,
+  type TablePageQuery,
+  type TableQueryResponse,
+} from "@/lib/table-query"
+import {
+  beginPendingWrite,
+  clearReadCaches,
+  endPendingWrite,
+  getMillisSinceLastLocalWrite,
+  getPendingWriteCount,
+  registerReadCacheInvalidator,
+  runTracked,
+  runTrackedEdgeFunction,
+} from "@/lib/write-tracking"
 import type { LookupValueRecord } from "@/types"
 import type { ChiusuraContrattoRecord } from "@/types/entities/chiusura-contratto"
 import type { ContributoInpsRecord } from "@/types/entities/contributo-inps"
@@ -21,171 +46,32 @@ import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-c
 
 type TableRow = Record<string, unknown>
 
-export type TableFilterFieldType =
-  | "text"
-  | "number"
-  | "date"
-  | "boolean"
-  | "enum"
-  | "multi_enum"
-  | "id"
-
-export type TableColumnMeta = {
-  name: string
-  dataType: string
-  udtName: string | null
-  filterType: TableFilterFieldType
+export type {
+  Gate1RpcFilter,
+  QueryFilterCondition,
+  QueryFilterGroup,
+  QueryFilterNode,
+  QueryFilterOperator,
+  TableColumnMeta,
+  TableFilterFieldType,
+  TableGroupResult,
+  TablePageQuery,
+  TableQueryResponse,
 }
 
-export type TableGroupResult = {
-  field: string
-  value: string
-  label: string
-  count: number
+export {
+  beginPendingWrite,
+  clearReadCaches,
+  createRecord,
+  deleteRecord,
+  endPendingWrite,
+  getMillisSinceLastLocalWrite,
+  getPendingWriteCount,
+  normalizeTableResponse,
+  runTracked,
+  runTrackedEdgeFunction,
+  updateRecord,
 }
-
-type TableName =
-  | "assunzioni"
-  | "famiglie"
-  | "chiusure_contratti"
-  | "contributi_inps"
-  | "indirizzi"
-  | "lavoratori"
-  | "mesi_calendario"
-  | "mesi_lavorati"
-  | "pagamenti"
-  | "presenze_mensili"
-  | "rapporti_lavorativi"
-  | "richieste_attivazione"
-  | "ticket"
-  | "transazioni_finanziarie"
-  | "variazioni_contrattuali"
-  | "selezioni_lavoratori"
-  | "documenti_lavoratori"
-  | "esperienze_lavoratori"
-  | "referenze_lavoratori"
-  | "processi_matching"
-  | "lookup_values"
-
-type UpdateTableName =
-  | "assunzioni"
-  | "famiglie"
-  | "chiusure_contratti"
-  | "contributi_inps"
-  | "lavoratori"
-  | "indirizzi"
-  | "mesi_lavorati"
-  | "presenze_mensili"
-  | "rapporti_lavorativi"
-  | "richieste_attivazione"
-  | "ticket"
-  | "variazioni_contrattuali"
-  | "selezioni_lavoratori"
-  | "documenti_lavoratori"
-  | "esperienze_lavoratori"
-  | "referenze_lavoratori"
-  | "processi_matching"
-
-type CreateTableName =
-  | "assunzioni"
-  | "famiglie"
-  | "chiusure_contratti"
-  | "lavoratori"
-  | "indirizzi"
-  | "selezioni_lavoratori"
-  | "documenti_lavoratori"
-  | "esperienze_lavoratori"
-  | "referenze_lavoratori"
-  | "processi_matching"
-  | "ticket"
-  | "variazioni_contrattuali"
-
-type QuerySort = {
-  field: string
-  ascending?: boolean
-}
-
-export type QueryFilterOperator =
-  | "is"
-  | "in"
-  | "is_not"
-  | "has"
-  | "not_has"
-  | "starts_with"
-  | "ends_with"
-  | "gt"
-  | "gte"
-  | "lt"
-  | "lte"
-  | "between"
-  | "is_true"
-  | "is_false"
-  | "has_any"
-  | "has_all"
-  | "not_has_any"
-  | "is_empty"
-  | "is_not_empty"
-
-export type QueryFilterCondition = {
-  kind: "condition"
-  id: string
-  field: string
-  operator: QueryFilterOperator
-  value: string
-  valueTo?: string
-}
-
-export type QueryFilterGroup = {
-  kind: "group"
-  id: string
-  logic: "and" | "or"
-  nodes: QueryFilterNode[]
-}
-
-export type QueryFilterNode = QueryFilterCondition | QueryFilterGroup
-
-type TableQueryRequest = {
-  table: TableName
-  select: string[]
-  limit?: number
-  offset?: number
-  orderBy?: QuerySort[]
-  includeSchema?: boolean
-  search?: string
-  searchFields?: string[]
-  filters?: QueryFilterGroup
-  groupBy?: string[]
-}
-
-export type Gate1RpcFilter = {
-  field: string
-  operator: QueryFilterOperator
-  value?: string
-  valueTo?: string
-}
-
-type TablePageQuery = {
-  limit: number
-  offset: number
-  select?: string[]
-  orderBy?: QuerySort[]
-  includeSchema?: boolean
-  search?: string
-  searchFields?: string[]
-  filters?: QueryFilterGroup
-  groupBy?: string[]
-}
-
-type TableQueryResponse<TRecord> =
-  | {
-      data?: TRecord[]
-      rows?: TRecord[]
-      total?: number
-      count?: number
-      columns?: TableColumnMeta[]
-      groups?: TableGroupResult[]
-    }
-  | TRecord[]
 
 export type CrmPipelineBoardRpcRow = {
   process: TableRow
@@ -375,21 +261,6 @@ export type SupportTicketsBundleRpcResponse = {
   lavoratori?: Array<{ id: string; nome: string | null; cognome: string | null }>
 }
 
-// Exported for the U1 characterization test (the data layer's only pure
-// transform). Pure, zero behavior change; mirrors the existing exported-mapper
-// pattern used by the board contract tests.
-export function normalizeTableResponse<TRecord>(
-  response: TableQueryResponse<TRecord>
-): { rows: TRecord[]; total: number; columns: TableColumnMeta[]; groups: TableGroupResult[] } {
-  if (Array.isArray(response)) {
-    return { rows: response, total: response.length, columns: [], groups: [] }
-  }
-
-  const rows = response.data ?? response.rows ?? []
-  const total = response.total ?? response.count ?? rows.length
-  return { rows, total, columns: response.columns ?? [], groups: response.groups ?? [] }
-}
-
 const LOOKUP_VALUES_CACHE_TTL_MS = 5 * 60 * 1000
 
 type TableResponse<TRecord> = {
@@ -399,20 +270,16 @@ type TableResponse<TRecord> = {
   groups: TableGroupResult[]
 }
 
-// Shadow caches removed: 12 in-memory Maps used to wrap fetch helpers were
-// sitting in front of React Query and breaking invalidation semantics. When
-// React Query invalidated + refetched, the queryFn re-entered the helper,
-// hit the Map cache, and returned stale data — visible as "I edited a field
-// but the UI doesn't update until I refresh the page" (the cedolino Select
-// 'lavorativo'/'festivo' bug). React Query's queryClient is now the single
-// source of truth for cache lifecycle.
-
 let lookupValuesCache:
   | {
       expiresAt: number
       promise: Promise<TableResponse<LookupValueRecord>>
     }
   | null = null
+
+registerReadCacheInvalidator(() => {
+  lookupValuesCache = null
+})
 
 export type ProvinciaRecord = {
   sigla: string
@@ -426,106 +293,6 @@ let provincieCache:
       promise: Promise<ProvinciaRecord[]>
     }
   | null = null
-
-let pendingWriteCount = 0
-let pendingWriteUnloadGuardInstalled = false
-
-function installPendingWriteUnloadGuard() {
-  if (pendingWriteUnloadGuardInstalled || typeof window === "undefined") return
-  pendingWriteUnloadGuardInstalled = true
-
-  window.addEventListener("beforeunload", (event) => {
-    if (pendingWriteCount <= 0) return
-    event.preventDefault()
-    event.returnValue = ""
-  })
-}
-
-let lastLocalWriteAt = 0
-
-async function trackWrite<TResponse>(operation: Promise<TResponse>) {
-  installPendingWriteUnloadGuard()
-  pendingWriteCount += 1
-
-  try {
-    const result = await operation
-    lastLocalWriteAt = Date.now()
-    return result
-  } finally {
-    pendingWriteCount = Math.max(0, pendingWriteCount - 1)
-  }
-}
-
-export function beginPendingWrite() {
-  installPendingWriteUnloadGuard()
-  pendingWriteCount += 1
-}
-
-export function endPendingWrite() {
-  pendingWriteCount = Math.max(0, pendingWriteCount - 1)
-  lastLocalWriteAt = Date.now()
-}
-
-export function getPendingWriteCount() {
-  return pendingWriteCount
-}
-
-export function getMillisSinceLastLocalWrite() {
-  return lastLocalWriteAt === 0 ? Number.POSITIVE_INFINITY : Date.now() - lastLocalWriteAt
-}
-
-/**
- * Run an arbitrary write-producing promise (e.g. a direct
- * `invokeEdgeFunction` for a function that persists rows the client
- * subscribes to, or a custom `mutationFn` in a board hook) under the
- * pending-write tracking machinery. Bumps `pendingWriteCount` while the
- * promise is in flight and `lastLocalWriteAt` on success, so the
- * echo-window suppression in `useRealtimeBoardSync` recognises the
- * resulting realtime echo as our own.
- *
- * Safe to nest: the count is a simple integer (0->2->0), so wrapping a
- * call that internally also uses trackWrite (e.g. via updateRecord) is
- * harmless — both increments are paired with their own decrements, and
- * `lastLocalWriteAt` is updated twice with monotonically increasing
- * timestamps.
- */
-export function runTracked<TResponse>(operation: Promise<TResponse>) {
-  return trackWrite(operation)
-}
-
-/**
- * Convenience wrapper for the most common direct-invoke bypass pattern:
- * `invokeEdgeFunction(name, payload)` against a function that writes to
- * a subscribed table. Wraps the invocation in `trackWrite` so callers
- * don't have to import both helpers.
- */
-export function runTrackedEdgeFunction<TResponse = unknown>(
-  name: string,
-  payload: unknown,
-) {
-  return trackWrite(invokeEdgeFunction<TResponse>(name, payload))
-}
-
-/**
- * Reset any process-wide caches that aren't owned by React Query.
- * After the shadow-cache removal there's only `lookupValuesCache` left
- * (5 min TTL on lookup values, called from mutations that change a
- * lookup label). The function name is kept for backward compat with
- * existing callers.
- */
-export function clearReadCaches() {
-  lookupValuesCache = null
-}
-
-async function queryTable<TRecord>(payload: TableQueryRequest) {
-  try {
-    const response = await invokeEdgeFunction<TableQueryResponse<TRecord>>("table-query", payload)
-    return normalizeTableResponse(response) as TableResponse<TRecord>
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`table-query(${payload.table}) failed: ${message}`)
-  }
-}
 
 export async function fetchFamiglie(query: TablePageQuery) {
   return queryTable<TableRow>({
@@ -1595,23 +1362,6 @@ type UpdateProcessoStatoSalesResponse = {
   stato_sales: string
 }
 
-type UpdateRecordResponse = {
-  table: UpdateTableName
-  id: string
-  row: TableRow
-}
-
-type CreateRecordResponse = {
-  table: CreateTableName
-  row: TableRow
-}
-
-type DeleteRecordResponse = {
-  table: UpdateTableName
-  id: string
-  deleted: boolean
-}
-
 export type AutomationWebhookId =
   | "finance-request-invoice-data"
   | "finance-invoice-payment"
@@ -1653,47 +1403,6 @@ export type SmartMatchingForwardResponse = {
   sync_result?: unknown[]
   ai_profiler_result?: unknown
   logs?: unknown[]
-}
-
-export async function updateRecord(
-  table: UpdateTableName,
-  id: string,
-  patch: Record<string, unknown>
-) {
-  const response = await trackWrite(
-    invokeEdgeFunction<UpdateRecordResponse>("update-record", {
-      table,
-      id,
-      patch,
-    })
-  )
-  clearReadCaches()
-  return response
-}
-
-export async function createRecord(
-  table: CreateTableName,
-  values: Record<string, unknown>
-) {
-  const response = await trackWrite(
-    invokeEdgeFunction<CreateRecordResponse>("create-record", {
-      table,
-      values,
-    })
-  )
-  clearReadCaches()
-  return response
-}
-
-export async function deleteRecord(table: UpdateTableName, id: string) {
-  const response = await trackWrite(
-    invokeEdgeFunction<DeleteRecordResponse>("delete-record", {
-      table,
-      id,
-    })
-  )
-  clearReadCaches()
-  return response
 }
 
 export async function runAutomationWebhook(

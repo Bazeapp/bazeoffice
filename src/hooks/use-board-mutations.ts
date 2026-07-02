@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-import { runTracked } from "@/lib/anagrafiche-api"
+import { runTracked } from "@/lib/write-tracking"
 
 /**
  * Wrappers around React Query's `useMutation` that encode the project's

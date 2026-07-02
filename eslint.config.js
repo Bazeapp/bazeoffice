@@ -40,7 +40,7 @@ export default defineConfig([
   },
 
   // Rule 0 (FASE 4 BIS): la edge function `table-query` è consentita SOLO nel
-  // chokepoint `src/lib/anagrafiche-api.ts` (la helper `queryTable`, usata dalla
+  // chokepoint `src/lib/table-query.ts` (la helper `queryTable`, usata dalla
   // pagina Anagrafiche e dal loader dello schema filtri). Ovunque altrove si
   // devono usare RPC dedicate. Questa regola intercetta `invokeEdgeFunction(
   // "table-query", ...)`. I glob già coperti da altri blocchi no-restricted-syntax
@@ -49,7 +49,7 @@ export default defineConfig([
   {
     files: ['src/**/*.{ts,tsx}'],
     ignores: [
-      'src/lib/anagrafiche-api.ts',
+      'src/lib/table-query.ts',
       'src/lib/supabase-edge.ts',
       'src/hooks/use-*-board.ts',
       'src/hooks/use-*-data.ts',
@@ -65,7 +65,7 @@ export default defineConfig([
           selector:
             "CallExpression[callee.name='invokeEdgeFunction'] > Literal[value='table-query']",
           message:
-            'table-query è consentita solo in src/lib/anagrafiche-api.ts (chokepoint queryTable: Anagrafiche + schema-loader filtri). Non aggiungere nuove chiamate table-query: crea una RPC dedicata (FASE 4 BIS).',
+            'table-query è consentita solo in src/lib/table-query.ts (chokepoint queryTable: Anagrafiche + schema-loader filtri). Non aggiungere nuove chiamate table-query: crea una RPC dedicata (FASE 4 BIS).',
         },
       ],
     },
@@ -129,6 +129,12 @@ export default defineConfig([
           paths: [
             {
               name: '@/lib/anagrafiche-api',
+              importNames: ['clearReadCaches'],
+              message:
+                'Do not invalidate read caches from components. Expose a callback on the hook or use queryClient.invalidateQueries.',
+            },
+            {
+              name: '@/lib/write-tracking',
               importNames: ['clearReadCaches'],
               message:
                 'Do not invalidate read caches from components. Expose a callback on the hook or use queryClient.invalidateQueries.',
