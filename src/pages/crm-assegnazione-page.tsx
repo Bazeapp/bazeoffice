@@ -1,4 +1,4 @@
-import { CrmAssegnazioneView } from "@/components/crm/crm-assegnazione-view"
+import { CrmAssegnazioneView } from "@/modules/crm"
 
 type CrmAssegnazionePageProps = {
   onOpenRicercaDetail?: (processId: string) => void

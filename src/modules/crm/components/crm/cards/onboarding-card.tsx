@@ -19,8 +19,8 @@ import {
   OnboardingDecisioneLavoroSection,
   type OnboardingDecisioneLavoroSectionKey,
   type OnboardingDecisioneLavoroCheckboxDefaults,
-} from "@/components/crm/cards/onboarding-decisione-lavoro-card";
-import { CrmDetailCard } from "@/components/crm/detail-card";
+} from "./onboarding-decisione-lavoro-card";
+import { CrmDetailCard } from "../detail-card";
 import {
   DetailField,
   DetailFieldControl,
@@ -64,7 +64,7 @@ import { Separator } from "@/components/ui/separator";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
-} from "@/hooks/use-crm-pipeline-preview";
+} from "../../../hooks/use-crm-pipeline-preview";
 import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
 import { updateRecord } from "@/lib/anagrafiche-api";

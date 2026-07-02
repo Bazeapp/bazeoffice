@@ -1,4 +1,4 @@
-import { fetchRichiesteAttivazioneLookup } from "@/lib/anagrafiche-api"
+import { fetchRichiesteAttivazioneLookup } from "../../queries/fetch-richieste-attivazione-lookup"
 import type { RichiestaAttivazioneRecord } from "@/types"
 
 function isUuidValue(value: string) {

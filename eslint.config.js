@@ -378,12 +378,12 @@ export default defineConfig([
   //   - crm-assegnazione: schedulingDraft (form edit-mode con guard isEditing).
   {
     files: [
-      'src/components/crm/cards/stato-lead-card.tsx',
+      'src/modules/crm/components/crm/cards/stato-lead-card.tsx',
       'src/components/crm/cards/selection-details-card.tsx',
-      'src/components/crm/cards/onboarding-context-card.tsx',
-      'src/components/crm/cards/onboarding-decisione-lavoro-card.tsx',
-      'src/components/crm/cards/onboarding-card.tsx',
-      'src/components/crm/famiglia-processo-detail-content.tsx',
+      'src/modules/crm/components/crm/cards/onboarding-context-card.tsx',
+      'src/modules/crm/components/crm/cards/onboarding-decisione-lavoro-card.tsx',
+      'src/modules/crm/components/crm/cards/onboarding-card.tsx',
+      'src/modules/crm/components/crm/famiglia-processo-detail-content.tsx',
       'src/components/gestione-contrattuale/assunzioni-detail-sheet.tsx',
       'src/components/gestione-contrattuale/variazioni-board-view.tsx',
       'src/components/gestione-contrattuale/chiusure-board-view.tsx',
@@ -402,7 +402,7 @@ export default defineConfig([
       'src/components/ricerca/ricerca-workers-pipeline-view.tsx',
       'src/components/ricerca/worker-pipeline-summary-cards.tsx',
       'src/components/lavoratori/gate1-view.tsx',
-      'src/components/crm/crm-assegnazione-view.tsx',
+      'src/modules/crm/components/crm/crm-assegnazione-view.tsx',
     ],
     rules: {
       'no-restricted-syntax': [

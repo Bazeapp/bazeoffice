@@ -2,14 +2,14 @@ import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
-  fetchCrmPipelineFamigliaDetail,
-  fetchCrmPipelineFamiglieBoard,
   fetchIndirizziByEntity,
   fetchLookupValues,
   createRecord,
   updateRecord,
-  updateProcessoMatchingStatoSales,
 } from "@/lib/anagrafiche-api"
+import { fetchCrmPipelineFamigliaDetail } from "../queries/fetch-crm-pipeline-famiglia-detail"
+import { fetchCrmPipelineFamiglieBoard } from "../queries/fetch-crm-pipeline-famiglie-board"
+import { updateProcessoMatchingStatoSales } from "../mutations/update-processo-matching-stato-sales"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import type { LookupValueRecord, RichiestaAttivazioneRecord } from "@/types"
 

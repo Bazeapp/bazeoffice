@@ -41,7 +41,7 @@ import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
-} from "@/hooks/use-crm-pipeline-preview";
+} from "../../../hooks/use-crm-pipeline-preview";
 
 type OnboardingContextCardProps = {
   card: CrmPipelineCardData | null;

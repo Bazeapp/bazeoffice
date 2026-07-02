@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { OnboardingCard } from "@/components/crm/cards/onboarding-card";
+import { OnboardingCard } from "@/modules/crm/components/crm/cards/onboarding-card";
 import { mockCrmCard, mockCrmLookupOptions } from "../mocks";
 
 const meta = {

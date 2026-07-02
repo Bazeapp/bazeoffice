@@ -30,7 +30,7 @@ import type { ChiusuraContrattoRecord } from "@/types/entities/chiusura-contratt
 import type { ContributoInpsRecord } from "@/types/entities/contributo-inps"
 import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
-import type { FamigliaRecord } from "@/types/entities/famiglie"
+import type { FamigliaRecord } from "@/types"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import type { MeseCalendarioRecord } from "@/types/entities/mese-calendario"
 import type { MeseLavoratoRecord } from "@/types/entities/mese-lavorato"
@@ -39,7 +39,7 @@ import type { PresenzaMensileRecord } from "@/types/entities/presenza-mensile"
 import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
 import type { RapportoLavorativoRecord } from "@/types/entities/rapporto-lavorativo"
-import type { RichiestaAttivazioneRecord } from "@/types/entities/richiesta-attivazione"
+import type { RichiestaAttivazioneRecord } from "@/types"
 import type { TransazioneFinanziariaRecord } from "@/types/entities/transazione-finanziaria"
 import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-contrattuale"
 
@@ -70,18 +70,6 @@ export {
   runTracked,
   runTrackedEdgeFunction,
   updateRecord,
-}
-
-export type CrmPipelineBoardRpcRow = {
-  process: TableRow
-  family: TableRow | null
-  address: TableRow | null
-  richiesta_attivazione?: TableRow | null
-}
-
-export type CrmPipelineBoardRpcResponse = {
-  rows?: CrmPipelineBoardRpcRow[]
-  stage_counts?: Array<{ value: string; count: number }>
 }
 
 export type RapportiLavorativiBoardRpcResponse = {
@@ -249,21 +237,6 @@ let provincieCache:
       promise: Promise<ProvinciaRecord[]>
     }
   | null = null
-
-export async function fetchFamiglie(query: TablePageQuery) {
-  return queryTable<TableRow>({
-    table: "famiglie",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
-}
 
 export async function fetchChiusureContratti(query: TablePageQuery) {
   return queryTable<ChiusuraContrattoRecord>({
@@ -536,21 +509,6 @@ export async function fetchAssunzioniNamesByRapportoIds(
   return (data ?? {}) as Record<string, RapportoAssunzioneNames>
 }
 
-export async function fetchRichiesteAttivazione(query: TablePageQuery) {
-  return queryTable<RichiestaAttivazioneRecord>({
-    table: "richieste_attivazione",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
-}
-
 export async function fetchTransazioniFinanziarie(query: TablePageQuery) {
   return queryTable<TransazioneFinanziariaRecord>({
     table: "transazioni_finanziarie",
@@ -659,14 +617,6 @@ export async function fetchLavoratoriByIds(ids: string[], roles?: string[]) {
   })
   if (error) throw new Error(`lavoratori_by_ids failed: ${error.message}`)
   return normalizeTableResponse(data as TableQueryResponse<LavoratoreRecord>)
-}
-
-export async function fetchFamiglieByIds(ids: string[], columns?: string) {
-  if (ids.length === 0) return { rows: [], total: 0, columns: [], groups: [] }
-  const builder = supabase.rpc("famiglie_by_ids", { p_ids: ids })
-  const { data, error } = columns ? await builder.select(columns) : await builder
-  if (error) throw new Error(`famiglie_by_ids failed: ${error.message}`)
-  return normalizeTableResponse(data as TableQueryResponse<FamigliaRecord>)
 }
 
 export async function fetchProcessiMatchingByIds(options: {
@@ -965,17 +915,6 @@ export async function fetchRapportiLavorativiAll(limit = 3000, columns?: string)
 }
 
 // FASE 4 BIS Wave 4 — CRM assegnazione: processi per stato_res.
-export async function fetchProcessiMatchingByStatoRes(stati: string[]) {
-  if (stati.length === 0) return EMPTY_ROWS
-  return rpcRows("processi_matching_by_stato_res", { p_stati: stati })
-}
-
-// FASE 4 BIS Wave 4 — ricerca testuale per dropdown "aggiungi".
-export async function fetchFamiglieSearch(query: string, limit = 10) {
-  if (!query.trim()) return EMPTY_ROWS
-  return rpcRows("famiglie_search", { p_query: query, p_limit: limit })
-}
-
 export async function fetchProcessiMatchingSearch(query: string, limit = 12) {
   if (!query.trim()) return EMPTY_ROWS
   return rpcRows("processi_matching_search", { p_query: query, p_limit: limit })
@@ -987,10 +926,6 @@ export async function fetchLavoratoriSearch(query: string, limit = 25) {
 }
 
 // FASE 4 BIS Wave 4 — heuristica nome (fallback): match esatto nome/cognome.
-export async function fetchFamiglieByName(first: string, rest: string) {
-  return rpcRows("famiglie_by_name", { p_first: first, p_rest: rest })
-}
-
 export async function fetchLavoratoriByName(
   first: string | null,
   rest: string | null,
@@ -1022,67 +957,6 @@ export async function fetchSelezioniLookup(options: {
     { p_ids, p_lavoratore_ids, p_processo_ids, p_stati },
     options.columns,
   )
-}
-
-// FASE 4 BIS Wave 4 — richieste_attivazione: lookup per id / processo_res_id.
-export async function fetchRichiesteAttivazioneLookup(options: {
-  ids?: string[]
-  processoResIds?: string[]
-}) {
-  const p_ids = options.ids?.length ? options.ids : null
-  const p_processo_res_ids = options.processoResIds?.length ? options.processoResIds : null
-  if (!p_ids && !p_processo_res_ids) return EMPTY_ROWS
-  return rpcRows("richieste_attivazione_lookup", { p_ids, p_processo_res_ids })
-}
-
-export async function fetchCrmPipelineFamiglieBoard(query: {
-  limit: number
-  offset: number
-  stageFilter?: string[]
-  search?: string
-  createdFrom?: string | null
-  createdTo?: string | null
-  tipoLavoro?: string[]
-  preventivoAccettato?: boolean | null
-  chiamataPrenotata?: boolean | null
-}) {
-  const { data, error } = await supabase.rpc("crm_pipeline_famiglie_board", {
-    p_limit: query.limit,
-    p_offset: query.offset,
-    p_stage_filter: query.stageFilter?.length ? query.stageFilter : null,
-    p_search: query.search?.trim() ? query.search.trim() : null,
-    p_created_from: query.createdFrom ?? null,
-    p_created_to: query.createdTo ?? null,
-    p_tipo_lavoro_filter: query.tipoLavoro?.length ? query.tipoLavoro : null,
-    p_preventivo_accettato: query.preventivoAccettato ?? null,
-    p_chiamata_prenotata: query.chiamataPrenotata ?? null,
-  })
-
-  if (error) {
-    throw new Error(`crm_pipeline_famiglie_board failed: ${error.message}`)
-  }
-
-  const response = data as CrmPipelineBoardRpcResponse | null
-  return {
-    rows: Array.isArray(response?.rows) ? response.rows : [],
-    stageCounts: Array.isArray(response?.stage_counts) ? response.stage_counts : [],
-  }
-}
-
-export async function fetchCrmPipelineFamigliaDetail(processId: string) {
-  const { data, error } = await supabase.rpc("crm_pipeline_famiglia_detail", {
-    p_process_id: processId,
-  })
-
-  if (error) {
-    throw new Error(`crm_pipeline_famiglia_detail failed: ${error.message}`)
-  }
-
-  if (!data || typeof data !== "object" || Object.keys(data).length === 0) {
-    return null
-  }
-
-  return data as CrmPipelineBoardRpcRow
 }
 
 export async function fetchSelezioniLavoratori(query: TablePageQuery) {
@@ -1268,11 +1142,6 @@ export async function fetchAssunzioniByFormType(formType: string, columns?: stri
   return normalizeTableResponse(data as TableQueryResponse<TableRow>)
 }
 
-type UpdateProcessoStatoSalesResponse = {
-  id: string
-  stato_sales: string
-}
-
 export type AutomationWebhookId =
   | "finance-request-invoice-data"
   | "finance-invoice-payment"
@@ -1339,21 +1208,4 @@ export async function runSmartMatchingForwardPreview(processId: string) {
     max_straight_line_km: 30,
     call_ai_profiler: false,
   })
-}
-
-export async function updateProcessoMatchingStatoSales(
-  processId: string,
-  statoSales: string
-) {
-  const response = await updateRecord("processi_matching", processId, {
-    stato_sales: statoSales,
-  })
-
-  return {
-    id: processId,
-    stato_sales:
-      (typeof response.row.stato_sales === "string"
-        ? response.row.stato_sales
-        : statoSales) as UpdateProcessoStatoSalesResponse["stato_sales"],
-  }
 }

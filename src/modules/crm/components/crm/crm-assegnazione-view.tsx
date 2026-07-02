@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import type { AssegnazioneCardData } from "@/hooks/use-crm-assegnazione";
-import { useCrmAssegnazione } from "@/hooks/use-crm-assegnazione";
+import type { AssegnazioneCardData } from "../../hooks/use-crm-assegnazione";
+import { useCrmAssegnazione } from "../../hooks/use-crm-assegnazione";
 import {
   type OperatoreOption,
   useOperatoriOptions,

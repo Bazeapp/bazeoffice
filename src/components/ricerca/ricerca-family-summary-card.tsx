@@ -20,7 +20,7 @@ import { STATI_RICERCA_CANONICI } from "@/features/ricerca/stati-ricerca";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
-} from "@/hooks/use-crm-pipeline-preview";
+} from "@/modules/crm";
 
 type RicercaFamilySummaryCardProps = {
   card: CrmPipelineCardData;

@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CardMetaRow } from "@/components/shared-next/card-meta-row";
 import { RecordCard } from "@/components/shared-next/record-card";
-import type { CrmPipelineCardData } from "@/hooks/use-crm-pipeline-preview";
+import type { CrmPipelineCardData } from "../../hooks/use-crm-pipeline-preview";
 
 type FamigliaProcessoCardProps = {
   data: CrmPipelineCardData;

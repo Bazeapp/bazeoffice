@@ -9,7 +9,7 @@ import {
   preserveMissingFields,
   type CrmPipelineCardData,
   type GenericRow,
-} from "@/hooks/use-crm-pipeline-preview"
+} from "./use-crm-pipeline-preview"
 import type { RichiestaAttivazioneRecord } from "@/types"
 
 /**

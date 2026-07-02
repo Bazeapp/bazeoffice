@@ -2,7 +2,7 @@ import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
-} from "@/hooks/use-crm-pipeline-preview";
+} from "@/modules/crm";
 import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board";
 import type { LavoratoreRecord } from "@/types/entities/lavoratore";
 

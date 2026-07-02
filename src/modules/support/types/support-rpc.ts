@@ -1,6 +1,6 @@
 import type { ChiusuraContrattoRecord } from "@/types/entities/chiusura-contratto"
 import type { ContributoInpsRecord } from "@/types/entities/contributo-inps"
-import type { FamigliaRecord } from "@/types/entities/famiglie"
+import type { FamigliaRecord } from "@/types"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import type { MeseLavoratoRecord } from "@/types/entities/mese-lavorato"
 import type { PagamentoRecord } from "@/types/entities/pagamento"

@@ -87,7 +87,7 @@ import {
   getSelectionAvailabilityWorkerIds,
   invokeWorkerAvailabilityForIds,
 } from "@/lib/availability-functions";
-import { type CrmPipelineCardData } from "@/hooks/use-crm-pipeline-preview";
+import { type CrmPipelineCardData, fetchFamiglieByIds } from "@/modules/crm";
 import {
   type RicercaWorkerSelectionColumn,
   type RicercaWorkerSelectionCard,
@@ -98,7 +98,6 @@ import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import {
   createRecord,
-  fetchFamiglieByIds,
   fetchLavoratoriByIds,
   fetchLavoratoriSearch,
   fetchLookupValues,

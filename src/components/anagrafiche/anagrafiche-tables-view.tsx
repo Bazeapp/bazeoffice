@@ -42,7 +42,6 @@ import {
   useAnagraficheData,
 } from "@/hooks/use-anagrafiche-data"
 import {
-  fetchFamiglie,
   fetchLavoratori,
   fetchMesiLavorati,
   fetchPagamenti,
@@ -51,6 +50,7 @@ import {
   fetchSelezioniLavoratori,
   type TableColumnMeta,
 } from "@/lib/anagrafiche-api"
+import { fetchFamiglie } from "@/modules/crm"
 
 type TabValue = AnagraficheTab
 type PaginationState = {

@@ -5,7 +5,6 @@ import {
   type TableColumnMeta,
   type QueryFilterGroup,
   type TableGroupResult,
-  fetchFamiglie,
   fetchLookupValues,
   fetchLavoratori,
   fetchMesiLavorati,
@@ -14,6 +13,7 @@ import {
   fetchRapportiLavorativi,
   fetchSelezioniLavoratori,
 } from "@/lib/anagrafiche-api"
+import { fetchFamiglie } from "@/modules/crm"
 import type { LookupValueRecord } from "@/types"
 
 export type AnagraficaRow = Record<string, unknown>

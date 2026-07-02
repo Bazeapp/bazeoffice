@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { CrmDetailCard } from "@/components/crm/detail-card";
+import { CrmDetailCard } from "../detail-card";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { runAutomationWebhook } from "@/lib/anagrafiche-api";

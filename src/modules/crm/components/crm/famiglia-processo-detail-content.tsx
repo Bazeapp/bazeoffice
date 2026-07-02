@@ -35,12 +35,12 @@ import { Button } from "@/components/ui/button"
 import { Form } from "@/components/ui/form"
 import { FieldInput } from "@/components/forms/field-components"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
-import { OnboardingContextCard } from "@/components/crm/cards/onboarding-context-card"
-import { CreazioneAnnuncioCard } from "@/components/crm/cards/creazione-annuncio-card"
+import { OnboardingContextCard } from "./cards/onboarding-context-card"
+import { CreazioneAnnuncioCard } from "./cards/creazione-annuncio-card"
 import {
   OnboardingCard,
   type OnboardingFlatSectionKey,
-} from "@/components/crm/cards/onboarding-card"
+} from "./cards/onboarding-card"
 import {
   Combobox,
   ComboboxChip,
@@ -68,7 +68,7 @@ import { cn } from "@/lib/utils"
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
-} from "@/hooks/use-crm-pipeline-preview"
+} from "../../hooks/use-crm-pipeline-preview"
 import { buildFamilyPrivateAreaUrl } from "@/lib/private-area-url"
 
 type SidebarSectionTab = {

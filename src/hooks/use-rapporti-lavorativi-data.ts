@@ -6,8 +6,6 @@ import {
   fetchAssunzioniNamesByRapportoIds,
   fetchChiusureByIds,
   fetchContributiInpsByRapporto,
-  fetchFamiglieByIds,
-  fetchFamiglieByName,
   fetchLavoratoriByIds,
   fetchLavoratoriByName,
   fetchLookupValues,
@@ -23,13 +21,17 @@ import {
   fetchVariazioniByRapporto,
   type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
+import {
+  fetchFamiglieByIds,
+  fetchFamiglieByName,
+  fetchRichiesteAttivazioneByProcessIds,
+} from "@/modules/crm"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
 // The board lists rapporti; related tables are loaded only for the selected
 // detail and would cause excessive refetches if subscribed here. Detail-level
 // realtime is a follow-up refinement.
 const RAPPORTI_REALTIME_TABLES = ["rapporti_lavorativi"]
-import { fetchRichiesteAttivazioneByProcessIds } from "@/features/richieste-attivazione/api"
 import { getRapportoProcessIds } from "@/features/rapporti/rapporti-processi"
 import { normalizeLookupColors } from "@/features/lavoratori/lib/lookup-utils"
 import type {

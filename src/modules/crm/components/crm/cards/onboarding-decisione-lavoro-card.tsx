@@ -8,7 +8,7 @@ import {
   UsersIcon,
 } from "lucide-react";
 
-import { CrmDetailCard } from "@/components/crm/detail-card";
+import { CrmDetailCard } from "../detail-card";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { CheckboxChip } from "@/components/ui/checkbox";
 import {
@@ -43,7 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import type { LookupOptionsByField } from "@/hooks/use-crm-pipeline-preview";
+import type { LookupOptionsByField } from "../../../hooks/use-crm-pipeline-preview";
 import { cn } from "@/lib/utils";
 
 export type OnboardingDecisioneLavoroCheckboxDefaults = Partial<

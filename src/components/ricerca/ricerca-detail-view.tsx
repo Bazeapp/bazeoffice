@@ -62,15 +62,11 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-  CrmPipelineCardData,
-  LookupOptionsByField,
-} from "@/hooks/use-crm-pipeline-preview";
-import { normalizeLookupPatchLabels } from "@/hooks/use-crm-pipeline-preview";
+import type { CrmPipelineCardData, LookupOptionsByField } from "@/modules/crm";
+import { fetchFamiglieByIds, normalizeLookupPatchLabels } from "@/modules/crm";
 import { useRicercaWorkersPipeline } from "@/hooks/use-ricerca-workers-pipeline";
 import { STATI_RICERCA_CANONICI } from "@/features/ricerca/stati-ricerca";
 import {
-  fetchFamiglieByIds,
   fetchIndirizziByEntity,
   fetchLookupValues,
   fetchProcessiMatchingByIds,

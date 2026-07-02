@@ -2,7 +2,7 @@ import * as React from "react";
 import { CopyIcon } from "lucide-react";
 import { toast } from "sonner";
 
-import { CrmDetailCard } from "@/components/crm/detail-card";
+import { CrmDetailCard } from "../detail-card";
 import { Button } from "@/components/ui/button";
 
 const READONLY_BLOCK_CLASS =

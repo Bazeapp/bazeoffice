@@ -18,8 +18,8 @@ import {
   XIcon,
 } from "lucide-react"
 
-import { FamigliaProcessoDetailShell } from "@/components/crm/famiglia-processo-detail-shell"
-import { FamigliaProcessoCard } from "@/components/crm/famiglia-processo-card"
+import { FamigliaProcessoDetailShell } from "./famiglia-processo-detail-shell"
+import { FamigliaProcessoCard } from "./famiglia-processo-card"
 import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
@@ -51,7 +51,7 @@ import {
   type CrmPipelineCardData,
   type CrmPipelineColumnData,
   useCrmPipelinePreview,
-} from "@/hooks/use-crm-pipeline-preview"
+} from "../../hooks/use-crm-pipeline-preview"
 import { romaWallclockToUtcIso, utcIsoToRomaInput } from "@/lib/datetime"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"

@@ -1,7 +1,7 @@
 import * as React from "react";
 import type { ReactNode } from "react";
 
-import { CrmDetailCard } from "@/components/crm/detail-card";
+import { CrmDetailCard } from "../detail-card";
 import { Badge } from "@/components/ui/badge";
 import {
   Field,
@@ -25,7 +25,7 @@ import {
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
-} from "@/hooks/use-crm-pipeline-preview";
+} from "../../../hooks/use-crm-pipeline-preview";
 import { useController } from "react-hook-form";
 import { Form } from "@/components/ui/form";
 import { FieldTextarea, FieldDatePicker } from "@/components/forms/field-components";

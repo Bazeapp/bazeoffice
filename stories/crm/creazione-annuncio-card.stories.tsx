@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { CreazioneAnnuncioCard } from "@/components/crm/cards/creazione-annuncio-card";
+import { CreazioneAnnuncioCard } from "@/modules/crm/components/crm/cards/creazione-annuncio-card";
 
 const meta = {
   title: "Ricerca/CreazioneAnnuncioCard",
