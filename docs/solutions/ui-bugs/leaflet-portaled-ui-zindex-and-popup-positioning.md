@@ -1,6 +1,7 @@
 ---
 title: "Leaflet interop: portaled dropdowns hidden behind the map, and hidden-tip popup mis-positioning"
 date: 2026-07-02
+last_updated: 2026-07-02
 category: ui-bugs
 module: "ricerca search map (src/components/ricerca/ricerca-workers-map-view.tsx)"
 problem_type: ui_bug
@@ -9,11 +10,12 @@ symptoms:
   - "A portaled dropdown/combobox popover opens visually behind the Leaflet map (only its top sliver is visible)"
   - "A Leaflet popup whose CSS tip is hidden sits ~20px higher than its marker anchor"
   - "A worker-card popup near the top edge of the map is clipped by the map container"
+  - "A hover-opened map popup closes when the mouse moves onto its portaled Radix popover/dropdown"
 root_cause: css_stacking_and_leaflet_defaults
 resolution_type: css_fix
 severity: medium
-related_components: [leaflet, combobox, css_stacking_context]
-tags: [leaflet, z-index, stacking-context, isolate, portal, combobox, popup, ui-bug, map]
+related_components: [leaflet, combobox, radix_popover, css_stacking_context]
+tags: [leaflet, z-index, stacking-context, isolate, portal, combobox, popup, ui-bug, map, hover, mouseleave, radix-popover, pin]
 ---
 
 # Leaflet interop: portaled UI behind the map, and hidden-tip popup positioning
@@ -101,3 +103,31 @@ The `translateY` is applied to the inner `.leaflet-popup-content-wrapper` — **
 - **Embedding any mapping/canvas widget (Leaflet, Mapbox, etc.) that ships its own z-indexes: wrap it in an `isolate`d container.** This pre-empts the whole class of "portaled dropdown/modal renders behind the map." Prefer `isolate` over bumping every overlay's z-index — it's scoped and doesn't start a z-index arms race with dialogs/sheets.
 - When you hide a Leaflet popup's tip, also zero `.leaflet-popup { margin-bottom }` (scoped to your popup class) or the content is mis-anchored.
 - Known limitation (accepted): with a popup **pinned** via click, the flip is not re-evaluated on pan/zoom, and on an unusually short map (< ~2× card height) the flipped-below card could touch the bottom edge. Cosmetic; the popup stays functional.
+
+---
+
+## Gotcha 4 — hover-managed popup closes when the mouse moves onto a portaled overlay (BAZ-29)
+
+**Problem.** The worker card is a Leaflet popup opened on marker `mouseover` and closed via the card `container`'s `mouseleave` → `scheduleClose` (160ms timer, unless the marker is "pinned"). BAZ-29 enabled an "altre selezioni" Radix `Popover` inside the card. Radix `PopoverContent` renders through `PopoverPrimitive.Portal` → mounted on `document.body`, **outside** the Leaflet popup container. Moving the mouse from the card onto the popover list fires the container's `mouseleave` → the card closes (taking the popover with it).
+
+**Root cause.** The hover-open/hover-close popup and its portaled child overlay live in **different DOM subtrees**, so "the pointer is still interacting with the card" cannot be detected by containment — `mouseleave` fires as if the user left.
+
+**Solution — pin the popup when the inner overlay opens** (reuses the existing click-to-pin mechanism). Thread an optional callback from the map through the shared card and pin on open:
+
+```tsx
+// lavoratore-card.tsx — the shared card exposes an optional open-change callback
+onOtherActiveSelectionsOpenChange?: (open: boolean) => void
+// ...in the "altre selezioni" Popover:
+<Popover onOpenChange={(open) => { if (open) loadOtherSelectionDetails(); onOtherActiveSelectionsOpenChange?.(open) }}>
+
+// ricerca-workers-map-view.tsx — bindWorkerPopup pins the marker on open
+onOtherActiveSelectionsOpenChange={(open) => { if (open) { cancelClose(); pinMarker() } }}
+// pinMarker mirrors the click handler: closePopup() any other pinned marker,
+// then pinnedMarkerRef.current = marker; hoverMarkerRef.current = null
+```
+
+Once pinned, `scheduleClose` and the marker `mouseout` handler early-return (`isPinned()` / `pinnedMarkerRef.current === marker`), so hover-leave no longer closes the card. The existing `popupclose` handler clears the pin. The card's new prop is **optional** → other `LavoratoreCard` consumers (pipeline, cerca) that don't pass it are unaffected.
+
+**Rejected alternatives.** Not portaling the Radix content (breaks clipping/layout, and the shared card can't know the Leaflet container); a "suspend-close while overlay open" flag (needs the same map→card threading as pinning — no simpler).
+
+**Related reuse (BAZ-29).** The card popover shows its detail **without** the pipeline's heavy lazy-detail callback because the map pre-populates `otherActiveSelections.details` — reusing the board's pure one-shot builder `buildRelatedSelectionsMap` (`src/hooks/use-lavoratori-data.ts`) fed by `fetchLavoratoriSelezioniCorrelate`, plus a pure `excludeCurrentProcess` step (the map filters out the current ricerca). Reuse over reinvent.
