@@ -5,6 +5,21 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
+const MODULE_BOUNDARY_RESTRICTIONS = {
+  patterns: [
+    {
+      group: ['@/modules/*/*.api', '@/modules/*/*.api.ts'],
+      message:
+        'Import from @/modules/<dominio> (the public index.ts barrel) only. Deep .api.ts imports are module-internal drift.',
+    },
+    {
+      group: ['@/modules/*/*.adapters', '@/modules/*/*.adapters.ts'],
+      message:
+        'Import from @/modules/<dominio> (the public index.ts barrel) only. Adapters are module-internal — never import .adapters.ts across module boundaries.',
+    },
+  ],
+}
+
 export default defineConfig([
   globalIgnores([
     'dist',
@@ -81,6 +96,10 @@ export default defineConfig([
       'src/hooks/use-*-data.ts',
       'src/hooks/use-*-pipeline.ts',
       'src/hooks/use-crm-*.ts',
+      'src/modules/*/hooks/use-*-board.ts',
+      'src/modules/*/hooks/use-*-data.ts',
+      'src/modules/*/hooks/use-*-pipeline.ts',
+      'src/modules/*/hooks/use-crm-*.ts',
     ],
     ignores: ['src/hooks/use-board-mutations.ts'],
     rules: {
@@ -140,6 +159,7 @@ export default defineConfig([
                 'Do not invalidate read caches from components. Expose a callback on the hook or use queryClient.invalidateQueries.',
             },
           ],
+          ...MODULE_BOUNDARY_RESTRICTIONS,
         },
       ],
     },
@@ -399,6 +419,18 @@ export default defineConfig([
             'FASE 5 BIS (enforced): questo file è form-context. Non reintrodurre useDebouncedSave: usa useAutoSaveForm + Field*.',
         },
       ],
+    },
+  },
+
+  // Rule 3 (domain modules): consumers outside src/modules/ must use public
+  // barrels (@/modules/<dominio>), never deep .api.ts / .adapters.ts imports.
+  // Module-internal files live under src/modules/** and are excluded here;
+  // cross-module deep-import enforcement inside modules lands with U3+.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/modules/**', 'src/components/**', 'src/pages/**'],
+    rules: {
+      'no-restricted-imports': ['error', MODULE_BOUNDARY_RESTRICTIONS],
     },
   },
 ])
