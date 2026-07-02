@@ -5,12 +5,12 @@ import { useMoveMutation } from "@/hooks/use-board-mutations"
 
 import {
   fetchLookupValues,
-  fetchRicercaBoard,
   updateRecord,
-  type RicercaBoardRpcProcess,
 } from "@/lib/anagrafiche-api"
+import { fetchRicercaBoard } from "../queries/fetch-ricerca-board"
+import type { RicercaBoardRpcProcess } from "../types/ricerca-rpc"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-import { STATI_RICERCA_CANONICI } from "@/features/ricerca/stati-ricerca"
+import { STATI_RICERCA_CANONICI } from "../features/ricerca/stati-ricerca"
 
 const RICERCA_REALTIME_TABLES = [
   "processi_matching",

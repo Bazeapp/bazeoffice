@@ -1,4 +1,4 @@
-import { RicercaBoardView } from "@/components/ricerca/ricerca-board-view"
+import { RicercaBoardView } from "@/modules/ricerca"
 
 type RicercaBoardPageProps = {
   onOpenDetail: (processId: string) => void

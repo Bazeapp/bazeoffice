@@ -17,7 +17,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles"
-import { RelatedActiveSearchCard } from "@/components/ricerca/worker-pipeline-summary-cards"
+import { RelatedActiveSearchCard } from "@/modules/ricerca/components/worker-pipeline-summary-cards"
 import { RecordCard } from "@/components/shared-next/record-card"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"

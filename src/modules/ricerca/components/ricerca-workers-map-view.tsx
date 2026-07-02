@@ -40,14 +40,14 @@ import type {
   RicercaWorkerSelectionCard,
   RicercaWorkerSelectionColumn,
   RicercaWorkersPipelineState,
-} from "@/hooks/use-ricerca-workers-pipeline"
+} from "../hooks/use-ricerca-workers-pipeline"
 import {
   createRecord,
-  fetchIndirizziInBbox,
   fetchLavoratoriByIds,
-  fetchLavoratoriSelezioniCorrelate,
   fetchLookupValues,
 } from "@/lib/anagrafiche-api"
+import { fetchIndirizziInBbox } from "../queries/fetch-indirizzi-in-bbox"
+import { fetchLavoratoriSelezioniCorrelate } from "../queries/fetch-lavoratori-selezioni-correlate"
 import {
   getSelectionAvailabilityWorkerIds,
   invokeWorkerAvailabilityForIds,

@@ -25,7 +25,7 @@ import { JobSearchCard } from "@/components/lavoratori/job-search-card";
 import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
 import { WorkerDetailComposite } from "@/components/lavoratori/worker-detail-composite";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
-import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
+import { SchedaColloquioPanel } from "@/modules/ricerca/components/scheda-colloquio-panel";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { Button } from "@/components/ui/button";
 import {

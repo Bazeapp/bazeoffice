@@ -5,7 +5,7 @@ import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import type { MeseLavoratoRecord } from "@/types"
 import type { PagamentoRecord } from "@/types"
 import type { PresenzaMensileRecord } from "@/types"
-import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
+import type { ProcessoMatchingRecord } from "@/modules/ricerca/types/processi-matching"
 import type { RapportoLavorativoRecord } from "@/types"
 import type { VariazioneContrattualeRecord } from "@/modules/gestione-contrattuale/types/variazione-contrattuale"
 

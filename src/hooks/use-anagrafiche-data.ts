@@ -7,9 +7,11 @@ import {
   type TableGroupResult,
   fetchLookupValues,
   fetchLavoratori,
+} from "@/lib/anagrafiche-api"
+import {
   fetchProcessiMatching,
   fetchSelezioniLavoratori,
-} from "@/lib/anagrafiche-api"
+} from "@/modules/ricerca"
 import { fetchFamiglie } from "@/modules/crm"
 import { fetchMesiLavorati, fetchPagamenti } from "@/modules/payroll"
 import { fetchRapportiLavorativi } from "@/modules/rapporti"

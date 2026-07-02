@@ -4,7 +4,7 @@ import {
   getRicercaCenter,
   type IndirizzoRow,
   type ProcessoForCenter,
-} from '@/lib/ricerca/center-coords'
+} from '../lib/center-coords'
 
 describe('hasCoords', () => {
   it('returns false for null', () => {

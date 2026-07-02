@@ -3,7 +3,7 @@ import type {
   CrmPipelineCardData,
   LookupOptionsByField,
 } from "@/modules/crm";
-import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board";
+import type { RicercaBoardCardData } from "@/modules/ricerca";
 import type { LavoratoreRecord } from "@/types/entities/lavoratore";
 
 export const mockWorker: LavoratoreListItem = {

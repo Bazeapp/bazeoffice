@@ -32,7 +32,7 @@ import { ExperienceReferencesCard } from "@/components/lavoratori/experience-ref
 import { JobSearchCard } from "@/components/lavoratori/job-search-card";
 import { LavoratoriCercaListPanel } from "@/components/lavoratori/lavoratori-cerca-list-panel";
 import { WorkerDetailShell } from "@/components/lavoratori/worker-detail-shell";
-import { RicercaActiveSearchCard } from "@/components/ricerca/ricerca-active-search-card";
+import { RicercaActiveSearchCard } from "@/modules/ricerca";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { RecruiterFeedbackButton } from "@/components/lavoratori/recruiter-feedback-sheet";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
@@ -58,20 +58,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
-import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board";
+import type { RicercaBoardCardData } from "@/modules/ricerca";
 import { Input } from "@/components/ui/input";
 import {
   fetchFamiglieByIds,
   fetchFamiglieSearch,
 } from "@/modules/crm";
 import {
+  createRecord,
   fetchLavoratoriByIds,
+  updateRecord,
+} from "@/lib/anagrafiche-api";
+import {
   fetchProcessiMatchingByIds,
   fetchProcessiMatchingSearch,
   fetchSelezioniLookup,
-  createRecord,
-  updateRecord,
-} from "@/lib/anagrafiche-api";
+} from "@/modules/ricerca";
 import {
   getSelectionAvailabilityWorkerIds,
   invokeWorkerAvailabilityForIds,

@@ -4,7 +4,7 @@ export type { ContributoInpsRecord } from "@/modules/payroll/types/contributo-in
 export * from "./entities/documento-lavoratore"
 export * from "./entities/esperienza-lavoratore"
 export * from "./entities/lavoratore"
-export * from "./entities/processi-matching"
+export type { ProcessoMatchingRecord } from "@/modules/ricerca/types/processi-matching"
 export * from "./entities/lookup-values"
 export type { MeseCalendarioRecord } from "@/modules/payroll/types/mese-calendario"
 export type { MeseLavoratoRecord } from "@/modules/payroll/types/mese-lavorato"

@@ -17,12 +17,12 @@ import {
 } from "@/components/lavoratori/lavoratore-card";
 import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
 import { RecruiterFeedbackButton } from "@/components/lavoratori/recruiter-feedback-sheet";
-import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
+import { SchedaColloquioPanel } from "./scheda-colloquio-panel";
 import {
   type RelatedActiveSearchItem,
   type RelatedSearchGroups,
   WorkerPipelineSummaryCards,
-} from "@/components/ricerca/worker-pipeline-summary-cards";
+} from "./worker-pipeline-summary-cards";
 import { SectionHeader } from "@/components/shared-next/section-header";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import {
@@ -92,21 +92,21 @@ import {
   type RicercaWorkerSelectionColumn,
   type RicercaWorkerSelectionCard,
   type RicercaWorkersPipelineState,
-} from "@/hooks/use-ricerca-workers-pipeline";
+} from "../hooks/use-ricerca-workers-pipeline";
 import { useSelectedWorkerEditor } from "@/hooks/use-selected-worker-editor";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import {
   createRecord,
   fetchLavoratoriByIds,
-  fetchLavoratoriSearch,
   fetchLookupValues,
-  fetchProcessiMatchingByIds,
-  fetchRicercaWorkerScheda,
-  fetchSelezioniLookup,
   runSmartMatchingForwardPreview,
   updateRecord,
 } from "@/lib/anagrafiche-api";
+import { fetchLavoratoriSearch } from "../queries/fetch-lavoratori-search";
+import { fetchProcessiMatchingByIds } from "../queries/fetch-processi-matching-by-ids";
+import { fetchRicercaWorkerScheda } from "../queries/fetch-ricerca-worker-scheda";
+import { fetchSelezioniLookup } from "../queries/fetch-selezioni-lookup";
 import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore";
 import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore";
 import type { LavoratoreRecord } from "@/types/entities/lavoratore";

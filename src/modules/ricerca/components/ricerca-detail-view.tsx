@@ -15,8 +15,8 @@ import {
   XIcon,
 } from "lucide-react";
 
-import { RicercaWorkersPipelineView } from "@/components/ricerca/ricerca-workers-pipeline-view";
-import { RicercaWorkersMapView } from "@/components/ricerca/ricerca-workers-map-view";
+import { RicercaWorkersPipelineView } from "./ricerca-workers-pipeline-view";
+import { RicercaWorkersMapView } from "./ricerca-workers-map-view";
 import { CardMetaRow } from "@/components/shared-next/card-meta-row";
 import {
   Accordion,
@@ -64,17 +64,19 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type { CrmPipelineCardData, LookupOptionsByField } from "@/modules/crm";
 import { fetchFamiglieByIds, normalizeLookupPatchLabels } from "@/modules/crm";
-import { useRicercaWorkersPipeline } from "@/hooks/use-ricerca-workers-pipeline";
-import { STATI_RICERCA_CANONICI } from "@/features/ricerca/stati-ricerca";
+import { useRicercaWorkersPipeline } from "../hooks/use-ricerca-workers-pipeline";
+import { STATI_RICERCA_CANONICI } from "../features/ricerca/stati-ricerca";
 import {
+  fetchProcessiMatchingByIds,
+} from "../queries/fetch-processi-matching-by-ids";
+import {
+  createRecord,
   fetchIndirizziByEntity,
   fetchLookupValues,
-  fetchProcessiMatchingByIds,
-  createRecord,
   updateRecord,
 } from "@/lib/anagrafiche-api";
 import { buildFamilyPrivateAreaUrl } from "@/lib/private-area-url";
-import { getRicercaCenter } from "@/lib/ricerca/center-coords";
+import { getRicercaCenter } from "../lib/center-coords";
 import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";

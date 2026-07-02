@@ -24,10 +24,10 @@ import {
   fetchIndirizziByEntity,
   fetchLavoratoriByIds,
   fetchLookupValues,
-  fetchRicercaWorkerRelatedSelectionSummaries,
-  fetchSelezioniLookup,
   updateRecord,
 } from "@/lib/anagrafiche-api"
+import { fetchRicercaWorkerRelatedSelectionSummaries } from "../queries/fetch-ricerca-worker-related-selection-summaries"
+import { fetchSelezioniLookup } from "../queries/fetch-selezioni-lookup"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
 const RICERCA_WORKERS_REALTIME_TABLES = [

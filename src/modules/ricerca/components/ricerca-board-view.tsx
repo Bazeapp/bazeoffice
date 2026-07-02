@@ -4,8 +4,8 @@ import {
   type RicercaBoardCardData,
   type RicercaBoardColumnData,
   useRicercaBoard,
-} from "@/hooks/use-ricerca-board"
-import { RicercaActiveSearchCard } from "@/components/ricerca/ricerca-active-search-card"
+} from "../hooks/use-ricerca-board"
+import { RicercaActiveSearchCard } from "./ricerca-active-search-card"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import {
   KanbanColumnShell,

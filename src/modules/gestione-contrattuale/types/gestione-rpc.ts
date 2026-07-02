@@ -1,7 +1,7 @@
 import type { FamigliaRecord } from "@/modules/crm/types/famiglie"
 import type { RichiestaAttivazioneRecord } from "@/modules/crm/types/richiesta-attivazione"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
-import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
+import type { ProcessoMatchingRecord } from "@/modules/ricerca/types/processi-matching"
 import type { RapportoLavorativoRecord } from "@/modules/rapporti/types/rapporto-lavorativo"
 
 import type { ChiusuraContrattoRecord } from "./chiusura-contratto"

@@ -6,7 +6,6 @@ import {
   fetchLavoratoriByIds,
   fetchLavoratoriByName,
   fetchLookupValues,
-  fetchProcessiMatchingByIds,
   fetchTicketByRapporto,
 } from "@/lib/anagrafiche-api"
 import {
@@ -15,6 +14,7 @@ import {
   fetchVariazioniByRapporto,
   type RapportoAssunzioneNames,
 } from "@/modules/gestione-contrattuale"
+import { fetchProcessiMatchingByIds } from "@/modules/ricerca"
 import {
   fetchFamiglieByIds,
   fetchFamiglieByName,

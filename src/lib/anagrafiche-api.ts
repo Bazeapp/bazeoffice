@@ -26,10 +26,7 @@ import {
   runTrackedEdgeFunction,
 } from "@/lib/write-tracking"
 import type { LookupValueRecord } from "@/types"
-import type { EsperienzaLavoratoreRecord } from "@/types/entities/esperienza-lavoratore"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
-import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
-import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
 import type { DocumentoLavoratoreRecord } from "@/types/entities/documento-lavoratore"
 
 type TableRow = Record<string, unknown>
@@ -59,45 +56,6 @@ export {
   runTracked,
   runTrackedEdgeFunction,
   updateRecord,
-}
-
-export type RicercaWorkerRelatedSelectionSummary = {
-  worker_id: string
-  count: number
-  dots: Array<{
-    process_id: string
-    stato_selezione: string
-  }>
-}
-
-export type RicercaWorkerRelatedSelectionSummariesRpcResponse = {
-  rows?: RicercaWorkerRelatedSelectionSummary[]
-}
-
-export type RicercaBoardRpcProcess = {
-  id: string
-  stato_res: string | null
-  famiglia_id: string | null
-  recruiter_ricerca_e_selezione_id: string | null
-  referente_ricerca_e_selezione_id: string | null
-  ore_settimanale: string | number | null
-  numero_giorni_settimanali: string | number | null
-  deadline_mobile: string | null
-  tipo_lavoro: unknown
-  tipo_rapporto: unknown
-  famiglia: { id: string; nome: string | null; cognome: string | null; email: string | null; telefono: string | null } | null
-  indirizzo: Record<string, unknown> | null
-}
-
-export type RicercaBoardRpcResponse = {
-  processes?: RicercaBoardRpcProcess[]
-  deferredCounts?: Record<string, number>
-}
-
-export type LavoratoreExtrasRpcResponse = {
-  documenti?: DocumentoLavoratoreRecord[]
-  esperienze?: EsperienzaLavoratoreRecord[]
-  referenze?: ReferenzaLavoratoreRecord[]
 }
 
 const LOOKUP_VALUES_CACHE_TTL_MS = 5 * 60 * 1000
@@ -163,19 +121,6 @@ export async function fetchLavoratori(query: TablePageQuery) {
   })
 }
 
-export async function fetchRicercaBoard(eagerStages: string[], deferredStages: string[]) {
-  const { data, error } = await supabase.rpc("ricerca_board", {
-    p_eager_stages: eagerStages,
-    p_deferred_stages: deferredStages,
-  })
-  if (error) throw new Error(`ricerca_board failed: ${error.message}`)
-  const response = data as RicercaBoardRpcResponse | null
-  return {
-    processes: Array.isArray(response?.processes) ? response.processes : [],
-    deferredCounts: (response?.deferredCounts ?? {}) as Record<string, number>,
-  }
-}
-
 // FASE 4 BIS — documenti lavoratore via RPC dedicata (ORDER BY identico al
 // vecchio table-query). Usata dalla assunzioni-detail-sheet.
 // (esperienze/referenze by_lavoratore rimosse: ora servite da ricerca_worker_scheda)
@@ -201,41 +146,6 @@ export async function fetchOperatoriOptionsRows(roleTokens: string[], activeOnly
   return normalizeTableResponse(data as TableQueryResponse<TableRow>).rows
 }
 
-export async function fetchRicercaWorkerRelatedSelectionSummaries(query: {
-  workerIds: string[]
-  currentProcessId: string
-}) {
-  const uniqueWorkerIds = Array.from(new Set(query.workerIds.filter(Boolean))).sort()
-  if (uniqueWorkerIds.length === 0) return []
-
-  const { data, error } = await supabase.rpc("ricerca_worker_related_selection_summaries", {
-    p_worker_ids: uniqueWorkerIds,
-    p_current_process_id: query.currentProcessId,
-  })
-  if (error) {
-    throw new Error(
-      `ricerca_worker_related_selection_summaries failed: ${error.message}`
-    )
-  }
-  const response = data as RicercaWorkerRelatedSelectionSummariesRpcResponse | null
-  return Array.isArray(response?.rows) ? response.rows : []
-}
-
-export async function fetchProcessiMatching(query: TablePageQuery) {
-  return queryTable<ProcessoMatchingRecord>({
-    table: "processi_matching",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
-}
-
 // ---------------------------------------------------------------------------
 // FASE 4 BIS — "by_ids" RPC wrappers
 //
@@ -254,40 +164,6 @@ export async function fetchLavoratoriByIds(ids: string[], roles?: string[]) {
   })
   if (error) throw new Error(`lavoratori_by_ids failed: ${error.message}`)
   return normalizeTableResponse(data as TableQueryResponse<LavoratoreRecord>)
-}
-
-export async function fetchProcessiMatchingByIds(options: {
-  ids?: string[]
-  famigliaIds?: string[]
-  columns?: string
-}) {
-  const ids = options.ids?.length ? options.ids : null
-  const famigliaIds = options.famigliaIds?.length ? options.famigliaIds : null
-  if (!ids && !famigliaIds) {
-    return { rows: [], total: 0, columns: [], groups: [] }
-  }
-  const builder = supabase.rpc("processi_matching_by_ids", {
-    p_ids: ids,
-    p_famiglia_ids: famigliaIds,
-  })
-  const { data, error } = options.columns
-    ? await builder.select(options.columns)
-    : await builder
-  if (error) throw new Error(`processi_matching_by_ids failed: ${error.message}`)
-  return normalizeTableResponse(data as TableQueryResponse<ProcessoMatchingRecord>)
-}
-
-// FASE 4 BIS — board RPC: enrichment "altre selezioni attive" in UNA chiamata.
-// Sostituisce il fan-out selezioni_lookup + processi_matching_by_ids + famiglie_by_ids.
-// Ritorna le righe già joinate (selezione + processo + famiglia) e già filtrate
-// ai soli "direct involvement" lato server.
-export async function fetchLavoratoriSelezioniCorrelate(workerIds: string[]) {
-  if (workerIds.length === 0) return [] as TableRow[]
-  const { data, error } = await supabase.rpc("lavoratori_selezioni_correlate", {
-    p_worker_ids: workerIds,
-  })
-  if (error) throw new Error(`lavoratori_selezioni_correlate failed: ${error.message}`)
-  return (Array.isArray(data) ? data : []) as TableRow[]
 }
 
 // FASE 4 BIS — Scheda RPC: tutto il dettaglio del lavoratore aperto in 1 chiamata
@@ -327,48 +203,6 @@ export async function fetchLavoratoreScheda(workerId: string): Promise<Lavorator
   }
 }
 
-// FASE 4 BIS — scheda worker pipeline Ricerca in 1 chiamata (worker + indirizzi
-// + esperienze/documenti/referenze + selezione corrente). Sostituisce 6 fetch
-// parallele in ricerca-workers-pipeline-view.
-export type RicercaWorkerSchedaResult = {
-  worker: TableRow | null
-  indirizzi: TableRow[]
-  esperienze: TableRow[]
-  documenti: TableRow[]
-  referenze: TableRow[]
-  selezione: TableRow | null
-}
-
-export async function fetchRicercaWorkerScheda(
-  workerId: string,
-  selectionId?: string | null
-): Promise<RicercaWorkerSchedaResult> {
-  const empty: RicercaWorkerSchedaResult = {
-    worker: null,
-    indirizzi: [],
-    esperienze: [],
-    documenti: [],
-    referenze: [],
-    selezione: null,
-  }
-  if (!workerId) return empty
-  const { data, error } = await supabase.rpc("ricerca_worker_scheda", {
-    p_worker_id: workerId,
-    p_selection_id: selectionId ?? null,
-  })
-  if (error) throw new Error(`ricerca_worker_scheda failed: ${error.message}`)
-  const payload = (data ?? {}) as Record<string, unknown>
-  const arr = (value: unknown) => (Array.isArray(value) ? (value as TableRow[]) : [])
-  return {
-    worker: (payload.worker as TableRow | null) ?? null,
-    indirizzi: arr(payload.indirizzi),
-    esperienze: arr(payload.esperienze),
-    documenti: arr(payload.documenti),
-    referenze: arr(payload.referenze),
-    selezione: (payload.selezione as TableRow | null) ?? null,
-  }
-}
-
 // FASE 4 BIS Wave 2 — indirizzi by entity + bbox geografico.
 export async function fetchIndirizziByEntity(
   entitaTabella: string,
@@ -382,28 +216,6 @@ export async function fetchIndirizziByEntity(
     p_tipi: tipi && tipi.length > 0 ? tipi : null,
   })
   if (error) throw new Error(`indirizzi_by_entity failed: ${error.message}`)
-  return normalizeTableResponse(data as TableQueryResponse<TableRow>)
-}
-
-export async function fetchIndirizziInBbox(options: {
-  minLat: number
-  maxLat: number
-  minLng: number
-  maxLng: number
-  entitaTabella?: string
-  limit?: number
-  offset?: number
-}) {
-  const { data, error } = await supabase.rpc("indirizzi_in_bbox", {
-    p_min_lat: options.minLat,
-    p_max_lat: options.maxLat,
-    p_min_lng: options.minLng,
-    p_max_lng: options.maxLng,
-    p_entita_tabella: options.entitaTabella ?? "lavoratori",
-    p_limit: options.limit ?? 1000,
-    p_offset: options.offset ?? 0,
-  })
-  if (error) throw new Error(`indirizzi_in_bbox failed: ${error.message}`)
   return normalizeTableResponse(data as TableQueryResponse<TableRow>)
 }
 
@@ -423,21 +235,8 @@ async function rpcRows(
   return normalizeTableResponse(data as TableQueryResponse<TableRow>)
 }
 
-const EMPTY_ROWS = { rows: [], total: 0, columns: [], groups: [] }
-
 export async function fetchTicketByRapporto(rapportoId: string) {
   return rpcRows("ticket_by_rapporto", { p_rapporto_id: rapportoId })
-}
-
-// FASE 4 BIS Wave 4 — CRM assegnazione: processi per stato_res.
-export async function fetchProcessiMatchingSearch(query: string, limit = 12) {
-  if (!query.trim()) return EMPTY_ROWS
-  return rpcRows("processi_matching_search", { p_query: query, p_limit: limit })
-}
-
-export async function fetchLavoratoriSearch(query: string, limit = 25) {
-  if (!query.trim()) return EMPTY_ROWS
-  return rpcRows("lavoratori_search", { p_query: query, p_limit: limit })
 }
 
 // FASE 4 BIS Wave 4 — heuristica nome (fallback): match esatto nome/cognome.
@@ -450,42 +249,6 @@ export async function fetchLavoratoriByName(
     p_first: first,
     p_rest: rest,
     p_full: full,
-  })
-}
-
-// FASE 4 BIS Wave 4 — selezioni: lookup unico (id / lavoratore / processo /
-// stato, AND-combinati). Almeno un filtro deve essere fornito.
-export async function fetchSelezioniLookup(options: {
-  ids?: string[]
-  lavoratoreIds?: string[]
-  processoIds?: string[]
-  stati?: string[]
-  columns?: string
-}) {
-  const p_ids = options.ids?.length ? options.ids : null
-  const p_lavoratore_ids = options.lavoratoreIds?.length ? options.lavoratoreIds : null
-  const p_processo_ids = options.processoIds?.length ? options.processoIds : null
-  const p_stati = options.stati?.length ? options.stati : null
-  if (!p_ids && !p_lavoratore_ids && !p_processo_ids && !p_stati) return EMPTY_ROWS
-  return rpcRows(
-    "selezioni_lookup",
-    { p_ids, p_lavoratore_ids, p_processo_ids, p_stati },
-    options.columns,
-  )
-}
-
-export async function fetchSelezioniLavoratori(query: TablePageQuery) {
-  return queryTable<TableRow>({
-    table: "selezioni_lavoratori",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
   })
 }
 

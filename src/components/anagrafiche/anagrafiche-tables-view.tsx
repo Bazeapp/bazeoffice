@@ -43,10 +43,12 @@ import {
 } from "@/hooks/use-anagrafiche-data"
 import {
   fetchLavoratori,
-  fetchProcessiMatching,
-  fetchSelezioniLavoratori,
   type TableColumnMeta,
 } from "@/lib/anagrafiche-api"
+import {
+  fetchProcessiMatching,
+  fetchSelezioniLavoratori,
+} from "@/modules/ricerca"
 import { fetchFamiglie } from "@/modules/crm"
 import { fetchMesiLavorati, fetchPagamenti } from "@/modules/payroll"
 import { fetchRapportiLavorativi } from "@/modules/rapporti"
