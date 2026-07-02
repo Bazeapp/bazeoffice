@@ -4,10 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale"
-import {
-  fetchLookupValues,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { updateRecord } from "@/lib/record-crud"
 import { fetchContributiInpsByPeriod } from "../queries/fetch-contributi-inps-by-period"
 import { fetchMesiCalendarioAll } from "../queries/fetch-mesi-calendario-all"
 import { fetchRapportiLavorativiAll } from "@/modules/rapporti"

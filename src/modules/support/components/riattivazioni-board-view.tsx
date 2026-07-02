@@ -51,7 +51,7 @@ import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachme
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
-import { updateRecord } from "@/lib/anagrafiche-api"
+import { updateRecord } from "@/lib/record-crud"
 import { cn } from "@/lib/utils"
 
 type ChiusuraAttachmentSlot = "allegato_compilato" | "documenti_chiusura_rapporto"

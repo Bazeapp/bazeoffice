@@ -3,11 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useCreateMutation, useMoveMutation } from "@/hooks/use-board-mutations"
 
-import {
-  deleteRecord,
-  fetchLookupValues,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { deleteRecord, updateRecord } from "@/lib/record-crud"
 import { fetchAssunzioniBoard } from "../queries/fetch-assunzioni-board"
 import type { AssunzioniBoardRpcRow } from "../types/gestione-rpc"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"

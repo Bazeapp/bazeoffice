@@ -69,12 +69,9 @@ import { STATI_RICERCA_CANONICI } from "../features/ricerca/stati-ricerca";
 import {
   fetchProcessiMatchingByIds,
 } from "../queries/fetch-processi-matching-by-ids";
-import {
-  createRecord,
-  fetchIndirizziByEntity,
-  fetchLookupValues,
-  updateRecord,
-} from "@/lib/anagrafiche-api";
+import { fetchIndirizziByEntity } from "@/lib/indirizzi-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { createRecord, updateRecord } from "@/lib/record-crud"
 import { buildFamilyPrivateAreaUrl } from "@/lib/private-area-url";
 import { getRicercaCenter } from "../lib/center-coords";
 import { invokeEdgeFunction } from "@/lib/supabase-edge";

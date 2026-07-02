@@ -64,10 +64,7 @@ import {
   fetchFamiglieByIds,
   fetchFamiglieSearch,
 } from "@/modules/crm";
-import {
-  createRecord,
-  updateRecord,
-} from "@/lib/anagrafiche-api";
+import { createRecord, updateRecord } from "@/lib/record-crud"
 import { fetchLavoratoriByIds } from "@/modules/lavoratori";
 import {
   fetchProcessiMatchingByIds,

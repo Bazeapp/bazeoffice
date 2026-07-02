@@ -74,7 +74,7 @@ import { useController } from "react-hook-form";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { RecruiterFeedbackButton } from "../components/recruiter-feedback-sheet";
-import { updateRecord } from "@/lib/anagrafiche-api";
+import { updateRecord } from "@/lib/record-crud"
 import {
   buildAttachmentPayload,
   type MinimalAttachment,

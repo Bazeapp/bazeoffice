@@ -3,10 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useMoveMutation } from "@/hooks/use-board-mutations"
 
-import {
-  fetchLookupValues,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { updateRecord } from "@/lib/record-crud"
 import { fetchRicercaBoard } from "../queries/fetch-ricerca-board"
 import type { RicercaBoardRpcProcess } from "../types/ricerca-rpc"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"

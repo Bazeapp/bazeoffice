@@ -4,12 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useCreateMutation, useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
-import {
-  createRecord,
-  deleteRecord,
-  fetchLookupValues,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { createRecord, deleteRecord, updateRecord } from "@/lib/record-crud"
 import { fetchAssunzioniNamesByRapportoIds } from "../queries/fetch-assunzioni-names-by-rapporto-ids"
 import { fetchChiusureBoard } from "../queries/fetch-chiusure-board"
 import type { RapportoAssunzioneNames } from "../types/gestione-rpc"

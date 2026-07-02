@@ -1,4 +1,4 @@
-import { runTrackedEdgeFunction } from "@/lib/anagrafiche-api"
+import { runTrackedEdgeFunction } from "@/lib/write-tracking"
 
 const SELECTION_AVAILABILITY_FIELDS = new Set([
   "stato_selezione",

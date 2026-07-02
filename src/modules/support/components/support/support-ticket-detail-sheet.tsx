@@ -31,7 +31,7 @@ import {
   buildAttachmentPayload,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
-import { updateRecord } from "@/lib/anagrafiche-api"
+import { updateRecord } from "@/lib/record-crud"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import type { ChiusuraContrattoRecord, TicketRecord } from "@/types"

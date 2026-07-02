@@ -41,10 +41,8 @@ import type {
   RicercaWorkerSelectionColumn,
   RicercaWorkersPipelineState,
 } from "../hooks/use-ricerca-workers-pipeline"
-import {
-  createRecord,
-  fetchLookupValues,
-} from "@/lib/anagrafiche-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { createRecord } from "@/lib/record-crud"
 import { fetchLavoratoriByIds } from "@/modules/lavoratori"
 import { fetchIndirizziInBbox } from "../queries/fetch-indirizzi-in-bbox"
 import { fetchLavoratoriSelezioniCorrelate } from "../queries/fetch-lavoratori-selezioni-correlate"

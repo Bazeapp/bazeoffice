@@ -52,7 +52,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   fetchVariazioniByIds,
 } from "../queries/fetch-variazioni-by-ids";
-import { updateRecord } from "@/lib/anagrafiche-api";
+import { updateRecord } from "@/lib/record-crud"
 import { fetchRapportiLavorativiByIds } from "@/modules/rapporti";
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments";
 import { matchesSearchQuery } from "@/lib/search-utils";

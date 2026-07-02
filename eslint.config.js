@@ -147,12 +147,6 @@ export default defineConfig([
         {
           paths: [
             {
-              name: '@/lib/anagrafiche-api',
-              importNames: ['clearReadCaches'],
-              message:
-                'Do not invalidate read caches from components. Expose a callback on the hook or use queryClient.invalidateQueries.',
-            },
-            {
               name: '@/lib/write-tracking',
               importNames: ['clearReadCaches'],
               message:
@@ -177,7 +171,7 @@ export default defineConfig([
         'warn',
         {
           // FASE 4 BIS — niente table-query nei componenti: usare una RPC
-          // dedicata (vedi src/lib/anagrafiche-api.ts). Qui è 'warn' perché
+          // dedicata (vedi src/lib/table-query.ts). Qui è 'warn' perché
           // condivide severità con le altre regole di questo blocco, ma
           // resta visibile in IDE/CI.
           selector:

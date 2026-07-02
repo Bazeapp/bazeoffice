@@ -29,14 +29,10 @@ import {
 import { toWorkerStatusFlags } from "../features/lavoratori/lib/status-utils"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
-import {
-  type Gate1RpcFilter,
-  type QueryFilterGroup,
-  type TableColumnMeta,
-  clearReadCaches,
-  fetchIndirizziByEntity,
-  fetchLookupValues,
-} from "@/lib/anagrafiche-api"
+import { fetchIndirizziByEntity } from "@/lib/indirizzi-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import type { Gate1RpcFilter, QueryFilterGroup, TableColumnMeta } from "@/lib/table-query"
+import { clearReadCaches } from "@/lib/write-tracking"
 import { fetchLavoratoreScheda } from "../queries/fetch-lavoratore-scheda"
 import { fetchLavoratoriBoard } from "../queries/fetch-lavoratori-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"

@@ -1,12 +1,9 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
-import {
-  fetchIndirizziByEntity,
-  fetchLookupValues,
-  createRecord,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { fetchIndirizziByEntity } from "@/lib/indirizzi-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { createRecord, updateRecord } from "@/lib/record-crud"
 import { fetchCrmPipelineFamigliaDetail } from "../queries/fetch-crm-pipeline-famiglia-detail"
 import { fetchCrmPipelineFamiglieBoard } from "../queries/fetch-crm-pipeline-famiglie-board"
 import { updateProcessoMatchingStatoSales } from "../mutations/update-processo-matching-stato-sales"

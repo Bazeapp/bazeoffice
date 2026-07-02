@@ -1,11 +1,9 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
-import {
-  createRecord,
-  fetchLookupValues,
-  fetchTicketByRapporto,
-} from "@/lib/anagrafiche-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { createRecord } from "@/lib/record-crud"
+import { fetchTicketByRapporto } from "@/modules/rapporti"
 import {
   fetchAssunzioniNamesByRapportoIds,
   fetchChiusureByIds,

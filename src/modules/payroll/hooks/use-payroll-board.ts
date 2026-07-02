@@ -4,10 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale"
-import {
-  fetchLookupValues,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { updateRecord } from "@/lib/record-crud"
 import { fetchCedoliniBoard } from "../queries/fetch-cedolini-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/modules/rapporti/features/rapporti/rapporti-labels"

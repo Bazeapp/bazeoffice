@@ -20,11 +20,9 @@ import { toWorkerStatusFlags } from "@/modules/lavoratori"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useMoveMutation } from "@/hooks/use-board-mutations"
-import {
-  fetchIndirizziByEntity,
-  fetchLookupValues,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { fetchIndirizziByEntity } from "@/lib/indirizzi-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { updateRecord } from "@/lib/record-crud"
 import { fetchLavoratoriByIds } from "@/modules/lavoratori"
 import { fetchRicercaWorkerRelatedSelectionSummaries } from "../queries/fetch-ricerca-worker-related-selection-summaries"
 import { fetchSelezioniLookup } from "../queries/fetch-selezioni-lookup"

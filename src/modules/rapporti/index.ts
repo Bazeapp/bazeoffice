@@ -5,6 +5,7 @@ export { fetchRapportiLavorativi } from "./queries/fetch-rapporti-lavorativi"
 export { fetchRapportiLavorativiAll } from "./queries/fetch-rapporti-lavorativi-all"
 export { fetchRapportiLavorativiBoard } from "./queries/fetch-rapporti-lavorativi-board"
 export { fetchRapportiLavorativiByIds } from "./queries/fetch-rapporti-lavorativi-by-ids"
+export { fetchTicketByRapporto } from "./queries/fetch-ticket-by-rapporto"
 
 export {
   formatAssunzioneName,

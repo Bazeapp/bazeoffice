@@ -67,7 +67,7 @@ import type {
 } from "../../../hooks/use-crm-pipeline-preview";
 import { invokeEdgeFunction } from "@/lib/supabase-edge";
 import { cn } from "@/lib/utils";
-import { updateRecord } from "@/lib/anagrafiche-api";
+import { updateRecord } from "@/lib/record-crud"
 import { useProvincie } from "@/hooks/use-provincie";
 
 type OnboardingCardProps = {

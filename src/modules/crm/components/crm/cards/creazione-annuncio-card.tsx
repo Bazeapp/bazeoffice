@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { CrmDetailCard } from "../detail-card";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { runAutomationWebhook } from "@/lib/anagrafiche-api";
+import { runAutomationWebhook } from "@/lib/automation-webhook"
 
 const READONLY_BLOCK_CLASS =
   "rounded-md bg-muted/60 px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words";

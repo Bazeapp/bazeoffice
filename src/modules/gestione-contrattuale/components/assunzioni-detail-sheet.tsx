@@ -35,11 +35,8 @@ import {
 } from "@/components/forms/field-components"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { useController } from "react-hook-form"
-import {
-  createRecord,
-  fetchLookupValues,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { createRecord, updateRecord } from "@/lib/record-crud"
 import { fetchDocumentiLavoratoriByWorker } from "@/modules/lavoratori"
 import { fetchAssunzioniByIds } from "../queries/fetch-assunzioni-by-ids"
 import { fetchAssunzioniByFormType } from "../queries/fetch-assunzioni-by-form-type"

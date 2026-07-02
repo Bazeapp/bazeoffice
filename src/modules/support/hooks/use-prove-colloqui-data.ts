@@ -9,10 +9,8 @@ import {
   fetchAssunzioniNamesByRapportoIds,
   type RapportoAssunzioneNames,
 } from "@/modules/gestione-contrattuale"
-import {
-  fetchLookupValues,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { updateRecord } from "@/lib/record-crud"
 import { fetchProveColloquiBoard } from "../queries/fetch-prove-colloqui-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 

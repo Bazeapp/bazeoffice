@@ -28,7 +28,7 @@ vi.mock("sonner", () => ({
   },
 }))
 
-vi.mock("@/lib/anagrafiche-api", () => ({
+vi.mock("@/lib/record-crud", () => ({
   createRecord: vi.fn(),
   deleteRecord: vi.fn(),
   updateRecord: vi.fn(),
@@ -43,7 +43,7 @@ vi.mock("@/lib/stripe-connect-api", () => ({
 }))
 
 import { toast } from "sonner"
-import { createRecord, deleteRecord, updateRecord } from "@/lib/anagrafiche-api"
+import { createRecord, deleteRecord, updateRecord } from "@/lib/record-crud"
 import { invokeWorkerAvailability } from "@/lib/availability-functions"
 import { createStripeConnectAccount } from "@/lib/stripe-connect-api"
 import { useSelectedWorkerEditor } from "../hooks/use-selected-worker-editor"

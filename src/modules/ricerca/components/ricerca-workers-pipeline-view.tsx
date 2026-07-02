@@ -96,12 +96,9 @@ import {
 import { useSelectedWorkerEditor } from "@/modules/lavoratori";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
-import {
-  createRecord,
-  fetchLookupValues,
-  runSmartMatchingForwardPreview,
-  updateRecord,
-} from "@/lib/anagrafiche-api";
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { createRecord, updateRecord } from "@/lib/record-crud"
+import { runSmartMatchingForwardPreview } from "@/lib/smart-matching-forward"
 import { fetchLavoratoriByIds } from "@/modules/lavoratori";
 import { fetchLavoratoriSearch } from "../queries/fetch-lavoratori-search";
 import { fetchProcessiMatchingByIds } from "../queries/fetch-processi-matching-by-ids";

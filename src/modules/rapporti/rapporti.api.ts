@@ -71,3 +71,7 @@ export async function fetchRapportiLavorativiByIds(ids: string[]) {
 export async function fetchRapportiLavorativiAll(limit = 3000, columns?: string) {
   return rpcRows("rapporti_lavorativi_all", { p_limit: limit }, columns)
 }
+
+export async function fetchTicketByRapporto(rapportoId: string) {
+  return rpcRows("ticket_by_rapporto", { p_rapporto_id: rapportoId })
+}

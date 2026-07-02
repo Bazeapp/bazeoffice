@@ -3,11 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useCreateMutation, useMoveMutation } from "@/hooks/use-board-mutations"
 
-import {
-  createRecord,
-  fetchLookupValues,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { createRecord, updateRecord } from "@/lib/record-crud"
 import { fetchAssunzioniNamesByRapportoIds } from "../queries/fetch-assunzioni-names-by-rapporto-ids"
 import { fetchVariazioniBoard } from "../queries/fetch-variazioni-board"
 import type { RapportoAssunzioneNames } from "../types/gestione-rpc"

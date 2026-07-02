@@ -44,11 +44,7 @@ import {
   isNonIdoneoStatus,
   normalizeWorkerStatus,
 } from "../features/lavoratori/lib/status-utils"
-import {
-  createRecord,
-  deleteRecord,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { createRecord, deleteRecord, updateRecord } from "@/lib/record-crud"
 import { invokeWorkerAvailability } from "@/lib/availability-functions"
 import { createStripeConnectAccount } from "@/lib/stripe-connect-api"
 import type { EsperienzaLavoratoreRecord } from "../types/esperienza-lavoratore"

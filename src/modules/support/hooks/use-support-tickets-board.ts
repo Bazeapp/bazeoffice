@@ -6,11 +6,8 @@ import {
   useMoveMutation,
   usePatchMutation,
 } from "@/hooks/use-board-mutations"
-import {
-  createRecord,
-  fetchLookupValues,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { fetchLookupValues } from "@/lib/lookup-values"
+import { createRecord, updateRecord } from "@/lib/record-crud"
 import {
   fetchAssunzioniNamesByRapportoIds,
   type AssunzioneRecord,

@@ -71,10 +71,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { fetchCedolinoDetail } from "../../queries/fetch-cedolino-detail"
-import {
-  runAutomationWebhook,
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { runAutomationWebhook } from "@/lib/automation-webhook"
+import { updateRecord } from "@/lib/record-crud"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import { buildFamilyPresenzeUrl } from "@/lib/private-area-url"
 import { matchesSearchQuery } from "@/lib/search-utils"

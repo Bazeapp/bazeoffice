@@ -32,11 +32,11 @@ const REVIEWED_PATHS = new Map([
     "filter UI; table-query expands lookup key/label aliases",
   ],
   [
-    "src/components/anagrafiche/anagrafiche-query-builder.tsx",
+    "src/modules/anagrafiche/components/anagrafiche-query-builder.tsx",
     "filter UI; table-query expands lookup key/label aliases",
   ],
   [
-    "src/components/anagrafiche/anagrafiche-tables-view.tsx",
+    "src/modules/anagrafiche/components/anagrafiche-tables-view.tsx",
     "anagrafiche grouping/filter UI, not persisted lookup edit",
   ],
   [

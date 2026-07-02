@@ -46,7 +46,7 @@ import {
   resolveLookupSingleValueOptions,
   type LookupOption,
 } from "../features/lavoratori/lib/lookup-utils"
-import { createRecord, updateRecord } from "@/lib/anagrafiche-api"
+import { createRecord, updateRecord } from "@/lib/record-crud"
 import {
   buildAttachmentPayload,
   normalizeAttachmentArray,

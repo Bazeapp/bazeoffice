@@ -61,9 +61,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import {
-  updateRecord,
-} from "@/lib/anagrafiche-api"
+import { updateRecord } from "@/lib/record-crud"
 import type { RapportoAssunzioneNames } from "@/modules/gestione-contrattuale"
 import { useController } from "react-hook-form"
 import { Form } from "@/components/ui/form"

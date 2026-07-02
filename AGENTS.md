@@ -123,9 +123,19 @@ Consequences — these **override** the `nextjs-fe-api` profile where they confl
   - `<domain>.adapters.ts` — the **only** place Supabase row/field names appear; the
     rest of the app sees normalized domain types. (This is also the seam that makes the
     planned DB-field cleanup safe and local.)
-  - `<domain>.queries.ts` / `.mutations.ts` — TanStack Query wrappers over the api file.
-  - `<domain>.types.ts`, `<domain>.utils.ts` (pure), `components/`, `hooks/`, `__tests__/`.
-  - Consumers import from `index.ts` only.
+  - `<domain>.queries/` / `mutations/` — one fetch/mutation per file; thin re-exports
+    from `<domain>.api.ts`.
+  - `<domain>.types.ts`, `lib/` (pure utils), `components/`, `hooks/`, `__tests__/`.
+  - Consumers import from `index.ts` only (`@/modules/<dominio>`).
+- **Eight domain modules** under `src/modules/`: `anagrafiche` (AgGrid CRUD UI shell),
+  `support`, `crm`, `lavoratori`, `ricerca`, `gestione-contrattuale`, `rapporti`,
+  `payroll`. Entity table CRUD lives in the **home module**; the `anagrafiche` module
+  renders tabs and imports queries from home barrels (e.g. `fetchLavoratori` from
+  `@/modules/lavoratori`). ESLint blocks deep imports of `*.api.ts` / `*.adapters.ts`
+  across module boundaries.
+- **Shared Supabase infra** in `src/lib/`: `write-tracking`, `record-crud`, `table-query`
+  (Anagrafiche chokepoint only), `lookup-values`, `indirizzi-api`, etc. — not the
+  dissolved `anagrafiche-api.ts` monolith.
 - **Testing tier:** no local DB to integration-test. Adapters and pure logic → Vitest
   unit tests; hooks → black-box tests with the data layer mocked at the module boundary;
   critical flows → E2E. Stack: **Vitest + happy-dom + Testing Library** (E2E not yet set
@@ -134,8 +144,8 @@ Consequences — these **override** the `nextjs-fe-api` profile where they confl
   same checks (`test` + `tsc` + `lint`). CI is what protects `main`; the local hook can be
   bypassed with `LEFTHOOK=0`, CI cannot.
 - This is a **legacy-but-in-production** codebase mid-stabilization. New work follows the
-  module anatomy above; **do not bulk-migrate** existing `components/`, `hooks/`,
-  `lib/anagrafiche-api.ts`. See `docs/piano-stabilizzazione.md` (master plan) and
+  module anatomy above; **do not bulk-migrate** remaining legacy `components/` or `hooks/`
+  outside modules. See `docs/piano-stabilizzazione.md` (master plan) and
   `docs/testing-strategy.md` (test safety net) before refactoring.
 
 ### Commands
