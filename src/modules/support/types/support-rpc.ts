@@ -6,7 +6,7 @@ import type { MeseLavoratoRecord } from "@/types"
 import type { PagamentoRecord } from "@/types"
 import type { PresenzaMensileRecord } from "@/types"
 import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
-import type { RapportoLavorativoRecord } from "@/types/entities/rapporto-lavorativo"
+import type { RapportoLavorativoRecord } from "@/types"
 import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-contrattuale"
 
 import type { TicketRecord } from "./ticket"

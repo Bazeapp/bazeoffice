@@ -19,9 +19,7 @@ import {
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { fetchContributiInpsByIds } from "../../queries/fetch-contributi-inps-by-ids"
-import {
-  fetchRapportiLavorativiByIds,
-} from "@/lib/anagrafiche-api"
+import { fetchRapportiLavorativiByIds } from "@/modules/rapporti"
 import { Form } from "@/components/ui/form"
 import { FieldInput } from "@/components/forms/field-components"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"

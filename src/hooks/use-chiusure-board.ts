@@ -14,7 +14,7 @@ import {
   type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
+import { getRapportoTitle } from "@/modules/rapporti/features/rapporti/rapporti-labels"
 import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
 
 const CHIUSURE_BOARD_QUERY_KEY = ["chiusure-board"] as const

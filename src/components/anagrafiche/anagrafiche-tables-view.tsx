@@ -44,12 +44,12 @@ import {
 import {
   fetchLavoratori,
   fetchProcessiMatching,
-  fetchRapportiLavorativi,
   fetchSelezioniLavoratori,
   type TableColumnMeta,
 } from "@/lib/anagrafiche-api"
 import { fetchFamiglie } from "@/modules/crm"
 import { fetchMesiLavorati, fetchPagamenti } from "@/modules/payroll"
+import { fetchRapportiLavorativi } from "@/modules/rapporti"
 
 type TabValue = AnagraficheTab
 type PaginationState = {

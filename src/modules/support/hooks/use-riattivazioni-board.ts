@@ -12,7 +12,7 @@ import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import {
   getRapportoFamilyLabel,
   getRapportoWorkerLabel,
-} from "@/features/rapporti/rapporti-labels"
+} from "@/modules/rapporti/features/rapporti/rapporti-labels"
 import type {
   ChiusuraContrattoRecord,
   FamigliaRecord,

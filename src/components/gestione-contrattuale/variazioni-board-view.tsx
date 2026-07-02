@@ -50,10 +50,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  fetchRapportiLavorativiByIds,
   fetchVariazioniByIds,
   updateRecord,
 } from "@/lib/anagrafiche-api";
+import { fetchRapportiLavorativiByIds } from "@/modules/rapporti";
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments";
 import { matchesSearchQuery } from "@/lib/search-utils";
 import { supabase } from "@/lib/supabase-client";

@@ -388,7 +388,7 @@ export default defineConfig([
       'src/components/gestione-contrattuale/variazioni-board-view.tsx',
       'src/components/gestione-contrattuale/chiusure-board-view.tsx',
       'src/modules/support/components/riattivazioni-board-view.tsx',
-      'src/components/gestione-contrattuale/rapporto-detail-panel.tsx',
+      'src/modules/rapporti/components/rapporto-detail-panel.tsx',
       'src/components/ricerca/ricerca-detail-view.tsx',
       'src/components/ricerca/scheda-colloquio-panel.tsx',
       'src/modules/payroll/components/payroll/contributi-inps-view.tsx',

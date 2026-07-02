@@ -3,8 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { flattenAttachmentLinks } from "@/components/shared-next/attachment-utils"
 import { normalizeLookupColors, normalizeLookupOptions } from "@/features/lavoratori/lib/lookup-utils"
-import { getRapportoProcessIds } from "@/features/rapporti/rapporti-processi"
-import { formatAssunzioneName } from "@/features/rapporti/rapporti-labels"
+import { getRapportoProcessIds } from "@/modules/rapporti/features/rapporti/rapporti-processi"
+import { formatAssunzioneName } from "@/modules/rapporti/features/rapporti/rapporti-labels"
 import {
   fetchAssunzioniNamesByRapportoIds,
   fetchLookupValues,

@@ -8,11 +8,11 @@ import {
   fetchLookupValues,
   fetchLavoratori,
   fetchProcessiMatching,
-  fetchRapportiLavorativi,
   fetchSelezioniLavoratori,
 } from "@/lib/anagrafiche-api"
 import { fetchFamiglie } from "@/modules/crm"
 import { fetchMesiLavorati, fetchPagamenti } from "@/modules/payroll"
+import { fetchRapportiLavorativi } from "@/modules/rapporti"
 import type { LookupValueRecord } from "@/types"
 
 export type AnagraficaRow = Record<string, unknown>

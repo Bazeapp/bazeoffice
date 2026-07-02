@@ -10,7 +10,7 @@ import {
 } from "@/lib/anagrafiche-api"
 import { fetchCedoliniBoard } from "../queries/fetch-cedolini-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
+import { getRapportoTitle } from "@/modules/rapporti/features/rapporti/rapporti-labels"
 
 const PAYROLL_REALTIME_TABLES = [
   "mesi_lavorati",

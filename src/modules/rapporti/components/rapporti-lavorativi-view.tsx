@@ -1,8 +1,8 @@
 import * as React from "react"
 
-import { RapportiListPanel } from "@/components/gestione-contrattuale/rapporti-list-panel"
-import { RapportoDetailPanel } from "@/components/gestione-contrattuale/rapporto-detail-panel"
-import { useRapportiLavorativiData } from "@/hooks/use-rapporti-lavorativi-data"
+import { RapportiListPanel } from "./rapporti-list-panel"
+import { RapportoDetailPanel } from "./rapporto-detail-panel"
+import { useRapportiLavorativiData } from "../hooks/use-rapporti-lavorativi-data"
 
 type RapportiLavorativiViewProps = {
   initialSelectedRapportoId?: string | null

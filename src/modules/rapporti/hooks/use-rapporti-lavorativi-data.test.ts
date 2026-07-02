@@ -4,7 +4,7 @@ import {
   RAPPORTO_FIELD_BINDINGS,
   mapRapportoBoardRow,
   preserveMissingFields,
-} from "@/hooks/use-rapporti-lavorativi-data"
+} from "./use-rapporti-lavorativi-data"
 import type { RapportoLavorativoRecord } from "@/types"
 
 /**

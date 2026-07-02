@@ -6,11 +6,11 @@ import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 import {
   fetchAssunzioniNamesByRapportoIds,
   fetchLookupValues,
-  fetchRapportiLavorativiAll,
   updateRecord,
 } from "@/lib/anagrafiche-api"
 import { fetchContributiInpsByPeriod } from "../queries/fetch-contributi-inps-by-period"
 import { fetchMesiCalendarioAll } from "../queries/fetch-mesi-calendario-all"
+import { fetchRapportiLavorativiAll } from "@/modules/rapporti"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
 const CONTRIBUTI_REALTIME_TABLES = [
@@ -19,8 +19,8 @@ const CONTRIBUTI_REALTIME_TABLES = [
   "famiglie",
   "lavoratori",
 ]
-import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
-import { resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
+import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/modules/rapporti/features/rapporti/rapporti-labels"
+import { resolveRapportoStatus } from "@/modules/rapporti/features/rapporti/rapporti-status"
 import type {
   ContributoInpsRecord,
   LookupValueRecord,

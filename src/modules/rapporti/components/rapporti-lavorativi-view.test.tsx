@@ -16,17 +16,17 @@ const h = vi.hoisted(() => ({
   state: {} as Record<string, unknown>,
 }))
 
-vi.mock("@/hooks/use-rapporti-lavorativi-data", () => ({
+vi.mock("../hooks/use-rapporti-lavorativi-data", () => ({
   useRapportiLavorativiData: () => h.state,
 }))
-vi.mock("@/components/gestione-contrattuale/rapporti-list-panel", () => ({
+vi.mock("./rapporti-list-panel", () => ({
   RapportiListPanel: () => null,
 }))
-vi.mock("@/components/gestione-contrattuale/rapporto-detail-panel", () => ({
+vi.mock("./rapporto-detail-panel", () => ({
   RapportoDetailPanel: () => null,
 }))
 
-import { RapportiLavorativiView } from "@/components/gestione-contrattuale/rapporti-lavorativi-view"
+import { RapportiLavorativiView } from "./rapporti-lavorativi-view"
 
 function stubState(selectedRapportoId: string | null) {
   return {

@@ -43,8 +43,8 @@ import {
   type SupportTicketType,
   type SupportTicketUrgency,
 } from "../components/support/support-ticket-config"
-import { formatPersonName, getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
-import { resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
+import { formatPersonName, getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "@/modules/rapporti/features/rapporti/rapporti-labels"
+import { resolveRapportoStatus } from "@/modules/rapporti/features/rapporti/rapporti-status"
 
 type SupportTicketStageMetadata = {
   definitions: SupportTicketStatusDefinition[]

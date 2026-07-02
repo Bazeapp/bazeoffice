@@ -22,8 +22,8 @@ import {
 } from "lucide-react"
 
 import { getTagClassName } from "@/features/lavoratori/lib/lookup-utils"
-import { getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "@/features/rapporti/rapporti-labels"
-import { getRapportoStatusColor, resolveRapportoStatus } from "@/features/rapporti/rapporti-status"
+import { getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "../features/rapporti/rapporti-labels"
+import { getRapportoStatusColor, resolveRapportoStatus } from "../features/rapporti/rapporti-status"
 import {
   AttachmentUploadSlot,
 } from "@/components/shared-next/attachment-upload-slot"

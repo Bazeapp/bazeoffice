@@ -1,4 +1,4 @@
-import { RapportiLavorativiView } from "@/components/gestione-contrattuale/rapporti-lavorativi-view"
+import { RapportiLavorativiView } from "@/modules/rapporti"
 
 type RapportiLavorativiPageProps = {
   initialSelectedRapportoId?: string | null

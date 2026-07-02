@@ -12,7 +12,7 @@ import {
   type RapportoAssunzioneNames,
 } from "@/lib/anagrafiche-api"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-import { getRapportoTitle } from "@/features/rapporti/rapporti-labels"
+import { getRapportoTitle } from "@/modules/rapporti/features/rapporti/rapporti-labels"
 import type { LookupValueRecord, RapportoLavorativoRecord, VariazioneContrattualeRecord } from "@/types"
 
 const VARIAZIONI_BOARD_QUERY_KEY = ["variazioni-board"] as const

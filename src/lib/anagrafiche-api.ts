@@ -33,7 +33,7 @@ import type { FamigliaRecord } from "@/types"
 import type { LavoratoreRecord } from "@/types/entities/lavoratore"
 import type { ProcessoMatchingRecord } from "@/types/entities/processi-matching"
 import type { ReferenzaLavoratoreRecord } from "@/types/entities/referenza-lavoratore"
-import type { RapportoLavorativoRecord } from "@/types/entities/rapporto-lavorativo"
+import type { RapportoLavorativoRecord } from "@/types"
 import type { RichiestaAttivazioneRecord } from "@/types"
 import type { VariazioneContrattualeRecord } from "@/types/entities/variazione-contrattuale"
 
@@ -64,11 +64,6 @@ export {
   runTracked,
   runTrackedEdgeFunction,
   updateRecord,
-}
-
-export type RapportiLavorativiBoardRpcResponse = {
-  rows?: RapportoLavorativoRecord[]
-  total?: number
 }
 
 export type RicercaWorkerRelatedSelectionSummary = {
@@ -243,45 +238,6 @@ export async function fetchLavoratori(query: TablePageQuery) {
     filters: query.filters,
     groupBy: query.groupBy,
   })
-}
-
-export async function fetchRapportiLavorativi(query: TablePageQuery) {
-  return queryTable<RapportoLavorativoRecord>({
-    table: "rapporti_lavorativi",
-    select: query.select ?? ["*"],
-    limit: query.limit,
-    offset: query.offset,
-    orderBy: query.orderBy ?? [{ field: "aggiornato_il", ascending: false }],
-    includeSchema: query.includeSchema,
-    search: query.search,
-    searchFields: query.searchFields,
-    filters: query.filters,
-    groupBy: query.groupBy,
-  })
-}
-
-export async function fetchRapportiLavorativiBoard(query: {
-  limit: number
-  offset: number
-  search?: string
-  statusFilter?: string
-}) {
-  const { data, error } = await supabase.rpc("rapporti_lavorativi_board", {
-    p_limit: query.limit,
-    p_offset: query.offset,
-    p_search: query.search ?? null,
-    p_status_filter: query.statusFilter && query.statusFilter !== "all"
-      ? query.statusFilter
-      : null,
-  })
-  if (error) {
-    throw new Error(`rapporti_lavorativi_board failed: ${error.message}`)
-  }
-  const response = data as RapportiLavorativiBoardRpcResponse | null
-  return {
-    rows: Array.isArray(response?.rows) ? response.rows : [],
-    total: typeof response?.total === "number" ? response.total : 0,
-  }
 }
 
 export async function fetchAssunzioniBoard(statoFilter?: string | null) {
@@ -645,11 +601,6 @@ async function rpcRows(
 
 const EMPTY_ROWS = { rows: [], total: 0, columns: [], groups: [] }
 
-export async function fetchRapportiLavorativiByIds(ids: string[]) {
-  if (ids.length === 0) return EMPTY_ROWS
-  return rpcRows("rapporti_lavorativi_by_ids", { p_ids: ids })
-}
-
 export async function fetchTicketByRapporto(rapportoId: string) {
   return rpcRows("ticket_by_rapporto", { p_rapporto_id: rapportoId })
 }
@@ -662,10 +613,6 @@ export async function fetchVariazioniByRapporto(rapportoId: string) {
 export async function fetchVariazioniByIds(ids: string[]) {
   if (ids.length === 0) return EMPTY_ROWS
   return rpcRows("variazioni_by_ids", { p_ids: ids })
-}
-
-export async function fetchRapportiLavorativiAll(limit = 3000, columns?: string) {
-  return rpcRows("rapporti_lavorativi_all", { p_limit: limit }, columns)
 }
 
 // FASE 4 BIS Wave 4 — CRM assegnazione: processi per stato_res.

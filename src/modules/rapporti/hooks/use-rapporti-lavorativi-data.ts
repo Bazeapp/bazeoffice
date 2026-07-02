@@ -9,8 +9,6 @@ import {
   fetchLavoratoriByName,
   fetchLookupValues,
   fetchProcessiMatchingByIds,
-  fetchRapportiLavorativiByIds,
-  fetchRapportiLavorativiBoard,
   fetchTicketByRapporto,
   fetchVariazioniByRapporto,
   type RapportoAssunzioneNames,
@@ -28,13 +26,15 @@ import {
   fetchPresenzeByIds,
   fetchTransazioniByMeseLavoratoIds,
 } from "@/modules/payroll"
+import { fetchRapportiLavorativiBoard } from "../queries/fetch-rapporti-lavorativi-board"
+import { fetchRapportiLavorativiByIds } from "../queries/fetch-rapporti-lavorativi-by-ids"
+import { getRapportoProcessIds } from "../features/rapporti/rapporti-processi"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
 // The board lists rapporti; related tables are loaded only for the selected
 // detail and would cause excessive refetches if subscribed here. Detail-level
 // realtime is a follow-up refinement.
 const RAPPORTI_REALTIME_TABLES = ["rapporti_lavorativi"]
-import { getRapportoProcessIds } from "@/features/rapporti/rapporti-processi"
 import { normalizeLookupColors } from "@/features/lavoratori/lib/lookup-utils"
 import type {
   SupportTicketMetadata,
