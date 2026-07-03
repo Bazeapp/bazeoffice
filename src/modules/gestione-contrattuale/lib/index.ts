@@ -1,1 +1,1 @@
-export { resolveDeepLinkSelection } from "./assunzioni/deep-link-selection"
+export { resolveDeepLinkSelection } from "./deep-link-selection"

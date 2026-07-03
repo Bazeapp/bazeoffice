@@ -12,7 +12,7 @@ import type {
 } from "../types"
 import { useAssunzioniBoard } from "../hooks/use-assunzioni-board"
 import { fetchAssunzioneDetail } from "../queries/fetch-assunzione-detail"
-import { resolveDeepLinkSelection } from "../lib/assunzioni/deep-link-selection"
+import { resolveDeepLinkSelection } from "../lib/deep-link-selection"
 import { toast } from "sonner"
 import { AssunzioniDetailSheet } from "./assunzioni-detail-sheet"
 import {

@@ -4,7 +4,7 @@ import { resolveDeepLinkSelection } from "./deep-link-selection"
 import type {
   AssunzioniBoardCardData,
   AssunzioniBoardColumnData,
-} from "../../types"
+} from "../types"
 
 const card = (id: string) => ({ id }) as AssunzioniBoardCardData
 
