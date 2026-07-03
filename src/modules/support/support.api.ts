@@ -1,7 +1,7 @@
 import { queryTable, type TablePageQuery } from "@/lib/table-query"
 import { supabase } from "@/lib/supabase-client"
 
-import { adaptTicketRecords } from "./support.adapters"
+import { adaptTicketRecords } from "./lib/adapters"
 import type { TicketRecord } from "./types/ticket"
 import type {
   ProveColloquiBoardRpcResponse,

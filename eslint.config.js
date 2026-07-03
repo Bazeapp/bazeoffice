@@ -25,9 +25,14 @@ const MODULE_BOUNDARY_RESTRICTIONS = {
         'Import from @/modules/<dominio>/<subfolder> (components, hooks, queries, types, lib) only. Deep .api.ts imports are module-internal drift.',
     },
     {
-      group: ['@/modules/*/*.adapters', '@/modules/*/*.adapters.ts'],
+      group: [
+        '@/modules/*/*.adapters',
+        '@/modules/*/*.adapters.ts',
+        '@/modules/*/lib/adapters',
+        '@/modules/*/lib/adapters.ts',
+      ],
       message:
-        'Import from @/modules/<dominio>/<subfolder> (components, hooks, queries, types, lib) only. Adapters are module-internal — never import .adapters.ts across module boundaries.',
+        'Import from @/modules/<dominio>/<subfolder> (components, hooks, queries, types, lib) only. Adapters are module-internal — never import adapters across module boundaries.',
     },
   ],
 }
@@ -442,7 +447,7 @@ export default defineConfig([
   },
 
   // Rule 3 (domain modules): consumers outside src/modules/ must use subfolder
-  // barrels (@/modules/<dominio>/<subfolder>), never deep .api.ts / .adapters.ts imports.
+  // barrels (@/modules/<dominio>/<subfolder>), never deep .api.ts or lib/adapters imports.
   // Module-internal files live under src/modules/** and are excluded here;
   // cross-module deep-import enforcement inside modules lands with U3+.
   {

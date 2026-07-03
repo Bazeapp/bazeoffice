@@ -1,5 +1,5 @@
-import type { FamigliaRecord } from "./types/famiglie"
-import type { RichiestaAttivazioneRecord } from "./types/richiesta-attivazione"
+import type { FamigliaRecord } from "../types/famiglie"
+import type { RichiestaAttivazioneRecord } from "../types/richiesta-attivazione"
 
 export function adaptFamigliaRecord(row: Record<string, unknown>): FamigliaRecord {
   return row as FamigliaRecord
