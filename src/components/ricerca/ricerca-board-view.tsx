@@ -132,12 +132,14 @@ function RicercaBoardCard({
   dragging,
   onDragStart,
   onDragEnd,
+  recruiterLabelsById,
 }: {
   data: RicercaBoardCardData
   onClick: () => void
   dragging: boolean
   onDragStart: (event: React.DragEvent<HTMLDivElement>) => void
   onDragEnd: () => void
+  recruiterLabelsById: Map<string, string>
 }) {
   return (
     <div
@@ -150,7 +152,12 @@ function RicercaBoardCard({
       )}
       onClick={onClick}
     >
-      <RicercaActiveSearchCard data={data} />
+      <RicercaActiveSearchCard
+        data={data}
+        recruiterLabel={
+          data.operatorId ? (recruiterLabelsById.get(data.operatorId) ?? null) : null
+        }
+      />
     </div>
   )
 }
@@ -167,6 +174,7 @@ function RicercaBoardColumn({
   onDragEndCard,
   onCardClick,
   onLoadDeferredColumn,
+  recruiterLabelsById,
 }: {
   column: RicercaBoardColumnData
   isDropTarget: boolean
@@ -179,6 +187,7 @@ function RicercaBoardColumn({
   onDragEndCard: () => void
   onCardClick: (card: RicercaBoardCardData) => void
   onLoadDeferredColumn: (columnId: string) => void
+  recruiterLabelsById: Map<string, string>
 }) {
   const visual = getColumnVisual(column.id, column.label, column.color)
   const count = column.totalCount
@@ -216,6 +225,7 @@ function RicercaBoardColumn({
         <RicercaBoardCard
           key={card.id}
           data={card}
+          recruiterLabelsById={recruiterLabelsById}
           dragging={draggingProcessId === card.id}
           onDragStart={(event) => {
             event.dataTransfer.setData("text/plain", card.id)
@@ -242,6 +252,10 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
     role: "recruiter",
     activeOnly: true,
   })
+  const recruiterLabelsById = React.useMemo(
+    () => new Map(operatorOptions.map((option) => [option.id, option.label])),
+    [operatorOptions],
+  )
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -419,6 +433,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
                 <RicercaBoardColumn
                   key={column.id}
                   column={column}
+                  recruiterLabelsById={recruiterLabelsById}
                   isDropTarget={dropTargetColumnId === column.id}
                   draggingProcessId={draggingProcessId}
                   onDragEnterColumn={setDropTargetColumnId}

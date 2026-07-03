@@ -5,6 +5,7 @@ import {
   MapPinIcon,
 } from "lucide-react"
 
+import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { CardMetaRow } from "@/components/shared-next/card-meta-row"
 import { RecordCard } from "@/components/shared-next/record-card"
@@ -92,14 +93,23 @@ function isUrgentDeadline(value: string | null | undefined) {
   return diff <= 1000 * 60 * 60 * 24 * 7
 }
 
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return "-"
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
+}
+
 export function RicercaActiveSearchCard({
   data,
   onClick,
   className,
+  recruiterLabel,
 }: {
   data: RicercaBoardCardData
   onClick?: () => void
   className?: string
+  recruiterLabel?: string | null
 }) {
   const oreGiorni = formatOreGiorniLabel(data.oreSettimanali, data.giorniSettimanali)
   const hasUrgentDeadline = isUrgentDeadline(data.deadlineRaw)
@@ -149,6 +159,14 @@ export function RicercaActiveSearchCard({
             <CardMetaRow icon={<CalendarIcon />}>{data.deadline}</CardMetaRow>
           )}
           <CardMetaRow icon={<MapPinIcon />}>{data.zona}</CardMetaRow>
+          {recruiterLabel ? (
+            <CardMetaRow>
+              <span className="inline-flex min-w-0 items-center gap-1.5">
+                <Avatar size="xs" fallback={getInitials(recruiterLabel)} />
+                <span className="truncate">{recruiterLabel}</span>
+              </span>
+            </CardMetaRow>
+          ) : null}
         </RecordCard.Body>
       </RecordCard>
     </div>
