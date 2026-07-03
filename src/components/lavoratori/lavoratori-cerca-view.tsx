@@ -1679,6 +1679,7 @@ export function LavoratoriCercaView({
         <>
           <WorkerDetailShell
             key={selectedWorkerId ?? "__empty__"}
+            className="scrollbar-visible"
             sectionRef={detailScrollRef}
             tabs={workerSectionTabs}
             activeSection={activeWorkerSection}

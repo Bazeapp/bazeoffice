@@ -2388,7 +2388,7 @@ export function RicercaWorkersPipelineView({
                 </div>
               </div>
 
-              <div className="scrollbar-hidden min-w-0 overflow-y-auto border-t border-border xl:border-t-0">
+              <div className="scrollbar-visible min-w-0 overflow-y-auto border-t border-border xl:border-t-0">
                 <div className="space-y-6 p-4">
                   <WorkerPipelineSummaryCards
                     key={selectedWorkerRow?.id ?? "__empty__"}
