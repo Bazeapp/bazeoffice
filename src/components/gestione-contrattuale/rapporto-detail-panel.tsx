@@ -47,6 +47,7 @@ import {
 } from "@/components/payroll/payroll-overview-view"
 import { SupportTicketCreateDialog } from "@/components/support/support-ticket-create-dialog"
 import { Badge } from "@/components/ui/badge"
+import { TipoContrattoBadge } from "@/components/shared-next/tipo-contratto-badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -1140,6 +1141,10 @@ export function RapportoDetailPanel({
             {rapportoView.tipo_contratto}
           </Badge>
         ) : null}
+        <TipoContrattoBadge
+          isAbbonamento={rapportoView.richiesta_attivazione_id == null}
+          className="h-6 rounded-full px-2.5 text-2xs font-medium"
+        />
       </div>
     </div>
   )
