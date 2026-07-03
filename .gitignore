@@ -36,5 +36,11 @@ shared-inventory.txt
 .claude/
 CLAUDE.md
 
+# Playwright E2E artifacts
+e2e/.auth/
+e2e/.runtime-env.json
+playwright-report/
+test-results/
+
 # Compound Engineering (machine-local config; the .example.yaml stays tracked)
 .compound-engineering/*.local.yaml

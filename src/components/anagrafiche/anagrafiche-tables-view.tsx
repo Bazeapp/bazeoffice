@@ -164,7 +164,11 @@ function AnagraficaRecordSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-5xl">
+      <SheetContent
+        data-testid="anagrafiche-record-sheet"
+        side="right"
+        className="flex w-full flex-col p-0 sm:max-w-5xl"
+      >
         <SheetHeader className="border-b px-6 py-5 text-left">
           <p className="ui-type-label text-muted-foreground">
             {getTabLabel(tab)}
@@ -341,6 +345,7 @@ function GroupByControl({
           type="button"
           variant={grouping.length > 0 ? "default" : "outline"}
           size="icon"
+          data-testid="anagrafiche-groupby"
           aria-label={`Group by (${grouping.length})`}
           title={`Group by (${grouping.length})`}
         >
@@ -946,7 +951,10 @@ export function AnagraficheTablesView({
   return (
     <section className="ui w-full min-w-0 space-y-4 px-4 pb-2 pt-4">
       {error ? (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+        <div
+          data-testid="anagrafiche-load-error"
+          className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700"
+        >
           Errore caricamento dati: {error}
         </div>
       ) : null}
@@ -960,13 +968,33 @@ export function AnagraficheTablesView({
           variant="line"
           className="h-auto justify-start overflow-x-auto whitespace-nowrap"
         >
-          <TabsTrigger value="famiglie">Famiglie</TabsTrigger>
-          <TabsTrigger value="processi">Processi</TabsTrigger>
-          <TabsTrigger value="lavoratori">Lavoratori</TabsTrigger>
-          <TabsTrigger value="mesi_lavorati">Mesi lavorati</TabsTrigger>
-          <TabsTrigger value="pagamenti">Pagamenti</TabsTrigger>
-          <TabsTrigger value="selezioni_lavoratori">Selezioni lavoratori</TabsTrigger>
-          <TabsTrigger value="rapporti_lavorativi">Rapporti lavorativi</TabsTrigger>
+          <TabsTrigger value="famiglie" data-testid="anagrafiche-tab-famiglie">
+            Famiglie
+          </TabsTrigger>
+          <TabsTrigger value="processi" data-testid="anagrafiche-tab-processi">
+            Processi
+          </TabsTrigger>
+          <TabsTrigger value="lavoratori" data-testid="anagrafiche-tab-lavoratori">
+            Lavoratori
+          </TabsTrigger>
+          <TabsTrigger value="mesi_lavorati" data-testid="anagrafiche-tab-mesi_lavorati">
+            Mesi lavorati
+          </TabsTrigger>
+          <TabsTrigger value="pagamenti" data-testid="anagrafiche-tab-pagamenti">
+            Pagamenti
+          </TabsTrigger>
+          <TabsTrigger
+            value="selezioni_lavoratori"
+            data-testid="anagrafiche-tab-selezioni_lavoratori"
+          >
+            Selezioni lavoratori
+          </TabsTrigger>
+          <TabsTrigger
+            value="rapporti_lavorativi"
+            data-testid="anagrafiche-tab-rapporti_lavorativi"
+          >
+            Rapporti lavorativi
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="min-w-0">
@@ -998,6 +1026,7 @@ export function AnagraficheTablesView({
                   type="button"
                   variant={filterBuilderOpenByTab[activeTab] ? "default" : "outline"}
                   size="icon"
+                  data-testid="anagrafiche-open-filters"
                   aria-label="Filtri avanzati"
                   title="Filtri avanzati"
                   onClick={() => handleFilterOpenChange(!filterBuilderOpenByTab[activeTab])}
@@ -1008,6 +1037,7 @@ export function AnagraficheTablesView({
                   type="button"
                   variant="ghost"
                   size="icon"
+                  data-testid="anagrafiche-reset-filters"
                   aria-label="Reset filtri"
                   title="Reset filtri"
                   disabled={JSON.stringify(activeQuery.filters) === JSON.stringify(emptyServerFilterGroup())}
@@ -1019,6 +1049,7 @@ export function AnagraficheTablesView({
                   type="button"
                   variant="outline"
                   size="icon"
+                  data-testid="anagrafiche-export-csv"
                   aria-label="Export CSV"
                   title="Export CSV"
                   disabled={exportingCsv || tableConfig.totalRows === 0}

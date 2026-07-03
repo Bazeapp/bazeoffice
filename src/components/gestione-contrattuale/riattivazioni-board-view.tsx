@@ -59,6 +59,10 @@ type ChiusuraAttachmentSlot = "allegato_compilato" | "documenti_chiusura_rapport
 const EMPTY_SELECT_VALUE = "__empty__"
 const SCONTO_RIATTIVAZIONE_OPTION = "mese gratis"
 
+function riattivazioniStageTestId(stageId: string) {
+  return `kanban-column-${stageId.replace(/\s+/g, "_")}`
+}
+
 function formatDate(value: string | null | undefined) {
   if (!value) return "-"
   const date = new Date(value)
@@ -462,6 +466,7 @@ function RiattivazioniBoardCard({
   return (
     <div
       draggable
+      data-testid={`riattivazioni-card-${card.id}`}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onOpen}
@@ -546,6 +551,7 @@ function RiattivazioniBoardColumn({
       title={column.label}
       countLabel={`${column.cards.length} ${column.cards.length === 1 ? "chiusura" : "chiusure"}`}
       visual={visual}
+      testId={riattivazioniStageTestId(column.id)}
       isDropTarget={isDropTarget}
       emptyMessage="Nessuna chiusura"
       onDragEnter={(columnId) => onDragEnterColumn(columnId as RiattivazioneStageId)}
@@ -632,6 +638,7 @@ export function RiattivazioniBoardView() {
           <SectionHeader.Toolbar>
             <SearchInput
               className="md:max-w-sm"
+              data-testid="riattivazioni-search-input"
               placeholder="Cerca per famiglia, lavoratore, email, motivazione..."
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}

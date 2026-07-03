@@ -49,6 +49,14 @@ const TICKET_TYPE_TITLE: Record<SupportTicketType, string> = {
   Payroll: "Ticket payroll",
 };
 
+function ticketsStageTestId(stageId: string) {
+  return stageId.replace(/\s+/g, "_");
+}
+
+function ticketBoardTestIdPrefix(ticketType: SupportTicketType) {
+  return ticketType === "Customer" ? "ticket-customer" : "ticket-payroll";
+}
+
 function getColumnVisual(color: string): KanbanColumnVisual {
   switch (color.toLowerCase()) {
     case "sky":
@@ -130,6 +138,7 @@ function SupportTicketCard({ card }: { card: SupportTicketBoardCardData }) {
 
 function SupportTicketsBoardColumn({
   column,
+  boardTestIdPrefix,
   draggingTicketId,
   isDropTarget,
   onOpenTicket,
@@ -142,6 +151,7 @@ function SupportTicketsBoardColumn({
   onDropToColumn,
 }: {
   column: SupportColumnData;
+  boardTestIdPrefix: string;
   draggingTicketId: string | null;
   isDropTarget: boolean;
   onOpenTicket: (ticketId: string) => void;
@@ -163,6 +173,7 @@ function SupportTicketsBoardColumn({
       visual={visual}
       density="compact"
       widthClassName="w-73"
+      testId={`kanban-column-${ticketsStageTestId(column.id)}`}
       isDropTarget={isDropTarget}
       emptyMessage="Nessun ticket"
       onDragEnter={onDragEnterColumn}
@@ -181,6 +192,7 @@ function SupportTicketsBoardColumn({
       {column.cards.map((card) => (
         <div
           key={card.id}
+          data-testid={`${boardTestIdPrefix}-card-${card.id}`}
           draggable
           onClick={() => onOpenTicket(card.id)}
           onDragStart={(event) => {
@@ -292,6 +304,7 @@ export function SupportTicketsView({
   );
 
   const totalTickets = filteredCards.length;
+  const boardTestIdPrefix = ticketBoardTestIdPrefix(ticketType);
 
   return (
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
@@ -302,7 +315,10 @@ export function SupportTicketsView({
           {TICKET_TYPE_TITLE[ticketType]}
         </SectionHeader.Title>
         <SectionHeader.Actions>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Button
+            onClick={() => setIsCreateDialogOpen(true)}
+            data-testid={`${boardTestIdPrefix}-open-create`}
+          >
             <PlusIcon />
             Apri ticket
           </Button>
@@ -314,11 +330,12 @@ export function SupportTicketsView({
               onChange={(event) => setSearch(event.target.value)}
               onClear={() => setSearch("")}
               placeholder="Cerca causale, famiglia o lavoratore"
+              data-testid={`${boardTestIdPrefix}-search-input`}
             />
           </div>
           <div className="w-50 shrink-0">
             <Select value={stageFilter} onValueChange={setStageFilter}>
-              <SelectTrigger>
+              <SelectTrigger data-testid={`${boardTestIdPrefix}-stage-filter`}>
                 <SelectValue placeholder="Tutti gli stati" />
               </SelectTrigger>
               <SelectContent>
@@ -362,6 +379,7 @@ export function SupportTicketsView({
                 <SupportTicketsBoardColumn
                   key={column.id}
                   column={column}
+                  boardTestIdPrefix={boardTestIdPrefix}
                   draggingTicketId={draggingTicketId}
                   isDropTarget={dropTargetColumnId === column.id}
                   onOpenTicket={setSelectedTicketId}
@@ -407,6 +425,7 @@ export function SupportTicketsView({
         defaultTicketType={ticketType}
         rapportoOptions={rapportoOptions}
         onCreateTicket={createTicket}
+        dialogTestId={`${boardTestIdPrefix}-create-dialog`}
       />
 
       {selectedCard ? (
@@ -422,6 +441,7 @@ export function SupportTicketsView({
           }}
           onMoveTicket={moveTicket}
           onPatchTicket={patchTicket}
+          sheetTestId={`${boardTestIdPrefix}-sheet-dialog`}
         />
       ) : null}
     </section>
