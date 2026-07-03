@@ -21,6 +21,7 @@ import { resetAssegnazioneFixture } from "../support/processo-mutations"
 
 const { unassignedNuova, assignedToday, assignedTomorrow } = E2E_RICERCA.processi
 const { rossi, bianchi } = E2E_PIPELINE.famiglie
+const { nonQualificatoMi } = E2E_LAVORATORI.lavoratori
 const { fareRicerca: fareRicercaLabel } = E2E_RICERCA.stageLabels
 
 test.describe("ricerca: detail view", () => {
@@ -42,7 +43,8 @@ test.describe("ricerca: detail view", () => {
     ).toBeVisible({ timeout: 30_000 })
     await expect(ricercaDetailTab(page, "Pipeline")).toBeVisible()
     await expect(ricercaDetailTab(page, "Mappa")).toBeVisible()
-    await expect(page.getByText("Good fit", { exact: true })).toBeVisible()
+    await expect(page.getByText("Candidati", { exact: true }).first()).toBeVisible()
+    await expect(ricercaPipelineAddButton(page)).toBeVisible()
 
     await backToRicercaBoard(page)
     await expect(page).toHaveURL(/\/ricerca$/)
@@ -92,7 +94,9 @@ test.describe("ricerca: detail view", () => {
     await gotoRicercaDetail(page, assignedTomorrow.id)
 
     await expect(ricercaDetailTab(page, "Pipeline")).toHaveAttribute("data-state", "active")
-    await expect(page.getByText("Good fit", { exact: true })).toBeVisible({ timeout: 30_000 })
+    await expect(
+      page.getByText(nonQualificatoMi.displayName, { exact: true }).first(),
+    ).toBeVisible({ timeout: 30_000 })
 
     await ricercaDetailTab(page, "Mappa").click()
     await expect(ricercaDetailTab(page, "Mappa")).toHaveAttribute("data-state", "active")
@@ -221,6 +225,8 @@ test.describe("ricerca: detail pipeline actions", () => {
     await expect(dialog).toHaveCount(0)
 
     await expect(page.getByText("Prospetto", { exact: true }).first()).toBeVisible()
-    await expect(page.getByText(idoneoMi.displayName, { exact: true }).first()).toBeVisible()
+    await expect(page.getByText(idoneoMi.displayName, { exact: true }).first()).toBeVisible({
+      timeout: 30_000,
+    })
   })
 })

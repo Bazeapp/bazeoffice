@@ -57,6 +57,9 @@ type StageMetadata = {
 
 type UseRicercaWorkersPipelineState = RicercaWorkersPipelineState
 
+const WORKER_BATCH_SIZE = 250
+const ADDRESS_BATCH_SIZE = 120
+
 function asRowArray(input: unknown): GenericRow[] {
   if (!Array.isArray(input)) return []
   return input.filter(
