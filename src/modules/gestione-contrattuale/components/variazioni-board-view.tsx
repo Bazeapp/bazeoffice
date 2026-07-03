@@ -7,12 +7,12 @@ import {
   PlusIcon,
 } from "lucide-react";
 
-import {
-  type VariazioniBoardCardData,
-  type VariazioniBoardColumnData,
-  type VariazioniRapportoOption,
-  useVariazioniBoard,
-} from "../hooks/use-variazioni-board";
+import type {
+  VariazioniBoardCardData,
+  VariazioniBoardColumnData,
+  VariazioniRapportoOption,
+} from "../types";
+import { useVariazioniBoard } from "../hooks/use-variazioni-board";
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot";
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";

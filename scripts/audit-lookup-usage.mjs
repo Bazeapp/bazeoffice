@@ -64,23 +64,23 @@ const REVIEWED_PATHS = new Map([
     "delegates lookup persistence to normalized parent/component callbacks",
   ],
   [
-    "src/modules/crm/components/crm/cards/stato-lead-card.tsx",
+    "src/modules/crm/components/cards/stato-lead-card.tsx",
     "CRM patch path normalizes lookup values before update; selectedOptionValue matches key/label",
   ],
   [
-    "src/modules/crm/components/crm/cards/onboarding-card.tsx",
+    "src/modules/crm/components/cards/onboarding-card.tsx",
     "CRM lookup selects use selected key and label save where persisted",
   ],
   [
-    "src/modules/crm/components/crm/cards/onboarding-context-card.tsx",
+    "src/modules/crm/components/cards/onboarding-context-card.tsx",
     "CRM contextual selects/checkboxes normalize key/label for value and checked state",
   ],
   [
-    "src/modules/crm/components/crm/cards/onboarding-decisione-lavoro-card.tsx",
+    "src/modules/crm/components/cards/onboarding-decisione-lavoro-card.tsx",
     "uses label-valued select or boolean checkboxes, not key-backed persistence",
   ],
   [
-    "src/modules/crm/components/crm/famiglia-processo-detail-content.tsx",
+    "src/modules/crm/components/famiglia-processo-detail-content.tsx",
     "CRM detail normalizes selected key/label and saves labels for lookup-backed fields",
   ],
   [
@@ -124,11 +124,11 @@ const REVIEWED_PATHS = new Map([
     "experience/reference controls use label-valued selects or normalized multi lookups",
   ],
   [
-    "src/modules/payroll/components/payroll/payroll-overview-view.tsx",
+    "src/modules/payroll/components/payroll-overview-view.tsx",
     "presence day selects use local hardcoded options, not lookup_values",
   ],
   [
-    "src/modules/payroll/components/payroll/contributi-inps-view.tsx",
+    "src/modules/payroll/components/contributi-inps-view.tsx",
     "board stage select uses stage ids with board alias mapping",
   ],
 ]);

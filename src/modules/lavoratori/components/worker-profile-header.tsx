@@ -47,15 +47,15 @@ import {
   asString,
   getAgeFromBirthDate,
   readArrayStrings,
-} from "../features/lavoratori/lib/base-utils"
+} from "../lib/base-utils"
 import {
   getLookupLabelForSave,
   getTagClassName,
   resolveLookupSingleValueOptions,
   getLookupSelectValue,
   type LookupOption,
-} from "../features/lavoratori/lib/lookup-utils"
-import { getWorkerQualificationStatus } from "../features/lavoratori/lib/status-utils"
+} from "../lib/lookup-utils"
+import { getWorkerQualificationStatus } from "../lib/status-utils"
 import type { LavoratoreRecord } from "../types/lavoratore"
 
 export type WorkerProfileHeaderField =

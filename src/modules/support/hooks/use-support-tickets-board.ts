@@ -10,7 +10,11 @@ import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import { type RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
-import { type AssunzioneRecord } from "@/modules/gestione-contrattuale/hooks"
+import { type AssunzioneRecord } from "@/modules/gestione-contrattuale/types"
+import type {
+  SupportTicketBoardCardData,
+  SupportTicketLinkedRecord,
+} from "../types"
 import { fetchSupportTicketsBundle } from "../queries/fetch-support-tickets-bundle"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import type {
@@ -35,9 +39,14 @@ import {
   type SupportTicketTag,
   type SupportTicketType,
   type SupportTicketUrgency,
-} from "../components/support/support-ticket-config"
-import { formatPersonName, getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "@/modules/rapporti/features/rapporti/rapporti-labels"
-import { resolveRapportoStatus } from "@/modules/rapporti/features/rapporti/rapporti-status"
+} from "../lib"
+import {
+  formatPersonName,
+  getRapportoFamilyLabel,
+  getRapportoTitle,
+  getRapportoWorkerLabel,
+  resolveRapportoStatus,
+} from "@/modules/rapporti/lib"
 
 // The board's primary entity is the ticket; linked records are contextual, so
 // we subscribe only to `ticket` to avoid refetching on unrelated table churn.
@@ -46,56 +55,6 @@ const SUPPORT_TICKETS_REALTIME_TABLES = ["ticket"]
 type SupportTicketStageMetadata = {
   definitions: SupportTicketStatusDefinition[]
   aliases: Map<string, string>
-}
-
-export type SupportTicketLinkedRecordType =
-  | "assunzione"
-  | "cedolino"
-  | "chiusura"
-  | "contributi"
-  | "pagamento"
-  | "presenze"
-  | "variazione"
-
-type SupportTicketLinkedRecordAccent = "rose" | "amber" | "emerald" | "sky" | "violet" | "zinc"
-
-export type SupportTicketLinkedRecord = {
-  type: SupportTicketLinkedRecordType
-  id: string
-  label: string
-  title: string
-  subtitle: string | null
-  status: string | null
-  dateLabel: string | null
-  accent: SupportTicketLinkedRecordAccent
-  record:
-    | AssunzioneRecord
-    | ChiusuraContrattoRecord
-    | ContributoInpsRecord
-    | MeseLavoratoRecord
-    | PagamentoRecord
-    | PresenzaMensileRecord
-    | VariazioneContrattualeRecord
-    | null
-}
-
-export type SupportTicketBoardCardData = {
-  id: string
-  stage: string
-  record: TicketRecord
-  rapporto: RapportoLavorativoRecord | null
-  linkedRecords: SupportTicketLinkedRecord[]
-  tipo: SupportTicketType
-  causale: string
-  nomeFamiglia: string
-  nomeLavoratore: string
-  nomeCompleto: string
-  dataAperturaLabel: string
-  tag: string
-  urgenza: string
-  assegnatario: string
-  note: string | null
-  attachmentCount: number
 }
 
 type CreateSupportTicketInput = {

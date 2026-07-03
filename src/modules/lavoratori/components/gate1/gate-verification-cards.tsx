@@ -19,7 +19,7 @@ import {
 import {
   getLookupSelectValue,
   resolveLookupSingleValueOptions,
-} from "../../features/lavoratori/lib/lookup-utils";
+} from "../../lib/lookup-utils";
 import { GateInfoCard } from "./gate-info-card";
 import { EMPTY_SELECT_VALUE } from "./gate-field-primitives";
 

@@ -5,8 +5,8 @@ import {
   VARIAZIONE_RECORD_FIELD_BINDINGS,
   mapVariazioneBoardCard,
   preserveMissingFields,
-  type VariazioniBoardCardData,
 } from "./use-variazioni-board"
+import type { VariazioniBoardCardData } from "../types"
 import type {
   RapportoLavorativoRecord,
   VariazioneContrattualeRecord,

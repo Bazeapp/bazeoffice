@@ -11,12 +11,12 @@ import {
   UsersIcon,
 } from "lucide-react"
 
-import {
-  type ChiusureBoardCardData,
-  type ChiusureBoardColumnData,
-  type TipoLicenziamentoOption,
-  useChiusureBoard,
-} from "../hooks/use-chiusure-board"
+import type {
+  ChiusureBoardCardData,
+  ChiusureBoardColumnData,
+  TipoLicenziamentoOption,
+} from "../types"
+import { useChiusureBoard } from "../hooks/use-chiusure-board"
 import { AssociationSearchField } from "@/components/shared-next/association-search-field"
 import { DeleteRecordAction } from "@/components/shared-next/delete-record-action"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"

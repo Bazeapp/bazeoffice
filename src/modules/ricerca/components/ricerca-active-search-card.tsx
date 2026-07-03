@@ -8,7 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { CardMetaRow } from "@/components/shared-next/card-meta-row"
 import { RecordCard } from "@/components/shared-next/record-card"
-import type { RicercaBoardCardData } from "../hooks/use-ricerca-board"
+import type { RicercaBoardCardData } from "../types"
 
 function formatBadgeLabel(value: string) {
   return value

@@ -11,13 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { normalizeDomesticRoleLabels } from "../../features/lavoratori/lib/base-utils";
+import { normalizeDomesticRoleLabels } from "../../lib/base-utils";
 import {
   getLookupSelectValue,
   getTagClassName,
   resolveLookupColor,
   resolveLookupSingleValueOptions,
-} from "../../features/lavoratori/lib/lookup-utils";
+} from "../../lib/lookup-utils";
 import { GateInfoCard } from "./gate-info-card";
 import {
   EMPTY_SELECT_VALUE,

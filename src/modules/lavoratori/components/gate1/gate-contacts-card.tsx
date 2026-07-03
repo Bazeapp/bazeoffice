@@ -3,12 +3,12 @@ import { PhoneIcon } from "lucide-react";
 
 import { FieldLabel } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { asString } from "../../features/lavoratori/lib/base-utils";
+import { asString } from "../../lib/base-utils";
 import {
   getLookupLabelForSave,
   getLookupSelectValue,
   type LookupOption,
-} from "../../features/lavoratori/lib/lookup-utils";
+} from "../../lib/lookup-utils";
 import { GateInfoCard } from "./gate-info-card";
 import { useGate1WorkerEditor } from "./gate1-worker-context";
 

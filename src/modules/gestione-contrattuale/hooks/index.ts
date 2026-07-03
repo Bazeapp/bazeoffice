@@ -6,9 +6,6 @@ export {
   mapAssunzioniBoardCard,
   preserveMissingFields as preserveAssunzioniMissingFields,
   useAssunzioniBoard,
-  type AssunzioneRecord,
-  type AssunzioniBoardCardData,
-  type AssunzioniBoardColumnData,
 } from "./use-assunzioni-board"
 
 export {
@@ -17,9 +14,6 @@ export {
   mapChiusuraBoardCard,
   preserveMissingFields as preserveChiusureMissingFields,
   useChiusureBoard,
-  type ChiusureBoardCardData,
-  type ChiusureBoardColumnData,
-  type TipoLicenziamentoOption,
 } from "./use-chiusure-board"
 
 export {
@@ -28,7 +22,4 @@ export {
   mapVariazioneBoardCard,
   preserveMissingFields as preserveVariazioniMissingFields,
   useVariazioniBoard,
-  type VariazioniBoardCardData,
-  type VariazioniBoardColumnData,
-  type VariazioniRapportoOption,
 } from "./use-variazioni-board"

@@ -18,15 +18,15 @@ import {
   readArrayStrings,
   toListItem,
   toReadableColumnLabel,
-} from "../features/lavoratori/lib/base-utils"
+} from "../lib/base-utils"
 import {
   type LookupOption,
   isBlacklistValue,
   normalizeLookupColors,
   normalizeLookupOptions,
   resolveLookupColor,
-} from "../features/lavoratori/lib/lookup-utils"
-import { toWorkerStatusFlags } from "../features/lavoratori/lib/status-utils"
+} from "../lib/lookup-utils"
+import { toWorkerStatusFlags } from "../lib/status-utils"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { fetchIndirizziByEntity } from "@/lib/indirizzi-api"

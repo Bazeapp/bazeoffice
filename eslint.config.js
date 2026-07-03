@@ -397,12 +397,12 @@ export default defineConfig([
   //   - crm-assegnazione: schedulingDraft (form edit-mode con guard isEditing).
   {
     files: [
-      'src/modules/crm/components/crm/cards/stato-lead-card.tsx',
+      'src/modules/crm/components/cards/stato-lead-card.tsx',
       'src/modules/ricerca/components/selection-details-card.tsx',
-      'src/modules/crm/components/crm/cards/onboarding-context-card.tsx',
-      'src/modules/crm/components/crm/cards/onboarding-decisione-lavoro-card.tsx',
-      'src/modules/crm/components/crm/cards/onboarding-card.tsx',
-      'src/modules/crm/components/crm/famiglia-processo-detail-content.tsx',
+      'src/modules/crm/components/cards/onboarding-context-card.tsx',
+      'src/modules/crm/components/cards/onboarding-decisione-lavoro-card.tsx',
+      'src/modules/crm/components/cards/onboarding-card.tsx',
+      'src/modules/crm/components/famiglia-processo-detail-content.tsx',
       'src/modules/gestione-contrattuale/components/assunzioni-detail-sheet.tsx',
       'src/modules/gestione-contrattuale/components/variazioni-board-view.tsx',
       'src/modules/gestione-contrattuale/components/chiusure-board-view.tsx',
@@ -410,8 +410,8 @@ export default defineConfig([
       'src/modules/rapporti/components/rapporto-detail-panel.tsx',
       'src/modules/ricerca/components/ricerca-detail-view.tsx',
       'src/modules/ricerca/components/scheda-colloquio-panel.tsx',
-      'src/modules/payroll/components/payroll/contributi-inps-view.tsx',
-      'src/modules/payroll/components/payroll/payroll-overview-view.tsx',
+      'src/modules/payroll/components/contributi-inps-view.tsx',
+      'src/modules/payroll/components/payroll-overview-view.tsx',
       'src/modules/support/components/prove-colloqui/prove-colloqui-view.tsx',
       'src/modules/lavoratori/components/address-section-card.tsx',
       'src/modules/lavoratori/components/availability-calendar-card.tsx',
@@ -421,7 +421,7 @@ export default defineConfig([
       'src/modules/ricerca/components/ricerca-workers-pipeline-view.tsx',
       'src/modules/ricerca/components/worker-pipeline-summary-cards.tsx',
       'src/modules/lavoratori/components/gate1-view.tsx',
-      'src/modules/crm/components/crm/crm-assegnazione-view.tsx',
+      'src/modules/crm/components/crm-assegnazione-view.tsx',
     ],
     rules: {
       'no-restricted-syntax': [

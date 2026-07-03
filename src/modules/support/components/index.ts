@@ -1,7 +1,8 @@
-export { ProveColloquiView } from "./prove-colloqui/prove-colloqui-view"
+export { ProveColloquiView } from "./prove-colloqui-view"
 export { RiattivazioniBoardView } from "./riattivazioni-board-view"
-export { SupportTicketCreateDialog } from "./support/support-ticket-create-dialog"
-export { SupportTicketDetailSheet } from "./support/support-ticket-detail-sheet"
+export { SupportTicketCreateDialog } from "./support-ticket-create-dialog"
+export { SupportTicketDetailSheet } from "./support-ticket-detail-sheet"
+export { SupportTicketsView } from "./support-tickets-view"
 export {
   SUPPORT_TICKET_STATUSES,
   SUPPORT_TICKET_TAGS,
@@ -21,5 +22,4 @@ export {
   type SupportTicketType,
   type SupportTicketUrgency,
   type SupportTicketUrgencyDefinition,
-} from "./support/support-ticket-config"
-export { SupportTicketsView } from "./support/support-tickets-view"
+} from "../lib"

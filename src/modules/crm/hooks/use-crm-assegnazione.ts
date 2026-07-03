@@ -9,42 +9,13 @@ import { fetchFamiglieByIds } from "../queries/fetch-famiglie-by-ids"
 import { fetchProcessiMatchingByStatoRes } from "../queries/fetch-processi-matching-by-stato-res"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import type { LookupValueRecord } from "@/types"
+import type { AssegnazioneCardData } from "../types"
 
 const ASSEGNAZIONE_REALTIME_TABLES = ["processi_matching", "famiglie"]
 
 type GenericRow = Record<string, unknown>
 type LookupColorMap = Record<string, Record<string, string>>
 type LookupLabelMap = Record<string, Record<string, string>>
-
-export type AssegnazioneCardData = {
-  id: string
-  famigliaId: string
-  nomeFamiglia: string
-  email: string
-  telefono: string
-  dataLead: string
-  deadlineMobile: string
-  deadlineSales: string
-  zona: string
-  zonaQuartiere: string | null
-  zonaCap: string | null
-  zonaComune: string | null
-  tipoLavoroBadges?: string[]
-  tipoLavoroColors?: Record<string, string | null>
-  tipoLavoroBadge: string | null
-  tipoLavoroColor: string | null
-  tipoRapportoBadge: string | null
-  tipoRapportoColor: string | null
-  dataAssegnazione: string | null
-  recruiterId: string | null
-  statoRes: "da_assegnare" | "fare_ricerca"
-  statoResLabel: string
-  oreSettimanali: string
-  giorniSettimanali: string
-  orarioDiLavoro: string
-  tipoRicerca: "nuova" | "sostituzione"
-  overview: string
-}
 
 type UseCrmAssegnazioneState = {
   loading: boolean

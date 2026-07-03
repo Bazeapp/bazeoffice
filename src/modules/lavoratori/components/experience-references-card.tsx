@@ -65,14 +65,14 @@ import { useController, useFormContext } from "react-hook-form";
 import { Form } from "@/components/ui/form";
 import { FieldInput, FieldTextarea } from "@/components/forms/field-components";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
-import { formatDateOnly } from "../features/lavoratori/lib/availability-utils";
+import { formatDateOnly } from "../lib/availability-utils";
 import {
   getLookupOptionLabel,
   getTagClassName,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
   resolveLookupColor,
-} from "../features/lavoratori/lib/lookup-utils";
+} from "../lib/lookup-utils";
 import {
   Select,
   SelectContent,

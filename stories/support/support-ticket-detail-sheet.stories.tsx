@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { type SupportTicketBoardCardData } from "@/modules/support/hooks"
+import type { SupportTicketBoardCardData } from "@/modules/support/types"
 import { SupportTicketDetailSheet, SUPPORT_TICKET_STATUSES } from "@/modules/support/components"
 
 const longTitle =

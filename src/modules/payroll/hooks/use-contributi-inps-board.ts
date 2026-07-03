@@ -17,8 +17,7 @@ const CONTRIBUTI_REALTIME_TABLES = [
   "famiglie",
   "lavoratori",
 ]
-import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/modules/rapporti/features/rapporti/rapporti-labels"
-import { resolveRapportoStatus } from "@/modules/rapporti/features/rapporti/rapporti-status"
+import { getRapportoFamilyLabel, getRapportoWorkerLabel, resolveRapportoStatus } from "@/modules/rapporti/lib"
 import type {
   ContributoInpsRecord,
   LookupValueRecord,
@@ -26,6 +25,10 @@ import type {
   RapportoLavorativoRecord,
 } from "@/types"
 
+import type {
+  ContributoInpsBoardCardData,
+  ContributoQuarterValue,
+} from "../types"
 type ContributoStageDefinition = {
   id: string
   label: string
@@ -35,22 +38,6 @@ type ContributoStageDefinition = {
 type StageMetadata = {
   definitions: ContributoStageDefinition[]
   aliases: Map<string, string>
-}
-
-export type ContributoQuarterValue = "Q1" | "Q2" | "Q3" | "Q4"
-
-export type ContributoInpsBoardCardData = {
-  id: string
-  stage: string
-  record: ContributoInpsRecord
-  rapporto: RapportoLavorativoRecord | null
-  trimestre: MeseCalendarioRecord | null
-  nomeFamiglia: string
-  nomeLavoratore: string
-  nomeCompleto: string
-  trimestreLabel: string
-  importoLabel: string | null
-  pagopaLabel: string | null
 }
 
 type UseContributiInpsBoardState = {

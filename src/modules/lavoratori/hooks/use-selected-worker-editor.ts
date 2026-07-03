@@ -17,7 +17,7 @@ import {
   isAvailabilityHourActive,
   parseAvailabilityPayload,
   readAvailabilitySlots,
-} from "../features/lavoratori/lib/availability-utils"
+} from "../lib/availability-utils"
 import {
   attachmentPathToPublicUrl,
   normalizeAttachmentArray,
@@ -32,18 +32,18 @@ import {
   readArrayStrings,
   shouldDisableWorkerImages,
   toPublicAssetUrl,
-} from "../features/lavoratori/lib/base-utils"
-import { parseRecruiterFeedback } from "../features/lavoratori/lib/feedback-utils"
+} from "../lib/base-utils"
+import { parseRecruiterFeedback } from "../lib/feedback-utils"
 import {
   getTagClassName,
   normalizeLookupToken,
   resolveLookupColor,
-} from "../features/lavoratori/lib/lookup-utils"
+} from "../lib/lookup-utils"
 import {
   findNonQualificatoIssues,
   isNonIdoneoStatus,
   normalizeWorkerStatus,
-} from "../features/lavoratori/lib/status-utils"
+} from "../lib/status-utils"
 import { createRecord, deleteRecord, updateRecord } from "@/lib/record-crud"
 import { invokeWorkerAvailability } from "@/lib/availability-functions"
 import { createStripeConnectAccount } from "@/lib/stripe-connect-api"

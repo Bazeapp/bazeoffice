@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { FamigliaProcessoDetailShell } from "@/modules/crm/components/crm/famiglia-processo-detail-shell";
+import { FamigliaProcessoDetailShell } from "@/modules/crm/components/famiglia-processo-detail-shell";
 import { mockCrmCard, mockCrmLookupOptions } from "../mocks";
 
 const meta = {

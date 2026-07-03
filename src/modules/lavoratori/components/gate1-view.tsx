@@ -33,7 +33,7 @@ import {
   formatAvailabilityComputedAt,
   type AvailabilityEditBandField,
   type AvailabilityEditDayField,
-} from "../features/lavoratori/lib/availability-utils";
+} from "../lib/availability-utils";
 import { FieldLabel } from "@/components/ui/field";
 import {
   asLavoratoreRecord,
@@ -44,8 +44,8 @@ import {
   normalizeDomesticRoleLookupValues,
   parseNumberValue,
   readArrayStrings,
-} from "../features/lavoratori/lib/base-utils";
-import { getLookupOptionLabel } from "../features/lavoratori/lib/lookup-utils";
+} from "../lib/base-utils";
+import { getLookupOptionLabel } from "../lib/lookup-utils";
 import { useLavoratoriData } from "../hooks/use-lavoratori-data";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { useSelectedWorkerEditor } from "../hooks/use-selected-worker-editor";
@@ -82,7 +82,7 @@ import {
 } from "@/lib/attachments";
 import { supabase } from "@/lib/supabase-client";
 import { PROVINCIA_DROPDOWN_OPTIONS } from "@/lib/province-italiane";
-import { normalizeWorkerStatus } from "../features/lavoratori/lib/status-utils";
+import { normalizeWorkerStatus } from "../lib/status-utils";
 import type { LavoratoreRecord } from "../types/lavoratore";
 import { useProvincieOptions } from "@/hooks/use-provincie";
 

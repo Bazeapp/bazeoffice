@@ -19,7 +19,7 @@ import {
   getLookupOptionLabel,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
-} from "../../features/lavoratori/lib/lookup-utils";
+} from "../../lib/lookup-utils";
 import { GateInfoCard } from "./gate-info-card";
 import {
   GateAcceptField,

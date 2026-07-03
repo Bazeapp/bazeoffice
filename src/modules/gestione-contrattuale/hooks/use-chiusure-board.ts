@@ -9,8 +9,13 @@ import { createRecord, deleteRecord, updateRecord } from "@/lib/record-crud"
 import { fetchAssunzioniNamesByRapportoIds } from "../queries/fetch-assunzioni-names-by-rapporto-ids"
 import { fetchChiusureBoard } from "../queries/fetch-chiusure-board"
 import type { RapportoAssunzioneNames } from "../types/gestione-rpc"
+import type {
+  ChiusureBoardCardData,
+  ChiusureBoardColumnData,
+  TipoLicenziamentoOption,
+} from "../types"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-import { getRapportoTitle } from "@/modules/rapporti/features/rapporti/rapporti-labels"
+import { getRapportoTitle } from "@/modules/rapporti/lib"
 import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
 
 const CHIUSURE_BOARD_QUERY_KEY = ["chiusure-board"] as const
@@ -103,34 +108,10 @@ type StageMetadata = {
   aliases: Map<string, string>
 }
 
-export type TipoLicenziamentoOption = { value: string; label: string }
-
 type TipoMetadata = {
   labels: Map<string, string>
   colors: Map<string, string>
   tipoLicenziamentoOptions: TipoLicenziamentoOption[]
-}
-
-export type ChiusureBoardCardData = {
-  id: string
-  stage: string
-  record: ChiusuraContrattoRecord
-  rapporto: RapportoLavorativoRecord | null
-  nomeCompleto: string
-  email: string
-  motivazione: string | null
-  dataFineRapporto: string
-  tipoLabel: string
-  tipoColor: string | null
-  hasAssunzioneDatore: boolean
-  hasAssunzioneLavoratore: boolean
-}
-
-export type ChiusureBoardColumnData = {
-  id: string
-  label: string
-  color: string
-  cards: ChiusureBoardCardData[]
 }
 
 type UseChiusureBoardState = {

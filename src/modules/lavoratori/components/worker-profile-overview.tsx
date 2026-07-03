@@ -12,8 +12,8 @@ import {
 
 import type { LavoratoreListItem } from "../components/lavoratore-card"
 import type { LavoratoreRecord } from "../types/lavoratore"
-import { asString, getAgeFromBirthDate } from "../features/lavoratori/lib/base-utils"
-import { getWorkerQualificationStatus } from "../features/lavoratori/lib/status-utils"
+import { asString, getAgeFromBirthDate } from "../lib/base-utils"
+import { getWorkerQualificationStatus } from "../lib/status-utils"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -32,7 +32,7 @@ import {
   getLookupOptionLabel,
   getLookupSelectValue,
   resolveLookupSingleValueOptions,
-} from "../features/lavoratori/lib/lookup-utils"
+} from "../lib/lookup-utils"
 
 const EMPTY_SELECT_VALUE = "none"
 

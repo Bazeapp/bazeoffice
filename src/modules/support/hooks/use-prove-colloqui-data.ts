@@ -3,8 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { flattenAttachmentLinks } from "@/components/shared-next/attachment-utils"
 import { normalizeLookupColors, normalizeLookupOptions } from "@/modules/lavoratori/lib"
-import { getRapportoProcessIds } from "@/modules/rapporti/features/rapporti/rapporti-processi"
-import { formatAssunzioneName } from "@/modules/rapporti/features/rapporti/rapporti-labels"
+import { formatAssunzioneName, getRapportoProcessIds } from "@/modules/rapporti/lib"
 import { type RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { fetchLookupValues } from "@/lib/lookup-values"
@@ -23,62 +22,13 @@ import type {
   RapportoLavorativoRecord,
 } from "@/types"
 
-type TableRow = Record<string, unknown>
-
-export type LookupOption = {
-  label: string
-  value: string
-}
-
-export type ProvaCardData = {
-  id: string
-  rapporto: RapportoLavorativoRecord
-  famiglia: FamigliaRecord | null
-  lavoratore: LavoratoreRecord | null
-  title: string
-  famigliaLabel: string
-  lavoratoreLabel: string
-  workerAvatarUrl: string | null
-}
-
-export type ProvaColumnData = {
-  id: string
-  label: string
-  color: string | null
-  cards: ProvaCardData[]
-  totalCount: number
-}
-
-export type ColloquioCalendarEvent =
-  | {
-      id: string
-      type: "colloquio"
-      title: string
-      start: string
-      allDay: boolean
-      selection: TableRow
-      process: ProcessoMatchingRecord | null
-      famiglia: FamigliaRecord | null
-      lavoratore: LavoratoreRecord | null
-      workerAvatarUrl: string | null
-      status: string | null
-      tone: "ok" | "warning"
-    }
-  | {
-      id: string
-      type: "prova"
-      title: string
-      start: string
-      allDay: boolean
-      card: ProvaCardData
-      status: string | null
-      tone: "ok" | "warning"
-    }
-
-export type CalendarDateRange = {
-  start: string
-  end: string
-}
+import type {
+  CalendarDateRange,
+  ColloquioCalendarEvent,
+  LookupOption,
+  ProvaCardData,
+  ProvaColumnData,
+} from "../types"
 
 const TRIAL_STATUS_DOMAIN = "rapporti_lavorativi.prova_stato_cs"
 

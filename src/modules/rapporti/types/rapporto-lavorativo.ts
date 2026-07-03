@@ -1,5 +1,13 @@
 type JsonObject = Record<string, unknown>
 
+export type RapportoStatusFilter =
+  | "all"
+  | "In attivazione"
+  | "Attivo"
+  | "Terminato"
+  | "Sconosciuto"
+  | "Errore"
+
 export type RapportoLavorativoRecord = {
   id: string
   accordo_di_lavoro_allegati: JsonObject | JsonObject[] | null

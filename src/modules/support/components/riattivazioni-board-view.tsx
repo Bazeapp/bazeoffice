@@ -11,12 +11,12 @@ import {
   XCircleIcon,
 } from "lucide-react"
 
-import {
-  type RiattivazioneStageId,
-  type RiattivazioniBoardCardData,
-  type RiattivazioniBoardColumnData,
-  useRiattivazioniBoard,
-} from "../hooks/use-riattivazioni-board"
+import type {
+  RiattivazioneStageId,
+  RiattivazioniBoardCardData,
+  RiattivazioniBoardColumnData,
+} from "../types"
+import { useRiattivazioniBoard } from "../hooks/use-riattivazioni-board"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import { type AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailField, DetailSectionBlock } from "@/components/shared-next/detail-section-card"

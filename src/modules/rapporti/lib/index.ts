@@ -4,9 +4,9 @@ export {
   getRapportoFamilyLabel,
   getRapportoTitle,
   getRapportoWorkerLabel,
-} from "../features/rapporti/rapporti-labels"
-export { getRapportoProcessIds } from "../features/rapporti/rapporti-processi"
+} from "./rapporti-labels"
+export { getRapportoProcessIds } from "./rapporti-processi"
 export {
   getRapportoStatusColor,
   resolveRapportoStatus,
-} from "../features/rapporti/rapporti-status"
+} from "./rapporti-status"

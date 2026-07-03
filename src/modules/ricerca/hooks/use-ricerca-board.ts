@@ -8,7 +8,7 @@ import { updateRecord } from "@/lib/record-crud"
 import { fetchRicercaBoard } from "../queries/fetch-ricerca-board"
 import type { RicercaBoardRpcProcess } from "../types/ricerca-rpc"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-import { STATI_RICERCA_CANONICI } from "../features/ricerca/stati-ricerca"
+import { STATI_RICERCA_CANONICI } from "../lib/stati-ricerca"
 
 const RICERCA_REALTIME_TABLES = [
   "processi_matching",
@@ -17,6 +17,7 @@ const RICERCA_REALTIME_TABLES = [
 ]
 import type { LookupValueRecord } from "@/types"
 
+import type { RicercaBoardCardData, RicercaBoardColumnData } from "../types"
 type GenericRow = Record<string, unknown>
 type LookupColorMap = Record<string, Record<string, string>>
 
@@ -29,38 +30,6 @@ type StageDefinition = {
 type StageMetadata = {
   definitions: StageDefinition[]
   aliases: Map<string, string>
-}
-
-export type RicercaBoardCardData = {
-  id: string
-  stage: string
-  nomeFamiglia: string
-  cognomeFamiglia: string
-  email: string
-  telefono: string
-  operatorId: string | null
-  oreSettimanali: string
-  giorniSettimanali: string
-  deadline: string
-  deadlineRaw: string | null
-  zona: string
-  tipoLavoroBadges?: string[]
-  tipoLavoroColors?: Record<string, string | null>
-  tipoLavoroBadge: string | null
-  tipoLavoroColor: string | null
-  tipoRapportoBadge: string | null
-  tipoRapportoColor: string | null
-}
-
-export type RicercaBoardColumnData = {
-  id: string
-  label: string
-  color: string | null
-  totalCount: number
-  deferred?: boolean
-  isLoaded?: boolean
-  isLoading?: boolean
-  cards: RicercaBoardCardData[]
 }
 
 type UseRicercaBoardState = {

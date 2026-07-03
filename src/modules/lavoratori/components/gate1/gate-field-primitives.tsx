@@ -30,12 +30,12 @@ import {
 import {
   normalizeDomesticRoleDbLabels,
   normalizeDomesticRoleLookupValues,
-} from "../../features/lavoratori/lib/base-utils";
+} from "../../lib/base-utils";
 import {
   getLookupOptionLabel,
   getTagClassName,
   resolveLookupColor,
-} from "../../features/lavoratori/lib/lookup-utils";
+} from "../../lib/lookup-utils";
 
 /**
  * D2 — primitive di campo pure di Gate 1, estratte da gate1-view.

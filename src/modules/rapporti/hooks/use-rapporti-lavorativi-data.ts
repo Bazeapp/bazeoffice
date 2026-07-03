@@ -12,7 +12,7 @@ import { fetchFamiglieByIds, fetchFamiglieByName, fetchRichiesteAttivazioneByPro
 import { fetchContributiInpsByRapporto, fetchMesiCalendarioByIds, fetchMesiLavoratiByRapporto, fetchPagamentiByTransazioneIds, fetchPresenzeByIds, fetchTransazioniByMeseLavoratoIds } from "@/modules/payroll/queries"
 import { fetchRapportiLavorativiBoard } from "../queries/fetch-rapporti-lavorativi-board"
 import { fetchRapportiLavorativiByIds } from "../queries/fetch-rapporti-lavorativi-by-ids"
-import { getRapportoProcessIds } from "../features/rapporti/rapporti-processi"
+import { getRapportoProcessIds } from "@/modules/rapporti/lib"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
 // The board lists rapporti; related tables are loaded only for the selected
@@ -37,6 +37,7 @@ import type {
   TransazioneFinanziariaRecord,
   VariazioneContrattualeRecord,
 } from "@/types"
+import type { RapportoStatusFilter } from "../types"
 
 type CreateRapportoTicketInput = {
   tipo: SupportTicketType
@@ -124,14 +125,6 @@ export function mapRapportoBoardRow(
   }
   return card
 }
-
-export type RapportoStatusFilter =
-  | "all"
-  | "In attivazione"
-  | "Attivo"
-  | "Terminato"
-  | "Sconosciuto"
-  | "Errore"
 
 function isTransientTableQueryError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error)

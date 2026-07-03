@@ -39,7 +39,7 @@ import type {
   RicercaWorkerSelectionCard,
   RicercaWorkerSelectionColumn,
   RicercaWorkersPipelineState,
-} from "../hooks/use-ricerca-workers-pipeline"
+} from "../types"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord } from "@/lib/record-crud"
 import { fetchLavoratoriByIds } from "@/modules/lavoratori/queries"
@@ -65,8 +65,8 @@ import {
   isSameSet,
   workerMatchesAdvancedFilters,
   type MapAdvancedFilters,
-} from "./ricerca-workers-map-filters"
-import { excludeCurrentProcess } from "./ricerca-map-related-selections"
+} from "../lib/ricerca-workers-map-filters"
+import { excludeCurrentProcess } from "../lib/ricerca-map-related-selections"
 import { buildRelatedSelectionsMap } from "@/modules/lavoratori/hooks"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 

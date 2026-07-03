@@ -7,9 +7,8 @@ import {
   RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS,
   mapCardData,
   preserveMissingFields,
-  type CrmPipelineCardData,
-  type GenericRow,
 } from "./use-crm-pipeline-preview"
+import type { CrmPipelineCardData, GenericRow } from "../types"
 import type { RichiestaAttivazioneRecord } from "@/types"
 
 /**

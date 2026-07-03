@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { CrmDetailCard } from "@/modules/crm/components/crm/detail-card";
+import { CrmDetailCard } from "@/modules/crm/components/detail-card";
 import { Button } from "@/components/ui/button";
 
 const meta = {

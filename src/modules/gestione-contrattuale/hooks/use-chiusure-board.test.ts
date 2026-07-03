@@ -5,8 +5,8 @@ import {
   CHIUSURA_RECORD_FIELD_BINDINGS,
   mapChiusuraBoardCard,
   preserveMissingFields,
-  type ChiusureBoardCardData,
 } from "./use-chiusure-board"
+import type { ChiusureBoardCardData } from "../types"
 import type { ChiusuraContrattoRecord, RapportoLavorativoRecord } from "@/types"
 
 function makeRecord(

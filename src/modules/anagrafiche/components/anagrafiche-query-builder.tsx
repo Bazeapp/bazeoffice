@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/select"
 import { getLookupOptionLabel, normalizeLookupOptionValues } from "@/modules/lavoratori/lib"
 import { cn } from "@/lib/utils"
-import type { AnagraficheQueryBuilderField } from "./anagrafiche-query-utils"
+import type { AnagraficheQueryBuilderField } from "../lib"
 
 function getFieldTypeIcon(fieldType: FilterFieldType | undefined) {
   switch (fieldType) {

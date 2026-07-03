@@ -3,5 +3,4 @@ export {
   mapRapportoBoardRow,
   preserveMissingFields,
   useRapportiLavorativiData,
-  type RapportoStatusFilter,
 } from "./use-rapporti-lavorativi-data"

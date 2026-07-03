@@ -9,7 +9,7 @@ import { DetailSectionBlock } from "@/components/shared-next/detail-section-card
 import {
   appendRecruiterFeedback,
   parseRecruiterFeedback,
-} from "../features/lavoratori/lib/feedback-utils"
+} from "../lib/feedback-utils"
 
 type RecruiterFeedbackPanelProps = {
   value: string

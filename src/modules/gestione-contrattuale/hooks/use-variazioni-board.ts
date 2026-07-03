@@ -8,8 +8,13 @@ import { createRecord, updateRecord } from "@/lib/record-crud"
 import { fetchAssunzioniNamesByRapportoIds } from "../queries/fetch-assunzioni-names-by-rapporto-ids"
 import { fetchVariazioniBoard } from "../queries/fetch-variazioni-board"
 import type { RapportoAssunzioneNames } from "../types/gestione-rpc"
+import type {
+  VariazioniBoardCardData,
+  VariazioniBoardColumnData,
+  VariazioniRapportoOption,
+} from "../types"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-import { getRapportoTitle } from "@/modules/rapporti/features/rapporti/rapporti-labels"
+import { getRapportoTitle } from "@/modules/rapporti/lib"
 import type { LookupValueRecord, RapportoLavorativoRecord, VariazioneContrattualeRecord } from "@/types"
 
 const VARIAZIONI_BOARD_QUERY_KEY = ["variazioni-board"] as const
@@ -36,18 +41,6 @@ type VariazioneStageDefinition = {
 type StageMetadata = {
   definitions: VariazioneStageDefinition[]
   aliases: Map<string, string>
-}
-
-export type VariazioniBoardCardData = {
-  id: string
-  stage: string
-  record: VariazioneContrattualeRecord
-  rapporto: RapportoLavorativoRecord | null
-  famiglia: GenericRow | null
-  lavoratore: GenericRow | null
-  nomeCompleto: string
-  dataVariazione: string
-  variazioneDaApplicare: string | null
 }
 
 /**
@@ -122,19 +115,6 @@ export function preserveMissingFields<T extends Record<string, unknown>>(
     ;(targetRow as Record<string, unknown>)[column as string] =
       previousRow[column]
   }
-}
-
-export type VariazioniBoardColumnData = {
-  id: string
-  label: string
-  color: string
-  cards: VariazioniBoardCardData[]
-}
-
-export type VariazioniRapportoOption = {
-  id: string
-  label: string
-  rapporto: RapportoLavorativoRecord
 }
 
 type UseVariazioniBoardState = {

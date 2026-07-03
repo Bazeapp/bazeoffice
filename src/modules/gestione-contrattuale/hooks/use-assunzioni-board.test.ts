@@ -7,9 +7,8 @@ import {
   RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS,
   mapAssunzioniBoardCard,
   preserveMissingFields,
-  type AssunzioneRecord,
-  type AssunzioniBoardCardData,
 } from "./use-assunzioni-board"
+import type { AssunzioneRecord, AssunzioniBoardCardData } from "../types"
 import type { AssunzioniBoardRpcRow } from "../types/gestione-rpc"
 import type {
   FamigliaRecord,

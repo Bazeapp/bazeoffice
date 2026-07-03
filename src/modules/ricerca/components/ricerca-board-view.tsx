@@ -1,10 +1,7 @@
 import * as React from "react"
 
-import {
-  type RicercaBoardCardData,
-  type RicercaBoardColumnData,
-  useRicercaBoard,
-} from "../hooks/use-ricerca-board"
+import type { RicercaBoardCardData, RicercaBoardColumnData } from "../types"
+import { useRicercaBoard } from "../hooks/use-ricerca-board"
 import { RicercaActiveSearchCard } from "./ricerca-active-search-card"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import {

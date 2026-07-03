@@ -8,7 +8,7 @@ import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"
 import { fetchCedoliniBoard } from "../queries/fetch-cedolini-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-import { getRapportoTitle } from "@/modules/rapporti/features/rapporti/rapporti-labels"
+import { getRapportoTitle } from "@/modules/rapporti/lib"
 
 const PAYROLL_REALTIME_TABLES = [
   "mesi_lavorati",
@@ -20,16 +20,12 @@ const PAYROLL_REALTIME_TABLES = [
   "mesi_calendario",
 ]
 import type {
-  FamigliaRecord,
   LookupValueRecord,
-  MeseCalendarioRecord,
   MeseLavoratoRecord,
-  PagamentoRecord,
   PresenzaMensileRecord,
-  RapportoLavorativoRecord,
-  TransazioneFinanziariaRecord,
 } from "@/types"
 
+import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
 type PayrollStageDefinition = {
   id: string
   label: string
@@ -39,31 +35,6 @@ type PayrollStageDefinition = {
 type StageMetadata = {
   definitions: PayrollStageDefinition[]
   aliases: Map<string, string>
-}
-
-export type PayrollBoardCardData = {
-  id: string
-  stage: string
-  record: MeseLavoratoRecord
-  famiglia: FamigliaRecord | null
-  pagamento: PagamentoRecord | null
-  transazione: TransazioneFinanziariaRecord | null
-  presenze: PresenzaMensileRecord | null
-  presenzeRegolari: PresenzaMensileRecord | null
-  rapporto: RapportoLavorativoRecord | null
-  mese: MeseCalendarioRecord | null
-  richiestaAttivazione: { id: string; fee_concordata: number | null } | null
-  presenzeIrregolari: boolean
-  nomeCompleto: string
-  importoLabel: string | null
-  dataInvioLabel: string | null
-}
-
-export type PayrollBoardColumnData = {
-  id: string
-  label: string
-  color: string
-  cards: PayrollBoardCardData[]
 }
 
 type UsePayrollBoardState = {

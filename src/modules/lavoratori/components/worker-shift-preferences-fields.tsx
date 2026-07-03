@@ -17,7 +17,7 @@ import { FieldLabel } from "@/components/ui/field"
 import {
   normalizeDomesticRoleDbLabels,
   normalizeDomesticRoleLookupValue,
-} from "../features/lavoratori/lib/base-utils"
+} from "../lib/base-utils"
 import {
   getLookupOptionLabel,
   getTagClassName,
@@ -26,7 +26,7 @@ import {
   normalizeLookupOptionValue,
   resolveLookupColor,
   type LookupOption,
-} from "../features/lavoratori/lib/lookup-utils"
+} from "../lib/lookup-utils"
 
 type WorkerShiftPreferenceField = {
   id: string

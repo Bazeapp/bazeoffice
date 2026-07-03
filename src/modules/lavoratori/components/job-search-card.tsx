@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { FieldLabel } from "@/components/ui/field"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { getTagClassName, resolveLookupColor } from "../features/lavoratori/lib/lookup-utils"
+import { getTagClassName, resolveLookupColor } from "../lib/lookup-utils"
 import { cn } from "@/lib/utils"
-import type { LookupOption } from "../features/lavoratori/lib/lookup-utils"
+import type { LookupOption } from "../lib/lookup-utils"
 
 type JobSearchDraft = {
   tipo_lavoro_domestico: string[]

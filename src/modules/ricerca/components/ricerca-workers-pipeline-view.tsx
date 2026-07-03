@@ -86,12 +86,12 @@ import {
   invokeWorkerAvailabilityForIds,
 } from "@/lib/availability-functions";
 import { fetchFamiglieByIds } from "@/modules/crm/queries"
-import { type CrmPipelineCardData } from "@/modules/crm/hooks"
-import {
-  type RicercaWorkerSelectionColumn,
-  type RicercaWorkerSelectionCard,
-  type RicercaWorkersPipelineState,
-} from "../hooks/use-ricerca-workers-pipeline";
+import { type CrmPipelineCardData } from "@/modules/crm/types"
+import type {
+  RicercaWorkerSelectionCard,
+  RicercaWorkerSelectionColumn,
+  RicercaWorkersPipelineState,
+} from "../types";
 import { useSelectedWorkerEditor } from "@/modules/lavoratori/hooks"
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";

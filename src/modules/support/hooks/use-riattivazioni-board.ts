@@ -7,10 +7,7 @@ import { updateRecord } from "@/lib/record-crud"
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { fetchRiattivazioniBoard } from "../queries/fetch-riattivazioni-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-import {
-  getRapportoFamilyLabel,
-  getRapportoWorkerLabel,
-} from "@/modules/rapporti/features/rapporti/rapporti-labels"
+import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/modules/rapporti/lib"
 import type {
   ChiusuraContrattoRecord,
   FamigliaRecord,
@@ -25,39 +22,17 @@ const RIATTIVAZIONI_REALTIME_TABLES = [
   "lavoratori",
 ]
 
+import type {
+  RiattivazioneStageId,
+  RiattivazioniBoardCardData,
+  RiattivazioniBoardColumnData,
+} from "../types"
 const RIATTIVAZIONI_BOARD_QUERY_KEY = ["riattivazioni-board"] as const
-
-export type RiattivazioneStageId =
-  | "da sentire"
-  | "in attesa"
-  | "riattivato"
-  | "non riattiva"
 
 type RiattivazioneStageDefinition = {
   id: RiattivazioneStageId
   label: string
   color: string
-}
-
-export type RiattivazioniBoardCardData = {
-  id: string
-  stage: RiattivazioneStageId
-  record: ChiusuraContrattoRecord
-  rapporto: RapportoLavorativoRecord | null
-  nomeCompleto: string
-  famigliaLabel: string
-  lavoratoreLabel: string
-  email: string
-  motivazione: string | null
-  dataFineRapporto: string
-  tipoLabel: string
-}
-
-export type RiattivazioniBoardColumnData = {
-  id: RiattivazioneStageId
-  label: string
-  color: string
-  cards: RiattivazioniBoardCardData[]
 }
 
 type UseRiattivazioniBoardState = {

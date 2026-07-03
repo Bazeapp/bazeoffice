@@ -45,7 +45,7 @@ import {
   resolveLookupColor,
   resolveLookupSingleValueOptions,
   type LookupOption,
-} from "../features/lavoratori/lib/lookup-utils"
+} from "../lib/lookup-utils"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import {
   buildAttachmentPayload,

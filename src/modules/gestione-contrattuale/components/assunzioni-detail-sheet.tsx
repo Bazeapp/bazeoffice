@@ -14,7 +14,7 @@ import {
   UsersIcon,
 } from "lucide-react"
 
-import type { AssunzioneRecord, AssunzioniBoardCardData } from "../hooks/use-assunzioni-board"
+import type { AssunzioneRecord, AssunzioniBoardCardData } from "../types"
 import { AssociationSearchField } from "@/components/shared-next/association-search-field"
 import { DeleteRecordAction } from "@/components/shared-next/delete-record-action"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"

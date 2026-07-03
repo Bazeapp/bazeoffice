@@ -9,4 +9,4 @@ export { fetchRichiesteAttivazione } from "./fetch-richieste-attivazione"
 export {
   fetchRichiesteAttivazioneByIds,
   fetchRichiesteAttivazioneByProcessIds,
-} from "../features/richieste-attivazione/api"
+} from "../richieste-attivazione.api"

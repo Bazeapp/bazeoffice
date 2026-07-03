@@ -10,7 +10,7 @@ import {
   getLookupLabelForSave,
   getLookupSelectValue,
   normalizeLookupComparableToken,
-} from "../features/lavoratori/lib/lookup-utils"
+} from "../lib/lookup-utils"
 
 const EMPTY_SELECT_VALUE = "none"
 

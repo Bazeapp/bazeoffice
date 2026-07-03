@@ -4,16 +4,17 @@ import type { RuleGroupType } from "react-querybuilder"
 import { DownloadIcon, FunnelIcon, LayersIcon, PlusIcon, XIcon } from "lucide-react"
 
 import { AnagraficheAgGrid } from "./anagrafiche-ag-grid"
-import { formatCellValue, toReadableColumnLabel } from "./anagrafiche-formatters"
 import {
   AnagraficheQueryBuilder,
 } from "./anagrafiche-query-builder"
 import {
   emptyServerFilterGroup,
+  formatCellValue,
   makeEmptyRuleGroup,
   queryBuilderToFilterGroup,
   toQueryBuilderFields,
-} from "./anagrafiche-query-utils"
+  toReadableColumnLabel,
+} from "../lib"
 import { createEmptyGroup } from "@/components/data-table/data-table-filters"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,11 +37,8 @@ import {
 } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
-import {
-  type AnagraficaRow,
-  type AnagraficheTab,
-  useAnagraficheData,
-} from "../hooks/use-anagrafiche-data"
+import { useAnagraficheData } from "../hooks"
+import type { AnagraficaRow, AnagraficheTab } from "../types"
 import { fetchLavoratori } from "@/modules/lavoratori/queries"
 import { type TableColumnMeta } from "@/lib/table-query"
 import { fetchProcessiMatching, fetchSelezioniLavoratori } from "@/modules/ricerca/queries"

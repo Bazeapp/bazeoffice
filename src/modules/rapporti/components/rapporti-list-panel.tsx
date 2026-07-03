@@ -34,10 +34,14 @@ import {
 } from "@/components/ui/select"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { getTagClassName, resolveLookupColor } from "@/modules/lavoratori/lib"
-import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "../features/rapporti/rapporti-labels"
-import { getRapportoStatusColor, resolveRapportoStatus } from "../features/rapporti/rapporti-status"
+import {
+  getRapportoFamilyLabel,
+  getRapportoStatusColor,
+  getRapportoWorkerLabel,
+  resolveRapportoStatus,
+} from "@/modules/rapporti/lib"
 import { cn } from "@/lib/utils"
-import type { RapportoStatusFilter } from "../hooks/use-rapporti-lavorativi-data"
+import type { RapportoStatusFilter } from "../types"
 import type { RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
 import type { RapportoLavorativoRecord } from "@/types"
 

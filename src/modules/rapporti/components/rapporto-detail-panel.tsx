@@ -22,8 +22,13 @@ import {
 } from "lucide-react"
 
 import { getTagClassName } from "@/modules/lavoratori/lib"
-import { getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "../features/rapporti/rapporti-labels"
-import { getRapportoStatusColor, resolveRapportoStatus } from "../features/rapporti/rapporti-status"
+import {
+  getRapportoFamilyLabel,
+  getRapportoStatusColor,
+  getRapportoTitle,
+  getRapportoWorkerLabel,
+  resolveRapportoStatus,
+} from "@/modules/rapporti/lib"
 import {
   AttachmentUploadSlot,
 } from "@/components/shared-next/attachment-upload-slot"
@@ -38,7 +43,11 @@ import {
   DetailSectionCard,
 } from "@/components/shared-next/detail-section-card"
 import { RecordDetailShell } from "@/components/shared-next/record-detail-shell"
-import { type ContributoInpsBoardCardData, type PayrollBoardCardData, type PayrollBoardColumnData } from "@/modules/payroll/hooks"
+import type {
+  ContributoInpsBoardCardData,
+  PayrollBoardCardData,
+  PayrollBoardColumnData,
+} from "@/modules/payroll/types"
 import { ContributoInpsDetailSheet, type ContributiColumnData, CedolinoDetailSheet } from "@/modules/payroll/components"
 import { SupportTicketCreateDialog, type SupportTicketTag, type SupportTicketType, type SupportTicketUrgency } from "@/modules/support/components"
 import { Badge } from "@/components/ui/badge"

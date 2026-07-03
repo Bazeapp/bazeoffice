@@ -5,12 +5,6 @@ export {
   mapCardData,
   normalizeLookupPatchLabels,
   useCrmPipelinePreview,
-  type CrmPipelineCardData,
-  type CrmPipelineColumnData,
-  type LookupOptionsByField,
 } from "./use-crm-pipeline-preview"
 
-export {
-  useCrmAssegnazione,
-  type AssegnazioneCardData,
-} from "./use-crm-assegnazione"
+export { useCrmAssegnazione } from "./use-crm-assegnazione"

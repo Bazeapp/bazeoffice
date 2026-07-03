@@ -37,6 +37,11 @@ import {
 } from "@/lib/availability-functions"
 import type { LookupValueRecord } from "@/types"
 
+import type {
+  RicercaWorkerSelectionCard,
+  RicercaWorkerSelectionColumn,
+  RicercaWorkersPipelineState,
+} from "../types"
 type GenericRow = Record<string, unknown>
 
 type StageDefinition = {
@@ -50,42 +55,8 @@ type StageMetadata = {
   aliases: Map<string, string>
 }
 
-export type RicercaWorkerSelectionCard = {
-  id: string
-  status: string
-  punteggio: string
-  scheduledAt: string | null
-  endedAt: string | null
-  worker: LavoratoreListItem
-}
+type UseRicercaWorkersPipelineState = RicercaWorkersPipelineState
 
-export type RicercaWorkerSelectionColumn = {
-  id: string
-  label: string
-  color: string | null
-  dropStatusId?: string
-  groupColors?: Record<string, string | null>
-  groupStatusIds?: Record<string, string>
-  cards: RicercaWorkerSelectionCard[]
-}
-
-type UseRicercaWorkersPipelineState = {
-  loading: boolean
-  error: string | null
-  columns: RicercaWorkerSelectionColumn[]
-  moveCard: (selectionId: string, targetStatusId: string) => Promise<void>
-  /**
-   * Forza un refetch della pipeline. Da chiamare dopo mutazioni esterne
-   * (aggiunta lavoratore, smart matching, ecc.) che alterano i dati
-   * server-side e che non sono state riflesse via `moveCard`.
-   */
-  refresh: () => void
-}
-
-export type RicercaWorkersPipelineState = UseRicercaWorkersPipelineState
-
-const WORKER_BATCH_SIZE = 250
-const ADDRESS_BATCH_SIZE = 120
 function asRowArray(input: unknown): GenericRow[] {
   if (!Array.isArray(input)) return []
   return input.filter(

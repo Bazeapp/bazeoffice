@@ -22,7 +22,7 @@ import {
   type AvailabilityEditBandField,
   type AvailabilityEditDayField,
   formatAvailabilityComputedAt,
-} from "../features/lavoratori/lib/availability-utils";
+} from "../lib/availability-utils";
 import { useLavoratoriData } from "../hooks/use-lavoratori-data";
 import { useSelectedWorkerEditor } from "../hooks/use-selected-worker-editor";
 import { AddressSectionCard } from "../components/address-section-card";
@@ -46,19 +46,19 @@ import {
   normalizeDomesticRoleDbLabels,
   normalizeDomesticRoleLookupValues,
   readArrayStrings,
-} from "../features/lavoratori/lib/base-utils";
-import { isDirectInvolvementSelection } from "../features/lavoratori/lib/involvement-utils";
+} from "../lib/base-utils";
+import { isDirectInvolvementSelection } from "../lib/involvement-utils";
 import {
   getLookupLabelForSave,
   getLookupOptionLabel,
   getLookupSelectValue,
   getTagClassName,
   resolveLookupColor,
-} from "../features/lavoratori/lib/lookup-utils";
+} from "../lib/lookup-utils";
 import { Button } from "@/components/ui/button";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
-import type { RicercaBoardCardData } from "@/modules/ricerca/hooks"
+import type { RicercaBoardCardData } from "@/modules/ricerca/types"
 import { Input } from "@/components/ui/input";
 import { fetchFamiglieByIds, fetchFamiglieSearch } from "@/modules/crm/queries"
 import { createRecord, updateRecord } from "@/lib/record-crud"

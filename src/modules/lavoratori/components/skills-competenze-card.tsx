@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { getTagClassName, resolveLookupColor, type LookupOption } from "../features/lavoratori/lib/lookup-utils"
+import { getTagClassName, resolveLookupColor, type LookupOption } from "../lib/lookup-utils"
 import { cn } from "@/lib/utils"
 
 type SkillCompetenzeValues = {
