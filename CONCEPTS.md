@@ -6,6 +6,9 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 Route-aligned modules under `src/modules/<slug>/` using **Italian slugs from piano §6 / AGENTS.md**: `anagrafiche`, `support`, `crm`, `lavoratori`, `ricerca`, `gestione-contrattuale`, `rapporti`, `payroll`. Boundaries follow backoffice navigation in `src/routes/app-routes.ts`. The same entity may appear in both the CRUD UI module and a workflow module.
 
+### Module anatomy
+The prescribed layout inside each domain module: an internal repository file that is the sole Supabase caller for that domain, an adapters file that is the sole place database column names appear, thin query and mutation wrappers, and a public barrel that exports types and fetchers but never the repository or adapters. Shared cross-domain infrastructure lives outside modules in shared library code.
+
 ### Anagrafiche module
 Generic database CRUD UI — AgGrid views over raw tables (all anagrafiche tabs). Entity CRUD data lives in home domain modules; anagrafiche imports via public barrels.
 
