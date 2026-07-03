@@ -674,6 +674,33 @@ export function SchedaColloquioPanel({
         </div>
 
         <div className="space-y-3 p-3">
+          {showColloquioFamigliaFields ? (
+            <CollapsibleSection
+              title="Colloquio famiglia lavoratore"
+              icon={CalendarCheckIcon}
+            >
+              <div className="space-y-1.5">
+                <label className="text-foreground text-sm font-medium">
+                  Data/ora colloquio famiglia lavoratore
+                </label>
+                <FieldDatetimeLocal
+                  name="data_ora_colloquio_famiglia_lavoratore"
+                  disabled={disabled}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-foreground text-sm font-medium">
+                  Colloquio effettuato
+                </label>
+                <FieldColloquioEffettuatoSelect
+                  name="colloquio_effettuato"
+                  disabled={disabled}
+                />
+              </div>
+            </CollapsibleSection>
+          ) : null}
+
           <CollapsibleSection
             title="Completa la scheda colloquio"
             icon={ClipboardListIcon}
@@ -756,33 +783,6 @@ export function SchedaColloquioPanel({
               />
             ))}
           </CollapsibleSection>
-
-          {showColloquioFamigliaFields ? (
-            <CollapsibleSection
-              title="Colloquio famiglia lavoratore"
-              icon={CalendarCheckIcon}
-            >
-              <div className="space-y-1.5">
-                <label className="text-foreground text-sm font-medium">
-                  Data/ora colloquio famiglia lavoratore
-                </label>
-                <FieldDatetimeLocal
-                  name="data_ora_colloquio_famiglia_lavoratore"
-                  disabled={disabled}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-foreground text-sm font-medium">
-                  Colloquio effettuato
-                </label>
-                <FieldColloquioEffettuatoSelect
-                  name="colloquio_effettuato"
-                  disabled={disabled}
-                />
-              </div>
-            </CollapsibleSection>
-          ) : null}
 
           <CollapsibleSection
             title="Lavoratore selezionato – finalizza la scheda colloquio"
