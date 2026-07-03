@@ -48,6 +48,7 @@ import {
   readArrayStrings,
 } from "@/features/lavoratori/lib/base-utils";
 import { isDirectInvolvementSelection } from "@/features/lavoratori/lib/involvement-utils";
+import { sortSelectionGroupsByRank } from "@/features/ricerca/stati-selezione";
 import {
   getLookupLabelForSave,
   getLookupOptionLabel,
@@ -609,7 +610,7 @@ export function LavoratoriCercaView({
       groups.set(groupKey, currentItems);
     }
 
-    return Array.from(groups.entries());
+    return sortSelectionGroupsByRank(Array.from(groups.entries()));
   }, [relatedActiveSearches.direct]);
   const groupedOtherRelatedSearches = React.useMemo(() => {
     const groups = new Map<string, WorkerRelatedSearchItem[]>();
@@ -621,7 +622,7 @@ export function LavoratoriCercaView({
       groups.set(groupKey, currentItems);
     }
 
-    return Array.from(groups.entries());
+    return sortSelectionGroupsByRank(Array.from(groups.entries()));
   }, [relatedActiveSearches.other]);
   const recruiterLabelsById = React.useMemo(
     () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
