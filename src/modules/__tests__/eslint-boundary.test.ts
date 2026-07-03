@@ -23,14 +23,14 @@ describe("eslint module boundary (Rule 3)", () => {
       messages.some(
         (message) =>
           message.ruleId === "no-restricted-imports" &&
-          message.message.includes("public index.ts barrel"),
+          message.message.includes("subfolder"),
       ),
     ).toBe(true)
   })
 
-  it("allows public barrel import from a page consumer", async () => {
+  it("allows subfolder barrel import from a page consumer", async () => {
     const messages = await lintImport(
-      'import { useSupportTicketsBoard } from "@/modules/support"\n',
+      'import { useSupportTicketsBoard } from "@/modules/support/hooks"\n',
       "src/pages/support-page.tsx",
     )
 

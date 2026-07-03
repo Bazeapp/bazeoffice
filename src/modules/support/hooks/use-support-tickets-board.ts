@@ -8,11 +8,9 @@ import {
 } from "@/hooks/use-board-mutations"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord, updateRecord } from "@/lib/record-crud"
-import {
-  fetchAssunzioniNamesByRapportoIds,
-  type AssunzioneRecord,
-  type RapportoAssunzioneNames,
-} from "@/modules/gestione-contrattuale"
+import { type RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
+import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
+import { type AssunzioneRecord } from "@/modules/gestione-contrattuale/hooks"
 import { fetchSupportTicketsBundle } from "../queries/fetch-support-tickets-bundle"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import type {

@@ -32,7 +32,7 @@ import { ExperienceReferencesCard } from "../components/experience-references-ca
 import { JobSearchCard } from "../components/job-search-card";
 import { LavoratoriCercaListPanel } from "../components/lavoratori-cerca-list-panel";
 import { WorkerDetailShell } from "../components/worker-detail-shell";
-import { RicercaActiveSearchCard } from "@/modules/ricerca";
+import { RicercaActiveSearchCard } from "@/modules/ricerca/components"
 import { WorkerProfileHeader } from "../components/worker-profile-header";
 import { RecruiterFeedbackButton } from "../components/recruiter-feedback-sheet";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
@@ -58,19 +58,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
-import type { RicercaBoardCardData } from "@/modules/ricerca";
+import type { RicercaBoardCardData } from "@/modules/ricerca/hooks"
 import { Input } from "@/components/ui/input";
-import {
-  fetchFamiglieByIds,
-  fetchFamiglieSearch,
-} from "@/modules/crm";
+import { fetchFamiglieByIds, fetchFamiglieSearch } from "@/modules/crm/queries"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import { fetchLavoratoriByIds } from "../queries/fetch-lavoratori-by-ids";
-import {
-  fetchProcessiMatchingByIds,
-  fetchProcessiMatchingSearch,
-  fetchSelezioniLookup,
-} from "@/modules/ricerca";
+import { fetchProcessiMatchingByIds, fetchProcessiMatchingSearch, fetchSelezioniLookup } from "@/modules/ricerca/queries"
 import {
   getSelectionAvailabilityWorkerIds,
   invokeWorkerAvailabilityForIds,

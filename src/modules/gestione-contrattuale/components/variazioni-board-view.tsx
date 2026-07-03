@@ -53,7 +53,7 @@ import {
   fetchVariazioniByIds,
 } from "../queries/fetch-variazioni-by-ids";
 import { updateRecord } from "@/lib/record-crud"
-import { fetchRapportiLavorativiByIds } from "@/modules/rapporti";
+import { fetchRapportiLavorativiByIds } from "@/modules/rapporti/queries"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments";
 import { matchesSearchQuery } from "@/lib/search-utils";
 import { supabase } from "@/lib/supabase-client";

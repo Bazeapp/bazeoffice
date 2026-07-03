@@ -1,4 +1,4 @@
-import { AnagraficheTablesView } from "@/modules/anagrafiche"
+import { AnagraficheTablesView } from "@/modules/anagrafiche/components"
 import type { AnagraficheSidebarTab } from "@/routes/app-routes"
 
 type AnagrafichePageProps = {

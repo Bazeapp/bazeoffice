@@ -54,27 +54,25 @@ import {
 } from "@/components/ui/dialog";
 import { SearchInput } from "@/components/ui/search-input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatAvailabilityComputedAt } from "@/modules/lavoratori";
 import {
   asInputValue,
   asString,
+  formatAvailabilityComputedAt,
   getAgeFromBirthDate,
   getDefaultWorkerAvatar,
-  normalizeDomesticRoleLabels,
-  parseNumberValue,
-  readArrayStrings,
-  toAvatarUrl,
-} from "@/modules/lavoratori";
-import { isDirectInvolvementSelection } from "@/modules/lavoratori";
-import {
   getLookupSelectValue,
   isBlacklistValue,
+  isDirectInvolvementSelection,
+  normalizeDomesticRoleLabels,
   normalizeLookupColors,
   normalizeLookupOptions,
+  parseNumberValue,
+  readArrayStrings,
   resolveLookupColor,
+  toAvatarUrl,
+  toWorkerStatusFlags,
   type LookupOption,
-} from "@/modules/lavoratori";
-import { toWorkerStatusFlags } from "@/modules/lavoratori";
+} from "@/modules/lavoratori/lib"
 import {
   getLookupDropZoneActiveClassName,
   getLookupDropZoneClassName,
@@ -87,19 +85,20 @@ import {
   getSelectionAvailabilityWorkerIds,
   invokeWorkerAvailabilityForIds,
 } from "@/lib/availability-functions";
-import { type CrmPipelineCardData, fetchFamiglieByIds } from "@/modules/crm";
+import { fetchFamiglieByIds } from "@/modules/crm/queries"
+import { type CrmPipelineCardData } from "@/modules/crm/hooks"
 import {
   type RicercaWorkerSelectionColumn,
   type RicercaWorkerSelectionCard,
   type RicercaWorkersPipelineState,
 } from "../hooks/use-ricerca-workers-pipeline";
-import { useSelectedWorkerEditor } from "@/modules/lavoratori";
+import { useSelectedWorkerEditor } from "@/modules/lavoratori/hooks"
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import { runSmartMatchingForwardPreview } from "@/lib/smart-matching-forward"
-import { fetchLavoratoriByIds } from "@/modules/lavoratori";
+import { fetchLavoratoriByIds } from "@/modules/lavoratori/queries"
 import { fetchLavoratoriSearch } from "../queries/fetch-lavoratori-search";
 import { fetchProcessiMatchingByIds } from "../queries/fetch-processi-matching-by-ids";
 import { fetchRicercaWorkerScheda } from "../queries/fetch-ricerca-worker-scheda";
@@ -109,7 +108,7 @@ import type {
   EsperienzaLavoratoreRecord,
   LavoratoreRecord,
   ReferenzaLavoratoreRecord,
-} from "@/modules/lavoratori";
+} from "@/modules/lavoratori/types"
 
 type RicercaWorkersPipelineViewProps = {
   processId: string;

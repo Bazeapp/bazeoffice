@@ -41,10 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  getLookupOptionLabel,
-  normalizeLookupOptionValues,
-} from "@/modules/lavoratori"
+import { getLookupOptionLabel, normalizeLookupOptionValues } from "@/modules/lavoratori/lib"
 import { cn } from "@/lib/utils"
 
 type DataTableFilterBuilderProps = {

@@ -25,7 +25,7 @@ house rules; follow them for all new code.
   (DB query builder, or HTTP client in API-client apps). It is **never exported**
   from the module.
 - `index.ts` exports service, types, schemas, errors — never the repository.
-- Consumers import from the module root only: `import { xService } from "@/modules/x"`.
+- Consumers import from module subfolders only: `import { x } from "@/modules/<feature>/components"` (or `hooks`, `queries`, `types`, `lib` as appropriate).
   Deep imports into module internals are drift.
 - New features follow this anatomy even in repos whose older code does not.
   Never bulk-migrate legacy code as a side effect of feature work.
@@ -126,7 +126,7 @@ Consequences — these **override** the `nextjs-fe-api` profile where they confl
   - `<domain>.queries/` / `mutations/` — one fetch/mutation per file; thin re-exports
     from `<domain>.api.ts`.
   - `<domain>.types.ts`, `lib/` (pure utils), `components/`, `hooks/`, `__tests__/`.
-  - Consumers import from `index.ts` only (`@/modules/<dominio>`).
+  - Consumers import from subfolder barrels only (`@/modules/<dominio>/components`, `hooks`, `queries`, `types`, `lib`).
 - **Eight domain modules** under `src/modules/`: `anagrafiche` (AgGrid CRUD UI shell),
   `support`, `crm`, `lavoratori`, `ricerca`, `gestione-contrattuale`, `rapporti`,
   `payroll`. Entity table CRUD lives in the **home module**; the `anagrafiche` module

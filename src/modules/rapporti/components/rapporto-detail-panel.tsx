@@ -21,7 +21,7 @@ import {
   UsersIcon,
 } from "lucide-react"
 
-import { getTagClassName } from "@/modules/lavoratori"
+import { getTagClassName } from "@/modules/lavoratori/lib"
 import { getRapportoFamilyLabel, getRapportoTitle, getRapportoWorkerLabel } from "../features/rapporti/rapporti-labels"
 import { getRapportoStatusColor, resolveRapportoStatus } from "../features/rapporti/rapporti-status"
 import {
@@ -38,20 +38,9 @@ import {
   DetailSectionCard,
 } from "@/components/shared-next/detail-section-card"
 import { RecordDetailShell } from "@/components/shared-next/record-detail-shell"
-import {
-  ContributoInpsDetailSheet,
-  type ContributiColumnData,
-  CedolinoDetailSheet,
-  type ContributoInpsBoardCardData,
-  type PayrollBoardCardData,
-  type PayrollBoardColumnData,
-} from "@/modules/payroll"
-import {
-  SupportTicketCreateDialog,
-  type SupportTicketTag,
-  type SupportTicketType,
-  type SupportTicketUrgency,
-} from "@/modules/support"
+import { type ContributoInpsBoardCardData, type PayrollBoardCardData, type PayrollBoardColumnData } from "@/modules/payroll/hooks"
+import { ContributoInpsDetailSheet, type ContributiColumnData, CedolinoDetailSheet } from "@/modules/payroll/components"
+import { SupportTicketCreateDialog, type SupportTicketTag, type SupportTicketType, type SupportTicketUrgency } from "@/modules/support/components"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -62,7 +51,7 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { updateRecord } from "@/lib/record-crud"
-import type { RapportoAssunzioneNames } from "@/modules/gestione-contrattuale"
+import type { RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
 import { useController } from "react-hook-form"
 import { Form } from "@/components/ui/form"
 import { FieldInput } from "@/components/forms/field-components"

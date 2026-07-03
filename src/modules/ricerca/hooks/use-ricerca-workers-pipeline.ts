@@ -6,24 +6,22 @@ import {
   asString,
   getAgeFromBirthDate,
   getDefaultWorkerAvatar,
+  isBlacklistValue,
   normalizeDomesticRoleLabels,
+  normalizeLookupColors,
   readArrayStrings,
+  resolveLookupColor,
   toAvatarThumbnailUrl,
   toAvatarUrl,
-} from "@/modules/lavoratori"
-import {
-  isBlacklistValue,
-  normalizeLookupColors,
-  resolveLookupColor,
-} from "@/modules/lavoratori"
-import { toWorkerStatusFlags } from "@/modules/lavoratori"
+  toWorkerStatusFlags,
+} from "@/modules/lavoratori/lib"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useMoveMutation } from "@/hooks/use-board-mutations"
 import { fetchIndirizziByEntity } from "@/lib/indirizzi-api"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"
-import { fetchLavoratoriByIds } from "@/modules/lavoratori"
+import { fetchLavoratoriByIds } from "@/modules/lavoratori/queries"
 import { fetchRicercaWorkerRelatedSelectionSummaries } from "../queries/fetch-ricerca-worker-related-selection-summaries"
 import { fetchSelezioniLookup } from "../queries/fetch-selezioni-lookup"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"

@@ -15,12 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getTagClassName } from "@/modules/lavoratori";
+import { getTagClassName } from "@/modules/lavoratori/lib"
 import { STATI_RICERCA_CANONICI } from "../features/ricerca/stati-ricerca";
-import type {
-  CrmPipelineCardData,
-  LookupOptionsByField,
-} from "@/modules/crm";
+import type { CrmPipelineCardData, LookupOptionsByField } from "@/modules/crm/hooks"
 
 type RicercaFamilySummaryCardProps = {
   card: CrmPipelineCardData;

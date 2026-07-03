@@ -26,17 +26,18 @@ import { useController } from "react-hook-form"
 import { Form } from "@/components/ui/form"
 import { FieldTextarea } from "@/components/forms/field-components"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
-import { asString, readArrayStrings } from "@/modules/lavoratori"
 import {
+  asString,
   getLookupLabelForSave,
   getLookupOptionLabel,
   getLookupSelectValue,
   getTagClassName,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
+  readArrayStrings,
   resolveLookupColor,
   type LookupOption,
-} from "@/modules/lavoratori"
+} from "@/modules/lavoratori/lib"
 
 type SelectionDetailsRow = Record<string, unknown>
 

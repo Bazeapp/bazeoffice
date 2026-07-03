@@ -25,17 +25,16 @@ import {
   asString,
   getAgeFromBirthDate,
   getDefaultWorkerAvatar,
+  isBlacklistValue,
+  isDisponibileRicerca,
   normalizeDomesticRoleLabels,
+  normalizeLookupColors,
   readArrayStrings,
+  resolveLookupColor,
   toAvatarThumbnailUrl,
   toAvatarUrl,
-} from "@/modules/lavoratori"
-import {
-  isBlacklistValue,
-  normalizeLookupColors,
-  resolveLookupColor,
-} from "@/modules/lavoratori"
-import { toWorkerStatusFlags } from "@/modules/lavoratori"
+  toWorkerStatusFlags,
+} from "@/modules/lavoratori/lib"
 import type {
   RicercaWorkerSelectionCard,
   RicercaWorkerSelectionColumn,
@@ -43,7 +42,7 @@ import type {
 } from "../hooks/use-ricerca-workers-pipeline"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord } from "@/lib/record-crud"
-import { fetchLavoratoriByIds } from "@/modules/lavoratori"
+import { fetchLavoratoriByIds } from "@/modules/lavoratori/queries"
 import { fetchIndirizziInBbox } from "../queries/fetch-indirizzi-in-bbox"
 import { fetchLavoratoriSelezioniCorrelate } from "../queries/fetch-lavoratori-selezioni-correlate"
 import {
@@ -54,7 +53,6 @@ import {
   distanceKmBetweenCoordinates,
   type GeoCoordinates,
 } from "@/lib/geo-utils"
-import { isDisponibileRicerca } from "@/modules/lavoratori"
 import { invokeEdgeFunction } from "@/lib/supabase-edge"
 import { cn } from "@/lib/utils"
 import {
@@ -69,7 +67,7 @@ import {
   type MapAdvancedFilters,
 } from "./ricerca-workers-map-filters"
 import { excludeCurrentProcess } from "./ricerca-map-related-selections"
-import { buildRelatedSelectionsMap } from "@/modules/lavoratori"
+import { buildRelatedSelectionsMap } from "@/modules/lavoratori/hooks"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 
 const DEFAULT_RADIUS_KM = 5

@@ -41,15 +41,12 @@ import {
   type AnagraficheTab,
   useAnagraficheData,
 } from "../hooks/use-anagrafiche-data"
-import { fetchLavoratori } from "@/modules/lavoratori"
+import { fetchLavoratori } from "@/modules/lavoratori/queries"
 import { type TableColumnMeta } from "@/lib/table-query"
-import {
-  fetchProcessiMatching,
-  fetchSelezioniLavoratori,
-} from "@/modules/ricerca"
-import { fetchFamiglie } from "@/modules/crm"
-import { fetchMesiLavorati, fetchPagamenti } from "@/modules/payroll"
-import { fetchRapportiLavorativi } from "@/modules/rapporti"
+import { fetchProcessiMatching, fetchSelezioniLavoratori } from "@/modules/ricerca/queries"
+import { fetchFamiglie } from "@/modules/crm/queries"
+import { fetchMesiLavorati, fetchPagamenti } from "@/modules/payroll/queries"
+import { fetchRapportiLavorativi } from "@/modules/rapporti/queries"
 
 type TabValue = AnagraficheTab
 type PaginationState = {

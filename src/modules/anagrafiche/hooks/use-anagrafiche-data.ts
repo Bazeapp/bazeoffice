@@ -7,14 +7,11 @@ import {
   type TableGroupResult,
 } from "@/lib/table-query"
 import { fetchLookupValues } from "@/lib/lookup-values"
-import { fetchLavoratori } from "@/modules/lavoratori"
-import {
-  fetchProcessiMatching,
-  fetchSelezioniLavoratori,
-} from "@/modules/ricerca"
-import { fetchFamiglie } from "@/modules/crm"
-import { fetchMesiLavorati, fetchPagamenti } from "@/modules/payroll"
-import { fetchRapportiLavorativi } from "@/modules/rapporti"
+import { fetchLavoratori } from "@/modules/lavoratori/queries"
+import { fetchProcessiMatching, fetchSelezioniLavoratori } from "@/modules/ricerca/queries"
+import { fetchFamiglie } from "@/modules/crm/queries"
+import { fetchMesiLavorati, fetchPagamenti } from "@/modules/payroll/queries"
+import { fetchRapportiLavorativi } from "@/modules/rapporti/queries"
 import type { LookupValueRecord } from "@/types"
 
 export type AnagraficaRow = Record<string, unknown>

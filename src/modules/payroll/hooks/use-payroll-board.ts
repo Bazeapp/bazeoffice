@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
-import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale"
+import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"
 import { fetchCedoliniBoard } from "../queries/fetch-cedolini-board"

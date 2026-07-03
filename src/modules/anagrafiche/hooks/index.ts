@@ -1,5 +1,3 @@
-export { AnagraficheTablesView } from "./components/anagrafiche-tables-view"
-
 export {
   useAnagraficheData,
   type AnagraficaRow,
@@ -8,4 +6,4 @@ export {
   type LookupColorMap,
   type LookupFilterTypeMap,
   type LookupOptionsMap,
-} from "./hooks/use-anagrafiche-data"
+} from "./use-anagrafiche-data"

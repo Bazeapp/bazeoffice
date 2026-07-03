@@ -2,13 +2,11 @@ import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { flattenAttachmentLinks } from "@/components/shared-next/attachment-utils"
-import { normalizeLookupColors, normalizeLookupOptions } from "@/modules/lavoratori"
+import { normalizeLookupColors, normalizeLookupOptions } from "@/modules/lavoratori/lib"
 import { getRapportoProcessIds } from "@/modules/rapporti/features/rapporti/rapporti-processi"
 import { formatAssunzioneName } from "@/modules/rapporti/features/rapporti/rapporti-labels"
-import {
-  fetchAssunzioniNamesByRapportoIds,
-  type RapportoAssunzioneNames,
-} from "@/modules/gestione-contrattuale"
+import { type RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
+import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"
 import { fetchProveColloquiBoard } from "../queries/fetch-prove-colloqui-board"

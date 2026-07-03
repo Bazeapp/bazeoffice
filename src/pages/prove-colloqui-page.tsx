@@ -1,4 +1,4 @@
-import { ProveColloquiView } from "@/modules/support"
+import { ProveColloquiView } from "@/modules/support/components"
 
 type ProveColloquiPageProps = {
   onOpenRicercaDetail: (processId: string) => void

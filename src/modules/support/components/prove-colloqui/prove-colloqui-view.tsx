@@ -36,7 +36,7 @@ import {
   getLookupSelectValue,
   getTagClassName,
   resolveLookupColor,
-} from "@/modules/lavoratori"
+} from "@/modules/lavoratori/lib"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"

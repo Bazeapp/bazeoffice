@@ -46,36 +46,33 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { cn } from "@/lib/utils";
+
 import {
+  asInputValue,
+  asString,
   AVAILABILITY_EDIT_BANDS,
   AVAILABILITY_EDIT_DAYS,
   AVAILABILITY_DAY_LABELS,
   AVAILABILITY_HOUR_LABELS,
-  type AvailabilityEditBandField,
-  type AvailabilityEditDayField,
-  isAvailabilityHourActive,
-  parseAvailabilityPayload,
-  readAvailabilitySlots,
-} from "@/modules/lavoratori";
-import {
-  asInputValue,
-  asString,
-  readArrayStrings,
-} from "@/modules/lavoratori";
-import {
   getLookupOptionLabel,
   getTagClassName,
+  isAvailabilityHourActive,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
+  parseAvailabilityPayload,
+  readArrayStrings,
+  readAvailabilitySlots,
   resolveLookupColor,
+  type AvailabilityEditBandField,
+  type AvailabilityEditDayField,
   type LookupOption,
-} from "@/modules/lavoratori";
+} from "@/modules/lavoratori/lib"
 import type {
   DocumentoLavoratoreRecord,
   EsperienzaLavoratoreRecord,
   LavoratoreRecord,
   ReferenzaLavoratoreRecord,
-} from "@/modules/lavoratori";
+} from "@/modules/lavoratori/types"
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles";
 import { useProvincieOptions } from "@/hooks/use-provincie";
 

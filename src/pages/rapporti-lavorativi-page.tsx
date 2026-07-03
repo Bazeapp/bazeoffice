@@ -1,4 +1,4 @@
-import { RapportiLavorativiView } from "@/modules/rapporti"
+import { RapportiLavorativiView } from "@/modules/rapporti/components"
 
 type RapportiLavorativiPageProps = {
   initialSelectedRapportoId?: string | null

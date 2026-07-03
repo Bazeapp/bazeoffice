@@ -4,27 +4,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord } from "@/lib/record-crud"
 import { fetchTicketByRapporto } from "../queries/fetch-ticket-by-rapporto"
-import {
-  fetchAssunzioniNamesByRapportoIds,
-  fetchChiusureByIds,
-  fetchVariazioniByRapporto,
-  type RapportoAssunzioneNames,
-} from "@/modules/gestione-contrattuale"
-import { fetchProcessiMatchingByIds } from "@/modules/ricerca"
-import { fetchLavoratoriByIds, fetchLavoratoriByName } from "@/modules/lavoratori"
-import {
-  fetchFamiglieByIds,
-  fetchFamiglieByName,
-  fetchRichiesteAttivazioneByProcessIds,
-} from "@/modules/crm"
-import {
-  fetchContributiInpsByRapporto,
-  fetchMesiCalendarioByIds,
-  fetchMesiLavoratiByRapporto,
-  fetchPagamentiByTransazioneIds,
-  fetchPresenzeByIds,
-  fetchTransazioniByMeseLavoratoIds,
-} from "@/modules/payroll"
+import { type RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
+import { fetchAssunzioniNamesByRapportoIds, fetchChiusureByIds, fetchVariazioniByRapporto } from "@/modules/gestione-contrattuale/queries"
+import { fetchProcessiMatchingByIds } from "@/modules/ricerca/queries"
+import { fetchLavoratoriByIds, fetchLavoratoriByName } from "@/modules/lavoratori/queries"
+import { fetchFamiglieByIds, fetchFamiglieByName, fetchRichiesteAttivazioneByProcessIds } from "@/modules/crm/queries"
+import { fetchContributiInpsByRapporto, fetchMesiCalendarioByIds, fetchMesiLavoratiByRapporto, fetchPagamentiByTransazioneIds, fetchPresenzeByIds, fetchTransazioniByMeseLavoratoIds } from "@/modules/payroll/queries"
 import { fetchRapportiLavorativiBoard } from "../queries/fetch-rapporti-lavorativi-board"
 import { fetchRapportiLavorativiByIds } from "../queries/fetch-rapporti-lavorativi-by-ids"
 import { getRapportoProcessIds } from "../features/rapporti/rapporti-processi"
@@ -34,13 +19,8 @@ import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 // detail and would cause excessive refetches if subscribed here. Detail-level
 // realtime is a follow-up refinement.
 const RAPPORTI_REALTIME_TABLES = ["rapporti_lavorativi"]
-import { normalizeLookupColors } from "@/modules/lavoratori"
-import type {
-  SupportTicketMetadata,
-  SupportTicketTag,
-  SupportTicketType,
-  SupportTicketUrgency,
-} from "@/modules/support"
+import { normalizeLookupColors } from "@/modules/lavoratori/lib"
+import type { SupportTicketMetadata, SupportTicketTag, SupportTicketType, SupportTicketUrgency } from "@/modules/support/components"
 import type {
   ChiusuraContrattoRecord,
   ContributoInpsRecord,

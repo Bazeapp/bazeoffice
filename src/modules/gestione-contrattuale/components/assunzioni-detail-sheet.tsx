@@ -37,17 +37,18 @@ import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { useController } from "react-hook-form"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord, updateRecord } from "@/lib/record-crud"
-import { fetchDocumentiLavoratoriByWorker } from "@/modules/lavoratori"
-import { fetchAssunzioniByIds } from "../queries/fetch-assunzioni-by-ids"
-import { fetchAssunzioniByFormType } from "../queries/fetch-assunzioni-by-form-type"
-import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
+import { fetchDocumentiLavoratoriByWorker } from "@/modules/lavoratori/queries"
 import {
   findLookupOption,
   getLookupSelectValue,
-} from "@/modules/lavoratori"
+} from "@/modules/lavoratori/lib"
+import { fetchAssunzioniByIds } from "../queries/fetch-assunzioni-by-ids"
+import { fetchAssunzioniByFormType } from "../queries/fetch-assunzioni-by-form-type"
+import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
+
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
-import type { DocumentoLavoratoreRecord } from "@/modules/lavoratori"
+import type { DocumentoLavoratoreRecord } from "@/modules/lavoratori/types"
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "-"

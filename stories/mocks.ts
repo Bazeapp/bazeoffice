@@ -1,9 +1,6 @@
 import type { LavoratoreListItem } from "@/modules/lavoratori/components/lavoratore-card";
-import type {
-  CrmPipelineCardData,
-  LookupOptionsByField,
-} from "@/modules/crm";
-import type { RicercaBoardCardData } from "@/modules/ricerca";
+import { CrmPipelineCardData, LookupOptionsByField } from "@/modules/crm/hooks"
+import { RicercaBoardCardData } from "@/modules/ricerca/hooks"
 import type { LavoratoreRecord } from "@/modules/lavoratori/types/lavoratore";
 
 export const mockWorker: LavoratoreListItem = {

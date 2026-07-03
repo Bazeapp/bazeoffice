@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { RicercaActiveSearchCard } from "@/modules/ricerca";
+import { RicercaActiveSearchCard } from "@/modules/ricerca/components"
 import { mockRicercaCard } from "../mocks";
 
 const meta = {

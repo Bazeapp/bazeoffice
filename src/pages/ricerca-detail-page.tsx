@@ -1,4 +1,4 @@
-import { RicercaDetailView } from "@/modules/ricerca"
+import { RicercaDetailView } from "@/modules/ricerca/components"
 
 type RicercaDetailPageProps = {
   processId: string

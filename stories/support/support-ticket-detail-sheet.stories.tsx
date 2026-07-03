@@ -1,10 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import {
-  SupportTicketDetailSheet,
-  SUPPORT_TICKET_STATUSES,
-  type SupportTicketBoardCardData,
-} from "@/modules/support";
+import { type SupportTicketBoardCardData } from "@/modules/support/hooks"
+import { SupportTicketDetailSheet, SUPPORT_TICKET_STATUSES } from "@/modules/support/components"
 
 const longTitle =
   "Non abbiamo trovato un rapporto lavorativo attivo, devi cercarlo manualmente e collegarlo. Per farlo: 1) Apri la card del ticket, 2) leggi l'allegato ricevuto dal cliente, 3) individua il rapporto corretto, 4) collega manualmente il rapporto e poi procedi con la lavorazione.";
