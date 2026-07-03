@@ -65,7 +65,7 @@ export function LavoratoriCercaListPanel({
   setPageIndex,
 }: LavoratoriCercaListPanelProps) {
   return (
-    <div className="flex min-h-0 flex-col gap-2">
+    <div className="flex min-h-0 flex-col gap-2" data-testid="lavoratori-list-panel">
       <SideCardsPanel
         title="Lavoratori"
         headerClassName="hidden"

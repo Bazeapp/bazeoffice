@@ -29,6 +29,18 @@ Rapporti lavorativi list/detail/board. Route `/gestione-contrattuale/rapporti-la
 
 ### Payroll module
 Cedolini and contributi INPS. Routes `/payroll/cedolini` and `/payroll/contributi-inps`.
+## Operator roles
+
+Staff who authenticate into BazeOffice. Each operator has one or more role tokens stored in `operatori.ruolo`. The canonical tokens:
+
+| Token | Meaning |
+| --- | --- |
+| `customer` | Customer support |
+| `sales` | Sales |
+| `recruiter` | Recruiter |
+| `payroll` | Payroll |
+
+Famiglia and lavoratore are domain entities, not BazeOffice login roles — families interact through a separate webapp in production.
 
 ## Realtime write-sync
 

@@ -172,6 +172,7 @@ function RapportoCard({
 }) {
   return (
     <RecordCard
+      data-testid={`rapporti-card-${rapporto.id}`}
       onClick={onClick}
       selected={isActive}
     >
@@ -518,6 +519,7 @@ export function RapportiListPanel({
         className="h-full gap-2"
       >
         <SearchInput
+          data-testid="rapporti-search-input"
           placeholder="Cerca famiglia o lavoratore..."
           value={localSearchValue}
           onChange={(event) => setLocalSearchValue(event.target.value)}
@@ -563,7 +565,7 @@ export function RapportiListPanel({
               onRapportoStatusFilterChange(value as RapportoStatusFilter)
             }
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full" data-testid="rapporti-status-filter">
               <SelectValue placeholder="Tutti" />
             </SelectTrigger>
             <SelectContent>
@@ -586,6 +588,7 @@ export function RapportiListPanel({
               type="button"
               variant="ghost"
               size="sm"
+              data-testid="rapporti-reset-filtri"
               onClick={clearFilters}
             >
               <XIcon className="size-3" />

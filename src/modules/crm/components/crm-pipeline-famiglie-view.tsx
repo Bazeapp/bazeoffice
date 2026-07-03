@@ -444,6 +444,7 @@ function Column({
   return (
     <KanbanColumnShell
       columnId={column.id}
+      testId={`kanban-column-${column.id}`}
       title={column.label}
       countLabel={`${column.totalCount} ${column.totalCount === 1 ? "ricerca" : "ricerche"}`}
       visual={visual}
@@ -460,6 +461,7 @@ function Column({
       {visibleCards.map((card) => (
         <div
           key={card.id}
+          data-testid={`pipeline-card-${card.id}`}
           draggable
           onDragStart={(event) => {
             event.dataTransfer.setData("text/plain", card.id)
@@ -647,6 +649,7 @@ export function CrmPipelineFamiglieView() {
         <SectionHeader.Toolbar className="flex-nowrap items-end gap-2 overflow-x-auto">
           <ToolbarField label="Cerca" className="w-72 shrink-0">
             <SearchInput
+              data-testid="pipeline-search-input"
               placeholder="Cerca famiglia, email, telefono..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -802,6 +805,7 @@ export function CrmPipelineFamiglieView() {
               variant="ghost"
               size="icon-sm"
               className="mb-0.5 shrink-0"
+              data-testid="pipeline-reset-filters"
               title="Reset filtri"
               aria-label="Reset filtri"
               onClick={() => {
@@ -819,6 +823,7 @@ export function CrmPipelineFamiglieView() {
             type="button"
             size="icon-sm"
             className="mb-0.5 shrink-0"
+            data-testid="pipeline-apply-filters"
             disabled={!hasPendingFilters}
             title="Applica filtri"
             aria-label="Applica filtri"

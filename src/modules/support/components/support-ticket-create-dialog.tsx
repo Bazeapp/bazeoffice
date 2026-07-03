@@ -36,6 +36,7 @@ type SupportTicketCreateDialogProps = {
     causale: string
     note: string
   }) => Promise<void>
+  dialogTestId?: string
 }
 
 export function SupportTicketCreateDialog({
@@ -45,6 +46,7 @@ export function SupportTicketCreateDialog({
   defaultRapportoId,
   rapportoOptions,
   onCreateTicket,
+  dialogTestId,
 }: SupportTicketCreateDialogProps) {
   const [ticketType, setTicketType] = React.useState<SupportTicketType>(defaultTicketType)
   const [rapportoId, setRapportoId] = React.useState("")
@@ -108,7 +110,7 @@ export function SupportTicketCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg" data-testid={dialogTestId}>
         <DialogHeader>
           <DialogTitle>Apri un ticket</DialogTitle>
           <DialogDescription>

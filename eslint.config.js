@@ -71,6 +71,29 @@ export default defineConfig([
     },
   },
 
+  // Playwright E2E specs — Node + browser globals; prefix `_` to mark intentionally
+  // unused destructured fixtures (common in test setup).
+  {
+    files: ['e2e/**/*.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+    rules: {
+      'react-refresh/only-export-components': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
+
   // Rule 0 (FASE 4 BIS): la edge function `table-query` è consentita SOLO nel
   // chokepoint `src/lib/table-query.ts` (la helper `queryTable`, usata dalla
   // pagina Anagrafiche e dal loader dello schema filtri). Ovunque altrove si

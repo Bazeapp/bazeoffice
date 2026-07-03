@@ -256,6 +256,28 @@ file at a time.
 
 ---
 
+## E2E (Playwright, local-only)
+
+**Status:** harness + Sales Pipeline coverage (2026-06-29).
+
+- **Runner:** `@playwright/test` — separate from Vitest (`npm run e2e`, not `npm test`).
+- **Backend:** local Supabase in sibling `baze-supabase` (`supabase db reset`).
+- **Auth:** four Playwright projects (`customer`, `sales`, `recruiter`, `payroll`),
+  each with its own `storageState` from `e2e/global-setup.ts`.
+- **Famiglia data:** seeded domain records + service-role mutation helpers (simulates
+  the external family webapp — no famiglia login in BazeOffice).
+- **Layout:** specs live under `e2e/<role>/`; `e2e/shared/` smoke runs on every project.
+  `playwright.config.ts` `testMatch` wires each project to its folder (no cross-role skips).
+- **Sales Pipeline:** `e2e/sales/pipeline-*` specs; seed `seed_e2e_pipeline.sql`; sheet stato path is the
+  persistence source of truth; native DnD is best-effort.
+- **Gate:** E2E is opt-in local only — not in lefthook or CI.
+
+Runbook: [`e2e/README.md`](../e2e/README.md). Plans:
+[`2026-06-29-001-test-e2e-playwright-harness-plan.md`](plans/2026-06-29-001-test-e2e-playwright-harness-plan.md),
+[`2026-06-29-002-test-pipeline-e2e-coverage-plan.md`](plans/2026-06-29-002-test-pipeline-e2e-coverage-plan.md).
+
+---
+
 ## Anti-patterns to avoid
 
 - ❌ DOM/serializer snapshots of giant components (brittle, catch nothing).

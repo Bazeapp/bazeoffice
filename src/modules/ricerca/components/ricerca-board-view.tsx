@@ -139,6 +139,7 @@ function RicercaBoardCard({
   return (
     <div
       draggable
+      data-testid={`ricerca-card-${data.id}`}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={cn(
@@ -189,6 +190,7 @@ function RicercaBoardColumn({
   return (
     <KanbanColumnShell
       columnId={column.id}
+      testId={`kanban-column-${column.id}`}
       title={column.label}
       countLabel={`${count} ${count === 1 ? "ricerca" : "ricerche"}`}
       visual={visual}
@@ -356,7 +358,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
         </SectionHeader.Title>
         <SectionHeader.Actions>
           <Select value={selectedOperatorId} onValueChange={setSelectedOperatorId}>
-            <SelectTrigger className="w-60">
+            <SelectTrigger className="w-60" data-testid="ricerca-filter-recruiter">
               {selectedOperator ? (
                 <span className="inline-flex items-center gap-2">
                   <Avatar
@@ -397,6 +399,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
         <SectionHeader.Toolbar>
           <div className="min-w-0 flex-1 max-w-105">
             <SearchInput
+              data-testid="ricerca-search-input"
               placeholder="Cerca per cognome, email o ID..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}

@@ -506,6 +506,7 @@ export function AnagraficheAgGrid({
 
         <div className="flex w-full min-w-0 items-center gap-2 lg:w-auto">
           <Input
+            data-testid="anagrafiche-search-input"
             value={localSearchValue}
             onChange={(event) => setLocalSearchValue(event.target.value)}
             placeholder={searchPlaceholder}
@@ -625,6 +626,7 @@ export function AnagraficheAgGrid({
             type="button"
             variant="outline"
             size="sm"
+            data-testid="anagrafiche-page-previous"
             disabled={!canGoPrevious}
             onClick={() => onPaginationChange({ pageIndex: pageIndex - 1, pageSize })}
           >
@@ -634,6 +636,7 @@ export function AnagraficheAgGrid({
             type="button"
             variant="outline"
             size="sm"
+            data-testid="anagrafiche-page-next"
             disabled={!canGoNext}
             onClick={() => onPaginationChange({ pageIndex: pageIndex + 1, pageSize })}
           >

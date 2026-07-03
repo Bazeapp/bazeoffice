@@ -560,6 +560,9 @@ export function Gate1View({
   const headerEmailValue = emailCtrl.field.value;
   const headerTelefonoValue = telefonoCtrl.field.value;
   const headerDataNascitaValue = dataNascitaCtrl.field.value;
+  const [statusChangeRetainedWorkerId, setStatusChangeRetainedWorkerId] =
+    React.useState<string | null>(null);
+  const statusChangeRetainTimeoutRef = React.useRef<number | null>(null);
 
   const retainSelectedWorkerAfterStatusChange = React.useCallback(
     (workerId: string) => {
@@ -635,9 +638,6 @@ export function Gate1View({
   const [isEditingBazeChecks, setIsEditingBazeChecks] = React.useState(false);
   const workerPhotoInputRef = React.useRef<HTMLInputElement | null>(null);
   const [uploadingWorkerPhoto, setUploadingWorkerPhoto] = React.useState(false);
-  const [statusChangeRetainedWorkerId, setStatusChangeRetainedWorkerId] =
-    React.useState<string | null>(null);
-  const statusChangeRetainTimeoutRef = React.useRef<number | null>(null);
   const [gateDraft, setGateDraft] = React.useState({
     referenteIdoneita: "",
     referenteCertificazione: "",
@@ -1556,7 +1556,7 @@ export function Gate1View({
             : "grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-2 pt-4"
         }
       >
-        <div className="flex min-h-0 flex-col gap-2">
+        <div className="flex min-h-0 flex-col gap-2" data-testid="lavoratori-list-panel">
           <SideCardsPanel
             title={gateLabel}
             headerClassName="hidden"

@@ -590,7 +590,7 @@ export function AnagraficheQueryBuilder({
               <Button type="button" variant="ghost" onClick={onReset}>
                 Reset
               </Button>
-              <Button type="button" onClick={onApply}>
+              <Button type="button" onClick={onApply} data-testid="anagrafiche-apply-filters">
                 Applica
               </Button>
             </div>
