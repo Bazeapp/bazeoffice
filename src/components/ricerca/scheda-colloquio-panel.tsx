@@ -819,7 +819,7 @@ export function SchedaColloquioPanel({
               <FieldTextarea
                 name="messaggio_famiglia_selezione_lavoratore"
                 disabled={disabled}
-                className="min-h-20 resize-none text-xs"
+                className="min-h-60 resize-none text-xs"
                 placeholder="Scrivi il feedback..."
               />
             </div>
