@@ -52,6 +52,27 @@ describe("getSelectionStateRank", () => {
     );
   });
 
+  it("colloca gli stati post-colloquio (selezionato / inviato al cliente / match) nel tier attivo, sopra i colloqui e sotto gli sconosciuti", () => {
+    const colloquioFatto = getSelectionStateRank("colloquio fatto");
+    const unknown = getSelectionStateRank("pippo");
+    for (const stato of [
+      "selezionato",
+      "inviato al cliente",
+      "inviato al cliente in attesa di feedback",
+      "match",
+    ]) {
+      const rank = getSelectionStateRank(stato);
+      expect(rank).toBeGreaterThan(colloquioFatto);
+      expect(rank).toBeLessThan(unknown);
+    }
+  });
+
+  it("canonicalizza il legacy 'prova con cliente' su 'prova in corso'", () => {
+    expect(getSelectionStateRank("prova con cliente")).toBe(
+      getSelectionStateRank("prova in corso"),
+    );
+  });
+
   it("colloca gli stati sconosciuti e 'Senza stato' tra gli attivi e l'archivio", () => {
     for (const unknown of ["pippo", "Senza stato", "stato inventato"]) {
       const rank = getSelectionStateRank(unknown);

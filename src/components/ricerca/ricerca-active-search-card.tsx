@@ -6,6 +6,7 @@ import {
 } from "lucide-react"
 
 import { Avatar } from "@/components/ui/avatar"
+import { getInitials } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { CardMetaRow } from "@/components/shared-next/card-meta-row"
 import { RecordCard } from "@/components/shared-next/record-card"
@@ -91,13 +92,6 @@ function isUrgentDeadline(value: string | null | undefined) {
   const now = new Date()
   const diff = deadline.getTime() - now.getTime()
   return diff <= 1000 * 60 * 60 * 24 * 7
-}
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return "-"
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
 }
 
 export function RicercaActiveSearchCard({

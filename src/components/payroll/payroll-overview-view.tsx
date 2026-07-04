@@ -23,6 +23,7 @@ import {
   CEDOLINI_FILTER_GROUPS,
   cardMatchesCedoliniFilters,
   createDefaultCedoliniFilters,
+  isAbbonamentoCard,
   isCardPaid,
   normalizeCaseFlag,
   toggleCedoliniFilter,
@@ -556,7 +557,7 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
 
         <div className="flex flex-wrap items-center gap-1.5">
           <TipoContrattoBadge
-            isAbbonamento={card.richiestaAttivazione == null}
+            isAbbonamento={isAbbonamentoCard(card)}
             className="px-2.5 py-0.5"
           />
           {normalizeCaseFlag(card.record.caso_particolare) !== "no" ? (
