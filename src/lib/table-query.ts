@@ -165,3 +165,10 @@ export async function queryTable<TRecord>(payload: TableQueryRequest) {
 }
 
 export type { TableRow, TableResponse }
+
+export const EMPTY_TABLE_ROWS: TableResponse<TableRow> = {
+  rows: [],
+  total: 0,
+  columns: [],
+  groups: [],
+}

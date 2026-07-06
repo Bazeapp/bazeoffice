@@ -6,7 +6,5 @@ export { fetchFamiglieByName } from "./fetch-famiglie-by-name"
 export { fetchFamiglieSearch } from "./fetch-famiglie-search"
 export { fetchProcessiMatchingByStatoRes } from "./fetch-processi-matching-by-stato-res"
 export { fetchRichiesteAttivazione } from "./fetch-richieste-attivazione"
-export {
-  fetchRichiesteAttivazioneByIds,
-  fetchRichiesteAttivazioneByProcessIds,
-} from "../richieste-attivazione.api"
+export { fetchRichiesteAttivazioneByIds } from "./fetch-richieste-attivazione-by-ids"
+export { fetchRichiesteAttivazioneByProcessIds } from "./fetch-richieste-attivazione-by-process-ids"

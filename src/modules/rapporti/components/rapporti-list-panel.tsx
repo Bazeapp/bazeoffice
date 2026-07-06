@@ -41,6 +41,7 @@ import {
   resolveRapportoStatus,
 } from "@/modules/rapporti/lib"
 import { cn } from "@/lib/utils"
+import { getSortableTimestamp } from "@/lib/value-utils"
 import type { RapportoStatusFilter } from "../types"
 import type { RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
 import type { RapportoLavorativoRecord } from "@/types"
@@ -131,19 +132,14 @@ function getStatusWeight(value: string | null | undefined) {
   return RAPPORTO_STATUS_WEIGHT.get(value ?? "") ?? RAPPORTO_STATUS_OPTIONS.length
 }
 
-function getTimeValue(value: string | null | undefined) {
-  if (!value) return Number.NEGATIVE_INFINITY
-  const time = new Date(value).getTime()
-  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
-}
-
 function sortByOperationalStatus(items: RapportiListItem[]) {
   return [...items].sort((left, right) => {
     const statusDelta = getStatusWeight(left.stato_rapporto) - getStatusWeight(right.stato_rapporto)
     if (statusDelta !== 0) return statusDelta
 
     const dateDelta =
-      getTimeValue(right.data_inizio_rapporto) - getTimeValue(left.data_inizio_rapporto)
+      getSortableTimestamp(right.data_inizio_rapporto) -
+      getSortableTimestamp(left.data_inizio_rapporto)
     if (dateDelta !== 0) return dateDelta
 
     return left.famigliaLabel.localeCompare(right.famigliaLabel)

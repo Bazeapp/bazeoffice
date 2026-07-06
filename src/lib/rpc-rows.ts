@@ -10,6 +10,10 @@ import {
 
 export type TableRow = Record<string, unknown>
 
+export function asTableRowArray(value: unknown): TableRow[] {
+  return Array.isArray(value) ? (value as TableRow[]) : []
+}
+
 export async function rpcRows(
   fn: string,
   params: Record<string, unknown>,

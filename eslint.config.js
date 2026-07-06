@@ -6,15 +6,15 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 // FASE 4 BIS follow-up: queryTable was private to the anagrafiche-api
-// monolith; the module split had to export it. Only module repositories
-// (<dominio>.api.ts) and the legacy indirizzi wrapper may import it — new
+// monolith; the module split had to export it. Only per-query fetcher files
+// under queries/ and the legacy indirizzi wrapper may import it — new
 // fetchers use a dedicated RPC. Enforced by the blocks that reference this
 // constant; the allowed importers are excluded via block-level `ignores`.
 const QUERY_TABLE_RESTRICTION = {
   name: '@/lib/table-query',
   importNames: ['queryTable'],
   message:
-    'queryTable è riservata ai repository di modulo (<dominio>.api.ts). Per nuovi fetcher usa una RPC dedicata (FASE 4 BIS).',
+    'queryTable è riservata ai fetcher di modulo (queries/). Per nuovi fetcher usa una RPC dedicata (FASE 4 BIS).',
 }
 
 const MODULE_BOUNDARY_RESTRICTIONS = {
@@ -22,7 +22,7 @@ const MODULE_BOUNDARY_RESTRICTIONS = {
     {
       group: ['@/modules/*/*.api', '@/modules/*/*.api.ts'],
       message:
-        'Import from @/modules/<dominio>/<subfolder> (components, hooks, queries, types, lib) only. Deep .api.ts imports are module-internal drift.',
+        'Import from @/modules/<dominio>/<subfolder> (components, hooks, queries, types, lib) only. Deep query/mutation file imports are module-internal drift.',
     },
     {
       group: [
@@ -491,14 +491,14 @@ export default defineConfig([
   },
 
   // Rule 4 (table-query containment, module internals): queryTable was
-  // private to the monolith; the module split had to export it. Only the
-  // module .api.ts repositories and the legacy indirizzi wrapper may import
-  // it — everything else uses a dedicated RPC (FASE 4 BIS). Module
-  // components are covered by the components block above; this block covers
-  // the remaining module-internal files (hooks, queries, lib, types).
+  // private to the monolith; the module split had to export it. Only
+  // queries/ fetcher files and the legacy indirizzi wrapper may import it —
+  // everything else uses a dedicated RPC (FASE 4 BIS). Module components are
+  // covered by the components block above; this block covers the remaining
+  // module-internal files (hooks, lib, types, mutations).
   {
     files: ['src/modules/**/*.{ts,tsx}'],
-    ignores: ['src/modules/*/*.api.ts', 'src/modules/*/components/**'],
+    ignores: ['src/modules/*/queries/**', 'src/modules/*/components/**'],
     rules: {
       'no-restricted-imports': ['error', { paths: [QUERY_TABLE_RESTRICTION] }],
     },

@@ -39,10 +39,10 @@ describe("eslint module boundary (Rule 3)", () => {
     )
   })
 
-  it("allows same-module .api import inside src/modules/", async () => {
+  it("allows same-module query import inside src/modules/", async () => {
     const messages = await lintImport(
-      'import { fetchTickets } from "../support.api"\n',
-      "src/modules/support/queries/use-tickets-query.ts",
+      'import { fetchTickets } from "./fetch-tickets"\n',
+      "src/modules/support/hooks/use-tickets-query.ts",
     )
 
     expect(messages.some((message) => message.ruleId === "no-restricted-imports")).toBe(
