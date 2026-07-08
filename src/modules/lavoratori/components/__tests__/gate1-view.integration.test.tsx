@@ -19,12 +19,71 @@
  * Instead we extract the exact resync pattern into a tiny inline component
  * and assert against its observable behavior. This mirrors the suggested
  * fallback in the task description.
+ *
+ * A separate `describe("Gate1View render")` block (below) renders the real
+ * component with module-boundary mocks — see U2 characterization net.
  */
 import * as React from "react"
 import { act } from "react"
-import { describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 
 import { renderWithProviders } from "@/test/test-utils"
+
+const {
+  mockUseLavoratoriData,
+  mockUseSelectedWorkerEditor,
+  mockSetSelectedWorkerId,
+} = vi.hoisted(() => ({
+  mockUseLavoratoriData: vi.fn(),
+  mockUseSelectedWorkerEditor: vi.fn(),
+  mockSetSelectedWorkerId: vi.fn(),
+}))
+
+vi.mock("../../hooks/use-lavoratori-data", () => ({
+  useLavoratoriData: (...args: unknown[]) => mockUseLavoratoriData(...args),
+}))
+
+vi.mock("../../hooks/use-selected-worker-editor", () => ({
+  useSelectedWorkerEditor: (...args: unknown[]) => mockUseSelectedWorkerEditor(...args),
+}))
+
+vi.mock("@/hooks/use-operatori-options", () => ({
+  useOperatoriOptions: () => ({ options: [], loading: false }),
+}))
+
+vi.mock("@/hooks/use-provincie", () => ({
+  useProvincieOptions: () => [],
+}))
+
+vi.mock("@/hooks/use-current-operator-name", () => ({
+  useCurrentOperatorName: () => "Test Operator",
+}))
+
+vi.mock("@/lib/supabase-client", () => ({
+  supabase: {
+    storage: {
+      from: () => ({
+        upload: vi.fn().mockResolvedValue({ data: { path: "x" }, error: null }),
+        getPublicUrl: () => ({ data: { publicUrl: "https://example.com/x.jpg" } }),
+      }),
+    },
+  },
+}))
+
+vi.mock("@/lib/record-crud", () => ({
+  updateRecord: vi.fn().mockResolvedValue({ row: {} }),
+  createRecord: vi.fn(),
+  deleteRecord: vi.fn(),
+}))
+
+import {
+  makeEditorReturn,
+  makeLavoratoriDataReturn,
+  makeWorkerListItem,
+  makeWorkerRow,
+} from "./gate1-view-test-fixtures"
+import { Gate1View } from "../gate1-view"
 
 // --- Same shape as gate1-view's `gateDraft` (subset, enough for the test) -
 type GateDraft = {
@@ -299,5 +358,96 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
       assessmentFeedback: "fb2",
       ratingAtteggiamento: "5",
     })
+  })
+})
+
+describe("Gate1View render", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSetSelectedWorkerId.mockImplementation((value: unknown) => {
+      if (typeof value === "function") {
+        return value("worker-1")
+      }
+      return value
+    })
+    mockUseLavoratoriData.mockImplementation(() =>
+      makeLavoratoriDataReturn({}, { setSelectedWorkerId: mockSetSelectedWorkerId }),
+    )
+    mockUseSelectedWorkerEditor.mockImplementation(() => makeEditorReturn())
+  })
+
+  it("renders list and detail shell with the selected worker name", () => {
+    renderWithProviders(<Gate1View />)
+
+    expect(screen.getByTestId("lavoratori-list-panel")).toBeTruthy()
+    expect(screen.getByText("Maria Rossi")).toBeTruthy()
+    expect(screen.getByRole("tab", { name: /Follow-up/i })).toBeTruthy()
+  })
+
+  it("passes updated gate1ProvinciaFilter to useLavoratoriData when provincia changes", async () => {
+    renderWithProviders(<Gate1View />)
+
+    const listPanel = screen.getByTestId("lavoratori-list-panel")
+    const [provinciaTrigger] = within(listPanel).getAllByRole("combobox")
+    fireEvent.click(provinciaTrigger!)
+    fireEvent.click(await screen.findByRole("option", { name: "Milano" }))
+
+    await waitFor(() => {
+      const lastCall = mockUseLavoratoriData.mock.calls.at(-1)?.[0] as
+        | { gate1ProvinciaFilter?: string }
+        | undefined
+      expect(lastCall?.gate1ProvinciaFilter).toBe("MI")
+    })
+  })
+
+  it("calls setSelectedWorkerId when a worker card is clicked", () => {
+    const rowA = makeWorkerRow({ id: "w-a", nome: "Anna", cognome: "Bianchi" })
+    const rowB = makeWorkerRow({ id: "w-b", nome: "Luca", cognome: "Verdi" })
+    mockUseLavoratoriData.mockImplementation(() =>
+      makeLavoratoriDataReturn(
+        {},
+        {
+          workers: [makeWorkerListItem(rowA), makeWorkerListItem(rowB)],
+          workerRows: [rowA, rowB],
+          selectedWorkerId: "w-a",
+          setSelectedWorkerId: mockSetSelectedWorkerId,
+        },
+      ),
+    )
+
+    renderWithProviders(<Gate1View />)
+
+    fireEvent.click(screen.getByText("Luca Verdi"))
+
+    expect(mockSetSelectedWorkerId).toHaveBeenCalled()
+    const updater = mockSetSelectedWorkerId.mock.calls.at(-1)?.[0]
+    expect(typeof updater).toBe("function")
+    expect((updater as (prev: string) => string | null)("w-a")).toBe("w-b")
+  })
+
+  it("shows empty list message when there are no workers", () => {
+    mockUseLavoratoriData.mockImplementation(() =>
+      makeLavoratoriDataReturn(
+        { workers: [], workerRows: [] },
+        { selectedWorkerId: null, setSelectedWorkerId: mockSetSelectedWorkerId },
+      ),
+    )
+
+    renderWithProviders(<Gate1View />)
+
+    expect(screen.getByText("Nessun lavoratore trovato.")).toBeTruthy()
+  })
+
+  it("surfaces useLavoratoriData error inline in the list panel", () => {
+    mockUseLavoratoriData.mockImplementation(() =>
+      makeLavoratoriDataReturn(
+        { error: "Errore caricamento lavoratori" },
+        { setSelectedWorkerId: mockSetSelectedWorkerId },
+      ),
+    )
+
+    renderWithProviders(<Gate1View />)
+
+    expect(screen.getByText("Errore caricamento lavoratori")).toBeTruthy()
   })
 })

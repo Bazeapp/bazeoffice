@@ -2,10 +2,14 @@ import * as React from "react"
 import { toast } from "sonner"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { useCreateMutation, useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
+import {
+  useDeleteBoardRecordMutation,
+  useMoveMutation,
+  usePatchMutation,
+} from "@/hooks/use-board-mutations"
 
 import { fetchLookupValues } from "@/lib/lookup-values"
-import { createRecord, deleteRecord, updateRecord } from "@/lib/record-crud"
+import { createRecord, updateRecord } from "@/lib/record-crud"
 import { fetchAssunzioniNamesByRapportoIds } from "../queries/fetch-assunzioni-names-by-rapporto-ids"
 import { fetchChiusureBoard } from "../queries/fetch-chiusure-board"
 import type { RapportoAssunzioneNames } from "../types/gestione-rpc"
@@ -690,13 +694,13 @@ export function useChiusureBoard(): UseChiusureBoardState {
     [setBoardData]
   )
 
-  const deleteMutation = useCreateMutation<
+  const deleteMutation = useDeleteBoardRecordMutation<
     { recordId: string },
-    unknown,
     ChiusureBoardData
   >({
     queryKey: CHIUSURE_BOARD_QUERY_KEY,
-    mutationFn: ({ recordId }) => deleteRecord("chiusure_contratti", recordId),
+    table: "chiusure_contratti",
+    getRecordId: ({ recordId }) => recordId,
     applyOptimistic: (previous, { recordId }) => {
       if (!previous) return previous
       return {

@@ -65,8 +65,8 @@ import {
   isSameSet,
   workerMatchesAdvancedFilters,
   type MapAdvancedFilters,
-} from "../lib/ricerca-workers-map-filters"
-import { excludeCurrentProcess } from "../lib/ricerca-map-related-selections"
+} from "../lib/map-filters"
+import { excludeCurrentProcess } from "../lib/map-related-selections"
 import { buildRelatedSelectionsMap } from "@/modules/lavoratori/hooks"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 

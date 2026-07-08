@@ -171,41 +171,6 @@ describe("useSelectedWorkerEditor — realtime echo draft preservation", () => {
     ])
   })
 
-  it("preserves headerDraft when isEditingHeader=true regardless of other section changes", () => {
-    const initialRow = makeRow({ nome: "Mario", cognome: "Rossi" })
-
-    const { result, rerender } = renderHookWithQueryClient(
-      (props: ReturnType<typeof makeProps>) => useSelectedWorkerEditor(props),
-      { initialProps: makeProps(initialRow) }
-    )
-
-    act(() => {
-      result.current.setIsEditingHeader(true)
-    })
-    act(() => {
-      result.current.setHeaderDraft((current) => ({
-        ...current,
-        nome: "Mario-EDIT",
-        cognome: "Rossi-EDIT",
-      }))
-    })
-
-    // Echo changes availability (different section) AND header server-side.
-    const echoedRow = makeRow({
-      nome: "Server Name",
-      cognome: "Server Surname",
-      vincoli_orari_disponibilita: "qualcosa di nuovo",
-    })
-    rerender(makeProps(echoedRow))
-
-    expect(result.current.headerDraft.nome).toBe("Mario-EDIT")
-    expect(result.current.headerDraft.cognome).toBe("Rossi-EDIT")
-    // And availability (not in edit mode) DID resync.
-    expect(result.current.availabilityDraft.vincoli_orari_disponibilita).toBe(
-      "qualcosa di nuovo"
-    )
-  })
-
   it("preserves addressDraft when isEditingAddress=true and selectedWorkerAddress changes", () => {
     const initialRow = makeRow()
 
@@ -471,7 +436,6 @@ describe("useSelectedWorkerEditor — U4 identity switch & lifecycle no-save", (
     )
 
     act(() => result.current.setIsEditingHeader(true))
-    act(() => result.current.setHeaderDraft((c) => ({ ...c, nome: "Mario-IN-PROGRESS" })))
     expect(result.current.isEditingHeader).toBe(true)
 
     // Switch to a DIFFERENT worker (new id AND new row).
@@ -480,9 +444,7 @@ describe("useSelectedWorkerEditor — U4 identity switch & lifecycle no-save", (
       selectedWorkerId: "worker-2",
     })
 
-    // The previous worker's in-progress draft is discarded; the new worker's
-    // server values load; the editing flag is reset.
-    expect(result.current.headerDraft.nome).toBe("Luigi")
+    // The editing flag is reset on worker switch (header fields live in WorkerProfileHeader form).
     expect(result.current.isEditingHeader).toBe(false)
   })
 
@@ -493,7 +455,6 @@ describe("useSelectedWorkerEditor — U4 identity switch & lifecycle no-save", (
     )
 
     act(() => result.current.setIsEditingHeader(true))
-    act(() => result.current.setHeaderDraft((c) => ({ ...c, nome: "Mario-IN-PROGRESS" })))
 
     clearWriters()
     rerender({ ...makeProps(makeRow({ nome: "Luigi" })), selectedWorkerId: "worker-2" })
@@ -508,7 +469,6 @@ describe("useSelectedWorkerEditor — U4 identity switch & lifecycle no-save", (
     )
 
     act(() => result.current.setIsEditingHeader(true))
-    act(() => result.current.setHeaderDraft((c) => ({ ...c, nome: "dirty-unsaved" })))
 
     clearWriters()
     unmount()
@@ -813,39 +773,6 @@ describe("useSelectedWorkerEditor — U7 commit no-op short-circuits + routing",
     vi.mocked(updateRecord).mockResolvedValue({ row: makeRow() } as never)
     vi.mocked(createRecord).mockReset()
     vi.mocked(createRecord).mockResolvedValue({ row: { id: "addr-x" } } as never)
-  })
-
-  it("B18: commitHeaderField no-ops when the TRIMMED draft equals the server value; data_di_nascita is compared UNTRIMMED", async () => {
-    const { result } = renderHookWithQueryClient(
-      (props: ReturnType<typeof makeProps>) => useSelectedWorkerEditor(props),
-      { initialProps: makeProps(makeRow({ nome: "Mario", data_di_nascita: "1990-01-01" })) }
-    )
-    act(() => result.current.setIsEditingHeader(true))
-
-    // No-op: "Mario  ".trim() === "Mario".
-    act(() => result.current.setHeaderDraft((c) => ({ ...c, nome: "Mario  " })))
-    await act(async () => {
-      await result.current.commitHeaderField("nome").catch(() => {})
-    })
-    expect(updateRecord).not.toHaveBeenCalled()
-
-    // Fires on a real change.
-    act(() => result.current.setHeaderDraft((c) => ({ ...c, nome: "Luigi" })))
-    await act(async () => {
-      await result.current.commitHeaderField("nome").catch(() => {})
-    })
-    expect(updateRecord).toHaveBeenCalledWith("lavoratori", "worker-1", { nome: "Luigi" })
-
-    // data_di_nascita is NOT trimmed: a trailing space is a real diff and fires
-    // (a trimmed field would have no-op'd).
-    vi.mocked(updateRecord).mockClear()
-    act(() => result.current.setHeaderDraft((c) => ({ ...c, data_di_nascita: "1990-01-01 " })))
-    await act(async () => {
-      await result.current.commitHeaderField("data_di_nascita").catch(() => {})
-    })
-    expect(updateRecord).toHaveBeenCalledWith("lavoratori", "worker-1", {
-      data_di_nascita: "1990-01-01 ",
-    })
   })
 
   it("B19: commitExperienceField compares anni_* NUMERICALLY (cosmetic format = no-op) and situazione as a trimmed string", async () => {

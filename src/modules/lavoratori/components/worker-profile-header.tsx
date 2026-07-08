@@ -42,6 +42,7 @@ import {
 import { FieldInput, FieldTextarea } from "@/components/forms/field-components"
 import { Form } from "@/components/ui/form"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
+import { workerProfileHeaderFormSchema } from "../lib/worker-profile-header-schema"
 import { cn } from "@/lib/utils"
 import {
   asString,
@@ -342,6 +343,7 @@ export function WorkerProfileHeader({
   //    (i wrapper sotto convertono option-value ↔ label), "" → null.
   const form = useAutoSaveForm<WorkerProfileHeaderDraft>({
     defaults: buildFormDefaults(workerRow),
+    schema: workerProfileHeaderFormSchema,
     onSave: async (patch) => {
       for (const [key, rawValue] of Object.entries(patch)) {
         const field = key as WorkerProfileHeaderField

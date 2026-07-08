@@ -9,11 +9,16 @@ import {
   UploadIcon,
   VenusAndMarsIcon,
 } from "lucide-react"
+import { useWatch } from "react-hook-form"
 
 import type { LavoratoreListItem } from "../components/lavoratore-card"
 import type { LavoratoreRecord } from "../types/lavoratore"
 import { asString, getAgeFromBirthDate } from "../lib/base-utils"
 import { getWorkerQualificationStatus } from "../lib/status-utils"
+import {
+  FieldInput,
+  FieldTextarea,
+} from "@/components/forms/field-components"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -33,6 +38,10 @@ import {
   getLookupSelectValue,
   resolveLookupSingleValueOptions,
 } from "../lib/lookup-utils"
+import {
+  FieldLookupSelect,
+  GateFormLevelField,
+} from "./gate1/gate-form-fields"
 
 const EMPTY_SELECT_VALUE = "none"
 
@@ -53,6 +62,8 @@ type WorkerProfileOverviewProps = {
   worker: LavoratoreListItem
   workerRow: LavoratoreRecord
   isEditing?: boolean
+  /** Quando true, i campi editabili usano react-hook-form (parent Form). */
+  useFormFields?: boolean
   draft?: {
     nome: string
     cognome: string
@@ -67,6 +78,7 @@ type WorkerProfileOverviewProps = {
   livelloItalianoOptions?: Array<{ label: string; value: string }>
   sessoOptions?: Array<{ label: string; value: string }>
   nazionalitaOptions?: Array<{ label: string; value: string }>
+  lookupColorsByDomain?: Map<string, string>
   presentationPhotoSlots?: string[]
   selectedPresentationPhotoIndex?: number
   showUploadPhotoAction?: boolean
@@ -81,11 +93,13 @@ export function WorkerProfileOverview({
   worker,
   workerRow,
   isEditing = false,
+  useFormFields = false,
   draft,
   livelloItaliano,
   livelloItalianoOptions = [],
   sessoOptions = [],
   nazionalitaOptions = [],
+  lookupColorsByDomain = new Map(),
   presentationPhotoSlots = [],
   selectedPresentationPhotoIndex = 0,
   showUploadPhotoAction = false,
@@ -95,21 +109,63 @@ export function WorkerProfileOverview({
   onLivelloItalianoChange,
   onFieldChange,
 }: WorkerProfileOverviewProps) {
+  const formEmail = useWatch({ name: "email", disabled: !useFormFields }) as
+    | string
+    | undefined
+  const formTelefono = useWatch({ name: "telefono", disabled: !useFormFields }) as
+    | string
+    | undefined
+  const formSesso = useWatch({ name: "sesso", disabled: !useFormFields }) as
+    | string
+    | undefined
+  const formNazionalita = useWatch({
+    name: "nazionalita",
+    disabled: !useFormFields,
+  }) as string | undefined
+  const formDataNascita = useWatch({
+    name: "data_di_nascita",
+    disabled: !useFormFields,
+  }) as string | undefined
+  const formDescrizione = useWatch({
+    name: "descrizione_pubblica",
+    disabled: !useFormFields,
+  }) as string | undefined
+  const formLivelloItaliano = useWatch({
+    name: "livello_italiano",
+    disabled: !useFormFields,
+  }) as string | undefined
+
   const qualificationStatus = getWorkerQualificationStatus(worker)
   const StatusIcon = qualificationStatus.icon
   const canUseSessoSelect = sessoOptions.length > 0
+  const resolvedLivelloItaliano =
+    useFormFields && typeof formLivelloItaliano === "string"
+      ? formLivelloItaliano
+      : (livelloItaliano ?? "")
   const resolvedLivelloItalianoOptions = resolveLookupSingleValueOptions(
-    livelloItaliano,
+    resolvedLivelloItaliano,
     livelloItalianoOptions,
   )
+  const resolvedSesso =
+    useFormFields && typeof formSesso === "string"
+      ? formSesso
+      : (draft?.sesso ?? asString(workerRow.sesso))
+  const resolvedNazionalita =
+    useFormFields && typeof formNazionalita === "string"
+      ? formNazionalita
+      : (draft?.nazionalita ?? asString(workerRow.nazionalita))
   const resolvedSessoOptions = resolveLookupSingleValueOptions(
-    draft?.sesso ?? workerRow.sesso,
+    resolvedSesso,
     sessoOptions,
   )
   const resolvedNazionalitaOptions = resolveLookupSingleValueOptions(
-    draft?.nazionalita ?? workerRow.nazionalita,
+    resolvedNazionalita,
     nazionalitaOptions,
   )
+  const resolvedDataNascita =
+    useFormFields && typeof formDataNascita === "string"
+      ? formDataNascita
+      : (draft?.data_di_nascita ?? asString(workerRow.data_di_nascita))
 
   return (
     <div className="mb-6 flex items-start gap-4">
@@ -223,30 +279,55 @@ export function WorkerProfileOverview({
 
       <div className="min-w-0 flex-1">
         <div className="min-w-0">
-          {isEditing && draft ? (
+          {isEditing && (useFormFields || draft) ? (
             <div className="space-y-2">
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-                <Input
-                  value={draft.nome}
-                  onChange={(event) => onFieldChange?.("nome", event.target.value)}
-                  placeholder="Nome"
-                  className="w-full sm:max-w-52"
-                />
-                <Input
-                  value={draft.cognome}
-                  onChange={(event) => onFieldChange?.("cognome", event.target.value)}
-                  placeholder="Cognome"
-                  className="w-full sm:max-w-52"
-                />
+                {useFormFields ? (
+                  <>
+                    <FieldInput
+                      name="nome"
+                      placeholder="Nome"
+                      className="w-full sm:max-w-52"
+                    />
+                    <FieldInput
+                      name="cognome"
+                      placeholder="Cognome"
+                      className="w-full sm:max-w-52"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Input
+                      value={draft?.nome ?? ""}
+                      onChange={(event) => onFieldChange?.("nome", event.target.value)}
+                      placeholder="Nome"
+                      className="w-full sm:max-w-52"
+                    />
+                    <Input
+                      value={draft?.cognome ?? ""}
+                      onChange={(event) => onFieldChange?.("cognome", event.target.value)}
+                      placeholder="Cognome"
+                      className="w-full sm:max-w-52"
+                    />
+                  </>
+                )}
               </div>
-              <Textarea
-                value={draft.descrizione_pubblica}
-                onChange={(event) =>
-                  onFieldChange?.("descrizione_pubblica", event.target.value)
-                }
-                rows={3}
-                className="min-h-24"
-              />
+              {useFormFields ? (
+                <FieldTextarea
+                  name="descrizione_pubblica"
+                  rows={3}
+                  className="min-h-24"
+                />
+              ) : (
+                <Textarea
+                  value={draft?.descrizione_pubblica ?? ""}
+                  onChange={(event) =>
+                    onFieldChange?.("descrizione_pubblica", event.target.value)
+                  }
+                  rows={3}
+                  className="min-h-24"
+                />
+              )}
             </div>
           ) : (
             <>
@@ -256,7 +337,9 @@ export function WorkerProfileOverview({
                 </p>
               </div>
               <p className="text-muted-foreground line-clamp-4 text-sm leading-5">
-                {asString(workerRow.descrizione_pubblica) || "-"}
+                {useFormFields
+                  ? asString(formDescrizione) || "-"
+                  : asString(workerRow.descrizione_pubblica) || "-"}
               </p>
             </>
           )}
@@ -265,68 +348,96 @@ export function WorkerProfileOverview({
         <div className="space-y-2 pt-3">
           <div className="text-muted-foreground flex items-center gap-2">
             <MailIcon className="size-4 shrink-0" />
-            {isEditing && draft ? (
-              <Input
-                value={draft.email}
-                onChange={(event) => onFieldChange?.("email", event.target.value)}
-                type="email"
-                className="max-w-md"
-              />
+            {isEditing && (useFormFields || draft) ? (
+              useFormFields ? (
+                <FieldInput name="email" type="email" className="max-w-md" />
+              ) : (
+                <Input
+                  value={draft?.email ?? ""}
+                  onChange={(event) => onFieldChange?.("email", event.target.value)}
+                  type="email"
+                  className="max-w-md"
+                />
+              )
             ) : (
-              <span className="truncate">{asString(workerRow.email) || "-"}</span>
+              <span className="truncate">
+                {useFormFields
+                  ? asString(formEmail) || "-"
+                  : asString(workerRow.email) || "-"}
+              </span>
             )}
           </div>
           <div className="text-muted-foreground flex items-center gap-2">
             <PhoneIcon className="size-4 shrink-0" />
-            {isEditing && draft ? (
-              <Input
-                value={draft.telefono}
-                onChange={(event) => onFieldChange?.("telefono", event.target.value)}
-                type="tel"
-                className="max-w-xs"
-              />
+            {isEditing && (useFormFields || draft) ? (
+              useFormFields ? (
+                <FieldInput name="telefono" type="tel" className="max-w-xs" />
+              ) : (
+                <Input
+                  value={draft?.telefono ?? ""}
+                  onChange={(event) => onFieldChange?.("telefono", event.target.value)}
+                  type="tel"
+                  className="max-w-xs"
+                />
+              )
             ) : (
-              <span className="truncate">{asString(workerRow.telefono) || "-"}</span>
+              <span className="truncate">
+                {useFormFields
+                  ? asString(formTelefono) || "-"
+                  : asString(workerRow.telefono) || "-"}
+              </span>
             )}
           </div>
           <div className="text-muted-foreground flex items-center gap-2" title="Livello italiano">
             <LanguagesIcon className="size-4 shrink-0" />
-            {isEditing && livelloItaliano !== undefined ? (
-              <div className="w-full max-w-xs">
-                <Select
-                  value={getLookupSelectValue(
-                    livelloItaliano,
-                    resolvedLivelloItalianoOptions,
-                    EMPTY_SELECT_VALUE,
-                  )}
-                  onValueChange={(value) =>
-                    onLivelloItalianoChange?.(
-                      value === EMPTY_SELECT_VALUE ? "" : value
-                    )
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona livello" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                    {resolvedLivelloItalianoOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {isEditing && (useFormFields || livelloItaliano !== undefined) ? (
+              useFormFields ? (
+                <div className="w-full max-w-xs">
+                  <GateFormLevelField
+                    name="livello_italiano"
+                    label=""
+                    options={livelloItalianoOptions}
+                    domain="lavoratori.livello_italiano"
+                    isEditing
+                    isUpdating={false}
+                    lookupColorsByDomain={lookupColorsByDomain}
+                    persistMode="value"
+                  />
+                </div>
+              ) : (
+                <div className="w-full max-w-xs">
+                  <Select
+                    value={getLookupSelectValue(
+                      livelloItaliano ?? "",
+                      resolvedLivelloItalianoOptions,
+                      EMPTY_SELECT_VALUE,
+                    )}
+                    onValueChange={(value) =>
+                      onLivelloItalianoChange?.(
+                        value === EMPTY_SELECT_VALUE ? "" : value
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona livello" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
+                      {resolvedLivelloItalianoOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )
             ) : (
               <span className="truncate">
-                {asString(workerRow.livello_italiano)
+                {resolvedLivelloItaliano
                   ? getLookupOptionLabel(
-                      resolveLookupSingleValueOptions(
-                        asString(workerRow.livello_italiano),
-                        livelloItalianoOptions,
-                      ),
-                      asString(workerRow.livello_italiano),
+                      resolvedLivelloItalianoOptions,
+                      resolvedLivelloItaliano,
                     )
                   : "-"}
               </span>
@@ -334,12 +445,24 @@ export function WorkerProfileOverview({
           </div>
           <div className="text-muted-foreground flex items-center gap-2">
             <VenusAndMarsIcon className="size-4 shrink-0" />
-            {isEditing && draft ? (
-              canUseSessoSelect ? (
+            {isEditing && (useFormFields || draft) ? (
+              useFormFields ? (
+                canUseSessoSelect ? (
+                  <div className="w-full max-w-xs">
+                    <FieldLookupSelect
+                      name="sesso"
+                      options={sessoOptions}
+                      placeholder="Seleziona sesso"
+                    />
+                  </div>
+                ) : (
+                  <FieldInput name="sesso" className="max-w-xs" />
+                )
+              ) : canUseSessoSelect ? (
                 <div className="w-full max-w-xs">
                   <Select
                     value={getLookupSelectValue(
-                      draft.sesso,
+                      draft?.sesso ?? "",
                       resolvedSessoOptions,
                       EMPTY_SELECT_VALUE,
                     )}
@@ -365,65 +488,88 @@ export function WorkerProfileOverview({
                 </div>
               ) : (
                 <Input
-                  value={draft.sesso}
+                  value={draft?.sesso ?? ""}
                   onChange={(event) => onFieldChange?.("sesso", event.target.value)}
                   className="max-w-xs"
                 />
               )
             ) : (
-              <span className="truncate">{asString(workerRow.sesso) || "-"}</span>
+              <span className="truncate">{resolvedSesso || "-"}</span>
             )}
           </div>
           <div className="text-muted-foreground flex items-center gap-2">
             <FlagIcon className="size-4 shrink-0" />
-            {isEditing && draft ? (
-              <div className="w-full max-w-xs">
-                <Select
-                  value={getLookupSelectValue(
-                    draft.nazionalita,
-                    resolvedNazionalitaOptions,
-                    EMPTY_SELECT_VALUE,
-                  )}
-                  onValueChange={(value) =>
-                    onFieldChange?.(
-                      "nazionalita",
-                      value === EMPTY_SELECT_VALUE ? "" : value
-                    )
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona nazionalita" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
-                    {resolvedNazionalitaOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {isEditing && (useFormFields || draft) ? (
+              useFormFields ? (
+                <div className="w-full max-w-xs">
+                  <FieldLookupSelect
+                    name="nazionalita"
+                    options={nazionalitaOptions}
+                    placeholder="Seleziona nazionalita"
+                    emptyLabel="Non indicata"
+                  />
+                </div>
+              ) : (
+                <div className="w-full max-w-xs">
+                  <Select
+                    value={getLookupSelectValue(
+                      draft?.nazionalita ?? "",
+                      resolvedNazionalitaOptions,
+                      EMPTY_SELECT_VALUE,
+                    )}
+                    onValueChange={(value) =>
+                      onFieldChange?.(
+                        "nazionalita",
+                        value === EMPTY_SELECT_VALUE ? "" : value
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona nazionalita" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
+                      {resolvedNazionalitaOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )
             ) : (
-              <span className="truncate">{asString(workerRow.nazionalita) || "-"}</span>
+              <span className="truncate">{resolvedNazionalita || "-"}</span>
             )}
           </div>
           <div className="text-muted-foreground flex items-center gap-2">
             <CalendarDaysIcon className="size-4 shrink-0" />
-            {isEditing && draft ? (
-              <Input
-                value={draft.data_di_nascita}
-                onChange={(event) => onFieldChange?.("data_di_nascita", event.target.value)}
-                type="date"
-                className="max-w-xs"
-              />
+            {isEditing && (useFormFields || draft) ? (
+              useFormFields ? (
+                <FieldInput
+                  name="data_di_nascita"
+                  type="date"
+                  className="max-w-xs"
+                />
+              ) : (
+                <Input
+                  value={draft?.data_di_nascita ?? ""}
+                  onChange={(event) => onFieldChange?.("data_di_nascita", event.target.value)}
+                  type="date"
+                  className="max-w-xs"
+                />
+              )
             ) : (
-              <span className="truncate">{asString(workerRow.data_di_nascita) || "-"}</span>
+              <span className="truncate">{resolvedDataNascita || "-"}</span>
             )}
           </div>
           <div className="text-muted-foreground flex items-center gap-2">
             <CakeIcon className="size-4 shrink-0" />
-            <span className="truncate">{getAgeFromBirthDate(workerRow.data_di_nascita) ?? "-"}</span>
+            <span className="truncate">
+              {getAgeFromBirthDate(
+                useFormFields ? resolvedDataNascita : workerRow.data_di_nascita,
+              ) ?? "-"}
+            </span>
           </div>
         </div>
       </div>

@@ -23,6 +23,7 @@ type Gate1WorkerEditor = ReturnType<typeof useSelectedWorkerEditor>;
 type Gate1WorkerContextValue = {
   editor: Gate1WorkerEditor;
   workerRow: LavoratoreRecord | null;
+  retainSelectedWorkerAfterStatusChange?: (workerId: string) => void;
 };
 
 const Gate1WorkerContext = React.createContext<Gate1WorkerContextValue | null>(
@@ -32,15 +33,17 @@ const Gate1WorkerContext = React.createContext<Gate1WorkerContextValue | null>(
 export function Gate1WorkerProvider({
   editor,
   workerRow,
+  retainSelectedWorkerAfterStatusChange,
   children,
 }: {
   editor: Gate1WorkerEditor;
   workerRow: LavoratoreRecord | null;
+  retainSelectedWorkerAfterStatusChange?: (workerId: string) => void;
   children: React.ReactNode;
 }) {
   const value = React.useMemo<Gate1WorkerContextValue>(
-    () => ({ editor, workerRow }),
-    [editor, workerRow],
+    () => ({ editor, workerRow, retainSelectedWorkerAfterStatusChange }),
+    [editor, workerRow, retainSelectedWorkerAfterStatusChange],
   );
   return (
     <Gate1WorkerContext.Provider value={value}>

@@ -9,19 +9,16 @@ import type { LavoratoreRecord } from "../../types/lavoratore";
 
 /**
  * D2 — card "Presentazione lavoratore" estratta da gate1-view.
- *
- * Prop-driven puro: delega tutto a WorkerProfileOverview, l'orchestratore
- * fornisce draft/handler. React.memo, interfaccia props invariata.
+ * Field roll-out: autosave via gateFieldsForm (parent Form).
  */
 export const GatePresentationCard = React.memo(function GatePresentationCard({
   worker,
   workerRow,
   statusAlert,
-  headerDraft,
-  descriptionValue,
-  livelloItaliano,
   sessoOptions,
   nazionalitaOptions,
+  livelloItalianoOptions,
+  lookupColorsByDomain,
   presentationPhotoSlots,
   selectedPresentationPhotoIndex,
   isEditing,
@@ -31,9 +28,6 @@ export const GatePresentationCard = React.memo(function GatePresentationCard({
   onToggleEdit,
   onUploadPhoto,
   onSelectedPresentationPhotoIndexChange,
-  onHeaderChange,
-  livelloItalianoOptions,
-  onLivelloItalianoChange,
 }: {
   worker: LavoratoreListItem;
   workerRow: LavoratoreRecord;
@@ -42,19 +36,10 @@ export const GatePresentationCard = React.memo(function GatePresentationCard({
     reasonLabel: string;
     tone: "critical" | "muted";
   } | null;
-  headerDraft: {
-    nome: string;
-    cognome: string;
-    email: string;
-    telefono: string;
-    sesso: string;
-    nazionalita: string;
-    data_di_nascita: string;
-  };
-  descriptionValue: string;
-  livelloItaliano: string;
   sessoOptions: Array<{ label: string; value: string }>;
   nazionalitaOptions: Array<{ label: string; value: string }>;
+  livelloItalianoOptions: Array<{ label: string; value: string }>;
+  lookupColorsByDomain: Map<string, string>;
   presentationPhotoSlots: string[];
   selectedPresentationPhotoIndex: number;
   isEditing: boolean;
@@ -64,9 +49,6 @@ export const GatePresentationCard = React.memo(function GatePresentationCard({
   onToggleEdit?: () => void;
   onUploadPhoto?: () => void;
   onSelectedPresentationPhotoIndexChange: (value: number) => void;
-  livelloItalianoOptions: Array<{ label: string; value: string }>;
-  onHeaderChange: (field: string, value: string) => void;
-  onLivelloItalianoChange: (value: string) => void;
 }) {
   return (
     <GateInfoCard
@@ -117,14 +99,11 @@ export const GatePresentationCard = React.memo(function GatePresentationCard({
           worker={worker}
           workerRow={workerRow}
           isEditing={isEditing}
-          draft={{
-            ...headerDraft,
-            descrizione_pubblica: descriptionValue,
-          }}
-          livelloItaliano={livelloItaliano}
+          useFormFields
           livelloItalianoOptions={livelloItalianoOptions}
           sessoOptions={sessoOptions}
           nazionalitaOptions={nazionalitaOptions}
+          lookupColorsByDomain={lookupColorsByDomain}
           presentationPhotoSlots={presentationPhotoSlots}
           selectedPresentationPhotoIndex={selectedPresentationPhotoIndex}
           showUploadPhotoAction={showUploadPhotoAction}
@@ -133,8 +112,6 @@ export const GatePresentationCard = React.memo(function GatePresentationCard({
           onSelectedPresentationPhotoIndexChange={
             onSelectedPresentationPhotoIndexChange
           }
-          onLivelloItalianoChange={onLivelloItalianoChange}
-          onFieldChange={onHeaderChange}
         />
       </div>
     </GateInfoCard>

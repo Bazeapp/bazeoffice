@@ -10,16 +10,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, screen } from "@testing-library/react"
 
 import { renderWithProviders } from "@/test/test-utils"
-import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
+import type { PayrollBoardCardData, PayrollBoardColumnData } from "../../types"
 
 const { mockUsePayrollBoard } = vi.hoisted(() => ({ mockUsePayrollBoard: vi.fn() }))
 
-vi.mock("../hooks/use-payroll-board", () => ({
+vi.mock("../../hooks/use-payroll-board", () => ({
   usePayrollBoard: mockUsePayrollBoard,
   TERMINAL_STAGE_IDS: new Set<string>(),
 }))
 
-import { PayrollOverviewView } from "./payroll-overview-view"
+import { PayrollOverviewView } from "../payroll-overview-view"
 
 function makeCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCardData {
   return {

@@ -45,6 +45,7 @@ import { useController } from "react-hook-form";
 import { Form } from "@/components/ui/form";
 import { FieldInput } from "@/components/forms/field-components";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
+import { onboardingCardFormSchema } from "../../lib/onboarding-schemas";
 import {
   Field,
   FieldDescription,
@@ -562,7 +563,7 @@ export function OnboardingCard({
   );
 
   // Throttle the family-availability edge function: per-field saves happen
-  // immediately (via DebouncedInput onSave), but the expensive recompute is
+  // immediately via FieldInput autosave, but the expensive recompute is
   // scheduled 10s after the last availability-related edit and coalesced
   // across multiple edits. The user can also trigger it immediately with
   // the explicit button.
@@ -661,6 +662,7 @@ export function OnboardingCard({
   // family-availability (throttled). Resync realtime senza clobber: keepDirtyValues.
   const form = useAutoSaveForm({
     defaults: buildOnboardingDefaults(card),
+    schema: onboardingCardFormSchema,
     onSave: async (patch) => {
       const processPatch: Record<string, unknown> = {};
       const addressPatch: Record<string, unknown> = {};

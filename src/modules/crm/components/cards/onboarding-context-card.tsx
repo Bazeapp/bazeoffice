@@ -38,6 +38,7 @@ import { useController } from "react-hook-form";
 import { Form } from "@/components/ui/form";
 import { FieldTextarea } from "@/components/forms/field-components";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
+import { onboardingContextFormSchema } from "../../lib/onboarding-schemas";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
@@ -655,6 +656,7 @@ export function OnboardingContextCard({
   // al target giusto: quasi tutto sul processo, la data call sulla famiglia.
   const form = useAutoSaveForm({
     defaults: buildContextDefaults(card),
+    schema: onboardingContextFormSchema,
     onSave: async (patch) => {
       if (!card) return;
       const processPatch: Record<string, unknown> = {};

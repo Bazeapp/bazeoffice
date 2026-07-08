@@ -1,7 +1,9 @@
 import * as React from "react";
 import { NotebookPenIcon } from "lucide-react";
+import { useFormContext, useWatch } from "react-hook-form";
 
 import { RecruiterFeedbackPanel } from "../../components/recruiter-feedback-panel";
+import { asString } from "../../lib/base-utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,36 +30,46 @@ import {
 } from "../../lib/lookup-utils";
 import { GateInfoCard } from "./gate-info-card";
 import { EMPTY_SELECT_VALUE } from "./gate-field-primitives";
+import { useGate1WorkerEditor } from "./gate1-worker-context";
 
 /**
  * D2 — card "Assessment finale" estratta da gate1-view.
  *
- * Prop-driven: lo stato interno serve solo al dialog di conferma cambio-stato;
- * value/options/handler arrivano via prop. React.memo.
+ * Field roll-out: stato/motivazione leggono da gateFieldsForm; il salvataggio
+ * resta imperativo (dialog di conferma) e non passa dall'autosave debounced.
+ * Feedback recruiter: append imperativo via patch dal context.
  */
 export const GateAssessmentCard = React.memo(function GateAssessmentCard({
-  statusValue,
   statusOptions,
-  onStatusChange,
-  nonIdoneoReasonValue,
   nonIdoneoReasonOptions,
-  onNonIdoneoReasonChange,
-  feedbackRaw,
   operatorName,
-  onFeedbackSave,
   lookupColorsByDomain,
 }: {
-  statusValue: string;
   statusOptions: Array<{ label: string; value: string }>;
-  onStatusChange: (value: string) => void;
-  nonIdoneoReasonValue: string;
   nonIdoneoReasonOptions: Array<{ label: string; value: string }>;
-  onNonIdoneoReasonChange: (value: string) => void;
-  feedbackRaw: string;
   operatorName: string;
-  onFeedbackSave: (nextValue: string) => Promise<void> | void;
   lookupColorsByDomain: Map<string, string>;
 }) {
+  const { setValue } = useFormContext();
+  const {
+    editor: {
+      patchSelectedWorkerField,
+      handleNonIdoneoReasonsChange,
+    },
+    workerRow,
+    retainSelectedWorkerAfterStatusChange,
+  } = useGate1WorkerEditor();
+
+  const statusValue = useWatch({ name: "stato_lavoratore" }) as string | undefined;
+  const nonIdoneoReasonValue = useWatch({
+    name: "motivazione_non_idoneo",
+  }) as string | undefined;
+  const resolvedStatusValue =
+    typeof statusValue === "string" ? statusValue : "";
+  const resolvedNonIdoneoReason =
+    typeof nonIdoneoReasonValue === "string" ? nonIdoneoReasonValue : "";
+  const feedbackRaw = asString(workerRow?.feedback_recruiter);
+
   const orderedStatusOptions = React.useMemo(() => {
     const desiredOrder = new Map([
       ["Non qualificato", 1],
@@ -88,30 +100,47 @@ export const GateAssessmentCard = React.memo(function GateAssessmentCard({
   const handleStatusSelection = React.useCallback(
     (value: string) => {
       const nextValue = getLookupLabelForSave(value, orderedStatusOptions);
-      if (!nextValue || nextValue === statusValue) return;
+      if (!nextValue || nextValue === resolvedStatusValue) return;
       setPendingStatusValue(nextValue);
-      setPendingNonIdoneoReason(nonIdoneoReasonValue);
+      setPendingNonIdoneoReason(resolvedNonIdoneoReason);
       setIsStatusConfirmOpen(true);
     },
-    [orderedStatusOptions, statusValue, nonIdoneoReasonValue],
+    [orderedStatusOptions, resolvedStatusValue, resolvedNonIdoneoReason],
   );
 
   const handleStatusConfirm = React.useCallback(() => {
     if (!pendingStatusValue) return;
     const willBeNonIdoneo =
       normalizeLookupComparableToken(pendingStatusValue) === "non idoneo";
-    onStatusChange(pendingStatusValue);
-    if (willBeNonIdoneo) {
-      onNonIdoneoReasonChange(pendingNonIdoneoReason);
+    const workerId = asString(workerRow?.id);
+
+    if (workerId) {
+      retainSelectedWorkerAfterStatusChange?.(workerId);
     }
+
+    void patchSelectedWorkerField("stato_lavoratore", pendingStatusValue || null);
+    setValue("stato_lavoratore", pendingStatusValue, { shouldDirty: false });
+
+    if (willBeNonIdoneo) {
+      void handleNonIdoneoReasonsChange(
+        pendingNonIdoneoReason ? [pendingNonIdoneoReason] : [],
+      );
+      setValue("motivazione_non_idoneo", pendingNonIdoneoReason, {
+        shouldDirty: false,
+      });
+    }
+
     setIsStatusConfirmOpen(false);
     setPendingStatusValue(null);
     setPendingNonIdoneoReason("");
   }, [
-    onStatusChange,
-    onNonIdoneoReasonChange,
-    pendingStatusValue,
+    handleNonIdoneoReasonsChange,
+    patchSelectedWorkerField,
     pendingNonIdoneoReason,
+    pendingStatusValue,
+    retainSelectedWorkerAfterStatusChange,
+    setValue,
+    workerRow?.id,
   ]);
 
   const handleStatusConfirmOpenChange = React.useCallback((open: boolean) => {
@@ -139,7 +168,9 @@ export const GateAssessmentCard = React.memo(function GateAssessmentCard({
           showHistory={false}
           value={feedbackRaw}
           operatorName={operatorName}
-          onSave={onFeedbackSave}
+          onSave={(next) =>
+            patchSelectedWorkerField("feedback_recruiter", next.trim() || null)
+          }
         />
       </div>
 
@@ -148,7 +179,11 @@ export const GateAssessmentCard = React.memo(function GateAssessmentCard({
           Aggiorna lo stato del lavoratore dopo il colloquio
         </p>
         <RadioGroup
-          value={getLookupSelectValue(statusValue, orderedStatusOptions, "")}
+          value={getLookupSelectValue(
+            resolvedStatusValue,
+            orderedStatusOptions,
+            "",
+          )}
           onValueChange={handleStatusSelection}
           className="gap-3"
         >
@@ -185,7 +220,7 @@ export const GateAssessmentCard = React.memo(function GateAssessmentCard({
             </AlertDialogTitle>
             <AlertDialogDescription>
               Lo stato del lavoratore verrà aggiornato da{" "}
-              <strong>{statusValue || "nessuno"}</strong> a{" "}
+              <strong>{resolvedStatusValue || "nessuno"}</strong> a{" "}
               <strong>{pendingStatusValue || "nessuno"}</strong>.
             </AlertDialogDescription>
           </div>

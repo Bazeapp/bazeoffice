@@ -6,7 +6,10 @@ export type {
   RicercaWorkerSchedaResult,
 } from "./ricerca-rpc"
 export type {
+  GenericRow,
   RicercaWorkerSelectionCard,
   RicercaWorkerSelectionColumn,
   RicercaWorkersPipelineState,
+  StageDefinition,
+  StageMetadata,
 } from "./workers-pipeline"

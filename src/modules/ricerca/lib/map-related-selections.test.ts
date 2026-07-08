@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { excludeCurrentProcess } from "./ricerca-map-related-selections"
+import { excludeCurrentProcess } from "./map-related-selections"
 
 const CURRENT = "proc-current"
 

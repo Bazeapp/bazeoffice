@@ -1,10 +1,10 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { useCreateMutation, useMoveMutation } from "@/hooks/use-board-mutations"
+import { useDeleteBoardRecordMutation, useMoveMutation } from "@/hooks/use-board-mutations"
 
 import { fetchLookupValues } from "@/lib/lookup-values"
-import { deleteRecord, updateRecord } from "@/lib/record-crud"
+import { updateRecord } from "@/lib/record-crud"
 import { fetchAssunzioniBoard } from "../queries/fetch-assunzioni-board"
 import type { AssunzioniBoardRpcRow } from "../types/gestione-rpc"
 import type {
@@ -632,13 +632,13 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
     [moveMutation],
   )
 
-  const deleteMutation = useCreateMutation<
+  const deleteMutation = useDeleteBoardRecordMutation<
     { rapportoId: string },
-    unknown,
     AssunzioniBoardColumnData[]
   >({
     queryKey: ASSUNZIONI_BOARD_QUERY_KEY,
-    mutationFn: ({ rapportoId }) => deleteRecord("rapporti_lavorativi", rapportoId),
+    table: "rapporti_lavorativi",
+    getRecordId: ({ rapportoId }) => rapportoId,
     applyOptimistic: (previous, { rapportoId }) => {
       if (!previous) return previous
       return previous.map((column) => ({

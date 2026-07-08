@@ -1,5 +1,7 @@
 import type { LavoratoreListItem } from "@/modules/lavoratori/components/lavoratore-card"
 
+export type GenericRow = Record<string, unknown>
+
 export type RicercaWorkerSelectionCard = {
   id: string
   status: string
@@ -25,4 +27,15 @@ export type RicercaWorkersPipelineState = {
   columns: RicercaWorkerSelectionColumn[]
   moveCard: (selectionId: string, targetStatusId: string) => Promise<void>
   refresh: () => void
+}
+
+export type StageDefinition = {
+  id: string
+  label: string
+  color: string | null
+}
+
+export type StageMetadata = {
+  definitions: StageDefinition[]
+  aliases: Map<string, string>
 }

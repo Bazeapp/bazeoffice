@@ -217,8 +217,15 @@ export default defineConfig([
     ],
     // Test harnesses reproduce unguarded save patterns on purpose (e.g.
     // characterization tests for the echo bug class) — keep the rule on
-    // production components only.
-    ignores: ['**/*.test.tsx', '**/*.integration.test.tsx'],
+    // production components only. Infrastructure that IMPLEMENTS the legacy
+    // and form-context patterns is excluded (BIS.4 / R17).
+    ignores: [
+      '**/*.test.tsx',
+      '**/*.integration.test.tsx',
+      'src/components/forms/field-components.tsx',
+      'src/components/ui/debounced-input.tsx',
+      'src/hooks/use-debounced-save.ts',
+    ],
     rules: {
       'no-restricted-syntax': [
         'warn',
@@ -382,13 +389,12 @@ export default defineConfig([
           // <FieldInput name="...">/<FieldTextarea name="..."> (react-hook-form
           // + useAutoSaveForm).
           //
-          // STATO (FASE 5 BIS chiusa): 22/24 aree convertite. Le occorrenze
-          // residue vivono SOLO nei 4 god-component del dettaglio lavoratore —
-          // gate1-view, lavoratori-cerca-view, ricerca-workers-pipeline-view,
-          // worker-pipeline-summary-cards — che riceveranno il form-context
-          // durante il refactor D2 (split god-component, vedi docs/audit-response.md).
-          // Resta 'warn': la migrazione di quei file è scope di D2, non un TODO
-          // sciolto. Promuovere a 'error' SOLO a valle di D2 (lista vuota).
+          // STATO (FASE 5 BIS chiusa, U15): i pannelli di dettaglio board sono su
+          // form-context. Restano 'warn' solo debito locale documentato (orari in
+          // ricerca-detail-view, schedulingDraft in crm-assegnazione, gateDraft in
+          // gate1-view hook) e i 4 god-component view-level ancora in split D2.
+          // Promuovere committedValue/useDebouncedSave a 'error' globale quando il
+          // debito residuo è zero.
           // Limite flat-config: questi selettori condividono il blocco con le
           // regole FASE 4 (debito a 'warn'), quindi non è separabile la severità
           // per-selettore senza spezzarle.
@@ -406,6 +412,15 @@ export default defineConfig([
           message:
             'Salvataggio per-campo a mano (useDebouncedSave). Migra i campi a form-context: useAutoSaveForm + <FieldInput/FieldTextarea/...> (FASE 5 BIS).',
         },
+        {
+          // FASE 5 BIS.4 (R17) — hand-rolled draft wiring on raw inputs: onChange
+          // that calls setXxxDraft instead of react-hook-form Field*. Legacy debt
+          // in detail panels (ricerca orari, recruiter feedback, …) until migrated.
+          selector:
+            "JSXOpeningElement[name.name=/^(Input|Textarea)$/] > JSXAttribute[name.name='onChange'] :has(CallExpression[callee.name=/^set.*Draft$/])",
+          message:
+            'Handler cablato a mano (onChange + setXxxDraft su Input/Textarea). Usa useAutoSaveForm + <FieldInput/FieldTextarea name="..."> (FASE 5 BIS).',
+        },
       ],
     },
   },
@@ -420,6 +435,7 @@ export default defineConfig([
   // I campi di dettaglio di cerca/ricerca/gate1/summary sono su useAutoSaveForm +
   // useController. Restano alcuni stati locali NON-form documentati inline, che
   // non sono salvataggi per-campo e hanno guard espliciti di anti-clobber:
+  //   - ricerca-detail-view: orariDraft (section edit-mode, migrate to Field*);
   //   - ricerca: familyAddressDraft (mirror di display, save esplicito + re-sync);
   //   - gate1-view: gateDraft (merge per-campo anti-echo);
   //   - crm-assegnazione: schedulingDraft (form edit-mode con guard isEditing).
@@ -432,11 +448,15 @@ export default defineConfig([
       'src/modules/crm/components/cards/onboarding-card.tsx',
       'src/modules/crm/components/famiglia-processo-detail-content.tsx',
       'src/modules/gestione-contrattuale/components/assunzioni-detail-sheet.tsx',
+      'src/modules/gestione-contrattuale/components/assunzioni-detail-fields.tsx',
+      'src/modules/gestione-contrattuale/components/assunzioni-detail-sheet-content.tsx',
+      'src/modules/gestione-contrattuale/components/datore-detail.tsx',
+      'src/modules/gestione-contrattuale/components/lavoratore-detail.tsx',
+      'src/modules/gestione-contrattuale/components/rapporto-detail-sections.tsx',
       'src/modules/gestione-contrattuale/components/variazioni-board-view.tsx',
       'src/modules/gestione-contrattuale/components/chiusure-board-view.tsx',
       'src/modules/support/components/riattivazioni-board-view.tsx',
       'src/modules/rapporti/components/rapporto-detail-panel.tsx',
-      'src/modules/ricerca/components/ricerca-detail-view.tsx',
       'src/modules/ricerca/components/scheda-colloquio-panel.tsx',
       'src/modules/payroll/components/contributi-inps-view.tsx',
       'src/modules/payroll/components/payroll-overview-view.tsx',
@@ -449,6 +469,17 @@ export default defineConfig([
       'src/modules/ricerca/components/ricerca-workers-pipeline-view.tsx',
       'src/modules/ricerca/components/worker-pipeline-summary-cards.tsx',
       'src/modules/lavoratori/components/gate1-view.tsx',
+      'src/modules/lavoratori/components/gate1/gate-assessment-card.tsx',
+      'src/modules/lavoratori/components/gate1/gate-checks-cards.tsx',
+      'src/modules/lavoratori/components/gate1/gate-contacts-card.tsx',
+      'src/modules/lavoratori/components/gate1/gate-field-primitives.tsx',
+      'src/modules/lavoratori/components/gate1/gate-form-fields.tsx',
+      'src/modules/lavoratori/components/gate1/gate-info-card.tsx',
+      'src/modules/lavoratori/components/gate1/gate-presentation-card.tsx',
+      'src/modules/lavoratori/components/gate1/gate-referente-cards.tsx',
+      'src/modules/lavoratori/components/gate1/gate-skill-confirmations-card.tsx',
+      'src/modules/lavoratori/components/gate1/gate-verification-cards.tsx',
+      'src/modules/lavoratori/components/gate1/gate-work-types-card.tsx',
       'src/modules/crm/components/crm-assegnazione-view.tsx',
     ],
     rules: {
@@ -501,6 +532,24 @@ export default defineConfig([
     ignores: ['src/modules/*/queries/**', 'src/modules/*/components/**'],
     rules: {
       'no-restricted-imports': ['error', { paths: [QUERY_TABLE_RESTRICTION] }],
+    },
+  },
+
+  // TER.4 (R21 / U17) — soft file-size lint: visibility on remaining giants
+  // during FASE 5 splits. Warning only (KTD8): does not fail CI; trend toward
+  // zero on touched files as units land.
+  {
+    files: ['src/modules/**/hooks/use-*.ts'],
+    ignores: ['**/*.test.ts', '**/*.integration.test.ts'],
+    rules: {
+      'max-lines': ['warn', { max: 500 }],
+    },
+  },
+  {
+    files: ['src/modules/**/*.tsx'],
+    ignores: ['**/*.test.tsx', '**/*.integration.test.tsx'],
+    rules: {
+      'max-lines': ['warn', { max: 800 }],
     },
   },
 ])

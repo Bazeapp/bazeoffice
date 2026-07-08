@@ -1,10 +1,13 @@
 import * as React from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   useForm,
   type DefaultValues,
   type FieldValues,
+  type Resolver,
   type UseFormReturn,
 } from "react-hook-form";
+import type { ZodType } from "zod";
 
 import { useAutoSaveFormFields } from "@/hooks/use-auto-save-form-fields";
 
@@ -32,6 +35,7 @@ import { useAutoSaveFormFields } from "@/hooks/use-auto-save-form-fields";
 export function useAutoSaveForm<T extends FieldValues>({
   defaults,
   onSave,
+  schema,
   isPaused,
   debounceMs,
   errorMessage,
@@ -39,11 +43,16 @@ export function useAutoSaveForm<T extends FieldValues>({
   /** Valori server correnti del record (ricostruiti ad ogni render). */
   defaults: T;
   onSave: (patch: Partial<T>) => Promise<void> | void;
+  /** Optional Zod schema — validates form values via react-hook-form resolver. */
+  schema?: ZodType<T>;
   isPaused?: () => boolean;
   debounceMs?: number;
   errorMessage?: (error: unknown) => string;
 }): UseFormReturn<T> {
-  const form = useForm<T>({ defaultValues: defaults as DefaultValues<T> });
+  const form = useForm<T>({
+    defaultValues: defaults as DefaultValues<T>,
+    resolver: schema ? (zodResolver(schema) as Resolver<T>) : undefined,
+  });
 
   // Resync sui cambi server mantenendo gli edit in corso. Keyed sulla firma
   // dei valori così non resetta ad ogni render (defaults è un nuovo oggetto).

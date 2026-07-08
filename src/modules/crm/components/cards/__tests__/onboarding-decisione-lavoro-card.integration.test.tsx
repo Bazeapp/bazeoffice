@@ -31,7 +31,7 @@ import { renderWithProviders } from "@/test/test-utils"
 import {
   OnboardingDecisioneLavoroSection,
   type OnboardingDecisioneLavoroCheckboxDefaults,
-} from "./onboarding-decisione-lavoro-card"
+} from "../onboarding-decisione-lavoro-card"
 
 type Defaults = NonNullable<
   React.ComponentProps<typeof OnboardingDecisioneLavoroSection>

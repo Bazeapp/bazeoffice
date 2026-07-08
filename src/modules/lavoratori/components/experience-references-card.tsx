@@ -61,10 +61,18 @@ import {
 import { FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { useController, useFormContext } from "react-hook-form";
+import { Controller, useController, useForm, useFormContext } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { FieldInput, FieldTextarea } from "@/components/forms/field-components";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
+import {
+  NEW_WORKER_EXPERIENCE_FORM_DEFAULTS,
+  newWorkerExperienceFormSchema,
+  newWorkerReferenceFormSchema,
+  type NewWorkerExperienceFormValues,
+  type NewWorkerReferenceFormValues,
+} from "../lib/worker-creation-schemas";
 import { formatDateOnly } from "../lib/availability-utils";
 import {
   getLookupOptionLabel,
@@ -378,32 +386,32 @@ function AddReferenceAction({
   onReferenceCreate,
 }: AddReferenceActionProps) {
   const [open, setOpen] = React.useState(false);
-  const [draft, setDraft] = React.useState({
-    nome_datore: "",
-    cognome_datore: "",
-    telefono_datore: "",
+  const form = useForm<NewWorkerReferenceFormValues>({
+    resolver: zodResolver(newWorkerReferenceFormSchema),
+    defaultValues: {
+      nome_datore: "",
+      cognome_datore: "",
+      telefono_datore: "",
+    },
   });
-  const [error, setError] = React.useState<string | null>(null);
 
-  const canSubmit = React.useMemo(() => {
-    const hasIdentity =
-      draft.nome_datore.trim().length > 0 ||
-      draft.cognome_datore.trim().length > 0;
-    const hasPhone = draft.telefono_datore.trim().length > 0;
-    return hasIdentity && hasPhone;
-  }, [draft]);
+  const resetAndClose = React.useCallback(() => {
+    form.reset();
+    setOpen(false);
+  }, [form]);
 
-  const handleCreate = React.useCallback(async () => {
-    const nome = draft.nome_datore.trim();
-    const cognome = draft.cognome_datore.trim();
-    const telefono = draft.telefono_datore.trim();
+  const handleOpenChange = React.useCallback(
+    (nextOpen: boolean) => {
+      setOpen(nextOpen);
+      if (!nextOpen) form.reset();
+    },
+    [form],
+  );
 
-    if ((!nome && !cognome) || !telefono) {
-      setError("Inserisci il telefono e almeno uno tra nome e cognome.");
-      return;
-    }
-
-    setError(null);
+  const onSubmit = form.handleSubmit(async (values) => {
+    const nome = values.nome_datore.trim();
+    const cognome = values.cognome_datore.trim();
+    const telefono = values.telefono_datore.trim();
 
     await onReferenceCreate({
       esperienza_lavoratore_id: experience.id,
@@ -413,22 +421,16 @@ function AddReferenceAction({
       cognome_datore: cognome || null,
       telefono_datore: telefono,
       ruolo:
-        Array.isArray(experience.tipo_lavoro) &&
-        experience.tipo_lavoro.length > 0
+        Array.isArray(experience.tipo_lavoro) && experience.tipo_lavoro.length > 0
           ? experience.tipo_lavoro
           : null,
     });
 
-    setDraft({
-      nome_datore: "",
-      cognome_datore: "",
-      telefono_datore: "",
-    });
-    setOpen(false);
-  }, [draft, experience, onReferenceCreate]);
+    resetAndClose();
+  });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <Button
         type="button"
         variant="outline"
@@ -448,79 +450,51 @@ function AddReferenceAction({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <FieldLabel>
-              Nome
-            </FieldLabel>
-            <Input
-              value={draft.nome_datore}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  nome_datore: event.target.value,
-                }))
-              }
-              disabled={disabled}
-              className="w-full"
-            />
-          </div>
-          <div className="space-y-2">
-            <FieldLabel>
-              Cognome
-            </FieldLabel>
-            <Input
-              value={draft.cognome_datore}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  cognome_datore: event.target.value,
-                }))
-              }
-              disabled={disabled}
-              className="w-full"
-            />
-          </div>
-          <div className="space-y-2">
-            <FieldLabel>
-              Telefono
-            </FieldLabel>
-            <Input
-              type="tel"
-              value={draft.telefono_datore}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  telefono_datore: event.target.value,
-                }))
-              }
-              disabled={disabled}
-              className="w-full"
-            />
-          </div>
-          {error ? (
-            <FieldDescription className="text-destructive">
-              {error}
-            </FieldDescription>
-          ) : null}
-        </div>
+        <Form {...form}>
+          <form className="space-y-4" onSubmit={onSubmit}>
+            <div className="space-y-2">
+              <FieldLabel>Nome</FieldLabel>
+              <Input
+                {...form.register("nome_datore")}
+                disabled={disabled}
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel>Cognome</FieldLabel>
+              <Input
+                {...form.register("cognome_datore")}
+                disabled={disabled}
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel>Telefono</FieldLabel>
+              <Input
+                {...form.register("telefono_datore")}
+                type="tel"
+                disabled={disabled}
+                className="w-full"
+              />
+            </div>
+            {form.formState.errors.nome_datore?.message ||
+            form.formState.errors.telefono_datore?.message ? (
+              <FieldDescription className="text-destructive">
+                {form.formState.errors.nome_datore?.message ??
+                  form.formState.errors.telefono_datore?.message}
+              </FieldDescription>
+            ) : null}
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setOpen(false)}
-          >
-            Annulla
-          </Button>
-          <Button
-            type="button"
-            onClick={() => void handleCreate()}
-            disabled={disabled || !canSubmit}
-          >
-            Aggiungi referenza
-          </Button>
-        </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={resetAndClose}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={disabled}>
+                Aggiungi referenza
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
@@ -544,53 +518,46 @@ function AddExperienceAction({
   onExperienceCreate,
 }: AddExperienceActionProps) {
   const [open, setOpen] = React.useState(false);
-  const [draft, setDraft] = React.useState({
-    tipo_lavoro: [] as string[],
-    tipo_rapporto: "",
-    data_inizio: "",
-    data_fine: "",
-    stato_esperienza_attiva: false,
-    descrizione: "",
-    descrizione_contesto_lavorativo: "",
-    motivazione_fine_rapporto: "",
+  const form = useForm<NewWorkerExperienceFormValues>({
+    resolver: zodResolver(newWorkerExperienceFormSchema),
+    defaultValues: NEW_WORKER_EXPERIENCE_FORM_DEFAULTS,
   });
+  const statoEsperienzaAttiva = form.watch("stato_esperienza_attiva");
 
-  const resetDraft = React.useCallback(() => {
-    setDraft({
-      tipo_lavoro: [],
-      tipo_rapporto: "",
-      data_inizio: "",
-      data_fine: "",
-      stato_esperienza_attiva: false,
-      descrizione: "",
-      descrizione_contesto_lavorativo: "",
-      motivazione_fine_rapporto: "",
-    });
-  }, []);
+  const resetAndClose = React.useCallback(() => {
+    form.reset(NEW_WORKER_EXPERIENCE_FORM_DEFAULTS);
+    setOpen(false);
+  }, [form]);
 
-  const handleCreate = React.useCallback(async () => {
+  const handleOpenChange = React.useCallback(
+    (nextOpen: boolean) => {
+      setOpen(nextOpen);
+      if (!nextOpen) form.reset(NEW_WORKER_EXPERIENCE_FORM_DEFAULTS);
+    },
+    [form],
+  );
+
+  const onSubmit = form.handleSubmit(async (values) => {
     await onExperienceCreate({
       lavoratore_id: workerId,
-      tipo_lavoro: draft.tipo_lavoro.length > 0 ? draft.tipo_lavoro : null,
-      tipo_rapporto: draft.tipo_rapporto || null,
-      data_inizio: draft.data_inizio || null,
-      data_fine: draft.stato_esperienza_attiva ? null : draft.data_fine || null,
-      stato_esperienza_attiva: draft.stato_esperienza_attiva,
-      descrizione: draft.descrizione.trim() || null,
+      tipo_lavoro: values.tipo_lavoro.length > 0 ? values.tipo_lavoro : null,
+      tipo_rapporto: values.tipo_rapporto || null,
+      data_inizio: values.data_inizio || null,
+      data_fine: values.stato_esperienza_attiva ? null : values.data_fine || null,
+      stato_esperienza_attiva: values.stato_esperienza_attiva,
+      descrizione: values.descrizione.trim() || null,
       descrizione_contesto_lavorativo:
-        draft.descrizione_contesto_lavorativo.trim() || null,
-      motivazione_fine_rapporto:
-        draft.stato_esperienza_attiva
-          ? null
-          : draft.motivazione_fine_rapporto.trim() || null,
+        values.descrizione_contesto_lavorativo.trim() || null,
+      motivazione_fine_rapporto: values.stato_esperienza_attiva
+        ? null
+        : values.motivazione_fine_rapporto.trim() || null,
     });
 
-    resetDraft();
-    setOpen(false);
-  }, [draft, onExperienceCreate, resetDraft, workerId]);
+    resetAndClose();
+  });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <Button
         type="button"
         variant="outline"
@@ -613,164 +580,144 @@ function AddExperienceAction({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <FieldLabel>Tipo lavoro</FieldLabel>
-              <ExperienceRoleField
-                value={draft.tipo_lavoro}
-                options={experienceTipoLavoroOptions}
-                disabled={disabled}
-                onChange={(values) =>
-                  setDraft((current) => ({ ...current, tipo_lavoro: values }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <FieldLabel>Tipo rapporto</FieldLabel>
-              <Select
-                value={draft.tipo_rapporto || EMPTY_SELECT_VALUE}
-                onValueChange={(value) =>
-                  setDraft((current) => ({
-                    ...current,
-                    tipo_rapporto: value === EMPTY_SELECT_VALUE ? "" : value,
-                  }))
-                }
-                disabled={disabled}
-              >
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue placeholder="Seleziona tipo rapporto" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                  {experienceTipoRapportoOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.label}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <FieldLabel>Data inizio</FieldLabel>
-              <Input
-                type="date"
-                value={draft.data_inizio}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    data_inizio: event.target.value,
-                  }))
-                }
-                disabled={disabled}
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <FieldLabel>Data fine</FieldLabel>
-              <Input
-                type="date"
-                value={draft.data_fine}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    data_fine: event.target.value,
-                  }))
-                }
-                disabled={disabled || draft.stato_esperienza_attiva}
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <FieldLabel>Rapporto attivo</FieldLabel>
-              <label className="flex h-9 items-center gap-2 text-sm">
-                <Checkbox
-                  checked={draft.stato_esperienza_attiva}
-                  onCheckedChange={(checked) =>
-                    setDraft((current) => ({
-                      ...current,
-                      stato_esperienza_attiva: checked === true,
-                      data_fine: checked === true ? "" : current.data_fine,
-                    }))
-                  }
-                  disabled={disabled}
+        <Form {...form}>
+          <form className="space-y-4" onSubmit={onSubmit}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <FieldLabel>Tipo lavoro</FieldLabel>
+                <Controller
+                  name="tipo_lavoro"
+                  control={form.control}
+                  render={({ field }) => (
+                    <ExperienceRoleField
+                      value={field.value}
+                      options={experienceTipoLavoroOptions}
+                      disabled={disabled}
+                      onChange={field.onChange}
+                    />
+                  )}
                 />
-                <span>{draft.stato_esperienza_attiva ? "Si" : "No"}</span>
-              </label>
+              </div>
+              <div className="space-y-2">
+                <FieldLabel>Tipo rapporto</FieldLabel>
+                <Controller
+                  name="tipo_rapporto"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value || EMPTY_SELECT_VALUE}
+                      onValueChange={(value) =>
+                        field.onChange(value === EMPTY_SELECT_VALUE ? "" : value)
+                      }
+                      disabled={disabled}
+                    >
+                      <SelectTrigger className="h-9 w-full">
+                        <SelectValue placeholder="Seleziona tipo rapporto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
+                        {experienceTipoRapportoOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.label}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <FieldLabel>Descrizione Mansioni ed Esperienza</FieldLabel>
-              <Textarea
-                value={draft.descrizione}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    descrizione: event.target.value,
-                  }))
-                }
-                disabled={disabled}
-                className="min-h-28 w-full text-sm"
-              />
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <FieldLabel>Data inizio</FieldLabel>
+                <Input
+                  {...form.register("data_inizio")}
+                  type="date"
+                  disabled={disabled}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <FieldLabel>Data fine</FieldLabel>
+                <Input
+                  {...form.register("data_fine")}
+                  type="date"
+                  disabled={disabled || statoEsperienzaAttiva}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <FieldLabel>Rapporto attivo</FieldLabel>
+                <Controller
+                  name="stato_esperienza_attiva"
+                  control={form.control}
+                  render={({ field }) => (
+                    <label className="flex h-9 items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(checked) => {
+                          const nextValue = checked === true;
+                          field.onChange(nextValue);
+                          if (nextValue) {
+                            form.setValue("data_fine", "", { shouldDirty: true });
+                          }
+                        }}
+                        disabled={disabled}
+                      />
+                      <span>{field.value ? "Si" : "No"}</span>
+                    </label>
+                  )}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <FieldLabel>Descrizione Famiglia e Contesto</FieldLabel>
-              <Textarea
-                value={draft.descrizione_contesto_lavorativo}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    descrizione_contesto_lavorativo: event.target.value,
-                  }))
-                }
-                disabled={disabled}
-                className="min-h-28 w-full text-sm"
-              />
-            </div>
-          </div>
 
-          {!draft.stato_esperienza_attiva ? (
-            <div className="space-y-2">
-              <FieldLabel>Motivazione fine rapporto</FieldLabel>
-              <Textarea
-                value={draft.motivazione_fine_rapporto}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    motivazione_fine_rapporto: event.target.value,
-                  }))
-                }
-                disabled={disabled}
-                className="min-h-24 w-full text-sm"
-              />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <FieldLabel>Descrizione Mansioni ed Esperienza</FieldLabel>
+                <Textarea
+                  {...form.register("descrizione")}
+                  disabled={disabled}
+                  className="min-h-28 w-full text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <FieldLabel>Descrizione Famiglia e Contesto</FieldLabel>
+                <Textarea
+                  {...form.register("descrizione_contesto_lavorativo")}
+                  disabled={disabled}
+                  className="min-h-28 w-full text-sm"
+                />
+              </div>
             </div>
-          ) : null}
-        </div>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              resetDraft();
-              setOpen(false);
-            }}
-          >
-            Annulla
-          </Button>
-          <Button
-            type="button"
-            onClick={() => void handleCreate()}
-            disabled={disabled || !workerId}
-          >
-            Aggiungi esperienza
-          </Button>
-        </DialogFooter>
+            {!statoEsperienzaAttiva ? (
+              <div className="space-y-2">
+                <FieldLabel>Motivazione fine rapporto</FieldLabel>
+                <Textarea
+                  {...form.register("motivazione_fine_rapporto")}
+                  disabled={disabled}
+                  className="min-h-24 w-full text-sm"
+                />
+              </div>
+            ) : null}
+
+            {form.formState.errors.data_fine?.message ? (
+              <FieldDescription className="text-destructive">
+                {form.formState.errors.data_fine.message}
+              </FieldDescription>
+            ) : null}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={resetAndClose}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={disabled || !workerId}>
+                Aggiungi esperienza
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

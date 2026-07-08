@@ -18,7 +18,7 @@ import {
   workerMatchesAdvancedFilters,
   type MapAdvancedFilters,
   type MapFilterableWorker,
-} from "./ricerca-workers-map-filters"
+} from "./map-filters"
 
 function makeWorker(overrides: Partial<MapFilterableWorker> = {}): MapFilterableWorker {
   return {

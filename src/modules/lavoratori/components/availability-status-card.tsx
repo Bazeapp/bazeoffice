@@ -1,10 +1,11 @@
 import { CalendarDaysIcon, PencilIcon } from "lucide-react"
+import { useController, useWatch } from "react-hook-form"
 
+import { FieldInput } from "@/components/forms/field-components"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   getLookupLabelForSave,
@@ -19,11 +20,6 @@ type LookupOption = {
   value: string
 }
 
-type AvailabilityStatusDraft = {
-  disponibilita: string
-  data_ritorno_disponibilita: string
-}
-
 type AvailabilityStatusCardProps = {
   isEditing: boolean
   showEditAction?: boolean
@@ -31,14 +27,45 @@ type AvailabilityStatusCardProps = {
   defaultOpen?: boolean
   isUpdating: boolean
   disponibilitaOptions: LookupOption[]
-  draft: AvailabilityStatusDraft
-  selectedDisponibilita: string
   selectedDisponibilitaBadgeClassName: string
-  selectedDataRitorno: string
   onToggleEdit: () => void
-  onDisponibilitaChange: (value: string) => void
-  onDataRitornoChange: (value: string) => void
-  onDataRitornoBlur: () => void
+}
+
+function DisponibilitaSelect({
+  options,
+  disabled,
+}: {
+  options: LookupOption[]
+  disabled?: boolean
+}) {
+  const { field } = useController({ name: "disponibilita" })
+  const value = typeof field.value === "string" ? field.value : ""
+
+  return (
+    <Select
+      value={getLookupSelectValue(value, options, EMPTY_SELECT_VALUE)}
+      onValueChange={(nextValue) => {
+        const normalized =
+          nextValue === EMPTY_SELECT_VALUE
+            ? ""
+            : getLookupLabelForSave(nextValue, options)
+        field.onChange(normalized)
+      }}
+      disabled={disabled}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Seleziona stato" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
 }
 
 export function AvailabilityStatusCard({
@@ -48,16 +75,17 @@ export function AvailabilityStatusCard({
   defaultOpen = true,
   isUpdating,
   disponibilitaOptions,
-  draft,
-  selectedDisponibilita,
   selectedDisponibilitaBadgeClassName,
-  selectedDataRitorno,
   onToggleEdit,
-  onDisponibilitaChange,
-  onDataRitornoChange,
 }: AvailabilityStatusCardProps) {
+  const disponibilita = useWatch({ name: "disponibilita" }) as string | undefined
+  const dataRitorno = useWatch({ name: "data_ritorno_disponibilita" }) as
+    | string
+    | undefined
+  const disponibilitaValue = typeof disponibilita === "string" ? disponibilita : ""
+  const dataRitornoValue = typeof dataRitorno === "string" ? dataRitorno : ""
   const isReturnDateEnabled =
-    normalizeLookupComparableToken(draft.disponibilita) === "non disponibile"
+    normalizeLookupComparableToken(disponibilitaValue) === "non disponibile"
 
   return (
     <DetailSectionBlock
@@ -97,37 +125,14 @@ export function AvailabilityStatusCard({
           </FieldLabel>
           {isEditing ? (
             <div className="max-w-xs">
-              <Select
-                value={getLookupSelectValue(
-                  draft.disponibilita,
-                  disponibilitaOptions,
-                  EMPTY_SELECT_VALUE
-                )}
-                onValueChange={(value) => {
-                  const nextValue =
-                    value === EMPTY_SELECT_VALUE
-                      ? ""
-                      : getLookupLabelForSave(value, disponibilitaOptions)
-                  onDisponibilitaChange(nextValue)
-                }}
+              <DisponibilitaSelect
+                options={disponibilitaOptions}
                 disabled={isUpdating}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona stato" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={EMPTY_SELECT_VALUE}>Non indicata</SelectItem>
-                  {disponibilitaOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
-          ) : selectedDisponibilita ? (
+          ) : disponibilitaValue ? (
             <Badge variant="outline" className={selectedDisponibilitaBadgeClassName}>
-              {selectedDisponibilita}
+              {disponibilitaValue}
             </Badge>
           ) : (
             <span className="text-muted-foreground text-sm">-</span>
@@ -140,15 +145,14 @@ export function AvailabilityStatusCard({
           </FieldLabel>
           {isEditing ? (
             <div className="max-w-xs">
-              <Input
+              <FieldInput
+                name="data_ritorno_disponibilita"
                 type="date"
-                value={selectedDataRitorno}
-                onChange={(event) => onDataRitornoChange(event.target.value)}
                 disabled={!isReturnDateEnabled}
               />
             </div>
           ) : (
-            <p className="text-sm text-foreground">{selectedDataRitorno || "-"}</p>
+            <p className="text-sm text-foreground">{dataRitornoValue || "-"}</p>
           )}
         </div>
       </div>

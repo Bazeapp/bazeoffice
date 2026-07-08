@@ -259,7 +259,7 @@ function FieldTipoContrattoSelect({ name }: { name: string }) {
   );
 }
 
-function VariazioniDetailSheet({
+export function VariazioniDetailSheet({
   card,
   open,
   onOpenChange,
