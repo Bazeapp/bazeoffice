@@ -23,7 +23,7 @@ const apiMocks = {
   pendingWriteCount: 0,
 }
 
-vi.mock("@/lib/anagrafiche-api", () => ({
+vi.mock("@/lib/write-tracking", () => ({
   getMillisSinceLastLocalWrite: () => apiMocks.millisSinceLastLocalWrite,
   getPendingWriteCount: () => apiMocks.pendingWriteCount,
 }))

@@ -128,4 +128,6 @@ curl -s -X POST "http://127.0.0.1:54321/auth/v1/token?grant_type=password" \
 
 - `docs/plans/2026-06-19-001-test-fase1-safety-net-plan.md` — U8 (local
   environment) and U5/U6 (Playwright E2E) that depend on this setup.
+- `baze-supabase/supabase/seed_e2e_operators.sql` — four role-specific E2E users.
+- `baze-supabase/supabase/seed_e2e_famiglia.sql` — famiglia fixture for E2E.
 - `docs/testing-strategy.md`

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { RecruiterFeedbackSheet } from "@/components/lavoratori/recruiter-feedback-sheet";
+import { RecruiterFeedbackSheet } from "@/modules/lavoratori/components/recruiter-feedback-sheet";
 
 const meta = {
   title: "Lavoratori/RecruiterFeedbackSheet",

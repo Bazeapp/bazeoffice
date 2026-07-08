@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { SelectionDetailsCard } from "@/components/ricerca/selection-details-card";
+import { SelectionDetailsCard } from "@/modules/ricerca/components/selection-details-card";
 import { lookupColorsByDomain } from "../mocks";
 
 const statusOptions = [

@@ -1,4 +1,4 @@
-import { LavoratoriCercaView } from "@/components/lavoratori/lavoratori-cerca-view"
+import { LavoratoriCercaView } from "@/modules/lavoratori/components/lavoratori-cerca-view"
 import type { OpenRicercaDetailOptions } from "@/routes/app-routes"
 
 type LavoratoriCercaPageProps = {
