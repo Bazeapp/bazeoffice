@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { getQuarterDateRange } from "./use-contributi-inps-board"
+import { getQuarterDateRange } from "../lib/contributi-quarter"
 
 describe("use-contributi-inps-board getQuarterDateRange", () => {
   it("Q1 → Jan 1 00:00:00 .. Mar 31 23:59:59.999 (UTC)", () => {

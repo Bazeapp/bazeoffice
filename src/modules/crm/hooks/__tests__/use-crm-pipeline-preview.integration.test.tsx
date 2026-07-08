@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { serializeCrmPipelineFilters } from "../../lib/board-fetch"
 import type { CrmPipelineFilters, GenericRow } from "../../types"
-import { mapCardData } from "../use-crm-pipeline-preview"
+import { mapCardData } from "../../lib/card-mapper"
 
 describe("serializeCrmPipelineFilters", () => {
   it("serializes filters with stable tipoLavoro ordering for query keys", () => {

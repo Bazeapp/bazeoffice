@@ -18,7 +18,8 @@ import {
 } from "lucide-react"
 
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
-import { usePayrollBoard, TERMINAL_STAGE_IDS } from "../hooks/use-payroll-board"
+import { usePayrollBoard } from "../hooks/use-payroll-board"
+import { TERMINAL_STAGE_IDS } from "@/modules/payroll/lib"
 import { ContributiInpsView } from "./contributi-inps-view"
 import {
   CEDOLINI_FILTER_GROUPS,

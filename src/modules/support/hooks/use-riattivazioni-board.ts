@@ -6,6 +6,13 @@ import { useMoveMutation } from "@/hooks/use-board-mutations"
 import { updateRecord } from "@/lib/record-crud"
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { fetchRiattivazioniBoard } from "../queries/fetch-riattivazioni-board"
+import {
+  getChiusuraTipoLabel,
+  hasRiattivazioneStatus,
+  resolveStage,
+  RIATTIVAZIONI_STAGE_DEFINITIONS,
+  shouldShowUnclassifiedChiusura,
+} from "../lib/riattivazioni-stage"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoFamilyLabel, getRapportoWorkerLabel } from "@/modules/rapporti/lib"
 import type {
@@ -29,12 +36,6 @@ import type {
 } from "../types"
 const RIATTIVAZIONI_BOARD_QUERY_KEY = ["riattivazioni-board"] as const
 
-type RiattivazioneStageDefinition = {
-  id: RiattivazioneStageId
-  label: string
-  color: string
-}
-
 type UseRiattivazioniBoardState = {
   loading: boolean
   error: string | null
@@ -45,15 +46,6 @@ type UseRiattivazioniBoardState = {
     updater: (card: RiattivazioniBoardCardData) => RiattivazioniBoardCardData,
   ) => void
 }
-
-export const RIATTIVAZIONI_STAGE_DEFINITIONS: RiattivazioneStageDefinition[] = [
-  { id: "da sentire", label: "Da sentire", color: "sky" },
-  { id: "in attesa", label: "In attesa", color: "amber" },
-  { id: "riattivato", label: "Riattivato", color: "emerald" },
-  { id: "non riattiva", label: "Non riattiva", color: "rose" },
-]
-
-const DEFAULT_STAGE_ID: RiattivazioneStageId = "da sentire"
 
 type RiattivazioneFamigliaLookup = Pick<FamigliaRecord, "id" | "nome" | "cognome" | "email">
 
@@ -66,14 +58,6 @@ type RiattivazioneBaseCard = {
 }
 
 type BoardData = { columns: RiattivazioniBoardColumnData[] }
-
-function normalizeToken(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-}
 
 function toStringValue(value: unknown): string | null {
   if (value === null || value === undefined) return null
@@ -100,26 +84,6 @@ function formatItalianDate(value: unknown) {
     month: "2-digit",
     year: "numeric",
   }).format(parsed)
-}
-
-export function resolveStage(value: string | null | undefined): RiattivazioneStageId {
-  const normalized = normalizeToken(value)
-  const matchedStage = RIATTIVAZIONI_STAGE_DEFINITIONS.find(
-    (stage) => normalizeToken(stage.id) === normalized || normalizeToken(stage.label) === normalized,
-  )
-  return matchedStage?.id ?? DEFAULT_STAGE_ID
-}
-
-export function hasRiattivazioneStatus(value: string | null | undefined) {
-  return normalizeToken(value).length > 0
-}
-
-export function shouldShowUnclassifiedChiusura(rapporto: RapportoLavorativoRecord | null) {
-  return normalizeToken(rapporto?.stato_servizio) === "non attivo"
-}
-
-export function getChiusuraTipoLabel(record: ChiusuraContrattoRecord) {
-  return record.tipo_licenziamento ?? record.tipo_decesso ?? "-"
 }
 
 function getFallbackFamigliaLabel(record: ChiusuraContrattoRecord) {

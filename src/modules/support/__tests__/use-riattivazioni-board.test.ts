@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { resolveStage, hasRiattivazioneStatus, shouldShowUnclassifiedChiusura, getChiusuraTipoLabel } from "@/modules/support/hooks"
+import { resolveStage, hasRiattivazioneStatus, shouldShowUnclassifiedChiusura, getChiusuraTipoLabel } from "@/modules/support/lib"
 import type { ChiusuraContrattoRecord, RapportoLavorativoRecord } from "@/types"
 
 const rapporto = (stato: string | null): RapportoLavorativoRecord =>

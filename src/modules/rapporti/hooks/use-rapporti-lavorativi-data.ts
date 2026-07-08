@@ -13,6 +13,9 @@ import { fetchContributiInpsByRapporto, fetchMesiCalendarioByIds, fetchMesiLavor
 import { fetchRapportiLavorativiBoard } from "../queries/fetch-rapporti-lavorativi-board"
 import { fetchRapportiLavorativiByIds } from "../queries/fetch-rapporti-lavorativi-by-ids"
 import { getRapportoProcessIds } from "@/modules/rapporti/lib"
+import {
+  mapRapportoBoardRow,
+} from "../lib/rapporti-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
 // The board lists rapporti; related tables are loaded only for the selected
@@ -49,82 +52,6 @@ type CreateRapportoTicketInput = {
 }
 
 const PAGE_SIZE = 50
-
-/**
- * Bindings between source DB/RPC columns and the card fields they populate
- * on a board row.
- *
- * The board RPC `rapporti_lavorativi_board` enriches four display-only
- * columns on top of `to_jsonb(rapporto)`:
- *   - `cognome_nome_datore_proper`  (overridden with `famiglie.cognome nome`)
- *   - `nome_lavoratore_per_url`     (overridden with `lavoratori.cognome nome`)
- *   - `data_fine_rapporto`          (joined from `chiusure_contratti`)
- *   - `stato_rapporto`              (computed: In attivazione / Attivo / Terminato / …)
- *
- * The detail loader (`fetchRapportiLavorativi`, raw SELECT *) may return these
- * columns with stale or null values (`data_fine_rapporto` and `stato_rapporto`
- * are NOT real columns on the table). When the detail loader writes back into
- * the board cache via `setQueryData`, the merged row preserves the board's
- * enriched values via the inline merge. But a subsequent realtime invalidate
- * refetches the board RPC and rebuilds the row from scratch — without
- * Pattern A, any field the refetch path doesn't return (e.g. if the RPC
- * shape ever narrows, or a partial row arrives) would be wiped from the
- * open detail panel. `preserveMissingFields` makes the board rebuild
- * symmetric to the detail merge.
- */
-export const RAPPORTO_FIELD_BINDINGS: Array<
-  readonly [string, keyof RapportoLavorativoRecord]
-> = [
-  ["cognome_nome_datore_proper", "cognome_nome_datore_proper"],
-  ["nome_lavoratore_per_url", "nome_lavoratore_per_url"],
-  ["data_fine_rapporto", "data_fine_rapporto"],
-  ["stato_rapporto", "stato_rapporto"],
-]
-
-/**
- * For each binding, if the source column is NOT present in `row`, restore
- * the previous card's value. Mutates `card` in place. If `row` is missing
- * entirely, every bound field falls back to previous. If the column is
- * present (even with value `null`), the fresh value wins — clearing in DB
- * propagates correctly.
- */
-export function preserveMissingFields<TCard extends Record<string, unknown>>(
-  card: TCard,
-  previousCard: TCard,
-  row: Record<string, unknown> | undefined | null,
-  bindings: Array<readonly [string, keyof TCard]>,
-) {
-  for (const [column, field] of bindings) {
-    if (row && column in row) continue
-    ;(card as Record<string, unknown>)[field as string] = previousCard[field]
-  }
-}
-
-/**
- * Map a raw board row into a `RapportoLavorativoRecord` card, preserving
- * detail-only fields from `previousCard` when their source columns are
- * absent from the fresh `row`. The board RPC currently returns the full
- * rapporto record so most fields come straight from `row`, but Pattern A
- * keeps the open detail panel robust to RPC shape changes and concurrent
- * detail-vs-board writes.
- */
-export function mapRapportoBoardRow(
-  row: RapportoLavorativoRecord,
-  previousCard?: RapportoLavorativoRecord,
-): RapportoLavorativoRecord {
-  const card: RapportoLavorativoRecord = { ...row }
-  if (previousCard) {
-    preserveMissingFields(
-      card as unknown as Record<string, unknown>,
-      previousCard as unknown as Record<string, unknown>,
-      row as unknown as Record<string, unknown>,
-      RAPPORTO_FIELD_BINDINGS as unknown as Array<
-        readonly [string, keyof Record<string, unknown>]
-      >,
-    )
-  }
-  return card
-}
 
 function isTransientTableQueryError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error)

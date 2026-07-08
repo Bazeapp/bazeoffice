@@ -10,9 +10,9 @@ origin: brainstorming session — unnecessary hook re-exports
 
 ## Summary
 
-Clean up `src/modules/*/hooks/` so hooks folders export **only React hooks** (and hook-specific types). Move pure helpers, constants, and board mappers to each module's `lib/`. Slim barrel `index.ts` files, fix cross-module imports, delete dead code, and add a regression guard.
+Clean up `src/modules/*/hooks/` so hooks folders export **only React hooks** (and hook-specific types). Move pure helpers, constants, and board mappers to each module's `lib/`. Slim barrel `index.ts` files, fix cross-module imports, and add a regression guard.
 
-Chosen scope: **Option C** — full separation + dead code removal, one PR per module (Approach A).
+Chosen scope: **Option C** — full separation + barrel cleanup, one PR per module (Approach A).
 
 ## Problem
 
@@ -21,7 +21,6 @@ Several hook files and barrel `index.ts` files export symbols that do not belong
 1. **Passthrough re-exports** — hook files re-export symbols already defined in `lib/` (CRM, ricerca, lavoratori).
 2. **Pure helpers in hook files** — board mappers, field-binding constants, `preserveMissingFields`, stage resolvers live in `use-*-board.ts` and are re-exported through barrels.
 3. **Bloated barrels** — `gestione-contrattuale`, `payroll`, and `rapporti` barrels export 10+ non-hook symbols but have **zero consumers**.
-4. **Dead code** — `src/modules/lavoratori/hooks/worker-editor/` (10 duplicate files, zero imports).
 
 This violates AGENTS.md module anatomy (`lib/` for pure utils, `hooks/` for React hooks) and encourages cross-module imports of non-hook symbols via `@/modules/<dominio>/hooks`.
 
@@ -35,14 +34,26 @@ This violates AGENTS.md module anatomy (`lib/` for pure utils, `hooks/` for Reac
 
 **`hooks/index.ts` must not export:** constants, mappers, `preserveMissingFields`, lib passthroughs, or utility functions.
 
+### File layout convention
+
+**No new subfolders** under `hooks/` or `lib/`. Keep a flat directory and group related pure code with a **filename prefix** (kebab-case), matching existing patterns like `assunzioni-board.ts`, `pipeline-fetch.ts`, `gate1-utils.ts`.
+
+| Instead of | Use |
+|------------|-----|
+| `lib/worker-editor/draft-builders.ts` | `lib/worker-editor-draft-builders.ts` |
+| `lib/board/assunzioni.ts` | `lib/assunzioni-board.ts` |
+
+Legacy subfolders already in the repo (`lavoratori/lib/lavoratori-data/`, `crm/lib/crm-pipeline-preview/`, etc.) are **not** migrated in this pass — only avoid adding new ones.
+
 ## Per-module extraction map
 
 ### lavoratori
 
+Section hooks (`use-worker-header-editor.ts`, etc.) stay flat under `hooks/` — composed by `use-selected-worker-editor.ts`. Do **not** introduce a `hooks/worker-editor/` subfolder (FASE 5 TER.2 U7 is out of scope; if done later, use the same flat + prefix rule).
+
 | Action | Detail |
 |--------|--------|
-| Delete | `hooks/worker-editor/` (10 duplicate files, 0 imports) |
-| Move to `lib/worker-editor/` | `draft-builders.ts`, `editor-utils.ts`, `patch-worker-field.ts` (pure; currently under `hooks/`) |
+| Move to `lib/` (prefixed) | `hooks/draft-builders.ts` → `lib/worker-editor-draft-builders.ts`; `hooks/editor-utils.ts` → `lib/worker-editor-utils.ts`; `hooks/patch-worker-field.ts` → `lib/worker-editor-patch-field.ts` |
 | Stop re-exporting | `buildRelatedSelectionsMap` from `use-lavoratori-data.ts` — already lives in `lib/worker-list-mapper.ts` |
 | Unexport | `resolveGateViewProps` / `ResolvedGateViewProps` in `use-gate1-view.ts` (internal only) |
 | Slim barrel | `useLavoratoriData`, `useSelectedWorkerEditor`, `useGate1View`, `useLavoratoriCercaDetail` only |
@@ -112,7 +123,7 @@ No changes — already exports only `useAnagraficheData`.
 | `ricerca/components/ricerca-detail-view.tsx` | `@/modules/crm/hooks` → `normalizeLookupPatchLabels` | `@/modules/crm/lib` |
 | `payroll/components/payroll-overview-view.tsx` | `../hooks/use-payroll-board` → `TERMINAL_STAGE_IDS` | `@/modules/payroll/lib` |
 | `support/__tests__/use-riattivazioni-board.test.ts` | `@/modules/support/hooks` → stage helpers | `@/modules/support/lib` |
-| `lavoratori/components/lavoratori-cerca-detail-panel.tsx` | `../hooks/draft-builders` → `WorkerAddressDraft` | `@/modules/lavoratori/lib` |
+| `lavoratori/components/lavoratori-cerca-detail-panel.tsx` | `../hooks/draft-builders` → `WorkerAddressDraft` | `@/modules/lavoratori/lib` (`worker-editor-draft-builders`) |
 
 **Stays as hook import:** `ricerca/hooks/use-ricerca-worker-pipeline-overlay.ts` → `@/modules/lavoratori/hooks` `useSelectedWorkerEditor`.
 
@@ -142,7 +153,7 @@ Update `docs/solutions/best-practices/characterization-testing-board-hook-contra
 
 | # | Scope | Est. size |
 |---|-------|-----------|
-| 1 | `lavoratori` — delete `worker-editor/`, move editor pure files, slim barrel | ~200 LOC |
+| 1 | `lavoratori` — move editor pure files to prefixed `lib/worker-editor-*.ts`, slim barrel | ~150 LOC |
 | 2 | `crm` + `ricerca` — remove passthrough re-exports, fix cross-imports | ~80 LOC |
 | 3 | `gestione-contrattuale` — extract 3 board lib files | ~400 LOC |
 | 4 | `rapporti` | ~150 LOC |
@@ -165,7 +176,8 @@ No behavior changes — move-only refactors. Existing characterization tests mov
 ## Out of scope
 
 - Unifying duplicate `preserveMissingFields` implementations across modules.
-- FASE 5 large-file hook splits (`use-gate1-view`, `use-crm-pipeline-preview`, etc.).
+- FASE 5 large-file hook splits (`use-gate1-view`, `use-crm-pipeline-preview`, etc.) and TER.2 section-hook file moves (U7).
+- Consolidating or flattening **existing** legacy `lib/` subfolders (`lavoratori-data/`, `crm-pipeline-preview/`, etc.).
 - Bulk-migrating components from `../hooks/use-*` direct imports to barrel `../hooks` imports.
 - ESLint `no-restricted-exports` plugin (boundary Vitest guard is sufficient for v1).
 
@@ -174,5 +186,5 @@ No behavior changes — move-only refactors. Existing characterization tests mov
 - Every `hooks/index.ts` exports only hooks (+ hook types).
 - Zero non-hook exports from `use-*.ts` files (except unexported internals).
 - Cross-module pure-symbol imports go through `lib/`, not `hooks/`.
-- `worker-editor/` duplicate folder deleted.
+- New pure code lands as flat, prefixed files in `lib/` — no new subfolders under `hooks/` or `lib/`.
 - Regression guard prevents reintroduction.

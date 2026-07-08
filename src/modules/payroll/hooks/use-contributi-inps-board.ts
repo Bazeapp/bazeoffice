@@ -18,6 +18,7 @@ const CONTRIBUTI_REALTIME_TABLES = [
   "lavoratori",
 ]
 import { getRapportoFamilyLabel, getRapportoWorkerLabel, resolveRapportoStatus } from "@/modules/rapporti/lib"
+import { getQuarterDateRange } from "../lib/contributi-quarter"
 import type {
   ContributoInpsRecord,
   LookupValueRecord,
@@ -68,10 +69,6 @@ const LEGACY_STAGE_ALIASES: Record<string, string> = {
   "pagopa ricevuto": "PagoPA ricevuto",
   pagato: "Pagato",
 }
-
-const QUARTER_ORDER: ContributoQuarterValue[] = ["Q1", "Q2", "Q3", "Q4"]
-
-
 
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
@@ -260,31 +257,6 @@ function getYearFromDate(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) return null
   return date.getUTCFullYear()
 }
-
-export function getQuarterDateRange(year: number, quarter: ContributoQuarterValue) {
-  const quarterIndex = QUARTER_ORDER.indexOf(quarter)
-  if (quarterIndex < 0) return null
-
-  const startMonth = quarterIndex * 3
-  const start = new Date(Date.UTC(year, startMonth, 1))
-  const end = new Date(Date.UTC(year, startMonth + 3, 0))
-
-  return {
-    start: start.toISOString(),
-    end: new Date(
-      Date.UTC(
-        end.getUTCFullYear(),
-        end.getUTCMonth(),
-        end.getUTCDate(),
-        23,
-        59,
-        59,
-        999
-      )
-    ).toISOString(),
-  }
-}
-
 
 function formatCurrency(value: number | null | undefined) {
   if (typeof value !== "number" || Number.isNaN(value)) return null

@@ -9,6 +9,7 @@ import { updateRecord } from "@/lib/record-crud"
 import { fetchCedoliniBoard } from "../queries/fetch-cedolini-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/modules/rapporti/lib"
+import { preserveDetailFields } from "../lib/payroll-board"
 
 const PAYROLL_REALTIME_TABLES = [
   "mesi_lavorati",
@@ -99,8 +100,6 @@ const LEGACY_STAGE_ALIASES: Record<string, string> = {
  * vuoto. NB: spostare a mano in DONE NON invia la conferma di pagamento.
  * Per ri-bloccarlo, reinserire "DONE" qui.
  */
-export const TERMINAL_STAGE_IDS = new Set<string>([])
-
 function normalizeToken(value: string | null | undefined) {
   return String(value ?? "")
     .trim()
@@ -210,25 +209,6 @@ function formatItalianDate(value: string | null | undefined) {
  * previous card had a value, restore the previous value. If the fresh card
  * has a non-null value (even if narrower than detail), keep the fresh value.
  */
-// Exported for the U2 contract test (Pattern A — the realtime stale-detail guard).
-export const PRESERVED_DETAIL_FIELDS: ReadonlyArray<keyof PayrollBoardCardData> = [
-  "presenze",
-  "presenzeRegolari",
-]
-
-export function preserveDetailFields(
-  card: PayrollBoardCardData,
-  previousCard: PayrollBoardCardData | undefined,
-): PayrollBoardCardData {
-  if (!previousCard) return card
-  const merged: PayrollBoardCardData = { ...card }
-  for (const field of PRESERVED_DETAIL_FIELDS) {
-    if (merged[field] == null && previousCard[field] != null) {
-      ;(merged as Record<string, unknown>)[field] = previousCard[field]
-    }
-  }
-  return merged
-}
 
 async function fetchPayrollBoardData(
   selectedMonth: string,

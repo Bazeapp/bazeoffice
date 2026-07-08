@@ -18,3 +18,10 @@ export {
   type SupportTicketUrgency,
   type SupportTicketUrgencyDefinition,
 } from "./support-ticket-config"
+export {
+  getChiusuraTipoLabel,
+  hasRiattivazioneStatus,
+  resolveStage,
+  RIATTIVAZIONI_STAGE_DEFINITIONS,
+  shouldShowUnclassifiedChiusura,
+} from "./riattivazioni-stage"

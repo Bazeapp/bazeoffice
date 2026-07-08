@@ -13,7 +13,7 @@ import { describe, expect, it } from "vitest"
 import {
   preserveDetailFields,
   PRESERVED_DETAIL_FIELDS,
-} from "./use-payroll-board"
+} from "../lib/payroll-board"
 import type { PayrollBoardCardData } from "../types"
 
 function makeCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCardData {
