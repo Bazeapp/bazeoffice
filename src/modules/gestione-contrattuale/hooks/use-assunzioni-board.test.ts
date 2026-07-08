@@ -7,7 +7,7 @@ import {
   RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS,
   mapAssunzioniBoardCard,
   preserveMissingFields,
-} from "./use-assunzioni-board"
+} from "../lib/assunzioni-board"
 import type { AssunzioneRecord, AssunzioniBoardCardData } from "../types"
 import type { AssunzioniBoardRpcRow } from "../types/gestione-rpc"
 import type {
