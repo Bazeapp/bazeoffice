@@ -1,0 +1,5 @@
+export type { DocumentoLavoratoreRecord } from "./documento-lavoratore"
+export type { EsperienzaLavoratoreRecord } from "./esperienza-lavoratore"
+export type { LavoratoreRecord } from "./lavoratore"
+export type { ReferenzaLavoratoreRecord } from "./referenza-lavoratore"
+export type { LavoratoreSchedaResult } from "./lavoratori-rpc"

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { SchedaColloquioPanel } from "@/components/ricerca/scheda-colloquio-panel";
+import { SchedaColloquioPanel } from "@/modules/ricerca/components/scheda-colloquio-panel";
 import { lookupColorsByDomain } from "../mocks";
 
 const meta = {

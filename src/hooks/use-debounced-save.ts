@@ -1,7 +1,7 @@
 import * as React from "react"
 import { toast } from "sonner"
 
-import { beginPendingWrite, endPendingWrite } from "@/lib/anagrafiche-api"
+import { beginPendingWrite, endPendingWrite } from "@/lib/write-tracking"
 
 const DEFAULT_DEBOUNCE_MS = 300
 

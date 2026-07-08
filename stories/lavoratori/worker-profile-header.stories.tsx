@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { WorkerProfileHeader } from "@/components/lavoratori/worker-profile-header";
+import { WorkerProfileHeader } from "@/modules/lavoratori/components/worker-profile-header";
 import { lookupOptions, mockWorker, mockWorkerRow } from "../mocks";
 
 const meta = {

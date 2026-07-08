@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { RicercaFamilySummaryCard } from "@/components/ricerca/ricerca-family-summary-card";
+import { RicercaFamilySummaryCard } from "@/modules/ricerca/components/ricerca-family-summary-card";
 import { mockCrmCard, mockCrmLookupOptions } from "../mocks";
 
 const meta = {

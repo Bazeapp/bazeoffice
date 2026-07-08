@@ -1,4 +1,4 @@
-import { Gate1View } from "@/components/lavoratori/gate1-view"
+import { Gate1View } from "@/modules/lavoratori/components/gate1-view"
 
 export function Gate1Page() {
   return (

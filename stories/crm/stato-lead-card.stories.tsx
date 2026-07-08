@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { StatoLeadCard } from "@/components/crm/cards/stato-lead-card";
+import { StatoLeadCard } from "@/modules/crm/components/cards/stato-lead-card";
 import { mockCrmCard, mockCrmLookupOptions } from "../mocks";
 
 const meta = {

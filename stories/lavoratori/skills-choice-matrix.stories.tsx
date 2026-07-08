@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { SkillsChoiceMatrix } from "@/components/lavoratori/skills-choice-matrix";
+import { SkillsChoiceMatrix } from "@/modules/lavoratori/components/skills-choice-matrix";
 import { lookupColorsByDomain } from "../mocks";
 
 const options = [

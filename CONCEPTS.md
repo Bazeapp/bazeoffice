@@ -2,6 +2,36 @@
 
 Shared domain vocabulary for this project — entities, named processes, and status concepts with project-specific meaning. Seeded with core domain vocabulary, then accretes as ce-compound and ce-compound-refresh process learnings; direct edits are fine. Glossary only, not a spec or catch-all.
 
+## Backoffice domain modules
+
+Route-aligned modules under `src/modules/<slug>/` using **Italian slugs from piano §6 / AGENTS.md**: `anagrafiche`, `support`, `crm`, `lavoratori`, `ricerca`, `gestione-contrattuale`, `rapporti`, `payroll`. Boundaries follow backoffice navigation in `src/routes/app-routes.ts`. The same entity may appear in both the CRUD UI module and a workflow module.
+
+### Module anatomy
+The prescribed layout inside each domain module: an internal repository file that is the sole Supabase caller for that domain, an adapters file that is the sole place database column names appear, thin query and mutation wrappers, and a public barrel that exports types and fetchers but never the repository or adapters. Shared cross-domain infrastructure lives outside modules in shared library code.
+
+### Anagrafiche module
+Generic database CRUD UI — AgGrid views over raw tables (all anagrafiche tabs). Entity CRUD data lives in home domain modules; anagrafiche imports via public barrels.
+
+### Support module
+Customer support: tickets, prove e colloqui, riattivazioni. Routes under `/customer-support/*`.
+
+### Crm module
+Famiglie workflow: pipeline famiglie, assegnazione, richieste attivazione. Routes `/pipeline` and `/assegnazione`.
+
+### Lavoratori module
+Worker workflow: Gate 1, Gate 2, cerca lavoratori. Routes `/gate-1`, `/gate-2`, `/cerca-lavoratori`.
+
+### Ricerca module
+Matching and search: ricerca board/detail, processi matching, selezioni. Routes `/ricerca`.
+
+### Gestione-contrattuale module
+Contract lifecycle boards: assunzioni, chiusure, variazioni. Excludes rapporti (Rapporti module) and riattivazioni (Support module).
+
+### Rapporti module
+Rapporti lavorativi list/detail/board. Route `/gestione-contrattuale/rapporti-lavorativi`.
+
+### Payroll module
+Cedolini and contributi INPS. Routes `/payroll/cedolini` and `/payroll/contributi-inps`.
 ## Operator roles
 
 Staff who authenticate into BazeOffice. Each operator has one or more role tokens stored in `operatori.ruolo`. The canonical tokens:

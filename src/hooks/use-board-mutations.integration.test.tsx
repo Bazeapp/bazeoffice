@@ -33,10 +33,7 @@ vi.mock("sonner", () => ({
 import { toast } from "sonner"
 import { renderHookWithQueryClient } from "@/test/test-utils"
 import { usePatchMutation } from "@/hooks/use-board-mutations"
-import {
-  getMillisSinceLastLocalWrite,
-  getPendingWriteCount,
-} from "@/lib/anagrafiche-api"
+import { getMillisSinceLastLocalWrite, getPendingWriteCount } from "@/lib/write-tracking"
 
 beforeEach(() => {
   vi.clearAllMocks()

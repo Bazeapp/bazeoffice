@@ -5,6 +5,38 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
+// FASE 4 BIS follow-up: queryTable was private to the anagrafiche-api
+// monolith; the module split had to export it. Only per-query fetcher files
+// under queries/ and the legacy indirizzi wrapper may import it — new
+// fetchers use a dedicated RPC. Enforced by the blocks that reference this
+// constant; the allowed importers are excluded via block-level `ignores`.
+const QUERY_TABLE_RESTRICTION = {
+  name: '@/lib/table-query',
+  importNames: ['queryTable'],
+  message:
+    'queryTable è riservata ai fetcher di modulo (queries/). Per nuovi fetcher usa una RPC dedicata (FASE 4 BIS).',
+}
+
+const MODULE_BOUNDARY_RESTRICTIONS = {
+  patterns: [
+    {
+      group: ['@/modules/*/*.api', '@/modules/*/*.api.ts'],
+      message:
+        'Import from @/modules/<dominio>/<subfolder> (components, hooks, queries, types, lib) only. Deep query/mutation file imports are module-internal drift.',
+    },
+    {
+      group: [
+        '@/modules/*/*.adapters',
+        '@/modules/*/*.adapters.ts',
+        '@/modules/*/lib/adapters',
+        '@/modules/*/lib/adapters.ts',
+      ],
+      message:
+        'Import from @/modules/<dominio>/<subfolder> (components, hooks, queries, types, lib) only. Adapters are module-internal — never import adapters across module boundaries.',
+    },
+  ],
+}
+
 export default defineConfig([
   globalIgnores([
     'dist',
@@ -63,7 +95,7 @@ export default defineConfig([
   },
 
   // Rule 0 (FASE 4 BIS): la edge function `table-query` è consentita SOLO nel
-  // chokepoint `src/lib/anagrafiche-api.ts` (la helper `queryTable`, usata dalla
+  // chokepoint `src/lib/table-query.ts` (la helper `queryTable`, usata dalla
   // pagina Anagrafiche e dal loader dello schema filtri). Ovunque altrove si
   // devono usare RPC dedicate. Questa regola intercetta `invokeEdgeFunction(
   // "table-query", ...)`. I glob già coperti da altri blocchi no-restricted-syntax
@@ -72,7 +104,7 @@ export default defineConfig([
   {
     files: ['src/**/*.{ts,tsx}'],
     ignores: [
-      'src/lib/anagrafiche-api.ts',
+      'src/lib/table-query.ts',
       'src/lib/supabase-edge.ts',
       'src/hooks/use-*-board.ts',
       'src/hooks/use-*-data.ts',
@@ -88,7 +120,7 @@ export default defineConfig([
           selector:
             "CallExpression[callee.name='invokeEdgeFunction'] > Literal[value='table-query']",
           message:
-            'table-query è consentita solo in src/lib/anagrafiche-api.ts (chokepoint queryTable: Anagrafiche + schema-loader filtri). Non aggiungere nuove chiamate table-query: crea una RPC dedicata (FASE 4 BIS).',
+            'table-query è consentita solo in src/lib/table-query.ts (chokepoint queryTable: Anagrafiche + schema-loader filtri). Non aggiungere nuove chiamate table-query: crea una RPC dedicata (FASE 4 BIS).',
         },
       ],
     },
@@ -104,6 +136,10 @@ export default defineConfig([
       'src/hooks/use-*-data.ts',
       'src/hooks/use-*-pipeline.ts',
       'src/hooks/use-crm-*.ts',
+      'src/modules/*/hooks/use-*-board.ts',
+      'src/modules/*/hooks/use-*-data.ts',
+      'src/modules/*/hooks/use-*-pipeline.ts',
+      'src/modules/*/hooks/use-crm-*.ts',
     ],
     ignores: ['src/hooks/use-board-mutations.ts'],
     rules: {
@@ -144,19 +180,25 @@ export default defineConfig([
   // Query as the source of truth, cache lifecycle is owned by queryClient /
   // hook abstractions, not by the components.
   {
-    files: ['src/components/**/*.{ts,tsx}', 'src/pages/**/*.{ts,tsx}'],
+    files: [
+      'src/components/**/*.{ts,tsx}',
+      'src/pages/**/*.{ts,tsx}',
+      'src/modules/*/components/**/*.{ts,tsx}',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
         {
           paths: [
             {
-              name: '@/lib/anagrafiche-api',
+              name: '@/lib/write-tracking',
               importNames: ['clearReadCaches'],
               message:
                 'Do not invalidate read caches from components. Expose a callback on the hook or use queryClient.invalidateQueries.',
             },
+            QUERY_TABLE_RESTRICTION,
           ],
+          ...MODULE_BOUNDARY_RESTRICTIONS,
         },
       ],
     },
@@ -168,13 +210,21 @@ export default defineConfig([
   // gradually. New occurrences still surface in IDE + CI logs. Promote to
   // "error" once the existing debt is cleared.
   {
-    files: ['src/components/**/*.tsx', 'src/pages/**/*.tsx'],
+    files: [
+      'src/components/**/*.tsx',
+      'src/pages/**/*.tsx',
+      'src/modules/*/components/**/*.tsx',
+    ],
+    // Test harnesses reproduce unguarded save patterns on purpose (e.g.
+    // characterization tests for the echo bug class) — keep the rule on
+    // production components only.
+    ignores: ['**/*.test.tsx', '**/*.integration.test.tsx'],
     rules: {
       'no-restricted-syntax': [
         'warn',
         {
           // FASE 4 BIS — niente table-query nei componenti: usare una RPC
-          // dedicata (vedi src/lib/anagrafiche-api.ts). Qui è 'warn' perché
+          // dedicata (vedi src/lib/table-query.ts). Qui è 'warn' perché
           // condivide severità con le altre regole di questo blocco, ma
           // resta visibile in IDE/CI.
           selector:
@@ -375,31 +425,31 @@ export default defineConfig([
   //   - crm-assegnazione: schedulingDraft (form edit-mode con guard isEditing).
   {
     files: [
-      'src/components/crm/cards/stato-lead-card.tsx',
-      'src/components/crm/cards/selection-details-card.tsx',
-      'src/components/crm/cards/onboarding-context-card.tsx',
-      'src/components/crm/cards/onboarding-decisione-lavoro-card.tsx',
-      'src/components/crm/cards/onboarding-card.tsx',
-      'src/components/crm/famiglia-processo-detail-content.tsx',
-      'src/components/gestione-contrattuale/assunzioni-detail-sheet.tsx',
-      'src/components/gestione-contrattuale/variazioni-board-view.tsx',
-      'src/components/gestione-contrattuale/chiusure-board-view.tsx',
-      'src/components/gestione-contrattuale/riattivazioni-board-view.tsx',
-      'src/components/gestione-contrattuale/rapporto-detail-panel.tsx',
-      'src/components/ricerca/ricerca-detail-view.tsx',
-      'src/components/ricerca/scheda-colloquio-panel.tsx',
-      'src/components/payroll/contributi-inps-view.tsx',
-      'src/components/payroll/payroll-overview-view.tsx',
-      'src/components/prove-colloqui/prove-colloqui-view.tsx',
-      'src/components/lavoratori/address-section-card.tsx',
-      'src/components/lavoratori/availability-calendar-card.tsx',
-      'src/components/lavoratori/experience-references-card.tsx',
-      'src/components/lavoratori/worker-profile-header.tsx',
-      'src/components/lavoratori/lavoratori-cerca-view.tsx',
-      'src/components/ricerca/ricerca-workers-pipeline-view.tsx',
-      'src/components/ricerca/worker-pipeline-summary-cards.tsx',
-      'src/components/lavoratori/gate1-view.tsx',
-      'src/components/crm/crm-assegnazione-view.tsx',
+      'src/modules/crm/components/cards/stato-lead-card.tsx',
+      'src/modules/ricerca/components/selection-details-card.tsx',
+      'src/modules/crm/components/cards/onboarding-context-card.tsx',
+      'src/modules/crm/components/cards/onboarding-decisione-lavoro-card.tsx',
+      'src/modules/crm/components/cards/onboarding-card.tsx',
+      'src/modules/crm/components/famiglia-processo-detail-content.tsx',
+      'src/modules/gestione-contrattuale/components/assunzioni-detail-sheet.tsx',
+      'src/modules/gestione-contrattuale/components/variazioni-board-view.tsx',
+      'src/modules/gestione-contrattuale/components/chiusure-board-view.tsx',
+      'src/modules/support/components/riattivazioni-board-view.tsx',
+      'src/modules/rapporti/components/rapporto-detail-panel.tsx',
+      'src/modules/ricerca/components/ricerca-detail-view.tsx',
+      'src/modules/ricerca/components/scheda-colloquio-panel.tsx',
+      'src/modules/payroll/components/contributi-inps-view.tsx',
+      'src/modules/payroll/components/payroll-overview-view.tsx',
+      'src/modules/support/components/prove-colloqui/prove-colloqui-view.tsx',
+      'src/modules/lavoratori/components/address-section-card.tsx',
+      'src/modules/lavoratori/components/availability-calendar-card.tsx',
+      'src/modules/lavoratori/components/experience-references-card.tsx',
+      'src/modules/lavoratori/components/worker-profile-header.tsx',
+      'src/modules/lavoratori/components/lavoratori-cerca-view.tsx',
+      'src/modules/ricerca/components/ricerca-workers-pipeline-view.tsx',
+      'src/modules/ricerca/components/worker-pipeline-summary-cards.tsx',
+      'src/modules/lavoratori/components/gate1-view.tsx',
+      'src/modules/crm/components/crm-assegnazione-view.tsx',
     ],
     rules: {
       'no-restricted-syntax': [
@@ -416,6 +466,41 @@ export default defineConfig([
             'FASE 5 BIS (enforced): questo file è form-context. Non reintrodurre useDebouncedSave: usa useAutoSaveForm + Field*.',
         },
       ],
+    },
+  },
+
+  // Rule 3 (domain modules): consumers outside src/modules/ must use subfolder
+  // barrels (@/modules/<dominio>/<subfolder>), never deep .api.ts or lib/adapters imports.
+  // Module-internal files live under src/modules/** and are excluded here;
+  // cross-module deep-import enforcement inside modules lands with U3+.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [
+      'src/modules/**',
+      'src/components/**',
+      'src/pages/**',
+      // Grandfathered queryTable importer (verbatim move from the monolith).
+      'src/lib/indirizzi-api.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { paths: [QUERY_TABLE_RESTRICTION], ...MODULE_BOUNDARY_RESTRICTIONS },
+      ],
+    },
+  },
+
+  // Rule 4 (table-query containment, module internals): queryTable was
+  // private to the monolith; the module split had to export it. Only
+  // queries/ fetcher files and the legacy indirizzi wrapper may import it —
+  // everything else uses a dedicated RPC (FASE 4 BIS). Module components are
+  // covered by the components block above; this block covers the remaining
+  // module-internal files (hooks, lib, types, mutations).
+  {
+    files: ['src/modules/**/*.{ts,tsx}'],
+    ignores: ['src/modules/*/queries/**', 'src/modules/*/components/**'],
+    rules: {
+      'no-restricted-imports': ['error', { paths: [QUERY_TABLE_RESTRICTION] }],
     },
   },
 ])

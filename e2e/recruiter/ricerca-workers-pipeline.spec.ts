@@ -47,9 +47,13 @@ test.describe("ricerca: worker pipeline moves", () => {
         hasText: /Lavoratore aggiunto in Prospetto/i,
       }),
     ).toBeVisible({ timeout: 30_000 })
-    await expect(page.getByText(idoneoMi.displayName, { exact: true }).first()).toBeVisible({
-      timeout: 30_000,
-    })
+    await expect
+      .poll(
+        async () =>
+          page.getByText(idoneoMi.displayName, { exact: true }).first().isVisible(),
+        { timeout: 30_000 },
+      )
+      .toBe(true)
 
     let selectionId: string | null = null
     await expect
