@@ -64,7 +64,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type { CrmPipelineCardData, LookupOptionsByField } from "@/modules/crm/types"
 import { fetchFamiglieByIds } from "@/modules/crm/queries"
-import { normalizeLookupPatchLabels } from "@/modules/crm/hooks"
+import { normalizeLookupPatchLabels } from "@/modules/crm/lib"
 import { useRicercaWorkersPipeline } from "../hooks/use-ricerca-workers-pipeline";
 import { STATI_RICERCA_CANONICI } from "../lib/stati-ricerca";
 import {

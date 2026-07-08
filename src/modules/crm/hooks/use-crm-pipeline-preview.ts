@@ -39,17 +39,6 @@ import {
   toStringValue,
 } from "../lib/value-utils"
 
-export {
-  ADDRESS_FIELD_BINDINGS,
-  FAMILY_FIELD_BINDINGS,
-  PROCESS_FIELD_BINDINGS,
-  RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS,
-  preserveMissingFields,
-} from "../lib/field-bindings"
-export { mapCardData } from "../lib/card-mapper"
-export { normalizeLookupPatchLabels } from "../lib/lookup-utils"
-export { serializeCrmPipelineFilters } from "../lib/board-fetch"
-
 export function useCrmPipelinePreview(
   searchQuery = "",
   filters: CrmPipelineFilters = {},

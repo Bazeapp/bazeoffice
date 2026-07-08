@@ -38,11 +38,9 @@ vi.mock("../../lib/pipeline-fetch", () => ({
 }))
 
 import { updateRecord } from "@/lib/record-crud"
-import {
-  applyRicercaWorkersPipelineMoveOptimistic,
-  mergeGroupedPipelineColumns,
-  useRicercaWorkersPipeline,
-} from "../use-ricerca-workers-pipeline"
+import { applyRicercaWorkersPipelineMoveOptimistic } from "../../lib/pipeline-mutations"
+import { mergeGroupedPipelineColumns } from "../../lib/pipeline-column-utils"
+import { useRicercaWorkersPipeline } from "../use-ricerca-workers-pipeline"
 
 describe("mergeGroupedPipelineColumns", () => {
   it("merges candidati stages into a single grouped column", () => {

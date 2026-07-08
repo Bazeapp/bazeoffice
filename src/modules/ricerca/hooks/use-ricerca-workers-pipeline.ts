@@ -16,16 +16,6 @@ import { RICERCA_WORKERS_REALTIME_TABLES } from "../lib/pipeline-constants"
 import { fetchWorkersPipelineData } from "../lib/pipeline-fetch"
 import { applyRicercaWorkersPipelineMoveOptimistic } from "../lib/pipeline-mutations"
 
-export { mergeGroupedPipelineColumns } from "../lib/pipeline-column-utils"
-export { fetchWorkersPipelineData } from "../lib/pipeline-fetch"
-export { applyRicercaWorkersPipelineMoveOptimistic } from "../lib/pipeline-mutations"
-export {
-  isArchivioStatus,
-  isCandidatiStatus,
-  isColloquiStatus,
-  isDaColloquiareStatus,
-} from "../lib/pipeline-status-utils"
-
 export function useRicercaWorkersPipeline(
   processId: string,
 ): RicercaWorkersPipelineState {
