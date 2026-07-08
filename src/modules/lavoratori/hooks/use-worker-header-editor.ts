@@ -52,7 +52,7 @@ export function useWorkerHeaderEditor({
       ]
     }
     return defaults
-  }, [selectedWorker?.immagineUrl, selectedWorkerRow?.foto])
+  }, [selectedWorker, selectedWorkerRow])
 
   React.useEffect(() => {
     setSelectedPresentationPhotoIndex(0)
