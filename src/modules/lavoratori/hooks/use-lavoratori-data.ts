@@ -1,7 +1,6 @@
 import * as React from "react"
 
 import type { UseLavoratoriDataOptions } from "../types"
-import { buildRelatedSelectionsMap } from "../lib/worker-list-mapper"
 import type { LavoratoreRecord } from "../types/lavoratore"
 import { useGate1Filters } from "./use-gate1-filters"
 import { useGate2Filters } from "./use-gate2-filters"
@@ -10,9 +9,6 @@ import { useLavoratoriList } from "./use-lavoratori-list"
 import { useLavoratoriPagination } from "./use-lavoratori-pagination"
 import { useSelectedLavoratore } from "./use-selected-lavoratore"
 import { useSelectedLavoratoreDetail } from "./use-selected-lavoratore-detail"
-
-export { buildRelatedSelectionsMap }
-export type { UseLavoratoriDataOptions }
 
 export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   const {

@@ -4,8 +4,12 @@ import { toast } from "sonner"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import { asString, readArrayStrings } from "../lib/base-utils"
 import type { LavoratoreRecord } from "../types/lavoratore"
-import { type PatchLoadingKey, type WorkerAddressDraft, buildAddressDraft } from "./draft-builders"
-import { formatEditorError } from "./editor-utils"
+import {
+  type PatchLoadingKey,
+  type WorkerAddressDraft,
+  buildAddressDraft,
+} from "../lib/worker-editor-draft-builders"
+import { formatEditorError } from "../lib/worker-editor-utils"
 
 export type UseWorkerAddressEditorParams = {
   selectedWorkerId: string | null

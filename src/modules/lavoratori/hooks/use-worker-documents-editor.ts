@@ -4,9 +4,12 @@ import { toast } from "sonner"
 import { createStripeConnectAccount } from "@/lib/stripe-connect-api"
 import { asLavoratoreRecord, asString } from "../lib/base-utils"
 import type { LavoratoreRecord } from "../types/lavoratore"
-import { type WorkerDocumentsDraft, buildDocumentsDraft } from "./draft-builders"
-import { formatEditorError } from "./editor-utils"
-import type { PatchWorkerField } from "./patch-worker-field"
+import {
+  type WorkerDocumentsDraft,
+  buildDocumentsDraft,
+} from "../lib/worker-editor-draft-builders"
+import { formatEditorError } from "../lib/worker-editor-utils"
+import type { PatchWorkerField } from "../lib/worker-editor-patch-field"
 
 export type UseWorkerDocumentsEditorParams = {
   selectedWorkerId: string | null

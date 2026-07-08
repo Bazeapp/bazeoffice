@@ -1,8 +1,11 @@
 import * as React from "react"
 
 import type { LavoratoreRecord } from "../types/lavoratore"
-import { type WorkerSkillsDraft, buildSkillsDraft } from "./draft-builders"
-import type { PatchWorkerField } from "./patch-worker-field"
+import {
+  type WorkerSkillsDraft,
+  buildSkillsDraft,
+} from "../lib/worker-editor-draft-builders"
+import type { PatchWorkerField } from "../lib/worker-editor-patch-field"
 
 export type UseWorkerSkillsEditorParams = {
   selectedWorkerId: string | null

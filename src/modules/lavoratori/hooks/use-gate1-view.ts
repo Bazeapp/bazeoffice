@@ -52,7 +52,7 @@ import type {
   GateViewProps,
 } from "../types/gate1-view";
 
-export type ResolvedGateViewProps = Required<
+type ResolvedGateViewProps = Required<
   Pick<
     GateViewProps,
     | "gateLabel"
@@ -113,7 +113,7 @@ const SKILL_PATCH_FIELDS = new Set([
   "compatibilita_con_contesti_pacati",
 ] as const satisfies ReadonlyArray<keyof GateFieldsFormDraft>);
 
-export function resolveGateViewProps(props: GateViewProps): ResolvedGateViewProps {
+function resolveGateViewProps(props: GateViewProps): ResolvedGateViewProps {
   return {
     gateLabel: props.gateLabel ?? "Gate 1",
     workerStatus: props.workerStatus ?? "qualificato",

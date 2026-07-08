@@ -21,8 +21,8 @@ import {
   type WorkerAvailabilityStatusDraft,
   buildAvailabilityDraft,
   buildAvailabilityStatusDraft,
-} from "./draft-builders"
-import { formatEditorError } from "./editor-utils"
+} from "../lib/worker-editor-draft-builders"
+import { formatEditorError } from "../lib/worker-editor-utils"
 
 export type UseWorkerAvailabilityEditorParams = {
   selectedWorkerId: string | null

@@ -1,8 +1,8 @@
 import {
   buildAvailabilityMatrixDraft,
   parseAvailabilityPayload,
-} from "../lib/availability-utils"
-import { asInputValue, asString, readArrayStrings } from "../lib/base-utils"
+} from "./availability-utils"
+import { asInputValue, asString, readArrayStrings } from "./base-utils"
 import type { LavoratoreRecord } from "../types/lavoratore"
 
 export type WorkerHeaderDraft = {

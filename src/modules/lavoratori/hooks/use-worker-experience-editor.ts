@@ -6,9 +6,12 @@ import { asString, parseNumberValue } from "../lib/base-utils"
 import type { EsperienzaLavoratoreRecord } from "../types/esperienza-lavoratore"
 import type { LavoratoreRecord } from "../types/lavoratore"
 import type { ReferenzaLavoratoreRecord } from "../types/referenza-lavoratore"
-import { type WorkerExperienceDraft, buildExperienceDraft } from "./draft-builders"
-import { formatEditorError } from "./editor-utils"
-import type { PatchWorkerField } from "./patch-worker-field"
+import {
+  type WorkerExperienceDraft,
+  buildExperienceDraft,
+} from "../lib/worker-editor-draft-builders"
+import { formatEditorError } from "../lib/worker-editor-utils"
+import type { PatchWorkerField } from "../lib/worker-editor-patch-field"
 
 export type UseWorkerExperienceEditorParams = {
   selectedWorkerId: string | null

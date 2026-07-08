@@ -67,7 +67,7 @@ import {
   type MapAdvancedFilters,
 } from "../lib/map-filters"
 import { excludeCurrentProcess } from "../lib/map-related-selections"
-import { buildRelatedSelectionsMap } from "@/modules/lavoratori/hooks"
+import { buildRelatedSelectionsMap } from "@/modules/lavoratori/lib"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 
 const DEFAULT_RADIUS_KM = 5

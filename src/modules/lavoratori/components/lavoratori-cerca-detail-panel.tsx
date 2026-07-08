@@ -21,7 +21,7 @@ import { WorkerProfileHeader } from "./worker-profile-header"
 import { RecruiterFeedbackButton } from "./recruiter-feedback-sheet"
 import { SkillsCompetenzeCard } from "./skills-competenze-card"
 import { useSelectedWorkerEditor } from "../hooks/use-selected-worker-editor"
-import type { WorkerAddressDraft } from "../hooks/draft-builders"
+import type { WorkerAddressDraft } from "@/modules/lavoratori/lib"
 import {
   AVAILABILITY_EDIT_BANDS,
   AVAILABILITY_EDIT_DAYS,
