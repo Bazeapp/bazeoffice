@@ -51,7 +51,9 @@ export function useAutoSaveForm<T extends FieldValues>({
 }): UseFormReturn<T> {
   const form = useForm<T>({
     defaultValues: defaults as DefaultValues<T>,
-    resolver: schema ? (zodResolver(schema) as Resolver<T>) : undefined,
+    resolver: schema
+      ? (zodResolver(schema as ZodType<T, FieldValues>) as Resolver<T>)
+      : undefined,
   });
 
   // Resync sui cambi server mantenendo gli edit in corso. Keyed sulla firma
