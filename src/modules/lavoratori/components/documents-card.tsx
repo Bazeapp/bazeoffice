@@ -23,6 +23,7 @@ import {
 import {
   AttachmentUploadSlot,
 } from "@/components/shared-next/attachment-upload-slot"
+import { AttachmentImage } from "@/components/shared-next/attachment-image"
 import {
   hasAttachmentValue,
   type AttachmentLink,
@@ -856,9 +857,11 @@ export function DocumentsCard({
           </DialogClose>
           {selectedPreview ? (
             <div className="flex max-h-[88vh] items-center justify-center overflow-hidden rounded-lg">
-              <img
+              <AttachmentImage
                 src={selectedPreview.url}
+                type={selectedPreview.type}
                 alt={selectedPreview.label}
+                downloadName={selectedPreview.label}
                 className="max-h-[88vh] w-auto max-w-full object-contain"
               />
             </div>

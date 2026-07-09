@@ -25,6 +25,7 @@ import {
   readArrayStrings,
 } from "../lib/base-utils"
 import { isDirectInvolvementSelection } from "../lib/involvement-utils"
+import { sortSelectionGroupsByRank } from "../lib/stati-selezione"
 import {
   getTagClassName,
   resolveLookupColor,
@@ -170,7 +171,7 @@ export function useLavoratoriCercaDetail({
       groups.set(groupKey, currentItems);
     }
 
-    return Array.from(groups.entries());
+    return sortSelectionGroupsByRank(Array.from(groups.entries()));
   }, [relatedActiveSearches.direct]);
   const groupedOtherRelatedSearches = React.useMemo(() => {
     const groups = new Map<string, WorkerRelatedSearchItem[]>();
@@ -182,7 +183,7 @@ export function useLavoratoriCercaDetail({
       groups.set(groupKey, currentItems);
     }
 
-    return Array.from(groups.entries());
+    return sortSelectionGroupsByRank(Array.from(groups.entries()));
   }, [relatedActiveSearches.other]);
   const recruiterLabelsById = React.useMemo(
     () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
@@ -1011,6 +1012,7 @@ export function useLavoratoriCercaDetail({
   const workerSectionTabs = React.useMemo<WorkerSectionTab[]>(() => {
     const tabs: WorkerSectionTab[] = [
       { id: "profilo", label: "Profilo", icon: UsersIcon },
+      { id: "processi", label: "Ricerche", icon: MessageSquareTextIcon },
       { id: "residenza", label: "Residenza", icon: MapPinIcon },
       { id: "calendario", label: "Calendario", icon: CalendarDaysIcon },
       { id: "ricerca", label: "Ricerca", icon: BriefcaseBusinessIcon },
@@ -1030,8 +1032,6 @@ export function useLavoratoriCercaDetail({
         icon: SirenIcon,
       });
     }
-
-    tabs.push({ id: "processi", label: "Ricerche", icon: MessageSquareTextIcon });
 
     return tabs;
   }, [selectedWorkerIsNonQualificato]);

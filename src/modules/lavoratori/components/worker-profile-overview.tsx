@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { AttachmentImage } from "@/components/shared-next/attachment-image"
 import {
   getLookupOptionLabel,
   getLookupSelectValue,
@@ -189,9 +190,10 @@ export function WorkerProfileOverview({
                     <div className="h-full">
                       <Card className="h-full rounded-none border-0 shadow-none">
                         <CardContent className="bg-muted/20 relative flex h-full items-center justify-center p-0">
-                          <img
+                          <AttachmentImage
                             src={photoUrl}
                             alt={`Foto profilo ${index + 1}`}
+                            downloadName={`Foto profilo ${index + 1}`}
                             loading={index === 0 ? "eager" : "lazy"}
                             decoding="async"
                             className="h-full w-full object-contain"

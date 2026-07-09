@@ -14,7 +14,7 @@ pre-push:
       tags:
         - ci
     - name: typecheck
-      run: npx tsc --noEmit
+      run: npm run typecheck
       tags:
         - ci
     - name: lint

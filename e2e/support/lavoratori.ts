@@ -183,10 +183,15 @@ export async function resetGateListFilters(page: Page) {
 }
 
 function cercaAdvancedFiltersPanel(page: Page) {
-  return page.locator("div.space-y-3").filter({
-    has: page.getByText("In this view, show rows where"),
-    has: page.getByRole("button", { name: "Add condition" }),
-  }).first()
+  return page
+    .locator("div.space-y-3")
+    .filter({
+      has: page.getByText("In this view, show rows where"),
+    })
+    .filter({
+      has: page.getByRole("button", { name: "Add condition" }),
+    })
+    .first()
 }
 
 export async function openCercaAdvancedFilters(page: Page) {

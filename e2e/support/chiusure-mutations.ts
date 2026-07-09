@@ -98,7 +98,7 @@ export async function cleanupAnnullamentoTestArtifacts() {
 
   const row = data as { fine_rapporto_lavorativo_id: string | null } | null
   const chiusuraId = row?.fine_rapporto_lavorativo_id ?? null
-  if (chiusuraId && !FIXTURE_CHIUSURA_IDS.includes(chiusuraId)) {
+  if (chiusuraId && !(FIXTURE_CHIUSURA_IDS as readonly string[]).includes(chiusuraId)) {
     await unlinkRapportoFineChiusura(rapportoId)
     const { error: deleteError } = await admin
       .from("chiusure_contratti")
