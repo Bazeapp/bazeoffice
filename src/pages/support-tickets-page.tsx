@@ -1,5 +1,4 @@
-import { SupportTicketsView } from "@/components/support/support-tickets-view"
-import type { SupportTicketType } from "@/components/support/support-ticket-config"
+import { SupportTicketsView, type SupportTicketType } from "@/modules/support/components"
 
 export function SupportTicketsPage({ ticketType }: { ticketType: SupportTicketType }) {
   return <SupportTicketsView ticketType={ticketType} />

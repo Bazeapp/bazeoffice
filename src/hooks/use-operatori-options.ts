@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { fetchOperatoriOptionsRows } from "@/lib/anagrafiche-api"
+import { fetchOperatoriOptionsRows } from "@/lib/operatori-api"
 
 type GenericRow = Record<string, unknown>
 

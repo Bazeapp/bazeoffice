@@ -8,6 +8,7 @@
     "dev:nostrict": "VITE_DISABLE_STRICT_MODE=true vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "typecheck": "tsc -b --noEmit",
     "audit:lookup": "node scripts/audit-lookup-usage.mjs",
     "audit:autosave": "node scripts/audit-autosave-risk.mjs",
     "audit:autosave:strict": "node scripts/audit-autosave-risk.mjs --strict",
@@ -17,6 +18,9 @@
     "test:unit": "vitest run --exclude 'src/**/*.integration.test.*'",
     "test:integration": "vitest run src/**/*.integration.test.*",
     "preview": "vite preview",
+    "e2e": "node e2e/ensure-supabase.mjs && playwright test",
+    "e2e:ui": "node e2e/ensure-supabase.mjs && playwright test --ui",
+    "e2e:dev": "node e2e/ensure-supabase.mjs && E2E_WEB_SERVER=dev playwright test",
     "storybook": "storybook dev -p 6006 --no-open",
     "build-storybook": "storybook build"
   },
@@ -57,6 +61,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.49.1",
     "@storybook/addon-a11y": "^10.3.5",
     "@storybook/addon-docs": "^10.3.5",
     "@storybook/react-vite": "^10.3.5",

@@ -1,4 +1,4 @@
-import { CrmPipelineFamiglieView } from "@/components/crm/crm-pipeline-famiglie-view"
+import { CrmPipelineFamiglieView } from "@/modules/crm/components"
 
 export function CrmPipelineFamigliePage() {
   return <CrmPipelineFamiglieView />

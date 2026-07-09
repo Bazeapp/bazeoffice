@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { DocumentsCard } from "@/components/lavoratori/documents-card";
+import { DocumentsCard } from "@/modules/lavoratori/components/documents-card";
 import { lookupColorsByDomain } from "../mocks";
 
 const draft = {

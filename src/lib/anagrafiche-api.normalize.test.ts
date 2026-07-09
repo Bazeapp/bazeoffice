@@ -1,6 +1,6 @@
 /**
  * U1 — characterization of `normalizeTableResponse`, the data layer's only
- * genuinely-pure transform (src/lib/anagrafiche-api.ts). Pins the exact output
+ * genuinely-pure transform (src/lib/table-query.ts). Pins the exact output
  * shape so the 1,736-line file can be reorganized without changing how every
  * fetcher's response is shaped.
  *
@@ -14,7 +14,7 @@ import {
   normalizeTableResponse,
   type TableColumnMeta,
   type TableGroupResult,
-} from "@/lib/anagrafiche-api"
+} from "@/lib/table-query"
 
 type Row = { id: number }
 

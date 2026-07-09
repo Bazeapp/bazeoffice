@@ -1,7 +1,7 @@
 import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { AddressSectionCard } from "@/components/lavoratori/address-section-card";
+import { AddressSectionCard } from "@/modules/lavoratori/components/address-section-card";
 import { lookupOptions } from "../mocks";
 
 function AddressSectionCardDemo(args: React.ComponentProps<typeof AddressSectionCard>) {

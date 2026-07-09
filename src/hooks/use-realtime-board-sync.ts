@@ -1,9 +1,6 @@
 import * as React from "react"
 
-import {
-  getMillisSinceLastLocalWrite,
-  getPendingWriteCount,
-} from "@/lib/anagrafiche-api"
+import { getMillisSinceLastLocalWrite, getPendingWriteCount } from "@/lib/write-tracking"
 import { useRealtimeRows } from "@/hooks/use-realtime-rows"
 
 const DEFAULT_DEBOUNCE_MS = 600

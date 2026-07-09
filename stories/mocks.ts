@@ -1,10 +1,7 @@
-import type { LavoratoreListItem } from "@/components/lavoratori/lavoratore-card";
-import type {
-  CrmPipelineCardData,
-  LookupOptionsByField,
-} from "@/hooks/use-crm-pipeline-preview";
-import type { RicercaBoardCardData } from "@/hooks/use-ricerca-board";
-import type { LavoratoreRecord } from "@/types/entities/lavoratore";
+import type { LavoratoreListItem } from "@/modules/lavoratori/components/lavoratore-card";
+import type { CrmPipelineCardData, LookupOptionsByField } from "@/modules/crm/types"
+import type { RicercaBoardCardData } from "@/modules/ricerca/types"
+import type { LavoratoreRecord } from "@/modules/lavoratori/types/lavoratore";
 
 export const mockWorker: LavoratoreListItem = {
   id: "worker-story-1",

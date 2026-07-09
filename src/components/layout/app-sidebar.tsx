@@ -269,6 +269,20 @@ type AppSidebarProps = {
   onOpenCustomerSupportRiattivazioni?: () => void;
 };
 
+function sidebarCategoryTestId(name: string) {
+  return `sidebar-cat-${name.toLowerCase().replace(/\s+/g, "-")}`;
+}
+
+function sidebarLinkTestId(child: SidebarCategoryChild) {
+  if (child.anagraficheTab) {
+    return `sidebar-link-anagrafiche-${child.anagraficheTab}`;
+  }
+  if (child.mainSection) {
+    return `sidebar-link-${child.mainSection}`;
+  }
+  return undefined;
+}
+
 function getUserDisplayName(user: User) {
   const metadataFullName = user.user_metadata?.full_name;
   if (typeof metadataFullName === "string" && metadataFullName.trim()) {
@@ -589,6 +603,7 @@ export function AppSidebar({
                           >
                             <AccordionPrimitive.Header className="flex">
                               <AccordionPrimitive.Trigger
+                                data-testid={sidebarCategoryTestId(category.name)}
                                 className={cn(
                                   "group/sidebar-cat flex h-9 w-full items-center gap-2 rounded-md px-2 text-sm text-foreground outline-none transition-colors hover:bg-surface/60 focus-visible:bg-surface/60",
                                   "group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0",
@@ -636,6 +651,7 @@ export function AppSidebar({
                                             child,
                                             activeAnagraficheTab,
                                           )}
+                                          data-testid={sidebarLinkTestId(child)}
                                           onClick={(event) =>
                                             handleChildClick(event, child)
                                           }
@@ -692,6 +708,7 @@ export function AppSidebar({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
+                  data-testid="sidebar-menu-user"
                   className="h-11 rounded-lg bg-surface/70 px-2.5 hover:bg-surface"
                   tooltip={userDisplayName}
                 >
@@ -718,6 +735,7 @@ export function AppSidebar({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  data-testid="sidebar-menu-logout"
                   destructive
                   disabled={isLoggingOut}
                   onSelect={(event) => {
