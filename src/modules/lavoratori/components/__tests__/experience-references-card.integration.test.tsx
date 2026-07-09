@@ -17,12 +17,6 @@ const experience: EsperienzaLavoratoreRecord = {
   descrizione: "Esperienza test",
   descrizione_contesto_lavorativo: null,
   motivazione_fine_rapporto: null,
-  anni_esperienza_colf: null,
-  anni_esperienza_babysitter: null,
-  anni_esperienza_badante: null,
-  situazione_lavorativa_attuale: null,
-  created_at: null,
-  updated_at: null,
 }
 
 const noop = () => undefined

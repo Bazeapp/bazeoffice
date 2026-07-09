@@ -144,11 +144,13 @@ function makeCard(overrides: Partial<AssunzioniBoardCardData> = {}): AssunzioniB
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(fetchLookupValues).mockResolvedValue({ rows: [], total: 0, columns: [] })
-  vi.mocked(fetchAssunzioniByFormType).mockResolvedValue({ rows: [], total: 0, columns: [] })
-  vi.mocked(fetchAssunzioniByIds).mockResolvedValue({ rows: [], total: 0, columns: [] })
-  vi.mocked(fetchDocumentiLavoratoriByWorker).mockResolvedValue({ rows: [], total: 0, columns: [] })
-  vi.mocked(updateRecord).mockImplementation(async (_table, _id, patch) => ({
+  vi.mocked(fetchLookupValues).mockResolvedValue({ rows: [], total: 0, columns: [], groups: [] })
+  vi.mocked(fetchAssunzioniByFormType).mockResolvedValue({ rows: [], total: 0, columns: [], groups: [] })
+  vi.mocked(fetchAssunzioniByIds).mockResolvedValue({ rows: [], total: 0, columns: [], groups: [] })
+  vi.mocked(fetchDocumentiLavoratoriByWorker).mockResolvedValue({ rows: [], total: 0, columns: [], groups: [] })
+  vi.mocked(updateRecord).mockImplementation(async (table, id, patch) => ({
+    table,
+    id,
     row: patch,
   }))
 })

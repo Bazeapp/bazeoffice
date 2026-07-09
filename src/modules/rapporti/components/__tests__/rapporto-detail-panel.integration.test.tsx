@@ -25,6 +25,7 @@ function makeRapporto(
   return {
     id: "rapporto-1",
     accordo_di_lavoro_allegati: null,
+    dichiarazione_ospitalita_allegati: null,
     codice_datore_webcolf: 100,
     codice_dipendente_webcolf: 200,
     cognome_nome_datore_proper: null,
@@ -85,6 +86,8 @@ describe("RapportoDetailPanel — FASE 5 BIS autosave", () => {
     renderWithProviders(
       <RapportoDetailPanel
         rapporto={makeRapporto()}
+        famiglia={null}
+        lavoratore={null}
         processi={[]}
         contributi={[]}
         mesi={[]}
