@@ -39,6 +39,8 @@ type KanbanColumnShellProps = {
   onDragOver?: (columnId: string) => void
   onDragLeave?: (event: React.DragEvent<HTMLDivElement>) => void
   onDrop?: (columnId: string, payload: string | null) => void
+  /** Optional data-testid for E2E (e.g. kanban-column-warm_lead). */
+  testId?: string
 }
 
 export function KanbanColumnShell({
@@ -58,6 +60,7 @@ export function KanbanColumnShell({
   onDragOver,
   onDragLeave,
   onDrop,
+  testId,
 }: KanbanColumnShellProps) {
   const isCompact = density === "compact"
   const isInline = headerLayout === "inline"
@@ -89,6 +92,7 @@ export function KanbanColumnShell({
 
   return (
     <div
+      data-testid={testId}
       className={cn(
         "relative overflow-hidden bg-surface flex h-full shrink-0 flex-col rounded-xl border transition-all duration-150",
         widthClassName,

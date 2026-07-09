@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { KanbanColumnShell } from "@/components/shared-next/kanban";
-import { LavoratoreCard } from "@/components/lavoratori/lavoratore-card";
+import { LavoratoreCard } from "@/modules/lavoratori/components/lavoratore-card";
 import { mockWorker } from "../mocks";
 
 const visual = {

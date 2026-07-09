@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { FamigliaProcessoCard } from "@/components/crm/famiglia-processo-card";
+import { FamigliaProcessoCard } from "@/modules/crm/components/famiglia-processo-card";
 import { mockCrmCard } from "../mocks";
 
 const meta = {

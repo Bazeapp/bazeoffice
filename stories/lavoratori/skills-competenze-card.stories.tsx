@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { SkillsCompetenzeCard } from "@/components/lavoratori/skills-competenze-card";
+import { SkillsCompetenzeCard } from "@/modules/lavoratori/components/skills-competenze-card";
 import { lookupColorsByDomain } from "../mocks";
 
 const skillValues = {

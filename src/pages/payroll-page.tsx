@@ -1,4 +1,4 @@
-import { PayrollOverviewView } from "@/components/payroll/payroll-overview-view"
+import { PayrollOverviewView } from "@/modules/payroll/components"
 
 export function PayrollPage({
   defaultTab = "cedolini",

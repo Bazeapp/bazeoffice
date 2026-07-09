@@ -1,6 +1,6 @@
 /**
  * Characterization tests for the write-tracking / echo-suppression primitives
- * in `anagrafiche-api.ts` (`pendingWriteCount` + `lastLocalWriteAt`).
+ * in `write-tracking.ts` (`pendingWriteCount` + `lastLocalWriteAt`).
  *
  * These four numbers are the foundation the realtime cluster's echo
  * suppression stands on: `useRealtimeBoardSync` defers a reload while
@@ -39,7 +39,7 @@ const BASE = new Date("2026-06-19T00:00:00.000Z").getTime()
  */
 async function loadFreshApi() {
   vi.resetModules()
-  return import("@/lib/anagrafiche-api")
+  return import("@/lib/write-tracking")
 }
 
 beforeEach(() => {

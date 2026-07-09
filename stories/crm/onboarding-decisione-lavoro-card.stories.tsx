@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { OnboardingDecisioneLavoroCard } from "@/components/crm/cards/onboarding-decisione-lavoro-card";
+import { OnboardingDecisioneLavoroCard } from "@/modules/crm/components/cards/onboarding-decisione-lavoro-card";
 
 const meta = {
   title: "Ricerca/OnboardingDecisioneLavoroCard",

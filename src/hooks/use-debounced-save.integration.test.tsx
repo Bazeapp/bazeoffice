@@ -23,13 +23,13 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }))
 
-vi.mock("@/lib/anagrafiche-api", () => ({
+vi.mock("@/lib/write-tracking", () => ({
   beginPendingWrite: vi.fn(),
   endPendingWrite: vi.fn(),
 }))
 
 import { toast } from "sonner"
-import { endPendingWrite } from "@/lib/anagrafiche-api"
+import { endPendingWrite } from "@/lib/write-tracking"
 import { useDebouncedSave } from "@/hooks/use-debounced-save"
 
 beforeEach(() => {

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { AvailabilityStatusCard } from "@/components/lavoratori/availability-status-card";
+import { AvailabilityStatusCard } from "@/modules/lavoratori/components/availability-status-card";
 import { lookupOptions } from "../mocks";
 
 const meta = {
