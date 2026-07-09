@@ -2,7 +2,10 @@ import * as React from "react"
 
 import type { RicercaBoardCardData, RicercaBoardColumnData } from "../types"
 import { useRicercaBoard } from "../hooks/use-ricerca-board"
-import { RicercaActiveSearchCard } from "./ricerca-active-search-card"
+import {
+  RicercaActiveSearchCard,
+  type RicercaCardRecruiter,
+} from "./ricerca-active-search-card"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import {
   KanbanColumnShell,
@@ -129,14 +132,14 @@ function RicercaBoardCard({
   dragging,
   onDragStart,
   onDragEnd,
-  recruiterLabelsById,
+  recruitersById,
 }: {
   data: RicercaBoardCardData
   onClick: () => void
   dragging: boolean
   onDragStart: (event: React.DragEvent<HTMLDivElement>) => void
   onDragEnd: () => void
-  recruiterLabelsById: Map<string, string>
+  recruitersById: Map<string, RicercaCardRecruiter>
 }) {
   return (
     <div
@@ -152,8 +155,8 @@ function RicercaBoardCard({
     >
       <RicercaActiveSearchCard
         data={data}
-        recruiterLabel={
-          data.operatorId ? (recruiterLabelsById.get(data.operatorId) ?? null) : null
+        recruiter={
+          data.operatorId ? (recruitersById.get(data.operatorId) ?? null) : null
         }
       />
     </div>
@@ -172,7 +175,7 @@ function RicercaBoardColumn({
   onDragEndCard,
   onCardClick,
   onLoadDeferredColumn,
-  recruiterLabelsById,
+  recruitersById,
 }: {
   column: RicercaBoardColumnData
   isDropTarget: boolean
@@ -185,7 +188,7 @@ function RicercaBoardColumn({
   onDragEndCard: () => void
   onCardClick: (card: RicercaBoardCardData) => void
   onLoadDeferredColumn: (columnId: string) => void
-  recruiterLabelsById: Map<string, string>
+  recruitersById: Map<string, RicercaCardRecruiter>
 }) {
   const visual = getColumnVisual(column.id, column.label, column.color)
   const count = column.totalCount
@@ -224,7 +227,7 @@ function RicercaBoardColumn({
         <RicercaBoardCard
           key={card.id}
           data={card}
-          recruiterLabelsById={recruiterLabelsById}
+          recruitersById={recruitersById}
           dragging={draggingProcessId === card.id}
           onDragStart={(event) => {
             event.dataTransfer.setData("text/plain", card.id)
@@ -251,8 +254,18 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
     role: "recruiter",
     activeOnly: true,
   })
-  const recruiterLabelsById = React.useMemo(
-    () => new Map(operatorOptions.map((option) => [option.id, option.label])),
+  const recruitersById = React.useMemo(
+    () =>
+      new Map<string, RicercaCardRecruiter>(
+        operatorOptions.map((option) => [
+          option.id,
+          {
+            avatar: option.avatar,
+            ringClassName: toAvatarRingClass(option.avatarBorderClassName),
+            label: option.label,
+          },
+        ]),
+      ),
     [operatorOptions],
   )
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
@@ -433,7 +446,7 @@ export function RicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
                 <RicercaBoardColumn
                   key={column.id}
                   column={column}
-                  recruiterLabelsById={recruiterLabelsById}
+                  recruitersById={recruitersById}
                   isDropTarget={dropTargetColumnId === column.id}
                   draggingProcessId={draggingProcessId}
                   onDragEnterColumn={setDropTargetColumnId}

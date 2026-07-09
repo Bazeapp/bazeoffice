@@ -6,11 +6,25 @@ import {
 } from "lucide-react"
 
 import { Avatar } from "@/components/ui/avatar"
-import { getInitials } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { CardMetaRow } from "@/components/shared-next/card-meta-row"
 import { RecordCard } from "@/components/shared-next/record-card"
 import type { RicercaBoardCardData } from "../types"
+
+/**
+ * View-model del recruiter per l'avatar della card (stile assegnazione):
+ * solo iniziali + anello colorato per-operatore. Il consumer (board) lo
+ * pre-calcola dagli `operatorOptions` così la card resta disaccoppiata dal
+ * modello operatori.
+ */
+export type RicercaCardRecruiter = {
+  /** Iniziali già calcolate (es. "MR"). */
+  avatar: string
+  /** Classe Tailwind dell'anello colorato per-operatore (es. "ring-2 ring-sky-500"). */
+  ringClassName: string
+  /** Nome completo, mostrato come tooltip nativo sull'avatar. */
+  label: string
+}
 
 function formatBadgeLabel(value: string) {
   return value
@@ -98,12 +112,12 @@ export function RicercaActiveSearchCard({
   data,
   onClick,
   className,
-  recruiterLabel,
+  recruiter,
 }: {
   data: RicercaBoardCardData
   onClick?: () => void
   className?: string
-  recruiterLabel?: string | null
+  recruiter?: RicercaCardRecruiter | null
 }) {
   const oreGiorni = formatOreGiorniLabel(data.oreSettimanali, data.giorniSettimanali)
   const hasUrgentDeadline = isUrgentDeadline(data.deadlineRaw)
@@ -142,26 +156,32 @@ export function RicercaActiveSearchCard({
             </CardMetaRow>
           ) : null}
           <CardMetaRow icon={<Clock3Icon />}>{oreGiorni}</CardMetaRow>
-          {hasUrgentDeadline ? (
-            <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
-              <CalendarIcon className="size-3 shrink-0 text-red-600" />
-              <span className="min-w-0 truncate font-medium text-red-600">
-                {data.deadline}
-              </span>
-            </div>
-          ) : (
-            <CardMetaRow icon={<CalendarIcon />}>{data.deadline}</CardMetaRow>
-          )}
           <CardMetaRow icon={<MapPinIcon />}>{data.zona}</CardMetaRow>
-          {recruiterLabel ? (
-            <CardMetaRow>
-              <span className="inline-flex min-w-0 items-center gap-1.5">
-                <Avatar size="xs" fallback={getInitials(recruiterLabel)} />
-                <span className="truncate">{recruiterLabel}</span>
-              </span>
-            </CardMetaRow>
-          ) : null}
         </RecordCard.Body>
+        <RecordCard.Footer
+          leftSlot={
+            hasUrgentDeadline ? (
+              <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
+                <CalendarIcon className="size-3 shrink-0 text-red-600" />
+                <span className="min-w-0 truncate font-medium text-red-600">
+                  {data.deadline}
+                </span>
+              </div>
+            ) : (
+              <CardMetaRow icon={<CalendarIcon />}>{data.deadline}</CardMetaRow>
+            )
+          }
+          rightSlot={
+            recruiter ? (
+              <Avatar
+                size="md"
+                fallback={recruiter.avatar}
+                className={recruiter.ringClassName}
+                title={recruiter.label}
+              />
+            ) : undefined
+          }
+        />
       </RecordCard>
     </div>
   )
