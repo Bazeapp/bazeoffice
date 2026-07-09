@@ -43,6 +43,7 @@ import { FieldInput, FieldTextarea } from "@/components/forms/field-components"
 import { Form } from "@/components/ui/form"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { cn } from "@/lib/utils"
+import { AttachmentImage } from "@/components/shared-next/attachment-image"
 import {
   asString,
   getAgeFromBirthDate,
@@ -417,9 +418,10 @@ export function WorkerProfileHeader({
                     <div className="h-full">
                       <Card className="h-full rounded-none border-0 shadow-none">
                         <CardContent className="bg-muted/20 relative flex h-full items-center justify-center p-0">
-                          <img
+                          <AttachmentImage
                             src={photoUrl}
                             alt={`Foto profilo ${index + 1}`}
+                            downloadName={`Foto profilo ${index + 1}`}
                             loading={index === 0 ? "eager" : "lazy"}
                             decoding="async"
                             className="h-full w-full object-contain"
