@@ -147,7 +147,7 @@ export function useLavoratoriList({
         search: debouncedQuery.searchValue.trim(),
         sorting: debouncedQuery.sorting,
       })
-      if (lastLoadedListQueryKeyRef.current === queryKey && workerRows.length > 0) {
+      if (lastLoadedListQueryKeyRef.current === queryKey) {
         if (!silent) setLoading(false)
         return
       }
@@ -318,7 +318,6 @@ export function useLavoratoriList({
     setSelectedWorkerId,
     setWorkerRowsState,
     setWorkersTotalState,
-    workerRows.length,
   ])
 
   const reloadSilently = React.useCallback(() => {
