@@ -24,7 +24,21 @@ const mockWorker: LavoratoreListItem = {
   id: "worker-1",
   nomeCompleto: "Mario Rossi",
   immagineUrl: null,
-  statoQualificazione: "qualificato",
+  locationLabel: null,
+  telefono: null,
+  isBlacklisted: false,
+  tipoRuolo: null,
+  tipoRuoloColor: null,
+  tipoLavoro: null,
+  tipoLavoroColor: null,
+  statoLavoratore: "qualificato",
+  statoLavoratoreColor: null,
+  disponibilita: null,
+  disponibilitaColor: null,
+  isDisponibile: null,
+  isQualified: true,
+  isIdoneo: true,
+  isCertificato: false,
 };
 
 const mockWorkerRow = {

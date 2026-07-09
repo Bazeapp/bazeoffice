@@ -59,6 +59,7 @@ vi.mock("@/lib/record-crud", () => ({
 }))
 
 import { useGate1View } from "../use-gate1-view"
+import { useGate1SectionNav } from "../use-gate1-section-nav"
 
 function makeHookProps(
   row: LavoratoreRecord | null,
@@ -91,9 +92,9 @@ describe("useGate1View — gateDraft resync", () => {
     const initialRow = makeWorkerRow({
       id: "w1",
       descrizione_pubblica: "Server descrizione",
-      paga_oraria_richiesta: "9",
+      paga_oraria_richiesta: 9,
       feedback_recruiter: "ok",
-      rating_atteggiamento: "3",
+      rating_atteggiamento: 3,
     })
     const setup = makeHookProps(initialRow, "w1")
     mockUseLavoratoriData.mockImplementation(() => setup.lavoratoriData)
@@ -115,9 +116,9 @@ describe("useGate1View — gateDraft resync", () => {
     const echoedRow = makeWorkerRow({
       id: "w1",
       descrizione_pubblica: "Server descrizione",
-      paga_oraria_richiesta: "9",
+      paga_oraria_richiesta: 9,
       feedback_recruiter: "feedback updated by colleague",
-      rating_atteggiamento: "5",
+      rating_atteggiamento: 5,
     })
     const echoedSetup = makeHookProps(echoedRow, "w1")
     mockUseLavoratoriData.mockImplementation(() => echoedSetup.lavoratoriData)
@@ -137,9 +138,9 @@ describe("useGate1View — gateDraft resync", () => {
     const firstRow = makeWorkerRow({
       id: "w1",
       descrizione_pubblica: "first worker text",
-      paga_oraria_richiesta: "8",
+      paga_oraria_richiesta: 8,
       feedback_recruiter: "",
-      rating_atteggiamento: "",
+      rating_atteggiamento: null,
     })
     const firstSetup = makeHookProps(firstRow, "w1")
     mockUseLavoratoriData.mockImplementation(() => firstSetup.lavoratoriData)
@@ -159,9 +160,9 @@ describe("useGate1View — gateDraft resync", () => {
     const secondRow = makeWorkerRow({
       id: "w2",
       descrizione_pubblica: "second worker server text",
-      paga_oraria_richiesta: "12",
+      paga_oraria_richiesta: 12,
       feedback_recruiter: "feedback 2",
-      rating_atteggiamento: "4",
+      rating_atteggiamento: 4,
     })
     const secondSetup = makeHookProps(secondRow, "w2")
     mockUseLavoratoriData.mockImplementation(() => secondSetup.lavoratoriData)
@@ -207,14 +208,9 @@ describe("useGate1View — gateDraft resync", () => {
   })
 })
 
-describe("useGate1View — scroll section", () => {
+describe("useGate1SectionNav — scroll section", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseSelectedWorkerEditor.mockImplementation(() => makeEditorReturn())
-    const row = makeWorkerRow({ id: "w1" })
-    mockUseLavoratoriData.mockImplementation(() =>
-      makeHookProps(row, "w1").lavoratoriData,
-    )
   })
 
   it("updates activeGateSection when scrollToSection is called", () => {
@@ -226,7 +222,18 @@ describe("useGate1View — scroll section", () => {
     const target = document.createElement("div")
     Object.defineProperty(target, "offsetTop", { value: 240, configurable: true })
 
-    const { result } = renderHookWithQueryClient(() => useGate1View({}))
+    const { result } = renderHookWithQueryClient(() =>
+      useGate1SectionNav({
+        showCertificationReferente: false,
+        showFollowup: true,
+        showDocumentSection: true,
+        documentSectionAfterSpecificChecks: false,
+        showAssessment: true,
+        specificChecksMode: "gate1",
+        useGate1ReorderedSteps: false,
+        selectedWorkerId: "w1",
+      }),
+    )
 
     act(() => {
       result.current.detailScrollRef.current = container

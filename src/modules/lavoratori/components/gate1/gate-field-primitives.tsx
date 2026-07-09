@@ -48,6 +48,8 @@ import {
 
 export const EMPTY_SELECT_VALUE = "none";
 
+export type LookupOptionLite = { label: string; value: string };
+
 export function GateStepSection({
   step,
   isFirst = false,

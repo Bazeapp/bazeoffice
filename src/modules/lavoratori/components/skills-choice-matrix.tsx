@@ -171,7 +171,6 @@ export function FormSkillsChoiceMatrix({
             name={row.name}
             label={row.label}
             domain={row.domain}
-            options={row.options}
             columns={columns}
             isEditing={isEditing}
             isUpdating={isUpdating}

@@ -53,6 +53,10 @@ export function makeWorkerListItem(
     statoLavoratoreColor: null,
     disponibilita: row.disponibilita ?? null,
     disponibilitaColor: null,
+    isDisponibile: null,
+    isQualified: false,
+    isIdoneo: false,
+    isCertificato: false,
     ...overrides,
   }
 }

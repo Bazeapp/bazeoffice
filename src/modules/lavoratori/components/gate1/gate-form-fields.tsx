@@ -1,4 +1,3 @@
-import * as React from "react";
 import { useController } from "react-hook-form";
 
 import {
@@ -18,9 +17,8 @@ import {
   GateLevelSegmentedField,
   GateLookupConfirmationField,
   GateStarRatingField,
+  type LookupOptionLite,
 } from "./gate-field-primitives";
-
-type LookupOptionLite = { label: string; value: string };
 
 export function GateFormLevelField({
   name,

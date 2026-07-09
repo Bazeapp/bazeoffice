@@ -1,19 +1,7 @@
 import * as React from "react";
-import {
-  BadgeCheckIcon,
-  CalendarDaysIcon,
-  CircleUserRoundIcon,
-  FileSearchIcon,
-  NotebookPenIcon,
-  PhoneIcon,
-  ShieldCheckIcon,
-  StarIcon,
-  UsersIcon,
-} from "lucide-react";
 
 import { useComboboxAnchor } from "@/components/ui/combobox";
 import {
-  asLavoratoreRecord,
   asInputValue,
   asString,
   parseNumberValue,
@@ -25,32 +13,17 @@ import { useSelectedWorkerEditor } from "./use-selected-worker-editor";
 import { useController } from "react-hook-form";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
-import { updateRecord } from "@/lib/record-crud";
-import {
-  buildAttachmentPayload,
-  type MinimalAttachment,
-  normalizeAttachmentArray,
-} from "@/lib/attachments";
-import { supabase } from "@/lib/supabase-client";
-import { PROVINCIA_DROPDOWN_OPTIONS } from "@/lib/province-italiane";
-import { normalizeWorkerStatus } from "../lib/status-utils";
 import {
   getLookupOptionLabel,
   getLookupSelectValue,
   normalizeLookupOptionValues,
 } from "../lib/lookup-utils";
-import type { LavoratoreRecord } from "../types/lavoratore";
-import { useProvincieOptions } from "@/hooks/use-provincie";
 import {
   GATE1_IN_PERSON_BOOKING_LINKS,
   includesBabysitterType,
-  sanitizeFileName,
 } from "../lib/gate1-utils";
-import type {
-  GateFieldsFormDraft,
-  GateTab,
-  GateViewProps,
-} from "../types/gate1-view";
+import type { GateFieldsFormDraft, GateViewProps } from "../types/gate1-view";
+import { useGate1ListFilters } from "./use-gate1-list-panel";
 
 type ResolvedGateViewProps = Required<
   Pick<
@@ -176,8 +149,12 @@ export function useGate1View(props: GateViewProps) {
     stepLayout,
   } = resolveGateViewProps(props);
 
-  const [gateProvinciaFilter, setGateProvinciaFilter] = React.useState("all");
-  const [gateFollowupFilter, setGateFollowupFilter] = React.useState("all");
+  const {
+    gateProvinciaFilter,
+    setGateProvinciaFilter,
+    gateFollowupFilter,
+    setGateFollowupFilter,
+  } = useGate1ListFilters();
   const {
     workers,
     workerRows,
@@ -1038,21 +1015,10 @@ export function useGate1View(props: GateViewProps) {
     [useGate1ReorderedSteps],
   );
 
-  const firstGateSection = showCertificationReferente
-    ? "referente"
-    : showFollowup
-      ? "contatti"
-      : "presentazione";
-  const [activeGateSection, setActiveGateSection] =
-    React.useState(firstGateSection);
-  const detailScrollRef = React.useRef<HTMLElement | null>(null);
-  const sectionRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
   const addressMobilityAnchor = useComboboxAnchor();
   const [isEditingAvailabilityStep, setIsEditingAvailabilityStep] =
     React.useState(false);
   const [isEditingBazeChecks, setIsEditingBazeChecks] = React.useState(false);
-  const workerPhotoInputRef = React.useRef<HTMLInputElement | null>(null);
-  const [uploadingWorkerPhoto, setUploadingWorkerPhoto] = React.useState(false);
   const [gateDraft, setGateDraft] = React.useState({
     referenteIdoneita: "",
     referenteCertificazione: "",
@@ -1090,71 +1056,6 @@ export function useGate1View(props: GateViewProps) {
     role: "recruiter",
     activeOnly: true,
   });
-
-  const baseGateWorkers = React.useMemo(() => {
-    const allowedStatuses = new Set(
-      (Array.isArray(workerStatus) ? workerStatus : [workerStatus])
-        .map((status) => normalizeWorkerStatus(status))
-        .filter(Boolean),
-    );
-    const matchingIds = new Set(
-      workerRows
-        .filter((row) =>
-          allowedStatuses.has(normalizeWorkerStatus(row.stato_lavoratore)),
-        )
-        .map((row) => row.id),
-    );
-
-    return workers.filter((worker) => matchingIds.has(worker.id));
-  }, [workerStatus, workerRows, workers]);
-
-  const workerRowsById = React.useMemo(() => {
-    const rowsById = new Map<string, LavoratoreRecord>();
-    for (const row of workerRows) {
-      rowsById.set(row.id, row);
-    }
-    return rowsById;
-  }, [workerRows]);
-
-  // Dropdown provincia: value = sigla (TO, MI, MB…), label = nome esteso.
-  // Il filtro Gate 1/2 lavora su `indirizzi.provincia_sigla`, quindi qui
-  // restituiamo direttamente la lista canonica delle province italiane.
-  const gateProvinciaOptions = React.useMemo(() => PROVINCIA_DROPDOWN_OPTIONS, []);
-
-  const followupValueToLabel = React.useMemo(() => {
-    const map = new Map<string, string>();
-    for (const option of lookupOptionsByDomain.get(
-      "lavoratori.followup_chiamata_idoneita",
-    ) ?? []) {
-      map.set(option.value, option.label);
-      map.set(option.label, option.label);
-    }
-    return map;
-  }, [lookupOptionsByDomain]);
-
-  const gateFollowupOptions = React.useMemo(() => {
-    const optionLabels = (
-      lookupOptionsByDomain.get("lavoratori.followup_chiamata_idoneita") ?? []
-    ).map((option) => option.label);
-    const rowLabels = baseGateWorkers
-      .map((worker) => {
-        const raw = asString(
-          workerRowsById.get(worker.id)?.followup_chiamata_idoneita,
-        );
-        return followupValueToLabel.get(raw) ?? raw;
-      })
-      .filter((value): value is string => Boolean(value));
-    return Array.from(new Set([...optionLabels, ...rowLabels]));
-  }, [
-    baseGateWorkers,
-    followupValueToLabel,
-    lookupOptionsByDomain,
-    workerRowsById,
-  ]);
-
-  const gateWorkers = React.useMemo(() => {
-    return baseGateWorkers;
-  }, [baseGateWorkers]);
 
   const {
     presentationStep,
@@ -1237,458 +1138,6 @@ export function useGate1View(props: GateViewProps) {
   const gateDocumentsIsEditing =
     resolvedDocumentSectionMode === "documents" ? true : isEditingDocuments;
 
-  const documentiInRegolaOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.documenti_in_regola") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const documentiVerificatiOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("lavoratori.stato_verifica_documenti") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const haiReferenzeOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.hai_referenze") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const disponibilitaLookupOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.disponibilita") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const provinciaLookupOptions = useProvincieOptions();
-  const sessoLookupOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.sesso") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const nazionalitaLookupOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.nazionalita") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const mobilityLookupOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.come_ti_sposti") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const tipoLavoroDomesticoOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.tipo_lavoro_domestico") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const tipoRapportoLavorativoOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("lavoratori.tipo_rapporto_lavorativo") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const lavoriAccettabiliOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("lavoratori.check_lavori_accettabili") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const disponibilitaNelGiornoOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("lavoratori.disponibilita_nel_giorno") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const babysittingNeonatiOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.check_accetta_babysitting_neonati",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const babysittingMultipliBambiniOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.check_accetta_babysitting_multipli_bambini",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const caseConCaniOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("lavoratori.check_accetta_case_con_cani") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const caseConCaniGrandiOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.check_accetta_case_con_cani_grandi",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const caseConGattiOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("lavoratori.check_accetta_case_con_gatti") ??
-      [],
-    [lookupOptionsByDomain],
-  );
-  const scaleSoffittiOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.check_accetta_salire_scale_o_soffitti_alti",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const trasfertaOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.check_accetta_lavori_con_trasferta",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const livelloItalianoOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.livello_italiano") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const livelloIngleseOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.livello_inglese") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const livelloCucinaOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.livello_cucina") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const livelloStiroOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.livello_stiro") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const livelloPulizieOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.livello_pulizie") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const livelloBabysittingOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.livello_babysitting") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const livelloDogsittingOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.livello_dogsitting") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const livelloGiardinaggioOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.livello_giardinaggio") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const compatibilitaStiroOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.compatibilita_con_stiro_esigente",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const compatibilitaCucinaOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.compatibilita_con_cucina_strutturata",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const compatibilitaNeonatiOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.compatibilita_babysitting_neonati",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const compatibilitaFamiglieNumeroseOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("lavoratori.compatibilita_famiglie_numerose") ??
-      [],
-    [lookupOptionsByDomain],
-  );
-  const compatibilitaFamiglieMoltoEsigentiOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.compatibilita_famiglie_molto_esigenti",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const compatibilitaDatorePresenteOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.compatibilita_lavoro_con_datore_presente_in_casa",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const compatibilitaCaseGrandiOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.compatibilita_con_case_di_grandi_dimensioni",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const compatibilitaAnimaliOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.compatibilita_con_animali_in_casa",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const compatibilitaAutonomiaOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.compatibilita_con_elevata_autonomia_richiesta",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const compatibilitaContestiPacatiOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.compatibilita_con_contesti_pacati",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const ratingCorporaturaOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("lavoratori.rating_corporatura") ?? [
-        {
-          label: "Abile a svolgere qualsiasi lavoro",
-          value: "abile_qualsiasi_lavoro",
-        },
-        {
-          label: "Abile a svolgere attivita con intensita media",
-          value: "abile_intensita_media",
-        },
-        {
-          label: "Abile a svolgere attivita con carichi di lavoro limitati",
-          value: "abile_carichi_limitati",
-        },
-        {
-          label: "Non idonea",
-          value: "non_idonea",
-        },
-      ],
-    [lookupOptionsByDomain],
-  );
-  const experienceTipoLavoroOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("esperienze_lavoratori.tipo_lavoro") ??
-      tipoLavoroDomesticoOptions,
-    [lookupOptionsByDomain, tipoLavoroDomesticoOptions],
-  );
-  const experienceTipoRapportoOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("esperienze_lavoratori.tipo_rapporto") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const referenceStatusOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("referenze_lavoratori.referenza_verificata") ??
-      [],
-    [lookupOptionsByDomain],
-  );
-  const statoLavoratoreOptions = React.useMemo(() => {
-    const options =
-      lookupOptionsByDomain.get("lavoratori.stato_lavoratore") ?? [];
-    if (allowCertifiedStatus) return options;
-    return options.filter(
-      (option) =>
-        option.label.trim().toLowerCase() !== "certificato" &&
-        option.value.trim().toLowerCase() !== "certificato",
-    );
-  }, [allowCertifiedStatus, lookupOptionsByDomain]);
-  const motivazioniNonIdoneoOptions = React.useMemo(
-    () => lookupOptionsByDomain.get("lavoratori.motivazione_non_idoneo") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const motivazioniNonIdoneoOptionsByValue = React.useMemo(() => {
-    const optionsMap = new Map<string, { label: string; value: string }>();
-    for (const option of motivazioniNonIdoneoOptions) {
-      optionsMap.set(option.value, option);
-    }
-    return optionsMap;
-  }, [motivazioniNonIdoneoOptions]);
-  const getMotivazioneLabel = React.useCallback(
-    (value: string) =>
-      motivazioniNonIdoneoOptionsByValue.get(value)?.label ?? value,
-    [motivazioniNonIdoneoOptionsByValue],
-  );
-  const followupStatusOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("lavoratori.followup_chiamata_idoneita") ?? [],
-    [lookupOptionsByDomain],
-  );
-  const funzionamentoBazeOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.check_accetta_funzionamento_baze",
-      ) ?? [
-        { label: "Non accetta", value: "non_accetta" },
-        { label: "Accetta", value: "accetta" },
-      ],
-    [lookupOptionsByDomain],
-  );
-  const multipliContrattiOptions = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get(
-        "lavoratori.check_accetta_multipli_contratti",
-      ) ?? [],
-    [lookupOptionsByDomain],
-  );
-  const paga9Options = React.useMemo(
-    () =>
-      lookupOptionsByDomain.get("lavoratori.check_accetta_paga_9_euro_netti") ??
-      [],
-    [lookupOptionsByDomain],
-  );
-  const gateTabs = React.useMemo<GateTab[]>(
-    () => {
-      if (useGate1ReorderedSteps) {
-        return [
-          ...(showFollowup
-            ? [
-                {
-                  id: "contatti" as const,
-                  label: "Referente e presentazione",
-                  icon: PhoneIcon,
-                },
-              ]
-            : [
-                {
-                  id: "presentazione" as const,
-                  label: "Presentazione",
-                  icon: CircleUserRoundIcon,
-                },
-              ]),
-          {
-            id: "check_baze" as const,
-            label: "Check Baze",
-            icon: ShieldCheckIcon,
-          },
-          {
-            id: "indirizzo" as const,
-            label: "Indirizzo",
-            icon: CircleUserRoundIcon,
-          },
-          ...(showDocumentSection
-            ? [
-                {
-                  id: "documenti" as const,
-                  label: "Autocertificazioni",
-                  icon: FileSearchIcon,
-                },
-              ]
-            : []),
-          { id: "tipologia" as const, label: "Tipologia lavori", icon: BadgeCheckIcon },
-          {
-            id: "disponibilita" as const,
-            label: "Disponibilita",
-            icon: CalendarDaysIcon,
-          },
-          {
-            id: "aspetti" as const,
-            label: "Check disponibilita",
-            icon: ShieldCheckIcon,
-          },
-          ...(showAssessment
-            ? [{ id: "assessment" as const, label: "Assessment", icon: StarIcon }]
-            : []),
-        ];
-      }
-
-      return [
-        ...(showCertificationReferente
-          ? [{ id: "referente" as const, label: "Referente", icon: UsersIcon }]
-          : []),
-        ...(showFollowup
-          ? [{ id: "contatti" as const, label: "Follow-up", icon: PhoneIcon }]
-          : []),
-        {
-          id: "presentazione" as const,
-          label: "Presentazione",
-          icon: CircleUserRoundIcon,
-        },
-        ...(showDocumentSection && !documentSectionAfterSpecificChecks
-          ? [
-              {
-                id: "documenti" as const,
-                label: "Autocertificazioni",
-                icon: FileSearchIcon,
-              },
-            ]
-          : []),
-        { id: "tipologia" as const, label: "Tipologia lavori", icon: BadgeCheckIcon },
-        { id: "disponibilita" as const, label: "Disponibilita", icon: CalendarDaysIcon },
-        {
-          id: "aspetti" as const,
-          label:
-            specificChecksMode === "confirmation"
-              ? "Competenze"
-              : "Aspetti specifici",
-          icon: ShieldCheckIcon,
-        },
-        ...(showDocumentSection && documentSectionAfterSpecificChecks
-          ? [
-              {
-                id: "documenti" as const,
-                label: "Documenti",
-                icon: NotebookPenIcon,
-              },
-            ]
-          : []),
-        ...(showAssessment
-          ? [{ id: "assessment" as const, label: "Assessment", icon: StarIcon }]
-          : []),
-      ];
-    },
-    [
-      documentSectionAfterSpecificChecks,
-      showCertificationReferente,
-      showAssessment,
-      showDocumentSection,
-      showFollowup,
-      specificChecksMode,
-      useGate1ReorderedSteps,
-    ],
-  );
-
-  const scrollToSection = React.useCallback((value: string) => {
-    setActiveGateSection(value);
-    const container = detailScrollRef.current;
-    const target = sectionRefs.current[value];
-    if (!container || !target) return;
-    container.scrollTo({
-      top: Math.max(target.offsetTop - 108, 0),
-      behavior: "smooth",
-    });
-  }, []);
-
-  const registerGateSectionRef = React.useCallback(
-    (sectionId: string, enabled = true) =>
-      (node: HTMLDivElement | null) => {
-        if (!enabled) return;
-        sectionRefs.current[sectionId] = node;
-      },
-    [],
-  );
-
-  React.useEffect(() => {
-    const container = detailScrollRef.current;
-    if (!container || !selectedWorkerId) return;
-
-    const syncActiveSection = () => {
-      const scrollTop = container.scrollTop;
-      let nextActive = gateTabs[0]?.id ?? firstGateSection;
-
-      for (const tab of gateTabs) {
-        const node = sectionRefs.current[tab.id];
-        if (!node) continue;
-        if (node.offsetTop - 140 <= scrollTop) {
-          nextActive = tab.id;
-        } else {
-          break;
-        }
-      }
-
-      setActiveGateSection((current) =>
-        current === nextActive ? current : nextActive,
-      );
-    };
-
-    syncActiveSection();
-    container.addEventListener("scroll", syncActiveSection, { passive: true });
-    return () => container.removeEventListener("scroll", syncActiveSection);
-  }, [firstGateSection, gateTabs, selectedWorkerId]);
-
-  React.useEffect(() => {
-    setActiveGateSection(firstGateSection);
-  }, [firstGateSection, selectedWorkerId]);
-
   React.useEffect(() => {
     setIsEditingAvailabilityStep(false);
     setIsEditingBazeChecks(false);
@@ -1696,52 +1145,6 @@ export function useGate1View(props: GateViewProps) {
     // `selectedWorkerRow` populates every field freshly.
     lastSyncedGateDraftRef.current = null;
   }, [selectedWorkerId]);
-
-  const selectedWorkerStatusAlert = React.useMemo(() => {
-    if (!selectedWorkerRow) return null;
-
-    if (selectedWorkerIsNonIdoneo) {
-      const fallbackReasons = readArrayStrings(
-        selectedWorkerRow.motivazione_non_idoneo,
-      );
-      const reasonValues =
-        nonIdoneoReasonValues.length > 0
-          ? nonIdoneoReasonValues
-          : fallbackReasons;
-      const reasonLabel = reasonValues
-        .map(getMotivazioneLabel)
-        .filter((value) => value.trim().length > 0)
-        .join(" • ");
-
-      return {
-        statusLabel: "Non idoneo",
-        reasonLabel: reasonLabel || "Nessuna motivazione indicata",
-        tone: "critical" as const,
-      };
-    }
-
-    if (selectedWorkerIsNonQualificato) {
-      const reasonLabel = selectedWorkerNonQualificatoIssues
-        .map((issue) => issue.title)
-        .filter((value) => value.trim().length > 0)
-        .join(" • ");
-
-      return {
-        statusLabel: "Non qualificato",
-        reasonLabel: reasonLabel || "Nessuna motivazione indicata",
-        tone: "muted" as const,
-      };
-    }
-
-    return null;
-  }, [
-    getMotivazioneLabel,
-    nonIdoneoReasonValues,
-    selectedWorkerIsNonIdoneo,
-    selectedWorkerIsNonQualificato,
-    selectedWorkerNonQualificatoIssues,
-    selectedWorkerRow,
-  ]);
 
   React.useEffect(() => {
     const nextSnapshot = {
@@ -1783,14 +1186,9 @@ export function useGate1View(props: GateViewProps) {
     const previousSynced = lastSyncedGateDraftRef.current;
     lastSyncedGateDraftRef.current = nextSnapshot;
     if (previousSynced === null) {
-      // First sync for this worker — populate every field.
       setGateDraft(nextSnapshot);
       return;
     }
-    // Per-field merge: replace a field only when the local draft value still
-    // matches the previously synced server value (i.e. the user has NOT typed
-    // a new value locally yet). This prevents a realtime echo from wiping
-    // in-progress edits across the gate draft inputs.
     setGateDraft((current) => {
       let changed = false;
       const merged: typeof current = { ...current };
@@ -1800,7 +1198,6 @@ export function useGate1View(props: GateViewProps) {
           const nextValue = nextSnapshot[key];
           if (previousValue === nextValue) return;
           if (current[key] !== previousValue) {
-            // User has a pending local edit for this field — keep it.
             return;
           }
           merged[key] = nextValue;
@@ -1811,151 +1208,13 @@ export function useGate1View(props: GateViewProps) {
     });
   }, [selectedWorkerRow]);
 
-  const openWorkerPhotoPicker = React.useCallback(() => {
-    if (uploadingWorkerPhoto) return;
-    workerPhotoInputRef.current?.click();
-  }, [uploadingWorkerPhoto]);
-
-  const handleWorkerPhotoInputChange = React.useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files ?? []);
-      event.target.value = "";
-
-      if (files.length === 0 || !selectedWorkerId) return;
-
-      setError(null);
-      setUploadingWorkerPhoto(true);
-
-      try {
-        const nextPhotos: MinimalAttachment[] = normalizeAttachmentArray(
-          selectedWorkerRow?.foto,
-        );
-
-        for (const [index, file] of files.entries()) {
-          const safeName = sanitizeFileName(file.name || "foto");
-          const storagePath = [
-            "lavoratori",
-            selectedWorkerId,
-            "foto",
-            `${Date.now()}-${index}-${safeName}`,
-          ].join("/");
-
-          const uploadResult = await supabase.storage
-            .from("baze-bucket")
-            .upload(storagePath, file, {
-              cacheControl: "3600",
-              upsert: false,
-              contentType: file.type || undefined,
-            });
-
-          if (uploadResult.error) {
-            throw uploadResult.error;
-          }
-
-          nextPhotos.push(buildAttachmentPayload(file, storagePath));
-        }
-
-        const response = await updateRecord("lavoratori", selectedWorkerId, {
-          foto: nextPhotos,
-        });
-        applyUpdatedWorkerRow(asLavoratoreRecord(response.row));
-      } catch (caughtError) {
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore caricando la foto",
-        );
-      } finally {
-        setUploadingWorkerPhoto(false);
-      }
-    },
-    [
-      applyUpdatedWorkerRow,
-      selectedWorkerId,
-      selectedWorkerRow?.foto,
-      setError,
-    ],
-  );
-
-  const handlePrimaryWorkerPhotoChange = React.useCallback(
-    async (index: number) => {
-      if (!selectedWorkerId) return;
-
-      const existingPhotos = normalizeAttachmentArray(selectedWorkerRow?.foto);
-      if (existingPhotos.length === 0) {
-        setSelectedPresentationPhotoIndex(Math.max(index, 0));
-        return;
-      }
-
-      if (index <= 0 || index >= existingPhotos.length) {
-        setSelectedPresentationPhotoIndex(Math.max(index, 0));
-        return;
-      }
-
-      setError(null);
-
-      try {
-        const [selectedPhoto] = existingPhotos.splice(index, 1);
-        if (!selectedPhoto) return;
-
-        const reorderedPhotos = [selectedPhoto, ...existingPhotos];
-        const response = await updateRecord("lavoratori", selectedWorkerId, {
-          foto: reorderedPhotos,
-        });
-
-        applyUpdatedWorkerRow(asLavoratoreRecord(response.row));
-        setSelectedPresentationPhotoIndex(0);
-      } catch (caughtError) {
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore aggiornando la foto principale",
-        );
-      }
-    },
-    [
-      applyUpdatedWorkerRow,
-      selectedWorkerId,
-      selectedWorkerRow?.foto,
-      setError,
-      setSelectedPresentationPhotoIndex,
-    ],
-  );
-
-  React.useEffect(() => {
-    if (!selectedWorkerId) {
-      if (gateWorkers.length > 0) {
-        setSelectedWorkerId(gateWorkers[0].id);
-      }
-      return;
-    }
-
-    if (
-      statusChangeRetainedWorkerId === selectedWorkerId &&
-      selectedWorker &&
-      selectedWorkerRow
-    ) {
-      return;
-    }
-
-    if (!gateWorkers.some((worker) => worker.id === selectedWorkerId)) {
-      setSelectedWorkerId(gateWorkers[0]?.id ?? null);
-    }
-  }, [
-    gateWorkers,
-    selectedWorker,
-    selectedWorkerId,
-    selectedWorkerRow,
-    setSelectedWorkerId,
-    statusChangeRetainedWorkerId,
-  ]);
   return {
     GATE1_IN_PERSON_BOOKING_LINKS,
     includesBabysitterType,
-    activeGateSection,
     activeViewId,
     addressEditMode,
     addressMobilityAnchor,
+    allowCertifiedStatus,
     anniBabysitterCtrl,
     anniBadanteCtrl,
     anniColfCtrl,
@@ -1964,6 +1223,7 @@ export function useGate1View(props: GateViewProps) {
     anniEsperienzaColfValue,
     applyFilters,
     applySavedView,
+    applyUpdatedWorkerRow,
     assessmentStep,
     aspettiStep,
     availabilityDraft,
@@ -1976,26 +1236,11 @@ export function useGate1View(props: GateViewProps) {
     AVAILABILITY_HOUR_LABELS,
     addressDraft,
     addressStep,
-    babysittingMultipliBambiniOptions,
-    babysittingNeonatiOptions,
     bazeChecksEditMode,
     bazeChecksStep,
     blacklistChecked,
-    caseConCaniGrandiOptions,
-    caseConCaniOptions,
-    caseConGattiOptions,
     cognomeCtrl,
     commitAddressField,
-    compatibilitaAnimaliOptions,
-    compatibilitaAutonomiaOptions,
-    compatibilitaCaseGrandiOptions,
-    compatibilitaContestiPacatiOptions,
-    compatibilitaCucinaOptions,
-    compatibilitaDatorePresenteOptions,
-    compatibilitaFamiglieMoltoEsigentiOptions,
-    compatibilitaFamiglieNumeroseOptions,
-    compatibilitaNeonatiOptions,
-    compatibilitaStiroOptions,
     createExperienceRecord,
     createReferenceRecord,
     currentPage,
@@ -2003,25 +1248,16 @@ export function useGate1View(props: GateViewProps) {
     deleteSavedView,
     descrizioneCtrl,
     descrizionePubblicaValue,
-    detailScrollRef,
     disponibilitaBadgeClassName,
-    disponibilitaLookupOptions,
-    disponibilitaNelGiornoOptions,
     disponibilitaStep,
     documentSectionAfterSpecificChecks,
-    documentiInRegolaOptions,
     documentiStep,
-    documentiVerificatiOptions,
     documentsDraft,
     emailCtrl,
     error,
     experienceDraft,
-    experienceTipoLavoroOptions,
-    experienceTipoRapportoOptions,
     filterFields,
     filters,
-    followupStatusOptions,
-    funzionamentoBazeOptions,
     gate1Editor,
     gateAddressIsEditing,
     gateAvailabilityCalendarIsEditing,
@@ -2031,24 +1267,17 @@ export function useGate1View(props: GateViewProps) {
     gateDraft,
     gateFieldsForm,
     gateFollowupFilter,
-    gateFollowupOptions,
     gateLabel,
     gatePresentationIsEditing,
     gateProvinciaFilter,
-    gateProvinciaOptions,
     gateShiftPreferencesIsEditing,
     gateSpecificChecksIsEditing,
-    gateTabs,
     gateWorkTypesIsEditing,
-    gateWorkers,
     generateStripeAccount,
     getGateSectionOrderClass,
     groupingOptions,
-    haiReferenzeOptions,
     handleAvailabilityMatrixChange,
     handleNonIdoneoReasonsChange,
-    handlePrimaryWorkerPhotoChange,
-    handleWorkerPhotoInputChange,
     hasPendingFilters,
     headerCognomeValue,
     headerDataNascitaValue,
@@ -2063,34 +1292,20 @@ export function useGate1View(props: GateViewProps) {
     isEditingHeader,
     isEditingSkills,
     jobSearchDraft,
-    lavoriAccettabiliOptions,
     listControlsSlot,
     loading,
     loadingSelectedWorkerDocuments,
     loadingSelectedWorkerExperiences,
     loadingSelectedWorkerReferences,
-    livelloBabysittingOptions,
-    livelloCucinaOptions,
-    livelloDogsittingOptions,
-    livelloGiardinaggioOptions,
-    livelloIngleseOptions,
-    livelloItalianoOptions,
-    livelloPulizieOptions,
-    livelloStiroOptions,
     loadWorkersSchema,
     lookupColorsByDomain,
-    mobilityLookupOptions,
-    motivazioniNonIdoneoOptions,
-    multipliContrattiOptions,
+    lookupOptionsByDomain,
     naspiDocCtrl,
     naspiDocValue,
-    nazionalitaLookupOptions,
     nonIdoneoReasonValues,
     nomeCtrl,
-    openWorkerPhotoPicker,
     operatorName,
     pageCount,
-    paga9Options,
     patchDocumentField,
     patchExperienceRecord,
     patchReferenceRecord,
@@ -2102,11 +1317,7 @@ export function useGate1View(props: GateViewProps) {
     presentationEditMode,
     presentationPhotoSlots,
     presentationStep,
-    provinciaLookupOptions,
-    ratingCorporaturaOptions,
     recruiterFeedbackEntries,
-    referenceStatusOptions,
-    registerGateSectionRef,
     referenteIdoneitaOptions,
     referenteIdoneitaOptionsLoading,
     resolvedIban,
@@ -2114,10 +1325,10 @@ export function useGate1View(props: GateViewProps) {
     saveCurrentView,
     saveWorkerAvailability,
     savedViews,
-    scaleSoffittiOptions,
-    scrollToSection,
     searchValue,
-    sessoLookupOptions,
+    selectedWorkerIsNonIdoneo,
+    selectedWorkerIsNonQualificato,
+    selectedWorkerNonQualificatoIssues,
     setError,
     selectedPresentationPhotoIndex,
     selectedWorker,
@@ -2127,7 +1338,6 @@ export function useGate1View(props: GateViewProps) {
     selectedWorkerId,
     selectedWorkerReferences,
     selectedWorkerRow,
-    selectedWorkerStatusAlert,
     setAddressDraft,
     setAvailabilityDraft,
     setAvailabilityStatusDraft,
@@ -2149,6 +1359,7 @@ export function useGate1View(props: GateViewProps) {
     setSelectedPresentationPhotoIndex,
     setSelectedWorkerId,
     setSkillsDraft,
+    statusChangeRetainedWorkerId,
     showAdministrativeFields,
     showAssessment,
     showCertificationReferente,
@@ -2162,14 +1373,10 @@ export function useGate1View(props: GateViewProps) {
     specificChecksEditMode,
     specificChecksMode,
     splitBazeChecksStep,
-    statoLavoratoreOptions,
     stepInfoBySection,
     table,
     telefonoCtrl,
-    tipoLavoroDomesticoOptions,
-    tipoRapportoLavorativoOptions,
     tipologiaStep,
-    trasfertaOptions,
     updatingAvailability,
     updatingAvailabilityStatus,
     updatingDocuments,
@@ -2177,14 +1384,13 @@ export function useGate1View(props: GateViewProps) {
     updatingNonIdoneo,
     updatingNonQualificato,
     updatingSkills,
-    uploadingWorkerPhoto,
     upsertSelectedWorkerDocument,
     useGate1ReorderedSteps,
     workTypesEditMode,
     workerAddressesById,
     workerCountLabel,
-    workerPhotoInputRef,
-    workerRowsById,
+    workerRows,
+    workerStatus,
     workers,
   };
 }
