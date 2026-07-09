@@ -1,9 +1,15 @@
 import * as React from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 
+import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { useMoveMutation } from "@/hooks/use-board-mutations"
 
+import {
+  applyOptimisticCardMove,
+  updateCardInColumns,
+} from "@/lib/board-column-utils"
 import { updateRecord } from "@/lib/record-crud"
+import { formatItalianDate } from "@/lib/value-utils"
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { fetchRiattivazioniBoard } from "../queries/fetch-riattivazioni-board"
 import {
@@ -58,33 +64,6 @@ type RiattivazioneBaseCard = {
 }
 
 type BoardData = { columns: RiattivazioniBoardColumnData[] }
-
-function toStringValue(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === "string") {
-    const trimmed = value.trim()
-    return trimmed ? trimmed : null
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value)
-  }
-  return null
-}
-
-function formatItalianDate(value: unknown) {
-  const raw = toStringValue(value)
-  if (!raw) return "-"
-
-  const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return "-"
-
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed)
-}
 
 function getFallbackFamigliaLabel(record: ChiusuraContrattoRecord) {
   return [record.cognome, record.nome].filter(Boolean).join(" ").trim() || "Famiglia senza nome"
@@ -160,8 +139,6 @@ async function fetchRiattivazioniBoardData(): Promise<BoardData> {
 }
 
 export function useRiattivazioniBoard(): UseRiattivazioniBoardState {
-  const queryClient = useQueryClient()
-
   const {
     data,
     isLoading,
@@ -173,18 +150,9 @@ export function useRiattivazioniBoard(): UseRiattivazioniBoardState {
 
   const columns = data?.columns ?? []
 
-  const setBoardData = React.useCallback(
-    (updater: (previous: BoardData | undefined) => BoardData | undefined) => {
-      queryClient.setQueryData<BoardData>(RIATTIVAZIONI_BOARD_QUERY_KEY, (previous) =>
-        updater(previous),
-      )
-    },
-    [queryClient],
+  const { setBoardData, invalidateBoard } = useBoardQueryCache<BoardData>(
+    RIATTIVAZIONI_BOARD_QUERY_KEY,
   )
-
-  const invalidateBoard = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: RIATTIVAZIONI_BOARD_QUERY_KEY })
-  }, [queryClient])
 
   const updateCard = React.useCallback(
     (
@@ -194,10 +162,7 @@ export function useRiattivazioniBoard(): UseRiattivazioniBoardState {
       setBoardData((previous) => {
         if (!previous) return previous
         return {
-          columns: previous.columns.map((column) => ({
-            ...column,
-            cards: column.cards.map((card) => (card.id === recordId ? updater(card) : card)),
-          })),
+          columns: updateCardInColumns(previous.columns, recordId, updater) as RiattivazioniBoardColumnData[],
         }
       })
     },
@@ -216,33 +181,24 @@ export function useRiattivazioniBoard(): UseRiattivazioniBoardState {
       }),
     applyOptimistic: (previous, { recordId, targetStageId }) => {
       if (!previous) return previous
-      let movedCard: RiattivazioniBoardCardData | null = null
-      const removed = previous.columns.map((column) => {
-        if (column.cards.some((card) => card.id === recordId)) {
-          const remainingCards = column.cards.filter((card) => {
-            if (card.id !== recordId) return true
-            movedCard = {
-              ...card,
-              stage: targetStageId,
-              record: {
-                ...card.record,
-                stato_riattivazione_famiglia: targetStageId,
-              },
-            }
-            return false
-          })
-          return { ...column, cards: remainingCards }
-        }
-        return column
-      })
-      if (!movedCard) return previous
-      return {
-        columns: removed.map((column) =>
-          column.id === targetStageId
-            ? { ...column, cards: [movedCard as RiattivazioniBoardCardData, ...column.cards] }
-            : column,
-        ),
-      }
+      const nextColumns = applyOptimisticCardMove<
+        RiattivazioniBoardColumnData,
+        RiattivazioniBoardCardData
+      >(
+        previous.columns,
+        recordId,
+        targetStageId,
+        (card, stage) => ({
+          ...card,
+          stage: stage as RiattivazioneStageId,
+          record: {
+            ...card.record,
+            stato_riattivazione_famiglia: stage as RiattivazioneStageId,
+          },
+        }),
+      )
+      if (!nextColumns) return previous
+      return { columns: nextColumns }
     },
   })
 

@@ -1,6 +1,7 @@
 import * as React from "react"
 import { toast } from "sonner"
 
+import { useWorkerSectionDraft } from "@/hooks/use-worker-section-draft"
 import { createStripeConnectAccount } from "@/lib/stripe-connect-api"
 import { asLavoratoreRecord, asString } from "../lib/base-utils"
 import type { LavoratoreRecord } from "../types/lavoratore"
@@ -30,19 +31,16 @@ export function useWorkerDocumentsEditor({
 }: UseWorkerDocumentsEditorParams) {
   const [isEditingDocuments, setIsEditingDocuments] = React.useState(false)
   const [updatingDocuments, setUpdatingDocuments] = React.useState(false)
-  const [documentsDraft, setDocumentsDraft] = React.useState<WorkerDocumentsDraft>(() =>
-    buildDocumentsDraft(selectedWorkerRow)
-  )
+  const { draft: documentsDraft, setDraft: setDocumentsDraft } =
+    useWorkerSectionDraft<WorkerDocumentsDraft>({
+      selectedWorkerId,
+      selectedWorkerRow,
+      activePatchesRef,
+      isEditing: isEditingDocuments,
+      setIsEditing: setIsEditingDocuments,
+      buildDraft: buildDocumentsDraft,
+    })
   const resolvedIban = asString(selectedWorkerRow?.iban)
-
-  React.useEffect(() => {
-    if (activePatchesRef.current > 0) return
-    if (!isEditingDocuments) setDocumentsDraft(buildDocumentsDraft(selectedWorkerRow))
-  }, [activePatchesRef, isEditingDocuments, selectedWorkerRow])
-
-  React.useEffect(() => {
-    setIsEditingDocuments(false)
-  }, [selectedWorkerId])
 
   const patchDocumentField = React.useCallback(
     async (field: keyof WorkerDocumentsDraft, value: string | null) => {

@@ -1,11 +1,18 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
+import {
+  applyOptimisticCardMove,
+  updateCardInColumns,
+} from "@/lib/board-column-utils"
+import { buildStageMetadataFromDefaults } from "@/lib/lookup-stage-metadata"
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"
+import { normalizeComparableToken } from "@/lib/value-utils"
 import { fetchCedoliniBoard } from "../queries/fetch-cedolini-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { getRapportoTitle } from "@/modules/rapporti/lib"
@@ -21,7 +28,6 @@ const PAYROLL_REALTIME_TABLES = [
   "mesi_calendario",
 ]
 import type {
-  LookupValueRecord,
   MeseLavoratoRecord,
   PresenzaMensileRecord,
 } from "@/types"
@@ -31,11 +37,6 @@ type PayrollStageDefinition = {
   id: string
   label: string
   color: string
-}
-
-type StageMetadata = {
-  definitions: PayrollStageDefinition[]
-  aliases: Map<string, string>
 }
 
 type UsePayrollBoardState = {
@@ -100,83 +101,6 @@ const LEGACY_STAGE_ALIASES: Record<string, string> = {
  * vuoto. NB: spostare a mano in DONE NON invia la conferma di pagamento.
  * Per ri-bloccarlo, reinserire "DONE" qui.
  */
-function normalizeToken(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-}
-
-function toStringValue(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === "string") {
-    const trimmed = value.trim()
-    return trimmed ? trimmed : null
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value)
-  }
-  return null
-}
-
-function readLookupColor(metadata: LookupValueRecord["metadata"]) {
-  if (!metadata || typeof metadata !== "object") return null
-  const color = metadata.color
-  return typeof color === "string" && color.trim() ? color.trim() : null
-}
-
-function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
-  const aliases = new Map<string, string>()
-  const colorByStage = new Map<string, string>()
-  const labelByStage = new Map<string, string>()
-
-  for (const stage of DEFAULT_STAGE_DEFINITIONS) {
-    aliases.set(normalizeToken(stage.id), stage.id)
-    aliases.set(normalizeToken(stage.label), stage.id)
-    colorByStage.set(stage.id, stage.color)
-    labelByStage.set(stage.id, stage.label)
-  }
-
-  for (const [legacyAlias, stageId] of Object.entries(LEGACY_STAGE_ALIASES)) {
-    aliases.set(normalizeToken(legacyAlias), stageId)
-  }
-
-  const lookupRows = rows.filter(
-    (row) =>
-      row.is_active &&
-      row.entity_table === "mesi_lavorati" &&
-      row.entity_field === "stato_mese_lavorativo"
-  )
-
-  for (const row of lookupRows) {
-    const valueKey = toStringValue(row.value_key)
-    const valueLabel = toStringValue(row.value_label)
-    const resolvedId =
-      aliases.get(normalizeToken(valueKey)) ??
-      aliases.get(normalizeToken(valueLabel)) ??
-      null
-
-    if (!resolvedId) continue
-
-    if (valueKey) aliases.set(normalizeToken(valueKey), resolvedId)
-    if (valueLabel) aliases.set(normalizeToken(valueLabel), resolvedId)
-
-    const color = readLookupColor(row.metadata)
-    if (color) colorByStage.set(resolvedId, color)
-    if (valueLabel) labelByStage.set(resolvedId, valueLabel)
-  }
-
-  return {
-    definitions: DEFAULT_STAGE_DEFINITIONS.map((stage) => ({
-      id: stage.id,
-      label: labelByStage.get(stage.id) ?? stage.label,
-      color: colorByStage.get(stage.id) ?? stage.color,
-    })),
-    aliases,
-  }
-}
-
 function formatCurrency(value: number | null | undefined) {
   if (typeof value !== "number" || Number.isNaN(value)) return null
   return new Intl.NumberFormat("it-IT", {
@@ -226,7 +150,13 @@ async function fetchPayrollBoardData(
       .filter((id): id is string => Boolean(id))
   )
 
-  const stageMetadata = buildStageMetadata(lookupResult.rows)
+  const stageMetadata = buildStageMetadataFromDefaults({
+    defaultStages: DEFAULT_STAGE_DEFINITIONS,
+    lookupRows: lookupResult.rows,
+    entityTable: "mesi_lavorati",
+    entityField: "stato_mese_lavorativo",
+    legacyAliases: LEGACY_STAGE_ALIASES,
+  })
   const stages = stageMetadata.definitions
   const aliases = stageMetadata.aliases
   const cardsByStage = new Map<string, PayrollBoardCardData[]>(
@@ -237,7 +167,7 @@ async function fetchPayrollBoardData(
     const record = row.record
     if (!record) continue
 
-    const stage = aliases.get(normalizeToken(record.stato_mese_lavorativo))
+    const stage = aliases.get(normalizeComparableToken(record.stato_mese_lavorativo))
     if (!stage) continue
 
     const rapporto = row.rapporto ?? null
@@ -321,9 +251,7 @@ export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
 
   const columns = data ?? []
 
-  const invalidateBoard = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: boardQueryKey })
-  }, [queryClient, boardQueryKey])
+  const { invalidateBoard } = useBoardQueryCache<PayrollBoardColumnData[]>(boardQueryKey)
 
   type PayrollBoard = PayrollBoardColumnData[]
 
@@ -337,24 +265,10 @@ export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
       updateRecord("mesi_lavorati", recordId, { stato_mese_lavorativo: targetStageId }),
     applyOptimistic: (previous, { recordId, targetStageId }) => {
       if (!previous) return previous
-      let movedCard: PayrollBoardCardData | null = null
-      const removed = previous.map((column) => {
-        if (column.cards.some((card) => card.id === recordId)) {
-          const remainingCards = column.cards.filter((card) => {
-            if (card.id !== recordId) return true
-            movedCard = { ...card, stage: targetStageId }
-            return false
-          })
-          return { ...column, cards: remainingCards }
-        }
-        return column
-      })
-      if (!movedCard) return previous
-      return removed.map((column) =>
-        column.id === targetStageId
-          ? { ...column, cards: [movedCard as PayrollBoardCardData, ...column.cards] }
-          : column,
-      )
+      const nextColumns = applyOptimisticCardMove(previous, recordId, targetStageId) as
+        | PayrollBoardColumnData[]
+        | undefined
+      return nextColumns ?? previous
     },
   })
 
@@ -375,25 +289,22 @@ export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
       updateRecord("mesi_lavorati", recordId, patch as Record<string, unknown>),
     applyOptimistic: (previous, { recordId, patch }) => {
       if (!previous) return previous
-      return previous.map((column) => ({
-        ...column,
-        cards: column.cards.map((card) =>
-          card.id === recordId
-            ? {
-                ...card,
-                record: { ...card.record, ...patch },
-                importoLabel:
-                  typeof patch.importo_busta_estratto === "number"
-                    ? formatCurrency(patch.importo_busta_estratto)
-                    : card.importoLabel,
-                dataInvioLabel:
-                  typeof patch.data_invio_famiglia === "string"
-                    ? formatItalianDate(patch.data_invio_famiglia)
-                    : card.dataInvioLabel,
-              }
-            : card,
-        ),
-      }))
+      return updateCardInColumns<PayrollBoardColumnData, PayrollBoardCardData>(
+        previous,
+        recordId,
+        (card) => ({
+          ...card,
+          record: { ...card.record, ...patch },
+          importoLabel:
+            typeof patch.importo_busta_estratto === "number"
+              ? formatCurrency(patch.importo_busta_estratto)
+              : card.importoLabel,
+          dataInvioLabel:
+            typeof patch.data_invio_famiglia === "string"
+              ? formatItalianDate(patch.data_invio_famiglia)
+              : card.dataInvioLabel,
+        }),
+      )
     },
   })
 

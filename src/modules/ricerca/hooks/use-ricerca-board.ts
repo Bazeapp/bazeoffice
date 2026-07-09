@@ -1,10 +1,21 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { useMoveMutation } from "@/hooks/use-board-mutations"
 
+import { applyOptimisticCardMove } from "@/lib/board-column-utils"
+import { buildStageMetadataFromLookupRows } from "@/lib/lookup-stage-metadata"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"
+import {
+  formatItalianDate,
+  getFirstArrayValue,
+  getStringArrayValue,
+  normalizeLookupToken,
+  readLookupColor,
+  toStringValue,
+} from "@/lib/value-utils"
 import { fetchRicercaBoard } from "../queries/fetch-ricerca-board"
 import type { RicercaBoardRpcProcess } from "../types/ricerca-rpc"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -40,65 +51,6 @@ type UseRicercaBoardState = {
   loadDeferredColumn: (columnId: string) => Promise<void>
 }
 
-function toStringValue(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === "string") {
-    const normalized = value.trim()
-    return normalized ? normalized : null
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value)
-  }
-  return null
-}
-
-function normalizeLookupToken(value: string | null | undefined) {
-  return String(value ?? "").trim().toLowerCase()
-}
-
-function getFirstArrayValue(value: unknown): string | null {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const normalized = toStringValue(item)
-      if (normalized) return normalized
-    }
-  }
-
-  return toStringValue(value)
-}
-
-function getStringArrayValue(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => toStringValue(item))
-      .filter((item): item is string => Boolean(item))
-  }
-
-  const single = toStringValue(value)
-  return single ? [single] : []
-}
-
-function formatItalianDate(value: unknown): string {
-  const raw = toStringValue(value)
-  if (!raw) return "-"
-
-  const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return "-"
-
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed)
-}
-
-function readLookupColor(metadata: LookupValueRecord["metadata"]) {
-  if (!metadata || typeof metadata !== "object") return null
-  const color = metadata.color
-  return typeof color === "string" && color.trim() ? color.trim() : null
-}
-
 function buildLookupColorMap(rows: LookupValueRecord[]): LookupColorMap {
   return rows.reduce<LookupColorMap>((acc, current) => {
     if (!current.is_active) return acc
@@ -115,54 +67,31 @@ function buildLookupColorMap(rows: LookupValueRecord[]): LookupColorMap {
 }
 
 function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
-  const stageRows = rows
-    .filter(
-      (row) =>
-        row.is_active &&
-        row.entity_table === "processi_matching" &&
-        row.entity_field === "stato_res" &&
-        Boolean(toStringValue(row.value_key)) &&
-        Boolean(toStringValue(row.value_label))
-    )
-    .sort((a, b) => {
-      const left = a.sort_order ?? Number.MAX_SAFE_INTEGER
-      const right = b.sort_order ?? Number.MAX_SAFE_INTEGER
-      if (left !== right) return left - right
-      return a.value_label.localeCompare(b.value_label, "it")
-    })
+  const fromLookup = buildStageMetadataFromLookupRows({
+    lookupRows: rows,
+    entityTable: "processi_matching",
+    entityField: "stato_res",
+  })
 
-  const definitionsById = new Map<string, StageDefinition>()
-  const aliases = new Map<string, string>()
-
-  for (const row of stageRows) {
-    const id = toStringValue(row.value_key)
-    const label = toStringValue(row.value_label)
-    if (!id || !label) continue
-
-    definitionsById.set(id, {
-      id,
-      label,
-      color: readLookupColor(row.metadata),
-    })
-
-    aliases.set(normalizeLookupToken(id), id)
-    aliases.set(normalizeLookupToken(label), id)
-  }
+  const definitionsById = new Map(fromLookup.definitions.map((stage) => [stage.id, stage]))
+  const aliases = new Map(fromLookup.aliases)
 
   for (const stage of STATI_RICERCA_CANONICI) {
+    const existing = definitionsById.get(stage.id)
     definitionsById.set(stage.id, {
       id: stage.id,
       label: stage.label,
-      color: definitionsById.get(stage.id)?.color ?? stage.color,
+      color: existing?.color ?? stage.color,
     })
     aliases.set(normalizeLookupToken(stage.id), stage.id)
     aliases.set(normalizeLookupToken(stage.label), stage.id)
   }
 
   return {
-    definitions: STATI_RICERCA_CANONICI.map((stage) => definitionsById.get(stage.id)).filter(
-      (stage): stage is StageDefinition => Boolean(stage)
-    ),
+    definitions: STATI_RICERCA_CANONICI.flatMap((stage) => {
+      const definition = definitionsById.get(stage.id)
+      return definition ? [definition] : []
+    }),
     aliases,
   }
 }
@@ -400,18 +329,9 @@ export function useRicercaBoard(): UseRicercaBoardState {
 
   const columns = data ?? []
 
-  const setBoardData = React.useCallback(
-    (updater: (previous: RicercaBoardColumnData[] | undefined) => RicercaBoardColumnData[] | undefined) => {
-      queryClient.setQueryData<RicercaBoardColumnData[]>(RICERCA_BOARD_QUERY_KEY, (previous) =>
-        updater(previous),
-      )
-    },
-    [queryClient],
+  const { setBoardData, invalidateBoard } = useBoardQueryCache<RicercaBoardColumnData[]>(
+    RICERCA_BOARD_QUERY_KEY,
   )
-
-  const invalidateBoard = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: RICERCA_BOARD_QUERY_KEY })
-  }, [queryClient])
 
   const loadDeferredColumn = React.useCallback(async (columnId: string) => {
     const currentColumns = queryClient.getQueryData<RicercaBoardColumnData[]>(RICERCA_BOARD_QUERY_KEY) ?? []
@@ -475,32 +395,29 @@ export function useRicercaBoard(): UseRicercaBoardState {
       updateRecord("processi_matching", processId, { stato_res: targetStageId }),
     applyOptimistic: (previous, { processId, targetStageId }) => {
       if (!previous) return previous
-      let movedCard: RicercaBoardCardData | null = null
-      const removed = previous.map((column) => {
+
+      let sourceColumnId: string | null = null
+      for (const column of previous) {
         if (column.cards.some((card) => card.id === processId)) {
-          const remainingCards = column.cards.filter((card) => {
-            if (card.id !== processId) return true
-            movedCard = { ...card, stage: targetStageId }
-            return false
-          })
-          return {
-            ...column,
-            cards: remainingCards,
-            totalCount: Math.max(0, column.totalCount - 1),
-          }
+          sourceColumnId = column.id
+          break
+        }
+      }
+
+      const movedColumns = applyOptimisticCardMove(previous, processId, targetStageId) as
+        | RicercaBoardColumnData[]
+        | undefined
+      if (!movedColumns) return previous
+
+      return movedColumns.map((column) => {
+        if (column.id === sourceColumnId && sourceColumnId !== targetStageId) {
+          return { ...column, totalCount: Math.max(0, column.totalCount - 1) }
+        }
+        if (column.id === targetStageId && sourceColumnId !== targetStageId) {
+          return { ...column, totalCount: column.totalCount + 1 }
         }
         return column
       })
-      if (!movedCard) return previous
-      return removed.map((column) =>
-        column.id === targetStageId
-          ? {
-              ...column,
-              cards: [movedCard as RicercaBoardCardData, ...column.cards],
-              totalCount: column.totalCount + 1,
-            }
-          : column,
-      )
     },
   })
 

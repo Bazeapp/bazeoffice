@@ -1,6 +1,7 @@
 import * as React from "react"
 import { toast } from "sonner"
 
+import { useWorkerSectionDraft } from "@/hooks/use-worker-section-draft"
 import { createRecord, deleteRecord, updateRecord } from "@/lib/record-crud"
 import { asString, parseNumberValue } from "../lib/base-utils"
 import type { EsperienzaLavoratoreRecord } from "../types/esperienza-lavoratore"
@@ -40,18 +41,15 @@ export function useWorkerExperienceEditor({
 }: UseWorkerExperienceEditorParams) {
   const [isEditingExperience, setIsEditingExperience] = React.useState(false)
   const [updatingExperience, setUpdatingExperience] = React.useState(false)
-  const [experienceDraft, setExperienceDraft] = React.useState<WorkerExperienceDraft>(() =>
-    buildExperienceDraft(selectedWorkerRow)
-  )
-
-  React.useEffect(() => {
-    if (activePatchesRef.current > 0) return
-    if (!isEditingExperience) setExperienceDraft(buildExperienceDraft(selectedWorkerRow))
-  }, [activePatchesRef, isEditingExperience, selectedWorkerRow])
-
-  React.useEffect(() => {
-    setIsEditingExperience(false)
-  }, [selectedWorkerId])
+  const { draft: experienceDraft, setDraft: setExperienceDraft } =
+    useWorkerSectionDraft<WorkerExperienceDraft>({
+      selectedWorkerId,
+      selectedWorkerRow,
+      activePatchesRef,
+      isEditing: isEditingExperience,
+      setIsEditing: setIsEditingExperience,
+      buildDraft: buildExperienceDraft,
+    })
 
   const patchExperienceRecord = React.useCallback(
     async (experienceId: string, patch: Partial<EsperienzaLavoratoreRecord>) => {

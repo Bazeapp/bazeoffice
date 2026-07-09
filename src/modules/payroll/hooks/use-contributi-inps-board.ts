@@ -1,11 +1,17 @@
 import * as React from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 
+import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { useMoveMutation, usePatchMutation } from "@/hooks/use-board-mutations"
 
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"
+import {
+  normalizeComparableToken,
+  readLookupColor,
+  toStringValue,
+} from "@/lib/value-utils"
 import { fetchContributiInpsByPeriod } from "../queries/fetch-contributi-inps-by-period"
 import { fetchMesiCalendarioAll } from "../queries/fetch-mesi-calendario-all"
 import { fetchRapportiLavorativiAll } from "@/modules/rapporti/queries"
@@ -70,24 +76,6 @@ const LEGACY_STAGE_ALIASES: Record<string, string> = {
   pagato: "Pagato",
 }
 
-function normalizeToken(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-}
-
-function toStringValue(value: unknown): string | null {
-  if (value == null) return null
-  if (typeof value === "string") {
-    const trimmed = value.trim()
-    return trimmed ? trimmed : null
-  }
-  if (typeof value === "number" || typeof value === "boolean") return String(value)
-  return null
-}
-
 function normalizeRecordKey(value: unknown) {
   const normalized = toStringValue(value)?.trim() ?? null
   return normalized || null
@@ -97,14 +85,8 @@ function readLookupSortOrder(value: LookupValueRecord["sort_order"]) {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
-function readLookupColor(metadata: LookupValueRecord["metadata"]) {
-  if (!metadata || typeof metadata !== "object") return null
-  const color = metadata.color
-  return typeof color === "string" && color.trim() ? color.trim() : null
-}
-
 function getStageColorFallback(value: string | null | undefined) {
-  const token = normalizeToken(value)
+  const token = normalizeComparableToken(value)
   if (!token) return "sky"
   if (token.includes("pagato")) return "green"
   if (token.includes("inviat")) return "amber"
@@ -119,7 +101,7 @@ function isActiveRapporto(
     "stato_assunzione" | "data_fine_rapporto"
   >
 ) {
-  return normalizeToken(resolveRapportoStatus(rapporto)) === "attivo"
+  return normalizeComparableToken(resolveRapportoStatus(rapporto)) === "attivo"
 }
 
 function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
@@ -134,12 +116,12 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
     const aliases = new Map<string, string>()
 
     for (const stage of DEFAULT_STAGE_DEFINITIONS) {
-      aliases.set(normalizeToken(stage.id), stage.id)
-      aliases.set(normalizeToken(stage.label), stage.id)
+      aliases.set(normalizeComparableToken(stage.id), stage.id)
+      aliases.set(normalizeComparableToken(stage.label), stage.id)
     }
 
     for (const [legacyAlias, stageId] of Object.entries(LEGACY_STAGE_ALIASES)) {
-      aliases.set(normalizeToken(legacyAlias), stageId)
+      aliases.set(normalizeComparableToken(legacyAlias), stageId)
     }
 
     return {
@@ -160,7 +142,7 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
     const stageId = valueKey ?? valueLabel
     if (!stageId) continue
 
-    const normalizedStageId = normalizeToken(stageId)
+    const normalizedStageId = normalizeComparableToken(stageId)
     const resolvedLabel = valueLabel ?? valueKey ?? stageId
     const existing = definitionsById.get(stageId)
     const nextSortOrder = readLookupSortOrder(row.sort_order)
@@ -173,30 +155,30 @@ function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
     })
 
     aliases.set(normalizedStageId, stageId)
-    if (valueKey) aliases.set(normalizeToken(valueKey), stageId)
-    if (valueLabel) aliases.set(normalizeToken(valueLabel), stageId)
+    if (valueKey) aliases.set(normalizeComparableToken(valueKey), stageId)
+    if (valueLabel) aliases.set(normalizeComparableToken(valueLabel), stageId)
   }
 
   for (const stage of DEFAULT_STAGE_DEFINITIONS) {
     const resolvedId =
-      aliases.get(normalizeToken(stage.id)) ??
-      aliases.get(normalizeToken(stage.label)) ??
+      aliases.get(normalizeComparableToken(stage.id)) ??
+      aliases.get(normalizeComparableToken(stage.label)) ??
       null
 
     if (!resolvedId) continue
 
-    aliases.set(normalizeToken(stage.id), resolvedId)
-    aliases.set(normalizeToken(stage.label), resolvedId)
+    aliases.set(normalizeComparableToken(stage.id), resolvedId)
+    aliases.set(normalizeComparableToken(stage.label), resolvedId)
   }
 
   for (const [legacyAlias, stageId] of Object.entries(LEGACY_STAGE_ALIASES)) {
     const resolvedId =
-      aliases.get(normalizeToken(stageId)) ??
-      aliases.get(normalizeToken(legacyAlias)) ??
+      aliases.get(normalizeComparableToken(stageId)) ??
+      aliases.get(normalizeComparableToken(legacyAlias)) ??
       null
 
     if (resolvedId) {
-      aliases.set(normalizeToken(legacyAlias), resolvedId)
+      aliases.set(normalizeComparableToken(legacyAlias), resolvedId)
     }
   }
 
@@ -225,7 +207,7 @@ function parseQuarterReference(
   const raw = toStringValue(value)
   if (!raw) return null
 
-  const normalized = normalizeToken(raw)
+  const normalized = normalizeComparableToken(raw)
   const quarterMatch =
     normalized.match(/\bq\s*([1-4])\b/i) ??
     normalized.match(/\btrimestre\s*([1-4])\b/i) ??
@@ -284,7 +266,7 @@ function buildQuarterIndex(rows: MeseCalendarioRecord[]) {
   for (const row of rows) {
     if (row.id) byId.set(row.id, row)
 
-    const token = normalizeToken(row.trimestre_id)
+    const token = normalizeComparableToken(row.trimestre_id)
     if (!token) continue
 
     const current = byToken.get(token)
@@ -377,7 +359,7 @@ async function fetchContributiBoardData(
   const cards = contributiRows.flatMap((record) => {
     const resolvedQuarter =
       (record.trimestre_id ? quarterIndex.byId.get(record.trimestre_id) : null) ??
-      (record.trimestre_id ? quarterIndex.byToken.get(normalizeToken(record.trimestre_id)) : null) ??
+      (record.trimestre_id ? quarterIndex.byToken.get(normalizeComparableToken(record.trimestre_id)) : null) ??
       null
     const parsedQuarterReference = parseQuarterReference(record.trimestre_id)
     const recordQuarter =
@@ -399,7 +381,7 @@ async function fetchContributiBoardData(
     if (!matchesSelectedQuarter) return []
 
     const stage =
-      aliases.get(normalizeToken(record.stato_contributi_inps)) ?? DEFAULT_STAGE_DEFINITIONS[0]?.id ?? ""
+      aliases.get(normalizeComparableToken(record.stato_contributi_inps)) ?? DEFAULT_STAGE_DEFINITIONS[0]?.id ?? ""
     const rapporto = resolveRapporto(record)
     const assunzioneNames = rapporto ? assunzioneNamesByRapporto[rapporto.id] ?? null : null
 
@@ -454,7 +436,6 @@ export function useContributiInpsBoard(
   selectedYear: number,
   selectedQuarter: ContributoQuarterValue
 ): UseContributiInpsBoardState {
-  const queryClient = useQueryClient()
   const boardQueryKey = React.useMemo(
     () => ["contributi-inps-board", selectedYear, selectedQuarter] as const,
     [selectedYear, selectedQuarter],
@@ -473,9 +454,7 @@ export function useContributiInpsBoard(
   const cards = data?.cards ?? []
   const activeRapportiCount = data?.activeRapportiCount ?? 0
 
-  const invalidateBoard = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: boardQueryKey })
-  }, [queryClient, boardQueryKey])
+  const { invalidateBoard } = useBoardQueryCache<BoardData>(boardQueryKey)
 
   const moveMutation = useMoveMutation<
     { recordId: string; targetStageId: string },

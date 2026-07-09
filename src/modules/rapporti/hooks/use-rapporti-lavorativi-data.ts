@@ -1,6 +1,7 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord } from "@/lib/record-crud"
 import { fetchTicketByRapporto } from "../queries/fetch-ticket-by-rapporto"
@@ -215,9 +216,7 @@ export function useRapportiLavorativiData(
     void refetch()
   }, [refetch])
 
-  const invalidateBoard = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ["rapporti-lavorativi-board"] })
-  }, [queryClient])
+  const { invalidateBoard } = useBoardQueryCache<NonNullable<typeof boardData>>(boardQueryKey)
 
   /**
    * Apply a freshly-saved rapporto row to local state.

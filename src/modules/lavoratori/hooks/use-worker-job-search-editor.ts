@@ -1,5 +1,6 @@
 import * as React from "react"
 
+import { useWorkerSectionDraft } from "@/hooks/use-worker-section-draft"
 import type { LavoratoreRecord } from "../types/lavoratore"
 import {
   type WorkerJobSearchDraft,
@@ -22,18 +23,15 @@ export function useWorkerJobSearchEditor({
 }: UseWorkerJobSearchEditorParams) {
   const [isEditingJobSearch, setIsEditingJobSearch] = React.useState(false)
   const [updatingJobSearch, setUpdatingJobSearch] = React.useState(false)
-  const [jobSearchDraft, setJobSearchDraft] = React.useState<WorkerJobSearchDraft>(() =>
-    buildJobSearchDraft(selectedWorkerRow)
-  )
-
-  React.useEffect(() => {
-    if (activePatchesRef.current > 0) return
-    if (!isEditingJobSearch) setJobSearchDraft(buildJobSearchDraft(selectedWorkerRow))
-  }, [activePatchesRef, isEditingJobSearch, selectedWorkerRow])
-
-  React.useEffect(() => {
-    setIsEditingJobSearch(false)
-  }, [selectedWorkerId])
+  const { draft: jobSearchDraft, setDraft: setJobSearchDraft } =
+    useWorkerSectionDraft<WorkerJobSearchDraft>({
+      selectedWorkerId,
+      selectedWorkerRow,
+      activePatchesRef,
+      isEditing: isEditingJobSearch,
+      setIsEditing: setIsEditingJobSearch,
+      buildDraft: buildJobSearchDraft,
+    })
 
   const patchJobSearchField = React.useCallback(
     async (

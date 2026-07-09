@@ -1,6 +1,7 @@
 import * as React from "react"
 import { toast } from "sonner"
 
+import { useWorkerSectionDraft } from "@/hooks/use-worker-section-draft"
 import { invokeWorkerAvailability } from "@/lib/availability-functions"
 import { updateRecord } from "@/lib/record-crud"
 import {
@@ -66,34 +67,25 @@ export function useWorkerAvailabilityEditor({
     [availabilityPayload]
   )
 
-  const [availabilityStatusDraft, setAvailabilityStatusDraft] =
-    React.useState<WorkerAvailabilityStatusDraft>(() =>
-      buildAvailabilityStatusDraft(selectedWorkerRow)
-    )
-  const [availabilityDraft, setAvailabilityDraft] = React.useState<WorkerAvailabilityDraft>(() =>
-    buildAvailabilityDraft(selectedWorkerRow, availabilityPayload)
-  )
-
-  React.useEffect(() => {
-    if (activePatchesRef.current > 0) return
-    if (!isEditingAvailability) {
-      setAvailabilityDraft(buildAvailabilityDraft(selectedWorkerRow, availabilityPayload))
-    }
-    if (!isEditingAvailabilityStatus) {
-      setAvailabilityStatusDraft(buildAvailabilityStatusDraft(selectedWorkerRow))
-    }
-  }, [
-    activePatchesRef,
-    availabilityPayload,
-    isEditingAvailability,
-    isEditingAvailabilityStatus,
-    selectedWorkerRow,
-  ])
-
-  React.useEffect(() => {
-    setIsEditingAvailabilityStatus(false)
-    setIsEditingAvailability(false)
-  }, [selectedWorkerId])
+  const { draft: availabilityStatusDraft, setDraft: setAvailabilityStatusDraft } =
+    useWorkerSectionDraft<WorkerAvailabilityStatusDraft>({
+      selectedWorkerId,
+      selectedWorkerRow,
+      activePatchesRef,
+      isEditing: isEditingAvailabilityStatus,
+      setIsEditing: setIsEditingAvailabilityStatus,
+      buildDraft: buildAvailabilityStatusDraft,
+    })
+  const { draft: availabilityDraft, setDraft: setAvailabilityDraft } =
+    useWorkerSectionDraft<WorkerAvailabilityDraft>({
+      selectedWorkerId,
+      selectedWorkerRow,
+      activePatchesRef,
+      isEditing: isEditingAvailability,
+      setIsEditing: setIsEditingAvailability,
+      buildDraft: (row) => buildAvailabilityDraft(row, availabilityPayload),
+      resyncDeps: [availabilityPayload],
+    })
 
   const saveWorkerAvailability = React.useCallback(async () => {
     if (!selectedWorkerId) return

@@ -1,10 +1,19 @@
 import * as React from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 
+import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { usePatchMutation } from "@/hooks/use-board-mutations"
 
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"
+import {
+  formatItalianDate,
+  getFirstArrayValue,
+  getStringArrayValue,
+  normalizeLookupToken,
+  readLookupColor,
+  toStringValue,
+} from "@/lib/value-utils"
 import { fetchFamiglieByIds } from "../queries/fetch-famiglie-by-ids"
 import { fetchProcessiMatchingByStatoRes } from "../queries/fetch-processi-matching-by-stato-res"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -36,71 +45,12 @@ function asRowArray(input: unknown): GenericRow[] {
   )
 }
 
-function toStringValue(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === "string") {
-    const normalized = value.trim()
-    return normalized ? normalized : null
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value)
-  }
-  return null
-}
-
-function normalizeToken(value: unknown) {
-  return String(value ?? "").trim().toLowerCase()
-}
-
-function getFirstArrayValue(value: unknown): string | null {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const normalized = toStringValue(item)
-      if (normalized) return normalized
-    }
-  }
-
-  return toStringValue(value)
-}
-
-function getStringArrayValue(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => toStringValue(item))
-      .filter((item): item is string => Boolean(item))
-  }
-
-  const single = toStringValue(value)
-  return single ? [single] : []
-}
-
-function formatItalianDate(value: unknown): string {
-  const raw = toStringValue(value)
-  if (!raw) return "-"
-
-  const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return "-"
-
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed)
-}
-
 function toIsoDate(value: unknown): string | null {
   const raw = toStringValue(value)
   if (!raw) return null
   const parsed = new Date(raw)
   if (Number.isNaN(parsed.getTime())) return null
   return parsed.toISOString().slice(0, 10)
-}
-
-function readLookupColor(metadata: LookupValueRecord["metadata"]) {
-  if (!metadata || typeof metadata !== "object") return null
-  const color = metadata.color
-  return typeof color === "string" && color.trim() ? color.trim() : null
 }
 
 function buildLookupColorMap(rows: LookupValueRecord[]): LookupColorMap {
@@ -112,8 +62,8 @@ function buildLookupColorMap(rows: LookupValueRecord[]): LookupColorMap {
     const domain = `${current.entity_table}.${current.entity_field}`
     if (!acc[domain]) acc[domain] = {}
 
-    acc[domain][normalizeToken(current.value_key)] = color
-    acc[domain][normalizeToken(current.value_label)] = color
+    acc[domain][normalizeLookupToken(current.value_key)] = color
+    acc[domain][normalizeLookupToken(current.value_label)] = color
     return acc
   }, {})
 }
@@ -127,8 +77,8 @@ function buildLookupLabelMap(rows: LookupValueRecord[]): LookupLabelMap {
 
     const domain = `${current.entity_table}.${current.entity_field}`
     if (!acc[domain]) acc[domain] = {}
-    acc[domain][normalizeToken(key)] = label
-    acc[domain][normalizeToken(label)] = label
+    acc[domain][normalizeLookupToken(key)] = label
+    acc[domain][normalizeLookupToken(label)] = label
     return acc
   }, {})
 }
@@ -141,7 +91,7 @@ function resolveColor(
 ) {
   if (!value) return null
   const domain = `${entityTable}.${entityField}`
-  return lookupColors[domain]?.[normalizeToken(value)] ?? null
+  return lookupColors[domain]?.[normalizeLookupToken(value)] ?? null
 }
 
 function resolveLabel(
@@ -152,7 +102,7 @@ function resolveLabel(
 ) {
   if (!value) return null
   const domain = `${entityTable}.${entityField}`
-  return lookupLabels[domain]?.[normalizeToken(value)] ?? value
+  return lookupLabels[domain]?.[normalizeLookupToken(value)] ?? value
 }
 
 function toAssegnazioneStatus(
@@ -353,8 +303,6 @@ async function fetchAssegnazioneCards(): Promise<AssegnazioneCardData[]> {
 const ASSEGNAZIONE_BOARD_QUERY_KEY = ["crm-assegnazione-board"] as const
 
 export function useCrmAssegnazione(): UseCrmAssegnazioneState {
-  const queryClient = useQueryClient()
-
   const {
     data,
     isLoading,
@@ -366,9 +314,9 @@ export function useCrmAssegnazione(): UseCrmAssegnazioneState {
 
   const cards = data ?? []
 
-  const invalidateBoard = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ASSEGNAZIONE_BOARD_QUERY_KEY })
-  }, [queryClient])
+  const { invalidateBoard } = useBoardQueryCache<AssegnazioneCardData[]>(
+    ASSEGNAZIONE_BOARD_QUERY_KEY,
+  )
 
   const patchMutation = usePatchMutation<
     { processId: string; patch: Record<string, unknown> },

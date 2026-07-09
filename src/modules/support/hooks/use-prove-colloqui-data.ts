@@ -1,6 +1,7 @@
 import * as React from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 
+import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { flattenAttachmentLinks } from "@/components/shared-next/attachment-utils"
 import { normalizeLookupColors, normalizeLookupOptions } from "@/modules/lavoratori/lib"
 import { formatAssunzioneName, getRapportoProcessIds } from "@/modules/rapporti/lib"
@@ -8,6 +9,7 @@ import { type RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/ty
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"
+import { normalizeLookupToken, toStringValue } from "@/lib/value-utils"
 import { fetchProveColloquiBoard } from "../queries/fetch-prove-colloqui-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
@@ -32,21 +34,8 @@ import type {
 
 const TRIAL_STATUS_DOMAIN = "rapporti_lavorativi.prova_stato_cs"
 
-function toStringValue(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === "string") {
-    const normalized = value.trim()
-    return normalized ? normalized : null
-  }
-  if (typeof value === "number" || typeof value === "boolean") return String(value)
-  return null
-}
-
 function normalizeToken(value: unknown) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replaceAll("_", " ")
+  return normalizeLookupToken(String(value ?? "")).replaceAll("_", " ")
 }
 
 function toDateRangeValue(date: Date) {
@@ -384,7 +373,6 @@ async function fetchProveColloquiData(
 export function useProveColloquiData(calendarRange?: CalendarDateRange) {
   const calendarRangeStart = calendarRange?.start
   const calendarRangeEnd = calendarRange?.end
-  const queryClient = useQueryClient()
 
   const boardQueryKey = React.useMemo(
     () => ["prove-colloqui-board", calendarRangeStart ?? "", calendarRangeEnd ?? ""] as const,
@@ -406,17 +394,7 @@ export function useProveColloquiData(calendarRange?: CalendarDateRange) {
   const lookupOptionsByDomain = data?.lookupOptionsByDomain ?? new Map()
   const lookupColorsByDomain = data?.lookupColorsByDomain ?? new Map()
 
-  const setBoardData = React.useCallback(
-    (updater: (previous: BoardData | undefined) => BoardData | undefined) => {
-      queryClient.setQueryData<BoardData>(boardQueryKey, (previous) => updater(previous))
-    },
-    [queryClient, boardQueryKey],
-  )
-
-  const invalidateBoard = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: boardQueryKey })
-  }, [queryClient, boardQueryKey])
-
+  const { setBoardData, invalidateBoard } = useBoardQueryCache<BoardData>(boardQueryKey)
   const reload = invalidateBoard
 
   useRealtimeBoardSync({

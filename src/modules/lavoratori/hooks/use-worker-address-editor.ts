@@ -1,6 +1,7 @@
 import * as React from "react"
 import { toast } from "sonner"
 
+import { useWorkerSectionDraft } from "@/hooks/use-worker-section-draft"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import { asString, readArrayStrings } from "../lib/base-utils"
 import type { LavoratoreRecord } from "../types/lavoratore"
@@ -36,8 +37,16 @@ export function useWorkerAddressEditor({
   setPatchLoading,
 }: UseWorkerAddressEditorParams) {
   const [isEditingAddress, setIsEditingAddress] = React.useState(false)
-  const [addressDraft, setAddressDraft] = React.useState<WorkerAddressDraft>(() =>
-    buildAddressDraft(selectedWorkerRow, selectedWorkerAddress)
+  const { draft: addressDraft, setDraft: setAddressDraft } = useWorkerSectionDraft<WorkerAddressDraft>(
+    {
+      selectedWorkerId,
+      selectedWorkerRow,
+      activePatchesRef,
+      isEditing: isEditingAddress,
+      setIsEditing: setIsEditingAddress,
+      buildDraft: (row) => buildAddressDraft(row, selectedWorkerAddress),
+      resyncDeps: [selectedWorkerAddress],
+    }
   )
   // Serialize concurrent address-create calls per worker so that field
   // patches firing before the first INSERT returns don't each create a
@@ -45,17 +54,6 @@ export function useWorkerAddressEditor({
   const pendingAddressCreateRef = React.useRef<
     Map<string, Promise<Record<string, unknown> | null>>
   >(new Map())
-
-  React.useEffect(() => {
-    if (activePatchesRef.current > 0) return
-    if (!isEditingAddress) {
-      setAddressDraft(buildAddressDraft(selectedWorkerRow, selectedWorkerAddress))
-    }
-  }, [activePatchesRef, isEditingAddress, selectedWorkerAddress, selectedWorkerRow])
-
-  React.useEffect(() => {
-    setIsEditingAddress(false)
-  }, [selectedWorkerId])
 
   const applyAddressPatch = React.useCallback(
     async (patch: Record<string, unknown>) => {

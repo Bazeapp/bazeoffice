@@ -1,5 +1,6 @@
 import * as React from "react"
 
+import { useWorkerSectionDraft } from "@/hooks/use-worker-section-draft"
 import type { LavoratoreRecord } from "../types/lavoratore"
 import {
   type WorkerSkillsDraft,
@@ -22,18 +23,14 @@ export function useWorkerSkillsEditor({
 }: UseWorkerSkillsEditorParams) {
   const [isEditingSkills, setIsEditingSkills] = React.useState(false)
   const [updatingSkills, setUpdatingSkills] = React.useState(false)
-  const [skillsDraft, setSkillsDraft] = React.useState<WorkerSkillsDraft>(() =>
-    buildSkillsDraft(selectedWorkerRow)
-  )
-
-  React.useEffect(() => {
-    if (activePatchesRef.current > 0) return
-    if (!isEditingSkills) setSkillsDraft(buildSkillsDraft(selectedWorkerRow))
-  }, [activePatchesRef, isEditingSkills, selectedWorkerRow])
-
-  React.useEffect(() => {
-    setIsEditingSkills(false)
-  }, [selectedWorkerId])
+  const { draft: skillsDraft, setDraft: setSkillsDraft } = useWorkerSectionDraft<WorkerSkillsDraft>({
+    selectedWorkerId,
+    selectedWorkerRow,
+    activePatchesRef,
+    isEditing: isEditingSkills,
+    setIsEditing: setIsEditingSkills,
+    buildDraft: buildSkillsDraft,
+  })
 
   const patchSkillsField = React.useCallback(
     async (field: keyof WorkerSkillsDraft, value: string) => {

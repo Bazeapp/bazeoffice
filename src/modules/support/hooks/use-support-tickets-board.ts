@@ -1,13 +1,19 @@
 import * as React from "react"
 
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 
+import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import {
   useMoveMutation,
   usePatchMutation,
 } from "@/hooks/use-board-mutations"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord, updateRecord } from "@/lib/record-crud"
+import {
+  normalizeComparableToken,
+  readLookupColor,
+  toStringValue,
+} from "@/lib/value-utils"
 import { type RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { type AssunzioneRecord } from "@/modules/gestione-contrattuale/types"
@@ -78,29 +84,6 @@ type UseSupportTicketsBoardState = {
   patchTicket: (ticketId: string, patch: Partial<TicketRecord>) => Promise<void>
 }
 
-function normalizeToken(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-}
-
-function toStringValue(value: unknown): string | null {
-  if (typeof value === "string") {
-    const trimmed = value.trim()
-    return trimmed ? trimmed : null
-  }
-  if (typeof value === "number" || typeof value === "boolean") return String(value)
-  return null
-}
-
-function readLookupColor(metadata: LookupValueRecord["metadata"]) {
-  if (!metadata || typeof metadata !== "object") return null
-  const color = metadata.color
-  return typeof color === "string" && color.trim() ? color.trim() : null
-}
-
 function readLookupSortOrder(value: LookupValueRecord["sort_order"]) {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
@@ -142,7 +125,7 @@ function joinTitleParts(parts: Array<string | null | undefined>) {
 }
 
 function normalizeTicketType(value: string | null | undefined): SupportTicketType | null {
-  const token = normalizeToken(value)
+  const token = normalizeComparableToken(value)
   if (token === "customer") return "Customer"
   if (token === "customer support") return "Customer"
   if (token === "payroll") return "Payroll"
@@ -159,8 +142,8 @@ function buildStageMetadata(rows: LookupValueRecord[], ticketRows: TicketRecord[
   )
 
   for (const stage of SUPPORT_TICKET_STATUSES) {
-    aliases.set(normalizeToken(stage.id), stage.id)
-    aliases.set(normalizeToken(stage.label), stage.id)
+    aliases.set(normalizeComparableToken(stage.id), stage.id)
+    aliases.set(normalizeComparableToken(stage.label), stage.id)
     definitionsById.set(stage.id, { ...stage, sortOrder: null })
   }
 
@@ -184,9 +167,9 @@ function buildStageMetadata(rows: LookupValueRecord[], ticketRows: TicketRecord[
       sortOrder: readLookupSortOrder(row.sort_order) ?? existing.sortOrder ?? null,
     })
 
-    aliases.set(normalizeToken(stageId), stageId)
-    if (valueKey) aliases.set(normalizeToken(valueKey), stageId)
-    if (valueLabel) aliases.set(normalizeToken(valueLabel), stageId)
+    aliases.set(normalizeComparableToken(stageId), stageId)
+    if (valueKey) aliases.set(normalizeComparableToken(valueKey), stageId)
+    if (valueLabel) aliases.set(normalizeComparableToken(valueLabel), stageId)
   }
 
   for (const row of ticketRows) {
@@ -197,16 +180,16 @@ function buildStageMetadata(rows: LookupValueRecord[], ticketRows: TicketRecord[
       throw new Error(`Valore ticket.stato non supportato: ${status}`)
     }
 
-    aliases.set(normalizeToken(status), status)
+    aliases.set(normalizeComparableToken(status), status)
   }
 
   const definitions = Array.from(definitionsById.values())
     .sort((left, right) => {
       const leftDefaultIndex = SUPPORT_TICKET_STATUSES.findIndex(
-        (item) => normalizeToken(item.id) === normalizeToken(left.id)
+        (item) => normalizeComparableToken(item.id) === normalizeComparableToken(left.id)
       )
       const rightDefaultIndex = SUPPORT_TICKET_STATUSES.findIndex(
-        (item) => normalizeToken(item.id) === normalizeToken(right.id)
+        (item) => normalizeComparableToken(item.id) === normalizeComparableToken(right.id)
       )
       const leftOrder = left.sortOrder ?? (leftDefaultIndex >= 0 ? leftDefaultIndex : Number.POSITIVE_INFINITY)
       const rightOrder = right.sortOrder ?? (rightDefaultIndex >= 0 ? rightDefaultIndex : Number.POSITIVE_INFINITY)
@@ -547,7 +530,7 @@ function mapRecordToCard(
   if (!rawStage) {
     throw new Error(`Ticket ${record.id} senza stato valorizzato`)
   }
-  const stage = aliases.get(normalizeToken(rawStage))
+  const stage = aliases.get(normalizeComparableToken(rawStage))
   if (!stage) {
     throw new Error(`Stato ticket non mappato per ticket ${record.id}: ${rawStage}`)
   }
@@ -659,13 +642,13 @@ async function fetchSupportTicketsData(ticketType: SupportTicketType) {
   })
 
   const activeRapportiCount = rapportiRows.filter((rapporto) => {
-    const token = normalizeToken(resolveRapportoStatus(rapporto))
+    const token = normalizeComparableToken(resolveRapportoStatus(rapporto))
     return token === "attivo"
   }).length
 
   const rapportoOptions = rapportiRows
     .filter((rapporto) => {
-      const token = normalizeToken(resolveRapportoStatus(rapporto))
+      const token = normalizeComparableToken(resolveRapportoStatus(rapporto))
       return token === "attivo"
     })
     .map((rapporto) => {
@@ -707,7 +690,6 @@ type SupportTicketsBoardData = {
 }
 
 export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSupportTicketsBoardState {
-  const queryClient = useQueryClient()
   const boardQueryKey = React.useMemo(
     () => ["support-tickets-board", ticketType] as const,
     [ticketType],
@@ -734,17 +716,8 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
     [data?.stageAliases],
   )
 
-  const invalidateBoard = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ["support-tickets-board"] })
-  }, [queryClient])
-
-  const setBoardData = React.useCallback(
-    (updater: (previous: SupportTicketsBoardData | undefined) => SupportTicketsBoardData | undefined) => {
-      queryClient.setQueryData<SupportTicketsBoardData>(boardQueryKey, (previous) =>
-        updater(previous),
-      )
-    },
-    [queryClient, boardQueryKey],
+  const { setBoardData, invalidateBoard } = useBoardQueryCache<SupportTicketsBoardData>(
+    boardQueryKey,
   )
 
   useRealtimeBoardSync({

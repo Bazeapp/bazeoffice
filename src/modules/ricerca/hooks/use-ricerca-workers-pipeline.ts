@@ -1,7 +1,8 @@
 import * as React from "react"
 import { toast } from "sonner"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 
+import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { useMoveMutation } from "@/hooks/use-board-mutations"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import {
@@ -19,7 +20,6 @@ import { applyRicercaWorkersPipelineMoveOptimistic } from "../lib/pipeline-mutat
 export function useRicercaWorkersPipeline(
   processId: string,
 ): RicercaWorkersPipelineState {
-  const queryClient = useQueryClient()
   const boardQueryKey = React.useMemo(
     () => ["ricerca-workers-pipeline", processId] as const,
     [processId],
@@ -37,9 +37,7 @@ export function useRicercaWorkersPipeline(
 
   const columns = React.useMemo(() => data ?? [], [data])
 
-  const invalidateBoard = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ["ricerca-workers-pipeline"] })
-  }, [queryClient])
+  const { invalidateBoard } = useBoardQueryCache<RicercaWorkerSelectionColumn[]>(boardQueryKey)
 
   const refresh = React.useCallback(() => {
     void refetch()

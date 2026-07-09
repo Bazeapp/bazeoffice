@@ -2,13 +2,25 @@ import * as React from "react"
 import { toast } from "sonner"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import {
   useDeleteBoardRecordMutation,
   useMoveMutation,
   usePatchMutation,
 } from "@/hooks/use-board-mutations"
 
+import {
+  applyOptimisticCardMove,
+  updateCardInColumns,
+} from "@/lib/board-column-utils"
+import { buildStageMetadataFromDefaults } from "@/lib/lookup-stage-metadata"
 import { fetchLookupValues } from "@/lib/lookup-values"
+import {
+  formatItalianDate,
+  normalizeComparableToken,
+  readLookupColor,
+  toStringValue,
+} from "@/lib/value-utils"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import { mapChiusuraBoardCard } from "../lib/chiusure-board"
 import { fetchAssunzioniNamesByRapportoIds } from "../queries/fetch-assunzioni-names-by-rapporto-ids"
@@ -41,11 +53,6 @@ type ChiusuraStageDefinition = {
   id: string
   label: string
   color: string
-}
-
-type StageMetadata = {
-  definitions: ChiusuraStageDefinition[]
-  aliases: Map<string, string>
 }
 
 type TipoMetadata = {
@@ -99,94 +106,6 @@ const DEFAULT_STAGE_DEFINITIONS: ChiusuraStageDefinition[] = [
   { id: "Chiusura terminata", label: "Chiusura terminata", color: "green" },
 ]
 
-function normalizeToken(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-}
-
-function toStringValue(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === "string") {
-    const trimmed = value.trim()
-    return trimmed ? trimmed : null
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value)
-  }
-  return null
-}
-
-function readLookupColor(metadata: LookupValueRecord["metadata"]) {
-  if (!metadata || typeof metadata !== "object") return null
-  const color = metadata.color
-  return typeof color === "string" && color.trim() ? color.trim() : null
-}
-
-function formatItalianDate(value: unknown) {
-  const raw = toStringValue(value)
-  if (!raw) return "-"
-
-  const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return "-"
-
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed)
-}
-
-function buildStageMetadata(rows: LookupValueRecord[]): StageMetadata {
-  const aliases = new Map<string, string>()
-  const colorByStage = new Map<string, string>()
-  const labelByStage = new Map<string, string>()
-
-  for (const stage of DEFAULT_STAGE_DEFINITIONS) {
-    aliases.set(normalizeToken(stage.id), stage.id)
-    aliases.set(normalizeToken(stage.label), stage.id)
-    colorByStage.set(stage.id, stage.color)
-    labelByStage.set(stage.id, stage.label)
-  }
-
-  const lookupRows = rows.filter(
-    (row) =>
-      row.is_active &&
-      row.entity_table === "chiusure_contratti" &&
-      row.entity_field === "stato"
-  )
-
-  for (const row of lookupRows) {
-    const valueKey = toStringValue(row.value_key)
-    const valueLabel = toStringValue(row.value_label)
-    const resolvedId =
-      aliases.get(normalizeToken(valueKey)) ??
-      aliases.get(normalizeToken(valueLabel)) ??
-      null
-
-    if (!resolvedId) continue
-
-    if (valueKey) aliases.set(normalizeToken(valueKey), resolvedId)
-    if (valueLabel) aliases.set(normalizeToken(valueLabel), resolvedId)
-
-    const color = readLookupColor(row.metadata)
-    if (color) colorByStage.set(resolvedId, color)
-    if (valueLabel) labelByStage.set(resolvedId, valueLabel)
-  }
-
-  return {
-    definitions: DEFAULT_STAGE_DEFINITIONS.map((stage) => ({
-      id: stage.id,
-      label: labelByStage.get(stage.id) ?? stage.label,
-      color: colorByStage.get(stage.id) ?? stage.color,
-    })),
-    aliases,
-  }
-}
-
 function buildTipoMetadata(rows: LookupValueRecord[]): TipoMetadata {
   const labels = new Map<string, string>()
   const colors = new Map<string, string>()
@@ -221,13 +140,13 @@ function buildTipoMetadata(rows: LookupValueRecord[]): TipoMetadata {
     const color = readLookupColor(row.metadata)
 
     if (valueKey) {
-      const normalizedKey = normalizeToken(valueKey)
+      const normalizedKey = normalizeComparableToken(valueKey)
       if (valueLabel) labels.set(normalizedKey, valueLabel)
       if (color) colors.set(normalizedKey, color)
     }
 
     if (valueLabel) {
-      const normalizedLabel = normalizeToken(valueLabel)
+      const normalizedLabel = normalizeComparableToken(valueLabel)
       labels.set(normalizedLabel, valueLabel)
       if (color) colors.set(normalizedLabel, color)
     }
@@ -263,7 +182,12 @@ async function fetchChiusureBoardData(
   ].filter((id): id is string => Boolean(id))
   const assunzioneNamesByRapporto = await fetchAssunzioniNamesByRapportoIds(rapportoIds)
 
-  const stageMetadata = buildStageMetadata(lookupResult.rows)
+  const stageMetadata = buildStageMetadataFromDefaults({
+    defaultStages: DEFAULT_STAGE_DEFINITIONS,
+    lookupRows: lookupResult.rows,
+    entityTable: "chiusure_contratti",
+    entityField: "stato",
+  })
   const tipoMetadata = buildTipoMetadata(lookupResult.rows)
   const stages = stageMetadata.definitions
   const aliases = stageMetadata.aliases
@@ -273,7 +197,7 @@ async function fetchChiusureBoardData(
 
   for (const row of boardResult.cards) {
     const record = row.record
-    const stage = aliases.get(normalizeToken(record.stato))
+    const stage = aliases.get(normalizeComparableToken(record.stato))
     if (!stage) continue
 
     const previousCard = getPreviousCard?.(record.id)
@@ -350,18 +274,8 @@ export function useChiusureBoard(): UseChiusureBoardState {
     [data?.tipoLicenziamentoOptions],
   )
 
-  const setBoardData = React.useCallback(
-    (updater: (previous: ChiusureBoardData) => ChiusureBoardData) => {
-      queryClient.setQueryData<ChiusureBoardData>(CHIUSURE_BOARD_QUERY_KEY, (previous) =>
-        previous ? updater(previous) : previous
-      )
-    },
-    [queryClient]
-  )
-
-  const invalidateBoard = React.useCallback(
-    () => queryClient.invalidateQueries({ queryKey: CHIUSURE_BOARD_QUERY_KEY }),
-    [queryClient]
+  const { setBoardData, invalidateBoard } = useBoardQueryCache<ChiusureBoardData>(
+    CHIUSURE_BOARD_QUERY_KEY,
   )
 
   const moveMutation = useMoveMutation<
@@ -377,7 +291,8 @@ export function useChiusureBoard(): UseChiusureBoardState {
       if (!previous) return previous
       return {
         ...previous,
-        columns: moveCardInColumns(previous.columns, recordId, targetStageId),
+        columns:
+          applyOptimisticCardMove(previous.columns, recordId, targetStageId) ?? previous.columns,
       }
     },
   })
@@ -531,15 +446,13 @@ export function useChiusureBoard(): UseChiusureBoardState {
       recordId: string,
       updater: (card: ChiusureBoardCardData) => ChiusureBoardCardData
     ) => {
-      setBoardData((current) => ({
-        ...current,
-        columns: current.columns.map((column) => ({
-          ...column,
-          cards: column.cards.map((card) =>
-            card.id === recordId ? updater(card) : card
-          ),
-        })),
-      }))
+      setBoardData((current) => {
+        if (!current) return current
+        return {
+          ...current,
+          columns: updateCardInColumns(current.columns, recordId, updater),
+        }
+      })
     },
     [setBoardData]
   )
@@ -594,34 +507,6 @@ export function useChiusureBoard(): UseChiusureBoardState {
     updateCard,
     deleteChiusura,
   }
-}
-
-function moveCardInColumns(
-  columns: ChiusureBoardColumnData[],
-  recordId: string,
-  targetStageId: string
-): ChiusureBoardColumnData[] {
-  let movedCard: ChiusureBoardCardData | null = null
-
-  const withoutCard = columns.map((column) => {
-    if (column.cards.some((card) => card.id === recordId)) {
-      const remainingCards = column.cards.filter((card) => {
-        if (card.id !== recordId) return true
-        movedCard = { ...card, stage: targetStageId }
-        return false
-      })
-      return { ...column, cards: remainingCards }
-    }
-    return column
-  })
-
-  if (!movedCard) return columns
-
-  return withoutCard.map((column) =>
-    column.id === targetStageId
-      ? { ...column, cards: [movedCard as ChiusureBoardCardData, ...column.cards] }
-      : column
-  )
 }
 
 function applyPatchInColumns(

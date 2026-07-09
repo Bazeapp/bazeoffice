@@ -1,6 +1,7 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -100,16 +101,7 @@ export function useCrmPipelinePreview(
 
   type CrmBoardData = NonNullable<typeof data>
 
-  const setBoardData = React.useCallback(
-    (updater: (previous: CrmBoardData | undefined) => CrmBoardData | undefined) => {
-      queryClient.setQueryData<CrmBoardData>(boardQueryKey, (previous) => updater(previous))
-    },
-    [queryClient, boardQueryKey],
-  )
-
-  const invalidateBoard = React.useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ["crm-pipeline-board"] })
-  }, [queryClient])
+  const { setBoardData, invalidateBoard } = useBoardQueryCache<CrmBoardData>(boardQueryKey)
 
   const loadClosedStage = React.useCallback((stageId: string) => {
     if (!CLOSED_STAGE_IDS.has(stageId)) return
