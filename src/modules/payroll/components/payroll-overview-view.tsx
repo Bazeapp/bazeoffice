@@ -24,6 +24,7 @@ import {
   CEDOLINI_FILTER_GROUPS,
   cardMatchesCedoliniFilters,
   createDefaultCedoliniFilters,
+  isAbbonamentoCard,
   isCardPaid,
   normalizeCaseFlag,
   toggleCedoliniFilter,
@@ -52,6 +53,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
+import { TipoContrattoBadge } from "@/components/shared-next/tipo-contratto-badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { CheckboxChip } from "@/components/ui/checkbox"
@@ -557,6 +559,10 @@ function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
+          <TipoContrattoBadge
+            isAbbonamento={isAbbonamentoCard(card)}
+            className="px-2.5 py-0.5"
+          />
           {normalizeCaseFlag(card.record.caso_particolare) !== "no" ? (
             <Badge
               variant="secondary"

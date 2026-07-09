@@ -48,6 +48,7 @@ import {
   readArrayStrings,
 } from "../lib/base-utils";
 import { isDirectInvolvementSelection } from "../lib/involvement-utils";
+import { sortSelectionGroupsByRank } from "../lib/stati-selezione";
 import {
   getLookupLabelForSave,
   getLookupOptionLabel,
@@ -603,7 +604,7 @@ export function LavoratoriCercaView({
       groups.set(groupKey, currentItems);
     }
 
-    return Array.from(groups.entries());
+    return sortSelectionGroupsByRank(Array.from(groups.entries()));
   }, [relatedActiveSearches.direct]);
   const groupedOtherRelatedSearches = React.useMemo(() => {
     const groups = new Map<string, WorkerRelatedSearchItem[]>();
@@ -615,7 +616,7 @@ export function LavoratoriCercaView({
       groups.set(groupKey, currentItems);
     }
 
-    return Array.from(groups.entries());
+    return sortSelectionGroupsByRank(Array.from(groups.entries()));
   }, [relatedActiveSearches.other]);
   const recruiterLabelsById = React.useMemo(
     () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
@@ -1444,6 +1445,7 @@ export function LavoratoriCercaView({
   const workerSectionTabs = React.useMemo<WorkerSectionTab[]>(() => {
     const tabs: WorkerSectionTab[] = [
       { id: "profilo", label: "Profilo", icon: UsersIcon },
+      { id: "processi", label: "Ricerche", icon: MessageSquareTextIcon },
       { id: "residenza", label: "Residenza", icon: MapPinIcon },
       { id: "calendario", label: "Calendario", icon: CalendarDaysIcon },
       { id: "ricerca", label: "Ricerca", icon: BriefcaseBusinessIcon },
@@ -1463,8 +1465,6 @@ export function LavoratoriCercaView({
         icon: SirenIcon,
       });
     }
-
-    tabs.push({ id: "processi", label: "Ricerche", icon: MessageSquareTextIcon });
 
     return tabs;
   }, [selectedWorkerIsNonQualificato]);
@@ -1673,6 +1673,7 @@ export function LavoratoriCercaView({
         <>
           <WorkerDetailShell
             key={selectedWorkerId ?? "__empty__"}
+            className="scrollbar-visible"
             sectionRef={detailScrollRef}
             tabs={workerSectionTabs}
             activeSection={activeWorkerSection}
@@ -1792,6 +1793,142 @@ export function LavoratoriCercaView({
           {selectedWorker ? (
             <div className="space-y-6">
               <div className="space-y-6 text-sm">
+
+                <div ref={setWorkerSectionRef("processi")}>
+                  <DetailSectionBlock
+                    title="Ricerche coinvolte"
+                    action={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsAddSearchDialogOpen(true)}
+                        disabled={!selectedWorkerId}
+                      >
+                        <PlusIcon className="size-4" />
+                        Aggiungi ad una ricerca
+                      </Button>
+                    }
+                    contentClassName="space-y-2"
+                  >
+                    {loadingRelatedActiveSearches ? (
+                      <p className="text-muted-foreground text-sm">
+                        Caricamento ricerche coinvolte...
+                      </p>
+                    ) : relatedActiveSearches.direct.length === 0 &&
+                      relatedActiveSearches.other.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">
+                        Nessuna ricerca coinvolta.
+                      </p>
+                    ) : (
+                      <Tabs defaultValue="direct" className="space-y-4">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="direct" className="gap-2">
+                            Coinvolto direttamente
+                            <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-[10px]">
+                              {relatedActiveSearches.direct.length}
+                            </span>
+                          </TabsTrigger>
+                          <TabsTrigger value="other" className="gap-2">
+                            Tutte le altre ricerche
+                            <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-[10px]">
+                              {relatedActiveSearches.other.length}
+                            </span>
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="direct" className="mt-0">
+                          {groupedDirectRelatedSearches.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">
+                              Nessun coinvolgimento diretto.
+                            </p>
+                          ) : (
+                            <Accordion
+                              type="multiple"
+                              defaultValue={groupedDirectRelatedSearches.map(([groupLabel]) => `direct-${groupLabel}`)}
+                              className="space-y-3"
+                            >
+                              {groupedDirectRelatedSearches.map(([groupLabel, groupItems]) => (
+                                <AccordionItem
+                                  key={`direct-${groupLabel}`}
+                                  value={`direct-${groupLabel}`}
+                                  className="overflow-hidden rounded-xl border border-border/70 bg-background"
+                                >
+                                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                                    <div className="flex min-w-0 items-center gap-2 text-left">
+                                      <div
+                                        className={`rounded-full border px-2 py-0.5 text-2xs font-medium ${getSelectionStateClassName(groupLabel)}`}
+                                      >
+                                        {groupLabel}
+                                      </div>
+                                      <span className="text-muted-foreground text-xs">
+                                        {groupItems.length} {groupItems.length === 1 ? "ricerca" : "ricerche"}
+                                      </span>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="space-y-2 px-4 pb-4">
+                                    {groupItems.map((item) => (
+                                      <RicercaActiveSearchCard
+                                        key={item.selectionId}
+                                        data={item.boardCard}
+                                        className="cursor-pointer"
+                                        onClick={() => openRicercaDetailFromWorker(item.processId)}
+                                      />
+                                    ))}
+                                  </AccordionContent>
+                                </AccordionItem>
+                              ))}
+                            </Accordion>
+                          )}
+                        </TabsContent>
+
+                        <TabsContent value="other" className="mt-0">
+                          {groupedOtherRelatedSearches.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">
+                              Nessun'altra ricerca rilevante.
+                            </p>
+                          ) : (
+                            <Accordion
+                              type="multiple"
+                              defaultValue={groupedOtherRelatedSearches.map(([groupLabel]) => `other-${groupLabel}`)}
+                              className="space-y-3"
+                            >
+                              {groupedOtherRelatedSearches.map(([groupLabel, groupItems]) => (
+                                <AccordionItem
+                                  key={`other-${groupLabel}`}
+                                  value={`other-${groupLabel}`}
+                                  className="overflow-hidden rounded-xl border border-border/70 bg-background"
+                                >
+                                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                                    <div className="flex min-w-0 items-center gap-2 text-left">
+                                      <div
+                                        className={`rounded-full border px-2 py-0.5 text-2xs font-medium ${getSelectionStateClassName(groupLabel)}`}
+                                      >
+                                        {groupLabel}
+                                      </div>
+                                      <span className="text-muted-foreground text-xs">
+                                        {groupItems.length} {groupItems.length === 1 ? "ricerca" : "ricerche"}
+                                      </span>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="space-y-2 px-4 pb-4">
+                                    {groupItems.map((item) => (
+                                      <RicercaActiveSearchCard
+                                        key={item.selectionId}
+                                        data={item.boardCard}
+                                        className="cursor-pointer"
+                                        onClick={() => openRicercaDetailFromWorker(item.processId)}
+                                      />
+                                    ))}
+                                  </AccordionContent>
+                                </AccordionItem>
+                              ))}
+                            </Accordion>
+                          )}
+                        </TabsContent>
+                      </Tabs>
+                    )}
+                  </DetailSectionBlock>
+                </div>
 
                 <div ref={setWorkerSectionRef("residenza")}>
                   <AddressSectionCard
@@ -2225,142 +2362,6 @@ export function LavoratoriCercaView({
                     </Form>
                   </div>
                 ) : null}
-
-                <div ref={setWorkerSectionRef("processi")}>
-                  <DetailSectionBlock
-                    title="Ricerche coinvolte"
-                    action={
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsAddSearchDialogOpen(true)}
-                        disabled={!selectedWorkerId}
-                      >
-                        <PlusIcon className="size-4" />
-                        Aggiungi ad una ricerca
-                      </Button>
-                    }
-                    contentClassName="space-y-2"
-                  >
-                    {loadingRelatedActiveSearches ? (
-                      <p className="text-muted-foreground text-sm">
-                        Caricamento ricerche coinvolte...
-                      </p>
-                    ) : relatedActiveSearches.direct.length === 0 &&
-                      relatedActiveSearches.other.length === 0 ? (
-                      <p className="text-muted-foreground text-sm">
-                        Nessuna ricerca coinvolta.
-                      </p>
-                    ) : (
-                      <Tabs defaultValue="direct" className="space-y-4">
-                        <TabsList className="grid w-full grid-cols-2">
-                          <TabsTrigger value="direct" className="gap-2">
-                            Coinvolto direttamente
-                            <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-[10px]">
-                              {relatedActiveSearches.direct.length}
-                            </span>
-                          </TabsTrigger>
-                          <TabsTrigger value="other" className="gap-2">
-                            Tutte le altre ricerche
-                            <span className="rounded-full bg-background/80 px-1.5 py-0.5 text-[10px]">
-                              {relatedActiveSearches.other.length}
-                            </span>
-                          </TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="direct" className="mt-0">
-                          {groupedDirectRelatedSearches.length === 0 ? (
-                            <p className="text-muted-foreground text-sm">
-                              Nessun coinvolgimento diretto.
-                            </p>
-                          ) : (
-                            <Accordion
-                              type="multiple"
-                              defaultValue={groupedDirectRelatedSearches.map(([groupLabel]) => `direct-${groupLabel}`)}
-                              className="space-y-3"
-                            >
-                              {groupedDirectRelatedSearches.map(([groupLabel, groupItems]) => (
-                                <AccordionItem
-                                  key={`direct-${groupLabel}`}
-                                  value={`direct-${groupLabel}`}
-                                  className="overflow-hidden rounded-xl border border-border/70 bg-background"
-                                >
-                                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                                    <div className="flex min-w-0 items-center gap-2 text-left">
-                                      <div
-                                        className={`rounded-full border px-2 py-0.5 text-2xs font-medium ${getSelectionStateClassName(groupLabel)}`}
-                                      >
-                                        {groupLabel}
-                                      </div>
-                                      <span className="text-muted-foreground text-xs">
-                                        {groupItems.length} {groupItems.length === 1 ? "ricerca" : "ricerche"}
-                                      </span>
-                                    </div>
-                                  </AccordionTrigger>
-                                  <AccordionContent className="space-y-2 px-4 pb-4">
-                                    {groupItems.map((item) => (
-                                      <RicercaActiveSearchCard
-                                        key={item.selectionId}
-                                        data={item.boardCard}
-                                        className="cursor-pointer"
-                                        onClick={() => openRicercaDetailFromWorker(item.processId)}
-                                      />
-                                    ))}
-                                  </AccordionContent>
-                                </AccordionItem>
-                              ))}
-                            </Accordion>
-                          )}
-                        </TabsContent>
-
-                        <TabsContent value="other" className="mt-0">
-                          {groupedOtherRelatedSearches.length === 0 ? (
-                            <p className="text-muted-foreground text-sm">
-                              Nessun'altra ricerca rilevante.
-                            </p>
-                          ) : (
-                            <Accordion
-                              type="multiple"
-                              defaultValue={groupedOtherRelatedSearches.map(([groupLabel]) => `other-${groupLabel}`)}
-                              className="space-y-3"
-                            >
-                              {groupedOtherRelatedSearches.map(([groupLabel, groupItems]) => (
-                                <AccordionItem
-                                  key={`other-${groupLabel}`}
-                                  value={`other-${groupLabel}`}
-                                  className="overflow-hidden rounded-xl border border-border/70 bg-background"
-                                >
-                                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                                    <div className="flex min-w-0 items-center gap-2 text-left">
-                                      <div
-                                        className={`rounded-full border px-2 py-0.5 text-2xs font-medium ${getSelectionStateClassName(groupLabel)}`}
-                                      >
-                                        {groupLabel}
-                                      </div>
-                                      <span className="text-muted-foreground text-xs">
-                                        {groupItems.length} {groupItems.length === 1 ? "ricerca" : "ricerche"}
-                                      </span>
-                                    </div>
-                                  </AccordionTrigger>
-                                  <AccordionContent className="space-y-2 px-4 pb-4">
-                                    {groupItems.map((item) => (
-                                      <RicercaActiveSearchCard
-                                        key={item.selectionId}
-                                        data={item.boardCard}
-                                        className="cursor-pointer"
-                                        onClick={() => openRicercaDetailFromWorker(item.processId)}
-                                      />
-                                    ))}
-                                  </AccordionContent>
-                                </AccordionItem>
-                              ))}
-                            </Accordion>
-                          )}
-                        </TabsContent>
-                      </Tabs>
-                    )}
-                  </DetailSectionBlock>
-                </div>
               </div>
             </div>
           ) : null}

@@ -51,6 +51,7 @@ import type {
 import { ContributoInpsDetailSheet, type ContributiColumnData, CedolinoDetailSheet } from "@/modules/payroll/components"
 import { SupportTicketCreateDialog, type SupportTicketTag, type SupportTicketType, type SupportTicketUrgency } from "@/modules/support/components"
 import { Badge } from "@/components/ui/badge"
+import { TipoContrattoBadge } from "@/components/shared-next/tipo-contratto-badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -1135,6 +1136,10 @@ export function RapportoDetailPanel({
             {rapportoView.tipo_contratto}
           </Badge>
         ) : null}
+        <TipoContrattoBadge
+          isAbbonamento={rapportoView.richiesta_attivazione_id == null}
+          className="h-6 rounded-full px-2.5 text-2xs font-medium"
+        />
       </div>
     </div>
   )
