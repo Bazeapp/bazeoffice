@@ -71,8 +71,8 @@ export async function setTicketFields(ticketId: string, patch: TicketFixturePatc
 
 export async function deleteTicket(ticketId: string) {
   if (
-    E2E_TICKET_CUSTOMER_FIXTURE_IDS.includes(ticketId) ||
-    E2E_TICKET_PAYROLL_FIXTURE_IDS.includes(ticketId)
+    (E2E_TICKET_CUSTOMER_FIXTURE_IDS as readonly string[]).includes(ticketId) ||
+    (E2E_TICKET_PAYROLL_FIXTURE_IDS as readonly string[]).includes(ticketId)
   ) {
     return
   }

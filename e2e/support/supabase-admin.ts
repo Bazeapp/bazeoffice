@@ -1,8 +1,8 @@
-import { createClient } from "@supabase/supabase-js"
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 
 import { assertLocalKeysConfigured, getLocalSupabaseConfig } from "../constants"
 
-let adminClient: ReturnType<typeof createClient> | null = null
+let adminClient: SupabaseClient | null = null
 
 export function getSupabaseAdmin() {
   assertLocalKeysConfigured()
