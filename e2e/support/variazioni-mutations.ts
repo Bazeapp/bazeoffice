@@ -68,7 +68,7 @@ export async function cleanupCreateTestArtifacts() {
   const rows = (data ?? []) as Array<{ id: string }>
   const transientIds = rows
     .map((row) => row.id)
-    .filter((id) => !FIXTURE_VARIAZIONE_IDS.includes(id))
+    .filter((id) => !(FIXTURE_VARIAZIONE_IDS as readonly string[]).includes(id))
 
   if (transientIds.length === 0) return
 

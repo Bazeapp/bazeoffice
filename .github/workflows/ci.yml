@@ -36,7 +36,7 @@ jobs:
       # so one CI run reports all three results instead of one at a time.
       - name: Typecheck
         if: ${{ !cancelled() }}
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       - name: Test
         if: ${{ !cancelled() }}

@@ -8,7 +8,7 @@
     "dev:nostrict": "VITE_DISABLE_STRICT_MODE=true vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -b --noEmit",
     "audit:lookup": "node scripts/audit-lookup-usage.mjs",
     "audit:autosave": "node scripts/audit-autosave-risk.mjs",
     "audit:autosave:strict": "node scripts/audit-autosave-risk.mjs --strict",

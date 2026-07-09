@@ -15,7 +15,9 @@ const SEARCH_DEBOUNCE_MS = 400
 
 export type SupportTicketBoardKind = "customer" | "payroll"
 
-type BoardSelectors = (typeof selectors)["ticketCustomer"]
+type BoardSelectors =
+  | (typeof selectors)["ticketCustomer"]
+  | (typeof selectors)["ticketPayroll"]
 
 function getBoardSelectors(kind: SupportTicketBoardKind): BoardSelectors {
   return kind === "customer" ? selectors.ticketCustomer : selectors.ticketPayroll

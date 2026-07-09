@@ -120,7 +120,7 @@ export async function selectRapportoCard(page: Page, rapportoId: string) {
   await card.click()
 }
 
-export function rapportoDetailHeading(page: Page, title: string) {
+export function rapportoDetailHeading(page: Page, title: string | RegExp) {
   return page.getByRole("heading", { name: title })
 }
 
