@@ -14,6 +14,7 @@ import { useWatch } from "react-hook-form"
 import type { LavoratoreListItem } from "../components/lavoratore-card"
 import type { LavoratoreRecord } from "../types/lavoratore"
 import { asString, getAgeFromBirthDate } from "../lib/base-utils"
+import { getWorkerCardInitials } from "../lib/card-utils"
 import { getWorkerQualificationStatus } from "../lib/status-utils"
 import {
   FieldInput,
@@ -45,19 +46,6 @@ import {
 } from "./gate1/gate-form-fields"
 
 const EMPTY_SELECT_VALUE = "none"
-
-function initialsFromName(name: string) {
-  const parts = name
-    .split(" ")
-    .map((part) => part.trim())
-    .filter(Boolean)
-  return (
-    parts
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? "")
-      .join("") || "?"
-  )
-}
 
 type WorkerProfileOverviewProps = {
   worker: LavoratoreListItem
@@ -249,7 +237,7 @@ export function WorkerProfileOverview({
               size="xl"
               src={worker.immagineUrl ?? undefined}
               alt={worker.nomeCompleto}
-              fallback={initialsFromName(worker.nomeCompleto)}
+              fallback={getWorkerCardInitials(worker.nomeCompleto)}
               className={qualificationStatus.ringClassName}
             />
             <span

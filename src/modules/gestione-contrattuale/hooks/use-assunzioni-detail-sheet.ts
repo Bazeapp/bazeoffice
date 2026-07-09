@@ -3,6 +3,7 @@ import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
+import { sanitizeFileName } from "@/lib/file-utils"
 import { supabase } from "@/lib/supabase-client"
 import { fetchDocumentiLavoratoriByWorker } from "@/modules/lavoratori/queries"
 import type { DocumentoLavoratoreRecord } from "@/modules/lavoratori/types"
@@ -30,7 +31,6 @@ import {
   resolveAssunzioneDisplayName,
   resolveAssunzioneFormLabel,
   resolveAssunzioneFormSubLabel,
-  sanitizeFileName,
   toNullableNumber,
 } from "../lib/detail-utils"
 import { findLookupOption } from "@/modules/lavoratori/lib"

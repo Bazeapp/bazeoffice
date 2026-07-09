@@ -54,6 +54,7 @@ import {
   normalizeAttachmentArray,
 } from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"
+import { sanitizeFileName } from "@/lib/file-utils"
 import { cn } from "@/lib/utils"
 import type { DocumentoLavoratoreRecord } from "../types/documento-lavoratore"
 import { FieldLookupSelect } from "./gate1/gate-form-fields"
@@ -153,14 +154,6 @@ const ATTACHMENT_GROUPS: AttachmentGroupConfig[] = [
     slots: [{ label: "Allegato", field: "allegato_ricevuta_rinnovo_permesso" }],
   },
 ]
-
-function sanitizeFileName(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-}
 
 function pickAttachmentValue(
   documents: DocumentoLavoratoreRecord[],

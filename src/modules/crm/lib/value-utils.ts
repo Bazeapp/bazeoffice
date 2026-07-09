@@ -1,16 +1,5 @@
 import type { GenericRow } from "../types"
 import { PREVENTIVO_ACCEPTANCE_BASE_URL } from "./constants"
-
-export {
-  toStringValue,
-  getFirstArrayValue,
-  getStringArrayValue,
-  toBooleanValue,
-  formatItalianDate,
-  formatItalianDateTime,
-  normalizeLookupToken,
-} from "@/lib/value-utils"
-
 import { toStringValue } from "@/lib/value-utils"
 
 export function asRowArray(input: unknown): GenericRow[] {

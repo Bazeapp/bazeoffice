@@ -3,6 +3,7 @@ import { UsersIcon } from "lucide-react";
 import { useController, useWatch } from "react-hook-form";
 
 import { Avatar } from "@/components/ui/avatar";
+import { toAvatarRingClass } from "@/lib/utils";
 import { FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -18,10 +19,6 @@ import type { OperatoreOption } from "@/hooks/use-operatori-options";
  * D2 — card "Referente" di Gate 1, estratte da gate1-view.
  * Field roll-out: autosave via gateFieldsForm.
  */
-
-function toAvatarRingClass(legacyClassName: string) {
-  return legacyClassName.replace(/^after:border-/, "ring-2 ring-");
-}
 
 function OperatorSelectOption({ operator }: { operator: OperatoreOption }) {
   return (

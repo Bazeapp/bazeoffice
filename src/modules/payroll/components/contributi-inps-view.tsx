@@ -27,7 +27,6 @@ import {
 import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
-  type KanbanColumnVisual,
 } from "@/components/shared-next/kanban"
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
@@ -42,6 +41,9 @@ import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { matchesSearchQuery } from "@/lib/search-utils"
+import { sanitizeFileName } from "@/lib/file-utils"
+import { formatItalianCurrency, formatItalianDateTimeOr, toIsoDateInputValue } from "@/lib/format-utils"
+import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
@@ -58,6 +60,7 @@ export type ContributiColumnData = {
 }
 
 const QUARTERS: ContributoQuarterValue[] = ["Q1", "Q2", "Q3", "Q4"]
+const PAYROLL_CURRENCY_OPTIONS = { emptyLabel: "Non disponibile" } as const
 
 function contributiInpsStageTestId(stageId: string) {
   return `kanban-column-${stageId.replace(/\s+/g, "_")}`
@@ -94,35 +97,6 @@ function shiftQuarter(period: QuarterState, delta: number): QuarterState {
   }
 }
 
-function formatDateTime(value: string | null | undefined) {
-  if (!value) return "Non disponibile"
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(parsed)
-}
-
-function toInputDateValue(value: string | null | undefined) {
-  if (!value) return ""
-  return value.slice(0, 10)
-}
-
-function formatCurrencyAmount(value: number | null | undefined) {
-  if (typeof value !== "number" || Number.isNaN(value)) return "Non disponibile"
-  return new Intl.NumberFormat("it-IT", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
-}
-
 function parseNullableNumber(value: string) {
   if (!value) return null
   const parsed = Number(value.replace(",", "."))
@@ -141,30 +115,6 @@ function normalizeAttachmentValue(value: unknown) {
     }
   }
   return value
-}
-
-function sanitizeFileName(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-}
-
-function getColumnVisual(color: string): KanbanColumnVisual {
-  switch (color.toLowerCase()) {
-    case "sky":
-      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
-    case "cyan":
-      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" }
-    case "amber":
-    case "yellow":
-      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
-    case "green":
-      return { columnClassName: "bg-green-400", headerClassName: "", iconClassName: "text-green-500" }
-    default:
-      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
-  }
 }
 
 function ContributoInpsCard({ card }: { card: ContributoInpsBoardCardData }) {
@@ -250,7 +200,7 @@ export function ContributoInpsDetailSheet({
     defaults: {
       importo_contributi_inps: card?.record.importo_contributi_inps?.toString() ?? "",
       valore_pagopa: card?.record.valore_pagopa?.toString() ?? "",
-      data_invio_famiglia: toInputDateValue(card?.record.data_invio_famiglia),
+      data_invio_famiglia: toIsoDateInputValue(card?.record.data_invio_famiglia),
     },
     onSave: async (patch) => {
       if (!card) return
@@ -286,7 +236,7 @@ export function ContributoInpsDetailSheet({
       setIsUploadingAttachment(true)
 
       try {
-        const safeName = sanitizeFileName(file.name || "allegato")
+        const safeName = sanitizeFileName(file.name || "documento", "documento")
         const storagePath = ["contributi_inps", card.id, `${Date.now()}-${safeName}`].join("/")
 
         const uploadResult = await supabase.storage.from("baze-bucket").upload(storagePath, file, {
@@ -433,16 +383,23 @@ export function ContributoInpsDetailSheet({
                     <div className="space-y-2">
                       <p className="ui-type-label">Creato il</p>
                       <p className="font-medium">
-                        {formatDateTime(card.record.data_ora_creazione ?? card.record.creato_il)}
+                        {formatItalianDateTimeOr(
+                          card.record.data_ora_creazione ?? card.record.creato_il,
+                          "Non disponibile",
+                        )}
                       </p>
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Importo attuale</p>
-                      <p className="font-medium">{formatCurrencyAmount(card.record.importo_contributi_inps)}</p>
+                      <p className="font-medium">
+                        {formatItalianCurrency(card.record.importo_contributi_inps, PAYROLL_CURRENCY_OPTIONS)}
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">PagoPA attuale</p>
-                      <p className="font-medium">{formatCurrencyAmount(card.record.valore_pagopa)}</p>
+                      <p className="font-medium">
+                        {formatItalianCurrency(card.record.valore_pagopa, PAYROLL_CURRENCY_OPTIONS)}
+                      </p>
                     </div>
                   </div>
                 </DetailSectionBlock>
@@ -514,7 +471,7 @@ function ContributoInpsBoardColumn({
   onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void
   onDropToColumn: (columnId: string, recordId: string | null) => void
 }) {
-  const visual = getColumnVisual(column.color)
+  const visual = getKanbanColumnVisual(column.color)
 
   return (
     <KanbanColumnShell

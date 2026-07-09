@@ -59,14 +59,32 @@ import {
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { cn, getInitials } from "@/lib/utils";
+import { formatBadgeLabel } from "@/lib/format-utils";
+import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles";
+import { cn, getInitials, toAvatarRingClass } from "@/lib/utils";
+import {
+  type AssigneeValue,
+  addDays,
+  buildSchedulingDraft,
+  buildVisibleDays,
+  compareByDeadlineAsc,
+  formatDateForView,
+  formatDayMonth,
+  formatOreGiorniLabel,
+  formatRoleBadgeLabel,
+  formatWeekday,
+  getAssigneeAccentClass,
+  getAssigneeAvatarBorderClass,
+  getDeadlineAccentClass,
+  getStatoResBadgeClassName,
+  getTipoLavoroBadges,
+  hasDisplayValue,
+  startOfDay,
+  toDateKey,
+  toIsoDateInput,
+} from "../lib/assegnazione-display-utils";
 
-type AssigneeValue = string | "none";
 const DRAG_POINTER_THRESHOLD = 6;
-
-function toAvatarRingClass(legacyClassName: string) {
-  return legacyClassName.replace(/^after:border-/, "ring-2 ring-");
-}
 
 function OperatorSelectOption({ operator }: { operator: OperatoreOption }) {
   return (
@@ -79,271 +97,6 @@ function OperatorSelectOption({ operator }: { operator: OperatoreOption }) {
       <span className="truncate">{operator.label}</span>
     </span>
   );
-}
-
-function formatBadgeLabel(value: string) {
-  return value
-    .replaceAll("-", " ")
-    .replaceAll("/", " / ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function hasDisplayValue(value: string | null | undefined) {
-  const normalized = value?.trim();
-  return Boolean(normalized && normalized !== "-");
-}
-
-function formatRoleBadgeLabel(value: string) {
-  const token = value.trim().toLowerCase().replaceAll("_", " ");
-  if (token.includes("badante") || token.includes("assistenza domestica"))
-    return "Badante";
-  if (token.includes("babysitter") || token.includes("tata")) return "Tata";
-  if (token.includes("colf") || token.includes("pulizie")) return "Colf";
-  return formatBadgeLabel(value);
-}
-
-function getTipoLavoroBadges(card: AssegnazioneCardData) {
-  return card.tipoLavoroBadges && card.tipoLavoroBadges.length > 0
-    ? card.tipoLavoroBadges
-    : card.tipoLavoroBadge
-      ? [card.tipoLavoroBadge]
-      : [];
-}
-
-function getBadgeClassName(color: string | null | undefined) {
-  switch ((color ?? "").toLowerCase()) {
-    case "red":
-      return "border-red-200 bg-red-100 text-red-700";
-    case "rose":
-      return "border-rose-200 bg-rose-100 text-rose-700";
-    case "orange":
-      return "border-orange-200 bg-orange-100 text-orange-700";
-    case "amber":
-      return "border-amber-200 bg-amber-100 text-amber-700";
-    case "yellow":
-      return "border-yellow-200 bg-yellow-100 text-yellow-700";
-    case "lime":
-      return "border-lime-200 bg-lime-100 text-lime-700";
-    case "green":
-      return "border-green-200 bg-green-100 text-green-700";
-    case "emerald":
-      return "border-emerald-200 bg-emerald-100 text-emerald-700";
-    case "teal":
-      return "border-teal-200 bg-teal-100 text-teal-700";
-    case "cyan":
-      return "border-cyan-200 bg-cyan-100 text-cyan-700";
-    case "sky":
-      return "border-sky-200 bg-sky-100 text-sky-700";
-    case "blue":
-      return "border-blue-200 bg-blue-100 text-blue-700";
-    case "indigo":
-      return "border-indigo-200 bg-indigo-100 text-indigo-700";
-    case "violet":
-      return "border-violet-200 bg-violet-100 text-violet-700";
-    case "purple":
-      return "border-purple-200 bg-purple-100 text-purple-700";
-    case "fuchsia":
-      return "border-fuchsia-200 bg-fuchsia-100 text-fuchsia-700";
-    case "pink":
-      return "border-pink-200 bg-pink-100 text-pink-700";
-    case "slate":
-      return "border-slate-200 bg-slate-100 text-slate-700";
-    case "gray":
-      return "border-gray-200 bg-gray-100 text-gray-700";
-    case "zinc":
-      return "border-zinc-200 bg-zinc-100 text-zinc-700";
-    default:
-      return "border-border bg-muted text-foreground";
-  }
-}
-
-function toDateKey(date: Date) {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function formatDayLabel(date: Date) {
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-  }).format(date);
-}
-
-function formatWeekday(date: Date) {
-  return new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", weekday: "short" })
-    .format(date)
-    .replace(".", "");
-}
-
-function formatDayMonth(date: Date) {
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-  }).format(date);
-}
-
-function startOfDay(input: Date) {
-  const date = new Date(input);
-  date.setUTCHours(0, 0, 0, 0);
-  return date;
-}
-
-function addDays(input: Date, days: number) {
-  const date = new Date(input);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date;
-}
-
-function buildVisibleDays(windowStart: Date) {
-  return Array.from({ length: 3 }).map((_, index) => {
-    const date = addDays(windowStart, index);
-    return {
-      key: toDateKey(date),
-      date,
-      label: formatDayLabel(date),
-    };
-  });
-}
-
-function hashString(input: string) {
-  let hash = 0;
-  for (let index = 0; index < input.length; index += 1) {
-    hash = (hash << 5) - hash + input.charCodeAt(index);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
-function getAssigneeAccentClass(assigneeId: AssigneeValue) {
-  if (assigneeId === "none") return "bg-zinc-400";
-  const variants = [
-    "bg-emerald-500",
-    "bg-sky-500",
-    "bg-violet-500",
-    "bg-amber-500",
-    "bg-rose-500",
-    "bg-cyan-500",
-  ];
-  return variants[hashString(assigneeId) % variants.length] ?? "bg-zinc-400";
-}
-
-function getDeadlineTime(value: string | null | undefined) {
-  const isoDate = value ? toIsoDateInput(value) : "";
-  if (!isoDate) return Number.POSITIVE_INFINITY;
-  const parsed = new Date(`${isoDate}T00:00:00`);
-  return Number.isNaN(parsed.getTime())
-    ? Number.POSITIVE_INFINITY
-    : parsed.getTime();
-}
-
-function getDeadlineAccentClass(deadline: string | null | undefined) {
-  const deadlineTime = getDeadlineTime(deadline);
-  if (!Number.isFinite(deadlineTime)) return "bg-zinc-300";
-
-  const today = startOfDay(new Date()).getTime();
-  const daysUntilDeadline = Math.floor(
-    (deadlineTime - today) / (24 * 60 * 60 * 1000),
-  );
-
-  if (daysUntilDeadline <= 3) return "bg-red-500";
-  if (daysUntilDeadline <= 7) return "bg-emerald-500";
-  return "bg-zinc-300";
-}
-
-function compareByDeadlineAsc(
-  first: AssegnazioneCardData,
-  second: AssegnazioneCardData,
-) {
-  const deadlineDelta =
-    getDeadlineTime(first.deadlineMobile) - getDeadlineTime(second.deadlineMobile);
-  if (deadlineDelta !== 0) return deadlineDelta;
-  return first.nomeFamiglia.localeCompare(second.nomeFamiglia, "it");
-}
-
-function getAssigneeAvatarBorderClass(assigneeId: AssigneeValue) {
-  if (assigneeId === "none") return "ring-1 ring-zinc-300";
-  const variants = [
-    "ring-2 ring-emerald-500",
-    "ring-2 ring-sky-500",
-    "ring-2 ring-violet-500",
-    "ring-2 ring-amber-500",
-    "ring-2 ring-rose-500",
-    "ring-2 ring-cyan-500",
-  ];
-  return (
-    variants[hashString(assigneeId) % variants.length] ?? "ring-1 ring-zinc-300"
-  );
-}
-
-function toIsoDateInput(displayDate: string) {
-  const normalized = displayDate.trim();
-  const parts = normalized.split("/");
-  if (parts.length !== 3) return "";
-  const day = parts[0]?.padStart(2, "0");
-  const month = parts[1]?.padStart(2, "0");
-  const year = parts[2];
-  if (!day || !month || !year) return "";
-  return `${year}-${month}-${day}`;
-}
-
-function formatDateForView(value: string | null | undefined) {
-  const raw = (value ?? "").trim();
-  if (!raw) return "-";
-
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return raw;
-
-  const parsed = new Date(raw);
-  if (!Number.isNaN(parsed.getTime())) {
-    return new Intl.DateTimeFormat("it-IT", {
-      timeZone: "Europe/Rome",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(parsed);
-  }
-
-  return raw;
-}
-
-function buildSchedulingDraft(card: AssegnazioneCardData | null) {
-  return {
-    statoRes: card?.statoRes ?? "da_assegnare",
-    recruiterId: card?.recruiterId ?? "",
-    deadlineMobile: card?.deadlineMobile
-      ? toIsoDateInput(card.deadlineMobile)
-      : "",
-    dataAssegnazione: card?.dataAssegnazione ?? "",
-  };
-}
-
-function formatOreGiorniLabel(
-  oreSettimanali: string,
-  giorniSettimanali: string,
-) {
-  const oreToken = oreSettimanali.trim();
-  const giorniToken = giorniSettimanali.trim();
-  if (
-    (oreToken === "" || oreToken === "-") &&
-    (giorniToken === "" || giorniToken === "-")
-  ) {
-    return "-";
-  }
-  const oreLabel = oreToken && oreToken !== "-" ? `${oreToken}h` : "-";
-  const giorniLabel =
-    giorniToken && giorniToken !== "-" ? `${giorniToken}g` : "-";
-  return `${oreLabel} | ${giorniLabel}`;
-}
-
-function getStatoResBadgeClassName(statoRes: "da_assegnare" | "fare_ricerca") {
-  return statoRes === "fare_ricerca"
-    ? "border-emerald-200 bg-emerald-100 text-emerald-700"
-    : "border-amber-200 bg-amber-100 text-amber-700";
 }
 
 function AssegnazioneSearchCard({
@@ -392,7 +145,7 @@ function AssegnazioneSearchCard({
             {tipoLavoroBadges.map((tipoLavoro) => (
               <Badge
                 key={tipoLavoro}
-                className={getBadgeClassName(
+                className={getLookupBadgeSoftClassName(
                   data.tipoLavoroColors?.[tipoLavoro] ?? data.tipoLavoroColor,
                 )}
               >
@@ -401,7 +154,7 @@ function AssegnazioneSearchCard({
               </Badge>
             ))}
             {data.tipoRapportoBadge ? (
-              <Badge className={getBadgeClassName(data.tipoRapportoColor)}>
+              <Badge className={getLookupBadgeSoftClassName(data.tipoRapportoColor)}>
                 <Clock3Icon data-icon="inline-start" />
                 {formatBadgeLabel(data.tipoRapportoBadge)}
               </Badge>
@@ -641,7 +394,7 @@ function AssegnazioneDetailSheet({
                 {getTipoLavoroBadges(card).map((tipoLavoro) => (
                   <Badge
                     key={tipoLavoro}
-                    className={getBadgeClassName(
+                    className={getLookupBadgeSoftClassName(
                       card.tipoLavoroColors?.[tipoLavoro] ?? card.tipoLavoroColor,
                     )}
                   >
@@ -650,7 +403,7 @@ function AssegnazioneDetailSheet({
                   </Badge>
                 ))}
                 {card.tipoRapportoBadge ? (
-                  <Badge className={getBadgeClassName(card.tipoRapportoColor)}>
+                  <Badge className={getLookupBadgeSoftClassName(card.tipoRapportoColor)}>
                     <Clock3Icon data-icon="inline-start" />
                     {formatBadgeLabel(card.tipoRapportoBadge)}
                   </Badge>
@@ -898,7 +651,7 @@ function AssegnazioneDetailSheet({
                               key={tipoLavoro}
                               className={cn(
                                 "w-fit",
-                                getBadgeClassName(
+                                getLookupBadgeSoftClassName(
                                   card.tipoLavoroColors?.[tipoLavoro] ??
                                     card.tipoLavoroColor,
                                 ),
@@ -917,7 +670,7 @@ function AssegnazioneDetailSheet({
                         <Badge
                           className={cn(
                             "w-fit",
-                            getBadgeClassName(card.tipoRapportoColor),
+                            getLookupBadgeSoftClassName(card.tipoRapportoColor),
                           )}
                         >
                           {formatBadgeLabel(card.tipoRapportoBadge)}

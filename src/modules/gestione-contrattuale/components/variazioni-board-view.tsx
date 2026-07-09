@@ -19,7 +19,6 @@ import { DetailSectionBlock } from "@/components/shared-next/detail-section-card
 import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
-  type KanbanColumnVisual,
 } from "@/components/shared-next/kanban";
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card";
 import { RecordCard } from "@/components/shared-next/record-card";
@@ -55,6 +54,9 @@ import {
 import { updateRecord } from "@/lib/record-crud"
 import { fetchRapportiLavorativiByIds } from "@/modules/rapporti/queries"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments";
+import { sanitizeFileName } from "@/lib/file-utils";
+import { formatItalianCurrency, toIsoDateInputValue } from "@/lib/format-utils";
+import { getKanbanColumnVisual } from "@/lib/kanban-column-utils";
 import { matchesSearchQuery } from "@/lib/search-utils";
 import { supabase } from "@/lib/supabase-client";
 import { cn } from "@/lib/utils";
@@ -71,20 +73,6 @@ function formatDate(value: string | null | undefined) {
   }).format(date);
 }
 
-function toDateInputValue(value: string | null | undefined) {
-  return value?.slice(0, 10) ?? "";
-}
-
-function formatCurrency(value: number | null | undefined) {
-  if (typeof value !== "number" || Number.isNaN(value)) return "";
-  return new Intl.NumberFormat("it-IT", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 type AnagraficaField = {
   key: string;
   label: string;
@@ -97,13 +85,6 @@ function toDisplayValue(value: unknown) {
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   return "";
-}
-
-function sanitizeFileName(name: string) {
-  return name
-    .trim()
-    .replace(/[^a-zA-Z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "documento";
 }
 
 type VariazioneAttachmentSlot =
@@ -376,7 +357,7 @@ export function VariazioniDetailSheet({
   ]);
   const form = useAutoSaveForm({
     defaults: {
-      data_variazione: toDateInputValue(card?.record.data_variazione),
+      data_variazione: toIsoDateInputValue(card?.record.data_variazione),
       variazione_da_applicare: card?.record.variazione_da_applicare ?? "",
       paga_oraria_lorda:
         card?.rapporto?.paga_oraria_lorda != null
@@ -416,7 +397,7 @@ export function VariazioniDetailSheet({
     setUploadError(null);
 
     try {
-      const safeName = sanitizeFileName(file.name || "documento");
+      const safeName = sanitizeFileName(file.name || "documento", "documento");
       const storagePath = [
         "variazioni_contrattuali",
         currentCard.id,
@@ -665,7 +646,7 @@ export function VariazioniDetailSheet({
                           Paga oraria lorda:
                         </span>{" "}
                         <span className="font-medium text-foreground">
-                          {formatCurrency(card.rapporto?.paga_oraria_lorda)}
+                          {formatItalianCurrency(card.rapporto?.paga_oraria_lorda, { emptyLabel: "" })}
                         </span>
                       </p>
                       <p>
@@ -768,19 +749,6 @@ function variazioniStageTestId(stageId: string) {
   return `kanban-column-${stageId.replace(/\s+/g, "_")}`;
 }
 
-function getColumnVisual(color: string): KanbanColumnVisual {
-  switch (color.toLowerCase()) {
-    case "sky":
-      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" };
-    case "cyan":
-      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" };
-    case "teal":
-      return { columnClassName: "bg-teal-400", headerClassName: "", iconClassName: "text-teal-500" };
-    default:
-      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" };
-  }
-}
-
 function VariazioniBoardCard({
   card,
   dragging,
@@ -849,7 +817,7 @@ function VariazioniBoardColumn({
   onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void;
   onDropToColumn: (columnId: string, recordId: string | null) => void;
 }) {
-  const visual = getColumnVisual(column.color);
+  const visual = getKanbanColumnVisual(column.color);
 
   return (
     <KanbanColumnShell

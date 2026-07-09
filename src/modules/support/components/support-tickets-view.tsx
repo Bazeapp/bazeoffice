@@ -14,7 +14,6 @@ import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
   KanbanDeferredColumnAction,
-  type KanbanColumnVisual,
 } from "@/components/shared-next/kanban";
 import { RecordCard } from "@/components/shared-next/record-card";
 import { SectionHeader } from "@/components/shared-next/section-header";
@@ -29,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { matchesSearchQuery } from "@/lib/search-utils";
+import { getKanbanColumnVisual } from "@/lib/kanban-column-utils";
 import { cn } from "@/lib/utils";
 
 type SupportColumnData = {
@@ -53,41 +53,6 @@ function ticketsStageTestId(stageId: string) {
 
 function ticketBoardTestIdPrefix(ticketType: SupportTicketType) {
   return ticketType === "Customer" ? "ticket-customer" : "ticket-payroll";
-}
-
-function getColumnVisual(color: string): KanbanColumnVisual {
-  switch (color.toLowerCase()) {
-    case "sky":
-      return {
-        columnClassName: "bg-sky-400",
-        headerClassName: "",
-        iconClassName: "text-sky-500",
-      };
-    case "amber":
-      return {
-        columnClassName: "bg-amber-400",
-        headerClassName: "",
-        iconClassName: "text-amber-500",
-      };
-    case "orange":
-      return {
-        columnClassName: "bg-orange-400",
-        headerClassName: "",
-        iconClassName: "text-orange-500",
-      };
-    case "green":
-      return {
-        columnClassName: "bg-green-400",
-        headerClassName: "",
-        iconClassName: "text-green-500",
-      };
-    default:
-      return {
-        columnClassName: "",
-        headerClassName: "",
-        iconClassName: "text-muted-foreground/80",
-      };
-  }
 }
 
 function SupportTicketCard({ card }: { card: SupportTicketBoardCardData }) {
@@ -161,7 +126,7 @@ function SupportTicketsBoardColumn({
   onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void;
   onDropToColumn: (columnId: string, ticketId: string | null) => void;
 }) {
-  const visual = getColumnVisual(column.color);
+  const visual = getKanbanColumnVisual(column.color);
 
   return (
     <KanbanColumnShell

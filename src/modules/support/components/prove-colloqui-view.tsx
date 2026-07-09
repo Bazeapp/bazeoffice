@@ -17,7 +17,7 @@ import { LavoratoreCard, type LavoratoreListItem } from "@/modules/lavoratori/co
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailField, DetailFieldControl, DetailSectionBlock } from "@/components/shared-next/detail-section-card"
-import { KanbanColumnShell, KanbanColumnSkeleton, type KanbanColumnVisual } from "@/components/shared-next/kanban"
+import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared-next/kanban"
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -38,10 +38,27 @@ import {
   resolveLookupColor,
 } from "@/modules/lavoratori/lib"
 import { matchesSearchQuery } from "@/lib/search-utils"
+import { sanitizeFileName } from "@/lib/file-utils"
+import { formatItalianDateTimeOr, toIsoDateInputValue } from "@/lib/format-utils"
+import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { buildPathForRoute } from "@/routes/app-routes"
+import {
+  addDays,
+  formatTime,
+  getCalendarEventStatusKey,
+  getCalendarStatusRailClassName,
+  getEventDate,
+  getTrialDayLabel,
+  getTrialElapsedDays,
+  getWeekVisibleRange,
+  isSameDate,
+  startOfWeek,
+  toDateRangeValue,
+  type CalendarStatusKey,
+} from "../lib"
 import type {
   CalendarDateRange,
   ColloquioCalendarEvent,
@@ -58,7 +75,6 @@ type ProveColloquiViewProps = {
 
 type ViewTab = "prove" | "colloqui"
 type CalendarEventKind = "colloquio" | "prova"
-type CalendarStatusKey = "match" | "no-match" | "prova" | "colloquio" | "standby"
 
 const DAY_LABELS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]
 const DISTRIBUTION_DAY_LABELS = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]
@@ -93,18 +109,6 @@ function toStringValue(value: unknown): string | null {
   return null
 }
 
-function normalizeToken(value: unknown) {
-  return String(value ?? "").trim().toLowerCase()
-}
-
-function sanitizeFileName(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-}
-
 function formatDate(value: string | null | undefined) {
   if (!value) return "-"
   const date = new Date(value)
@@ -115,161 +119,6 @@ function formatDate(value: string | null | undefined) {
     month: "2-digit",
     year: "numeric",
   }).format(date)
-}
-
-function formatDateTime(value: string | null | undefined) {
-  if (!value) return "-"
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date)
-}
-
-function formatTime(value: string | null | undefined) {
-  if (!value) return ""
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ""
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date)
-}
-
-function toIsoDateInput(value: string | null | undefined) {
-  if (!value) return ""
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ""
-  return date.toISOString().slice(0, 10)
-}
-
-function startOfLocalDay(date: Date) {
-  const next = new Date(date)
-  next.setUTCHours(0, 0, 0, 0)
-  return next
-}
-
-function getTrialElapsedDays(startValue: string | null | undefined) {
-  if (!startValue) return null
-  const start = new Date(startValue)
-  if (Number.isNaN(start.getTime())) return null
-  const startDay = startOfLocalDay(start)
-  const today = startOfLocalDay(new Date())
-  return Math.floor((today.getTime() - startDay.getTime()) / 86_400_000) + 1
-}
-
-function getTrialDayLabel(days: number | null) {
-  if (days === null) return "Giorno prova non disponibile"
-  if (days < 0) return `Inizia tra ${Math.abs(days)} ${Math.abs(days) === 1 ? "giorno" : "giorni"}`
-  return `D${days}`
-}
-
-function toDateRangeValue(date: Date) {
-  const year = date.getUTCFullYear()
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0")
-  const day = String(date.getUTCDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date)
-  next.setUTCDate(next.getUTCDate() + days)
-  return next
-}
-
-function startOfWeek(date: Date) {
-  const next = new Date(date)
-  const day = (next.getUTCDay() + 6) % 7
-  next.setUTCDate(next.getUTCDate() - day)
-  next.setUTCHours(0, 0, 0, 0)
-  return next
-}
-
-function getWeekVisibleRange(date: Date): CalendarDateRange {
-  const start = startOfWeek(date)
-  return {
-    start: toDateRangeValue(start),
-    end: toDateRangeValue(addDays(start, 7)),
-  }
-}
-
-function isSameDate(left: Date, right: Date) {
-  return (
-    left.getUTCFullYear() === right.getUTCFullYear() &&
-    left.getUTCMonth() === right.getUTCMonth() &&
-    left.getUTCDate() === right.getUTCDate()
-  )
-}
-
-function getEventDate(event: ColloquioCalendarEvent) {
-  const date = new Date(event.start)
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
-function getCalendarEventStatusToken(event: ColloquioCalendarEvent) {
-  return normalizeToken(
-    event.type === "colloquio"
-      ? [event.status, event.process?.stato_res, event.selection.stato_selezione].filter(Boolean).join(" ")
-      : event.status,
-  )
-}
-
-function getCalendarEventStatusKey(event: ColloquioCalendarEvent): CalendarStatusKey {
-  const statusToken = getCalendarEventStatusToken(event)
-  if (statusToken.includes("no match") || statusToken.includes("nomatch")) return "no-match"
-  if (statusToken.includes("match")) return "match"
-  if (event.type === "prova" || statusToken.includes("prova")) return "prova"
-  if (statusToken.includes("colloquio")) return "colloquio"
-  return "standby"
-}
-
-function getCalendarStatusRailClassName(statusKey: CalendarStatusKey) {
-  switch (statusKey) {
-    case "match":
-      return "bg-emerald-800"
-    case "prova":
-      return "bg-emerald-500"
-    case "no-match":
-      return "bg-red-500"
-    case "colloquio":
-      return "bg-emerald-200"
-    case "standby":
-    default:
-      return "bg-zinc-400"
-  }
-}
-
-function getColumnVisual(color: string | null): KanbanColumnVisual {
-  switch (normalizeToken(color)) {
-    case "red":
-      return { columnClassName: "bg-red-400", headerClassName: "", iconClassName: "text-red-500" }
-    case "rose":
-      return { columnClassName: "bg-rose-400", headerClassName: "", iconClassName: "text-rose-500" }
-    case "orange":
-      return { columnClassName: "bg-orange-400", headerClassName: "", iconClassName: "text-orange-500" }
-    case "amber":
-      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
-    case "emerald":
-    case "green":
-      return { columnClassName: "bg-emerald-400", headerClassName: "", iconClassName: "text-emerald-500" }
-    case "blue":
-      return { columnClassName: "bg-blue-400", headerClassName: "", iconClassName: "text-blue-500" }
-    case "sky":
-      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
-    case "violet":
-      return { columnClassName: "bg-violet-400", headerClassName: "", iconClassName: "text-violet-500" }
-    case "zinc":
-      return { columnClassName: "bg-zinc-400", headerClassName: "", iconClassName: "text-zinc-500" }
-    default:
-      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
-  }
 }
 
 function buildDistributionItems(source: string | null, totalHours: number | null) {
@@ -538,7 +387,7 @@ function ProvaDetailSheet({
       prova_ramo_d2: rapporto?.prova_ramo_d2 ?? null,
       prova_note_cs_lavoratore: rapporto?.prova_note_cs_lavoratore ?? "",
       prova_note_cs_famiglia: rapporto?.prova_note_cs_famiglia ?? "",
-      prova_data_checkin: toIsoDateInput(rapporto?.prova_data_checkin),
+      prova_data_checkin: toIsoDateInputValue(rapporto?.prova_data_checkin),
     } as Record<string, unknown>,
     onSave: async (patch) => {
       if (!rapporto) return
@@ -575,7 +424,7 @@ function ProvaDetailSheet({
     setUploadingSlot(slot)
 
     try {
-      const safeName = sanitizeFileName(file.name || "registrazione-audio")
+      const safeName = sanitizeFileName(file.name || "documento", "documento")
       const storagePath = [
         "rapporti_lavorativi",
         currentRapporto.id,
@@ -904,7 +753,7 @@ function ProveKanban({
                 columnId={column.id}
                 title={column.label}
                 countLabel={`${column.totalCount} ${column.totalCount === 1 ? "prova" : "prove"}`}
-                visual={getColumnVisual(column.color)}
+                visual={getKanbanColumnVisual(column.color)}
                 widthClassName="w-80"
                 emptyMessage="Nessuna prova"
                 testId={`kanban-column-${column.label.replace(/\s+/g, "_").replace(/—/g, "-")}`}
@@ -1251,7 +1100,7 @@ function ColloquioSheet({
                 <DetailField label="Stato processo" value={event.process?.stato_res ?? "-"} />
                 <DetailField label="Lavoratore" value={workerLabel} />
                 <DetailField label="Colloquio effettuato" value={toStringValue(event.selection.colloquio_effettuato) ?? "-"} />
-                <DetailField label="Data e ora colloquio" value={formatDateTime(event.start)} />
+                <DetailField label="Data e ora colloquio" value={formatItalianDateTimeOr(event.start, "-")} />
                 <DetailField label="Indirizzo prova" value={address} />
                 <DetailField label="Comune" value={event.process?.indirizzo_prova_comune ?? "-"} />
               </DetailSectionBlock>

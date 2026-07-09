@@ -5,7 +5,8 @@ import {
   FALLBACK_STATO_SALES_STAGES,
   STATO_SALES_COLUMN_ORDER,
 } from "./constants"
-import { normalizeLookupToken, parseIsoTime, toStringValue } from "./value-utils"
+import { normalizeLookupToken, toStringValue } from "@/lib/value-utils"
+import { parseIsoTime } from "./value-utils"
 
 export function resolveLookupOptionColor(
   lookupOptionsByField: LookupOptionsByField,

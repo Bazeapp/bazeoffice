@@ -14,7 +14,8 @@ import {
   UserRoundXIcon,
 } from "lucide-react";
 
-import { romaWallclockToUtcIso, utcIsoToRomaInput } from "@/lib/datetime";
+import { romaWallclockToUtcIso } from "@/lib/datetime";
+import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles";
 import { Badge } from "@/components/ui/badge";
 import { CheckboxChip } from "@/components/ui/checkbox";
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card";
@@ -39,6 +40,15 @@ import { Form } from "@/components/ui/form";
 import { FieldTextarea } from "@/components/forms/field-components";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { onboardingContextFormSchema } from "../../lib/onboarding-schemas";
+import {
+  type LookupOption,
+  buildContextDefaults,
+  getStageOption,
+  hasValue,
+  normalizeSelectedLookupKeys,
+  resolveOptions,
+  selectedOptionValue,
+} from "../../lib/onboarding-context-utils";
 import type {
   CrmPipelineCardData,
   LookupOptionsByField,
@@ -60,8 +70,6 @@ type OnboardingContextCardProps = {
     patch: Record<string, unknown>,
   ) => void | Promise<void>;
 };
-
-type LookupOption = LookupOptionsByField[string][number];
 
 const EMPTY_SELECT_VALUE = "__empty__";
 
@@ -254,138 +262,6 @@ const STAGE_META: Record<string, StageMeta> = {
     ],
   },
 };
-
-function splitStoredValues(value: string | null | undefined) {
-  if (!value || value === "-") return [];
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function toDateTimeLocalValue(value: string | null | undefined) {
-  return utcIsoToRomaInput(value);
-}
-
-function normalizeToken(value: string | null | undefined) {
-  return String(value ?? "").trim().toLowerCase();
-}
-
-function hasValue(value: string | null | undefined) {
-  return Boolean(value && value.trim() && value.trim() !== "-");
-}
-
-function getBadgeClassName(color: string | null | undefined) {
-  switch ((color ?? "").toLowerCase()) {
-    case "red":
-      return "border-red-200 bg-red-100 text-red-700";
-    case "rose":
-      return "border-rose-200 bg-rose-100 text-rose-700";
-    case "orange":
-      return "border-orange-200 bg-orange-100 text-orange-700";
-    case "amber":
-      return "border-amber-200 bg-amber-100 text-amber-700";
-    case "yellow":
-      return "border-yellow-200 bg-yellow-100 text-yellow-700";
-    case "lime":
-      return "border-lime-200 bg-lime-100 text-lime-700";
-    case "green":
-      return "border-green-200 bg-green-100 text-green-700";
-    case "emerald":
-      return "border-emerald-200 bg-emerald-100 text-emerald-700";
-    case "teal":
-      return "border-teal-200 bg-teal-100 text-teal-700";
-    case "cyan":
-      return "border-cyan-200 bg-cyan-100 text-cyan-700";
-    case "sky":
-      return "border-sky-200 bg-sky-100 text-sky-700";
-    case "blue":
-      return "border-blue-200 bg-blue-100 text-blue-700";
-    case "indigo":
-      return "border-indigo-200 bg-indigo-100 text-indigo-700";
-    case "violet":
-      return "border-violet-200 bg-violet-100 text-violet-700";
-    case "purple":
-      return "border-purple-200 bg-purple-100 text-purple-700";
-    case "fuchsia":
-      return "border-fuchsia-200 bg-fuchsia-100 text-fuchsia-700";
-    case "pink":
-      return "border-pink-200 bg-pink-100 text-pink-700";
-    case "slate":
-      return "border-slate-200 bg-slate-100 text-slate-700";
-    case "gray":
-      return "border-gray-200 bg-gray-100 text-gray-700";
-    case "zinc":
-      return "border-zinc-200 bg-zinc-100 text-zinc-700";
-    default:
-      return "border-border bg-muted text-foreground";
-  }
-}
-
-function getStageOption(
-  stage: string,
-  options: LookupOptionsByField["stato_sales"]
-) {
-  const token = normalizeToken(stage);
-  return options.find(
-    (option) =>
-      normalizeToken(option.valueKey) === token ||
-      normalizeToken(option.valueLabel) === token
-  );
-}
-
-function resolveOptions(selected: string, options: LookupOption[]) {
-  if (options.length > 0) return options;
-  if (!hasValue(selected)) return [];
-  return [
-    {
-      valueKey: selected,
-      valueLabel: selected,
-      color: null,
-      sortOrder: null,
-    },
-  ];
-}
-
-function selectedOptionValue(selected: string, options: LookupOption[]) {
-  const token = normalizeToken(selected);
-  if (!token || token === "-") return "";
-
-  const matched = options.find(
-    (option) =>
-      normalizeToken(option.valueKey) === token ||
-      normalizeToken(option.valueLabel) === token
-  );
-  return matched?.valueKey ?? selected;
-}
-
-function findLookupOption(value: string, options: LookupOption[]) {
-  const token = normalizeToken(value);
-  if (!token || token === "-") return null;
-
-  return (
-    options.find(
-      (option) =>
-        normalizeToken(option.valueKey) === token ||
-        normalizeToken(option.valueLabel) === token
-    ) ?? null
-  );
-}
-
-function normalizeSelectedLookupKeys(values: string[], options: LookupOption[]) {
-  const result: string[] = [];
-  const seen = new Set<string>();
-
-  for (const value of values) {
-    const key = findLookupOption(value, options)?.valueKey ?? value.trim();
-    const token = normalizeToken(key);
-    if (!key || seen.has(token)) continue;
-    result.push(key);
-    seen.add(token);
-  }
-
-  return result;
-}
 
 function ChoiceFieldSet({
   title,
@@ -619,27 +495,6 @@ function FieldStatoOperativo({
   );
 }
 
-function cleanValue(value: string | null | undefined) {
-  return value && value !== "-" ? value : "";
-}
-
-// FASE 5 BIS — defaults del form (chiavi = nomi logici; il routing colonna/target
-// process|family avviene in onSave). Ricostruiti ad ogni render dal card.
-function buildContextDefaults(card: CrmPipelineCardData | null) {
-  return {
-    coldAttempts: splitStoredValues(card?.salesColdCallFollowup),
-    noShowAttempts: splitStoredValues(card?.salesNoShowFollowup),
-    dataRicontatto: card?.dataPerRicercaFuturaRaw
-      ? card.dataPerRicercaFuturaRaw.slice(0, 10)
-      : "",
-    dataCall: toDateTimeLocalValue(card?.dataCallPrenotataRaw),
-    noteStato: cleanValue(card?.appuntiChiamataSales),
-    motivazioneLost: cleanValue(card?.motivazioneLost),
-    motivazioneOot: cleanValue(card?.motivazioneOot),
-    statoRes: cleanValue(card?.statoRes),
-  };
-}
-
 export function OnboardingContextCard({
   card,
   lookupOptionsByField,
@@ -830,7 +685,7 @@ export function OnboardingContextCard({
       <div className="space-y-2">
         <Badge
           variant="outline"
-          className={getBadgeClassName(stageOption?.color)}
+          className={getLookupBadgeSoftClassName(stageOption?.color)}
         >
           {stageMeta.title}
         </Badge>

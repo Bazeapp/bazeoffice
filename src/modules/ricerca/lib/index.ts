@@ -28,3 +28,8 @@ export {
 } from "./map-filters"
 
 export { excludeCurrentProcess } from "./map-related-selections"
+
+export {
+  getRicercaColumnVisual,
+  normalizeRicercaStageToken,
+} from "./board-column-utils"

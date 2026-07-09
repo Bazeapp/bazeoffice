@@ -23,104 +23,8 @@ import {
   SelectTrigger,
 } from "@/components/ui/select"
 import { matchesSearchQuery } from "@/lib/search-utils"
-import { cn } from "@/lib/utils"
-
-type ColumnVisual = {
-  columnClassName: string
-  headerClassName: string
-  iconClassName: string
-}
-
-function toAvatarRingClass(legacy: string) {
-  // Convert legacy `after:border-X-Y` -> new `ring-2 ring-X-Y` for ui Avatar.
-  return legacy.replace(/after:border-/g, "ring-2 ring-")
-}
-
-function normalizeStageToken(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-}
-
-function getColumnVisual(columnId: string, columnLabel: string, color: string | null): ColumnVisual {
-  const token = normalizeStageToken(columnLabel || columnId)
-
-  // Stage-specific shades — preserva la progressione di intensità del legacy:
-  // selezione_inviata (chiaro) → match (intenso) sull'asse emerald.
-  switch (token) {
-    case "da assegnare":
-      return { columnClassName: "bg-amber-300", headerClassName: "", iconClassName: "text-amber-400" }
-    case "fare ricerca":
-      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
-    case "in preparazione per invio":
-      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" }
-    case "inviare selezione":
-      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
-    case "selezione inviata":
-    case "selezione inviata in attesa di feedback":
-      return { columnClassName: "bg-emerald-300", headerClassName: "", iconClassName: "text-emerald-400" }
-    case "fase di colloqui":
-      return { columnClassName: "bg-emerald-400", headerClassName: "", iconClassName: "text-emerald-500" }
-    case "in prova con lavoratore":
-      return { columnClassName: "bg-emerald-500", headerClassName: "", iconClassName: "text-emerald-600" }
-    case "match":
-      return { columnClassName: "bg-emerald-600", headerClassName: "", iconClassName: "text-emerald-700" }
-    case "no match":
-      return { columnClassName: "bg-red-400", headerClassName: "", iconClassName: "text-red-500" }
-    case "stand by":
-      return { columnClassName: "bg-zinc-400", headerClassName: "", iconClassName: "text-zinc-500" }
-    default:
-      break
-  }
-
-  // Fallback su color generico → bg-{color}-400 + icon text-{color}-500.
-  switch ((color ?? "").toLowerCase()) {
-    case "red":
-      return { columnClassName: "bg-red-400", headerClassName: "", iconClassName: "text-red-500" }
-    case "rose":
-      return { columnClassName: "bg-rose-400", headerClassName: "", iconClassName: "text-rose-500" }
-    case "orange":
-      return { columnClassName: "bg-orange-400", headerClassName: "", iconClassName: "text-orange-500" }
-    case "amber":
-      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
-    case "yellow":
-      return { columnClassName: "bg-yellow-400", headerClassName: "", iconClassName: "text-yellow-500" }
-    case "lime":
-      return { columnClassName: "bg-lime-400", headerClassName: "", iconClassName: "text-lime-500" }
-    case "green":
-      return { columnClassName: "bg-green-400", headerClassName: "", iconClassName: "text-green-500" }
-    case "emerald":
-      return { columnClassName: "bg-emerald-400", headerClassName: "", iconClassName: "text-emerald-500" }
-    case "teal":
-      return { columnClassName: "bg-teal-400", headerClassName: "", iconClassName: "text-teal-500" }
-    case "cyan":
-      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" }
-    case "sky":
-      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
-    case "blue":
-      return { columnClassName: "bg-blue-400", headerClassName: "", iconClassName: "text-blue-500" }
-    case "indigo":
-      return { columnClassName: "bg-indigo-400", headerClassName: "", iconClassName: "text-indigo-500" }
-    case "violet":
-      return { columnClassName: "bg-violet-400", headerClassName: "", iconClassName: "text-violet-500" }
-    case "purple":
-      return { columnClassName: "bg-purple-400", headerClassName: "", iconClassName: "text-purple-500" }
-    case "fuchsia":
-      return { columnClassName: "bg-fuchsia-400", headerClassName: "", iconClassName: "text-fuchsia-500" }
-    case "pink":
-      return { columnClassName: "bg-pink-400", headerClassName: "", iconClassName: "text-pink-500" }
-    case "slate":
-      return { columnClassName: "bg-slate-400", headerClassName: "", iconClassName: "text-slate-500" }
-    case "gray":
-      return { columnClassName: "bg-gray-400", headerClassName: "", iconClassName: "text-gray-500" }
-    case "zinc":
-      return { columnClassName: "bg-zinc-400", headerClassName: "", iconClassName: "text-zinc-500" }
-    default:
-      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
-  }
-}
+import { cn, toAvatarRingClass } from "@/lib/utils"
+import { getRicercaColumnVisual, normalizeRicercaStageToken } from "../lib/board-column-utils"
 
 function RicercaBoardSkeletonColumn() {
   return <KanbanColumnSkeleton widthClassName="w-75" showBadgeRow />
@@ -190,10 +94,10 @@ function RicercaBoardColumn({
   onLoadDeferredColumn: (columnId: string) => void
   recruitersById: Map<string, RicercaCardRecruiter>
 }) {
-  const visual = getColumnVisual(column.id, column.label, column.color)
+  const visual = getRicercaColumnVisual(column.id, column.label, column.color)
   const count = column.totalCount
   const deferredActionLabel = (() => {
-    const token = normalizeStageToken(column.label || column.id)
+    const token = normalizeRicercaStageToken(column.label || column.id)
     if (token === "match") return "Mostra Match"
     if (token === "no match") return "Mostra NoMatch"
     return `Mostra ${column.label}`

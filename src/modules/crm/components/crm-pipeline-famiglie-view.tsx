@@ -53,6 +53,7 @@ import {
 } from "../types"
 import { useCrmPipelinePreview } from "../hooks/use-crm-pipeline-preview"
 import { romaWallclockToUtcIso, utcIsoToRomaInput } from "@/lib/datetime"
+import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
@@ -87,143 +88,6 @@ const DATE_PRESETS = [
 ] as const
 
 type DatePresetValue = (typeof DATE_PRESETS)[number]["id"]
-
-type ColumnVisual = {
-  columnClassName: string
-  headerClassName: string
-  iconClassName: string
-}
-
-function getColumnVisual(color: string | null): ColumnVisual {
-  switch ((color ?? "").toLowerCase()) {
-    case "red":
-      return {
-        columnClassName: "bg-red-400",
-        headerClassName: "",
-        iconClassName: "text-red-500",
-      }
-    case "rose":
-      return {
-        columnClassName: "bg-rose-400",
-        headerClassName: "",
-        iconClassName: "text-rose-500",
-      }
-    case "orange":
-      return {
-        columnClassName: "bg-orange-400",
-        headerClassName: "",
-        iconClassName: "text-orange-500",
-      }
-    case "amber":
-      return {
-        columnClassName: "bg-amber-400",
-        headerClassName: "",
-        iconClassName: "text-amber-500",
-      }
-    case "yellow":
-      return {
-        columnClassName: "bg-yellow-400",
-        headerClassName: "",
-        iconClassName: "text-yellow-500",
-      }
-    case "lime":
-      return {
-        columnClassName: "bg-lime-400",
-        headerClassName: "",
-        iconClassName: "text-lime-500",
-      }
-    case "green":
-      return {
-        columnClassName: "bg-green-400",
-        headerClassName: "",
-        iconClassName: "text-green-500",
-      }
-    case "emerald":
-      return {
-        columnClassName: "bg-emerald-400",
-        headerClassName: "",
-        iconClassName: "text-emerald-500",
-      }
-    case "teal":
-      return {
-        columnClassName: "bg-teal-400",
-        headerClassName: "",
-        iconClassName: "text-teal-500",
-      }
-    case "cyan":
-      return {
-        columnClassName: "bg-cyan-400",
-        headerClassName: "",
-        iconClassName: "text-cyan-500",
-      }
-    case "sky":
-      return {
-        columnClassName: "bg-sky-400",
-        headerClassName: "",
-        iconClassName: "text-sky-500",
-      }
-    case "blue":
-      return {
-        columnClassName: "bg-blue-400",
-        headerClassName: "",
-        iconClassName: "text-blue-500",
-      }
-    case "indigo":
-      return {
-        columnClassName: "bg-indigo-400",
-        headerClassName: "",
-        iconClassName: "text-indigo-500",
-      }
-    case "violet":
-      return {
-        columnClassName: "bg-violet-400",
-        headerClassName: "",
-        iconClassName: "text-violet-500",
-      }
-    case "purple":
-      return {
-        columnClassName: "bg-purple-400",
-        headerClassName: "",
-        iconClassName: "text-purple-500",
-      }
-    case "fuchsia":
-      return {
-        columnClassName: "bg-fuchsia-400",
-        headerClassName: "",
-        iconClassName: "text-fuchsia-500",
-      }
-    case "pink":
-      return {
-        columnClassName: "bg-pink-400",
-        headerClassName: "",
-        iconClassName: "text-pink-500",
-      }
-    case "slate":
-      return {
-        columnClassName: "bg-slate-400",
-        headerClassName: "",
-        iconClassName: "text-slate-500",
-      }
-    case "gray":
-      return {
-        columnClassName: "bg-gray-400",
-        headerClassName: "",
-        iconClassName: "text-gray-500",
-      }
-    case "zinc":
-      return {
-        columnClassName: "bg-zinc-400",
-        headerClassName: "",
-        iconClassName: "text-zinc-500",
-      }
-    default:
-      return {
-        columnClassName: "",
-        headerClassName: "",
-        iconClassName: "text-muted-foreground/80",
-      }
-  }
-}
 
 function getStageIcon(stageId: string, iconClassName: string) {
   const className = cn("size-4", iconClassName)
@@ -421,7 +285,7 @@ function Column({
   onLoadDeferred,
 }: ColumnProps) {
   const [visibleCardCount, setVisibleCardCount] = React.useState(VISIBLE_CARD_BATCH_SIZE)
-  const visual = getColumnVisual(column.color)
+  const visual = getKanbanColumnVisual(column.color)
   const visibleCards = column.cards.slice(0, visibleCardCount)
   const hiddenCardsCount = Math.max(0, column.cards.length - visibleCards.length)
 

@@ -25,7 +25,6 @@ import { DetailSectionBlock } from "@/components/shared-next/detail-section-card
 import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
-  type KanbanColumnVisual,
 } from "@/components/shared-next/kanban"
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
 import { RecordCard } from "@/components/shared-next/record-card"
@@ -53,10 +52,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
+import { sanitizeFileName } from "@/lib/file-utils"
 import { fetchChiusureByIds } from "../queries/fetch-chiusure-by-ids"
 import { updateRecord } from "@/lib/record-crud"
 import { fetchRapportiLavorativiByIds } from "@/modules/rapporti/queries"
 import { matchesSearchQuery } from "@/lib/search-utils"
+import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import type { RapportoLavorativoRecord } from "@/types"
@@ -141,14 +142,6 @@ function getLookupBadgeClasses(color: string | null | undefined) {
     default:
       return "bg-muted text-foreground"
   }
-}
-
-function sanitizeFileName(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
 }
 
 function ChiusureDetailSheet({
@@ -276,7 +269,7 @@ function ChiusureDetailSheet({
     setDetailsError(null)
 
     try {
-      const safeName = sanitizeFileName(file.name || "documento")
+      const safeName = sanitizeFileName(file.name || "documento", "documento")
       const storagePath = [
         "chiusure_contratti",
         currentCard.id,
@@ -615,31 +608,6 @@ function ChiusureDetailSheet({
   )
 }
 
-function getColumnVisual(color: string): KanbanColumnVisual {
-  switch (color.toLowerCase()) {
-    case "violet":
-      return { columnClassName: "bg-violet-400", headerClassName: "", iconClassName: "text-violet-500" }
-    case "zinc":
-      return { columnClassName: "bg-zinc-400", headerClassName: "", iconClassName: "text-zinc-500" }
-    case "sky":
-      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
-    case "cyan":
-      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" }
-    case "teal":
-      return { columnClassName: "bg-teal-400", headerClassName: "", iconClassName: "text-teal-500" }
-    case "lime":
-      return { columnClassName: "bg-lime-400", headerClassName: "", iconClassName: "text-lime-500" }
-    case "amber":
-      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
-    case "orange":
-      return { columnClassName: "bg-orange-400", headerClassName: "", iconClassName: "text-orange-500" }
-    case "green":
-      return { columnClassName: "bg-green-400", headerClassName: "", iconClassName: "text-green-500" }
-    default:
-      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
-  }
-}
-
 function ChiusureBoardCard({
   card,
   dragging,
@@ -736,7 +704,7 @@ function ChiusureBoardColumn({
   onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void
   onDropToColumn: (columnId: string, recordId: string | null) => void
 }) {
-  const visual = getColumnVisual(column.color)
+  const visual = getKanbanColumnVisual(column.color)
 
   return (
     <KanbanColumnShell

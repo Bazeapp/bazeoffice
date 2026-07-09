@@ -108,13 +108,6 @@ export function normalizeRegimeConvivenza(value: string | null | undefined) {
   return value
 }
 
-export function sanitizeFileName(name: string) {
-  return name
-    .trim()
-    .replace(/[^a-zA-Z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "documento"
-}
-
 export type AssunzioneAttachmentSlot =
   | "documento_identita_allegati"
   | "codice_fiscale_allegati"

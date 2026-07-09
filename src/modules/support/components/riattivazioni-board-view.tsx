@@ -23,7 +23,6 @@ import { DetailField, DetailSectionBlock } from "@/components/shared-next/detail
 import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
-  type KanbanColumnVisual,
 } from "@/components/shared-next/kanban"
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
 import { RecordCard } from "@/components/shared-next/record-card"
@@ -48,6 +47,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
+import { sanitizeFileName } from "@/lib/file-utils"
+import { toIsoDateInputValue } from "@/lib/format-utils"
+import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { supabase } from "@/lib/supabase-client"
@@ -75,32 +77,6 @@ function formatDate(value: string | null | undefined) {
   }).format(date)
 }
 
-function formatDateInputValue(value: string | null | undefined) {
-  if (!value) return ""
-  if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10)
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ""
-
-  return `${date.getUTCFullYear()}-${`${date.getUTCMonth() + 1}`.padStart(2, "0")}-${`${date.getUTCDate()}`.padStart(2, "0")}`
-}
-
-function getColumnVisual(color: string): KanbanColumnVisual {
-  switch (color.toLowerCase()) {
-    case "sky":
-      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
-    case "amber":
-      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
-    case "emerald":
-    case "green":
-      return { columnClassName: "bg-emerald-400", headerClassName: "", iconClassName: "text-emerald-500" }
-    case "rose":
-      return { columnClassName: "bg-rose-400", headerClassName: "", iconClassName: "text-rose-500" }
-    default:
-      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
-  }
-}
-
 function getStageColor(stageId: RiattivazioneStageId) {
   switch (stageId) {
     case "da sentire":
@@ -125,14 +101,6 @@ function renderStageIcon(stageId: RiattivazioneStageId) {
     case "non riattiva":
       return <XCircleIcon className="size-3.5" />
   }
-}
-
-function sanitizeFileName(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
 }
 
 // FASE 5 BIS — wrapper form-aware per lo sconto: il form memorizza il valore DB
@@ -217,7 +185,7 @@ function RiattivazioniDetailSheet({
   // dirty-tracking del form sostituisce le guardie "skip se invariato".
   const form = useAutoSaveForm({
     defaults: {
-      data_per_riattivazione: formatDateInputValue(card?.record.data_per_riattivazione),
+      data_per_riattivazione: toIsoDateInputValue(card?.record.data_per_riattivazione),
       sconto_proposto_riattivazione: card?.record.sconto_proposto_riattivazione ?? "",
     },
     onSave: async (patch) => {
@@ -257,7 +225,7 @@ function RiattivazioniDetailSheet({
     setDetailsError(null)
 
     try {
-      const safeName = sanitizeFileName(file.name || "documento")
+      const safeName = sanitizeFileName(file.name || "documento", "documento")
       const storagePath = [
         "chiusure_contratti",
         currentCard.id,
@@ -543,7 +511,7 @@ function RiattivazioniBoardColumn({
   onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void
   onDropToColumn: (columnId: RiattivazioneStageId, recordId: string | null) => void
 }) {
-  const visual = getColumnVisual(column.color)
+  const visual = getKanbanColumnVisual(column.color)
 
   return (
     <KanbanColumnShell

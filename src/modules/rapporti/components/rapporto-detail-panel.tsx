@@ -60,6 +60,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { sanitizeFileName } from "@/lib/file-utils"
+import { formatItalianCurrency, formatItalianDateTimeOr } from "@/lib/format-utils"
 import { updateRecord } from "@/lib/record-crud"
 import type { RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
 import { useController } from "react-hook-form"
@@ -208,29 +210,6 @@ function formatDate(value: string | null) {
   }).format(date)
 }
 
-function formatCurrency(value: number | null) {
-  if (typeof value !== "number") return "-"
-  return new Intl.NumberFormat("it-IT", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 2,
-  }).format(value)
-}
-
-function formatDateTime(value: string | null) {
-  if (!value) return "-"
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date)
-}
-
 function getStatusColor(value: string | null | undefined) {
   const token = normalizeToken(value)
   if (!token) return "zinc"
@@ -244,14 +223,6 @@ function getStatusColor(value: string | null | undefined) {
   if (token.includes("todo") || token.includes("to do")) return "sky"
   if (token.includes("chius") || token.includes("annull") || token.includes("cess")) return "zinc"
   return "sky"
-}
-
-function sanitizeFileName(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
 }
 
 function getDurationLabel(startDate: string | null, endDate: string | null = null) {
@@ -1067,7 +1038,7 @@ export function RapportoDetailPanel({
         return false
       })(),
       nomeCompleto,
-      importoLabel: typeof mese.importo_busta_estratto === "number" ? formatCurrency(mese.importo_busta_estratto) : null,
+      importoLabel: typeof mese.importo_busta_estratto === "number" ? formatItalianCurrency(mese.importo_busta_estratto) : null,
       dataInvioLabel: mese.data_invio_famiglia ? formatDate(mese.data_invio_famiglia) : null,
     } satisfies PayrollBoardCardData
   })
@@ -1093,10 +1064,10 @@ export function RapportoDetailPanel({
       trimestreLabel: getContributoTitle(contributo),
       importoLabel:
         typeof contributo.importo_contributi_inps === "number"
-          ? formatCurrency(contributo.importo_contributi_inps)
+          ? formatItalianCurrency(contributo.importo_contributi_inps)
           : null,
       pagopaLabel:
-        typeof contributo.valore_pagopa === "number" ? formatCurrency(contributo.valore_pagopa) : null,
+        typeof contributo.valore_pagopa === "number" ? formatItalianCurrency(contributo.valore_pagopa) : null,
     } satisfies ContributoInpsBoardCardData
   })
   const contributoColumns: ContributiColumnData[] = CONTRIBUTI_STAGE_OPTIONS.map((stage) => ({
@@ -1299,8 +1270,8 @@ export function RapportoDetailPanel({
                   </div>
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <DetailField label="Paga oraria lorda" value={formatCurrency(rapportoView.paga_oraria_lorda)} />
-                    <DetailField label="Paga mensile lorda" value={formatCurrency(rapportoView.paga_mensile_lorda)} />
+                    <DetailField label="Paga oraria lorda" value={formatItalianCurrency(rapportoView.paga_oraria_lorda)} />
+                    <DetailField label="Paga mensile lorda" value={formatItalianCurrency(rapportoView.paga_mensile_lorda)} />
                     <DetailField
                       label="Cod. rapporto Webcolf"
                       value={rapportoView.codice_datore_webcolf ? String(rapportoView.codice_datore_webcolf) : "-"}
@@ -1644,7 +1615,7 @@ export function RapportoDetailPanel({
                           ) : null}
                           <span className="text-xs font-semibold whitespace-nowrap">
                             {typeof mese.importo_busta_estratto === "number"
-                              ? formatCurrency(mese.importo_busta_estratto)
+                              ? formatItalianCurrency(mese.importo_busta_estratto)
                               : "-"}
                           </span>
                         </div>
@@ -1679,10 +1650,10 @@ export function RapportoDetailPanel({
                       contributo.data_invio_famiglia
                         ? `Inviato il ${formatDate(contributo.data_invio_famiglia)}`
                         : contributo.data_ora_creazione
-                          ? `Creato il ${formatDateTime(contributo.data_ora_creazione)}`
+                          ? `Creato il ${formatItalianDateTimeOr(contributo.data_ora_creazione, "-")}`
                         : null,
                       contributo.valore_pagopa != null
-                        ? `PagoPA ${formatCurrency(contributo.valore_pagopa)}`
+                        ? `PagoPA ${formatItalianCurrency(contributo.valore_pagopa)}`
                         : null,
                     ]
                       .filter(Boolean)
@@ -1691,7 +1662,7 @@ export function RapportoDetailPanel({
                     trailing={
                       <span className="text-xs font-semibold whitespace-nowrap">
                         {typeof contributo.importo_contributi_inps === "number"
-                          ? formatCurrency(contributo.importo_contributi_inps)
+                          ? formatItalianCurrency(contributo.importo_contributi_inps)
                           : "-"}
                       </span>
                     }

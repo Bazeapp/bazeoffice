@@ -29,15 +29,17 @@ import {
   sortCardsForStage,
 } from "../lib/lookup-utils"
 import {
-  displayValue,
   formatItalianDate,
   formatItalianDateTime,
-  getCallAttemptCount,
   getFirstArrayValue,
   getStringArrayValue,
   normalizeLookupToken,
   toBooleanValue,
   toStringValue,
+} from "@/lib/value-utils"
+import {
+  displayValue,
+  getCallAttemptCount,
 } from "../lib/value-utils"
 
 export function useCrmPipelinePreview(

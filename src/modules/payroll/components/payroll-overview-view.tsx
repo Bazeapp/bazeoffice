@@ -19,26 +19,47 @@ import {
 
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
 import { usePayrollBoard } from "../hooks/use-payroll-board"
-import { TERMINAL_STAGE_IDS } from "@/modules/payroll/lib"
-import { ContributiInpsView } from "./contributi-inps-view"
 import {
+  buildPayrollMetrics,
+  buildPresenceDayRows,
+  CASO_PARTICOLARE_OPTIONS,
   CEDOLINI_FILTER_GROUPS,
   cardMatchesCedoliniFilters,
   createDefaultCedoliniFilters,
+  EMPTY_PRESENCE_SELECT_VALUE,
+  formatDateOnly,
+  formatHoursValue,
+  formatMonthLabel,
+  getCedolinoTypeClassName,
+  getCedolinoTypeLabel,
+  getCurrentMonthValue,
+  getDayTypeLabel,
+  getDaysInMonth,
+  getPayrollDayRange,
+  getPresenceRegolariHours,
+  getWeekdayLetter,
   isAbbonamentoCard,
   isCardPaid,
   normalizeCaseFlag,
+  PRESENCE_DAY_FIELD_REGEX,
+  PRESENCE_EVENT_OPTIONS,
+  PRESENCE_SELECT_TRIGGER_CLASS,
+  shiftMonth,
+  sumPresenceHours,
+  TERMINAL_STAGE_IDS,
+  toInlineDocumentUrl,
   toggleCedoliniFilter,
+  withCurrentPresenceOption,
   type CedoliniFilters,
   type CedoliniFilterGroupKey,
 } from "../lib"
+import { ContributiInpsView } from "./contributi-inps-view"
 import { AttachmentUploadSlot } from "@/components/shared-next/attachment-upload-slot"
 import { flattenAttachmentLinks, type AttachmentLink } from "@/components/shared-next/attachment-utils"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
-  type KanbanColumnVisual,
 } from "@/components/shared-next/kanban"
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
@@ -63,7 +84,6 @@ import {
   FieldInput,
   FieldTextarea,
   FieldSelect,
-  type FieldSelectOption,
 } from "@/components/forms/field-components"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { Input } from "@/components/ui/input"
@@ -80,177 +100,15 @@ import { updateRecord } from "@/lib/record-crud"
 import { buildAttachmentPayload, normalizeAttachmentArray } from "@/lib/attachments"
 import { buildFamilyPresenzeUrl } from "@/lib/private-area-url"
 import { matchesSearchQuery } from "@/lib/search-utils"
+import { sanitizeFileName } from "@/lib/file-utils"
+import { formatItalianCurrency, formatItalianDateTimeOr, toIsoDateInputValue } from "@/lib/format-utils"
+import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
-type PayrollMetric = {
-  title: string
-  value: string
-  className?: string
-}
-
 const MAKE_TRANSACTION_WEBHOOK_URL = "https://hook.eu1.make.com/wp7qdoft5vc11zbgh91trjm7d17zj4jm"
-
-function getGoogleDriveFileId(url: string) {
-  const filePathMatch = url.match(/\/file\/d\/([^/?#]+)/)
-  if (filePathMatch?.[1]) return filePathMatch[1]
-
-  try {
-    const parsedUrl = new URL(url)
-    return parsedUrl.searchParams.get("id")
-  } catch {
-    return null
-  }
-}
-
-function toInlineDocumentUrl(url: string) {
-  const driveFileId = getGoogleDriveFileId(url)
-  if (driveFileId && url.includes("drive.google.com")) {
-    return `https://drive.google.com/file/d/${driveFileId}/preview`
-  }
-
-  return url
-}
-
-function buildPayrollMetrics(columns: PayrollBoardColumnData[]): PayrollMetric[] {
-  const cards = columns.flatMap((column) => column.cards)
-  const rapportiAttivi = new Set(
-    cards
-      .map((card) => card.rapporto?.id)
-      .filter((value): value is string => Boolean(value))
-  ).size
-  const cedoliniTotali = cards.length
-  const presenzeDaRaccogliere = cards.filter((card) => !card.record.presenze_id).length
-  const presenzeRicevute = cards.filter((card) => Boolean(card.record.presenze_id)).length
-  const inviati = cards.filter((card) => card.stage === "Inviato cedolino").length
-  const pagati = cards.filter((card) => card.stage === "Pagato").length
-  const daPagare = cards.filter((card) =>
-    ["Cedolino da controllare", "Cedolino Pronto", "Inviato cedolino", "Richiesta chiarimenti"].includes(card.stage)
-  ).length
-
-  return [
-    {
-      title: "Rapporti attivi",
-      value: String(rapportiAttivi),
-    },
-    {
-      title: "Cedolini totali",
-      value: String(cedoliniTotali),
-    },
-    {
-      title: "Presenze da raccogliere",
-      value: String(presenzeDaRaccogliere),
-    },
-    {
-      title: "Presenze ricevute",
-      value: String(presenzeRicevute),
-    },
-    {
-      title: "Inviati",
-      value: String(inviati),
-    },
-    {
-      title: "Pagati",
-      value: String(pagati),
-    },
-    {
-      title: "Da pagare",
-      value: String(daPagare),
-    },
-  ]
-}
-
-function getCurrentMonthValue() {
-  const now = new Date()
-  const month = `${now.getUTCMonth() + 1}`.padStart(2, "0")
-  return `${now.getUTCFullYear()}-${month}`
-}
-
-function shiftMonth(value: string, delta: number) {
-  const [yearPart, monthPart] = value.split("-")
-  const year = Number.parseInt(yearPart ?? "", 10)
-  const month = Number.parseInt(monthPart ?? "", 10)
-
-  if (!Number.isFinite(year) || !Number.isFinite(month)) {
-    return getCurrentMonthValue()
-  }
-
-  const nextDate = new Date(Date.UTC(year, month - 1 + delta, 1))
-  const nextMonth = `${nextDate.getUTCMonth() + 1}`.padStart(2, "0")
-  return `${nextDate.getUTCFullYear()}-${nextMonth}`
-}
-
-function formatMonthLabel(value: string) {
-  const [yearPart, monthPart] = value.split("-")
-  const year = Number.parseInt(yearPart ?? "", 10)
-  const month = Number.parseInt(monthPart ?? "", 10)
-
-  if (!Number.isFinite(year) || !Number.isFinite(month)) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(Date.UTC(year, month - 1, 1)))
-}
-
-function formatDateTime(value: string | null | undefined) {
-  if (!value) return "Non disponibile"
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(parsed)
-}
-
-function formatDateOnly(value: string | null | undefined) {
-  if (!value) return "Non disponibile"
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed)
-}
-
-function toInputDateValue(value: string | null | undefined) {
-  if (!value) return ""
-  return value.slice(0, 10)
-}
-
-function formatCurrencyAmount(value: number | null | undefined) {
-  if (typeof value !== "number" || Number.isNaN(value)) return "Non disponibile"
-  return new Intl.NumberFormat("it-IT", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
-}
-
-function getCedolinoTypeLabel(value: string | null | undefined) {
-  const normalized = normalizeCaseFlag(value)
-  if (normalized === "chiusura") return "Chiusura rapporto"
-  if (normalized === "si") return "Caso particolare"
-  return "Regolare"
-}
-
-function getCedolinoTypeClassName(value: string | null | undefined) {
-  const normalized = normalizeCaseFlag(value)
-  if (normalized === "chiusura") return "bg-rose-100 text-rose-700 hover:bg-rose-100"
-  if (normalized === "si") return "bg-amber-100 text-amber-700 hover:bg-amber-100"
-  return "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
-}
+const PAYROLL_CURRENCY_OPTIONS = { emptyLabel: "Non disponibile" } as const
 
 function normalizeAttachmentValue(value: unknown) {
   if (typeof value !== "string") return value
@@ -264,191 +122,6 @@ function normalizeAttachmentValue(value: unknown) {
     }
   }
   return value
-}
-
-function sanitizeFileName(name: string) {
-  return name
-    .trim()
-    .replace(/[^a-zA-Z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "cedolino"
-}
-
-type PresenceDayRow = {
-  day: number
-  type: string
-  hours: string
-  event: string
-  sicknessCode: string
-  note: string
-}
-
-type PresenceSelectOption = {
-  value: string
-  label: string
-}
-
-const EMPTY_PRESENCE_SELECT_VALUE = "__empty__"
-const PRESENCE_SELECT_TRIGGER_CLASS =
-  "h-8 justify-between text-left [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left"
-
-// Campi giornalieri della tabella presenze instradati su onPatchPresence.
-const PRESENCE_DAY_FIELD_REGEX =
-  /^(ore_day_|evento_day_|codice_malattia_day_|note_day_)\d+$/
-
-const CASO_PARTICOLARE_OPTIONS: FieldSelectOption[] = [
-  { value: "no", label: "Regolare" },
-  { value: "si", label: "Caso particolare" },
-  { value: "chiusura", label: "Chiusura rapporto" },
-]
-
-const PRESENCE_DAY_TYPE_OPTIONS: PresenceSelectOption[] = [
-  { value: "festivo", label: "Festivo" },
-  { value: "lavorativo", label: "Lavorativo" },
-  { value: "non-lavorativo", label: "Non lavorativo" },
-]
-
-const PRESENCE_EVENT_OPTIONS: PresenceSelectOption[] = [
-  { value: "unpaidLeave", label: "Permesso non retribuito" },
-  { value: "paidLeave", label: "Permesso retribuito" },
-  { value: "medicalVisit", label: "Visita medica" },
-  { value: "training", label: "Formazione" },
-  { value: "bereavement", label: "Lutto" },
-  { value: "marriage", label: "Matrimonio" },
-  { value: "maternityPaternity", label: "Maternita/Paternita" },
-  { value: "overtime", label: "Straordinario" },
-  { value: "vacation", label: "Ferie" },
-  { value: "sickness", label: "Malattia" },
-]
-
-function withCurrentPresenceOption(options: PresenceSelectOption[], currentValue: string) {
-  if (!currentValue || options.some((option) => option.value === currentValue)) {
-    return options
-  }
-
-  return [
-    ...options,
-    {
-      value: currentValue,
-      label: currentValue,
-    },
-  ]
-}
-
-const WEEKDAY_LETTERS_IT = ["D", "L", "M", "M", "G", "V", "S"] as const
-
-function getWeekdayLetter(yearMonth: string | null | undefined, day: number): string {
-  if (!yearMonth) return ""
-  const year = Number(yearMonth.slice(0, 4))
-  const month = Number(yearMonth.slice(5, 7))
-  if (!Number.isFinite(year) || !Number.isFinite(month)) return ""
-  const date = new Date(Date.UTC(year, month - 1, day))
-  if (Number.isNaN(date.getTime())) return ""
-  return WEEKDAY_LETTERS_IT[date.getUTCDay()]
-}
-
-function getPresenceRegolariHours(
-  record: PayrollBoardCardData["presenzeRegolari"],
-  day: number,
-): string {
-  if (!record) return ""
-  const raw = record[`ore_day_${day}`]
-  if (raw === null || raw === undefined) return ""
-  return String(raw).trim()
-}
-
-function getDayTypeLabel(type: string): string {
-  if (!type) return ""
-  return PRESENCE_DAY_TYPE_OPTIONS.find((o) => o.value === type)?.label ?? type
-}
-
-function getDaysInMonth(meseDataFine: string | null | undefined): number {
-  // data_fine looks like "2026-05-31" → 31, "2026-02-28" → 28. Falls back to
-  // 31 so we never under-show days when the field is missing or malformed.
-  if (!meseDataFine) return 31
-  const parsed = new Date(meseDataFine)
-  if (Number.isNaN(parsed.getTime())) return 31
-  return parsed.getUTCDate()
-}
-
-function buildPresenceDayRows(
-  record: PayrollBoardCardData["presenze"],
-  daysInMonth: number = 31,
-): PresenceDayRow[] {
-  if (!record) return []
-
-  // Show every day of the month, even when all its fields are empty —
-  // otherwise the row "disappears" the moment the user clears tipo/ore/etc.
-  // and they have no way to enter the day back without page refresh.
-  return Array.from({ length: daysInMonth }, (_, index) => {
-    const day = index + 1
-    const type = String(record[`tipo_day_${day}`] ?? "").trim()
-    const hours = String(record[`ore_day_${day}`] ?? "").trim()
-    const event = String(record[`evento_day_${day}`] ?? "").trim()
-    const sicknessCode = String(record[`codice_malattia_day_${day}`] ?? "").trim()
-    const note = String(record[`note_day_${day}`] ?? "").trim()
-
-    return {
-      day,
-      type,
-      hours,
-      event,
-      sicknessCode,
-      note,
-    }
-  })
-}
-
-function sumPresenceHours(
-  record: PayrollBoardCardData["presenzeRegolari"],
-  range?: { startDay: number; endDay: number } | null,
-): number | null {
-  if (!record) return null
-
-  const startDay = range?.startDay ?? 1
-  const endDay = range?.endDay ?? 31
-  if (endDay < startDay) return 0
-
-  let total = 0
-  for (let day = startDay; day <= endDay; day += 1) {
-    const value = Number(record[`ore_day_${day}`])
-    if (Number.isFinite(value)) total += value
-  }
-  return total
-}
-
-function getPayrollDayRange(
-  mese: { data_inizio: string | null; data_fine: string | null } | null | undefined,
-  rapporto: { data_inizio_rapporto?: string | null; data_fine_rapporto?: string | null } | null | undefined,
-): { startDay: number; endDay: number } | null {
-  const meseInizio = mese?.data_inizio
-  const meseFine = mese?.data_fine
-  if (!meseInizio || !meseFine) return null
-
-  const monthKey = meseInizio.slice(0, 7)
-  let startDay = Number(meseInizio.slice(8, 10))
-  let endDay = Number(meseFine.slice(8, 10))
-  if (!Number.isFinite(startDay) || !Number.isFinite(endDay)) return null
-
-  const dataInizioRapporto = rapporto?.data_inizio_rapporto
-  if (dataInizioRapporto && dataInizioRapporto.slice(0, 7) === monthKey) {
-    const day = Number(dataInizioRapporto.slice(8, 10))
-    if (Number.isFinite(day) && day > startDay) startDay = day
-  }
-
-  const dataFineRapporto = rapporto?.data_fine_rapporto
-  if (dataFineRapporto && dataFineRapporto.slice(0, 7) === monthKey) {
-    const day = Number(dataFineRapporto.slice(8, 10))
-    if (Number.isFinite(day) && day < endDay) endDay = day
-  }
-
-  return { startDay, endDay }
-}
-
-function formatHoursValue(value: unknown) {
-  if (value === null || value === undefined || value === "") return "Non disponibile"
-  const numericValue = Number(value)
-  if (!Number.isFinite(numericValue)) return String(value)
-  return Number.isInteger(numericValue) ? String(numericValue) : String(numericValue)
 }
 
 function PresenceBadge({ isRegular }: { isRegular: boolean }) {
@@ -506,32 +179,6 @@ function EditableStars({
 
 function cedoliniStageTestId(stageId: string) {
   return `kanban-column-${stageId.replace(/\s+/g, "_")}`
-}
-
-function getColumnVisual(color: string): KanbanColumnVisual {
-  switch (color.toLowerCase()) {
-    case "sky":
-      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
-    case "cyan":
-      return { columnClassName: "bg-cyan-400", headerClassName: "", iconClassName: "text-cyan-500" }
-    case "blue":
-      return { columnClassName: "bg-blue-400", headerClassName: "", iconClassName: "text-blue-500" }
-    case "orange":
-      return { columnClassName: "bg-orange-400", headerClassName: "", iconClassName: "text-orange-500" }
-    case "amber":
-    case "yellow":
-      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
-    case "lime":
-      return { columnClassName: "bg-lime-400", headerClassName: "", iconClassName: "text-lime-500" }
-    case "green":
-      return { columnClassName: "bg-green-400", headerClassName: "", iconClassName: "text-green-500" }
-    case "emerald":
-      return { columnClassName: "bg-emerald-400", headerClassName: "", iconClassName: "text-emerald-500" }
-    case "teal":
-      return { columnClassName: "bg-teal-400", headerClassName: "", iconClassName: "text-teal-500" }
-    default:
-      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
-  }
 }
 
 function PayrollBoardCard({ card }: { card: PayrollBoardCardData }) {
@@ -666,7 +313,7 @@ function ImportoScontoField({
       let next = parsed
       if (next > max) {
         next = max
-        toast.info(`Importo sconto limitato al massimo di ${formatCurrencyAmount(max)}`)
+        toast.info(`Importo sconto limitato al massimo di ${formatItalianCurrency(max, PAYROLL_CURRENCY_OPTIONS)}`)
       }
 
       setDraft(String(next))
@@ -802,7 +449,7 @@ export function CedolinoDetailSheet({
 
   const form = useAutoSaveForm<Record<string, string>>({
     defaults: {
-      data_invio_famiglia: toInputDateValue(card?.record.data_invio_famiglia),
+      data_invio_famiglia: toIsoDateInputValue(card?.record.data_invio_famiglia),
       caso_particolare: normalizeCaseFlag(card?.record.caso_particolare),
       cedolino_url: card?.record.cedolino_url ?? "",
       importo_busta_estratto: String(card?.record.importo_busta_estratto ?? ""),
@@ -915,7 +562,7 @@ export function CedolinoDetailSheet({
       setUploadError(null)
 
       try {
-        const safeName = sanitizeFileName(file.name || "cedolino")
+        const safeName = sanitizeFileName(file.name || "cedolino", "cedolino")
         const storagePath = [
           "mesi_lavorati",
           card.id,
@@ -1220,15 +867,15 @@ export function CedolinoDetailSheet({
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Fee concordata</p>
-                      <p className="font-medium">{formatCurrencyAmount(feeConcordata)}</p>
+                      <p className="font-medium">{formatItalianCurrency(feeConcordata, PAYROLL_CURRENCY_OPTIONS)}</p>
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Application fee</p>
-                      <p className="font-medium">{formatCurrencyAmount(applicationFee)}</p>
+                      <p className="font-medium">{formatItalianCurrency(applicationFee, PAYROLL_CURRENCY_OPTIONS)}</p>
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Importo cedolino</p>
-                      <p className="font-medium">{formatCurrencyAmount(paymentAmount)}</p>
+                      <p className="font-medium">{formatItalianCurrency(paymentAmount, PAYROLL_CURRENCY_OPTIONS)}</p>
                     </div>
                     <div className="space-y-2">
                       <p className="ui-type-label">Importo sconto</p>
@@ -1268,7 +915,7 @@ export function CedolinoDetailSheet({
                       <p className="ui-type-label">Data pagamento</p>
                       <p className="font-medium">
                         {pagamento?.data_ora_di_pagamento
-                          ? formatDateTime(pagamento.data_ora_di_pagamento)
+                          ? formatItalianDateTimeOr(pagamento.data_ora_di_pagamento, "Non disponibile")
                           : "Non ancora pagato"}
                       </p>
                     </div>
@@ -1511,7 +1158,7 @@ function PayrollBoardColumn({
   onDragLeaveColumn: (event: React.DragEvent<HTMLDivElement>) => void
   onDropToColumn: (columnId: string, recordId: string | null) => void
 }) {
-  const visual = getColumnVisual(column.color)
+  const visual = getKanbanColumnVisual(column.color)
 
   return (
     <KanbanColumnShell

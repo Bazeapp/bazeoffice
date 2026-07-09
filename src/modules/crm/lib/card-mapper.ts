@@ -13,17 +13,19 @@ import {
   resolveBadgeColor,
 } from "./lookup-utils"
 import {
-  buildAddressLine,
-  buildPreventivoAcceptanceUrl,
-  displayValue,
-  extractFirstNumberToken,
   formatItalianDate,
   formatItalianDateTime,
-  getCallAttemptCount,
   getFirstArrayValue,
   getStringArrayValue,
   toBooleanValue,
   toStringValue,
+} from "@/lib/value-utils"
+import {
+  buildAddressLine,
+  buildPreventivoAcceptanceUrl,
+  displayValue,
+  extractFirstNumberToken,
+  getCallAttemptCount,
 } from "./value-utils"
 
 export function mapCardData(

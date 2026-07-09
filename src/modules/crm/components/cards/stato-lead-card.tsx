@@ -30,6 +30,9 @@ import { useController } from "react-hook-form";
 import { Form } from "@/components/ui/form";
 import { FieldTextarea, FieldDatePicker } from "@/components/forms/field-components";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
+import { formatBadgeLabel } from "@/lib/format-utils";
+import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles";
+import { normalizeLookupToken } from "@/lib/value-utils"
 
 type StatoLeadCardProps = {
   card: CrmPipelineCardData | null;
@@ -49,12 +52,6 @@ type StatoLeadCardProps = {
 
 type LookupOption = LookupOptionsByField[string][number];
 
-function normalizeToken(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase();
-}
-
 function renderValue(value: string | null | undefined) {
   if (!value) return "-";
   const normalized = value.trim();
@@ -63,65 +60,6 @@ function renderValue(value: string | null | undefined) {
 
 function hasValue(value: string | null | undefined) {
   return renderValue(value) !== "-";
-}
-
-function formatLabel(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function getBadgeClassName(color: string | null | undefined) {
-  switch ((color ?? "").toLowerCase()) {
-    case "red":
-      return "border-red-200 bg-red-100 text-red-700";
-    case "rose":
-      return "border-rose-200 bg-rose-100 text-rose-700";
-    case "orange":
-      return "border-orange-200 bg-orange-100 text-orange-700";
-    case "amber":
-      return "border-amber-200 bg-amber-100 text-amber-700";
-    case "yellow":
-      return "border-yellow-200 bg-yellow-100 text-yellow-700";
-    case "lime":
-      return "border-lime-200 bg-lime-100 text-lime-700";
-    case "green":
-      return "border-green-200 bg-green-100 text-green-700";
-    case "emerald":
-      return "border-emerald-200 bg-emerald-100 text-emerald-700";
-    case "teal":
-      return "border-teal-200 bg-teal-100 text-teal-700";
-    case "cyan":
-      return "border-cyan-200 bg-cyan-100 text-cyan-700";
-    case "sky":
-      return "border-sky-200 bg-sky-100 text-sky-700";
-    case "blue":
-      return "border-blue-200 bg-blue-100 text-blue-700";
-    case "indigo":
-      return "border-indigo-200 bg-indigo-100 text-indigo-700";
-    case "violet":
-      return "border-violet-200 bg-violet-100 text-violet-700";
-    case "purple":
-      return "border-purple-200 bg-purple-100 text-purple-700";
-    case "fuchsia":
-      return "border-fuchsia-200 bg-fuchsia-100 text-fuchsia-700";
-    case "pink":
-      return "border-pink-200 bg-pink-100 text-pink-700";
-    case "slate":
-      return "border-slate-200 bg-slate-100 text-slate-700";
-    case "gray":
-      return "border-gray-200 bg-gray-100 text-gray-700";
-    case "zinc":
-      return "border-zinc-200 bg-zinc-100 text-zinc-700";
-    case "neutral":
-      return "border-neutral-200 bg-neutral-100 text-neutral-700";
-    case "stone":
-      return "border-stone-200 bg-stone-100 text-stone-700";
-    default:
-      return "border-border bg-muted text-foreground";
-  }
 }
 
 function getSelectItemClassName(color: string | null | undefined) {
@@ -176,7 +114,7 @@ function getSelectItemClassName(color: string | null | undefined) {
 }
 
 function getStageGroupKey(valueKey: string) {
-  const normalized = normalizeToken(valueKey);
+  const normalized = normalizeLookupToken(valueKey);
   if (normalized.startsWith("warm_")) return "warm";
   if (normalized.startsWith("hot_")) return "hot";
   if (normalized.startsWith("cold_")) return "cold";
@@ -232,7 +170,7 @@ function resolveOptions(
   selected: string,
   options: LookupOption[],
 ): LookupOption[] {
-  const selectedToken = normalizeToken(selected);
+  const selectedToken = normalizeLookupToken(selected);
   if (options.length > 0) return options;
   if (!selectedToken || selectedToken === "-") return [];
 
@@ -247,13 +185,13 @@ function resolveOptions(
 }
 
 function selectedOptionValue(selected: string, options: LookupOption[]) {
-  const token = normalizeToken(selected);
+  const token = normalizeLookupToken(selected);
   if (!token || token === "-") return "";
 
   const matched = options.find((option) => {
     return (
-      normalizeToken(option.valueKey) === token ||
-      normalizeToken(option.valueLabel) === token
+      normalizeLookupToken(option.valueKey) === token ||
+      normalizeLookupToken(option.valueLabel) === token
     );
   });
 
@@ -302,9 +240,9 @@ function ChoiceFieldSet({
               <FieldLabel htmlFor={id} className="font-normal">
                 <Badge
                   variant="outline"
-                  className={getBadgeClassName(option.color)}
+                  className={getLookupBadgeSoftClassName(option.color)}
                 >
-                  {formatLabel(option.valueLabel)}
+                  {formatBadgeLabel(option.valueLabel)}
                 </Badge>
               </FieldLabel>
             </Field>

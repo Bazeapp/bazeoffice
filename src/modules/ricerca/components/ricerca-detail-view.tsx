@@ -76,7 +76,7 @@ import { createRecord, updateRecord } from "@/lib/record-crud"
 import { buildFamilyPrivateAreaUrl } from "@/lib/private-area-url";
 import { getRicercaCenter } from "../lib/center-coords";
 import { invokeEdgeFunction } from "@/lib/supabase-edge";
-import { cn } from "@/lib/utils";
+import { cn, toAvatarRingClass } from "@/lib/utils";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { useProvincieOptions } from "@/hooks/use-provincie";
 import { toast } from "sonner";
@@ -257,10 +257,6 @@ function formatItalianDate(value: unknown): string {
 
 function displayValue(value: unknown): string {
   return toStringValue(value) ?? "-";
-}
-
-function toAvatarRingClass(legacyClassName: string) {
-  return legacyClassName.replace(/after:border-/g, "ring-2 ring-");
 }
 
 function isPlaceholderText(value: string) {

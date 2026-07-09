@@ -18,7 +18,6 @@ import { AssunzioniDetailSheet } from "./assunzioni-detail-sheet"
 import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
-  type KanbanColumnVisual,
 } from "@/components/shared-next/kanban"
 import { RecordCard } from "@/components/shared-next/record-card"
 import { SectionHeader } from "@/components/shared-next/section-header"
@@ -26,6 +25,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/ui/search-input"
 import { matchesSearchQuery } from "@/lib/search-utils"
+import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
 import { cn } from "@/lib/utils"
 
 const ASSUNZIONI_FORM_URLS = {
@@ -35,25 +35,6 @@ const ASSUNZIONI_FORM_URLS = {
 
 function assunzioniStageTestId(stageId: string) {
   return `kanban-column-${stageId.replace(/\s+/g, "_")}`
-}
-
-function getColumnVisual(color: string): KanbanColumnVisual {
-  switch (color.toLowerCase()) {
-    case "sky":
-      return { columnClassName: "bg-sky-400", headerClassName: "", iconClassName: "text-sky-500" }
-    case "teal":
-      return { columnClassName: "bg-teal-400", headerClassName: "", iconClassName: "text-teal-500" }
-    case "amber":
-      return { columnClassName: "bg-amber-400", headerClassName: "", iconClassName: "text-amber-500" }
-    case "lime":
-      return { columnClassName: "bg-lime-400", headerClassName: "", iconClassName: "text-lime-500" }
-    case "green":
-      return { columnClassName: "bg-green-400", headerClassName: "", iconClassName: "text-green-500" }
-    case "orange":
-      return { columnClassName: "bg-orange-400", headerClassName: "", iconClassName: "text-orange-500" }
-    default:
-      return { columnClassName: "", headerClassName: "", iconClassName: "text-muted-foreground/80" }
-  }
 }
 
 function AssunzioniFormButton({
@@ -186,7 +167,7 @@ function AssunzioniBoardColumn({
   onCardClick: (card: AssunzioniBoardCardData) => void
   onLoadDeferredColumn: (columnId: string) => void
 }) {
-  const visual = getColumnVisual(column.color)
+  const visual = getKanbanColumnVisual(column.color)
 
   return (
     <KanbanColumnShell

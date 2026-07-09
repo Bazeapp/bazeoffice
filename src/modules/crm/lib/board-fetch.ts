@@ -22,7 +22,8 @@ import {
   getProcessAddressTypePriority,
   sortCardsForStage,
 } from "./lookup-utils"
-import { asRowArray, normalizeLookupToken, toStringValue } from "./value-utils"
+import { normalizeLookupToken, toStringValue } from "@/lib/value-utils"
+import { asRowArray } from "./value-utils"
 
 export async function fetchProcessAddressesByIds(processIds: string[]) {
   const uniqueProcessIds = Array.from(new Set(processIds.filter(Boolean)))
