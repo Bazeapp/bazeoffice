@@ -18,6 +18,7 @@ import {
   XIcon,
 } from "lucide-react"
 
+import { ToolbarField } from "@/components/forms/toolbar-field"
 import { FamigliaProcessoDetailShell } from "./famiglia-processo-detail-shell"
 import { FamigliaProcessoCard } from "./famiglia-processo-card"
 import {
@@ -47,47 +48,30 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  type CrmPipelineFilters,
   type CrmPipelineCardData,
   type CrmPipelineColumnData,
 } from "../types"
 import { useCrmPipelinePreview } from "../hooks/use-crm-pipeline-preview"
-import { romaWallclockToUtcIso, utcIsoToRomaInput } from "@/lib/datetime"
+import {
+  CRM_PIPELINE_FILTERS_STORAGE_KEY,
+  DATE_PRESETS,
+  EMPTY_TOOLBAR_FILTERS,
+  buildServerFilters,
+  getDatePresetFilterPatch,
+  hasActiveToolbarFilters,
+  readStoredToolbarFilters,
+  serializeToolbarFilters,
+  toggleFilterValue,
+  type BooleanFilterValue,
+  type CrmPipelineToolbarFilters,
+  type DatePresetValue,
+} from "../lib/crm-pipeline-toolbar-filters"
 import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
 
 const DEFERRED_STAGE_IDS = new Set(["won_ricerca_attivata", "lost", "out_of_target"])
-const CRM_PIPELINE_FILTERS_STORAGE_KEY = "bazeoffice.crmPipelineFamiglie.filters.v1"
 const VISIBLE_CARD_BATCH_SIZE = 80
-
-type BooleanFilterValue = "all" | "yes" | "no"
-
-type CrmPipelineToolbarFilters = {
-  createdFrom: string
-  createdTo: string
-  tipoLavoro: string[]
-  preventivoAccettato: BooleanFilterValue
-  chiamataPrenotata: BooleanFilterValue
-}
-
-const EMPTY_TOOLBAR_FILTERS: CrmPipelineToolbarFilters = {
-  createdFrom: "",
-  createdTo: "",
-  tipoLavoro: [],
-  preventivoAccettato: "all",
-  chiamataPrenotata: "all",
-}
-
-const DATE_PRESETS = [
-  { id: "custom", label: "Da sempre" },
-  { id: "24h", label: "Ultime 24h" },
-  { id: "7d", label: "Ultimi 7 giorni" },
-  { id: "30d", label: "Ultimo mese" },
-  { id: "year", label: "Quest'anno" },
-] as const
-
-type DatePresetValue = (typeof DATE_PRESETS)[number]["id"]
 
 function getStageIcon(stageId: string, iconClassName: string) {
   const className = cn("size-4", iconClassName)
@@ -126,129 +110,6 @@ function getStageIcon(stageId: string, iconClassName: string) {
     default:
       return <CircleDotIcon className={className} />
   }
-}
-
-function toDateTimeLocalValue(date: Date) {
-  return utcIsoToRomaInput(date.toISOString())
-}
-
-function dateTimeLocalToIso(value: string) {
-  return romaWallclockToUtcIso(value)
-}
-
-function booleanFilterToValue(value: BooleanFilterValue) {
-  if (value === "yes") return true
-  if (value === "no") return false
-  return null
-}
-
-function sanitizeToolbarFilters(value: unknown): CrmPipelineToolbarFilters {
-  if (!value || typeof value !== "object") return EMPTY_TOOLBAR_FILTERS
-  const raw = value as Partial<CrmPipelineToolbarFilters>
-  return {
-    createdFrom: typeof raw.createdFrom === "string" ? raw.createdFrom : "",
-    createdTo: typeof raw.createdTo === "string" ? raw.createdTo : "",
-    tipoLavoro: Array.isArray(raw.tipoLavoro)
-      ? raw.tipoLavoro.filter((item): item is string => typeof item === "string")
-      : [],
-    preventivoAccettato:
-      raw.preventivoAccettato === "yes" || raw.preventivoAccettato === "no"
-        ? raw.preventivoAccettato
-        : "all",
-    chiamataPrenotata:
-      raw.chiamataPrenotata === "yes" || raw.chiamataPrenotata === "no"
-        ? raw.chiamataPrenotata
-        : "all",
-  }
-}
-
-function readStoredToolbarFilters() {
-  if (typeof window === "undefined") return EMPTY_TOOLBAR_FILTERS
-  try {
-    const raw = window.localStorage.getItem(CRM_PIPELINE_FILTERS_STORAGE_KEY)
-    return raw ? sanitizeToolbarFilters(JSON.parse(raw)) : EMPTY_TOOLBAR_FILTERS
-  } catch {
-    return EMPTY_TOOLBAR_FILTERS
-  }
-}
-
-function buildServerFilters(filters: CrmPipelineToolbarFilters): CrmPipelineFilters {
-  return {
-    createdFrom: dateTimeLocalToIso(filters.createdFrom),
-    createdTo: dateTimeLocalToIso(filters.createdTo),
-    tipoLavoro: filters.tipoLavoro,
-    preventivoAccettato: booleanFilterToValue(filters.preventivoAccettato),
-    chiamataPrenotata: booleanFilterToValue(filters.chiamataPrenotata),
-  }
-}
-
-function applyDatePreset(
-  preset: DatePresetValue,
-  setFilters: React.Dispatch<React.SetStateAction<CrmPipelineToolbarFilters>>
-) {
-  if (preset === "custom") return
-
-  const now = new Date()
-  const from = new Date(now)
-
-  if (preset === "24h") {
-    from.setUTCHours(from.getUTCHours() - 24)
-  } else if (preset === "7d") {
-    from.setUTCDate(from.getUTCDate() - 7)
-  } else if (preset === "30d") {
-    from.setUTCMonth(from.getUTCMonth() - 1)
-  } else {
-    from.setUTCMonth(0, 1)
-    from.setUTCHours(0, 0, 0, 0)
-  }
-
-  setFilters((current) => ({
-    ...current,
-    createdFrom: toDateTimeLocalValue(from),
-    createdTo: toDateTimeLocalValue(now),
-  }))
-}
-
-function toggleFilterValue(values: string[], value: string, checked: boolean) {
-  if (checked) return values.includes(value) ? values : [...values, value]
-  return values.filter((item) => item !== value)
-}
-
-function hasActiveFilters(filters: CrmPipelineToolbarFilters) {
-  return (
-    Boolean(filters.createdFrom) ||
-    Boolean(filters.createdTo) ||
-    filters.tipoLavoro.length > 0 ||
-    filters.preventivoAccettato !== "all" ||
-    filters.chiamataPrenotata !== "all"
-  )
-}
-
-function serializeToolbarFilters(filters: CrmPipelineToolbarFilters) {
-  return JSON.stringify({
-    createdFrom: filters.createdFrom,
-    createdTo: filters.createdTo,
-    tipoLavoro: [...filters.tipoLavoro].sort(),
-    preventivoAccettato: filters.preventivoAccettato,
-    chiamataPrenotata: filters.chiamataPrenotata,
-  })
-}
-
-function ToolbarField({
-  label,
-  children,
-  className,
-}: {
-  label: string
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <label className={cn("flex min-w-0 flex-col gap-1 text-xs font-medium text-muted-foreground", className)}>
-      <span>{label}</span>
-      {children}
-    </label>
-  )
 }
 
 function CrmPipelineSkeletonColumn() {
@@ -401,7 +262,8 @@ export function CrmPipelineFamiglieView() {
   )
   const tipoLavoroOptions = lookupOptionsByField.tipo_lavoro ?? []
   const filtersActive =
-    hasActiveFilters(appliedToolbarFilters) || appliedSearchQuery.trim().length > 0
+    hasActiveToolbarFilters(appliedToolbarFilters) ||
+    appliedSearchQuery.trim().length > 0
   const hasPendingFilters =
     searchQuery !== appliedSearchQuery ||
     serializeToolbarFilters(toolbarFilters) !== serializeToolbarFilters(appliedToolbarFilters)
@@ -526,7 +388,10 @@ export function CrmPipelineFamiglieView() {
               onValueChange={(value) => {
                 const nextPreset = value as DatePresetValue
                 setDatePreset(nextPreset)
-                applyDatePreset(nextPreset, setToolbarFilters)
+                const patch = getDatePresetFilterPatch(nextPreset)
+                if (patch) {
+                  setToolbarFilters((current) => ({ ...current, ...patch }))
+                }
               }}
             >
               <SelectTrigger className="h-8 w-32 text-xs">
