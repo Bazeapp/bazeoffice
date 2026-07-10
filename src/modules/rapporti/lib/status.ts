@@ -52,6 +52,10 @@ export function resolveRapportoStatus(
   return "Errore"
 }
 
+export function isRapportoAttivo(rapporto: RapportoStatusInput | null | undefined) {
+  return normalizeToken(resolveRapportoStatus(rapporto)) === "attivo"
+}
+
 export function getRapportoStatusColor(value: string | null | undefined) {
   const token = normalizeToken(value)
   if (!token || token === "sconosciuto") return "zinc"

@@ -8,6 +8,7 @@ export {
 export { getRapportoProcessIds } from "./processi"
 export {
   getRapportoStatusColor,
+  isRapportoAttivo,
   resolveRapportoStatus,
 } from "./status"
 export {

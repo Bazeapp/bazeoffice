@@ -1,5 +1,74 @@
 export type BoardColumn<TCard> = { id: string; cards: TCard[] }
 
+export function findCardInColumns<TCard extends { id: string }>(
+  columns: BoardColumn<TCard>[],
+  cardId: string,
+): TCard | undefined {
+  for (const column of columns) {
+    const card = column.cards.find((entry) => entry.id === cardId)
+    if (card) return card
+  }
+  return undefined
+}
+
+/**
+ * Lazy getter for Pattern-A board refetches: read the latest cached card at
+ * mapping time so concurrent setQueryData (detail loader) is preserved.
+ */
+export function createBoardCardGetter<TCard extends { id: string }>(
+  getColumns: () => BoardColumn<TCard>[] | undefined,
+): (cardId: string) => TCard | undefined {
+  return (cardId) => {
+    const columns = getColumns()
+    if (!columns) return undefined
+    return findCardInColumns(columns, cardId)
+  }
+}
+
+export function mergeCardDetailInColumns<
+  TColumn extends BoardColumn<TCard>,
+  TCard extends { id: string },
+>(
+  columns: TColumn[],
+  cardId: string,
+  detail: Partial<TCard>,
+): { columns: TColumn[]; mergedCard: TCard | undefined } {
+  let mergedCard: TCard | undefined
+
+  const nextColumns = columns.map((column) => ({
+    ...column,
+    cards: column.cards.map((card) => {
+      if (card.id !== cardId) return card
+      mergedCard = { ...card, ...detail }
+      return mergedCard
+    }),
+  }))
+
+  return { columns: nextColumns, mergedCard }
+}
+
+export function updateCardInList<TCard extends { id: string }>(
+  cards: TCard[],
+  recordId: string,
+  updater: (card: TCard) => TCard,
+): TCard[] {
+  return cards.map((card) => (card.id === recordId ? updater(card) : card))
+}
+
+export function updateMatchingCardInColumns<
+  TCard,
+  TColumn extends BoardColumn<TCard>,
+>(
+  columns: TColumn[],
+  matcher: (card: TCard) => boolean,
+  updater: (card: TCard) => TCard,
+): TColumn[] {
+  return columns.map((column) => ({
+    ...column,
+    cards: column.cards.map((card) => (matcher(card) ? updater(card) : card)),
+  }))
+}
+
 export function updateCardInColumns<
   TColumn extends BoardColumn<TCard>,
   TCard extends { id: string },

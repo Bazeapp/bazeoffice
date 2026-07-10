@@ -2,6 +2,7 @@ import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
+import { createBoardCardGetter } from "@/lib/board-column-utils"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
@@ -83,15 +84,10 @@ export function useCrmPipelinePreview(
         // Read the latest cached card at mapping time (after the fetch) so
         // any concurrent setBoardData (e.g. loadProcessDetail completing
         // mid-fetch) is observed and we never reinstate a stale snapshot.
-        (processId) => {
+        createBoardCardGetter(() => {
           const latest = queryClient.getQueryData<FetchBoardDataResult>(boardQueryKey)
-          if (!latest) return undefined
-          for (const column of latest.columns) {
-            const card = column.cards.find((c) => c.id === processId)
-            if (card) return card
-          }
-          return undefined
-        },
+          return latest?.columns
+        }),
       ),
   })
 

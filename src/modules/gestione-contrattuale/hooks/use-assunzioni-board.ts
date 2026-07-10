@@ -6,6 +6,7 @@ import { useDeleteBoardRecordMutation, useMoveMutation } from "@/hooks/use-board
 
 import {
   applyOptimisticCardMove,
+  createBoardCardGetter,
   updateCardAndRehome,
 } from "@/lib/board-column-utils"
 import { buildStageMetadataFromDefaults } from "@/lib/lookup-stage-metadata"
@@ -140,17 +141,9 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
       const loaded = loadedDeferredStageIdsRef.current
       // Read previous card from latest cache at mapping time — see comment
       // on FetchAssunzioniBoardDataOptions.getPreviousCard for race rationale.
-      const getPreviousCard = (rapportoId: string) => {
-        const latest = queryClient.getQueryData<AssunzioniBoardColumnData[]>(
-          ASSUNZIONI_BOARD_QUERY_KEY,
-        )
-        if (!latest) return undefined
-        for (const column of latest) {
-          const card = column.cards.find((c) => c.id === rapportoId)
-          if (card) return card
-        }
-        return undefined
-      }
+      const getPreviousCard = createBoardCardGetter(() =>
+        queryClient.getQueryData<AssunzioniBoardColumnData[]>(ASSUNZIONI_BOARD_QUERY_KEY),
+      )
 
       const baseColumns = await fetchAssunzioniBoardData({
         deferredLoadedStageIds: loaded,
@@ -257,17 +250,9 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
         const loadedColumns = await fetchAssunzioniBoardData({
           deferredLoadedStageIds: new Set([stageId]),
           onlyStageId: stageId,
-          getPreviousCard: (rapportoId: string) => {
-            const latest = queryClient.getQueryData<AssunzioniBoardColumnData[]>(
-              ASSUNZIONI_BOARD_QUERY_KEY,
-            )
-            if (!latest) return undefined
-            for (const column of latest) {
-              const card = column.cards.find((c) => c.id === rapportoId)
-              if (card) return card
-            }
-            return undefined
-          },
+          getPreviousCard: createBoardCardGetter(() =>
+            queryClient.getQueryData<AssunzioniBoardColumnData[]>(ASSUNZIONI_BOARD_QUERY_KEY),
+          ),
         })
         const loadedColumn = loadedColumns.find((column) => column.id === stageId)
 

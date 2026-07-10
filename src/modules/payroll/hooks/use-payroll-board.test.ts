@@ -11,6 +11,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  applyPayrollCardPatch,
   preserveDetailFields,
   PRESERVED_DETAIL_FIELDS,
 } from "../lib/payroll-board"
@@ -96,5 +97,35 @@ describe("use-payroll-board preserveDetailFields (Pattern A)", () => {
     expect(merged).not.toBe(previous)
     expect(fresh.presenze).toBeNull()
     expect(previous.presenze).toBe(prevPresenze)
+  })
+})
+
+describe("applyPayrollCardPatch", () => {
+  it("updates record fields and derived labels", () => {
+    const card = makeCard({
+      importoLabel: null,
+      dataInvioLabel: null,
+    })
+
+    const patched = applyPayrollCardPatch(card, {
+      importo_busta_estratto: 1500,
+      data_invio_famiglia: "2026-01-15T12:00:00.000Z",
+    })
+
+    expect(patched.record.importo_busta_estratto).toBe(1500)
+    expect(patched.importoLabel).toContain("1500")
+    expect(patched.dataInvioLabel).toMatch(/\d{2}\/\d{2}\/\d{4}/)
+  })
+
+  it("keeps existing labels when patch omits display fields", () => {
+    const card = makeCard({
+      importoLabel: "€ 100",
+      dataInvioLabel: "01/01/2026",
+    })
+
+    const patched = applyPayrollCardPatch(card, { note: "test" })
+
+    expect(patched.importoLabel).toBe("€ 100")
+    expect(patched.dataInvioLabel).toBe("01/01/2026")
   })
 })

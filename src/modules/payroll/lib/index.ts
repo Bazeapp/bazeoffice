@@ -20,11 +20,47 @@ export {
   type CedoliniFilters,
 } from "./cedolini-filters"
 export {
+  applyPayrollCardPatch,
+  applyPayrollPresencePatch,
+  fetchPayrollBoardData,
+  mapCedoliniBoardRowToCard,
+  PAYROLL_DEFAULT_STAGE_DEFINITIONS,
+  PAYROLL_LEGACY_STAGE_ALIASES,
+  PAYROLL_REALTIME_TABLES,
   PRESERVED_DETAIL_FIELDS,
   preserveDetailFields,
   TERMINAL_STAGE_IDS,
 } from "./payroll-board"
-export { getQuarterDateRange } from "./contributi-quarter"
+export {
+  buildContributiColumns,
+  buildContributiMetricGroups,
+  buildContributiStats,
+  contributiInpsStageTestId,
+  filterContributiCards,
+  normalizeAttachmentValue,
+  parseContributoNumericField,
+  PAYROLL_CURRENCY_OPTIONS,
+} from "./contributi-inps"
+export {
+  CONTRIBUTI_DEFAULT_STAGE_DEFINITIONS,
+  CONTRIBUTI_LEGACY_STAGE_ALIASES,
+  buildContributiStageMetadata,
+  buildMesiCalendarioQuarterIndex,
+  buildRapportoLookups,
+  fetchContributiBoardData,
+  mapContributoRecordToCard,
+  resolveContributoRapporto,
+} from "./contributi-inps-board"
+export {
+  formatQuarterLabel,
+  getCurrentQuarterState,
+  getQuarterDateRange,
+  getQuarterValueFromDate,
+  getYearFromDate,
+  parseQuarterReference,
+  QUARTER_ORDER,
+  shiftQuarter,
+} from "./contributi-quarter"
 export {
   buildPayrollMetrics,
   buildPresenceDayRows,
@@ -52,3 +88,15 @@ export {
   type PayrollMetric,
   type PresenceDayRow,
 } from "./payroll-display-utils"
+export {
+  buildCedolinoDetailDerived,
+  type CedolinoDetailDerived,
+} from "./cedolino-detail-derived"
+export {
+  buildCedolinoFormDefaults,
+  buildPresenceFieldDefaults,
+  splitCedolinoAutosavePatch,
+} from "./cedolino-detail-form"
+export { filterCedoliniColumns } from "./cedolini-board-filters"
+export { cedoliniStageTestId } from "./cedolini-board-utils"
+export { MAKE_TRANSACTION_WEBHOOK_URL } from "./payroll-overview.constants"
