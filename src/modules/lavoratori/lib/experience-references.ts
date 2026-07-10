@@ -10,11 +10,6 @@ export type ExperienceDraft = {
   situazione_lavorativa_attuale: string
 }
 
-export type LookupOption = {
-  label: string
-  value: string
-}
-
 export function getExperienceDurationLabel(experience: EsperienzaLavoratoreRecord) {
   const start = experience.data_inizio ? new Date(experience.data_inizio) : null
   const end = experience.stato_esperienza_attiva

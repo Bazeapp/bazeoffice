@@ -29,7 +29,8 @@ import {
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
 } from "../lib/lookup-utils"
-import { EMPTY_SELECT_VALUE, type LookupOption } from "../lib/experience-references"
+import { EMPTY_SELECT_VALUE } from "../lib/experience-references"
+import type { LookupOption } from "../lib/lookup-utils"
 
 type ExperienceRoleFieldProps = {
   value: string[]

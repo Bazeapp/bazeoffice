@@ -14,8 +14,8 @@ import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import {
   mapExperienceFormPatch,
   mapReferenceFormPatch,
-  type LookupOption,
 } from "../lib/experience-references"
+import type { LookupOption } from "../lib/lookup-utils"
 import type { EsperienzaLavoratoreRecord } from "../types/esperienza-lavoratore"
 import type { ReferenzaLavoratoreRecord } from "../types/referenza-lavoratore"
 import { AddReferenceAction } from "./experience-references-actions"

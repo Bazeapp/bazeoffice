@@ -21,11 +21,11 @@ import { formatDateOnly } from "../lib/availability-utils"
 import {
   getExperienceHeader,
   getExperienceReferenceStatus,
-  type LookupOption,
 } from "../lib/experience-references"
 import {
   getTagClassName,
   resolveLookupColor,
+  type LookupOption,
 } from "../lib/lookup-utils"
 import type { EsperienzaLavoratoreRecord } from "../types/esperienza-lavoratore"
 import type { ReferenzaLavoratoreRecord } from "../types/referenza-lavoratore"
