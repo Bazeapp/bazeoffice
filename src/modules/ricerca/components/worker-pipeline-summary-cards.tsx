@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   ArrowRightIcon,
   BriefcaseBusinessIcon,
+  CalendarCheckIcon,
   CheckIcon,
   Clock3Icon,
   MapPinIcon,
@@ -11,6 +12,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { useController } from "react-hook-form";
+import { formatColloquioAvailability } from "../lib/colloquio-availability";
 
 import { AvailabilityCalendarCard } from "@/modules/lavoratori/components/availability-calendar-card";
 import { DocumentsCard } from "@/modules/lavoratori/components/documents-card";
@@ -295,6 +297,7 @@ export type RelatedActiveSearchItem = {
   orarioDiLavoro: string;
   zona: string;
   appunti: string;
+  workerColloquio?: { giorni: string; orario: string };
 };
 
 export type RelatedSearchGroups = {
@@ -315,6 +318,7 @@ export function RelatedActiveSearchCard({
 }) {
   const isInteractive = typeof onOpenSearch === "function";
   const Wrapper = isInteractive ? "button" : "div";
+  const colloquioAvailability = formatColloquioAvailability(item.workerColloquio);
 
   return (
     <Wrapper
@@ -363,6 +367,14 @@ export function RelatedActiveSearchCard({
           <div className="flex items-center gap-2">
             <Clock3Icon className="size-3.5 shrink-0" />
             <span className="line-clamp-2">{item.orarioDiLavoro}</span>
+          </div>
+        ) : null}
+        {colloquioAvailability ? (
+          <div className="flex items-center gap-2">
+            <CalendarCheckIcon className="size-3.5 shrink-0" />
+            <span className="line-clamp-2">
+              Disponibilità colloquio: {colloquioAvailability}
+            </span>
           </div>
         ) : null}
         {item.zona ? (

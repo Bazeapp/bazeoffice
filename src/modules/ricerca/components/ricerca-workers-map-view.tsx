@@ -31,8 +31,7 @@ import {
   normalizeLookupColors,
   readArrayStrings,
   resolveLookupColor,
-  toAvatarThumbnailUrl,
-  toAvatarUrl,
+  toAvatarImage,
   toWorkerStatusFlags,
 } from "@/modules/lavoratori/lib"
 import type {
@@ -331,10 +330,13 @@ function buildDiscoveryWorkerListItem(
           ? true
           : null
 
+  const avatarImage = toAvatarImage(worker)
+
   return {
     id: workerId,
     nomeCompleto: `${nome} ${cognome}`.trim() || workerId,
-    immagineUrl: toAvatarThumbnailUrl(worker) ?? toAvatarUrl(worker) ?? getDefaultWorkerAvatar(workerId),
+    immagineUrl: avatarImage?.url ?? getDefaultWorkerAvatar(workerId),
+    immagineType: avatarImage?.type ?? null,
     travelTimeMinutes: null,
     locationLabel: formatAddressLabel(workerAddress, worker),
     telefono: asString(worker.telefono) || null,
