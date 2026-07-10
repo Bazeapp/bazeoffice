@@ -1,6 +1,7 @@
 ---
 title: "HEIC/HEIF images render broken in the viewer — decode to JPEG in the browser at a shared render seam"
 date: 2026-07-09
+last_updated: 2026-07-10
 category: docs/solutions/integration-issues
 module: Attachment/image viewer (shared-next, lavoratori)
 problem_type: integration_issue
@@ -13,7 +14,7 @@ root_cause: browser_incompatibility
 resolution_type: library_integration
 severity: medium
 related_components: [supabase_storage, external_upload_pipelines]
-tags: [heic, heif, image, attachment, viewer, heic-to, object-url, lazy-import, code-splitting, fallback, render-time]
+tags: [heic, heif, image, attachment, viewer, heic-to, object-url, lazy-import, code-splitting, fallback, render-time, avatar, mime-vs-extension, design-system-primitive]
 ---
 
 # HEIC/HEIF images render broken in the viewer — decode to JPEG in the browser at a shared render seam
@@ -82,6 +83,21 @@ The browser decodes JPEG natively; `heic-to` (libheif 1.22.2 compiled to WASM) d
 - **Always give a client-side `fetch()`-then-decode an `AbortController` timeout** — a hung request never settles, and a promise-keyed cache then shares that permanent hang with every consumer of the URL.
 - **Centralize at one seam.** Replacing N scattered `<img>` sites with one component is what makes "fix it once" true and keeps behavior from drifting per surface.
 - **Testing:** mock `heic-to` at the module boundary (the single importer) so unit tests never run real WASM; assert the three states per surface (loading / converted / fallback) plus the non-HEIC passthrough. See `heic-image.test.ts`, `attachment-image.test.tsx`.
+
+## Follow-up: the shared `Avatar` primitive was a missed surface (BAZ-21, #62)
+
+The first pass centralized at a seam — but only for the surfaces that rendered through a raw `<img>`. The **worker avatar** renders through a *different* component: the design-system `Avatar` (`@/components/ui/avatar`, a Radix `<img>`), used by the `cerca-lavoratori` list card and the two profile overview/header **fallback** avatars. `AttachmentImage` was never wired there, so HEIC avatars still fell back to initials in production.
+
+- **Lesson — enumerate every render path, including shared primitives.** "Centralize at one seam" fixes drift only among the sites you actually route through it. A fix framed as "this format, everywhere" must inventory *every* component that paints the media; a design-system primitive is the easy miss because it isn't one of the call sites you edited.
+- **Lesson — MIME beats the extension for pipeline-sourced files.** The avatar chain passed only a URL string, so detection was extension-only there. Production data: of ~265 HEIC avatars, **42 carry no `.heic` in the URL at all** (opaque onboarding-pipeline filenames) — extension detection can never reach them; the stored `type: image/heic` MIME does. `isHeicImage` already prefers MIME — the gap was that the avatar view-models **discarded** the MIME that `normalizeAttachmentItem` already preserves.
+
+**Fix — thread the MIME, keep the primitive pure:**
+
+- `toAvatarImage(row)` now returns `{ url, type }` (was `toAvatarUrl` → just the url); the worker view-models carry a new optional `immagineType` beside `immagineUrl`.
+- A new `WorkerAvatar` **wraps** `Avatar` rather than making the design-system primitive depend on `heic-to`. It resolves a renderable src via a headless `useRenderableImageSrc(src, type)` hook (the same `getRenderableImageSrc` engine); on decode failure `Avatar` keeps its **initials** fallback — the right fallback for an avatar, not the viewer's download link. Non-HEIC = synchronous passthrough at zero cost, `heic-to` stays lazy.
+- Detection stays **MIME-first, extension-fallback** (the fallback still recovers ~7 prod avatars that have a `.heic` extension but a missing/wrong MIME).
+
+Files: reuses `src/lib/heic-image.ts`; adds `src/components/shared-next/use-renderable-image-src.ts` + `src/modules/lavoratori/components/worker-avatar.tsx`; edits `base-utils.ts` (`toAvatarImage`), `lavoratore-card.tsx`, `worker-profile-{overview,header}.tsx`, and the 3 ricerca view-model builders. Scope: avatar surfaces only — the foto **carousel** remains extension-only (it still passes no `type`; see the known follow-up below).
 
 ## References
 
