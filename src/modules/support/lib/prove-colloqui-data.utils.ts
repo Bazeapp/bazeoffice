@@ -1,10 +1,5 @@
 import { toAvatarUrl, resolveLookupColor } from "@/modules/lavoratori/lib"
-import {
-  formatPersonName,
-  getRapportoFamilyLabel,
-  getRapportoProcessIds,
-  getRapportoWorkerLabel,
-} from "@/modules/rapporti/lib"
+import { formatAssunzioneName, getRapportoProcessIds } from "@/modules/rapporti/lib"
 import type { RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
 import { normalizeComparableToken, toStringValue } from "@/lib/value-utils"
 import type {
@@ -23,6 +18,39 @@ import {
 import type { ColloquioCalendarEvent, LookupOption, ProvaCardData, ProvaColumnData } from "../types"
 
 export const TRIAL_STATUS_DOMAIN = "rapporti_lavorativi.prova_stato_cs"
+
+function formatColloquioPersonName(row: FamigliaRecord | LavoratoreRecord | null | undefined) {
+  if (!row) return null
+  const first = toStringValue(row.nome)
+  const last = toStringValue(row.cognome)
+  return [first, last].filter(Boolean).join(" ").trim() || null
+}
+
+function getProveColloquioFamilyLabel(
+  rapporto: RapportoLavorativoRecord,
+  famiglia: FamigliaRecord | null,
+  assunzioneDatore?: RapportoAssunzioneNames["datore"],
+) {
+  return (
+    formatAssunzioneName(assunzioneDatore) ??
+    formatColloquioPersonName(famiglia) ??
+    toStringValue(rapporto.cognome_nome_datore_proper) ??
+    "Famiglia"
+  )
+}
+
+function getProveColloquioWorkerLabel(
+  rapporto: RapportoLavorativoRecord,
+  lavoratore: LavoratoreRecord | null,
+  assunzioneLavoratore?: RapportoAssunzioneNames["lavoratore"],
+) {
+  return (
+    formatAssunzioneName(assunzioneLavoratore) ??
+    formatColloquioPersonName(lavoratore) ??
+    toStringValue(rapporto.nome_lavoratore_per_url) ??
+    "Lavoratore"
+  )
+}
 
 export function normalizeProveColloquiStatusToken(value: unknown) {
   return normalizeComparableToken(String(value ?? ""))
@@ -44,8 +72,8 @@ export function buildProvaCard(
   lavoratore: LavoratoreRecord | null,
   assunzioneNames: RapportoAssunzioneNames | null = null,
 ): ProvaCardData {
-  const famigliaLabel = getRapportoFamilyLabel(rapporto, famiglia, assunzioneNames?.datore)
-  const lavoratoreLabel = getRapportoWorkerLabel(rapporto, lavoratore, assunzioneNames?.lavoratore)
+  const famigliaLabel = getProveColloquioFamilyLabel(rapporto, famiglia, assunzioneNames?.datore)
+  const lavoratoreLabel = getProveColloquioWorkerLabel(rapporto, lavoratore, assunzioneNames?.lavoratore)
 
   return {
     id: rapporto.id,
@@ -164,8 +192,8 @@ export function buildColloquioCalendarEvents(input: {
       const lavoratore = workerId ? selectionWorkersById.get(workerId) ?? null : null
       if (!start) return null
 
-      const familyLabel = formatPersonName(famiglia) ?? "Famiglia"
-      const workerLabel = formatPersonName(lavoratore) ?? "Lavoratore"
+      const familyLabel = formatColloquioPersonName(famiglia) ?? "Famiglia"
+      const workerLabel = formatColloquioPersonName(lavoratore) ?? "Lavoratore"
       const status = toStringValue(selection.stato_selezione) ?? process?.stato_res ?? null
 
       return {

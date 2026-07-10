@@ -1,9 +1,11 @@
+import { normalizeLookupToken } from "@/lib/value-utils"
+
 import type { CalendarDateRange, ColloquioCalendarEvent } from "../types"
 
 export type CalendarStatusKey = "match" | "no-match" | "prova" | "colloquio" | "standby"
 
 function normalizeToken(value: unknown) {
-  return String(value ?? "").trim().toLowerCase()
+  return normalizeLookupToken(String(value ?? "")).replaceAll("_", " ")
 }
 
 export function startOfLocalDay(date: Date) {

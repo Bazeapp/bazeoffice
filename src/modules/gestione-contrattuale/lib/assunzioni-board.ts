@@ -203,8 +203,8 @@ export function mapAssunzioniBoardCard(
   const mergedRapporto = (rapporto ?? linkedRapporto) as RapportoLavorativoRecord
   const nomeFamiglia =
     formatAssunzioneName(datoreAssunzione) ??
-    formatPersonName(family) ??
-    toStringValue(mergedRapporto.cognome_nome_datore_proper)
+    toStringValue(mergedRapporto.cognome_nome_datore_proper) ??
+    formatPersonName(family)
   const nomeLavoratore =
     formatAssunzioneName(lavoratoreAssunzione) ??
     formatPersonName(lavoratore) ??

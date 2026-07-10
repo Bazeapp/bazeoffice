@@ -36,7 +36,7 @@ export function RapportiListPanel(props: RapportiListPanelProps) {
           onRetry={asyncState.onRetry}
           isEmpty={list.visibleItems.length === 0}
         >
-          <RapportiListPanelGroupTree {...list} />
+          <RapportiListPanelGroupTree {...list} items={list.visibleItems} />
         </RapportiListPanelStates>
       </SideCardsPanel>
 

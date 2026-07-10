@@ -1,9 +1,5 @@
 import { normalizeAttachmentArray } from "@/lib/attachments"
-import {
-  formatItalianCurrencyFromMinorUnitsOrNull,
-  formatItalianDateOrNull,
-  formatItalianDateTimeOr,
-} from "@/lib/format-utils"
+import { formatItalianCurrencyFromMinorUnitsOrNull } from "@/lib/format-utils"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import {
   getIndexedRecordByTicketId,
@@ -79,6 +75,24 @@ export type SupportTicketsBoardData = {
   chiusuraIndex: Map<string, ChiusuraContrattoRecord>
   linkedRecordIndexes: SupportTicketsLinkedRecordIndexes
   stageAliases: Map<string, string>
+}
+
+/** Date-only ticket labels; returns the raw value when parsing fails (legacy board behavior). */
+function formatTicketDateLabel(value: string | null | undefined) {
+  if (!value) return "Non disponibile"
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(parsed)
+}
+
+function formatOptionalTicketDateLabel(value: string | null | undefined) {
+  if (!value) return null
+  return formatTicketDateLabel(value)
 }
 
 function buildSupportTicketStageMetadata(
@@ -301,7 +315,7 @@ function buildLinkedRecords(record: TicketRecord, indexes: SupportTicketsLinkedR
       id: record.chiusura_id ?? chiusura?.id ?? record.id,
       label: "Chiusura",
       title: chiusura?.data_fine_rapporto
-        ? `${titleBase} | ${formatItalianDateTimeOr(chiusura.data_fine_rapporto, "Non disponibile")}`
+        ? `${titleBase} | ${formatTicketDateLabel(chiusura.data_fine_rapporto)}`
         : titleBase,
       subtitle:
         chiusura?.motivazione_cessazione_rapporto ??
@@ -309,7 +323,7 @@ function buildLinkedRecords(record: TicketRecord, indexes: SupportTicketsLinkedR
         chiusura?.tipo_decesso ??
         null,
       status: chiusura?.stato ?? null,
-      dateLabel: formatItalianDateOrNull(chiusura?.data_fine_rapporto ?? chiusura?.creato_il),
+      dateLabel: formatOptionalTicketDateLabel(chiusura?.data_fine_rapporto ?? chiusura?.creato_il),
       accent: "rose",
       record: chiusura,
     })
@@ -347,7 +361,7 @@ function buildLinkedRecords(record: TicketRecord, indexes: SupportTicketsLinkedR
         ? `Rapporto ${variazione.rapporto_lavorativo_id}`
         : null,
       status: variazione?.stato ?? null,
-      dateLabel: formatItalianDateOrNull(variazione?.data_variazione),
+      dateLabel: formatOptionalTicketDateLabel(variazione?.data_variazione),
       accent: "violet",
       record: variazione,
     })
@@ -369,7 +383,7 @@ function buildLinkedRecords(record: TicketRecord, indexes: SupportTicketsLinkedR
         : "Contributi INPS collegati",
       subtitle: contributo?.importo_contributi_inps ? `${contributo.importo_contributi_inps} euro` : null,
       status: contributo?.stato_contributi_inps ?? null,
-      dateLabel: formatItalianDateOrNull(
+      dateLabel: formatOptionalTicketDateLabel(
         contributo?.data_invio_famiglia ?? contributo?.data_ora_creazione,
       ),
       accent: "violet",
@@ -387,7 +401,7 @@ function buildLinkedRecords(record: TicketRecord, indexes: SupportTicketsLinkedR
       title: cedolino?.mese_id ? `Cedolino ${cedolino.mese_id}` : "Cedolino collegato",
       subtitle: cedolino?.caso_particolare ?? null,
       status: cedolino?.stato_mese_lavorativo ?? null,
-      dateLabel: formatItalianDateOrNull(
+      dateLabel: formatOptionalTicketDateLabel(
         cedolino?.data_invio_famiglia ?? cedolino?.data_ora_creazione,
       ),
       accent: "amber",
@@ -407,7 +421,7 @@ function buildLinkedRecords(record: TicketRecord, indexes: SupportTicketsLinkedR
         "Pagamento collegato",
       subtitle: pagamento?.numero_fattura ?? pagamento?.customer_email ?? pagamento?.type_of_payment ?? null,
       status: pagamento?.status ?? null,
-      dateLabel: formatItalianDateOrNull(pagamento?.data_ora_di_pagamento),
+      dateLabel: formatOptionalTicketDateLabel(pagamento?.data_ora_di_pagamento),
       accent: "emerald",
       record: pagamento,
     })
@@ -425,7 +439,7 @@ function buildLinkedRecords(record: TicketRecord, indexes: SupportTicketsLinkedR
         : "Presenze collegate",
       subtitle: presenza?.note_interne ?? null,
       status: null,
-      dateLabel: formatItalianDateOrNull(presenza?.data_ora_creazione),
+      dateLabel: formatOptionalTicketDateLabel(presenza?.data_ora_creazione),
       accent: "zinc",
       record: presenza,
     })
@@ -508,10 +522,7 @@ export function mapSupportTicketRecordToCard(
           assunzioneLavoratore: assunzioneNames?.lavoratore,
         })
       : `${nomeFamiglia} – ${nomeLavoratore}`,
-    dataAperturaLabel: formatItalianDateTimeOr(
-      record.data_apertura ?? record.creato_il,
-      "Non disponibile",
-    ),
+    dataAperturaLabel: formatTicketDateLabel(record.data_apertura ?? record.creato_il),
     tag,
     urgenza,
     assegnatario: assegnatario ?? "",
