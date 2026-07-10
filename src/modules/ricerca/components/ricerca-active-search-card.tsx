@@ -1,5 +1,6 @@
 import {
   BriefcaseBusinessIcon,
+  CalendarCheckIcon,
   CalendarIcon,
   Clock3Icon,
   MapPinIcon,
@@ -9,6 +10,7 @@ import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { CardMetaRow } from "@/components/shared-next/card-meta-row"
 import { RecordCard } from "@/components/shared-next/record-card"
+import { formatColloquioAvailability } from "../lib/colloquio-availability"
 import type { RicercaBoardCardData } from "../types"
 
 /**
@@ -108,16 +110,29 @@ function isUrgentDeadline(value: string | null | undefined) {
   return diff <= 1000 * 60 * 60 * 24 * 7
 }
 
+/**
+ * Worker availability captured during the colloquio (giorni + orari), from
+ * `selezioni_lavoratori.intervista_*`. Raw text. Optional prop: passed only in
+ * the "scheda lavoratore" contexts, never in the ricerca board (famiglia
+ * context), so the colloquio row does not appear there.
+ */
+export type WorkerColloquioAvailability = {
+  giorni: string
+  orario: string
+}
+
 export function RicercaActiveSearchCard({
   data,
   onClick,
   className,
   recruiter,
+  workerColloquio,
 }: {
   data: RicercaBoardCardData
   onClick?: () => void
   className?: string
   recruiter?: RicercaCardRecruiter | null
+  workerColloquio?: WorkerColloquioAvailability | null
 }) {
   const oreGiorni = formatOreGiorniLabel(data.oreSettimanali, data.giorniSettimanali)
   const hasUrgentDeadline = isUrgentDeadline(data.deadlineRaw)
@@ -128,6 +143,7 @@ export function RicercaActiveSearchCard({
         ? [data.tipoLavoroBadge]
         : []
   const hasTags = Boolean(tipoLavoroBadges.length > 0 || data.tipoRapportoBadge)
+  const colloquioAvailability = formatColloquioAvailability(workerColloquio)
 
   return (
     <div className={className} onClick={onClick}>
@@ -156,6 +172,11 @@ export function RicercaActiveSearchCard({
             </CardMetaRow>
           ) : null}
           <CardMetaRow icon={<Clock3Icon />}>{oreGiorni}</CardMetaRow>
+          {colloquioAvailability ? (
+            <CardMetaRow icon={<CalendarCheckIcon />}>
+              Disponibilità colloquio: {colloquioAvailability}
+            </CardMetaRow>
+          ) : null}
           <CardMetaRow icon={<MapPinIcon />}>{data.zona}</CardMetaRow>
         </RecordCard.Body>
         <RecordCard.Footer

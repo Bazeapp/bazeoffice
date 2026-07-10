@@ -1551,6 +1551,10 @@ export function RicercaWorkersPipelineView({
             orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
             zona: formatRelatedZona(processRow),
             appunti: asString(selection.note_selezione) || "",
+            workerColloquio: {
+              giorni: asString(selection.intervista_giorni_lavoro),
+              orario: asString(selection.intervista_orario_e_giorni),
+            },
           };
 
           if (isDirectInvolvementSelection(selection)) {
@@ -1670,6 +1674,10 @@ export function RicercaWorkersPipelineView({
             orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
             zona: formatRelatedZona(processRow),
             appunti: asString(selection.note_selezione) || "",
+            workerColloquio: {
+              giorni: asString(selection.intervista_giorni_lavoro),
+              orario: asString(selection.intervista_orario_e_giorni),
+            },
           });
           seenProcessIds.add(selectionProcessId);
         }
