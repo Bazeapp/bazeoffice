@@ -100,7 +100,7 @@ function toStringValue(value: unknown): string | null {
   return null
 }
 
-function formatItalianDate(value: unknown) {
+export function formatChiusuraBoardDate(value: unknown) {
   const raw = toStringValue(value)
   if (!raw) return "-"
 
@@ -186,7 +186,7 @@ export function mapChiusuraBoardCard(
     nomeCompleto,
     email: record.email ?? "-",
     motivazione: record.motivazione_cessazione_rapporto,
-    dataFineRapporto: formatItalianDate(record.data_fine_rapporto),
+    dataFineRapporto: formatChiusuraBoardDate(record.data_fine_rapporto),
     tipoLabel: tipoMetadata.labels.get(normalizedTipo) ?? rawTipo,
     tipoColor: tipoMetadata.colors.get(normalizedTipo) ?? null,
     hasAssunzioneDatore: Boolean(rapporto?.assunzione_datore_id),

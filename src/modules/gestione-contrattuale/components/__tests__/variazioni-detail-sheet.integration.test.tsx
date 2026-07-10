@@ -6,7 +6,7 @@ import { updateRecord } from "@/lib/record-crud"
 import type { RapportoLavorativoRecord } from "@/types"
 import type { VariazioneContrattualeRecord } from "../../types/variazione-contrattuale"
 import type { VariazioniBoardCardData } from "../../types/variazioni-board"
-import { VariazioniDetailSheet } from "../variazioni-board-view"
+import { VariazioniDetailSheet } from "../variazioni-detail-sheet"
 
 vi.mock("sonner", () => ({
   toast: {
