@@ -255,7 +255,7 @@ export type AvatarImage = { url: string; type: string | null }
 /**
  * The worker's avatar photo as `{ url, type }`. `type` is the stored MIME of the
  * chosen source and is the primary signal for render-time HEIC detection (see
- * `WorkerAvatar`) — more reliable than the URL extension, since many photos come
+ * `HeicAwareAvatar`) — more reliable than the URL extension, since many photos come
  * from the onboarding pipeline with opaque filenames. It is `null` when the
  * source carries no MIME (e.g. a bare permalink URL).
  */

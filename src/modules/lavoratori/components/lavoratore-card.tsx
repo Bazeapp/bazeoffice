@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils"
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles"
 import { RelatedActiveSearchCard } from "@/modules/ricerca/components/worker-pipeline-summary-cards"
 import { RecordCard } from "@/components/shared-next/record-card"
-import { WorkerAvatar } from "./worker-avatar"
+import { HeicAwareAvatar } from "@/components/shared-next/heic-aware-avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   Popover,
@@ -252,7 +252,7 @@ function WorkerAvatarMedia({
   const StatusIcon = qualificationStatus.icon
   return (
     <span className="relative inline-block">
-      <WorkerAvatar
+      <HeicAwareAvatar
         size={size}
         src={worker.immagineUrl}
         type={worker.immagineType}

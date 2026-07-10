@@ -94,10 +94,10 @@ The first pass centralized at a seam — but only for the surfaces that rendered
 **Fix — thread the MIME, keep the primitive pure:**
 
 - `toAvatarImage(row)` now returns `{ url, type }` (was `toAvatarUrl` → just the url); the worker view-models carry a new optional `immagineType` beside `immagineUrl`.
-- A new `WorkerAvatar` **wraps** `Avatar` rather than making the design-system primitive depend on `heic-to`. It resolves a renderable src via a headless `useRenderableImageSrc(src, type)` hook (the same `getRenderableImageSrc` engine); on decode failure `Avatar` keeps its **initials** fallback — the right fallback for an avatar, not the viewer's download link. Non-HEIC = synchronous passthrough at zero cost, `heic-to` stays lazy.
+- A new `HeicAwareAvatar` **wraps** `Avatar` rather than making the design-system primitive depend on `heic-to`. It resolves a renderable src via a headless `useRenderableImageSrc(src, type)` hook (the same `getRenderableImageSrc` engine); on decode failure `Avatar` keeps its **initials** fallback — the right fallback for an avatar, not the viewer's download link. Non-HEIC = synchronous passthrough at zero cost, `heic-to` stays lazy.
 - Detection stays **MIME-first, extension-fallback** (the fallback still recovers ~7 prod avatars that have a `.heic` extension but a missing/wrong MIME).
 
-Files: reuses `src/lib/heic-image.ts`; adds `src/components/shared-next/use-renderable-image-src.ts` + `src/modules/lavoratori/components/worker-avatar.tsx`; edits `base-utils.ts` (`toAvatarImage`), `lavoratore-card.tsx`, `worker-profile-{overview,header}.tsx`, and the 3 ricerca view-model builders. Scope: avatar surfaces only — the foto **carousel** remains extension-only (it still passes no `type`; see the known follow-up below).
+Files: reuses `src/lib/heic-image.ts`; adds `src/components/shared-next/use-renderable-image-src.ts` + `src/components/shared-next/heic-aware-avatar.tsx` (the generic `HeicAwareAvatar` wrapper); edits `base-utils.ts` (`toAvatarImage`), `lavoratore-card.tsx`, `worker-profile-{overview,header}.tsx`, and the 3 ricerca view-model builders. Scope: avatar surfaces only — the foto **carousel** remains extension-only (it still passes no `type`; see the known follow-up below).
 
 ## References
 
