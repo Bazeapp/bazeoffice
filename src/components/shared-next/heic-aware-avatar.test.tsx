@@ -8,7 +8,7 @@ vi.mock("@/lib/heic-image", () => ({
 }))
 
 import { getRenderableImageSrc, isHeicImage } from "@/lib/heic-image"
-import { WorkerAvatar } from "./worker-avatar"
+import { HeicAwareAvatar } from "./heic-aware-avatar"
 
 const isHeicMock = isHeicImage as unknown as Mock
 const getSrcMock = getRenderableImageSrc as unknown as Mock
@@ -20,12 +20,12 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-describe("WorkerAvatar", () => {
+describe("HeicAwareAvatar", () => {
   it("passes a non-HEIC photo through without decoding", () => {
     isHeicMock.mockReturnValue(false)
 
     render(
-      <WorkerAvatar src="https://x/p.jpg" type="image/jpeg" alt="Maria Piedad" fallback="MP" />,
+      <HeicAwareAvatar src="https://x/p.jpg" type="image/jpeg" alt="Maria Piedad" fallback="MP" />,
     )
 
     expect(getSrcMock).not.toHaveBeenCalled()
@@ -36,7 +36,7 @@ describe("WorkerAvatar", () => {
     getSrcMock.mockReturnValue(new Promise<string>(() => {}))
 
     render(
-      <WorkerAvatar
+      <HeicAwareAvatar
         src={NO_EXT_HEIC_URL}
         type="image/heic"
         alt="Maria Piedad"
@@ -52,7 +52,7 @@ describe("WorkerAvatar", () => {
     getSrcMock.mockRejectedValue(new Error("decode failed"))
 
     render(
-      <WorkerAvatar src="https://x/p.heic" type="image/heic" alt="Maria Piedad" fallback="MP" />,
+      <HeicAwareAvatar src="https://x/p.heic" type="image/heic" alt="Maria Piedad" fallback="MP" />,
     )
 
     expect(await screen.findByText("MP")).toBeInTheDocument()
