@@ -651,6 +651,10 @@ export function buildRelatedSelectionsMap(
         orarioDiLavoro: asString(row.orario_di_lavoro) ?? "",
         zona: formatRelatedZona(row),
         appunti: asString(row.note_selezione) ?? "",
+        // BAZ-25: `workerColloquio` is intentionally omitted here. This is the
+        // lista/mappa lavoratori popover preview; the "Disponibilità colloquio"
+        // row shows in the scheda lavoratore and the workers-pipeline, not in
+        // this minimal preview.
       })
       if (dots.length < 4) {
         dots.push({

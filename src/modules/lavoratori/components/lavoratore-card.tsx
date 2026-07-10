@@ -40,6 +40,7 @@ export type WorkerOtherSelectionSummaryItem = {
   orarioDiLavoro: string
   zona: string
   appunti: string
+  workerColloquio?: { giorni: string; orario: string }
 }
 
 type WorkerOtherSelectionSummary = {
@@ -584,6 +585,7 @@ export function LavoratoreCard({
                         orarioDiLavoro: detail.orarioDiLavoro,
                         zona: detail.zona,
                         appunti: detail.appunti,
+                        workerColloquio: detail.workerColloquio,
                       }}
                     />
                   ))}
