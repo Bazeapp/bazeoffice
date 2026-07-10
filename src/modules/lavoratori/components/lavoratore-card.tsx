@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils"
 import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles"
 import { RelatedActiveSearchCard } from "@/modules/ricerca/components/worker-pipeline-summary-cards"
 import { RecordCard } from "@/components/shared-next/record-card"
-import { Avatar } from "@/components/ui/avatar"
+import { HeicAwareAvatar } from "@/components/shared-next/heic-aware-avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   Popover,
@@ -40,6 +40,7 @@ export type WorkerOtherSelectionSummaryItem = {
   orarioDiLavoro: string
   zona: string
   appunti: string
+  workerColloquio?: { giorni: string; orario: string }
 }
 
 type WorkerOtherSelectionSummary = {
@@ -52,6 +53,8 @@ export type LavoratoreListItem = {
   id: string
   nomeCompleto: string
   immagineUrl: string | null
+  /** Stored MIME of the avatar photo; drives render-time HEIC detection (BAZ-21). */
+  immagineType?: string | null
   travelTimeMinutes?: number | null
   locationLabel: string | null
   telefono: string | null
@@ -249,9 +252,10 @@ function WorkerAvatarMedia({
   const StatusIcon = qualificationStatus.icon
   return (
     <span className="relative inline-block">
-      <Avatar
+      <HeicAwareAvatar
         size={size}
-        src={worker.immagineUrl ?? undefined}
+        src={worker.immagineUrl}
+        type={worker.immagineType}
         alt={worker.nomeCompleto}
         fallback={initialsFromName(worker.nomeCompleto)}
         className={qualificationStatus.ringClassName}
@@ -584,6 +588,7 @@ export function LavoratoreCard({
                         orarioDiLavoro: detail.orarioDiLavoro,
                         zona: detail.zona,
                         appunti: detail.appunti,
+                        workerColloquio: detail.workerColloquio,
                       }}
                     />
                   ))}

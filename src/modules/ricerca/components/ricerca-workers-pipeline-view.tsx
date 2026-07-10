@@ -69,7 +69,7 @@ import {
   parseNumberValue,
   readArrayStrings,
   resolveLookupColor,
-  toAvatarUrl,
+  toAvatarImage,
   toWorkerStatusFlags,
   type LookupOption,
 } from "@/modules/lavoratori/lib"
@@ -1060,17 +1060,20 @@ export function RicercaWorkersPipelineView({
     const statoLavoratore = asString(selectedWorkerRow.stato_lavoratore) || null;
     const disponibilita = asString(selectedWorkerRow.disponibilita) || null;
     const statusFlags = toWorkerStatusFlags(statoLavoratore);
+    const avatarImage = toAvatarImage(selectedWorkerRow);
 
     return {
       ...selectedCard.worker,
       id: asString(selectedWorkerRow.id) || selectedCard.worker.id,
       nomeCompleto,
       immagineUrl:
-        toAvatarUrl(selectedWorkerRow) ??
+        avatarImage?.url ??
         selectedCard.worker.immagineUrl ??
         getDefaultWorkerAvatar(
           asString(selectedWorkerRow.id) || selectedCard.worker.id,
         ),
+      immagineType:
+        avatarImage?.type ?? selectedCard.worker.immagineType ?? null,
       cap: asString(selectedWorkerRow.cap) || null,
       telefono: asString(selectedWorkerRow.telefono) || null,
       isBlacklisted: isBlacklistValue(selectedWorkerRow.check_blacklist),
@@ -1548,6 +1551,10 @@ export function RicercaWorkersPipelineView({
             orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
             zona: formatRelatedZona(processRow),
             appunti: asString(selection.note_selezione) || "",
+            workerColloquio: {
+              giorni: asString(selection.intervista_giorni_lavoro),
+              orario: asString(selection.intervista_orario_e_giorni),
+            },
           };
 
           if (isDirectInvolvementSelection(selection)) {
@@ -1667,6 +1674,10 @@ export function RicercaWorkersPipelineView({
             orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
             zona: formatRelatedZona(processRow),
             appunti: asString(selection.note_selezione) || "",
+            workerColloquio: {
+              giorni: asString(selection.intervista_giorni_lavoro),
+              orario: asString(selection.intervista_orario_e_giorni),
+            },
           });
           seenProcessIds.add(selectionProcessId);
         }

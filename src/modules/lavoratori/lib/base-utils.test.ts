@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 
-import { asInputValue, asString } from "./base-utils"
+import { asInputValue, asString, toAvatarImage, toAvatarUrl } from "./base-utils"
 
 describe("asString", () => {
   it("returns the string trimmed", () => {
@@ -47,5 +47,57 @@ describe("asInputValue", () => {
     expect(asInputValue({})).toBe("")
     expect(asInputValue([])).toBe("")
     expect(asInputValue(true)).toBe("")
+  })
+})
+
+describe("toAvatarImage", () => {
+  const publicUrl = (path: string) =>
+    `http://localhost:54321/storage/v1/object/public/${path}`
+
+  it("threads the stored MIME for a HEIC photo whose filename has no .heic extension", () => {
+    // The onboarding pipeline stores photos with opaque names and no extension;
+    // only the `type` field marks them as HEIC. Extension-based detection would
+    // miss this — the avatar must key off the MIME.
+    const row = {
+      foto: [
+        {
+          name: "opaque",
+          path: "baze-bucket/lavoratori/opaque",
+          type: "image/heic",
+        },
+      ],
+    }
+
+    expect(toAvatarImage(row)).toEqual({
+      url: publicUrl("baze-bucket/lavoratori/opaque"),
+      type: "image/heic",
+    })
+  })
+
+  it("carries the MIME of the first resolvable photo (renderable formats too)", () => {
+    const row = {
+      foto: [
+        { name: "p.jpg", path: "baze-bucket/lavoratori/p.jpg", type: "image/jpeg" },
+        { name: "x.heic", path: "baze-bucket/lavoratori/x.heic", type: "image/heic" },
+      ],
+    }
+
+    expect(toAvatarImage(row)).toEqual({
+      url: publicUrl("baze-bucket/lavoratori/p.jpg"),
+      type: "image/jpeg",
+    })
+  })
+
+  it("returns null when there is no usable photo", () => {
+    expect(toAvatarImage({ foto: [] })).toBeNull()
+    expect(toAvatarImage({})).toBeNull()
+  })
+
+  it("toAvatarUrl still returns just the url (backward compatible)", () => {
+    const row = {
+      foto: [{ path: "baze-bucket/lavoratori/x.heic", type: "image/heic" }],
+    }
+
+    expect(toAvatarUrl(row)).toBe(publicUrl("baze-bucket/lavoratori/x.heic"))
   })
 })
