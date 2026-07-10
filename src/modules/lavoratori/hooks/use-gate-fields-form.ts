@@ -38,22 +38,23 @@ export function useGateFieldsForm({
   commitAddressField,
   patchWorkerAddressField,
 }: UseGateFieldsFormParams) {
-  const onSave = React.useCallback(
-    createGateFieldsOnSave({
-      setAvailabilityDraft,
-      setAddressDraft,
-      setJobSearchDraft,
-      setSkillsDraft,
-      setAvailabilityStatusDraft,
-      setDocumentsDraft,
-      setGateDraft,
-      patchSelectedWorkerField,
-      patchSkillsField,
-      patchWorkerAvailabilityStatus,
-      patchDocumentField,
-      commitAddressField,
-      patchWorkerAddressField,
-    }),
+  const onSave = React.useMemo(
+    () =>
+      createGateFieldsOnSave({
+        setAvailabilityDraft,
+        setAddressDraft,
+        setJobSearchDraft,
+        setSkillsDraft,
+        setAvailabilityStatusDraft,
+        setDocumentsDraft,
+        setGateDraft,
+        patchSelectedWorkerField,
+        patchSkillsField,
+        patchWorkerAvailabilityStatus,
+        patchDocumentField,
+        commitAddressField,
+        patchWorkerAddressField,
+      }),
     [
       setAvailabilityDraft,
       setAddressDraft,
