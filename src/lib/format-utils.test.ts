@@ -8,7 +8,23 @@ import {
   formatItalianDateLabelFromPatch,
   formatItalianDateOrNull,
   formatItalianDateTimeOr,
+  splitPersonDisplayName,
 } from "@/lib/format-utils"
+
+describe("splitPersonDisplayName", () => {
+  it("splits the first token from the remainder", () => {
+    expect(splitPersonDisplayName("  Rossi   Mario Luigi  ")).toEqual({
+      full: "Rossi Mario Luigi",
+      first: "Rossi",
+      rest: "Mario Luigi",
+    })
+  })
+
+  it("returns null for blank labels", () => {
+    expect(splitPersonDisplayName("   ")).toBeNull()
+    expect(splitPersonDisplayName(null)).toBeNull()
+  })
+})
 
 describe("formatBadgeLabel", () => {
   it("humanizes lookup tokens", () => {

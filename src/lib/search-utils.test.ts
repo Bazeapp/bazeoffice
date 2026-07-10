@@ -1,11 +1,19 @@
 import { describe, it, expect } from "vitest"
 
 import {
+  buildServerSearchQuery,
   normalizeSearchText,
   getSearchTokens,
   matchesSearchQuery,
   hideEmptyKanbanGroups,
 } from "@/lib/search-utils"
+
+describe("buildServerSearchQuery", () => {
+  it("collapses whitespace and returns undefined for blank input", () => {
+    expect(buildServerSearchQuery("  Mario   Rossi  ")).toBe("Mario Rossi")
+    expect(buildServerSearchQuery("   ")).toBeUndefined()
+  })
+})
 
 describe("normalizeSearchText", () => {
   it("strips accents, lowercases, and collapses whitespace", () => {

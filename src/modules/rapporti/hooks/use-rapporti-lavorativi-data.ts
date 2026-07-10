@@ -4,12 +4,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { createRecord } from "@/lib/record-crud"
+import { buildServerSearchQuery } from "@/lib/search-utils"
+import { getTableQueryLoadErrorMessage } from "@/lib/table-query-errors"
 import { fetchTicketByRapporto } from "../queries/fetch-ticket-by-rapporto"
 import { type RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
 import { fetchAssunzioniNamesByRapportoIds, fetchChiusureByIds, fetchVariazioniByRapporto } from "@/modules/gestione-contrattuale/queries"
 import { fetchProcessiMatchingByIds } from "@/modules/ricerca/queries"
-import { fetchLavoratoriByIds, fetchLavoratoriByName } from "@/modules/lavoratori/queries"
-import { fetchFamiglieByIds, fetchFamiglieByName, fetchRichiesteAttivazioneByProcessIds } from "@/modules/crm/queries"
+import { fetchLavoratoriByIds } from "@/modules/lavoratori/queries"
+import { fetchUniqueLavoratoreByDisplayName } from "@/modules/lavoratori/lib/lavoratore-name-lookup"
+import { fetchFamiglieByIds, fetchRichiesteAttivazioneByProcessIds } from "@/modules/crm/queries"
+import { fetchUniqueFamigliaByDisplayName } from "@/modules/crm/lib/famiglia-name-lookup"
 import { fetchContributiInpsByRapporto, fetchMesiCalendarioByIds, fetchMesiLavoratiByRapporto, fetchPagamentiByTransazioneIds, fetchPresenzeByIds, fetchTransazioniByMeseLavoratoIds } from "@/modules/payroll/queries"
 import { fetchRapportiLavorativiBoard } from "../queries/fetch-rapporti-lavorativi-board"
 import { fetchRapportiLavorativiByIds } from "../queries/fetch-rapporti-lavorativi-by-ids"
@@ -54,53 +58,10 @@ type CreateRapportoTicketInput = {
 
 const PAGE_SIZE = 50
 
-function isTransientTableQueryError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error)
-  return /503|temporarily unavailable|SUPABASE_EDGE_RUNTIME_ERROR|edge function/i.test(message)
-}
-
-function getRapportiLoadErrorMessage(error: unknown) {
-  if (isTransientTableQueryError(error)) {
-    return "Impossibile caricare i rapporti lavorativi. Riprova tra qualche secondo."
-  }
-
-  return "Errore nel caricamento rapporti lavorativi. Riprova tra qualche secondo."
-}
-
-function buildSearchQuery(value: string) {
-  const normalizedValue = value.trim().replace(/\s+/g, " ")
-  if (!normalizedValue) return undefined
-
-  // La RPC `rapporti_lavorativi_board` tokenizza la query e richiede che ogni
-  // parola compaia nel testo di ricerca (AND). Passiamo quindi la frase intera
-  // così funzionano anche i nomi completi multi-parola (inclusi i nominativi
-  // delle assunzioni), non solo un singolo token.
-  return normalizedValue
-}
-
-function splitNameLabel(label: string | null | undefined) {
-  const full = label?.trim().replace(/\s+/g, " ")
-  if (!full) return null
-  const [firstPart, ...restParts] = full.split(" ")
-  const restPart = restParts.join(" ").trim()
-  return { full, first: firstPart || null, rest: restPart || null }
-}
-
-async function fetchUniqueFamigliaByLabel(label: string | null | undefined) {
-  const parts = splitNameLabel(label)
-  if (!parts?.first || !parts.rest) return null
-
-  const response = await fetchFamiglieByName(parts.first, parts.rest)
-  return response.rows.length === 1 ? (response.rows[0] as FamigliaRecord) : null
-}
-
-async function fetchUniqueLavoratoreByLabel(label: string | null | undefined) {
-  const parts = splitNameLabel(label)
-  if (!parts) return null
-
-  const response = await fetchLavoratoriByName(parts.first, parts.rest, parts.full)
-  return response.rows.length === 1 ? (response.rows[0] as LavoratoreRecord) : null
-}
+const RAPPORTI_LOAD_ERROR =
+  "Errore nel caricamento rapporti lavorativi. Riprova tra qualche secondo."
+const RAPPORTI_TRANSIENT_LOAD_ERROR =
+  "Impossibile caricare i rapporti lavorativi. Riprova tra qualche secondo."
 
 type UseRapportiLavorativiDataOptions = {
   initialSelectedRapportoId?: string | null
@@ -145,7 +106,7 @@ export function useRapportiLavorativiData(
   const [lookupColorsByDomain, setLookupColorsByDomain] = React.useState<Map<string, string>>(
     new Map()
   )
-  const serverSearchQuery = React.useMemo(() => buildSearchQuery(searchValue), [searchValue])
+  const serverSearchQuery = React.useMemo(() => buildServerSearchQuery(searchValue), [searchValue])
 
   const boardQueryKey = React.useMemo(
     () =>
@@ -207,7 +168,11 @@ export function useRapportiLavorativiData(
   const rapportiTotal = boardData?.total ?? 0
   const error =
     queryError instanceof Error
-      ? getRapportiLoadErrorMessage(queryError)
+      ? getTableQueryLoadErrorMessage(
+          queryError,
+          RAPPORTI_LOAD_ERROR,
+          RAPPORTI_TRANSIENT_LOAD_ERROR,
+        )
       : null
 
   const retryRapporti = React.useCallback(() => {
@@ -565,13 +530,13 @@ export function useRapportiLavorativiData(
         }
 
         if (!nextFamiglia) {
-          nextFamiglia = await fetchUniqueFamigliaByLabel(
+          nextFamiglia = await fetchUniqueFamigliaByDisplayName(
             selectedRapporto.cognome_nome_datore_proper
           )
         }
 
         if (!nextLavoratore) {
-          nextLavoratore = await fetchUniqueLavoratoreByLabel(
+          nextLavoratore = await fetchUniqueLavoratoreByDisplayName(
             selectedRapporto.nome_lavoratore_per_url
           )
         }

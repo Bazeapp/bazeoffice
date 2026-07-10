@@ -1,5 +1,23 @@
 import { toStringValue } from "@/lib/value-utils"
 
+export type PersonDisplayNameParts = {
+  full: string
+  first: string | null
+  rest: string | null
+}
+
+/** Split a single display label into first token and remainder (e.g. for name RPCs). */
+export function splitPersonDisplayName(
+  label: string | null | undefined,
+): PersonDisplayNameParts | null {
+  const full = label?.trim().replace(/\s+/g, " ")
+  if (!full) return null
+
+  const [firstPart, ...restParts] = full.split(" ")
+  const restPart = restParts.join(" ").trim()
+  return { full, first: firstPart || null, rest: restPart || null }
+}
+
 /** Humanizes lookup/badge tokens for display (e.g. `part_time` -> `part time`). */
 export function formatBadgeLabel(value: string) {
   return value
