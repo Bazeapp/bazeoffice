@@ -34,6 +34,54 @@ export function toDateRangeValue(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+export function hasDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim())
+}
+
+export function getCalendarDateKey(value: string | null | undefined) {
+  if (!value) return null
+  const directDate = value.trim().match(/^(\d{4}-\d{2}-\d{2})/)
+  if (directDate) return directDate[1]
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : toDateRangeValue(date)
+}
+
+export function isPastDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return false
+  const today = new Date()
+  today.setUTCHours(0, 0, 0, 0)
+  return date.getTime() < today.getTime()
+}
+
+export function isNegativeCalendarStatus(value: string | null | undefined) {
+  const token = normalizeToken(value)
+  return (
+    token.includes("no match") ||
+    token.includes("negativ") ||
+    token.includes("critic") ||
+    token.includes("chius") ||
+    token.includes("concluso") ||
+    token.includes("annull") ||
+    token.includes("non interessato") ||
+    token.includes("out of target")
+  )
+}
+
+export function isOpenCalendarStatus(value: string | null | undefined) {
+  const token = normalizeToken(value)
+  return Boolean(token) && !isNegativeCalendarStatus(token)
+}
+
+export function getCalendarEventTone(
+  status: string | null | undefined,
+  start: string,
+): "ok" | "warning" {
+  return isNegativeCalendarStatus(status) || (isPastDate(start) && !isOpenCalendarStatus(status))
+    ? "warning"
+    : "ok"
+}
+
 export function addDays(date: Date, days: number) {
   const next = new Date(date)
   next.setUTCDate(next.getUTCDate() + days)

@@ -11,6 +11,7 @@ import { fetchRapportiLavorativiAll } from "@/modules/rapporti/queries"
 import {
   normalizeComparableToken,
   readLookupColor,
+  readLookupSortOrder,
   toStringValue,
 } from "@/lib/value-utils"
 import type {
@@ -62,10 +63,6 @@ type StageMetadata = {
 type RapportoLookups = {
   byId: Map<string, RapportoLavorativoRecord>
   byExternalId: Map<string, RapportoLavorativoRecord>
-}
-
-function readLookupSortOrder(value: LookupValueRecord["sort_order"]) {
-  return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
 function getStageColorFallback(value: string | null | undefined) {

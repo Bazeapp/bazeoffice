@@ -41,6 +41,16 @@ export function shouldShowUnclassifiedChiusura(rapporto: RapportoLavorativoRecor
   return normalizeToken(rapporto?.stato_servizio) === "non attivo"
 }
 
+export function shouldIncludeRiattivazioneCard(
+  record: Pick<ChiusuraContrattoRecord, "stato_riattivazione_famiglia">,
+  rapporto: RapportoLavorativoRecord | null,
+) {
+  return (
+    hasRiattivazioneStatus(record.stato_riattivazione_famiglia) ||
+    shouldShowUnclassifiedChiusura(rapporto)
+  )
+}
+
 export function getChiusuraTipoLabel(record: ChiusuraContrattoRecord) {
   return record.tipo_licenziamento ?? record.tipo_decesso ?? "-"
 }

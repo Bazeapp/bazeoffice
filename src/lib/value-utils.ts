@@ -66,6 +66,50 @@ export function readLookupColor(metadata: LookupValueRecord["metadata"]) {
   return typeof color === "string" && color.trim() ? color.trim() : null
 }
 
+export function readLookupSortOrder(value: LookupValueRecord["sort_order"]) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null
+}
+
+export function indexRecordsById<TRecord extends { id: string }>(
+  rows: readonly TRecord[],
+) {
+  return new Map(rows.map((row) => [row.id, row] as const))
+}
+
+export type RecordTicketIndex<TRecord extends { id: string; ticket_id?: string | null }> =
+  {
+    byId: Map<string, TRecord>
+    byTicketId: Map<string, TRecord>
+  }
+
+export function indexRecordsByTicketId<
+  TRecord extends { id: string; ticket_id?: string | null },
+>(rows: readonly TRecord[]): RecordTicketIndex<TRecord> {
+  const byId = indexRecordsById(rows)
+  const byTicketId = new Map<string, TRecord>()
+
+  for (const row of rows) {
+    if (row.ticket_id) byTicketId.set(row.ticket_id, row)
+  }
+
+  return { byId, byTicketId }
+}
+
+export function getIndexedRecordByTicketId<
+  TRecord extends { id: string; ticket_id?: string | null },
+>(
+  recordId: string | null | undefined,
+  ticketId: string,
+  index: RecordTicketIndex<TRecord>,
+) {
+  if (recordId) {
+    const record = index.byId.get(recordId)
+    if (record) return record
+  }
+
+  return index.byTicketId.get(ticketId) ?? null
+}
+
 export type LookupColorMap = Record<string, Record<string, string>>
 
 export function buildLookupColorMap(rows: LookupValueRecord[]): LookupColorMap {

@@ -15,6 +15,7 @@ export type {
   SupportTicketBoardCardData,
   SupportTicketLinkedRecord,
   SupportTicketLinkedRecordType,
+  SupportTicketsColumnData,
 } from "./support-tickets-board"
 export type {
   ProveColloquiBoardRpcResponse,

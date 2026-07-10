@@ -57,6 +57,19 @@ export function formatItalianCurrencyOrNull(
   }).format(value)
 }
 
+/** Formats Stripe-style minor units (cents) as a localized currency label. */
+export function formatItalianCurrencyFromMinorUnitsOrNull(
+  value: number | null | undefined,
+  currency: string | null | undefined,
+): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null
+
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: currency?.toUpperCase() || "EUR",
+  }).format(value / 100)
+}
+
 /** Applies a nullable currency patch to an existing board-card label. */
 export function formatItalianCurrencyLabelFromPatch(
   patchValue: number | null | undefined,
