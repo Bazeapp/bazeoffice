@@ -250,29 +250,40 @@ export function getStripeAccountMissingRequirements({
   ]
 }
 
-export function toAvatarUrl(row: Record<string, unknown>) {
+export type AvatarImage = { url: string; type: string | null }
+
+/**
+ * The worker's avatar photo as `{ url, type }`. `type` is the stored MIME of the
+ * chosen source and is the primary signal for render-time HEIC detection (see
+ * `WorkerAvatar`) — more reliable than the URL extension, since many photos come
+ * from the onboarding pipeline with opaque filenames. It is `null` when the
+ * source carries no MIME (e.g. a bare permalink URL).
+ */
+export function toAvatarImage(row: Record<string, unknown>): AvatarImage | null {
   const permalinkPhotoUrl = sanitizeWorkerImageUrl(row.permalink_foto)
-  if (permalinkPhotoUrl) return permalinkPhotoUrl
+  if (permalinkPhotoUrl) return { url: permalinkPhotoUrl, type: null }
 
   for (const foto of normalizeAttachmentArray(row.foto)) {
     const resolved = attachmentPathToPublicUrl(foto.path)
-    if (resolved) return resolved
+    if (resolved) return { url: resolved, type: foto.type || null }
   }
 
   const foto = asRecord(row.foto)
-  return (
+  const recordUrl =
     sanitizeWorkerImageUrl(foto.url) ||
     sanitizeWorkerImageUrl(foto.public_url) ||
     sanitizeWorkerImageUrl(foto.download_url) ||
     sanitizeWorkerImageUrl(foto.src) ||
     null
-  )
+  if (!recordUrl) return null
+  return {
+    url: recordUrl,
+    type: asString(foto.type) || asString(foto.content_type) || null,
+  }
 }
 
-export function toAvatarThumbnailUrl(row: Record<string, unknown>) {
-  // Do not use Supabase Image Transformations here: they are billed per
-  // original image transformed in the period. Lists use the original public URL.
-  return toAvatarUrl(row)
+export function toAvatarUrl(row: Record<string, unknown>) {
+  return toAvatarImage(row)?.url ?? null
 }
 
 export function shouldDisableWorkerImages() {
@@ -353,11 +364,7 @@ export function toListItem(
   }
 ): LavoratoreListItem {
   const workerId = asString(row.id)
-  const imageUrl = shouldDisableWorkerImages()
-    ? null
-    : options.useThumbnailAvatar
-      ? toAvatarThumbnailUrl(row)
-      : toAvatarUrl(row)
+  const avatarImage = shouldDisableWorkerImages() ? null : toAvatarImage(row)
   const normalizedDomesticRoles = normalizeDomesticRoleLabels(readArrayStrings(row.tipo_lavoro_domestico))
   const firstDomesticRole = normalizedDomesticRoles[0] ?? null
   const tipoLavori = readArrayStrings(row.tipo_rapporto_lavorativo)
@@ -366,7 +373,8 @@ export function toListItem(
   return {
     id: workerId,
     nomeCompleto: toDisplayName(row),
-    immagineUrl: imageUrl ?? getDefaultWorkerAvatar(workerId),
+    immagineUrl: avatarImage?.url ?? getDefaultWorkerAvatar(workerId),
+    immagineType: avatarImage?.type ?? null,
     locationLabel: formatWorkerLocationLabel(row),
     telefono: asString(row.telefono) || null,
     isBlacklisted: options.isBlacklisted,

@@ -22,6 +22,7 @@ import { useController } from "react-hook-form"
 
 import type { LavoratoreListItem } from "../components/lavoratore-card"
 import { Avatar } from "@/components/ui/avatar"
+import { WorkerAvatar } from "./worker-avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -471,9 +472,10 @@ export function WorkerProfileHeader({
           </div>
         ) : (
           <div className="relative inline-block">
-            <Avatar
+            <WorkerAvatar
               size="xl"
-              src={worker.immagineUrl ?? undefined}
+              src={worker.immagineUrl}
+              type={worker.immagineType}
               alt={worker.nomeCompleto}
               fallback={initialsFromName(worker.nomeCompleto)}
               className={qualificationStatus.ringClassName}
