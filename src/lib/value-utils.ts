@@ -165,6 +165,15 @@ export function getStringArrayValue(value: unknown): string[] {
   return single ? [single] : []
 }
 
+export function toNumberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value.trim().replace(",", "."))
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
 export function toBooleanValue(value: unknown): boolean | null {
   if (typeof value === "boolean") return value
   if (typeof value === "number") return value !== 0

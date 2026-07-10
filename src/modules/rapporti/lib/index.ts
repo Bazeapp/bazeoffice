@@ -4,6 +4,8 @@ export {
   getRapportoFamilyLabel,
   getRapportoTitle,
   getRapportoWorkerLabel,
+  personNameFromRow,
+  type PersonNameInput,
 } from "./labels"
 export { getRapportoProcessIds } from "./processi"
 export {

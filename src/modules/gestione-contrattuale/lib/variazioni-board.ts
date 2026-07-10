@@ -1,4 +1,5 @@
-import { getRapportoTitle } from "@/modules/rapporti/lib"
+import { formatItalianDate, toStringValue } from "@/lib/value-utils"
+import { getRapportoTitle, personNameFromRow } from "@/modules/rapporti/lib"
 import type { RapportoAssunzioneNames } from "../types/gestione-rpc"
 import type { VariazioniBoardCardData } from "../types"
 import type { RapportoLavorativoRecord, VariazioneContrattualeRecord } from "@/types"
@@ -85,38 +86,6 @@ export function preserveMissingFields<T extends Record<string, unknown>>(
     ;(targetRow as Record<string, unknown>)[column as string] =
       previousRow[column]
   }
-}
-
-function toPersonName(row: GenericRow | null) {
-  if (!row) return null
-  return { cognome: toStringValue(row.cognome), nome: toStringValue(row.nome) }
-}
-
-function toStringValue(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === "string") {
-    const trimmed = value.trim()
-    return trimmed ? trimmed : null
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value)
-  }
-  return null
-}
-
-function formatItalianDate(value: unknown) {
-  const raw = toStringValue(value)
-  if (!raw) return "-"
-
-  const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return "-"
-
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed)
 }
 
 function formatAddressLabel(address: GenericRow | null | undefined) {
@@ -209,8 +178,8 @@ export function mapVariazioneBoardCard(
 
   const nomeCompleto = rapporto
     ? getRapportoTitle(rapporto, {
-        famiglia: toPersonName(famiglia),
-        lavoratore: toPersonName(baseLavoratore),
+        famiglia: personNameFromRow(famiglia),
+        lavoratore: personNameFromRow(baseLavoratore),
         assunzioneDatore: assunzioneNames?.datore,
         assunzioneLavoratore: assunzioneNames?.lavoratore,
       })

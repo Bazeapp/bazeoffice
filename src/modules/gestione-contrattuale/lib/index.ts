@@ -7,9 +7,17 @@ export {
   preserveMissingFields as preserveAssunzioniMissingFields,
 } from "./assunzioni-board"
 export {
+  ASSUNZIONI_BOARD_QUERY_KEY,
+  ASSUNZIONI_DEFAULT_STAGE_DEFINITIONS,
+  ASSUNZIONI_DEFERRED_STAGE_IDS,
   ASSUNZIONI_FORM_URLS,
+  ASSUNZIONI_REALTIME_TABLES,
   assunzioniStageTestId,
 } from "./assunzioni-board-constants"
+export {
+  fetchAssunzioniBoardData,
+  type FetchAssunzioniBoardDataOptions,
+} from "./assunzioni-board-data"
 export {
   countAssunzioniBoardProcesses,
   filterAssunzioniBoardColumns,
@@ -18,17 +26,28 @@ export {
 export {
   CHIUSURA_RAPPORTO_FIELD_BINDINGS,
   CHIUSURA_RECORD_FIELD_BINDINGS,
+  applyChiusuraPatchInColumns,
+  buildChiusuraTipoMetadata,
   formatChiusuraBoardDate,
   mapChiusuraBoardCard,
   preserveMissingFields as preserveChiusureMissingFields,
 } from "./chiusure-board"
 export {
   CHIUSURA_FORM_URLS,
+  CHIUSURE_BOARD_QUERY_KEY,
+  CHIUSURE_DEFAULT_STAGE_DEFINITIONS,
+  CHIUSURE_REALTIME_TABLES,
+  LICENZIAMENTO_STAGE_ID,
   TIPO_ANNULLAMENTO,
   TIPO_LICENZIAMENTO_OPTIONS,
   chiusureStageTestId,
   type ChiusuraAttachmentSlot,
 } from "./chiusure-board-constants"
+export {
+  fetchChiusureBoardData,
+  type ChiusureBoardData,
+  type FetchChiusureBoardDataOptions,
+} from "./chiusure-board-data"
 export {
   countChiusureBoardCards,
   filterChiusureBoardColumns,
@@ -47,9 +66,17 @@ export {
   preserveMissingFields as preserveVariazioniMissingFields,
 } from "./variazioni-board"
 export {
+  VARIAZIONI_BOARD_QUERY_KEY,
+  VARIAZIONI_DEFAULT_STAGE_DEFINITIONS,
+  VARIAZIONI_REALTIME_TABLES,
   formatVariazioneBoardDate,
   variazioniStageTestId,
 } from "./variazioni-board-constants"
+export {
+  fetchVariazioniBoardData,
+  type FetchVariazioniBoardDataOptions,
+  type VariazioniBoardData,
+} from "./variazioni-board-data"
 export {
   countVariazioniBoardCards,
   filterVariazioniBoardColumns,

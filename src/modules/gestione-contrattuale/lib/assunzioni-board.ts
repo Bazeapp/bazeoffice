@@ -1,91 +1,9 @@
+import { formatAssunzioneName, formatPersonName } from "@/modules/rapporti/lib"
+import { formatItalianDate, getFirstArrayValue, toStringValue } from "@/lib/value-utils"
+
 import type { AssunzioniBoardRpcRow } from "../types/gestione-rpc"
 import type { AssunzioneRecord, AssunzioniBoardCardData } from "../types"
-import type {
-  FamigliaRecord,
-  LavoratoreRecord,
-  RapportoLavorativoRecord,
-} from "@/types"
-
-function toStringValue(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === "string") {
-    const trimmed = value.trim()
-    return trimmed ? trimmed : null
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value)
-  }
-  return null
-}
-
-function formatItalianDate(value: unknown) {
-  const raw = toStringValue(value)
-  if (!raw) return "-"
-
-  const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return "-"
-
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed)
-}
-
-function getFirstArrayValue(value: unknown): string | null {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const normalized = toStringValue(item)
-      if (normalized) return normalized
-    }
-  }
-
-  return toStringValue(value)
-}
-
-function formatFullName(firstName: string | null | undefined, lastName: string | null | undefined) {
-  return [lastName, firstName].filter(Boolean).join(" ").trim()
-}
-
-function resolveAssunzioneName(assunzione: AssunzioneRecord | null) {
-  if (!assunzione) return null
-
-  const fullName = formatFullName(
-    toStringValue(assunzione.info_anagrafiche_nome),
-    toStringValue(assunzione.info_anagrafiche_cognome)
-  )
-  return fullName || null
-}
-
-function resolveFamilyName(
-  assunzione: AssunzioneRecord | null,
-  family: FamigliaRecord | null,
-  rapporto: RapportoLavorativoRecord
-) {
-  const assunzioneName = resolveAssunzioneName(assunzione)
-  if (assunzioneName) return assunzioneName
-
-  const rapportoName = toStringValue(rapporto.cognome_nome_datore_proper)
-  if (rapportoName) return rapportoName
-
-  const familyName = family ? formatFullName(family.nome, family.cognome) : ""
-  return familyName || null
-}
-
-function resolveWorkerName(
-  assunzione: AssunzioneRecord | null,
-  worker: LavoratoreRecord | null,
-  rapporto: RapportoLavorativoRecord
-) {
-  const assunzioneName = resolveAssunzioneName(assunzione)
-  if (assunzioneName) return assunzioneName
-
-  const workerName = worker ? formatFullName(worker.nome, worker.cognome) : ""
-  if (workerName) return workerName
-
-  return toStringValue(rapporto.nome_lavoratore_per_url)
-}
+import type { RapportoLavorativoRecord } from "@/types"
 
 /**
  * Pattern A bindings (see docs/realtime-board-pattern.md).
@@ -283,8 +201,14 @@ export function mapAssunzioniBoardCard(
     : linkedRapporto
 
   const mergedRapporto = (rapporto ?? linkedRapporto) as RapportoLavorativoRecord
-  const nomeFamiglia = resolveFamilyName(datoreAssunzione, family, mergedRapporto)
-  const nomeLavoratore = resolveWorkerName(lavoratoreAssunzione, lavoratore, mergedRapporto)
+  const nomeFamiglia =
+    formatAssunzioneName(datoreAssunzione) ??
+    formatPersonName(family) ??
+    toStringValue(mergedRapporto.cognome_nome_datore_proper)
+  const nomeLavoratore =
+    formatAssunzioneName(lavoratoreAssunzione) ??
+    formatPersonName(lavoratore) ??
+    toStringValue(mergedRapporto.nome_lavoratore_per_url)
 
   return {
     id: linkedRapporto.id,

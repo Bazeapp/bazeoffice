@@ -1,7 +1,14 @@
+import {
+  formatItalianDate,
+  normalizeComparableToken,
+  readLookupColor,
+  readLookupSortOrder,
+  toStringValue,
+} from "@/lib/value-utils"
 import { getRapportoTitle } from "@/modules/rapporti/lib"
 import type { RapportoAssunzioneNames } from "../types/gestione-rpc"
-import type { ChiusureBoardCardData, TipoLicenziamentoOption } from "../types"
-import type { ChiusuraContrattoRecord, RapportoLavorativoRecord } from "@/types"
+import type { ChiusureBoardCardData, ChiusureBoardColumnData, TipoLicenziamentoOption } from "../types"
+import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
 
 export type ChiusuraTipoMetadata = {
   labels: Map<string, string>
@@ -80,39 +87,81 @@ export function preserveMissingFields<T extends Record<string, unknown>>(
   }
 }
 
-function normalizeToken(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
+export const formatChiusuraBoardDate = formatItalianDate
+
+export function buildChiusuraTipoMetadata(rows: LookupValueRecord[]): ChiusuraTipoMetadata {
+  const labels = new Map<string, string>()
+  const colors = new Map<string, string>()
+
+  const lookupRows = rows.filter(
+    (row) =>
+      row.is_active &&
+      row.entity_table === "chiusure_contratti" &&
+      (row.entity_field === "tipo_licenziamento" || row.entity_field === "tipo_decesso"),
+  )
+
+  const tipoLicenziamentoOptions: TipoLicenziamentoOption[] = rows
+    .filter(
+      (row) =>
+        row.is_active &&
+        row.entity_table === "chiusure_contratti" &&
+        row.entity_field === "tipo_licenziamento",
+    )
+    .map((row) => ({
+      value: toStringValue(row.value_key) ?? toStringValue(row.value_label) ?? "",
+      label: toStringValue(row.value_label) ?? toStringValue(row.value_key) ?? "",
+      sortOrder: readLookupSortOrder(row.sort_order) ?? Number.MAX_SAFE_INTEGER,
+    }))
+    .filter((option) => option.value)
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .map(({ value, label }) => ({ value, label }))
+
+  for (const row of lookupRows) {
+    const valueKey = toStringValue(row.value_key)
+    const valueLabel = toStringValue(row.value_label)
+    const color = readLookupColor(row.metadata)
+
+    if (valueKey) {
+      const normalizedKey = normalizeComparableToken(valueKey)
+      if (valueLabel) labels.set(normalizedKey, valueLabel)
+      if (color) colors.set(normalizedKey, color)
+    }
+
+    if (valueLabel) {
+      const normalizedLabel = normalizeComparableToken(valueLabel)
+      labels.set(normalizedLabel, valueLabel)
+      if (color) colors.set(normalizedLabel, color)
+    }
+  }
+
+  return { labels, colors, tipoLicenziamentoOptions }
 }
 
-function toStringValue(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === "string") {
-    const trimmed = value.trim()
-    return trimmed ? trimmed : null
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value)
-  }
-  return null
-}
-
-export function formatChiusuraBoardDate(value: unknown) {
-  const raw = toStringValue(value)
-  if (!raw) return "-"
-
-  const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return "-"
-
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed)
+export function applyChiusuraPatchInColumns(
+  columns: ChiusureBoardColumnData[],
+  recordId: string,
+  patch: Partial<ChiusuraContrattoRecord>,
+): ChiusureBoardColumnData[] {
+  return columns.map((column) => ({
+    ...column,
+    cards: column.cards.map((card) => {
+      if (card.id !== recordId) return card
+      const nextRecord = { ...card.record, ...patch }
+      return {
+        ...card,
+        record: nextRecord,
+        motivazione:
+          "motivazione_cessazione_rapporto" in patch
+            ? nextRecord.motivazione_cessazione_rapporto
+            : card.motivazione,
+        email: "email" in patch ? (nextRecord.email ?? "-") : card.email,
+        dataFineRapporto:
+          "data_fine_rapporto" in patch
+            ? formatItalianDate(nextRecord.data_fine_rapporto)
+            : card.dataFineRapporto,
+      }
+    }),
+  }))
 }
 
 /**
@@ -176,7 +225,7 @@ export function mapChiusuraBoardCard(
     [record.nome, record.cognome].filter(Boolean).join(" ").trim() ||
     "Nominativo non disponibile"
   const rawTipo = record.tipo_licenziamento ?? record.tipo_decesso ?? "-"
-  const normalizedTipo = normalizeToken(rawTipo)
+  const normalizedTipo = normalizeComparableToken(rawTipo)
 
   return {
     id: record.id,
@@ -186,7 +235,7 @@ export function mapChiusuraBoardCard(
     nomeCompleto,
     email: record.email ?? "-",
     motivazione: record.motivazione_cessazione_rapporto,
-    dataFineRapporto: formatChiusuraBoardDate(record.data_fine_rapporto),
+    dataFineRapporto: formatItalianDate(record.data_fine_rapporto),
     tipoLabel: tipoMetadata.labels.get(normalizedTipo) ?? rawTipo,
     tipoColor: tipoMetadata.colors.get(normalizedTipo) ?? null,
     hasAssunzioneDatore: Boolean(rapporto?.assunzione_datore_id),

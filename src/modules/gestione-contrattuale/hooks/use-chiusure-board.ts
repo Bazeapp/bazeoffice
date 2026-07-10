@@ -8,65 +8,31 @@ import {
   useMoveMutation,
   usePatchMutation,
 } from "@/hooks/use-board-mutations"
-
 import {
   applyOptimisticCardMove,
+  createBoardCardGetter,
   updateCardInColumns,
 } from "@/lib/board-column-utils"
-import { buildStageMetadataFromDefaults } from "@/lib/lookup-stage-metadata"
-import { fetchLookupValues } from "@/lib/lookup-values"
-import {
-  formatItalianDate,
-  normalizeComparableToken,
-  readLookupColor,
-  toStringValue,
-} from "@/lib/value-utils"
 import { createRecord, updateRecord } from "@/lib/record-crud"
-import { mapChiusuraBoardCard } from "../lib/chiusure-board"
-import { fetchAssunzioniNamesByRapportoIds } from "../queries/fetch-assunzioni-names-by-rapporto-ids"
-import { fetchChiusureBoard } from "../queries/fetch-chiusure-board"
-import type {
-  ChiusureBoardCardData,
-  ChiusureBoardColumnData,
-  TipoLicenziamentoOption,
-} from "../types"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-import { getRapportoTitle } from "@/modules/rapporti/lib"
-import type { ChiusuraContrattoRecord, LookupValueRecord, RapportoLavorativoRecord } from "@/types"
 
-const CHIUSURE_BOARD_QUERY_KEY = ["chiusure-board"] as const
-
-type ChiusureBoardData = {
-  columns: ChiusureBoardColumnData[]
-  rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
-  tipoLicenziamentoOptions: TipoLicenziamentoOption[]
-}
-
-const CHIUSURE_REALTIME_TABLES = [
-  "chiusure_contratti",
-  "rapporti_lavorativi",
-  "famiglie",
-  "lavoratori",
-]
-
-type ChiusuraStageDefinition = {
-  id: string
-  label: string
-  color: string
-}
-
-type TipoMetadata = {
-  labels: Map<string, string>
-  colors: Map<string, string>
-  tipoLicenziamentoOptions: TipoLicenziamentoOption[]
-}
+import {
+  applyChiusuraPatchInColumns,
+  CHIUSURE_BOARD_QUERY_KEY,
+  CHIUSURE_REALTIME_TABLES,
+  fetchChiusureBoardData,
+  LICENZIAMENTO_STAGE_ID,
+  type ChiusureBoardData,
+} from "../lib"
+import type { ChiusureBoardCardData, ChiusureBoardColumnData } from "../types"
+import type { ChiusuraContrattoRecord } from "@/types"
 
 type UseChiusureBoardState = {
   loading: boolean
   error: string | null
   columns: ChiusureBoardColumnData[]
-  rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
-  tipoLicenziamentoOptions: TipoLicenziamentoOption[]
+  rapportoOptions: ChiusureBoardData["rapportoOptions"]
+  tipoLicenziamentoOptions: ChiusureBoardData["tipoLicenziamentoOptions"]
   createChiusura: (input: {
     rapportoId: string
     tipo: "licenziamento" | "dimissione" | "annullamento"
@@ -92,148 +58,7 @@ type UseChiusureBoardState = {
   deleteChiusura: (recordId: string) => Promise<void>
 }
 
-const LICENZIAMENTO_STAGE_ID = "Datore comunica licenziamento"
-
-const DEFAULT_STAGE_DEFINITIONS: ChiusuraStageDefinition[] = [
-  { id: "Lavoratore comunica dimissioni", label: "Lavoratore comunica dimissioni", color: "violet" },
-  { id: "Datore comunica licenziamento", label: "Datore comunica licenziamento", color: "zinc" },
-  { id: "Chiusura pronta", label: "Chiusura pronta", color: "cyan" },
-  { id: "Inviato comunicazione per firma documento", label: "Inviato comunicazione per firma documento", color: "sky" },
-  { id: "Ricevuto documento firmato", label: "Ricevuto documento firmato", color: "lime" },
-  { id: "Chiusura elaborata", label: "Chiusura elaborata", color: "amber" },
-  { id: "Inviato documenti di chiusura", label: "Inviato documenti di chiusura", color: "lime" },
-  { id: "Richiesta chiarimenti famiglia", label: "Richiesta chiarimenti famiglia", color: "orange" },
-  { id: "Chiusura terminata", label: "Chiusura terminata", color: "green" },
-]
-
-function buildTipoMetadata(rows: LookupValueRecord[]): TipoMetadata {
-  const labels = new Map<string, string>()
-  const colors = new Map<string, string>()
-
-  const lookupRows = rows.filter(
-    (row) =>
-      row.is_active &&
-      row.entity_table === "chiusure_contratti" &&
-      (row.entity_field === "tipo_licenziamento" || row.entity_field === "tipo_decesso")
-  )
-
-  // Opzioni ordinate per la select "Tipo licenziamento/dimissione".
-  const tipoLicenziamentoOptions: TipoLicenziamentoOption[] = rows
-    .filter(
-      (row) =>
-        row.is_active &&
-        row.entity_table === "chiusure_contratti" &&
-        row.entity_field === "tipo_licenziamento"
-    )
-    .map((row) => ({
-      value: toStringValue(row.value_key) ?? toStringValue(row.value_label) ?? "",
-      label: toStringValue(row.value_label) ?? toStringValue(row.value_key) ?? "",
-      sortOrder: typeof row.sort_order === "number" ? row.sort_order : Number.MAX_SAFE_INTEGER,
-    }))
-    .filter((option) => option.value)
-    .sort((left, right) => left.sortOrder - right.sortOrder)
-    .map(({ value, label }) => ({ value, label }))
-
-  for (const row of lookupRows) {
-    const valueKey = toStringValue(row.value_key)
-    const valueLabel = toStringValue(row.value_label)
-    const color = readLookupColor(row.metadata)
-
-    if (valueKey) {
-      const normalizedKey = normalizeComparableToken(valueKey)
-      if (valueLabel) labels.set(normalizedKey, valueLabel)
-      if (color) colors.set(normalizedKey, color)
-    }
-
-    if (valueLabel) {
-      const normalizedLabel = normalizeComparableToken(valueLabel)
-      labels.set(normalizedLabel, valueLabel)
-      if (color) colors.set(normalizedLabel, color)
-    }
-  }
-
-  return { labels, colors, tipoLicenziamentoOptions }
-}
-
-async function fetchChiusureBoardData(
-  /**
-   * Read latest cached card at mapping time (after the network fetch) so any
-   * concurrent `setQueryData` (e.g. from `loadSelectedCard` in the view
-   * completing mid-fetch) is observed and we never reinstate a stale
-   * snapshot. Reading a snapshot at queryFn start would race against detail
-   * refetches.
-   */
-  getPreviousCard?: (cardId: string) => ChiusureBoardCardData | undefined,
-): Promise<{
-  columns: ChiusureBoardColumnData[]
-  rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
-  tipoLicenziamentoOptions: TipoLicenziamentoOption[]
-}> {
-  const [boardResult, lookupResult] = await Promise.all([
-    fetchChiusureBoard(),
-    fetchLookupValues(),
-  ])
-
-  // Nomi dalle assunzioni collegate (priorità sul nome del rapporto) per tutti
-  // i rapporti coinvolti: card delle chiusure + opzioni della modale.
-  const rapportoIds = [
-    ...boardResult.cards.map((row) => row.rapporto?.id),
-    ...boardResult.rapporti.map((row) => row.rapporto.id),
-  ].filter((id): id is string => Boolean(id))
-  const assunzioneNamesByRapporto = await fetchAssunzioniNamesByRapportoIds(rapportoIds)
-
-  const stageMetadata = buildStageMetadataFromDefaults({
-    defaultStages: DEFAULT_STAGE_DEFINITIONS,
-    lookupRows: lookupResult.rows,
-    entityTable: "chiusure_contratti",
-    entityField: "stato",
-  })
-  const tipoMetadata = buildTipoMetadata(lookupResult.rows)
-  const stages = stageMetadata.definitions
-  const aliases = stageMetadata.aliases
-  const cardsByStage = new Map<string, ChiusureBoardCardData[]>(
-    stages.map((stage) => [stage.id, []])
-  )
-
-  for (const row of boardResult.cards) {
-    const record = row.record
-    const stage = aliases.get(normalizeComparableToken(record.stato))
-    if (!stage) continue
-
-    const previousCard = getPreviousCard?.(record.id)
-    const assunzioneNames = row.rapporto?.id
-      ? assunzioneNamesByRapporto[row.rapporto.id] ?? null
-      : null
-    const card = mapChiusuraBoardCard(row, stage, tipoMetadata, previousCard, assunzioneNames)
-    cardsByStage.get(stage)?.push(card)
-  }
-
-  const columns = stages.map((stage) => ({
-    id: stage.id,
-    label: stage.label,
-    color: stage.color,
-    cards: cardsByStage.get(stage.id) ?? [],
-  }))
-  const rapportoOptions = boardResult.rapporti
-    .map((row) => {
-      const assunzioneNames = assunzioneNamesByRapporto[row.rapporto.id] ?? null
-      return {
-        id: row.rapporto.id,
-        label: getRapportoTitle(row.rapporto, {
-          famiglia: row.famiglia ? { cognome: row.famiglia.cognome, nome: row.famiglia.nome } : null,
-          lavoratore: row.lavoratore ? { cognome: row.lavoratore.cognome, nome: row.lavoratore.nome } : null,
-          assunzioneDatore: assunzioneNames?.datore,
-          assunzioneLavoratore: assunzioneNames?.lavoratore,
-        }),
-        rapporto: row.rapporto,
-      }
-    })
-    .sort((left, right) => left.label.localeCompare(right.label, "it"))
-
-  return { columns, rapportoOptions, tipoLicenziamentoOptions: tipoMetadata.tipoLicenziamentoOptions }
-}
-
-function errorMessage(error: unknown, fallback: string) {
+function formatErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
 
@@ -248,19 +73,13 @@ export function useChiusureBoard(): UseChiusureBoardState {
   } = useQuery<ChiusureBoardData>({
     queryKey: CHIUSURE_BOARD_QUERY_KEY,
     queryFn: () =>
-      fetchChiusureBoardData((cardId) => {
-        // Read latest cached card at mapping time (Pattern A — see doc) so
-        // any concurrent setQueryData from the view-level detail loader is
-        // observed and we never reinstate a stale snapshot.
-        const latest = queryClient.getQueryData<ChiusureBoardData>(
-          CHIUSURE_BOARD_QUERY_KEY,
-        )
-        if (!latest) return undefined
-        for (const column of latest.columns) {
-          const card = column.cards.find((c) => c.id === cardId)
-          if (card) return card
-        }
-        return undefined
+      fetchChiusureBoardData({
+        getPreviousCard: createBoardCardGetter(() => {
+          const latest = queryClient.getQueryData<ChiusureBoardData>(
+            CHIUSURE_BOARD_QUERY_KEY,
+          )
+          return latest?.columns
+        }),
       }),
   })
 
@@ -298,7 +117,7 @@ export function useChiusureBoard(): UseChiusureBoardState {
   })
   React.useEffect(() => {
     if (moveMutation.error) {
-      setMutationError(errorMessage(moveMutation.error, "Errore aggiornando stato chiusura"))
+      setMutationError(formatErrorMessage(moveMutation.error, "Errore aggiornando stato chiusura"))
     }
   }, [moveMutation.error])
 
@@ -336,12 +155,15 @@ export function useChiusureBoard(): UseChiusureBoardState {
     applyOptimistic: (previous, { recordId, patch }) => {
       setMutationError(null)
       if (!previous) return previous
-      return { ...previous, columns: applyPatchInColumns(previous.columns, recordId, patch) }
+      return {
+        ...previous,
+        columns: applyChiusuraPatchInColumns(previous.columns, recordId, patch),
+      }
     },
   })
   React.useEffect(() => {
     if (patchMutation.error) {
-      setMutationError(errorMessage(patchMutation.error, "Errore aggiornando chiusura"))
+      setMutationError(formatErrorMessage(patchMutation.error, "Errore aggiornando chiusura"))
     }
   }, [patchMutation.error])
 
@@ -385,7 +207,7 @@ export function useChiusureBoard(): UseChiusureBoardState {
           fine_rapporto_lavorativo_id: record.id,
         })
       } catch (caughtError) {
-        setMutationError(errorMessage(caughtError, "Errore creando chiusura"))
+        setMutationError(formatErrorMessage(caughtError, "Errore creando chiusura"))
         throw caughtError
       } finally {
         await invalidateBoard()
@@ -428,7 +250,7 @@ export function useChiusureBoard(): UseChiusureBoardState {
           })
         }
       } catch (caughtError) {
-        setMutationError(errorMessage(caughtError, "Errore collegando rapporto"))
+        setMutationError(formatErrorMessage(caughtError, "Errore collegando rapporto"))
         throw caughtError
       } finally {
         await invalidateBoard()
@@ -487,12 +309,13 @@ export function useChiusureBoard(): UseChiusureBoardState {
   // and re-renders consumers. The orchestrator still debounces and defers
   // while local writes are pending so we don't clobber optimistic state.
   useRealtimeBoardSync({
-    tables: CHIUSURE_REALTIME_TABLES,
+    tables: [...CHIUSURE_REALTIME_TABLES],
     reload: invalidateBoard,
   })
 
   const error =
-    mutationError ?? (queryError ? errorMessage(queryError, "Errore caricamento chiusure") : null)
+    mutationError ??
+    (queryError ? formatErrorMessage(queryError, "Errore caricamento chiusure") : null)
 
   return {
     loading: isLoading,
@@ -507,31 +330,4 @@ export function useChiusureBoard(): UseChiusureBoardState {
     updateCard,
     deleteChiusura,
   }
-}
-
-function applyPatchInColumns(
-  columns: ChiusureBoardColumnData[],
-  recordId: string,
-  patch: Partial<ChiusuraContrattoRecord>
-): ChiusureBoardColumnData[] {
-  return columns.map((column) => ({
-    ...column,
-    cards: column.cards.map((card) => {
-      if (card.id !== recordId) return card
-      const nextRecord = { ...card.record, ...patch }
-      return {
-        ...card,
-        record: nextRecord,
-        motivazione:
-          "motivazione_cessazione_rapporto" in patch
-            ? nextRecord.motivazione_cessazione_rapporto
-            : card.motivazione,
-        email: "email" in patch ? (nextRecord.email ?? "-") : card.email,
-        dataFineRapporto:
-          "data_fine_rapporto" in patch
-            ? formatItalianDate(nextRecord.data_fine_rapporto)
-            : card.dataFineRapporto,
-      }
-    }),
-  }))
 }

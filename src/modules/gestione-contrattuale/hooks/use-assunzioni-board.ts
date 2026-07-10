@@ -3,34 +3,21 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { useDeleteBoardRecordMutation, useMoveMutation } from "@/hooks/use-board-mutations"
-
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import {
   applyOptimisticCardMove,
   createBoardCardGetter,
   updateCardAndRehome,
 } from "@/lib/board-column-utils"
-import { buildStageMetadataFromDefaults } from "@/lib/lookup-stage-metadata"
-import { fetchLookupValues } from "@/lib/lookup-values"
-import { normalizeComparableToken } from "@/lib/value-utils"
 import { updateRecord } from "@/lib/record-crud"
-import { mapAssunzioniBoardCard } from "../lib/assunzioni-board"
-import { fetchAssunzioniBoard } from "../queries/fetch-assunzioni-board"
-import type { AssunzioniBoardCardData, AssunzioniBoardColumnData } from "../types"
-import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 
-const ASSUNZIONI_REALTIME_TABLES = [
-  "assunzioni",
-  "rapporti_lavorativi",
-  "famiglie",
-  "lavoratori",
-  "processi_matching",
-  "richieste_attivazione",
-]
-type AssunzioniStageDefinition = {
-  id: string
-  label: string
-  color: string
-}
+import { fetchAssunzioniBoardData } from "../lib/assunzioni-board-data"
+import {
+  ASSUNZIONI_BOARD_QUERY_KEY,
+  ASSUNZIONI_DEFERRED_STAGE_IDS,
+  ASSUNZIONI_REALTIME_TABLES,
+} from "../lib/assunzioni-board-constants"
+import type { AssunzioniBoardCardData, AssunzioniBoardColumnData } from "../types"
 
 type UseAssunzioniBoardState = {
   loading: boolean
@@ -44,83 +31,6 @@ type UseAssunzioniBoardState = {
   ) => void
   deleteRapporto: (rapportoId: string) => Promise<void>
 }
-
-const DEFAULT_STAGE_DEFINITIONS: AssunzioniStageDefinition[] = [
-  { id: "Avviare pratica", label: "Avviare pratica", color: "sky" },
-  { id: "Inviata richiesta dati", label: "Inviata richiesta dati", color: "sky" },
-  { id: "In attesa di dati famiglia", label: "In attesa di dati famiglia", color: "teal" },
-  { id: "In attesa di dati lavoratore", label: "In attesa di dati lavoratore", color: "teal" },
-  { id: "Dati pronti per assunzione", label: "Dati pronti per assunzione", color: "amber" },
-  { id: "Assunzione fatta", label: "Assunzione fatta", color: "lime" },
-  { id: "Documenti assunzione inviati", label: "Documenti assunzione inviati", color: "green" },
-  { id: "Contratto firmato", label: "Contratto firmato", color: "green" },
-  { id: "Non assume con Baze", label: "Non assume con Baze", color: "orange" },
-]
-
-const DEFERRED_STAGE_IDS = new Set(["Contratto firmato", "Non assume con Baze"])
-
-type FetchAssunzioniBoardDataOptions = {
-  deferredLoadedStageIds?: Set<string>
-  onlyStageId?: string
-  /**
-   * Lazy lookup for the previous card by rapporto id. Read AT mapping time
-   * (NOT at queryFn start) so any concurrent `setQueryData` from
-   * `handleSelectCard` / `updateCard` is observed and detail-only fields
-   * are merged in. Reading a snapshot at queryFn start would race against
-   * a parallel detail fetch and reinstate stale empty sub-objects.
-   */
-  getPreviousCard?: (rapportoId: string) => AssunzioniBoardCardData | undefined
-}
-
-async function fetchAssunzioniBoardData({
-  deferredLoadedStageIds = new Set<string>(),
-  onlyStageId,
-  getPreviousCard,
-}: FetchAssunzioniBoardDataOptions = {}): Promise<AssunzioniBoardColumnData[]> {
-  const [boardResult, lookupResult] = await Promise.all([
-    fetchAssunzioniBoard(onlyStageId ?? null),
-    fetchLookupValues(),
-  ])
-
-  const stageMetadata = buildStageMetadataFromDefaults({
-    defaultStages: DEFAULT_STAGE_DEFINITIONS,
-    lookupRows: lookupResult.rows,
-    entityTable: "processi_matching",
-    entityField: "stato_assunzione",
-  })
-  const stages = stageMetadata.definitions
-  const aliases = stageMetadata.aliases
-  const cardsByStage = new Map<string, AssunzioniBoardCardData[]>(
-    stages.map((stage) => [stage.id, []])
-  )
-
-  for (const row of boardResult.rows) {
-    const linkedRapporto = row.rapporto
-    if (!linkedRapporto) continue
-
-    const processStage = aliases.get(normalizeComparableToken(linkedRapporto.stato_assunzione))
-    if (!processStage) continue
-
-    const previousCard = getPreviousCard?.(linkedRapporto.id)
-    const card = mapAssunzioniBoardCard(row, processStage, previousCard)
-    if (!card) continue
-
-    cardsByStage.get(processStage)?.push(card)
-  }
-
-  return stages.map((stage) => ({
-    id: stage.id,
-    label: stage.label,
-    color: stage.color,
-    cards: cardsByStage.get(stage.id) ?? [],
-    deferred: DEFERRED_STAGE_IDS.has(stage.id),
-    loadError: null,
-    loaded: !DEFERRED_STAGE_IDS.has(stage.id) || deferredLoadedStageIds.has(stage.id),
-    loading: false,
-  }))
-}
-
-const ASSUNZIONI_BOARD_QUERY_KEY = ["assunzioni-board"] as const
 
 export function useAssunzioniBoard(): UseAssunzioniBoardState {
   const queryClient = useQueryClient()
@@ -238,7 +148,7 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
 
   const loadDeferredColumn = React.useCallback(
     async (stageId: string) => {
-      if (!DEFERRED_STAGE_IDS.has(stageId) || loadedDeferredStageIdsRef.current.has(stageId)) return
+      if (!ASSUNZIONI_DEFERRED_STAGE_IDS.has(stageId) || loadedDeferredStageIdsRef.current.has(stageId)) return
 
       setBoardData((previous) =>
         (previous ?? []).map((column) =>
@@ -291,7 +201,7 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
   )
 
   useRealtimeBoardSync({
-    tables: ASSUNZIONI_REALTIME_TABLES,
+    tables: [...ASSUNZIONI_REALTIME_TABLES],
     reload: invalidateBoard,
   })
 

@@ -126,3 +126,12 @@ export function toIsoDateInputValue(value: string | null | undefined) {
   if (Number.isNaN(parsed.getTime())) return ""
   return parsed.toISOString().slice(0, 10)
 }
+
+/** Parses an unknown value into an ISO date string (`YYYY-MM-DD`), or null when invalid. */
+export function toIsoDateValue(value: unknown): string | null {
+  const raw = toStringValue(value)
+  if (!raw) return null
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString().slice(0, 10)
+}

@@ -1,6 +1,7 @@
+import { toStringValue } from "@/lib/value-utils"
 import type { RapportoLavorativoRecord } from "@/types"
 
-type PersonNameInput = { cognome?: string | null; nome?: string | null }
+export type PersonNameInput = { cognome?: string | null; nome?: string | null }
 
 /**
  * Nome anagrafico catturato dal form di assunzione. È la fonte PRIORITARIA per
@@ -22,6 +23,13 @@ function compactText(value: string | null | undefined) {
 
 export function formatPersonName(person: PersonNameInput | null | undefined) {
   return [compactText(person?.cognome), compactText(person?.nome)].filter(Boolean).join(" ").trim() || null
+}
+
+export function personNameFromRow(
+  row: Record<string, unknown> | null | undefined,
+): PersonNameInput | null {
+  if (!row) return null
+  return { cognome: toStringValue(row.cognome), nome: toStringValue(row.nome) }
 }
 
 export function formatAssunzioneName(assunzione: AssunzioneNameInput | null | undefined) {

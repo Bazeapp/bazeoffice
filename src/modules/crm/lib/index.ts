@@ -8,5 +8,6 @@ export {
 export { mapCardData } from "./card-mapper"
 export { normalizeLookupPatchLabels } from "./lookup-utils"
 export { serializeCrmPipelineFilters } from "./board-fetch"
+export * from "./assegnazione-data-utils"
 export * from "./assegnazione-display-utils"
 export * from "./onboarding-context-utils"
