@@ -11,6 +11,8 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { isHeicImage } from "@/lib/heic-image"
+import { AttachmentImage } from "./attachment-image"
 import {
   flattenAttachmentLinks,
   hasAttachmentValue,
@@ -19,6 +21,12 @@ import {
 
 function isImageUrl(url: string) {
   return /\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?.*)?$/i.test(url)
+}
+
+// HEIC/HEIF counts as a displayable image too: AttachmentImage decodes it at
+// render time (BAZ-21). Without this, `.heic` files got no preview at all.
+function isDisplayableImage(link: AttachmentLink) {
+  return isImageUrl(link.url) || isHeicImage({ url: link.url, type: link.type })
 }
 
 function isAudioLink(link: AttachmentLink) {
@@ -60,7 +68,7 @@ export function AttachmentUploadSlot({
   const [isDragActive, setIsDragActive] = React.useState(false)
   const links = React.useMemo(() => flattenAttachmentLinks(value, label), [label, value])
   const hasValue = hasAttachmentValue(value)
-  const previewLink = links.find((link) => isImageUrl(link.url)) ?? null
+  const previewLink = links.find(isDisplayableImage) ?? null
   const audioLinks = links.filter(isAudioLink)
 
   async function addFiles(files: File[]) {
@@ -117,11 +125,12 @@ export function AttachmentUploadSlot({
         />
         <div className="bg-background flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border">
           {previewLink ? (
-            <img
+            <AttachmentImage
               src={previewLink.url}
+              type={previewLink.type}
               alt={previewLink.label}
+              downloadName={previewLink.label}
               className="h-full w-full object-cover"
-              loading="lazy"
             />
           ) : (
             <FileIcon className="text-muted-foreground size-4" />
