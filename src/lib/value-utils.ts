@@ -14,6 +14,27 @@ export function getSortableTimestamp(value: string | null | undefined) {
   return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
 }
 
+export function indexRowsByStringId(
+  rows: readonly Record<string, unknown>[],
+  getId: (row: Record<string, unknown>) => string | null = (row) =>
+    toStringValue(row.id),
+) {
+  const map = new Map<string, Record<string, unknown>>()
+  for (const row of rows) {
+    const rowId = getId(row)
+    if (rowId) map.set(rowId, row)
+  }
+  return map
+}
+
+export function uniqueNonEmptyStrings(
+  values: Array<string | null | undefined>,
+) {
+  return Array.from(
+    new Set(values.filter((value): value is string => Boolean(value))),
+  )
+}
+
 export function toStringValue(value: unknown): string | null {
   if (value === null || value === undefined) return null
   if (typeof value === "string") {
@@ -43,6 +64,40 @@ export function readLookupColor(metadata: LookupValueRecord["metadata"]) {
   if (!metadata || typeof metadata !== "object") return null
   const color = metadata.color
   return typeof color === "string" && color.trim() ? color.trim() : null
+}
+
+export type LookupColorMap = Record<string, Record<string, string>>
+
+export function buildLookupColorMap(rows: LookupValueRecord[]): LookupColorMap {
+  return rows.reduce<LookupColorMap>((acc, current) => {
+    if (!current.is_active) return acc
+    const color = readLookupColor(current.metadata)
+    if (!color) return acc
+
+    const domain = `${current.entity_table}.${current.entity_field}`
+    if (!acc[domain]) acc[domain] = {}
+
+    acc[domain][normalizeLookupToken(current.value_key)] = color
+    acc[domain][normalizeLookupToken(current.value_label)] = color
+    return acc
+  }, {})
+}
+
+export function resolveBadgeColor(
+  lookupColors: LookupColorMap,
+  entityTable: string,
+  entityField: string,
+  value: string | null,
+) {
+  if (!value) return null
+  const domain = `${entityTable}.${entityField}`
+  return lookupColors[domain]?.[normalizeLookupToken(value)] ?? null
+}
+
+/** First segment of an address note before "-", used as zona/quartiere shorthand. */
+export function formatShortAddressNote(value: unknown): string | null {
+  const note = toStringValue(value)
+  return note?.split("-")[0]?.trim() || null
 }
 
 export function getFirstArrayValue(value: unknown): string | null {

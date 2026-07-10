@@ -4,15 +4,13 @@ import { toast } from "sonner"
 
 import { type WorkerOtherSelectionSummaryItem } from "@/modules/lavoratori/components/lavoratore-card"
 import {
-  type RelatedActiveSearchItem,
   type RelatedSearchGroups,
-} from "../components/worker-pipeline-summary-cards"
+} from "../types"
 import {
   asString,
   getAgeFromBirthDate,
   getDefaultWorkerAvatar,
   isBlacklistValue,
-  isDirectInvolvementSelection,
   normalizeDomesticRoleLabels,
   normalizeLookupColors,
   normalizeLookupOptions,
@@ -24,12 +22,17 @@ import {
 } from "@/modules/lavoratori/lib"
 import {
   extractGeneratedMessage,
-  formatRelatedFamilyName,
-  formatRelatedSearchLabel,
-  formatRelatedZona,
+  buildFamilyAddressDisplayDraft,
   mergeWorkerResidenceAddress,
   normalizeToken,
 } from "../lib/worker-pipeline-view-utils"
+import { delay } from "@/lib/async-utils"
+import { uniqueNonEmptyStrings } from "@/lib/value-utils"
+import {
+  buildRelatedSearchGroups,
+  fetchRelatedSearchLookupMaps,
+  toWorkerOtherSelectionSummaryItems,
+} from "../lib/related-active-searches"
 import { invokeAiGenerationFunction } from "@/lib/ai-generation"
 import {
   getSelectionAvailabilityWorkerIds,
@@ -52,8 +55,6 @@ import type {
 } from "@/modules/lavoratori/types"
 import {
   fetchAllSelectionsForWorker,
-  fetchRelatedFamiliesByIds,
-  fetchRelatedProcessesByIds,
 } from "../lib/worker-pipeline-view-data"
 import type { RicercaWorkerPipelineOverlayProps } from "../components/ricerca-worker-pipeline-overlay"
 
@@ -62,10 +63,6 @@ export type PipelineDetailFormDraft = {
   data_scadenza_naspi: string
   iban: string
   id_stripe_account: string
-}
-
-function waitFor(milliseconds: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 }
 
 export type UseRicercaWorkerPipelineOverlayParams = {
@@ -137,16 +134,9 @@ export function useRicercaWorkerPipelineOverlay({
   // mirror viene ri-sincronizzato dai prop server `card.*` dall'effetto più sotto.
   // Non esiste quindi un "edit locale in volo" che l'echo realtime possa clobberare:
   // l'anti-pattern che le regole form-context targettizzano qui non si applica.
-  const [familyAddressDraft, setFamilyAddressDraft] = React.useState({
-    province: card.indirizzoProvaProvincia ?? "-",
-    cap: card.indirizzoProvaCap ?? "-",
-    address: card.indirizzoProvaVia ?? "-",
-    street: card.indirizzoProvaVia ?? "-",
-    civicNumber: card.indirizzoProvaCivico ?? "-",
-    city: card.indirizzoProvaComune ?? "-",
-    intercom: card.indirizzoProvaCitofono ?? "-",
-    note: card.indirizzoProvaNote ?? "-",
-  });
+  const [familyAddressDraft, setFamilyAddressDraft] = React.useState(() =>
+    buildFamilyAddressDisplayDraft(card),
+  );
   const [selectedWorkerError, setSelectedWorkerError] = React.useState<
     string | null
   >(null);
@@ -584,95 +574,26 @@ export function useRicercaWorkerPipelineOverlay({
             selectionProcessId !== processId;
         });
 
-        const processIds = Array.from(
-          new Set(
-            filteredSelections
-              .map((selection) => asString(selection.processo_matching_id))
-              .filter((value): value is string => Boolean(value)),
+        const processIds = uniqueNonEmptyStrings(
+          filteredSelections.map((selection) =>
+            asString(selection.processo_matching_id),
           ),
         );
 
-        const processRows = await fetchRelatedProcessesByIds(processIds);
+        const { processRowsById, familyRowsById } =
+          await fetchRelatedSearchLookupMaps(processIds);
         if (isCancelled) return;
 
-        const processRowsById = new Map(
-          processRows
-            .map((row) => {
-              const rowId = asString(row.id);
-              if (!rowId) return null;
-              return [rowId, row] as const;
-            })
-            .filter(
-              (entry): entry is readonly [string, Record<string, unknown>] =>
-                Boolean(entry),
-            ),
+        setRelatedActiveSearches(
+          buildRelatedSearchGroups({
+            selections: filteredSelections,
+            processRowsById,
+            familyRowsById,
+            recruiterLabelsById,
+            currentProcessId: processId,
+            currentSelectionId: selectedCard?.id,
+          }),
         );
-
-        const familyIds = Array.from(
-          new Set(
-            processRows
-              .map((row) => asString(row.famiglia_id))
-              .filter((value): value is string => Boolean(value)),
-          ),
-        );
-
-        const familyRows = await fetchRelatedFamiliesByIds(familyIds);
-        if (isCancelled) return;
-
-        const familyRowsById = new Map(
-          familyRows
-            .map((row) => {
-              const rowId = asString(row.id);
-              if (!rowId) return null;
-              return [rowId, row] as const;
-            })
-            .filter(
-              (entry): entry is readonly [string, Record<string, unknown>] =>
-                Boolean(entry),
-            ),
-        );
-
-        const seenProcessIds = new Set<string>();
-        const nextDirectItems: RelatedActiveSearchItem[] = [];
-        const nextOtherItems: RelatedActiveSearchItem[] = [];
-
-        for (const selection of filteredSelections) {
-          const selectionId = asString(selection.id);
-          const selectionProcessId = asString(selection.processo_matching_id);
-          if (!selectionId || !selectionProcessId) continue;
-          if (seenProcessIds.has(selectionProcessId)) continue;
-
-          const processRow = processRowsById.get(selectionProcessId);
-          if (!processRow) continue;
-
-          const familyRow = familyRowsById.get(asString(processRow.famiglia_id) ?? "");
-          const recruiterId = asString(processRow.recruiter_ricerca_e_selezione_id);
-
-          const nextItem: RelatedActiveSearchItem = {
-            selectionId,
-            processId: selectionProcessId,
-            familyName: formatRelatedFamilyName(familyRow),
-            ricercaLabel: formatRelatedSearchLabel(processRow),
-            recruiterLabel: recruiterId
-              ? recruiterLabelsById.get(recruiterId) ?? "Recruiter non assegnato"
-              : "Recruiter non assegnato",
-            statoSelezione: asString(selection.stato_selezione) || "-",
-            statoRicerca: asString(processRow.stato_res) || "-",
-            orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
-            zona: formatRelatedZona(processRow),
-            appunti: asString(selection.note_selezione) || "",
-          };
-
-          if (isDirectInvolvementSelection(selection)) {
-            nextDirectItems.push(nextItem);
-          } else {
-            nextOtherItems.push(nextItem);
-          }
-          seenProcessIds.add(selectionProcessId);
-        }
-
-        if (isCancelled) return;
-        setRelatedActiveSearches({ direct: nextDirectItems, other: nextOtherItems });
       } catch {
         if (isCancelled) return;
         setRelatedActiveSearches({ direct: [], other: [] });
@@ -709,82 +630,24 @@ export function useRicercaWorkerPipelineOverlay({
           return Boolean(selectionProcessId) && selectionProcessId !== processId;
         });
 
-        const processIds = Array.from(
-          new Set(
-            filteredSelections
-              .map((selection) => asString(selection.processo_matching_id))
-              .filter((value): value is string => Boolean(value)),
+        const processIds = uniqueNonEmptyStrings(
+          filteredSelections.map((selection) =>
+            asString(selection.processo_matching_id),
           ),
         );
-        const processRows = await fetchRelatedProcessesByIds(processIds);
-        const processRowsById = new Map(
-          processRows
-            .map((row) => {
-              const rowId = asString(row.id);
-              if (!rowId) return null;
-              return [rowId, row] as const;
-            })
-            .filter(
-              (entry): entry is readonly [string, Record<string, unknown>] =>
-                Boolean(entry),
-            ),
-        );
-        const familyIds = Array.from(
-          new Set(
-            processRows
-              .map((row) => asString(row.famiglia_id))
-              .filter((value): value is string => Boolean(value)),
-          ),
-        );
-        const familyRows = await fetchRelatedFamiliesByIds(familyIds);
-        const familyRowsById = new Map(
-          familyRows
-            .map((row) => {
-              const rowId = asString(row.id);
-              if (!rowId) return null;
-              return [rowId, row] as const;
-            })
-            .filter(
-              (entry): entry is readonly [string, Record<string, unknown>] =>
-                Boolean(entry),
-            ),
-        );
-        const seenProcessIds = new Set<string>();
-        const details: WorkerOtherSelectionSummaryItem[] = [];
+        const { processRowsById, familyRowsById } =
+          await fetchRelatedSearchLookupMaps(processIds);
 
-        for (const selection of filteredSelections) {
-          const selectionProcessId = asString(selection.processo_matching_id);
-          if (!selectionProcessId || seenProcessIds.has(selectionProcessId)) {
-            continue;
-          }
+        const { direct } = buildRelatedSearchGroups({
+          selections: filteredSelections,
+          processRowsById,
+          familyRowsById,
+          recruiterLabelsById,
+          currentProcessId: processId,
+          directInvolvementOnly: true,
+        });
 
-          const processRow = processRowsById.get(selectionProcessId);
-          if (!processRow || !isDirectInvolvementSelection(selection)) continue;
-
-          const familyRow = familyRowsById.get(
-            asString(processRow.famiglia_id) ?? "",
-          );
-          const recruiterId = asString(
-            processRow.recruiter_ricerca_e_selezione_id,
-          );
-
-          details.push({
-            id: selectionProcessId,
-            familyName: formatRelatedFamilyName(familyRow),
-            ricercaLabel: formatRelatedSearchLabel(processRow),
-            recruiterLabel: recruiterId
-              ? recruiterLabelsById.get(recruiterId) ?? "Recruiter non assegnato"
-              : "Recruiter non assegnato",
-            statoSelezione: asString(selection.stato_selezione) || "-",
-            statoRicerca: asString(processRow.stato_res) || "-",
-            orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
-            zona: formatRelatedZona(processRow),
-            appunti: asString(selection.note_selezione) || "",
-          });
-          seenProcessIds.add(selectionProcessId);
-        }
-
-        return details;
+        return toWorkerOtherSelectionSummaryItems(direct);
       })();
 
       otherSelectionDetailsCacheRef.current.set(workerId, promise);
@@ -804,16 +667,7 @@ export function useRicercaWorkerPipelineOverlay({
     // Re-sync del mirror di display dai prop server (card.*). Nessun edit locale
     // in volo da preservare: gli edit passano dal save esplicito (vedi nota sulla
     // useState di familyAddressDraft).
-    setFamilyAddressDraft({
-      province: card.indirizzoProvaProvincia ?? "-",
-      cap: card.indirizzoProvaCap ?? "-",
-      address: card.indirizzoProvaVia ?? "-",
-      street: card.indirizzoProvaVia ?? "-",
-      civicNumber: card.indirizzoProvaCivico ?? "-",
-      city: card.indirizzoProvaComune ?? "-",
-      intercom: card.indirizzoProvaCitofono ?? "-",
-      note: card.indirizzoProvaNote ?? "-",
-    });
+    setFamilyAddressDraft(buildFamilyAddressDisplayDraft(card));
   }, [
     card.indirizzoProvaCap,
     card.indirizzoProvaCitofono,
@@ -920,7 +774,7 @@ export function useRicercaWorkerPipelineOverlay({
         generatedFromFunction;
 
       if (!generatedText) {
-        await waitFor(500);
+        await delay(500);
         result = await fetchSelection();
         row = result.rows[0] ?? null;
         generatedText = asString(row?.messaggio_famiglia_selezione_lavoratore);

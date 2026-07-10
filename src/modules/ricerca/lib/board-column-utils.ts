@@ -15,6 +15,11 @@ export function normalizeRicercaStageToken(value: string) {
   return normalizeStageToken(value)
 }
 
+export function isDeferredRicercaStage(value: string) {
+  const normalized = normalizeRicercaStageToken(value)
+  return normalized === "match" || normalized === "no match"
+}
+
 /** Ricerca board columns: stage-specific shades, then shared kanban color fallback. */
 export function getRicercaColumnVisual(
   columnId: string,

@@ -475,6 +475,42 @@ export function buildVisibleGroupedColumnSections(
     .filter((entry) => entry.groupCards.length > 0)
 }
 
+type FamilyAddressCardFields = Partial<{
+  indirizzoProvaProvincia: string
+  indirizzoProvaCap: string
+  indirizzoProvaVia: string
+  indirizzoProvaCivico: string
+  indirizzoProvaComune: string
+  indirizzoProvaCitofono: string
+  indirizzoProvaNote: string
+}>
+
+export type FamilyAddressDisplayDraft = {
+  province: string
+  cap: string
+  address: string
+  street: string
+  civicNumber: string
+  city: string
+  intercom: string
+  note: string
+}
+
+export function buildFamilyAddressDisplayDraft(
+  card: FamilyAddressCardFields,
+): FamilyAddressDisplayDraft {
+  return {
+    province: card.indirizzoProvaProvincia ?? "-",
+    cap: card.indirizzoProvaCap ?? "-",
+    address: card.indirizzoProvaVia ?? "-",
+    street: card.indirizzoProvaVia ?? "-",
+    civicNumber: card.indirizzoProvaCivico ?? "-",
+    city: card.indirizzoProvaComune ?? "-",
+    intercom: card.indirizzoProvaCitofono ?? "-",
+    note: card.indirizzoProvaNote ?? "-",
+  }
+}
+
 export function filterPipelineColumnsBySearch(
   columns: RicercaWorkerSelectionColumn[],
   searchQuery: string,

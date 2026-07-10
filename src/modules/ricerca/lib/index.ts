@@ -31,5 +31,6 @@ export { excludeCurrentProcess } from "./map-related-selections"
 
 export {
   getRicercaColumnVisual,
+  isDeferredRicercaStage,
   normalizeRicercaStageToken,
 } from "./board-column-utils"

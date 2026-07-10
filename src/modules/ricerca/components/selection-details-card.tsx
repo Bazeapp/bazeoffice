@@ -75,15 +75,7 @@ function buildDraft(selectionRow: SelectionDetailsRow): SelectionDraft {
   }
 }
 
-function normalizeStatusToken(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replaceAll("_", " ")
-    .replace(/\s+/g, " ")
-    .trim()
-}
+import { normalizeStatusToken } from "../lib/pipeline-status-utils"
 
 function MultiLookupField({
   value,
