@@ -51,6 +51,7 @@ function RelatedSearchesGroup({
           <RicercaActiveSearchCard
             key={item.selectionId}
             data={item.boardCard}
+            workerColloquio={item.workerColloquio}
             className="cursor-pointer"
             onClick={() => onOpenRicerca(item.processId)}
           />

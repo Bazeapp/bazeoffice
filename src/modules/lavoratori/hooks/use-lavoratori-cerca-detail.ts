@@ -475,6 +475,10 @@ export function useLavoratoriCercaDetail({
         orarioDiLavoro: asString(processRow.orario_di_lavoro) || "-",
         zona: formatRelatedZona(processRow),
         appunti: asString(selection.note_selezione) || "",
+        workerColloquio: {
+          giorni: asString(selection.intervista_giorni_lavoro),
+          orario: asString(selection.intervista_orario_e_giorni),
+        },
         boardCard: {
           id: processId,
           stage: asString(processRow.stato_res) || "-",
@@ -484,7 +488,7 @@ export function useLavoratoriCercaDetail({
           telefono: "-",
           operatorId: recruiterId,
           oreSettimanali: asString(processRow.ore_settimanale) || "-",
-          giorniSettimanali: asString(processRow.giorni_a_settimana) || "-",
+          giorniSettimanali: asString(processRow.numero_giorni_settimanali) || "-",
           deadline: asString(processRow.deadline_mobile) || "-",
           deadlineRaw: asString(processRow.deadline_mobile),
           zona: formatRelatedZona(processRow),

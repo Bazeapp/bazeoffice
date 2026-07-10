@@ -2,6 +2,7 @@ import * as React from "react"
 import {
   ArrowRightIcon,
   BriefcaseBusinessIcon,
+  CalendarCheckIcon,
   Clock3Icon,
   MapPinIcon,
   UserRoundIcon,
@@ -10,6 +11,8 @@ import {
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+import { formatColloquioAvailability } from "../lib/colloquio-availability"
 
 import type {
   RelatedActiveSearchItem,
@@ -30,6 +33,7 @@ export function RelatedActiveSearchCard({
 }) {
   const isInteractive = typeof onOpenSearch === "function"
   const Wrapper = isInteractive ? "button" : "div"
+  const colloquioAvailability = formatColloquioAvailability(item.workerColloquio)
 
   return (
     <Wrapper
@@ -78,6 +82,14 @@ export function RelatedActiveSearchCard({
           <div className="flex items-center gap-2">
             <Clock3Icon className="size-3.5 shrink-0" />
             <span className="line-clamp-2">{item.orarioDiLavoro}</span>
+          </div>
+        ) : null}
+        {colloquioAvailability ? (
+          <div className="flex items-center gap-2">
+            <CalendarCheckIcon className="size-3.5 shrink-0" />
+            <span className="line-clamp-2">
+              Disponibilità colloquio: {colloquioAvailability}
+            </span>
           </div>
         ) : null}
         {item.zona ? (

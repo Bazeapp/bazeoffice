@@ -18,6 +18,7 @@ export type WorkerRelatedSearchItem = {
   orarioDiLavoro: string
   zona: string
   appunti: string
+  workerColloquio: { giorni: string; orario: string }
   boardCard: RicercaBoardCardData
 }
 

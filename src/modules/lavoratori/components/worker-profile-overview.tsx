@@ -1,8 +1,8 @@
 import { StarIcon, UploadIcon } from "lucide-react"
 
+import { HeicAwareAvatar } from "@/components/shared-next/heic-aware-avatar"
 import { getWorkerCardInitials } from "../lib/card-utils"
 import { AttachmentImage } from "@/components/shared-next/attachment-image"
-import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -197,9 +197,10 @@ function WorkerProfileOverviewPhotoColumn({
         </div>
       ) : (
         <div className="relative inline-block">
-          <Avatar
+          <HeicAwareAvatar
             size="xl"
-            src={worker.immagineUrl ?? undefined}
+            src={worker.immagineUrl}
+            type={worker.immagineType}
             alt={worker.nomeCompleto}
             fallback={getWorkerCardInitials(worker.nomeCompleto)}
             className={qualificationStatus.ringClassName}

@@ -7,8 +7,7 @@ import {
   normalizeDomesticRoleLabels,
   readArrayStrings,
   resolveLookupColor,
-  toAvatarThumbnailUrl,
-  toAvatarUrl,
+  toAvatarImage,
   toWorkerStatusFlags,
 } from "@/modules/lavoratori/lib"
 import { fetchRicercaWorkerRelatedSelectionSummaries } from "../queries/fetch-ricerca-worker-related-selection-summaries"
@@ -142,11 +141,13 @@ export function buildWorkerListItem(
 
   const anniEsperienzaColf = toNumberValue(worker.anni_esperienza_colf)
   const anniEsperienzaBabysitter = toNumberValue(worker.anni_esperienza_babysitter)
+  const avatarImage = toAvatarImage(worker)
 
   return {
     id: workerId,
     nomeCompleto: `${nome} ${cognome}`.trim() || workerId,
-    immagineUrl: toAvatarThumbnailUrl(worker) ?? toAvatarUrl(worker) ?? getDefaultWorkerAvatar(workerId),
+    immagineUrl: avatarImage?.url ?? getDefaultWorkerAvatar(workerId),
+    immagineType: avatarImage?.type ?? null,
     travelTimeMinutes: null,
     locationLabel: formatAddressLabel(workerAddress) ?? asString(worker.cap) ?? null,
     telefono: asString(worker.telefono) || null,

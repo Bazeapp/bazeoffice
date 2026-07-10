@@ -25,6 +25,7 @@ export type RelatedActiveSearchItem = {
   orarioDiLavoro: string
   zona: string
   appunti: string
+  workerColloquio?: { giorni: string; orario: string }
 }
 
 export type RelatedSearchGroups = {
