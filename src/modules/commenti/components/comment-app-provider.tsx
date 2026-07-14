@@ -13,6 +13,11 @@ function resolveOperatorName(user: User): string {
   return base.split(/\s+/)[0] || base
 }
 
+type RegistrationEntry = {
+  ownerId: symbol
+  value: CommentRouteRegistration
+}
+
 export function CommentAppProvider({
   user,
   children,
@@ -21,14 +26,28 @@ export function CommentAppProvider({
   children: React.ReactNode
 }) {
   const [registration, setRegistration] =
-    React.useState<CommentRouteRegistration | null>(null)
+    React.useState<RegistrationEntry | null>(null)
+
+  const register = React.useCallback(
+    (ownerId: symbol, next: CommentRouteRegistration | null) => {
+      setRegistration((current) => {
+        if (next === null) {
+          if (current?.ownerId === ownerId) return null
+          return current
+        }
+        return { ownerId, value: next }
+      })
+    },
+    [],
+  )
 
   const value = React.useMemo((): CommentContextValue => {
     const base = {
       currentUserId: user.id,
       currentUserName: resolveOperatorName(user),
     }
-    if (!registration?.pageFocus) {
+    const route = registration?.value
+    if (!route?.pageFocus) {
       return {
         ...base,
         pageFocus: null,
@@ -38,15 +57,15 @@ export function CommentAppProvider({
     }
     return {
       ...base,
-      ...registration,
+      ...route,
     }
   }, [registration, user])
 
   const appContext = React.useMemo(
     () => ({
-      register: setRegistration,
+      register,
     }),
-    [],
+    [register],
   )
 
   return (

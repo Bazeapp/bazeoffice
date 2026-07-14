@@ -8,7 +8,7 @@ export type CommentRouteRegistration = Omit<
 >
 
 export type CommentAppContextValue = {
-  register: (registration: CommentRouteRegistration | null) => void
+  register: (ownerId: symbol, registration: CommentRouteRegistration | null) => void
 }
 
 export const CommentAppContext = React.createContext<CommentAppContextValue | null>(null)

@@ -17,6 +17,10 @@ export type UseCommentRouteContextOptions = {
 export function useCommentRouteContext(options: UseCommentRouteContextOptions) {
   const appContext = React.use(CommentAppContext)
   const optionsRef = React.useRef(options)
+  const ownerIdRef = React.useRef<symbol | null>(null)
+  if (!ownerIdRef.current) {
+    ownerIdRef.current = Symbol("comment-route-context")
+  }
 
   React.useEffect(() => {
     optionsRef.current = options
@@ -33,13 +37,13 @@ export function useCommentRouteContext(options: UseCommentRouteContextOptions) {
     if (!appContext) return
 
     const { register } = appContext
+    const ownerId = ownerIdRef.current!
     const current = optionsRef.current
     if (!current.enabled || !current.pageFocus) {
-      register(null)
       return
     }
 
-    register({
+    register(ownerId, {
       pageFocus: current.pageFocus,
       row: current.row,
       sourceInterface: current.sourceInterface,
@@ -49,7 +53,7 @@ export function useCommentRouteContext(options: UseCommentRouteContextOptions) {
     })
 
     return () => {
-      register(null)
+      register(ownerId, null)
     }
   }, [
     appContext,
