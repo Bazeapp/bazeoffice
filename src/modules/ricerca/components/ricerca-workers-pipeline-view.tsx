@@ -13,8 +13,6 @@ import { useCommentRouteContext } from "@/modules/commenti/hooks";
 import {
   candidaturaCommentRow,
   candidaturaDisplayNames,
-  crmProcessoCommentRow,
-  crmProcessoDisplayNames,
 } from "@/modules/commenti/lib/comment-route-helpers";
 import {
   Dialog,
@@ -121,16 +119,15 @@ export function RicercaWorkersPipelineView({
     onFocusSelectionChange,
   });
 
-  const pipelineAnchorRef = React.useRef<HTMLDivElement>(null);
   const overlayAnchorRef = React.useRef<HTMLDivElement>(null);
   const overlaySelection = overlayProps.selectedCard;
   const isOverlayFocus = isWorkerOverlayOpen && Boolean(overlaySelection);
 
   useCommentRouteContext({
-    enabled: true,
+    enabled: isOverlayFocus,
     pageFocus: isOverlayFocus
       ? { entityType: "candidatura", entityId: overlaySelection!.id }
-      : { entityType: "ricerca", entityId: processId },
+      : null,
     row: isOverlayFocus
       ? candidaturaCommentRow({
           selectionId: overlaySelection!.id,
@@ -141,11 +138,9 @@ export function RicercaWorkersPipelineView({
           ricercaLabel: card.numeroRicercaAttivata ?? card.nomeFamiglia,
           famigliaName: card.nomeFamiglia,
         })
-      : crmProcessoCommentRow(card),
-    sourceInterface: isOverlayFocus
-      ? "dettaglio_lavoratore_ricerca"
-      : "pipeline_ricerca",
-    anchorRef: isOverlayFocus ? overlayAnchorRef : pipelineAnchorRef,
+      : {},
+    sourceInterface: "dettaglio_lavoratore_ricerca",
+    anchorRef: overlayAnchorRef,
     displayNames: isOverlayFocus
       ? candidaturaDisplayNames({
           selectionId: overlaySelection!.id,
@@ -156,11 +151,11 @@ export function RicercaWorkersPipelineView({
           ricercaLabel: card.numeroRicercaAttivata ?? card.nomeFamiglia,
           famigliaName: card.nomeFamiglia,
         })
-      : crmProcessoDisplayNames(card),
+      : undefined,
   });
 
   return (
-    <div ref={pipelineAnchorRef} className={cn("relative flex min-h-0 flex-col", className)}>
+    <div className={cn("relative flex min-h-0 flex-col", className)}>
       <SectionHeader className="px-0">
         <SectionHeader.Title
           size="nested"
