@@ -1,6 +1,6 @@
 import { ENTITY_SECTION_META } from "./consts"
 import type { EntityRef, EntityType } from "../types/entity"
-import { entityRefKey } from "../types/comment-stack"
+import { entityRefKey } from "./entity-ref"
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i

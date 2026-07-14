@@ -42,4 +42,5 @@ export type Comment = {
   isUnread: boolean
   replyCount: number
   replies: Comment[]
+  isOptimistic?: boolean
 }

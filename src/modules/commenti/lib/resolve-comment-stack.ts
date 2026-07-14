@@ -10,11 +10,11 @@ import {
   resolveDisplayName,
 } from "./comment-stack-row"
 import type {
-  CommentStackSection,
+  CommentSection,
   ResolveCommentStackInput,
   ResolveCommentStackResult,
-} from "../types/comment-stack"
-import { entityRefKey } from "../types/comment-stack"
+} from "../types/section"
+import { entityRefKey } from "./entity-ref"
 import type { EntityRef, EntityType } from "../types/entity"
 
 const MAX_ANCESTOR_SECTIONS = 5
@@ -137,7 +137,7 @@ function buildEntitySection(
   row: Record<string, unknown>,
   displayNames: Record<string, string> | undefined,
   visibilityHint: string | null,
-): CommentStackSection {
+): CommentSection {
   const meta = ENTITY_SECTION_META[ref.entityType]
   return {
     id: entityRefKey(ref),
@@ -150,7 +150,7 @@ function buildEntitySection(
   }
 }
 
-function buildDescendantsSection(): CommentStackSection {
+function buildDescendantsSection(): CommentSection {
   return {
     id: DESCENDANTS_SECTION_ID,
     kind: "descendants",
@@ -164,7 +164,7 @@ function buildDescendantsSection(): CommentStackSection {
 
 function buildVisibilityHint(
   targetIndex: number,
-  entitySections: CommentStackSection[],
+  entitySections: CommentSection[],
 ): string | null {
   if (targetIndex <= 0) return null
   const names = entitySections
@@ -180,14 +180,14 @@ export function resolveCommentStack(
   const row = normalizeRow(input.focus.entityType, input.row)
   const ancestorRefs = collectAncestorRefs(input.focus, row)
 
-  const entitySections: CommentStackSection[] = [
+  const entitySections: CommentSection[] = [
     buildEntitySection(input.focus, "focus", row, input.displayNames, null),
     ...ancestorRefs.map((ref) =>
       buildEntitySection(ref, "ancestor", row, input.displayNames, null),
     ),
   ]
 
-  const sections: CommentStackSection[] = [
+  const sections: CommentSection[] = [
     ...entitySections.map((section, index) => ({
       ...section,
       visibilityHint: buildVisibilityHint(index, entitySections),

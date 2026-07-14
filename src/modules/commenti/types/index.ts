@@ -5,12 +5,12 @@ export type {
   PhaseLabel,
   SourceInterface,
 } from "./comment"
+export type { CommentListSectionRpcResponse } from "./comment-rpc"
 export type { EntityRef, EntityType } from "./entity"
 export type { OperatorRoleToken } from "./operator"
-export type { CommentSection, CommentSectionKind } from "./section"
 export type {
-  CommentStackSection,
+  CommentSection,
+  CommentSectionKind,
   ResolveCommentStackInput,
   ResolveCommentStackResult,
-} from "./comment-stack"
-export { entityRefKey } from "./comment-stack"
+} from "./section"
