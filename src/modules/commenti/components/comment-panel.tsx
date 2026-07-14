@@ -117,7 +117,10 @@ export function CommentPanel({
           <ChevronDownIcon className="size-4" />
         </Button>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4" data-testid="comments-panel-body">
+      <div
+        className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 pt-0"
+        data-testid="comments-panel-body"
+      >
         {children}
       </div>
     </div>

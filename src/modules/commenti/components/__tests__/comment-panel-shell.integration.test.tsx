@@ -107,14 +107,14 @@ describe("CommentPanel shell", () => {
     expect(screen.queryByTestId("comments-panel")).not.toBeInTheDocument()
   })
 
-  it("expands the panel on pill click without loading section comments yet in U5", async () => {
+  it("expands the panel on pill click and loads the focus section", async () => {
     renderHost(makeContext())
 
     fireEvent.click(await screen.findByTestId("comments-pill"))
 
     expect(await screen.findByTestId("comments-panel")).toBeInTheDocument()
-    expect(screen.getByText("💬 Commenti · 4")).toBeInTheDocument()
-    expect(screen.getByTestId("comments-panel-placeholder")).toBeInTheDocument()
+    expect(screen.getByText(/💬 Commenti · 4/)).toBeInTheDocument()
+    expect(await screen.findByTestId("comments-target-chip")).toBeInTheDocument()
 
     await waitFor(() => {
       expect(mockFetchCommentSectionPage).toHaveBeenCalled()

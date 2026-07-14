@@ -4,6 +4,7 @@ import { resolveCommentStack } from "../lib/resolve-comment-stack"
 import { useCommentContext } from "../hooks/use-comment-context"
 import { useCommentPanel } from "../hooks/use-comment-panel"
 import { CommentPanel } from "./comment-panel"
+import { CommentPanelBody } from "./comment-panel-body"
 
 export function CommentPanelHost() {
   const context = useCommentContext()
@@ -19,19 +20,11 @@ export function CommentPanelHost() {
     })
   }, [context])
 
-  const focusSectionRef = React.useMemo(() => {
-    if (!stack) return null
-    return stack.sections.find((section) => section.kind === "focus")?.entityRef ?? pageFocus
-  }, [pageFocus, stack])
-
-  const activeSectionRef = expanded ? focusSectionRef : null
-  const targetEntityRef = focusSectionRef ?? pageFocus
-
-  const panelState = useCommentPanel({
+  const countState = useCommentPanel({
     pageFocus,
-    expanded: Boolean(pageFocus && expanded),
-    activeSectionRef,
-    targetEntityRef,
+    expanded: false,
+    activeSectionRef: null,
+    targetEntityRef: pageFocus,
     currentUserId: context?.currentUserId ?? null,
     currentUserName: context?.currentUserName,
     sourceInterface: context?.sourceInterface ?? null,
@@ -39,23 +32,33 @@ export function CommentPanelHost() {
     phaseLabel: context?.phaseLabel ?? null,
   })
 
-  if (!pageFocus) {
+  if (!pageFocus || !stack) {
     return null
+  }
+
+  const panelOptions = {
+    currentUserId: context?.currentUserId ?? null,
+    currentUserName: context?.currentUserName,
+    sourceInterface: context?.sourceInterface ?? null,
+    defaultCommentType: context?.defaultCommentType,
+    phaseLabel: context?.phaseLabel ?? null,
   }
 
   return (
     <CommentPanel
-      count={panelState.count}
-      countLoading={panelState.countLoading}
+      count={countState.count}
+      countLoading={countState.countLoading}
       expanded={expanded}
       onToggleExpanded={() => setExpanded((value) => !value)}
       onClose={() => setExpanded(false)}
       anchorRef={context?.anchorRef}
     >
       {expanded ? (
-        <p className="text-sm text-muted-foreground" data-testid="comments-panel-placeholder">
-          Le sezioni del pannello saranno disponibili nel prossimo passo.
-        </p>
+        <CommentPanelBody
+          pageFocus={pageFocus}
+          stack={stack}
+          panelOptions={panelOptions}
+        />
       ) : null}
     </CommentPanel>
   )

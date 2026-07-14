@@ -1,3 +1,8 @@
 export { CommentPanelHost } from "./comment-panel-host"
 export { CommentPanel } from "./comment-panel"
 export type { CommentPanelProps } from "./comment-panel"
+export { CommentPanelBody } from "./comment-panel-body"
+export { CommentSectionPanel, CommentSectionsAccordion } from "./comment-section"
+export { CommentThread } from "./comment-thread"
+export { CommentComposer } from "./comment-composer"
+export { CommentTargetChip } from "./comment-target-chip"

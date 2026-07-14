@@ -78,6 +78,38 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
     enabled: Boolean(pageFocus && options.expanded && activeSectionRef),
   })
 
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false)
+
+  const loadMoreSectionComments = React.useCallback(async () => {
+    if (!pageFocus || !activeSectionRef || !sectionQueryKey) return
+    const nextCursor = sectionQuery.data?.nextCursor
+    if (!nextCursor || isLoadingMore) return
+
+    setIsLoadingMore(true)
+    try {
+      const page = await fetchCommentSectionPage({
+        pageEntityType: pageFocus.entityType,
+        pageEntityId: pageFocus.entityId,
+        sectionEntityType: activeSectionRef.entityType,
+        sectionEntityId: activeSectionRef.entityId,
+        cursor: nextCursor,
+      })
+      queryClient.setQueryData<CommentListSectionRpcResponse>(sectionQueryKey, (previous) => ({
+        comments: [...page.comments, ...(previous?.comments ?? [])],
+        nextCursor: page.nextCursor,
+      }))
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [
+    activeSectionRef,
+    isLoadingMore,
+    pageFocus,
+    queryClient,
+    sectionQuery.data?.nextCursor,
+    sectionQueryKey,
+  ])
+
   const invalidatePageQueries = React.useCallback(() => {
     if (!pageFocus) return
     void queryClient.invalidateQueries({
@@ -226,6 +258,9 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
     sectionComments: sectionQuery.data?.comments ?? [],
     sectionNextCursor: sectionQuery.data?.nextCursor ?? null,
     sectionLoading: sectionQuery.isLoading,
+    hasMoreSectionComments: Boolean(sectionQuery.data?.nextCursor),
+    loadMoreSectionComments,
+    isLoadingMore,
     submitComment,
     submitReply,
     editComment: editMutation.mutateAsync,
