@@ -1,4 +1,11 @@
+import * as React from "react"
+
 import { useChiusureBoardView } from "../hooks/use-chiusure-board-view"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  chiusuraCommentRow,
+  chiusuraDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
 import { ChiusureBoardAnnullamentoDialog } from "./chiusure-board-annullamento-dialog"
 import { ChiusureBoardContent } from "./chiusure-board-content"
 import { ChiusureBoardHeader } from "./chiusure-board-header"
@@ -6,6 +13,19 @@ import { ChiusureDetailSheet } from "./chiusure-detail-sheet"
 
 export function ChiusureBoardView() {
   const board = useChiusureBoardView()
+  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
+  const selectedCard = board.sheetProps.card
+
+  useCommentRouteContext({
+    enabled: board.sheetProps.open && Boolean(selectedCard),
+    pageFocus: selectedCard
+      ? { entityType: "chiusura", entityId: selectedCard.id }
+      : null,
+    row: selectedCard ? chiusuraCommentRow(selectedCard) : {},
+    sourceInterface: "chiusure",
+    anchorRef: commentAnchorRef,
+    displayNames: selectedCard ? chiusuraDisplayNames(selectedCard) : undefined,
+  })
 
   return (
     <>
@@ -29,7 +49,7 @@ export function ChiusureBoardView() {
         />
       </section>
 
-      <ChiusureDetailSheet {...board.sheetProps} />
+      <ChiusureDetailSheet {...board.sheetProps} commentAnchorRef={commentAnchorRef} />
       <ChiusureBoardAnnullamentoDialog {...board.annullamentoDialogProps} />
     </>
   )

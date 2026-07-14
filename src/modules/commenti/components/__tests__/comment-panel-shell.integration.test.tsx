@@ -7,7 +7,7 @@ import { CommentPanelHost } from "../comment-panel-host"
 import {
   CommentContextProvider,
   type CommentContextValue,
-} from "../../hooks/use-comment-context"
+} from "../comment-context-provider"
 
 const {
   mockFetchCommentCountForPage,

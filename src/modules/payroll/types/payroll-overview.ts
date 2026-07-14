@@ -1,4 +1,4 @@
-import type { DragEvent } from "react"
+import type { DragEvent, RefObject } from "react"
 
 import type { AttachmentLink } from "@/components/shared-next/attachment-utils"
 
@@ -26,6 +26,7 @@ export type CedolinoDetailSheetProps = {
     recordId: string,
     patch: Partial<NonNullable<PayrollBoardCardData["presenze"]>>,
   ) => void
+  commentAnchorRef?: RefObject<HTMLDivElement | null>
 }
 
 export type PayrollBoardColumnProps = {

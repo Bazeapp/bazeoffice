@@ -15,6 +15,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
+import { CommentAppProvider, CommentPanelHost } from "@/modules/commenti/components"
 
 type AppShellProps = {
   user: User
@@ -362,27 +363,30 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onOpenCustomerSupportRiattivazioni={handleOpenCustomerSupportRiattivazioni}
       />
       <SidebarInset className="h-svh min-h-0 overflow-hidden">
-        <main className="scrollbar-hidden flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <React.Suspense
-              fallback={
-                <div className="flex min-h-60 flex-1 items-center justify-center rounded-2xl border border-border/60 bg-background/80 px-6 py-10 text-sm text-muted-foreground shadow-sm">
-                  Caricamento pagina...
-                </div>
-              }
-            >
-              <AppPageContent
-                route={route}
-                onOpenAnagraficheTab={handleOpenAnagraficheTab}
-                onOpenRicercaDetail={handleOpenRicercaDetail}
-                onBackFromRicercaDetail={handleBackFromRicercaDetail}
-                onOpenRelatedRicerca={handleOpenRelatedRicerca}
-                onFocusRicercaSelection={handleFocusRicercaSelection}
-                onSelectRapporto={handleSelectRapporto}
-              />
-            </React.Suspense>
-          </div>
-        </main>
+        <CommentAppProvider user={user}>
+          <main className="scrollbar-hidden flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <React.Suspense
+                fallback={
+                  <div className="flex min-h-60 flex-1 items-center justify-center rounded-2xl border border-border/60 bg-background/80 px-6 py-10 text-sm text-muted-foreground shadow-sm">
+                    Caricamento pagina...
+                  </div>
+                }
+              >
+                <AppPageContent
+                  route={route}
+                  onOpenAnagraficheTab={handleOpenAnagraficheTab}
+                  onOpenRicercaDetail={handleOpenRicercaDetail}
+                  onBackFromRicercaDetail={handleBackFromRicercaDetail}
+                  onOpenRelatedRicerca={handleOpenRelatedRicerca}
+                  onFocusRicercaSelection={handleFocusRicercaSelection}
+                  onSelectRapporto={handleSelectRapporto}
+                />
+              </React.Suspense>
+            </div>
+          </main>
+          <CommentPanelHost />
+        </CommentAppProvider>
       </SidebarInset>
     </SidebarProvider>
   )

@@ -3,11 +3,19 @@ import {
   PlusIcon,
   SparklesIcon,
 } from "lucide-react";
+import * as React from "react";
 
 import { WorkerPipelineColumn } from "./worker-pipeline-column";
 import { RicercaWorkerPipelineOverlay } from "./ricerca-worker-pipeline-overlay";
 import { SectionHeader } from "@/components/shared-next/section-header";
 import { Button } from "@/components/ui/button";
+import { useCommentRouteContext } from "@/modules/commenti/hooks";
+import {
+  candidaturaCommentRow,
+  candidaturaDisplayNames,
+  crmProcessoCommentRow,
+  crmProcessoDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers";
 import {
   Dialog,
   DialogContent,
@@ -113,8 +121,46 @@ export function RicercaWorkersPipelineView({
     onFocusSelectionChange,
   });
 
+  const pipelineAnchorRef = React.useRef<HTMLDivElement>(null);
+  const overlayAnchorRef = React.useRef<HTMLDivElement>(null);
+  const overlaySelection = overlayProps.selectedCard;
+  const isOverlayFocus = isWorkerOverlayOpen && Boolean(overlaySelection);
+
+  useCommentRouteContext({
+    enabled: true,
+    pageFocus: isOverlayFocus
+      ? { entityType: "candidatura", entityId: overlaySelection!.id }
+      : { entityType: "ricerca", entityId: processId },
+    row: isOverlayFocus
+      ? candidaturaCommentRow({
+          selectionId: overlaySelection!.id,
+          processId,
+          famigliaId: card.famigliaId,
+          lavoratoreId: overlaySelection!.worker.id,
+          workerName: overlaySelection!.worker.nomeCompleto,
+          ricercaLabel: card.numeroRicercaAttivata ?? card.nomeFamiglia,
+          famigliaName: card.nomeFamiglia,
+        })
+      : crmProcessoCommentRow(card),
+    sourceInterface: isOverlayFocus
+      ? "dettaglio_lavoratore_ricerca"
+      : "pipeline_ricerca",
+    anchorRef: isOverlayFocus ? overlayAnchorRef : pipelineAnchorRef,
+    displayNames: isOverlayFocus
+      ? candidaturaDisplayNames({
+          selectionId: overlaySelection!.id,
+          processId,
+          famigliaId: card.famigliaId,
+          lavoratoreId: overlaySelection!.worker.id,
+          workerName: overlaySelection!.worker.nomeCompleto,
+          ricercaLabel: card.numeroRicercaAttivata ?? card.nomeFamiglia,
+          famigliaName: card.nomeFamiglia,
+        })
+      : crmProcessoDisplayNames(card),
+  });
+
   return (
-    <div className={cn("relative flex min-h-0 flex-col", className)}>
+    <div ref={pipelineAnchorRef} className={cn("relative flex min-h-0 flex-col", className)}>
       <SectionHeader className="px-0">
         <SectionHeader.Title
           size="nested"
@@ -204,6 +250,7 @@ export function RicercaWorkersPipelineView({
         <RicercaWorkerPipelineOverlay
           {...overlayProps}
           onClose={handleCloseWorkerOverlay}
+          commentAnchorRef={overlayAnchorRef}
         />
       ) : null}
 

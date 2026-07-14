@@ -1,3 +1,5 @@
+import type * as React from "react"
+
 import type {
   ChiusureBoardCardData,
   ChiusureBoardColumnData,
@@ -19,6 +21,7 @@ export function ChiusureDetailSheet({
   onCardChange,
   onPatchChiusura,
   onDeleteChiusura,
+  commentAnchorRef,
 }: {
   card: ChiusureBoardCardData | null
   columns: ChiusureBoardColumnData[]
@@ -34,6 +37,7 @@ export function ChiusureDetailSheet({
     patch: Partial<ChiusureBoardCardData["record"]>,
   ) => Promise<void>
   onDeleteChiusura?: (recordId: string) => Promise<void>
+  commentAnchorRef?: React.RefObject<HTMLDivElement | null>
 }) {
   const vm = useChiusureDetailSheet({
     card,
@@ -49,5 +53,5 @@ export function ChiusureDetailSheet({
     onDeleteChiusura,
   })
 
-  return <ChiusureDetailSheetContent vm={vm} />
+  return <ChiusureDetailSheetContent vm={vm} commentAnchorRef={commentAnchorRef} />
 }

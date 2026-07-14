@@ -16,6 +16,7 @@ export function ContributoInpsDetailSheet({
   onOpenChange,
   onStageChange,
   onPatchCard,
+  commentAnchorRef,
 }: ContributoInpsDetailSheetProps) {
   const detail = useContributiInpsDetail({ card, onStageChange, onPatchCard })
 
@@ -23,6 +24,7 @@ export function ContributoInpsDetailSheet({
     <Form {...detail.form}>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
+          ref={commentAnchorRef}
           side="right"
           className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
           data-testid="contributi-inps-sheet-dialog"

@@ -6,6 +6,11 @@ import { useContributiInpsFilters } from "../hooks/use-contributi-inps-filters"
 import { useContributiInpsSelection } from "../hooks/use-contributi-inps-selection"
 import type { ContributiPeriod } from "../types"
 import { ContributiInpsBoard } from "./contributi-inps-board"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  contributiCommentRow,
+  contributiDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
 import { ContributoInpsDetailSheet } from "./contributi-inps-detail-sheet"
 import { ContributiInpsHeader } from "./contributi-inps-header"
 import { ContributiInpsMetrics } from "./contributi-inps-metrics"
@@ -29,6 +34,20 @@ export function ContributiInpsView() {
 
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
+  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
+  const selectedCard = selection.selectedCard
+
+  useCommentRouteContext({
+    enabled: Boolean(selection.selectedCardId && selectedCard),
+    pageFocus:
+      selection.selectedCardId && selectedCard
+        ? { entityType: "contributi", entityId: selection.selectedCardId }
+        : null,
+    row: selectedCard ? contributiCommentRow(selectedCard) : {},
+    sourceInterface: "contributi_inps",
+    anchorRef: commentAnchorRef,
+    displayNames: selectedCard ? contributiDisplayNames(selectedCard) : undefined,
+  })
 
   return (
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
@@ -92,6 +111,7 @@ export function ContributiInpsView() {
           await patchCard(recordId, patch)
           selection.patchSelectedCard(recordId, patch)
         }}
+        commentAnchorRef={commentAnchorRef}
       />
     </section>
   )

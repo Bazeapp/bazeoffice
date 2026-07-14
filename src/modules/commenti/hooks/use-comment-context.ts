@@ -12,20 +12,10 @@ export type CommentContextValue = {
   currentUserName?: string
   defaultCommentType?: CommentType
   phaseLabel?: PhaseLabel | null
-  anchorRef: React.RefObject<HTMLElement | null>
+  anchorRef: React.RefObject<HTMLDivElement | null>
 }
 
-const CommentContext = React.createContext<CommentContextValue | null>(null)
-
-export function CommentContextProvider({
-  value,
-  children,
-}: {
-  value: CommentContextValue
-  children: React.ReactNode
-}) {
-  return <CommentContext.Provider value={value}>{children}</CommentContext.Provider>
-}
+export const CommentContext = React.createContext<CommentContextValue | null>(null)
 
 export function useCommentContext(): CommentContextValue | null {
   return React.use(CommentContext)

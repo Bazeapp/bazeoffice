@@ -1,6 +1,12 @@
 import { PlusIcon } from "lucide-react"
+import * as React from "react"
 
 import { SectionHeader } from "@/components/shared-next/section-header"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  ticketCommentRow,
+  ticketDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
 import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/ui/search-input"
 import {
@@ -19,6 +25,21 @@ import { SupportTicketsKanban } from "./support-tickets-kanban"
 
 export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketType }) {
   const view = useSupportTicketsView(ticketType)
+  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
+  const selectedCard = view.detailSheet.card
+  const sourceInterface =
+    ticketType === "Payroll" ? "ticket_payroll" : "ticket_customer"
+
+  useCommentRouteContext({
+    enabled: view.detailSheet.open && Boolean(selectedCard),
+    pageFocus: selectedCard
+      ? { entityType: "ticket", entityId: selectedCard.id }
+      : null,
+    row: selectedCard ? ticketCommentRow(selectedCard) : {},
+    sourceInterface,
+    anchorRef: commentAnchorRef,
+    displayNames: selectedCard ? ticketDisplayNames(selectedCard) : undefined,
+  })
 
   return (
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
@@ -101,6 +122,7 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
           onMoveTicket={view.detailSheet.onMoveTicket}
           onPatchTicket={view.detailSheet.onPatchTicket}
           sheetTestId={view.detailSheet.sheetTestId}
+          commentAnchorRef={commentAnchorRef}
         />
       ) : null}
     </section>

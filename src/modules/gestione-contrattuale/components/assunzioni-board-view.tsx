@@ -1,4 +1,11 @@
+import * as React from "react"
+
 import { useAssunzioniBoardView } from "../hooks/use-assunzioni-board-view"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  assunzioneCommentRow,
+  assunzioneDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
 import { AssunzioniBoardContent } from "./assunzioni-board-content"
 import { AssunzioniBoardHeader } from "./assunzioni-board-header"
 import { AssunzioniDetailSheet } from "./assunzioni-detail-sheet"
@@ -16,6 +23,20 @@ export function AssunzioniBoardView({
   initialSelectedRapportoId = null,
 }: AssunzioniBoardViewProps) {
   const board = useAssunzioniBoardView({ initialSelectedRapportoId })
+  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
+  const selectedCard = board.sheetProps.card
+  const assunzioneId = selectedCard?.assunzione?.id ?? null
+
+  useCommentRouteContext({
+    enabled: board.sheetProps.open && Boolean(assunzioneId),
+    pageFocus: assunzioneId
+      ? { entityType: "assunzione", entityId: assunzioneId }
+      : null,
+    row: selectedCard ? assunzioneCommentRow(selectedCard) : {},
+    sourceInterface: "assunzioni",
+    anchorRef: commentAnchorRef,
+    displayNames: selectedCard ? assunzioneDisplayNames(selectedCard) : undefined,
+  })
 
   return (
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
@@ -39,7 +60,7 @@ export function AssunzioniBoardView({
         }}
       />
 
-      <AssunzioniDetailSheet {...board.sheetProps} />
+      <AssunzioniDetailSheet {...board.sheetProps} commentAnchorRef={commentAnchorRef} />
     </section>
   )
 }

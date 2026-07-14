@@ -1,5 +1,12 @@
+import * as React from "react"
+
 import type { OpenRicercaDetailOptions } from "@/routes/app-routes"
 
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  lavoratoreCommentRow,
+  lavoratoreDisplayName,
+} from "@/modules/commenti/lib/comment-route-helpers"
 import { useLavoratoriData } from "../hooks/use-lavoratori-data"
 import { useLavoratoriCercaDetail } from "../hooks/use-lavoratori-cerca-detail"
 import { LavoratoriCercaListPanel } from "./lavoratori-cerca-list-panel"
@@ -89,6 +96,24 @@ export function LavoratoriCercaView({
     reloadSelectedWorkerScheda,
   })
 
+  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
+  const workerName = selectedWorker?.nomeCompleto ?? null
+
+  useCommentRouteContext({
+    enabled: Boolean(selectedWorkerId),
+    pageFocus: selectedWorkerId
+      ? { entityType: "lavoratore", entityId: selectedWorkerId }
+      : null,
+    row: selectedWorkerId
+      ? lavoratoreCommentRow(selectedWorkerId, selectedWorkerRow ?? undefined)
+      : {},
+    sourceInterface: "cerca_lavoratore",
+    anchorRef: commentAnchorRef,
+    displayNames: selectedWorkerId
+      ? lavoratoreDisplayName(selectedWorkerId, workerName)
+      : undefined,
+  })
+
   return (
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <div
@@ -125,10 +150,12 @@ export function LavoratoriCercaView({
         />
 
         {selectedWorkerId ? (
-          <LavoratoriCercaDetailPanel
-            {...detailPanelProps}
-            onClose={() => setSelectedWorkerId(null)}
-          />
+          <div ref={commentAnchorRef} className="min-h-0">
+            <LavoratoriCercaDetailPanel
+              {...detailPanelProps}
+              onClose={() => setSelectedWorkerId(null)}
+            />
+          </div>
         ) : null}
       </div>
     </section>

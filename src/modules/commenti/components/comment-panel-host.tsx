@@ -1,7 +1,7 @@
 import * as React from "react"
 
 import { resolveCommentStack } from "../lib/resolve-comment-stack"
-import { useCommentContext } from "../hooks/use-comment-context"
+import { useCommentContext } from "../hooks"
 import { useCommentPanel } from "../hooks/use-comment-panel"
 import { CommentPanel } from "./comment-panel"
 import { CommentPanelBody } from "./comment-panel-body"

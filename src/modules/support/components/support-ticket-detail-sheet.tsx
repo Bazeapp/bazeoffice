@@ -263,6 +263,7 @@ type SupportTicketDetailSheetProps = {
   onMoveTicket: (ticketId: string, targetStageId: string) => Promise<void>
   onPatchTicket: (ticketId: string, patch: Partial<TicketRecord>) => Promise<void>
   sheetTestId?: string
+  commentAnchorRef?: React.RefObject<HTMLDivElement | null>
 }
 
 export function SupportTicketDetailSheet({
@@ -274,6 +275,7 @@ export function SupportTicketDetailSheet({
   onMoveTicket,
   onPatchTicket,
   sheetTestId,
+  commentAnchorRef,
 }: SupportTicketDetailSheetProps) {
   const [selectedPreview, setSelectedPreview] = React.useState<AttachmentLink | null>(null)
   const [isUploadingAttachment, setIsUploadingAttachment] = React.useState(false)
@@ -408,6 +410,7 @@ export function SupportTicketDetailSheet({
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
+          ref={commentAnchorRef}
           side="right"
           className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
           data-testid={sheetTestId}

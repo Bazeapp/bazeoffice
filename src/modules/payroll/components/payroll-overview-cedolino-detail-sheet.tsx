@@ -20,6 +20,7 @@ export function CedolinoDetailSheet({
   onStageChange,
   onPatchCard,
   onPatchPresence,
+  commentAnchorRef,
 }: CedolinoDetailSheetProps) {
   const detail = useCedolinoDetail({ card, onPatchCard, onPatchPresence })
 
@@ -27,6 +28,7 @@ export function CedolinoDetailSheet({
     <Form {...detail.form}>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
+          ref={commentAnchorRef}
           side="right"
           className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
           data-testid="cedolini-sheet-dialog"

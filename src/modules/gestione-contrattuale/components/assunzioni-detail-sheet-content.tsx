@@ -31,7 +31,13 @@ import { RapportoDetailSections } from "./rapporto-detail-sections"
 
 type SheetViewModel = ReturnType<typeof useAssunzioniDetailSheet>
 
-export function AssunzioniDetailSheetContent({ vm }: { vm: SheetViewModel }) {
+export function AssunzioniDetailSheetContent({
+  vm,
+  commentAnchorRef,
+}: {
+  vm: SheetViewModel
+  commentAnchorRef?: React.RefObject<HTMLDivElement | null>
+}) {
   const {
     card,
     open,
@@ -74,7 +80,11 @@ export function AssunzioniDetailSheetContent({ vm }: { vm: SheetViewModel }) {
   return (
     <Form {...practiceForm}>
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
+      <SheetContent
+        ref={commentAnchorRef}
+        side="right"
+        className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
+      >
         <SheetHeader className="border-b bg-surface px-5 py-5">
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">

@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react"
+import type { Dispatch, RefObject, SetStateAction } from "react"
 import type { ControllerRenderProps } from "react-hook-form"
 import {
   ClipboardListIcon,
@@ -61,6 +61,7 @@ export type RicercaWorkerPipelineOverlayProps = {
       nomeFamiglia: string
     }>
   onClose: () => void
+  commentAnchorRef?: RefObject<HTMLDivElement | null>
   selectedWorkerError: string | null
   selectedCard: RicercaWorkerSelectionCard | null
   selectedWorker: RicercaWorkerSelectionCard["worker"] | null
@@ -163,6 +164,7 @@ export type RicercaWorkerPipelineOverlayProps = {
 export function RicercaWorkerPipelineOverlay({
   card,
   onClose,
+  commentAnchorRef,
   selectedWorkerError,
   selectedCard,
   selectedWorker,
@@ -244,7 +246,10 @@ export function RicercaWorkerPipelineOverlay({
 }: RicercaWorkerPipelineOverlayProps) {
   return (
 
-        <div className="bg-background absolute inset-0 z-50 flex flex-col overflow-y-auto animate-in fade-in-0">
+        <div
+          ref={commentAnchorRef}
+          className="bg-background absolute inset-0 z-50 flex flex-col overflow-y-auto animate-in fade-in-0"
+        >
           <div className="bg-card flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
             <Breadcrumb className="min-w-0">
               <BreadcrumbItem asChild>

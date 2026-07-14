@@ -1,4 +1,7 @@
 export { CommentPanelHost } from "./comment-panel-host"
+export { CommentAppProvider } from "./comment-app-provider"
+export { CommentContextProvider } from "./comment-context-provider"
+export type { CommentContextValue } from "./comment-context-provider"
 export { CommentPanel } from "./comment-panel"
 export type { CommentPanelProps } from "./comment-panel"
 export { CommentPanelBody } from "./comment-panel-body"

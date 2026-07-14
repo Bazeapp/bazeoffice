@@ -19,6 +19,11 @@ import {
 } from "lucide-react"
 
 import { ToolbarField } from "@/components/forms/toolbar-field"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  crmProcessoCommentRow,
+  crmProcessoDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
 import { FamigliaProcessoDetailShell } from "./famiglia-processo-detail-shell"
 import { FamigliaProcessoCard } from "./famiglia-processo-card"
 import {
@@ -329,6 +334,27 @@ export function CrmPipelineFamiglieView() {
     return null
   }, [columns, selectedCardId])
 
+  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
+  const commentRow = React.useMemo(
+    () => (selectedCard ? crmProcessoCommentRow(selectedCard) : {}),
+    [selectedCard],
+  )
+  const commentDisplayNames = React.useMemo(
+    () => (selectedCard ? crmProcessoDisplayNames(selectedCard) : undefined),
+    [selectedCard],
+  )
+
+  useCommentRouteContext({
+    enabled: isDetailOpen && Boolean(selectedCard),
+    pageFocus: selectedCard
+      ? { entityType: "ricerca", entityId: selectedCard.id }
+      : null,
+    row: commentRow,
+    sourceInterface: "kanban_famiglie",
+    anchorRef: commentAnchorRef,
+    displayNames: commentDisplayNames,
+  })
+
   React.useEffect(() => {
     if (!isDetailOpen || !selectedCardId) return
     void loadProcessDetail(selectedCardId)
@@ -623,6 +649,7 @@ export function CrmPipelineFamiglieView() {
             setSelectedCardId(null)
           }
         }}
+        commentAnchorRef={commentAnchorRef}
         card={selectedCard}
         lookupOptionsByField={lookupOptionsByField}
         onChangeStatoSales={moveCard}

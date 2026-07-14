@@ -59,6 +59,7 @@ export type AssegnazioneDetailSheetProps = {
   operatorOptions: OperatoreOption[];
   onPatchCard: (patch: Record<string, unknown>) => Promise<void>;
   onOpenRicerca: (processId: string) => void;
+  commentAnchorRef?: React.RefObject<HTMLDivElement | null>;
 };
 
 export function AssegnazioneDetailSheet({
@@ -68,6 +69,7 @@ export function AssegnazioneDetailSheet({
   operatorOptions,
   onPatchCard,
   onOpenRicerca,
+  commentAnchorRef,
 }: AssegnazioneDetailSheetProps) {
   const [isEditingScheduling, setIsEditingScheduling] = React.useState(false);
   const [isSavingScheduling, setIsSavingScheduling] = React.useState(false);
@@ -178,6 +180,7 @@ export function AssegnazioneDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
+        ref={commentAnchorRef}
         side="right"
         className="w-[min(96vw,760px)]! max-w-none! overflow-hidden p-0 sm:max-w-none!"
       >

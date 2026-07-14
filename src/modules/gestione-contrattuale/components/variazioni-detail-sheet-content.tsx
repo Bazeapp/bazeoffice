@@ -1,3 +1,5 @@
+import type * as React from "react"
+
 import { CalendarDaysIcon } from "lucide-react"
 
 import { LinkedRapportoSummaryCard } from "@/components/shared-next/linked-rapporto-summary-card"
@@ -20,7 +22,13 @@ import { VariazioniDetailRapportoSection } from "./variazioni-detail-rapporto-se
 import { VariazioniDetailSheetSkeleton } from "./variazioni-detail-sheet-skeleton"
 import { VariazioniDetailVariazioneSection } from "./variazioni-detail-variazione-section"
 
-export function VariazioniDetailSheetContent({ vm }: { vm: VariazioniDetailSheetViewModel }) {
+export function VariazioniDetailSheetContent({
+  vm,
+  commentAnchorRef,
+}: {
+  vm: VariazioniDetailSheetViewModel
+  commentAnchorRef?: React.RefObject<HTMLDivElement | null>
+}) {
   const {
     card,
     open,
@@ -46,6 +54,7 @@ export function VariazioniDetailSheetContent({ vm }: { vm: VariazioniDetailSheet
     <Form {...form}>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
+          ref={commentAnchorRef}
           side="right"
           className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
         >
