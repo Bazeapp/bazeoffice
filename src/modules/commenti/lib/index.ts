@@ -13,5 +13,6 @@ export {
 } from "./consts"
 export { isEntityType, tableForEntityType } from "./entity-map"
 export { compareAncestorSections } from "./section-order"
+export { resolveCommentStack } from "./resolve-comment-stack"
 export { normalizeRoleTokens, resolveRolePill, rolePillLabelForToken } from "./role-pill"
 export { commentRowSchema, type CommentRow } from "./schemas"
