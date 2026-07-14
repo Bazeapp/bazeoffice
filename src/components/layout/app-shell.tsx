@@ -37,6 +37,26 @@ function syncBrowserUrl(route: AppRoute, mode: "push" | "replace" = "push") {
   window.history.pushState({}, "", targetPath)
 }
 
+type AppShellMainProps = React.ComponentProps<typeof AppPageContent>
+
+function AppShellMain(props: AppShellMainProps) {
+  return (
+    <main className="scrollbar-hidden flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <React.Suspense
+          fallback={
+            <div className="flex min-h-60 flex-1 items-center justify-center rounded-2xl border border-border/60 bg-background/80 px-6 py-10 text-sm text-muted-foreground shadow-sm">
+              Caricamento pagina...
+            </div>
+          }
+        >
+          <AppPageContent {...props} />
+        </React.Suspense>
+      </div>
+    </main>
+  )
+}
+
 export function AppShell({ user, onLogout }: AppShellProps) {
   const initialRoute = React.useMemo(() => {
     if (typeof window === "undefined") return DEFAULT_ROUTE
@@ -364,27 +384,15 @@ export function AppShell({ user, onLogout }: AppShellProps) {
       />
       <SidebarInset className="h-svh min-h-0 overflow-hidden">
         <CommentAppProvider user={user}>
-          <main className="scrollbar-hidden flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <React.Suspense
-                fallback={
-                  <div className="flex min-h-60 flex-1 items-center justify-center rounded-2xl border border-border/60 bg-background/80 px-6 py-10 text-sm text-muted-foreground shadow-sm">
-                    Caricamento pagina...
-                  </div>
-                }
-              >
-                <AppPageContent
-                  route={route}
-                  onOpenAnagraficheTab={handleOpenAnagraficheTab}
-                  onOpenRicercaDetail={handleOpenRicercaDetail}
-                  onBackFromRicercaDetail={handleBackFromRicercaDetail}
-                  onOpenRelatedRicerca={handleOpenRelatedRicerca}
-                  onFocusRicercaSelection={handleFocusRicercaSelection}
-                  onSelectRapporto={handleSelectRapporto}
-                />
-              </React.Suspense>
-            </div>
-          </main>
+          <AppShellMain
+            route={route}
+            onOpenAnagraficheTab={handleOpenAnagraficheTab}
+            onOpenRicercaDetail={handleOpenRicercaDetail}
+            onBackFromRicercaDetail={handleBackFromRicercaDetail}
+            onOpenRelatedRicerca={handleOpenRelatedRicerca}
+            onFocusRicercaSelection={handleFocusRicercaSelection}
+            onSelectRapporto={handleSelectRapporto}
+          />
           <CommentPanelHost />
         </CommentAppProvider>
       </SidebarInset>

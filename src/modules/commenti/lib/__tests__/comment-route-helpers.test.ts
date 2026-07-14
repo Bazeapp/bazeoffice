@@ -8,6 +8,7 @@ import {
   rapportoCommentRow,
 } from "../comment-route-helpers"
 import type { EntityRef } from "../../types/entity"
+import type { RapportoLavorativoRecord } from "@/types"
 
 const IDS = {
   famiglia: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -21,6 +22,42 @@ const IDS = {
 
 function focus(entityType: EntityRef["entityType"], entityId: string): EntityRef {
   return { entityType, entityId }
+}
+
+function minimalRapportoRecord(
+  overrides: Pick<
+    RapportoLavorativoRecord,
+    "id" | "famiglia_id" | "lavoratore_id" | "processi_matching_id"
+  > &
+    Partial<RapportoLavorativoRecord>,
+): RapportoLavorativoRecord {
+  return {
+    id_rapporto: null,
+    accordo_di_lavoro_allegati: null,
+    codice_datore_webcolf: null,
+    codice_dipendente_webcolf: null,
+    cognome_nome_datore_proper: null,
+    creata: null,
+    data_inizio_rapporto: null,
+    dichiarazione_ospitalita_allegati: null,
+    distribuzione_ore_settimana: null,
+    fine_rapporto_lavorativo_id: null,
+    nome_lavoratore_per_url: null,
+    ore_a_settimana: null,
+    paga_mensile_lorda: null,
+    paga_oraria_lorda: null,
+    assunzione_datore_id: null,
+    assunzione_lavoratore_id: null,
+    processo_res: null,
+    prova_data_checkin: null,
+    prova_feedback_famiglia: null,
+    prova_feedback_lavoratore: null,
+    prova_note_cs_famiglia: null,
+    prova_note_cs_lavoratore: null,
+    prova_priorita_famiglia: null,
+    prova_ramo_d2: null,
+    ...overrides,
+  } as RapportoLavorativoRecord
 }
 
 function entitySectionKinds(result: ReturnType<typeof resolveCommentStack>) {
@@ -53,36 +90,16 @@ describe("comment-route-helpers", () => {
   })
 
   it("builds rapporto rows with nested rapporto chain", () => {
-    const row = rapportoCommentRow(IDS.rapporto, {
-      id: IDS.rapporto,
-      famiglia_id: IDS.famiglia,
-      lavoratore_id: IDS.lavoratore,
-      processi_matching_id: IDS.ricerca,
-      id_rapporto: "RAP-001",
-      accordo_di_lavoro_allegati: null,
-      codice_datore_webcolf: null,
-      codice_dipendente_webcolf: null,
-      cognome_nome_datore_proper: null,
-      creata: null,
-      data_inizio_rapporto: null,
-      dichiarazione_ospitalita_allegati: null,
-      distribuzione_ore_settimana: null,
-      fine_rapporto_lavorativo_id: null,
-      nome_lavoratore_per_url: null,
-      ore_a_settimana: null,
-      paga_mensile_lorda: null,
-      paga_oraria_lorda: null,
-      assunzione_datore_id: null,
-      assunzione_lavoratore_id: null,
-      processo_res: null,
-      prova_data_checkin: null,
-      prova_feedback_famiglia: null,
-      prova_feedback_lavoratore: null,
-      prova_note_cs_famiglia: null,
-      prova_note_cs_lavoratore: null,
-      prova_priorita_famiglia: null,
-      prova_ramo_d2: null,
-    })
+    const row = rapportoCommentRow(
+      IDS.rapporto,
+      minimalRapportoRecord({
+        id: IDS.rapporto,
+        famiglia_id: IDS.famiglia,
+        lavoratore_id: IDS.lavoratore,
+        processi_matching_id: IDS.ricerca,
+        id_rapporto: "RAP-001",
+      }),
+    )
 
     const stack = resolveCommentStack({
       focus: focus("rapporto", IDS.rapporto),
@@ -154,36 +171,12 @@ describe("comment-route-helpers", () => {
       },
       lavoratoreAssunzione: null,
       richiestaAttivazione: null,
-      rapporto: {
+      rapporto: minimalRapportoRecord({
         id: IDS.rapporto,
         famiglia_id: IDS.famiglia,
         lavoratore_id: IDS.lavoratore,
         processi_matching_id: IDS.ricerca,
-        id_rapporto: null,
-        accordo_di_lavoro_allegati: null,
-        codice_datore_webcolf: null,
-        codice_dipendente_webcolf: null,
-        cognome_nome_datore_proper: null,
-        creata: null,
-        data_inizio_rapporto: null,
-        dichiarazione_ospitalita_allegati: null,
-        distribuzione_ore_settimana: null,
-        fine_rapporto_lavorativo_id: null,
-        nome_lavoratore_per_url: null,
-        ore_a_settimana: null,
-        paga_mensile_lorda: null,
-        paga_oraria_lorda: null,
-        assunzione_datore_id: null,
-        assunzione_lavoratore_id: null,
-        processo_res: null,
-        prova_data_checkin: null,
-        prova_feedback_famiglia: null,
-        prova_feedback_lavoratore: null,
-        prova_note_cs_famiglia: null,
-        prova_note_cs_lavoratore: null,
-        prova_priorita_famiglia: null,
-        prova_ramo_d2: null,
-      },
+      }),
       lavoratore: null,
       famiglia: null,
       famigliaId: IDS.famiglia,
@@ -208,36 +201,12 @@ describe("comment-route-helpers", () => {
         id: IDS.chiusura,
         creato_il: null,
       } as never,
-      rapporto: {
+      rapporto: minimalRapportoRecord({
         id: IDS.rapporto,
         famiglia_id: IDS.famiglia,
         lavoratore_id: IDS.lavoratore,
         processi_matching_id: IDS.ricerca,
-        id_rapporto: null,
-        accordo_di_lavoro_allegati: null,
-        codice_datore_webcolf: null,
-        codice_dipendente_webcolf: null,
-        cognome_nome_datore_proper: null,
-        creata: null,
-        data_inizio_rapporto: null,
-        dichiarazione_ospitalita_allegati: null,
-        distribuzione_ore_settimana: null,
-        fine_rapporto_lavorativo_id: null,
-        nome_lavoratore_per_url: null,
-        ore_a_settimana: null,
-        paga_mensile_lorda: null,
-        paga_oraria_lorda: null,
-        assunzione_datore_id: null,
-        assunzione_lavoratore_id: null,
-        processo_res: null,
-        prova_data_checkin: null,
-        prova_feedback_famiglia: null,
-        prova_feedback_lavoratore: null,
-        prova_note_cs_famiglia: null,
-        prova_note_cs_lavoratore: null,
-        prova_priorita_famiglia: null,
-        prova_ramo_d2: null,
-      },
+      }),
       nomeCompleto: "Mario Verdi",
       email: "",
       motivazione: null,
