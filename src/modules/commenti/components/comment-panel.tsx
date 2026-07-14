@@ -67,7 +67,7 @@ export function CommentPanel({
         type="button"
         data-testid="comments-pill"
         className={cn(
-          "fixed right-4 bottom-4 z-60 flex items-center gap-2 rounded-full",
+          "fixed right-4 bottom-4 z-100 flex items-center gap-2 rounded-full",
           "bg-[#1a1f2e] px-4.5 py-3 text-[15px] font-semibold text-white",
           "shadow-[0_10px_28px_rgba(15,23,42,0.32)] transition-colors",
           "cursor-pointer hover:bg-[#111827]",

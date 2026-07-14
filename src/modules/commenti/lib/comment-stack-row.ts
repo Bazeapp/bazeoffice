@@ -2,11 +2,12 @@ import { ENTITY_SECTION_META } from "./consts"
 import type { EntityRef, EntityType } from "../types/entity"
 import { entityRefKey } from "./entity-ref"
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const ENTITY_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/** Accepts any canonical UUID shape (incl. E2E seed ids with version 0000). */
 export function isUuid(value: unknown): value is string {
-  return typeof value === "string" && UUID_PATTERN.test(value)
+  return typeof value === "string" && ENTITY_ID_PATTERN.test(value)
 }
 
 export function readObject(
@@ -83,6 +84,13 @@ export function resolveDisplayName(
       readStringId(row, ["processo_matching_id", "processi_matching_id", "id_processo_matching"])
         ? row
         : null)
+
+    const famigliaRow =
+      readObject(row, "famiglia") ??
+      (processRow ? readObject(processRow, "famiglia") : null)
+    const famigliaName = famigliaRow ? readPersonName(famigliaRow) : null
+    if (famigliaName) return famigliaName
+
     const title =
       (typeof processRow?.titolo_annuncio === "string" && processRow.titolo_annuncio.trim()) ||
       (typeof processRow?.titolo === "string" && processRow.titolo.trim()) ||

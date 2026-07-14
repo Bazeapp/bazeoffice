@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
+import { getSectionSubtitle } from "../lib/comment-display"
 import { ENTITY_SECTION_META } from "../lib/consts"
 import { entityRefKey } from "../lib/entity-ref"
 import type { CommentSection } from "../types/section"
@@ -30,11 +31,11 @@ function metaForTarget(target: EntityRef, sections: CommentSection[]) {
     return {
       icon: section.icon,
       typeLabel: section.typeLabel,
-      displayName: section.displayName,
+      subtitle: getSectionSubtitle(section.displayName, section.typeLabel),
     }
   }
   const meta = ENTITY_SECTION_META[target.entityType]
-  return { icon: meta.icon, typeLabel: meta.typeLabel, displayName: "" }
+  return { icon: meta.icon, typeLabel: meta.typeLabel, subtitle: null }
 }
 
 export function CommentTargetChip({
@@ -63,12 +64,16 @@ export function CommentTargetChip({
             </span>
             <span className="min-w-0 flex-1 truncate text-left">
               {activeMeta.typeLabel}
-              {activeMeta.displayName ? ` · ${activeMeta.displayName}` : null}
+              {activeMeta.subtitle ? ` · ${activeMeta.subtitle}` : null}
             </span>
             <ChevronDownIcon className="size-3.5 shrink-0" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-90 max-w-[calc(100vw-3rem)]">
+        <DropdownMenuContent
+          align="start"
+          side="top"
+          className="z-[70] w-90 max-w-[calc(100vw-3rem)]"
+        >
           {options.map((option) => {
             const meta = metaForTarget(option, sections)
             const isActive = entityRefKey(option) === entityRefKey(target)
@@ -76,21 +81,25 @@ export function CommentTargetChip({
               <DropdownMenuItem
                 key={entityRefKey(option)}
                 data-testid={`comments-target-option-${option.entityType}`}
-                className={cn("gap-2", isActive ? "bg-[#EFF6FF]" : null)}
+                className={cn( isActive ? "bg-[#EFF6FF]" : null)}
                 onSelect={() => onTargetChange(option)}
               >
+                <span className="flex items-center gap-2">
                 <span aria-hidden className="w-4.5 shrink-0 text-center">
                   {meta.icon}
                 </span>
                 <span className="shrink-0 text-[13px] font-semibold">
                   {meta.typeLabel}
                 </span>
-                <span className="truncate text-[11.5px] text-[#9ca3af]">
-                  {meta.displayName}
-                </span>
+                {meta.subtitle ? (
+                  <span className="truncate text-[11.5px] text-[#9ca3af]">
+                    {meta.subtitle}
+                  </span>
+                ) : null}
                 {isActive ? (
                   <CheckIcon className="ml-auto size-3.5 shrink-0 text-[#2563EB]" />
                 ) : null}
+                </span>
               </DropdownMenuItem>
             )
           })}

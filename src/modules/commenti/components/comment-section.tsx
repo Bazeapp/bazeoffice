@@ -2,7 +2,11 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-import { getEmptySectionCopy, sortSectionComments } from "../lib/comment-display"
+import {
+  getEmptySectionCopy,
+  getSectionSubtitle,
+  sortSectionComments,
+} from "../lib/comment-display"
 import type { Comment } from "../types/comment"
 import type { CommentSection } from "../types/section"
 import { CommentThread } from "./comment-thread"
@@ -107,6 +111,7 @@ export function CommentSectionsAccordion({
     <div>
       {sections.map((section) => {
         const isActive = section.id === activeSectionId
+        const subtitle = getSectionSubtitle(section.displayName, section.typeLabel)
         return (
           <section key={section.id} className="border-b border-[#eef0f3]">
             <div className="sticky top-0 z-2 flex items-center gap-2 border-b border-[#eef0f3] bg-[#F8F9FA]/95 px-3.5 py-2.5 backdrop-blur-[6px]">
@@ -126,9 +131,11 @@ export function CommentSectionsAccordion({
                 <span className="shrink-0 text-[11px] font-bold tracking-[0.04em] text-[#374151] uppercase">
                   {section.typeLabel}
                 </span>
-                <span className="truncate text-[11.5px] font-medium text-[#9ca3af]">
-                  {section.displayName}
-                </span>
+                {subtitle ? (
+                  <span className="truncate text-[11.5px] font-medium text-[#9ca3af]">
+                    {subtitle}
+                  </span>
+                ) : null}
               </button>
               {section.kind === "descendants" ? null : (
                 <button

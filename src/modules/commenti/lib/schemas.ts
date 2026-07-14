@@ -8,6 +8,12 @@ import {
 } from "./consts"
 import type { EntityType } from "../types/entity"
 
+/** Accepts seed/E2E ids that are uuid-shaped but not RFC 4122 (e.g. ...000a11). */
+const UUID_LIKE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+const uuidLikeString = z.string().regex(UUID_LIKE, "Invalid UUID")
+
 export type CommentRow = {
   id: string
   entity_type: EntityType
@@ -31,11 +37,11 @@ export type CommentRow = {
 
 export const commentRowSchema: z.ZodType<CommentRow> = z.lazy(() =>
   z.object({
-    id: z.string().uuid(),
+    id: uuidLikeString,
     entity_type: z.enum(ENTITY_TYPES),
-    entity_id: z.string().uuid(),
-    thread_root_id: z.string().uuid().nullable(),
-    author_id: z.string().uuid(),
+    entity_id: uuidLikeString,
+    thread_root_id: uuidLikeString.nullable(),
+    author_id: uuidLikeString,
     author_nome: z.string().nullable().optional(),
     author_cognome: z.string().nullable().optional(),
     author_ruolo: z.array(z.string()).nullable().optional(),

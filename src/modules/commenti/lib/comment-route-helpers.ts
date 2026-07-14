@@ -18,6 +18,19 @@ export function buildDisplayNames(
   )
 }
 
+export function formatRicercaDisplayName(options: {
+  nomeFamiglia?: string | null
+  titoloAnnuncio?: string | null
+  numeroRicercaAttivata?: string | null
+}): string {
+  return (
+    options.nomeFamiglia?.trim() ||
+    options.titoloAnnuncio?.trim() ||
+    options.numeroRicercaAttivata?.trim() ||
+    "Ricerca"
+  )
+}
+
 export function crmProcessoCommentRow(card: {
   id: string
   famigliaId: string
@@ -35,11 +48,16 @@ export function crmProcessoDisplayNames(card: {
   famigliaId: string
   nomeFamiglia?: string | null
   numeroRicercaAttivata?: string | null
+  titoloAnnuncio?: string | null
 }): Record<string, string> {
   return buildDisplayNames([
     {
       ref: { entityType: "ricerca", entityId: card.id },
-      name: card.numeroRicercaAttivata?.trim() || card.nomeFamiglia?.trim() || "Ricerca",
+      name: formatRicercaDisplayName({
+        nomeFamiglia: card.nomeFamiglia,
+        titoloAnnuncio: card.titoloAnnuncio,
+        numeroRicercaAttivata: card.numeroRicercaAttivata,
+      }),
     },
     {
       ref: { entityType: "famiglia", entityId: card.famigliaId },
@@ -130,7 +148,10 @@ export function rapportoDisplayNames(
   if (ricercaId) {
     entries.push({
       ref: { entityType: "ricerca", entityId: ricercaId },
-      name: options.ricercaLabel?.trim() || "Ricerca",
+      name: formatRicercaDisplayName({
+        nomeFamiglia: options.famigliaName,
+        numeroRicercaAttivata: options.ricercaLabel,
+      }),
     })
   }
 
@@ -184,7 +205,10 @@ export function assunzioneDisplayNames(card: AssunzioniBoardCardData): Record<st
   if (card.processId) {
     entries.push({
       ref: { entityType: "ricerca", entityId: card.processId },
-      name: card.titoloAnnuncio?.trim() || card.nomeFamiglia?.trim() || "Ricerca",
+      name: formatRicercaDisplayName({
+        nomeFamiglia: card.nomeFamiglia,
+        titoloAnnuncio: card.titoloAnnuncio,
+      }),
     })
   }
 
@@ -300,7 +324,10 @@ export function candidaturaDisplayNames(input: {
 
   entries.push({
     ref: { entityType: "ricerca", entityId: input.processId },
-    name: input.ricercaLabel?.trim() || "Ricerca",
+    name: formatRicercaDisplayName({
+      nomeFamiglia: input.famigliaName,
+      numeroRicercaAttivata: input.ricercaLabel,
+    }),
   })
 
   if (input.famigliaId) {

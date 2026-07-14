@@ -5,6 +5,8 @@ import {
   assunzioneCommentRow,
   candidaturaCommentRow,
   chiusuraCommentRow,
+  crmProcessoDisplayNames,
+  formatRicercaDisplayName,
   rapportoCommentRow,
 } from "../comment-route-helpers"
 import type { EntityRef } from "../../types/entity"
@@ -67,6 +69,24 @@ function entitySectionKinds(result: ReturnType<typeof resolveCommentStack>) {
 }
 
 describe("comment-route-helpers", () => {
+  it("prefers family name over ricerca number for display labels", () => {
+    expect(
+      formatRicercaDisplayName({
+        nomeFamiglia: "Famiglia Rossi",
+        numeroRicercaAttivata: "1",
+      }),
+    ).toBe("Famiglia Rossi")
+
+    const names = crmProcessoDisplayNames({
+      id: IDS.ricerca,
+      famigliaId: IDS.famiglia,
+      nomeFamiglia: "Famiglia Rossi",
+      numeroRicercaAttivata: "1",
+    })
+
+    expect(names[`ricerca:${IDS.ricerca}`]).toBe("Famiglia Rossi")
+  })
+
   it("builds candidatura rows compatible with resolveCommentStack", () => {
     const row = candidaturaCommentRow({
       selectionId: IDS.candidatura,

@@ -93,6 +93,18 @@ export function sortSectionComments(
   })
 }
 
+/** Secondary label under the section type — hides bare numbers that look like indices. */
+export function getSectionSubtitle(
+  displayName: string,
+  typeLabel: string,
+): string | null {
+  const trimmed = displayName.trim()
+  if (!trimmed) return null
+  if (trimmed.toUpperCase() === typeLabel.toUpperCase()) return null
+  if (/^\d+$/.test(trimmed)) return null
+  return trimmed
+}
+
 export function getTargetDisplayName(
   target: EntityRef,
   sections: CommentSection[],

@@ -67,6 +67,39 @@ describe("resolveCommentStack", () => {
     )
   })
 
+  it("resolves candidatura ancestors for E2E seed UUIDs (version 0000)", () => {
+    const e2eIds = {
+      candidatura: "00000000-0000-0000-0000-00000000f901",
+      ricerca: "00000000-0000-0000-0000-00000000b00c",
+      lavoratore: "00000000-0000-0000-0000-00000000c003",
+      famiglia: "00000000-0000-0000-0000-00000000f001",
+    } as const
+
+    const result = resolveCommentStack({
+      focus: focus("candidatura", e2eIds.candidatura),
+      row: {
+        id: e2eIds.candidatura,
+        lavoratore_id: e2eIds.lavoratore,
+        processo_matching_id: e2eIds.ricerca,
+        processi_matching_id: e2eIds.ricerca,
+        famiglia_id: e2eIds.famiglia,
+      },
+      displayNames: {
+        [`candidatura:${e2eIds.candidatura}`]: "E2E Lavoratore Verdi",
+        [`lavoratore:${e2eIds.lavoratore}`]: "E2E Lavoratore Verdi",
+        [`ricerca:${e2eIds.ricerca}`]: "E2E Famiglia Rossi",
+        [`famiglia:${e2eIds.famiglia}`]: "E2E Famiglia Rossi",
+      },
+    })
+
+    expect(entitySectionKinds(result)).toEqual([
+      "candidatura",
+      "lavoratore",
+      "ricerca",
+      "famiglia",
+    ])
+  })
+
   it("builds ricerca focus with famiglia only (no candidatura)", () => {
     const result = resolveCommentStack({
       focus: focus("ricerca", IDS.ricerca),

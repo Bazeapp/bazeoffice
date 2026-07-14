@@ -133,7 +133,7 @@ export function RicercaWorkersPipelineView({
           famigliaId: card.famigliaId,
           lavoratoreId: overlaySelection!.worker.id,
           workerName: overlaySelection!.worker.nomeCompleto,
-          ricercaLabel: card.numeroRicercaAttivata ?? card.nomeFamiglia,
+          ricercaLabel: card.nomeFamiglia ?? card.numeroRicercaAttivata,
           famigliaName: card.nomeFamiglia,
         })
       : {},
@@ -145,7 +145,7 @@ export function RicercaWorkersPipelineView({
           famigliaId: card.famigliaId,
           lavoratoreId: overlaySelection!.worker.id,
           workerName: overlaySelection!.worker.nomeCompleto,
-          ricercaLabel: card.numeroRicercaAttivata ?? card.nomeFamiglia,
+          ricercaLabel: card.nomeFamiglia ?? card.numeroRicercaAttivata,
           famigliaName: card.nomeFamiglia,
         })
       : undefined,
