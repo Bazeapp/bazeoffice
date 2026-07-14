@@ -5,6 +5,13 @@ import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { cn } from "@/lib/utils"
 
 import { useMentionAutocomplete } from "../hooks/use-mention-autocomplete"
+import {
+  deleteMentionChipBeforeCaret,
+  getMarkupCaretOffset,
+  renderComposerMarkup,
+  serializeComposerMarkup,
+  setMarkupCaretOffset,
+} from "../lib/mention-composer-dom"
 import { MentionAutocomplete } from "./mention-autocomplete"
 
 type CommentComposerProps = {
@@ -15,7 +22,7 @@ type CommentComposerProps = {
   involvedOperatorIds?: string[]
   onCancelReply?: () => void
   onSubmit: (body: string) => Promise<void> | void
-  inputRef?: React.RefObject<HTMLTextAreaElement | null>
+  inputRef?: React.RefObject<HTMLDivElement | null>
   onFocusChange?: (focused: boolean) => void
 }
 
@@ -31,37 +38,87 @@ export function CommentComposer({
   onFocusChange,
 }: CommentComposerProps) {
   const [draft, setDraft] = React.useState("")
+  const localEditorRef = React.useRef<HTMLDivElement>(null)
+  const editorRef = inputRef ?? localEditorRef
+  const isSyncingEditorRef = React.useRef(false)
+
   const { options: operators, loading: operatorsLoading } = useOperatoriOptions({
     activeOnly: true,
   })
 
+  const readCursor = React.useCallback(() => {
+    const editor = editorRef.current
+    if (!editor) return 0
+    return getMarkupCaretOffset(editor)
+  }, [editorRef])
+
+  const syncEditorFromMarkup = React.useCallback(
+    (markup: string, cursor?: number) => {
+      const editor = editorRef.current
+      if (!editor) return
+
+      isSyncingEditorRef.current = true
+      renderComposerMarkup(editor, markup)
+      if (cursor !== undefined) {
+        setMarkupCaretOffset(editor, cursor)
+      }
+      isSyncingEditorRef.current = false
+    },
+    [editorRef],
+  )
+
   const mention = useMentionAutocomplete({
     value: draft,
     onChange: setDraft,
-    textareaRef: inputRef,
+    editorRef,
+    getCursor: readCursor,
     operators,
     involvedOperatorIds,
   })
+
+  React.useLayoutEffect(() => {
+    const editor = editorRef.current
+    if (!editor || isSyncingEditorRef.current) return
+
+    const renderedMarkup = serializeComposerMarkup(editor)
+    if (renderedMarkup !== draft) {
+      syncEditorFromMarkup(draft)
+    }
+  }, [draft, editorRef, syncEditorFromMarkup])
+
+  const commitEditorMarkup = React.useCallback(() => {
+    const editor = editorRef.current
+    if (!editor) return
+
+    const nextMarkup = serializeComposerMarkup(editor)
+    if (nextMarkup !== draft) {
+      setDraft(nextMarkup)
+    }
+    mention.syncCursor()
+  }, [draft, editorRef, mention])
 
   const handleSubmit = React.useCallback(async () => {
     const body = draft.trim()
     if (!body || disabled || isSubmitting) return
     await onSubmit(body)
     setDraft("")
+    syncEditorFromMarkup("")
     onCancelReply?.()
-  }, [disabled, draft, isSubmitting, onCancelReply, onSubmit])
+  }, [disabled, draft, isSubmitting, onCancelReply, onSubmit, syncEditorFromMarkup])
+
+  const isInputDisabled = disabled || isSubmitting || operatorsLoading
 
   return (
     <div className="mt-2">
       {replyToLabel ? (
-        <div className="mb-1.5 flex items-center justify-between gap-2 text-[11.5px] text-[#6b7280]">
+        <div className="mb-1.5 flex items-center justify-between gap-2 text-2xs text-foreground-subtle">
           <span data-testid="comments-reply-banner">
             ↩ Risposta a <span className="font-semibold">{replyToLabel}</span>
           </span>
           {onCancelReply ? (
             <button
               type="button"
-              className="text-[#9ca3af] underline-offset-2 hover:underline"
+              className="text-foreground-faint underline-offset-2 hover:underline"
               onClick={onCancelReply}
             >
               Annulla
@@ -78,30 +135,49 @@ export function CommentComposer({
             className="absolute bottom-full left-0 z-20 mb-1.5 w-full"
           />
         ) : null}
-        <textarea
-          ref={inputRef}
+        <div
+          ref={editorRef}
           data-testid="comments-composer-input"
-          value={draft}
-          disabled={disabled || isSubmitting || operatorsLoading}
-          placeholder={placeholder}
-          rows={1}
+          data-markup={draft}
+          contentEditable={isInputDisabled ? false : true}
+          role="textbox"
+          aria-multiline="true"
+          aria-label={placeholder}
+          data-placeholder={placeholder}
+          suppressContentEditableWarning
           className={cn(
-            "min-h-9.5 flex-1 resize-none rounded-[9px] border border-[#e0e3e9] bg-white",
-            "px-3 py-2 text-[13px] outline-none placeholder:text-[#9ca3af]",
-            "focus:border-[#2563EB] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.12)]",
+            "min-h-9.5 flex-1 resize-none rounded-md border border-border bg-surface ring-0 transition-all ring-accent/20",
+            "px-3 py-2 text-sm outline-none",
+            "focus:border-accent focus:ring-2",
             "disabled:cursor-not-allowed disabled:opacity-60",
+            "whitespace-pre-wrap break-words",
+            "empty:before:pointer-events-none empty:before:text-foreground-faint empty:before:content-[attr(data-placeholder)]",
+            isInputDisabled && "cursor-not-allowed opacity-60",
           )}
           onFocus={() => onFocusChange?.(true)}
           onBlur={() => onFocusChange?.(false)}
+          onInput={commitEditorMarkup}
           onClick={mention.syncCursor}
           onKeyUp={mention.syncCursor}
-          onSelect={mention.syncCursor}
-          onChange={(event) => {
-            setDraft(event.target.value)
-            mention.syncCursor(event)
+          onMouseUp={mention.syncCursor}
+          onPaste={(event) => {
+            event.preventDefault()
+            const text = event.clipboardData.getData("text/plain")
+            document.execCommand("insertText", false, text)
+            commitEditorMarkup()
           }}
           onKeyDown={(event) => {
+            if (event.key === "Backspace") {
+              const editor = editorRef.current
+              if (editor && deleteMentionChipBeforeCaret(editor)) {
+                event.preventDefault()
+                commitEditorMarkup()
+                return
+              }
+            }
+
             if (mention.handleKeyDown(event)) return
+
             if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
               event.preventDefault()
               void handleSubmit()
@@ -113,8 +189,8 @@ export function CommentComposer({
           data-testid="comments-composer-submit"
           aria-label="Invia commento"
           className={cn(
-            "flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-[9px]",
-            "bg-[#2563EB] text-white transition-colors hover:bg-[#1D4ED8]",
+            "flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-md",
+            "bg-accent text-foreground-on-accent transition-colors hover:bg-accent-hover",
             "disabled:cursor-not-allowed disabled:opacity-50",
           )}
           disabled={disabled || isSubmitting || !draft.trim()}

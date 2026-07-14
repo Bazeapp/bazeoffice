@@ -27,6 +27,10 @@ vi.mock("../../queries/fetch-section-comments", () => ({
   fetchCommentSectionPage: (...args: unknown[]) => mockFetchCommentSectionPage(...args),
 }))
 
+vi.mock("../../queries/fetch-section-comment-count", () => ({
+  fetchCommentSectionCount: vi.fn().mockResolvedValue(1),
+}))
+
 vi.mock("../../mutations/create-comment", () => ({
   createComment: vi.fn(),
 }))
@@ -125,14 +129,14 @@ describe("Comment chip-section sync", () => {
 
     const lavoratoreSectionId = `lavoratore:${IDS.lavoratore}`
     fireEvent.click(
-      await screen.findByTestId(`comments-section-commenta-${lavoratoreSectionId}`),
+      await screen.findByTestId(`comments-section-toggle-${lavoratoreSectionId}`),
     )
 
     const chip = await screen.findByTestId("comments-target-chip")
     expect(chip).toHaveTextContent(/LAVORATORE · Luigi Bianchi/)
 
     const input = screen.getByTestId("comments-composer-input")
-    expect(input).toHaveAttribute("placeholder", "Scrivi un commento su Luigi Bianchi…")
+    expect(input).toHaveAttribute("data-placeholder", "Scrivi un commento su Luigi Bianchi…")
 
     await waitFor(() => {
       expect(mockFetchCommentSectionPage).toHaveBeenCalledWith(

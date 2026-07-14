@@ -30,9 +30,7 @@ describe("getSectionSubtitle", () => {
 
   it("keeps meaningful names", () => {
     expect(getSectionSubtitle("Mario Rossi", "LAVORATORE")).toBe("Mario Rossi")
-    expect(getSectionSubtitle("↗ Da entità collegate", "DA ENTITÀ COLLEGATE")).toBe(
-      "↗ Da entità collegate",
-    )
+    expect(getSectionSubtitle("", "COLLEGATE")).toBeNull()
   })
 })
 

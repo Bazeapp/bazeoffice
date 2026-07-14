@@ -9,7 +9,7 @@ export function CommentBody({ body }: CommentBodyProps) {
 
   return (
     <p
-      className="text-[13px] leading-normal whitespace-pre-wrap text-[#28303f]"
+      className="text-sm leading-normal whitespace-pre-wrap text-foreground-strong"
       data-testid="comments-body"
     >
       {parts.map((part, index) => {
@@ -17,7 +17,7 @@ export function CommentBody({ body }: CommentBodyProps) {
           return (
             <span
               key={`${part.userId}-${index}`}
-              className="font-medium text-blue-600"
+              className="font-medium text-accent-ink"
               data-testid="comments-mention-highlight"
             >
               @{part.label}

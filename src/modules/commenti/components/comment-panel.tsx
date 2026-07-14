@@ -1,5 +1,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
+import { DismissableLayerBranch } from "@radix-ui/react-dismissable-layer"
+import { FocusScope } from "@radix-ui/react-focus-scope"
 import { ChevronDownIcon, MessageSquareIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -26,60 +28,72 @@ export function CommentPanel({
   onClose,
   children,
 }: CommentPanelProps) {
-  return createPortal(
-    <>
-      {expanded ? (
-        <div
-          data-testid="comments-panel"
-          className={cn(
-            "fixed right-4 bottom-18 z-60 flex flex-col overflow-hidden",
-            "h-[min(70vh,660px)] w-[min(440px,calc(100vw-2rem))]",
-            "rounded-[14px] border border-[#e7e9ee] bg-white",
-            "shadow-[0_20px_50px_rgba(15,23,42,0.20)]",
-            "text-[13.5px] text-[#1a1f2e]",
-          )}
-          role="dialog"
-          aria-label="Commenti"
-        >
-          <header className="flex shrink-0 items-center gap-2 border-b border-[#eef0f3] bg-white px-4 py-3.5">
-            <span aria-hidden className="text-[15px] leading-none">
-              💬
-            </span>
-            <h2 className="text-[15px] font-bold">
-              Commenti <span className="text-[#c4c9d2]">·</span>{" "}
-              <span className="text-[#6b7280]">{countLoading ? "…" : count}</span>
-            </h2>
-            <button
-              type="button"
-              data-testid="comments-panel-close"
-              className="ml-auto flex size-6.5 items-center justify-center rounded-[7px] text-[#9ca3af] transition-colors hover:bg-[#f3f4f6]"
-              onClick={onClose}
-              aria-label="Chiudi pannello commenti"
-            >
-              <ChevronDownIcon className="size-4" />
-            </button>
-          </header>
-          {children}
-        </div>
-      ) : null}
+  const stopScrollLockPropagation = React.useCallback(
+    (event: React.WheelEvent | React.TouchEvent) => {
+      event.stopPropagation()
+    },
+    [],
+  )
 
-      <button
-        type="button"
-        data-testid="comments-pill"
+  return createPortal(
+  <DismissableLayerBranch
+    className="pointer-events-none fixed inset-0 isolate z-100"
+    data-testid="comments-panel-root"
+  >
+    {expanded ? (
+      <FocusScope
+        trapped={false}
+        data-testid="comments-panel"
+        onWheel={stopScrollLockPropagation}
+        onTouchMove={stopScrollLockPropagation}
         className={cn(
-          "fixed right-4 bottom-4 z-100 flex items-center gap-2 rounded-full",
-          "bg-[#1a1f2e] px-4.5 py-3 text-[15px] font-semibold text-white",
-          "shadow-[0_10px_28px_rgba(15,23,42,0.32)] transition-colors",
-          "cursor-pointer hover:bg-[#111827]",
+          "pointer-events-auto fixed right-4 bottom-18 z-60 flex flex-col overflow-hidden",
+          "h-[min(70vh,660px)] w-[min(440px,calc(100vw-2rem))]",
+          "rounded-xl border border-border bg-surface shadow-xl",
+          "text-sm text-foreground-strong",
         )}
-        onClick={onToggleExpanded}
-        aria-expanded={expanded}
-        aria-label={expanded ? "Chiudi commenti" : "Apri commenti"}
+        role="dialog"
+        aria-label="Commenti"
       >
-        <MessageSquareIcon aria-hidden className="size-4" strokeWidth={2} />
-        <span>{countLoading ? "…" : count}</span>
-      </button>
-    </>,
+        <header className="flex shrink-0 items-center gap-2 border-b border-border-subtle bg-surface px-4 py-3.5">
+          <span aria-hidden className="text-lg leading-none">
+            💬
+          </span>
+          <h2 className="text-lg font-bold">
+            Commenti <span className="text-foreground-faint">·</span>{" "}
+            <span className="text-foreground-subtle">{countLoading ? "…" : count}</span>
+          </h2>
+          <button
+            type="button"
+            data-testid="comments-panel-close"
+            className="ml-auto flex size-6.5 items-center justify-center rounded-sm text-foreground-faint transition-colors hover:bg-surface-muted"
+            onClick={onClose}
+            aria-label="Chiudi pannello commenti"
+          >
+            <ChevronDownIcon className="size-4" />
+          </button>
+        </header>
+        {children}
+      </FocusScope>
+    ) : null}
+
+    <button
+      type="button"
+      data-testid="comments-pill"
+      className={cn(
+        "pointer-events-auto fixed right-4 bottom-4 z-100 flex items-center gap-2 rounded-full",
+        "bg-foreground-strong px-4.5 py-3 text-lg font-medium text-foreground-on-accent",
+        "shadow-lg transition-colors",
+        "cursor-pointer hover:bg-neutral-900",
+      )}
+      onClick={onToggleExpanded}
+      aria-expanded={expanded}
+      aria-label={expanded ? "Chiudi commenti" : "Apri commenti"}
+    >
+      <MessageSquareIcon aria-hidden className="size-4" strokeWidth={2} />
+      <span>{countLoading ? "…" : count}</span>
+    </button>
+  </DismissableLayerBranch>,
     document.body,
   )
 }

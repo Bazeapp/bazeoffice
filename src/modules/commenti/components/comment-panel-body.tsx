@@ -16,6 +16,7 @@ import type { EntityRef } from "../types/entity"
 import { CommentComposer } from "./comment-composer"
 import { CommentSectionPanel, CommentSectionsAccordion } from "./comment-section"
 import { CommentTargetChip } from "./comment-target-chip"
+import { useSectionCommentCounts } from "../hooks/use-section-comment-counts"
 
 type CommentPanelBodyProps = {
   pageFocus: EntityRef
@@ -33,14 +34,14 @@ function EmptyConversationHero() {
       className="flex flex-col items-center justify-center gap-3.5 px-8 py-14 text-center"
       data-testid="comments-empty-hero"
     >
-      <div className="flex size-13 items-center justify-center rounded-full bg-[#eef0f3]">
-        <MessageSquareIcon className="size-6 text-[#b6bcc6]" strokeWidth={1.8} />
+      <div className="flex size-13 items-center justify-center rounded-full bg-surface-muted">
+        <MessageSquareIcon className="size-6 text-foreground-faint" strokeWidth={1.8} />
       </div>
-      <p className="text-[15px] font-semibold text-[#4b5563]">
+      <p className="text-lg font-semibold text-foreground-subtle">
         Avvia una conversazione
       </p>
-      <p className="text-[13px] text-[#9ca3af]">
-        Usa <span className="font-semibold text-[#2563EB]">@</span> per menzionare
+      <p className="text-sm text-foreground-faint">
+        Usa <span className="font-semibold text-accent">@</span> per menzionare
         un collega
       </p>
     </div>
@@ -53,7 +54,7 @@ export function CommentPanelBody({
   totalCount,
   panelOptions,
 }: CommentPanelBodyProps) {
-  const composerRef = React.useRef<HTMLTextAreaElement>(null)
+  const composerRef = React.useRef<HTMLDivElement>(null)
   const listEndRef = React.useRef<HTMLDivElement>(null)
   const [selection, setSelection] = React.useState(() =>
     createInitialSelection(stack, pageFocus),
@@ -77,6 +78,9 @@ export function CommentPanelBody({
     activeSectionRef,
     targetEntityRef: selection.targetEntityRef,
   })
+
+  const { counts: sectionCounts, loading: sectionCountsLoading } =
+    useSectionCommentCounts(pageFocus, stack.sections)
 
   React.useEffect(() => {
     if (!panelState.sectionLoading && activeSectionRef) {
@@ -118,19 +122,6 @@ export function CommentPanelBody({
     setReplyTo(null)
   }
 
-  const handleCommenta = (section: (typeof stack.sections)[number]) => {
-    if (section.entityRef) {
-      setSelection({
-        activeSectionId: section.id,
-        targetEntityRef: section.entityRef,
-      })
-    } else {
-      setSelection((current) => ({ ...current, activeSectionId: section.id }))
-    }
-    setReplyTo(null)
-    window.requestAnimationFrame(() => composerRef.current?.focus())
-  }
-
   const handleSubmit = async (body: string) => {
     if (replyTo) {
       await panelState.submitReply(replyTo.rootId, body)
@@ -145,21 +136,22 @@ export function CommentPanelBody({
   return (
     <>
       <div
-        className="min-h-0 flex-1 overflow-y-auto bg-[#F8F9FA]"
+        className="min-h-0 flex-1 overflow-y-auto bg-background-subtle"
         data-testid="comments-panel-body"
       >
         {showEmptyHero ? <EmptyConversationHero /> : null}
         <CommentSectionsAccordion
           sections={stack.sections}
           activeSectionId={selection.activeSectionId}
+          sectionCounts={sectionCounts}
+          sectionCountsLoading={sectionCountsLoading}
           onSectionChange={handleSectionChange}
-          onCommenta={handleCommenta}
           renderSectionContent={(section) => {
             if (section.id !== selection.activeSectionId) return null
             if (section.kind === "descendants") {
               return (
                 <p
-                  className="px-4 pb-4 pl-10 text-[12.5px] text-[#b6bcc6]"
+                  className="px-4 pb-4 pl-10 text-xs text-foreground-faint"
                   data-testid="comments-empty-state"
                 >
                   I commenti dalle entità collegate saranno mostrati qui.
@@ -190,7 +182,7 @@ export function CommentPanelBody({
         />
       </div>
 
-      <div className="relative shrink-0 border-t border-[#eef0f3] bg-white px-4 pt-3 pb-3.5">
+      <div className="relative shrink-0 border-t border-border-subtle bg-surface px-4 pt-3 pb-3.5">
         <CommentTargetChip
           target={selection.targetEntityRef}
           options={stack.chipOptions}
@@ -210,11 +202,11 @@ export function CommentPanelBody({
         />
         {composerFocused && visibilityHint ? (
           <p
-            className="mt-2 text-[11px] text-[#9ca3af]"
+            className="mt-2 text-2xs text-foreground-faint"
             data-testid="comments-visibility-hint"
           >
             ↗ Visibile anche su{" "}
-            <span className="font-medium text-[#6b7280]">{visibilityHint}</span>
+            <span className="font-medium text-foreground-subtle">{visibilityHint}</span>
           </p>
         ) : null}
       </div>

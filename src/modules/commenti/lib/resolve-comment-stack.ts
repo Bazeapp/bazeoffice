@@ -155,9 +155,9 @@ function buildDescendantsSection(): CommentSection {
     id: DESCENDANTS_SECTION_ID,
     kind: "descendants",
     entityRef: null,
-    typeLabel: "DA ENTITÀ COLLEGATE",
-    displayName: "↗ Da entità collegate",
-    icon: "↗",
+    typeLabel: "COLLEGATE",
+    displayName: "",
+    icon: "",
     visibilityHint: null,
   }
 }

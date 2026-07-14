@@ -1,14 +1,17 @@
 import * as React from "react"
 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { cn } from "@/lib/utils"
 
-import {
-  getEmptySectionCopy,
-  getSectionSubtitle,
-  sortSectionComments,
-} from "../lib/comment-display"
+import { getEmptySectionCopy, sortSectionComments } from "../lib/comment-display"
 import type { Comment } from "../types/comment"
 import type { CommentSection } from "../types/section"
+import { CommentSectionIcon } from "./comment-section-icon"
 import { CommentThread } from "./comment-thread"
 
 type CommentSectionPanelProps = {
@@ -52,7 +55,7 @@ export function CommentSectionPanel({
           <button
             type="button"
             data-testid="comments-load-more"
-            className="text-xs font-semibold text-[#2563EB] hover:underline disabled:opacity-50"
+            className="text-xs font-semibold text-accent hover:underline disabled:opacity-50"
             disabled={isLoadingMore}
             onClick={onLoadMore}
           >
@@ -62,18 +65,16 @@ export function CommentSectionPanel({
       ) : null}
 
       {loading ? (
-        <p className="px-4 py-3 pl-10 text-[12.5px] text-[#9ca3af]">
-          Caricamento commenti…
-        </p>
+        <p className="px-3.5 py-3 text-xs text-foreground-faint">Caricamento commenti…</p>
       ) : sortedComments.length === 0 ? (
         <p
-          className="px-4 pt-3.5 pb-4 pl-10 text-[12.5px] text-[#b6bcc6]"
+          className="px-3.5 py-3 text-xs text-foreground-faint"
           data-testid="comments-empty-state"
         >
           {getEmptySectionCopy(section.kind)}
         </p>
       ) : (
-        <div className="py-1.5">
+        <div className="py-1">
           {sortedComments.map((comment) => (
             <CommentThread
               key={comment.id}
@@ -92,72 +93,112 @@ export function CommentSectionPanel({
   )
 }
 
+function CommentSectionCountBadge({
+  count,
+  loading = false,
+  muted = false,
+}: {
+  count: number
+  loading?: boolean
+  muted?: boolean
+}) {
+  return (
+    <span
+      className={cn(
+        "flex min-w-5.5 items-center justify-center rounded-full px-1.5 py-0.5",
+        "text-2xs font-semibold tabular-nums",
+        muted
+          ? "bg-surface-muted text-foreground-faint"
+          : "bg-surface-muted text-foreground-subtle",
+      )}
+      data-testid="comments-section-count"
+    >
+      {loading ? "…" : count}
+    </span>
+  )
+}
+
 type CommentSectionsAccordionProps = {
   sections: CommentSection[]
   activeSectionId: string
+  sectionCounts: Record<string, number>
+  sectionCountsLoading?: Record<string, boolean>
   onSectionChange: (sectionId: string) => void
-  onCommenta: (section: CommentSection) => void
   renderSectionContent: (section: CommentSection) => React.ReactNode
 }
 
 export function CommentSectionsAccordion({
   sections,
   activeSectionId,
+  sectionCounts,
+  sectionCountsLoading = {},
   onSectionChange,
-  onCommenta,
   renderSectionContent,
 }: CommentSectionsAccordionProps) {
   return (
-    <div>
-      {sections.map((section) => {
-        const isActive = section.id === activeSectionId
-        const subtitle = getSectionSubtitle(section.displayName, section.typeLabel)
-        return (
-          <section key={section.id} className="border-b border-[#eef0f3]">
-            <div className="sticky top-0 z-2 flex items-center gap-2 border-b border-[#eef0f3] bg-[#F8F9FA]/95 px-3.5 py-2.5 backdrop-blur-[6px]">
-              <button
-                type="button"
+    <div className="p-3.5">
+      <Accordion
+        type="single"
+        collapsible
+        tone="flush"
+        value={activeSectionId}
+        onValueChange={(value) => {
+          if (value) onSectionChange(value)
+        }}
+        className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border bg-surface shadow-none"
+      >
+        {sections.map((section) => {
+          const isDescendants = section.kind === "descendants"
+          const count = sectionCounts[section.id] ?? 0
+          const countLoading = sectionCountsLoading[section.id] ?? false
+
+          return (
+            <AccordionItem
+              key={section.id}
+              value={section.id}
+              className="shadow-none data-[state=open]:shadow-none"
+            >
+              <AccordionTrigger
                 data-testid={`comments-section-toggle-${section.id}`}
-                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
-                aria-expanded={isActive}
-                onClick={() => onSectionChange(section.id)}
+                iconVariant="bare"
+                showChevron={false}
+                plain
+                icon={
+                  <CommentSectionIcon
+                    entityType={section.entityRef?.entityType ?? null}
+                    kind={section.kind}
+                    muted={isDescendants}
+                  />
+                }
+                className={cn(
+                  "gap-2 px-3.5 py-2.5 hover:bg-background-subtle",
+                  "[&>span:last-child]:w-full [&>span:last-child]:min-w-0 [&>span:last-child]:overflow-visible",
+                  isDescendants && "text-foreground-faint",
+                )}
               >
-                <span
-                  aria-hidden
-                  className="w-4.5 shrink-0 text-center text-sm leading-none"
-                >
-                  {section.icon}
-                </span>
-                <span className="shrink-0 text-[11px] font-bold tracking-[0.04em] text-[#374151] uppercase">
-                  {section.typeLabel}
-                </span>
-                {subtitle ? (
-                  <span className="truncate text-[11.5px] font-medium text-[#9ca3af]">
-                    {subtitle}
+                <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                  <span
+                    className={cn(
+                      "truncate text-2xs font-bold tracking-wide uppercase",
+                      isDescendants ? "text-foreground-faint" : "text-foreground-muted",
+                    )}
+                  >
+                    {section.typeLabel}
                   </span>
-                ) : null}
-              </button>
-              {section.kind === "descendants" ? null : (
-                <button
-                  type="button"
-                  data-testid={`comments-section-commenta-${section.id}`}
-                  className={cn(
-                    "flex shrink-0 cursor-pointer items-center gap-1 rounded-[7px] px-2 py-1",
-                    "text-xs font-semibold text-[#2563EB] hover:bg-[#EFF6FF]",
-                  )}
-                  onClick={() => onCommenta(section)}
-                >
-                  <span aria-hidden className="text-[13px] leading-none">
-                    +
-                  </span>{" "}
-                  Commenta
-                </button>
-              )}
-            </div>
-            {isActive ? renderSectionContent(section) : null}
-          </section>
-        )
-      })}
+                  <CommentSectionCountBadge
+                    count={count}
+                    loading={countLoading}
+                    muted={isDescendants}
+                  />
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="border-t-0! px-0 py-0">
+                {renderSectionContent(section)}
+              </AccordionContent>
+            </AccordionItem>
+          )
+        })}
+      </Accordion>
     </div>
   )
 }

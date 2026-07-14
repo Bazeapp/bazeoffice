@@ -29,6 +29,10 @@ vi.mock("../../queries/fetch-section-comments", () => ({
   fetchCommentSectionPage: (...args: unknown[]) => mockFetchCommentSectionPage(...args),
 }))
 
+vi.mock("../../queries/fetch-section-comment-count", () => ({
+  fetchCommentSectionCount: vi.fn().mockResolvedValue(1),
+}))
+
 vi.mock("../../mutations/create-comment", () => ({
   createComment: vi.fn(),
 }))
@@ -142,14 +146,14 @@ describe("Comment phase note rendering", () => {
 
     renderPanelBody()
     fireEvent.click(
-      await screen.findByTestId(`comments-section-commenta-lavoratore:${IDS.lavoratore}`),
+      await screen.findByTestId(`comments-section-toggle-lavoratore:${IDS.lavoratore}`),
     )
 
     const section = await screen.findByTestId(`comments-section-lavoratore:${IDS.lavoratore}`)
     const threads = within(section).getAllByTestId(/^comments-root-/)
     expect(threads[0]).toHaveAttribute("data-testid", "comments-root-phase-1")
     expect(within(section).getByTestId("comments-phase-badge")).toHaveTextContent("Gate 1")
-    expect(within(section).getByTestId("comments-thread-phase-1")).toHaveClass("bg-[#EFF6FF]")
+    expect(within(section).getByTestId("comments-thread-phase-1")).toHaveClass("bg-accent-soft")
   })
 
   it("shows edit in the author menu but not delete", async () => {

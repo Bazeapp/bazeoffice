@@ -148,7 +148,8 @@ describe("resolveCommentStack", () => {
 
     expect(entitySectionKinds(lavoratore)).toEqual(["lavoratore"])
     expect(entitySectionKinds(famiglia)).toEqual(["famiglia"])
-    expect(lavoratore.sections.at(-1)?.displayName).toBe("↗ Da entità collegate")
+    expect(lavoratore.sections.at(-1)?.typeLabel).toBe("COLLEGATE")
+    expect(lavoratore.sections.at(-1)?.displayName).toBe("")
   })
 
   it("walks rapporto chain for l3 document focuses", () => {

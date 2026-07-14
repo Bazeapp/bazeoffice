@@ -38,8 +38,7 @@ export function MentionAutocomplete({
     <div
       data-testid="comments-mention-autocomplete"
       className={cn(
-        "max-h-56 overflow-x-hidden overflow-y-auto rounded-xl border border-[#e0e3e9] bg-white",
-        "shadow-[0_12px_32px_rgba(15,23,42,0.16)]",
+        "scrollbar-visible max-h-56 overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-surface shadow-lg",
         className,
       )}
       role="listbox"
@@ -49,12 +48,10 @@ export function MentionAutocomplete({
           key={section.title}
           className={cn(
             "pb-1",
-            sectionIndex > 0 ? "border-t border-[#f1f3f5]" : null,
+            sectionIndex > 0 ? "border-t border-border-subtle" : null,
           )}
         >
-          <p className="px-3 pt-2 pb-1 text-[10px] font-bold tracking-[0.06em] text-[#9ca3af] uppercase">
-            {section.title}
-          </p>
+          <p className="ui-type-label px-3 pt-2 pb-1">{section.title}</p>
           {section.options.map((option, optionIndex) => {
             const flatIndex = getFlatIndex(sections, sectionIndex, optionIndex)
             const isHighlighted = flatIndex === highlightedIndex
@@ -67,7 +64,7 @@ export function MentionAutocomplete({
                 data-testid={`comments-mention-option-${option.id}`}
                 className={cn(
                   "flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left",
-                  isHighlighted ? "bg-[#EFF6FF]" : "hover:bg-[#F8F9FA]",
+                  isHighlighted ? "bg-accent-soft" : "hover:bg-background-subtle",
                 )}
                 onMouseDown={(event) => {
                   event.preventDefault()
@@ -76,12 +73,12 @@ export function MentionAutocomplete({
               >
                 <span
                   aria-hidden
-                  className="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                  className="flex size-6 shrink-0 items-center justify-center rounded-full text-2xs font-bold text-foreground-on-accent"
                   style={{ backgroundColor: getAvatarColor(option.label) }}
                 >
                   {option.avatar}
                 </span>
-                <span className="truncate text-[13px] font-medium text-[#1a1f2e]">
+                <span className="truncate text-sm font-medium text-foreground-strong">
                   {option.label}
                 </span>
               </button>

@@ -1,7 +1,11 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
+import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { renderWithProviders } from "@/test/test-utils"
+
+import { setMarkupCaretOffset } from "../../lib/mention-composer-dom"
 
 import { CommentPanelHost } from "../comment-panel-host"
 import {
@@ -48,11 +52,11 @@ vi.mock("@/hooks/use-realtime-rows", () => ({
 }))
 
 vi.mock("@/hooks/use-operatori-options", () => ({
-  useOperatoriOptions: () => ({
+  useOperatoriOptions: vi.fn(() => ({
     options: [],
     loading: false,
     error: null,
-  }),
+  })),
 }))
 
 const PAGE_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
@@ -87,6 +91,11 @@ function renderHost(context: CommentContextValue | null) {
 describe("CommentPanel shell", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useOperatoriOptions).mockReturnValue({
+      options: [],
+      loading: false,
+      error: null,
+    })
     mockFetchCommentCountForPage.mockResolvedValue(4)
     mockFetchCommentSectionPage.mockResolvedValue({ comments: [], nextCursor: null })
     mockUseRealtimeRows.mockImplementation(() => undefined)
@@ -138,5 +147,93 @@ describe("CommentPanel shell", () => {
       expect(screen.queryByTestId("comments-panel")).not.toBeInTheDocument()
     })
     expect(screen.getByTestId("comments-pill")).toBeInTheDocument()
+  })
+
+  it("keeps the pill clickable while a sheet dialog is open", async () => {
+    renderWithProviders(
+      <CommentContextProvider value={makeContext()}>
+        <Sheet open>
+          <SheetContent aria-describedby={undefined}>
+            <SheetTitle>Dettaglio cedolino</SheetTitle>
+          </SheetContent>
+        </Sheet>
+        <CommentPanelHost />
+      </CommentContextProvider>,
+    )
+
+    const pill = await screen.findByTestId("comments-pill")
+    await waitFor(() => {
+      expect(pill).toHaveTextContent("4")
+    })
+
+    fireEvent.click(pill)
+
+    expect(await screen.findByTestId("comments-panel")).toBeInTheDocument()
+  })
+
+  it("keeps the composer focusable while a sheet dialog is open", async () => {
+    renderWithProviders(
+      <CommentContextProvider value={makeContext()}>
+        <Sheet open>
+          <SheetContent aria-describedby={undefined}>
+            <SheetTitle>Dettaglio cedolino</SheetTitle>
+          </SheetContent>
+        </Sheet>
+        <CommentPanelHost />
+      </CommentContextProvider>,
+    )
+
+    fireEvent.click(await screen.findByTestId("comments-pill"))
+
+    const composer = await screen.findByTestId("comments-composer-input")
+    fireEvent.pointerDown(composer)
+    composer.focus()
+
+    expect(composer).toHaveFocus()
+  })
+
+  it("keeps mention autocomplete wheel events inside the panel while a sheet is open", async () => {
+    const manyOperators = Array.from({ length: 20 }, (_, index) => ({
+      id: `11111111-1111-4111-8111-${String(index).padStart(12, "0")}`,
+      label: `Operatore ${index}`,
+      avatar: `O${index}`,
+      avatarBorderClassName: "after:border-emerald-500",
+    }))
+
+    vi.mocked(useOperatoriOptions).mockReturnValue({
+      options: manyOperators,
+      loading: false,
+      error: null,
+    })
+
+    const onDocumentWheel = vi.fn()
+
+    renderWithProviders(
+      <CommentContextProvider value={makeContext()}>
+        <Sheet open>
+          <SheetContent aria-describedby={undefined}>
+            <SheetTitle>Dettaglio cedolino</SheetTitle>
+          </SheetContent>
+        </Sheet>
+        <CommentPanelHost />
+      </CommentContextProvider>,
+    )
+
+    document.addEventListener("wheel", onDocumentWheel)
+
+    try {
+      fireEvent.click(await screen.findByTestId("comments-pill"))
+      const input = await screen.findByTestId("comments-composer-input")
+      input.textContent = "@"
+      fireEvent.input(input)
+      setMarkupCaretOffset(input, 1)
+
+      const autocomplete = await screen.findByTestId("comments-mention-autocomplete")
+      fireEvent.wheel(autocomplete, { deltaY: 120 })
+
+      expect(onDocumentWheel).not.toHaveBeenCalled()
+    } finally {
+      document.removeEventListener("wheel", onDocumentWheel)
+    }
   })
 })

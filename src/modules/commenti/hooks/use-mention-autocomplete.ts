@@ -2,6 +2,7 @@ import * as React from "react"
 
 import type { OperatoreOption } from "@/hooks/use-operatori-options"
 
+import { setMarkupCaretOffset } from "../lib/mention-composer-dom"
 import {
   filterOperatorsByQuery,
   getMentionTriggerState,
@@ -12,7 +13,9 @@ import {
 export type UseMentionAutocompleteOptions = {
   value: string
   onChange: (value: string) => void
-  textareaRef?: React.RefObject<HTMLTextAreaElement | null>
+  editorRef?: React.RefObject<HTMLElement | null>
+  getCursor?: () => number
+  onCursorChange?: (cursor: number) => void
   operators: OperatoreOption[]
   involvedOperatorIds: string[]
 }
@@ -25,16 +28,20 @@ export type MentionAutocompleteSection = {
 export function useMentionAutocomplete({
   value,
   onChange,
-  textareaRef,
+  editorRef,
+  getCursor,
+  onCursorChange,
   operators,
   involvedOperatorIds,
 }: UseMentionAutocompleteOptions) {
   const [cursor, setCursor] = React.useState(0)
   const [highlightedIndex, setHighlightedIndex] = React.useState(0)
 
+  const resolvedCursor = getCursor?.() ?? cursor
+
   const trigger = React.useMemo(
-    () => getMentionTriggerState(value, cursor),
-    [cursor, value],
+    () => getMentionTriggerState(value, resolvedCursor),
+    [resolvedCursor, value],
   )
 
   const filteredOperators = React.useMemo(() => {
@@ -69,30 +76,38 @@ export function useMentionAutocomplete({
     setHighlightedIndex(0)
   }, [trigger?.start, trigger?.query])
 
+  const updateCursor = React.useCallback(
+    (nextCursor: number) => {
+      onCursorChange?.(nextCursor)
+      setCursor(nextCursor)
+    },
+    [onCursorChange],
+  )
+
   const selectOperator = React.useCallback(
     (operator: OperatoreOption) => {
       if (!trigger) return
       const { nextValue, nextCursor } = insertMentionMarkup(
         value,
-        cursor,
+        resolvedCursor,
         trigger,
         operator.label,
         operator.id,
       )
       onChange(nextValue)
-      setCursor(nextCursor)
+      updateCursor(nextCursor)
       window.requestAnimationFrame(() => {
-        const node = textareaRef?.current
+        const node = editorRef?.current
         if (!node) return
         node.focus()
-        node.setSelectionRange(nextCursor, nextCursor)
+        setMarkupCaretOffset(node, nextCursor)
       })
     },
-    [cursor, onChange, textareaRef, trigger, value],
+    [editorRef, onChange, resolvedCursor, trigger, updateCursor, value],
   )
 
   const handleKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    (event: React.KeyboardEvent<HTMLElement>) => {
       if (!isOpen) return false
 
       if (event.key === "ArrowDown") {
@@ -120,22 +135,27 @@ export function useMentionAutocomplete({
 
       if (event.key === "Escape") {
         event.preventDefault()
-        setCursor(trigger?.start ?? cursor)
+        updateCursor(trigger?.start ?? resolvedCursor)
         return true
       }
 
       return false
     },
-    [cursor, flatOptions, highlightedIndex, isOpen, selectOperator, trigger?.start],
+    [
+      flatOptions,
+      highlightedIndex,
+      isOpen,
+      resolvedCursor,
+      selectOperator,
+      trigger?.start,
+      updateCursor,
+    ],
   )
 
-  const syncCursor = React.useCallback(
-    (event: React.SyntheticEvent<HTMLTextAreaElement>) => {
-      const target = event.currentTarget
-      setCursor(target.selectionStart ?? 0)
-    },
-    [],
-  )
+  const syncCursor = React.useCallback(() => {
+    const nextCursor = getCursor?.() ?? 0
+    updateCursor(nextCursor)
+  }, [getCursor, updateCursor])
 
   return {
     isOpen,

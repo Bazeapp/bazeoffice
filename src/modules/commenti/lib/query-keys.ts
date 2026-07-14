@@ -22,4 +22,13 @@ export function commentSectionQueryKey(
   ] as const
 }
 
+export function commentSectionCountQueryKey(pageRef: EntityRef, sectionRef: EntityRef) {
+  return [
+    ...commentPageQueryPrefix(pageRef),
+    "section-count",
+    sectionRef.entityType,
+    sectionRef.entityId,
+  ] as const
+}
+
 export const COMMENTI_REALTIME_TABLES = ["commenti_scope"] as const

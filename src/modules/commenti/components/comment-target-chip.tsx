@@ -48,18 +48,18 @@ export function CommentTargetChip({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="shrink-0 text-[11.5px] text-[#9ca3af]">Commenti su</span>
+      <span className="shrink-0 text-2xs text-foreground-faint">Commenti su</span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             data-testid="comments-target-chip"
             className={cn(
-              "flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[9px] px-3 py-2",
-              "border-[1.5px] border-[#2563EB] bg-[#EFF6FF] text-[13px] font-semibold text-[#1D4ED8]",
+              "flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-3 py-2",
+              "border-2 border-accent bg-accent-soft text-sm font-semibold text-accent-ink",
             )}
           >
-            <span aria-hidden className="text-[13px] leading-none">
+            <span aria-hidden className="text-sm leading-none">
               {activeMeta.icon}
             </span>
             <span className="min-w-0 flex-1 truncate text-left">
@@ -72,7 +72,7 @@ export function CommentTargetChip({
         <DropdownMenuContent
           align="start"
           side="top"
-          className="z-[70] w-90 max-w-[calc(100vw-3rem)]"
+          className="z-70 w-90 max-w-[calc(100vw-3rem)]"
         >
           {options.map((option) => {
             const meta = metaForTarget(option, sections)
@@ -81,24 +81,24 @@ export function CommentTargetChip({
               <DropdownMenuItem
                 key={entityRefKey(option)}
                 data-testid={`comments-target-option-${option.entityType}`}
-                className={cn( isActive ? "bg-[#EFF6FF]" : null)}
+                className={cn(isActive ? "bg-accent-soft" : null)}
                 onSelect={() => onTargetChange(option)}
               >
                 <span className="flex items-center gap-2">
-                <span aria-hidden className="w-4.5 shrink-0 text-center">
-                  {meta.icon}
-                </span>
-                <span className="shrink-0 text-[13px] font-semibold">
-                  {meta.typeLabel}
-                </span>
-                {meta.subtitle ? (
-                  <span className="truncate text-[11.5px] text-[#9ca3af]">
-                    {meta.subtitle}
+                  <span aria-hidden className="w-4.5 shrink-0 text-center">
+                    {meta.icon}
                   </span>
-                ) : null}
-                {isActive ? (
-                  <CheckIcon className="ml-auto size-3.5 shrink-0 text-[#2563EB]" />
-                ) : null}
+                  <span className="shrink-0 text-sm font-semibold">
+                    {meta.typeLabel}
+                  </span>
+                  {meta.subtitle ? (
+                    <span className="truncate text-2xs text-foreground-faint">
+                      {meta.subtitle}
+                    </span>
+                  ) : null}
+                  {isActive ? (
+                    <CheckIcon className="ml-auto size-3.5 shrink-0 text-accent" />
+                  ) : null}
                 </span>
               </DropdownMenuItem>
             )

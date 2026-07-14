@@ -76,8 +76,8 @@ function CommentAvatar({ name, isReply }: { name: string; isReply?: boolean }) {
     <span
       aria-hidden
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-full font-bold text-white",
-        isReply ? "size-5.5 text-[9px]" : "size-6.5 text-[10.5px]",
+        "flex shrink-0 items-center justify-center rounded-full font-bold text-foreground-on-accent",
+        isReply ? "size-5.5 text-[9px]" : "size-6.5 text-2xs",
       )}
       style={{ backgroundColor: getAvatarColor(name) }}
     >
@@ -116,7 +116,7 @@ function CommentBubble({
         isReply
           ? null
           : isPhaseNote
-            ? "mx-4 my-2 rounded-[10px] border border-[#BFDBFE] bg-[#EFF6FF] px-3.5 py-3"
+            ? "mx-4 my-2 rounded-lg border border-accent-muted bg-accent-soft px-3.5 py-3"
             : "px-4 py-3",
         comment.isOptimistic ? "opacity-60" : null,
       )}
@@ -124,7 +124,7 @@ function CommentBubble({
       {isPhaseNote && comment.phaseLabel ? (
         <span
           data-testid="comments-phase-badge"
-          className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-[#DBEAFE] px-2 py-0.5 text-[10.5px] font-bold tracking-[0.03em] text-[#1D4ED8]"
+          className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-accent-muted px-2 py-0.5 text-2xs font-bold tracking-snug text-accent-ink"
         >
           📋 {getPhaseLabelText(comment.phaseLabel)}
         </span>
@@ -135,31 +135,30 @@ function CommentBubble({
         <span
           className={cn(
             "font-semibold",
-            isReply ? "text-[12.5px]" : "text-[13px]",
-            comment.author.isDeactivated ? "text-[#9ca3af]" : "text-[#1a1f2e]",
+            isReply ? "text-xs" : "text-sm",
+            comment.author.isDeactivated ? "text-foreground-faint" : "text-foreground-strong",
           )}
         >
           {comment.author.name}
         </span>
         <span
           className={cn(
-            "rounded-[5px] bg-[#f1f3f5] px-1.5 py-px font-medium text-[#6b7280]",
-            isReply ? "text-[10px]" : "text-[10.5px]",
+            "rounded-sm bg-surface-muted px-1.5 py-px text-2xs font-medium text-foreground-subtle",
           )}
         >
           {comment.author.rolePill}
         </span>
-        <span className="text-[11px] whitespace-nowrap text-[#9ca3af]">
+        <span className="text-2xs whitespace-nowrap text-foreground-faint">
           {formatCommentTimestamp(comment.createdAt)}
         </span>
         {comment.isUnread ? (
           <span
             aria-label="Non letto"
-            className="size-1.5 shrink-0 rounded-full bg-[#2563EB]"
+            className="size-1.5 shrink-0 rounded-full bg-accent"
           />
         ) : null}
         {comment.editedAt ? (
-          <span className="text-[11px] whitespace-nowrap text-[#b6bcc6]">
+          <span className="text-2xs whitespace-nowrap text-foreground-faint">
             · modificato
           </span>
         ) : null}
@@ -171,7 +170,7 @@ function CommentBubble({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                className="size-6 text-[#c4c9d2] hover:text-[#6b7280]"
+                className="size-6 text-foreground-faint hover:text-foreground-subtle"
                 data-testid={`comments-menu-${comment.id}`}
                 aria-label="Azioni commento"
               >
@@ -196,7 +195,7 @@ function CommentBubble({
       {!isReply && comment.sourceInterface ? (
         <span
           data-testid="comments-source-badge"
-          className="mt-1.5 ml-8.5 inline-flex items-center gap-1 rounded-[5px] bg-[#f1f3f5] px-1.5 py-px text-[10.5px] font-medium text-[#6b7280]"
+          className="mt-1.5 ml-8.5 inline-flex items-center gap-1 rounded-sm bg-surface-muted px-1.5 py-px text-2xs font-medium text-foreground-subtle"
         >
           ⧉ {getSourceInterfaceLabel(comment.sourceInterface)}
         </span>
@@ -238,7 +237,7 @@ function CommentBubble({
       {showOriginBadge && !isReply ? (
         <p
           data-testid="comments-origin-badge"
-          className="mt-1.5 ml-8.5 text-[10.5px] font-semibold text-[#6b7280]"
+          className="mt-1.5 ml-8.5 text-2xs font-semibold text-foreground-subtle"
         >
           ↗ {comment.anchor.entityType}
         </p>
@@ -249,7 +248,7 @@ function CommentBubble({
           <button
             type="button"
             data-testid={`comments-reply-${comment.id}`}
-            className="inline-flex cursor-pointer items-center gap-1 text-xs text-[#6b7280] transition-colors hover:text-[#2563EB]"
+            className="inline-flex cursor-pointer items-center gap-1 text-xs text-foreground-subtle transition-colors hover:text-accent"
             onClick={() => onReply(comment.id)}
           >
             <CornerUpLeftIcon aria-hidden className="size-3" /> Rispondi
@@ -286,12 +285,12 @@ export function CommentThread({
         onMarkRead={onMarkRead}
       />
       {comment.replies.length > 0 ? (
-        <div className="mr-4 mb-3 ml-12.5 flex flex-col gap-3 border-l-2 border-[#e7e9ee] pl-3.5">
+        <div className="mr-4 mb-3 ml-12.5 flex flex-col gap-3 border-l-2 border-border pl-3.5">
           {hiddenReplyCount > 0 && !showAllReplies ? (
             <button
               type="button"
               data-testid={`comments-show-replies-${comment.id}`}
-              className="self-start text-xs font-semibold text-[#2563EB] hover:underline"
+              className="self-start text-xs font-semibold text-accent hover:underline"
               onClick={() => setShowAllReplies(true)}
             >
               Mostra altre {hiddenReplyCount} risposte
