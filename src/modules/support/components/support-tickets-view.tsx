@@ -1,5 +1,4 @@
 import { PlusIcon } from "lucide-react"
-import * as React from "react"
 
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { useCommentRouteContext } from "@/modules/commenti/hooks"
@@ -25,7 +24,6 @@ import { SupportTicketsKanban } from "./support-tickets-kanban"
 
 export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketType }) {
   const view = useSupportTicketsView(ticketType)
-  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
   const selectedCard = view.detailSheet.card
   const sourceInterface =
     ticketType === "Payroll" ? "ticket_payroll" : "ticket_customer"
@@ -37,7 +35,6 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
       : null,
     row: selectedCard ? ticketCommentRow(selectedCard) : {},
     sourceInterface,
-    anchorRef: commentAnchorRef,
     displayNames: selectedCard ? ticketDisplayNames(selectedCard) : undefined,
   })
 
@@ -122,7 +119,6 @@ export function SupportTicketsView({ ticketType }: { ticketType: SupportTicketTy
           onMoveTicket={view.detailSheet.onMoveTicket}
           onPatchTicket={view.detailSheet.onPatchTicket}
           sheetTestId={view.detailSheet.sheetTestId}
-          commentAnchorRef={commentAnchorRef}
         />
       ) : null}
     </section>

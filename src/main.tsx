@@ -18,7 +18,7 @@ const tree = (
         <Toaster richColors closeButton position="top-right" />
       </TooltipProvider>
     </ThemeProvider>
-    {import.meta.env.DEV ? <ReactQueryDevtools initialIsOpen={false} /> : null}
+    {import.meta.env.DEV ? <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" /> : null}
   </QueryClientProvider>
 )
 

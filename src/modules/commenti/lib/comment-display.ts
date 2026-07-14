@@ -28,6 +28,36 @@ const PHASE_LABEL_TEXT: Record<PhaseLabel, string> = {
   gate_2: "Gate 2",
 }
 
+const AVATAR_PALETTE = [
+  "#4f46e5",
+  "#0891b2",
+  "#c026d3",
+  "#059669",
+  "#d97706",
+  "#dc2626",
+  "#7c3aed",
+  "#0284c7",
+] as const
+
+export function getAvatarColor(name: string): string {
+  let hash = 0
+  for (let index = 0; index < name.length; index += 1) {
+    hash = (hash * 31 + name.charCodeAt(index)) >>> 0
+  }
+  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length] ?? AVATAR_PALETTE[0]
+}
+
+export function getAuthorInitials(name: string): string {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word[0]?.toUpperCase() ?? "")
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+  return initials || "?"
+}
+
 export function formatCommentTimestamp(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ""

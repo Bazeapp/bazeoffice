@@ -334,7 +334,6 @@ export function CrmPipelineFamiglieView() {
     return null
   }, [columns, selectedCardId])
 
-  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
   const commentRow = React.useMemo(
     () => (selectedCard ? crmProcessoCommentRow(selectedCard) : {}),
     [selectedCard],
@@ -351,7 +350,6 @@ export function CrmPipelineFamiglieView() {
       : null,
     row: commentRow,
     sourceInterface: "kanban_famiglie",
-    anchorRef: commentAnchorRef,
     displayNames: commentDisplayNames,
   })
 
@@ -649,7 +647,6 @@ export function CrmPipelineFamiglieView() {
             setSelectedCardId(null)
           }
         }}
-        commentAnchorRef={commentAnchorRef}
         card={selectedCard}
         lookupOptionsByField={lookupOptionsByField}
         onChangeStatoSales={moveCard}

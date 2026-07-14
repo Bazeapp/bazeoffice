@@ -1,5 +1,3 @@
-import * as React from "react"
-
 import { useChiusureBoardView } from "../hooks/use-chiusure-board-view"
 import { useCommentRouteContext } from "@/modules/commenti/hooks"
 import {
@@ -13,7 +11,6 @@ import { ChiusureDetailSheet } from "./chiusure-detail-sheet"
 
 export function ChiusureBoardView() {
   const board = useChiusureBoardView()
-  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
   const selectedCard = board.sheetProps.card
 
   useCommentRouteContext({
@@ -23,7 +20,6 @@ export function ChiusureBoardView() {
       : null,
     row: selectedCard ? chiusuraCommentRow(selectedCard) : {},
     sourceInterface: "chiusure",
-    anchorRef: commentAnchorRef,
     displayNames: selectedCard ? chiusuraDisplayNames(selectedCard) : undefined,
   })
 
@@ -49,7 +45,7 @@ export function ChiusureBoardView() {
         />
       </section>
 
-      <ChiusureDetailSheet {...board.sheetProps} commentAnchorRef={commentAnchorRef} />
+      <ChiusureDetailSheet {...board.sheetProps} />
       <ChiusureBoardAnnullamentoDialog {...board.annullamentoDialogProps} />
     </>
   )

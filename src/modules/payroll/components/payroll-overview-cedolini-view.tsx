@@ -78,7 +78,6 @@ export function PayrollOverviewCedoliniView() {
     [filteredColumns],
   )
 
-  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
   const selectedCard = selection.selectedCard
 
   useCommentRouteContext({
@@ -89,7 +88,6 @@ export function PayrollOverviewCedoliniView() {
         : null,
     row: selectedCard ? cedolinoCommentRow(selectedCard) : {},
     sourceInterface: "cedolini",
-    anchorRef: commentAnchorRef,
     displayNames: selectedCard ? cedolinoDisplayNames(selectedCard) : undefined,
   })
 
@@ -204,7 +202,6 @@ export function PayrollOverviewCedoliniView() {
         onPatchPresence={(recordId, patch) => {
           void patchPresence(recordId, patch)
         }}
-        commentAnchorRef={commentAnchorRef}
       />
     </section>
   )

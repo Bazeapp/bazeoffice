@@ -68,7 +68,6 @@ function makeContext(
     row: { id: PAGE_ID, famiglia_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
     sourceInterface: "dettaglio_ricerca",
     currentUserId: "99999999-9999-4999-8999-999999999999",
-    anchorRef: { current: null },
     ...overrides,
   }
 }
@@ -120,8 +119,8 @@ describe("CommentPanel shell", () => {
 
     fireEvent.click(await screen.findByTestId("comments-pill"))
 
-    expect(await screen.findByTestId("comments-panel")).toBeInTheDocument()
-    expect(screen.getByText(/💬 Commenti · 4/)).toBeInTheDocument()
+    const panel = await screen.findByTestId("comments-panel")
+    expect(panel).toHaveTextContent(/Commenti · 4/)
     expect(await screen.findByTestId("comments-target-chip")).toBeInTheDocument()
 
     await waitFor(() => {

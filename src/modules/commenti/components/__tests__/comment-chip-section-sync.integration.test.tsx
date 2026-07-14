@@ -101,6 +101,7 @@ function renderPanelBody() {
     <CommentPanelBody
       pageFocus={pageFocus}
       stack={stack}
+      totalCount={2}
       panelOptions={{
         currentUserId: "99999999-9999-4999-8999-999999999999",
         currentUserName: "Tu",

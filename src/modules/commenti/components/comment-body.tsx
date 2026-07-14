@@ -8,7 +8,10 @@ export function CommentBody({ body }: CommentBodyProps) {
   const parts = parseMentionMarkup(body)
 
   return (
-    <p className="text-sm leading-relaxed whitespace-pre-wrap" data-testid="comments-body">
+    <p
+      className="text-[13px] leading-normal whitespace-pre-wrap text-[#28303f]"
+      data-testid="comments-body"
+    >
       {parts.map((part, index) => {
         if (part.type === "mention") {
           return (

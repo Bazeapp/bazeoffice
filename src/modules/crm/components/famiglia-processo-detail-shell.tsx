@@ -1,4 +1,3 @@
-import * as React from "react"
 import { XIcon } from "lucide-react"
 
 import {
@@ -12,14 +11,12 @@ type FamigliaProcessoDetailShellProps = FamigliaProcessoDetailContentProps & {
   mode?: "inline" | "sheet"
   open?: boolean
   onOpenChange?: (open: boolean) => void
-  commentAnchorRef?: React.RefObject<HTMLDivElement | null>
 }
 
 export function FamigliaProcessoDetailShell({
   mode = "inline",
   open = true,
   onOpenChange,
-  commentAnchorRef,
   headerAction,
   ...contentProps
 }: FamigliaProcessoDetailShellProps) {
@@ -49,7 +46,6 @@ export function FamigliaProcessoDetailShell({
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
-          ref={commentAnchorRef}
           side="right"
           className="!w-[min(96vw,760px)] !max-w-none overflow-hidden p-0 sm:!max-w-none"
         >

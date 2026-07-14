@@ -1,8 +1,8 @@
 import * as React from "react"
+import { ArrowRightIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
+import { cn } from "@/lib/utils"
 
 import { useMentionAutocomplete } from "../hooks/use-mention-autocomplete"
 import { MentionAutocomplete } from "./mention-autocomplete"
@@ -52,14 +52,16 @@ export function CommentComposer({
   }, [disabled, draft, isSubmitting, onCancelReply, onSubmit])
 
   return (
-    <div className="space-y-2 border-t border-border pt-3">
+    <div className="mt-2">
       {replyToLabel ? (
-        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span data-testid="comments-reply-banner">Risposta a {replyToLabel}</span>
+        <div className="mb-1.5 flex items-center justify-between gap-2 text-[11.5px] text-[#6b7280]">
+          <span data-testid="comments-reply-banner">
+            ↩ Risposta a <span className="font-semibold">{replyToLabel}</span>
+          </span>
           {onCancelReply ? (
             <button
               type="button"
-              className="underline-offset-2 hover:underline"
+              className="text-[#9ca3af] underline-offset-2 hover:underline"
               onClick={onCancelReply}
             >
               Annulla
@@ -67,23 +69,28 @@ export function CommentComposer({
           ) : null}
         </div>
       ) : null}
-      <div className="relative">
+      <div className="relative flex items-end gap-2">
         {mention.isOpen ? (
           <MentionAutocomplete
             sections={mention.sections}
             highlightedIndex={mention.highlightedIndex}
             onSelect={mention.selectOperator}
-            className="absolute bottom-full left-0 z-50 mb-1"
+            className="absolute bottom-full left-0 z-20 mb-1.5 w-full"
           />
         ) : null}
-        <Textarea
+        <textarea
           ref={inputRef}
           data-testid="comments-composer-input"
           value={draft}
           disabled={disabled || isSubmitting || operatorsLoading}
           placeholder={placeholder}
-          rows={3}
-          className="min-h-20 resize-none text-sm"
+          rows={1}
+          className={cn(
+            "min-h-9.5 flex-1 resize-none rounded-[9px] border border-[#e0e3e9] bg-white",
+            "px-3 py-2 text-[13px] outline-none placeholder:text-[#9ca3af]",
+            "focus:border-[#2563EB] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.12)]",
+            "disabled:cursor-not-allowed disabled:opacity-60",
+          )}
           onFocus={() => onFocusChange?.(true)}
           onBlur={() => onFocusChange?.(false)}
           onClick={mention.syncCursor}
@@ -101,17 +108,20 @@ export function CommentComposer({
             }
           }}
         />
-      </div>
-      <div className="flex justify-end">
-        <Button
+        <button
           type="button"
-          size="sm"
           data-testid="comments-composer-submit"
+          aria-label="Invia commento"
+          className={cn(
+            "flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-[9px]",
+            "bg-[#2563EB] text-white transition-colors hover:bg-[#1D4ED8]",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+          )}
           disabled={disabled || isSubmitting || !draft.trim()}
           onClick={() => void handleSubmit()}
         >
-          Invia
-        </Button>
+          <ArrowRightIcon className="size-4" strokeWidth={2.2} />
+        </button>
       </div>
     </div>
   )

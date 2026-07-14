@@ -1,5 +1,3 @@
-import type { RefObject } from "react"
-
 import type { ContributoInpsBoardCardData } from "./contributi-inps-board"
 import type { ContributoQuarterValue } from "./contributi-inps-board"
 
@@ -37,5 +35,4 @@ export type ContributoInpsDetailSheetProps = {
     recordId: string,
     patch: Partial<ContributoInpsBoardCardData["record"]>,
   ) => Promise<void>
-  commentAnchorRef?: RefObject<HTMLDivElement | null>
 }

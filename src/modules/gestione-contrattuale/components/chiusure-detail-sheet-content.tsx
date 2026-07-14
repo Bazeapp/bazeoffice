@@ -1,5 +1,3 @@
-import type * as React from "react"
-
 import { FileTextIcon } from "lucide-react"
 
 import { AssociationSearchField } from "@/components/shared-next/association-search-field"
@@ -17,10 +15,8 @@ import { ChiusureDetailSheetSkeleton } from "./chiusure-detail-sheet-skeleton"
 
 export function ChiusureDetailSheetContent({
   vm,
-  commentAnchorRef,
 }: {
   vm: ChiusureDetailSheetViewModel
-  commentAnchorRef?: React.RefObject<HTMLDivElement | null>
 }) {
   const {
     card,
@@ -49,7 +45,6 @@ export function ChiusureDetailSheetContent({
     <Form {...form}>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
-          ref={commentAnchorRef}
           side="right"
           className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
         >

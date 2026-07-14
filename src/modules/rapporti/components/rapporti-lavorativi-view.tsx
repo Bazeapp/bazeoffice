@@ -63,7 +63,6 @@ export function RapportiLavorativiView({
     onSelectRapporto?.(selectedRapportoId)
   }, [selectedRapportoId, onSelectRapporto])
 
-  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
   const famigliaName = selectedFamiglia
     ? [selectedFamiglia.nome, selectedFamiglia.cognome].filter(Boolean).join(" ").trim() || null
     : null
@@ -87,7 +86,6 @@ export function RapportiLavorativiView({
         ? rapportoCommentRow(selectedRapportoId, selectedRapporto)
         : {},
     sourceInterface: "rapporti_lavorativi",
-    anchorRef: commentAnchorRef,
     displayNames:
       selectedRapportoId && selectedRapporto
         ? rapportoDisplayNames(selectedRapportoId, {
@@ -119,7 +117,7 @@ export function RapportiLavorativiView({
         assunzioneNamesByRapporto={rapportoAssunzioneNames}
       />
 
-      <div ref={commentAnchorRef} className="min-h-0">
+      <div className="min-h-0">
         <RapportoDetailPanel
         // Remount on rapporto switch so debounced inputs reset their local
         // draft (useDebouncedSave's hasUserEditedRef) instead of carrying it

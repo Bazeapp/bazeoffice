@@ -3,7 +3,6 @@ import {
   PlusIcon,
   SparklesIcon,
 } from "lucide-react";
-import * as React from "react";
 
 import { WorkerPipelineColumn } from "./worker-pipeline-column";
 import { RicercaWorkerPipelineOverlay } from "./ricerca-worker-pipeline-overlay";
@@ -119,7 +118,6 @@ export function RicercaWorkersPipelineView({
     onFocusSelectionChange,
   });
 
-  const overlayAnchorRef = React.useRef<HTMLDivElement>(null);
   const overlaySelection = overlayProps.selectedCard;
   const isOverlayFocus = isWorkerOverlayOpen && Boolean(overlaySelection);
 
@@ -140,7 +138,6 @@ export function RicercaWorkersPipelineView({
         })
       : {},
     sourceInterface: "dettaglio_lavoratore_ricerca",
-    anchorRef: overlayAnchorRef,
     displayNames: isOverlayFocus
       ? candidaturaDisplayNames({
           selectionId: overlaySelection!.id,
@@ -245,7 +242,6 @@ export function RicercaWorkersPipelineView({
         <RicercaWorkerPipelineOverlay
           {...overlayProps}
           onClose={handleCloseWorkerOverlay}
-          commentAnchorRef={overlayAnchorRef}
         />
       ) : null}
 

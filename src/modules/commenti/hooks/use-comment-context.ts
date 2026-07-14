@@ -12,7 +12,6 @@ export type CommentContextValue = {
   currentUserName?: string
   defaultCommentType?: CommentType
   phaseLabel?: PhaseLabel | null
-  anchorRef: React.RefObject<HTMLDivElement | null>
 }
 
 export const CommentContext = React.createContext<CommentContextValue | null>(null)

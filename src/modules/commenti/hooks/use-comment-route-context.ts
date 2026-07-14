@@ -9,7 +9,6 @@ export type UseCommentRouteContextOptions = {
   pageFocus: EntityRef | null
   row: Record<string, unknown>
   sourceInterface: SourceInterface | null
-  anchorRef: React.RefObject<HTMLDivElement | null>
   displayNames?: Record<string, string>
   defaultCommentType?: CommentType
   phaseLabel?: PhaseLabel | null
@@ -44,7 +43,6 @@ export function useCommentRouteContext(options: UseCommentRouteContextOptions) {
       pageFocus: current.pageFocus,
       row: current.row,
       sourceInterface: current.sourceInterface,
-      anchorRef: current.anchorRef,
       displayNames: current.displayNames,
       defaultCommentType: current.defaultCommentType,
       phaseLabel: current.phaseLabel,

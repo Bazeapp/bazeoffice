@@ -31,13 +31,7 @@ import { RapportoDetailSections } from "./rapporto-detail-sections"
 
 type SheetViewModel = ReturnType<typeof useAssunzioniDetailSheet>
 
-export function AssunzioniDetailSheetContent({
-  vm,
-  commentAnchorRef,
-}: {
-  vm: SheetViewModel
-  commentAnchorRef?: React.RefObject<HTMLDivElement | null>
-}) {
+export function AssunzioniDetailSheetContent({ vm }: { vm: SheetViewModel }) {
   const {
     card,
     open,
@@ -81,7 +75,6 @@ export function AssunzioniDetailSheetContent({
     <Form {...practiceForm}>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        ref={commentAnchorRef}
         side="right"
         className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
       >

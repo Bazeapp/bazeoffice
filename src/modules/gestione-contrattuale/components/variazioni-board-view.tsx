@@ -1,5 +1,3 @@
-import * as React from "react"
-
 import { useVariazioniBoardView } from "../hooks/use-variazioni-board-view"
 import { useCommentRouteContext } from "@/modules/commenti/hooks"
 import {
@@ -13,7 +11,6 @@ import { VariazioniDetailSheet } from "./variazioni-detail-sheet"
 
 export function VariazioniBoardView() {
   const board = useVariazioniBoardView()
-  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
   const selectedCard = board.sheetProps.card
 
   useCommentRouteContext({
@@ -23,7 +20,6 @@ export function VariazioniBoardView() {
       : null,
     row: selectedCard ? variazioneCommentRow(selectedCard) : {},
     sourceInterface: "variazioni",
-    anchorRef: commentAnchorRef,
     displayNames: selectedCard ? variazioneDisplayNames(selectedCard) : undefined,
   })
 
@@ -49,7 +45,7 @@ export function VariazioniBoardView() {
         />
       </section>
 
-      <VariazioniDetailSheet {...board.sheetProps} commentAnchorRef={commentAnchorRef} />
+      <VariazioniDetailSheet {...board.sheetProps} />
       <VariazioniCreateDialog {...board.createDialogProps} />
     </>
   )

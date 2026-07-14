@@ -34,7 +34,6 @@ export function ContributiInpsView() {
 
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
-  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
   const selectedCard = selection.selectedCard
 
   useCommentRouteContext({
@@ -45,7 +44,6 @@ export function ContributiInpsView() {
         : null,
     row: selectedCard ? contributiCommentRow(selectedCard) : {},
     sourceInterface: "contributi_inps",
-    anchorRef: commentAnchorRef,
     displayNames: selectedCard ? contributiDisplayNames(selectedCard) : undefined,
   })
 
@@ -111,7 +109,6 @@ export function ContributiInpsView() {
           await patchCard(recordId, patch)
           selection.patchSelectedCard(recordId, patch)
         }}
-        commentAnchorRef={commentAnchorRef}
       />
     </section>
   )

@@ -1,7 +1,6 @@
 import * as React from "react"
-import { MoreHorizontalIcon } from "lucide-react"
+import { CornerUpLeftIcon, MoreHorizontalIcon } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -14,6 +13,8 @@ import { cn } from "@/lib/utils"
 
 import {
   formatCommentTimestamp,
+  getAuthorInitials,
+  getAvatarColor,
   getPhaseLabelText,
   getSourceInterfaceLabel,
 } from "../lib/comment-display"
@@ -70,6 +71,21 @@ function useMarkReadOnView(
   return ref
 }
 
+function CommentAvatar({ name, isReply }: { name: string; isReply?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-full font-bold text-white",
+        isReply ? "size-5.5 text-[9px]" : "size-6.5 text-[10.5px]",
+      )}
+      style={{ backgroundColor: getAvatarColor(name) }}
+    >
+      {getAuthorInitials(name)}
+    </span>
+  )
+}
+
 function CommentBubble({
   comment,
   currentUserId,
@@ -97,47 +113,57 @@ function CommentBubble({
       ref={viewRef}
       data-testid={`comments-thread-${comment.id}`}
       className={cn(
-        "rounded-lg border border-border px-3 py-2.5",
-        isReply ? "ml-4" : null,
-        isPhaseNote ? "border-blue-200 bg-[#EFF6FF]" : "bg-surface",
+        isReply
+          ? null
+          : isPhaseNote
+            ? "mx-4 my-2 rounded-[10px] border border-[#BFDBFE] bg-[#EFF6FF] px-3.5 py-3"
+            : "px-4 py-3",
         comment.isOptimistic ? "opacity-60" : null,
       )}
     >
-      <div className="mb-1.5 flex items-start justify-between gap-2">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={cn(
-                "text-sm font-semibold",
-                comment.author.isDeactivated ? "text-muted-foreground" : null,
-              )}
-            >
-              {comment.author.name}
-            </span>
-            <Badge variant="secondary" size="sm">
-              {comment.author.rolePill}
-            </Badge>
-            {isPhaseNote && comment.phaseLabel ? (
-              <Badge variant="info" size="sm" data-testid="comments-phase-badge">
-                {getPhaseLabelText(comment.phaseLabel)}
-              </Badge>
-            ) : null}
-            {!isReply && comment.sourceInterface ? (
-              <Badge variant="outline" size="sm" data-testid="comments-source-badge">
-                {getSourceInterfaceLabel(comment.sourceInterface)}
-              </Badge>
-            ) : null}
-            {showOriginBadge && !isReply ? (
-              <Badge variant="outline" size="sm" data-testid="comments-origin-badge">
-                {comment.anchor.entityType}
-              </Badge>
-            ) : null}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {formatCommentTimestamp(comment.createdAt)}
-            {comment.editedAt ? " · modificato" : null}
-          </p>
-        </div>
+      {isPhaseNote && comment.phaseLabel ? (
+        <span
+          data-testid="comments-phase-badge"
+          className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-[#DBEAFE] px-2 py-0.5 text-[10.5px] font-bold tracking-[0.03em] text-[#1D4ED8]"
+        >
+          📋 {getPhaseLabelText(comment.phaseLabel)}
+        </span>
+      ) : null}
+
+      <div className="flex items-center gap-2">
+        <CommentAvatar name={comment.author.name} isReply={isReply} />
+        <span
+          className={cn(
+            "font-semibold",
+            isReply ? "text-[12.5px]" : "text-[13px]",
+            comment.author.isDeactivated ? "text-[#9ca3af]" : "text-[#1a1f2e]",
+          )}
+        >
+          {comment.author.name}
+        </span>
+        <span
+          className={cn(
+            "rounded-[5px] bg-[#f1f3f5] px-1.5 py-px font-medium text-[#6b7280]",
+            isReply ? "text-[10px]" : "text-[10.5px]",
+          )}
+        >
+          {comment.author.rolePill}
+        </span>
+        <span className="text-[11px] whitespace-nowrap text-[#9ca3af]">
+          {formatCommentTimestamp(comment.createdAt)}
+        </span>
+        {comment.isUnread ? (
+          <span
+            aria-label="Non letto"
+            className="size-1.5 shrink-0 rounded-full bg-[#2563EB]"
+          />
+        ) : null}
+        {comment.editedAt ? (
+          <span className="text-[11px] whitespace-nowrap text-[#b6bcc6]">
+            · modificato
+          </span>
+        ) : null}
+        <span className="flex-1" />
         {isAuthor && !isEditing ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -145,6 +171,7 @@ function CommentBubble({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
+                className="size-6 text-[#c4c9d2] hover:text-[#6b7280]"
                 data-testid={`comments-menu-${comment.id}`}
                 aria-label="Azioni commento"
               >
@@ -166,49 +193,67 @@ function CommentBubble({
         ) : null}
       </div>
 
-      {isEditing ? (
-        <div className="space-y-2">
-          <Textarea
-            data-testid={`comments-edit-input-${comment.id}`}
-            value={editDraft}
-            rows={3}
-            onChange={(event) => setEditDraft(event.target.value)}
-          />
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(false)}
-            >
-              Annulla
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              data-testid={`comments-edit-save-${comment.id}`}
-              onClick={() => void handleSaveEdit()}
-            >
-              Salva
-            </Button>
+      {!isReply && comment.sourceInterface ? (
+        <span
+          data-testid="comments-source-badge"
+          className="mt-1.5 ml-8.5 inline-flex items-center gap-1 rounded-[5px] bg-[#f1f3f5] px-1.5 py-px text-[10.5px] font-medium text-[#6b7280]"
+        >
+          ⧉ {getSourceInterfaceLabel(comment.sourceInterface)}
+        </span>
+      ) : null}
+
+      <div className={cn("mt-1.5", isReply ? "ml-7.5" : "ml-8.5")}>
+        {isEditing ? (
+          <div className="space-y-2">
+            <Textarea
+              data-testid={`comments-edit-input-${comment.id}`}
+              value={editDraft}
+              rows={3}
+              onChange={(event) => setEditDraft(event.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(false)}
+              >
+                Annulla
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                data-testid={`comments-edit-save-${comment.id}`}
+                onClick={() => void handleSaveEdit()}
+              >
+                Salva
+              </Button>
+            </div>
           </div>
-        </div>
-      ) : (
-        <CommentBody body={comment.body} />
-      )}
+        ) : (
+          <CommentBody body={comment.body} />
+        )}
+      </div>
+
+      {showOriginBadge && !isReply ? (
+        <p
+          data-testid="comments-origin-badge"
+          className="mt-1.5 ml-8.5 text-[10.5px] font-semibold text-[#6b7280]"
+        >
+          ↗ {comment.anchor.entityType}
+        </p>
+      ) : null}
 
       {!isReply && !isEditing ? (
-        <div className="mt-2">
-          <Button
+        <div className="mt-2 ml-8.5">
+          <button
             type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
             data-testid={`comments-reply-${comment.id}`}
+            className="inline-flex cursor-pointer items-center gap-1 text-xs text-[#6b7280] transition-colors hover:text-[#2563EB]"
             onClick={() => onReply(comment.id)}
           >
-            Rispondi
-          </Button>
+            <CornerUpLeftIcon aria-hidden className="size-3" /> Rispondi
+          </button>
         </div>
       ) : null}
     </div>
@@ -231,7 +276,7 @@ export function CommentThread({
       : comment.replies.slice(-VISIBLE_REPLY_LIMIT)
 
   return (
-    <div className="space-y-2" data-testid={`comments-root-${comment.id}`}>
+    <div data-testid={`comments-root-${comment.id}`}>
       <CommentBubble
         comment={comment}
         currentUserId={currentUserId}
@@ -240,28 +285,30 @@ export function CommentThread({
         onEdit={onEdit}
         onMarkRead={onMarkRead}
       />
-      {visibleReplies.map((reply) => (
-        <CommentBubble
-          key={reply.id}
-          comment={reply}
-          currentUserId={currentUserId}
-          isReply
-          onReply={onReply}
-          onEdit={onEdit}
-          onMarkRead={onMarkRead}
-        />
-      ))}
-      {hiddenReplyCount > 0 && !showAllReplies ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="ml-4 h-7 px-2 text-xs"
-          data-testid={`comments-show-replies-${comment.id}`}
-          onClick={() => setShowAllReplies(true)}
-        >
-          Mostra altre {hiddenReplyCount} risposte
-        </Button>
+      {comment.replies.length > 0 ? (
+        <div className="mr-4 mb-3 ml-12.5 flex flex-col gap-3 border-l-2 border-[#e7e9ee] pl-3.5">
+          {hiddenReplyCount > 0 && !showAllReplies ? (
+            <button
+              type="button"
+              data-testid={`comments-show-replies-${comment.id}`}
+              className="self-start text-xs font-semibold text-[#2563EB] hover:underline"
+              onClick={() => setShowAllReplies(true)}
+            >
+              Mostra altre {hiddenReplyCount} risposte
+            </button>
+          ) : null}
+          {visibleReplies.map((reply) => (
+            <CommentBubble
+              key={reply.id}
+              comment={reply}
+              currentUserId={currentUserId}
+              isReply
+              onReply={onReply}
+              onEdit={onEdit}
+              onMarkRead={onMarkRead}
+            />
+          ))}
+        </div>
       ) : null}
     </div>
   )

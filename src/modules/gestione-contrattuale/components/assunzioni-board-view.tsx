@@ -1,5 +1,3 @@
-import * as React from "react"
-
 import { useAssunzioniBoardView } from "../hooks/use-assunzioni-board-view"
 import { useCommentRouteContext } from "@/modules/commenti/hooks"
 import {
@@ -23,7 +21,6 @@ export function AssunzioniBoardView({
   initialSelectedRapportoId = null,
 }: AssunzioniBoardViewProps) {
   const board = useAssunzioniBoardView({ initialSelectedRapportoId })
-  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
   const selectedCard = board.sheetProps.card
   const assunzioneId = selectedCard?.assunzione?.id ?? null
 
@@ -34,7 +31,6 @@ export function AssunzioniBoardView({
       : null,
     row: selectedCard ? assunzioneCommentRow(selectedCard) : {},
     sourceInterface: "assunzioni",
-    anchorRef: commentAnchorRef,
     displayNames: selectedCard ? assunzioneDisplayNames(selectedCard) : undefined,
   })
 
@@ -60,7 +56,7 @@ export function AssunzioniBoardView({
         }}
       />
 
-      <AssunzioniDetailSheet {...board.sheetProps} commentAnchorRef={commentAnchorRef} />
+      <AssunzioniDetailSheet {...board.sheetProps} />
     </section>
   )
 }

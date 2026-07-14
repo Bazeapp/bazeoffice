@@ -40,7 +40,6 @@ import {
 } from "@/lib/availability-functions"
 import type { RicercaWorkerSelectionCard } from "../types"
 import { useSelectedWorkerEditor } from "@/modules/lavoratori/hooks"
-import { useCurrentOperatorName } from "@/hooks/use-current-operator-name"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"
@@ -334,8 +333,6 @@ export function useRicercaWorkerPipelineOverlay({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
-
-  const operatorName = useCurrentOperatorName();
 
   // FASE 5 BIS — form autosave per i campi di dettaglio che alimentano card
   // presentazionali condivise (header + documenti/amministrativi). Le card
@@ -911,7 +908,6 @@ export function useRicercaWorkerPipelineOverlay({
     selectedWorkerExperiences,
     selectedWorkerDocuments,
     selectedWorkerReferences,
-    operatorName,
     dataRitornoPipelineValue,
     documentNaspiValue,
     documentIbanValue,

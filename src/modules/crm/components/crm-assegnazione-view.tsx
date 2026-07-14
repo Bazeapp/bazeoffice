@@ -285,7 +285,6 @@ export function CrmAssegnazioneView({
     [cards, selectedCard],
   );
 
-  const commentAnchorRef = React.useRef<HTMLDivElement>(null);
   const commentRow = React.useMemo(
     () =>
       selectedCardFromState
@@ -316,7 +315,6 @@ export function CrmAssegnazioneView({
       : null,
     row: commentRow,
     sourceInterface: "assegnazione_famiglie",
-    anchorRef: commentAnchorRef,
     displayNames: commentDisplayNames,
   });
 
@@ -786,7 +784,6 @@ export function CrmAssegnazioneView({
           await patchCard(selectedCardFromState.id, patch);
         }}
         onOpenRicerca={handleOpenRicerca}
-        commentAnchorRef={commentAnchorRef}
       />
     </section>
   );

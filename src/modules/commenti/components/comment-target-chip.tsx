@@ -1,12 +1,12 @@
-import { ChevronDownIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
 
 import { ENTITY_SECTION_META } from "../lib/consts"
 import { entityRefKey } from "../lib/entity-ref"
@@ -17,67 +17,85 @@ type CommentTargetChipProps = {
   target: EntityRef
   options: EntityRef[]
   sections: CommentSection[]
-  visibilityHint?: string | null
-  composerFocused: boolean
   onTargetChange: (target: EntityRef) => void
 }
 
-function labelForTarget(target: EntityRef, sections: CommentSection[]): string {
+function metaForTarget(target: EntityRef, sections: CommentSection[]) {
   const section = sections.find(
     (item) =>
       item.entityRef !== null &&
       entityRefKey(item.entityRef) === entityRefKey(target),
   )
   if (section) {
-    return `${section.icon} ${section.typeLabel} · ${section.displayName}`
+    return {
+      icon: section.icon,
+      typeLabel: section.typeLabel,
+      displayName: section.displayName,
+    }
   }
   const meta = ENTITY_SECTION_META[target.entityType]
-  return `${meta.icon} ${meta.typeLabel}`
+  return { icon: meta.icon, typeLabel: meta.typeLabel, displayName: "" }
 }
 
 export function CommentTargetChip({
   target,
   options,
   sections,
-  visibilityHint,
-  composerFocused,
   onTargetChange,
 }: CommentTargetChipProps) {
+  const activeMeta = metaForTarget(target, sections)
+
   return (
-    <div className="space-y-1.5">
+    <div className="flex items-center gap-2">
+      <span className="shrink-0 text-[11.5px] text-[#9ca3af]">Commenti su</span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="sm"
             data-testid="comments-target-chip"
-            className="h-8 max-w-full justify-between gap-2 px-2.5 font-normal"
+            className={cn(
+              "flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[9px] px-3 py-2",
+              "border-[1.5px] border-[#2563EB] bg-[#EFF6FF] text-[13px] font-semibold text-[#1D4ED8]",
+            )}
           >
-            <span className="truncate">{labelForTarget(target, sections)}</span>
-            <ChevronDownIcon className="size-3.5 shrink-0 opacity-60" />
-          </Button>
+            <span aria-hidden className="text-[13px] leading-none">
+              {activeMeta.icon}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-left">
+              {activeMeta.typeLabel}
+              {activeMeta.displayName ? ` · ${activeMeta.displayName}` : null}
+            </span>
+            <ChevronDownIcon className="size-3.5 shrink-0" />
+          </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="max-w-[22rem]">
-          {options.map((option) => (
-            <DropdownMenuItem
-              key={entityRefKey(option)}
-              data-testid={`comments-target-option-${option.entityType}`}
-              onSelect={() => onTargetChange(option)}
-            >
-              {labelForTarget(option, sections)}
-            </DropdownMenuItem>
-          ))}
+        <DropdownMenuContent align="start" className="w-90 max-w-[calc(100vw-3rem)]">
+          {options.map((option) => {
+            const meta = metaForTarget(option, sections)
+            const isActive = entityRefKey(option) === entityRefKey(target)
+            return (
+              <DropdownMenuItem
+                key={entityRefKey(option)}
+                data-testid={`comments-target-option-${option.entityType}`}
+                className={cn("gap-2", isActive ? "bg-[#EFF6FF]" : null)}
+                onSelect={() => onTargetChange(option)}
+              >
+                <span aria-hidden className="w-4.5 shrink-0 text-center">
+                  {meta.icon}
+                </span>
+                <span className="shrink-0 text-[13px] font-semibold">
+                  {meta.typeLabel}
+                </span>
+                <span className="truncate text-[11.5px] text-[#9ca3af]">
+                  {meta.displayName}
+                </span>
+                {isActive ? (
+                  <CheckIcon className="ml-auto size-3.5 shrink-0 text-[#2563EB]" />
+                ) : null}
+              </DropdownMenuItem>
+            )
+          })}
         </DropdownMenuContent>
       </DropdownMenu>
-      {composerFocused && visibilityHint ? (
-        <p
-          className="text-xs text-muted-foreground"
-          data-testid="comments-visibility-hint"
-        >
-          ↗ Visibile anche su {visibilityHint}
-        </p>
-      ) : null}
     </div>
   )
 }

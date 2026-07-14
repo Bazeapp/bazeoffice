@@ -103,6 +103,7 @@ function renderPanelBody() {
     <CommentPanelBody
       pageFocus={pageFocus}
       stack={stack}
+      totalCount={2}
       panelOptions={{
         currentUserId: CURRENT_USER_ID,
         currentUserName: "Tu",
@@ -148,7 +149,7 @@ describe("Comment phase note rendering", () => {
     const threads = within(section).getAllByTestId(/^comments-root-/)
     expect(threads[0]).toHaveAttribute("data-testid", "comments-root-phase-1")
     expect(within(section).getByTestId("comments-phase-badge")).toHaveTextContent("Gate 1")
-    expect(within(section).getByText("Nota gate").closest("div")).toHaveClass("bg-[#EFF6FF]")
+    expect(within(section).getByTestId("comments-thread-phase-1")).toHaveClass("bg-[#EFF6FF]")
   })
 
   it("shows edit in the author menu but not delete", async () => {

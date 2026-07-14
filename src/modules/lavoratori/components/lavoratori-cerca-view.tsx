@@ -1,5 +1,3 @@
-import * as React from "react"
-
 import type { OpenRicercaDetailOptions } from "@/routes/app-routes"
 
 import { useCommentRouteContext } from "@/modules/commenti/hooks"
@@ -96,7 +94,6 @@ export function LavoratoriCercaView({
     reloadSelectedWorkerScheda,
   })
 
-  const commentAnchorRef = React.useRef<HTMLDivElement>(null)
   const workerName = selectedWorker?.nomeCompleto ?? null
 
   useCommentRouteContext({
@@ -108,7 +105,6 @@ export function LavoratoriCercaView({
       ? lavoratoreCommentRow(selectedWorkerId, selectedWorkerRow ?? undefined)
       : {},
     sourceInterface: "cerca_lavoratore",
-    anchorRef: commentAnchorRef,
     displayNames: selectedWorkerId
       ? lavoratoreDisplayName(selectedWorkerId, workerName)
       : undefined,
@@ -150,7 +146,7 @@ export function LavoratoriCercaView({
         />
 
         {selectedWorkerId ? (
-          <div ref={commentAnchorRef} className="min-h-0">
+          <div className="min-h-0">
             <LavoratoriCercaDetailPanel
               {...detailPanelProps}
               onClose={() => setSelectedWorkerId(null)}

@@ -1,5 +1,4 @@
 import { CalendarDaysIcon } from "lucide-react";
-import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { useCommentRouteContext } from "@/modules/commenti/hooks";
@@ -30,7 +29,6 @@ function Gate1ViewLayout() {
     gateLabel,
     showInPersonBookingLinks,
   } = useGate1ViewContext();
-  const commentAnchorRef = React.useRef<HTMLDivElement>(null);
   const isGate2 = gateLabel === "Gate 2";
   const workerName =
     typeof selectedWorkerRow?.nome === "string" ||
@@ -52,7 +50,6 @@ function Gate1ViewLayout() {
         )
       : {},
     sourceInterface: isGate2 ? "gate_2" : "gate_1",
-    anchorRef: commentAnchorRef,
     displayNames: selectedWorkerId
       ? lavoratoreDisplayName(selectedWorkerId, workerName)
       : undefined,
@@ -82,7 +79,7 @@ function Gate1ViewLayout() {
         }
       >
         <Gate1ListPanel />
-        <div ref={commentAnchorRef} className="min-h-0">
+        <div className="min-h-0">
           <Gate1DetailPanel />
         </div>
       </div>

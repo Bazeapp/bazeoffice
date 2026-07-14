@@ -51,12 +51,12 @@ export function CommentPanelHost() {
       expanded={expanded}
       onToggleExpanded={() => setExpanded((value) => !value)}
       onClose={() => setExpanded(false)}
-      anchorRef={context?.anchorRef}
     >
       {expanded ? (
         <CommentPanelBody
           pageFocus={pageFocus}
           stack={stack}
+          totalCount={countState.count}
           panelOptions={panelOptions}
         />
       ) : null}
