@@ -46,26 +46,23 @@ export function CommentComposer({
     activeOnly: true,
   })
 
-  const readCursor = React.useCallback(() => {
+  const readCursor = () => {
     const editor = editorRef.current
     if (!editor) return 0
     return getMarkupCaretOffset(editor)
-  }, [editorRef])
+  }
 
-  const syncEditorFromMarkup = React.useCallback(
-    (markup: string, cursor?: number) => {
-      const editor = editorRef.current
-      if (!editor) return
+  const syncEditorFromMarkup = (markup: string, cursor?: number) => {
+    const editor = editorRef.current
+    if (!editor) return
 
-      isSyncingEditorRef.current = true
-      renderComposerMarkup(editor, markup)
-      if (cursor !== undefined) {
-        setMarkupCaretOffset(editor, cursor)
-      }
-      isSyncingEditorRef.current = false
-    },
-    [editorRef],
-  )
+    isSyncingEditorRef.current = true
+    renderComposerMarkup(editor, markup)
+    if (cursor !== undefined) {
+      setMarkupCaretOffset(editor, cursor)
+    }
+    isSyncingEditorRef.current = false
+  }
 
   const mention = useMentionAutocomplete({
     value: draft,
@@ -84,9 +81,11 @@ export function CommentComposer({
     if (renderedMarkup !== draft) {
       syncEditorFromMarkup(draft)
     }
-  }, [draft, editorRef, syncEditorFromMarkup])
+    // editorRef is stable; syncEditorFromMarkup reads editorRef.current at call time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- draft-only sync
+  }, [draft])
 
-  const commitEditorMarkup = React.useCallback(() => {
+  const commitEditorMarkup = () => {
     const editor = editorRef.current
     if (!editor) return
 
@@ -95,7 +94,7 @@ export function CommentComposer({
       setDraft(nextMarkup)
     }
     mention.syncCursor()
-  }, [draft, editorRef, mention])
+  }
 
   const handleSubmit = React.useCallback(async () => {
     const body = draft.trim()
@@ -104,7 +103,7 @@ export function CommentComposer({
     setDraft("")
     syncEditorFromMarkup("")
     onCancelReply?.()
-  }, [disabled, draft, isSubmitting, onCancelReply, onSubmit, syncEditorFromMarkup])
+  }, [disabled, draft, isSubmitting, onCancelReply, onSubmit])
 
   const isInputDisabled = disabled || isSubmitting || operatorsLoading
 

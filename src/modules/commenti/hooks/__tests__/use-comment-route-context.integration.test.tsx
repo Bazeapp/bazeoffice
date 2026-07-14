@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react"
+import type { User } from "@supabase/supabase-js"
 import { describe, expect, it } from "vitest"
 
 import { renderWithProviders } from "@/test/test-utils"
@@ -10,11 +11,14 @@ import { useCommentRouteContext } from "../use-comment-route-context"
 const RICERCA_ID = "00000000-0000-0000-0000-00000000b00c"
 const CANDIDATURA_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
 
-const mockUser = {
+const mockUser: User = {
   id: "99999999-9999-4999-8999-999999999999",
   email: "test@usuario.com",
   user_metadata: { full_name: "Test Operatore" },
-} as const
+  app_metadata: {},
+  aud: "authenticated",
+  created_at: "2024-01-01T00:00:00.000Z",
+}
 
 function ContextProbe() {
   const context = useCommentContext()
