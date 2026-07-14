@@ -69,6 +69,20 @@ export function CommentPanelBody({
   const visibilityHint =
     stack.visibilityHintsByTarget[entityRefKey(selection.targetEntityRef)] ?? null
 
+  const involvedOperatorIds = React.useMemo(() => {
+    const ids = new Set<string>()
+    if (panelOptions.currentUserId) {
+      ids.add(panelOptions.currentUserId)
+    }
+    for (const comment of panelState.sectionComments) {
+      ids.add(comment.author.id)
+      for (const reply of comment.replies) {
+        ids.add(reply.author.id)
+      }
+    }
+    return [...ids]
+  }, [panelOptions.currentUserId, panelState.sectionComments])
+
   const handleSectionChange = (sectionId: string) => {
     setSelection((current) =>
       selectSection(stack, sectionId, current.targetEntityRef),
@@ -157,6 +171,7 @@ export function CommentPanelBody({
           disabled={!panelOptions.currentUserId}
           isSubmitting={panelState.isSubmitting}
           replyToLabel={replyTo?.label ?? null}
+          involvedOperatorIds={involvedOperatorIds}
           onCancelReply={() => setReplyTo(null)}
           onFocusChange={setComposerFocused}
           onSubmit={handleSubmit}

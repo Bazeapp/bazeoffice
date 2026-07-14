@@ -49,6 +49,14 @@ vi.mock("@/hooks/use-realtime-rows", () => ({
   useRealtimeRows: vi.fn(),
 }))
 
+vi.mock("@/hooks/use-operatori-options", () => ({
+  useOperatoriOptions: () => ({
+    options: [],
+    loading: false,
+    error: null,
+  }),
+}))
+
 function makeComment(overrides: Partial<Comment> = {}): Comment {
   return {
     id: "comment-1",

@@ -2,12 +2,17 @@ import * as React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { useOperatoriOptions } from "@/hooks/use-operatori-options"
+
+import { useMentionAutocomplete } from "../hooks/use-mention-autocomplete"
+import { MentionAutocomplete } from "./mention-autocomplete"
 
 type CommentComposerProps = {
   placeholder: string
   disabled?: boolean
   isSubmitting?: boolean
   replyToLabel?: string | null
+  involvedOperatorIds?: string[]
   onCancelReply?: () => void
   onSubmit: (body: string) => Promise<void> | void
   inputRef?: React.RefObject<HTMLTextAreaElement | null>
@@ -19,12 +24,24 @@ export function CommentComposer({
   disabled = false,
   isSubmitting = false,
   replyToLabel,
+  involvedOperatorIds = [],
   onCancelReply,
   onSubmit,
   inputRef,
   onFocusChange,
 }: CommentComposerProps) {
   const [draft, setDraft] = React.useState("")
+  const { options: operators, loading: operatorsLoading } = useOperatoriOptions({
+    activeOnly: true,
+  })
+
+  const mention = useMentionAutocomplete({
+    value: draft,
+    onChange: setDraft,
+    textareaRef: inputRef,
+    operators,
+    involvedOperatorIds,
+  })
 
   const handleSubmit = React.useCallback(async () => {
     const body = draft.trim()
@@ -50,24 +67,41 @@ export function CommentComposer({
           ) : null}
         </div>
       ) : null}
-      <Textarea
-        ref={inputRef}
-        data-testid="comments-composer-input"
-        value={draft}
-        disabled={disabled || isSubmitting}
-        placeholder={placeholder}
-        rows={3}
-        className="min-h-20 resize-none text-sm"
-        onFocus={() => onFocusChange?.(true)}
-        onBlur={() => onFocusChange?.(false)}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-            event.preventDefault()
-            void handleSubmit()
-          }
-        }}
-      />
+      <div className="relative">
+        {mention.isOpen ? (
+          <MentionAutocomplete
+            sections={mention.sections}
+            highlightedIndex={mention.highlightedIndex}
+            onSelect={mention.selectOperator}
+            className="absolute bottom-full left-0 z-50 mb-1"
+          />
+        ) : null}
+        <Textarea
+          ref={inputRef}
+          data-testid="comments-composer-input"
+          value={draft}
+          disabled={disabled || isSubmitting || operatorsLoading}
+          placeholder={placeholder}
+          rows={3}
+          className="min-h-20 resize-none text-sm"
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => onFocusChange?.(false)}
+          onClick={mention.syncCursor}
+          onKeyUp={mention.syncCursor}
+          onSelect={mention.syncCursor}
+          onChange={(event) => {
+            setDraft(event.target.value)
+            mention.syncCursor(event)
+          }}
+          onKeyDown={(event) => {
+            if (mention.handleKeyDown(event)) return
+            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+              event.preventDefault()
+              void handleSubmit()
+            }
+          }}
+        />
+      </div>
       <div className="flex justify-end">
         <Button
           type="button"

@@ -6,3 +6,5 @@ export { CommentSectionPanel, CommentSectionsAccordion } from "./comment-section
 export { CommentThread } from "./comment-thread"
 export { CommentComposer } from "./comment-composer"
 export { CommentTargetChip } from "./comment-target-chip"
+export { CommentBody } from "./comment-body"
+export { MentionAutocomplete } from "./mention-autocomplete"

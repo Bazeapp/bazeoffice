@@ -47,6 +47,14 @@ vi.mock("@/hooks/use-realtime-rows", () => ({
   useRealtimeRows: (...args: unknown[]) => mockUseRealtimeRows(...args),
 }))
 
+vi.mock("@/hooks/use-operatori-options", () => ({
+  useOperatoriOptions: () => ({
+    options: [],
+    loading: false,
+    error: null,
+  }),
+}))
+
 const PAGE_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
 
 function makeContext(

@@ -18,6 +18,7 @@ import {
   getSourceInterfaceLabel,
 } from "../lib/comment-display"
 import type { Comment } from "../types/comment"
+import { CommentBody } from "./comment-body"
 
 const VISIBLE_REPLY_LIMIT = 3
 const MARK_READ_DELAY_MS = 1000
@@ -193,7 +194,7 @@ function CommentBubble({
           </div>
         </div>
       ) : (
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.body}</p>
+        <CommentBody body={comment.body} />
       )}
 
       {!isReply && !isEditing ? (
