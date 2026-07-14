@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { adaptCommentRow } from "../../commenti.adapters"
+import { adaptCommentRow } from "../adapters"
 
-describe("commenti.adapters", () => {
+describe("adapters", () => {
   it("maps an RPC row to a Comment with author pill precedence", () => {
     const comment = adaptCommentRow({
       id: "11111111-1111-4111-8111-111111111111",

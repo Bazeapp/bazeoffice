@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest"
 
-import {
-  ENTITY_TYPE_TO_TABLE,
-  isEntityType,
-  tableForEntityType,
-} from "../entity-map"
+import { ENTITY_TYPE_TO_TABLE } from "../consts"
+import { isEntityType, tableForEntityType } from "../entity-map"
 
 describe("entity-map", () => {
   it("maps PRD shorthand tables to repo table names", () => {

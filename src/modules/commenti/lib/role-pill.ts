@@ -1,18 +1,5 @@
-import type { OperatorRoleToken } from "../commenti.types"
-
-const ROLE_PILL_LABELS: Record<OperatorRoleToken, string> = {
-  customer: "Customer",
-  sales: "Sales",
-  recruiter: "Recruiter",
-  payroll: "Payroll",
-}
-
-const ROLE_PRECEDENCE: OperatorRoleToken[] = [
-  "recruiter",
-  "customer",
-  "sales",
-  "payroll",
-]
+import { ROLE_PILL_LABELS, ROLE_PRECEDENCE } from "./consts"
+import type { OperatorRoleToken } from "../types/operator"
 
 export function normalizeRoleTokens(raw: unknown): OperatorRoleToken[] {
   if (!Array.isArray(raw)) return []
