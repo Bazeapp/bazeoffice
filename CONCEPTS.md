@@ -45,6 +45,19 @@ Staff who authenticate into BazeOffice. Each operator has one or more role token
 
 Famiglia and lavoratore are domain entities, not BazeOffice login roles — families interact through a separate webapp in production.
 
+## Contextual comments (commenti contestuali)
+
+Cross-cutting collaboration feature (BAZ-83). Each comment anchors to a domain entity (`entity_type` + `entity_id`) and is visible on that entity and its descendants in the UI via `commenti_scope` rows computed at insert time from real FK relationships — not by copying comments across tables.
+
+### Chip bersaglio
+The composer’s explicit write target. The operator chooses which hierarchy level receives a new root comment before sending. Default is the page focus (most specific entity). Must stay synchronized with the expanded accordion section.
+
+### Phase note
+A `comment_type = 'phase_note'` comment on `lavoratore`, auto-tagged from Gate 1 (`gate_1`) or Gate 2 (`gate_2`) surfaces. Pinned at the top of the lavoratore section. Per-ricerca fit judgments are free comments on `candidatura`, not phase notes.
+
+### Da entità collegate
+Aggregated panel section showing comments from descendant entities of the current focus. The only section where individual comments carry an origin badge (e.g. ↗ da Cedolino).
+
 ## Realtime write-sync
 
 ### Write tracking
