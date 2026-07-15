@@ -1,25 +1,40 @@
 import { useQueries } from "@tanstack/react-query"
 import * as React from "react"
 
-import { commentSectionCountQueryKey } from "../lib/query-keys"
+import {
+  commentDescendantsCountQueryKey,
+  commentSectionCountQueryKey,
+} from "../lib/query-keys"
+import { collectStackAnchorExclusions } from "../lib/stack-anchor-exclusions"
+import { fetchDescendantsCommentCount } from "../queries/fetch-descendants-comment-count"
 import { fetchCommentSectionCount } from "../queries/fetch-section-comment-count"
-import type { CommentSection } from "../types/section"
+import type { CommentSection, ResolveCommentStackResult } from "../types/section"
 import type { EntityRef } from "../types/entity"
 
 export function useSectionCommentCounts(
   pageFocus: EntityRef,
-  sections: CommentSection[],
+  stack: ResolveCommentStackResult,
 ) {
+  const excludeAnchors = React.useMemo(
+    () => collectStackAnchorExclusions(stack),
+    [stack],
+  )
+
   const countableSections = React.useMemo(
     () =>
-      sections.filter(
+      stack.sections.filter(
         (section): section is CommentSection & { entityRef: EntityRef } =>
           section.entityRef !== null,
       ),
-    [sections],
+    [stack.sections],
   )
 
-  const queries = useQueries({
+  const descendantsSection = React.useMemo(
+    () => stack.sections.find((section) => section.kind === "descendants"),
+    [stack.sections],
+  )
+
+  const sectionQueries = useQueries({
     queries: countableSections.map((section) => ({
       queryKey: commentSectionCountQueryKey(pageFocus, section.entityRef),
       queryFn: () =>
@@ -32,22 +47,37 @@ export function useSectionCommentCounts(
     })),
   })
 
+  const descendantsQuery = useQueries({
+    queries: [
+      {
+        queryKey: commentDescendantsCountQueryKey(pageFocus, excludeAnchors),
+        queryFn: () =>
+          fetchDescendantsCommentCount({
+            pageEntityType: pageFocus.entityType,
+            pageEntityId: pageFocus.entityId,
+            excludeAnchors,
+          }),
+        enabled: Boolean(descendantsSection),
+      },
+    ],
+  })
+
   return React.useMemo(() => {
     const counts: Record<string, number> = {}
     const loading: Record<string, boolean> = {}
 
     countableSections.forEach((section, index) => {
-      const query = queries[index]
+      const query = sectionQueries[index]
       counts[section.id] = query?.data ?? 0
       loading[section.id] = query?.isLoading ?? true
     })
 
-    const descendants = sections.find((section) => section.kind === "descendants")
-    if (descendants) {
-      counts[descendants.id] = 0
-      loading[descendants.id] = false
+    if (descendantsSection) {
+      const query = descendantsQuery[0]
+      counts[descendantsSection.id] = query?.data ?? 0
+      loading[descendantsSection.id] = query?.isLoading ?? true
     }
 
     return { counts, loading }
-  }, [countableSections, queries, sections])
+  }, [countableSections, descendantsQuery, descendantsSection, sectionQueries])
 }

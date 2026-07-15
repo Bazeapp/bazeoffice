@@ -1,6 +1,109 @@
 import { formatMentionMarkup, parseMentionMarkup } from "./mention-markup"
 
 const MENTION_CHIP_SELECTOR = '[data-mention-chip="true"]'
+const COMPOSER_CARET_ZWSP = "\u200B"
+
+function stripComposerZwsp(text: string): string {
+  return text.replaceAll(COMPOSER_CARET_ZWSP, "")
+}
+
+function isCaretZwspNode(node: Node | null | undefined): node is Text {
+  return (
+    node?.nodeType === Node.TEXT_NODE &&
+    node.textContent === COMPOSER_CARET_ZWSP
+  )
+}
+
+function ensureCaretZwspAfter(br: HTMLBRElement): Text {
+  const next = br.nextSibling
+  if (isCaretZwspNode(next)) {
+    return next as Text
+  }
+
+  const zwsp = document.createTextNode(COMPOSER_CARET_ZWSP)
+  br.parentNode?.insertBefore(zwsp, br.nextSibling)
+  return zwsp
+}
+
+function placeSelectionAfterLineBreak(
+  br: HTMLBRElement,
+  selection: Selection,
+): void {
+  const range = document.createRange()
+  const isTrailingLineBreak = !br.nextSibling || isCaretZwspNode(br.nextSibling)
+
+  if (isTrailingLineBreak) {
+    const zwsp = ensureCaretZwspAfter(br)
+    range.setStart(zwsp, zwsp.length)
+  } else {
+    range.setStartAfter(br)
+  }
+
+  range.collapse(true)
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
+function insertLineBreakAtSelection(root: HTMLElement, range: Range): HTMLBRElement {
+  const br = document.createElement("br")
+
+  if (range.startContainer.nodeType === Node.TEXT_NODE) {
+    const textNode = range.startContainer
+    const offset = range.startOffset
+    const textLength = textNode.textContent?.length ?? 0
+    const parent = textNode.parentNode
+    if (!parent) return br
+
+    if (
+      offset === textLength &&
+      parent instanceof HTMLElement &&
+      isComposerTextSpan(parent)
+    ) {
+      parent.parentNode?.insertBefore(br, parent.nextSibling)
+      return br
+    }
+
+    if (offset > 0 && offset < textLength) {
+      const after = textNode.splitText(offset)
+      parent.insertBefore(br, after)
+      return br
+    }
+
+    if (offset === 0) {
+      parent.insertBefore(br, textNode)
+      return br
+    }
+
+    if (offset === textLength) {
+      parent.insertBefore(br, textNode.nextSibling)
+      return br
+    }
+  }
+
+  if (range.startContainer === root) {
+    const reference = root.childNodes[range.startOffset] ?? null
+    if (reference) {
+      root.insertBefore(br, reference)
+    } else {
+      root.appendChild(br)
+    }
+    return br
+  }
+
+  if (range.startContainer.nodeType === Node.ELEMENT_NODE) {
+    const element = range.startContainer
+    const reference = element.childNodes[range.startOffset] ?? null
+    if (reference) {
+      element.insertBefore(br, reference)
+    } else {
+      element.appendChild(br)
+    }
+    return br
+  }
+
+  range.insertNode(br)
+  return br
+}
 
 export function isMentionChip(node: Node | null | undefined): node is HTMLElement {
   return (
@@ -13,7 +116,8 @@ export function isMentionChip(node: Node | null | undefined): node is HTMLElemen
 
 function mentionMarkupLength(node: Node): number {
   if (node.nodeType === Node.TEXT_NODE) {
-    return node.textContent?.length ?? 0
+    if (isCaretZwspNode(node)) return 0
+    return stripComposerZwsp(node.textContent ?? "").length
   }
   if (isMentionChip(node)) {
     return formatMentionMarkup(node.dataset.mentionLabel!, node.dataset.userId!).length
@@ -43,16 +147,125 @@ export function createMentionChip(label: string, userId: string): HTMLSpanElemen
   return span
 }
 
+function createTextSpan(text: string): HTMLSpanElement {
+  const span = document.createElement("span")
+  span.appendChild(document.createTextNode(text))
+  return span
+}
+
 function appendTextWithLineBreaks(root: HTMLElement, value: string): void {
   const lines = value.split("\n")
   lines.forEach((line, index) => {
     if (line) {
-      root.appendChild(document.createTextNode(line))
+      root.appendChild(createTextSpan(line))
     }
     if (index < lines.length - 1) {
       root.appendChild(document.createElement("br"))
     }
   })
+}
+
+function isComposerTextSpan(node: Node): boolean {
+  return (
+    node instanceof HTMLElement &&
+    node.tagName === "SPAN" &&
+    node.dataset.mentionChip !== "true"
+  )
+}
+
+function isComposerBlockElement(node: Node): node is HTMLElement {
+  return (
+    node instanceof HTMLElement &&
+    (node.tagName === "DIV" || node.tagName === "P")
+  )
+}
+
+function shouldTraverseComposerElement(node: Node): boolean {
+  return isComposerTextSpan(node) || isComposerBlockElement(node)
+}
+
+function isInlineOnlyBlockContent(children: Node[]): boolean {
+  return (
+    children.length > 0 &&
+    children.every(
+      (child) =>
+        child.nodeType === Node.TEXT_NODE ||
+        child.nodeName === "BR" ||
+        isMentionChip(child) ||
+        (child instanceof HTMLElement &&
+          child.tagName === "SPAN" &&
+          child.dataset.mentionChip !== "true"),
+    )
+  )
+}
+
+function unwrapComposerBlock(block: HTMLElement): void {
+  const parent = block.parentElement
+  if (!parent) return
+
+  const children = Array.from(block.childNodes)
+  const previous = block.previousSibling
+
+  const isEmptyLine =
+    children.length === 0 ||
+    (children.length === 1 && children[0]?.nodeName === "BR")
+
+  if (isEmptyLine) {
+    if (!previous || previous.nodeName !== "BR") {
+      parent.insertBefore(document.createElement("br"), block)
+    }
+    block.remove()
+    return
+  }
+
+  const hasTrailingBr =
+    children.length > 0 && children[children.length - 1]?.nodeName === "BR"
+  const onlyInlineWithoutTrailingBr =
+    isInlineOnlyBlockContent(children) && !hasTrailingBr
+
+  const continuesAfterMention =
+    previous !== null &&
+    isMentionChip(previous) &&
+    isInlineOnlyBlockContent(children)
+
+  const shouldMergeInlineWithPrevious =
+    onlyInlineWithoutTrailingBr && continuesAfterMention
+
+  const shouldMergeLineWithTrailingBr = hasTrailingBr && continuesAfterMention
+
+  if (
+    !shouldMergeInlineWithPrevious &&
+    !shouldMergeLineWithTrailingBr &&
+    previous &&
+    previous.nodeName !== "BR"
+  ) {
+    parent.insertBefore(document.createElement("br"), block)
+  }
+
+  for (const child of children) {
+    parent.insertBefore(child, block)
+  }
+  block.remove()
+}
+
+export function normalizeComposerDom(root: HTMLElement): void {
+  let block = root.querySelector(":scope > div, :scope > p")
+  while (block instanceof HTMLElement) {
+    unwrapComposerBlock(block)
+    block = root.querySelector(":scope > div, :scope > p")
+  }
+}
+
+export function insertComposerLineBreak(root: HTMLElement): void {
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0) return
+
+  const range = selection.getRangeAt(0)
+  if (!root.contains(range.startContainer)) return
+
+  range.deleteContents()
+  const br = insertLineBreakAtSelection(root, range)
+  placeSelectionAfterLineBreak(br, selection)
 }
 
 export function renderComposerMarkup(root: HTMLElement, markup: string): void {
@@ -71,7 +284,10 @@ export function serializeComposerMarkup(root: HTMLElement): string {
 
   for (const node of root.childNodes) {
     if (node.nodeType === Node.TEXT_NODE) {
-      markup += node.textContent ?? ""
+      if (isCaretZwspNode(node)) {
+        continue
+      }
+      markup += stripComposerZwsp(node.textContent ?? "")
       continue
     }
     if (isMentionChip(node)) {
@@ -80,6 +296,17 @@ export function serializeComposerMarkup(root: HTMLElement): string {
     }
     if (node.nodeName === "BR") {
       markup += "\n"
+      continue
+    }
+    if (isComposerTextSpan(node)) {
+      markup += serializeComposerMarkup(node)
+      continue
+    }
+    if (isComposerBlockElement(node)) {
+      if (markup.length > 0 && !markup.endsWith("\n")) {
+        markup += "\n"
+      }
+      markup += serializeComposerMarkup(node)
       continue
     }
     if (node.nodeType === Node.ELEMENT_NODE) {
@@ -111,7 +338,9 @@ export function getMarkupCaretOffset(
 
     if (node === range.startContainer) {
       if (node.nodeType === Node.TEXT_NODE) {
-        offset += range.startOffset
+        if (!isCaretZwspNode(node)) {
+          offset += range.startOffset
+        }
       } else if (node.nodeType === Node.ELEMENT_NODE) {
         for (let index = 0; index < range.startOffset; index += 1) {
           offset += mentionMarkupLength(node.childNodes[index]!)
@@ -119,6 +348,21 @@ export function getMarkupCaretOffset(
       }
       found = true
       return true
+    }
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (isCaretZwspNode(node)) {
+        return false
+      }
+      offset += mentionMarkupLength(node)
+      return false
+    }
+
+    if (shouldTraverseComposerElement(node)) {
+      for (const child of node.childNodes) {
+        if (visit(child)) return true
+      }
+      return false
     }
 
     offset += mentionMarkupLength(node)
@@ -153,7 +397,11 @@ export function setMarkupCaretOffset(
     if (placed) return
 
     if (node.nodeType === Node.TEXT_NODE) {
-      const length = node.textContent?.length ?? 0
+      if (isCaretZwspNode(node)) {
+        return
+      }
+
+      const length = stripComposerZwsp(node.textContent ?? "").length
       if (remaining <= length) {
         range.setStart(node, remaining)
         range.collapse(true)
@@ -185,7 +433,8 @@ export function setMarkupCaretOffset(
         return
       }
       if (remaining === 1) {
-        range.setStartAfter(node)
+        const zwsp = ensureCaretZwspAfter(node as HTMLBRElement)
+        range.setStart(zwsp, zwsp.length)
         range.collapse(true)
         placed = true
         return

@@ -8,6 +8,8 @@ import { useMentionAutocomplete } from "../hooks/use-mention-autocomplete"
 import {
   deleteMentionChipBeforeCaret,
   getMarkupCaretOffset,
+  insertComposerLineBreak,
+  normalizeComposerDom,
   renderComposerMarkup,
   serializeComposerMarkup,
   setMarkupCaretOffset,
@@ -79,7 +81,8 @@ export function CommentComposer({
 
     const renderedMarkup = serializeComposerMarkup(editor)
     if (renderedMarkup !== draft) {
-      syncEditorFromMarkup(draft)
+      const cursor = getMarkupCaretOffset(editor)
+      syncEditorFromMarkup(draft, cursor)
     }
     // editorRef is stable; syncEditorFromMarkup reads editorRef.current at call time.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- draft-only sync
@@ -89,6 +92,7 @@ export function CommentComposer({
     const editor = editorRef.current
     if (!editor) return
 
+    normalizeComposerDom(editor)
     const nextMarkup = serializeComposerMarkup(editor)
     if (nextMarkup !== draft) {
       setDraft(nextMarkup)
@@ -176,6 +180,16 @@ export function CommentComposer({
             }
 
             if (mention.handleKeyDown(event)) return
+
+            if (event.key === "Enter" && !event.metaKey && !event.ctrlKey) {
+              event.preventDefault()
+              const editor = editorRef.current
+              if (editor) {
+                insertComposerLineBreak(editor)
+                commitEditorMarkup()
+              }
+              return
+            }
 
             if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
               event.preventDefault()

@@ -149,6 +149,34 @@ describe("CommentPanel shell", () => {
     expect(screen.getByTestId("comments-pill")).toBeInTheDocument()
   })
 
+  it("collapses the panel when page focus changes", async () => {
+    const nextPageId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+    const { rerender } = renderWithProviders(
+      <CommentContextProvider value={makeContext()}>
+        <CommentPanelHost />
+      </CommentContextProvider>,
+    )
+
+    fireEvent.click(await screen.findByTestId("comments-pill"))
+    expect(await screen.findByTestId("comments-panel")).toBeInTheDocument()
+
+    rerender(
+      <CommentContextProvider
+        value={makeContext({
+          pageFocus: { entityType: "ricerca", entityId: nextPageId },
+          row: { id: nextPageId, famiglia_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
+        })}
+      >
+        <CommentPanelHost />
+      </CommentContextProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("comments-panel")).not.toBeInTheDocument()
+    })
+    expect(screen.getByTestId("comments-pill")).toBeInTheDocument()
+  })
+
   it("keeps the pill clickable while a sheet dialog is open", async () => {
     renderWithProviders(
       <CommentContextProvider value={makeContext()}>

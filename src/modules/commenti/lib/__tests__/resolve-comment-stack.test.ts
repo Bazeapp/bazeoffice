@@ -150,6 +150,9 @@ describe("resolveCommentStack", () => {
     expect(entitySectionKinds(famiglia)).toEqual(["famiglia"])
     expect(lavoratore.sections.at(-1)?.typeLabel).toBe("COLLEGATE")
     expect(lavoratore.sections.at(-1)?.displayName).toBe("")
+    expect(lavoratore.visibilityHintsByTarget[`lavoratore:${IDS.lavoratore}`]).toBe(
+      "tutte le ricerche in cui compare",
+    )
   })
 
   it("walks rapporto chain for l3 document focuses", () => {

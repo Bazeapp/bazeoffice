@@ -97,21 +97,26 @@ function CommentSectionCountBadge({
   count,
   loading = false,
   muted = false,
+  highlighted = false,
 }: {
   count: number
   loading?: boolean
   muted?: boolean
+  highlighted?: boolean
 }) {
   return (
     <span
       className={cn(
         "flex min-w-5.5 items-center justify-center rounded-full px-1.5 py-0.5",
         "text-2xs font-semibold tabular-nums",
-        muted
-          ? "bg-surface-muted text-foreground-faint"
-          : "bg-surface-muted text-foreground-subtle",
+        highlighted
+          ? "bg-accent-muted text-accent-ink"
+          : muted
+            ? "bg-surface-muted text-foreground-faint"
+            : "bg-surface-muted text-foreground-subtle",
       )}
       data-testid="comments-section-count"
+      data-highlighted={highlighted ? "true" : undefined}
     >
       {loading ? "…" : count}
     </span>
@@ -123,6 +128,7 @@ type CommentSectionsAccordionProps = {
   activeSectionId: string
   sectionCounts: Record<string, number>
   sectionCountsLoading?: Record<string, boolean>
+  sectionUnreadFlags?: Record<string, boolean>
   onSectionChange: (sectionId: string) => void
   renderSectionContent: (section: CommentSection) => React.ReactNode
 }
@@ -132,6 +138,7 @@ export function CommentSectionsAccordion({
   activeSectionId,
   sectionCounts,
   sectionCountsLoading = {},
+  sectionUnreadFlags = {},
   onSectionChange,
   renderSectionContent,
 }: CommentSectionsAccordionProps) {
@@ -151,6 +158,7 @@ export function CommentSectionsAccordion({
           const isDescendants = section.kind === "descendants"
           const count = sectionCounts[section.id] ?? 0
           const countLoading = sectionCountsLoading[section.id] ?? false
+          const hasUnread = sectionUnreadFlags[section.id] ?? false
 
           return (
             <AccordionItem
@@ -189,6 +197,7 @@ export function CommentSectionsAccordion({
                     count={count}
                     loading={countLoading}
                     muted={isDescendants}
+                    highlighted={hasUnread}
                   />
                 </span>
               </AccordionTrigger>

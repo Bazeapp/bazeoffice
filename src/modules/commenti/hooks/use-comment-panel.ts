@@ -8,13 +8,14 @@ import { runTracked } from "@/lib/write-tracking"
 import {
   appendReplyToRoot,
   makeOptimisticComment,
-  scopeRowMatchesPageFocus,
+  scopeRowMatchesEntityRefs,
   shouldMarkCommentRead,
 } from "../lib/comment-panel-utils"
+import { invalidateCommentVisibility } from "../lib/invalidate-comment-visibility"
 import {
   COMMENTI_REALTIME_TABLES,
   commentCountQueryKey,
-  commentPageQueryPrefix,
+  commentDescendantsQueryKey,
   commentSectionQueryKey,
 } from "../lib/query-keys"
 import { createComment } from "../mutations/create-comment"
@@ -22,15 +23,20 @@ import { editComment } from "../mutations/edit-comment"
 import { markCommentRead } from "../mutations/mark-comment-read"
 import { replyComment } from "../mutations/reply-comment"
 import { fetchCommentCountForPage } from "../queries/fetch-comment-count"
+import { fetchDescendantsCommentPage } from "../queries/fetch-descendants-comments"
 import { fetchCommentSectionPage } from "../queries/fetch-section-comments"
 import type { Comment, CommentType, PhaseLabel, SourceInterface } from "../types/comment"
 import type { CommentListSectionRpcResponse } from "../types/comment-rpc"
 import type { EntityRef } from "../types/entity"
+import type { CommentSectionKind } from "../types/section"
 
 export type UseCommentPanelOptions = {
   pageFocus: EntityRef | null
+  watchedEntityRefs: EntityRef[]
   expanded: boolean
+  activeSectionKind: CommentSectionKind | null
   activeSectionRef: EntityRef | null
+  excludeAnchors: EntityRef[]
   targetEntityRef: EntityRef | null
   currentUserId: string | null
   currentUserName?: string
@@ -52,6 +58,8 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
   const queryClient = useQueryClient()
   const pageFocus = options.pageFocus
   const activeSectionRef = options.activeSectionRef
+  const activeSectionKind = options.activeSectionKind
+  const excludeAnchors = options.excludeAnchors
   const defaultCommentType = options.defaultCommentType ?? "free"
 
   const countQuery = useQuery({
@@ -61,9 +69,16 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
     enabled: Boolean(pageFocus),
   })
 
+  const isDescendantsSection = activeSectionKind === "descendants"
+
   const sectionQueryKey =
-    pageFocus && activeSectionRef
+    pageFocus && activeSectionRef && !isDescendantsSection
       ? commentSectionQueryKey(pageFocus, activeSectionRef)
+      : null
+
+  const descendantsQueryKey =
+    pageFocus && isDescendantsSection
+      ? commentDescendantsQueryKey(pageFocus, excludeAnchors)
       : null
 
   const sectionQuery = useQuery({
@@ -75,15 +90,52 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
         sectionEntityType: activeSectionRef!.entityType,
         sectionEntityId: activeSectionRef!.entityId,
       }),
-    enabled: Boolean(pageFocus && options.expanded && activeSectionRef),
+    enabled: Boolean(
+      pageFocus && options.expanded && activeSectionRef && !isDescendantsSection,
+    ),
   })
+
+  const descendantsQuery = useQuery({
+    queryKey: descendantsQueryKey ?? ["commenti", "descendants", "disabled"],
+    queryFn: () =>
+      fetchDescendantsCommentPage({
+        pageEntityType: pageFocus!.entityType,
+        pageEntityId: pageFocus!.entityId,
+        excludeAnchors,
+      }),
+    enabled: Boolean(pageFocus && options.expanded && isDescendantsSection),
+  })
+
+  const activeListQuery = isDescendantsSection ? descendantsQuery : sectionQuery
 
   const [isLoadingMore, setIsLoadingMore] = React.useState(false)
 
   const loadMoreSectionComments = React.useCallback(async () => {
-    if (!pageFocus || !activeSectionRef || !sectionQueryKey) return
-    const nextCursor = sectionQuery.data?.nextCursor
-    if (!nextCursor || isLoadingMore) return
+    if (!pageFocus || isLoadingMore) return
+    const nextCursor = activeListQuery.data?.nextCursor
+    if (!nextCursor) return
+
+    if (isDescendantsSection) {
+      if (!descendantsQueryKey) return
+      setIsLoadingMore(true)
+      try {
+        const page = await fetchDescendantsCommentPage({
+          pageEntityType: pageFocus.entityType,
+          pageEntityId: pageFocus.entityId,
+          excludeAnchors,
+          cursor: nextCursor,
+        })
+        queryClient.setQueryData<CommentListSectionRpcResponse>(descendantsQueryKey, (previous) => ({
+          comments: [...page.comments, ...(previous?.comments ?? [])],
+          nextCursor: page.nextCursor,
+        }))
+      } finally {
+        setIsLoadingMore(false)
+      }
+      return
+    }
+
+    if (!activeSectionRef || !sectionQueryKey) return
 
     setIsLoadingMore(true)
     try {
@@ -102,30 +154,40 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
       setIsLoadingMore(false)
     }
   }, [
+    activeListQuery.data?.nextCursor,
     activeSectionRef,
+    descendantsQueryKey,
+    excludeAnchors,
+    isDescendantsSection,
     isLoadingMore,
     pageFocus,
     queryClient,
-    sectionQuery.data?.nextCursor,
     sectionQueryKey,
   ])
 
-  const invalidatePageQueries = React.useCallback(() => {
-    if (!pageFocus) return
-    void queryClient.invalidateQueries({
-      queryKey: commentPageQueryPrefix(pageFocus),
-    })
-  }, [pageFocus, queryClient])
+  const watchedEntityRefs = options.watchedEntityRefs
+
+  const invalidatePageQueries = React.useCallback(
+    (anchor?: EntityRef | null) => {
+      if (!pageFocus) return
+      if (anchor) {
+        invalidateCommentVisibility(queryClient, pageFocus, anchor)
+        return
+      }
+      invalidateCommentVisibility(queryClient, pageFocus, pageFocus)
+    },
+    [pageFocus, queryClient],
+  )
 
   useRealtimeRows(
     [...COMMENTI_REALTIME_TABLES],
     (event) => {
       if (!pageFocus) return
       const row = event.newRow ?? event.oldRow
-      if (!scopeRowMatchesPageFocus(row, pageFocus)) return
+      if (!scopeRowMatchesEntityRefs(row, watchedEntityRefs)) return
       invalidatePageQueries()
     },
-    { enabled: Boolean(pageFocus) },
+    { enabled: Boolean(pageFocus) && watchedEntityRefs.length > 0 },
   )
 
   const createMutation = useMutation({
@@ -157,7 +219,11 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
       }
       toast.error("Errore durante l'invio del commento")
     },
-    onSettled: () => invalidatePageQueries(),
+    onSettled: (_data, _error, input) =>
+      invalidatePageQueries({
+        entityType: input.anchorEntityType,
+        entityId: input.anchorEntityId,
+      }),
   })
 
   const replyMutation = useMutation({
@@ -190,12 +256,12 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
       }
       toast.error("Errore durante l'invio della risposta")
     },
-    onSettled: () => invalidatePageQueries(),
+    onSettled: () => invalidatePageQueries(options.targetEntityRef),
   })
 
   const editMutation = useMutation({
     mutationFn: (input: EditCommentVariables) => runTracked(editComment(input)),
-    onSettled: () => invalidatePageQueries(),
+    onSettled: () => invalidatePageQueries(options.targetEntityRef),
   })
 
   const markReadMutation = useMutation({
@@ -255,10 +321,10 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
   return {
     count: countQuery.data ?? 0,
     countLoading: countQuery.isLoading,
-    sectionComments: sectionQuery.data?.comments ?? [],
-    sectionNextCursor: sectionQuery.data?.nextCursor ?? null,
-    sectionLoading: sectionQuery.isLoading,
-    hasMoreSectionComments: Boolean(sectionQuery.data?.nextCursor),
+    sectionComments: activeListQuery.data?.comments ?? [],
+    sectionNextCursor: activeListQuery.data?.nextCursor ?? null,
+    sectionLoading: activeListQuery.isLoading,
+    hasMoreSectionComments: Boolean(activeListQuery.data?.nextCursor),
     loadMoreSectionComments,
     isLoadingMore,
     submitComment,

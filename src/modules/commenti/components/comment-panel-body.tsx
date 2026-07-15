@@ -1,13 +1,15 @@
 import * as React from "react"
-import { MessageSquareIcon } from "lucide-react"
+import { ArrowUpRightIcon, MessageSquareIcon } from "lucide-react"
 
 import { entityRefKey } from "../lib/entity-ref"
 import {
   createInitialSelection,
+  resolveActiveSectionKind,
   resolveActiveSectionRef,
   selectSection,
   selectTarget,
 } from "../lib/comment-panel-selection"
+import { collectStackAnchorExclusions, collectStackWatchedEntityRefs } from "../lib/stack-anchor-exclusions"
 import { getComposerPlaceholder } from "../lib/comment-display"
 import type { UseCommentPanelOptions } from "../hooks/use-comment-panel"
 import { useCommentPanel } from "../hooks/use-comment-panel"
@@ -17,6 +19,7 @@ import { CommentComposer } from "./comment-composer"
 import { CommentSectionPanel, CommentSectionsAccordion } from "./comment-section"
 import { CommentTargetChip } from "./comment-target-chip"
 import { useSectionCommentCounts } from "../hooks/use-section-comment-counts"
+import { useSectionUnreadFlags } from "../hooks/use-section-unread-flags"
 
 type CommentPanelBodyProps = {
   pageFocus: EntityRef
@@ -24,7 +27,13 @@ type CommentPanelBodyProps = {
   totalCount: number
   panelOptions: Omit<
     UseCommentPanelOptions,
-    "pageFocus" | "expanded" | "activeSectionRef" | "targetEntityRef"
+    | "pageFocus"
+    | "expanded"
+    | "activeSectionKind"
+    | "activeSectionRef"
+    | "excludeAnchors"
+    | "targetEntityRef"
+    | "watchedEntityRefs"
   >
 }
 
@@ -59,7 +68,6 @@ export function CommentPanelBody({
   const [selection, setSelection] = React.useState(() =>
     createInitialSelection(stack, pageFocus),
   )
-  const [composerFocused, setComposerFocused] = React.useState(false)
   const [replyTo, setReplyTo] = React.useState<{ rootId: string; label: string } | null>(
     null,
   )
@@ -70,17 +78,35 @@ export function CommentPanelBody({
   }, [pageFocus.entityId, pageFocus.entityType, stack])
 
   const activeSectionRef = resolveActiveSectionRef(stack, selection.activeSectionId)
+  const activeSectionKind = resolveActiveSectionKind(stack, selection.activeSectionId)
+  const excludeAnchors = React.useMemo(
+    () => collectStackAnchorExclusions(stack),
+    [stack],
+  )
+  const watchedEntityRefs = React.useMemo(
+    () => collectStackWatchedEntityRefs(pageFocus, stack),
+    [pageFocus, stack],
+  )
 
   const panelState = useCommentPanel({
     ...panelOptions,
     pageFocus,
+    watchedEntityRefs,
     expanded: true,
+    activeSectionKind,
     activeSectionRef,
+    excludeAnchors,
     targetEntityRef: selection.targetEntityRef,
   })
 
   const { counts: sectionCounts, loading: sectionCountsLoading } =
-    useSectionCommentCounts(pageFocus, stack.sections)
+    useSectionCommentCounts(pageFocus, stack)
+  const { flags: sectionUnreadFlags } = useSectionUnreadFlags(
+    pageFocus,
+    stack,
+    sectionCounts,
+    sectionCountsLoading,
+  )
 
   React.useEffect(() => {
     if (!panelState.sectionLoading && activeSectionRef) {
@@ -145,19 +171,11 @@ export function CommentPanelBody({
           activeSectionId={selection.activeSectionId}
           sectionCounts={sectionCounts}
           sectionCountsLoading={sectionCountsLoading}
+          sectionUnreadFlags={sectionUnreadFlags}
           onSectionChange={handleSectionChange}
           renderSectionContent={(section) => {
             if (section.id !== selection.activeSectionId) return null
-            if (section.kind === "descendants") {
-              return (
-                <p
-                  className="px-4 pb-4 pl-10 text-xs text-foreground-faint"
-                  data-testid="comments-empty-state"
-                >
-                  I commenti dalle entità collegate saranno mostrati qui.
-                </p>
-              )
-            }
+            const isDescendants = section.kind === "descendants"
             return (
               <CommentSectionPanel
                 section={section}
@@ -165,7 +183,7 @@ export function CommentPanelBody({
                 loading={panelState.sectionLoading}
                 hasMore={panelState.hasMoreSectionComments}
                 isLoadingMore={panelState.isLoadingMore}
-                showOriginBadges={false}
+                showOriginBadges={isDescendants}
                 currentUserId={panelOptions.currentUserId}
                 onLoadMore={() => void panelState.loadMoreSectionComments()}
                 onReply={(rootId, authorName) =>
@@ -197,15 +215,15 @@ export function CommentPanelBody({
           replyToLabel={replyTo?.label ?? null}
           involvedOperatorIds={involvedOperatorIds}
           onCancelReply={() => setReplyTo(null)}
-          onFocusChange={setComposerFocused}
           onSubmit={handleSubmit}
         />
-        {composerFocused && visibilityHint ? (
+        {visibilityHint ? (
           <p
-            className="mt-2 text-2xs text-foreground-faint"
+            className="mt-2 flex items-center gap-1 text-2xs text-foreground-faint"
             data-testid="comments-visibility-hint"
           >
-            ↗ Visibile anche su{" "}
+            <ArrowUpRightIcon aria-hidden className="size-3 shrink-0" strokeWidth={2} />
+            Visibile anche su{" "}
             <span className="font-medium text-foreground-subtle">{visibilityHint}</span>
           </p>
         ) : null}

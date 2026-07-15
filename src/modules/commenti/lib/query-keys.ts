@@ -31,4 +31,32 @@ export function commentSectionCountQueryKey(pageRef: EntityRef, sectionRef: Enti
   ] as const
 }
 
+export function commentDescendantsQueryKey(
+  pageRef: EntityRef,
+  excludeAnchors: EntityRef[],
+  cursor?: string | null,
+) {
+  const exclusionKey = excludeAnchors
+    .map((ref) => `${ref.entityType}:${ref.entityId}`)
+    .sort()
+    .join("|")
+  return [
+    ...commentPageQueryPrefix(pageRef),
+    "descendants",
+    exclusionKey,
+    cursor ?? null,
+  ] as const
+}
+
+export function commentDescendantsCountQueryKey(
+  pageRef: EntityRef,
+  excludeAnchors: EntityRef[],
+) {
+  const exclusionKey = excludeAnchors
+    .map((ref) => `${ref.entityType}:${ref.entityId}`)
+    .sort()
+    .join("|")
+  return [...commentPageQueryPrefix(pageRef), "descendants-count", exclusionKey] as const
+}
+
 export const COMMENTI_REALTIME_TABLES = ["commenti_scope"] as const

@@ -23,6 +23,15 @@ const TARGET_REF = {
 
 const CURRENT_USER_ID = "99999999-9999-4999-8999-999999999999"
 
+const BASE_PANEL_OPTIONS = {
+  watchedEntityRefs: [PAGE_FOCUS, TARGET_REF],
+  activeSectionKind: "focus" as const,
+  activeSectionRef: SECTION_REF,
+  excludeAnchors: [PAGE_FOCUS],
+  targetEntityRef: TARGET_REF,
+  currentUserId: CURRENT_USER_ID,
+}
+
 const {
   mockFetchCommentCountForPage,
   mockFetchCommentSectionPage,
@@ -114,8 +123,11 @@ describe("useCommentPanel", () => {
     const collapsed = renderHookWithQueryClient(() =>
       useCommentPanel({
         pageFocus: PAGE_FOCUS,
+        watchedEntityRefs: [PAGE_FOCUS],
         expanded: false,
-        activeSectionRef: SECTION_REF,
+        activeSectionKind: null,
+        activeSectionRef: null,
+        excludeAnchors: [],
         targetEntityRef: TARGET_REF,
         currentUserId: CURRENT_USER_ID,
       }),
@@ -135,9 +147,7 @@ describe("useCommentPanel", () => {
       useCommentPanel({
         pageFocus: PAGE_FOCUS,
         expanded: true,
-        activeSectionRef: SECTION_REF,
-        targetEntityRef: TARGET_REF,
-        currentUserId: CURRENT_USER_ID,
+        ...BASE_PANEL_OPTIONS,
       }),
     )
 
@@ -160,9 +170,9 @@ describe("useCommentPanel", () => {
       useCommentPanel({
         pageFocus: PAGE_FOCUS,
         expanded: true,
+        ...BASE_PANEL_OPTIONS,
         activeSectionRef: TARGET_REF,
         targetEntityRef: TARGET_REF,
-        currentUserId: CURRENT_USER_ID,
       }),
     )
 
@@ -196,9 +206,7 @@ describe("useCommentPanel", () => {
       useCommentPanel({
         pageFocus: PAGE_FOCUS,
         expanded: true,
-        activeSectionRef: SECTION_REF,
-        targetEntityRef: TARGET_REF,
-        currentUserId: CURRENT_USER_ID,
+        ...BASE_PANEL_OPTIONS,
       }),
     )
 
@@ -236,9 +244,7 @@ describe("useCommentPanel", () => {
       useCommentPanel({
         pageFocus: PAGE_FOCUS,
         expanded: true,
-        activeSectionRef: SECTION_REF,
-        targetEntityRef: TARGET_REF,
-        currentUserId: CURRENT_USER_ID,
+        ...BASE_PANEL_OPTIONS,
       }),
     )
 

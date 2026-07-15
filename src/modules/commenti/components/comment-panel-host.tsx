@@ -1,6 +1,7 @@
 import * as React from "react"
 
 import { resolveCommentStack } from "../lib/resolve-comment-stack"
+import { collectStackWatchedEntityRefs } from "../lib/stack-anchor-exclusions"
 import { useCommentContext } from "../hooks"
 import { useCommentPanel } from "../hooks/use-comment-panel"
 import { CommentPanel } from "./comment-panel"
@@ -10,6 +11,13 @@ export function CommentPanelHost() {
   const context = useCommentContext()
   const [expanded, setExpanded] = React.useState(false)
   const pageFocus = context?.pageFocus ?? null
+  const focusKey = pageFocus
+    ? `${pageFocus.entityType}:${pageFocus.entityId}`
+    : null
+
+  React.useEffect(() => {
+    setExpanded(false)
+  }, [focusKey])
 
   const stack = React.useMemo(() => {
     if (!context?.pageFocus) return null
@@ -20,10 +28,18 @@ export function CommentPanelHost() {
     })
   }, [context])
 
+  const watchedEntityRefs = React.useMemo(() => {
+    if (!pageFocus || !stack) return []
+    return collectStackWatchedEntityRefs(pageFocus, stack)
+  }, [pageFocus, stack])
+
   const countState = useCommentPanel({
     pageFocus,
+    watchedEntityRefs,
     expanded: false,
+    activeSectionKind: null,
     activeSectionRef: null,
+    excludeAnchors: [],
     targetEntityRef: pageFocus,
     currentUserId: context?.currentUserId ?? null,
     currentUserName: context?.currentUserName,

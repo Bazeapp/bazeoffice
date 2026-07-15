@@ -1,6 +1,7 @@
 import * as React from "react"
 import { CornerUpLeftIcon, MoreHorizontalIcon } from "lucide-react"
 
+import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -14,7 +15,6 @@ import { cn } from "@/lib/utils"
 import {
   formatCommentTimestamp,
   getAuthorInitials,
-  getAvatarColor,
   getPhaseLabelText,
   getSourceInterfaceLabel,
 } from "../lib/comment-display"
@@ -73,16 +73,11 @@ function useMarkReadOnView(
 
 function CommentAvatar({ name, isReply }: { name: string; isReply?: boolean }) {
   return (
-    <span
+    <Avatar
       aria-hidden
-      className={cn(
-        "flex shrink-0 items-center justify-center rounded-full font-bold text-foreground-on-accent",
-        isReply ? "size-5.5 text-[9px]" : "size-6.5 text-2xs",
-      )}
-      style={{ backgroundColor: getAvatarColor(name) }}
-    >
-      {getAuthorInitials(name)}
-    </span>
+      size={isReply ? "xs" : "sm"}
+      fallback={getAuthorInitials(name)}
+    />
   )
 }
 

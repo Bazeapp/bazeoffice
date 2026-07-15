@@ -1,6 +1,10 @@
 import { entityRefKey } from "./entity-ref"
-import type { CommentSection, ResolveCommentStackResult } from "../types/section"
 import type { EntityRef } from "../types/entity"
+import type {
+  CommentSection,
+  CommentSectionKind,
+  ResolveCommentStackResult,
+} from "../types/section"
 
 export type CommentPanelSelection = {
   activeSectionId: string
@@ -63,4 +67,11 @@ export function resolveActiveSectionRef(
   const section = stack.sections.find((item) => item.id === activeSectionId)
   if (!section || section.kind === "descendants") return null
   return section.entityRef
+}
+
+export function resolveActiveSectionKind(
+  stack: ResolveCommentStackResult,
+  activeSectionId: string,
+): CommentSectionKind | null {
+  return stack.sections.find((item) => item.id === activeSectionId)?.kind ?? null
 }

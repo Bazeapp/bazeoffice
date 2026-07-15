@@ -56,9 +56,11 @@ export function CommentPanel({
         aria-label="Commenti"
       >
         <header className="flex shrink-0 items-center gap-2 border-b border-border-subtle bg-surface px-4 py-3.5">
-          <span aria-hidden className="text-lg leading-none">
-            💬
-          </span>
+          <MessageSquareIcon
+            aria-hidden
+            className="size-4 shrink-0 text-foreground-subtle"
+            strokeWidth={2}
+          />
           <h2 className="text-lg font-bold">
             Commenti <span className="text-foreground-faint">·</span>{" "}
             <span className="text-foreground-subtle">{countLoading ? "…" : count}</span>

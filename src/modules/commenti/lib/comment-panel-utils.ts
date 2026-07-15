@@ -21,6 +21,18 @@ export function scopeRowMatchesPageFocus(
   return entityType === pageFocus.entityType && entityId === pageFocus.entityId
 }
 
+export function scopeRowMatchesEntityRefs(
+  row: Record<string, unknown> | null,
+  entityRefs: EntityRef[],
+): boolean {
+  if (!row || entityRefs.length === 0) return false
+  const entityType = row.entity_type ?? row.page_entity_type
+  const entityId = row.entity_id ?? row.page_entity_id
+  return entityRefs.some(
+    (ref) => ref.entityType === entityType && ref.entityId === entityId,
+  )
+}
+
 export function makeOptimisticComment(input: {
   id: string
   anchor: EntityRef

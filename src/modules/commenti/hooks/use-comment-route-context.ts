@@ -40,6 +40,7 @@ export function useCommentRouteContext(options: UseCommentRouteContextOptions) {
     const ownerId = ownerIdRef.current!
     const current = optionsRef.current
     if (!current.enabled || !current.pageFocus) {
+      register(ownerId, null)
       return
     }
 

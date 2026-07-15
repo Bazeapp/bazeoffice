@@ -31,6 +31,10 @@ vi.mock("../../queries/fetch-section-comment-count", () => ({
   fetchCommentSectionCount: vi.fn().mockResolvedValue(1),
 }))
 
+vi.mock("../../queries/fetch-descendants-comment-count", () => ({
+  fetchDescendantsCommentCount: vi.fn().mockResolvedValue(0),
+}))
+
 vi.mock("../../mutations/create-comment", () => ({
   createComment: vi.fn(),
 }))
@@ -166,5 +170,40 @@ describe("Comment chip-section sync", () => {
         }),
       )
     })
+  })
+
+  it("highlights the section counter when that section has unread comments", async () => {
+    mockFetchCommentSectionPage.mockImplementation(
+      async (options: { sectionEntityType: string }) => ({
+        comments: [
+          makeComment({
+            isUnread: options.sectionEntityType === "lavoratore",
+          }),
+        ],
+        nextCursor: null,
+      }),
+    )
+
+    renderPanelBody()
+
+    const lavoratoreSectionId = `lavoratore:${IDS.lavoratore}`
+    const ricercaSectionId = `ricerca:${IDS.ricerca}`
+
+    await waitFor(() => {
+      const lavoratoreToggle = screen.getByTestId(
+        `comments-section-toggle-${lavoratoreSectionId}`,
+      )
+      const highlightedBadge = lavoratoreToggle.querySelector(
+        '[data-testid="comments-section-count"][data-highlighted="true"]',
+      )
+      expect(highlightedBadge).toHaveTextContent("1")
+    })
+
+    const ricercaToggle = screen.getByTestId(`comments-section-toggle-${ricercaSectionId}`)
+    expect(
+      ricercaToggle.querySelector(
+        '[data-testid="comments-section-count"][data-highlighted="true"]',
+      ),
+    ).toBeNull()
   })
 })

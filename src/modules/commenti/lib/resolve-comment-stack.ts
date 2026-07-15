@@ -205,6 +205,15 @@ export function resolveCommentStack(
     visibilityHintsByTarget[entityRefKey(section.entityRef)] = section.visibilityHint
   }
 
+  if (
+    input.focus.entityType === "lavoratore" &&
+    entitySections.length === 1 &&
+    entitySections[0]
+  ) {
+    visibilityHintsByTarget[entityRefKey(input.focus)] =
+      "tutte le ricerche in cui compare"
+  }
+
   return {
     sections,
     chipOptions,
