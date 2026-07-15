@@ -926,6 +926,10 @@ function AssegnazioneDetailSheet({
                         <span className="text-muted-foreground text-sm">-</span>
                       )}
                     </DetailFieldControl>
+                    <DetailField
+                      label="Disponibilità colloqui"
+                      value={card.disponibilitaColloquiInPresenza}
+                    />
                   </div>
                 </DetailSectionBlock>
               </div>
