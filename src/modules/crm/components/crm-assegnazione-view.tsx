@@ -889,6 +889,10 @@ function AssegnazioneDetailSheet({
                       label="Orario di lavoro"
                       value={card.orarioDiLavoro}
                     />
+                    <DetailField
+                      label="Disponibilità colloqui"
+                      value={card.disponibilitaColloquiInPresenza}
+                    />
                     <DetailField label="Luogo" value={card.zona} />
                     <DetailFieldControl label="Tipo profilo">
                       {getTipoLavoroBadges(card).length > 0 ? (
@@ -926,10 +930,6 @@ function AssegnazioneDetailSheet({
                         <span className="text-muted-foreground text-sm">-</span>
                       )}
                     </DetailFieldControl>
-                    <DetailField
-                      label="Disponibilità colloqui"
-                      value={card.disponibilitaColloquiInPresenza}
-                    />
                   </div>
                 </DetailSectionBlock>
               </div>
