@@ -55,6 +55,13 @@ export type LavoratoreListItem = {
   immagineUrl: string | null
   /** Stored MIME of the avatar photo; drives render-time HEIC detection (BAZ-21). */
   immagineType?: string | null
+  /**
+   * True only when the worker has a REAL uploaded photo. `immagineUrl` is never
+   * empty — it falls back to a generated default-avatar asset — so it cannot be
+   * used to tell "has a photo" from "placeholder". Gates click-to-enlarge on the
+   * scheda (BAZ-38).
+   */
+  hasRealPhoto?: boolean
   travelTimeMinutes?: number | null
   locationLabel: string | null
   telefono: string | null

@@ -14,7 +14,7 @@ import type { LavoratoreListItem } from "../components/lavoratore-card"
 import type { LavoratoreRecord } from "../types/lavoratore"
 import { asString, getAgeFromBirthDate } from "../lib/base-utils"
 import { getWorkerQualificationStatus } from "../lib/status-utils"
-import { HeicAwareAvatar } from "@/components/shared-next/heic-aware-avatar"
+import { EnlargeableAvatar } from "@/components/shared-next/enlargeable-avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -189,8 +189,9 @@ export function WorkerProfileOverview({
           </div>
         ) : (
           <div className="relative inline-block">
-            <HeicAwareAvatar
+            <EnlargeableAvatar
               size="xl"
+              hasPhoto={worker.hasRealPhoto}
               src={worker.immagineUrl}
               type={worker.immagineType}
               alt={worker.nomeCompleto}
