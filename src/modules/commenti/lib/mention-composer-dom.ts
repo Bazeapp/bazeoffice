@@ -48,7 +48,7 @@ function insertLineBreakAtSelection(root: HTMLElement, range: Range): HTMLBRElem
   const br = document.createElement("br")
 
   if (range.startContainer.nodeType === Node.TEXT_NODE) {
-    const textNode = range.startContainer
+    const textNode = range.startContainer as Text
     const offset = range.startOffset
     const textLength = textNode.textContent?.length ?? 0
     const parent = textNode.parentNode
@@ -165,7 +165,7 @@ function appendTextWithLineBreaks(root: HTMLElement, value: string): void {
   })
 }
 
-function isComposerTextSpan(node: Node): boolean {
+function isComposerTextSpan(node: Node): node is HTMLElement {
   return (
     node instanceof HTMLElement &&
     node.tagName === "SPAN" &&
