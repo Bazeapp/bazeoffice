@@ -1074,6 +1074,9 @@ export function RicercaWorkersPipelineView({
         ),
       immagineType:
         avatarImage?.type ?? selectedCard.worker.immagineType ?? null,
+      // Mirror the immagineUrl fallback: a real photo iff the detailed row has
+      // one, or the card already did (BAZ-38 — gates click-to-enlarge).
+      hasRealPhoto: avatarImage != null || selectedCard.worker.hasRealPhoto === true,
       cap: asString(selectedWorkerRow.cap) || null,
       telefono: asString(selectedWorkerRow.telefono) || null,
       isBlacklisted: isBlacklistValue(selectedWorkerRow.check_blacklist),

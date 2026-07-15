@@ -375,6 +375,7 @@ export function toListItem(
     nomeCompleto: toDisplayName(row),
     immagineUrl: avatarImage?.url ?? getDefaultWorkerAvatar(workerId),
     immagineType: avatarImage?.type ?? null,
+    hasRealPhoto: avatarImage != null,
     locationLabel: formatWorkerLocationLabel(row),
     telefono: asString(row.telefono) || null,
     isBlacklisted: options.isBlacklisted,
