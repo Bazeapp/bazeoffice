@@ -60,6 +60,14 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     ],
   })
 
+  // `detail` is created after `list` (it consumes list outputs), so the
+  // realtime detail-refresh callback is threaded through a ref (Pattern B:
+  // remote changes must also refresh the open scheda, not just the board).
+  const reloadOpenDetailRef = React.useRef<() => void>(() => {})
+  const reloadOpenDetail = React.useCallback(() => {
+    reloadOpenDetailRef.current()
+  }, [])
+
   const list = useLavoratoriList({
     applyGate1BaseFilters,
     cercaGateFilters,
@@ -74,6 +82,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     lookupColorsByDomain: filters.lookupColorsByDomain,
     pageIndex: pagination.pageIndex,
     pageSize: pagination.pageSize,
+    reloadOpenDetail,
     setSelectedWorkerId,
     setWorkerRows,
     setWorkersTotal,
@@ -89,6 +98,10 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     setWorkerRows: list.setWorkerRows,
     setWorkers: list.setWorkers,
   })
+
+  React.useEffect(() => {
+    reloadOpenDetailRef.current = detail.reloadSelectedWorkerScheda
+  }, [detail.reloadSelectedWorkerScheda])
 
   const selection = useSelectedLavoratore({
     initialSelectedWorkerId,

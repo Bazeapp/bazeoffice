@@ -51,7 +51,7 @@ export function useSelectedLavoratoreDetail({
   const [selectedWorkerRelatedSearches, setSelectedWorkerRelatedSearches] = React.useState<
     GenericRow[]
   >([])
-  const [selectedWorkerSchedaTick, setSelectedWorkerSchedaTick] = React.useState(0)
+  const [realtimeTick, setRealtimeTick] = React.useState(0)
   const [loadingSelectedWorkerDocuments, setLoadingSelectedWorkerDocuments] =
     React.useState(false)
   const [loadingSelectedWorkerExperiences, setLoadingSelectedWorkerExperiences] =
@@ -113,10 +113,10 @@ export function useSelectedLavoratoreDetail({
     return () => {
       isCancelled = true
     }
-  }, [selectedWorkerId, selectedWorkerSchedaTick, workerRowsRef])
+  }, [selectedWorkerId, realtimeTick, workerRowsRef])
 
   const reloadSelectedWorkerScheda = React.useCallback(() => {
-    setSelectedWorkerSchedaTick((current) => current + 1)
+    setRealtimeTick((current) => current + 1)
   }, [])
 
   const selectedWorkerAddress = React.useMemo(
@@ -127,6 +127,7 @@ export function useSelectedLavoratoreDetail({
     [selectedWorkerId, workerAddressesById]
   )
 
+  // Address bootstrap only — not a detail refetch (Pattern B).
   React.useEffect(() => {
     if (!selectedWorkerId || selectedWorkerAddress) return
     if (selectedWorkerAddressLoadAttemptsRef.current.has(selectedWorkerId)) return
@@ -155,6 +156,7 @@ export function useSelectedLavoratoreDetail({
     return () => {
       isCancelled = true
     }
+    // eslint-disable-next-line no-restricted-syntax -- one-shot address load, not scheda refresh
   }, [selectedWorkerAddress, selectedWorkerId, setWorkerAddressesById])
 
   const applyUpdatedWorkerRow = React.useCallback(

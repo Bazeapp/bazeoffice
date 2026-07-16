@@ -6,22 +6,21 @@ import type { QueryFilterGroup } from "@/lib/table-query"
 import { clearReadCaches } from "@/lib/write-tracking"
 import type { LavoratoreListItem } from "../components/lavoratore-card"
 import { asLavoratoreRecord } from "../lib/base-utils"
-import { LAVORATORI_REALTIME_TABLES, WORKER_LIST_DATA_VERSION } from "../lib/list-constants"
+import { LAVORATORI_REALTIME_TABLES } from "../lib/list-constants"
 import type { GenericRow } from "../types"
 import {
   buildRelatedSelectionsMap,
   buildWorkerListItem,
   groupAddressesByWorker,
 } from "../lib/worker-list-mapper"
+import {
+  buildLavoratoriListQueryKey,
+  shouldSkipLavoratoriListFetch,
+  type DebouncedQuery,
+} from "../lib/lavoratori-list-query-key"
 import { toRpcOrderBy } from "../lib/sort-utils"
 import { fetchLavoratoriBoard } from "../queries/fetch-lavoratori-board"
 import type { LavoratoreRecord } from "../types/lavoratore"
-
-type DebouncedQuery = {
-  searchValue: string
-  filters: QueryFilterGroup | undefined
-  sorting: { id: string; desc: boolean }[]
-}
 
 type Gate1FilterState = {
   rpcFilters: import("@/lib/table-query").Gate1RpcFilter[] | null
@@ -48,6 +47,8 @@ type UseLavoratoriListOptions = {
   lookupColorsByDomain: Map<string, string>
   pageIndex: number
   pageSize: number
+  /** Refresh the open detail panel after a realtime board reload (Pattern B). */
+  reloadOpenDetail?: () => void
   setSelectedWorkerId: React.Dispatch<React.SetStateAction<string | null>>
   setWorkerRows: React.Dispatch<React.SetStateAction<LavoratoreRecord[]>>
   setWorkersTotal: React.Dispatch<React.SetStateAction<number>>
@@ -67,6 +68,7 @@ export function useLavoratoriList({
   lookupColorsByDomain,
   pageIndex,
   pageSize,
+  reloadOpenDetail,
   setSelectedWorkerId,
   setWorkerRows,
   setWorkersTotal,
@@ -134,21 +136,18 @@ export function useLavoratoriList({
       const silent = silentReloadRef.current
       silentReloadRef.current = false
 
-      const queryKey = JSON.stringify({
+      const queryKey = buildLavoratoriListQueryKey({
         applyGate1BaseFilters,
-        filters: debouncedQuery.filters ?? null,
+        debouncedQuery,
         forcedWorkerStatus,
         gate1FollowupFilter,
         gate1ProvinciaFilter,
         includeRelatedSelectionDetails,
-        listDataVersion: WORKER_LIST_DATA_VERSION,
-        offset: pageIndex * pageSize,
+        pageIndex,
         pageSize,
-        search: debouncedQuery.searchValue.trim(),
-        sorting: debouncedQuery.sorting,
       })
-      if (lastLoadedListQueryKeyRef.current === queryKey) {
-        if (!silent) setLoading(false)
+      if (shouldSkipLavoratoriListFetch(lastLoadedListQueryKeyRef.current, queryKey, silent)) {
+        setLoading(false)
         return
       }
       if (inFlightListQueryKeyRef.current === queryKey) {
@@ -330,6 +329,7 @@ export function useLavoratoriList({
   useRealtimeBoardSync({
     tables: [...LAVORATORI_REALTIME_TABLES],
     reload: reloadSilently,
+    reloadOpenDetail,
   })
 
   React.useEffect(() => {
