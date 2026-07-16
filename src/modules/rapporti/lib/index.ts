@@ -15,6 +15,6 @@ export {
 } from "./status"
 export {
   mapRapportoBoardRow,
-  preserveMissingFields,
   RAPPORTO_FIELD_BINDINGS,
 } from "./rapporti-board"
+export { preserveMissingFields } from "@/lib/board-column-utils"

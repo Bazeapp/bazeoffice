@@ -1,9 +1,10 @@
+import { mergePreservedMissingFields } from "@/lib/board-column-utils"
 import { formatAssunzioneName, formatPersonName } from "@/modules/rapporti/lib"
 import { formatItalianDate, getFirstArrayValue, toStringValue } from "@/lib/value-utils"
 
 import type { AssunzioniBoardRpcRow } from "../types/gestione-rpc"
 import type { AssunzioneRecord, AssunzioniBoardCardData } from "../types"
-import type { RapportoLavorativoRecord } from "@/types"
+import type { RapportoLavorativoRecord, RichiestaAttivazioneRecord } from "@/types"
 
 /**
  * Pattern A bindings (see docs/realtime-board-pattern.md).
@@ -40,7 +41,7 @@ export const RAPPORTO_FIELD_BINDINGS: readonly string[] = [
   "data_assunzione",
 ]
 
-export const ASSUNZIONE_FIELD_BINDINGS: readonly string[] = [
+export const ASSUNZIONE_FIELD_BINDINGS: ReadonlyArray<keyof AssunzioneRecord & string> = [
   "id",
   "creato_il",
   "delega_inps_allegati",
@@ -94,11 +95,13 @@ export const ASSUNZIONE_FIELD_BINDINGS: readonly string[] = [
 // sub-object reuses the AssunzioneRecord type. Exported separately so future
 // divergence between the two sub-objects (e.g. lavoratore-only columns) can
 // be expressed without rewriting callers.
-export const LAVORATORE_ASSUNZIONE_FIELD_BINDINGS: readonly string[] = [
-  ...ASSUNZIONE_FIELD_BINDINGS,
-]
+export const LAVORATORE_ASSUNZIONE_FIELD_BINDINGS: ReadonlyArray<
+  keyof AssunzioneRecord & string
+> = [...ASSUNZIONE_FIELD_BINDINGS]
 
-export const RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS: readonly string[] = [
+export const RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS: ReadonlyArray<
+  keyof RichiestaAttivazioneRecord & string
+> = [
   "id",
   "data_submission",
   "email",
@@ -114,35 +117,12 @@ export const RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS: readonly string[] = [
 ]
 
 /**
- * Sub-object preservation. For every column in `columns`, if the column is
- * NOT present in `fresh`, restore it from `previous`. Returns a NEW object
- * (does not mutate `fresh`).
+ * Non-mutating Pattern A merge for nested assunzione sub-objects.
+ * See `mergePreservedMissingFields` in `@/lib/board-column-utils`.
  *
- * Treatment of nulls:
- * - `fresh === null` (sub-object entirely absent from board row) → return
- *   `previous` as-is. This is the common case for `richiestaAttivazione`,
- *   which the board RPC omits entirely.
- * - `fresh` is an object, column absent (`!(column in fresh)`) → copy from
- *   `previous`.
- * - `fresh` is an object, column present with any value (including `null`)
- *   → keep fresh value (clearing in DB propagates).
+ * @deprecated Import `mergePreservedMissingFields` from `@/lib/board-column-utils`.
  */
-export function preserveMissingFields<T extends Record<string, unknown>>(
-  fresh: T | null,
-  previous: T | null,
-  columns: readonly string[],
-): T | null {
-  if (!previous) return fresh
-  if (!fresh) return previous
-  const merged: Record<string, unknown> = { ...fresh }
-  for (const column of columns) {
-    if (column in fresh) continue
-    if (column in previous) {
-      merged[column] = (previous as Record<string, unknown>)[column]
-    }
-  }
-  return merged as T
-}
+export { mergePreservedMissingFields as preserveMissingFields } from "@/lib/board-column-utils"
 
 /**
  * Build the board card. When `previousCard` is provided, missing columns
@@ -168,32 +148,32 @@ export function mapAssunzioniBoardCard(
     (row.lavoratoreAssunzione as AssunzioneRecord | null) ?? null
 
   // The board RPC does not return `richiestaAttivazione`, so always start
-  // from `null` and let preserveMissingFields restore the previous value.
+  // from `null` and let mergePreservedMissingFields restore the previous value.
   const richiestaAttivazioneFresh = null
 
   const datoreAssunzione = previousCard
-    ? preserveMissingFields(
+    ? mergePreservedMissingFields(
         datoreAssunzioneFresh,
         previousCard.assunzione,
         ASSUNZIONE_FIELD_BINDINGS,
       )
     : datoreAssunzioneFresh
   const lavoratoreAssunzione = previousCard
-    ? preserveMissingFields(
+    ? mergePreservedMissingFields(
         lavoratoreAssunzioneFresh,
         previousCard.lavoratoreAssunzione,
         LAVORATORE_ASSUNZIONE_FIELD_BINDINGS,
       )
     : lavoratoreAssunzioneFresh
   const richiestaAttivazione = previousCard
-    ? preserveMissingFields(
+    ? mergePreservedMissingFields(
         richiestaAttivazioneFresh,
         previousCard.richiestaAttivazione,
         RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS,
       )
     : richiestaAttivazioneFresh
   const rapporto = previousCard
-    ? preserveMissingFields(
+    ? mergePreservedMissingFields(
         linkedRapporto as unknown as Record<string, unknown>,
         previousCard.rapporto as unknown as Record<string, unknown> | null,
         RAPPORTO_FIELD_BINDINGS,

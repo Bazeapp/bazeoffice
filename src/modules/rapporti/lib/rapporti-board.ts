@@ -1,4 +1,5 @@
 import type { RapportoLavorativoRecord } from "@/types"
+import { preserveMissingFields } from "@/lib/board-column-utils"
 
 /**
  * Bindings between source DB/RPC columns and the card fields they populate
@@ -18,18 +19,6 @@ export const RAPPORTO_FIELD_BINDINGS: Array<
   ["data_fine_rapporto", "data_fine_rapporto"],
   ["stato_rapporto", "stato_rapporto"],
 ]
-
-export function preserveMissingFields<TCard extends Record<string, unknown>>(
-  card: TCard,
-  previousCard: TCard,
-  row: Record<string, unknown> | undefined | null,
-  bindings: Array<readonly [string, keyof TCard]>,
-) {
-  for (const [column, field] of bindings) {
-    if (row && column in row) continue
-    ;(card as Record<string, unknown>)[field as string] = previousCard[field]
-  }
-}
 
 export function mapRapportoBoardRow(
   row: RapportoLavorativoRecord,

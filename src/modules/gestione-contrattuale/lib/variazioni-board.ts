@@ -1,3 +1,4 @@
+import { preserveMissingFields } from "@/lib/board-column-utils"
 import { formatItalianDate, toStringValue } from "@/lib/value-utils"
 import { getRapportoTitle, personNameFromRow } from "@/modules/rapporti/lib"
 import type { RapportoAssunzioneNames } from "../types/gestione-rpc"
@@ -71,22 +72,11 @@ export const VARIAZIONE_RAPPORTO_FIELD_BINDINGS: ReadonlyArray<
  * For each binding column, if the column is NOT present in `freshRow`,
  * restore the value from `previousRow`. Mutates `targetRow` in place. If
  * `freshRow` is missing entirely, every bound column falls back to
- * `previousRow`. Mirrors the helper of the same name in
- * `use-crm-pipeline-preview.ts` and `use-chiusure-board.ts` (Pattern A).
+ * `previousRow`. See `@/lib/board-column-utils` (Pattern A).
+ *
+ * @deprecated Import `preserveMissingFields` from `@/lib/board-column-utils`.
  */
-export function preserveMissingFields<T extends Record<string, unknown>>(
-  targetRow: T,
-  previousRow: T | undefined | null,
-  freshRow: Record<string, unknown> | undefined | null,
-  columns: ReadonlyArray<keyof T>,
-) {
-  if (!previousRow) return
-  for (const column of columns) {
-    if (freshRow && (column as string) in freshRow) continue
-    ;(targetRow as Record<string, unknown>)[column as string] =
-      previousRow[column]
-  }
-}
+export { preserveMissingFields } from "@/lib/board-column-utils"
 
 function formatAddressLabel(address: GenericRow | null | undefined) {
   if (!address) return null

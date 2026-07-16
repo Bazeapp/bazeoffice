@@ -4,7 +4,6 @@ export {
   RAPPORTO_FIELD_BINDINGS,
   RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS,
   mapAssunzioniBoardCard,
-  preserveMissingFields as preserveAssunzioniMissingFields,
 } from "./assunzioni-board"
 export {
   ASSUNZIONI_BOARD_QUERY_KEY,
@@ -30,7 +29,6 @@ export {
   buildChiusuraTipoMetadata,
   formatChiusuraBoardDate,
   mapChiusuraBoardCard,
-  preserveMissingFields as preserveChiusureMissingFields,
 } from "./chiusure-board"
 export {
   CHIUSURA_FORM_URLS,
@@ -63,7 +61,6 @@ export {
   VARIAZIONE_RAPPORTO_FIELD_BINDINGS,
   VARIAZIONE_RECORD_FIELD_BINDINGS,
   mapVariazioneBoardCard,
-  preserveMissingFields as preserveVariazioniMissingFields,
 } from "./variazioni-board"
 export {
   VARIAZIONI_BOARD_QUERY_KEY,

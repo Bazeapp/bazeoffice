@@ -1,5 +1,53 @@
 export type BoardColumn<TCard> = { id: string; cards: TCard[] }
 
+export type PreserveMissingFieldBinding<T extends Record<string, unknown>> =
+  | readonly [string, keyof T]
+  | (keyof T & string)
+
+/**
+ * Pattern A realtime helper: for each binding, if the source column is NOT
+ * present in `freshRow`, restore `previous`'s value onto `target`. Mutates
+ * `target` in place. When `freshRow` is missing entirely, every bound field
+ * falls back to `previous`.
+ *
+ * Bindings may be `[sourceColumn, targetField]` pairs (CRM / rapporti) or
+ * plain keys when source and target share the same name (chiusure / variazioni).
+ */
+export function preserveMissingFields<T extends Record<string, unknown>>(
+  target: T,
+  previous: T | undefined | null,
+  freshRow: Record<string, unknown> | undefined | null,
+  bindings: ReadonlyArray<PreserveMissingFieldBinding<T>>,
+): void {
+  if (!previous) return
+  for (const binding of bindings) {
+    const [column, field] = Array.isArray(binding)
+      ? binding
+      : ([binding, binding] as const)
+    if (freshRow && column in freshRow) continue
+    ;(target as Record<string, unknown>)[field as string] = previous[field]
+  }
+}
+
+/**
+ * Non-mutating variant for nested detail objects (e.g. assunzioni sub-rows).
+ * Returns `previous` when `fresh` is null (sub-object omitted from the board
+ * row); returns `fresh` unchanged when `previous` is null. Columns absent
+ * from BOTH `fresh` and `previous` are left absent (no own-`undefined` keys).
+ */
+export function mergePreservedMissingFields<T extends Record<string, unknown>>(
+  fresh: T | null,
+  previous: T | null,
+  columns: ReadonlyArray<keyof T & string>,
+): T | null {
+  if (!previous) return fresh
+  if (!fresh) return previous
+  const merged = { ...fresh }
+  const columnsInPrevious = columns.filter((column) => column in previous)
+  preserveMissingFields(merged, previous, fresh, columnsInPrevious)
+  return merged
+}
+
 export function findCardInColumns<TCard extends { id: string }>(
   columns: BoardColumn<TCard>[],
   cardId: string,

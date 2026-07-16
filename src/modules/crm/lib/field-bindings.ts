@@ -1,4 +1,4 @@
-import type { CrmPipelineCardData, GenericRow } from "../types"
+import type { CrmPipelineCardData } from "../types"
 
 /**
  * Bindings between source DB columns and the card fields they populate.
@@ -126,15 +126,7 @@ export const RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS: Array<
  * For each binding, if the source column is NOT present in `row`, restore
  * the previous card's value. Mutates `card` in place. Pass nullable `row`:
  * if `row` is missing entirely, every bound field falls back to previous.
+ *
+ * @deprecated Import `preserveMissingFields` from `@/lib/board-column-utils`.
  */
-export function preserveMissingFields(
-  card: CrmPipelineCardData,
-  previousCard: CrmPipelineCardData,
-  row: GenericRow | undefined | null,
-  bindings: Array<readonly [string, keyof CrmPipelineCardData]>,
-) {
-  for (const [column, field] of bindings) {
-    if (row && column in row) continue
-    ;(card as Record<string, unknown>)[field as string] = previousCard[field]
-  }
-}
+export { preserveMissingFields } from "@/lib/board-column-utils"

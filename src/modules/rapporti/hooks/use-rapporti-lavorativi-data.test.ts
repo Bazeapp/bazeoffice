@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
 
+import { preserveMissingFields } from "@/lib/board-column-utils"
 import {
   RAPPORTO_FIELD_BINDINGS,
   mapRapportoBoardRow,
-  preserveMissingFields,
 } from "../lib/rapporti-board"
 import type { RapportoLavorativoRecord } from "@/types"
 
