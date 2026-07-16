@@ -37,8 +37,11 @@ export function useGate1Filters({
     [filters, gate1FollowupFilter, gate1ProvinciaFilter]
   )
 
-  return {
-    rpcFilters,
-    rpcFilterGroup,
-  }
+  return React.useMemo(
+    () => ({
+      rpcFilters,
+      rpcFilterGroup,
+    }),
+    [rpcFilters, rpcFilterGroup]
+  )
 }

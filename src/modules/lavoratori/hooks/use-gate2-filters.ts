@@ -72,17 +72,27 @@ export function useGate2Filters({
     [applyGate1BaseFilters, rpcFilterGroup, rpcFilters, sorting]
   )
 
-  return {
-    userRpcFilters,
-    statusRpcFilters,
-    rpcFilters,
-    rpcFilterGroup,
-    canUseGate2Rpc,
-  } satisfies {
-    userRpcFilters: Gate1RpcFilter[] | null
-    statusRpcFilters: Gate1RpcFilter[] | null
-    rpcFilters: Gate1RpcFilter[] | null
-    rpcFilterGroup: QueryFilterGroup | null
-    canUseGate2Rpc: boolean
-  }
+  return React.useMemo(
+    () =>
+      ({
+        userRpcFilters,
+        statusRpcFilters,
+        rpcFilters,
+        rpcFilterGroup,
+        canUseGate2Rpc,
+      }) satisfies {
+        userRpcFilters: Gate1RpcFilter[] | null
+        statusRpcFilters: Gate1RpcFilter[] | null
+        rpcFilters: Gate1RpcFilter[] | null
+        rpcFilterGroup: QueryFilterGroup | null
+        canUseGate2Rpc: boolean
+      },
+    [
+      userRpcFilters,
+      statusRpcFilters,
+      rpcFilters,
+      rpcFilterGroup,
+      canUseGate2Rpc,
+    ]
+  )
 }
