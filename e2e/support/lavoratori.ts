@@ -199,20 +199,33 @@ export async function openCercaAdvancedFilters(page: Page) {
   await expect(cercaAdvancedFiltersPanel(page)).toBeVisible({ timeout: 10_000 })
 }
 
-export async function addCercaTextFilterCondition(
+type CercaAdvancedFilterCondition = {
+  fieldLabel: string
+  value: string
+  optionLabel?: string
+}
+
+export async function addCercaAdvancedFilterCondition(
   page: Page,
-  value: string,
-  fieldLabel?: string,
+  { fieldLabel, value, optionLabel }: CercaAdvancedFilterCondition,
 ) {
   const panel = cercaAdvancedFiltersPanel(page)
   await panel.getByRole("button", { name: "Add condition", exact: true }).click()
 
   const conditionRow = panel.locator(".rounded-lg.border.bg-background").last()
-  if (fieldLabel) {
-    await conditionRow.getByRole("combobox").first().click()
-    await page.getByRole("option", { name: fieldLabel, exact: true }).first().click()
+  await conditionRow.getByRole("combobox").first().click()
+  await page.getByRole("option", { name: fieldLabel, exact: true }).first().click()
+
+  const textInput = conditionRow.locator('input[placeholder="Valore"]')
+  if (await textInput.count()) {
+    await textInput.fill(value)
+    return
   }
-  await conditionRow.locator('input[placeholder="Valore"]').fill(value)
+
+  await conditionRow.getByRole("combobox").last().click()
+  await page
+    .getByRole("option", { name: optionLabel ?? value, exact: true })
+    .click()
 }
 
 export async function applyCercaAdvancedFilters(page: Page) {
