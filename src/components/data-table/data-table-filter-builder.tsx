@@ -15,6 +15,8 @@ import {
   createEmptyCondition,
   createEmptyGroup,
   getOperatorsForField,
+  serializeFilterList,
+  splitFilterList,
   type FilterField,
   type FilterFieldType,
   type FilterGroup,
@@ -156,29 +158,6 @@ type ValueControlProps = {
   needsSecondValue: boolean
   onValueChange: (value: string) => void
   onValueToChange: (valueTo: string) => void
-}
-
-function splitFilterList(value: string) {
-  const trimmed = value.trim()
-  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-    try {
-      const parsed: unknown = JSON.parse(trimmed)
-      if (Array.isArray(parsed)) {
-        return parsed.map((part) => String(part).trim()).filter(Boolean)
-      }
-    } catch {
-      // Fall through to the legacy comma-separated format.
-    }
-  }
-
-  return value
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean)
-}
-
-function serializeFilterList(values: string[]) {
-  return JSON.stringify(values)
 }
 
 function ValueControl({
@@ -422,14 +401,10 @@ export function DataTableFilterBuilder({
               <div className="flex-1 rounded-lg border bg-background">
                 <div className="flex flex-col md:flex-row md:items-center">
                   {(() => {
-                    const usedByOthers = new Set(
-                      collectConditionFields(effectiveRootGroup).filter(
-                        (fieldValue) => fieldValue !== node.field
-                      )
-                    )
-                    const allowedFields = fields.filter(
-                      (field) => !usedByOthers.has(field.value)
-                    )
+                    // BAZ-37: consenti più condizioni sullo stesso campo — il dropdown
+                    // offre sempre tutti i campi (niente esclusione dei campi già usati),
+                    // così si possono combinare es. paga >= 10 e paga <= 20, o due `has`.
+                    const allowedFields = fields
 
                     return (
                       <Select
@@ -551,7 +526,7 @@ export function DataTableFilterBuilder({
       <div className="flex flex-wrap gap-2">
         <Button
           variant="ghost"
-          disabled={!availableForNewCondition}
+          disabled={fields.length === 0}
           onClick={() =>
             onChange(
               addConditionToGroup(
