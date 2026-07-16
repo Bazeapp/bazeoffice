@@ -281,6 +281,34 @@ function parseFilterList(value: string) {
     .filter(Boolean)
 }
 
+// BAZ-37: serializzatore/parser della lista valori del controllo multi-select.
+// serializeFilterList pinna il formato di wire JSON che il backend
+// (parse_filter_value_list) si aspetta: virgole e slash dentro le label
+// sopravvivono al round-trip. splitFilterList è il lato lettura, che preserva
+// il case (a differenza di parseFilterList, usato per il match client-side).
+export function serializeFilterList(values: string[]) {
+  return JSON.stringify(values)
+}
+
+export function splitFilterList(value: string) {
+  const trimmed = value.trim()
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed.map((part) => String(part).trim()).filter(Boolean)
+      }
+    } catch {
+      // Fall through to the legacy comma-separated format.
+    }
+  }
+
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
 function evaluateCondition(
   row: Record<string, unknown>,
   condition: FilterCondition,

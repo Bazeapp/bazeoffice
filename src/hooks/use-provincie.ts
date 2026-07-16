@@ -27,3 +27,18 @@ export function useProvincieOptions(): LookupOption[] {
     [data],
   )
 }
+
+// BAZ-37: come useProvincieOptions ma con l'etichetta = NOME esteso della provincia
+// (il value resta la sigla, che è ciò che il filtro invia). Usata nel catalogo filtri
+// di /cerca-lavoratori così l'utente vede "Milano" invece di "MI".
+export function useProvincieNameOptions(): LookupOption[] {
+  const { data } = useProvincie()
+  return React.useMemo<LookupOption[]>(
+    () =>
+      (data ?? []).map((row) => ({
+        value: row.sigla,
+        label: row.nome,
+      })),
+    [data],
+  )
+}
