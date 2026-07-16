@@ -110,6 +110,8 @@ export default defineConfig([
       'src/hooks/use-*-data.ts',
       'src/hooks/use-*-pipeline.ts',
       'src/hooks/use-crm-*.ts',
+      'src/hooks/use-selected-*-detail.ts',
+      'src/modules/*/hooks/use-selected-*-detail.ts',
       'src/components/**/*.tsx',
       'src/pages/**/*.tsx',
     ],
@@ -136,10 +138,12 @@ export default defineConfig([
       'src/hooks/use-*-data.ts',
       'src/hooks/use-*-pipeline.ts',
       'src/hooks/use-crm-*.ts',
+      'src/hooks/use-selected-*-detail.ts',
       'src/modules/*/hooks/use-*-board.ts',
       'src/modules/*/hooks/use-*-data.ts',
       'src/modules/*/hooks/use-*-pipeline.ts',
       'src/modules/*/hooks/use-crm-*.ts',
+      'src/modules/*/hooks/use-selected-*-detail.ts',
     ],
     ignores: ['src/hooks/use-board-mutations.ts'],
     rules: {
@@ -171,6 +175,15 @@ export default defineConfig([
             "CallExpression:matches([callee.name='useEffect'], [callee.property.name='useEffect']) > ArrayExpression:has(> Identifier[name=/^selected.+Id$/]):not(:has(> Identifier[name='realtimeTick']))",
           message:
             'useEffect with `selectedXxxId` in deps but missing `realtimeTick` — the open detail panel will not refresh on remote changes. Add `realtimeTick` to deps (see docs/realtime-board-pattern.md, Pattern B), or suppress this rule per-line if the effect does not fetch detail data.',
+        },
+        // Files matched here are excluded from Rule 0 (flat-config: the last
+        // block wins for the same rule), so the table-query ban is repeated
+        // to keep it active on board/detail hooks.
+        {
+          selector:
+            "CallExpression[callee.name='invokeEdgeFunction'] > Literal[value='table-query']",
+          message:
+            'table-query è consentita solo in src/lib/table-query.ts (chokepoint queryTable: Anagrafiche + schema-loader filtri). Non aggiungere nuove chiamate table-query: crea una RPC dedicata (FASE 4 BIS).',
         },
       ],
     },

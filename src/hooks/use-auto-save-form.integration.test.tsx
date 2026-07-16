@@ -33,6 +33,7 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }))
 
+import { z } from "zod"
 import { toast } from "sonner"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 
@@ -198,5 +199,25 @@ describe("useAutoSaveForm — autosave", () => {
     // still dirty and retries the save (the field isn't silently shown as saved).
     fireEvent.change(input("a"), { target: { value: "edited2" } })
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({ a: "edited2" }))
+  })
+})
+
+describe("useAutoSaveForm — optional schema", () => {
+  it("wires a Zod schema via zodResolver so trigger() surfaces field errors", async () => {
+    const schema = z.object({
+      a: z.string().min(3, "troppo corto"),
+      b: z.string(),
+    })
+    const { result } = renderHook(() =>
+      useAutoSaveForm<Values>({
+        defaults: { a: "x", b: "2" },
+        onSave: vi.fn(),
+        schema,
+      }),
+    )
+
+    await result.current.trigger("a")
+
+    expect(result.current.formState.errors.a?.message).toBe("troppo corto")
   })
 })
