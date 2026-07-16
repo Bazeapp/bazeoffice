@@ -37,7 +37,10 @@ export function useRicercaWorkersPipeline(
 
   const columns = React.useMemo(() => data ?? [], [data])
 
-  const { invalidateBoard } = useBoardQueryCache<RicercaWorkerSelectionColumn[]>(boardQueryKey)
+  const { invalidateBoard } = useBoardQueryCache<RicercaWorkerSelectionColumn[]>(
+    boardQueryKey,
+    "ricerca-workers-pipeline",
+  )
 
   const refresh = React.useCallback(() => {
     void refetch()

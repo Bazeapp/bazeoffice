@@ -77,7 +77,10 @@ export function usePayrollBoard(selectedMonth: string): UsePayrollBoardState {
 
   const columns = data ?? []
 
-  const { setBoardData, invalidateBoard } = useBoardQueryCache<PayrollBoardColumnData[]>(boardQueryKey)
+  const { setBoardData, invalidateBoard } = useBoardQueryCache<PayrollBoardColumnData[]>(
+    boardQueryKey,
+    "payroll-board",
+  )
 
   type PayrollBoard = PayrollBoardColumnData[]
 

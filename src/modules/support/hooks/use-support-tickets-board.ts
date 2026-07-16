@@ -83,6 +83,7 @@ export function useSupportTicketsBoard(ticketType: SupportTicketType): UseSuppor
 
   const { setBoardData, invalidateBoard } = useBoardQueryCache<SupportTicketsBoardData>(
     boardQueryKey,
+    "support-tickets-board",
   )
 
   useRealtimeBoardSync({

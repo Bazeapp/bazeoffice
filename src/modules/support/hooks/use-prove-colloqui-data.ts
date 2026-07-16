@@ -135,7 +135,10 @@ export function useProveColloquiData(calendarRange?: CalendarDateRange) {
   const lookupOptionsByDomain = data?.lookupOptionsByDomain ?? new Map()
   const lookupColorsByDomain = data?.lookupColorsByDomain ?? new Map()
 
-  const { setBoardData, invalidateBoard } = useBoardQueryCache<BoardData>(boardQueryKey)
+  const { setBoardData, invalidateBoard } = useBoardQueryCache<BoardData>(
+    boardQueryKey,
+    "prove-colloqui-board",
+  )
   const reload = invalidateBoard
 
   useRealtimeBoardSync({

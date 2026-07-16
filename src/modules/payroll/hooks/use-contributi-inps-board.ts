@@ -60,7 +60,10 @@ export function useContributiInpsBoard(
   const cards = data?.cards ?? []
   const activeRapportiCount = data?.activeRapportiCount ?? 0
 
-  const { invalidateBoard } = useBoardQueryCache<BoardData>(boardQueryKey)
+  const { invalidateBoard } = useBoardQueryCache<BoardData>(
+    boardQueryKey,
+    "contributi-inps-board",
+  )
 
   const moveMutation = useMoveMutation<
     { recordId: string; targetStageId: string },

@@ -28,7 +28,7 @@ describe("useBoardQueryCache", () => {
     expect(queryClient.getQueryData<BoardData>(queryKey)?.columns[0]?.cards).toHaveLength(2)
   })
 
-  it("invalidateBoard calls queryClient.invalidateQueries", async () => {
+  it("invalidateBoard calls queryClient.invalidateQueries with queryKey by default", async () => {
     const queryKey = ["test-board-invalidate"] as const
     const queryClient = new QueryClient()
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
@@ -40,5 +40,22 @@ describe("useBoardQueryCache", () => {
 
     await result.current.invalidateBoard()
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey })
+  })
+
+  it("invalidateBoard uses invalidateRoot prefix when provided (not the exact compound key)", async () => {
+    const queryKey = ["crm-pipeline-board", "filters", "search", "closed"] as const
+    const queryClient = new QueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
+
+    const { result } = renderHookWithQueryClient(
+      () => useBoardQueryCache(queryKey, "crm-pipeline-board"),
+      { client: queryClient },
+    )
+
+    await result.current.invalidateBoard()
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ["crm-pipeline-board"],
+    })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey })
   })
 })

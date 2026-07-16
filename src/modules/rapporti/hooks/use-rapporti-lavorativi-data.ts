@@ -181,7 +181,10 @@ export function useRapportiLavorativiData(
     void refetch()
   }, [refetch])
 
-  const { invalidateBoard } = useBoardQueryCache<NonNullable<typeof boardData>>(boardQueryKey)
+  const { invalidateBoard } = useBoardQueryCache<NonNullable<typeof boardData>>(
+    boardQueryKey,
+    "rapporti-lavorativi-board",
+  )
 
   /**
    * Apply a freshly-saved rapporto row to local state.

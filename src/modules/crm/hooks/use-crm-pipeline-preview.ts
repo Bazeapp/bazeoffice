@@ -99,7 +99,10 @@ export function useCrmPipelinePreview(
 
   type CrmBoardData = NonNullable<typeof data>
 
-  const { setBoardData, invalidateBoard } = useBoardQueryCache<CrmBoardData>(boardQueryKey)
+  const { setBoardData, invalidateBoard } = useBoardQueryCache<CrmBoardData>(
+    boardQueryKey,
+    "crm-pipeline-board",
+  )
 
   const loadClosedStage = React.useCallback((stageId: string) => {
     if (!CLOSED_STAGE_IDS.has(stageId)) return
