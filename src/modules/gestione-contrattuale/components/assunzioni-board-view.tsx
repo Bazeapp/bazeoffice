@@ -22,7 +22,7 @@ export function AssunzioniBoardView({
 }: AssunzioniBoardViewProps) {
   const board = useAssunzioniBoardView({ initialSelectedRapportoId })
   const selectedCard = board.sheetProps.card
-  const assunzioneId = selectedCard?.assunzione?.id ?? null
+  const assunzioneId = selectedCard?.assunzione?.id ?? selectedCard?.id ?? null
 
   useCommentRouteContext({
     enabled: board.sheetProps.open && Boolean(assunzioneId),
