@@ -151,6 +151,8 @@ function mapProcessToAssegnazioneCard(
       extractFirstNumberToken(process.frequenza_rapporto) ??
       "-",
     orarioDiLavoro: toStringValue(process.orario_di_lavoro) ?? "-",
+    disponibilitaColloquiInPresenza:
+      toStringValue(process.disponibilita_colloqui_in_presenza) ?? "-",
     tipoRicerca,
     overview:
       toStringValue(process.mansioni_richieste) ??

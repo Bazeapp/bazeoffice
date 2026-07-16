@@ -148,6 +148,7 @@ export function buildWorkerListItem(
     nomeCompleto: `${nome} ${cognome}`.trim() || workerId,
     immagineUrl: avatarImage?.url ?? getDefaultWorkerAvatar(workerId),
     immagineType: avatarImage?.type ?? null,
+    hasRealPhoto: avatarImage != null,
     travelTimeMinutes: null,
     locationLabel: formatAddressLabel(workerAddress) ?? asString(worker.cap) ?? null,
     telefono: asString(worker.telefono) || null,

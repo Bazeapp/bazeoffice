@@ -22,7 +22,7 @@ import { useController } from "react-hook-form"
 
 import type { LavoratoreListItem } from "../components/lavoratore-card"
 import { Avatar } from "@/components/ui/avatar"
-import { HeicAwareAvatar } from "@/components/shared-next/heic-aware-avatar"
+import { EnlargeableAvatar } from "@/components/shared-next/enlargeable-avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -387,8 +387,9 @@ export function WorkerProfileHeader({
           </div>
         ) : (
           <div className="relative inline-block">
-            <HeicAwareAvatar
+            <EnlargeableAvatar
               size="xl"
+              hasPhoto={worker.hasRealPhoto}
               src={worker.immagineUrl}
               type={worker.immagineType}
               alt={worker.nomeCompleto}

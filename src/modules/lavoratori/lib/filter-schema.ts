@@ -1,6 +1,6 @@
 import type { TableColumnMeta } from "@/lib/table-query"
 
-const WORKER_FILTER_FIELD_NAMES = [
+export const WORKER_FILTER_FIELD_NAMES = [
   "id", "anni_esperienza_babysitter", "anni_esperienza_badante", "anni_esperienza_colf",
   "check_accetta_babysitting_multipli_bambini", "check_accetta_babysitting_neonati",
   "check_accetta_case_con_cani", "check_accetta_case_con_cani_grandi", "check_accetta_case_con_gatti",
@@ -35,11 +35,58 @@ const WORKER_FILTER_FIELD_NAMES = [
   "stato_verifica_documenti", "telefono", "tipo_lavoro_domestico", "tipo_rapporto_lavorativo",
   "ultima_modifica", "utm_campaign", "utm_content", "utm_medium",
   "utm_source", "utm_term", "vincoli_orari_disponibilita", "creato_il", "aggiornato_il",
-]
+] as const
 
-function inferWorkerFilterType(name: string): TableColumnMeta["filterType"] {
+// BAZ-37: campi nascosti dal catalogo filtri di /cerca-lavoratori (tracking/PII/testo-libero/blob/orfani/meta).
+// I 21 slot disponibilita_{giorno}_{fascia} e followup_chiamata_idoneita restano. id/creato_il/aggiornato_il
+// restano in WORKER_SORTABLE_FIELDS (ordinamento) — qui si tolgono solo dai FILTRI.
+export const HIDDEN_WORKER_FILTER_FIELDS = new Set<string>([
+  "fbclid",
+  "gclid",
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_content",
+  "utm_term",
+  "email",
+  "telefono",
+  "iban",
+  "id_stripe_account",
+  "descrizione_pubblica",
+  "descrizione_rivista",
+  "feedback_recruiter",
+  "riassunto_profilo_breve",
+  "referente_certificazione_id",
+  "referente_idoneita_id",
+  "ultima_modifica",
+  "nome",
+  "cognome",
+  "availability_final_json",
+  "vincoli_orari_disponibilita",
+  "foto",
+  "conoscenza_dellitaliano",
+  "data_ultima_candidatura",
+  "creato_il",
+  "aggiornato_il",
+  "id",
+  "check_blacklist",
+  "motivazione_non_idoneo",
+  "disponibilita_nel_giorno",
+])
+
+// BAZ-37: colonne numeriche non prefissate anni_ — offrire operatori range (number). NON rating_corporatura (text nel DB).
+export const NUMERIC_WORKER_FILTER_FIELDS = new Set<string>([
+  "paga_oraria_richiesta",
+  "rating_atteggiamento",
+  "rating_capacita_comunicative",
+  "rating_cura_personale",
+  "rating_precisione_puntualita",
+])
+
+export function inferWorkerFilterType(name: string): TableColumnMeta["filterType"] {
   if (name === "id") return "id"
   const n = name.trim().toLowerCase()
+  if (NUMERIC_WORKER_FILTER_FIELDS.has(n)) return "number"
   if (n.startsWith("anni_")) return "number"
   const dateLike =
     !n.endsWith("_id") &&
@@ -52,7 +99,9 @@ function inferWorkerFilterType(name: string): TableColumnMeta["filterType"] {
   return dateLike ? "date" : "text"
 }
 
-export const WORKER_SCHEMA_COLUMNS: TableColumnMeta[] = WORKER_FILTER_FIELD_NAMES.map((name) => {
+export const WORKER_SCHEMA_COLUMNS: TableColumnMeta[] = WORKER_FILTER_FIELD_NAMES.filter(
+  (name) => !HIDDEN_WORKER_FILTER_FIELDS.has(name),
+).map((name) => {
   const filterType = inferWorkerFilterType(name)
   return {
     name,

@@ -7,12 +7,13 @@ import {
 
 import type { FilterField } from "@/components/data-table/data-table-filters"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
+import { useProvincieNameOptions } from "@/hooks/use-provincie"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import type { TableColumnMeta } from "@/lib/table-query"
-import {
-  normalizeDomesticRoleDbLabel,
-  toReadableColumnLabel,
-} from "../lib/base-utils"
+
+import { toReadableColumnLabel } from "../lib/base-utils"
+import { WORKER_SCHEMA_COLUMNS } from "../lib/filter-schema"
+import { buildLookupFilterTypeMap } from "../lib/lookup-filter-types"
 import {
   type LookupOption,
   normalizeLookupColors,
@@ -22,9 +23,8 @@ import {
   SERVER_QUERY_DEBOUNCE_MS,
   VIEWS_STORAGE_KEY,
 } from "../lib/list-constants"
-import { WORKER_SCHEMA_COLUMNS } from "../lib/filter-schema"
-import { buildLookupFilterTypeMap } from "../lib/lookup-filter-types"
 import { WORKER_SORTABLE_FIELDS } from "../lib/sort-utils"
+import { buildWorkerFilterFields } from "../lib/worker-filter-fields"
 import type { LavoratoreRecord } from "../types/lavoratore"
 
 type UseLavoratoriFiltersOptions = {
@@ -33,6 +33,7 @@ type UseLavoratoriFiltersOptions = {
 
 export function useLavoratoriFilters({ workerRows }: UseLavoratoriFiltersOptions) {
   const [workersColumns] = React.useState<TableColumnMeta[]>(WORKER_SCHEMA_COLUMNS)
+  const provincieOptions = useProvincieNameOptions()
   const [lookupOptionsByDomain, setLookupOptionsByDomain] = React.useState<
     Map<string, LookupOption[]>
   >(new Map())
@@ -94,28 +95,13 @@ export function useLavoratoriFilters({ workerRows }: UseLavoratoriFiltersOptions
   }, [])
 
   const filterFields = React.useMemo<FilterField[]>(() => {
-    return workersColumns.map((column) => {
-      const domain = `lavoratori.${column.name}`
-      const options = lookupOptionsByDomain.get(domain) ?? []
-      const resolvedFilterType = lookupFilterTypeByDomain.get(domain) ?? column.filterType
-      const filterOptions =
-        resolvedFilterType === "enum" || resolvedFilterType === "multi_enum"
-          ? options.map((opt) => ({
-              value:
-                column.name === "tipo_lavoro_domestico"
-                  ? normalizeDomesticRoleDbLabel(opt.label)
-                  : opt.label,
-              label: opt.label,
-            }))
-          : undefined
-      return {
-        label: toReadableColumnLabel(column.name),
-        value: column.name,
-        type: resolvedFilterType,
-        options: filterOptions,
-      } satisfies FilterField
+    return buildWorkerFilterFields({
+      columns: workersColumns,
+      lookupFilterTypeByDomain,
+      lookupOptionsByDomain,
+      provincieOptions,
     })
-  }, [lookupFilterTypeByDomain, lookupOptionsByDomain, workersColumns])
+  }, [lookupFilterTypeByDomain, lookupOptionsByDomain, workersColumns, provincieOptions])
 
   const sortingColumns = React.useMemo<ColumnDef<LavoratoreRecord>[]>(
     () =>

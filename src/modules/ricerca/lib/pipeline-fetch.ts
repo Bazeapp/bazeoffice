@@ -150,6 +150,7 @@ export async function fetchWorkersPipelineData(
           id: workerId,
           nomeCompleto: workerId,
           immagineUrl: getDefaultWorkerAvatar(workerId),
+          hasRealPhoto: false,
           travelTimeMinutes: toNumberValue(selection.travel_time_tra_cap),
           locationLabel: null,
           telefono: null,

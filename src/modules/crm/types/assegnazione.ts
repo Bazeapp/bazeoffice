@@ -24,6 +24,7 @@ export type AssegnazioneCardData = {
   oreSettimanali: string
   giorniSettimanali: string
   orarioDiLavoro: string
+  disponibilitaColloquiInPresenza: string
   tipoRicerca: "nuova" | "sostituzione"
   overview: string
 }

@@ -939,7 +939,7 @@ export function OnboardingCard({
               contentClassName="space-y-4"
             >
               <DetailField label="Deadline" value={displayText(card?.deadlineMobile)} />
-              <DetailField label="Disponibilita colloqui" value={displayText(card?.disponibilitaColloquiInPresenza)} />
+              <DetailField label="Disponibilità colloqui" value={displayText(card?.disponibilitaColloquiInPresenza)} />
               <DetailField label="Tipologia primo incontro" value={tipoIncontroLabel} />
               <div className={compactGridClassName}>
                 <DetailField

@@ -180,6 +180,7 @@ export function useRicercaWorkerPipelineOverlay({
         ),
       immagineType:
         avatarImage?.type ?? selectedCard.worker.immagineType ?? null,
+      hasRealPhoto: avatarImage != null || selectedCard.worker.hasRealPhoto === true,
       cap: asString(selectedWorkerRow.cap) || null,
       telefono: asString(selectedWorkerRow.telefono) || null,
       isBlacklisted: isBlacklistValue(selectedWorkerRow.check_blacklist),
