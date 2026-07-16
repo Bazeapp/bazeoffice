@@ -29,6 +29,7 @@ import {
 import { toWorkerStatusFlags } from "../lib/status-utils"
 import { useTableQueryState } from "@/hooks/use-table-query-state"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
+import { useProvincieNameOptions } from "@/hooks/use-provincie"
 import { fetchIndirizziByEntity } from "@/lib/indirizzi-api"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import type { Gate1RpcFilter, QueryFilterGroup, TableColumnMeta } from "@/lib/table-query"
@@ -96,7 +97,7 @@ function isRpcSortable(sorting: { id: string; desc: boolean }[]): boolean {
 // veniva inferito da una riga `select id` senza campioni di valore. La FE
 // sovrascrive comunque il tipo con quello dei lookup (enum/multi_enum) via
 // lookupFilterTypeByDomain, quindi qui basta id/date/text.
-const WORKER_FILTER_FIELD_NAMES = [
+export const WORKER_FILTER_FIELD_NAMES = [
   "id", "anni_esperienza_babysitter", "anni_esperienza_badante", "anni_esperienza_colf",
   "check_accetta_babysitting_multipli_bambini", "check_accetta_babysitting_neonati",
   "check_accetta_case_con_cani", "check_accetta_case_con_cani_grandi", "check_accetta_case_con_gatti",
@@ -133,9 +134,18 @@ const WORKER_FILTER_FIELD_NAMES = [
   "utm_source", "utm_term", "vincoli_orari_disponibilita", "creato_il", "aggiornato_il",
 ]
 
-function inferWorkerFilterType(name: string): TableColumnMeta["filterType"] {
+// BAZ-37: campi nascosti dal catalogo filtri di /cerca-lavoratori (tracking/PII/testo-libero/blob/orfani/meta).
+// I 21 slot disponibilita_{giorno}_{fascia} e followup_chiamata_idoneita restano. id/creato_il/aggiornato_il
+// restano in WORKER_SORTABLE_FIELDS (ordinamento) — qui si tolgono solo dai FILTRI.
+export const HIDDEN_WORKER_FILTER_FIELDS = new Set<string>(['fbclid','gclid','utm_source','utm_medium','utm_campaign','utm_content','utm_term','email','telefono','iban','id_stripe_account','descrizione_pubblica','descrizione_rivista','feedback_recruiter','riassunto_profilo_breve','referente_certificazione_id','referente_idoneita_id','ultima_modifica','nome','cognome','availability_final_json','vincoli_orari_disponibilita','foto','conoscenza_dellitaliano','data_ultima_candidatura','creato_il','aggiornato_il','id','check_blacklist','motivazione_non_idoneo','disponibilita_nel_giorno'])
+
+// BAZ-37: colonne numeriche non prefissate anni_ — offrire operatori range (number). NON rating_corporatura (text nel DB).
+export const NUMERIC_WORKER_FILTER_FIELDS = new Set<string>(['paga_oraria_richiesta','rating_atteggiamento','rating_capacita_comunicative','rating_cura_personale','rating_precisione_puntualita'])
+
+export function inferWorkerFilterType(name: string): TableColumnMeta["filterType"] {
   if (name === "id") return "id"
   const n = name.trim().toLowerCase()
+  if (NUMERIC_WORKER_FILTER_FIELDS.has(n)) return "number"
   if (n.startsWith("anni_")) return "number"
   const dateLike =
     !n.endsWith("_id") &&
@@ -148,7 +158,7 @@ function inferWorkerFilterType(name: string): TableColumnMeta["filterType"] {
   return dateLike ? "date" : "text"
 }
 
-const WORKER_SCHEMA_COLUMNS: TableColumnMeta[] = WORKER_FILTER_FIELD_NAMES.map((name) => {
+export const WORKER_SCHEMA_COLUMNS: TableColumnMeta[] = WORKER_FILTER_FIELD_NAMES.filter((name) => !HIDDEN_WORKER_FILTER_FIELDS.has(name)).map((name) => {
   const filterType = inferWorkerFilterType(name)
   return {
     name,
@@ -190,7 +200,7 @@ function toCanonicalWorkerStatus(value: string) {
 }
 
 
-function collectGate1RpcFilters(
+export function collectGate1RpcFilters(
   group: QueryFilterGroup | undefined
 ): Gate1RpcFilter[] | null {
   if (!group || !Array.isArray(group.nodes) || group.nodes.length === 0) return []
@@ -216,7 +226,7 @@ function collectGate1RpcFilters(
   return filters
 }
 
-function buildGate1RpcFilters({
+export function buildGate1RpcFilters({
   filters,
   gate1ProvinciaFilter,
   gate1FollowupFilter,
@@ -250,7 +260,7 @@ function buildGate1RpcFilters({
 // Variante per filtri con logica OR (non appiattibili in array): costruisce il
 // GRUPPO annidato { and: [filtriUtente, provincia?, followup?] } che gate1/gate2
 // valutano via lavoratore_matches_filter_group. Niente più fallback table-query.
-function buildGate1RpcFilterGroup({
+export function buildGate1RpcFilterGroup({
   filters,
   gate1ProvinciaFilter,
   gate1FollowupFilter,
@@ -332,6 +342,42 @@ function buildLookupFilterTypeMap(rows: LookupValueRecord[]) {
   }
 
   return filterTypeMap
+}
+
+export function buildWorkerFilterFields(args: {
+  columns: TableColumnMeta[]
+  lookupFilterTypeByDomain: Map<string, TableColumnMeta["filterType"]>
+  lookupOptionsByDomain: Map<string, LookupOption[]>
+  provincieOptions: LookupOption[]
+}): FilterField[] {
+  const { columns, lookupFilterTypeByDomain, lookupOptionsByDomain, provincieOptions } = args
+  return columns.map((column) => {
+    // BAZ-37: provincia filtra su indirizzi.provincia_sigla nel RPC → il dropdown emette la SIGLA (value)
+    // e il campo inviato è "provincia_sigla" (allineato ai gate1/gate2). Opzioni dalla tabella provincie.
+    if (column.name === "provincia") {
+      return {
+        label: toReadableColumnLabel("provincia"),
+        value: "provincia_sigla",
+        type: "enum",
+        options: provincieOptions,
+      } satisfies FilterField
+    }
+    const domain = `lavoratori.${column.name}`
+    const options = lookupOptionsByDomain.get(domain) ?? []
+    const resolvedFilterType = lookupFilterTypeByDomain.get(domain) ?? column.filterType
+    // The DB stores value_label (not value_key) for lookup-backed fields. Use
+    // label as the filter option value so filter conditions match the stored value.
+    // tipo_lavoro_domestico stores canonical DB labels via normalizeDomesticRoleDbLabel
+    // (e.g. "Colf / Pulizie", "Assistenza Domestica / Badante").
+    const filterOptions =
+      resolvedFilterType === "enum" || resolvedFilterType === "multi_enum"
+        ? options.map((opt) => ({
+            value: column.name === "tipo_lavoro_domestico" ? normalizeDomesticRoleDbLabel(opt.label) : opt.label,
+            label: opt.label,
+          }))
+        : undefined
+    return { label: toReadableColumnLabel(column.name), value: column.name, type: resolvedFilterType, options: filterOptions } satisfies FilterField
+  })
 }
 
 function buildWorkerListItem(
@@ -691,6 +737,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     role: "recruiter",
     activeOnly: true,
   })
+  const provincieOptions = useProvincieNameOptions()
   const [workers, setWorkers] = React.useState<LavoratoreListItem[]>([])
   const [workerRows, setWorkerRows] = React.useState<LavoratoreRecord[]>([])
   const workerRowsRef = React.useRef<LavoratoreRecord[]>([])
@@ -1169,32 +1216,8 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   }, [])
 
   const filterFields = React.useMemo<FilterField[]>(() => {
-    return workersColumns.map((column) => {
-      const domain = `lavoratori.${column.name}`
-      const options = lookupOptionsByDomain.get(domain) ?? []
-      const resolvedFilterType = lookupFilterTypeByDomain.get(domain) ?? column.filterType
-      // The DB stores value_label (not value_key) for lookup-backed fields. Use
-      // label as the filter option value so filter conditions match the stored value.
-      // tipo_lavoro_domestico stores canonical DB labels via normalizeDomesticRoleDbLabel
-      // (e.g. "Colf / Pulizie", "Assistenza Domestica / Badante").
-      const filterOptions =
-        resolvedFilterType === "enum" || resolvedFilterType === "multi_enum"
-          ? options.map((opt) => ({
-              value:
-                column.name === "tipo_lavoro_domestico"
-                  ? normalizeDomesticRoleDbLabel(opt.label)
-                  : opt.label,
-              label: opt.label,
-            }))
-          : undefined
-      return {
-        label: toReadableColumnLabel(column.name),
-        value: column.name,
-        type: resolvedFilterType,
-        options: filterOptions,
-      } satisfies FilterField
-    })
-  }, [lookupFilterTypeByDomain, lookupOptionsByDomain, workersColumns])
+    return buildWorkerFilterFields({ columns: workersColumns, lookupFilterTypeByDomain, lookupOptionsByDomain, provincieOptions })
+  }, [lookupFilterTypeByDomain, lookupOptionsByDomain, workersColumns, provincieOptions])
 
   // FASE 4 BIS — colonne ordinabili dalla whitelist (non più dallo schema
   // table-query). Le RPC ordinano solo su questi campi, quindi la UI "Ordina
