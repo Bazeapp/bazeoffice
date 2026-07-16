@@ -1,4 +1,3 @@
-import { formatItalianCurrency } from "@/lib/format-utils"
 import type {
   ContributoInpsRecord,
   MeseCalendarioRecord,
@@ -162,6 +161,3 @@ export function firstAvailableText(...values: Array<string | null | undefined>) 
   return values.find((value) => value?.trim())?.trim() ?? null
 }
 
-export function formatCedolinoImporto(value: number | null | undefined) {
-  return typeof value === "number" ? formatItalianCurrency(value) : "-"
-}

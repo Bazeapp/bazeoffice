@@ -5,16 +5,6 @@ import {
 import { asInputValue, asString, readArrayStrings } from "./base-utils"
 import type { LavoratoreRecord } from "../types/lavoratore"
 
-export type WorkerHeaderDraft = {
-  nome: string
-  cognome: string
-  email: string
-  telefono: string
-  sesso: string
-  nazionalita: string
-  data_di_nascita: string
-}
-
 export type WorkerAddressDraft = {
   via: string
   civico: string
@@ -97,18 +87,6 @@ export type PatchLoadingKey =
   | "experience"
   | "skills"
   | "documents"
-
-export function buildHeaderDraft(row: LavoratoreRecord | null): WorkerHeaderDraft {
-  return {
-    nome: asString(row?.nome),
-    cognome: asString(row?.cognome),
-    email: asString(row?.email),
-    telefono: asString(row?.telefono),
-    sesso: asString(row?.sesso),
-    nazionalita: asString(row?.nazionalita),
-    data_di_nascita: asString(row?.data_di_nascita),
-  }
-}
 
 export function buildAddressDraft(
   row: LavoratoreRecord | null,
