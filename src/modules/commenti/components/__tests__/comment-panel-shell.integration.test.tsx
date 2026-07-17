@@ -5,7 +5,8 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { renderWithProviders } from "@/test/test-utils"
 
-import { setMarkupCaretOffset } from "../../lib/mention-composer-dom"
+import { setMarkupCaretOffset, renderComposerMarkup } from "../../lib/mention-composer-dom"
+import { formatMentionMarkup } from "../../lib/mention-markup"
 
 import { CommentPanelHost } from "../comment-panel-host"
 import {
@@ -16,15 +17,25 @@ import {
 const {
   mockFetchCommentCountForPage,
   mockFetchCommentSectionPage,
+  mockFetchCommentSectionCount,
   mockUseRealtimeRows,
 } = vi.hoisted(() => ({
   mockFetchCommentCountForPage: vi.fn(),
   mockFetchCommentSectionPage: vi.fn(),
+  mockFetchCommentSectionCount: vi.fn(),
   mockUseRealtimeRows: vi.fn(),
 }))
 
 vi.mock("../../queries/fetch-comment-count", () => ({
   fetchCommentCountForPage: (...args: unknown[]) => mockFetchCommentCountForPage(...args),
+}))
+
+vi.mock("../../queries/fetch-section-comment-count", () => ({
+  fetchCommentSectionCount: (...args: unknown[]) => mockFetchCommentSectionCount(...args),
+}))
+
+vi.mock("../../queries/fetch-descendants-comment-count", () => ({
+  fetchDescendantsCommentCount: vi.fn().mockResolvedValue(0),
 }))
 
 vi.mock("../../queries/fetch-section-comments", () => ({
@@ -97,6 +108,7 @@ describe("CommentPanel shell", () => {
       error: null,
     })
     mockFetchCommentCountForPage.mockResolvedValue(4)
+    mockFetchCommentSectionCount.mockResolvedValue(0)
     mockFetchCommentSectionPage.mockResolvedValue({ comments: [], nextCursor: null })
     mockUseRealtimeRows.mockImplementation(() => undefined)
   })
@@ -120,6 +132,18 @@ describe("CommentPanel shell", () => {
       expect(mockFetchCommentCountForPage).toHaveBeenCalledWith("ricerca", PAGE_ID)
     })
     expect(mockFetchCommentSectionPage).not.toHaveBeenCalled()
+    expect(screen.queryByTestId("comments-panel")).not.toBeInTheDocument()
+  })
+
+  it("prefetches section comments when collapsed to detect unread mentions", async () => {
+    mockFetchCommentSectionCount.mockResolvedValue(1)
+
+    renderHost(makeContext())
+
+    await screen.findByTestId("comments-pill")
+    await waitFor(() => {
+      expect(mockFetchCommentSectionPage).toHaveBeenCalled()
+    })
     expect(screen.queryByTestId("comments-panel")).not.toBeInTheDocument()
   })
 
@@ -220,6 +244,40 @@ describe("CommentPanel shell", () => {
     expect(composer).toHaveFocus()
   })
 
+  it("shows a red dot on the pill when unread comments mention the current user", async () => {
+    const currentUserId = "99999999-9999-4999-8999-999999999999"
+    mockFetchCommentSectionCount.mockResolvedValue(1)
+    mockFetchCommentSectionPage.mockResolvedValue({
+      comments: [
+        {
+          id: "comment-mention-1",
+          threadRootId: null,
+          anchor: { entityType: "ricerca", entityId: PAGE_ID },
+          author: {
+            id: "author-1",
+            name: "Mario Rossi",
+            rolePill: "Customer",
+            isDeactivated: false,
+          },
+          body: `Ciao ${formatMentionMarkup("Tu", currentUserId)}`,
+          commentType: "free",
+          phaseLabel: null,
+          sourceInterface: null,
+          createdAt: "2026-07-14T08:00:00.000Z",
+          editedAt: null,
+          isUnread: true,
+          replyCount: 0,
+          replies: [],
+        },
+      ],
+      nextCursor: null,
+    })
+
+    renderHost(makeContext({ currentUserId }))
+
+    expect(await screen.findByTestId("comments-unread-mention-dot")).toBeInTheDocument()
+  })
+
   it("keeps mention autocomplete wheel events inside the panel while a sheet is open", async () => {
     const manyOperators = Array.from({ length: 20 }, (_, index) => ({
       id: `11111111-1111-4111-8111-${String(index).padStart(12, "0")}`,
@@ -252,9 +310,10 @@ describe("CommentPanel shell", () => {
     try {
       fireEvent.click(await screen.findByTestId("comments-pill"))
       const input = await screen.findByTestId("comments-composer-input")
-      input.textContent = "@"
-      fireEvent.input(input)
+      renderComposerMarkup(input, "@")
       setMarkupCaretOffset(input, 1)
+      fireEvent.input(input)
+      fireEvent.keyUp(input)
 
       const autocomplete = await screen.findByTestId("comments-mention-autocomplete")
       fireEvent.wheel(autocomplete, { deltaY: 120 })

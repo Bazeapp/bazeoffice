@@ -6,6 +6,14 @@ export function commentsPill(page: Page) {
   return page.locator('[data-testid="comments-pill"]')
 }
 
+export function commentsUnreadMentionDot(page: Page) {
+  return page.locator('[data-testid="comments-unread-mention-dot"]')
+}
+
+export function commentsSectionCount(page: Page, sectionId: string) {
+  return commentsSectionToggle(page, sectionId).locator('[data-testid="comments-section-count"]')
+}
+
 export function commentsPanel(page: Page) {
   return page.locator('[data-testid="comments-panel"]')
 }

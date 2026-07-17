@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 export type CommentPanelProps = {
   count: number
   countLoading?: boolean
+  hasUnreadMention?: boolean
   expanded: boolean
   onToggleExpanded: () => void
   onClose: () => void
@@ -23,6 +24,7 @@ export type CommentPanelProps = {
 export function CommentPanel({
   count,
   countLoading = false,
+  hasUnreadMention = false,
   expanded,
   onToggleExpanded,
   onClose,
@@ -83,8 +85,8 @@ export function CommentPanel({
       type="button"
       data-testid="comments-pill"
       className={cn(
-        "pointer-events-auto fixed right-4 bottom-4 z-100 flex items-center gap-2 rounded-full",
-        "bg-foreground-strong px-4.5 py-3 text-lg font-medium text-foreground-on-accent",
+        "pointer-events-auto fixed right-4 bottom-4 z-100 flex items-center gap-3 rounded-full",
+        "bg-foreground-strong px-5 py-3 text-lg font-medium text-foreground-on-accent",
         "shadow-lg transition-colors",
         "cursor-pointer hover:bg-neutral-900",
       )}
@@ -92,8 +94,15 @@ export function CommentPanel({
       aria-expanded={expanded}
       aria-label={expanded ? "Chiudi commenti" : "Apri commenti"}
     >
-      <MessageSquareIcon aria-hidden className="size-4" strokeWidth={2} />
+      <MessageSquareIcon aria-hidden className="size-4 shrink-0" strokeWidth={2} />
       <span>{countLoading ? "…" : count}</span>
+      {hasUnreadMention ? (
+        <span
+          aria-label="Menzioni non lette"
+          className="size-2.5 shrink-0 rounded-full bg-red-600"
+          data-testid="comments-unread-mention-dot"
+        />
+      ) : null}
     </button>
   </DismissableLayerBranch>,
     document.body,

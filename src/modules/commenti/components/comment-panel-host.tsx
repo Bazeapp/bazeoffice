@@ -4,6 +4,8 @@ import { resolveCommentStack } from "../lib/resolve-comment-stack"
 import { collectStackWatchedEntityRefs } from "../lib/stack-anchor-exclusions"
 import { useCommentContext } from "../hooks"
 import { useCommentPanel } from "../hooks/use-comment-panel"
+import { useSectionCommentCounts } from "../hooks/use-section-comment-counts"
+import { useSectionUnreadFlags } from "../hooks/use-section-unread-flags"
 import { CommentPanel } from "./comment-panel"
 import { CommentPanelBody } from "./comment-panel-body"
 
@@ -48,6 +50,27 @@ export function CommentPanelHost() {
     phaseLabel: context?.phaseLabel ?? null,
   })
 
+  const { counts: sectionCounts, loading: sectionCountsLoading } =
+    useSectionCommentCounts(pageFocus ?? { entityType: "ricerca", entityId: "" }, stack ?? {
+      sections: [],
+      chipOptions: [],
+      visibilityHintsByTarget: {},
+    })
+
+  const currentUserId = context?.currentUserId ?? null
+  const { mentionFlags: sectionUnreadMentionFlags } = useSectionUnreadFlags(
+    pageFocus ?? { entityType: "ricerca", entityId: "" },
+    stack ?? { sections: [], chipOptions: [], visibilityHintsByTarget: {} },
+    sectionCounts,
+    sectionCountsLoading,
+    currentUserId,
+  )
+
+  const hasUnreadMention = React.useMemo(
+    () => Object.values(sectionUnreadMentionFlags).some(Boolean),
+    [sectionUnreadMentionFlags],
+  )
+
   if (!pageFocus || !stack) {
     return null
   }
@@ -64,6 +87,7 @@ export function CommentPanelHost() {
     <CommentPanel
       count={countState.count}
       countLoading={countState.countLoading}
+      hasUnreadMention={hasUnreadMention}
       expanded={expanded}
       onToggleExpanded={() => setExpanded((value) => !value)}
       onClose={() => setExpanded(false)}

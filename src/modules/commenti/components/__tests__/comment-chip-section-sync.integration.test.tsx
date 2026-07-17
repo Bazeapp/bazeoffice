@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "@/test/test-utils"
 
 import type { Comment } from "../../types/comment"
+import { formatMentionMarkup } from "../../lib/mention-markup"
 import { CommentPanelBody } from "../comment-panel-body"
 import { resolveCommentStack } from "../../lib/resolve-comment-stack"
 
@@ -205,5 +206,37 @@ describe("Comment chip-section sync", () => {
         '[data-testid="comments-section-count"][data-highlighted="true"]',
       ),
     ).toBeNull()
+  })
+
+  it("highlights the section counter in red when unread comments mention the current user", async () => {
+    const currentUserId = "99999999-9999-4999-8999-999999999999"
+    mockFetchCommentSectionPage.mockImplementation(
+      async (options: { sectionEntityType: string }) => ({
+        comments: [
+          makeComment({
+            isUnread: options.sectionEntityType === "lavoratore",
+            body:
+              options.sectionEntityType === "lavoratore"
+                ? `Ciao ${formatMentionMarkup("Tu", currentUserId)}`
+                : "Ciao",
+          }),
+        ],
+        nextCursor: null,
+      }),
+    )
+
+    renderPanelBody()
+
+    const lavoratoreSectionId = `lavoratore:${IDS.lavoratore}`
+
+    await waitFor(() => {
+      const lavoratoreToggle = screen.getByTestId(
+        `comments-section-toggle-${lavoratoreSectionId}`,
+      )
+      const mentionBadge = lavoratoreToggle.querySelector(
+        '[data-testid="comments-section-count"][data-mention-highlighted="true"]',
+      )
+      expect(mentionBadge).toHaveTextContent("1")
+    })
   })
 })

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest"
 
 import type { Comment } from "../../types/comment"
-import { sectionHasUnreadComments } from "../section-unread"
+import { formatMentionMarkup } from "../mention-markup"
+import {
+  commentIsUnreadMention,
+  commentMentionsUser,
+  sectionHasUnreadComments,
+  sectionHasUnreadMentions,
+} from "../section-unread"
 
 function makeComment(overrides: Partial<Comment> = {}): Comment {
   return {
@@ -58,5 +64,82 @@ describe("sectionHasUnreadComments", () => {
         }),
       ]),
     ).toBe(true)
+  })
+})
+
+const MENTIONED_USER_ID = "99999999-9999-4999-8999-999999999999"
+
+describe("commentMentionsUser", () => {
+  it("returns true when the body mentions the given user", () => {
+    expect(
+      commentMentionsUser(
+        makeComment({
+          body: `Ciao ${formatMentionMarkup("Tu", MENTIONED_USER_ID)}`,
+        }),
+        MENTIONED_USER_ID,
+      ),
+    ).toBe(true)
+  })
+
+  it("returns false for unread comments that mention someone else", () => {
+    expect(
+      commentMentionsUser(
+        makeComment({
+          body: `Ciao ${formatMentionMarkup("Altro", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")}`,
+        }),
+        MENTIONED_USER_ID,
+      ),
+    ).toBe(false)
+  })
+})
+
+describe("commentIsUnreadMention", () => {
+  it("requires both unread state and a mention of the user", () => {
+    const body = `Ciao ${formatMentionMarkup("Tu", MENTIONED_USER_ID)}`
+    expect(
+      commentIsUnreadMention(
+        makeComment({ body, isUnread: true }),
+        MENTIONED_USER_ID,
+      ),
+    ).toBe(true)
+    expect(
+      commentIsUnreadMention(
+        makeComment({ body, isUnread: false }),
+        MENTIONED_USER_ID,
+      ),
+    ).toBe(false)
+  })
+})
+
+describe("sectionHasUnreadMentions", () => {
+  it("returns true when an unread reply mentions the user", () => {
+    const body = `Ciao ${formatMentionMarkup("Tu", MENTIONED_USER_ID)}`
+    expect(
+      sectionHasUnreadMentions(
+        [
+          makeComment({
+            replies: [
+              makeComment({
+                id: "reply-1",
+                threadRootId: "comment-1",
+                body,
+                isUnread: true,
+              }),
+            ],
+          }),
+        ],
+        MENTIONED_USER_ID,
+      ),
+    ).toBe(true)
+  })
+
+  it("returns false when mentions are already read", () => {
+    const body = `Ciao ${formatMentionMarkup("Tu", MENTIONED_USER_ID)}`
+    expect(
+      sectionHasUnreadMentions(
+        [makeComment({ body, isUnread: false })],
+        MENTIONED_USER_ID,
+      ),
+    ).toBe(false)
   })
 })

@@ -101,12 +101,14 @@ export function CommentPanelBody({
 
   const { counts: sectionCounts, loading: sectionCountsLoading } =
     useSectionCommentCounts(pageFocus, stack)
-  const { flags: sectionUnreadFlags } = useSectionUnreadFlags(
-    pageFocus,
-    stack,
-    sectionCounts,
-    sectionCountsLoading,
-  )
+  const { flags: sectionUnreadFlags, mentionFlags: sectionUnreadMentionFlags } =
+    useSectionUnreadFlags(
+      pageFocus,
+      stack,
+      sectionCounts,
+      sectionCountsLoading,
+      panelOptions.currentUserId,
+    )
 
   React.useEffect(() => {
     if (!panelState.sectionLoading && activeSectionRef) {
@@ -172,6 +174,7 @@ export function CommentPanelBody({
           sectionCounts={sectionCounts}
           sectionCountsLoading={sectionCountsLoading}
           sectionUnreadFlags={sectionUnreadFlags}
+          sectionUnreadMentionFlags={sectionUnreadMentionFlags}
           onSectionChange={handleSectionChange}
           renderSectionContent={(section) => {
             if (section.id !== selection.activeSectionId) return null

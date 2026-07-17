@@ -98,25 +98,30 @@ function CommentSectionCountBadge({
   loading = false,
   muted = false,
   highlighted = false,
+  mentionHighlighted = false,
 }: {
   count: number
   loading?: boolean
   muted?: boolean
   highlighted?: boolean
+  mentionHighlighted?: boolean
 }) {
   return (
     <span
       className={cn(
         "flex min-w-5.5 items-center justify-center rounded-full px-1.5 py-0.5",
         "text-2xs font-semibold tabular-nums",
-        highlighted
-          ? "bg-accent-muted text-accent-ink"
-          : muted
-            ? "bg-surface-muted text-foreground-faint"
-            : "bg-surface-muted text-foreground-subtle",
+        mentionHighlighted
+          ? "bg-danger-muted text-danger"
+          : highlighted
+            ? "bg-accent-muted text-accent-ink"
+            : muted
+              ? "bg-surface-muted text-foreground-faint"
+              : "bg-surface-muted text-foreground-subtle",
       )}
       data-testid="comments-section-count"
-      data-highlighted={highlighted ? "true" : undefined}
+      data-highlighted={highlighted && !mentionHighlighted ? "true" : undefined}
+      data-mention-highlighted={mentionHighlighted ? "true" : undefined}
     >
       {loading ? "…" : count}
     </span>
@@ -129,6 +134,7 @@ type CommentSectionsAccordionProps = {
   sectionCounts: Record<string, number>
   sectionCountsLoading?: Record<string, boolean>
   sectionUnreadFlags?: Record<string, boolean>
+  sectionUnreadMentionFlags?: Record<string, boolean>
   onSectionChange: (sectionId: string) => void
   renderSectionContent: (section: CommentSection) => React.ReactNode
 }
@@ -139,6 +145,7 @@ export function CommentSectionsAccordion({
   sectionCounts,
   sectionCountsLoading = {},
   sectionUnreadFlags = {},
+  sectionUnreadMentionFlags = {},
   onSectionChange,
   renderSectionContent,
 }: CommentSectionsAccordionProps) {
@@ -159,6 +166,7 @@ export function CommentSectionsAccordion({
           const count = sectionCounts[section.id] ?? 0
           const countLoading = sectionCountsLoading[section.id] ?? false
           const hasUnread = sectionUnreadFlags[section.id] ?? false
+          const hasUnreadMention = sectionUnreadMentionFlags[section.id] ?? false
 
           return (
             <AccordionItem
@@ -198,6 +206,7 @@ export function CommentSectionsAccordion({
                     loading={countLoading}
                     muted={isDescendants}
                     highlighted={hasUnread}
+                    mentionHighlighted={hasUnreadMention}
                   />
                 </span>
               </AccordionTrigger>

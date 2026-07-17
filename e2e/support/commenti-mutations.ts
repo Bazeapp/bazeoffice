@@ -154,3 +154,7 @@ export async function resolveOperatorIdByEmail(email: string) {
 
   return (data as { id: string } | null)?.id ?? null
 }
+
+export function formatMentionBody(label: string, userId: string, prefix = ""): string {
+  return `${prefix}@[${label}](${userId})`
+}
