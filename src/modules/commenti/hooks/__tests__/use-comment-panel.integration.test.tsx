@@ -221,7 +221,55 @@ describe("useCommentPanel", () => {
       pageEntityId: PAGE_FOCUS.entityId,
       threadRootId: "comment-1",
       body: "Risposta",
+      sourceInterface: null,
     })
+  })
+
+  it("passes centro_notifiche source interface on reply when panel session came from NC", async () => {
+    const { result } = renderHookWithQueryClient(() =>
+      useCommentPanel({
+        pageFocus: PAGE_FOCUS,
+        expanded: true,
+        ...BASE_PANEL_OPTIONS,
+        sourceInterface: "centro_notifiche",
+      }),
+    )
+
+    await waitFor(() => {
+      expect(result.current.sectionComments).toHaveLength(1)
+    })
+
+    await result.current.submitReply("comment-1", "Risposta da NC")
+
+    expect(mockReplyComment).toHaveBeenCalledWith({
+      pageEntityType: PAGE_FOCUS.entityType,
+      pageEntityId: PAGE_FOCUS.entityId,
+      threadRootId: "comment-1",
+      body: "Risposta da NC",
+      sourceInterface: "centro_notifiche",
+    })
+  })
+
+  it("invalidates notifiche queries after a successful reply", async () => {
+    const { result, queryClient } = renderHookWithQueryClient(() =>
+      useCommentPanel({
+        pageFocus: PAGE_FOCUS,
+        expanded: true,
+        ...BASE_PANEL_OPTIONS,
+      }),
+    )
+
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
+
+    await waitFor(() => {
+      expect(result.current.sectionComments).toHaveLength(1)
+    })
+
+    await result.current.submitReply("comment-1", "Risposta")
+
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ["notifiche"] }),
+    )
   })
 
   it("does not mark the current user's own comments as read", async () => {

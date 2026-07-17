@@ -22,6 +22,7 @@ type CommentSectionPanelProps = {
   isLoadingMore?: boolean
   showOriginBadges?: boolean
   currentUserId: string | null
+  highlightCommentId?: string | null
   onLoadMore?: () => void
   onReply: (rootId: string, authorName: string) => void
   onEdit: (commentId: string, body: string) => Promise<void> | void
@@ -37,6 +38,7 @@ export function CommentSectionPanel({
   isLoadingMore = false,
   showOriginBadges = false,
   currentUserId,
+  highlightCommentId = null,
   onLoadMore,
   onReply,
   onEdit,
@@ -81,6 +83,7 @@ export function CommentSectionPanel({
               comment={comment}
               currentUserId={currentUserId}
               showOriginBadge={showOriginBadges}
+              highlightCommentId={highlightCommentId}
               onReply={(rootId) => onReply(rootId, comment.author.name)}
               onEdit={onEdit}
               onMarkRead={onMarkRead}
@@ -136,7 +139,7 @@ type CommentSectionsAccordionProps = {
   sectionUnreadFlags?: Record<string, boolean>
   sectionUnreadMentionFlags?: Record<string, boolean>
   onSectionChange: (sectionId: string) => void
-  renderSectionContent: (section: CommentSection) => React.ReactNode
+  children?: React.ReactNode
 }
 
 export function CommentSectionsAccordion({
@@ -147,7 +150,7 @@ export function CommentSectionsAccordion({
   sectionUnreadFlags = {},
   sectionUnreadMentionFlags = {},
   onSectionChange,
-  renderSectionContent,
+  children,
 }: CommentSectionsAccordionProps) {
   return (
     <div className="p-3.5">
@@ -211,7 +214,7 @@ export function CommentSectionsAccordion({
                 </span>
               </AccordionTrigger>
               <AccordionContent className="border-t-0! px-0 py-0">
-                {renderSectionContent(section)}
+                {section.id === activeSectionId ? children : null}
               </AccordionContent>
             </AccordionItem>
           )

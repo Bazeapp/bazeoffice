@@ -16,25 +16,38 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { CommentAppProvider, CommentPanelHost } from "@/modules/commenti/components"
+import { fetchCommentNavigation } from "@/modules/notifiche/queries"
+import {
+  applyRoutePatch,
+  buildUrlWithComment,
+  notifyCommentDeepLink,
+  routePatchFromCommentNavigation,
+} from "@/modules/notifiche/lib/entity-route-map"
+import type { Notifica } from "@/modules/notifiche/types"
 
 type AppShellProps = {
   user: User
   onLogout: () => Promise<void>
 }
 
-function syncBrowserUrl(route: AppRoute, mode: "push" | "replace" = "push") {
+function syncBrowserUrl(
+  route: AppRoute,
+  mode: "push" | "replace" = "push",
+  search: string = "",
+) {
   if (typeof window === "undefined") return
   const targetPath = buildPathForRoute(route)
-  const currentPath = window.location.pathname
+  const targetUrl = `${targetPath}${search}`
+  const currentUrl = `${window.location.pathname}${window.location.search}`
 
-  if (currentPath === targetPath) return
+  if (currentUrl === targetUrl) return
 
   if (mode === "replace") {
-    window.history.replaceState({}, "", targetPath)
+    window.history.replaceState({}, "", targetUrl)
     return
   }
 
-  window.history.pushState({}, "", targetPath)
+  window.history.pushState({}, "", targetUrl)
 }
 
 type AppShellMainProps = React.ComponentProps<typeof AppPageContent>
@@ -67,7 +80,8 @@ export function AppShell({ user, onLogout }: AppShellProps) {
   const ricercaDetailReturnRouteRef = React.useRef<AppRoute | null>(null)
 
   React.useEffect(() => {
-    syncBrowserUrl(route, "replace")
+    // Preserve ?comment= (and any other search) across pathname-only route sync.
+    syncBrowserUrl(route, "replace", window.location.search)
   }, [route])
 
   React.useEffect(() => {
@@ -357,6 +371,26 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     syncBrowserUrl(nextRoute)
   }, [route.anagraficheTab])
 
+  const handleOpenNotifica = React.useCallback(
+    (notifica: Notifica) => {
+      void (async () => {
+        const navigation = await fetchCommentNavigation(notifica.commentId)
+        if (!navigation) return
+        const patch = routePatchFromCommentNavigation(navigation)
+        const nextRoute = applyRoutePatch(route, patch)
+        setRoute(nextRoute)
+        const path = buildPathForRoute(nextRoute)
+        const withComment = buildUrlWithComment(path, notifica.commentId)
+        const search = withComment.includes("?")
+          ? withComment.slice(withComment.indexOf("?"))
+          : ""
+        syncBrowserUrl(nextRoute, "push", search)
+        notifyCommentDeepLink(notifica.commentId)
+      })()
+    },
+    [route],
+  )
+
   return (
     <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar
@@ -381,6 +415,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onOpenCustomerSupportCustomerTicket={handleOpenCustomerSupportCustomerTicket}
         onOpenCustomerSupportPayrollTicket={handleOpenCustomerSupportPayrollTicket}
         onOpenCustomerSupportRiattivazioni={handleOpenCustomerSupportRiattivazioni}
+        onOpenNotifica={handleOpenNotifica}
       />
       <SidebarInset className="h-svh min-h-0 overflow-hidden">
         <CommentAppProvider user={user}>

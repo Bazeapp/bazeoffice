@@ -28,6 +28,7 @@ type CommentThreadProps = {
   comment: Comment
   currentUserId: string | null
   showOriginBadge?: boolean
+  highlightCommentId?: string | null
   onReply: (rootId: string) => void
   onEdit: (commentId: string, body: string) => Promise<void> | void
   onMarkRead?: (comment: Comment) => void
@@ -86,6 +87,7 @@ function CommentBubble({
   currentUserId,
   isReply = false,
   showOriginBadge = false,
+  highlightCommentId = null,
   onReply,
   onEdit,
   onMarkRead,
@@ -95,6 +97,16 @@ function CommentBubble({
   const viewRef = useMarkReadOnView(comment, onMarkRead)
   const isAuthor = currentUserId === comment.author.id
   const isPhaseNote = comment.commentType === "phase_note"
+  const isHighlighted = highlightCommentId === comment.id 
+
+  React.useEffect(() => {
+    if (!isHighlighted || !viewRef.current) return
+    const node = viewRef.current
+    const frame = window.requestAnimationFrame(() => {
+      node.scrollIntoView({ behavior: "smooth", block: "center" })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [isHighlighted, highlightCommentId, viewRef])
 
   const handleSaveEdit = async () => {
     const body = editDraft.trim()
@@ -114,6 +126,7 @@ function CommentBubble({
             ? "mx-4 my-2 rounded-lg border border-accent-muted bg-accent-soft px-3.5 py-3"
             : "px-4 py-3",
         comment.isOptimistic ? "opacity-60" : null,
+        isHighlighted ? "bg-accent/10" : null,
       )}
     >
       {isPhaseNote && comment.phaseLabel ? (
@@ -258,16 +271,24 @@ export function CommentThread({
   comment,
   currentUserId,
   showOriginBadge = false,
+  highlightCommentId = null,
   onReply,
   onEdit,
   onMarkRead,
 }: CommentThreadProps) {
-  const [showAllReplies, setShowAllReplies] = React.useState(false)
+  const highlightInThread =
+    highlightCommentId === comment.id ||
+    comment.replies.some((reply) => reply.id === highlightCommentId)
+  const [showAllReplies, setShowAllReplies] = React.useState(highlightInThread)
   const hiddenReplyCount = Math.max(comment.replies.length - VISIBLE_REPLY_LIMIT, 0)
   const visibleReplies =
     showAllReplies || hiddenReplyCount === 0
       ? comment.replies
       : comment.replies.slice(-VISIBLE_REPLY_LIMIT)
+
+  React.useEffect(() => {
+    if (highlightInThread) setShowAllReplies(true)
+  }, [highlightInThread])
 
   return (
     <div data-testid={`comments-root-${comment.id}`}>
@@ -275,6 +296,7 @@ export function CommentThread({
         comment={comment}
         currentUserId={currentUserId}
         showOriginBadge={showOriginBadge}
+        highlightCommentId={highlightCommentId}
         onReply={onReply}
         onEdit={onEdit}
         onMarkRead={onMarkRead}
@@ -297,6 +319,7 @@ export function CommentThread({
               comment={reply}
               currentUserId={currentUserId}
               isReply
+              highlightCommentId={highlightCommentId}
               onReply={onReply}
               onEdit={onEdit}
               onMarkRead={onMarkRead}

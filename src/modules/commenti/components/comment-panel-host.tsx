@@ -6,20 +6,94 @@ import { useCommentContext } from "../hooks"
 import { useCommentPanel } from "../hooks/use-comment-panel"
 import { useSectionCommentCounts } from "../hooks/use-section-comment-counts"
 import { useSectionUnreadFlags } from "../hooks/use-section-unread-flags"
+import { fetchCommentNavigation } from "@/modules/notifiche/queries"
+import {
+  readCommentIdFromSearch,
+  subscribeCommentDeepLink,
+} from "@/modules/notifiche/lib/entity-route-map"
+import type { EntityRef, EntityType } from "../types/entity"
 import { CommentPanel } from "./comment-panel"
 import { CommentPanelBody } from "./comment-panel-body"
 
 export function CommentPanelHost() {
   const context = useCommentContext()
   const [expanded, setExpanded] = React.useState(false)
+  const [highlightCommentId, setHighlightCommentId] = React.useState<string | null>(
+    null,
+  )
+  const [deepLinkAnchor, setDeepLinkAnchor] = React.useState<EntityRef | null>(null)
+  const [openedFromCentroNotifiche, setOpenedFromCentroNotifiche] =
+    React.useState(false)
   const pageFocus = context?.pageFocus ?? null
   const focusKey = pageFocus
     ? `${pageFocus.entityType}:${pageFocus.entityId}`
     : null
+  const consumedDeepLinkRef = React.useRef<string | null>(null)
+  const highlightClearTimerRef = React.useRef<number | null>(null)
+
+  const clearHighlightTimer = React.useCallback(() => {
+    if (highlightClearTimerRef.current != null) {
+      window.clearTimeout(highlightClearTimerRef.current)
+      highlightClearTimerRef.current = null
+    }
+  }, [])
+
+  const consumeCommentDeepLink = React.useCallback(
+    (commentIdFromEvent: string | null = null) => {
+      if (!pageFocus) return
+      const commentId = commentIdFromEvent ?? readCommentIdFromSearch()
+      if (!commentId) return
+      const consumeKey = `${focusKey}:${commentId}`
+      if (consumedDeepLinkRef.current === consumeKey) return
+      consumedDeepLinkRef.current = consumeKey
+
+      setExpanded(true)
+      setHighlightCommentId(commentId)
+      setOpenedFromCentroNotifiche(true)
+
+      void fetchCommentNavigation(commentId)
+        .then((navigation) => {
+          if (!navigation) return
+          setDeepLinkAnchor({
+            entityType: navigation.entityType as EntityType,
+            entityId: navigation.entityId,
+          })
+        })
+        .catch(() => {
+          setDeepLinkAnchor(null)
+        })
+
+      clearHighlightTimer()
+      highlightClearTimerRef.current = window.setTimeout(() => {
+        setHighlightCommentId((current) => (current === commentId ? null : current))
+        const url = new URL(window.location.href)
+        if (url.searchParams.get("comment") === commentId) {
+          url.searchParams.delete("comment")
+          window.history.replaceState({}, "", `${url.pathname}${url.search}`)
+        }
+        highlightClearTimerRef.current = null
+      }, 2000)
+    },
+    [clearHighlightTimer, focusKey, pageFocus],
+  )
 
   React.useEffect(() => {
     setExpanded(false)
-  }, [focusKey])
+    setHighlightCommentId(null)
+    setDeepLinkAnchor(null)
+    setOpenedFromCentroNotifiche(false)
+    consumedDeepLinkRef.current = null
+    clearHighlightTimer()
+  }, [clearHighlightTimer, focusKey])
+
+  React.useEffect(() => {
+    consumeCommentDeepLink()
+    return subscribeCommentDeepLink((commentId) => {
+      consumeCommentDeepLink(commentId)
+    })
+  }, [consumeCommentDeepLink])
+
+  React.useEffect(() => () => clearHighlightTimer(), [clearHighlightTimer])
 
   const stack = React.useMemo(() => {
     if (!context?.pageFocus) return null
@@ -78,9 +152,17 @@ export function CommentPanelHost() {
   const panelOptions = {
     currentUserId: context?.currentUserId ?? null,
     currentUserName: context?.currentUserName,
-    sourceInterface: context?.sourceInterface ?? null,
+    sourceInterface: openedFromCentroNotifiche
+      ? ("centro_notifiche" as const)
+      : (context?.sourceInterface ?? null),
     defaultCommentType: context?.defaultCommentType,
     phaseLabel: context?.phaseLabel ?? null,
+  }
+
+  const handleClose = () => {
+    setExpanded(false)
+    setOpenedFromCentroNotifiche(false)
+    setDeepLinkAnchor(null)
   }
 
   return (
@@ -90,7 +172,7 @@ export function CommentPanelHost() {
       hasUnreadMention={hasUnreadMention}
       expanded={expanded}
       onToggleExpanded={() => setExpanded((value) => !value)}
-      onClose={() => setExpanded(false)}
+      onClose={handleClose}
     >
       {expanded ? (
         <CommentPanelBody
@@ -98,6 +180,8 @@ export function CommentPanelHost() {
           stack={stack}
           totalCount={countState.count}
           panelOptions={panelOptions}
+          highlightCommentId={highlightCommentId}
+          deepLinkAnchor={deepLinkAnchor}
         />
       ) : null}
     </CommentPanel>

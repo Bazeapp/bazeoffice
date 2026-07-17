@@ -58,6 +58,16 @@ A `comment_type = 'phase_note'` comment on `lavoratore`, auto-tagged from Gate 1
 ### Da entità collegate
 Aggregated panel section showing comments from descendant entities of the current focus. The only section where individual comments carry an origin badge (e.g. ↗ da Cedolino).
 
+## Notification center (centro notifiche)
+
+Cross-cutting collaboration feature (BAZ-84). Actionable to-dos for operators generated from @mentions and thread replies — not a general activity feed. Rows live in `notifiche`, separate from per-comment read state in `commenti_letti`.
+
+### Notifica lifecycle
+Three states for a notification row: **Non letta** (unseen), **Letta** (seen via click or mark-all-read — not yet handled), **Risolta** (handled via explicit Risolvi or by replying in that thread). Click never resolves; reply bulk-resolves all open notifiche for that operator on the thread.
+
+### Da risolvere
+The default notification-center tab: all unresolved rows (letta and non letta). The tab counter is this count; the sidebar badge instead counts only non lette.
+
 ## Realtime write-sync
 
 ### Write tracking

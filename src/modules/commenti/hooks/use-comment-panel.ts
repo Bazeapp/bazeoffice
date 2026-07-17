@@ -4,6 +4,7 @@ import { toast } from "sonner"
 
 import { useRealtimeRows } from "@/hooks/use-realtime-rows"
 import { runTracked } from "@/lib/write-tracking"
+import { notificheQueryPrefix } from "@/modules/notifiche/lib/query-keys"
 
 import {
   appendReplyToRoot,
@@ -179,6 +180,10 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
     [pageFocus, queryClient],
   )
 
+  const invalidateNotificheQueries = React.useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: [...notificheQueryPrefix()] })
+  }, [queryClient])
+
   useRealtimeRows(
     [...COMMENTI_REALTIME_TABLES],
     (event) => {
@@ -219,11 +224,13 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
       }
       toast.error("Errore durante l'invio del commento")
     },
-    onSettled: (_data, _error, input) =>
+    onSettled: (_data, _error, input) => {
       invalidatePageQueries({
         entityType: input.anchorEntityType,
         entityId: input.anchorEntityId,
-      }),
+      })
+      invalidateNotificheQueries()
+    },
   })
 
   const replyMutation = useMutation({
@@ -241,7 +248,7 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
         body: input.body,
         commentType: defaultCommentType,
         phaseLabel: null,
-        sourceInterface: options.sourceInterface ?? null,
+        sourceInterface: input.sourceInterface ?? options.sourceInterface ?? null,
         threadRootId: input.threadRootId,
       })
       queryClient.setQueryData<CommentListSectionRpcResponse>(sectionKey, (previous) => ({
@@ -256,7 +263,10 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
       }
       toast.error("Errore durante l'invio della risposta")
     },
-    onSettled: () => invalidatePageQueries(options.targetEntityRef),
+    onSettled: () => {
+      invalidatePageQueries(options.targetEntityRef)
+      invalidateNotificheQueries()
+    },
   })
 
   const editMutation = useMutation({
@@ -305,9 +315,10 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
         pageEntityId: pageFocus.entityId,
         threadRootId,
         body,
+        sourceInterface: options.sourceInterface ?? null,
       })
     },
-    [pageFocus, replyMutation],
+    [options.sourceInterface, pageFocus, replyMutation],
   )
 
   const markReadIfNeeded = React.useCallback(

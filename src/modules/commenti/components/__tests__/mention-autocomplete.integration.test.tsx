@@ -90,7 +90,7 @@ describe("Mention autocomplete", () => {
     expect(input).toHaveAttribute("data-markup", "Ciao ")
   })
 
-  it("renders mention markup as blue highlighted spans", () => {
+  it("renders mention markup as accent pill tokens", () => {
     renderWithProviders(
       <CommentBody body={`Salve @[Mario Rossi](${OPERATORS[0]!.id})`} />,
     )
@@ -98,6 +98,7 @@ describe("Mention autocomplete", () => {
     const highlight = screen.getByTestId("comments-mention-highlight")
     expect(highlight).toHaveTextContent("@Mario Rossi")
     expect(highlight).toHaveClass("text-accent-ink")
+    expect(highlight).toHaveClass("bg-accent-soft")
   })
 })
 

@@ -25,6 +25,8 @@ type CommentPanelBodyProps = {
   pageFocus: EntityRef
   stack: ResolveCommentStackResult
   totalCount: number
+  highlightCommentId?: string | null
+  deepLinkAnchor?: EntityRef | null
   panelOptions: Omit<
     UseCommentPanelOptions,
     | "pageFocus"
@@ -61,6 +63,8 @@ export function CommentPanelBody({
   pageFocus,
   stack,
   totalCount,
+  highlightCommentId = null,
+  deepLinkAnchor = null,
   panelOptions,
 }: CommentPanelBodyProps) {
   const composerRef = React.useRef<HTMLDivElement>(null)
@@ -76,6 +80,13 @@ export function CommentPanelBody({
     setSelection(createInitialSelection(stack, pageFocus))
     setReplyTo(null)
   }, [pageFocus.entityId, pageFocus.entityType, stack])
+
+  React.useEffect(() => {
+    if (!deepLinkAnchor) return
+    setSelection((current) =>
+      selectTarget(stack, deepLinkAnchor, current.activeSectionId),
+    )
+  }, [deepLinkAnchor, stack])
 
   const activeSectionRef = resolveActiveSectionRef(stack, selection.activeSectionId)
   const activeSectionKind = resolveActiveSectionKind(stack, selection.activeSectionId)
@@ -111,11 +122,13 @@ export function CommentPanelBody({
     )
 
   React.useEffect(() => {
+    if (highlightCommentId) return
     if (!panelState.sectionLoading && activeSectionRef) {
       listEndRef.current?.scrollIntoView({ block: "end" })
     }
   }, [
     activeSectionRef,
+    highlightCommentId,
     panelState.sectionComments.length,
     panelState.sectionLoading,
     selection.activeSectionId,
@@ -160,6 +173,9 @@ export function CommentPanelBody({
   }
 
   const showEmptyHero = totalCount === 0 && !panelState.sectionLoading
+  const activeSection =
+    stack.sections.find((section) => section.id === selection.activeSectionId) ??
+    null
 
   return (
     <>
@@ -176,31 +192,29 @@ export function CommentPanelBody({
           sectionUnreadFlags={sectionUnreadFlags}
           sectionUnreadMentionFlags={sectionUnreadMentionFlags}
           onSectionChange={handleSectionChange}
-          renderSectionContent={(section) => {
-            if (section.id !== selection.activeSectionId) return null
-            const isDescendants = section.kind === "descendants"
-            return (
-              <CommentSectionPanel
-                section={section}
-                comments={panelState.sectionComments}
-                loading={panelState.sectionLoading}
-                hasMore={panelState.hasMoreSectionComments}
-                isLoadingMore={panelState.isLoadingMore}
-                showOriginBadges={isDescendants}
-                currentUserId={panelOptions.currentUserId}
-                onLoadMore={() => void panelState.loadMoreSectionComments()}
-                onReply={(rootId, authorName) =>
-                  setReplyTo({ rootId, label: authorName })
-                }
-                onEdit={(commentId, body) =>
-                  void panelState.editComment({ commentId, body })
-                }
-                onMarkRead={panelState.markReadIfNeeded}
-                listEndRef={listEndRef}
-              />
-            )
-          }}
-        />
+        >
+          {activeSection ? (
+            <CommentSectionPanel
+              section={activeSection}
+              comments={panelState.sectionComments}
+              loading={panelState.sectionLoading}
+              hasMore={panelState.hasMoreSectionComments}
+              isLoadingMore={panelState.isLoadingMore}
+              showOriginBadges={activeSection.kind === "descendants"}
+              currentUserId={panelOptions.currentUserId}
+              onLoadMore={() => void panelState.loadMoreSectionComments()}
+              onReply={(rootId, authorName) =>
+                setReplyTo({ rootId, label: authorName })
+              }
+              onEdit={(commentId, body) =>
+                void panelState.editComment({ commentId, body })
+              }
+              onMarkRead={panelState.markReadIfNeeded}
+              listEndRef={listEndRef}
+              highlightCommentId={highlightCommentId}
+            />
+          ) : null}
+        </CommentSectionsAccordion>
       </div>
 
       <div className="relative shrink-0 border-t border-border-subtle bg-surface px-4 pt-3 pb-3.5">
