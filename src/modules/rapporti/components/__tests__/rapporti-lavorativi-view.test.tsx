@@ -32,8 +32,10 @@ function stubState(selectedRapportoId: string | null) {
   return {
     selectedRapportoId,
     setSelectedRapportoId: () => {},
+    selectedRapporto: null,
     rapportoAssunzioneNames: {},
     selectedAssunzioneNames: null,
+    selectedProcessi: [],
   }
 }
 

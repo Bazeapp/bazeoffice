@@ -75,11 +75,12 @@ export function RapportiLavorativiView({
         ? `${selectedLavoratore.nome ?? ""} ${selectedLavoratore.cognome ?? ""}`.trim() || null
         : null
 
+  const processi = selectedProcessi ?? []
   const primaryProcessId =
-    selectedRapporto?.processi_matching_id ?? selectedProcessi[0]?.id ?? null
+    selectedRapporto?.processi_matching_id ?? processi[0]?.id ?? null
   const ricercaLabel =
-    selectedProcessi.find((processo) => processo.id === primaryProcessId)?.titolo_annuncio ??
-    selectedProcessi[0]?.titolo_annuncio ??
+    processi.find((processo) => processo.id === primaryProcessId)?.titolo_annuncio ??
+    processi[0]?.titolo_annuncio ??
     null
 
   useCommentRouteContext({
@@ -144,7 +145,7 @@ export function RapportiLavorativiView({
           selectedAssunzioneNames ??
           (selectedRapportoId ? rapportoAssunzioneNames[selectedRapportoId] ?? null : null)
         }
-        processi={selectedProcessi}
+        processi={processi}
         contributi={selectedContributi}
         mesi={selectedMesi}
         mesiCalendario={selectedMesiCalendario}
