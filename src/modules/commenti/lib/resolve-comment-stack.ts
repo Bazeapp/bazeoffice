@@ -78,10 +78,8 @@ function collectAncestorRefs(
       pushRefFromRow(refs, seen, "famiglia", row, ["famiglia_id", "id_famiglia"])
       break
     case "assunzione":
-      pushRefFromRow(refs, seen, "lavoratore", row, ["lavoratore_id", "id_lavoratore"])
-      pushRefFromRow(refs, seen, "famiglia", row, ["famiglia_id", "id_famiglia"])
-      break
     case "variazione":
+    case "chiusura":
     case "cedolino":
     case "contributi": {
       const rapportoRow = readRapportoRow(row)
@@ -89,15 +87,12 @@ function collectAncestorRefs(
         for (const ref of collectRapportoChainRefs(rapportoRow, seen)) {
           refs.push(ref)
         }
+        break
       }
-      break
-    }
-    case "chiusura": {
-      const rapportoRow = readRapportoRow(row)
-      if (rapportoRow) {
-        for (const ref of collectRapportoChainRefs(rapportoRow, seen)) {
-          refs.push(ref)
-        }
+
+      if (focus.entityType === "assunzione") {
+        pushRefFromRow(refs, seen, "lavoratore", row, ["lavoratore_id", "id_lavoratore"])
+        pushRefFromRow(refs, seen, "famiglia", row, ["famiglia_id", "id_famiglia"])
       }
       break
     }

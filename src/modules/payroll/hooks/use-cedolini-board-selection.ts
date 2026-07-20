@@ -1,5 +1,6 @@
 import * as React from "react"
 
+import { enrichRapportoWithRicercaId } from "@/modules/rapporti/lib"
 import { fetchCedolinoDetail } from "../queries/fetch-cedolino-detail"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
 
@@ -51,9 +52,13 @@ export function useCedoliniBoardSelection({
         const detail = await fetchCedolinoDetail(currentCardId)
         if (!detail?.record) return
 
+        const enrichedRapporto = await enrichRapportoWithRicercaId(
+          detail.rapporto as PayrollBoardCardData["rapporto"],
+        )
+
         enrichCardFromDetail(currentCardId, {
           record: detail.record as PayrollBoardCardData["record"],
-          rapporto: detail.rapporto as PayrollBoardCardData["rapporto"],
+          rapporto: enrichedRapporto,
           famiglia: detail.famiglia as PayrollBoardCardData["famiglia"],
           mese: detail.mese as PayrollBoardCardData["mese"],
           presenze: detail.presenze as PayrollBoardCardData["presenze"],

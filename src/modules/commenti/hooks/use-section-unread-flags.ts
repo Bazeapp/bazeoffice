@@ -5,6 +5,7 @@ import {
   commentDescendantsQueryKey,
   commentSectionQueryKey,
 } from "../lib/query-keys"
+import { sectionListScopePage } from "../lib/section-list-scope"
 import { collectStackAnchorExclusions } from "../lib/stack-anchor-exclusions"
 import { sectionHasUnreadComments, sectionHasUnreadMentions } from "../lib/section-unread"
 import { fetchDescendantsCommentPage } from "../queries/fetch-descendants-comments"
@@ -45,13 +46,15 @@ export function useSectionUnreadFlags(
 
       return {
         queryKey: commentSectionQueryKey(pageFocus, section.entityRef),
-        queryFn: () =>
-          fetchCommentSectionPage({
-            pageEntityType: pageFocus.entityType,
-            pageEntityId: pageFocus.entityId,
+        queryFn: () => {
+          const listPage = sectionListScopePage(section.entityRef)
+          return fetchCommentSectionPage({
+            pageEntityType: listPage.entityType,
+            pageEntityId: listPage.entityId,
             sectionEntityType: section.entityRef.entityType,
             sectionEntityId: section.entityRef.entityId,
-          }),
+          })
+        },
         enabled: !countLoading && count > 0,
         select: (data: Awaited<ReturnType<typeof fetchCommentSectionPage>>) => ({
           hasUnread: sectionHasUnreadComments(data.comments),

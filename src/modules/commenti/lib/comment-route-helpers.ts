@@ -1,5 +1,9 @@
+import { ENTITY_SECTION_META } from "./consts"
 import { entityRefKey } from "./entity-ref"
+import { resolveCommentStack } from "./resolve-comment-stack"
+import { resolveRapportoRicercaId } from "./resolve-rapporto-ricerca-id"
 import type { EntityRef } from "../types/entity"
+import type { ResolveCommentStackResult } from "../types/section"
 import type { AssunzioniBoardCardData } from "@/modules/gestione-contrattuale/types"
 import type { ChiusureBoardCardData } from "@/modules/gestione-contrattuale/types"
 import type { VariazioniBoardCardData } from "@/modules/gestione-contrattuale/types"
@@ -91,6 +95,7 @@ export function lavoratoreDisplayName(
 
 function serializeRapportoRow(
   rapporto: RapportoLavorativoRecord | null | undefined,
+  processiMatchingId?: string | null,
 ): Record<string, unknown> | null {
   if (!rapporto) return null
 
@@ -98,7 +103,7 @@ function serializeRapportoRow(
     id: rapporto.id,
     lavoratore_id: rapporto.lavoratore_id,
     famiglia_id: rapporto.famiglia_id,
-    processi_matching_id: rapporto.processi_matching_id,
+    processi_matching_id: processiMatchingId ?? rapporto.processi_matching_id,
     nome_lavoratore_per_url: rapporto.nome_lavoratore_per_url,
     id_rapporto: rapporto.id_rapporto,
   }
@@ -107,12 +112,15 @@ function serializeRapportoRow(
 export function rapportoCommentRow(
   rapportoId: string,
   rapporto?: RapportoLavorativoRecord | null,
+  options?: { processId?: string | null },
 ): Record<string, unknown> {
-  const serialized = serializeRapportoRow(rapporto)
+  const processiMatchingId = resolveRapportoRicercaId(rapporto, options?.processId)
+  const serialized = serializeRapportoRow(rapporto, processiMatchingId)
   return {
     ...(serialized ?? {}),
     id: rapportoId,
     rapporto_lavorativo_id: rapportoId,
+    processi_matching_id: processiMatchingId,
     rapporto: serialized,
   }
 }
@@ -123,6 +131,7 @@ export function rapportoDisplayNames(
     lavoratoreName?: string | null
     famigliaName?: string | null
     ricercaLabel?: string | null
+    processId?: string | null
     rapporto?: RapportoLavorativoRecord | null
   },
 ): Record<string, string> {
@@ -144,7 +153,7 @@ export function rapportoDisplayNames(
     })
   }
 
-  const ricercaId = options.rapporto?.processi_matching_id
+  const ricercaId = resolveRapportoRicercaId(options.rapporto, options.processId)
   if (ricercaId) {
     entries.push({
       ref: { entityType: "ricerca", entityId: ricercaId },
@@ -166,27 +175,160 @@ export function rapportoDisplayNames(
   return buildDisplayNames(entries)
 }
 
-export function assunzioneCommentRow(card: AssunzioniBoardCardData): Record<string, unknown> {
-  const assunzioneId = card.assunzione?.id ?? card.id
-  const rapporto = serializeRapportoRow(card.rapporto)
+export function resolveAssunzioneCommentFocusId(
+  card:
+    | Pick<AssunzioniBoardCardData, "assunzione" | "lavoratoreAssunzione" | "rapporto">
+    | null
+    | undefined,
+): string | null {
+  // Assunzioni board cards are keyed by rapporto id (`card.id`). Never use that
+  // as an `assunzione` page focus — scope rows are written for real `assunzioni.id`.
+  return (
+    card?.assunzione?.id ??
+    card?.lavoratoreAssunzione?.id ??
+    card?.rapporto?.assunzione_datore_id ??
+    card?.rapporto?.assunzione_lavoratore_id ??
+    null
+  )
+}
+
+/** Synthetic focus section when Assunzioni has no `assunzioni` row yet. */
+export const PENDING_ASSUNZIONE_SECTION_ID = "assunzione:pending"
+
+/**
+ * Page focus for the Assunzioni board sheet. Prefer a real assunzione id; when
+ * the card has no assunzione yet (common — the board is indexed by rapporto),
+ * fall back to rapporto focus so the messages pill still mounts and parent
+ * comments remain listable. The UI stack then prepends a pending ASSUNZIONE
+ * focus via {@link resolveAssunzioniBoardCommentStack} so both sections show.
+ */
+export function resolveAssunzioniBoardCommentPageFocus(
+  card: AssunzioniBoardCardData | null | undefined,
+): EntityRef | null {
+  if (!card) return null
+
+  const assunzioneId = resolveAssunzioneCommentFocusId(card)
+  if (assunzioneId) {
+    return { entityType: "assunzione", entityId: assunzioneId }
+  }
+
+  const rapportoId = card.rapporto?.id ?? card.id
+  if (!rapportoId) return null
+  return { entityType: "rapporto", entityId: rapportoId }
+}
+
+/**
+ * Assunzioni board always shows ASSUNZIONE and RAPPORTO as separate sections.
+ *
+ * - Real assunzione id → normal stack (ASSUNZIONE focus + RAPPORTO ancestor).
+ *   Writes on each section stay on that entity.
+ * - No assunzione yet → page scope stays on `rapporto` (so RAPPORTO comments
+ *   load), and we prepend a pending ASSUNZIONE focus (`entityRef: null`). That
+ *   section is focus/empty and not writable until an assunzione row exists;
+ *   users open RAPPORTO to read/write rapporto comments.
+ */
+export function resolveAssunzioniBoardCommentStack(input: {
+  pageFocus: EntityRef
+  row: Record<string, unknown>
+  displayNames?: Record<string, string>
+}): ResolveCommentStackResult {
+  const stack = resolveCommentStack({
+    focus: input.pageFocus,
+    row: input.row,
+    displayNames: input.displayNames,
+  })
+
+  if (input.pageFocus.entityType !== "rapporto") return stack
+
+  const assunzioneMeta = ENTITY_SECTION_META.assunzione
+  const displayName =
+    input.displayNames?.[entityRefKey(input.pageFocus)]?.trim() || "Assunzione"
+
+  const pendingFocus = {
+    id: PENDING_ASSUNZIONE_SECTION_ID,
+    kind: "focus" as const,
+    entityRef: null,
+    typeLabel: assunzioneMeta.typeLabel,
+    displayName,
+    icon: assunzioneMeta.icon,
+    visibilityHint: null as string | null,
+  }
+
+  const entitySections = [
+    pendingFocus,
+    ...stack.sections
+      .filter((section) => section.kind !== "descendants")
+      .map((section) =>
+        section.kind === "focus"
+          ? { ...section, kind: "ancestor" as const, visibilityHint: null }
+          : { ...section, visibilityHint: null },
+      ),
+  ]
+
+  const descendants = stack.sections.filter((section) => section.kind === "descendants")
+
+  const sections = [
+    ...entitySections.map((section, index) => {
+      if (index <= 0) return { ...section, visibilityHint: null }
+      const names = entitySections
+        .slice(0, index)
+        .map((item) => item.displayName)
+        .filter(Boolean)
+      return {
+        ...section,
+        visibilityHint: names.length > 0 ? names.join(", ") : null,
+      }
+    }),
+    ...descendants,
+  ]
+
+  const visibilityHintsByTarget: Record<string, string> = {}
+  for (const section of sections) {
+    if (!section.entityRef || !section.visibilityHint) continue
+    visibilityHintsByTarget[entityRefKey(section.entityRef)] = section.visibilityHint
+  }
 
   return {
-    id: assunzioneId,
-    lavoratore_id: card.assunzione?.lavoratore_id ?? card.lavoratore?.id ?? card.rapporto?.lavoratore_id,
-    famiglia_id: card.famigliaId ?? card.assunzione?.famiglia_id ?? card.rapporto?.famiglia_id,
-    rapporto_lavorativo_id: card.rapporto?.id ?? card.id,
+    sections,
+    chipOptions: stack.chipOptions,
+    visibilityHintsByTarget,
+  }
+}
+
+export function assunzioneCommentRow(card: AssunzioniBoardCardData): Record<string, unknown> {
+  const assunzioneId = resolveAssunzioneCommentFocusId(card)
+  const rapportiId = card.rapporto?.id ?? card.id
+  const processiMatchingId = resolveRapportoRicercaId(card.rapporto, card.processId)
+  const rapporto = serializeRapportoRow(card.rapporto, processiMatchingId)
+
+  return {
+    id: assunzioneId ?? rapportiId,
+    lavoratore_id:
+      card.assunzione?.lavoratore_id ??
+      card.lavoratoreAssunzione?.lavoratore_id ??
+      card.lavoratore?.id ??
+      card.rapporto?.lavoratore_id,
+    famiglia_id:
+      card.famigliaId ??
+      card.assunzione?.famiglia_id ??
+      card.lavoratoreAssunzione?.famiglia_id ??
+      card.rapporto?.famiglia_id,
+    rapporto_lavorativo_id: rapportiId,
+    processi_matching_id: processiMatchingId,
     rapporto,
   }
 }
 
 export function assunzioneDisplayNames(card: AssunzioniBoardCardData): Record<string, string> {
-  const assunzioneId = card.assunzione?.id ?? card.id
-  const entries: Array<{ ref: EntityRef; name: string }> = [
-    {
+  const assunzioneId = resolveAssunzioneCommentFocusId(card)
+  const entries: Array<{ ref: EntityRef; name: string }> = []
+
+  if (assunzioneId) {
+    entries.push({
       ref: { entityType: "assunzione", entityId: assunzioneId },
       name: card.nomeLavoratore?.trim() || "Assunzione",
-    },
-  ]
+    })
+  }
 
   if (card.rapporto?.id) {
     entries.push({
@@ -202,9 +344,10 @@ export function assunzioneDisplayNames(card: AssunzioniBoardCardData): Record<st
     })
   }
 
-  if (card.processId) {
+  const ricercaId = resolveRapportoRicercaId(card.rapporto, card.processId)
+  if (ricercaId) {
     entries.push({
-      ref: { entityType: "ricerca", entityId: card.processId },
+      ref: { entityType: "ricerca", entityId: ricercaId },
       name: formatRicercaDisplayName({
         nomeFamiglia: card.nomeFamiglia,
         titoloAnnuncio: card.titoloAnnuncio,
@@ -223,12 +366,14 @@ export function assunzioneDisplayNames(card: AssunzioniBoardCardData): Record<st
 }
 
 export function chiusuraCommentRow(card: ChiusureBoardCardData): Record<string, unknown> {
-  const rapporto = serializeRapportoRow(card.rapporto)
+  const processiMatchingId = resolveRapportoRicercaId(card.rapporto)
+  const rapporto = serializeRapportoRow(card.rapporto, processiMatchingId)
 
   return {
     record: card.record,
     id: card.id,
     rapporto_lavorativo_id: card.rapporto?.id,
+    processi_matching_id: processiMatchingId,
     rapporto,
   }
 }
@@ -248,16 +393,40 @@ export function chiusuraDisplayNames(card: ChiusureBoardCardData): Record<string
     })
   }
 
+  if (card.rapporto?.lavoratore_id) {
+    entries.push({
+      ref: { entityType: "lavoratore", entityId: card.rapporto.lavoratore_id },
+      name: card.nomeCompleto?.trim() || "Lavoratore",
+    })
+  }
+
+  const ricercaId = resolveRapportoRicercaId(card.rapporto)
+  if (ricercaId) {
+    entries.push({
+      ref: { entityType: "ricerca", entityId: ricercaId },
+      name: formatRicercaDisplayName({ nomeFamiglia: card.nomeCompleto }),
+    })
+  }
+
+  if (card.rapporto?.famiglia_id) {
+    entries.push({
+      ref: { entityType: "famiglia", entityId: card.rapporto.famiglia_id },
+      name: card.nomeCompleto?.trim() || "Famiglia",
+    })
+  }
+
   return buildDisplayNames(entries)
 }
 
 export function variazioneCommentRow(card: VariazioniBoardCardData): Record<string, unknown> {
-  const rapporto = serializeRapportoRow(card.rapporto)
+  const processiMatchingId = resolveRapportoRicercaId(card.rapporto)
+  const rapporto = serializeRapportoRow(card.rapporto, processiMatchingId)
 
   return {
     id: card.id,
     record: card.record,
     rapporto_lavorativo_id: card.rapporto?.id,
+    processi_matching_id: processiMatchingId,
     rapporto,
   }
 }
@@ -274,6 +443,34 @@ export function variazioneDisplayNames(card: VariazioniBoardCardData): Record<st
     entries.push({
       ref: { entityType: "rapporto", entityId: card.rapporto.id },
       name: card.nomeCompleto?.trim() || "Rapporto",
+    })
+  }
+
+  const lavoratoreId =
+    card.rapporto?.lavoratore_id ??
+    (typeof card.lavoratore?.id === "string" ? card.lavoratore.id : null)
+  if (lavoratoreId) {
+    entries.push({
+      ref: { entityType: "lavoratore", entityId: lavoratoreId },
+      name: card.nomeCompleto?.trim() || "Lavoratore",
+    })
+  }
+
+  const ricercaId = resolveRapportoRicercaId(card.rapporto)
+  if (ricercaId) {
+    entries.push({
+      ref: { entityType: "ricerca", entityId: ricercaId },
+      name: formatRicercaDisplayName({ nomeFamiglia: card.nomeCompleto }),
+    })
+  }
+
+  const famigliaId =
+    card.rapporto?.famiglia_id ??
+    (typeof card.famiglia?.id === "string" ? card.famiglia.id : null)
+  if (famigliaId) {
+    entries.push({
+      ref: { entityType: "famiglia", entityId: famigliaId },
+      name: card.nomeCompleto?.trim() || "Famiglia",
     })
   }
 
@@ -341,12 +538,14 @@ export function candidaturaDisplayNames(input: {
 }
 
 export function cedolinoCommentRow(card: PayrollBoardCardData): Record<string, unknown> {
-  const rapporto = serializeRapportoRow(card.rapporto)
+  const processiMatchingId = resolveRapportoRicercaId(card.rapporto)
+  const rapporto = serializeRapportoRow(card.rapporto, processiMatchingId)
 
   return {
     id: card.id,
     record: card.record,
     rapporto_lavorativo_id: card.rapporto?.id,
+    processi_matching_id: processiMatchingId,
     rapporto,
   }
 }
@@ -366,18 +565,42 @@ export function cedolinoDisplayNames(card: PayrollBoardCardData): Record<string,
     })
   }
 
+  if (card.rapporto?.lavoratore_id) {
+    entries.push({
+      ref: { entityType: "lavoratore", entityId: card.rapporto.lavoratore_id },
+      name: card.nomeCompleto?.trim() || "Lavoratore",
+    })
+  }
+
+  const ricercaId = resolveRapportoRicercaId(card.rapporto)
+  if (ricercaId) {
+    entries.push({
+      ref: { entityType: "ricerca", entityId: ricercaId },
+      name: formatRicercaDisplayName({ nomeFamiglia: card.nomeCompleto }),
+    })
+  }
+
+  if (card.rapporto?.famiglia_id) {
+    entries.push({
+      ref: { entityType: "famiglia", entityId: card.rapporto.famiglia_id },
+      name: card.nomeCompleto?.trim() || "Famiglia",
+    })
+  }
+
   return buildDisplayNames(entries)
 }
 
 export function contributiCommentRow(
   card: ContributoInpsBoardCardData,
 ): Record<string, unknown> {
-  const rapporto = serializeRapportoRow(card.rapporto)
+  const processiMatchingId = resolveRapportoRicercaId(card.rapporto)
+  const rapporto = serializeRapportoRow(card.rapporto, processiMatchingId)
 
   return {
     id: card.id,
     record: card.record,
     rapporto_lavorativo_id: card.rapporto?.id,
+    processi_matching_id: processiMatchingId,
     rapporto,
   }
 }
@@ -396,6 +619,28 @@ export function contributiDisplayNames(
     entries.push({
       ref: { entityType: "rapporto", entityId: card.rapporto.id },
       name: card.nomeCompleto?.trim() || "Rapporto",
+    })
+  }
+
+  if (card.rapporto?.lavoratore_id) {
+    entries.push({
+      ref: { entityType: "lavoratore", entityId: card.rapporto.lavoratore_id },
+      name: card.nomeCompleto?.trim() || "Lavoratore",
+    })
+  }
+
+  const ricercaId = resolveRapportoRicercaId(card.rapporto)
+  if (ricercaId) {
+    entries.push({
+      ref: { entityType: "ricerca", entityId: ricercaId },
+      name: formatRicercaDisplayName({ nomeFamiglia: card.nomeCompleto }),
+    })
+  }
+
+  if (card.rapporto?.famiglia_id) {
+    entries.push({
+      ref: { entityType: "famiglia", entityId: card.rapporto.famiglia_id },
+      name: card.nomeCompleto?.trim() || "Famiglia",
     })
   }
 

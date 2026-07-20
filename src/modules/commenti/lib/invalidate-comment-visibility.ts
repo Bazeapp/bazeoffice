@@ -19,6 +19,7 @@ const PAGE_FOCUS_TYPES_WITH_RICERCA_SECTION: EntityType[] = [
   "ricerca",
   "candidatura",
   "rapporto",
+  "assunzione",
   "variazione",
   "cedolino",
   "contributi",

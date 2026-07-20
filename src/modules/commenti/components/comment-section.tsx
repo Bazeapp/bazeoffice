@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/accordion"
 import { cn } from "@/lib/utils"
 
-import { getEmptySectionCopy, sortSectionComments } from "../lib/comment-display"
+import { getEmptySectionCopy, getPendingAssunzioneEmptyCopy, sortSectionComments } from "../lib/comment-display"
+import { isPendingFocusSection } from "../lib/comment-panel-selection"
 import type { Comment } from "../types/comment"
 import type { CommentSection } from "../types/section"
 import { CommentSectionIcon } from "./comment-section-icon"
@@ -71,7 +72,9 @@ export function CommentSectionPanel({
           className="px-3.5 py-3 text-xs text-foreground-faint"
           data-testid="comments-empty-state"
         >
-          {getEmptySectionCopy(section.kind)}
+          {isPendingFocusSection(section)
+            ? getPendingAssunzioneEmptyCopy()
+            : getEmptySectionCopy(section.kind)}
         </p>
       ) : (
         <div className="py-1">

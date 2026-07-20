@@ -4,13 +4,14 @@ import { ArrowUpRightIcon, MessageSquareIcon } from "lucide-react"
 import { entityRefKey } from "../lib/entity-ref"
 import {
   createInitialSelection,
+  isPendingFocusSection,
   resolveActiveSectionKind,
   resolveActiveSectionRef,
   selectSection,
   selectTarget,
 } from "../lib/comment-panel-selection"
 import { collectStackAnchorExclusions, collectStackWatchedEntityRefs } from "../lib/stack-anchor-exclusions"
-import { getComposerPlaceholder } from "../lib/comment-display"
+import { getComposerPlaceholder, getSectionSubtitle } from "../lib/comment-display"
 import type { UseCommentPanelOptions } from "../hooks/use-comment-panel"
 import { useCommentPanel } from "../hooks/use-comment-panel"
 import type { ResolveCommentStackResult } from "../types/section"
@@ -79,6 +80,10 @@ export function CommentPanelBody({
 
   const activeSectionRef = resolveActiveSectionRef(stack, selection.activeSectionId)
   const activeSectionKind = resolveActiveSectionKind(stack, selection.activeSectionId)
+  const activeSection = stack.sections.find(
+    (section) => section.id === selection.activeSectionId,
+  )
+  const pendingFocus = isPendingFocusSection(activeSection)
   const excludeAnchors = React.useMemo(
     () => collectStackAnchorExclusions(stack),
     [stack],
@@ -96,7 +101,8 @@ export function CommentPanelBody({
     activeSectionKind,
     activeSectionRef,
     excludeAnchors,
-    targetEntityRef: selection.targetEntityRef,
+    // Pending ASSUNZIONE has no writable anchor — do not bind create to RAPPORTO.
+    targetEntityRef: pendingFocus ? null : selection.targetEntityRef,
   })
 
   const { counts: sectionCounts, loading: sectionCountsLoading } =
@@ -122,7 +128,9 @@ export function CommentPanelBody({
   ])
 
   const visibilityHint =
-    stack.visibilityHintsByTarget[entityRefKey(selection.targetEntityRef)] ?? null
+    pendingFocus || !selection.targetEntityRef
+      ? null
+      : (stack.visibilityHintsByTarget[entityRefKey(selection.targetEntityRef)] ?? null)
 
   const involvedOperatorIds = React.useMemo(() => {
     const ids = new Set<string>()
@@ -151,6 +159,7 @@ export function CommentPanelBody({
   }
 
   const handleSubmit = async (body: string) => {
+    if (pendingFocus) return
     if (replyTo) {
       await panelState.submitReply(replyTo.rootId, body)
       setReplyTo(null)
@@ -160,6 +169,9 @@ export function CommentPanelBody({
   }
 
   const showEmptyHero = totalCount === 0 && !panelState.sectionLoading
+  const pendingSubtitle = activeSection
+    ? getSectionSubtitle(activeSection.displayName, activeSection.typeLabel)
+    : null
 
   return (
     <>
@@ -204,16 +216,35 @@ export function CommentPanelBody({
       </div>
 
       <div className="relative shrink-0 border-t border-border-subtle bg-surface px-4 pt-3 pb-3.5">
-        <CommentTargetChip
-          target={selection.targetEntityRef}
-          options={stack.chipOptions}
-          sections={stack.sections}
-          onTargetChange={handleTargetChange}
-        />
+        {pendingFocus && activeSection ? (
+          <div
+            className="mb-2 flex min-w-0 items-center gap-2 rounded-md border-2 border-border-subtle bg-surface-muted px-3 py-2 text-sm font-semibold text-foreground-subtle"
+            data-testid="comments-target-chip-pending"
+          >
+            <span aria-hidden className="text-sm leading-none">
+              {activeSection.icon}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-left">
+              {activeSection.typeLabel}
+              {pendingSubtitle ? ` · ${pendingSubtitle}` : null}
+            </span>
+          </div>
+        ) : (
+          <CommentTargetChip
+            target={selection.targetEntityRef}
+            options={stack.chipOptions}
+            sections={stack.sections}
+            onTargetChange={handleTargetChange}
+          />
+        )}
         <CommentComposer
           inputRef={composerRef}
-          placeholder={getComposerPlaceholder(selection.targetEntityRef, stack.sections)}
-          disabled={!panelOptions.currentUserId}
+          placeholder={
+            pendingFocus
+              ? "Apri RAPPORTO per commentare sul rapporto…"
+              : getComposerPlaceholder(selection.targetEntityRef, stack.sections)
+          }
+          disabled={!panelOptions.currentUserId || pendingFocus}
           isSubmitting={panelState.isSubmitting}
           replyToLabel={replyTo?.label ?? null}
           involvedOperatorIds={involvedOperatorIds}
@@ -226,8 +257,10 @@ export function CommentPanelBody({
             data-testid="comments-visibility-hint"
           >
             <ArrowUpRightIcon aria-hidden className="size-3 shrink-0" strokeWidth={2} />
-            Visibile anche su{" "}
-            <span className="font-medium text-foreground-subtle">{visibilityHint}</span>
+            <span className="min-w-0 line-clamp-1 whitespace-nowrap">
+              Visibile anche su{" "}
+              <span className="font-medium text-foreground-subtle">{visibilityHint}</span>
+            </span>
           </p>
         ) : null}
       </div>

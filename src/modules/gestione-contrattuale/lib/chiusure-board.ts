@@ -62,6 +62,7 @@ export const CHIUSURA_RAPPORTO_FIELD_BINDINGS: ReadonlyArray<
   "assunzione_datore_id",
   "assunzione_lavoratore_id",
   "fine_rapporto_lavorativo_id",
+  "processi_matching_id",
   "data_inizio_rapporto",
   "data_fine_rapporto",
   "stato_rapporto",

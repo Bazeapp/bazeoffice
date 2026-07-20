@@ -12,6 +12,7 @@ import {
   shouldMarkCommentRead,
 } from "../lib/comment-panel-utils"
 import { invalidateCommentVisibility } from "../lib/invalidate-comment-visibility"
+import { sectionListScopePage } from "../lib/section-list-scope"
 import {
   COMMENTI_REALTIME_TABLES,
   commentCountQueryKey,
@@ -83,13 +84,15 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
 
   const sectionQuery = useQuery({
     queryKey: sectionQueryKey ?? ["commenti", "section", "disabled"],
-    queryFn: () =>
-      fetchCommentSectionPage({
-        pageEntityType: pageFocus!.entityType,
-        pageEntityId: pageFocus!.entityId,
+    queryFn: () => {
+      const listPage = sectionListScopePage(activeSectionRef!)
+      return fetchCommentSectionPage({
+        pageEntityType: listPage.entityType,
+        pageEntityId: listPage.entityId,
         sectionEntityType: activeSectionRef!.entityType,
         sectionEntityId: activeSectionRef!.entityId,
-      }),
+      })
+    },
     enabled: Boolean(
       pageFocus && options.expanded && activeSectionRef && !isDescendantsSection,
     ),
@@ -139,9 +142,10 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
 
     setIsLoadingMore(true)
     try {
+      const listPage = sectionListScopePage(activeSectionRef)
       const page = await fetchCommentSectionPage({
-        pageEntityType: pageFocus.entityType,
-        pageEntityId: pageFocus.entityId,
+        pageEntityType: listPage.entityType,
+        pageEntityId: listPage.entityId,
         sectionEntityType: activeSectionRef.entityType,
         sectionEntityId: activeSectionRef.entityId,
         cursor: nextCursor,

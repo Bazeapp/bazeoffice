@@ -75,6 +75,13 @@ export function RapportiLavorativiView({
         ? `${selectedLavoratore.nome ?? ""} ${selectedLavoratore.cognome ?? ""}`.trim() || null
         : null
 
+  const primaryProcessId =
+    selectedRapporto?.processi_matching_id ?? selectedProcessi[0]?.id ?? null
+  const ricercaLabel =
+    selectedProcessi.find((processo) => processo.id === primaryProcessId)?.titolo_annuncio ??
+    selectedProcessi[0]?.titolo_annuncio ??
+    null
+
   useCommentRouteContext({
     enabled: Boolean(selectedRapportoId && selectedRapporto),
     pageFocus:
@@ -83,7 +90,9 @@ export function RapportiLavorativiView({
         : null,
     row:
       selectedRapportoId && selectedRapporto
-        ? rapportoCommentRow(selectedRapportoId, selectedRapporto)
+        ? rapportoCommentRow(selectedRapportoId, selectedRapporto, {
+            processId: primaryProcessId,
+          })
         : {},
     sourceInterface: "rapporti_lavorativi",
     displayNames:
@@ -91,6 +100,8 @@ export function RapportiLavorativiView({
         ? rapportoDisplayNames(selectedRapportoId, {
             lavoratoreName: rapportoName,
             famigliaName: famigliaName,
+            ricercaLabel,
+            processId: primaryProcessId,
             rapporto: selectedRapporto,
           })
         : undefined,
@@ -117,7 +128,7 @@ export function RapportiLavorativiView({
         assunzioneNamesByRapporto={rapportoAssunzioneNames}
       />
 
-      <div className="min-h-0">
+      <div className="h-full min-h-0 overflow-hidden">
         <RapportoDetailPanel
         // Remount on rapporto switch so debounced inputs reset their local
         // draft (useDebouncedSave's hasUserEditedRef) instead of carrying it

@@ -134,3 +134,8 @@ export function getEmptySectionCopy(kind: CommentSectionKind): string {
   }
   return "Nessun commento in questa sezione."
 }
+
+/** Empty copy for Assunzioni focus before an `assunzioni` row is linked. */
+export function getPendingAssunzioneEmptyCopy(): string {
+  return "Nessuna assunzione collegata. Apri RAPPORTO per vedere o scrivere commenti sul rapporto."
+}
