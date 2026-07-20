@@ -49,7 +49,9 @@ export function CommentTargetChip({
   return (
     <div className="flex items-center gap-2">
       <span className="shrink-0 text-2xs text-foreground-faint">Commenti su</span>
-      <DropdownMenu>
+      {/* Non-modal + z-110: panel is dialog-like at isolate z-100; default
+          modal/z-70 menu opens behind it or dismisses immediately. */}
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -72,7 +74,7 @@ export function CommentTargetChip({
         <DropdownMenuContent
           align="start"
           side="top"
-          className="z-70 w-90 max-w-[calc(100vw-3rem)]"
+          className="z-110 w-90 max-w-[calc(100vw-3rem)]"
         >
           {options.map((option) => {
             const meta = metaForTarget(option, sections)

@@ -159,7 +159,7 @@ function CommentBubble({
         ) : null}
         <span className="flex-1" />
         {isAuthor && !isEditing ? (
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
@@ -172,7 +172,7 @@ function CommentBubble({
                 <MoreHorizontalIcon className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="z-110">
               <DropdownMenuItem
                 data-testid={`comments-edit-${comment.id}`}
                 onSelect={() => {
