@@ -116,12 +116,18 @@ export function CommentPanelBody({
       panelOptions.currentUserId,
     )
 
+  const activeSectionKey = activeSectionRef
+    ? `${activeSectionRef.entityType}:${activeSectionRef.entityId}`
+    : null
+
   React.useEffect(() => {
-    if (!panelState.sectionLoading && activeSectionRef) {
-      listEndRef.current?.scrollIntoView({ block: "end" })
+    if (!panelState.sectionLoading && activeSectionKey) {
+      // `nearest` avoids yanking unread threads out of view (which cancelled
+      // the mark-read IntersectionObserver timer with `block: "end"`).
+      listEndRef.current?.scrollIntoView({ block: "nearest" })
     }
   }, [
-    activeSectionRef,
+    activeSectionKey,
     panelState.sectionComments.length,
     panelState.sectionLoading,
     selection.activeSectionId,

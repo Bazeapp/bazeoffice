@@ -38,35 +38,46 @@ function useMarkReadOnView(
   onMarkRead?: (comment: Comment) => void,
 ) {
   const ref = React.useRef<HTMLDivElement>(null)
+  const onMarkReadRef = React.useRef(onMarkRead)
+  const commentRef = React.useRef(comment)
+  onMarkReadRef.current = onMarkRead
+  commentRef.current = comment
 
   React.useEffect(() => {
-    if (!onMarkRead || !comment.isUnread) return
+    if (!onMarkReadRef.current || !comment.isUnread) return
     const node = ref.current
     if (!node) return
 
     let timer: ReturnType<typeof setTimeout> | null = null
+    const schedule = () => {
+      if (timer) return
+      timer = setTimeout(() => {
+        const latest = commentRef.current
+        onMarkReadRef.current?.(latest)
+      }, MARK_READ_DELAY_MS)
+    }
+    const cancel = () => {
+      if (timer) clearTimeout(timer)
+      timer = null
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         const isVisible = entries.some((entry) => entry.isIntersecting)
-        if (!isVisible) {
-          if (timer) clearTimeout(timer)
-          timer = null
-          return
-        }
-        if (timer) return
-        timer = setTimeout(() => {
-          onMarkRead(comment)
-        }, MARK_READ_DELAY_MS)
+        if (isVisible) schedule()
+        else cancel()
       },
-      { threshold: 0.6 },
+      // Any visible pixel counts — 0.6 was too strict inside the panel scroller
+      // and never settled under Playwright / frequent layout scrolls.
+      { threshold: 0 },
     )
 
     observer.observe(node)
     return () => {
       observer.disconnect()
-      if (timer) clearTimeout(timer)
+      cancel()
     }
-  }, [comment, onMarkRead])
+  }, [comment.id, comment.isUnread])
 
   return ref
 }

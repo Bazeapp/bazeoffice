@@ -272,6 +272,10 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
     mutationFn: (commentId: string) => runTracked(markCommentRead(commentId)),
     onSettled: () => invalidatePageQueries(),
   })
+  // `mutate` is referentially stable in TanStack Query; depending on the whole
+  // mutation result would recreate this callback every render and reset the
+  // IntersectionObserver mark-read timer in CommentThread.
+  const markReadMutate = markReadMutation.mutate
 
   const submitComment = React.useCallback(
     async (body: string) => {
@@ -317,9 +321,9 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
   const markReadIfNeeded = React.useCallback(
     (comment: Comment) => {
       if (!shouldMarkCommentRead(comment, options.currentUserId)) return
-      void markReadMutation.mutate(comment.id)
+      markReadMutate(comment.id)
     },
-    [markReadMutation, options.currentUserId],
+    [markReadMutate, options.currentUserId],
   )
 
   return {

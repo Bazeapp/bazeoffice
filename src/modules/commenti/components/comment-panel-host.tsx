@@ -36,7 +36,12 @@ export function CommentPanelHost() {
       row: context.row,
       displayNames: context.displayNames,
     })
-  }, [context])
+  }, [
+    context?.displayNames,
+    context?.pageFocus,
+    context?.row,
+    context?.sourceInterface,
+  ])
 
   const watchedEntityRefs = React.useMemo(() => {
     if (!pageFocus || !stack) return []
