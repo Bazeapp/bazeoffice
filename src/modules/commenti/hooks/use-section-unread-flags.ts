@@ -48,6 +48,8 @@ export function useSectionUnreadFlags(
       const countLoading = sectionCountsLoading[section.id] ?? true
 
       return {
+        // Keep the shared section list key so the open panel reuses this cache;
+        // mention matching is applied in `select` once `currentUserId` resolves.
         queryKey: commentSectionQueryKey(pageFocus, section.entityRef),
         queryFn: () => {
           const listPage = sectionListScopePage(section.entityRef)
@@ -58,7 +60,7 @@ export function useSectionUnreadFlags(
             sectionEntityId: section.entityRef.entityId,
           })
         },
-        enabled: !countLoading && count > 0,
+        enabled: !countLoading && count > 0 && Boolean(currentUserId),
         select: (data: Awaited<ReturnType<typeof fetchCommentSectionPage>>) => ({
           hasUnread: sectionHasUnreadComments(data.comments),
           hasUnreadMention: sectionHasUnreadMentions(data.comments, currentUserId),
@@ -79,6 +81,7 @@ export function useSectionUnreadFlags(
           }),
         enabled: Boolean(
           descendantsSection &&
+            currentUserId &&
             !(sectionCountsLoading[descendantsSection.id] ?? true) &&
             (sectionCounts[descendantsSection.id] ?? 0) > 0,
         ),

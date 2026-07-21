@@ -102,6 +102,17 @@ describe("commentMentionsUser", () => {
       ),
     ).toBe(false)
   })
+
+  it("matches mention ids case-insensitively", () => {
+    expect(
+      commentMentionsUser(
+        makeComment({
+          body: `Ciao ${formatMentionMarkup("Tu", MENTIONED_USER_ID.toUpperCase())}`,
+        }),
+        MENTIONED_USER_ID.toLowerCase(),
+      ),
+    ).toBe(true)
+  })
 })
 
 describe("commentIsUnreadMention", () => {

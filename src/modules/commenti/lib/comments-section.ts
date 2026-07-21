@@ -33,8 +33,10 @@ export function commentMentionsUser(
   userId: string | null,
 ): boolean {
   if (!userId) return false
+  const normalizedUserId = userId.toLowerCase()
   return parseMentionMarkup(comment.body).some(
-    (part) => part.type === "mention" && part.userId === userId,
+    (part) =>
+      part.type === "mention" && part.userId.toLowerCase() === normalizedUserId,
   )
 }
 

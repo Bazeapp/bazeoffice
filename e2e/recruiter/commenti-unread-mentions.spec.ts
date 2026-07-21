@@ -57,7 +57,10 @@ test.describe("commenti: unread mentions", () => {
       await gotoRicercaDetail(page, unassignedNuova.id)
       await expectCommentsPillVisible(page)
 
-      await expect(commentsUnreadMentionDot(page)).toBeVisible({ timeout: 30_000 })
+      const unreadDot = commentsUnreadMentionDot(page)
+      await expect(unreadDot).toBeVisible({ timeout: 30_000 })
+      // Design-token red (bg-danger), not a missing Tailwind red-* utility.
+      await expect(unreadDot).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
 
       // Register before opening: visible threads start the mark-read timer
       // immediately, so waiting after open can miss the RPC.
