@@ -1,5 +1,5 @@
 import { ENTITY_SECTION_META } from "./consts"
-import { compareAncestorSections } from "./section-order"
+import { compareAncestorSections } from "./comments-section"
 import {
   collectRapportoChainRefs,
   pushRefFromRow,

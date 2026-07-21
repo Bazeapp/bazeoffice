@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "@/test/test-utils"
 
 import type { Comment } from "../../types/comment"
-import { formatMentionMarkup } from "../../lib/mention-markup"
+import { formatMentionMarkup } from "../../lib/mentions"
 import { CommentPanelBody } from "../comment-panel-body"
 import { resolveCommentStack } from "../../lib/resolve-comment-stack"
 

@@ -12,7 +12,7 @@ import {
   shouldMarkCommentRead,
 } from "../lib/comment-panel-utils"
 import { invalidateCommentVisibility } from "../lib/invalidate-comment-visibility"
-import { sectionListScopePage } from "../lib/section-list-scope"
+import { sectionListScopePage } from "../lib/comments-section"
 import {
   COMMENTI_REALTIME_TABLES,
   commentCountQueryKey,

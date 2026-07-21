@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/test-utils"
 
-import { setMarkupCaretOffset } from "../../lib/mention-composer-dom"
+import { setMarkupCaretOffset } from "../../lib/mentions"
 import { CommentComposer } from "../comment-composer"
 import { CommentBody } from "../comment-body"
 

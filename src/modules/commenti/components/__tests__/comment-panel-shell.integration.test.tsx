@@ -5,8 +5,11 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { renderWithProviders } from "@/test/test-utils"
 
-import { setMarkupCaretOffset, renderComposerMarkup } from "../../lib/mention-composer-dom"
-import { formatMentionMarkup } from "../../lib/mention-markup"
+import {
+  formatMentionMarkup,
+  renderComposerMarkup,
+  setMarkupCaretOffset,
+} from "../../lib/mentions"
 
 import { CommentPanelHost } from "../comment-panel-host"
 import {

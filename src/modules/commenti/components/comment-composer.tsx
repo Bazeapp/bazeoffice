@@ -13,7 +13,7 @@ import {
   renderComposerMarkup,
   serializeComposerMarkup,
   setMarkupCaretOffset,
-} from "../lib/mention-composer-dom"
+} from "../lib/mentions"
 import { MentionAutocomplete } from "./mention-autocomplete"
 
 type CommentComposerProps = {

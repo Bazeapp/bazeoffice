@@ -5,9 +5,12 @@ import {
   commentDescendantsQueryKey,
   commentSectionQueryKey,
 } from "../lib/query-keys"
-import { sectionListScopePage } from "../lib/section-list-scope"
+import {
+  sectionHasUnreadComments,
+  sectionHasUnreadMentions,
+  sectionListScopePage,
+} from "../lib/comments-section"
 import { collectStackAnchorExclusions } from "../lib/stack-anchor-exclusions"
-import { sectionHasUnreadComments, sectionHasUnreadMentions } from "../lib/section-unread"
 import { fetchDescendantsCommentPage } from "../queries/fetch-descendants-comments"
 import { fetchCommentSectionPage } from "../queries/fetch-section-comments"
 import type { CommentSection, ResolveCommentStackResult } from "../types/section"

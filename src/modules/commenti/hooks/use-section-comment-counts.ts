@@ -5,7 +5,7 @@ import {
   commentDescendantsCountQueryKey,
   commentSectionCountQueryKey,
 } from "../lib/query-keys"
-import { sectionListScopePage } from "../lib/section-list-scope"
+import { sectionListScopePage } from "../lib/comments-section"
 import { collectStackAnchorExclusions } from "../lib/stack-anchor-exclusions"
 import { fetchDescendantsCommentCount } from "../queries/fetch-descendants-comment-count"
 import { fetchCommentSectionCount } from "../queries/fetch-section-comment-count"

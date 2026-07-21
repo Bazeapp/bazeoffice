@@ -1,4 +1,4 @@
-import { parseMentionMarkup } from "../lib/mention-markup"
+import { parseMentionMarkup } from "../lib/mentions"
 
 type CommentBodyProps = {
   body: string

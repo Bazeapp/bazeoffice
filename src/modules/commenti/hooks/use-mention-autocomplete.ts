@@ -2,13 +2,13 @@ import * as React from "react"
 
 import type { OperatoreOption } from "@/hooks/use-operatori-options"
 
-import { setMarkupCaretOffset } from "../lib/mention-composer-dom"
 import {
   filterOperatorsByQuery,
   getMentionTriggerState,
   insertMentionMarkup,
   partitionInvolvedOperators,
-} from "../lib/mention-markup"
+  setMarkupCaretOffset,
+} from "../lib/mentions"
 
 export type UseMentionAutocompleteOptions = {
   value: string
