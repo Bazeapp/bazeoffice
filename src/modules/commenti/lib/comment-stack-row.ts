@@ -1,14 +1,8 @@
+import { isUuidValue } from "@/lib/value-utils"
+
 import { ENTITY_SECTION_META } from "./consts"
 import type { EntityRef, EntityType } from "../types/entity"
 import { entityRefKey } from "./entity-ref"
-
-const ENTITY_ID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-/** Accepts any canonical UUID shape (incl. E2E seed ids with version 0000). */
-export function isUuid(value: unknown): value is string {
-  return typeof value === "string" && ENTITY_ID_PATTERN.test(value)
-}
 
 export function readObject(
   row: Record<string, unknown>,
@@ -25,7 +19,7 @@ export function readStringId(
 ): string | null {
   for (const key of keys) {
     const value = row[key]
-    if (isUuid(value)) return value
+    if (isUuidValue(value)) return value
   }
   return null
 }
