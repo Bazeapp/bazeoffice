@@ -140,18 +140,16 @@ export function CommentPanelBody({
       panelOptions.currentUserId,
     )
 
-  const activeSectionKey = activeSectionRef
-    ? `${activeSectionRef.entityType}:${activeSectionRef.entityId}`
-    : null
-
   React.useEffect(() => {
-    if (!panelState.sectionLoading && activeSectionKey) {
+    // Use section id (not entity ref): descendants/COLLEGATE has no entityRef, but
+    // still needs scrollIntoView so unread threads enter the panel viewport and
+    // the mark-read IntersectionObserver can settle after the accordion opens.
+    if (!panelState.sectionLoading && selection.activeSectionId) {
       // `nearest` avoids yanking unread threads out of view (which cancelled
       // the mark-read IntersectionObserver timer with `block: "end"`).
       listEndRef.current?.scrollIntoView({ block: "nearest" })
     }
   }, [
-    activeSectionKey,
     panelState.sectionComments.length,
     panelState.sectionLoading,
     selection.activeSectionId,

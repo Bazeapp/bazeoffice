@@ -89,14 +89,11 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
   })
 
   const detail = useSelectedLavoratoreDetail({
-    lookupColorsByDomain: filters.lookupColorsByDomain,
     selectedWorkerId,
     workerAddressesById: list.workerAddressesById,
-    workerRows: list.workerRows,
     workerRowsRef: list.workerRowsRef,
     setWorkerAddressesById: list.setWorkerAddressesById,
     setWorkerRows: list.setWorkerRows,
-    setWorkers: list.setWorkers,
   })
 
   React.useEffect(() => {

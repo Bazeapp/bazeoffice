@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/test-utils"
 
+import { formatMentionMarkup } from "../../lib/mentions"
 import type { Comment } from "../../types/comment"
 import { CommentPanelBody } from "../comment-panel-body"
 import { resolveCommentStack } from "../../lib/resolve-comment-stack"
@@ -146,5 +147,44 @@ describe("Comment descendants section", () => {
       expect(within(section).getByTestId("comments-root-comment-linked-1")).toBeInTheDocument()
     })
     expect(within(section).getByTestId("comments-origin-badge")).toHaveTextContent("famiglia")
+  })
+
+  it("shows unread mention highlight in collegate and scrolls the thread into view", async () => {
+    const mentionBody = `Ciao ${formatMentionMarkup("Tu", CURRENT_USER_ID)} collegato`
+    mockFetchDescendantsCommentPage.mockResolvedValue({
+      comments: [
+        makeComment({
+          id: "comment-linked-unread",
+          body: mentionBody,
+          isUnread: true,
+        }),
+      ],
+      nextCursor: null,
+    })
+
+    const scrollIntoView = vi.fn()
+    HTMLElement.prototype.scrollIntoView = scrollIntoView
+
+    renderGate1PanelBody()
+
+    await waitFor(() => {
+      const toggle = screen.getByTestId("comments-section-toggle-descendants")
+      expect(
+        toggle.querySelector(
+          '[data-testid="comments-section-count"][data-mention-highlighted="true"]',
+        ),
+      ).toHaveTextContent("1")
+    })
+
+    fireEvent.click(screen.getByTestId("comments-section-toggle-descendants"))
+
+    const section = await screen.findByTestId("comments-section-descendants")
+    const thread = await within(section).findByTestId("comments-thread-comment-linked-unread")
+    expect(within(thread).getByLabelText("Non letto")).toBeInTheDocument()
+    expect(within(thread).getByTestId("comments-mention-highlight")).toHaveTextContent("@Tu")
+
+    await waitFor(() => {
+      expect(scrollIntoView).toHaveBeenCalled()
+    })
   })
 })
