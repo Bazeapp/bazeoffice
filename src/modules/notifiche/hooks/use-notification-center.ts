@@ -20,7 +20,6 @@ import {
 } from "../mutations"
 import { fetchNotificaList, fetchNotificaCounts } from "../queries"
 import type { NotificaTab } from "../types"
-import { useNotificheRealtime } from "./use-notifiche-realtime"
 
 async function invalidateNotifiche(queryClient: ReturnType<typeof useQueryClient>) {
   await queryClient.invalidateQueries({ queryKey: [...notificheQueryPrefix()] })
@@ -34,18 +33,22 @@ export function useNotificationCenter(options?: {
   const enabled = options?.enabled ?? true
   const queryClient = useQueryClient()
 
-  useNotificheRealtime(enabled)
-
+  // Popover unmounts this hook when closed. App defaults are staleTime: Infinity
+  // + refetchOnMount: false, so an invalidated inactive list would otherwise keep
+  // serving the pre-invalidation cache on reopen (badge still updates because it
+  // stays mounted). refetchOnMount: true only refetches when isInvalidated.
   const listQuery = useQuery({
     queryKey: notificheListQueryKey(tab),
     queryFn: () => fetchNotificaList(tab),
     enabled,
+    refetchOnMount: true,
   })
 
   const countsQuery = useQuery({
     queryKey: notificheCountsQueryKey(),
     queryFn: fetchNotificaCounts,
     enabled,
+    refetchOnMount: true,
   })
 
   const markReadMutation = useMutation({
