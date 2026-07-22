@@ -32,18 +32,14 @@ export function ContributiInpsView() {
     stageFilter,
   })
   const selection = useContributiInpsSelection(cards)
-
-  const openContributoFromDeepLink = React.useCallback(
-    (contributoId: string) => {
-      selection.openCard(contributoId)
-      return true
-    },
-    [selection.openCard],
-  )
+  const { openCard } = selection
 
   useBoardEntityDeepLink({
     entityType: "contributi",
-    onOpen: openContributoFromDeepLink,
+    onOpen: (contributoId) => {
+      openCard(contributoId)
+      return true
+    },
     retryKey: true,
   })
 

@@ -37,8 +37,11 @@ export function useBoardEntityDeepLink({
   retryKey,
 }: UseBoardEntityDeepLinkOptions): void {
   const onOpenRef = React.useRef(onOpen)
-  onOpenRef.current = onOpen
   const consumedRef = React.useRef<string | null>(null)
+
+  React.useEffect(() => {
+    onOpenRef.current = onOpen
+  })
 
   const tryOpen = React.useCallback(
     (entityId: string | null, options?: { force?: boolean }) => {

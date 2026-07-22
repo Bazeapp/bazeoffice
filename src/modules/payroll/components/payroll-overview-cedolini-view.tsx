@@ -54,18 +54,14 @@ export function PayrollOverviewCedoliniView() {
     enrichCardFromDetail,
     detailRefreshTick,
   })
-
-  const openCedolinoFromDeepLink = React.useCallback(
-    (cedolinoId: string) => {
-      selection.openCard(cedolinoId)
-      return true
-    },
-    [selection.openCard],
-  )
+  const { openCard } = selection
 
   useBoardEntityDeepLink({
     entityType: "cedolino",
-    onOpen: openCedolinoFromDeepLink,
+    onOpen: (cedolinoId) => {
+      openCard(cedolinoId)
+      return true
+    },
     retryKey: true,
   })
 
