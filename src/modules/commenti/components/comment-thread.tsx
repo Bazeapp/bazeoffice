@@ -1,5 +1,5 @@
 import * as React from "react"
-import { CornerUpLeftIcon, MoreHorizontalIcon } from "lucide-react"
+import { ArrowUpRightIcon, CornerUpLeftIcon, MoreHorizontalIcon } from "lucide-react"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,6 @@ import {
   formatCommentTimestamp,
   getAuthorInitials,
   getPhaseLabelText,
-  getSourceInterfaceLabel,
 } from "../lib/comment-display"
 import type { Comment } from "../types/comment"
 import { CommentBody } from "./comment-body"
@@ -197,12 +196,13 @@ function CommentBubble({
         ) : null}
       </div>
 
-      {!isReply && comment.sourceInterface ? (
+      {showOriginBadge && !isReply ? (
         <span
-          data-testid="comments-source-badge"
+          data-testid="comments-origin-badge"
           className="mt-1.5 ml-8.5 inline-flex items-center gap-1 rounded-sm bg-surface-muted px-1.5 py-px text-2xs font-medium text-foreground-subtle"
         >
-          ⧉ {getSourceInterfaceLabel(comment.sourceInterface)}
+          <ArrowUpRightIcon aria-hidden className="size-3" />
+          {comment.anchor.entityType}
         </span>
       ) : null}
 
@@ -238,15 +238,6 @@ function CommentBubble({
           <CommentBody body={comment.body} />
         )}
       </div>
-
-      {showOriginBadge && !isReply ? (
-        <p
-          data-testid="comments-origin-badge"
-          className="mt-1.5 ml-8.5 text-2xs font-semibold text-foreground-subtle"
-        >
-          ↗ {comment.anchor.entityType}
-        </p>
-      ) : null}
 
       {!isReply && !isEditing ? (
         <div className="mt-2 ml-8.5">
