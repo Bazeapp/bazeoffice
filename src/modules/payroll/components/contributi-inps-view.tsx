@@ -11,6 +11,7 @@ import {
   contributiCommentRow,
   contributiDisplayNames,
 } from "@/modules/commenti/lib/comment-route-helpers"
+import { useBoardEntityDeepLink } from "@/modules/notifiche/hooks"
 import { ContributoInpsDetailSheet } from "./contributi-inps-detail-sheet"
 import { ContributiInpsHeader } from "./contributi-inps-header"
 import { ContributiInpsMetrics } from "./contributi-inps-metrics"
@@ -31,6 +32,20 @@ export function ContributiInpsView() {
     stageFilter,
   })
   const selection = useContributiInpsSelection(cards)
+
+  const openContributoFromDeepLink = React.useCallback(
+    (contributoId: string) => {
+      selection.openCard(contributoId)
+      return true
+    },
+    [selection.openCard],
+  )
+
+  useBoardEntityDeepLink({
+    entityType: "contributi",
+    onOpen: openContributoFromDeepLink,
+    retryKey: true,
+  })
 
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
@@ -104,7 +119,12 @@ export function ContributiInpsView() {
         onOpenChange={(open) => {
           if (!open) selection.closeCard()
         }}
-        onStageChange={moveCard}
+        onStageChange={async (recordId, targetStageId) => {
+          await moveCard(recordId, targetStageId)
+          selection.patchSelectedCard(recordId, {
+            stato_contributi_inps: targetStageId,
+          })
+        }}
         onPatchCard={async (recordId, patch) => {
           await patchCard(recordId, patch)
           selection.patchSelectedCard(recordId, patch)

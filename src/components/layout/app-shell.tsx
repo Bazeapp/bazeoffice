@@ -19,7 +19,9 @@ import { CommentAppProvider, CommentPanelHost } from "@/modules/commenti/compone
 import { fetchCommentNavigation } from "@/modules/notifiche/queries"
 import {
   applyRoutePatch,
-  buildUrlWithComment,
+  buildNotificationDeepLinkUrl,
+  isBoardEntityType,
+  notifyBoardEntityDeepLink,
   notifyCommentDeepLink,
   routePatchFromCommentNavigation,
 } from "@/modules/notifiche/lib/entity-route-map"
@@ -380,11 +382,18 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         const nextRoute = applyRoutePatch(route, patch)
         setRoute(nextRoute)
         const path = buildPathForRoute(nextRoute)
-        const withComment = buildUrlWithComment(path, notifica.commentId)
-        const search = withComment.includes("?")
-          ? withComment.slice(withComment.indexOf("?"))
+        const deepLink = buildNotificationDeepLinkUrl(path, {
+          commentId: notifica.commentId,
+          entityType: navigation.entityType,
+          entityId: navigation.entityId,
+        })
+        const search = deepLink.includes("?")
+          ? deepLink.slice(deepLink.indexOf("?"))
           : ""
         syncBrowserUrl(nextRoute, "push", search)
+        if (isBoardEntityType(navigation.entityType) && navigation.entityId) {
+          notifyBoardEntityDeepLink(navigation.entityType, navigation.entityId)
+        }
         notifyCommentDeepLink(notifica.commentId)
       })()
     },

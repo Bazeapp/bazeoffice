@@ -11,7 +11,10 @@ import { normalizeComparableToken } from "@/lib/value-utils"
 import type { MeseLavoratoRecord, PresenzaMensileRecord } from "@/types"
 
 import { fetchCedoliniBoard } from "../queries/fetch-cedolini-board"
-import type { CedoliniBoardRpcRow } from "../types/payroll-rpc"
+import type {
+  CedoliniBoardRpcRow,
+  CedolinoDetailRpcResponse,
+} from "../types/payroll-rpc"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
 
 export const PAYROLL_REALTIME_TABLES = [
@@ -122,12 +125,54 @@ export function mapCedoliniBoardRowToCard(
   return preserveDetailFields(freshCard, previousCard)
 }
 
+/**
+ * Build a board card from `cedolino_detail` so deep links can open a sheet even
+ * when the record is outside the currently selected month board.
+ */
+export function mapCedolinoDetailToCard(
+  detail: CedolinoDetailRpcResponse,
+  options?: {
+    rapporto?: PayrollBoardCardData["rapporto"]
+  },
+): PayrollBoardCardData {
+  const record = detail.record
+  const rapporto = options?.rapporto ?? detail.rapporto ?? null
+  const famiglia = detail.famiglia ?? null
+  const stage = record.stato_mese_lavorativo?.trim() || "TODO"
+
+  return {
+    id: record.id,
+    stage,
+    record,
+    famiglia,
+    pagamento: null,
+    transazione: null,
+    presenze: detail.presenze ?? null,
+    presenzeRegolari: detail.presenzeRegolari ?? null,
+    rapporto,
+    mese: detail.mese ?? null,
+    richiestaAttivazione: detail.richiestaAttivazione ?? null,
+    presenzeIrregolari: false,
+    nomeCompleto: rapporto
+      ? getRapportoTitle(rapporto, { famiglia })
+      : "Rapporto non disponibile",
+    importoLabel: formatItalianCurrencyOrNull(record.importo_busta_estratto, {
+      minimumFractionDigits: 0,
+    }),
+    dataInvioLabel: formatItalianDateOrNull(record.data_invio_famiglia),
+  }
+}
+
 export function applyPayrollCardPatch(
   card: PayrollBoardCardData,
   patch: Partial<MeseLavoratoRecord>,
 ): PayrollBoardCardData {
   return {
     ...card,
+    stage:
+      typeof patch.stato_mese_lavorativo === "string"
+        ? patch.stato_mese_lavorativo
+        : card.stage,
     record: { ...card.record, ...patch },
     importoLabel:
       typeof patch.importo_busta_estratto === "number"

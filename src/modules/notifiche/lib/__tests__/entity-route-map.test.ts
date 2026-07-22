@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest"
 
 import {
   applyRoutePatch,
+  buildNotificationDeepLinkUrl,
   buildUrlWithComment,
+  isBoardEntityType,
+  readBoardEntityIdFromSearch,
   readCommentIdFromSearch,
   routePatchFromCommentNavigation,
 } from "../entity-route-map"
@@ -79,14 +82,70 @@ describe("routePatchFromCommentNavigation", () => {
         nav({ entityType: "cedolino", entityId: "66666666-6666-4666-8666-666666666666" }),
       ).mainSection,
     ).toBe("payroll_cedolini")
+
+    expect(
+      routePatchFromCommentNavigation(
+        nav({ entityType: "contributi", entityId: "77777777-7777-4777-8777-777777777777" }),
+      ).mainSection,
+    ).toBe("payroll_contributi_inps")
+
+    expect(
+      routePatchFromCommentNavigation(
+        nav({ entityType: "famiglia", entityId: "88888888-8888-4888-8888-888888888888" }),
+      ).mainSection,
+    ).toBe("crm_pipeline_famiglie")
   })
 })
 
-describe("comment query helpers", () => {
+describe("notification deep-link query helpers", () => {
   it("reads and builds ?comment=", () => {
     expect(readCommentIdFromSearch("?comment=abc")).toBe("abc")
     expect(buildUrlWithComment("/ricerca/x", "abc")).toBe("/ricerca/x?comment=abc")
     expect(buildUrlWithComment("/ricerca/x", null)).toBe("/ricerca/x")
+  })
+
+  it("builds board-entity search params for famiglia, cedolino and contributi", () => {
+    expect(
+      buildNotificationDeepLinkUrl("/pipeline", {
+        entityType: "famiglia",
+        entityId: "fam-1",
+        commentId: "c1",
+      }),
+    ).toBe("/pipeline?famiglia=fam-1&comment=c1")
+
+    expect(
+      buildNotificationDeepLinkUrl("/payroll/cedolini", {
+        entityType: "cedolino",
+        entityId: "ced-1",
+      }),
+    ).toBe("/payroll/cedolini?cedolino=ced-1")
+
+    expect(
+      buildNotificationDeepLinkUrl("/payroll/contributi-inps", {
+        entityType: "contributi",
+        entityId: "con-1",
+        commentId: "c2",
+      }),
+    ).toBe("/payroll/contributi-inps?contributi=con-1&comment=c2")
+
+    expect(
+      buildNotificationDeepLinkUrl("/ricerca/x", {
+        entityType: "ricerca",
+        entityId: "r1",
+        commentId: "c3",
+      }),
+    ).toBe("/ricerca/x?comment=c3")
+  })
+
+  it("reads board entity ids from search", () => {
+    expect(isBoardEntityType("famiglia")).toBe(true)
+    expect(isBoardEntityType("ricerca")).toBe(false)
+    expect(readBoardEntityIdFromSearch("famiglia", "?famiglia=fam-1&comment=c1")).toBe(
+      "fam-1",
+    )
+    expect(readBoardEntityIdFromSearch("cedolino", "?cedolino=ced-1")).toBe("ced-1")
+    expect(readBoardEntityIdFromSearch("contributi", "?contributi=con-1")).toBe("con-1")
+    expect(readBoardEntityIdFromSearch("famiglia", "")).toBeNull()
   })
 
   it("applyRoutePatch merges without dropping unrelated fields", () => {

@@ -24,6 +24,7 @@ import {
   cedolinoCommentRow,
   cedolinoDisplayNames,
 } from "@/modules/commenti/lib/comment-route-helpers"
+import { useBoardEntityDeepLink } from "@/modules/notifiche/hooks"
 import { PayrollOverviewBoardColumn } from "./payroll-overview-board-column"
 import {
   PayrollOverviewBoardSkeletonColumn,
@@ -52,6 +53,20 @@ export function PayrollOverviewCedoliniView() {
     columns,
     enrichCardFromDetail,
     detailRefreshTick,
+  })
+
+  const openCedolinoFromDeepLink = React.useCallback(
+    (cedolinoId: string) => {
+      selection.openCard(cedolinoId)
+      return true
+    },
+    [selection.openCard],
+  )
+
+  useBoardEntityDeepLink({
+    entityType: "cedolino",
+    onOpen: openCedolinoFromDeepLink,
+    retryKey: true,
   })
 
   const toggleFilter = React.useCallback((group: CedoliniFilterGroupKey, value: string) => {
@@ -195,12 +210,17 @@ export function PayrollOverviewCedoliniView() {
         }}
         onStageChange={(recordId, targetStageId) => {
           void moveCard(recordId, targetStageId)
+          selection.patchSelectedCard(recordId, {
+            stato_mese_lavorativo: targetStageId,
+          })
         }}
         onPatchCard={(recordId, patch) => {
           void patchCard(recordId, patch)
+          selection.patchSelectedCard(recordId, patch)
         }}
         onPatchPresence={(recordId, patch) => {
           void patchPresence(recordId, patch)
+          selection.patchSelectedPresence(recordId, patch)
         }}
       />
     </section>
