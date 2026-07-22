@@ -259,6 +259,8 @@ export function WorkerProfileHeader({
   const form = useAutoSaveForm<Record<WorkerProfileHeaderField, string>>({
     defaults: buildFormDefaults(workerRow),
     schema: workerProfileHeaderFormSchema,
+    // Hard-reset se il lavoratore cambia senza remount del componente.
+    resetKey: worker.id,
     onSave: async (patch) => {
       for (const [key, rawValue] of Object.entries(patch)) {
         const field = key as WorkerProfileHeaderField

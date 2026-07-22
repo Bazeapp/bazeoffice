@@ -12,6 +12,7 @@ import type { GateFieldsFormDraft } from "../types/gate1-view";
 import type { LavoratoreRecord } from "../types/lavoratore";
 
 type UseGateFieldsFormParams = {
+  selectedWorkerId: string | null;
   selectedWorkerRow: LavoratoreRecord | null;
   selectedWorkerAddress: Record<string, unknown> | null;
   lookupOptionsByDomain: Map<string, Array<{ label: string; value: string }>>;
@@ -20,6 +21,7 @@ type UseGateFieldsFormParams = {
 } & Omit<GateFieldsSaveDeps, "setGateDraft">;
 
 export function useGateFieldsForm({
+  selectedWorkerId,
   selectedWorkerRow,
   selectedWorkerAddress,
   lookupOptionsByDomain,
@@ -79,6 +81,9 @@ export function useGateFieldsForm({
       lookupOptionsByDomain,
       resolvedIban,
     }),
+    // Hard-reset al cambio lavoratore: altrimenti keepDirtyValues tiene gli
+    // edit del record precedente sulla scheda del successivo.
+    resetKey: selectedWorkerId,
     onSave,
   });
 
