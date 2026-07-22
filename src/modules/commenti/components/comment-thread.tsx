@@ -38,13 +38,13 @@ function useMarkReadOnView(
   onMarkRead?: (comment: Comment) => void,
 ) {
   const ref = React.useRef<HTMLDivElement>(null)
-  const onMarkReadRef = React.useRef(onMarkRead)
-  const commentRef = React.useRef(comment)
-  onMarkReadRef.current = onMarkRead
-  commentRef.current = comment
+  const hasMarkRead = onMarkRead != null
+  const markReadIfNeeded = React.useEffectEvent(() => {
+    onMarkRead?.(comment)
+  })
 
   React.useEffect(() => {
-    if (!onMarkReadRef.current || !comment.isUnread) return
+    if (!hasMarkRead || !comment.isUnread) return
     const node = ref.current
     if (!node) return
 
@@ -52,8 +52,7 @@ function useMarkReadOnView(
     const schedule = () => {
       if (timer) return
       timer = setTimeout(() => {
-        const latest = commentRef.current
-        onMarkReadRef.current?.(latest)
+        markReadIfNeeded()
       }, MARK_READ_DELAY_MS)
     }
     const cancel = () => {
@@ -77,7 +76,7 @@ function useMarkReadOnView(
       observer.disconnect()
       cancel()
     }
-  }, [comment.id, comment.isUnread])
+  }, [comment.id, comment.isUnread, hasMarkRead])
 
   return ref
 }
