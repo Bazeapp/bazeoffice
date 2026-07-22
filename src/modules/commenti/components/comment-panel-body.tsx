@@ -73,10 +73,23 @@ export function CommentPanelBody({
     null,
   )
 
+  // Host may pass a new `stack` object every render; only reset selection when
+  // the page focus or section layout actually changes.
+  const stackRef = React.useRef(stack)
   React.useEffect(() => {
-    setSelection(createInitialSelection(stack, pageFocus))
+    stackRef.current = stack
+  })
+  const stackSectionsKey = stack.sections.map((section) => section.id).join("|")
+
+  React.useEffect(() => {
+    setSelection(
+      createInitialSelection(stackRef.current, {
+        entityType: pageFocus.entityType,
+        entityId: pageFocus.entityId,
+      }),
+    )
     setReplyTo(null)
-  }, [pageFocus.entityId, pageFocus.entityType, stack])
+  }, [pageFocus.entityId, pageFocus.entityType, stackSectionsKey])
 
   const activeSectionRef = resolveActiveSectionRef(stack, selection.activeSectionId)
   const activeSectionKind = resolveActiveSectionKind(stack, selection.activeSectionId)

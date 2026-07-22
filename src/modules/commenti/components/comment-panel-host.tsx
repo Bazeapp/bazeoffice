@@ -22,20 +22,25 @@ export function CommentPanelHost() {
     setExpanded(false)
   }, [focusKey])
 
-  const stack =
-    pageFocus && context
-      ? context.sourceInterface === "assunzioni"
-        ? resolveAssunzioniBoardCommentStack({
-            pageFocus,
-            row: context.row,
-            displayNames: context.displayNames,
-          })
-        : resolveCommentStack({
-            focus: pageFocus,
-            row: context.row,
-            displayNames: context.displayNames,
-          })
-      : null
+  const sourceInterface = context?.sourceInterface ?? null
+  const row = context?.row
+  const displayNames = context?.displayNames
+
+  const stack = React.useMemo(() => {
+    if (!pageFocus) return null
+    if (sourceInterface === "assunzioni") {
+      return resolveAssunzioniBoardCommentStack({
+        pageFocus,
+        row: row ?? {},
+        displayNames,
+      })
+    }
+    return resolveCommentStack({
+      focus: pageFocus,
+      row: row ?? {},
+      displayNames,
+    })
+  }, [displayNames, pageFocus, row, sourceInterface])
 
   const watchedEntityRefs = React.useMemo(() => {
     if (!pageFocus || !stack) return []

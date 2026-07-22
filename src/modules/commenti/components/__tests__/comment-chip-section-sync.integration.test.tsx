@@ -88,7 +88,7 @@ function makeComment(overrides: Partial<Comment> = {}): Comment {
   }
 }
 
-function renderPanelBody() {
+function buildPanelStack() {
   const pageFocus = { entityType: "candidatura" as const, entityId: IDS.candidatura }
   const stack = resolveCommentStack({
     focus: pageFocus,
@@ -105,6 +105,11 @@ function renderPanelBody() {
       [`candidatura:${IDS.candidatura}`]: "In colloquio",
     },
   })
+  return { pageFocus, stack }
+}
+
+function renderPanelBody() {
+  const { pageFocus, stack } = buildPanelStack()
 
   return renderWithProviders(
     <CommentPanelBody
@@ -238,5 +243,47 @@ describe("Comment chip-section sync", () => {
       )
       expect(mentionBadge).toHaveTextContent("1")
     })
+  })
+
+  it("preserves section selection when stack is a new reference with the same sections", async () => {
+    const { pageFocus, stack: initialStack } = buildPanelStack()
+    const panelOptions = {
+      currentUserId: "99999999-9999-4999-8999-999999999999",
+      currentUserName: "Tu",
+      sourceInterface: "dettaglio_ricerca" as const,
+    }
+    const { rerender } = renderWithProviders(
+      <CommentPanelBody
+        pageFocus={pageFocus}
+        stack={initialStack}
+        totalCount={2}
+        panelOptions={panelOptions}
+      />,
+    )
+
+    const lavoratoreSectionId = `lavoratore:${IDS.lavoratore}`
+    fireEvent.click(
+      await screen.findByTestId(`comments-section-toggle-${lavoratoreSectionId}`),
+    )
+    expect(
+      await screen.findByTestId(`comments-section-${lavoratoreSectionId}`),
+    ).toBeInTheDocument()
+
+    const { stack: nextStack } = buildPanelStack()
+    expect(nextStack).not.toBe(initialStack)
+
+    rerender(
+      <CommentPanelBody
+        pageFocus={pageFocus}
+        stack={nextStack}
+        totalCount={2}
+        panelOptions={panelOptions}
+      />,
+    )
+
+    expect(screen.getByTestId(`comments-section-${lavoratoreSectionId}`)).toBeInTheDocument()
+    expect(screen.getByTestId("comments-target-chip")).toHaveTextContent(
+      /LAVORATORE · Luigi Bianchi/,
+    )
   })
 })
