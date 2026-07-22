@@ -5,6 +5,7 @@ import {
   commentDescendantsCountQueryKey,
   commentSectionCountQueryKey,
 } from "../lib/query-keys"
+import { sectionListScopePage } from "../lib/comments-section"
 import { collectStackAnchorExclusions } from "../lib/stack-anchor-exclusions"
 import { fetchDescendantsCommentCount } from "../queries/fetch-descendants-comment-count"
 import { fetchCommentSectionCount } from "../queries/fetch-section-comment-count"
@@ -37,13 +38,15 @@ export function useSectionCommentCounts(
   const sectionQueries = useQueries({
     queries: countableSections.map((section) => ({
       queryKey: commentSectionCountQueryKey(pageFocus, section.entityRef),
-      queryFn: () =>
-        fetchCommentSectionCount({
-          pageEntityType: pageFocus.entityType,
-          pageEntityId: pageFocus.entityId,
+      queryFn: () => {
+        const listPage = sectionListScopePage(section.entityRef)
+        return fetchCommentSectionCount({
+          pageEntityType: listPage.entityType,
+          pageEntityId: listPage.entityId,
           sectionEntityType: section.entityRef.entityType,
           sectionEntityId: section.entityRef.entityId,
-        }),
+        })
+      },
     })),
   })
 

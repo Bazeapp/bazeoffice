@@ -99,7 +99,7 @@ export function CommentPanel({
       {hasUnreadMention ? (
         <span
           aria-label="Menzioni non lette"
-          className="size-2.5 shrink-0 rounded-full bg-red-600"
+          className="size-2.5 shrink-0 rounded-full bg-danger"
           data-testid="comments-unread-mention-dot"
         />
       ) : null}

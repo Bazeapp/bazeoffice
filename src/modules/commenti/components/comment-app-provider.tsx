@@ -1,7 +1,9 @@
 import * as React from "react"
+import { useQuery } from "@tanstack/react-query"
 import type { User } from "@supabase/supabase-js"
 
 import { CommentAppContext, type CommentRouteRegistration } from "../hooks/comment-app-context"
+import { fetchCurrentOperatorId } from "../queries/fetch-current-operator-id"
 import { CommentContextProvider, type CommentContextValue } from "./comment-context-provider"
 
 function resolveOperatorName(user: User): string {
@@ -28,6 +30,12 @@ export function CommentAppProvider({
   const [registration, setRegistration] =
     React.useState<RegistrationEntry | null>(null)
 
+  const operatorIdQuery = useQuery({
+    queryKey: ["commenti", "current-operator-id", user.id],
+    queryFn: fetchCurrentOperatorId,
+    staleTime: 5 * 60 * 1000,
+  })
+
   const register = React.useCallback(
     (ownerId: symbol, next: CommentRouteRegistration | null) => {
       setRegistration((current) => {
@@ -43,7 +51,8 @@ export function CommentAppProvider({
 
   const value = React.useMemo((): CommentContextValue => {
     const base = {
-      currentUserId: user.id,
+      // Mentions / unread matching key off operatori.id, not auth.users.id.
+      currentUserId: operatorIdQuery.data ?? null,
       currentUserName: resolveOperatorName(user),
     }
     const route = registration?.value
@@ -59,7 +68,7 @@ export function CommentAppProvider({
       ...base,
       ...route,
     }
-  }, [registration, user])
+  }, [operatorIdQuery.data, registration, user])
 
   const appContext = React.useMemo(
     () => ({

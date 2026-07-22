@@ -648,6 +648,9 @@ export function useLavoratoriCercaDetail({
         selectedWorkerRow?.riassunto_profilo_breve,
       ),
     },
+    // Form vive sopra il key del detail shell: senza resetKey gli edit dirty
+    // del lavoratore A restano sul B (keepDirtyValues).
+    resetKey: selectedWorkerId,
     onSave: async (patch) => {
       for (const [key, rawValue] of Object.entries(patch)) {
         const v = typeof rawValue === "string" ? rawValue : "";
@@ -764,6 +767,7 @@ export function useLavoratoriCercaDetail({
         selectedWorkerRow?.anni_esperienza_babysitter,
       ),
     },
+    resetKey: selectedWorkerId,
     onSave: async (patch) => {
       for (const [key, rawValue] of Object.entries(patch)) {
         switch (key) {

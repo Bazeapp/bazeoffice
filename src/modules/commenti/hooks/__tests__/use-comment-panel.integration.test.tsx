@@ -156,10 +156,45 @@ describe("useCommentPanel", () => {
     })
 
     expect(mockFetchCommentSectionPage).toHaveBeenCalledWith({
-      pageEntityType: PAGE_FOCUS.entityType,
-      pageEntityId: PAGE_FOCUS.entityId,
+      pageEntityType: SECTION_REF.entityType,
+      pageEntityId: SECTION_REF.entityId,
       sectionEntityType: SECTION_REF.entityType,
       sectionEntityId: SECTION_REF.entityId,
+    })
+  })
+
+  it("lists ancestor section threads scoped to the section entity, not the page focus", async () => {
+    const pageFocus = {
+      entityType: "rapporto" as const,
+      entityId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    }
+    const ricercaSection = {
+      entityType: "ricerca" as const,
+      entityId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    }
+
+    const { result } = renderHookWithQueryClient(() =>
+      useCommentPanel({
+        pageFocus,
+        expanded: true,
+        ...BASE_PANEL_OPTIONS,
+        watchedEntityRefs: [pageFocus, ricercaSection],
+        activeSectionKind: "ancestor",
+        activeSectionRef: ricercaSection,
+        excludeAnchors: [pageFocus, ricercaSection],
+        targetEntityRef: ricercaSection,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(result.current.sectionComments).toHaveLength(1)
+    })
+
+    expect(mockFetchCommentSectionPage).toHaveBeenCalledWith({
+      pageEntityType: ricercaSection.entityType,
+      pageEntityId: ricercaSection.entityId,
+      sectionEntityType: ricercaSection.entityType,
+      sectionEntityId: ricercaSection.entityId,
     })
   })
 

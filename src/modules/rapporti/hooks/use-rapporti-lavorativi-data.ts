@@ -467,7 +467,13 @@ export function useRapportiLavorativiData(
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
           processIds.length > 0
             ? fetchProcessiMatchingByIds({ ids: processIds })
-            : Promise.resolve({ rows: [], total: 0, columns: [] }),
+            : selectedRapporto.famiglia_id
+              ? // Same fallback as assunzioni_board when FK is null: latest
+                // process for the famiglia so RICERCA comments can mount.
+                fetchProcessiMatchingByIds({
+                  famigliaIds: [selectedRapporto.famiglia_id],
+                })
+              : Promise.resolve({ rows: [], total: 0, columns: [] }),
           selectedRapporto.fine_rapporto_lavorativo_id
             ? fetchChiusureByIds([selectedRapporto.fine_rapporto_lavorativo_id])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
@@ -512,8 +518,16 @@ export function useRapportiLavorativiData(
           .filter((id): id is string => Boolean(id))
         const pagamentiResponse = await fetchPagamentiByTransazioneIds(transazioneIds)
 
-        const processiRows = processiResponse.rows as ProcessoMatchingRecord[]
-        const richiesteByProcessId = await fetchRichiesteAttivazioneByProcessIds(processIds)
+        const processiRows = (processiResponse.rows as ProcessoMatchingRecord[])
+          .slice()
+          .sort((left, right) => {
+            const leftAt = left.aggiornato_il ? Date.parse(left.aggiornato_il) : 0
+            const rightAt = right.aggiornato_il ? Date.parse(right.aggiornato_il) : 0
+            return rightAt - leftAt
+          })
+        const resolvedProcessIds =
+          processIds.length > 0 ? processIds : processiRows.map((processo) => processo.id)
+        const richiesteByProcessId = await fetchRichiesteAttivazioneByProcessIds(resolvedProcessIds)
         let nextFamiglia = (famigliaResponse.rows[0] as FamigliaRecord | undefined) ?? null
         let nextLavoratore = (lavoratoreResponse.rows[0] as LavoratoreRecord | undefined) ?? null
 

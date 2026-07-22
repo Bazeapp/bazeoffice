@@ -5,8 +5,12 @@ import {
   commentDescendantsQueryKey,
   commentSectionQueryKey,
 } from "../lib/query-keys"
+import {
+  sectionHasUnreadComments,
+  sectionHasUnreadMentions,
+  sectionListScopePage,
+} from "../lib/comments-section"
 import { collectStackAnchorExclusions } from "../lib/stack-anchor-exclusions"
-import { sectionHasUnreadComments, sectionHasUnreadMentions } from "../lib/section-unread"
 import { fetchDescendantsCommentPage } from "../queries/fetch-descendants-comments"
 import { fetchCommentSectionPage } from "../queries/fetch-section-comments"
 import type { CommentSection, ResolveCommentStackResult } from "../types/section"
@@ -44,15 +48,19 @@ export function useSectionUnreadFlags(
       const countLoading = sectionCountsLoading[section.id] ?? true
 
       return {
+        // Keep the shared section list key so the open panel reuses this cache;
+        // mention matching is applied in `select` once `currentUserId` resolves.
         queryKey: commentSectionQueryKey(pageFocus, section.entityRef),
-        queryFn: () =>
-          fetchCommentSectionPage({
-            pageEntityType: pageFocus.entityType,
-            pageEntityId: pageFocus.entityId,
+        queryFn: () => {
+          const listPage = sectionListScopePage(section.entityRef)
+          return fetchCommentSectionPage({
+            pageEntityType: listPage.entityType,
+            pageEntityId: listPage.entityId,
             sectionEntityType: section.entityRef.entityType,
             sectionEntityId: section.entityRef.entityId,
-          }),
-        enabled: !countLoading && count > 0,
+          })
+        },
+        enabled: !countLoading && count > 0 && Boolean(currentUserId),
         select: (data: Awaited<ReturnType<typeof fetchCommentSectionPage>>) => ({
           hasUnread: sectionHasUnreadComments(data.comments),
           hasUnreadMention: sectionHasUnreadMentions(data.comments, currentUserId),
@@ -73,6 +81,7 @@ export function useSectionUnreadFlags(
           }),
         enabled: Boolean(
           descendantsSection &&
+            currentUserId &&
             !(sectionCountsLoading[descendantsSection.id] ?? true) &&
             (sectionCounts[descendantsSection.id] ?? 0) > 0,
         ),

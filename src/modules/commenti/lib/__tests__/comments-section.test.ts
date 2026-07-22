@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest"
 
 import type { Comment } from "../../types/comment"
-import { formatMentionMarkup } from "../mention-markup"
 import {
   commentIsUnreadMention,
   commentMentionsUser,
   sectionHasUnreadComments,
   sectionHasUnreadMentions,
-} from "../section-unread"
+  sectionListScopePage,
+} from "../comments-section"
+import { formatMentionMarkup } from "../mentions"
 
 function makeComment(overrides: Partial<Comment> = {}): Comment {
   return {
@@ -32,6 +33,16 @@ function makeComment(overrides: Partial<Comment> = {}): Comment {
     ...overrides,
   }
 }
+
+describe("sectionListScopePage", () => {
+  it("uses the section entity as the list/count scope page", () => {
+    const section = {
+      entityType: "ricerca" as const,
+      entityId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    }
+    expect(sectionListScopePage(section)).toEqual(section)
+  })
+})
 
 describe("sectionHasUnreadComments", () => {
   it("returns false when every comment and reply is read", () => {
@@ -90,6 +101,17 @@ describe("commentMentionsUser", () => {
         MENTIONED_USER_ID,
       ),
     ).toBe(false)
+  })
+
+  it("matches mention ids case-insensitively", () => {
+    expect(
+      commentMentionsUser(
+        makeComment({
+          body: `Ciao ${formatMentionMarkup("Tu", MENTIONED_USER_ID.toUpperCase())}`,
+        }),
+        MENTIONED_USER_ID.toLowerCase(),
+      ),
+    ).toBe(true)
   })
 })
 

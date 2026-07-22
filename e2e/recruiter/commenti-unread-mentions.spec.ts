@@ -57,16 +57,29 @@ test.describe("commenti: unread mentions", () => {
       await gotoRicercaDetail(page, unassignedNuova.id)
       await expectCommentsPillVisible(page)
 
-      await expect(commentsUnreadMentionDot(page)).toBeVisible({ timeout: 30_000 })
+      const unreadDot = commentsUnreadMentionDot(page)
+      await expect(unreadDot).toBeVisible({ timeout: 30_000 })
+      // Design-token red (bg-danger), not a missing Tailwind red-* utility.
+      await expect(unreadDot).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
 
+      // Register before opening: visible threads start the mark-read timer
+      // immediately, so waiting after open can miss the RPC.
+      const markRead = waitForCommentMarkRead(page)
       await openCommentsPanel(page)
 
       const ricercaSectionId = entitySectionId("ricerca", unassignedNuova.id)
       const sectionBadge = commentsSectionCount(page, ricercaSectionId)
       await expect(sectionBadge).toHaveAttribute("data-mention-highlighted", "true")
 
-      const markRead = waitForCommentMarkRead(page)
-      const thread = page.locator('[data-testid^="comments-thread-"]').filter({ hasText: body })
+      // Composer renders `@Label`, not the raw `@[Label](uuid)` markup.
+      const visibleBody = body.replace(
+        /@\[([^\]]+)\]\([^)]+\)/g,
+        "@$1",
+      )
+      const thread = page
+        .locator('[data-testid^="comments-thread-"]')
+        .filter({ hasText: visibleBody })
+      await expect(thread).toBeVisible()
       await thread.scrollIntoViewIfNeeded()
       await markRead
 

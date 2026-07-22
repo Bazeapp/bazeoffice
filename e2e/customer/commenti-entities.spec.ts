@@ -1,7 +1,12 @@
 import { test } from "@playwright/test"
 
 import { E2E_ASSUNZIONI, E2E_COMMENTI_BODY_PREFIX, E2E_RAPPORTI } from "../constants"
-import { expectCommentBodyVisible, sendComment } from "../support/commenti"
+import {
+  entitySectionId,
+  expandCommentsSection,
+  expectCommentBodyVisible,
+  sendComment,
+} from "../support/commenti"
 import { resetCommentiFixture } from "../support/commenti-mutations"
 import {
   gotoAssunzioni,
@@ -33,11 +38,17 @@ test.describe("commenti: customer entity send", () => {
     await expectCommentBodyVisible(page, body)
   })
 
-  test("sends on assunzione focus", async ({ page }) => {
+  // Assunzioni cards without an `assunzioni` row open a pending ASSUNZIONE
+  // section (composer locked). Writes go through the RAPPORTO section.
+  test("sends on assunzione board via rapporto section", async ({ page }) => {
     const body = `${E2E_COMMENTI_BODY_PREFIX}assunzione ${Date.now()}`
     await gotoAssunzioni(page)
     await openCardSheet(page, inviataRichiestaDati.id)
     await waitForAssunzioniDetail(page)
+    await expandCommentsSection(
+      page,
+      entitySectionId("rapporto", inviataRichiestaDati.id),
+    )
     await sendComment(page, body)
     await expectCommentBodyVisible(page, body)
   })

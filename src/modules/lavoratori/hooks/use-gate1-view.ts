@@ -195,6 +195,7 @@ export function useGate1View(props: GateViewProps) {
     selectedWorkerRow,
   });
   const gateFields = useGateFieldsForm({
+    selectedWorkerId,
     selectedWorkerRow,
     selectedWorkerAddress,
     lookupOptionsByDomain,

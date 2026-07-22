@@ -1,6 +1,6 @@
-import { screen } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
 import type { User } from "@supabase/supabase-js"
-import { describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/test-utils"
 
@@ -8,11 +8,21 @@ import { CommentAppProvider } from "../../components/comment-app-provider"
 import { useCommentContext } from "../use-comment-context"
 import { useCommentRouteContext } from "../use-comment-route-context"
 
+const { mockFetchCurrentOperatorId } = vi.hoisted(() => ({
+  mockFetchCurrentOperatorId: vi.fn(),
+}))
+
+vi.mock("../../queries/fetch-current-operator-id", () => ({
+  fetchCurrentOperatorId: (...args: unknown[]) => mockFetchCurrentOperatorId(...args),
+}))
+
 const RICERCA_ID = "00000000-0000-0000-0000-00000000b00c"
 const CANDIDATURA_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+const OPERATOR_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+const AUTH_USER_ID = "99999999-9999-4999-8999-999999999999"
 
 const mockUser: User = {
-  id: "99999999-9999-4999-8999-999999999999",
+  id: AUTH_USER_ID,
   email: "test@usuario.com",
   user_metadata: { full_name: "Test Operatore" },
   app_metadata: {},
@@ -24,7 +34,12 @@ function ContextProbe() {
   const context = useCommentContext()
   const focus = context?.pageFocus
   const label = focus ? `${focus.entityType}:${focus.entityId}` : "none"
-  return <div data-testid="comment-focus">{label}</div>
+  return (
+    <>
+      <div data-testid="comment-focus">{label}</div>
+      <div data-testid="comment-current-user-id">{context?.currentUserId ?? "null"}</div>
+    </>
+  )
 }
 
 function RicercaDetailRegistrar({ overlayOpen }: { overlayOpen: boolean }) {
@@ -68,6 +83,21 @@ function renderRicercaPage(overlayOpen: boolean) {
 }
 
 describe("useCommentRouteContext", () => {
+  beforeEach(() => {
+    mockFetchCurrentOperatorId.mockResolvedValue(OPERATOR_ID)
+  })
+
+  it("exposes operatori.id as currentUserId, not the auth uid", async () => {
+    renderRicercaPage(false)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("comment-current-user-id")).toHaveTextContent(OPERATOR_ID)
+    })
+    expect(screen.getByTestId("comment-current-user-id")).not.toHaveTextContent(
+      AUTH_USER_ID,
+    )
+  })
+
   it("keeps ricerca registration when pipeline hook is mounted but disabled", () => {
     renderRicercaPage(false)
 

@@ -19,7 +19,12 @@ import { toast } from "sonner";
  *   sta editando) rimanda il save invece di clobberare;
  * - **errore visibile**: `toast.error` sul fallimento (FASE 4 TER);
  * - su `reset()` (cambio record o resync realtime) ri-sincronizza lo snapshot
- *   committato senza salvare.
+ *   committato senza inventare nuovi save; i patch già in `pendingRef`
+ *   restano e vengono riflushati (altrimenti un reset collaterale mangia il save);
+ * - dopo un save riuscito, azzera lo stato dirty RHF dei campi salvati (via
+ *   `reset(..., { keepValues: true })`) così i successivi resync realtime
+ *   possono aggiornare quei campi — keepDirtyValues protegge solo gli edit
+ *   ancora in corso.
  *
  * I Field components context-aware (FieldInput/FieldSelect/…) scrivono nel form
  * via RHF; questo hook è agganciato una volta a livello di <Form> e pensa al save.
@@ -38,6 +43,11 @@ type UseAutoSaveFormFieldsOptions<T extends FieldValues> = {
   debounceMs?: number;
   /** Mappa l'errore in un messaggio per il toast. */
   errorMessage?: (error: unknown) => string;
+  /**
+   * Identità del record. Al cambio scarta `pendingRef` (un save in volo del
+   * record precedente non deve flushare contro il record nuovo).
+   */
+  resetKey?: string | null;
 };
 
 function valuesEqual(a: unknown, b: unknown): boolean {
@@ -65,6 +75,7 @@ export function useAutoSaveFormFields<T extends FieldValues>({
   isPaused,
   debounceMs = 0,
   errorMessage,
+  resetKey,
 }: UseAutoSaveFormFieldsOptions<T>) {
   const onSaveRef = React.useRef(onSave);
   const isPausedRef = React.useRef(isPaused);
@@ -80,6 +91,22 @@ export function useAutoSaveFormFields<T extends FieldValues>({
   const pendingRef = React.useRef<Record<string, unknown>>({});
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const initializedRef = React.useRef(false);
+  const prevResetKeyRef = React.useRef(resetKey);
+
+  // Cambio record: scarta patch pending del record precedente (altrimenti un
+  // flush ritardato scrive sul record nuovo via onSave già ribindato).
+  // useLayoutEffect: deve correre PRIMA del useEffect di reset in
+  // useAutoSaveForm, altrimenti il watch del reset rischedula il pending vecchio.
+  React.useLayoutEffect(() => {
+    if (prevResetKeyRef.current === resetKey) return;
+    prevResetKeyRef.current = resetKey;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    pendingRef.current = {};
+    committedRef.current = { ...form.getValues() };
+  }, [form, resetKey]);
 
   React.useEffect(() => {
     if (!initializedRef.current) {
@@ -101,10 +128,20 @@ export function useAutoSaveFormFields<T extends FieldValues>({
 
       void Promise.resolve(onSaveRef.current(patch as Partial<T>))
         .then(() => {
-          // Marca i campi come committati solo se ancora invariati nel form.
           for (const key of keys) {
             committedRef.current[key] = patch[key];
           }
+          // Clear RHF dirty for committed fields. keepDirtyValues only protects
+          // in-progress edits; if we leave fields dirty after save, later
+          // realtime resyncs silently skip them for the rest of the session.
+          // keepValues: update defaultValues without changing what's displayed.
+          // Still-pending keys keep the last committed default so they stay dirty.
+          const currentValues = form.getValues() as Record<string, unknown>;
+          const nextDefaults: Record<string, unknown> = { ...currentValues };
+          for (const key of Object.keys(pendingRef.current)) {
+            nextDefaults[key] = committedRef.current[key];
+          }
+          form.reset(nextDefaults as T, { keepValues: true });
         })
         .catch((error: unknown) => {
           const resolve = errorMessageRef.current ?? defaultErrorMessage;
@@ -119,10 +156,26 @@ export function useAutoSaveFormFields<T extends FieldValues>({
 
     const subscription = form.watch((values, { name, type }) => {
       // reset()/programmatici (cambio record, resync realtime): ri-sincronizza
-      // lo snapshot committato e NON salvare.
+      // lo snapshot committato e NON salvare *nuovi* campi.
+      //
+      // Critico: non azzerare `pendingRef` e non marcare come committati i
+      // valori dirty ancora in attesa di flush. Altrimenti un reset collaterale
+      // (es. lookup options / altro campo nel defaults) cancella il save e la
+      // UI resta aggiornata solo in locale — perso al refresh.
+      // (Il cambio di `resetKey` azzera pending in un effect dedicato.)
       if (type !== "change" || !name) {
-        committedRef.current = { ...(values as Record<string, unknown>) };
-        pendingRef.current = {};
+        const nextValues = values as Record<string, unknown>;
+        const nextCommitted: Record<string, unknown> = { ...nextValues };
+        const pendingKeys = Object.keys(pendingRef.current);
+        for (const key of pendingKeys) {
+          if (Object.prototype.hasOwnProperty.call(committedRef.current, key)) {
+            nextCommitted[key] = committedRef.current[key];
+          }
+        }
+        committedRef.current = nextCommitted;
+        if (pendingKeys.length > 0) {
+          schedule();
+        }
         return;
       }
       const nextValue = (values as Record<string, unknown>)[name];

@@ -1,0 +1,16 @@
+{
+  // IDE-only project. The "@/*" path alias is declared in tsconfig.app.json,
+  // whose "include" is just "src" — so story files belong to no TS project and
+  // the editor reports "Cannot find module '@/...'". This config gives them one.
+  //
+  // Intentionally NOT referenced from the root tsconfig.json, so `tsc -b` (CI +
+  // pre-push hook) never type-checks stories. Storybook resolves "@" on its own
+  // via the Vite alias in .storybook/main.ts. VS Code auto-discovers this file
+  // because it is named tsconfig.json.
+  "extends": "../tsconfig.app.json",
+  "compilerOptions": {
+    "composite": false,
+    "types": ["vite/client", "node"]
+  },
+  "include": ["**/*.ts", "**/*.tsx"]
+}

@@ -13,6 +13,7 @@ import {
   shouldMarkCommentRead,
 } from "../lib/comment-panel-utils"
 import { invalidateCommentVisibility } from "../lib/invalidate-comment-visibility"
+import { sectionListScopePage } from "../lib/comments-section"
 import {
   COMMENTI_REALTIME_TABLES,
   commentCountQueryKey,
@@ -84,13 +85,15 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
 
   const sectionQuery = useQuery({
     queryKey: sectionQueryKey ?? ["commenti", "section", "disabled"],
-    queryFn: () =>
-      fetchCommentSectionPage({
-        pageEntityType: pageFocus!.entityType,
-        pageEntityId: pageFocus!.entityId,
+    queryFn: () => {
+      const listPage = sectionListScopePage(activeSectionRef!)
+      return fetchCommentSectionPage({
+        pageEntityType: listPage.entityType,
+        pageEntityId: listPage.entityId,
         sectionEntityType: activeSectionRef!.entityType,
         sectionEntityId: activeSectionRef!.entityId,
-      }),
+      })
+    },
     enabled: Boolean(
       pageFocus && options.expanded && activeSectionRef && !isDescendantsSection,
     ),
@@ -140,9 +143,10 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
 
     setIsLoadingMore(true)
     try {
+      const listPage = sectionListScopePage(activeSectionRef)
       const page = await fetchCommentSectionPage({
-        pageEntityType: pageFocus.entityType,
-        pageEntityId: pageFocus.entityId,
+        pageEntityType: listPage.entityType,
+        pageEntityId: listPage.entityId,
         sectionEntityType: activeSectionRef.entityType,
         sectionEntityId: activeSectionRef.entityId,
         cursor: nextCursor,
@@ -278,6 +282,10 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
     mutationFn: (commentId: string) => runTracked(markCommentRead(commentId)),
     onSettled: () => invalidatePageQueries(),
   })
+  // `mutate` is referentially stable in TanStack Query; depending on the whole
+  // mutation result would recreate this callback every render and reset the
+  // IntersectionObserver mark-read timer in CommentThread.
+  const markReadMutate = markReadMutation.mutate
 
   const submitComment = React.useCallback(
     async (body: string) => {
@@ -324,9 +332,9 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
   const markReadIfNeeded = React.useCallback(
     (comment: Comment) => {
       if (!shouldMarkCommentRead(comment, options.currentUserId)) return
-      void markReadMutation.mutate(comment.id)
+      markReadMutate(comment.id)
     },
-    [markReadMutation, options.currentUserId],
+    [markReadMutate, options.currentUserId],
   )
 
   return {

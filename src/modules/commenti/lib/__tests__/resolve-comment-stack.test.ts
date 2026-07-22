@@ -216,8 +216,8 @@ describe("resolveCommentStack", () => {
       focus: focus("assunzione", IDS.assunzione),
       row: {
         id: IDS.assunzione,
-        lavoratore_id: IDS.lavoratore,
-        famiglia_id: IDS.famiglia,
+        rapporto_lavorativo_id: IDS.rapporto,
+        rapporto: rapportoRow,
       },
       displayNames: NAMES,
     })
@@ -241,21 +241,10 @@ describe("resolveCommentStack", () => {
       displayNames: NAMES,
     })
 
-    expect(entitySectionKinds(assunzione)).toEqual(["assunzione", "lavoratore", "famiglia"])
-    expect(entitySectionKinds(chiusura)).toEqual([
-      "chiusura",
-      "rapporto",
-      "lavoratore",
-      "ricerca",
-      "famiglia",
-    ])
-    expect(entitySectionKinds(ticket)).toEqual([
-      "ticket",
-      "rapporto",
-      "lavoratore",
-      "ricerca",
-      "famiglia",
-    ])
+    const contractSections = ["rapporto", "lavoratore", "ricerca", "famiglia"] as const
+    expect(entitySectionKinds(assunzione)).toEqual(["assunzione", ...contractSections])
+    expect(entitySectionKinds(chiusura)).toEqual(["chiusura", ...contractSections])
+    expect(entitySectionKinds(ticket)).toEqual(["ticket", ...contractSections])
   })
 
   it("caps ancestor sections at five", () => {

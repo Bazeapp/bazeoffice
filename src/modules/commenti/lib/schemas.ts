@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { UUID_PATTERN } from "@/lib/value-utils"
+
 import {
   COMMENT_TYPES,
   ENTITY_TYPES,
@@ -8,11 +10,7 @@ import {
 } from "./consts"
 import type { EntityType } from "../types/entity"
 
-/** Accepts seed/E2E ids that are uuid-shaped but not RFC 4122 (e.g. ...000a11). */
-const UUID_LIKE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-const uuidLikeString = z.string().regex(UUID_LIKE, "Invalid UUID")
+const uuidLikeString = z.string().regex(UUID_PATTERN, "Invalid UUID")
 
 export type CommentRow = {
   id: string

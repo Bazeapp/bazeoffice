@@ -39,35 +39,45 @@ function useMarkReadOnView(
   onMarkRead?: (comment: Comment) => void,
 ) {
   const ref = React.useRef<HTMLDivElement>(null)
+  const hasMarkRead = onMarkRead != null
+  const markReadIfNeeded = React.useEffectEvent(() => {
+    onMarkRead?.(comment)
+  })
 
   React.useEffect(() => {
-    if (!onMarkRead || !comment.isUnread) return
+    if (!hasMarkRead || !comment.isUnread) return
     const node = ref.current
     if (!node) return
 
     let timer: ReturnType<typeof setTimeout> | null = null
+    const schedule = () => {
+      if (timer) return
+      timer = setTimeout(() => {
+        markReadIfNeeded()
+      }, MARK_READ_DELAY_MS)
+    }
+    const cancel = () => {
+      if (timer) clearTimeout(timer)
+      timer = null
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         const isVisible = entries.some((entry) => entry.isIntersecting)
-        if (!isVisible) {
-          if (timer) clearTimeout(timer)
-          timer = null
-          return
-        }
-        if (timer) return
-        timer = setTimeout(() => {
-          onMarkRead(comment)
-        }, MARK_READ_DELAY_MS)
+        if (isVisible) schedule()
+        else cancel()
       },
-      { threshold: 0.6 },
+      // Any visible pixel counts — 0.6 was too strict inside the panel scroller
+      // and never settled under Playwright / frequent layout scrolls.
+      { threshold: 0 },
     )
 
     observer.observe(node)
     return () => {
       observer.disconnect()
-      if (timer) clearTimeout(timer)
+      cancel()
     }
-  }, [comment, onMarkRead])
+  }, [comment.id, comment.isUnread, hasMarkRead])
 
   return ref
 }
@@ -172,7 +182,7 @@ function CommentBubble({
         ) : null}
         <span className="flex-1" />
         {isAuthor && !isEditing ? (
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
@@ -185,7 +195,7 @@ function CommentBubble({
                 <MoreHorizontalIcon className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="z-110">
               <DropdownMenuItem
                 data-testid={`comments-edit-${comment.id}`}
                 onSelect={() => {

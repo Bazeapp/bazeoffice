@@ -1,7 +1,9 @@
 import * as React from "react"
 
-import { fetchContributiInpsByIds } from "../queries/fetch-contributi-inps-by-ids"
+import { enrichRapportoWithRicercaId } from "@/modules/rapporti/lib"
 import { fetchRapportiLavorativiByIds } from "@/modules/rapporti/queries"
+
+import { fetchContributiInpsByIds } from "../queries/fetch-contributi-inps-by-ids"
 import type { ContributoInpsBoardCardData } from "../types"
 
 type UseContributiInpsSelectionResult = {
@@ -36,7 +38,9 @@ export function useContributiInpsSelection(
     let isActive = true
     const currentCardId = selectedCardId
     const currentCard = selectedCardFromCards
-    setSelectedCard(null)
+    // Keep the list card as provisional detail so comment route context stays
+    // mounted while dettaglio + ricerca enrichment load.
+    setSelectedCard(currentCard)
 
     async function loadSelectedCard() {
       try {
@@ -47,7 +51,9 @@ export function useContributiInpsSelection(
 
         const rapportoId =
           currentCard.rapporto?.id ??
-          (typeof freshRecord.rapporto_lavorativo_id === "string" ? freshRecord.rapporto_lavorativo_id : null)
+          (typeof freshRecord.rapporto_lavorativo_id === "string"
+            ? freshRecord.rapporto_lavorativo_id
+            : null)
 
         const rapportoResponse = rapportoId
           ? await fetchRapportiLavorativiByIds([rapportoId])
@@ -57,12 +63,14 @@ export function useContributiInpsSelection(
           (rapportoResponse.rows[0] as ContributoInpsBoardCardData["rapporto"]) ??
           currentCard.rapporto
 
+        const enrichedRapporto = await enrichRapportoWithRicercaId(freshRapporto)
+
         if (!isActive) return
 
         setSelectedCard({
           ...currentCard,
           record: freshRecord,
-          rapporto: freshRapporto,
+          rapporto: enrichedRapporto,
         })
       } catch (error) {
         if (!isActive) return
@@ -80,7 +88,6 @@ export function useContributiInpsSelection(
   }, [selectedCardFromCards?.id, selectedCardId])
 
   const openCard = React.useCallback((cardId: string) => {
-    setSelectedCard(null)
     setSelectedCardId(cardId)
   }, [])
 

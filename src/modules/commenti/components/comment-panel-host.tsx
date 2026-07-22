@@ -1,5 +1,6 @@
 import * as React from "react"
 
+import { resolveAssunzioniBoardCommentStack } from "../lib/comment-route-helpers"
 import { resolveCommentStack } from "../lib/resolve-comment-stack"
 import { collectStackWatchedEntityRefs } from "../lib/stack-anchor-exclusions"
 import { useCommentContext } from "../hooks"
@@ -95,14 +96,25 @@ export function CommentPanelHost() {
 
   React.useEffect(() => () => clearHighlightTimer(), [clearHighlightTimer])
 
+  const sourceInterface = context?.sourceInterface ?? null
+  const row = context?.row
+  const displayNames = context?.displayNames
+
   const stack = React.useMemo(() => {
-    if (!context?.pageFocus) return null
+    if (!pageFocus) return null
+    if (sourceInterface === "assunzioni") {
+      return resolveAssunzioniBoardCommentStack({
+        pageFocus,
+        row: row ?? {},
+        displayNames,
+      })
+    }
     return resolveCommentStack({
-      focus: context.pageFocus,
-      row: context.row,
-      displayNames: context.displayNames,
+      focus: pageFocus,
+      row: row ?? {},
+      displayNames,
     })
-  }, [context])
+  }, [displayNames, pageFocus, row, sourceInterface])
 
   const watchedEntityRefs = React.useMemo(() => {
     if (!pageFocus || !stack) return []
