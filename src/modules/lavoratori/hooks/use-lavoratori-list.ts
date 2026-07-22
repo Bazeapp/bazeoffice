@@ -97,10 +97,16 @@ export function useLavoratoriList({
 
   // Derive during render so `loading === false` and `workers` update in the
   // same commit (avoids a frame where loading is done but workers is still []).
-  const workers = workerRows.map((row) => ({
-    ...buildWorkerListItem(row, lookupColorsByDomain, workerAddressesById),
-    otherActiveSelections: relatedSelectionsByWorkerId.get(row.id) ?? null,
-  }))
+  // Memoize so consumers that depend on `workers` identity (selection effects)
+  // do not re-run every parent render.
+  const workers = React.useMemo(
+    () =>
+      workerRows.map((row) => ({
+        ...buildWorkerListItem(row, lookupColorsByDomain, workerAddressesById),
+        otherActiveSelections: relatedSelectionsByWorkerId.get(row.id) ?? null,
+      })),
+    [lookupColorsByDomain, relatedSelectionsByWorkerId, workerAddressesById, workerRows]
+  )
 
   const recruiterLabelsById = React.useMemo(
     () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
