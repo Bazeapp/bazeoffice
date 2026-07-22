@@ -1,38 +1,56 @@
 import * as React from "react";
 import { PhoneIcon } from "lucide-react";
+import { useController } from "react-hook-form";
 
 import { FieldLabel } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { asString } from "../../lib/base-utils";
 import {
   getLookupLabelForSave,
   getLookupSelectValue,
   type LookupOption,
 } from "../../lib/lookup-utils";
 import { GateInfoCard } from "./gate-info-card";
-import { useGate1WorkerEditor } from "./gate1-worker-context";
+
+function FieldFollowupRadio({
+  name,
+  options,
+}: {
+  name: string;
+  options: LookupOption[];
+}) {
+  const { field } = useController({ name });
+  const storedLabel = typeof field.value === "string" ? field.value : "";
+
+  return (
+    <RadioGroup
+      value={getLookupSelectValue(storedLabel, options, "")}
+      onValueChange={(value) =>
+        field.onChange(getLookupLabelForSave(value, options) || "")
+      }
+      variant="card"
+      className="pt-1"
+    >
+      {options.map((option) => (
+        <RadioGroupItem
+          key={option.value}
+          value={option.value}
+          id={`followup-${option.value}`}
+          title={option.label}
+        />
+      ))}
+    </RadioGroup>
+  );
+}
 
 /**
- * D2 — card "Follow-up" estratta da gate1-view (pilot del pattern).
- *
- * Consuma il Context di dominio: legge il valore dalla riga server
- * (`workerRow.followup_chiamata_idoneita`, source of truth) e salva via
- * `patchSelectedWorkerField`. Niente più `gateDraft` né prop-drilling di
- * value/onChange. `React.memo` perché l'unico prop che cambia è `options`
- * (config lookup statica/memoizzata). Niente form: è un singolo RadioGroup
- * (scelta immediata), non un campo testo debounced.
+ * D2 — card "Follow-up" estratta da gate1-view.
+ * Field roll-out: autosave via gateFieldsForm.
  */
 export const GateContactsCard = React.memo(function GateContactsCard({
   options,
 }: {
   options: LookupOption[];
 }) {
-  const {
-    editor: { patchSelectedWorkerField },
-    workerRow,
-  } = useGate1WorkerEditor();
-  const followupStatus = asString(workerRow?.followup_chiamata_idoneita);
-
   return (
     <GateInfoCard
       title="Follow-up"
@@ -43,26 +61,10 @@ export const GateContactsCard = React.memo(function GateContactsCard({
           Follow-up chiamata idoneita
         </FieldLabel>
         <div className="min-w-0 flex-1 text-foreground">
-          <RadioGroup
-            value={getLookupSelectValue(followupStatus, options, "")}
-            onValueChange={(value) =>
-              void patchSelectedWorkerField(
-                "followup_chiamata_idoneita",
-                getLookupLabelForSave(value, options) || null,
-              )
-            }
-            variant="card"
-            className="pt-1"
-          >
-            {options.map((option) => (
-              <RadioGroupItem
-                key={option.value}
-                value={option.value}
-                id={`followup-${option.value}`}
-                title={option.label}
-              />
-            ))}
-          </RadioGroup>
+          <FieldFollowupRadio
+            name="followup_chiamata_idoneita"
+            options={options}
+          />
         </div>
       </div>
     </GateInfoCard>

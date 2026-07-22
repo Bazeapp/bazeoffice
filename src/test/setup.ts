@@ -57,3 +57,34 @@ if (typeof globalThis.IntersectionObserver === "undefined") {
     }
   }
 }
+
+// happy-dom 20.x exposes `window.localStorage` as an object but doesn't
+// implement its Storage methods, so any code that reads/writes it (saved
+// table views, CRM toolbar filters) throws "setItem is not a function"
+// under test. Provide an in-memory Storage shim.
+if (
+  typeof window !== "undefined" &&
+  typeof window.localStorage?.setItem !== "function"
+) {
+  const store = new Map<string, string>()
+  const localStorageShim: Storage = {
+    getItem: (key) => (store.has(key) ? store.get(key)! : null),
+    setItem: (key, value) => {
+      store.set(key, String(value))
+    },
+    removeItem: (key) => {
+      store.delete(key)
+    },
+    clear: () => {
+      store.clear()
+    },
+    key: (index) => Array.from(store.keys())[index] ?? null,
+    get length() {
+      return store.size
+    },
+  }
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: localStorageShim,
+  })
+}

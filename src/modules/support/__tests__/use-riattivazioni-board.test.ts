@@ -8,7 +8,13 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { resolveStage, hasRiattivazioneStatus, shouldShowUnclassifiedChiusura, getChiusuraTipoLabel } from "@/modules/support/hooks"
+import {
+  getChiusuraTipoLabel,
+  hasRiattivazioneStatus,
+  resolveStage,
+  shouldIncludeRiattivazioneCard,
+  shouldShowUnclassifiedChiusura,
+} from "@/modules/support/lib"
 import type { ChiusuraContrattoRecord, RapportoLavorativoRecord } from "@/types"
 
 const rapporto = (stato: string | null): RapportoLavorativoRecord =>
@@ -60,7 +66,7 @@ describe("use-riattivazioni-board inclusion filter", () => {
 
   it("composes: status OR non-attivo rapporto → kept; no status AND active rapporto → dropped", () => {
     const keep = (stato: string, rap: RapportoLavorativoRecord | null) =>
-      hasRiattivazioneStatus(stato) || shouldShowUnclassifiedChiusura(rap)
+      shouldIncludeRiattivazioneCard({ stato_riattivazione_famiglia: stato }, rap)
 
     expect(keep("riattivato", rapporto("attivo"))).toBe(true) // has explicit status
     expect(keep("", rapporto("non attivo"))).toBe(true) // no status but rapporto non attivo

@@ -14,6 +14,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react"
 
+import { normalizeComparableToken } from "@/lib/value-utils"
 import type { TicketRecord } from "@/types"
 
 export type SupportTicketType = "Customer" | "Payroll"
@@ -290,4 +291,15 @@ export function resolveSupportTicketStatus(rawStatus: string | null | undefined)
 
 export function getSupportTicketTagsForType(ticketType: SupportTicketType) {
   return SUPPORT_TICKET_TAGS.filter((tag) => tag.supportedTypes.includes(ticketType))
+}
+
+export function normalizeSupportTicketType(
+  value: string | null | undefined,
+): SupportTicketType | null {
+  const token = normalizeComparableToken(value)
+  if (token === "customer") return "Customer"
+  if (token === "customer support") return "Customer"
+  if (token === "payroll") return "Payroll"
+  if (token === "consulenza lavoro") return "Payroll"
+  return null
 }

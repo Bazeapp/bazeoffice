@@ -1,5 +1,6 @@
 import * as React from "react"
 import { CalendarDaysIcon, CircleHelpIcon, PencilIcon, SaveIcon } from "lucide-react"
+import { useWatch } from "react-hook-form"
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { Button } from "@/components/ui/button"
@@ -41,11 +42,13 @@ type AvailabilityCalendarCardProps = {
   comparisonRows?: AvailabilityReadOnlyRow[]
   familyRequestsText?: string
   matrix: Record<string, boolean>
-  vincoliOrari: string
+  vincoliOrari?: string
+  /** Quando "parent-form", il campo vincoli usa FieldTextarea nel form del parent. */
+  vincoliPersistMode?: "nested-form" | "parent-form"
   onToggleEdit: () => void
   onSave?: () => void
   onMatrixChange: (dayField: string, bandField: string, checked: boolean) => void
-  onVincoliChange: (value: string) => void
+  onVincoliChange?: (value: string) => void
   /**
    * Se fornito, "Vincoli orari" autosalva (debounced) tramite DebouncedTextarea
    * invece del solo aggiornamento bozza + bottone Salva. Robusto contro il
@@ -58,7 +61,103 @@ type AvailabilityCalendarCardProps = {
   children?: React.ReactNode
 }
 
-export function AvailabilityCalendarCard({
+function VincoliOrariField({
+  isEditing,
+  isUpdating,
+  vincoliOrari = "",
+  vincoliPersistMode,
+  vincoliAutosaveEnabled = false,
+  onVincoliChange,
+}: {
+  isEditing: boolean
+  isUpdating: boolean
+  vincoliOrari?: string
+  vincoliPersistMode: "nested-form" | "parent-form"
+  vincoliAutosaveEnabled?: boolean
+  onVincoliChange?: (value: string) => void
+}) {
+  const parentFormValue = useWatch({ name: "vincoli_orari_disponibilita" }) as
+    | string
+    | undefined
+  const displayValue =
+    vincoliPersistMode === "parent-form"
+      ? typeof parentFormValue === "string"
+        ? parentFormValue
+        : ""
+      : vincoliOrari
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        <div className="ui-type-label">Vincoli orari</div>
+        <HoverCard openDelay={120}>
+          <HoverCardTrigger asChild>
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground inline-flex size-5 items-center justify-center rounded-full transition-colors"
+              aria-label="Linee guida vincoli orari"
+              title="Linee guida vincoli orari"
+            >
+              <CircleHelpIcon className="size-3.5" />
+            </button>
+          </HoverCardTrigger>
+          <HoverCardContent side="right" align="start" className="w-[24rem] space-y-3 p-4">
+            <p className="text-sm font-semibold">Come scrivere i vincoli</p>
+            <div className="text-muted-foreground space-y-2 text-sm leading-6">
+              <p>
+                Usa frasi semplici nel formato:
+                <span className="text-foreground font-medium"> Disponibile/Non disponibile + giorni + fascia oraria</span>.
+              </p>
+              <p>
+                Scrivi orari in 24h, giorni espliciti e regole separate da punto o punto e virgola.
+              </p>
+              <p className="text-foreground font-medium">
+                Esempio: Disponibile lun-ven 12:00-19:00. Non disponibile sab-dom.
+              </p>
+              <p>Evita frasi ambigue come "libera dalle 12 in poi" o "no sabato".</p>
+            </div>
+          </HoverCardContent>
+        </HoverCard>
+      </div>
+      {isEditing ? (
+        <div className="w-full max-w-2xl">
+          {vincoliPersistMode === "parent-form" ? (
+            <FieldTextarea
+              name="vincoli_orari_disponibilita"
+              placeholder="Inserisci vincoli orari"
+              rows={3}
+              className="min-h-[5.25rem] w-full text-sm"
+            />
+          ) : vincoliAutosaveEnabled ? (
+            <FieldTextarea
+              name="vincoli_orari"
+              placeholder="Inserisci vincoli orari"
+              rows={3}
+              className="min-h-[5.25rem] w-full text-sm"
+            />
+          ) : (
+            <Textarea
+              value={vincoliOrari}
+              onChange={(event) => onVincoliChange?.(event.target.value)}
+              disabled={isUpdating}
+              placeholder="Inserisci vincoli orari"
+              rows={3}
+              className="min-h-[5.25rem] w-full text-sm"
+            />
+          )}
+        </div>
+      ) : (
+        <div className="w-full max-w-2xl">
+          <div className="text-foreground whitespace-pre-wrap break-words text-sm">
+            {displayValue || "-"}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AvailabilityCalendarCardBody({
   titleMeta,
   isEditing,
   showEditAction = true,
@@ -72,32 +171,18 @@ export function AvailabilityCalendarCard({
   comparisonRows = [],
   familyRequestsText,
   matrix,
-  vincoliOrari,
+  vincoliOrari = "",
+  vincoliPersistMode,
+  vincoliAutosaveEnabled = false,
   onToggleEdit,
   onSave,
   onMatrixChange,
   onVincoliChange,
-  onVincoliSave,
-  // vincoliIdentity: non più usato — il resync realtime è gestito da
-  // useAutoSaveForm (keyed sui defaults che riflettono vincoliOrari).
-  // Mantenuto nei props/type perché i parent continuano a passarlo.
   children,
-}: AvailabilityCalendarCardProps) {
-  // FASE 5 BIS — form + autosave per "Vincoli orari" (unico campo testo
-  // autosalvabile della card). Il form è la source of truth del campo: il resync
-  // realtime (keyed sui defaults, che riflettono vincoliOrari) sostituisce il
-  // vecchio prop `identity` del DebouncedTextarea. onSave instrada il valore alla
-  // callback di salvataggio che la card già riceve (onVincoliSave).
-  const form = useAutoSaveForm({
-    defaults: { vincoli_orari: vincoliOrari },
-    onSave: async (patch) => {
-      if (!onVincoliSave) return
-      if ("vincoli_orari" in patch) {
-        await onVincoliSave(patch.vincoli_orari ?? "")
-      }
-    },
-  })
-
+}: Omit<AvailabilityCalendarCardProps, "onVincoliSave" | "vincoliIdentity"> & {
+  vincoliPersistMode: "nested-form" | "parent-form"
+  vincoliAutosaveEnabled?: boolean
+}) {
   const comparisonByDay = React.useMemo(() => {
     const map = new Map<string, boolean[]>()
     for (const row of comparisonRows) {
@@ -108,7 +193,6 @@ export function AvailabilityCalendarCard({
   const hasComparisonRows = comparisonRows.length > 0
 
   return (
-    <Form {...form}>
     <DetailSectionBlock
       title={
         <span className="flex items-center gap-2">
@@ -268,70 +352,163 @@ export function AvailabilityCalendarCard({
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5">
-            <div className="ui-type-label">Vincoli orari</div>
-            <HoverCard openDelay={120}>
-              <HoverCardTrigger asChild>
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-foreground inline-flex size-5 items-center justify-center rounded-full transition-colors"
-                  aria-label="Linee guida vincoli orari"
-                  title="Linee guida vincoli orari"
-                >
-                  <CircleHelpIcon className="size-3.5" />
-                </button>
-              </HoverCardTrigger>
-              <HoverCardContent side="right" align="start" className="w-[24rem] space-y-3 p-4">
-                <p className="text-sm font-semibold">Come scrivere i vincoli</p>
-                <div className="text-muted-foreground space-y-2 text-sm leading-6">
-                  <p>
-                    Usa frasi semplici nel formato:
-                    <span className="text-foreground font-medium"> Disponibile/Non disponibile + giorni + fascia oraria</span>.
-                  </p>
-                  <p>
-                    Scrivi orari in 24h, giorni espliciti e regole separate da punto o punto e virgola.
-                  </p>
-                  <p className="text-foreground font-medium">
-                    Esempio: Disponibile lun-ven 12:00-19:00. Non disponibile sab-dom.
-                  </p>
-                  <p>Evita frasi ambigue come "libera dalle 12 in poi" o "no sabato".</p>
-                </div>
-              </HoverCardContent>
-            </HoverCard>
-          </div>
-          {isEditing ? (
-            <div className="w-full max-w-2xl">
-              {onVincoliSave ? (
-                <FieldTextarea
-                  name="vincoli_orari"
-                  placeholder="Inserisci vincoli orari"
-                  rows={3}
-                  className="min-h-[5.25rem] w-full text-sm"
-                />
-              ) : (
-                <Textarea
-                  value={vincoliOrari}
-                  onChange={(event) => onVincoliChange(event.target.value)}
-                  disabled={isUpdating}
-                  placeholder="Inserisci vincoli orari"
-                  rows={3}
-                  className="min-h-[5.25rem] w-full text-sm"
-                />
-              )}
-            </div>
-          ) : (
-            <div className="w-full max-w-2xl">
-              <div className="text-foreground whitespace-pre-wrap break-words text-sm">
-                {vincoliOrari || "-"}
-              </div>
-            </div>
-          )}
-        </div>
+        <VincoliOrariField
+          isEditing={isEditing}
+          isUpdating={isUpdating}
+          vincoliOrari={vincoliOrari}
+          vincoliPersistMode={vincoliPersistMode}
+          vincoliAutosaveEnabled={vincoliAutosaveEnabled}
+          onVincoliChange={onVincoliChange}
+        />
 
         {children}
       </div>
     </DetailSectionBlock>
+  )
+}
+
+function NestedFormAvailabilityCalendarCard(
+  props: AvailabilityCalendarCardProps & {
+    resolvedPersistMode: "nested-form"
+  },
+) {
+  const {
+    titleMeta,
+    isEditing,
+    showEditAction = true,
+    collapsible = true,
+    defaultOpen = true,
+    isUpdating,
+    editDays,
+    editBands,
+    hourLabels,
+    readOnlyRows,
+    comparisonRows = [],
+    familyRequestsText,
+    matrix,
+    vincoliOrari = "",
+    resolvedPersistMode,
+    onToggleEdit,
+    onSave,
+    onMatrixChange,
+    onVincoliChange,
+    onVincoliSave,
+    children,
+  } = props
+
+  const form = useAutoSaveForm({
+    defaults: { vincoli_orari: vincoliOrari },
+    onSave: async (patch) => {
+      if (!onVincoliSave) return
+      if ("vincoli_orari" in patch) {
+        await onVincoliSave(patch.vincoli_orari ?? "")
+      }
+    },
+  })
+
+  return (
+    <Form {...form}>
+      <AvailabilityCalendarCardBody
+        titleMeta={titleMeta}
+        isEditing={isEditing}
+        showEditAction={showEditAction}
+        collapsible={collapsible}
+        defaultOpen={defaultOpen}
+        isUpdating={isUpdating}
+        editDays={editDays}
+        editBands={editBands}
+        hourLabels={hourLabels}
+        readOnlyRows={readOnlyRows}
+        comparisonRows={comparisonRows}
+        familyRequestsText={familyRequestsText}
+        matrix={matrix}
+        vincoliOrari={vincoliOrari}
+        vincoliPersistMode={resolvedPersistMode}
+        vincoliAutosaveEnabled={Boolean(onVincoliSave)}
+        onToggleEdit={onToggleEdit}
+        onSave={onSave}
+        onMatrixChange={onMatrixChange}
+        onVincoliChange={onVincoliChange}
+        children={children}
+      />
     </Form>
+  )
+}
+
+export function AvailabilityCalendarCard({
+  titleMeta,
+  isEditing,
+  showEditAction = true,
+  collapsible = true,
+  defaultOpen = true,
+  isUpdating,
+  editDays,
+  editBands,
+  hourLabels,
+  readOnlyRows,
+  comparisonRows = [],
+  familyRequestsText,
+  matrix,
+  vincoliOrari = "",
+  vincoliPersistMode = "nested-form",
+  onToggleEdit,
+  onSave,
+  onMatrixChange,
+  onVincoliChange,
+  onVincoliSave,
+  children,
+}: AvailabilityCalendarCardProps) {
+  const resolvedPersistMode =
+    vincoliPersistMode === "parent-form" ? "parent-form" : "nested-form"
+
+  if (resolvedPersistMode === "parent-form") {
+    return (
+      <AvailabilityCalendarCardBody
+        titleMeta={titleMeta}
+        isEditing={isEditing}
+        showEditAction={showEditAction}
+        collapsible={collapsible}
+        defaultOpen={defaultOpen}
+        isUpdating={isUpdating}
+        editDays={editDays}
+        editBands={editBands}
+        hourLabels={hourLabels}
+        readOnlyRows={readOnlyRows}
+        comparisonRows={comparisonRows}
+        familyRequestsText={familyRequestsText}
+        matrix={matrix}
+        vincoliPersistMode={resolvedPersistMode}
+        onToggleEdit={onToggleEdit}
+        onSave={onSave}
+        onMatrixChange={onMatrixChange}
+        children={children}
+      />
+    )
+  }
+
+  return (
+    <NestedFormAvailabilityCalendarCard
+      titleMeta={titleMeta}
+      isEditing={isEditing}
+      showEditAction={showEditAction}
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
+      isUpdating={isUpdating}
+      editDays={editDays}
+      editBands={editBands}
+      hourLabels={hourLabels}
+      readOnlyRows={readOnlyRows}
+      comparisonRows={comparisonRows}
+      familyRequestsText={familyRequestsText}
+      matrix={matrix}
+      vincoliOrari={vincoliOrari}
+      resolvedPersistMode={resolvedPersistMode}
+      onToggleEdit={onToggleEdit}
+      onSave={onSave}
+      onMatrixChange={onMatrixChange}
+      onVincoliChange={onVincoliChange}
+      onVincoliSave={onVincoliSave}
+      children={children}
+    />
   )
 }

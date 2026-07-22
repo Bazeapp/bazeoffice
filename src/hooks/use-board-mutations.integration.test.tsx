@@ -32,8 +32,23 @@ vi.mock("sonner", () => ({
 
 import { toast } from "sonner"
 import { renderHookWithQueryClient } from "@/test/test-utils"
-import { usePatchMutation } from "@/hooks/use-board-mutations"
+import {
+  useDeleteBoardRecordMutation,
+  usePatchMutation,
+} from "@/hooks/use-board-mutations"
 import { getMillisSinceLastLocalWrite, getPendingWriteCount } from "@/lib/write-tracking"
+
+const { mockDeleteRecord } = vi.hoisted(() => ({
+  mockDeleteRecord: vi.fn(async () => ({ ok: true })),
+}))
+
+vi.mock("@/lib/record-crud", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/record-crud")>()
+  return {
+    ...actual,
+    deleteRecord: mockDeleteRecord,
+  }
+})
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -148,5 +163,155 @@ describe("use-board-mutations: error visibility (FASE 4 TER.2)", () => {
     })
 
     expect(toast.error).toHaveBeenCalledWith("Impossibile salvare la modifica")
+  })
+})
+
+type FlatColumn = { id: string; cards: { id: string }[] }
+type NestedBoard = { columns: FlatColumn[] }
+
+describe("useDeleteBoardRecordMutation", () => {
+  beforeEach(() => {
+    mockDeleteRecord.mockClear()
+    mockDeleteRecord.mockResolvedValue({ ok: true })
+  })
+
+  it("calls deleteRecord with the configured table and record id", async () => {
+    const queryKey = ["assunzioni-board-delete"]
+    const { result } = renderHookWithQueryClient(() =>
+      useDeleteBoardRecordMutation<{ rapportoId: string }, FlatColumn[]>({
+        queryKey,
+        table: "rapporti_lavorativi",
+        getRecordId: ({ rapportoId }) => rapportoId,
+        applyOptimistic: (previous, { rapportoId }) => {
+          if (!previous) return previous
+          return previous.map((column) => ({
+            ...column,
+            cards: column.cards.filter((card) => card.id !== rapportoId),
+          }))
+        },
+      }),
+    )
+
+    await act(async () => {
+      await result.current.mutateAsync({ rapportoId: "r-42" })
+    })
+
+    expect(mockDeleteRecord).toHaveBeenCalledWith("rapporti_lavorativi", "r-42")
+  })
+
+  it("optimistically removes the card from flat column arrays (assunzioni shape)", async () => {
+    const queryKey = ["assunzioni-board-flat"]
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
+    })
+    const seed: FlatColumn[] = [
+      { id: "col-a", cards: [{ id: "r-1" }, { id: "r-2" }] },
+      { id: "col-b", cards: [{ id: "r-3" }] },
+    ]
+    queryClient.setQueryData(queryKey, seed)
+
+    const { result } = renderHookWithQueryClient(
+      () =>
+        useDeleteBoardRecordMutation<{ rapportoId: string }, FlatColumn[]>({
+          queryKey,
+          table: "rapporti_lavorativi",
+          getRecordId: ({ rapportoId }) => rapportoId,
+          applyOptimistic: (previous, { rapportoId }) => {
+            if (!previous) return previous
+            return previous.map((column) => ({
+              ...column,
+              cards: column.cards.filter((card) => card.id !== rapportoId),
+            }))
+          },
+        }),
+      { client: queryClient },
+    )
+
+    await act(async () => {
+      await result.current.mutateAsync({ rapportoId: "r-2" })
+    })
+
+    expect(queryClient.getQueryData<FlatColumn[]>(queryKey)).toEqual([
+      { id: "col-a", cards: [{ id: "r-1" }] },
+      { id: "col-b", cards: [{ id: "r-3" }] },
+    ])
+  })
+
+  it("optimistically removes the card from nested columns (chiusure shape)", async () => {
+    const queryKey = ["chiusure-board-nested"]
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
+    })
+    const seed: NestedBoard = {
+      columns: [
+        { id: "col-a", cards: [{ id: "c-1" }, { id: "c-2" }] },
+        { id: "col-b", cards: [{ id: "c-3" }] },
+      ],
+    }
+    queryClient.setQueryData(queryKey, seed)
+
+    const { result } = renderHookWithQueryClient(
+      () =>
+        useDeleteBoardRecordMutation<{ recordId: string }, NestedBoard>({
+          queryKey,
+          table: "chiusure_contratti",
+          getRecordId: ({ recordId }) => recordId,
+          applyOptimistic: (previous, { recordId }) => {
+            if (!previous) return previous
+            return {
+              ...previous,
+              columns: previous.columns.map((column) => ({
+                ...column,
+                cards: column.cards.filter((card) => card.id !== recordId),
+              })),
+            }
+          },
+        }),
+      { client: queryClient },
+    )
+
+    await act(async () => {
+      await result.current.mutateAsync({ recordId: "c-2" })
+    })
+
+    expect(queryClient.getQueryData<NestedBoard>(queryKey)).toEqual({
+      columns: [
+        { id: "col-a", cards: [{ id: "c-1" }] },
+        { id: "col-b", cards: [{ id: "c-3" }] },
+      ],
+    })
+  })
+
+  it("rolls the cache back and surfaces a toast when deleteRecord rejects", async () => {
+    mockDeleteRecord.mockRejectedValueOnce(new Error("delete rifiutato"))
+    const queryKey = ["board-delete-error"]
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
+    })
+    queryClient.setQueryData(queryKey, [{ id: "col", cards: [{ id: "r-1" }] }])
+
+    const { result } = renderHookWithQueryClient(
+      () =>
+        useDeleteBoardRecordMutation<{ rapportoId: string }, FlatColumn[]>({
+          queryKey,
+          table: "rapporti_lavorativi",
+          getRecordId: ({ rapportoId }) => rapportoId,
+          applyOptimistic: (previous, { rapportoId }) => {
+            if (!previous) return previous
+            return previous.map((column) => ({
+              ...column,
+              cards: column.cards.filter((card) => card.id !== rapportoId),
+            }))
+          },
+        }),
+      { client: queryClient },
+    )
+
+    await act(async () => {
+      await result.current.mutateAsync({ rapportoId: "r-1" }).catch(() => {})
+    })
+
+    expect(toast.error).toHaveBeenCalledWith("delete rifiutato")
+    expect(queryClient.getQueryData(queryKey)).toEqual([{ id: "col", cards: [{ id: "r-1" }] }])
   })
 })

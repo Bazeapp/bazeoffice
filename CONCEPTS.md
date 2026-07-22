@@ -63,3 +63,22 @@ The merge-preserving remedy for the Realtime bug class, used when the board and 
 ### Pattern B
 The trigger-based remedy for the Realtime bug class, used when the detail lives in separate state rather than the shared cache: each silent realtime reload bumps a counter that the detail-loading effect depends on, so the open detail re-fetches whenever a remote change arrives. Chosen over Pattern A precisely when board and detail do not share one cache.
 *Avoid:* realtimeTick-trigger pattern
+
+## Stabilization refactor (FASE 5)
+
+Named phases from `docs/realtime-bug-class-plan.md`, in scope for the large-file split program (`docs/brainstorms/2026-07-06-large-file-split-requirements.md`).
+
+### FASE 5 BIS
+Form field context program: react-hook-form + shadcn Form + `useAutoSaveFormFields` + context-aware Field components (`FieldInput`, `FieldMultiSelect`, etc.). Replaces hand-rolled `on*Change` + draft handlers so "save never fired" bugs are structurally impossible. Infrastructure partially shipped; remaining work is pilot, panel roll-out, and lint.
+
+### FASE 5 TER
+God-hook and god-component split program: break `use-lavoratori-data` and `use-selected-worker-editor` into responsibility hooks; split giant views; apply `React.memo`/`useCallback`; soft ESLint size warnings (500 LOC hooks, 800 LOC components).
+
+### FASE 5 QUATER
+Residual complex forms not covered by BIS roll-out: profile header, multi-field submit modals, cross-field validation.
+
+### Target B
+Characterization testing workflow from `docs/testing-strategy.md`: pin observable behavior at a file's public seam just before splitting it; split under green; no DOM snapshots.
+
+### Smart hook + thin shell
+View split pattern for god-components: extract orchestration logic into a dedicated hook (e.g. `use-gate1-view`); the view file becomes a thin composer that wires hooks to presentational sub-components.

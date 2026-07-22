@@ -1,10 +1,5 @@
-export {
-  ADDRESS_FIELD_BINDINGS,
-  FAMILY_FIELD_BINDINGS,
-  PROCESS_FIELD_BINDINGS,
-  mapCardData,
-  normalizeLookupPatchLabels,
-  useCrmPipelinePreview,
-} from "./use-crm-pipeline-preview"
-
+export { useCrmPipelinePreview } from "./use-crm-pipeline-preview"
 export { useCrmAssegnazione } from "./use-crm-assegnazione"
+export { useFamigliaProcessoDuplicate } from "./use-famiglia-processo-duplicate"
+export { useFamigliaProcessoEditMode } from "./use-famiglia-processo-edit-mode"
+export { useFamigliaProcessoSectionScroll } from "./use-famiglia-processo-section-scroll"

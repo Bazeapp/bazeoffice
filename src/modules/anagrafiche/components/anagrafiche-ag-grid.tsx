@@ -14,6 +14,7 @@ import * as React from "react"
 import type { AnagraficaRow, AnagraficheGroupResult, LookupColorMap } from "../types"
 import type { TableColumnMeta } from "@/lib/table-query"
 import { cn } from "@/lib/utils"
+import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { formatCellValue, toReadableColumnLabel } from "../lib"
@@ -26,57 +27,6 @@ const anagraficheGridTheme = themeQuartz.withParams({
 
 function normalizeLookupToken(value: string | null | undefined) {
   return String(value ?? "").trim().toLowerCase()
-}
-
-function getBadgeClassName(color: string | null | undefined) {
-  switch ((color ?? "").toLowerCase()) {
-    case "red":
-      return "border-red-200 bg-red-50 text-red-700"
-    case "rose":
-      return "border-rose-200 bg-rose-50 text-rose-700"
-    case "orange":
-      return "border-orange-200 bg-orange-50 text-orange-700"
-    case "amber":
-      return "border-amber-200 bg-amber-50 text-amber-700"
-    case "yellow":
-      return "border-yellow-200 bg-yellow-50 text-yellow-700"
-    case "lime":
-      return "border-lime-200 bg-lime-50 text-lime-700"
-    case "green":
-      return "border-green-200 bg-green-50 text-green-700"
-    case "emerald":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700"
-    case "teal":
-      return "border-teal-200 bg-teal-50 text-teal-700"
-    case "cyan":
-      return "border-cyan-200 bg-cyan-50 text-cyan-700"
-    case "sky":
-      return "border-sky-200 bg-sky-50 text-sky-700"
-    case "blue":
-      return "border-blue-200 bg-blue-50 text-blue-700"
-    case "indigo":
-      return "border-indigo-200 bg-indigo-50 text-indigo-700"
-    case "violet":
-      return "border-violet-200 bg-violet-50 text-violet-700"
-    case "purple":
-      return "border-purple-200 bg-purple-50 text-purple-700"
-    case "fuchsia":
-      return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700"
-    case "pink":
-      return "border-pink-200 bg-pink-50 text-pink-700"
-    case "slate":
-      return "border-slate-200 bg-slate-50 text-slate-700"
-    case "gray":
-      return "border-gray-200 bg-gray-50 text-gray-700"
-    case "zinc":
-      return "border-zinc-200 bg-zinc-50 text-zinc-700"
-    case "neutral":
-      return "border-neutral-200 bg-neutral-50 text-neutral-700"
-    case "stone":
-      return "border-stone-200 bg-stone-50 text-stone-700"
-    default:
-      return "border-border bg-muted/60 text-foreground"
-  }
 }
 
 function resolveLookupColor(
@@ -159,7 +109,7 @@ function buildColumnDefs(
             <span
               className={cn(
                 "inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-2xs font-medium leading-4 whitespace-nowrap",
-                getBadgeClassName(color)
+                getLookupBadgeSoftClassName(color)
               )}
             >
               {renderedValue}

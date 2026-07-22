@@ -6,7 +6,7 @@ import { DetailSectionBlock } from "@/components/shared-next/detail-section-card
  * D2 — wrapper di sezione condiviso dalle Gate*Card (estratto da gate1-view).
  * Thin layer su DetailSectionBlock senza action di default.
  */
-export function GateInfoCard({
+export const GateInfoCard = React.memo(function GateInfoCard({
   title,
   icon,
   titleAction,
@@ -28,4 +28,4 @@ export function GateInfoCard({
       {children}
     </DetailSectionBlock>
   );
-}
+});

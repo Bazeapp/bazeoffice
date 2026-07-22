@@ -4,6 +4,7 @@ import {
   attachmentPathToPublicUrl,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
+import { hashString } from "@/lib/utils"
 
 const UPPERCASE_TOKENS = new Set(["id", "url", "utm", "seo", "wa", "inps", "uuid"])
 export const DEFAULT_WORKER_AVATARS = ["avatar1.png", "avatar2.png", "avatar3.png", "avatar4.png"] as const
@@ -291,13 +292,6 @@ export function shouldDisableWorkerImages() {
   return new URLSearchParams(window.location.search).get("noWorkerImages") === "1"
 }
 
-function hashString(input: string) {
-  let hash = 0
-  for (let index = 0; index < input.length; index += 1) {
-    hash = (hash * 31 + input.charCodeAt(index)) | 0
-  }
-  return Math.abs(hash)
-}
 
 export function toPublicAssetUrl(fileName: string) {
   const baseUrl = import.meta.env.BASE_URL || "/"

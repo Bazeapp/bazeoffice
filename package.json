@@ -21,6 +21,7 @@
     "e2e": "node e2e/ensure-supabase.mjs && playwright test",
     "e2e:ui": "node e2e/ensure-supabase.mjs && playwright test --ui",
     "e2e:dev": "node e2e/ensure-supabase.mjs && E2E_WEB_SERVER=dev playwright test",
+    "e2e:failed": "npm run e2e:dev -- --last-failed",
     "storybook": "storybook dev -p 6006 --no-open",
     "build-storybook": "storybook build"
   },

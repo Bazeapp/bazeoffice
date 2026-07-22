@@ -1,7 +1,5 @@
 import * as React from "react"
-import type { ComponentType } from "react"
 import {
-  BadgeCheckIcon,
   BabyIcon,
   CalendarDaysIcon,
   Clock3Icon,
@@ -9,14 +7,24 @@ import {
   FlagIcon,
   HomeIcon,
   MapPinIcon,
-  MinusCircleIcon,
   PhoneIcon,
-  ShieldCheckIcon,
-  XCircleIcon,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { getLookupBadgeSoftClassName } from "@/lib/lookup-color-styles"
+import {
+  formatCreatedAtLabel,
+  formatOtherSelectionsLabel,
+  formatTravelTimeLabel,
+  formatYearsLabel,
+  getExperienceLevel,
+  getWorkerCardBadgeClassName,
+  getWorkerCardInitials,
+  getWorkerStatusSoftClassName,
+} from "../lib/card-utils"
+import {
+  getWorkerQualificationStatus,
+  type WorkerQualificationStatus,
+} from "../lib/status-utils"
 import { RelatedActiveSearchCard } from "@/modules/ricerca/components/worker-pipeline-summary-cards"
 import { RecordCard } from "@/components/shared-next/record-card"
 import { HeicAwareAvatar } from "@/components/shared-next/heic-aware-avatar"
@@ -95,17 +103,6 @@ export type LavoratoreListItem = {
   otherActiveSelections?: WorkerOtherSelectionSummary | null
 }
 
-function initialsFromName(name: string) {
-  const parts = name
-    .split(" ")
-    .map((part) => part.trim())
-    .filter(Boolean)
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("")
-}
-
 type LavoratoreCardProps = {
   worker: LavoratoreListItem
   isActive: boolean
@@ -133,118 +130,6 @@ type LavoratoreCardProps = {
   cardTestId?: string
 }
 
-type WorkerQualificationStatus = {
-  label: "Non qualificato" | "Non idoneo" | "Qualificato" | "Idoneo" | "Certificato"
-  ringClassName: string
-  badgeClassName: string
-  icon: ComponentType<{ className?: string }>
-}
-
-const DEFAULT_BLUE_BADGE_CLASS_NAME =
-  "border-blue-200 bg-blue-100 text-blue-700"
-
-function getWorkerQualificationStatus(worker: LavoratoreListItem): WorkerQualificationStatus {
-  if (worker.isCertificato) {
-    return {
-      label: "Certificato",
-      ringClassName: "ring-2 ring-emerald-600/40",
-      badgeClassName: "bg-success text-foreground-on-accent",
-      icon: BadgeCheckIcon,
-    }
-  }
-
-  if (worker.isIdoneo) {
-    return {
-      label: "Idoneo",
-      ringClassName: "ring-2 ring-emerald-400/40",
-      badgeClassName: "bg-emerald-400 text-emerald-950",
-      icon: ShieldCheckIcon,
-    }
-  }
-
-  if (worker.isQualified && !worker.isIdoneo) {
-    return {
-      label: "Non idoneo",
-      ringClassName: "ring-2 ring-amber-400/40",
-      badgeClassName: "bg-amber-300 text-amber-950",
-      icon: XCircleIcon,
-    }
-  }
-
-  if (worker.isQualified) {
-    return {
-      label: "Qualificato",
-      ringClassName: "ring-2 ring-emerald-300/40",
-      badgeClassName: "bg-emerald-300 text-emerald-950",
-      icon: CheckCircle2Icon,
-    }
-  }
-
-  return {
-    label: "Non qualificato",
-    ringClassName: "ring-2 ring-zinc-300/50",
-    badgeClassName: "bg-zinc-300 text-zinc-900",
-    icon: MinusCircleIcon,
-  }
-}
-
-function getBadgeClassName(color: string | null | undefined) {
-  void color
-  return DEFAULT_BLUE_BADGE_CLASS_NAME
-}
-
-function getStatusSoftClassName(
-  workerColor: string | null | undefined,
-  statusLabel: string
-) {
-  if (workerColor) return getLookupBadgeSoftClassName(workerColor)
-  void statusLabel
-  return DEFAULT_BLUE_BADGE_CLASS_NAME
-}
-
-function formatYearsLabel(value: number) {
-  if (Number.isInteger(value)) return `${value} anni`
-  return `${value.toFixed(1).replace(".", ",")} anni`
-}
-
-function getExperienceLevel(value: number) {
-  if (!Number.isFinite(value)) {
-    return { activeSegments: 0, segmentClassName: "bg-muted-foreground/30" }
-  }
-  if (value < 2) {
-    return { activeSegments: 1, segmentClassName: "bg-orange-500" }
-  }
-  if (value <= 8) {
-    return { activeSegments: 2, segmentClassName: "bg-green-500" }
-  }
-  return { activeSegments: 3, segmentClassName: "bg-emerald-600" }
-}
-
-function formatOtherSelectionsLabel(count: number) {
-  if (count === 1) return "1 altra selezione"
-  return `${count} altre selezioni`
-}
-
-function formatTravelTimeLabel(minutes: number | null | undefined) {
-  if (minutes == null || !Number.isFinite(minutes)) return null
-  return `${Math.round(minutes)} min`
-}
-
-function formatCreatedAtLabel(value: string | null | undefined) {
-  if (!value) return "-"
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone: "Europe/Rome",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date)
-}
-
 function WorkerAvatarMedia({
   worker,
   qualificationStatus,
@@ -264,7 +149,7 @@ function WorkerAvatarMedia({
         src={worker.immagineUrl}
         type={worker.immagineType}
         alt={worker.nomeCompleto}
-        fallback={initialsFromName(worker.nomeCompleto)}
+        fallback={getWorkerCardInitials(worker.nomeCompleto)}
         className={qualificationStatus.ringClassName}
       />
       {showQualificationStatus ? (
@@ -453,7 +338,7 @@ export function LavoratoreCard({
             <Badge
               className={cn(
                 "h-5 px-2 text-2xs font-medium",
-                getStatusSoftClassName(worker.statoLavoratoreColor, workerStatusLabel),
+                getWorkerStatusSoftClassName(worker.statoLavoratoreColor, workerStatusLabel),
               )}
             >
               {workerStatusLabel}
@@ -472,7 +357,7 @@ export function LavoratoreCard({
                 key={`${worker.id}-ruolo-${index}-${role}`}
                 className={cn(
                   "h-5 px-2 text-2xs font-medium",
-                  getBadgeClassName(worker.tipoRuoloColor),
+                  getWorkerCardBadgeClassName(worker.tipoRuoloColor),
                 )}
               >
                 {role}
@@ -489,7 +374,7 @@ export function LavoratoreCard({
                 key={`${worker.id}-tipo-lavoro-${workType}`}
                 className={cn(
                   "h-5 w-fit px-2 text-2xs font-medium",
-                  getBadgeClassName(
+                  getWorkerCardBadgeClassName(
                     worker.tipoLavoriColors?.[workType] ?? worker.tipoLavoroColor,
                   ),
                 )}
@@ -506,7 +391,7 @@ export function LavoratoreCard({
         {worker.nazionalita || (worker.checkLavoriAccettabili?.length ?? 0) > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {worker.nazionalita ? (
-              <Badge className={cn("h-5 px-2 text-2xs font-medium", getBadgeClassName(null))}>
+              <Badge className={cn("h-5 px-2 text-2xs font-medium", getWorkerCardBadgeClassName(null))}>
                 <FlagIcon />
                 {worker.nazionalita}
               </Badge>
@@ -514,7 +399,7 @@ export function LavoratoreCard({
             {worker.checkLavoriAccettabili?.map((giorno) => (
               <Badge
                 key={`${worker.id}-giorno-${giorno}`}
-                className={cn("h-5 px-2 text-2xs font-medium", getBadgeClassName(null))}
+                className={cn("h-5 px-2 text-2xs font-medium", getWorkerCardBadgeClassName(null))}
               >
                 {giorno
                   .replace("Lavori di ", "")

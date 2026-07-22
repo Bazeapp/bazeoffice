@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test"
 
 import { E2E_LAVORATORI } from "../constants"
 import {
-  addCercaTextFilterCondition,
+  addCercaAdvancedFilterCondition,
   applyCercaAdvancedFilters,
   clearCercaAdvancedFilterConditions,
   clearSearchQuery,
@@ -81,7 +81,10 @@ test.describe("cerca lavoratori: list filters", () => {
 
     test("apply and reset toolbar filters narrow the worker list", async () => {
       await openCercaAdvancedFilters(cercaPage)
-      await addCercaTextFilterCondition(cercaPage, qualificatoTo.id)
+      await addCercaAdvancedFilterCondition(cercaPage, {
+        fieldLabel: "Followup Chiamata Idoneita",
+        value: E2E_LAVORATORI.followup.primaChiamata,
+      })
       await applyCercaAdvancedFilters(cercaPage)
       await expectLavoratoreCardVisibility(cercaPage, qualificatoTo.id, true)
       await expectLavoratoreCardVisibility(cercaPage, qualificatoMi.id, false)
