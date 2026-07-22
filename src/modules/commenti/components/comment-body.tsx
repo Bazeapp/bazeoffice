@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils"
+
 import { parseMentionMarkup } from "../lib/mentions"
 
 type CommentBodyProps = {
@@ -21,7 +23,7 @@ export function CommentBody({ body, className }: CommentBodyProps) {
           return (
             <span
               key={`${part.userId}-${index}`}
-              className="mx-0.5 inline-flex max-w-full items-center rounded-md bg-accent-soft px-1.5 py-px align-baseline text-[0.95em] font-medium text-accent-ink"
+              className="font-medium text-accent-ink"
               data-testid="comments-mention-highlight"
             >
               @{part.label}
