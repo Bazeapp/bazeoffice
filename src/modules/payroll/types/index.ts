@@ -1,4 +1,23 @@
+export type {
+  CedolinoDetailCedolinoProps,
+  CedolinoDetailFeedbackProps,
+  CedolinoDetailHeaderProps,
+  CedolinoDetailPagamentoProps,
+  CedolinoDetailPresenzeProps,
+  CedolinoDetailRapportoProps,
+  CedolinoDetailSheetProps,
+  PagamentoAutomationId,
+  PayrollBoardColumnProps,
+  PayrollOverviewViewProps,
+} from "./payroll-overview"
 export type { ContributoInpsRecord } from "./contributo-inps"
+export type {
+  ContributiColumnData,
+  ContributiMetric,
+  ContributiPeriod,
+  ContributiStageDefinition,
+  ContributoInpsDetailSheetProps,
+} from "./contributi-inps"
 export type {
   ContributoInpsBoardCardData,
   ContributoQuarterValue,

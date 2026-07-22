@@ -15,6 +15,12 @@ import {
   toQueryBuilderFields,
   toReadableColumnLabel,
 } from "../lib"
+import {
+  downloadCsv,
+  getOrderedRecordFields,
+  getRecordTitle,
+  getTabLabel,
+} from "../lib/table-view-utils"
 import { createEmptyGroup } from "@/components/data-table/data-table-filters"
 import { Button } from "@/components/ui/button"
 import {
@@ -61,49 +67,6 @@ type TableQueryState = {
 
 const DEFAULT_PAGE_SIZE = 50
 const EXPORT_PAGE_SIZE = 500
-
-function getRecordTitle(row: AnagraficaRow) {
-  const fullName = [row.nome, row.cognome]
-    .map((value) => (typeof value === "string" ? value.trim() : ""))
-    .filter(Boolean)
-    .join(" ")
-
-  if (fullName) return fullName
-
-  for (const key of ["nome", "titolo", "name", "id"]) {
-    const value = row[key]
-    if (typeof value === "string" && value.trim()) return value
-    if (typeof value === "number") return String(value)
-  }
-
-  return "Dettaglio record"
-}
-
-function getTabLabel(tab: TabValue) {
-  switch (tab) {
-    case "famiglie":
-      return "Famiglia"
-    case "processi":
-      return "Processo"
-    case "lavoratori":
-      return "Lavoratore"
-    case "mesi_lavorati":
-      return "Mese lavorato"
-    case "pagamenti":
-      return "Pagamento"
-    case "selezioni_lavoratori":
-      return "Selezione lavoratore"
-    case "rapporti_lavorativi":
-      return "Rapporto lavorativo"
-  }
-}
-
-
-function getOrderedRecordFields(row: AnagraficaRow, columns: TableColumnMeta[]) {
-  const orderedKeys = columns.map((column) => column.name)
-  const extraKeys = Object.keys(row).filter((key) => !orderedKeys.includes(key))
-  return [...orderedKeys, ...extraKeys].filter((key) => key in row)
-}
 
 function renderReadonlyValue(value: unknown) {
   if (value === null || value === undefined || value === "") {
@@ -192,40 +155,6 @@ function AnagraficaRecordSheet({
       </SheetContent>
     </Sheet>
   )
-}
-
-function csvEscape(value: unknown) {
-  if (value === null || value === undefined) return ""
-
-  const serialized = Array.isArray(value)
-    ? value.map((item) => formatCellValue(item)).join("; ")
-    : typeof value === "object"
-      ? JSON.stringify(value)
-      : String(value)
-
-  return `"${serialized.replace(/"/g, '""')}"`
-}
-
-function downloadCsv(filename: string, rows: AnagraficaRow[], columns: TableColumnMeta[]) {
-  const keysFromColumns = columns.map((column) => column.name)
-  const extraKeys = rows.flatMap((row) => Object.keys(row)).filter((key) => !keysFromColumns.includes(key))
-  const keys = [...keysFromColumns, ...Array.from(new Set(extraKeys))].filter((key) =>
-    rows.some((row) => key in row)
-  )
-
-  const header = keys.map((key) => csvEscape(toReadableColumnLabel(key))).join(",")
-  const body = rows.map((row) => keys.map((key) => csvEscape(row[key])).join(",")).join("\n")
-  const csv = [header, body].filter(Boolean).join("\n")
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement("a")
-
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
 }
 
 async function buildProcessExportQuery(

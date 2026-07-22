@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { FieldDescription, FieldSet, FieldLabel } from "@/components/ui/field"
+import { FieldInput } from "@/components/forms/field-components"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -53,8 +54,10 @@ import {
   normalizeAttachmentArray,
 } from "@/lib/attachments"
 import { supabase } from "@/lib/supabase-client"
+import { sanitizeFileName } from "@/lib/file-utils"
 import { cn } from "@/lib/utils"
 import type { DocumentoLavoratoreRecord } from "../types/documento-lavoratore"
+import { FieldLookupSelect } from "./gate1/gate-form-fields"
 
 const EMPTY_SELECT_VALUE = "none"
 
@@ -93,14 +96,15 @@ type DocumentsCardProps = {
   statoDocumentiOptions: LookupOption[]
   lookupColorsByDomain: Map<string, string>
   showAdministrativeData?: boolean
+  documentsPersistMode?: "nested-form" | "parent-form"
   administrativeValues?: AdministrativeValues
   naspiInputValue?: string
   ibanInputValue?: string
   stripeAccountInputValue?: string
   onToggleEdit: () => void
-  onVerificationChange: (value: string) => void
-  onStatoDocumentiChange: (value: string) => void
-  onNaspiChange: (value: string) => void
+  onVerificationChange?: (value: string) => void
+  onStatoDocumentiChange?: (value: string) => void
+  onNaspiChange?: (value: string) => void
   onIbanChange?: (value: string) => void
   onStripeAccountChange?: (value: string) => void
   onGenerateStripeAccount?: () => void | Promise<unknown>
@@ -150,14 +154,6 @@ const ATTACHMENT_GROUPS: AttachmentGroupConfig[] = [
     slots: [{ label: "Allegato", field: "allegato_ricevuta_rinnovo_permesso" }],
   },
 ]
-
-function sanitizeFileName(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-}
 
 function pickAttachmentValue(
   documents: DocumentoLavoratoreRecord[],
@@ -510,6 +506,7 @@ export function DocumentsCard({
   statoDocumentiOptions,
   lookupColorsByDomain,
   showAdministrativeData = true,
+  documentsPersistMode = "nested-form",
   administrativeValues,
   naspiInputValue,
   ibanInputValue,
@@ -524,6 +521,7 @@ export function DocumentsCard({
   onDocumentUpsert,
   onUploadError,
 }: DocumentsCardProps) {
+  const useParentForm = documentsPersistMode === "parent-form"
   const [selectedPreview, setSelectedPreview] = React.useState<AttachmentLink | null>(null)
   const [uploadingField, setUploadingField] =
     React.useState<keyof DocumentoLavoratoreRecord | null>(null)
@@ -664,6 +662,14 @@ export function DocumentsCard({
               Check documenti verificati da Baze
             </FieldLabel>
             {isEditing ? (
+              useParentForm ? (
+                <FieldLookupSelect
+                  name="stato_verifica_documenti"
+                  options={verificationOptions}
+                  placeholder="Seleziona stato verifica"
+                  disabled={isUpdating}
+                />
+              ) : (
               <Select
                 value={getLookupSelectValue(
                   draft.stato_verifica_documenti,
@@ -671,7 +677,7 @@ export function DocumentsCard({
                   EMPTY_SELECT_VALUE,
                 )}
                 onValueChange={(value) =>
-                  onVerificationChange(value === EMPTY_SELECT_VALUE ? "" : value)
+                  onVerificationChange?.(value === EMPTY_SELECT_VALUE ? "" : value)
                 }
                 disabled={isUpdating}
               >
@@ -690,6 +696,7 @@ export function DocumentsCard({
                   ))}
                 </SelectContent>
               </Select>
+              )
             ) : (
               <div className="flex min-h-11 items-center">
                 <ReadOnlyLookupBadge
@@ -706,6 +713,14 @@ export function DocumentsCard({
               Stato documenti
             </FieldLabel>
             {isEditing ? (
+              useParentForm ? (
+                <FieldLookupSelect
+                  name="documenti_in_regola"
+                  options={statoDocumentiOptions}
+                  placeholder="Seleziona stato documenti"
+                  disabled={isUpdating}
+                />
+              ) : (
               <Select
                 value={getLookupSelectValue(
                   draft.documenti_in_regola,
@@ -713,7 +728,7 @@ export function DocumentsCard({
                   EMPTY_SELECT_VALUE,
                 )}
                 onValueChange={(value) =>
-                  onStatoDocumentiChange(value === EMPTY_SELECT_VALUE ? "" : value)
+                  onStatoDocumentiChange?.(value === EMPTY_SELECT_VALUE ? "" : value)
                 }
                 disabled={isUpdating}
               >
@@ -732,6 +747,7 @@ export function DocumentsCard({
                   ))}
                 </SelectContent>
               </Select>
+              )
             ) : (
               <div className="flex min-h-11 items-center">
                 <ReadOnlyLookupBadge
@@ -781,11 +797,19 @@ export function DocumentsCard({
           </FieldLabel>
           {isEditing ? (
             <div className="space-y-2">
-              <Input
-                type="date"
-                value={naspiInputValue ?? selectedValues.data_scadenza_naspi}
-                onChange={(event) => onNaspiChange(event.target.value)}
-              />
+              {useParentForm ? (
+                <FieldInput
+                  name="data_scadenza_naspi_doc"
+                  type="date"
+                  disabled={isUpdating}
+                />
+              ) : (
+                <Input
+                  type="date"
+                  value={naspiInputValue ?? selectedValues.data_scadenza_naspi}
+                  onChange={(event) => onNaspiChange?.(event.target.value)}
+                />
+              )}
               <FieldDescription>Da inserire solo se e in Naspi.</FieldDescription>
             </div>
           ) : (

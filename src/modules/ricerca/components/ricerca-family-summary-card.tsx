@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getTagClassName } from "@/modules/lavoratori/lib"
+import { formatBadgeLabel } from "@/lib/format-utils"
 import { STATI_RICERCA_CANONICI } from "../lib/stati-ricerca";
 import type { CrmPipelineCardData, LookupOptionsByField } from "@/modules/crm/types"
 
@@ -32,15 +33,6 @@ function renderValue(value: string | null | undefined) {
   if (!value) return "-";
   const normalized = value.trim();
   return normalized ? normalized : "-";
-}
-
-function formatBadgeLabel(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replaceAll("/", " / ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function selectedOptionValue(

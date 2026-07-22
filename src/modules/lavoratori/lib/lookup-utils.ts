@@ -22,6 +22,15 @@ export function normalizeLookupComparableToken(value: unknown) {
     .trim()
 }
 
+export function getLookupDisplayOption(
+  options: LookupOption[],
+  value: string,
+) {
+  return options.find(
+    (option) => option.label === value || option.value === value,
+  )
+}
+
 export function findLookupOption(
   options: LookupOption[],
   value: string | null | undefined,

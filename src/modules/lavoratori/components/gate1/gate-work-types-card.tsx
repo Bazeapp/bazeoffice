@@ -1,49 +1,35 @@
 import * as React from "react";
 import { BadgeCheckIcon, PencilIcon } from "lucide-react";
+import { useWatch } from "react-hook-form";
 
+import { FieldInput } from "@/components/forms/field-components";
 import { ExperienceReferencesCard } from "../../components/experience-references-card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { normalizeDomesticRoleDbLabels } from "../../lib/base-utils";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { normalizeDomesticRoleLabels } from "../../lib/base-utils";
-import {
-  getLookupSelectValue,
+  getLookupDisplayOption,
   getTagClassName,
   resolveLookupColor,
-  resolveLookupSingleValueOptions,
 } from "../../lib/lookup-utils";
-import { GateInfoCard } from "./gate-info-card";
 import {
-  EMPTY_SELECT_VALUE,
-  GateAllowedWorkField,
-  getLookupDisplayOption,
-} from "./gate-field-primitives";
+  FieldAllowedWorkSelect,
+  FieldLookupSelect,
+} from "./gate-form-fields";
+import { GateInfoCard } from "./gate-info-card";
 
 /**
  * D2 — card "Tipologia lavori" estratta da gate1-view.
- * Prop-driven (incapsula ExperienceReferencesCard), React.memo.
+ * Field roll-out: autosave via gateFieldsForm.
  */
 export const GateWorkTypesCard = React.memo(function GateWorkTypesCard({
   workerId,
-  haiReferenze,
   referenzeOptions,
-  allowedWorks,
   allowedWorkOptions,
   isEditing,
   showReferencesField = false,
   showEditAction = false,
   onToggleEdit,
-  onReferenzeChange,
   experienceDraft,
-  selectedAnniEsperienzaColf,
-  selectedAnniEsperienzaBadante,
-  selectedAnniEsperienzaBabysitter,
   experiences,
   experiencesLoading,
   references,
@@ -53,34 +39,21 @@ export const GateWorkTypesCard = React.memo(function GateWorkTypesCard({
   experienceTipoRapportoOptions,
   referenceStatusOptions,
   isUpdatingExperience,
-  onAllowedWorksChange,
-  onAnniEsperienzaColfChange,
-  onAnniEsperienzaBadanteChange,
-  onAnniEsperienzaBabysitterChange,
   onExperiencePatch,
   onExperienceCreate,
   onReferencePatch,
   onReferenceCreate,
 }: {
   workerId: string | null;
-  haiReferenze: string;
   referenzeOptions: Array<{ label: string; value: string }>;
-  allowedWorks: string[];
   allowedWorkOptions: Array<{ label: string; value: string }>;
   isEditing: boolean;
   showReferencesField?: boolean;
   showEditAction?: boolean;
   onToggleEdit?: () => void;
-  onReferenzeChange: (value: string) => void;
   experienceDraft: {
-    anni_esperienza_colf: string;
-    anni_esperienza_badante: string;
-    anni_esperienza_babysitter: string;
     situazione_lavorativa_attuale: string;
   };
-  selectedAnniEsperienzaColf: string;
-  selectedAnniEsperienzaBadante: string;
-  selectedAnniEsperienzaBabysitter: string;
   experiences: Parameters<typeof ExperienceReferencesCard>[0]["experiences"];
   experiencesLoading: boolean;
   references: Parameters<typeof ExperienceReferencesCard>[0]["references"];
@@ -90,10 +63,6 @@ export const GateWorkTypesCard = React.memo(function GateWorkTypesCard({
   experienceTipoRapportoOptions: Array<{ label: string; value: string }>;
   referenceStatusOptions: Array<{ label: string; value: string }>;
   isUpdatingExperience: boolean;
-  onAllowedWorksChange: (values: string[]) => void;
-  onAnniEsperienzaColfChange: (value: string) => void;
-  onAnniEsperienzaBadanteChange: (value: string) => void;
-  onAnniEsperienzaBabysitterChange: (value: string) => void;
   onExperiencePatch: Parameters<
     typeof ExperienceReferencesCard
   >[0]["onExperiencePatch"];
@@ -107,10 +76,29 @@ export const GateWorkTypesCard = React.memo(function GateWorkTypesCard({
     typeof ExperienceReferencesCard
   >[0]["onReferenceCreate"];
 }) {
+  const allowedWorks = useWatch({ name: "tipo_lavoro_domestico" }) as
+    | string[]
+    | undefined;
+  const haiReferenze = useWatch({ name: "hai_referenze" }) as string | undefined;
+  const anniColf = useWatch({ name: "anni_esperienza_colf" }) as
+    | string
+    | undefined;
+  const anniBadante = useWatch({ name: "anni_esperienza_badante" }) as
+    | string
+    | undefined;
+  const anniBabysitter = useWatch({ name: "anni_esperienza_babysitter" }) as
+    | string
+    | undefined;
+
   const allowedWorkLabels = React.useMemo(
-    () => normalizeDomesticRoleLabels(allowedWorks),
+    () => normalizeDomesticRoleDbLabels(allowedWorks ?? []),
     [allowedWorks],
   );
+  const haiReferenzeValue = typeof haiReferenze === "string" ? haiReferenze : "";
+  const anniColfValue = typeof anniColf === "string" ? anniColf : "";
+  const anniBadanteValue = typeof anniBadante === "string" ? anniBadante : "";
+  const anniBabysitterValue =
+    typeof anniBabysitter === "string" ? anniBabysitter : "";
 
   return (
     <GateInfoCard
@@ -143,35 +131,16 @@ export const GateWorkTypesCard = React.memo(function GateWorkTypesCard({
         <div className="space-y-2">
           <p className="text-sm">Referenze verificabili</p>
           {isEditing ? (
-            <Select
-              value={getLookupSelectValue(
-                haiReferenze,
-                referenzeOptions,
-                EMPTY_SELECT_VALUE,
-              )}
-              onValueChange={(value) =>
-                onReferenzeChange(value === EMPTY_SELECT_VALUE ? "" : value)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona referenze" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                {resolveLookupSingleValueOptions(
-                  haiReferenze,
-                  referenzeOptions,
-                ).map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FieldLookupSelect
+              name="hai_referenze"
+              options={referenzeOptions}
+              placeholder="Seleziona referenze"
+            />
           ) : (
             <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
-              {getLookupDisplayOption(referenzeOptions, haiReferenze)?.label ||
-                haiReferenze ||
+              {getLookupDisplayOption(referenzeOptions, haiReferenzeValue)
+                ?.label ||
+                haiReferenzeValue ||
                 "-"}
             </div>
           )}
@@ -183,10 +152,9 @@ export const GateWorkTypesCard = React.memo(function GateWorkTypesCard({
           Quali lavori puo svolgere? (Assessment recruiter)
         </p>
         {isEditing ? (
-          <GateAllowedWorkField
-            value={allowedWorks}
+          <FieldAllowedWorkSelect
+            name="tipo_lavoro_domestico"
             options={allowedWorkOptions}
-            onChange={onAllowedWorksChange}
           />
         ) : allowedWorkLabels.length > 0 ? (
           <div className="flex flex-wrap gap-2">
@@ -216,18 +184,15 @@ export const GateWorkTypesCard = React.memo(function GateWorkTypesCard({
             Quanti anni di esperienza ha come Colf?
           </p>
           {isEditing ? (
-            <Input
+            <FieldInput
+              name="anni_esperienza_colf"
               type="number"
               min="0"
               step="1"
-              value={selectedAnniEsperienzaColf}
-              onChange={(event) =>
-                onAnniEsperienzaColfChange(event.target.value)
-              }
             />
           ) : (
             <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
-              {selectedAnniEsperienzaColf || "-"}
+              {anniColfValue || "-"}
             </div>
           )}
         </div>
@@ -236,18 +201,15 @@ export const GateWorkTypesCard = React.memo(function GateWorkTypesCard({
             Quanti anni di esperienza ha come Babysitter?
           </p>
           {isEditing ? (
-            <Input
+            <FieldInput
+              name="anni_esperienza_babysitter"
               type="number"
               min="0"
               step="1"
-              value={selectedAnniEsperienzaBabysitter}
-              onChange={(event) =>
-                onAnniEsperienzaBabysitterChange(event.target.value)
-              }
             />
           ) : (
             <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
-              {selectedAnniEsperienzaBabysitter || "-"}
+              {anniBabysitterValue || "-"}
             </div>
           )}
         </div>
@@ -256,18 +218,15 @@ export const GateWorkTypesCard = React.memo(function GateWorkTypesCard({
             Quanti anni di esperienza ha come Badante?
           </p>
           {isEditing ? (
-            <Input
+            <FieldInput
+              name="anni_esperienza_badante"
               type="number"
               min="0"
               step="1"
-              value={selectedAnniEsperienzaBadante}
-              onChange={(event) =>
-                onAnniEsperienzaBadanteChange(event.target.value)
-              }
             />
           ) : (
             <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
-              {selectedAnniEsperienzaBadante || "-"}
+              {anniBadanteValue || "-"}
             </div>
           )}
         </div>
@@ -290,16 +249,16 @@ export const GateWorkTypesCard = React.memo(function GateWorkTypesCard({
         experienceTipoLavoroOptions={experienceTipoLavoroOptions}
         experienceTipoRapportoOptions={experienceTipoRapportoOptions}
         referenceStatusOptions={referenceStatusOptions}
-        selectedAnniEsperienzaColf={selectedAnniEsperienzaColf}
-        selectedAnniEsperienzaBadante={selectedAnniEsperienzaBadante}
-        selectedAnniEsperienzaBabysitter={selectedAnniEsperienzaBabysitter}
+        selectedAnniEsperienzaColf={anniColfValue}
+        selectedAnniEsperienzaBadante={anniBadanteValue}
+        selectedAnniEsperienzaBabysitter={anniBabysitterValue}
         selectedSituazioneLavorativaAttuale={
           experienceDraft.situazione_lavorativa_attuale
         }
         onToggleEdit={onToggleEdit ?? (() => {})}
-        onAnniEsperienzaColfChange={onAnniEsperienzaColfChange}
-        onAnniEsperienzaBadanteChange={onAnniEsperienzaBadanteChange}
-        onAnniEsperienzaBabysitterChange={onAnniEsperienzaBabysitterChange}
+        onAnniEsperienzaColfChange={() => {}}
+        onAnniEsperienzaBadanteChange={() => {}}
+        onAnniEsperienzaBabysitterChange={() => {}}
         onSituazioneLavorativaAttualeChange={() => {}}
         onExperiencePatch={onExperiencePatch}
         onExperienceCreate={onExperienceCreate}

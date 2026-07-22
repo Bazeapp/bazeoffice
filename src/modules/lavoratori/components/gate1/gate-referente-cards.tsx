@@ -1,7 +1,9 @@
 import * as React from "react";
 import { UsersIcon } from "lucide-react";
+import { useController, useWatch } from "react-hook-form";
 
 import { Avatar } from "@/components/ui/avatar";
+import { toAvatarRingClass } from "@/lib/utils";
 import { FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -15,15 +17,8 @@ import type { OperatoreOption } from "@/hooks/use-operatori-options";
 
 /**
  * D2 — card "Referente" di Gate 1, estratte da gate1-view.
- *
- * Componenti prop-driven puri (value + onChange via prop, niente gateDraft o
- * Context): l'orchestratore continua a fornire valore/handler. React.memo per
- * evitare re-render quando cambiano slice non correlate dell'orchestratore.
+ * Field roll-out: autosave via gateFieldsForm.
  */
-
-function toAvatarRingClass(legacyClassName: string) {
-  return legacyClassName.replace(/^after:border-/, "ring-2 ring-");
-}
 
 function OperatorSelectOption({ operator }: { operator: OperatoreOption }) {
   return (
@@ -43,34 +38,87 @@ function resolveOperatorLabel(value: string, options: OperatoreOption[]) {
   return options.find((option) => option.id === value)?.label ?? value;
 }
 
-export const GateReferenteCard = React.memo(function GateReferenteCard({
-  title = "Referente idoneità",
-  label = "Referente Gate 1",
-  value,
-  referenteCertificazioneValue,
+function ReferenteOperatorSelect({
+  name,
   options,
   disabled,
-  onChange,
+  placeholder,
 }: {
-  title?: string;
-  label?: string;
-  value: string;
-  referenteCertificazioneValue?: string;
+  name: string;
   options: OperatoreOption[];
   disabled?: boolean;
-  onChange: (value: string | null) => void;
+  placeholder: string;
 }) {
+  const { field } = useController({ name });
+  const value = typeof field.value === "string" ? field.value : "";
   const selectedOperator = value
     ? (options.find((option) => option.id === value) ?? null)
     : null;
-  const selectedCertificationOperator = referenteCertificazioneValue
-    ? (options.find(
-        (option) => option.id === referenteCertificazioneValue,
-      ) ?? null)
-    : null;
-  const showCertificationAssignment =
-    referenteCertificazioneValue !== undefined;
 
+  return (
+    <Select
+      value={value || "none"}
+      onValueChange={(nextValue) =>
+        field.onChange(nextValue === "none" ? "" : nextValue)
+      }
+      disabled={disabled}
+    >
+      <SelectTrigger>
+        {selectedOperator ? (
+          <OperatorSelectOption operator={selectedOperator} />
+        ) : (
+          <SelectValue placeholder={placeholder} />
+        )}
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">Nessun referente</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.id} value={option.id}>
+            <OperatorSelectOption operator={option} />
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ReferenteOperatorReadOnly({
+  name,
+  options,
+}: {
+  name: string;
+  options: OperatoreOption[];
+}) {
+  const value = useWatch({ name }) as string | undefined;
+  const normalized = typeof value === "string" ? value : "";
+  const selectedOperator = normalized
+    ? (options.find((option) => option.id === normalized) ?? null)
+    : null;
+
+  return (
+    <div className="text-foreground flex min-h-10 items-center rounded-md border bg-surface px-3 text-sm">
+      {selectedOperator ? (
+        <OperatorSelectOption operator={selectedOperator} />
+      ) : (
+        resolveOperatorLabel(normalized, options)
+      )}
+    </div>
+  );
+}
+
+export const GateReferenteCard = React.memo(function GateReferenteCard({
+  title = "Referente idoneità",
+  label = "Referente Gate 1",
+  showCertificationAssignment = true,
+  options,
+  disabled,
+}: {
+  title?: string;
+  label?: string;
+  showCertificationAssignment?: boolean;
+  options: OperatoreOption[];
+  disabled?: boolean;
+}) {
   return (
     <GateInfoCard
       title={title}
@@ -86,29 +134,12 @@ export const GateReferenteCard = React.memo(function GateReferenteCard({
         <div className="flex items-start gap-3 text-sm">
           <FieldLabel className="w-24 shrink-0">{label}</FieldLabel>
           <div className="min-w-0 flex-1 text-foreground">
-            <Select
-              value={value || "none"}
-              onValueChange={(nextValue) =>
-                onChange(nextValue === "none" ? null : nextValue)
-              }
+            <ReferenteOperatorSelect
+              name="referente_idoneita_id"
+              options={options}
               disabled={disabled}
-            >
-              <SelectTrigger>
-                {selectedOperator ? (
-                  <OperatorSelectOption operator={selectedOperator} />
-                ) : (
-                  <SelectValue placeholder="Seleziona referente Gate 1" />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nessun referente Gate 1</SelectItem>
-                {options.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    <OperatorSelectOption operator={option} />
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Seleziona referente Gate 1"
+            />
           </div>
         </div>
 
@@ -116,18 +147,10 @@ export const GateReferenteCard = React.memo(function GateReferenteCard({
           <div className="flex items-start gap-3 text-sm">
             <FieldLabel className="w-24 shrink-0">Referente Gate 2</FieldLabel>
             <div className="min-w-0 flex-1 text-foreground">
-              <div className="text-foreground flex min-h-10 items-center rounded-md border bg-surface px-3 text-sm">
-                {selectedCertificationOperator ? (
-                  <OperatorSelectOption
-                    operator={selectedCertificationOperator}
-                  />
-                ) : (
-                  resolveOperatorLabel(
-                    referenteCertificazioneValue ?? "",
-                    options,
-                  )
-                )}
-              </div>
+              <ReferenteOperatorReadOnly
+                name="referente_certificazione_id"
+                options={options}
+              />
             </div>
           </div>
         ) : null}
@@ -138,27 +161,12 @@ export const GateReferenteCard = React.memo(function GateReferenteCard({
 
 export const GateCertificationReferenteCard = React.memo(
   function GateCertificationReferenteCard({
-    referenteCertificazioneValue,
-    referenteIdoneitaValue,
     options,
     disabled,
-    onReferenteCertificazioneChange,
   }: {
-    referenteCertificazioneValue: string;
-    referenteIdoneitaValue: string;
     options: OperatoreOption[];
     disabled?: boolean;
-    onReferenteCertificazioneChange: (value: string | null) => void;
   }) {
-    const selectedCertificationOperator = referenteCertificazioneValue
-      ? (options.find(
-          (option) => option.id === referenteCertificazioneValue,
-        ) ?? null)
-      : null;
-    const selectedIdoneitaOperator = referenteIdoneitaValue
-      ? (options.find((option) => option.id === referenteIdoneitaValue) ?? null)
-      : null;
-
     return (
       <GateInfoCard
         title="Referente"
@@ -168,46 +176,22 @@ export const GateCertificationReferenteCard = React.memo(
           <div className="flex items-start gap-3 text-sm">
             <FieldLabel className="w-24 shrink-0">Referente Gate 2</FieldLabel>
             <div className="min-w-0 flex-1 text-foreground">
-              <Select
-                value={referenteCertificazioneValue || "none"}
-                onValueChange={(nextValue) =>
-                  onReferenteCertificazioneChange(
-                    nextValue === "none" ? null : nextValue,
-                  )
-                }
+              <ReferenteOperatorSelect
+                name="referente_certificazione_id"
+                options={options}
                 disabled={disabled}
-              >
-                <SelectTrigger>
-                  {selectedCertificationOperator ? (
-                    <OperatorSelectOption
-                      operator={selectedCertificationOperator}
-                    />
-                  ) : (
-                    <SelectValue placeholder="Seleziona referente Gate 2" />
-                  )}
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nessun referente Gate 2</SelectItem>
-                  {options.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      <OperatorSelectOption operator={option} />
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Seleziona referente Gate 2"
+              />
             </div>
           </div>
 
           <div className="flex items-start gap-3 text-sm">
             <FieldLabel className="w-24 shrink-0">Referente Gate 1</FieldLabel>
             <div className="min-w-0 flex-1 text-foreground">
-              <div className="text-foreground flex min-h-10 items-center rounded-md border bg-surface px-3 text-sm">
-                {selectedIdoneitaOperator ? (
-                  <OperatorSelectOption operator={selectedIdoneitaOperator} />
-                ) : (
-                  resolveOperatorLabel(referenteIdoneitaValue, options)
-                )}
-              </div>
+              <ReferenteOperatorReadOnly
+                name="referente_idoneita_id"
+                options={options}
+              />
             </div>
           </div>
         </div>

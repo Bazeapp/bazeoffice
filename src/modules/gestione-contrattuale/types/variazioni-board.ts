@@ -1,3 +1,5 @@
+import type { DragEvent } from "react"
+
 import type { RapportoLavorativoRecord, VariazioneContrattualeRecord } from "@/types"
 
 export type VariazioniBoardCardData = {
@@ -23,4 +25,15 @@ export type VariazioniRapportoOption = {
   id: string
   label: string
   rapporto: RapportoLavorativoRecord
+}
+
+export type VariazioniBoardDragHandlers = {
+  draggingRecordId: string | null
+  dropTargetColumnId: string | null
+  onDragStartCard: (recordId: string) => void
+  onDragEndCard: () => void
+  onDragEnterColumn: (columnId: string) => void
+  onDragOverColumn: (columnId: string) => void
+  onDragLeaveColumn: (columnId: string, event: DragEvent<HTMLDivElement>) => void
+  onDropToColumn: (columnId: string, recordId: string | null) => void
 }

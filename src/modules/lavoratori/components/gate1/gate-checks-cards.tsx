@@ -1,30 +1,23 @@
 import * as React from "react";
 import { CalendarDaysIcon, PencilIcon, ShieldCheckIcon } from "lucide-react";
+import { useWatch } from "react-hook-form";
 
-import { WorkerShiftPreferencesFields } from "../../components/worker-shift-preferences-fields";
-import { Button } from "@/components/ui/button";
 import {
-  Combobox,
-  ComboboxChip,
-  ComboboxChips,
-  ComboboxChipsInput,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxValue,
-} from "@/components/ui/combobox";
-import { Input } from "@/components/ui/input";
+  FieldAcceptChoice,
+  FieldInput,
+  FieldMultiSelect,
+  type FieldChoiceOption,
+} from "@/components/forms/field-components";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { FieldLabel } from "@/components/ui/field";
 import {
   getLookupOptionLabel,
-  normalizeLookupDbLabels,
-  normalizeLookupOptionValues,
+  getTagClassName,
+  resolveLookupColor,
 } from "../../lib/lookup-utils";
 import { GateInfoCard } from "./gate-info-card";
-import {
-  GateAcceptField,
-  GateLookupBadge,
-} from "./gate-field-primitives";
+import { GateLookupBadge } from "./gate-field-primitives";
 
 /**
  * D2 — card "Check disponibilità" + "Tipologia turni" di Gate 1, estratte da
@@ -35,39 +28,28 @@ export const GateBazeChecksCard = React.memo(function GateBazeChecksCard({
   isEditing,
   showEditAction = false,
   onToggleEdit,
-  funzionamentoBaze,
   funzionamentoBazeOptions,
-  paga9,
   paga9Options,
-  pagaOrariaRichiesta,
-  multipliContratti,
   multipliContrattiOptions,
-  dataScadenzaNaspi,
   lookupColorsByDomain,
-  onFunzionamentoBazeChange,
-  onPaga9Change,
-  onPagaOrariaRichiestaChange,
-  onMultipliContrattiChange,
-  onDataScadenzaNaspiChange,
 }: {
   isEditing: boolean;
   showEditAction?: boolean;
   onToggleEdit?: () => void;
-  funzionamentoBaze: string;
   funzionamentoBazeOptions: Array<{ label: string; value: string }>;
-  paga9: string;
   paga9Options: Array<{ label: string; value: string }>;
-  pagaOrariaRichiesta: string;
-  multipliContratti: string;
   multipliContrattiOptions: Array<{ label: string; value: string }>;
-  dataScadenzaNaspi: string;
   lookupColorsByDomain: Map<string, string>;
-  onFunzionamentoBazeChange: (value: string) => void;
-  onPaga9Change: (value: string) => void;
-  onPagaOrariaRichiestaChange: (value: string) => void;
-  onMultipliContrattiChange: (value: string) => void;
-  onDataScadenzaNaspiChange: (value: string) => void;
 }) {
+  const paga9 = useWatch({ name: "check_accetta_paga_9_euro_netti" }) as
+    | string
+    | undefined;
+  const pagaOrariaRichiesta = useWatch({ name: "paga_oraria_richiesta" }) as
+    | string
+    | undefined;
+  const dataScadenzaNaspi = useWatch({ name: "data_scadenza_naspi_worker" }) as
+    | string
+    | undefined;
   const isPagaMinimaDisabled = paga9 === "Accetta";
 
   return (
@@ -97,48 +79,24 @@ export const GateBazeChecksCard = React.memo(function GateBazeChecksCard({
         ) : undefined
       }
     >
-      <div className="space-y-2">
-        <p className="text-sm">Accetta funzionamento Baze?</p>
-        {isEditing ? (
-          <GateAcceptField
-            value={funzionamentoBaze}
-            options={funzionamentoBazeOptions}
-            onChange={onFunzionamentoBazeChange}
-            domain="lavoratori.check_accetta_funzionamento_baze"
-            lookupColorsByDomain={lookupColorsByDomain}
-          />
-        ) : (
-          <GateLookupBadge
-            domain="lavoratori.check_accetta_funzionamento_baze"
-            value={funzionamentoBaze}
-            options={funzionamentoBazeOptions}
-            lookupColorsByDomain={lookupColorsByDomain}
-          />
-        )}
-      </div>
+      <GateBazeCheckField
+        label="Accetta funzionamento Baze?"
+        name="check_accetta_funzionamento_baze"
+        domain="lavoratori.check_accetta_funzionamento_baze"
+        options={funzionamentoBazeOptions}
+        isEditing={isEditing}
+        lookupColorsByDomain={lookupColorsByDomain}
+      />
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,34rem)_minmax(0,22rem)] lg:items-start">
-        <div className="space-y-2">
-          <p className="text-sm">
-            Accetta di guadagnare 9€ netti (13,30€ lordi) con i lavori di Baze?
-          </p>
-          {isEditing ? (
-            <GateAcceptField
-              value={paga9}
-              options={paga9Options}
-              onChange={onPaga9Change}
-              domain="lavoratori.check_accetta_paga_9_euro_netti"
-              lookupColorsByDomain={lookupColorsByDomain}
-            />
-          ) : (
-            <GateLookupBadge
-              domain="lavoratori.check_accetta_paga_9_euro_netti"
-              value={paga9}
-              options={paga9Options}
-              lookupColorsByDomain={lookupColorsByDomain}
-            />
-          )}
-        </div>
+        <GateBazeCheckField
+          label="Accetta di guadagnare 9€ netti (13,30€ lordi) con i lavori di Baze?"
+          name="check_accetta_paga_9_euro_netti"
+          domain="lavoratori.check_accetta_paga_9_euro_netti"
+          options={paga9Options}
+          isEditing={isEditing}
+          lookupColorsByDomain={lookupColorsByDomain}
+        />
         <div
           className={
             isPagaMinimaDisabled ? "space-y-2 opacity-50" : "space-y-2"
@@ -149,14 +107,11 @@ export const GateBazeChecksCard = React.memo(function GateBazeChecksCard({
             richiede
           </p>
           {isEditing ? (
-            <Input
+            <FieldInput
+              name="paga_oraria_richiesta"
               type="number"
               min="0"
               step="0.5"
-              value={pagaOrariaRichiesta}
-              onChange={(event) =>
-                onPagaOrariaRichiestaChange(event.target.value)
-              }
               disabled={isPagaMinimaDisabled}
               placeholder="Inserisci paga oraria"
             />
@@ -168,34 +123,19 @@ export const GateBazeChecksCard = React.memo(function GateBazeChecksCard({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <p className="text-sm">Accetta di avere piu contratti?</p>
-        {isEditing ? (
-          <GateAcceptField
-            value={multipliContratti}
-            options={multipliContrattiOptions}
-            onChange={onMultipliContrattiChange}
-            domain="lavoratori.check_accetta_multipli_contratti"
-            lookupColorsByDomain={lookupColorsByDomain}
-          />
-        ) : (
-          <GateLookupBadge
-            domain="lavoratori.check_accetta_multipli_contratti"
-            value={multipliContratti}
-            options={multipliContrattiOptions}
-            lookupColorsByDomain={lookupColorsByDomain}
-          />
-        )}
-      </div>
+      <GateBazeCheckField
+        label="Accetta di avere piu contratti?"
+        name="check_accetta_multipli_contratti"
+        domain="lavoratori.check_accetta_multipli_contratti"
+        options={multipliContrattiOptions}
+        isEditing={isEditing}
+        lookupColorsByDomain={lookupColorsByDomain}
+      />
 
       <div className="space-y-2 max-w-xs">
         <p className="text-sm">Ha la Naspi? Indica la data in cui le scade</p>
         {isEditing ? (
-          <Input
-            type="date"
-            value={dataScadenzaNaspi}
-            onChange={(event) => onDataScadenzaNaspiChange(event.target.value)}
-          />
+          <FieldInput name="data_scadenza_naspi_worker" type="date" />
         ) : (
           <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
             {dataScadenzaNaspi || "-"}
@@ -206,69 +146,92 @@ export const GateBazeChecksCard = React.memo(function GateBazeChecksCard({
   );
 });
 
+function toAcceptFieldOptions(
+  domain: string,
+  options: Array<{ label: string; value: string }>,
+  lookupColorsByDomain: Map<string, string>,
+): FieldChoiceOption[] {
+  return options.map((option) => ({
+    value: option.value,
+    label: option.label,
+    className: getTagClassName(
+      resolveLookupColor(lookupColorsByDomain, domain, option.label) ??
+        (option.label === "Accetta"
+          ? "green"
+          : option.label === "Non accetta"
+            ? "orange"
+            : null),
+    ),
+  }));
+}
+
+function GateBazeCheckField({
+  label,
+  name,
+  domain,
+  options,
+  isEditing,
+  lookupColorsByDomain,
+}: {
+  label: string;
+  name: string;
+  domain: string;
+  options: Array<{ label: string; value: string }>;
+  isEditing: boolean;
+  lookupColorsByDomain: Map<string, string>;
+}) {
+  const value = useWatch({ name }) as string | undefined;
+  const fieldOptions = toAcceptFieldOptions(
+    domain,
+    options,
+    lookupColorsByDomain,
+  );
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm">{label}</p>
+      {isEditing ? (
+        <FieldAcceptChoice name={name} options={fieldOptions} />
+      ) : (
+        <GateLookupBadge
+          domain={domain}
+          value={value ?? ""}
+          options={options}
+          lookupColorsByDomain={lookupColorsByDomain}
+        />
+      )}
+    </div>
+  );
+}
+
 export const GateSpecificChecksCard = React.memo(
   function GateSpecificChecksCard({
-    mobilityValue,
-    mobilityOptions,
-    mobilityAnchor,
+    showMobility = false,
+    mobilityOptions = [],
     isUpdatingMobility = false,
     isBabysitterEnabled,
-    neonatiValue,
-    neonatiOptions,
-    multipliBambiniValue,
-    multipliBambiniOptions,
-    caniValue,
-    caniOptions,
-    caniGrandiValue,
-    caniGrandiOptions,
-    gattiValue,
-    gattiOptions,
-    scaleValue,
-    scaleOptions,
-    trasfertaValue,
+    babysittingNeonatiOptions,
+    babysittingMultipliBambiniOptions,
+    caseConCaniOptions,
+    caseConCaniGrandiOptions,
+    caseConGattiOptions,
+    scaleSoffittiOptions,
     trasfertaOptions,
     lookupColorsByDomain,
-    onMobilityChange,
-    onNeonatiChange,
-    onMultipliBambiniChange,
-    onCaniChange,
-    onCaniGrandiChange,
-    onGattiChange,
-    onScaleChange,
-    onTrasfertaChange,
   }: {
-    mobilityValue?: string[];
+    showMobility?: boolean;
     mobilityOptions?: Array<{ label: string; value: string }>;
-    mobilityAnchor?: React.RefObject<HTMLDivElement | null>;
     isUpdatingMobility?: boolean;
     isBabysitterEnabled: boolean;
-    neonatiValue: string;
-    neonatiOptions: Array<{ label: string; value: string }>;
-    multipliBambiniValue: string;
-    multipliBambiniOptions: Array<{ label: string; value: string }>;
-    caniValue: string;
-    caniOptions: Array<{ label: string; value: string }>;
-    caniGrandiValue: string;
-    caniGrandiOptions: Array<{ label: string; value: string }>;
-    gattiValue: string;
-    gattiOptions: Array<{ label: string; value: string }>;
-    scaleValue: string;
-    scaleOptions: Array<{ label: string; value: string }>;
-    trasfertaValue: string;
+    babysittingNeonatiOptions: Array<{ label: string; value: string }>;
+    babysittingMultipliBambiniOptions: Array<{ label: string; value: string }>;
+    caseConCaniOptions: Array<{ label: string; value: string }>;
+    caseConCaniGrandiOptions: Array<{ label: string; value: string }>;
+    caseConGattiOptions: Array<{ label: string; value: string }>;
+    scaleSoffittiOptions: Array<{ label: string; value: string }>;
     trasfertaOptions: Array<{ label: string; value: string }>;
     lookupColorsByDomain: Map<string, string>;
-    onMobilityChange?: (values: string[]) => void;
-    onNeonatiChange: (value: string) => void;
-    onMultipliBambiniChange: (value: string) => void;
-    onCaniChange: (value: string) => void;
-    onCaniGrandiChange: (value: string) => void;
-    onGattiChange: (value: string) => void;
-    onScaleChange: (value: string) => void;
-    onTrasfertaChange: (value: string) => void;
   }) {
-    const showMobility =
-      mobilityValue && mobilityOptions && mobilityAnchor && onMobilityChange;
-
     return (
       <GateInfoCard
         title="Check disponibilita aspetti specifici"
@@ -276,148 +239,164 @@ export const GateSpecificChecksCard = React.memo(
       >
         {showMobility ? (
           <div className="space-y-2">
-            <p className="text-sm">Mobilita</p>
-            <Combobox
-              multiple
-              autoHighlight
-              items={mobilityOptions.map((option) => option.value)}
-              value={normalizeLookupOptionValues(mobilityValue, mobilityOptions)}
-              onValueChange={(nextValues) =>
-                onMobilityChange(
-                  normalizeLookupDbLabels(
-                    nextValues as string[],
-                    mobilityOptions,
-                  ),
-                )
-              }
+            <FieldLabel>Mobilita</FieldLabel>
+            <FieldMultiSelect
+              name="come_ti_sposti"
+              options={mobilityOptions}
+              placeholder="Seleziona opzioni"
               disabled={isUpdatingMobility}
-            >
-              <ComboboxChips ref={mobilityAnchor} className="w-full">
-                <ComboboxValue>
-                  {(values) => (
-                    <React.Fragment>
-                      {values.map((value: string) => (
-                        <ComboboxChip key={value}>
-                          {getLookupOptionLabel(mobilityOptions, value)}
-                        </ComboboxChip>
-                      ))}
-                      <ComboboxChipsInput placeholder="Seleziona opzioni" />
-                    </React.Fragment>
-                  )}
-                </ComboboxValue>
-              </ComboboxChips>
-              <ComboboxContent anchor={mobilityAnchor} className="max-h-80">
-                <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
-                <ComboboxList className="max-h-72 overflow-y-auto">
-                  {(item) => (
-                    <ComboboxItem key={item} value={item}>
-                      {getLookupOptionLabel(mobilityOptions, item)}
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
+            />
           </div>
         ) : null}
 
-        <div className="space-y-2">
-          <p className={isBabysitterEnabled ? "text-sm" : "text-sm opacity-50"}>
-            Accetta lavori di babysitting con neonati?
-          </p>
-          <GateAcceptField
-            value={neonatiValue}
-            options={neonatiOptions}
-            onChange={onNeonatiChange}
-            domain="lavoratori.check_accetta_babysitting_neonati"
-            lookupColorsByDomain={lookupColorsByDomain}
-            disabled={!isBabysitterEnabled}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <p className={isBabysitterEnabled ? "text-sm" : "text-sm opacity-50"}>
-            Accetta lavori di babysitting con piu di un bambino?
-          </p>
-          <GateAcceptField
-            value={multipliBambiniValue}
-            options={multipliBambiniOptions}
-            onChange={onMultipliBambiniChange}
-            domain="lavoratori.check_accetta_babysitting_multipli_bambini"
-            lookupColorsByDomain={lookupColorsByDomain}
-            disabled={!isBabysitterEnabled}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-sm">
-            Accetta lavori in cui sono presenti cani in casa?
-          </p>
-          <GateAcceptField
-            value={caniValue}
-            options={caniOptions}
-            onChange={onCaniChange}
-            domain="lavoratori.check_accetta_case_con_cani"
-            lookupColorsByDomain={lookupColorsByDomain}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-sm">
-            Accetta anche se i cani sono grandi? (Pastori tedeschi, Rottweiler,
-            Pitbul ...)
-          </p>
-          <GateAcceptField
-            value={caniGrandiValue}
-            options={caniGrandiOptions}
-            onChange={onCaniGrandiChange}
-            domain="lavoratori.check_accetta_case_con_cani_grandi"
-            lookupColorsByDomain={lookupColorsByDomain}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-sm">
-            Accetta lavori in cui sono presenti gatti in casa?
-          </p>
-          <GateAcceptField
-            value={gattiValue}
-            options={gattiOptions}
-            onChange={onGattiChange}
-            domain="lavoratori.check_accetta_case_con_gatti"
-            lookupColorsByDomain={lookupColorsByDomain}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-sm">
-            Accetta lavori in cui deve salire sulle scale o pulire soffitti
-            alti?
-          </p>
-          <GateAcceptField
-            value={scaleValue}
-            options={scaleOptions}
-            onChange={onScaleChange}
-            domain="lavoratori.check_accetta_salire_scale_o_soffitti_alti"
-            lookupColorsByDomain={lookupColorsByDomain}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-sm">
-            Accetta lavori in cui sono richieste delle trasferte?
-          </p>
-          <GateAcceptField
-            value={trasfertaValue}
-            options={trasfertaOptions}
-            onChange={onTrasfertaChange}
-            domain="lavoratori.check_accetta_lavori_con_trasferta"
-            lookupColorsByDomain={lookupColorsByDomain}
-          />
-        </div>
+        <GateSpecificCheckField
+          label="Accetta lavori di babysitting con neonati?"
+          name="check_accetta_babysitting_neonati"
+          domain="lavoratori.check_accetta_babysitting_neonati"
+          options={babysittingNeonatiOptions}
+          lookupColorsByDomain={lookupColorsByDomain}
+          disabled={!isBabysitterEnabled}
+          dimLabelWhenDisabled
+        />
+        <GateSpecificCheckField
+          label="Accetta lavori di babysitting con piu di un bambino?"
+          name="check_accetta_babysitting_multipli_bambini"
+          domain="lavoratori.check_accetta_babysitting_multipli_bambini"
+          options={babysittingMultipliBambiniOptions}
+          lookupColorsByDomain={lookupColorsByDomain}
+          disabled={!isBabysitterEnabled}
+          dimLabelWhenDisabled
+        />
+        <GateSpecificCheckField
+          label="Accetta lavori in cui sono presenti cani in casa?"
+          name="check_accetta_case_con_cani"
+          domain="lavoratori.check_accetta_case_con_cani"
+          options={caseConCaniOptions}
+          lookupColorsByDomain={lookupColorsByDomain}
+        />
+        <GateSpecificCheckField
+          label="Accetta anche se i cani sono grandi? (Pastori tedeschi, Rottweiler, Pitbul ...)"
+          name="check_accetta_case_con_cani_grandi"
+          domain="lavoratori.check_accetta_case_con_cani_grandi"
+          options={caseConCaniGrandiOptions}
+          lookupColorsByDomain={lookupColorsByDomain}
+        />
+        <GateSpecificCheckField
+          label="Accetta lavori in cui sono presenti gatti in casa?"
+          name="check_accetta_case_con_gatti"
+          domain="lavoratori.check_accetta_case_con_gatti"
+          options={caseConGattiOptions}
+          lookupColorsByDomain={lookupColorsByDomain}
+        />
+        <GateSpecificCheckField
+          label="Accetta lavori in cui deve salire sulle scale o pulire soffitti alti?"
+          name="check_accetta_salire_scale_o_soffitti_alti"
+          domain="lavoratori.check_accetta_salire_scale_o_soffitti_alti"
+          options={scaleSoffittiOptions}
+          lookupColorsByDomain={lookupColorsByDomain}
+        />
+        <GateSpecificCheckField
+          label="Accetta lavori in cui sono richieste delle trasferte?"
+          name="check_accetta_lavori_con_trasferta"
+          domain="lavoratori.check_accetta_lavori_con_trasferta"
+          options={trasfertaOptions}
+          lookupColorsByDomain={lookupColorsByDomain}
+        />
       </GateInfoCard>
     );
   },
 );
+
+function GateSpecificCheckField({
+  label,
+  name,
+  domain,
+  options,
+  lookupColorsByDomain,
+  disabled = false,
+  dimLabelWhenDisabled = false,
+}: {
+  label: string;
+  name: string;
+  domain: string;
+  options: Array<{ label: string; value: string }>;
+  lookupColorsByDomain: Map<string, string>;
+  disabled?: boolean;
+  dimLabelWhenDisabled?: boolean;
+}) {
+  const fieldOptions = toAcceptFieldOptions(
+    domain,
+    options,
+    lookupColorsByDomain,
+  );
+
+  return (
+    <div className="space-y-2">
+      <p
+        className={
+          dimLabelWhenDisabled && disabled ? "text-sm opacity-50" : "text-sm"
+        }
+      >
+        {label}
+      </p>
+      <FieldAcceptChoice
+        name={name}
+        options={fieldOptions}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+function GateShiftPreferenceField({
+  label,
+  name,
+  domain,
+  options,
+  placeholder,
+  isEditing,
+  lookupColorsByDomain,
+}: {
+  label: string;
+  name: string;
+  domain: string;
+  options: Array<{ label: string; value: string }>;
+  placeholder: string;
+  isEditing: boolean;
+  lookupColorsByDomain: Map<string, string>;
+}) {
+  const values = useWatch({ name }) as string[] | undefined;
+  const resolvedValues = Array.isArray(values) ? values : [];
+
+  return (
+    <div className="space-y-1">
+      <FieldLabel>{label}</FieldLabel>
+      {isEditing ? (
+        <FieldMultiSelect
+          name={name}
+          options={options}
+          placeholder={placeholder}
+        />
+      ) : resolvedValues.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {resolvedValues.map((value) => (
+            <Badge
+              key={`${name}-${value}`}
+              variant="outline"
+              className={getTagClassName(
+                resolveLookupColor(lookupColorsByDomain, domain, value),
+              )}
+            >
+              {getLookupOptionLabel(options, value)}
+            </Badge>
+          ))}
+        </div>
+      ) : (
+        <span className="text-muted-foreground text-sm">-</span>
+      )}
+    </div>
+  );
+}
 
 export const GateShiftPreferencesCard = React.memo(
   function GateShiftPreferencesCard({
@@ -425,29 +404,17 @@ export const GateShiftPreferencesCard = React.memo(
     showEditAction = false,
     onToggleEdit,
     lookupColorsByDomain,
-    tipoRapportoLavorativo,
     tipoRapportoOptions,
-    lavoriAccettabili,
     lavoriAccettabiliOptions,
-    disponibilitaNelGiorno,
     disponibilitaNelGiornoOptions,
-    onTipoRapportoChange,
-    onLavoriAccettabiliChange,
-    onDisponibilitaNelGiornoChange,
   }: {
     isEditing: boolean;
     showEditAction?: boolean;
     onToggleEdit?: () => void;
     lookupColorsByDomain: Map<string, string>;
-    tipoRapportoLavorativo: string[];
     tipoRapportoOptions: Array<{ label: string; value: string }>;
-    lavoriAccettabili: string[];
     lavoriAccettabiliOptions: Array<{ label: string; value: string }>;
-    disponibilitaNelGiorno: string[];
     disponibilitaNelGiornoOptions: Array<{ label: string; value: string }>;
-    onTipoRapportoChange: (values: string[]) => void;
-    onLavoriAccettabiliChange: (values: string[]) => void;
-    onDisponibilitaNelGiornoChange: (values: string[]) => void;
   }) {
     return (
       <GateInfoCard
@@ -476,38 +443,31 @@ export const GateShiftPreferencesCard = React.memo(
           ) : undefined
         }
       >
-        <div className="max-w-3xl">
-          <WorkerShiftPreferencesFields
-            fields={[
-              {
-                id: "gate-tipo-rapporto-lavorativo",
-                label: "Verifica sulle tipologia turni",
-                domain: "lavoratori.tipo_rapporto_lavorativo",
-                value: tipoRapportoLavorativo,
-                options: tipoRapportoOptions,
-                placeholder: "Seleziona tipologie",
-                onChange: onTipoRapportoChange,
-              },
-              {
-                id: "gate-lavori-accettabili",
-                label: "Quali tipi di lavori accetta?",
-                domain: "lavoratori.check_lavori_accettabili",
-                value: lavoriAccettabili,
-                options: lavoriAccettabiliOptions,
-                placeholder: "Seleziona lavori",
-                onChange: onLavoriAccettabiliChange,
-                sortByOptionOrder: true,
-              },
-              {
-                id: "gate-disponibilita-nel-giorno",
-                label: "In che momento e disponibile generalmente?",
-                domain: "lavoratori.disponibilita_nel_giorno",
-                value: disponibilitaNelGiorno,
-                options: disponibilitaNelGiornoOptions,
-                placeholder: "Seleziona momenti",
-                onChange: onDisponibilitaNelGiornoChange,
-              },
-            ]}
+        <div className="max-w-3xl space-y-4">
+          <GateShiftPreferenceField
+            label="Verifica sulle tipologia turni"
+            name="tipo_rapporto_lavorativo"
+            domain="lavoratori.tipo_rapporto_lavorativo"
+            options={tipoRapportoOptions}
+            placeholder="Seleziona tipologie"
+            isEditing={isEditing}
+            lookupColorsByDomain={lookupColorsByDomain}
+          />
+          <GateShiftPreferenceField
+            label="Quali tipi di lavori accetta?"
+            name="check_lavori_accettabili"
+            domain="lavoratori.check_lavori_accettabili"
+            options={lavoriAccettabiliOptions}
+            placeholder="Seleziona lavori"
+            isEditing={isEditing}
+            lookupColorsByDomain={lookupColorsByDomain}
+          />
+          <GateShiftPreferenceField
+            label="In che momento e disponibile generalmente?"
+            name="disponibilita_nel_giorno"
+            domain="lavoratori.disponibilita_nel_giorno"
+            options={disponibilitaNelGiornoOptions}
+            placeholder="Seleziona momenti"
             isEditing={isEditing}
             lookupColorsByDomain={lookupColorsByDomain}
           />

@@ -1,6 +1,6 @@
 import * as React from "react"
 import { MapPinIcon, PencilIcon } from "lucide-react"
-import { useController } from "react-hook-form"
+import { useController, useWatch } from "react-hook-form"
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { Badge } from "@/components/ui/badge"
@@ -56,7 +56,7 @@ type AddressSectionCardProps = {
   collapsible?: boolean
   defaultOpen?: boolean
   showMobility?: boolean
-  addressDraft: AddressDraft
+  addressDraft?: AddressDraft
   provinciaOptions: LookupOption[]
   mobilityOptions: LookupOption[]
   selectedVia?: string | null
@@ -64,12 +64,20 @@ type AddressSectionCardProps = {
   selectedCap?: string | null
   selectedCitta?: string | null
   selectedProvincia?: string | null
-  selectedMobility: string[]
+  selectedMobility?: string[]
   mobilityAnchor: React.RefObject<HTMLDivElement | null>
+  /** Quando "parent-form", i campi usano il form del parent (gateFieldsForm). */
+  addressPersistMode?: "nested-form" | "parent-form"
   onToggleEdit: () => void
-  onFieldChange: (field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono", value: string) => void
-  onFieldCommit: (field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono", value: string) => void | Promise<void>
-  onMobilityChange: (values: string[]) => void
+  onFieldChange?: (
+    field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono",
+    value: string,
+  ) => void
+  onFieldCommit?: (
+    field: "via" | "civico" | "cap" | "citta" | "provincia" | "citofono",
+    value: string,
+  ) => void | Promise<void>
+  onMobilityChange?: (values: string[]) => void
 }
 
 type AddressTextKey = "via" | "civico" | "cap" | "citta" | "citofono"
@@ -82,8 +90,6 @@ const ADDRESS_TEXT_FIELDS: Array<{ key: AddressTextKey; label: string }> = [
   { key: "citofono", label: "Citofono" },
 ]
 
-// FASE 5 BIS — Select "Provincia" agganciata al form. Preserva il mapping
-// valore-form ↔ "none" (campo vuoto) interno al wrapper.
 function FieldProvinciaSelect({
   name,
   options,
@@ -114,9 +120,6 @@ function FieldProvinciaSelect({
   )
 }
 
-// FASE 5 BIS — Combobox multi "Mobilità" agganciata al form. Preserva la
-// normalizzazione bespoke value↔label (normalizeLookupOptionValues per il
-// rendering dei chip; normalizeLookupDbLabels per il commit verso il DB).
 function FieldMobilityCombobox({
   name,
   options,
@@ -171,14 +174,13 @@ function FieldMobilityCombobox({
   )
 }
 
-export function AddressSectionCard({
+function AddressSectionCardBody({
   isEditing,
   isUpdating,
   showEditAction = true,
   collapsible = true,
   defaultOpen = true,
   showMobility = true,
-  addressDraft,
   provinciaOptions,
   mobilityOptions,
   selectedVia,
@@ -186,39 +188,37 @@ export function AddressSectionCard({
   selectedCap,
   selectedCitta,
   selectedProvincia,
-  selectedMobility,
+  selectedMobility = [],
   mobilityAnchor,
+  addressPersistMode,
   onToggleEdit,
-  onFieldCommit,
-  onMobilityChange,
-}: AddressSectionCardProps) {
-  // FASE 5 BIS — form + autosave. I defaults sono i valori che la card riceve
-  // come prop (addressDraft). onSave instrada ogni chiave cambiata alla callback
-  // di salvataggio già ricevuta dalla card: i campi indirizzo → onFieldCommit
-  // (che accetta l'override-value come 2° arg), la mobilità → onMobilityChange.
-  const form = useAutoSaveForm<AddressDraft>({
-    defaults: {
-      via: addressDraft.via,
-      civico: addressDraft.civico,
-      cap: addressDraft.cap,
-      citta: addressDraft.citta,
-      provincia: addressDraft.provincia,
-      citofono: addressDraft.citofono,
-      come_ti_sposti: addressDraft.come_ti_sposti,
-    },
-    onSave: async (patch) => {
-      for (const [key, value] of Object.entries(patch)) {
-        if (key === "come_ti_sposti") {
-          onMobilityChange(Array.isArray(value) ? (value as string[]) : [])
-        } else {
-          await onFieldCommit(
-            key as AddressTextKey | "provincia",
-            (value as string) ?? "",
-          )
-        }
-      }
-    },
-  })
+}: {
+  isEditing: boolean
+  isUpdating: boolean
+  showEditAction?: boolean
+  collapsible?: boolean
+  defaultOpen?: boolean
+  showMobility?: boolean
+  provinciaOptions: LookupOption[]
+  mobilityOptions: LookupOption[]
+  selectedVia?: string | null
+  selectedCivico?: string | null
+  selectedCap?: string | null
+  selectedCitta?: string | null
+  selectedProvincia?: string | null
+  selectedMobility?: string[]
+  mobilityAnchor: React.RefObject<HTMLDivElement | null>
+  addressPersistMode: "nested-form" | "parent-form"
+  onToggleEdit: () => void
+}) {
+  const parentMobility = useWatch({
+    name: "come_ti_sposti",
+    disabled: addressPersistMode !== "parent-form",
+  }) as string[] | undefined
+  const mobilityValues =
+    addressPersistMode === "parent-form" && Array.isArray(parentMobility)
+      ? parentMobility
+      : selectedMobility
 
   const composedAddress = [selectedVia, selectedCivico, selectedCap, selectedCitta, selectedProvincia]
     .map((v) => (typeof v === "string" ? v.trim() : ""))
@@ -226,7 +226,6 @@ export function AddressSectionCard({
     .join(" • ")
 
   return (
-    <Form {...form}>
     <DetailSectionBlock
       title="Indirizzo"
       icon={<MapPinIcon className="text-muted-foreground size-4" />}
@@ -274,9 +273,9 @@ export function AddressSectionCard({
               anchor={mobilityAnchor}
               disabled={isUpdating}
             />
-          ) : selectedMobility.length > 0 ? (
+          ) : mobilityValues.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {selectedMobility.map((value) => (
+              {mobilityValues.map((value) => (
                 <Badge key={value} variant="outline">
                   {value}
                 </Badge>
@@ -288,6 +287,162 @@ export function AddressSectionCard({
         </div>
       ) : null}
     </DetailSectionBlock>
+  )
+}
+
+function NestedFormAddressSectionCard(
+  props: AddressSectionCardProps & {
+    resolvedPersistMode: "nested-form"
+    addressDraft: AddressDraft
+  },
+) {
+  const {
+    isEditing,
+    isUpdating,
+    showEditAction = true,
+    collapsible = true,
+    defaultOpen = true,
+    showMobility = true,
+    addressDraft,
+    provinciaOptions,
+    mobilityOptions,
+    selectedVia,
+    selectedCivico,
+    selectedCap,
+    selectedCitta,
+    selectedProvincia,
+    selectedMobility = [],
+    mobilityAnchor,
+    resolvedPersistMode,
+    onToggleEdit,
+    onFieldCommit,
+    onMobilityChange,
+  } = props
+
+  const form = useAutoSaveForm<AddressDraft>({
+    defaults: {
+      via: addressDraft.via,
+      civico: addressDraft.civico,
+      cap: addressDraft.cap,
+      citta: addressDraft.citta,
+      provincia: addressDraft.provincia,
+      citofono: addressDraft.citofono,
+      come_ti_sposti: addressDraft.come_ti_sposti,
+    },
+    onSave: async (patch) => {
+      for (const [key, value] of Object.entries(patch)) {
+        if (key === "come_ti_sposti") {
+          onMobilityChange?.(Array.isArray(value) ? (value as string[]) : [])
+        } else {
+          await onFieldCommit?.(
+            key as AddressTextKey | "provincia",
+            (value as string) ?? "",
+          )
+        }
+      }
+    },
+  })
+
+  return (
+    <Form {...form}>
+      <AddressSectionCardBody
+        isEditing={isEditing}
+        isUpdating={isUpdating}
+        showEditAction={showEditAction}
+        collapsible={collapsible}
+        defaultOpen={defaultOpen}
+        showMobility={showMobility}
+        provinciaOptions={provinciaOptions}
+        mobilityOptions={mobilityOptions}
+        selectedVia={selectedVia}
+        selectedCivico={selectedCivico}
+        selectedCap={selectedCap}
+        selectedCitta={selectedCitta}
+        selectedProvincia={selectedProvincia}
+        selectedMobility={selectedMobility}
+        mobilityAnchor={mobilityAnchor}
+        addressPersistMode={resolvedPersistMode}
+        onToggleEdit={onToggleEdit}
+      />
     </Form>
+  )
+}
+
+export function AddressSectionCard({
+  isEditing,
+  isUpdating,
+  showEditAction = true,
+  collapsible = true,
+  defaultOpen = true,
+  showMobility = true,
+  addressDraft,
+  provinciaOptions,
+  mobilityOptions,
+  selectedVia,
+  selectedCivico,
+  selectedCap,
+  selectedCitta,
+  selectedProvincia,
+  selectedMobility = [],
+  mobilityAnchor,
+  addressPersistMode = "nested-form",
+  onToggleEdit,
+  onFieldCommit,
+  onMobilityChange,
+}: AddressSectionCardProps) {
+  const resolvedPersistMode =
+    addressPersistMode === "parent-form" ? "parent-form" : "nested-form"
+
+  if (resolvedPersistMode === "parent-form") {
+    return (
+      <AddressSectionCardBody
+        isEditing={isEditing}
+        isUpdating={isUpdating}
+        showEditAction={showEditAction}
+        collapsible={collapsible}
+        defaultOpen={defaultOpen}
+        showMobility={showMobility}
+        provinciaOptions={provinciaOptions}
+        mobilityOptions={mobilityOptions}
+        selectedVia={selectedVia}
+        selectedCivico={selectedCivico}
+        selectedCap={selectedCap}
+        selectedCitta={selectedCitta}
+        selectedProvincia={selectedProvincia}
+        selectedMobility={selectedMobility}
+        mobilityAnchor={mobilityAnchor}
+        addressPersistMode={resolvedPersistMode}
+        onToggleEdit={onToggleEdit}
+      />
+    )
+  }
+
+  if (!addressDraft) {
+    throw new Error("AddressSectionCard richiede addressDraft in nested-form mode")
+  }
+
+  return (
+    <NestedFormAddressSectionCard
+      isEditing={isEditing}
+      isUpdating={isUpdating}
+      showEditAction={showEditAction}
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
+      showMobility={showMobility}
+      addressDraft={addressDraft}
+      provinciaOptions={provinciaOptions}
+      mobilityOptions={mobilityOptions}
+      selectedVia={selectedVia}
+      selectedCivico={selectedCivico}
+      selectedCap={selectedCap}
+      selectedCitta={selectedCitta}
+      selectedProvincia={selectedProvincia}
+      selectedMobility={selectedMobility}
+      mobilityAnchor={mobilityAnchor}
+      resolvedPersistMode={resolvedPersistMode}
+      onToggleEdit={onToggleEdit}
+      onFieldCommit={onFieldCommit}
+      onMobilityChange={onMobilityChange}
+    />
   )
 }

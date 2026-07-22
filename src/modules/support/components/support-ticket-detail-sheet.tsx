@@ -32,18 +32,11 @@ import {
   buildAttachmentPayload,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
+import { sanitizeFileName } from "@/lib/file-utils"
 import { updateRecord } from "@/lib/record-crud"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import type { ChiusuraContrattoRecord, TicketRecord } from "@/types"
-
-function sanitizeFileName(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-}
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "-"
@@ -326,7 +319,7 @@ export function SupportTicketDetailSheet({
       setIsUploadingAttachment(true)
 
       try {
-        const safeName = sanitizeFileName(file.name || "allegato")
+        const safeName = sanitizeFileName(file.name || "documento", "documento")
         const storagePath = ["ticket", card.id, `${Date.now()}-${safeName}`].join("/")
 
         const uploadResult = await supabase.storage.from("baze-bucket").upload(storagePath, file, {

@@ -33,10 +33,10 @@ discipline these reuse). See also `docs/realtime-board-pattern.md` (Pattern A) a
 
 The existing board-contract tests (`use-assunzioni-board.test.ts`,
 `use-variazioni-board.test.ts`, `use-chiusure-board.test.ts`) are pure `*.test.ts`
-files that `import` an exported synchronous mapper (`mapAssunzioniBoardCard` +
+files that `import` the synchronous mapper from `lib/*-board.ts` (`mapAssunzioniBoardCard` +
 binding arrays + `preserveMissingFields`) and assert on its output — no mocks, no
-render. That precedent **only works because the mapper is a separable exported
-symbol.**
+render. Pure board helpers live in **flat prefixed `lib/` files** (e.g.
+`assunzioni-board.ts`), not in hook files or `hooks/index.ts` barrels.
 
 Many board/data hooks don't have one. Their per-card mapping lives **inline inside
 a non-exported, module-level async orchestrator** — `fetchPayrollBoardData`,
@@ -47,18 +47,19 @@ kind of behavior change a *net-first* pass must not make.
 
 ## Guidance
 
-**1. Don't extract the whole mapper. Export the cleanly-extractable pure helpers
-the orchestrator already composes, and pin those.** Adding `export` to an existing
-pure function is additive and reversible (zero behavior change); moving a mapper
-out of an async loop is not.
+**1. Extract cleanly-separable pure helpers (including board mappers) to flat
+`lib/<prefix>-*.ts` files and pin those in `*.test.ts`.** Move-only extraction
+into `lib/` is reversible and matches module anatomy; re-exporting them through
+`hooks/` or `hooks/index.ts` is drift. Tests import from `@/modules/<dominio>/lib`
+or `../lib/...`, not from hook files.
 
 Worked example — the four in-scope Target A hooks reduced to one-export-each:
 
-| Hook | Exported helper | What it pins |
+| Hook | Lib module | What it pins |
 | --- | --- | --- |
-| `use-payroll-board` | `preserveDetailFields(card, previousCard)` | Pattern A: restore `presenze`/`presenzeRegolari` from previous **when the fresh card is null**; `PRESERVED_DETAIL_FIELDS` baked in; inputs not mutated |
-| `use-riattivazioni-board` | `resolveStage` + `hasRiattivazioneStatus` + `shouldShowUnclassifiedChiusura` + `getChiusuraTipoLabel` | stage resolution (default + label match), the inclusion filter (`status OR rapporto non-attivo`), tipo fallback |
-| `use-contributi-inps-board` | `getQuarterDateRange(year, quarter)` | UTC quarter boundaries; invalid quarter -> `null` |
+| `use-payroll-board` | `lib/payroll-board.ts` → `preserveDetailFields(card, previousCard)` | Pattern A: restore `presenze`/`presenzeRegolari` from previous **when the fresh card is null**; `PRESERVED_DETAIL_FIELDS` baked in; inputs not mutated |
+| `use-riattivazioni-board` | `lib/riattivazioni-stage.ts` → `resolveStage` + `hasRiattivazioneStatus` + `shouldShowUnclassifiedChiusura` + `getChiusuraTipoLabel` | stage resolution (default + label match), the inclusion filter (`status OR rapporto non-attivo`), tipo fallback |
+| `use-contributi-inps-board` | `lib/contributi-quarter.ts` → `getQuarterDateRange(year, quarter)` | UTC quarter boundaries; invalid quarter -> `null` |
 
 **2. The realtime-bug-class helper is the one that earns the net.**
 `preserveDetailFields` is the Pattern-A stale-detail guard — the single behavior a
@@ -141,6 +142,7 @@ guards worth verifying here:
 
 ## What NOT to do
 
+- Don't re-export pure helpers from `hooks/` — keep them in `lib/` only.
 - Don't extract a whole inline mapper and call it "a minimal export" — that's a
   refactor; defer it to the rendered-hook path or Target B.
 - Don't name a non-rendering test `*.integration.test.tsx` — it misroutes the file

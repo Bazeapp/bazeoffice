@@ -7,7 +7,7 @@ import {
   RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS,
   mapAssunzioniBoardCard,
   preserveMissingFields,
-} from "./use-assunzioni-board"
+} from "../lib/assunzioni-board"
 import type { AssunzioneRecord, AssunzioniBoardCardData } from "../types"
 import type { AssunzioniBoardRpcRow } from "../types/gestione-rpc"
 import type {
@@ -142,7 +142,7 @@ function makePreviousCard(
 
 describe("preserveMissingFields", () => {
   it("returns fresh unchanged when previous is null", () => {
-    const fresh = { a: 1, b: 2 }
+    const fresh: Record<string, unknown> = { a: 1, b: 2 }
     expect(preserveMissingFields(fresh, null, ["a", "b", "c"])).toBe(fresh)
   })
 

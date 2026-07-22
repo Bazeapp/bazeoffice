@@ -13,3 +13,11 @@ export type {
   LookupOption,
   LookupOptionsByField,
 } from "./pipeline"
+export type {
+  BoardRecordBundle,
+  BoardRecordEntry,
+  CrmPipelinePreviewState,
+  CrmPipelineStageDefinition,
+  FetchBoardDataResult,
+  LookupColorMap,
+} from "./crm-pipeline-preview"

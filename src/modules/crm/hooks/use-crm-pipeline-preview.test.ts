@@ -5,9 +5,9 @@ import {
   FAMILY_FIELD_BINDINGS,
   PROCESS_FIELD_BINDINGS,
   RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS,
-  mapCardData,
   preserveMissingFields,
-} from "./use-crm-pipeline-preview"
+} from "../lib/field-bindings"
+import { mapCardData } from "../lib/card-mapper"
 import type { CrmPipelineCardData, GenericRow } from "../types"
 import type { RichiestaAttivazioneRecord } from "@/types"
 

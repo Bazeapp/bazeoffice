@@ -1,3 +1,4 @@
+import type { DragEvent } from "react"
 import type {
   FamigliaRecord,
   LavoratoreRecord,
@@ -86,4 +87,15 @@ export type AssunzioniBoardColumnData = {
   loadError: string | null
   loaded: boolean
   loading: boolean
+}
+
+export type AssunzioniBoardDragHandlers = {
+  draggingProcessId: string | null
+  dropTargetColumnId: string | null
+  onDragStartCard: (processId: string) => void
+  onDragEndCard: () => void
+  onDragEnterColumn: (columnId: string) => void
+  onDragOverColumn: (columnId: string) => void
+  onDragLeaveColumn: (columnId: string, event: DragEvent<HTMLDivElement>) => void
+  onDropToColumn: (columnId: string, processId: string | null) => void
 }

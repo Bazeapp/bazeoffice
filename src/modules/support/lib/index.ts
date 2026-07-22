@@ -6,6 +6,7 @@ export {
   getSupportTicketTagsForType,
   inferSupportTicketTag,
   mergeSupportTicketMetadata,
+  normalizeSupportTicketType,
   resolveSupportTicketStatus,
   resolveSupportTicketTag,
   resolveSupportTicketUrgency,
@@ -18,3 +19,35 @@ export {
   type SupportTicketUrgency,
   type SupportTicketUrgencyDefinition,
 } from "./support-ticket-config"
+export {
+  getChiusuraTipoLabel,
+  hasRiattivazioneStatus,
+  resolveStage,
+  RIATTIVAZIONI_STAGE_DEFINITIONS,
+  shouldIncludeRiattivazioneCard,
+  shouldShowUnclassifiedChiusura,
+} from "./riattivazioni-stage"
+export {
+  RIATTIVAZIONI_BOARD_QUERY_KEY,
+  RIATTIVAZIONI_REALTIME_TABLES,
+} from "./riattivazioni-board.constants"
+export {
+  addDays,
+  formatTime,
+  getCalendarEventStatusKey,
+  getCalendarStatusRailClassName,
+  getCalendarDateKey,
+  getCalendarEventTone,
+  getEventDate,
+  getTrialDayLabel,
+  getTrialElapsedDays,
+  getWeekVisibleRange,
+  hasDateOnly,
+  isNegativeCalendarStatus,
+  isOpenCalendarStatus,
+  isPastDate,
+  isSameDate,
+  startOfWeek,
+  toDateRangeValue,
+  type CalendarStatusKey,
+} from "./colloqui-calendar-utils"

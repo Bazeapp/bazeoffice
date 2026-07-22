@@ -14,6 +14,10 @@ export function asTableRowArray(value: unknown): TableRow[] {
   return Array.isArray(value) ? (value as TableRow[]) : []
 }
 
+export function getUniqueTableRow<T>(rows: T[]): T | null {
+  return rows.length === 1 ? (rows[0] ?? null) : null
+}
+
 export async function rpcRows(
   fn: string,
   params: Record<string, unknown>,

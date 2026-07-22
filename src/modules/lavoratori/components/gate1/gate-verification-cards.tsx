@@ -6,43 +6,25 @@ import {
   LoaderCircleIcon,
   NotebookPenIcon,
 } from "lucide-react";
+import { useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  getLookupSelectValue,
-  resolveLookupSingleValueOptions,
-} from "../../lib/lookup-utils";
+import { FieldInput } from "@/components/forms/field-components";
 import { GateInfoCard } from "./gate-info-card";
-import { EMPTY_SELECT_VALUE } from "./gate-field-primitives";
+import { FieldLookupSelect } from "./gate-form-fields";
 
 /**
  * D2 — card di verifica/autocertificazione di Gate 1, estratte da gate1-view.
- * Prop-driven pure (value/options/handler via prop), React.memo.
+ * Field roll-out: autosave via gateFieldsForm.
  */
 
 export const GateSelfCertificationCard = React.memo(
   function GateSelfCertificationCard({
-    documentiInRegola,
-    haiReferenze,
     documentiOptions,
     referenzeOptions,
-    onDocumentiChange,
-    onReferenzeChange,
   }: {
-    documentiInRegola: string;
-    haiReferenze: string;
     documentiOptions: Array<{ label: string; value: string }>;
     referenzeOptions: Array<{ label: string; value: string }>;
-    onDocumentiChange: (value: string) => void;
-    onReferenzeChange: (value: string) => void;
   }) {
     return (
       <GateInfoCard
@@ -52,62 +34,22 @@ export const GateSelfCertificationCard = React.memo(
         <div className="grid gap-4">
           <div className="space-y-2">
             <p className="text-sm">Documenti (Autocertificazione)</p>
-            <Select
-              value={getLookupSelectValue(
-                documentiInRegola,
-                documentiOptions,
-                EMPTY_SELECT_VALUE,
-              )}
-              onValueChange={(value) =>
-                onDocumentiChange(value === EMPTY_SELECT_VALUE ? "" : value)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona stato documenti" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                {resolveLookupSingleValueOptions(
-                  documentiInRegola,
-                  documentiOptions,
-                ).map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FieldLookupSelect
+              name="documenti_in_regola"
+              options={documentiOptions}
+              placeholder="Seleziona stato documenti"
+            />
           </div>
 
           <div className="space-y-2">
             <p className="text-sm">
               Referenze verificabili (Autocertificazione)
             </p>
-            <Select
-              value={getLookupSelectValue(
-                haiReferenze,
-                referenzeOptions,
-                EMPTY_SELECT_VALUE,
-              )}
-              onValueChange={(value) =>
-                onReferenzeChange(value === EMPTY_SELECT_VALUE ? "" : value)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona referenze" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={EMPTY_SELECT_VALUE}>Non indicato</SelectItem>
-                {resolveLookupSingleValueOptions(
-                  haiReferenze,
-                  referenzeOptions,
-                ).map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FieldLookupSelect
+              name="hai_referenze"
+              options={referenzeOptions}
+              placeholder="Seleziona referenze"
+            />
           </div>
         </div>
       </GateInfoCard>
@@ -117,22 +59,20 @@ export const GateSelfCertificationCard = React.memo(
 
 export const GateAdministrativeFieldsCard = React.memo(
   function GateAdministrativeFieldsCard({
-    ibanValue,
     stripeAccountValue,
     isEditing,
     isUpdating,
     missingStripeRequirements = [],
-    onIbanChange,
     onGenerateStripeAccount,
   }: {
-    ibanValue: string;
     stripeAccountValue: string;
     isEditing: boolean;
     isUpdating: boolean;
     missingStripeRequirements?: string[];
-    onIbanChange: (value: string) => void;
     onGenerateStripeAccount?: () => void | Promise<unknown>;
   }) {
+    const ibanValue = useWatch({ name: "iban" }) as string | undefined;
+    const resolvedIban = typeof ibanValue === "string" ? ibanValue : "";
     const resolvedStripeAccountValue = stripeAccountValue.trim();
     const stripeRequirements = missingStripeRequirements;
     const canGenerateStripeAccount =
@@ -150,14 +90,10 @@ export const GateAdministrativeFieldsCard = React.memo(
             <div className="space-y-1">
               <p className="text-sm">IBAN</p>
               {isEditing ? (
-                <Input
-                  value={ibanValue}
-                  onChange={(event) => onIbanChange(event.target.value)}
-                  placeholder="Inserisci IBAN"
-                />
+                <FieldInput name="iban" placeholder="Inserisci IBAN" />
               ) : (
                 <div className="rounded-lg border bg-surface px-3 py-2 text-sm">
-                  {ibanValue || "-"}
+                  {resolvedIban || "-"}
                 </div>
               )}
             </div>
@@ -209,26 +145,13 @@ export const GateAdministrativeFieldsCard = React.memo(
 
 export const GateDocumentIdentityCard = React.memo(
   function GateDocumentIdentityCard({
-    headerDraft,
     nazionalitaOptions,
     isEditing,
-    onHeaderChange,
   }: {
-    headerDraft: {
-      nome: string;
-      cognome: string;
-      nazionalita: string;
-      data_di_nascita: string;
-    };
     nazionalitaOptions: Array<{ label: string; value: string }>;
     isEditing: boolean;
-    onHeaderChange: (field: string, value: string) => void;
   }) {
-    const resolvedNazionalitaOptions = resolveLookupSingleValueOptions(
-      headerDraft.nazionalita,
-      nazionalitaOptions,
-    );
-    const canUseNazionalitaSelect = resolvedNazionalitaOptions.length > 0;
+    const canUseNazionalitaSelect = nazionalitaOptions.length > 0;
 
     return (
       <GateInfoCard
@@ -238,72 +161,32 @@ export const GateDocumentIdentityCard = React.memo(
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <p className="text-sm">Verifica che il nome sia corretto</p>
-            <Input
-              value={headerDraft.nome}
-              onChange={(event) => onHeaderChange("nome", event.target.value)}
-              disabled={!isEditing}
-            />
+            <FieldInput name="nome" disabled={!isEditing} />
           </div>
           <div className="space-y-2">
             <p className="text-sm">Verifica che il cognome sia corretto</p>
-            <Input
-              value={headerDraft.cognome}
-              onChange={(event) =>
-                onHeaderChange("cognome", event.target.value)
-              }
-              disabled={!isEditing}
-            />
+            <FieldInput name="cognome" disabled={!isEditing} />
           </div>
           <div className="space-y-2">
             <p className="text-sm">Verifica la data di nascita</p>
-            <Input
+            <FieldInput
+              name="data_di_nascita"
               type="date"
-              value={headerDraft.data_di_nascita}
-              onChange={(event) =>
-                onHeaderChange("data_di_nascita", event.target.value)
-              }
               disabled={!isEditing}
             />
           </div>
           <div className="space-y-2">
             <p className="text-sm">Verifica la nazionalita</p>
             {canUseNazionalitaSelect ? (
-              <Select
-                value={getLookupSelectValue(
-                  headerDraft.nazionalita,
-                  resolvedNazionalitaOptions,
-                  EMPTY_SELECT_VALUE,
-                )}
-                onValueChange={(value) => {
-                  onHeaderChange(
-                    "nazionalita",
-                    value === EMPTY_SELECT_VALUE ? "" : value,
-                  );
-                }}
-                disabled={!isEditing}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona nazionalita" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={EMPTY_SELECT_VALUE}>
-                    Non indicata
-                  </SelectItem>
-                  {resolvedNazionalitaOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                value={headerDraft.nazionalita}
-                onChange={(event) =>
-                  onHeaderChange("nazionalita", event.target.value)
-                }
+              <FieldLookupSelect
+                name="nazionalita"
+                options={nazionalitaOptions}
+                placeholder="Seleziona nazionalita"
+                emptyLabel="Non indicata"
                 disabled={!isEditing}
               />
+            ) : (
+              <FieldInput name="nazionalita" disabled={!isEditing} />
             )}
           </div>
         </div>
