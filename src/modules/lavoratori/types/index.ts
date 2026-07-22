@@ -1,5 +1,7 @@
 export type { DocumentoLavoratoreRecord } from "./documento-lavoratore"
 export type { EsperienzaLavoratoreRecord } from "./esperienza-lavoratore"
+export type { LeadDetailFormDraft, NonQualificatoFormDraft } from "./cerca"
+export type { GenericRow, UseLavoratoriDataOptions } from "./lavoratori-data"
 export type { LavoratoreRecord } from "./lavoratore"
 export type { ReferenzaLavoratoreRecord } from "./referenza-lavoratore"
 export type { LavoratoreSchedaResult } from "./lavoratori-rpc"

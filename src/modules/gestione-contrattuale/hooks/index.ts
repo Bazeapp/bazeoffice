@@ -1,25 +1,9 @@
-export {
-  ASSUNZIONE_FIELD_BINDINGS,
-  LAVORATORE_ASSUNZIONE_FIELD_BINDINGS,
-  RAPPORTO_FIELD_BINDINGS,
-  RICHIESTA_ATTIVAZIONE_FIELD_BINDINGS,
-  mapAssunzioniBoardCard,
-  preserveMissingFields as preserveAssunzioniMissingFields,
-  useAssunzioniBoard,
-} from "./use-assunzioni-board"
-
-export {
-  CHIUSURA_RAPPORTO_FIELD_BINDINGS,
-  CHIUSURA_RECORD_FIELD_BINDINGS,
-  mapChiusuraBoardCard,
-  preserveMissingFields as preserveChiusureMissingFields,
-  useChiusureBoard,
-} from "./use-chiusure-board"
-
-export {
-  VARIAZIONE_RAPPORTO_FIELD_BINDINGS,
-  VARIAZIONE_RECORD_FIELD_BINDINGS,
-  mapVariazioneBoardCard,
-  preserveMissingFields as preserveVariazioniMissingFields,
-  useVariazioniBoard,
-} from "./use-variazioni-board"
+export { useAssunzioniBoard } from "./use-assunzioni-board"
+export { useAssunzioniBoardView } from "./use-assunzioni-board-view"
+export { useChiusureBoard } from "./use-chiusure-board"
+export { useChiusureBoardView } from "./use-chiusure-board-view"
+export { useVariazioniBoard } from "./use-variazioni-board"
+export { useVariazioniBoardView } from "./use-variazioni-board-view"
+export { useAssunzioniDetailSheet } from "./use-assunzioni-detail-sheet"
+export { useChiusureDetailSheet } from "./use-chiusure-detail-sheet"
+export { useVariazioniDetailSheet } from "./use-variazioni-detail-sheet"

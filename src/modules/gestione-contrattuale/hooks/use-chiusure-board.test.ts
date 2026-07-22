@@ -5,7 +5,7 @@ import {
   CHIUSURA_RECORD_FIELD_BINDINGS,
   mapChiusuraBoardCard,
   preserveMissingFields,
-} from "./use-chiusure-board"
+} from "../lib/chiusure-board"
 import type { ChiusureBoardCardData } from "../types"
 import type { ChiusuraContrattoRecord, RapportoLavorativoRecord } from "@/types"
 

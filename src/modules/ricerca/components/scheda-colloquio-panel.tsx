@@ -42,20 +42,28 @@ import { Form } from "@/components/ui/form";
 import { FieldTextarea } from "@/components/forms/field-components";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import {
-  asString,
   getLookupLabelForSave,
   getLookupOptionLabel,
   getLookupSelectValue,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
-  readArrayStrings,
   type LookupOption,
 } from "@/modules/lavoratori/lib"
-import { romaDateTimeToUtcIso, utcIsoToRomaParts } from "@/lib/datetime";
-
-type SelectionRow = Record<string, unknown>;
-
-type ScoreCardValue = "Basso" | "Medio" | "Alto";
+import { romaWallclockToUtcIso, romaDateTimeToUtcIso } from "@/lib/datetime";
+import {
+  COLLOQUIO_EFFETTUATO_OPTIONS,
+  SCORE_OPTIONS,
+  SCHEDA_COLLOQUIO_SLOT_FORM_KEYS,
+  SCHEDA_COLLOQUIO_TEXT_FIELD_KEYS,
+  SLOT_INDEXES,
+  buildSchedaColloquioDefaults,
+  getSchedaColloquioFieldVisibility,
+  slotDataKey,
+  slotOraKey,
+  slotTimestampColumn,
+  type ScoreCardValue,
+  type SelectionRow,
+} from "../lib/scheda-colloquio-utils";
 
 type SchedaColloquioPanelProps = {
   selectionRow: SelectionRow;
@@ -66,127 +74,6 @@ type SchedaColloquioPanelProps = {
   onGenerateFeedback?: () => Promise<string | null | undefined> | string | null | undefined;
   onPatchField: (field: string, value: unknown) => Promise<void> | void;
 };
-
-const SCORE_OPTIONS: ScoreCardValue[] = ["Basso", "Medio", "Alto"];
-
-const SLOT_INDEXES = [0, 1, 2] as const;
-
-const COLLOQUIO_EFFETTUATO_OPTIONS = [
-  "Effettuato",
-  "No show",
-  "Annullato dalla famiglia",
-  "Annullato dal lavoratore",
-] as const;
-
-function toDateInputParts(value: unknown): { date: string; time: string } {
-  const raw = asString(value);
-  return utcIsoToRomaParts(raw);
-}
-
-function toTimestampValue(date: string, time: string) {
-  if (!date || !time) return null;
-  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  const timeMatch = /^(\d{2}):(\d{2})$/.exec(time);
-  if (!dateMatch || !timeMatch) return null;
-  return romaDateTimeToUtcIso(date, time);
-}
-
-function toDatetimeLocalValue(value: unknown) {
-  const parts = toDateInputParts(value);
-  if (!parts.date || !parts.time) return "";
-  return `${parts.date}T${parts.time}`;
-}
-
-function datetimeLocalToTimestampValue(value: string) {
-  const [date = "", time = ""] = value.split("T");
-  return toTimestampValue(date, time);
-}
-
-function normalizeStatusToken(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replaceAll("_", " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-// --- form keys per gli slot (split data/ora; ricomposti in timestamp in onSave) ---
-function slotDataKey(slotIndex: number, boundary: "inizio" | "fine") {
-  return `slot_${slotIndex + 1}_${boundary}_data` as const;
-}
-function slotOraKey(slotIndex: number, boundary: "inizio" | "fine") {
-  return `slot_${slotIndex + 1}_${boundary}_ora` as const;
-}
-function slotTimestampColumn(slotIndex: number, boundary: "inizio" | "fine") {
-  return `disponibilita_colloquio_lavoratore_slot${slotIndex + 1}_${boundary}` as const;
-}
-
-// FASE 5 BIS — defaults del form: chiavi = colonne DB esatte (testo/score/
-// lookup) + chiavi locali split per gli slot (ricomposti in onSave). Stessa
-// init dell'originale (asString, readArrayStrings, toDatetimeLocalValue, ...).
-function buildDefaults(selectionRow: SelectionRow) {
-  const defaults: Record<string, unknown> = {
-    intervista_giorni_lavoro: asString(selectionRow.intervista_giorni_lavoro),
-    intervista_orario_e_giorni: asString(selectionRow.intervista_orario_e_giorni),
-    intervista_distanza: asString(selectionRow.intervista_distanza),
-    intervista_stipendio: asString(selectionRow.intervista_stipendio),
-    intervista_punti_forza: asString(selectionRow.intervista_punti_forza),
-    intervista_punti_debolezza: asString(selectionRow.intervista_punti_debolezza),
-    messaggio_famiglia_selezione_lavoratore: asString(
-      selectionRow.messaggio_famiglia_selezione_lavoratore,
-    ),
-    score_orario_e_giorni:
-      (asString(selectionRow.score_orario_e_giorni) as ScoreCardValue | "") || "",
-    score_esperienze_simili:
-      (asString(selectionRow.score_esperienze_simili) as ScoreCardValue | "") || "",
-    score_stipendio:
-      (asString(selectionRow.score_stipendio) as ScoreCardValue | "") || "",
-    score_job_fit:
-      (asString(selectionRow.score_job_fit) as ScoreCardValue | "") || "",
-    colloquio_effettuato: asString(selectionRow.colloquio_effettuato),
-    motivo_non_selezionato: readArrayStrings(selectionRow.motivo_non_selezionato),
-    motivo_no_match: asString(selectionRow.motivo_no_match),
-    data_ora_colloquio_famiglia_lavoratore: toDatetimeLocalValue(
-      selectionRow.data_ora_colloquio_famiglia_lavoratore,
-    ),
-  };
-
-  for (const slotIndex of SLOT_INDEXES) {
-    const inizio = toDateInputParts(
-      selectionRow[slotTimestampColumn(slotIndex, "inizio")],
-    );
-    const fine = toDateInputParts(
-      selectionRow[slotTimestampColumn(slotIndex, "fine")],
-    );
-    defaults[slotDataKey(slotIndex, "inizio")] = inizio.date;
-    defaults[slotOraKey(slotIndex, "inizio")] = inizio.time;
-    defaults[slotDataKey(slotIndex, "fine")] = fine.date;
-    defaults[slotOraKey(slotIndex, "fine")] = fine.time;
-  }
-
-  return defaults;
-}
-
-const SLOT_FORM_KEYS = new Set<string>(
-  SLOT_INDEXES.flatMap((slotIndex) => [
-    slotDataKey(slotIndex, "inizio"),
-    slotOraKey(slotIndex, "inizio"),
-    slotDataKey(slotIndex, "fine"),
-    slotOraKey(slotIndex, "fine"),
-  ]),
-);
-
-const TEXT_FIELD_KEYS = new Set([
-  "intervista_giorni_lavoro",
-  "intervista_orario_e_giorni",
-  "intervista_distanza",
-  "intervista_stipendio",
-  "intervista_punti_forza",
-  "intervista_punti_debolezza",
-  "messaggio_famiglia_selezione_lavoratore",
-]);
 
 function CollapsibleSection({
   title,
@@ -554,10 +441,10 @@ export function SchedaColloquioPanel({
   // dell'originale; gli slot ricompongono data+ora in timestamp (salvati solo
   // quando entrambi presenti).
   const form = useAutoSaveForm({
-    defaults: buildDefaults(selectionRow),
+    defaults: buildSchedaColloquioDefaults(selectionRow),
     onSave: async (patch) => {
       for (const [key, value] of Object.entries(patch)) {
-        if (SLOT_FORM_KEYS.has(key)) {
+        if (SCHEDA_COLLOQUIO_SLOT_FORM_KEYS.has(key)) {
           // Ricostruisce inizio/fine dello slot toccato dai valori correnti del
           // form; salva solo se data+ora sono entrambe presenti (come l'originale).
           const match = /^slot_(\d)_(inizio|fine)_(?:data|ora)$/.exec(key);
@@ -573,12 +460,12 @@ export function SchedaColloquioPanel({
           if (!date || !time) continue;
           await onPatchField(
             slotTimestampColumn(slotIndex, boundary),
-            toTimestampValue(date, time),
+            romaDateTimeToUtcIso(date, time),
           );
           continue;
         }
 
-        if (TEXT_FIELD_KEYS.has(key)) {
+        if (SCHEDA_COLLOQUIO_TEXT_FIELD_KEYS.has(key)) {
           await onPatchField(key, String(value ?? "").trim() || null);
           continue;
         }
@@ -586,7 +473,7 @@ export function SchedaColloquioPanel({
         if (key === "data_ora_colloquio_famiglia_lavoratore") {
           await onPatchField(
             key,
-            datetimeLocalToTimestampValue(String(value ?? "")) || null,
+            romaWallclockToUtcIso(String(value ?? "")) || null,
           );
           continue;
         }
@@ -608,24 +495,14 @@ export function SchedaColloquioPanel({
     },
   });
 
-  const normalizedStatus = React.useMemo(
-    () => normalizeStatusToken(asString(selectionRow.stato_selezione)),
+  const {
+    showMotivazioneNonSelezionato,
+    showMotivazioneNoMatch,
+    showColloquioFamigliaFields,
+  } = React.useMemo(
+    () => getSchedaColloquioFieldVisibility(selectionRow.stato_selezione),
     [selectionRow.stato_selezione],
   );
-  const isCandidatoPoorFit =
-    normalizedStatus.includes("candidato") &&
-    normalizedStatus.includes("poor") &&
-    normalizedStatus.includes("fit");
-  const showMotivazioneNonSelezionato =
-    normalizedStatus === "non selezionato" ||
-    normalizedStatus === "nascosto oot" ||
-    isCandidatoPoorFit;
-  const showMotivazioneNoMatch = normalizedStatus === "no match";
-  const showColloquioFamigliaFields =
-    normalizedStatus.includes("colloquio") ||
-    normalizedStatus.includes("prova") ||
-    normalizedStatus === "match" ||
-    normalizedStatus === "inviato al cliente";
 
   const hasFeedbackBaze = Boolean(
     String(form.watch("messaggio_famiglia_selezione_lavoratore") ?? "").trim(),

@@ -32,6 +32,7 @@ import {
   normalizeDomesticRoleLookupValues,
 } from "../../lib/base-utils";
 import {
+  getLookupDisplayOption,
   getLookupOptionLabel,
   getTagClassName,
   resolveLookupColor,
@@ -47,16 +48,7 @@ import {
 
 export const EMPTY_SELECT_VALUE = "none";
 
-type LookupOptionLite = { label: string; value: string };
-
-export function getLookupDisplayOption(
-  options: LookupOptionLite[],
-  value: string,
-) {
-  return options.find(
-    (option) => option.label === value || option.value === value,
-  );
-}
+export type LookupOptionLite = { label: string; value: string };
 
 export function GateStepSection({
   step,

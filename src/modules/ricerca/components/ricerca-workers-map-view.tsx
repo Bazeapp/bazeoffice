@@ -64,9 +64,9 @@ import {
   isSameSet,
   workerMatchesAdvancedFilters,
   type MapAdvancedFilters,
-} from "../lib/ricerca-workers-map-filters"
-import { excludeCurrentProcess } from "../lib/ricerca-map-related-selections"
-import { buildRelatedSelectionsMap } from "@/modules/lavoratori/hooks"
+} from "../lib/map-filters"
+import { excludeCurrentProcess } from "../lib/map-related-selections"
+import { buildRelatedSelectionsMap } from "@/modules/lavoratori/lib"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 
 const DEFAULT_RADIUS_KM = 5

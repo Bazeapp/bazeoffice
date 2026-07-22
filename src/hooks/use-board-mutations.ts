@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+import { deleteRecord, type UpdateTableName } from "@/lib/record-crud"
 import { runTracked } from "@/lib/write-tracking"
 
 /**
@@ -136,5 +137,32 @@ export function useCreateMutation<TVars, TData, TBoardData>(
   return useBoardMutation<TVars, TData, TBoardData>({
     ...options,
     invalidateOnSettled: true,
+  })
+}
+
+type DeleteBoardRecordOptions<TVars, TBoardData> = {
+  queryKey: QueryKey
+  table: UpdateTableName
+  getRecordId: (variables: TVars) => string
+  applyOptimistic: (
+    previous: TBoardData | undefined,
+    variables: TVars,
+  ) => TBoardData | undefined
+  errorMessage?: string
+}
+
+/**
+ * Shared delete path for board hooks. Calls `deleteRecord` with the given table
+ * and record id, applies optimistic card removal, and invalidates on settle.
+ */
+export function useDeleteBoardRecordMutation<TVars, TBoardData>(
+  options: DeleteBoardRecordOptions<TVars, TBoardData>,
+) {
+  const { queryKey, table, getRecordId, applyOptimistic, errorMessage } = options
+  return useCreateMutation<TVars, unknown, TBoardData>({
+    queryKey,
+    mutationFn: (variables) => deleteRecord(table, getRecordId(variables)),
+    applyOptimistic,
+    errorMessage,
   })
 }

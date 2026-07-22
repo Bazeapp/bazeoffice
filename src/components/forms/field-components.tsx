@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useController } from "react-hook-form";
+import { CheckIcon, XIcon } from "lucide-react";
 
 import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+function getOptionLabel(
+  options: Array<{ value: string; label: string }>,
+  value: string,
+) {
+  return options.find((option) => option.value === value)?.label ?? value;
+}
 
 /**
  * FASE 5 BIS — Field components context-aware.
@@ -171,6 +179,54 @@ export function FieldChoice({
   );
 }
 
+// --- FieldAcceptChoice: radio su lookup label (GateAcceptField semantics).
+//     Il form memorizza option.label, non option.value. ---
+export function FieldAcceptChoice({
+  name,
+  options,
+  disabled = false,
+}: {
+  name: string;
+  options: FieldChoiceOption[];
+  disabled?: boolean;
+}) {
+  const { field } = useController({ name });
+  if (options.length === 0) return null;
+
+  return (
+    <RadioGroup
+      value={toStringValue(field.value)}
+      onValueChange={field.onChange}
+      className={disabled ? "gap-2 opacity-50" : "gap-2"}
+      disabled={disabled}
+    >
+      {options.map((option, index) => {
+        const id = `field-accept-${name}-${index}`;
+        const labelText = typeof option.label === "string" ? option.label : "";
+        return (
+          <label key={id} className="flex items-center gap-2 text-sm">
+            <RadioGroupItem id={id} value={labelText} />
+            <span
+              className={
+                option.className
+                  ? `inline-flex items-center gap-1 rounded-4xl border px-2.5 py-0.5 text-xs ${option.className}`
+                  : "inline-flex items-center gap-1"
+              }
+            >
+              {labelText === "Accetta" ? (
+                <CheckIcon className="size-3.5" />
+              ) : labelText === "Non accetta" ? (
+                <XIcon className="size-3.5" />
+              ) : null}
+              {option.label}
+            </span>
+          </label>
+        );
+      })}
+    </RadioGroup>
+  );
+}
+
 // --- FieldDatePicker: normalizza la data in ISO (yyyy-mm-dd) UNA volta qui,
 //     così nessuna card ripete toIsoDate (propagazione). ---
 function toIsoDate(value: string): string {
@@ -276,6 +332,72 @@ export function FieldCombobox({
           {(item: string) => (
             <ComboboxItem key={item} value={item}>
               {item}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
+// --- FieldMultiSelect: multi-select su lookup values (DB values, non label).
+//     Stesso pattern di WorkerShiftPreferencesFields / gate1 disponibilita_nel_giorno.
+export function FieldMultiSelect({
+  name,
+  options,
+  placeholder = "Seleziona...",
+  disabled,
+  id,
+}: {
+  name: string;
+  options: FieldSelectOption[];
+  placeholder?: string;
+  disabled?: boolean;
+  id?: string;
+}) {
+  const { field } = useController({ name });
+  const anchor = useComboboxAnchor();
+  const value = Array.isArray(field.value) ? (field.value as string[]) : [];
+  const items = React.useMemo(
+    () => options.map((option) => option.value),
+    [options],
+  );
+
+  return (
+    <Combobox
+      multiple
+      autoHighlight
+      items={items}
+      value={value}
+      onValueChange={(nextValues) =>
+        field.onChange(
+          Array.isArray(nextValues)
+            ? Array.from(new Set(nextValues.filter((item): item is string => typeof item === "string")))
+            : [],
+        )
+      }
+      disabled={disabled}
+    >
+      <ComboboxChips ref={anchor} id={id} className="w-full">
+        <ComboboxValue>
+          {(values: string[]) => (
+            <>
+              {values.map((entry) => (
+                <ComboboxChip key={entry}>
+                  {getOptionLabel(options, entry)}
+                </ComboboxChip>
+              ))}
+              <ComboboxChipsInput placeholder={placeholder} />
+            </>
+          )}
+        </ComboboxValue>
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor} className="max-h-80">
+        <ComboboxEmpty>Nessuna opzione trovata.</ComboboxEmpty>
+        <ComboboxList className="max-h-72 overflow-y-auto">
+          {(item) => (
+            <ComboboxItem key={item} value={item}>
+              {getOptionLabel(options, item)}
             </ComboboxItem>
           )}
         </ComboboxList>

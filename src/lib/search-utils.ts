@@ -1,3 +1,15 @@
+/**
+ * Trim and collapse whitespace for server-side search RPCs; undefined when empty.
+ *
+ * Board RPCs tokenize the query and require every word to appear in the search
+ * text (AND). Pass the full phrase so multi-word names work, not just a single
+ * token.
+ */
+export function buildServerSearchQuery(value: string) {
+  const normalizedValue = value.trim().replace(/\s+/g, " ")
+  return normalizedValue || undefined
+}
+
 export function normalizeSearchText(value: unknown) {
   return String(value ?? "")
     .normalize("NFD")

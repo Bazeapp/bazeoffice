@@ -11,6 +11,10 @@ import { fetchProcessiMatching, fetchSelezioniLavoratori } from "@/modules/ricer
 import { fetchFamiglie } from "@/modules/crm/queries"
 import { fetchMesiLavorati, fetchPagamenti } from "@/modules/payroll/queries"
 import { fetchRapportiLavorativi } from "@/modules/rapporti/queries"
+import {
+  buildLookupColorMapFromRows,
+  buildLookupOptionsMapFromRows,
+} from "@/modules/anagrafiche/lib/lookup-adapters"
 import type {
   AnagraficaRow,
   AnagraficheDataState,
@@ -40,60 +44,6 @@ let cachedLookupState:
       filterTypes: LookupFilterTypeMap
     }
   | null = null
-
-function normalizeLookupToken(value: string | null | undefined) {
-  return String(value ?? "").trim().toLowerCase()
-}
-
-function readLookupColor(metadata: LookupValueRecord["metadata"]) {
-  if (!metadata || typeof metadata !== "object") return null
-
-  const color = metadata.color
-  return typeof color === "string" && color.trim() ? color.trim() : null
-}
-
-function buildLookupColorMap(rows: LookupValueRecord[]): LookupColorMap {
-  return rows.reduce<LookupColorMap>((acc, current) => {
-    if (!current.is_active) return acc
-    const color = readLookupColor(current.metadata)
-    if (!color) return acc
-
-    const domain = `${current.entity_table}.${current.entity_field}`
-    if (!acc[domain]) acc[domain] = {}
-
-    acc[domain][normalizeLookupToken(current.value_key)] = color
-    acc[domain][normalizeLookupToken(current.value_label)] = color
-    return acc
-  }, {})
-}
-
-function buildLookupOptionsMap(rows: LookupValueRecord[]): LookupOptionsMap {
-  const grouped = rows.reduce<Record<string, LookupValueRecord[]>>((acc, current) => {
-    if (!current.is_active) return acc
-    const domain = `${current.entity_table}.${current.entity_field}`
-    if (!acc[domain]) acc[domain] = []
-    acc[domain].push(current)
-    return acc
-  }, {})
-
-  return Object.entries(grouped).reduce<LookupOptionsMap>((acc, [domain, values]) => {
-    const normalized = values
-      .slice()
-      .sort((a, b) => {
-        const aOrder = a.sort_order ?? Number.MAX_SAFE_INTEGER
-        const bOrder = b.sort_order ?? Number.MAX_SAFE_INTEGER
-        if (aOrder !== bOrder) return aOrder - bOrder
-        return a.value_label.localeCompare(b.value_label)
-      })
-      .map((item) => ({
-        label: item.value_label,
-        value: item.value_key,
-      }))
-
-    acc[domain] = normalized
-    return acc
-  }, {})
-}
 
 function buildLookupFilterTypeMap(rows: LookupValueRecord[]): LookupFilterTypeMap {
   return rows.reduce<LookupFilterTypeMap>((acc, current) => {
@@ -415,8 +365,8 @@ export function useAnagraficheData({
       try {
         const lookupResult = await fetchLookupValues()
         const nextLookupState = {
-          colors: buildLookupColorMap(lookupResult.rows),
-          options: buildLookupOptionsMap(lookupResult.rows),
+          colors: buildLookupColorMapFromRows(lookupResult.rows),
+          options: buildLookupOptionsMapFromRows(lookupResult.rows),
           filterTypes: buildLookupFilterTypeMap(lookupResult.rows),
         }
         cachedLookupState = nextLookupState

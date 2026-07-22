@@ -77,7 +77,7 @@ export function useDebouncedSave<T>(
   // When the bound record changes (e.g. the operator selects another worker),
   // flush any pending edit to the PREVIOUS record (via the keystroke-time
   // onSave) and reset the draft to the new record's value.
-  /* eslint-disable react-hooks/exhaustive-deps */
+   
   React.useEffect(() => {
     if (identityRef.current === identity) return
     identityRef.current = identity
@@ -101,7 +101,7 @@ export function useDebouncedSave<T>(
     setDraft(committedValueRef.current)
     draftRef.current = committedValueRef.current
   }, [identity])
-  /* eslint-enable react-hooks/exhaustive-deps */
+   
 
   // Flush pending save on unmount (sheet close).
   // The cleanup intentionally reads the refs at the time the component is

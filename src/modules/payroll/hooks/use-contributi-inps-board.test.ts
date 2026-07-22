@@ -8,7 +8,13 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { getQuarterDateRange } from "./use-contributi-inps-board"
+import {
+  formatQuarterLabel,
+  getQuarterDateRange,
+  getQuarterValueFromDate,
+  getYearFromDate,
+  parseQuarterReference,
+} from "../lib/contributi-quarter"
 
 describe("use-contributi-inps-board getQuarterDateRange", () => {
   it("Q1 → Jan 1 00:00:00 .. Mar 31 23:59:59.999 (UTC)", () => {
@@ -46,5 +52,31 @@ describe("use-contributi-inps-board getQuarterDateRange", () => {
 
   it("an unknown quarter → null (no range resolvable)", () => {
     expect(getQuarterDateRange(2025, "Q5" as never)).toBeNull()
+  })
+})
+
+describe("contributi quarter helpers", () => {
+  it("getQuarterValueFromDate maps months to quarters", () => {
+    expect(getQuarterValueFromDate("2025-02-15T00:00:00.000Z")).toBe("Q1")
+    expect(getQuarterValueFromDate("2025-05-15T00:00:00.000Z")).toBe("Q2")
+    expect(getQuarterValueFromDate("2025-08-15T00:00:00.000Z")).toBe("Q3")
+    expect(getQuarterValueFromDate("2025-11-15T00:00:00.000Z")).toBe("Q4")
+  })
+
+  it("getYearFromDate returns the UTC year", () => {
+    expect(getYearFromDate("2025-11-15T00:00:00.000Z")).toBe(2025)
+    expect(getYearFromDate(null)).toBeNull()
+  })
+
+  it("parseQuarterReference extracts quarter and year tokens", () => {
+    expect(parseQuarterReference("Q2 2025")).toEqual({ quarter: "Q2", year: 2025 })
+    expect(parseQuarterReference("trimestre 3 2024")).toEqual({ quarter: "Q3", year: 2024 })
+    expect(parseQuarterReference("invalid")).toBeNull()
+  })
+
+  it("formatQuarterLabel prefers quarter/year over fallback", () => {
+    expect(formatQuarterLabel("Q1", 2025, "fallback")).toBe("Q1 2025")
+    expect(formatQuarterLabel(null, null, "fallback")).toBe("fallback")
+    expect(formatQuarterLabel(null, null, null)).toBe("Trimestre non disponibile")
   })
 })

@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest"
 import type { LookupOption } from "../lib/lookup-utils"
 import { normalizeDomesticRoleDbLabel } from "../lib/base-utils"
 import type { QueryFilterGroup, TableColumnMeta } from "@/lib/table-query"
+import { collectGate1RpcFilters } from "../lib/gate1-filters"
 import {
-  buildWorkerFilterFields,
-  collectGate1RpcFilters,
   inferWorkerFilterType,
   WORKER_SCHEMA_COLUMNS,
-} from "./use-lavoratori-data"
+} from "../lib/filter-schema"
+import { buildWorkerFilterFields } from "../lib/worker-filter-fields"
 
 describe("inferWorkerFilterType", () => {
   const numericFields = [

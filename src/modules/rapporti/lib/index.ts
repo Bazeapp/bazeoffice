@@ -4,9 +4,17 @@ export {
   getRapportoFamilyLabel,
   getRapportoTitle,
   getRapportoWorkerLabel,
-} from "./rapporti-labels"
-export { getRapportoProcessIds } from "./rapporti-processi"
+  personNameFromRow,
+  type PersonNameInput,
+} from "./labels"
+export { getRapportoProcessIds } from "./processi"
 export {
   getRapportoStatusColor,
+  isRapportoAttivo,
   resolveRapportoStatus,
-} from "./rapporti-status"
+} from "./status"
+export {
+  mapRapportoBoardRow,
+  RAPPORTO_FIELD_BINDINGS,
+} from "./rapporti-board"
+export { preserveMissingFields } from "@/lib/board-column-utils"

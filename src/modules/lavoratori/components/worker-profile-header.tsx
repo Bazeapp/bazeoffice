@@ -43,7 +43,8 @@ import {
 import { FieldInput, FieldTextarea } from "@/components/forms/field-components"
 import { Form } from "@/components/ui/form"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
-import { cn } from "@/lib/utils"
+import { workerProfileHeaderFormSchema } from "../lib/worker-profile-header-schema"
+import { cn, toAvatarRingClass } from "@/lib/utils"
 import { AttachmentImage } from "@/components/shared-next/attachment-image"
 import {
   asString,
@@ -57,20 +58,19 @@ import {
   getLookupSelectValue,
   type LookupOption,
 } from "../lib/lookup-utils"
+import { getWorkerCardInitials } from "../lib/card-utils"
 import { getWorkerQualificationStatus } from "../lib/status-utils"
+import {
+  buildFormDefaults,
+  getAssigneeAvatarBorderClass,
+  getAssigneeIdFromSeed,
+  getGateAvatarStateClass,
+  getHrById,
+  type WorkerProfileHeaderField,
+} from "../lib/worker-profile-header-utils"
 import type { LavoratoreRecord } from "../types/lavoratore"
 
-export type WorkerProfileHeaderField =
-  | "nome"
-  | "cognome"
-  | "descrizione_pubblica"
-  | "email"
-  | "telefono"
-  | "sesso"
-  | "nazionalita"
-  | "data_di_nascita"
-
-type WorkerProfileHeaderDraft = Record<WorkerProfileHeaderField, string>
+export type { WorkerProfileHeaderField } from "../lib/worker-profile-header-utils"
 
 type WorkerProfileHeaderProps = {
   worker: LavoratoreListItem
@@ -104,92 +104,6 @@ type WorkerProfileHeaderProps = {
   showUploadPhotoAction?: boolean
   onUploadPhoto?: () => void
   selectedMotivazioneClassName?: string
-}
-
-const HR_OPTIONS = [
-  { id: "giulia", label: "Giulia", avatar: "G" },
-  { id: "elisa", label: "Elisa", avatar: "E" },
-  { id: "francesca", label: "Francesca", avatar: "F" },
-] as const
-
-type HrId = (typeof HR_OPTIONS)[number]["id"]
-
-function initialsFromName(name: string) {
-  const parts = name
-    .split(" ")
-    .map((part) => part.trim())
-    .filter(Boolean)
-  return (
-    parts
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? "")
-      .join("") || "?"
-  )
-}
-
-function buildFormDefaults(row: LavoratoreRecord): WorkerProfileHeaderDraft {
-  return {
-    nome: asString(row.nome),
-    cognome: asString(row.cognome),
-    descrizione_pubblica: asString(row.descrizione_pubblica),
-    email: asString(row.email),
-    telefono: asString(row.telefono),
-    sesso: asString(row.sesso),
-    nazionalita: asString(row.nazionalita),
-    data_di_nascita: asString(row.data_di_nascita),
-  }
-}
-
-function hashString(input: string) {
-  let hash = 0
-  for (let index = 0; index < input.length; index += 1) {
-    hash = (hash << 5) - hash + input.charCodeAt(index)
-    hash |= 0
-  }
-  return Math.abs(hash)
-}
-
-function getAssigneeIdFromSeed(seed: string): HrId {
-  const index = hashString(seed) % HR_OPTIONS.length
-  return HR_OPTIONS[index].id
-}
-
-function getHrById(assigneeId: HrId) {
-  return HR_OPTIONS.find((option) => option.id === assigneeId) ?? HR_OPTIONS[0]
-}
-
-function getAssigneeAvatarBorderClass(assigneeId: HrId) {
-  switch (assigneeId) {
-    case "giulia":
-      return "after:border-emerald-500"
-    case "elisa":
-      return "after:border-sky-500"
-    case "francesca":
-      return "after:border-violet-500"
-    default:
-      return ""
-  }
-}
-
-function getGateAvatarStateClass(isCompleted: boolean, variant: "idoneo" | "certificato") {
-  if (!isCompleted) {
-    return {
-      ringClassName: "ring-2 ring-zinc-300/50",
-      badgeClassName: "bg-zinc-300 text-zinc-900",
-    }
-  }
-
-  if (variant === "certificato") {
-    return {
-      ringClassName: "ring-2 ring-emerald-600/40",
-      badgeClassName: "bg-success text-foreground-on-accent",
-    }
-  }
-
-  return {
-    ringClassName: "ring-2 ring-emerald-400/40",
-    badgeClassName: "bg-emerald-400 text-emerald-950",
-  }
 }
 
 function selectedOptionValue(selected: string | null, options: LookupOption[]) {
@@ -342,8 +256,11 @@ export function WorkerProfileHeader({
   //  - data_di_nascita → value || null
   //  - sesso/nazionalita (lookup) → la chiave del form contiene già la label DB
   //    (i wrapper sotto convertono option-value ↔ label), "" → null.
-  const form = useAutoSaveForm<WorkerProfileHeaderDraft>({
+  const form = useAutoSaveForm<Record<WorkerProfileHeaderField, string>>({
     defaults: buildFormDefaults(workerRow),
+    schema: workerProfileHeaderFormSchema,
+    // Hard-reset se il lavoratore cambia senza remount del componente.
+    resetKey: worker.id,
     onSave: async (patch) => {
       for (const [key, rawValue] of Object.entries(patch)) {
         const field = key as WorkerProfileHeaderField
@@ -478,7 +395,7 @@ export function WorkerProfileHeader({
               src={worker.immagineUrl}
               type={worker.immagineType}
               alt={worker.nomeCompleto}
-              fallback={initialsFromName(worker.nomeCompleto)}
+              fallback={getWorkerCardInitials(worker.nomeCompleto)}
               className={qualificationStatus.ringClassName}
             />
             <span
@@ -789,7 +706,7 @@ export function WorkerProfileHeader({
                     size="xs"
                     fallback={hr.avatar}
                     className={cn(
-                      getAssigneeAvatarBorderClass(control.assigneeId),
+                      toAvatarRingClass(getAssigneeAvatarBorderClass(control.assigneeId)),
                       stateClasses.ringClassName,
                     )}
                   />

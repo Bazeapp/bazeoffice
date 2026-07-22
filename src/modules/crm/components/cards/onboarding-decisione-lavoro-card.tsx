@@ -23,6 +23,7 @@ import { useController } from "react-hook-form";
 import { Form } from "@/components/ui/form";
 import { FieldInput, FieldTextarea } from "@/components/forms/field-components";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
+import { onboardingDecisioneLavoroFormSchema } from "../../lib/onboarding-schemas";
 import {
   Combobox,
   ComboboxChip,
@@ -543,6 +544,7 @@ export function OnboardingDecisioneLavoroSection({
   // le trasformazioni per-colonna sono centralizzate in buildDecisionePatch.
   const form = useAutoSaveForm({
     defaults: buildDecisioneDefaults(defaults, checkboxDefaults),
+    schema: onboardingDecisioneLavoroFormSchema,
     onSave: async (patch) => {
       await onPatchProcess?.(buildDecisionePatch(patch));
     },

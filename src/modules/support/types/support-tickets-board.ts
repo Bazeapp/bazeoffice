@@ -48,6 +48,17 @@ export type SupportTicketLinkedRecord = {
     | null
 }
 
+export type SupportTicketsColumnData = {
+  id: string
+  label: string
+  color: string
+  totalCount: number
+  cards: SupportTicketBoardCardData[]
+  deferred?: boolean
+  isLoaded?: boolean
+  deferredActionLabel?: string
+}
+
 export type SupportTicketBoardCardData = {
   id: string
   stage: string

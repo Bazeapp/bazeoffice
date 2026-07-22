@@ -25,6 +25,12 @@ export {
   type EtaBucket,
   type MapAdvancedFilters,
   type MapFilterableWorker,
-} from "./ricerca-workers-map-filters"
+} from "./map-filters"
 
-export { excludeCurrentProcess } from "./ricerca-map-related-selections"
+export { excludeCurrentProcess } from "./map-related-selections"
+
+export {
+  getRicercaColumnVisual,
+  isDeferredRicercaStage,
+  normalizeRicercaStageToken,
+} from "./board-column-utils"
