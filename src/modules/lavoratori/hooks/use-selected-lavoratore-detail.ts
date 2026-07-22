@@ -3,7 +3,6 @@ import * as React from "react"
 import { asLavoratoreRecord, asString } from "../lib/base-utils"
 import type { GenericRow } from "../types"
 import {
-  buildWorkerListItem,
   fetchWorkerAddressesByIds,
   resolveWorkerAddress,
 } from "../lib/worker-list-mapper"
@@ -12,30 +11,23 @@ import type { DocumentoLavoratoreRecord } from "../types/documento-lavoratore"
 import type { EsperienzaLavoratoreRecord } from "../types/esperienza-lavoratore"
 import type { LavoratoreRecord } from "../types/lavoratore"
 import type { ReferenzaLavoratoreRecord } from "../types/referenza-lavoratore"
-import type { LavoratoreListItem } from "../components/lavoratore-card"
 
 type UseSelectedLavoratoreDetailOptions = {
-  lookupColorsByDomain: Map<string, string>
   selectedWorkerId: string | null
   workerAddressesById: Map<string, Record<string, unknown>[]>
-  workerRows: LavoratoreRecord[]
   workerRowsRef: React.RefObject<LavoratoreRecord[]>
   setWorkerAddressesById: React.Dispatch<
     React.SetStateAction<Map<string, Record<string, unknown>[]>>
   >
   setWorkerRows: React.Dispatch<React.SetStateAction<LavoratoreRecord[]>>
-  setWorkers: React.Dispatch<React.SetStateAction<LavoratoreListItem[]>>
 }
 
 export function useSelectedLavoratoreDetail({
-  lookupColorsByDomain,
   selectedWorkerId,
   workerAddressesById,
-  workerRows,
   workerRowsRef,
   setWorkerAddressesById,
   setWorkerRows,
-  setWorkers,
 }: UseSelectedLavoratoreDetailOptions) {
   const [selectedWorkerRow, setSelectedWorkerRow] =
     React.useState<LavoratoreRecord | null>(null)
@@ -165,22 +157,8 @@ export function useSelectedLavoratoreDetail({
       setWorkerRows((current) =>
         current.map((row) => (row.id === nextRow.id ? { ...row, ...nextRow } : row))
       )
-      setWorkers((current) =>
-        current.map((worker) =>
-          worker.id === nextRow.id
-            ? {
-                ...buildWorkerListItem(
-                  { ...(workerRows.find((row) => row.id === nextRow.id) ?? nextRow), ...nextRow },
-                  lookupColorsByDomain,
-                  workerAddressesById
-                ),
-                otherActiveSelections: worker.otherActiveSelections ?? null,
-              }
-            : worker
-        )
-      )
     },
-    [lookupColorsByDomain, setWorkerRows, setWorkers, workerAddressesById, workerRows]
+    [setWorkerRows]
   )
 
   const applyUpdatedWorkerAddress = React.useCallback(
@@ -202,24 +180,10 @@ export function useSelectedLavoratoreDetail({
                 index === existingIndex ? nextAddress : address
               )
         next.set(workerId, nextAddresses)
-
-        setWorkers((currentWorkers) =>
-          currentWorkers.map((worker) => {
-            if (worker.id !== workerId) return worker
-            const row = workerRows.find((item) => item.id === workerId)
-            return row
-              ? {
-                  ...buildWorkerListItem(row, lookupColorsByDomain, next),
-                  otherActiveSelections: worker.otherActiveSelections ?? null,
-                }
-              : worker
-          })
-        )
-
         return next
       })
     },
-    [lookupColorsByDomain, setWorkerAddressesById, setWorkers, workerRows]
+    [setWorkerAddressesById]
   )
 
   const applyUpdatedWorkerExperience = React.useCallback(
