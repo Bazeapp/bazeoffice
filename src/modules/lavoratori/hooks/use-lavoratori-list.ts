@@ -143,6 +143,8 @@ export function useLavoratoriList({
     [setWorkerRows]
   )
 
+  const cercaGateFiltersDep = applyGate1BaseFilters ? null : cercaGateFilters
+
   React.useEffect(() => {
     async function load() {
       const silent = silentReloadRef.current
@@ -254,7 +256,7 @@ export function useLavoratoriList({
           return
         }
 
-        const cercaRpcFilters = cercaGateFilters.rpcFilters
+        const cercaRpcFilters = cercaGateFiltersDep?.rpcFilters
         const board = await fetchLavoratoriBoard("cerca", {
           limit: pageSize,
           offset: pageIndex * pageSize,
@@ -313,7 +315,9 @@ export function useLavoratoriList({
     void load()
   }, [
     applyGate1BaseFilters,
-    cercaGateFilters,
+    // Null on gate boards so comment-panel re-renders cannot retrigger the list
+    // effect via an unused cerca filter bundle identity change.
+    cercaGateFiltersDep,
     debouncedQuery,
     forcedWorkerStatus,
     gate1Filters,

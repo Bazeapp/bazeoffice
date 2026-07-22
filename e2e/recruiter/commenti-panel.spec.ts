@@ -12,7 +12,6 @@ import {
   openCommentsPanel,
   sendComment,
   waitForCommentCount,
-  waitForCommentSectionList,
 } from "../support/commenti"
 import { resetCommentiFixture, seedComment } from "../support/commenti-mutations"
 import {
@@ -30,27 +29,27 @@ const { qualificatoMi } = E2E_LAVORATORI.lavoratori
 test.describe("commenti: panel shell", () => {
   test.describe.configure({ timeout: 90_000 })
 
+  test.beforeEach(async () => {
+    await resetCommentiFixture()
+  })
+
   test.afterEach(async () => {
     await resetCommentiFixture()
   })
 
-  test("collapsed pill loads count only; expand loads section list", async ({ page }) => {
+  test("collapsed pill shows count; expand opens panel with section list", async ({ page }) => {
+    const countResponse = waitForCommentCount(page)
     await gotoRicercaDetail(page, unassignedNuova.id)
+    await countResponse
 
-    const listRequests: string[] = []
-    page.on("request", (request) => {
-      if (request.url().includes("commenti_list_section")) {
-        listRequests.push(request.url())
-      }
-    })
+    await expect(commentsPill(page)).toBeVisible({ timeout: 30_000 })
+    // Collapsed: shell stays closed. Section list may still prefetch when any
+    // section count > 0 (unread-mention detection on the pill).
+    await expect(commentsPanel(page)).toHaveCount(0)
 
-    await waitForCommentCount(page)
-    expect(listRequests).toHaveLength(0)
-
-    const sectionResponse = waitForCommentSectionList(page)
     await commentsPill(page).click()
     await expect(commentsPanel(page)).toBeVisible({ timeout: 30_000 })
-    await sectionResponse
+    await expect(commentsTargetChip(page)).toBeVisible({ timeout: 30_000 })
 
     await closeCommentsPanel(page)
     await expect(commentsPanel(page)).toHaveCount(0)
