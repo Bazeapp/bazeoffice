@@ -167,6 +167,6 @@ export const selectors = {
     card: (workerId: string) => `[data-testid="lavoratore-card-${workerId}"]`,
     closeDetail: '[aria-label="Chiudi scheda lavoratore"]',
     applyFilters: 'button:has-text("Applica filtri")',
-    resetGateFilters: 'button:has-text("Reset filtri")',
+    resetGateFilters: '[data-testid="lavoratori-reset-gate-filters"]',
   },
 } as const

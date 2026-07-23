@@ -8,6 +8,7 @@ export {
   type PersonNameInput,
 } from "./labels"
 export { getRapportoProcessIds } from "./processi"
+export { enrichRapportoWithRicercaId } from "./enrich-rapporto-with-ricerca-id"
 export {
   getRapportoStatusColor,
   isRapportoAttivo,

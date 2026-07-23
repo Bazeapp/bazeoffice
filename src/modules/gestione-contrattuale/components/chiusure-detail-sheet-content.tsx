@@ -13,7 +13,11 @@ import { ChiusureDetailAttachments } from "./chiusure-detail-attachments"
 import { ChiusureDetailFields } from "./chiusure-detail-fields"
 import { ChiusureDetailSheetSkeleton } from "./chiusure-detail-sheet-skeleton"
 
-export function ChiusureDetailSheetContent({ vm }: { vm: ChiusureDetailSheetViewModel }) {
+export function ChiusureDetailSheetContent({
+  vm,
+}: {
+  vm: ChiusureDetailSheetViewModel
+}) {
   const {
     card,
     columns,
@@ -40,7 +44,10 @@ export function ChiusureDetailSheetContent({ vm }: { vm: ChiusureDetailSheetView
   return (
     <Form {...form}>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none">
+        <SheetContent
+          side="right"
+          className="w-[min(96vw,980px)]! max-w-none! p-0 sm:max-w-none"
+        >
           <SheetHeader className="border-b bg-surface px-5 py-5">
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-4">

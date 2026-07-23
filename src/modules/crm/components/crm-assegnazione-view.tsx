@@ -13,6 +13,11 @@ import { toast } from "sonner";
 import type { AssegnazioneCardData } from "../types";
 import { useCrmAssegnazione } from "../hooks/use-crm-assegnazione";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
+import { useCommentRouteContext } from "@/modules/commenti/hooks";
+import {
+  crmProcessoCommentRow,
+  crmProcessoDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -279,6 +284,39 @@ export function CrmAssegnazioneView({
     () => cards.find((card) => card.id === selectedCard?.id) ?? selectedCard,
     [cards, selectedCard],
   );
+
+  const commentRow = React.useMemo(
+    () =>
+      selectedCardFromState
+        ? crmProcessoCommentRow({
+            id: selectedCardFromState.id,
+            famigliaId: selectedCardFromState.famigliaId,
+          })
+        : {},
+    [selectedCardFromState],
+  );
+  const commentDisplayNames = React.useMemo(
+    () =>
+      selectedCardFromState
+        ? crmProcessoDisplayNames({
+            id: selectedCardFromState.id,
+            famigliaId: selectedCardFromState.famigliaId,
+            nomeFamiglia: selectedCardFromState.nomeFamiglia,
+            numeroRicercaAttivata: null,
+          })
+        : undefined,
+    [selectedCardFromState],
+  );
+
+  useCommentRouteContext({
+    enabled: isSheetOpen && Boolean(selectedCardFromState),
+    pageFocus: selectedCardFromState
+      ? { entityType: "ricerca", entityId: selectedCardFromState.id }
+      : null,
+    row: commentRow,
+    sourceInterface: "assegnazione_famiglie",
+    displayNames: commentDisplayNames,
+  });
 
   const handleOpenRicerca = React.useCallback(
     (processId: string) => {

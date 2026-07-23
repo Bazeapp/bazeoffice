@@ -15,25 +15,61 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
+import { CommentAppProvider, CommentPanelHost } from "@/modules/commenti/components"
+import { fetchCommentNavigation } from "@/modules/notifiche/queries"
+import {
+  applyRoutePatch,
+  buildNotificationDeepLinkUrl,
+  isBoardEntityType,
+  notifyBoardEntityDeepLink,
+  notifyCommentDeepLink,
+  routePatchFromCommentNavigation,
+} from "@/modules/notifiche/lib/entity-route-map"
+import type { Notifica } from "@/modules/notifiche/types"
 
 type AppShellProps = {
   user: User
   onLogout: () => Promise<void>
 }
 
-function syncBrowserUrl(route: AppRoute, mode: "push" | "replace" = "push") {
+function syncBrowserUrl(
+  route: AppRoute,
+  mode: "push" | "replace" = "push",
+  search: string = "",
+) {
   if (typeof window === "undefined") return
   const targetPath = buildPathForRoute(route)
-  const currentPath = window.location.pathname
+  const targetUrl = `${targetPath}${search}`
+  const currentUrl = `${window.location.pathname}${window.location.search}`
 
-  if (currentPath === targetPath) return
+  if (currentUrl === targetUrl) return
 
   if (mode === "replace") {
-    window.history.replaceState({}, "", targetPath)
+    window.history.replaceState({}, "", targetUrl)
     return
   }
 
-  window.history.pushState({}, "", targetPath)
+  window.history.pushState({}, "", targetUrl)
+}
+
+type AppShellMainProps = React.ComponentProps<typeof AppPageContent>
+
+function AppShellMain(props: AppShellMainProps) {
+  return (
+    <main className="scrollbar-hidden flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <React.Suspense
+          fallback={
+            <div className="flex min-h-60 flex-1 items-center justify-center rounded-2xl border border-border/60 bg-background/80 px-6 py-10 text-sm text-muted-foreground shadow-sm">
+              Caricamento pagina...
+            </div>
+          }
+        >
+          <AppPageContent {...props} />
+        </React.Suspense>
+      </div>
+    </main>
+  )
 }
 
 export function AppShell({ user, onLogout }: AppShellProps) {
@@ -46,7 +82,8 @@ export function AppShell({ user, onLogout }: AppShellProps) {
   const ricercaDetailReturnRouteRef = React.useRef<AppRoute | null>(null)
 
   React.useEffect(() => {
-    syncBrowserUrl(route, "replace")
+    // Preserve ?comment= (and any other search) across pathname-only route sync.
+    syncBrowserUrl(route, "replace", window.location.search)
   }, [route])
 
   React.useEffect(() => {
@@ -336,6 +373,33 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     syncBrowserUrl(nextRoute)
   }, [route.anagraficheTab])
 
+  const handleOpenNotifica = React.useCallback(
+    (notifica: Notifica) => {
+      void (async () => {
+        const navigation = await fetchCommentNavigation(notifica.commentId)
+        if (!navigation) return
+        const patch = routePatchFromCommentNavigation(navigation)
+        const nextRoute = applyRoutePatch(route, patch)
+        setRoute(nextRoute)
+        const path = buildPathForRoute(nextRoute)
+        const deepLink = buildNotificationDeepLinkUrl(path, {
+          commentId: notifica.commentId,
+          entityType: navigation.entityType,
+          entityId: navigation.entityId,
+        })
+        const search = deepLink.includes("?")
+          ? deepLink.slice(deepLink.indexOf("?"))
+          : ""
+        syncBrowserUrl(nextRoute, "push", search)
+        if (isBoardEntityType(navigation.entityType) && navigation.entityId) {
+          notifyBoardEntityDeepLink(navigation.entityType, navigation.entityId)
+        }
+        notifyCommentDeepLink(notifica.commentId)
+      })()
+    },
+    [route],
+  )
+
   return (
     <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar
@@ -360,29 +424,21 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         onOpenCustomerSupportCustomerTicket={handleOpenCustomerSupportCustomerTicket}
         onOpenCustomerSupportPayrollTicket={handleOpenCustomerSupportPayrollTicket}
         onOpenCustomerSupportRiattivazioni={handleOpenCustomerSupportRiattivazioni}
+        onOpenNotifica={handleOpenNotifica}
       />
       <SidebarInset className="h-svh min-h-0 overflow-hidden">
-        <main className="scrollbar-hidden flex min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <React.Suspense
-              fallback={
-                <div className="flex min-h-60 flex-1 items-center justify-center rounded-2xl border border-border/60 bg-background/80 px-6 py-10 text-sm text-muted-foreground shadow-sm">
-                  Caricamento pagina...
-                </div>
-              }
-            >
-              <AppPageContent
-                route={route}
-                onOpenAnagraficheTab={handleOpenAnagraficheTab}
-                onOpenRicercaDetail={handleOpenRicercaDetail}
-                onBackFromRicercaDetail={handleBackFromRicercaDetail}
-                onOpenRelatedRicerca={handleOpenRelatedRicerca}
-                onFocusRicercaSelection={handleFocusRicercaSelection}
-                onSelectRapporto={handleSelectRapporto}
-              />
-            </React.Suspense>
-          </div>
-        </main>
+        <CommentAppProvider user={user}>
+          <AppShellMain
+            route={route}
+            onOpenAnagraficheTab={handleOpenAnagraficheTab}
+            onOpenRicercaDetail={handleOpenRicercaDetail}
+            onBackFromRicercaDetail={handleBackFromRicercaDetail}
+            onOpenRelatedRicerca={handleOpenRelatedRicerca}
+            onFocusRicercaSelection={handleFocusRicercaSelection}
+            onSelectRapporto={handleSelectRapporto}
+          />
+          <CommentPanelHost />
+        </CommentAppProvider>
       </SidebarInset>
     </SidebarProvider>
   )

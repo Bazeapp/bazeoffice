@@ -80,14 +80,16 @@ AccordionItem.displayName = "AccordionItem";
 interface AccordionTriggerProps
   extends React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger> {
   icon?: React.ReactNode;
+  iconVariant?: "tonal" | "bare";
   plain?: boolean;
+  showChevron?: boolean;
   titleAction?: React.ReactNode;
 }
 
 const AccordionTrigger = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Trigger>,
   AccordionTriggerProps
->(({ className, children, icon, plain, titleAction, ...props }, ref) => (
+>(({ className, children, icon, iconVariant = "tonal", plain, showChevron = true, titleAction, ...props }, ref) => (
   <AccordionPrimitive.Header className="flex items-center">
     <AccordionPrimitive.Trigger
       ref={ref}
@@ -101,16 +103,22 @@ const AccordionTrigger = React.forwardRef<
       {...props}
     >
       {icon ? (
-        <span
-          className={cn(
-            "flex size-7 shrink-0 items-center justify-center rounded-sm",
-            "bg-neutral-100 text-foreground-muted!",
-            "[&_svg]:size-4 [&_svg]:shrink-0"
-          )}
-          aria-hidden
-        >
-          {icon}
-        </span>
+        iconVariant === "bare" ? (
+          <span className="flex shrink-0 items-center [&_svg]:size-3.5" aria-hidden>
+            {icon}
+          </span>
+        ) : (
+          <span
+            className={cn(
+              "flex size-7 shrink-0 items-center justify-center rounded-sm",
+              "bg-neutral-100 text-foreground-muted!",
+              "[&_svg]:size-4 [&_svg]:shrink-0"
+            )}
+            aria-hidden
+          >
+            {icon}
+          </span>
+        )
       ) : null}
       <span
         className={cn(
@@ -128,6 +136,7 @@ const AccordionTrigger = React.forwardRef<
         {titleAction}
       </span>
     ) : null}
+    {showChevron ? (
     <AccordionPrimitive.Trigger
       className={cn(
         "group flex h-10 w-9 shrink-0 items-center justify-center",
@@ -146,6 +155,7 @@ const AccordionTrigger = React.forwardRef<
         aria-hidden
       />
     </AccordionPrimitive.Trigger>
+    ) : null}
   </AccordionPrimitive.Header>
 ));
 AccordionTrigger.displayName = "AccordionTrigger";
@@ -157,19 +167,13 @@ const AccordionContent = React.forwardRef<
   <AccordionPrimitive.Content
     ref={ref}
     className={cn(
-      "overflow-hidden text-sm leading-relaxed text-foreground-muted!",
-      "data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
+      "overflow-hidden text-sm leading-relaxed text-foreground-muted! border-t border-border-subtle px-4 py-3.5",
+      "data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
+      className
     )}
     {...props}
   >
-    <div
-      className={cn(
-        "border-t border-border-subtle px-4 py-3.5",
-        className
-      )}
-    >
-      {children}
-    </div>
+    {children}
   </AccordionPrimitive.Content>
 ));
 AccordionContent.displayName = "AccordionContent";

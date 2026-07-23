@@ -159,6 +159,33 @@ Copy patterns from:
 - `e2e/support/riattivazioni.ts` — navigation, search, DnD, sheet helpers
 - `e2e/support/riattivazioni-mutations.ts` — service-role `chiusure_contratti.stato_riattivazione_famiglia` reset
 
+### Commenti (contextual comments)
+
+Helpers:
+
+- `e2e/support/commenti.ts` — open/expand panel, send comment, section helpers
+- `e2e/support/commenti-mutations.ts` — service-role seed/reply/cleanup (`E2E_COMMENTI_BODY_PREFIX`)
+
+Specs (by Playwright project):
+
+- `e2e/recruiter/commenti-panel.spec.ts` — shell, read/mark-read, sections, gate phase notes
+- `e2e/recruiter/commenti-propagation.spec.ts` — Gate → Ricerca, famiglia → ricerca
+- `e2e/recruiter/commenti-mentions.spec.ts` — @-mentions and send-error rollback
+- `e2e/recruiter/commenti-threads.spec.ts` — reply collapse and pagination
+- `e2e/recruiter/commenti-entities.spec.ts` — recruiter send smoke
+- `e2e/sales/commenti-entities.spec.ts` — CRM pipeline ricerca send
+- `e2e/customer/commenti-entities.spec.ts` — rapporto / assunzione send
+- `e2e/payroll/commenti-entities.spec.ts` — cedolino send
+
+Run only comment specs:
+
+```bash
+npx playwright test --project=recruiter commenti
+npx playwright test commenti
+```
+
+Cleanup uses body prefix `E2E comment ` — mutating specs call `resetCommentiFixture()` in `afterEach`.
+
 Add new role-specific specs under `e2e/<role>/`. Playwright picks them up automatically via
 `testMatch` in `playwright.config.ts` — no `test.skip` gating needed.
 

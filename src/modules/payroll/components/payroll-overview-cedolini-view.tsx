@@ -19,6 +19,12 @@ import {
   type CedoliniFilters,
 } from "../lib"
 import { CedolinoDetailSheet } from "./payroll-overview-cedolino-detail-sheet"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  cedolinoCommentRow,
+  cedolinoDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
+import { useBoardEntityDeepLink } from "@/modules/notifiche/hooks"
 import { PayrollOverviewBoardColumn } from "./payroll-overview-board-column"
 import {
   PayrollOverviewBoardSkeletonColumn,
@@ -48,6 +54,16 @@ export function PayrollOverviewCedoliniView() {
     enrichCardFromDetail,
     detailRefreshTick,
   })
+  const { openCard } = selection
+
+  useBoardEntityDeepLink({
+    entityType: "cedolino",
+    onOpen: (cedolinoId) => {
+      openCard(cedolinoId)
+      return true
+    },
+    retryKey: true,
+  })
 
   const toggleFilter = React.useCallback((group: CedoliniFilterGroupKey, value: string) => {
     setFilters((current) => toggleCedoliniFilter(current, group, value))
@@ -72,6 +88,19 @@ export function PayrollOverviewCedoliniView() {
     () => filteredColumns.reduce((sum, column) => sum + column.cards.length, 0),
     [filteredColumns],
   )
+
+  const selectedCard = selection.selectedCard
+
+  useCommentRouteContext({
+    enabled: Boolean(selection.selectedCardId && selectedCard),
+    pageFocus:
+      selection.selectedCardId && selectedCard
+        ? { entityType: "cedolino", entityId: selection.selectedCardId }
+        : null,
+    row: selectedCard ? cedolinoCommentRow(selectedCard) : {},
+    sourceInterface: "cedolini",
+    displayNames: selectedCard ? cedolinoDisplayNames(selectedCard) : undefined,
+  })
 
   return (
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
@@ -177,12 +206,17 @@ export function PayrollOverviewCedoliniView() {
         }}
         onStageChange={(recordId, targetStageId) => {
           void moveCard(recordId, targetStageId)
+          selection.patchSelectedCard(recordId, {
+            stato_mese_lavorativo: targetStageId,
+          })
         }}
         onPatchCard={(recordId, patch) => {
           void patchCard(recordId, patch)
+          selection.patchSelectedCard(recordId, patch)
         }}
         onPatchPresence={(recordId, patch) => {
           void patchPresence(recordId, patch)
+          selection.patchSelectedPresence(recordId, patch)
         }}
       />
     </section>

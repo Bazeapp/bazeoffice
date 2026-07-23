@@ -1,7 +1,10 @@
 import * as React from "react"
 
-import { fetchContributiInpsByIds } from "../queries/fetch-contributi-inps-by-ids"
+import { enrichRapportoWithRicercaId } from "@/modules/rapporti/lib"
 import { fetchRapportiLavorativiByIds } from "@/modules/rapporti/queries"
+
+import { mapContributoRecordToCard } from "../lib/contributi-inps-board"
+import { fetchContributiInpsByIds } from "../queries/fetch-contributi-inps-by-ids"
 import type { ContributoInpsBoardCardData } from "../types"
 
 type UseContributiInpsSelectionResult = {
@@ -31,23 +34,33 @@ export function useContributiInpsSelection(
       setSelectedCard(null)
       return
     }
-    if (!selectedCardFromCards) return
 
     let isActive = true
     const currentCardId = selectedCardId
-    const currentCard = selectedCardFromCards
-    setSelectedCard(null)
+    const boardCard = selectedCardFromCards
+
+    // Prefer the board card when present; clear the previous selection when
+    // opening an off-board deep link so we don't flash stale detail.
+    setSelectedCard(boardCard)
 
     async function loadSelectedCard() {
       try {
         const recordResponse = await fetchContributiInpsByIds([currentCardId])
 
-        const freshRecord = recordResponse.rows[0] as ContributoInpsBoardCardData["record"] | undefined
-        if (!isActive || !freshRecord) return
+        const freshRecord = recordResponse.rows[0] as
+          | ContributoInpsBoardCardData["record"]
+          | undefined
+        if (!isActive) return
+        if (!freshRecord) {
+          if (!boardCard) setSelectedCard(null)
+          return
+        }
 
         const rapportoId =
-          currentCard.rapporto?.id ??
-          (typeof freshRecord.rapporto_lavorativo_id === "string" ? freshRecord.rapporto_lavorativo_id : null)
+          boardCard?.rapporto?.id ??
+          (typeof freshRecord.rapporto_lavorativo_id === "string"
+            ? freshRecord.rapporto_lavorativo_id
+            : null)
 
         const rapportoResponse = rapportoId
           ? await fetchRapportiLavorativiByIds([rapportoId])
@@ -55,15 +68,32 @@ export function useContributiInpsSelection(
 
         const freshRapporto =
           (rapportoResponse.rows[0] as ContributoInpsBoardCardData["rapporto"]) ??
-          currentCard.rapporto
+          boardCard?.rapporto ??
+          null
+
+        const enrichedRapporto = await enrichRapportoWithRicercaId(freshRapporto)
 
         if (!isActive) return
 
-        setSelectedCard({
-          ...currentCard,
-          record: freshRecord,
-          rapporto: freshRapporto,
-        })
+        if (boardCard) {
+          setSelectedCard({
+            ...boardCard,
+            record: freshRecord,
+            rapporto: enrichedRapporto,
+          })
+          return
+        }
+
+        // Deep link outside the selected quarter: build a card from the single
+        // record fetch so the sheet can open without waiting for board filters.
+        setSelectedCard(
+          mapContributoRecordToCard(freshRecord, {
+            stage: freshRecord.stato_contributi_inps?.trim() || "Da richiedere",
+            rapporto: enrichedRapporto,
+            resolvedQuarter: null,
+            assunzioneNames: null,
+          }),
+        )
       } catch (error) {
         if (!isActive) return
         console.error("Errore caricando dettaglio contributo", error)
@@ -80,7 +110,6 @@ export function useContributiInpsSelection(
   }, [selectedCardFromCards?.id, selectedCardId])
 
   const openCard = React.useCallback((cardId: string) => {
-    setSelectedCard(null)
     setSelectedCardId(cardId)
   }, [])
 
@@ -93,7 +122,14 @@ export function useContributiInpsSelection(
     (recordId: string, patch: Partial<ContributoInpsBoardCardData["record"]>) => {
       setSelectedCard((current) =>
         current?.id === recordId
-          ? { ...current, record: { ...current.record, ...patch } }
+          ? {
+              ...current,
+              stage:
+                typeof patch.stato_contributi_inps === "string"
+                  ? patch.stato_contributi_inps
+                  : current.stage,
+              record: { ...current.record, ...patch },
+            }
           : current,
       )
     },

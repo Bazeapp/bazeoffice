@@ -6,6 +6,12 @@ import { useContributiInpsFilters } from "../hooks/use-contributi-inps-filters"
 import { useContributiInpsSelection } from "../hooks/use-contributi-inps-selection"
 import type { ContributiPeriod } from "../types"
 import { ContributiInpsBoard } from "./contributi-inps-board"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  contributiCommentRow,
+  contributiDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
+import { useBoardEntityDeepLink } from "@/modules/notifiche/hooks"
 import { ContributoInpsDetailSheet } from "./contributi-inps-detail-sheet"
 import { ContributiInpsHeader } from "./contributi-inps-header"
 import { ContributiInpsMetrics } from "./contributi-inps-metrics"
@@ -26,9 +32,31 @@ export function ContributiInpsView() {
     stageFilter,
   })
   const selection = useContributiInpsSelection(cards)
+  const { openCard } = selection
+
+  useBoardEntityDeepLink({
+    entityType: "contributi",
+    onOpen: (contributoId) => {
+      openCard(contributoId)
+      return true
+    },
+    retryKey: true,
+  })
 
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
+  const selectedCard = selection.selectedCard
+
+  useCommentRouteContext({
+    enabled: Boolean(selection.selectedCardId && selectedCard),
+    pageFocus:
+      selection.selectedCardId && selectedCard
+        ? { entityType: "contributi", entityId: selection.selectedCardId }
+        : null,
+    row: selectedCard ? contributiCommentRow(selectedCard) : {},
+    sourceInterface: "contributi_inps",
+    displayNames: selectedCard ? contributiDisplayNames(selectedCard) : undefined,
+  })
 
   return (
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
@@ -87,7 +115,12 @@ export function ContributiInpsView() {
         onOpenChange={(open) => {
           if (!open) selection.closeCard()
         }}
-        onStageChange={moveCard}
+        onStageChange={async (recordId, targetStageId) => {
+          await moveCard(recordId, targetStageId)
+          selection.patchSelectedCard(recordId, {
+            stato_contributi_inps: targetStageId,
+          })
+        }}
         onPatchCard={async (recordId, patch) => {
           await patchCard(recordId, patch)
           selection.patchSelectedCard(recordId, patch)

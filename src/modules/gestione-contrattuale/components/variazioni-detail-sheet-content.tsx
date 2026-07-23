@@ -20,7 +20,11 @@ import { VariazioniDetailRapportoSection } from "./variazioni-detail-rapporto-se
 import { VariazioniDetailSheetSkeleton } from "./variazioni-detail-sheet-skeleton"
 import { VariazioniDetailVariazioneSection } from "./variazioni-detail-variazione-section"
 
-export function VariazioniDetailSheetContent({ vm }: { vm: VariazioniDetailSheetViewModel }) {
+export function VariazioniDetailSheetContent({
+  vm,
+}: {
+  vm: VariazioniDetailSheetViewModel
+}) {
   const {
     card,
     open,

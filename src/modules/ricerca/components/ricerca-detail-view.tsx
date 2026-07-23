@@ -1,6 +1,12 @@
 import { Form } from "@/components/ui/form"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  crmProcessoCommentRow,
+  crmProcessoDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
+
 import {
   useRicercaDetailView,
   type RicercaDetailViewProps,
@@ -78,10 +84,22 @@ function RicercaDetailViewBody({
 
 export function RicercaDetailView(props: RicercaDetailViewProps) {
   const detail = useRicercaDetailView(props)
+  const card = detail.card
+  const focusedSelectionId = detail.tabs.pipeline.focusedSelectionId
+
+  useCommentRouteContext({
+    enabled: Boolean(card) && !focusedSelectionId,
+    pageFocus: card ? { entityType: "ricerca", entityId: props.processId } : null,
+    row: card ? crmProcessoCommentRow(card) : {},
+    sourceInterface: "dettaglio_ricerca",
+    displayNames: card ? crmProcessoDisplayNames(card) : undefined,
+  })
 
   return (
     <Form {...detail.form}>
-      <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+      <section
+        className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden"
+      >
         <Tabs
           defaultValue="pipeline"
           className="flex h-full min-h-0 flex-col gap-0"
