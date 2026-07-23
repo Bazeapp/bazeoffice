@@ -93,8 +93,14 @@ export function CedoliniPagamentiReminderDialog({
             className="text-foreground-strong text-sm"
             data-testid="cedolini-pagamenti-reminder-confirm-copy"
           >
-            Promemoria di prova riuscito. Confermi l&apos;invio dei restanti{" "}
-            <strong>{remainingCount}</strong> {remainingCount === 1 ? "reminder" : "reminder"}?
+            {remainingCount === 0 ? (
+              <>Promemoria di prova riuscito. Non ci sono altri reminder da inviare.</>
+            ) : (
+              <>
+                Promemoria di prova riuscito. Confermi l&apos;invio dei restanti{" "}
+                <strong>{remainingCount}</strong> {remainingCount === 1 ? "reminder" : "reminder"}?
+              </>
+            )}
           </p>
         ) : null}
 
@@ -152,14 +158,26 @@ export function CedoliniPagamentiReminderDialog({
               >
                 Annulla
               </Button>
-              <Button
-                type="button"
-                data-testid="cedolini-pagamenti-reminder-confirm"
-                onClick={() => void state.confirmSend()}
-                disabled={isConfirming}
-              >
-                {isConfirming ? "Avvio…" : `Invia ${remainingCount} restanti`}
-              </Button>
+              {remainingCount > 0 ? (
+                <Button
+                  type="button"
+                  data-testid="cedolini-pagamenti-reminder-confirm"
+                  onClick={() => void state.confirmSend()}
+                  disabled={isConfirming}
+                >
+                  {isConfirming ? "Avvio…" : `Invia ${remainingCount} restanti`}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    state.reset()
+                    onOpenChange(false)
+                  }}
+                >
+                  Chiudi
+                </Button>
+              )}
             </>
           ) : null}
 

@@ -90,23 +90,42 @@ export type CedolinoBulkSendPhase =
  * U6) — only the dry-run "what counts as success" predicate differs between
  * the two job kinds; see `../lib/cedolini-pagamenti-filters.ts` →
  * `isReminderDryRunSuccess`.
+ *
+ * `remainderConfirmed` is required because `dry_run_first` leaves the job
+ * row at `in_corso` while waiting for the operator — that must NOT be read
+ * as bulk "processing" (otherwise the dialog jumps to the progress+Interrompi
+ * UI and never shows confirm). Single-item batches where the dry run already
+ * processed everything (`remainingCount === 0`) resolve to `completata`.
  */
 export function deriveBulkSendPhase(params: {
   isStartingDryRun: boolean
   jobId: string | null
   dryRunOutcome: CedolinoBulkJobDryRunOutcome | null
   jobStatus: CedolinoBulkJobStatus | null
+  /** True only after the operator confirmed the remainder (`confirmSend`). */
+  remainderConfirmed?: boolean
+  /** Ids still unprocessed after the dry-run item; defaults to "unknown". */
+  remainingCount?: number
   isDryRunSuccess?: (outcome: CedolinoBulkJobDryRunOutcome) => boolean
 }): CedolinoBulkSendPhase {
   const isDryRunSuccess = params.isDryRunSuccess ?? isSendDryRunSuccess
+  const remainderConfirmed = params.remainderConfirmed === true
 
   if (params.isStartingDryRun) return "dry_running"
   if (!params.jobId) return "idle"
   if (params.jobStatus === "completata") return "completata"
   if (params.jobStatus === "interrotta") return "interrotta"
   if (params.jobStatus === "failed") return "error"
+
+  // Gate on the dry-run outcome BEFORE treating `in_corso` as bulk processing:
+  // start+dry_run_first always leaves status `in_corso` until confirm/process.
+  if (params.dryRunOutcome && !remainderConfirmed) {
+    if (!isDryRunSuccess(params.dryRunOutcome)) return "dry_run_failed"
+    if (params.remainingCount === 0) return "completata"
+    return "confirm_pending"
+  }
+
   if (params.jobStatus === "in_corso") return "processing"
-  // Job created but not yet claimed/processed beyond the dry-run item.
   if (params.dryRunOutcome && !isDryRunSuccess(params.dryRunOutcome)) return "dry_run_failed"
   if (params.dryRunOutcome) return "confirm_pending"
   return "idle"

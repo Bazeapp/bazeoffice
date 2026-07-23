@@ -65,6 +65,8 @@ export function useCedoliniBulkJob(
   const [dryRunOutcome, setDryRunOutcome] = React.useState<CedolinoBulkJobDryRunOutcome | null>(
     null,
   )
+  /** Set when the operator confirms the remainder — unlocks `processing`. */
+  const [remainderConfirmed, setRemainderConfirmed] = React.useState(false)
   const [isStartingDryRun, setIsStartingDryRun] = React.useState(false)
   const [isConfirming, setIsConfirming] = React.useState(false)
   const [isStopping, setIsStopping] = React.useState(false)
@@ -95,6 +97,7 @@ export function useCedoliniBulkJob(
         setJobId(response.job_id)
         setDryRunTotalCount(response.total_count)
         setDryRunOutcome(response.dry_run ?? null)
+        setRemainderConfirmed(false)
         await queryClient.invalidateQueries({ queryKey: ["cedolino-bulk-job", response.job_id] })
       } catch (err) {
         setError(err instanceof Error ? err.message : "Errore avvio invio di prova.")
@@ -109,6 +112,7 @@ export function useCedoliniBulkJob(
     if (!jobId || isConfirming) return
     setIsConfirming(true)
     setError(null)
+    setRemainderConfirmed(true)
     try {
       await processCedoliniBulkJob(jobId)
       await queryClient.invalidateQueries({ queryKey: jobQueryKey })
@@ -137,14 +141,22 @@ export function useCedoliniBulkJob(
     setJobId(null)
     setDryRunTotalCount(0)
     setDryRunOutcome(null)
+    setRemainderConfirmed(false)
     setError(null)
   }, [])
+
+  const remainingCount = getBulkSendRemainingCount({
+    totalCount: dryRunTotalCount,
+    job: job ?? null,
+  })
 
   const phase = deriveBulkSendPhase({
     isStartingDryRun,
     jobId,
     dryRunOutcome,
     jobStatus: job?.status ?? null,
+    remainderConfirmed,
+    remainingCount,
     isDryRunSuccess,
   })
 
@@ -152,7 +164,7 @@ export function useCedoliniBulkJob(
     phase,
     job: job ?? null,
     dryRunOutcome,
-    remainingCount: getBulkSendRemainingCount({ totalCount: dryRunTotalCount, job: job ?? null }),
+    remainingCount,
     progressPercent: getBulkJobProgressPercent(job ?? null),
     isStartingDryRun,
     isConfirming,

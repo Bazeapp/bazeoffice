@@ -116,6 +116,12 @@ describe("isSendDryRunSuccess (A-S7)", () => {
 })
 
 describe("deriveBulkSendPhase", () => {
+  const successOutcome: CedolinoBulkJobDryRunOutcome = {
+    mese_lavorativo_id: "m-1",
+    status: "success",
+    details: { updated: true },
+  }
+
   it("idle: nessun job avviato", () => {
     expect(
       deriveBulkSendPhase({ isStartingDryRun: false, jobId: null, dryRunOutcome: null, jobStatus: null }),
@@ -133,35 +139,51 @@ describe("deriveBulkSendPhase", () => {
     ).toBe("dry_running")
   })
 
-  it("dry_run_failed: outcome fallito, job non ancora in_corso", () => {
+  it("dry_run_failed: outcome fallito, anche se il job è ancora in_corso", () => {
     expect(
       deriveBulkSendPhase({
         isStartingDryRun: false,
         jobId: "job-1",
         dryRunOutcome: { mese_lavorativo_id: "m-1", status: "error", error: "boom" },
-        jobStatus: "pending",
+        jobStatus: "in_corso",
+        remainingCount: 4,
       }),
     ).toBe("dry_run_failed")
   })
 
-  it("confirm_pending: outcome riuscito, in attesa di conferma", () => {
+  it("confirm_pending: dry run ok + in_corso + restanti > 0 (attesa conferma operatore)", () => {
     expect(
       deriveBulkSendPhase({
         isStartingDryRun: false,
         jobId: "job-1",
-        dryRunOutcome: { mese_lavorativo_id: "m-1", status: "success", details: { updated: true } },
-        jobStatus: "pending",
+        dryRunOutcome: successOutcome,
+        jobStatus: "in_corso",
+        remainingCount: 4,
       }),
     ).toBe("confirm_pending")
   })
 
-  it("processing: il job polled è in_corso (priorità sullo stato locale del dry run)", () => {
+  it("completata: dry run ok + nessun restante (batch da 1 elemento)", () => {
     expect(
       deriveBulkSendPhase({
         isStartingDryRun: false,
         jobId: "job-1",
-        dryRunOutcome: { mese_lavorativo_id: "m-1", status: "success", details: { updated: true } },
+        dryRunOutcome: successOutcome,
         jobStatus: "in_corso",
+        remainingCount: 0,
+      }),
+    ).toBe("completata")
+  })
+
+  it("processing: solo dopo conferma del resto (remainderConfirmed)", () => {
+    expect(
+      deriveBulkSendPhase({
+        isStartingDryRun: false,
+        jobId: "job-1",
+        dryRunOutcome: successOutcome,
+        jobStatus: "in_corso",
+        remainderConfirmed: true,
+        remainingCount: 4,
       }),
     ).toBe("processing")
   })
@@ -182,7 +204,8 @@ describe("deriveBulkSendPhase", () => {
         isStartingDryRun: false,
         jobId: "job-1",
         dryRunOutcome: outcome,
-        jobStatus: "pending",
+        jobStatus: "in_corso",
+        remainingCount: 2,
       }),
     ).toBe("dry_run_failed")
     expect(
@@ -190,7 +213,8 @@ describe("deriveBulkSendPhase", () => {
         isStartingDryRun: false,
         jobId: "job-1",
         dryRunOutcome: outcome,
-        jobStatus: "pending",
+        jobStatus: "in_corso",
+        remainingCount: 2,
         isDryRunSuccess: (o) => o.status === "success",
       }),
     ).toBe("confirm_pending")

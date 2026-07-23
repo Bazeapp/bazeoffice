@@ -46,18 +46,23 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
 
   const dateBoundLabel = normalizedDateFilter ? formatItalianDateOrNull(normalizedDateFilter) : null
 
-  // Once the bulk job settles, refresh the reminder flags so cards move
-  // from "da fare" to "fatti" without a full page reload.
-  const bulkJobStatus = bulkReminder.job?.status ?? null
-  const previousBulkJobStatusRef = React.useRef<typeof bulkJobStatus>(null)
+  // Once the bulk job settles successfully (or is interrupted), refresh the
+  // reminder flags so cards move from "da fare" to "fatti" without a full
+  // page reload.
+  // Watch `phase` (not only job.status): a single-item dry-run can land
+  // directly in `completata` without the FE ever observing `in_corso`
+  // (dry_run_first finalizes when nothing remains), so an
+  // in_corso→terminal transition never fires and flags would stay stale.
+  const bulkPhase = bulkReminder.phase
+  const previousBulkPhaseRef = React.useRef(bulkPhase)
   React.useEffect(() => {
-    const wasRunning = previousBulkJobStatusRef.current === "in_corso"
-    const isNowTerminal = bulkJobStatus === "completata" || bulkJobStatus === "interrotta"
-    if (wasRunning && isNowTerminal) {
+    const previous = previousBulkPhaseRef.current
+    previousBulkPhaseRef.current = bulkPhase
+    if (previous === bulkPhase) return
+    if (bulkPhase === "completata" || bulkPhase === "interrotta") {
       void pagamenti.refetch()
     }
-    previousBulkJobStatusRef.current = bulkJobStatus
-  }, [bulkJobStatus, pagamenti])
+  }, [bulkPhase, pagamenti.refetch])
 
   const openReminderDialog = () => {
     setReminderDialogOpen(true)
