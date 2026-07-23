@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { getSectionSubtitle } from "../lib/comment-display"
 import { ENTITY_SECTION_META } from "../lib/consts"
 import { entityRefKey } from "../lib/entity-ref"
+import { useCommentPanelPortalContainer } from "../hooks/use-comment-panel-portal-container"
 import type { CommentSection } from "../types/section"
 import type { EntityRef } from "../types/entity"
 
@@ -45,12 +46,13 @@ export function CommentTargetChip({
   onTargetChange,
 }: CommentTargetChipProps) {
   const activeMeta = metaForTarget(target, sections)
+  const portalContainer = useCommentPanelPortalContainer()
 
   return (
     <div className="flex items-center gap-2">
       <span className="shrink-0 text-2xs text-foreground-faint">Commenti su</span>
-      {/* Non-modal + z-110: panel is dialog-like at isolate z-100; default
-          modal/z-70 menu opens behind it or dismisses immediately. */}
+      {/* Non-modal + z-110 + panel portal: sheet scroll-lock sets body
+          pointer-events:none; menu must stay inside the dismissable branch. */}
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <button
@@ -74,7 +76,8 @@ export function CommentTargetChip({
         <DropdownMenuContent
           align="start"
           side="top"
-          className="z-110 w-90 max-w-[calc(100vw-3rem)]"
+          className="pointer-events-auto z-110 w-90 max-w-[calc(100vw-3rem)]"
+          container={portalContainer}
         >
           {options.map((option) => {
             const meta = metaForTarget(option, sections)

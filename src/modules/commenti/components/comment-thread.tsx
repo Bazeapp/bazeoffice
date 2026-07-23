@@ -17,6 +17,7 @@ import {
   getAuthorInitials,
   getPhaseLabelText,
 } from "../lib/comment-display"
+import { useCommentPanelPortalContainer } from "../hooks/use-comment-panel-portal-container"
 import type { Comment } from "../types/comment"
 import { CommentBody } from "./comment-body"
 
@@ -104,6 +105,7 @@ function CommentBubble({
   const [isEditing, setIsEditing] = React.useState(false)
   const [editDraft, setEditDraft] = React.useState(comment.body)
   const viewRef = useMarkReadOnView(comment, onMarkRead)
+  const portalContainer = useCommentPanelPortalContainer()
   const isAuthor = currentUserId === comment.author.id
   const isPhaseNote = comment.commentType === "phase_note"
   const isHighlighted = highlightCommentId === comment.id 
@@ -194,7 +196,11 @@ function CommentBubble({
                 <MoreHorizontalIcon className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="z-110">
+            <DropdownMenuContent
+              align="end"
+              className="pointer-events-auto z-110"
+              container={portalContainer}
+            >
               <DropdownMenuItem
                 data-testid={`comments-edit-${comment.id}`}
                 onSelect={() => {

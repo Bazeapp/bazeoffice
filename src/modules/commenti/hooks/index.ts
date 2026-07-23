@@ -5,6 +5,7 @@ export type {
   MentionAutocompleteSection,
   UseMentionAutocompleteOptions,
 } from "./use-mention-autocomplete"
+export { useCommentPanelPortalContainer } from "./use-comment-panel-portal-container"
 export {
   useCommentContext,
   useRequiredCommentContext,

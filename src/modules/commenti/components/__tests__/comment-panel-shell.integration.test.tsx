@@ -1,4 +1,6 @@
+import * as React from "react"
 import { fireEvent, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
@@ -245,6 +247,68 @@ describe("CommentPanel shell", () => {
     composer.focus()
 
     expect(composer).toHaveFocus()
+  })
+
+  it("keeps the sheet open when editing a comment from the author menu", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 })
+    const currentUserId = "99999999-9999-4999-8999-999999999999"
+    mockFetchCommentSectionPage.mockResolvedValue({
+      comments: [
+        {
+          id: "comment-edit-1",
+          threadRootId: null,
+          anchor: { entityType: "ricerca", entityId: PAGE_ID },
+          author: {
+            id: currentUserId,
+            name: "Test Usuario",
+            rolePill: "Recruiter",
+            isDeactivated: false,
+          },
+          body: "commento da modificare",
+          commentType: "free",
+          phaseLabel: null,
+          sourceInterface: null,
+          createdAt: "2026-07-23T07:50:00.000Z",
+          editedAt: null,
+          isUnread: false,
+          replyCount: 0,
+          replies: [],
+        },
+      ],
+      nextCursor: null,
+    })
+
+    function SheetWithComments() {
+      const [sheetOpen, setSheetOpen] = React.useState(true)
+      return (
+        <CommentContextProvider value={makeContext({ currentUserId })}>
+          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+            <SheetContent aria-describedby={undefined}>
+              <SheetTitle>Dettaglio ricerca</SheetTitle>
+            </SheetContent>
+          </Sheet>
+          <CommentPanelHost />
+        </CommentContextProvider>
+      )
+    }
+
+    renderWithProviders(<SheetWithComments />)
+
+    await user.click(await screen.findByTestId("comments-pill"))
+    await user.click(await screen.findByTestId("comments-menu-comment-edit-1"))
+
+    const editItem = await screen.findByTestId("comments-edit-comment-edit-1")
+    expect(
+      editItem.closest('[data-testid="comments-panel-root"]'),
+    ).toBeTruthy()
+
+    await user.click(editItem)
+
+    expect(screen.getByText("Dettaglio ricerca")).toBeInTheDocument()
+    expect(screen.getByTestId("comments-panel")).toBeInTheDocument()
+    expect(
+      await screen.findByTestId("comments-edit-input-comment-edit-1"),
+    ).toBeInTheDocument()
   })
 
   it("shows a red dot on the pill when unread comments mention the current user", async () => {
