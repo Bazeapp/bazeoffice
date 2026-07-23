@@ -115,3 +115,13 @@ export {
   type CedolinoWarningGroup,
   type MeseLavoratoInfo,
 } from "./cedolini-check-warnings"
+export {
+  buildBoardStageMap,
+  deriveBulkSendPhase,
+  getBulkJobProgressPercent,
+  getBulkSendRemainingCount,
+  getSendEligibleMeseLavorativoIds,
+  isSendDryRunSuccess,
+  type CedolinoBulkSendPhase,
+} from "./cedolini-bulk-send"
+export { parseEdgeFunctionErrorBody } from "./cedolini-edge-function-error"

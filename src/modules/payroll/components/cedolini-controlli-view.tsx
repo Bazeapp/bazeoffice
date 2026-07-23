@@ -5,25 +5,32 @@ import { Button } from "@/components/ui/button"
 import { CheckboxChip } from "@/components/ui/checkbox"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
+import { useCedoliniBulkSend } from "../hooks/use-cedolini-bulk-send"
 import { useCedoliniCheckRun } from "../hooks/use-cedolini-check-run"
+import { useCedoliniRecoverUrl } from "../hooks/use-cedolini-recover-url"
 import {
   buildCedolinoCheckCards,
   createDefaultWarningCategoryFilter,
   filterWarningGroups,
   getCheckRunProgressPercent,
   getProntiCards,
+  getSendEligibleMeseLavorativoIds,
   groupWarningsByCategory,
   toggleWarningCategoryFilter,
   WARNING_CATEGORIES,
   type CedolinoCheckCard,
 } from "../lib"
 import type { CedolinoCheckRunStatus, CedolinoWarningCategory, PayrollBoardColumnData } from "../types"
+import { CedoliniControlliSendDialog } from "./cedolini-controlli-send-dialog"
 
 const RUN_STATUS_LABELS: Record<CedolinoCheckRunStatus, string> = {
   in_corso: "In corso",
   completata: "Completata",
   interrotta: "Interrotta",
 }
+
+/** The one PRD category the U5 URL-recovery action targets. */
+const CEDOLINO_O_PDF_CATEGORY: CedolinoWarningCategory = "Cedolino o PDF"
 
 export type CedoliniControlliViewProps = {
   selectedMonth: string
@@ -33,6 +40,10 @@ export type CedoliniControlliViewProps = {
 export function CedoliniControlliView({ selectedMonth, columns }: CedoliniControlliViewProps) {
   const { run, results, isLoading, error, isStarting, startError, startMessage, startAnalysis } =
     useCedoliniCheckRun(selectedMonth)
+
+  const bulkSend = useCedoliniBulkSend()
+  const recoverUrl = useCedoliniRecoverUrl(selectedMonth)
+  const [sendDialogOpen, setSendDialogOpen] = React.useState(false)
 
   const [categoryFilter, setCategoryFilter] = React.useState<Set<CedolinoWarningCategory>>(
     createDefaultWarningCategoryFilter,
@@ -57,8 +68,24 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
     [warningGroups],
   )
 
+  const sendEligibleIds = React.useMemo(
+    () => getSendEligibleMeseLavorativoIds(pronti, columns),
+    [pronti, columns],
+  )
+
+  const cedolinoOPdfGroup = warningGroups.find((group) => group.category === CEDOLINO_O_PDF_CATEGORY)
+  const cedolinoOPdfIds = React.useMemo(
+    () => cedolinoOPdfGroup?.cards.map((card) => card.meseLavorativoId) ?? [],
+    [cedolinoOPdfGroup],
+  )
+
   const isRunning = run?.status === "in_corso"
   const progressPercent = run ? getCheckRunProgressPercent(run) : 0
+
+  const openSendDialog = () => {
+    setSendDialogOpen(true)
+    void bulkSend.startDryRun(sendEligibleIds, selectedMonth)
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
@@ -71,6 +98,16 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
             disabled={isStarting || isRunning}
           >
             {isRunning ? "Analisi in corso…" : "Avvia analisi"}
+          </Button>
+
+          <Button
+            type="button"
+            variant="secondary"
+            data-testid="cedolini-controlli-invia"
+            onClick={openSendDialog}
+            disabled={sendEligibleIds.length === 0}
+          >
+            Invia cedolini{sendEligibleIds.length > 0 ? ` (${sendEligibleIds.length})` : ""}
           </Button>
 
           {run ? (
@@ -158,12 +195,31 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
               {visibleWarningGroups.map((group) =>
                 group.cards.length > 0 ? (
                   <Collapsible key={group.category} defaultOpen>
-                    <CollapsibleTrigger
-                      data-testid={`cedolini-controlli-group-${group.category}`}
-                      className="w-full justify-start"
-                    >
-                      {group.category} ({group.cards.length})
-                    </CollapsibleTrigger>
+                    <div className="flex items-center justify-between gap-2">
+                      <CollapsibleTrigger
+                        data-testid={`cedolini-controlli-group-${group.category}`}
+                        className="justify-start"
+                      >
+                        {group.category} ({group.cards.length})
+                      </CollapsibleTrigger>
+                      {group.category === CEDOLINO_O_PDF_CATEGORY ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          data-testid="cedolini-controlli-recover-bulk"
+                          onClick={() => void recoverUrl.recoverBulk(cedolinoOPdfIds, selectedMonth)}
+                          disabled={recoverUrl.isBulkRecovering || cedolinoOPdfIds.length === 0}
+                        >
+                          {recoverUrl.isBulkRecovering ? "Recupero in corso…" : "Recupera URL (blocco)"}
+                        </Button>
+                      ) : null}
+                    </div>
+                    {group.category === CEDOLINO_O_PDF_CATEGORY && (recoverUrl.bulkError || recoverUrl.singleError) ? (
+                      <p className="text-danger mt-1 text-xs">
+                        {recoverUrl.bulkError ?? recoverUrl.singleError}
+                      </p>
+                    ) : null}
                     <CollapsibleContent>
                       <div className="flex flex-col gap-2 pt-2">
                         {group.cards.map((card) => (
@@ -171,6 +227,12 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
                             key={`${group.category}-${card.resultId}`}
                             card={card}
                             showWarnings
+                            onRecover={
+                              group.category === CEDOLINO_O_PDF_CATEGORY
+                                ? () => void recoverUrl.recoverSingle(card.meseLavorativoId)
+                                : undefined
+                            }
+                            isRecovering={recoverUrl.recoveringSingleId === card.meseLavorativoId}
                           />
                         ))}
                       </div>
@@ -185,6 +247,13 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
           </section>
         </div>
       </div>
+
+      <CedoliniControlliSendDialog
+        open={sendDialogOpen}
+        onOpenChange={setSendDialogOpen}
+        eligibleCount={sendEligibleIds.length}
+        state={bulkSend}
+      />
     </div>
   )
 }
@@ -192,9 +261,13 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
 function CedolinoCheckCardItem({
   card,
   showWarnings = false,
+  onRecover,
+  isRecovering = false,
 }: {
   card: CedolinoCheckCard
   showWarnings?: boolean
+  onRecover?: () => void
+  isRecovering?: boolean
 }) {
   return (
     <div
@@ -218,6 +291,19 @@ function CedolinoCheckCardItem({
             <li key={`${warning.category}-${index}`}>{warning.message}</li>
           ))}
         </ul>
+      ) : null}
+      {onRecover ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-2"
+          data-testid={`cedolini-controlli-recover-${card.meseLavorativoId}`}
+          onClick={onRecover}
+          disabled={isRecovering}
+        >
+          {isRecovering ? "Recupero…" : "Recupera URL"}
+        </Button>
       ) : null}
     </div>
   )

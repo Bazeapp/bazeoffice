@@ -1,3 +1,12 @@
+export {
+  fetchCedoliniBulkJob,
+  fetchCedoliniBulkJobItems,
+  processCedoliniBulkJob,
+  startCedoliniBulkJob,
+  stopCedoliniBulkJob,
+} from "./cedolini-bulk-job"
+export { markCedolinoReady } from "./cedolini-mark-ready"
+export { recoverCedolinoUrl } from "./cedolini-recover-url"
 export { fetchCedoliniBoard } from "./fetch-cedolini-board"
 export {
   fetchCedoliniCheckRun,

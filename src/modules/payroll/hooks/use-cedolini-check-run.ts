@@ -12,6 +12,15 @@ import type { CedolinoCheckResultRecord, CedolinoCheckRunRecord } from "../types
  */
 const CHECK_RUN_POLL_INTERVAL_MS = 2500
 
+/**
+ * Shared query key builder so other Controlli hooks (e.g.
+ * `use-cedolini-recover-url.ts`, U5) can invalidate the check-run cache
+ * after a mutation without duplicating the key literal.
+ */
+export function cedoliniCheckRunQueryKey(selectedMonth: string) {
+  return ["cedolino-check-run", selectedMonth] as const
+}
+
 export type UseCedoliniCheckRunState = {
   run: CedolinoCheckRunRecord | null
   results: CedolinoCheckResultRecord[]
@@ -26,7 +35,7 @@ export type UseCedoliniCheckRunState = {
 export function useCedoliniCheckRun(selectedMonth: string): UseCedoliniCheckRunState {
   const queryClient = useQueryClient()
   const queryKey = React.useMemo(
-    () => ["cedolino-check-run", selectedMonth] as const,
+    () => cedoliniCheckRunQueryKey(selectedMonth),
     [selectedMonth],
   )
 
