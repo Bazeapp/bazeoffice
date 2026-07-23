@@ -9,6 +9,11 @@ export { markCedolinoReady } from "./cedolini-mark-ready"
 export { recoverCedolinoUrl } from "./cedolini-recover-url"
 export { fetchCedoliniBoard } from "./fetch-cedolini-board"
 export {
+  fetchCedoliniPagamentiReminderFlags,
+  type CedoliniPagamentiReminderFlagRow,
+} from "./fetch-cedolini-pagamenti"
+export { invokeReminderPagamento, type InvokeReminderPagamentoResponse } from "./invoke-reminder-pagamento"
+export {
   fetchCedoliniCheckRun,
   fetchCedolinoCheckResults,
   type CedolinoCheckRunSnapshot,

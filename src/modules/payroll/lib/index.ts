@@ -125,3 +125,12 @@ export {
   type CedolinoBulkSendPhase,
 } from "./cedolini-bulk-send"
 export { parseEdgeFunctionErrorBody } from "./cedolini-edge-function-error"
+export {
+  filterPagamentiCardsByDate,
+  getPagamentiCandidateCards,
+  getPagamentiReminderBulkIds,
+  isDataInvioFamigliaWithinDateFilter,
+  isReminderDryRunSuccess,
+  splitPagamentiCardsByReminderStatus,
+  type PagamentiSplit,
+} from "./cedolini-pagamenti-filters"

@@ -83,13 +83,23 @@ export type CedolinoBulkSendPhase =
  * ever stored/synced via `useEffect` (best-practice 5.1: derive during
  * render). `jobStatus` is the polled `cedolino_bulk_jobs.status`; it is
  * `null` until the job row has been fetched at least once.
+ *
+ * `isDryRunSuccess` is injectable (defaults to `isSendDryRunSuccess`) so the
+ * SAME phase state machine drives both `kind: "send"`
+ * (`useCedoliniBulkSend`) and `kind: "reminder"` (`useCedoliniBulkReminder`,
+ * U6) — only the dry-run "what counts as success" predicate differs between
+ * the two job kinds; see `../lib/cedolini-pagamenti-filters.ts` →
+ * `isReminderDryRunSuccess`.
  */
 export function deriveBulkSendPhase(params: {
   isStartingDryRun: boolean
   jobId: string | null
   dryRunOutcome: CedolinoBulkJobDryRunOutcome | null
   jobStatus: CedolinoBulkJobStatus | null
+  isDryRunSuccess?: (outcome: CedolinoBulkJobDryRunOutcome) => boolean
 }): CedolinoBulkSendPhase {
+  const isDryRunSuccess = params.isDryRunSuccess ?? isSendDryRunSuccess
+
   if (params.isStartingDryRun) return "dry_running"
   if (!params.jobId) return "idle"
   if (params.jobStatus === "completata") return "completata"
@@ -97,7 +107,7 @@ export function deriveBulkSendPhase(params: {
   if (params.jobStatus === "failed") return "error"
   if (params.jobStatus === "in_corso") return "processing"
   // Job created but not yet claimed/processed beyond the dry-run item.
-  if (params.dryRunOutcome && !isSendDryRunSuccess(params.dryRunOutcome)) return "dry_run_failed"
+  if (params.dryRunOutcome && !isDryRunSuccess(params.dryRunOutcome)) return "dry_run_failed"
   if (params.dryRunOutcome) return "confirm_pending"
   return "idle"
 }

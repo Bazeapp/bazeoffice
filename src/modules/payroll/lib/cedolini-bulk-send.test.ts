@@ -172,6 +172,29 @@ describe("deriveBulkSendPhase", () => {
     expect(deriveBulkSendPhase({ ...base, jobStatus: "interrotta" })).toBe("interrotta")
     expect(deriveBulkSendPhase({ ...base, jobStatus: "failed" })).toBe("error")
   })
+
+  it("EXTRACTION (U6): isDryRunSuccess iniettabile — un altro kind può ridefinire il successo del dry run", () => {
+    const outcome: CedolinoBulkJobDryRunOutcome = { mese_lavorativo_id: "m-1", status: "success", details: {} }
+    // Per "send" questo stesso outcome fallirebbe (manca details.updated), ma
+    // un predicato iniettato (es. quello del reminder, U6) lo considera un successo.
+    expect(
+      deriveBulkSendPhase({
+        isStartingDryRun: false,
+        jobId: "job-1",
+        dryRunOutcome: outcome,
+        jobStatus: "pending",
+      }),
+    ).toBe("dry_run_failed")
+    expect(
+      deriveBulkSendPhase({
+        isStartingDryRun: false,
+        jobId: "job-1",
+        dryRunOutcome: outcome,
+        jobStatus: "pending",
+        isDryRunSuccess: (o) => o.status === "success",
+      }),
+    ).toBe("confirm_pending")
+  })
 })
 
 describe("getBulkJobProgressPercent", () => {

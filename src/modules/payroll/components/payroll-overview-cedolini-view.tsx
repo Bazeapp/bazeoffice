@@ -124,7 +124,7 @@ export function PayrollOverviewCedoliniView() {
       ) : mode === "controlli" ? (
         <CedoliniControlliView selectedMonth={selectedMonth} columns={columns} />
       ) : (
-        <CedoliniPagamentiView />
+        <CedoliniPagamentiView selectedMonth={selectedMonth} columns={columns} />
       )}
     </section>
   )
