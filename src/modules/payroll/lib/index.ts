@@ -134,3 +134,41 @@ export {
   splitPagamentiCardsByReminderStatus,
   type PagamentiSplit,
 } from "./cedolini-pagamenti-filters"
+export {
+  classifyCedolinoChecks,
+  compareOre,
+  comparePaga,
+  evaluatePaymentUrlResult,
+  isBazePay,
+  sumPresenzeOre,
+  WARNING_CATEGORIES as CEDOLINI_CHECK_WARNING_CATEGORIES,
+  type CedolinoWarning,
+  type CedolinoPdfFields as CedolinoCheckPdfFields,
+  type ClassifyChecksInput,
+  type ClassifyChecksResult,
+  type PaymentUrlCheckResult,
+  type SumPresenzeOreResult,
+  type WarningCategory,
+} from "./cedolini-checks"
+export {
+  extractCedolinoFieldsFromText,
+  extractFirstNumberAfter,
+  normalizeNumber,
+  type CedolinoPdfFields,
+} from "./cedolini-pdf-extract"
+export {
+  buildMarkReadyResult,
+  describeMarkReadyUpdateFilter,
+  EXCLUDED_CASO_PARTICOLARE,
+  hasCedolinoAttachment,
+  isExcludedCasoParticolare,
+  MARK_READY_FROM_STATO,
+  MARK_READY_TABLE,
+  MARK_READY_TO_STATO,
+  preflightMarkReady,
+  type MarkReadyPreflightResult,
+  type MarkReadyResult,
+  type MarkReadySkipReason,
+  type MarkReadyUpdateFilterDescription,
+  type MeseLavorativoPreflightInput,
+} from "./cedolini-mark-ready-preflight"
