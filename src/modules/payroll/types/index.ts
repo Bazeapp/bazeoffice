@@ -34,3 +34,15 @@ export type {
   CedoliniRichiestaAttivazioneSlim,
   CedolinoDetailRpcResponse,
 } from "./payroll-rpc"
+export {
+  CEDOLINO_WARNING_CATEGORIES,
+} from "./cedolino-check"
+export type {
+  CedolinoCheckResultRecord,
+  CedolinoCheckResultStatus,
+  CedolinoCheckRunRecord,
+  CedolinoCheckRunStatus,
+  CedolinoCheckWarning,
+  CedolinoWarningCategory,
+  StartCedoliniCheckRunResponse,
+} from "./cedolino-check"

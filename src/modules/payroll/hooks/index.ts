@@ -1,6 +1,7 @@
 export { usePayrollBoard } from "./use-payroll-board"
 export { useCedolinoDetail } from "./use-cedolino-detail"
 export { useCedoliniBoardSelection } from "./use-cedolini-board-selection"
+export { useCedoliniCheckRun } from "./use-cedolini-check-run"
 export { useContributiInpsBoard } from "./use-contributi-inps-board"
 export { useContributiInpsFilters } from "./use-contributi-inps-filters"
 export { useContributiInpsSelection } from "./use-contributi-inps-selection"
