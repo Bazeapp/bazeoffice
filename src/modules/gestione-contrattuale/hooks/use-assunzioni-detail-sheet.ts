@@ -33,7 +33,7 @@ import {
   resolveAssunzioneFormSubLabel,
   toNullableNumber,
 } from "../lib/detail-utils"
-import { findLookupOption } from "@/modules/lavoratori/lib"
+import { findLookupOption } from "@/lib/lookup-utils"
 
 export type UseAssunzioniDetailSheetParams = {
   card: AssunzioniBoardCardData | null

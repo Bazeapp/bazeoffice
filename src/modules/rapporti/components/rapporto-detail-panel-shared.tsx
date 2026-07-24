@@ -8,7 +8,7 @@ import {
   UserIcon,
 } from "lucide-react"
 
-import { getTagClassName } from "@/modules/lavoratori/lib"
+import { getTagClassName } from "@/lib/lookup-utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"

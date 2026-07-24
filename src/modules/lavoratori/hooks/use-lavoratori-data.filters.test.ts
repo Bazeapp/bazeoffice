@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import type { LookupOption } from "../lib/lookup-utils"
+import type { LookupOption } from "@/lib/lookup-utils"
 import { normalizeDomesticRoleDbLabel } from "../lib/base-utils"
 import type { QueryFilterGroup, TableColumnMeta } from "@/lib/table-query"
 import { collectGate1RpcFilters } from "../lib/gate1-filters"

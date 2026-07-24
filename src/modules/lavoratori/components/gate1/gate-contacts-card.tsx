@@ -8,7 +8,7 @@ import {
   getLookupLabelForSave,
   getLookupSelectValue,
   type LookupOption,
-} from "../../lib/lookup-utils";
+} from "@/lib/lookup-utils";
 import { GateInfoCard } from "./gate-info-card";
 
 function FieldFollowupRadio({

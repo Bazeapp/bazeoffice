@@ -66,9 +66,9 @@ function Harness({
         lavoriAccettabiliOptions={LAVORI_OPTIONS}
         disponibilitaNelGiornoOptions={DISPONIBILITA_OPTIONS}
       />
-      <SimulateFieldChange name="disponibilita_nel_giorno" testId="set-disponibilita-mattina" value={["mattina"]} />
-      <SimulateFieldChange name="tipo_rapporto_lavorativo" testId="set-tipo-fisso" value={["fisso"]} />
-      <SimulateFieldChange name="check_lavori_accettabili" testId="set-lavori-pulizie" value={["pulizie"]} />
+      <SimulateFieldChange name="disponibilita_nel_giorno" testId="set-disponibilita-mattina" value={["Mattina"]} />
+      <SimulateFieldChange name="tipo_rapporto_lavorativo" testId="set-tipo-fisso" value={["Fisso"]} />
+      <SimulateFieldChange name="check_lavori_accettabili" testId="set-lavori-pulizie" value={["Pulizie"]} />
     </Form>
   );
 }
@@ -102,7 +102,7 @@ describe("GateShiftPreferencesCard — Field roll-out", () => {
     fireEvent.click(screen.getByTestId("set-disponibilita-mattina"));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith({ disponibilita_nel_giorno: ["mattina"] });
+      expect(onSave).toHaveBeenCalledWith({ disponibilita_nel_giorno: ["Mattina"] });
     });
   });
 
@@ -113,7 +113,7 @@ describe("GateShiftPreferencesCard — Field roll-out", () => {
     fireEvent.click(screen.getByTestId("set-tipo-fisso"));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith({ tipo_rapporto_lavorativo: ["fisso"] });
+      expect(onSave).toHaveBeenCalledWith({ tipo_rapporto_lavorativo: ["Fisso"] });
     });
   });
 
@@ -124,7 +124,7 @@ describe("GateShiftPreferencesCard — Field roll-out", () => {
     fireEvent.click(screen.getByTestId("set-lavori-pulizie"));
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith({ check_lavori_accettabili: ["pulizie"] });
+      expect(onSave).toHaveBeenCalledWith({ check_lavori_accettabili: ["Pulizie"] });
     });
   });
 
@@ -142,7 +142,7 @@ describe("GateShiftPreferencesCard — Field roll-out", () => {
     });
 
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith({ disponibilita_nel_giorno: ["mattina"] });
+      expect(onSave).toHaveBeenCalledWith({ disponibilita_nel_giorno: ["Mattina"] });
     });
   });
 

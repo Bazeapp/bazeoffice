@@ -1,7 +1,7 @@
 import {
   normalizeLookupColors,
   normalizeLookupOptions,
-} from "@/modules/lavoratori/lib/lookup-utils"
+} from "@/lib/lookup-utils"
 import type { LookupValueRecord } from "@/types"
 import type { LookupColorMap, LookupOptionsMap } from "../types"
 

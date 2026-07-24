@@ -26,14 +26,8 @@ import {
   BreadcrumbItem,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
-import {
-  asString,
-  formatAvailabilityComputedAt,
-  getLookupSelectValue,
-  parseNumberValue,
-  readArrayStrings,
-  type LookupOption,
-} from "@/modules/lavoratori/lib"
+import { asString, formatAvailabilityComputedAt, parseNumberValue, readArrayStrings } from "@/modules/lavoratori/lib"
+import { getLookupSelectValue, type LookupOption } from "@/lib/lookup-utils"
 import { type CrmPipelineCardData } from "@/modules/crm/types"
 import type { RicercaWorkerSelectionCard } from "../types"
 import type {

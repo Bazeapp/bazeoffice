@@ -13,7 +13,7 @@ import {
   sortExperiences,
   type ExperienceDraft,
 } from "../lib/experience-references"
-import type { LookupOption } from "../lib/lookup-utils"
+import type { LookupOption } from "@/lib/lookup-utils"
 import type { EsperienzaLavoratoreRecord } from "../types/esperienza-lavoratore"
 import type { ReferenzaLavoratoreRecord } from "../types/referenza-lavoratore"
 import { AddExperienceAction } from "./experience-references-actions"

@@ -3,7 +3,7 @@ import { useController } from "react-hook-form"
 
 import { Badge } from "@/components/ui/badge"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { getTagClassName, resolveLookupColor, type LookupOption } from "../lib/lookup-utils"
+import { getTagClassName, resolveLookupColor, type LookupOption } from "@/lib/lookup-utils"
 import { cn } from "@/lib/utils"
 
 export type SkillsChoiceMatrixRow = {

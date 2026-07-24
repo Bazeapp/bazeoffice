@@ -57,7 +57,7 @@ import {
   resolveLookupSingleValueOptions,
   getLookupSelectValue,
   type LookupOption,
-} from "../lib/lookup-utils"
+} from "@/lib/lookup-utils"
 import { getWorkerCardInitials } from "../lib/card-utils"
 import { getWorkerQualificationStatus } from "../lib/status-utils"
 import {

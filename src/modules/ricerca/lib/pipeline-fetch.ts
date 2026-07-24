@@ -1,9 +1,7 @@
 import { fetchIndirizziByEntity } from "@/lib/indirizzi-api"
 import { fetchLookupValues } from "@/lib/lookup-values"
-import {
-  getDefaultWorkerAvatar,
-  normalizeLookupColors,
-} from "@/modules/lavoratori/lib"
+import { getDefaultWorkerAvatar } from "@/modules/lavoratori/lib"
+import { normalizeLookupColors } from "@/lib/lookup-utils"
 import { fetchLavoratoriByIds } from "@/modules/lavoratori/queries"
 
 import { fetchSelezioniLookup } from "../queries/fetch-selezioni-lookup"

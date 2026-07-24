@@ -21,12 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  getLookupOptionLabel,
-  normalizeLookupDbLabels,
-  normalizeLookupOptionValues,
-  type LookupOption,
-} from "@/modules/lavoratori/lib"
+import { getLookupOptionLabel, normalizeLookupDbLabels, normalizeLookupOptionValues, type LookupOption } from "@/lib/lookup-utils"
 import type { WorkerPipelineSummaryTone } from "../types/worker-pipeline-summary"
 import { toneBadgeClassName } from "../lib/worker-pipeline-summary.utils"
 

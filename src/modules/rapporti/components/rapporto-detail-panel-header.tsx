@@ -1,4 +1,4 @@
-import { getTagClassName } from "@/modules/lavoratori/lib"
+import { getTagClassName } from "@/lib/lookup-utils"
 import { TipoContrattoBadge } from "@/components/shared-next/tipo-contratto-badge"
 import { Badge } from "@/components/ui/badge"
 import type { RapportoLavorativoRecord } from "@/types"

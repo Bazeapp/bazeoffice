@@ -9,7 +9,7 @@ import {
 
 import type { LavoratoreListItem } from "../components/lavoratore-card"
 import { asString, parseNumberValue, readArrayStrings, toAvatarUrl } from "./base-utils"
-import { normalizeLookupToken } from "./lookup-utils"
+import { normalizeLookupToken } from "@/lib/lookup-utils"
 
 export function isNonIdoneoStatus(value: unknown) {
   const normalized = normalizeLookupToken(value).replaceAll("_", " ")

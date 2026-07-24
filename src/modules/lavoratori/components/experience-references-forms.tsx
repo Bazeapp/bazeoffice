@@ -28,9 +28,9 @@ import {
   getLookupOptionLabel,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
-} from "../lib/lookup-utils"
+} from "@/lib/lookup-utils"
 import { EMPTY_SELECT_VALUE } from "../lib/experience-references"
-import type { LookupOption } from "../lib/lookup-utils"
+import type { LookupOption } from "@/lib/lookup-utils"
 
 type ExperienceRoleFieldProps = {
   value: string[]
