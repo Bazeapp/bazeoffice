@@ -595,6 +595,41 @@ describe("useSelectedWorkerEditor — U6 write paths (errors + orchestration)", 
     )
   }
 
+  it("B16: saveWorkerAvailability persists matrix boolean fields in the update patch", async () => {
+    vi.mocked(updateRecord).mockClear()
+    vi.mocked(invokeWorkerAvailability).mockClear()
+    vi.mocked(updateRecord).mockResolvedValueOnce({ row: makeRow() } as never)
+
+    const { result } = render()
+
+    act(() => {
+      result.current.setIsEditingAvailability(true)
+      result.current.setAvailabilityDraft((current) => ({
+        ...current,
+        matrix: {
+          ...current.matrix,
+          "lunedi:mattina": true,
+          "martedi:pomeriggio": true,
+        },
+      }))
+    })
+
+    await act(async () => {
+      await result.current.saveWorkerAvailability().catch(() => {})
+    })
+
+    expect(updateRecord).toHaveBeenCalledWith(
+      "lavoratori",
+      "worker-1",
+      expect.objectContaining({
+        disponibilita_lunedi_mattina: true,
+        disponibilita_martedi_pomeriggio: true,
+        disponibilita_lunedi_pomeriggio: false,
+      })
+    )
+    expect(invokeWorkerAvailability).toHaveBeenCalledWith("worker-1")
+  })
+
   it("B16: saveWorkerAvailability success → updateRecord, applyUpdatedWorkerRow, invokeWorkerAvailability, toast.success", async () => {
     vi.mocked(updateRecord).mockClear()
     vi.mocked(invokeWorkerAvailability).mockClear()

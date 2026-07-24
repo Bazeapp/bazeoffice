@@ -195,6 +195,34 @@ describe("useWorkerSectionDraft", () => {
     expect(result.current.draft.note).toBe("gamma:")
   })
 
+  it("rebuilds draft on worker switch even if isEditing is forced true again (always-edit mode)", () => {
+    const { result, rerender } = renderHook(useHarness, {
+      initialProps: {
+        selectedWorkerId: "w-1",
+        selectedWorkerRow: makeRow("w-1", "alpha"),
+        activePatches: 0,
+      },
+    })
+
+    act(() => {
+      result.current.setIsEditing(true)
+      result.current.setDraft({ note: "user-typed-on-w1" })
+    })
+
+    rerender({
+      selectedWorkerId: "w-2",
+      selectedWorkerRow: makeRow("w-2", "gamma"),
+      activePatches: 0,
+    })
+
+    // Simulate Gate availabilityEditMode="always" re-asserting edit after identity reset.
+    act(() => {
+      result.current.setIsEditing(true)
+    })
+
+    expect(result.current.draft.note).toBe("gamma:")
+  })
+
   it("resyncs when resyncDeps change", () => {
     const { result, rerender } = renderHook(useHarness, {
       initialProps: {

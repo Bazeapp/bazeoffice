@@ -22,6 +22,10 @@ export function useWorkerSectionDraft<TDraft>({
   resyncDeps = [],
 }: UseWorkerSectionDraftOptions<TDraft>) {
   const [draft, setDraft] = React.useState<TDraft>(() => buildDraft(selectedWorkerRow))
+  const buildDraftRef = React.useRef(buildDraft)
+  const selectedWorkerRowRef = React.useRef(selectedWorkerRow)
+  buildDraftRef.current = buildDraft
+  selectedWorkerRowRef.current = selectedWorkerRow
 
   React.useEffect(() => {
     if (activePatchesRef.current > 0) return
@@ -30,8 +34,12 @@ export function useWorkerSectionDraft<TDraft>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePatchesRef, isEditing, selectedWorkerRow, ...resyncDeps])
 
+  // Always take the new record's draft on identity change — even when the
+  // caller keeps `isEditing` true (Gate availabilityEditMode="always"), so we
+  // never show the previous worker's in-progress matrix/fields.
   React.useEffect(() => {
     setIsEditing(false)
+    setDraft(buildDraftRef.current(selectedWorkerRowRef.current))
   }, [selectedWorkerId, setIsEditing])
 
   return { draft, setDraft }
