@@ -83,6 +83,7 @@ export function useLavoratoriData(options: UseLavoratoriDataOptions = {}) {
     pageIndex: pagination.pageIndex,
     pageSize: pagination.pageSize,
     reloadOpenDetail,
+    selectedWorkerId,
     setSelectedWorkerId,
     setWorkerRows,
     setWorkersTotal,

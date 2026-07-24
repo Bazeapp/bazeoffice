@@ -10,10 +10,15 @@
 import { renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-let realtimeHandler: (() => void) | null = null
+import type { RealtimeRowEvent } from "@/hooks/use-realtime-rows"
+
+let realtimeHandler: ((event: RealtimeRowEvent) => void) | null = null
 
 vi.mock("@/hooks/use-realtime-rows", () => ({
-  useRealtimeRows: (_tables: string[], handler: () => void) => {
+  useRealtimeRows: (
+    _tables: string[],
+    handler: (event: RealtimeRowEvent) => void
+  ) => {
     realtimeHandler = handler
   },
 }))
@@ -29,6 +34,13 @@ vi.mock("@/lib/write-tracking", () => ({
 }))
 
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+
+const SAMPLE_EVENT: RealtimeRowEvent = {
+  table: "chiusure_contratti",
+  eventType: "UPDATE",
+  newRow: { id: "row-1" },
+  oldRow: { id: "row-1" },
+}
 
 beforeEach(() => {
   // Only fake setTimeout/clearTimeout. The hook only schedules a setTimeout,
@@ -46,9 +58,9 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function trigger() {
+function trigger(event: RealtimeRowEvent = SAMPLE_EVENT) {
   if (!realtimeHandler) throw new Error("realtime handler not registered")
-  realtimeHandler()
+  realtimeHandler(event)
 }
 
 describe("useRealtimeBoardSync — echo suppression and deferral", () => {
@@ -136,5 +148,75 @@ describe("useRealtimeBoardSync — echo suppression and deferral", () => {
     expect(reload).toHaveBeenCalledTimes(1)
     expect(reloadOpenDetail).toHaveBeenCalledTimes(1)
     expect(order).toEqual(["reload", "reloadOpenDetail"])
+  })
+
+  it("skips board and detail when both filters reject the event", async () => {
+    const reload = vi.fn().mockResolvedValue(undefined)
+    const reloadOpenDetail = vi.fn().mockResolvedValue(undefined)
+    renderHook(() =>
+      useRealtimeBoardSync({
+        tables: ["lavoratori"],
+        reload,
+        reloadOpenDetail,
+        shouldReloadBoard: () => false,
+        shouldReloadOpenDetail: () => false,
+      })
+    )
+
+    trigger()
+    await vi.advanceTimersByTimeAsync(600)
+    expect(reload).not.toHaveBeenCalled()
+    expect(reloadOpenDetail).not.toHaveBeenCalled()
+  })
+
+  it("reloads detail only when the board filter rejects but detail accepts", async () => {
+    const reload = vi.fn().mockResolvedValue(undefined)
+    const reloadOpenDetail = vi.fn().mockResolvedValue(undefined)
+    renderHook(() =>
+      useRealtimeBoardSync({
+        tables: ["lavoratori"],
+        reload,
+        reloadOpenDetail,
+        shouldReloadBoard: () => false,
+        shouldReloadOpenDetail: () => true,
+      })
+    )
+
+    trigger()
+    await vi.advanceTimersByTimeAsync(600)
+    await vi.runAllTimersAsync()
+
+    expect(reload).not.toHaveBeenCalled()
+    expect(reloadOpenDetail).toHaveBeenCalledTimes(1)
+  })
+
+  it("ORs relevance across a debounce burst", async () => {
+    const reload = vi.fn().mockResolvedValue(undefined)
+    const reloadOpenDetail = vi.fn().mockResolvedValue(undefined)
+    renderHook(() =>
+      useRealtimeBoardSync({
+        tables: ["lavoratori"],
+        reload,
+        reloadOpenDetail,
+        shouldReloadBoard: (event) => event.newRow?.id === "on-page",
+        shouldReloadOpenDetail: (event) => event.newRow?.id === "selected",
+      })
+    )
+
+    trigger({
+      ...SAMPLE_EVENT,
+      newRow: { id: "other" },
+      oldRow: { id: "other" },
+    })
+    trigger({
+      ...SAMPLE_EVENT,
+      newRow: { id: "on-page" },
+      oldRow: { id: "on-page" },
+    })
+    await vi.advanceTimersByTimeAsync(600)
+    await vi.runAllTimersAsync()
+
+    expect(reload).toHaveBeenCalledTimes(1)
+    expect(reloadOpenDetail).not.toHaveBeenCalled()
   })
 })
