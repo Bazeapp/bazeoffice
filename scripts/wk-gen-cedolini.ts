@@ -13,11 +13,10 @@
  *   VITE_SUPABASE_ANON_KEY (or LOCAL_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY)
  *   VITE_SUPABASE_FUNCTIONS_URL (optional; defaults to `${URL}/functions/v1`)
  *
- * Usage:
- *   npx tsx scripts/wk-gen-cedolini.ts --record-id <uuid>
- *   npx tsx scripts/wk-gen-cedolini.ts --seed --month 2026-07
- *   npx tsx scripts/wk-gen-cedolini.ts --seed --month 2026-07 --rapporto-id <uuid>
- *   npx tsx scripts/wk-gen-cedolini.ts --seed --month 2026-07 --invoke
+ * Usage (pass script flags after npm's `--`):
+ *   npm run script:wk-gen-cedolini -- --seed --month 2026-07
+ *   npm run script:wk-gen-cedolini -- --invoke --month 2026-07
+ *   npm run script:wk-gen-cedolini -- --record-id <uuid>
  */
 
 import fs from "node:fs"
@@ -99,22 +98,28 @@ function printHelp() {
 Invoke Edge Function wk-crea-cedolino, and/or seed mesi_lavorati for the
 Cedolini board.
 
+IMPORTANT: with npm, put flags after \`--\` so npm does not swallow them:
+  npm run script:wk-gen-cedolini -- --invoke --month 2026-07
+  ✗ npm run script:wk-gen-cedolini --invoke
+
 By default --seed creates one mesi_lavorati per row in
 rapporti_lavorativi_attivi that overlaps the target month.
 
 Examples:
-  npx tsx scripts/wk-gen-cedolini.ts --seed --month 2026-07
-  npx tsx scripts/wk-gen-cedolini.ts --seed --month 2026-07 --invoke
-  npx tsx scripts/wk-gen-cedolini.ts --seed --month 2026-07 --rapporto-id <uuid>
-  npx tsx scripts/wk-gen-cedolini.ts --record-id <mesi_lavorati_uuid>
+  npm run script:wk-gen-cedolini -- --seed --month 2026-07
+  npm run script:wk-gen-cedolini -- --invoke --month 2026-07
+  npm run script:wk-gen-cedolini -- --seed --month 2026-07 --invoke
+  npm run script:wk-gen-cedolini -- --record-id <mesi_lavorati_uuid>
 
 Flags:
   --record-id <uuid>     mesi_lavorati.id to pass to wk-crea-cedolino
   --seed                 insert mesi_calendario + presenze + mesi_lavorati
-  --month YYYY-MM        calendar month for --seed (required with --seed)
+  --month YYYY-MM        month for --seed / --invoke
   --rapporto-id <uuid>   optional: seed only this rapporto (default = all active)
-  --stato <label>        stato_mese_lavorativo for seed (default: TODO)
-  --invoke               after --seed, call wk-crea-cedolino on each new/reused row
+  --stato <label>        for --seed: initial stato (default TODO)
+                         for --invoke alone: filter stato (default "Ricezione presenze")
+  --invoke               call wk-crea-cedolino (with --seed: on seeded rows;
+                         alone: on mesi_lavorati for --month matching --stato)
   -h, --help             show this help
 `)
 }
@@ -469,6 +474,45 @@ async function seedMonthForActiveRapporti(options: {
   return ids
 }
 
+async function findMesiLavoratiForInvoke(options: {
+  supabase: SupabaseClient
+  month: string
+  stato: string
+  rapportoId: string | null
+}): Promise<string[]> {
+  const { start } = parseYearMonth(options.month)
+
+  const { data: mese, error: meseError } = await options.supabase
+    .from("mesi_calendario")
+    .select("id")
+    .eq("data_inizio", start)
+    .maybeSingle()
+
+  if (meseError) {
+    throw new Error(`mesi_calendario select failed: ${meseError.message}`)
+  }
+  if (!mese?.id) {
+    throw new Error(`No mesi_calendario for ${options.month} (${start}). Seed first.`)
+  }
+
+  let query = options.supabase
+    .from("mesi_lavorati")
+    .select("id")
+    .eq("mese_id", mese.id)
+    .eq("stato_mese_lavorativo", options.stato)
+
+  if (options.rapportoId) {
+    query = query.eq("rapporto_lavorativo_id", options.rapportoId)
+  }
+
+  const { data, error } = await query
+  if (error) {
+    throw new Error(`mesi_lavorati select failed: ${error.message}`)
+  }
+
+  return (data ?? []).map((row) => row.id as string)
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2))
   if (args.help) {
@@ -511,10 +555,52 @@ async function main() {
     return
   }
 
+  if (args.invoke) {
+    if (args.recordId) {
+      await invokeWkCreaCedolino(env.functionsUrl, apiKey, args.recordId)
+      return
+    }
+    if (!args.month) {
+      printHelp()
+      throw new Error(
+        "With --invoke alone, pass --month YYYY-MM (and use npm's `--` before flags). " +
+          "Example: npm run script:wk-gen-cedolini -- --invoke --month 2026-07",
+      )
+    }
+
+    const supabase = createClient(env.supabaseUrl, apiKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+    const invokeStato =
+      args.stato === "TODO" ? "Ricezione presenze" : args.stato
+    const recordIds = await findMesiLavoratiForInvoke({
+      supabase,
+      month: args.month,
+      stato: invokeStato,
+      rapportoId: args.rapportoId,
+    })
+
+    if (recordIds.length === 0) {
+      throw new Error(
+        `No mesi_lavorati in "${invokeStato}" for ${args.month}. ` +
+          `Move cards on the board, or pass --stato "<label>".`,
+      )
+    }
+
+    console.log(`Invoking wk-crea-cedolino for ${recordIds.length} row(s) in "${invokeStato}"`)
+    for (const recordId of recordIds) {
+      await invokeWkCreaCedolino(env.functionsUrl, apiKey, recordId)
+    }
+    return
+  }
+
   const recordId = args.recordId
   if (!recordId) {
     printHelp()
-    throw new Error("Pass --record-id <uuid>, or use --seed --month YYYY-MM")
+    throw new Error(
+      "Pass --record-id <uuid>, or --invoke --month YYYY-MM, or --seed --month YYYY-MM. " +
+        "With npm, put flags after `--`.",
+    )
   }
 
   await invokeWkCreaCedolino(env.functionsUrl, apiKey, recordId)
