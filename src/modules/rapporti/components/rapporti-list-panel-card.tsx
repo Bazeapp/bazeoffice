@@ -3,7 +3,7 @@ import { CalendarDaysIcon, ClockIcon } from "lucide-react"
 import { CardMetaRow } from "@/components/shared-next/card-meta-row"
 import { RecordCard } from "@/components/shared-next/record-card"
 import { Badge } from "@/components/ui/badge"
-import { getTagClassName } from "@/modules/lavoratori/lib"
+import { getTagClassName } from "@/lib/lookup-utils"
 import { getRapportoStatusColor } from "@/modules/rapporti/lib"
 import { cn } from "@/lib/utils"
 

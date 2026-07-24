@@ -16,12 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import {
-  getLookupLabelForSave,
-  getLookupSelectValue,
-  getTagClassName,
-  resolveLookupColor,
-} from "@/modules/lavoratori/lib"
+import { getLookupLabelForSave, getLookupSelectValue, getTagClassName, resolveLookupColor } from "@/lib/lookup-utils"
 import { cn } from "@/lib/utils"
 import { buildPathForRoute } from "@/routes/app-routes"
 import type { RapportoLavorativoRecord } from "@/types"

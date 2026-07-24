@@ -11,7 +11,7 @@ import {
   getLevelMeta,
   type SkillFieldConfig,
 } from "../lib/skills-competenze"
-import { getTagClassName, resolveLookupColor, type LookupOption } from "../lib/lookup-utils"
+import { getTagClassName, resolveLookupColor, type LookupOption } from "@/lib/lookup-utils"
 
 type SkillsCompetenzeLevelFieldProps = {
   config: SkillFieldConfig

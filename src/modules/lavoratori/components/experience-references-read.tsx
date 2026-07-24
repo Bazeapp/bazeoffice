@@ -26,7 +26,7 @@ import {
   getTagClassName,
   resolveLookupColor,
   type LookupOption,
-} from "../lib/lookup-utils"
+} from "@/lib/lookup-utils"
 import type { EsperienzaLavoratoreRecord } from "../types/esperienza-lavoratore"
 import type { ReferenzaLavoratoreRecord } from "../types/referenza-lavoratore"
 import { AddReferenceAction, DeleteExperienceAction } from "./experience-references-actions"

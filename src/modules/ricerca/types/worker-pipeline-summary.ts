@@ -1,10 +1,7 @@
 import type * as React from "react"
 
-import type {
-  AvailabilityEditBandField,
-  AvailabilityEditDayField,
-  LookupOption,
-} from "@/modules/lavoratori/lib"
+import type { AvailabilityEditBandField, AvailabilityEditDayField } from "@/modules/lavoratori/lib"
+import type { LookupOption } from "@/lib/lookup-utils"
 import type {
   DocumentoLavoratoreRecord,
   EsperienzaLavoratoreRecord,

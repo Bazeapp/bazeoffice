@@ -2,7 +2,7 @@ import type { FilterField } from "@/components/data-table/data-table-filters"
 import type { TableColumnMeta } from "@/lib/table-query"
 
 import { normalizeDomesticRoleDbLabel, toReadableColumnLabel } from "./base-utils"
-import type { LookupOption } from "./lookup-utils"
+import type { LookupOption } from "@/lib/lookup-utils"
 
 export function buildWorkerFilterFields(args: {
   columns: TableColumnMeta[]

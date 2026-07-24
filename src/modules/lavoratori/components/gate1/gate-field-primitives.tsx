@@ -36,7 +36,7 @@ import {
   getLookupOptionLabel,
   getTagClassName,
   resolveLookupColor,
-} from "../../lib/lookup-utils";
+} from "@/lib/lookup-utils";
 
 /**
  * D2 — primitive di campo pure di Gate 1, estratte da gate1-view.

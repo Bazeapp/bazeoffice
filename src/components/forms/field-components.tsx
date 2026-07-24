@@ -27,12 +27,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  getLookupOptionLabel,
+  normalizeLookupDbLabels,
+  normalizeLookupOptionValues,
+} from "@/lib/lookup-utils";
 
 function getOptionLabel(
   options: Array<{ value: string; label: string }>,
   value: string,
 ) {
-  return options.find((option) => option.value === value)?.label ?? value;
+  return getLookupOptionLabel(options, value);
 }
 
 /**
@@ -340,8 +345,9 @@ export function FieldCombobox({
   );
 }
 
-// --- FieldMultiSelect: multi-select su lookup values (DB values, non label).
-//     Stesso pattern di WorkerShiftPreferencesFields / gate1 disponibilita_nel_giorno.
+// --- FieldMultiSelect: multi-select lookup-backed.
+//     Combobox items usano value_key; il form/DB memorizzano value_label.
+//     Stesso bridge di WorkerShiftPreferencesFields / address-section mobility.
 export function FieldMultiSelect({
   name,
   options,
@@ -357,7 +363,11 @@ export function FieldMultiSelect({
 }) {
   const { field } = useController({ name });
   const anchor = useComboboxAnchor();
-  const value = Array.isArray(field.value) ? (field.value as string[]) : [];
+  const stored = Array.isArray(field.value) ? (field.value as string[]) : [];
+  const value = React.useMemo(
+    () => normalizeLookupOptionValues(stored, options),
+    [options, stored],
+  );
   const items = React.useMemo(
     () => options.map((option) => option.value),
     [options],
@@ -371,9 +381,14 @@ export function FieldMultiSelect({
       value={value}
       onValueChange={(nextValues) =>
         field.onChange(
-          Array.isArray(nextValues)
-            ? Array.from(new Set(nextValues.filter((item): item is string => typeof item === "string")))
-            : [],
+          normalizeLookupDbLabels(
+            Array.isArray(nextValues)
+              ? nextValues.filter(
+                  (item): item is string => typeof item === "string",
+                )
+              : [],
+            options,
+          ),
         )
       }
       disabled={disabled}

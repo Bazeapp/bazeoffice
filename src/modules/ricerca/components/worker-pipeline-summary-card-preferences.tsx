@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils"
-import { asString, getTagClassName, resolveLookupColor } from "@/modules/lavoratori/lib"
+import { asString } from "@/modules/lavoratori/lib"
+import { getTagClassName, resolveLookupColor } from "@/lib/lookup-utils"
 
 import type {
   PreferenceFieldConfig,

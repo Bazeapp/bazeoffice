@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { getLookupSelectValue } from "../lib/lookup-utils"
+import { getLookupSelectValue } from "@/lib/lookup-utils"
 import {
   FieldLookupSelect,
   GateFormLevelField,

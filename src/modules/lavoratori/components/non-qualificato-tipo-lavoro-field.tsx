@@ -4,7 +4,7 @@ import {
   normalizeDomesticRoleDbLabels,
   normalizeDomesticRoleLookupValues,
 } from "../lib/base-utils"
-import { getLookupOptionLabel } from "../lib/lookup-utils"
+import { getLookupOptionLabel } from "@/lib/lookup-utils"
 import {
   Combobox,
   ComboboxChip,

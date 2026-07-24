@@ -18,7 +18,7 @@ import {
   type LookupOption,
   normalizeLookupColors,
   normalizeLookupOptions,
-} from "../lib/lookup-utils"
+} from "@/lib/lookup-utils"
 import {
   SERVER_QUERY_DEBOUNCE_MS,
   VIEWS_STORAGE_KEY,

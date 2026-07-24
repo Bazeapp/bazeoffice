@@ -2,7 +2,7 @@ import { PencilIcon, SparklesIcon } from "lucide-react"
 
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import { Button } from "@/components/ui/button"
-import type { LookupOption } from "../lib/lookup-utils"
+import type { LookupOption } from "@/lib/lookup-utils"
 import type { SkillCompetenzeValues } from "../lib/skills-competenze"
 import { LANGUAGE_SECTION, SKILL_SECTIONS } from "./skills-competenze-config"
 import { SkillsCompetenzeSection } from "./skills-competenze-section"

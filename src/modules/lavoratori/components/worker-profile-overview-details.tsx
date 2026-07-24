@@ -9,7 +9,7 @@ import {
 } from "lucide-react"
 
 import { asString, getAgeFromBirthDate } from "../lib/base-utils"
-import { getLookupOptionLabel } from "../lib/lookup-utils"
+import { getLookupOptionLabel } from "@/lib/lookup-utils"
 import { WorkerProfileOverviewDetailRow } from "./worker-profile-overview-detail-row"
 import {
   WorkerProfileOverviewLivelloItalianoField,

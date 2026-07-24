@@ -21,7 +21,7 @@ import {
   getTagClassName,
   normalizeLookupToken,
   resolveLookupColor,
-} from "../lib/lookup-utils"
+} from "@/lib/lookup-utils"
 import {
   findNonQualificatoIssues,
   isNonIdoneoStatus,

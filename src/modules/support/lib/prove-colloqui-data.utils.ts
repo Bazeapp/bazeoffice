@@ -1,4 +1,5 @@
-import { toAvatarUrl, resolveLookupColor } from "@/modules/lavoratori/lib"
+import { toAvatarUrl } from "@/modules/lavoratori/lib"
+import { resolveLookupColor } from "@/lib/lookup-utils"
 import { formatAssunzioneName, getRapportoProcessIds } from "@/modules/rapporti/lib"
 import type { RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
 import { normalizeComparableToken, toStringValue } from "@/lib/value-utils"

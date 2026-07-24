@@ -1,9 +1,6 @@
 import type { AssunzioneRecord, AssunzioniBoardCardData } from "../types"
 import type { DocumentoLavoratoreRecord } from "@/modules/lavoratori/types"
-import {
-  findLookupOption,
-  getLookupSelectValue,
-} from "@/modules/lavoratori/lib"
+import { findLookupOption, getLookupSelectValue } from "@/lib/lookup-utils"
 
 export function formatDate(value: string | null | undefined) {
   if (!value) return "-"

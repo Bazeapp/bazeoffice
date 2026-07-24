@@ -8,7 +8,7 @@ import { FieldDocumentiInRegolaSelect } from "./field-documenti-in-regola-select
 import { FieldHaiReferenzeSelect } from "./field-hai-referenze-select"
 import { FieldNonQualificatoTipoLavoro } from "./field-non-qualificato-tipo-lavoro"
 import type { NonQualificatoIssue } from "../lib/status-utils"
-import type { LookupOption } from "../lib/lookup-utils"
+import type { LookupOption } from "@/lib/lookup-utils"
 import type { LavoratoriCercaDetailNonQualificatoProps } from "./lavoratori-cerca-detail.types"
 
 type NonQualificatoIssueFieldProps = {

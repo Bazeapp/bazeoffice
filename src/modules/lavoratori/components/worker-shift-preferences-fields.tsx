@@ -26,7 +26,7 @@ import {
   normalizeLookupOptionValue,
   resolveLookupColor,
   type LookupOption,
-} from "../lib/lookup-utils"
+} from "@/lib/lookup-utils"
 
 type WorkerShiftPreferenceField = {
   id: string

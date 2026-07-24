@@ -1,4 +1,4 @@
-import { getLookupOptionLabel } from "./lookup-utils";
+import { getLookupOptionLabel } from "@/lib/lookup-utils";
 import {
   normalizeDomesticRoleLabels,
   normalizeDomesticRoleLookupValues,

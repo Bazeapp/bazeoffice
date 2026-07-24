@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { LookupOption } from "@/modules/lavoratori/lib"
+import type { LookupOption } from "@/lib/lookup-utils"
 import type { RicercaDetailCardData, RicercaDetailSectionEdit } from "../lib/ricerca-detail-view.types"
 import {
   RicercaDetailEditableTextField,

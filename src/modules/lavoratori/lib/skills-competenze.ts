@@ -1,4 +1,4 @@
-import type { LookupOption } from "./lookup-utils"
+import type { LookupOption } from "@/lib/lookup-utils"
 
 export type SkillCompetenzeValues = {
   livello_pulizie: string
