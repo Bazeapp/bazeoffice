@@ -216,7 +216,11 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
                       ) : null}
                     </div>
                     {group.category === CEDOLINO_O_PDF_CATEGORY && (recoverUrl.bulkError || recoverUrl.singleError) ? (
-                      <p className="text-danger mt-1 text-xs">
+                      <p
+                        className="text-danger mt-1 text-xs"
+                        data-testid="cedolini-controlli-recover-error"
+                        role="alert"
+                      >
                         {recoverUrl.bulkError ?? recoverUrl.singleError}
                       </p>
                     ) : null}
@@ -226,7 +230,7 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
                           <CedolinoCheckCardItem
                             key={`${group.category}-${card.resultId}`}
                             card={card}
-                            showWarnings
+                            warningCategory={group.category}
                             onRecover={
                               group.category === CEDOLINO_O_PDF_CATEGORY
                                 ? () => void recoverUrl.recoverSingle(card.meseLavorativoId)
@@ -260,15 +264,21 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
 
 function CedolinoCheckCardItem({
   card,
-  showWarnings = false,
+  warningCategory,
   onRecover,
   isRecovering = false,
 }: {
   card: CedolinoCheckCard
-  showWarnings?: boolean
+  /** When set (Warning column), only messages for this group category are shown. */
+  warningCategory?: CedolinoWarningCategory
   onRecover?: () => void
   isRecovering?: boolean
 }) {
+  const visibleWarnings =
+    warningCategory == null
+      ? []
+      : card.warnings.filter((warning) => warning.category === warningCategory)
+
   return (
     <div
       className="border-border bg-surface rounded-lg border p-3"
@@ -285,9 +295,9 @@ function CedolinoCheckCardItem({
       {card.info?.importoLabel ? (
         <p className="text-muted-foreground mt-1 text-xs">{card.info.importoLabel}</p>
       ) : null}
-      {showWarnings && card.warnings.length > 0 ? (
+      {visibleWarnings.length > 0 ? (
         <ul className="text-warning mt-2 flex flex-col gap-1 text-xs">
-          {card.warnings.map((warning, index) => (
+          {visibleWarnings.map((warning, index) => (
             <li key={`${warning.category}-${index}`}>{warning.message}</li>
           ))}
         </ul>

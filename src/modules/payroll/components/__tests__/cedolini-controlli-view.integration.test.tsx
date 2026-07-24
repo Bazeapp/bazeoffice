@@ -163,6 +163,14 @@ describe("CedoliniControlliView (U4)", () => {
     // Entrambi i gruppi renderizzano la card di Rossi – Maria (multi-membership).
     const cards = screen.getAllByTestId("cedolini-check-card-res-1")
     expect(cards).toHaveLength(2)
+
+    // Under each group, only that group's warning message is shown (PRD §7).
+    // Fixed category order: Ore non coerenti before Paga oraria.
+    const [oreCard, pagaCard] = cards
+    expect(oreCard?.textContent).toContain("Ore non coerenti con le presenze.")
+    expect(oreCard?.textContent).not.toContain("Paga oraria non coerente.")
+    expect(pagaCard?.textContent).toContain("Paga oraria non coerente.")
+    expect(pagaCard?.textContent).not.toContain("Ore non coerenti con le presenze.")
   })
 
   it("AE1: refresh a metà run mostra progresso parziale senza flash a zero", () => {

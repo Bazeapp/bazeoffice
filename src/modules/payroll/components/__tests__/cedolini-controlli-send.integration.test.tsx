@@ -369,6 +369,32 @@ describe("CedoliniControlliView — bulk send + recupero URL (U5)", () => {
     expect(screen.queryByTestId("cedolini-controlli-recover-m-2")).toBeNull()
   })
 
+  it("mostra l'errore di recupero URL in blocco sotto il gruppo Cedolino o PDF", () => {
+    const columns = makeColumns([makeBoardCard({ id: "m-1" })])
+    mockCheckRun({
+      run: makeRun({ total_count: 1, checked_count: 1 }),
+      results: [
+        makeResult({
+          id: "res-1",
+          mese_lavorativo_id: "m-1",
+          status: "warning",
+          warnings: [{ category: "Cedolino o PDF", message: "PDF illeggibile." }],
+        }),
+      ],
+    })
+    mockBulkSend()
+    mockRecoverUrl({
+      bulkError:
+        "Google Drive non configurato: imposta il secret DRIVE_SERVICE_ACCOUNT_JSON.",
+    })
+
+    renderWithProviders(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
+
+    expect(screen.getByTestId("cedolini-controlli-recover-error").textContent).toContain(
+      "Google Drive non configurato",
+    )
+  })
+
   it("EDGE: recupero in blocco disabilitato mentre è in corso", () => {
     const columns = makeColumns([makeBoardCard({ id: "m-1" })])
     mockCheckRun({
