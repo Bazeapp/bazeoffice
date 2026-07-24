@@ -59,12 +59,15 @@ export function useSelectedLavoratoreDetail({
   const [loadingSelectedWorkerReferences, setLoadingSelectedWorkerReferences] =
     React.useState(false)
   const selectedWorkerAddressLoadAttemptsRef = React.useRef(new Set<string>())
+  /** Worker id whose scheda is already on screen — background refreshes stay SWR. */
+  const loadedSchedaWorkerIdRef = React.useRef<string | null>(null)
 
   React.useEffect(() => {
     let isCancelled = false
 
     async function loadSelectedWorkerScheda() {
       if (!selectedWorkerId) {
+        loadedSchedaWorkerIdRef.current = null
         setSelectedWorkerRow(null)
         setSelectedWorkerDocuments([])
         setSelectedWorkerExperiences([])
@@ -78,10 +81,15 @@ export function useSelectedLavoratoreDetail({
 
       const listRow =
         workerRowsRef.current.find((row) => row.id === selectedWorkerId) ?? null
-      setSelectedWorkerRow(listRow)
-      setLoadingSelectedWorkerDocuments(true)
-      setLoadingSelectedWorkerExperiences(true)
-      setLoadingSelectedWorkerReferences(true)
+      // Keep the open scheda mounted during realtime refresh: flipping loading
+      // unmounts experience/document dialogs and jumps the detail scroll.
+      const silentRefresh = loadedSchedaWorkerIdRef.current === selectedWorkerId
+      if (!silentRefresh) {
+        setSelectedWorkerRow(listRow)
+        setLoadingSelectedWorkerDocuments(true)
+        setLoadingSelectedWorkerExperiences(true)
+        setLoadingSelectedWorkerReferences(true)
+      }
 
       try {
         const scheda = await fetchLavoratoreScheda(selectedWorkerId)
@@ -92,15 +100,18 @@ export function useSelectedLavoratoreDetail({
         setSelectedWorkerExperiences(scheda.esperienze as EsperienzaLavoratoreRecord[])
         setSelectedWorkerReferences(scheda.referenze as ReferenzaLavoratoreRecord[])
         setSelectedWorkerRelatedSearches(scheda.relatedSearches as GenericRow[])
+        loadedSchedaWorkerIdRef.current = selectedWorkerId
       } catch {
         if (isCancelled) return
-        setSelectedWorkerRow(listRow)
-        setSelectedWorkerDocuments([])
-        setSelectedWorkerExperiences([])
-        setSelectedWorkerReferences([])
-        setSelectedWorkerRelatedSearches([])
+        if (!silentRefresh) {
+          setSelectedWorkerRow(listRow)
+          setSelectedWorkerDocuments([])
+          setSelectedWorkerExperiences([])
+          setSelectedWorkerReferences([])
+          setSelectedWorkerRelatedSearches([])
+        }
       } finally {
-        if (!isCancelled) {
+        if (!isCancelled && !silentRefresh) {
           setLoadingSelectedWorkerDocuments(false)
           setLoadingSelectedWorkerExperiences(false)
           setLoadingSelectedWorkerReferences(false)
