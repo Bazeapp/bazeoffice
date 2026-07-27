@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckboxChip } from "@/components/ui/checkbox"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { confirm } from "@/components/ui/confirmer"
 
 import { useCedoliniBulkSend } from "../hooks/use-cedolini-bulk-send"
 import { useCedoliniCheckRun } from "../hooks/use-cedolini-check-run"
@@ -14,8 +15,9 @@ import {
   filterWarningGroups,
   getAnalisiEligibleMeseLavorativoIds,
   getCheckRunProgressPercent,
-  getProntiCards,
+  getInviatiCards,
   getSendEligibleMeseLavorativoIds,
+  getUnsentProntiCards,
   groupWarningsByCategory,
   resolveCedolinoWarningMessage,
   toggleWarningCategoryFilter,
@@ -70,7 +72,8 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
     () => buildCedolinoCheckCards(results, columns),
     [results, columns],
   )
-  const pronti = React.useMemo(() => getProntiCards(cards), [cards])
+  const pronti = React.useMemo(() => getUnsentProntiCards(cards, columns), [cards, columns])
+  const inviati = React.useMemo(() => getInviatiCards(cards, columns), [cards, columns])
   const warningGroups = React.useMemo(() => groupWarningsByCategory(cards), [cards])
   const visibleWarningGroups = React.useMemo(
     () => filterWarningGroups(warningGroups, categoryFilter),
@@ -107,10 +110,27 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
   const sentCount = sendSummary?.successCount ?? bulkSend.job?.success_count ?? 0
 
   const openSendDialog = () => {
-    setSendDialogOpen(true)
-    // Re-open an in-flight/confirm dialog without starting a second dry run.
-    if (sendInFlight || sendCompleted) return
-    void bulkSend.startDryRun(sendEligibleIds, selectedMonth)
+    // Re-open an existing send-session dialog (in flight, failed dry run,
+    // completed, …) without starting a second dry run.
+    if (bulkSend.phase !== "idle" || sendCompleted) {
+      setSendDialogOpen(true)
+      return
+    }
+
+    void confirm({
+      title: "Invio di prova",
+      description:
+        "Verrà inviato solo il primo cedolino come test. L'invio degli altri non parte finché non confermi il risultato.",
+      cancelButtonTitle: "Annulla",
+      confirmButtonTitle: "Avvia invio di prova",
+      variant: "default",
+      disableCancelWhilePending: true,
+      action: async () => {
+        await bulkSend.startDryRun(sendEligibleIds, selectedMonth)
+      },
+    }).then((confirmed) => {
+      if (confirmed) setSendDialogOpen(true)
+    })
   }
 
   return (
@@ -201,22 +221,40 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
         ) : null}
 
         <div className="grid min-h-0 grid-cols-1 gap-6 lg:grid-cols-2">
-          <section aria-label="Pronti" data-testid="cedolini-controlli-pronti">
-            <h2 className="text-foreground-strong mb-2 flex items-center gap-2 text-sm font-semibold">
-              Pronti
-              <Badge variant="success" size="sm">
-                {pronti.length}
-              </Badge>
-            </h2>
-            <div className="flex flex-col gap-2">
-              {pronti.map((card) => (
-                <CedolinoCheckCardItem key={card.resultId} card={card} />
-              ))}
-              {!isLoading && run && pronti.length === 0 ? (
-                <p className="text-muted-foreground text-sm">Nessun cedolino pronto.</p>
-              ) : null}
-            </div>
-          </section>
+          <div className="flex min-h-0 flex-col gap-6">
+            {run && inviati.length > 0 ? (
+              <section aria-label="Inviati" data-testid="cedolini-controlli-inviati">
+                <h2 className="text-foreground-strong mb-2 flex items-center gap-2 text-sm font-semibold">
+                  Inviati
+                  <Badge variant="success" size="sm">
+                    {inviati.length}
+                  </Badge>
+                </h2>
+                <div className="flex flex-col gap-2">
+                  {inviati.map((card) => (
+                    <CedolinoCheckCardItem key={card.resultId} card={card} />
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            <section aria-label="Pronti" data-testid="cedolini-controlli-pronti">
+              <h2 className="text-foreground-strong mb-2 flex items-center gap-2 text-sm font-semibold">
+                Pronti
+                <Badge variant="info" size="sm">
+                  {pronti.length}
+                </Badge>
+              </h2>
+              <div className="flex flex-col gap-2">
+                {pronti.map((card) => (
+                  <CedolinoCheckCardItem key={card.resultId} card={card} />
+                ))}
+                {!isLoading && run && pronti.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">Nessun cedolino pronto.</p>
+                ) : null}
+              </div>
+            </section>
+          </div>
 
           <section aria-label="Warning" data-testid="cedolini-controlli-warning">
             <h2 className="text-foreground-strong mb-2 flex items-center gap-2 text-sm font-semibold">

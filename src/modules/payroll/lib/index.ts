@@ -121,7 +121,9 @@ export {
   deriveBulkSendPhase,
   getBulkJobProgressPercent,
   getBulkSendRemainingCount,
+  getInviatiCards,
   getSendEligibleMeseLavorativoIds,
+  getUnsentProntiCards,
   isSendDryRunSuccess,
   type CedolinoBulkSendPhase,
 } from "./cedolini-bulk-send"

@@ -17,6 +17,16 @@ import type {
 
 // --- Send eligibility (Pronti ∩ still "Cedolino da controllare" on the board) -
 
+/** Stage still awaiting Controlli mark-ready / send. */
+const PRONTI_BOARD_STAGE = "Cedolino da controllare"
+
+/**
+ * Board stages after a successful Controlli send: mark-ready lands on
+ * `Cedolino Pronto`, then `wk-invio-cedolino` moves the row to
+ * `Inviato cedolino`. Both leave Pronti and belong in Inviati.
+ */
+const INVIATI_BOARD_STAGES = new Set(["Cedolino Pronto", "Inviato cedolino"])
+
 /** `mesi_lavorati.id → stage` from the board columns (`usePayrollBoard`). */
 export function buildBoardStageMap(columns: PayrollBoardColumnData[]): Map<string, string> {
   const map = new Map<string, string>()
@@ -29,26 +39,52 @@ export function buildBoardStageMap(columns: PayrollBoardColumnData[]): Map<strin
 }
 
 /**
- * Ids eligible for a bulk-send dry run/confirm: Pronti cards (`status ===
- * "ok"`) whose underlying `mesi_lavorati` row the Board still shows as
- * "Cedolino da controllare" (plan U5 approach point 3). The Board doesn't
- * necessarily carry every id an old check run classified (different month
- * filters, etc.) — when a card's id is absent from the board's stage map we
- * don't block it; the server-side conditional mark-ready (KTD3) is the real
- * source of truth either way, this is only a client-side convenience guard
- * against re-sending a card visibly dragged away on the Board.
+ * Pronti still awaiting send: check-run `ok` cards whose Board stage is still
+ * `Cedolino da controllare` (or absent from the board — no contrary signal).
+ * Cards already at Pronto / Inviato belong in {@link getInviatiCards}.
+ */
+export function getUnsentProntiCards(
+  cards: CedolinoCheckCard[],
+  columns: PayrollBoardColumnData[],
+): CedolinoCheckCard[] {
+  const stageMap = buildBoardStageMap(columns)
+  return cards.filter((card) => {
+    if (card.status !== "ok") return false
+    const stage = stageMap.get(card.meseLavorativoId)
+    return stage === undefined || stage === PRONTI_BOARD_STAGE
+  })
+}
+
+/**
+ * Successfully sent (or mark-ready) check-run `ok` cards: Board stage is
+ * `Cedolino Pronto` or `Inviato cedolino` (U5: remove from Pronti on success).
+ */
+export function getInviatiCards(
+  cards: CedolinoCheckCard[],
+  columns: PayrollBoardColumnData[],
+): CedolinoCheckCard[] {
+  const stageMap = buildBoardStageMap(columns)
+  return cards.filter((card) => {
+    if (card.status !== "ok") return false
+    const stage = stageMap.get(card.meseLavorativoId)
+    return stage != null && INVIATI_BOARD_STAGES.has(stage)
+  })
+}
+
+/**
+ * Ids eligible for a bulk-send dry run/confirm: unsent Pronti cards (plan U5
+ * approach point 3). The Board doesn't necessarily carry every id an old
+ * check run classified (different month filters, etc.) — when a card's id is
+ * absent from the board's stage map we don't block it; the server-side
+ * conditional mark-ready (KTD3) is the real source of truth either way, this
+ * is only a client-side convenience guard against re-sending a card visibly
+ * dragged away on the Board.
  */
 export function getSendEligibleMeseLavorativoIds(
   prontiCards: CedolinoCheckCard[],
   columns: PayrollBoardColumnData[],
 ): string[] {
-  const stageMap = buildBoardStageMap(columns)
-  return prontiCards
-    .filter((card) => {
-      const stage = stageMap.get(card.meseLavorativoId)
-      return stage === undefined || stage === "Cedolino da controllare"
-    })
-    .map((card) => card.meseLavorativoId)
+  return getUnsentProntiCards(prontiCards, columns).map((card) => card.meseLavorativoId)
 }
 
 // --- Dry-run outcome interpretation (A-S7) ------------------------------------

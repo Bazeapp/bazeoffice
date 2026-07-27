@@ -8,7 +8,9 @@ import {
   deriveBulkSendPhase,
   getBulkJobProgressPercent,
   getBulkSendRemainingCount,
+  getInviatiCards,
   getSendEligibleMeseLavorativoIds,
+  getUnsentProntiCards,
   isSendDryRunSuccess,
 } from "./cedolini-bulk-send"
 
@@ -46,13 +48,50 @@ function makeBoardCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBo
 }
 
 function makeColumns(cards: PayrollBoardCardData[]): PayrollBoardColumnData[] {
-  return [{ id: "Cedolino da controllare", label: "Cedolino da controllare", color: "yellow", cards }]
+  const byStage = new Map<string, PayrollBoardCardData[]>()
+  for (const card of cards) {
+    const list = byStage.get(card.stage) ?? []
+    list.push(card)
+    byStage.set(card.stage, list)
+  }
+  return [...byStage.entries()].map(([id, stageCards]) => ({
+    id,
+    label: id,
+    color: "yellow",
+    cards: stageCards,
+  }))
 }
 
 describe("buildBoardStageMap", () => {
   it("mappa id → stage dalle colonne board", () => {
     const columns = makeColumns([makeBoardCard({ id: "m-1", stage: "Cedolino Pronto" })])
     expect(buildBoardStageMap(columns).get("m-1")).toBe("Cedolino Pronto")
+  })
+})
+
+describe("getUnsentProntiCards / getInviatiCards", () => {
+  it("split: da controllare → Pronti; Pronto/Inviato → Inviati", () => {
+    const cards = [
+      makeCard({ resultId: "res-1", meseLavorativoId: "m-1" }),
+      makeCard({ resultId: "res-2", meseLavorativoId: "m-2" }),
+      makeCard({ resultId: "res-3", meseLavorativoId: "m-3" }),
+      makeCard({ resultId: "res-4", meseLavorativoId: "m-4", status: "warning" }),
+    ]
+    const columns = makeColumns([
+      makeBoardCard({ id: "m-1", stage: "Cedolino da controllare" }),
+      makeBoardCard({ id: "m-2", stage: "Cedolino Pronto" }),
+      makeBoardCard({ id: "m-3", stage: "Inviato cedolino" }),
+      makeBoardCard({ id: "m-4", stage: "Cedolino da controllare" }),
+    ])
+
+    expect(getUnsentProntiCards(cards, columns).map((c) => c.meseLavorativoId)).toEqual(["m-1"])
+    expect(getInviatiCards(cards, columns).map((c) => c.meseLavorativoId)).toEqual(["m-2", "m-3"])
+  })
+
+  it("EDGE: id assente dalla board resta in Pronti (nessun segnale contrario)", () => {
+    const cards = [makeCard({ meseLavorativoId: "m-missing" })]
+    expect(getUnsentProntiCards(cards, []).map((c) => c.meseLavorativoId)).toEqual(["m-missing"])
+    expect(getInviatiCards(cards, [])).toEqual([])
   })
 })
 
