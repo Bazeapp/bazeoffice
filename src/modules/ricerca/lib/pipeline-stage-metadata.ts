@@ -1,5 +1,5 @@
 import type { LookupValueRecord } from "@/types"
-import { resolveLookupColor } from "@/modules/lavoratori/lib"
+import { resolveLookupColor } from "@/lib/lookup-utils"
 
 import type { StageDefinition, StageMetadata } from "../types/workers-pipeline"
 import { normalizeStatusToken } from "./pipeline-status-utils"

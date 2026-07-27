@@ -2,6 +2,7 @@ import * as React from "react"
 
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+import type { RealtimeRowEvent } from "@/hooks/use-realtime-rows"
 import type { QueryFilterGroup } from "@/lib/table-query"
 import { clearReadCaches } from "@/lib/write-tracking"
 import type { LavoratoreListItem } from "../components/lavoratore-card"
@@ -49,6 +50,8 @@ type UseLavoratoriListOptions = {
   pageSize: number
   /** Refresh the open detail panel after a realtime board reload (Pattern B). */
   reloadOpenDetail?: () => void
+  /** Currently selected worker — used to scope detail realtime refreshes. */
+  selectedWorkerId?: string | null
   setSelectedWorkerId: React.Dispatch<React.SetStateAction<string | null>>
   setWorkerRows: React.Dispatch<React.SetStateAction<LavoratoreRecord[]>>
   setWorkersTotal: React.Dispatch<React.SetStateAction<number>>
@@ -69,6 +72,7 @@ export function useLavoratoriList({
   pageIndex,
   pageSize,
   reloadOpenDetail,
+  selectedWorkerId = null,
   setSelectedWorkerId,
   setWorkerRows,
   setWorkersTotal,
@@ -326,10 +330,33 @@ export function useLavoratoriList({
     setRealtimeTick((current) => current + 1)
   }, [])
 
+  const selectedWorkerIdRef = React.useRef(selectedWorkerId)
+  React.useEffect(() => {
+    selectedWorkerIdRef.current = selectedWorkerId
+  }, [selectedWorkerId])
+
+  const shouldReloadBoard = React.useCallback((event: RealtimeRowEvent) => {
+    // Inserts/deletes can change membership and totals for the current filter.
+    if (event.eventType === "INSERT" || event.eventType === "DELETE") return true
+    const rowId = String(event.newRow?.id ?? event.oldRow?.id ?? "")
+    if (!rowId) return true
+    if (selectedWorkerIdRef.current === rowId) return true
+    return workerRowsRef.current.some((row) => row.id === rowId)
+  }, [])
+
+  const shouldReloadOpenDetail = React.useCallback((event: RealtimeRowEvent) => {
+    const selectedId = selectedWorkerIdRef.current
+    if (!selectedId) return false
+    const rowId = String(event.newRow?.id ?? event.oldRow?.id ?? "")
+    return rowId === selectedId
+  }, [])
+
   useRealtimeBoardSync({
     tables: [...LAVORATORI_REALTIME_TABLES],
     reload: reloadSilently,
     reloadOpenDetail,
+    shouldReloadBoard,
+    shouldReloadOpenDetail,
   })
 
   React.useEffect(() => {

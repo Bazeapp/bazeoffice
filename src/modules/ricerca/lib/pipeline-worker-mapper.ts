@@ -1,15 +1,6 @@
 import type { LavoratoreListItem } from "@/modules/lavoratori/components/lavoratore-card"
-import {
-  asString,
-  getAgeFromBirthDate,
-  getDefaultWorkerAvatar,
-  isBlacklistValue,
-  normalizeDomesticRoleLabels,
-  readArrayStrings,
-  resolveLookupColor,
-  toAvatarImage,
-  toWorkerStatusFlags,
-} from "@/modules/lavoratori/lib"
+import { asString, getAgeFromBirthDate, getDefaultWorkerAvatar, normalizeDomesticRoleLabels, readArrayStrings, toAvatarImage, toWorkerStatusFlags } from "@/modules/lavoratori/lib"
+import { isBlacklistValue, resolveLookupColor } from "@/lib/lookup-utils"
 import { fetchRicercaWorkerRelatedSelectionSummaries } from "../queries/fetch-ricerca-worker-related-selection-summaries"
 import type { GenericRow } from "../types/workers-pipeline"
 import { getDotColorClassName } from "./pipeline-column-utils"

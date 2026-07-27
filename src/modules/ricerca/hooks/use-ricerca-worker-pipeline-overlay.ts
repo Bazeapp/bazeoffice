@@ -6,20 +6,8 @@ import { type WorkerOtherSelectionSummaryItem } from "@/modules/lavoratori/compo
 import {
   type RelatedSearchGroups,
 } from "../types"
-import {
-  asString,
-  getAgeFromBirthDate,
-  getDefaultWorkerAvatar,
-  isBlacklistValue,
-  normalizeDomesticRoleLabels,
-  normalizeLookupColors,
-  normalizeLookupOptions,
-  readArrayStrings,
-  resolveLookupColor,
-  toAvatarImage,
-  toWorkerStatusFlags,
-  type LookupOption,
-} from "@/modules/lavoratori/lib"
+import { asString, getAgeFromBirthDate, getDefaultWorkerAvatar, normalizeDomesticRoleLabels, readArrayStrings, toAvatarImage, toWorkerStatusFlags } from "@/modules/lavoratori/lib"
+import { isBlacklistValue, normalizeLookupColors, normalizeLookupOptions, resolveLookupColor, type LookupOption } from "@/lib/lookup-utils"
 import {
   extractGeneratedMessage,
   buildFamilyAddressDisplayDraft,

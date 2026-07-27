@@ -11,7 +11,7 @@ import {
   getLookupLabelForSave,
   getLookupSelectValue,
   normalizeLookupComparableToken,
-} from "../lib/lookup-utils"
+} from "@/lib/lookup-utils"
 
 const EMPTY_SELECT_VALUE = "none"
 

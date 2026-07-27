@@ -2,7 +2,7 @@ import * as React from "react"
 
 import type { LavoratoreListItem } from "../components/lavoratore-card"
 import { toListItem } from "../lib/base-utils"
-import { isBlacklistValue } from "../lib/lookup-utils"
+import { isBlacklistValue } from "@/lib/lookup-utils"
 import { toWorkerStatusFlags } from "../lib/status-utils"
 import type { LavoratoreRecord } from "../types/lavoratore"
 
