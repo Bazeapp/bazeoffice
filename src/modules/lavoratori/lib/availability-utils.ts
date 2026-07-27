@@ -176,10 +176,12 @@ export function buildAvailabilityMatrixDraft(
       const key = getAvailabilityMatrixKey(dayConfig.field, bandConfig.field)
       const booleanField = getAvailabilityBooleanField(dayConfig.field, bandConfig.field)
       const rowValue = row?.[booleanField]
+      // null/undefined = unset → prefer computed availability_final_json.
+      // Only an explicit false locks the cell off.
       nextDraft[key] =
         rowValue === true
           ? true
-          : rowValue === false || rowValue === null
+          : rowValue === false
             ? false
             : daySlots.length > 0
               ? overlapsAvailabilityBand(daySlots, bandConfig)

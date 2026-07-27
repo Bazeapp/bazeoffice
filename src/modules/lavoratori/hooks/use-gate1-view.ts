@@ -152,6 +152,8 @@ export function useGate1View(props: GateViewProps) {
     setAddressDraft,
     availabilityDraft,
     setAvailabilityDraft,
+    setIsEditingAvailability,
+    setIsEditingAvailabilityStatus,
     availabilityStatusDraft,
     setAvailabilityStatusDraft,
     jobSearchDraft,
@@ -239,6 +241,23 @@ export function useGate1View(props: GateViewProps) {
     isEditingSkills,
     isEditingDocuments,
   });
+
+  // Toggle-mode only: keep the draft `isEditing*` flags aligned with the section
+  // pencil. Do NOT force them true for availabilityEditMode="always" — that
+  // blocks scheda enrichment of the list stub and makes a post-save refresh
+  // look like the calendar never persisted. Always-mode wipe protection lives
+  // in useWorkerAvailabilityEditor (dirty flag after the user edits).
+  React.useEffect(() => {
+    if (availabilityEditMode === "always") return
+    setIsEditingAvailability(stepLayoutState.isEditingAvailabilityStep)
+    setIsEditingAvailabilityStatus(stepLayoutState.isEditingAvailabilityStep)
+  }, [
+    availabilityEditMode,
+    selectedWorkerId,
+    setIsEditingAvailability,
+    setIsEditingAvailabilityStatus,
+    stepLayoutState.isEditingAvailabilityStep,
+  ])
 
   return {
     GATE1_IN_PERSON_BOOKING_LINKS,
