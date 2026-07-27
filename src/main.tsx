@@ -7,6 +7,7 @@ import "./index.css"
 import App from "./App.tsx"
 import { ThemeProvider } from "@/components/theme/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { Confirmer } from "@/components/ui/confirmer"
 import { Toaster } from "@/components/ui/sonner"
 import { queryClient } from "@/lib/query-client"
 
@@ -15,6 +16,7 @@ const tree = (
     <ThemeProvider>
       <TooltipProvider>
         <App />
+        <Confirmer />
         <Toaster richColors closeButton position="top-right" />
       </TooltipProvider>
     </ThemeProvider>
