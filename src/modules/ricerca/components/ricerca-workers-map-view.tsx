@@ -21,19 +21,8 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@/components/ui/combobox"
-import {
-  asString,
-  getAgeFromBirthDate,
-  getDefaultWorkerAvatar,
-  isBlacklistValue,
-  isDisponibileRicerca,
-  normalizeDomesticRoleLabels,
-  normalizeLookupColors,
-  readArrayStrings,
-  resolveLookupColor,
-  toAvatarImage,
-  toWorkerStatusFlags,
-} from "@/modules/lavoratori/lib"
+import { asString, getAgeFromBirthDate, getDefaultWorkerAvatar, isDisponibileRicerca, normalizeDomesticRoleLabels, readArrayStrings, toAvatarImage, toWorkerStatusFlags } from "@/modules/lavoratori/lib"
+import { isBlacklistValue, normalizeLookupColors, resolveLookupColor } from "@/lib/lookup-utils"
 import type {
   RicercaWorkerSelectionCard,
   RicercaWorkerSelectionColumn,

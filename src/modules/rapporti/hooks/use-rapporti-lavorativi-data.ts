@@ -27,7 +27,7 @@ import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 // detail and would cause excessive refetches if subscribed here. Detail-level
 // realtime is a follow-up refinement.
 const RAPPORTI_REALTIME_TABLES = ["rapporti_lavorativi"]
-import { normalizeLookupColors } from "@/modules/lavoratori/lib"
+import { normalizeLookupColors } from "@/lib/lookup-utils"
 import type { SupportTicketMetadata, SupportTicketTag, SupportTicketType, SupportTicketUrgency } from "@/modules/support/components"
 import type {
   ChiusuraContrattoRecord,

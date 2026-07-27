@@ -1,4 +1,23 @@
+export {
+  fetchCedoliniBulkJob,
+  fetchCedoliniBulkJobItems,
+  processCedoliniBulkJob,
+  startCedoliniBulkJob,
+  stopCedoliniBulkJob,
+} from "./cedolini-bulk-job"
+export { markCedolinoReady } from "./cedolini-mark-ready"
+export { recoverCedolinoUrl } from "./cedolini-recover-url"
 export { fetchCedoliniBoard } from "./fetch-cedolini-board"
+export {
+  fetchCedoliniPagamentiReminderFlags,
+  type CedoliniPagamentiReminderFlagRow,
+} from "./fetch-cedolini-pagamenti"
+export { invokeReminderPagamento, type InvokeReminderPagamentoResponse } from "./invoke-reminder-pagamento"
+export {
+  fetchCedoliniCheckRun,
+  fetchCedolinoCheckResults,
+  type CedolinoCheckRunSnapshot,
+} from "./fetch-cedolini-check-run"
 export { fetchCedolinoDetail } from "./fetch-cedolino-detail"
 export { fetchContributiInps } from "./fetch-contributi-inps"
 export { fetchContributiInpsByIds } from "./fetch-contributi-inps-by-ids"
@@ -16,3 +35,4 @@ export { fetchPresenzeByIds } from "./fetch-presenze-by-ids"
 export { fetchPresenzeMensili } from "./fetch-presenze-mensili"
 export { fetchTransazioniByMeseLavoratoIds } from "./fetch-transazioni-by-mese-lavorato-ids"
 export { fetchTransazioniFinanziarie } from "./fetch-transazioni-finanziarie"
+export { startCedoliniCheckRun } from "./start-cedolini-check-run"

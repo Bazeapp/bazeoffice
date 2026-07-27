@@ -10,7 +10,7 @@ import {
   AVAILABILITY_HOUR_LABELS,
 } from "../lib/availability-utils"
 import type { SearchProcessResult, WorkerRelatedSearchItem } from "../lib/cerca-utils"
-import type { LookupOption } from "../lib/lookup-utils"
+import type { LookupOption } from "@/lib/lookup-utils"
 import type { NonQualificatoIssue } from "../lib/status-utils"
 import type {
   DocumentoLavoratoreRecord,

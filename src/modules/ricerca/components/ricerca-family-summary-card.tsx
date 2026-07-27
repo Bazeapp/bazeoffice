@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getTagClassName } from "@/modules/lavoratori/lib"
+import { getTagClassName } from "@/lib/lookup-utils"
 import { formatBadgeLabel } from "@/lib/format-utils"
 import { STATI_RICERCA_CANONICI } from "../lib/stati-ricerca";
 import type { CrmPipelineCardData, LookupOptionsByField } from "@/modules/crm/types"

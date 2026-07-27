@@ -8,10 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
-import {
-  getLookupLabelForSave,
-  getLookupSelectValue,
-} from "@/modules/lavoratori/lib"
+import { getLookupLabelForSave, getLookupSelectValue } from "@/lib/lookup-utils"
 import { formatItalianDateTimeOr } from "@/lib/format-utils"
 import { toStringValue } from "@/lib/value-utils"
 import type { ProcessoMatchingRecord } from "@/types"

@@ -12,6 +12,7 @@
     "audit:lookup": "node scripts/audit-lookup-usage.mjs",
     "audit:autosave": "node scripts/audit-autosave-risk.mjs",
     "audit:autosave:strict": "node scripts/audit-autosave-risk.mjs --strict",
+    "script:wk-gen-cedolini": "npx --yes tsx scripts/wk-gen-cedolini.ts",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "test:watch": "vitest",

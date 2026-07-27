@@ -1,5 +1,5 @@
 import { evaluateGroup, type FilterField, type FilterGroup } from "@/components/data-table/data-table-filters"
-import { resolveLookupColor } from "@/modules/lavoratori/lib"
+import { resolveLookupColor } from "@/lib/lookup-utils"
 import type { RapportoAssunzioneNames } from "@/modules/gestione-contrattuale/types"
 import {
   getRapportoFamilyLabel,

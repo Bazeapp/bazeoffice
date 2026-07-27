@@ -2,7 +2,7 @@ import { useWatch } from "react-hook-form"
 
 import { asString } from "../lib/base-utils"
 import { getWorkerQualificationStatus } from "../lib/status-utils"
-import { resolveLookupSingleValueOptions } from "../lib/lookup-utils"
+import { resolveLookupSingleValueOptions } from "@/lib/lookup-utils"
 import type {
   WorkerProfileOverviewProps,
   WorkerProfileOverviewValues,

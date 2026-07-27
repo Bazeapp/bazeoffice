@@ -11,7 +11,7 @@ import {
 import {
   isBlacklistValue,
   resolveLookupColor,
-} from "./lookup-utils"
+} from "@/lib/lookup-utils"
 import { toWorkerStatusFlags } from "./status-utils"
 import { fetchIndirizziByEntity } from "@/lib/indirizzi-api"
 import type { GenericRow } from "../types/lavoratori-data"

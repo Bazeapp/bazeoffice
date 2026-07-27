@@ -108,6 +108,24 @@ export function useAutoSaveFormFields<T extends FieldValues>({
     committedRef.current = { ...form.getValues() };
   }, [form, resetKey]);
 
+  // FieldInput/DebouncedInput flush-on-unmount is a *passive* cleanup. It runs
+  // AFTER the layout clear above when the field remounts with key=resetKey
+  // (gate detail shell). That cleanup writes the previous record's local draft
+  // into the surviving form and re-schedules pending → onSave already rebound
+  // to the new record. Clear again here (passive setup = after child unmount
+  // flushes) so A's draft cannot persist onto B.
+  const prevResetKeyForPassiveRef = React.useRef(resetKey);
+  React.useEffect(() => {
+    if (prevResetKeyForPassiveRef.current === resetKey) return;
+    prevResetKeyForPassiveRef.current = resetKey;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    pendingRef.current = {};
+    committedRef.current = { ...form.getValues() };
+  }, [form, resetKey]);
+
   React.useEffect(() => {
     if (!initializedRef.current) {
       committedRef.current = { ...form.getValues() };

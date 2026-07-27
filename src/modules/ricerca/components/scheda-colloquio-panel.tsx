@@ -41,14 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { FieldTextarea } from "@/components/forms/field-components";
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
-import {
-  getLookupLabelForSave,
-  getLookupOptionLabel,
-  getLookupSelectValue,
-  normalizeLookupDbLabels,
-  normalizeLookupOptionValues,
-  type LookupOption,
-} from "@/modules/lavoratori/lib"
+import { getLookupLabelForSave, getLookupOptionLabel, getLookupSelectValue, normalizeLookupDbLabels, normalizeLookupOptionValues, type LookupOption } from "@/lib/lookup-utils"
 import { romaWallclockToUtcIso, romaDateTimeToUtcIso } from "@/lib/datetime";
 import {
   COLLOQUIO_EFFETTUATO_OPTIONS,

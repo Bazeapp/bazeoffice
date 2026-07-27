@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
-import { normalizeLookupColors, normalizeLookupOptions } from "@/modules/lavoratori/lib"
+import { normalizeLookupColors, normalizeLookupOptions } from "@/lib/lookup-utils"
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"

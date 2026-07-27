@@ -1,7 +1,7 @@
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
-import { getTagClassName } from "@/modules/lavoratori/lib"
+import { getTagClassName } from "@/lib/lookup-utils"
 import { cn } from "@/lib/utils"
 
 import type { RapportiListItem } from "../lib/list-panel-utils"
