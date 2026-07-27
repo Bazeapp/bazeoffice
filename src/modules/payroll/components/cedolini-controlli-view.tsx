@@ -16,6 +16,7 @@ import {
   getProntiCards,
   getSendEligibleMeseLavorativoIds,
   groupWarningsByCategory,
+  resolveCedolinoWarningMessage,
   toggleWarningCategoryFilter,
   WARNING_CATEGORIES,
   type CedolinoCheckCard,
@@ -298,7 +299,9 @@ function CedolinoCheckCardItem({
       {visibleWarnings.length > 0 ? (
         <ul className="text-warning mt-2 flex flex-col gap-1 text-xs">
           {visibleWarnings.map((warning, index) => (
-            <li key={`${warning.category}-${index}`}>{warning.message}</li>
+            <li key={`${warning.category}-${index}`}>
+              {resolveCedolinoWarningMessage(warning)}
+            </li>
           ))}
         </ul>
       ) : null}

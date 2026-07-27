@@ -165,6 +165,104 @@ export interface PaymentUrlCheckResult {
   reason: string | null
 }
 
+/** Italian labels for presenze event codes (mirrors `PRESENCE_EVENT_OPTIONS`). */
+const PRESENZE_EVENT_LABELS: Readonly<Record<string, string>> = {
+  [PRESENZE_EVENT_CODES.UNPAID_LEAVE]: "Permesso non retribuito",
+  [PRESENZE_EVENT_CODES.PAID_LEAVE]: "Permesso retribuito",
+  [PRESENZE_EVENT_CODES.OVERTIME]: "Straordinario",
+  [PRESENZE_EVENT_CODES.VACATION]: "Ferie",
+  [PRESENZE_EVENT_CODES.SICKNESS]: "Malattia",
+}
+
+/** Maps a presenze event code to a readable Italian label. */
+export function formatPresenzeEventLabel(code: string): string {
+  return PRESENZE_EVENT_LABELS[code] ?? code
+}
+
+/**
+ * Maps payment-link probe reason codes (from the Edge worker / classify
+ * fallback) to a readable Italian warning message.
+ *
+ * Known codes from `cedolini-check-runner.ts`:
+ *   missing_payment_link | http_<status> | redirect_without_location_<status>
+ *   | too_many_redirects | fetch_error:<detail>
+ * Plus planned Stripe outcomes from KTD7: expired | paid | already_paid.
+ */
+export function formatPaymentUrlReasonMessage(reason: string | null | undefined): string {
+  if (reason == null || reason === "") {
+    return "Link di pagamento non valido o non raggiungibile."
+  }
+
+  switch (reason) {
+    case "missing_payment_link":
+      return "Link di pagamento mancante."
+    case "too_many_redirects":
+      return "Troppi redirect nel link di pagamento."
+    case "expired":
+      return "Link di pagamento scaduto."
+    case "paid":
+    case "already_paid":
+      return "Pagamento già effettuato."
+    default:
+      break
+  }
+
+  const httpMatch = /^http_(\d+)$/.exec(reason)
+  if (httpMatch?.[1]) {
+    const status = httpMatch[1]
+    if (status === "404") return "Link di pagamento non trovato (HTTP 404)."
+    if (status === "410") return "Link di pagamento non più disponibile (HTTP 410)."
+    return `Link di pagamento non raggiungibile (HTTP ${status}).`
+  }
+
+  const redirectMatch = /^redirect_without_location_(\d+)$/.exec(reason)
+  if (redirectMatch?.[1]) {
+    return `Redirect senza destinazione (HTTP ${redirectMatch[1]}).`
+  }
+
+  if (reason.startsWith("fetch_error:")) {
+    const detail = reason.slice("fetch_error:".length).trim()
+    if (/abort|timeout/i.test(detail)) {
+      return "Verifica del link di pagamento scaduta per timeout."
+    }
+    return detail
+      ? `Errore di rete durante la verifica del link di pagamento (${detail}).`
+      : "Errore di rete durante la verifica del link di pagamento."
+  }
+
+  return `Link di pagamento non valido (${reason}).`
+}
+
+/**
+ * Rebuilds a warning message from structured details when present, so Controlli
+ * can show readable copy even for results persisted before reason-code mapping.
+ */
+export function resolveCedolinoWarningMessage(warning: {
+  category: string
+  message: string
+  details?: Record<string, unknown> | null
+}): string {
+  if (warning.category === WARNING_CATEGORIES.PAGAMENTO_STRIPE) {
+    const reason = warning.details?.reason
+    if (typeof reason === "string" || reason === null) {
+      return formatPaymentUrlReasonMessage(reason)
+    }
+    const embedded = /^Link di pagamento non valido:\s*(.+)\.?$/.exec(warning.message)
+    if (embedded?.[1]) {
+      return formatPaymentUrlReasonMessage(embedded[1].replace(/\.$/, ""))
+    }
+  }
+
+  if (warning.category === WARNING_CATEGORIES.EVENTI_PRESENZE) {
+    const eventi = warning.details?.eventi
+    if (Array.isArray(eventi) && eventi.every((item): item is string => typeof item === "string")) {
+      return `Eventi presenza da verificare: ${eventi.map(formatPresenzeEventLabel).join(", ")}.`
+    }
+  }
+
+  return warning.message
+}
+
 /**
  * Classifies an already-fetched read-only payment-link probe result (KTD7).
  * The actual HTTP fetch/redirect-following happens in the worker (I/O) this
@@ -177,9 +275,7 @@ export function evaluatePaymentUrlResult(
   if (!result.ok || httpFailed) {
     return {
       category: WARNING_CATEGORIES.PAGAMENTO_STRIPE,
-      message: result.reason
-        ? `Link di pagamento non valido: ${result.reason}.`
-        : "Link di pagamento non valido o non raggiungibile.",
+      message: formatPaymentUrlReasonMessage(result.reason),
       details: { ...result },
     }
   }
@@ -294,7 +390,7 @@ export function classifyCedolinoChecks(input: ClassifyChecksInput): ClassifyChec
   if (eventiWarning.length > 0) {
     warnings.push({
       category: WARNING_CATEGORIES.EVENTI_PRESENZE,
-      message: `Eventi presenza da verificare: ${eventiWarning.join(", ")}.`,
+      message: `Eventi presenza da verificare: ${eventiWarning.map(formatPresenzeEventLabel).join(", ")}.`,
       details: { eventi: eventiWarning },
     })
   }
