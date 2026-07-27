@@ -8,9 +8,11 @@
  * eligibility/split/date-filter logic itself is exhaustively covered by
  * `cedolini-pagamenti-filters.test.ts`.
  */
+import * as React from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, screen } from "@testing-library/react"
+import { fireEvent, screen, waitFor } from "@testing-library/react"
 
+import { Confirmer } from "@/components/ui/confirmer"
 import { renderWithProviders } from "@/test/test-utils"
 import type { PayrollBoardCardData } from "../../types"
 import type { CedolinoBulkJobDryRunOutcome, CedolinoBulkJobRecord } from "../../types/cedolino-bulk-job"
@@ -30,6 +32,21 @@ vi.mock("../../hooks/use-cedolini-bulk-reminder", () => ({
 }))
 
 import { CedoliniPagamentiView } from "../cedolini-pagamenti-view"
+
+function renderPagamenti(ui: React.ReactElement) {
+  return renderWithProviders(
+    <>
+      {ui}
+      <Confirmer />
+    </>,
+  )
+}
+
+/** Idle → confirmer “Promemoria di prova” → dry run. */
+async function clickInviaAndConfirmDryRun() {
+  fireEvent.click(screen.getByTestId("cedolini-pagamenti-reminder-invia"))
+  fireEvent.click(screen.getByRole("button", { name: "Avvia promemoria di prova" }))
+}
 
 function makeCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCardData {
   return {
@@ -141,17 +158,20 @@ describe("CedoliniPagamentiView — reminder da fare/fatti + bulk (U6)", () => {
     expect(screen.getByTestId("cedolini-pagamenti-card-m-3")).toBeTruthy()
   })
 
-  it("click su 'Invia reminder' avvia il dry run con TUTTI gli id 'da fare' quando non c'è filtro data (AE6)", () => {
+  it("click su 'Invia reminder' avvia il dry run con TUTTI gli id 'da fare' quando non c'è filtro data (AE6)", async () => {
     mockPagamenti({ daFare: [makeCard({ id: "m-1" }), makeCard({ id: "m-2" })] })
     const bulkReminder = mockBulkReminder()
-    renderWithProviders(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
+    renderPagamenti(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
 
-    fireEvent.click(screen.getByTestId("cedolini-pagamenti-reminder-invia"))
-    expect(bulkReminder.startDryRun).toHaveBeenCalledWith(["m-1", "m-2"], "2026-07")
+    await clickInviaAndConfirmDryRun()
+
+    await waitFor(() => {
+      expect(bulkReminder.startDryRun).toHaveBeenCalledWith(["m-1", "m-2"], "2026-07")
+    })
     expect(screen.getByTestId("cedolini-pagamenti-reminder-dialog")).toBeTruthy()
   })
 
-  it("EDGE (AE6/OQ6): il filtro data riduce sia la lista visibile che gli id del bulk, escludendo i NULL", () => {
+  it("EDGE (AE6/OQ6): il filtro data riduce sia la lista visibile che gli id del bulk, escludendo i NULL", async () => {
     mockPagamenti({
       daFare: [
         makeCard({
@@ -169,7 +189,7 @@ describe("CedoliniPagamentiView — reminder da fare/fatti + bulk (U6)", () => {
       ],
     })
     const bulkReminder = mockBulkReminder()
-    renderWithProviders(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
+    renderPagamenti(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
 
     fireEvent.change(screen.getByTestId("cedolini-pagamenti-date-filter"), {
       target: { value: "2026-07-15" },
@@ -180,8 +200,11 @@ describe("CedoliniPagamentiView — reminder da fare/fatti + bulk (U6)", () => {
     expect(screen.queryByTestId("cedolini-pagamenti-card-m-3")).toBeNull()
     expect(screen.getByTestId("cedolini-pagamenti-card-m-1")).toBeTruthy()
 
-    fireEvent.click(screen.getByTestId("cedolini-pagamenti-reminder-invia"))
-    expect(bulkReminder.startDryRun).toHaveBeenCalledWith(["m-1"], "2026-07")
+    await clickInviaAndConfirmDryRun()
+
+    await waitFor(() => {
+      expect(bulkReminder.startDryRun).toHaveBeenCalledWith(["m-1"], "2026-07")
+    })
   })
 
   it("il pulsante di invio singolo su una card 'da fare' chiama sendSingleReminder con il suo id", () => {
