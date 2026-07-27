@@ -7,6 +7,7 @@ import {
   buildMeseLavoratoInfoMap,
   createDefaultWarningCategoryFilter,
   filterWarningGroups,
+  getAnalisiEligibleMeseLavorativoIds,
   getCardWarningCategories,
   getCheckRunProgressPercent,
   getProntiCards,
@@ -256,5 +257,52 @@ describe("getCheckRunProgressPercent", () => {
 
   it("EDGE: non supera 100", () => {
     expect(getCheckRunProgressPercent(makeRun({ checked_count: 12, total_count: 10 }))).toBe(100)
+  })
+})
+
+describe("getAnalisiEligibleMeseLavorativoIds", () => {
+  it("include solo le card in 'Cedolino da controllare'", () => {
+    const columns: PayrollBoardColumnData[] = [
+      {
+        id: "Cedolino da controllare",
+        label: "Cedolino da controllare",
+        color: "yellow",
+        cards: [makeBoardCard({ id: "m-1" }), makeBoardCard({ id: "m-2" })],
+      },
+      {
+        id: "Cedolino Pronto",
+        label: "Cedolino Pronto",
+        color: "green",
+        cards: [makeBoardCard({ id: "m-3", stage: "Cedolino Pronto" })],
+      },
+    ]
+    expect(getAnalisiEligibleMeseLavorativoIds(columns)).toEqual(["m-1", "m-2"])
+  })
+
+  it("esclude caso_particolare = Chiusura rapporto (come cedolini-check-start)", () => {
+    const columns = makeColumns([
+      makeBoardCard({ id: "m-1" }),
+      makeBoardCard({
+        id: "m-2",
+        record: { id: "m-2", caso_particolare: "Chiusura rapporto" } as PayrollBoardCardData["record"],
+      }),
+      makeBoardCard({
+        id: "m-3",
+        record: { id: "m-3", caso_particolare: null } as PayrollBoardCardData["record"],
+      }),
+    ])
+    expect(getAnalisiEligibleMeseLavorativoIds(columns)).toEqual(["m-1", "m-3"])
+  })
+
+  it("board senza da-controllare → lista vuota", () => {
+    const columns: PayrollBoardColumnData[] = [
+      {
+        id: "Cedolino Pronto",
+        label: "Cedolino Pronto",
+        color: "green",
+        cards: [makeBoardCard({ id: "m-1", stage: "Cedolino Pronto" })],
+      },
+    ]
+    expect(getAnalisiEligibleMeseLavorativoIds(columns)).toEqual([])
   })
 })

@@ -41,6 +41,7 @@ vi.mock("../../hooks/use-cedolini-recover-url", () => ({
   useCedoliniRecoverUrl: mockUseCedoliniRecoverUrl,
 }))
 
+import { CedoliniControlliSendDialog } from "../cedolini-controlli-send-dialog"
 import { CedoliniControlliView } from "../cedolini-controlli-view"
 
 function makeBoardCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCardData {
@@ -310,24 +311,64 @@ describe("CedoliniControlliView — bulk send + recupero URL (U5)", () => {
     expect(screen.getByTestId("cedolini-controlli-send-stop")).toHaveProperty("disabled", true)
   })
 
-  it("completato: mostra il riepilogo con i conteggi finali", () => {
-    const columns = makeColumns([makeBoardCard({ id: "m-1" })])
-    mockCheckRun({
-      run: makeRun({ total_count: 1, checked_count: 1 }),
-      results: [makeResult({ id: "res-1", mese_lavorativo_id: "m-1", status: "ok" })],
-    })
-    mockBulkSend({
+  it("completato: mostra il riepilogo con i conteggi finali nel dialog", () => {
+    const bulkSend = mockBulkSend({
       phase: "completata",
-      job: makeJob({ status: "completata", processed_count: 3, total_count: 3, success_count: 2, skipped_count: 1 }),
+      job: makeJob({
+        status: "completata",
+        processed_count: 3,
+        total_count: 3,
+        success_count: 2,
+        skipped_count: 1,
+      }),
     })
-    mockRecoverUrl()
 
-    renderWithProviders(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
-    fireEvent.click(screen.getByTestId("cedolini-controlli-invia"))
+    renderWithProviders(
+      <CedoliniControlliSendDialog
+        open
+        onOpenChange={() => {}}
+        eligibleCount={0}
+        state={bulkSend}
+      />,
+    )
 
     const summary = screen.getByTestId("cedolini-controlli-send-summary")
     expect(summary.textContent).toContain("2 inviati")
     expect(summary.textContent).toContain("1 saltati")
+  })
+
+  it("dopo invio completato: disabilita Invia, nasconde progresso analisi e mostra stato inviato", () => {
+    // Stale board still lists Pronti as "Cedolino da controllare" (pre-refetch) —
+    // the toolbar must still treat the completed send as terminal.
+    const columns = makeColumns([
+      makeBoardCard({ id: "m-1", stage: "Cedolino da controllare" }),
+      makeBoardCard({ id: "m-2", stage: "Cedolino da controllare" }),
+    ])
+    mockCheckRun({
+      run: makeRun({ total_count: 2, checked_count: 2 }),
+      results: [
+        makeResult({ id: "res-1", mese_lavorativo_id: "m-1", status: "ok" }),
+        makeResult({ id: "res-2", mese_lavorativo_id: "m-2", status: "ok" }),
+      ],
+    })
+    mockBulkSend({
+      phase: "completata",
+      job: makeJob({
+        status: "completata",
+        processed_count: 2,
+        total_count: 2,
+        success_count: 2,
+      }),
+    })
+    mockRecoverUrl()
+
+    renderWithProviders(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
+
+    expect(screen.getByTestId("cedolini-controlli-invia")).toHaveProperty("disabled", true)
+    expect(screen.queryByTestId("cedolini-controlli-progress")).toBeNull()
+    const sent = screen.getByTestId("cedolini-controlli-sent-status")
+    expect(sent.textContent).toMatch(/inviati/i)
+    expect(sent.textContent).toContain("2")
   })
 
   it("mostra il bottone di recupero URL in blocco solo sul gruppo 'Cedolino o PDF' e lo invoca con i suoi id", () => {

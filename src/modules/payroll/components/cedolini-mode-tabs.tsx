@@ -1,6 +1,8 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-export type CedoliniMode = "board" | "controlli" | "pagamenti"
+import type { CedoliniMode } from "../lib/cedolini-url-state"
+
+export type { CedoliniMode }
 
 export function CedoliniModeTabs({
   value,

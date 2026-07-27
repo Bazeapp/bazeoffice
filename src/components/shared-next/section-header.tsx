@@ -29,6 +29,11 @@ interface SectionHeaderActionsProps {
   className?: string;
 }
 
+interface SectionHeaderCenterProps {
+  children?: React.ReactNode;
+  className?: string;
+}
+
 interface SectionHeaderToolbarProps {
   children?: React.ReactNode;
   className?: string;
@@ -63,7 +68,7 @@ function SectionHeaderTitle({
     <div
       data-slot="section-header-title"
       data-size={size}
-      className={cn("flex min-w-0 flex-col gap-0.5", className)}
+      className={cn("relative z-10 flex min-w-0 flex-col gap-0.5", className)}
     >
       <div className="flex min-w-0 items-center gap-3">
         <h1
@@ -93,13 +98,31 @@ function SectionHeaderActions({
   return (
     <div
       data-slot="section-header-actions"
-      className={cn("flex shrink-0 items-center gap-2", className)}
+      className={cn("relative z-10 flex shrink-0 items-center gap-2", className)}
     >
       {children}
     </div>
   );
 }
 SectionHeaderActions.displayName = "SectionHeader.Actions";
+
+function SectionHeaderCenter({
+  children,
+  className,
+}: SectionHeaderCenterProps) {
+  return (
+    <div
+      data-slot="section-header-center"
+      className={cn(
+        "pointer-events-none absolute inset-0 flex items-center justify-center",
+        className,
+      )}
+    >
+      <div className="pointer-events-auto">{children}</div>
+    </div>
+  );
+}
+SectionHeaderCenter.displayName = "SectionHeader.Center";
 
 function SectionHeaderToolbar({
   children,
@@ -122,6 +145,7 @@ SectionHeaderToolbar.displayName = "SectionHeader.Toolbar";
 function SectionHeader({ children, className }: SectionHeaderProps) {
   let breadcrumb: React.ReactNode = null;
   let title: React.ReactNode = null;
+  let center: React.ReactNode = null;
   let actions: React.ReactNode = null;
   let toolbar: React.ReactNode = null;
 
@@ -129,6 +153,7 @@ function SectionHeader({ children, className }: SectionHeaderProps) {
     if (!React.isValidElement(child)) return;
     if (child.type === SectionHeaderBreadcrumb) breadcrumb = child;
     else if (child.type === SectionHeaderTitle) title = child;
+    else if (child.type === SectionHeaderCenter) center = child;
     else if (child.type === SectionHeaderActions) actions = child;
     else if (child.type === SectionHeaderToolbar) toolbar = child;
   });
@@ -139,8 +164,9 @@ function SectionHeader({ children, className }: SectionHeaderProps) {
       className={cn("bg-surface text-foreground flex flex-col px-6", className)}
     >
       {breadcrumb}
-      <div className="border-border flex items-center justify-between gap-4 border-b py-4">
+      <div className="border-border relative flex items-center justify-between gap-4 border-b py-4">
         {title}
+        {center}
         {actions}
       </div>
       {toolbar}
@@ -151,6 +177,7 @@ SectionHeader.displayName = "SectionHeader";
 
 SectionHeader.Breadcrumb = SectionHeaderBreadcrumb;
 SectionHeader.Title = SectionHeaderTitle;
+SectionHeader.Center = SectionHeaderCenter;
 SectionHeader.Actions = SectionHeaderActions;
 SectionHeader.Toolbar = SectionHeaderToolbar;
 
@@ -159,6 +186,7 @@ export type {
   SectionHeaderProps,
   SectionHeaderBreadcrumbProps,
   SectionHeaderTitleProps,
+  SectionHeaderCenterProps,
   SectionHeaderActionsProps,
   SectionHeaderToolbarProps,
 };

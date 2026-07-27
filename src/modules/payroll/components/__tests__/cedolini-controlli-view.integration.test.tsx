@@ -193,4 +193,58 @@ describe("CedoliniControlliView (U4)", () => {
     // CTA disabled while a run is already in_corso.
     expect(screen.getByTestId("cedolini-controlli-avvia")).toHaveProperty("disabled", true)
   })
+
+  it("analisi completata: non mostra la progress bar (solo durante in_corso)", () => {
+    mockCheckRun({
+      run: makeRun({ status: "completata", total_count: 2, checked_count: 2 }),
+      results: [makeResult({ id: "res-1", mese_lavorativo_id: "m-1", status: "ok" })],
+    })
+
+    renderWithProviders(
+      <CedoliniControlliView
+        selectedMonth="2026-07"
+        columns={makeColumns([makeBoardCard({ id: "m-1" })])}
+      />,
+    )
+
+    expect(screen.queryByTestId("cedolini-controlli-progress")).toBeNull()
+  })
+
+  it("nessun cedolino da controllare in board: disabilita Avvia analisi", () => {
+    mockCheckRun({
+      run: makeRun({ status: "completata", total_count: 0, checked_count: 0 }),
+      results: [],
+    })
+    const columns: PayrollBoardColumnData[] = [
+      {
+        id: "Cedolino Pronto",
+        label: "Cedolino Pronto",
+        color: "green",
+        cards: [makeBoardCard({ id: "m-1", stage: "Cedolino Pronto" })],
+      },
+    ]
+
+    renderWithProviders(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
+
+    expect(screen.getByTestId("cedolini-controlli-avvia")).toHaveProperty("disabled", true)
+    expect(screen.getByTestId("cedolini-controlli-no-eligible").textContent).toContain(
+      "Nessun cedolino da controllare",
+    )
+  })
+
+  it("con cedolini da controllare: Avvia analisi resta abilitato dopo run completata", () => {
+    mockCheckRun({
+      run: makeRun({ status: "completata", total_count: 1, checked_count: 1 }),
+      results: [makeResult({ id: "res-1", mese_lavorativo_id: "m-1", status: "ok" })],
+    })
+
+    renderWithProviders(
+      <CedoliniControlliView
+        selectedMonth="2026-07"
+        columns={makeColumns([makeBoardCard({ id: "m-1" })])}
+      />,
+    )
+
+    expect(screen.getByTestId("cedolini-controlli-avvia")).toHaveProperty("disabled", false)
+  })
 })

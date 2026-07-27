@@ -12,6 +12,7 @@ import {
   buildCedolinoCheckCards,
   createDefaultWarningCategoryFilter,
   filterWarningGroups,
+  getAnalisiEligibleMeseLavorativoIds,
   getCheckRunProgressPercent,
   getProntiCards,
   getSendEligibleMeseLavorativoIds,
@@ -45,10 +46,21 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
   const bulkSend = useCedoliniBulkSend()
   const recoverUrl = useCedoliniRecoverUrl(selectedMonth)
   const [sendDialogOpen, setSendDialogOpen] = React.useState(false)
+  /** Survives dialog close / hook idle so the toolbar keeps the post-send status. */
+  const [sendSummary, setSendSummary] = React.useState<{ successCount: number } | null>(null)
 
   const [categoryFilter, setCategoryFilter] = React.useState<Set<CedolinoWarningCategory>>(
     createDefaultWarningCategoryFilter,
   )
+
+  React.useEffect(() => {
+    setSendSummary(null)
+  }, [selectedMonth])
+
+  React.useEffect(() => {
+    if (bulkSend.phase !== "completata") return
+    setSendSummary({ successCount: bulkSend.job?.success_count ?? 0 })
+  }, [bulkSend.phase, bulkSend.job?.success_count])
 
   const toggleCategory = React.useCallback((category: CedolinoWarningCategory) => {
     setCategoryFilter((current) => toggleWarningCategoryFilter(current, category))
@@ -73,6 +85,11 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
     () => getSendEligibleMeseLavorativoIds(pronti, columns),
     [pronti, columns],
   )
+  const analisiEligibleIds = React.useMemo(
+    () => getAnalisiEligibleMeseLavorativoIds(columns),
+    [columns],
+  )
+  const hasAnalisiEligible = analisiEligibleIds.length > 0
 
   const cedolinoOPdfGroup = warningGroups.find((group) => group.category === CEDOLINO_O_PDF_CATEGORY)
   const cedolinoOPdfIds = React.useMemo(
@@ -82,9 +99,17 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
 
   const isRunning = run?.status === "in_corso"
   const progressPercent = run ? getCheckRunProgressPercent(run) : 0
+  const sendCompleted = sendSummary != null || bulkSend.phase === "completata"
+  const sendInFlight =
+    bulkSend.phase === "dry_running" ||
+    bulkSend.phase === "processing" ||
+    bulkSend.phase === "confirm_pending"
+  const sentCount = sendSummary?.successCount ?? bulkSend.job?.success_count ?? 0
 
   const openSendDialog = () => {
     setSendDialogOpen(true)
+    // Re-open an in-flight/confirm dialog without starting a second dry run.
+    if (sendInFlight || sendCompleted) return
     void bulkSend.startDryRun(sendEligibleIds, selectedMonth)
   }
 
@@ -95,8 +120,13 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
           <Button
             type="button"
             data-testid="cedolini-controlli-avvia"
-            onClick={() => void startAnalysis()}
-            disabled={isStarting || isRunning}
+            onClick={() => {
+              // Clear a prior send so a new analysis can enable Invia again.
+              setSendSummary(null)
+              if (bulkSend.phase !== "idle") bulkSend.reset()
+              void startAnalysis()
+            }}
+            disabled={isStarting || isRunning || !hasAnalisiEligible}
           >
             {isRunning ? "Analisi in corso…" : "Avvia analisi"}
           </Button>
@@ -106,12 +136,26 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
             variant="secondary"
             data-testid="cedolini-controlli-invia"
             onClick={openSendDialog}
-            disabled={sendEligibleIds.length === 0}
+            disabled={
+              sendCompleted || (!sendInFlight && sendEligibleIds.length === 0)
+            }
           >
-            Invia cedolini{sendEligibleIds.length > 0 ? ` (${sendEligibleIds.length})` : ""}
+            {sendInFlight
+              ? "Invio in corso…"
+              : `Invia cedolini${sendEligibleIds.length > 0 ? ` (${sendEligibleIds.length})` : ""}`}
           </Button>
 
-          {run ? (
+          {sendCompleted ? (
+            <div
+              className="text-success flex items-center gap-2 text-sm font-medium"
+              data-testid="cedolini-controlli-sent-status"
+            >
+              <Badge variant="success" size="sm">
+                {sentCount} inviati
+              </Badge>
+              <span>Cedolini inviati</span>
+            </div>
+          ) : isRunning && run ? (
             <div
               className="text-muted-foreground flex items-center gap-2 text-sm"
               data-testid="cedolini-controlli-progress"
@@ -129,7 +173,14 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
           ) : null}
         </div>
 
-        {startMessage ? (
+        {!hasAnalisiEligible && !isRunning ? (
+          <span
+            className="text-muted-foreground text-sm"
+            data-testid="cedolini-controlli-no-eligible"
+          >
+            Nessun cedolino da controllare in board.
+          </span>
+        ) : startMessage ? (
           <span className="text-muted-foreground text-sm" data-testid="cedolini-controlli-message">
             {startMessage}
           </span>

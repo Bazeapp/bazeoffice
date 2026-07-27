@@ -2,6 +2,7 @@ import * as React from "react"
 
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { SearchInput } from "@/components/ui/search-input"
+import { SEARCH_CHANGE_EVENT } from "@/lib/search-change"
 
 import { useCedoliniBoardSelection } from "../hooks/use-cedolini-board-selection"
 import { usePayrollBoard } from "../hooks/use-payroll-board"
@@ -10,20 +11,34 @@ import {
   createDefaultCedoliniFilters,
   filterCedoliniColumns,
   getCurrentMonthValue,
+  readCedoliniUrlState,
+  replaceCedoliniUrlState,
   toggleCedoliniFilter,
   type CedoliniFilterGroupKey,
   type CedoliniFilters,
+  type CedoliniMode,
 } from "../lib"
-import { CedoliniModeTabs, type CedoliniMode } from "./cedolini-mode-tabs"
+import { CedoliniModeTabs } from "./cedolini-mode-tabs"
 import { CedoliniControlliView } from "./cedolini-controlli-view"
 import { CedoliniPagamentiView } from "./cedolini-pagamenti-view"
 import { PayrollOverviewCedoliniBoard } from "./payroll-overview-cedolini-board"
 import { PayrollOverviewCedoliniFilterBar } from "./payroll-overview-cedolini-filter-bar"
 import { PayrollOverviewCedoliniMonthSwitcher } from "./payroll-overview-cedolini-month-switcher"
 
+function readCedoliniStateFromWindow(): { mode: CedoliniMode; month: string } {
+  if (typeof window === "undefined") {
+    return { mode: "board", month: getCurrentMonthValue() }
+  }
+  return readCedoliniUrlState(window.location.search, {
+    mode: "board",
+    month: getCurrentMonthValue(),
+  })
+}
+
 export function PayrollOverviewCedoliniView() {
-  const [selectedMonth, setSelectedMonth] = React.useState(getCurrentMonthValue)
-  const [mode, setMode] = React.useState<CedoliniMode>("board")
+  const initial = React.useMemo(() => readCedoliniStateFromWindow(), [])
+  const [selectedMonth, setSelectedMonth] = React.useState(initial.month)
+  const [mode, setMode] = React.useState<CedoliniMode>(initial.mode)
   const {
     loading,
     error,
@@ -44,6 +59,44 @@ export function PayrollOverviewCedoliniView() {
     enrichCardFromDetail,
     detailRefreshTick,
   })
+
+  const syncStateFromUrl = React.useEffectEvent(() => {
+    const next = readCedoliniStateFromWindow()
+    setSelectedMonth(next.month)
+    setMode(next.mode)
+  })
+
+  React.useEffect(() => {
+    const onUrlChange = () => {
+      syncStateFromUrl()
+    }
+    window.addEventListener("popstate", onUrlChange)
+    window.addEventListener(SEARCH_CHANGE_EVENT, onUrlChange)
+    return () => {
+      window.removeEventListener("popstate", onUrlChange)
+      window.removeEventListener(SEARCH_CHANGE_EVENT, onUrlChange)
+    }
+  }, [])
+
+  const persistUrlState = React.useCallback((nextMode: CedoliniMode, nextMonth: string) => {
+    replaceCedoliniUrlState({ mode: nextMode, month: nextMonth })
+  }, [])
+
+  const handleModeChange = React.useCallback(
+    (nextMode: CedoliniMode) => {
+      setMode(nextMode)
+      persistUrlState(nextMode, selectedMonth)
+    },
+    [persistUrlState, selectedMonth],
+  )
+
+  const handleMonthChange = React.useCallback(
+    (nextMonth: string) => {
+      setSelectedMonth(nextMonth)
+      persistUrlState(mode, nextMonth)
+    },
+    [mode, persistUrlState],
+  )
 
   const toggleFilter = React.useCallback((group: CedoliniFilterGroupKey, value: string) => {
     setFilters((current) => toggleCedoliniFilter(current, group, value))
@@ -77,9 +130,11 @@ export function PayrollOverviewCedoliniView() {
         >
           Cedolini
         </SectionHeader.Title>
+        <SectionHeader.Center>
+          <CedoliniModeTabs value={mode} onChange={handleModeChange} />
+        </SectionHeader.Center>
         <SectionHeader.Actions>
-          <CedoliniModeTabs value={mode} onChange={setMode} />
-          <PayrollOverviewCedoliniMonthSwitcher value={selectedMonth} onChange={setSelectedMonth} />
+          <PayrollOverviewCedoliniMonthSwitcher value={selectedMonth} onChange={handleMonthChange} />
         </SectionHeader.Actions>
         {mode === "board" ? (
           <SectionHeader.Toolbar>

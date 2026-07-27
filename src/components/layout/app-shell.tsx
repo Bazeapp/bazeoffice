@@ -15,25 +15,34 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
+import { notifySearchChange } from "@/lib/search-change"
 
 type AppShellProps = {
   user: User
   onLogout: () => Promise<void>
 }
 
-function syncBrowserUrl(route: AppRoute, mode: "push" | "replace" = "push") {
+function syncBrowserUrl(
+  route: AppRoute,
+  mode: "push" | "replace" = "push",
+  options?: { clearSearch?: boolean },
+) {
   if (typeof window === "undefined") return
   const targetPath = buildPathForRoute(route)
   const currentPath = window.location.pathname
+  const hadSearch = window.location.search.length > 0
 
-  if (currentPath === targetPath) return
+  if (currentPath === targetPath && !(options?.clearSearch && hadSearch)) return
 
   if (mode === "replace") {
     window.history.replaceState({}, "", targetPath)
-    return
+  } else {
+    window.history.pushState({}, "", targetPath)
   }
 
-  window.history.pushState({}, "", targetPath)
+  if (options?.clearSearch && hadSearch) {
+    notifySearchChange()
+  }
 }
 
 export function AppShell({ user, onLogout }: AppShellProps) {
@@ -278,7 +287,8 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     }
 
     setRoute(nextRoute)
-    syncBrowserUrl(nextRoute)
+    // Sidebar entry always lands on a clean URL (no mode/month search params).
+    syncBrowserUrl(nextRoute, "push", { clearSearch: true })
   }, [route.anagraficheTab])
 
   const handleOpenPayrollContributiInps = React.useCallback(() => {
