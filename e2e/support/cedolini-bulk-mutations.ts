@@ -147,6 +147,35 @@ export async function setCedolinoAttachment(
   }
 }
 
+export async function setCedolinoUrl(cedolinoId: string, cedolinoUrl: string | null) {
+  assertLocalKeysConfigured()
+  const { VITE_SUPABASE_URL, LOCAL_SERVICE_ROLE_KEY } = getLocalSupabaseConfig()
+
+  const response = await fetch(
+    `${VITE_SUPABASE_URL}/rest/v1/mesi_lavorati?id=eq.${cedolinoId}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: LOCAL_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${LOCAL_SERVICE_ROLE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        cedolino_url: cedolinoUrl,
+        aggiornato_il: new Date().toISOString(),
+      }),
+    },
+  )
+
+  if (!response.ok) {
+    const body = await response.text()
+    throw new Error(
+      `E2E setCedolinoUrl failed for ${cedolinoId}: HTTP ${response.status} ${body}`,
+    )
+  }
+}
+
 export async function updateCheckResultStatus(
   resultId: string,
   status: "ok" | "warning" | "error",
@@ -214,7 +243,9 @@ export async function resetCedoliniBulkFixture() {
 
   await Promise.all([
     setCedolinoAttachment(controlli.prontoCandidate.id, pdfAttachment()),
-    setCedolinoAttachment(controlli.urlMissing.id, null),
+    // PRD §6.5 / §9: URL-empty warning with Storage PDF present (recovery source).
+    setCedolinoAttachment(controlli.urlMissing.id, pdfAttachment()),
+    setCedolinoUrl(controlli.urlMissing.id, null),
     setCedolinoAttachment(controlli.pagaOraria.id, pdfAttachment()),
     setCedolinoAttachment(controlli.pagamentoStripe.id, pdfAttachment()),
     setCedolinoAttachment(controlli.noteCasiParticolari.id, pdfAttachment()),
@@ -284,7 +315,7 @@ export async function resetCedoliniBulkFixture() {
       warnings: [
         {
           category: warningCategories.cedolinoOPdf,
-          message: "Nessun cedolino allegato e nessun cedolino_url disponibile.",
+          message: "cedolino_url mancante o vuoto.",
         },
       ],
     },

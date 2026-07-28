@@ -177,6 +177,20 @@ test.describe("cedolini: controlli analysis", () => {
     ).toBeVisible()
   })
 
+  test("PRD §6.5: empty cedolino_url alone lands under Cedolino o PDF", async () => {
+    const { urlMissing } = E2E_CEDOLINI_BULK.controlli
+    const pdfGroup = controlliPage.getByTestId(
+      `cedolini-controlli-group-${E2E_CEDOLINI_BULK.warningCategories.cedolinoOPdf}`,
+    )
+    await expect(pdfGroup).toBeVisible()
+    const card = controlliPage.getByTestId(`cedolini-check-card-${pdfUrl}`)
+    await expect(card).toBeVisible()
+    await expect(card.getByText("cedolino_url mancante o vuoto.")).toBeVisible()
+    await expect(
+      card.getByText(urlMissing.lavoratoreSearchText, { exact: false }),
+    ).toBeVisible()
+  })
+
   test("live worker: avvia analisi classifies Pronti and all data-driven warnings", async () => {
     test.setTimeout(LIVE_WORKER_TIMEOUT_MS)
 
@@ -230,5 +244,28 @@ test.describe("cedolini: controlli analysis", () => {
           .getByTestId(`cedolini-check-card-${liveOk!.id}`),
       ).toHaveCount(0)
     }
+
+    // f617: PDF attached + null cedolino_url → independent URL warning (PRD §6.5).
+    const { urlMissing } = E2E_CEDOLINI_BULK.controlli
+    await expect
+      .poll(
+        async () => {
+          const result = await readLatestCheckResultForMese(urlMissing.id)
+          if (!result) return "missing"
+          if (result.status !== "warning") return `status=${result.status}`
+          const messages = result.warnings.map((w) => {
+            if (w && typeof w === "object" && "message" in w && typeof w.message === "string") {
+              return w.message
+            }
+            return ""
+          })
+          if (!messages.some((m) => /cedolino_url mancante o vuoto/i.test(m))) {
+            return `warnings=${JSON.stringify(result.warnings)}`
+          }
+          return "ok"
+        },
+        { timeout: BOARD_LOAD_TIMEOUT_MS },
+      )
+      .toBe("ok")
   })
 })

@@ -15,7 +15,7 @@ Real BAZE Giugno 2026 cedolino PDFs used by the Controlli bulk-check worker (`un
 | Pagamento Stripe | `f636` + `transazioni_finanziarie.f627` with `link_pagamento` null |
 | Ore non coerenti | `f615` + 20h presenze vs 24h PDF |
 | Eventi presenze | `f616` + `evento_day_1 = overtime` |
-| Cedolino o PDF | `f617` with no `cedolino` attachment and null `cedolino_url` |
+| Cedolino o PDF | `f617` with PDF attached and null `cedolino_url` (PRD §6.5 independent URL check) |
 | Paga oraria | `f635` + rapporto `paga_oraria_lorda = 12` vs PDF 9.5 |
 | Note/casi particolari | `f637` + `caso_particolare = 'si'` |
 | Altri | Not seedable from row data (worker critical-error catch-all only) |

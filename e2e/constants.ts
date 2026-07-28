@@ -687,7 +687,7 @@ export function cedoliniStageTestId(stageLabel: string) {
  *   Pagamento Stripe      → f636 + transazione f627 without link_pagamento
  *   Ore non coerenti      → f615 + 20h presenze vs 24h PDF
  *   Eventi presenze       → f616 + evento_day_1=overtime
- *   Cedolino o PDF        → f617 + no attachment / no url
+ *   Cedolino o PDF        → f617 + PDF attached, cedolino_url null
  *   Paga oraria           → f635 + rapporto paga 12 vs PDF 9.5
  *   Note/casi particolari → f637 + caso_particolare='si'
  *   Altri                 → worker critical-error only (not seedable from row data)
