@@ -19,6 +19,11 @@ import {
 } from "lucide-react"
 
 import { ToolbarField } from "@/components/forms/toolbar-field"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  crmProcessoCommentRow,
+  crmProcessoDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
 import { FamigliaProcessoDetailShell } from "./famiglia-processo-detail-shell"
 import { FamigliaProcessoCard } from "./famiglia-processo-card"
 import {
@@ -66,6 +71,7 @@ import {
   type CrmPipelineToolbarFilters,
   type DatePresetValue,
 } from "../lib/crm-pipeline-toolbar-filters"
+import { useBoardEntityDeepLink } from "@/modules/notifiche/hooks"
 import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
@@ -329,10 +335,70 @@ export function CrmPipelineFamiglieView() {
     return null
   }, [columns, selectedCardId])
 
+  const commentRow = React.useMemo(
+    () => (selectedCard ? crmProcessoCommentRow(selectedCard) : {}),
+    [selectedCard],
+  )
+  const commentDisplayNames = React.useMemo(
+    () => (selectedCard ? crmProcessoDisplayNames(selectedCard) : undefined),
+    [selectedCard],
+  )
+
+  useCommentRouteContext({
+    enabled: isDetailOpen && Boolean(selectedCard),
+    pageFocus: selectedCard
+      ? { entityType: "ricerca", entityId: selectedCard.id }
+      : null,
+    row: commentRow,
+    sourceInterface: "kanban_famiglie",
+    displayNames: commentDisplayNames,
+  })
+
   React.useEffect(() => {
     if (!isDetailOpen || !selectedCardId) return
     void loadProcessDetail(selectedCardId)
   }, [isDetailOpen, loadProcessDetail, selectedCardId])
+
+  const deferredDeepLinkKickedRef = React.useRef<string | null>(null)
+  const openFamigliaFromDeepLink = React.useCallback(
+    (famigliaId: string) => {
+      if (loading) return false
+
+      for (const column of columns) {
+        const card = column.cards.find(
+          (current) => current.famigliaId === famigliaId,
+        )
+        if (card) {
+          setSelectedCardId(card.id)
+          setIsDetailOpen(true)
+          return true
+        }
+      }
+
+      // Closed stages are lazy-loaded unless filters force a full board fetch.
+      if (!filtersActive) {
+        const unloadedDeferred = [...DEFERRED_STAGE_IDS].filter(
+          (stageId) => !loadedClosedStageIds.has(stageId),
+        )
+        if (unloadedDeferred.length > 0) {
+          if (deferredDeepLinkKickedRef.current !== famigliaId) {
+            deferredDeepLinkKickedRef.current = famigliaId
+            unloadedDeferred.forEach((stageId) => loadClosedStage(stageId))
+          }
+          return false
+        }
+      }
+
+      return true
+    },
+    [columns, filtersActive, loadClosedStage, loadedClosedStageIds, loading],
+  )
+
+  useBoardEntityDeepLink({
+    entityType: "famiglia",
+    onOpen: openFamigliaFromDeepLink,
+    retryKey: `${loading}:${filtersActive}:${[...loadedClosedStageIds].sort().join(",")}`,
+  })
 
   const handleDropToColumn = React.useCallback(
     (columnId: string, droppedProcessId: string | null) => {

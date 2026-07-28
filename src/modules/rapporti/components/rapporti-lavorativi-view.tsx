@@ -3,6 +3,11 @@ import * as React from "react"
 import { RapportiListPanel } from "./rapporti-list-panel"
 import { RapportoDetailPanel } from "./rapporto-detail-panel"
 import { useRapportiLavorativiData } from "../hooks/use-rapporti-lavorativi-data"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  rapportoCommentRow,
+  rapportoDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
 
 type RapportiLavorativiViewProps = {
   initialSelectedRapportoId?: string | null
@@ -58,6 +63,51 @@ export function RapportiLavorativiView({
     onSelectRapporto?.(selectedRapportoId)
   }, [selectedRapportoId, onSelectRapporto])
 
+  const famigliaName = selectedFamiglia
+    ? [selectedFamiglia.nome, selectedFamiglia.cognome].filter(Boolean).join(" ").trim() || null
+    : null
+  const rapportoName =
+    selectedLavoratore && selectedFamiglia
+      ? `${selectedLavoratore.nome ?? ""} ${selectedLavoratore.cognome ?? ""}`.trim() ||
+        famigliaName ||
+        null
+      : selectedLavoratore
+        ? `${selectedLavoratore.nome ?? ""} ${selectedLavoratore.cognome ?? ""}`.trim() || null
+        : null
+
+  const processi = selectedProcessi ?? []
+  const primaryProcessId =
+    selectedRapporto?.processi_matching_id ?? processi[0]?.id ?? null
+  const ricercaLabel =
+    processi.find((processo) => processo.id === primaryProcessId)?.titolo_annuncio ??
+    processi[0]?.titolo_annuncio ??
+    null
+
+  useCommentRouteContext({
+    enabled: Boolean(selectedRapportoId && selectedRapporto),
+    pageFocus:
+      selectedRapportoId && selectedRapporto
+        ? { entityType: "rapporto", entityId: selectedRapportoId }
+        : null,
+    row:
+      selectedRapportoId && selectedRapporto
+        ? rapportoCommentRow(selectedRapportoId, selectedRapporto, {
+            processId: primaryProcessId,
+          })
+        : {},
+    sourceInterface: "rapporti_lavorativi",
+    displayNames:
+      selectedRapportoId && selectedRapporto
+        ? rapportoDisplayNames(selectedRapportoId, {
+            lavoratoreName: rapportoName,
+            famigliaName: famigliaName,
+            ricercaLabel,
+            processId: primaryProcessId,
+            rapporto: selectedRapporto,
+          })
+        : undefined,
+  })
+
   return (
     <section className="ui grid h-full w-full min-w-0 min-h-0 gap-3 overflow-hidden px-4 pb-2 pt-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
       <RapportiListPanel
@@ -79,7 +129,8 @@ export function RapportiLavorativiView({
         assunzioneNamesByRapporto={rapportoAssunzioneNames}
       />
 
-      <RapportoDetailPanel
+      <div className="h-full min-h-0 overflow-hidden">
+        <RapportoDetailPanel
         // Remount on rapporto switch so debounced inputs reset their local
         // draft (useDebouncedSave's hasUserEditedRef) instead of carrying it
         // across to a different rapporto.
@@ -94,7 +145,7 @@ export function RapportiLavorativiView({
           selectedAssunzioneNames ??
           (selectedRapportoId ? rapportoAssunzioneNames[selectedRapportoId] ?? null : null)
         }
-        processi={selectedProcessi}
+        processi={processi}
         contributi={selectedContributi}
         mesi={selectedMesi}
         mesiCalendario={selectedMesiCalendario}
@@ -109,7 +160,8 @@ export function RapportiLavorativiView({
         lookupColorsByDomain={lookupColorsByDomain}
         onCreateTicket={createTicketForSelectedRapporto}
         onRapportoUpdated={updateSelectedRapporto}
-      />
+        />
+      </div>
     </section>
   )
 }

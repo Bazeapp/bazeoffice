@@ -24,6 +24,7 @@ export {
   applyPayrollPresencePatch,
   fetchPayrollBoardData,
   mapCedoliniBoardRowToCard,
+  mapCedolinoDetailToCard,
   PAYROLL_DEFAULT_STAGE_DEFINITIONS,
   PAYROLL_LEGACY_STAGE_ALIASES,
   PAYROLL_REALTIME_TABLES,

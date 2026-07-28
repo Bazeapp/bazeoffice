@@ -56,6 +56,7 @@ export const VARIAZIONE_RAPPORTO_FIELD_BINDINGS: ReadonlyArray<
   "stato_assunzione",
   "stato_servizio",
   "fine_rapporto_lavorativo_id",
+  "processi_matching_id",
   "tipo_rapporto",
   "tipo_contratto",
   "ore_a_settimana",

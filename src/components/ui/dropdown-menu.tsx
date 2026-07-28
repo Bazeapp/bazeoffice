@@ -26,13 +26,15 @@ const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 interface DropdownMenuContentProps
   extends React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> {
   contextLabel?: React.ReactNode;
+  /** Portal target. Use when the menu must stay inside a dismissable-layer branch. */
+  container?: Element | DocumentFragment | null;
 }
 
 const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   DropdownMenuContentProps
->(({ className, contextLabel, children, sideOffset = 6, ...props }, ref) => (
-  <DropdownMenuPrimitive.Portal>
+>(({ className, contextLabel, children, sideOffset = 6, container, ...props }, ref) => (
+  <DropdownMenuPrimitive.Portal container={container}>
     <DropdownMenuPrimitive.Content
       ref={ref}
       sideOffset={sideOffset}

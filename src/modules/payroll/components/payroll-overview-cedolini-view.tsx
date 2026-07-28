@@ -18,6 +18,12 @@ import {
   type CedoliniFilters,
   type CedoliniMode,
 } from "../lib"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  cedolinoCommentRow,
+  cedolinoDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
+import { useBoardEntityDeepLink } from "@/modules/notifiche/hooks"
 import { CedoliniModeTabs } from "./cedolini-mode-tabs"
 import { CedoliniControlliView } from "./cedolini-controlli-view"
 import { CedoliniPagamentiView } from "./cedolini-pagamenti-view"
@@ -58,6 +64,16 @@ export function PayrollOverviewCedoliniView() {
     columns,
     enrichCardFromDetail,
     detailRefreshTick,
+  })
+  const { openCard } = selection
+
+  useBoardEntityDeepLink({
+    entityType: "cedolino",
+    onOpen: (cedolinoId) => {
+      openCard(cedolinoId)
+      return true
+    },
+    retryKey: true,
   })
 
   const syncStateFromUrl = React.useEffectEvent(() => {
@@ -122,6 +138,19 @@ export function PayrollOverviewCedoliniView() {
     [filteredColumns],
   )
 
+  const selectedCard = selection.selectedCard
+
+  useCommentRouteContext({
+    enabled: Boolean(selection.selectedCardId && selectedCard),
+    pageFocus:
+      selection.selectedCardId && selectedCard
+        ? { entityType: "cedolino", entityId: selection.selectedCardId }
+        : null,
+    row: selectedCard ? cedolinoCommentRow(selectedCard) : {},
+    sourceInterface: "cedolini",
+    displayNames: selectedCard ? cedolinoDisplayNames(selectedCard) : undefined,
+  })
+
   return (
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <SectionHeader>
@@ -168,12 +197,17 @@ export function PayrollOverviewCedoliniView() {
           setDropTargetColumnId={setDropTargetColumnId}
           onMoveCard={(recordId, targetStageId) => {
             void moveCard(recordId, targetStageId)
+            selection.patchSelectedCard(recordId, {
+              stato_mese_lavorativo: targetStageId,
+            })
           }}
           onPatchCard={(recordId, patch) => {
             void patchCard(recordId, patch)
+            selection.patchSelectedCard(recordId, patch)
           }}
           onPatchPresence={(recordId, patch) => {
             void patchPresence(recordId, patch)
+            selection.patchSelectedPresence(recordId, patch)
           }}
         />
       ) : mode === "controlli" ? (

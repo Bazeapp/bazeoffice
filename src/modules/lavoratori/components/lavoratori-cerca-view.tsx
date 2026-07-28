@@ -1,5 +1,10 @@
 import type { OpenRicercaDetailOptions } from "@/routes/app-routes"
 
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  lavoratoreCommentRow,
+  lavoratoreDisplayName,
+} from "@/modules/commenti/lib/comment-route-helpers"
 import { useLavoratoriData } from "../hooks/use-lavoratori-data"
 import { useLavoratoriCercaDetail } from "../hooks/use-lavoratori-cerca-detail"
 import { LavoratoriCercaListPanel } from "./lavoratori-cerca-list-panel"
@@ -89,48 +94,64 @@ export function LavoratoriCercaView({
     reloadSelectedWorkerScheda,
   })
 
-  return (
-    <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
-      <div
-        className={
-          selectedWorkerId
-            ? "grid min-h-0 flex-1 gap-3 px-4 pb-2 pt-4 lg:grid-cols-[332px_minmax(0,1fr)]"
-            : "grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-2 pt-4"
-        }
-      >
-        <LavoratoriCercaListPanel
-          workers={workers}
-          workersTotal={workersTotal}
-          selectedWorkerId={selectedWorkerId}
-          setSelectedWorkerId={setSelectedWorkerId}
-          loading={loading}
-          error={error}
-          table={table}
-          searchValue={searchValue}
-          setSearchValue={setSearchValue}
-          filters={filters}
-          setFilters={setFilters}
-          filterFields={filterFields}
-          savedViews={savedViews}
-          activeViewId={activeViewId}
-          saveCurrentView={saveCurrentView}
-          applySavedView={applySavedView}
-          deleteSavedView={deleteSavedView}
-          applyFilters={applyFilters}
-          hasPendingFilters={hasPendingFilters}
-          onRequestSchema={loadWorkersSchema}
-          currentPage={currentPage}
-          pageCount={pageCount}
-          setPageIndex={setPageIndex}
-        />
+  const workerName = selectedWorker?.nomeCompleto ?? null
 
-        {selectedWorkerId ? (
+  useCommentRouteContext({
+    enabled: Boolean(selectedWorkerId),
+    pageFocus: selectedWorkerId
+      ? { entityType: "lavoratore", entityId: selectedWorkerId }
+      : null,
+    row: selectedWorkerId
+      ? lavoratoreCommentRow(selectedWorkerId, selectedWorkerRow ?? undefined)
+      : {},
+    sourceInterface: "cerca_lavoratore",
+    displayNames: selectedWorkerId
+      ? lavoratoreDisplayName(selectedWorkerId, workerName)
+      : undefined,
+  })
+
+  return (
+    <section
+      className={
+        selectedWorkerId
+          ? "ui grid h-full min-h-0 w-full min-w-0 gap-3 overflow-hidden px-4 pb-2 pt-4 lg:grid-cols-[332px_minmax(0,1fr)]"
+          : "ui grid h-full min-h-0 w-full min-w-0 grid-cols-1 gap-3 overflow-hidden px-4 pb-2 pt-4"
+      }
+    >
+      <LavoratoriCercaListPanel
+        workers={workers}
+        workersTotal={workersTotal}
+        selectedWorkerId={selectedWorkerId}
+        setSelectedWorkerId={setSelectedWorkerId}
+        loading={loading}
+        error={error}
+        table={table}
+        searchValue={searchValue}
+        setSearchValue={setSearchValue}
+        filters={filters}
+        setFilters={setFilters}
+        filterFields={filterFields}
+        savedViews={savedViews}
+        activeViewId={activeViewId}
+        saveCurrentView={saveCurrentView}
+        applySavedView={applySavedView}
+        deleteSavedView={deleteSavedView}
+        applyFilters={applyFilters}
+        hasPendingFilters={hasPendingFilters}
+        onRequestSchema={loadWorkersSchema}
+        currentPage={currentPage}
+        pageCount={pageCount}
+        setPageIndex={setPageIndex}
+      />
+
+      {selectedWorkerId ? (
+        <div className="h-full min-h-0 overflow-hidden">
           <LavoratoriCercaDetailPanel
             {...detailPanelProps}
             onClose={() => setSelectedWorkerId(null)}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </section>
   )
 }

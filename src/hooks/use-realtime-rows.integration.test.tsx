@@ -8,26 +8,39 @@
  *
  * We mock at the module boundary (`@/lib/supabase-client`) with a fake channel
  * that records each `.on("postgres_changes", filter, cb)` registration; tests
- * capture the registered callback and invoke it to simulate a CDC event. Each
- * test pins the current behavior and is written to go red if its guard is
- * removed.
+ * capture the registered callback and invoke it to simulate a CDC event. The
+ * mock mirrors supabase-js: `channel(topic)` returns an existing channel for the
+ * same topic, and `removeChannel` tears that shared instance down.
  */
 import { renderHook } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest"
 
 vi.mock("@/lib/supabase-client", () => {
-  const makeChannel = (name: string) => {
-    const channel: { name: string; on: Mock; subscribe: Mock } = {
+  type Channel = { name: string; on: Mock; subscribe: Mock }
+  const liveChannels = new Map<string, Channel>()
+
+  const makeChannel = (name: string): Channel => {
+    const channel: Channel = {
       name,
       on: vi.fn(() => channel),
       subscribe: vi.fn(() => channel),
     }
     return channel
   }
+
   return {
     supabase: {
-      channel: vi.fn((name: string) => makeChannel(name)),
-      removeChannel: vi.fn(),
+      channel: vi.fn((name: string) => {
+        const existing = liveChannels.get(name)
+        if (existing) return existing
+        const channel = makeChannel(name)
+        liveChannels.set(name, channel)
+        return channel
+      }),
+      removeChannel: vi.fn((channel: Channel) => {
+        liveChannels.delete(channel.name)
+      }),
+      _liveChannels: liveChannels,
     },
   }
 })
@@ -39,12 +52,21 @@ type MockChannel = { name: string; on: Mock; subscribe: Mock }
 
 const channelMock = () => vi.mocked(supabase.channel) as unknown as Mock
 const removeChannelMock = () => vi.mocked(supabase.removeChannel) as unknown as Mock
+const liveChannels = () =>
+  (supabase as unknown as { _liveChannels: Map<string, MockChannel> })._liveChannels
 
-/** Channels created so far, in creation order. */
+/** Distinct channels returned so far, in creation order. */
 function createdChannels(): MockChannel[] {
-  return channelMock()
-    .mock.results.filter((r) => r.type === "return")
-    .map((r) => r.value as MockChannel)
+  const seen = new Set<MockChannel>()
+  const channels: MockChannel[] = []
+  for (const result of channelMock().mock.results) {
+    if (result.type !== "return") continue
+    const channel = result.value as MockChannel
+    if (seen.has(channel)) continue
+    seen.add(channel)
+    channels.push(channel)
+  }
+  return channels
 }
 
 /** The postgres_changes callback registered for `table` on the given channel. */
@@ -59,6 +81,7 @@ function handlerFor(channel: MockChannel, table: string): (payload: unknown) => 
 }
 
 beforeEach(() => {
+  liveChannels().clear()
   vi.clearAllMocks()
 })
 
@@ -67,7 +90,9 @@ describe("useRealtimeRows — subscription", () => {
     renderHook(() => useRealtimeRows(["famiglie", "lavoratori"], vi.fn()))
 
     expect(channelMock()).toHaveBeenCalledTimes(1)
-    expect(channelMock()).toHaveBeenCalledWith("realtime-rows:famiglie,lavoratori")
+    expect(channelMock()).toHaveBeenCalledWith(
+      expect.stringMatching(/^realtime-rows:famiglie,lavoratori:/),
+    )
 
     const channel = createdChannels()[0]
     expect(channel.on).toHaveBeenCalledTimes(2)
@@ -191,6 +216,40 @@ describe("useRealtimeRows — lifecycle", () => {
 
     expect(removeChannelMock()).toHaveBeenCalledWith(firstChannel)
     expect(channelMock()).toHaveBeenCalledTimes(2)
-    expect(channelMock()).toHaveBeenLastCalledWith("realtime-rows:lavoratori")
+    expect(channelMock()).toHaveBeenLastCalledWith(
+      expect.stringMatching(/^realtime-rows:lavoratori:/),
+    )
+  })
+
+  it("isolates concurrent subscribers so one teardown cannot kill another", () => {
+    // Mirrors notifiche: badge + flyout both subscribe to the same tables.
+    // supabase.channel(topic) returns the existing channel for a shared topic,
+    // and removeChannel tears that instance down for every subscriber.
+    const onFirst = vi.fn()
+    const onSecond = vi.fn()
+    const first = renderHook(() => useRealtimeRows(["notifiche"], onFirst))
+    const second = renderHook(() => useRealtimeRows(["notifiche"], onSecond))
+
+    const [ch1, ch2] = createdChannels()
+    expect(ch1).toBeDefined()
+    expect(ch2).toBeDefined()
+    expect(ch1).not.toBe(ch2)
+    expect(ch1!.name).not.toBe(ch2!.name)
+
+    second.unmount()
+    expect(removeChannelMock()).toHaveBeenCalledTimes(1)
+    expect(removeChannelMock()).toHaveBeenCalledWith(ch2)
+    expect(removeChannelMock()).not.toHaveBeenCalledWith(ch1)
+    expect(liveChannels().has(ch1!.name)).toBe(true)
+
+    handlerFor(ch1!, "notifiche")({
+      eventType: "INSERT",
+      new: { id: "n1" },
+      old: null,
+    })
+    expect(onFirst).toHaveBeenCalledTimes(1)
+    expect(onSecond).not.toHaveBeenCalled()
+
+    first.unmount()
   })
 })
