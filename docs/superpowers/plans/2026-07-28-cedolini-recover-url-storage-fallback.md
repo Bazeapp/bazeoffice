@@ -159,7 +159,7 @@ Deno.test("createStorageSignedCedolinoUrl: storage error → ok:false", async ()
 Working directory: `/Users/work/Developer/projects/zerocento/baze-supabase`
 
 ```bash
-deno test supabase/functions/_shared/cedolini-recover-url.test.ts
+deno test --no-lock --allow-env supabase/functions/_shared/cedolini-recover-url.test.ts
 ```
 
 Expected: FAIL — `createStorageSignedCedolinoUrl` / `CEDOLINO_SIGNED_URL_TTL_SECONDS` not found.
@@ -236,7 +236,7 @@ Keep `drive_not_configured` / `upload_failed` on the type for bulk/item diagnost
 - [ ] **Step 5: Run helper tests — expect PASS**
 
 ```bash
-deno test supabase/functions/_shared/cedolini-recover-url.test.ts
+deno test --no-lock --allow-env supabase/functions/_shared/cedolini-recover-url.test.ts
 ```
 
 Expected: PASS for the four helper tests (recovery-matrix tests may still be absent — add them in Task 2).
@@ -478,7 +478,7 @@ Deno.test("recoverCedolinoUrl: Drive configured + download fails → download_fa
 - [ ] **Step 2: Run matrix tests — expect FAIL**
 
 ```bash
-deno test supabase/functions/_shared/cedolini-recover-url.test.ts
+deno test --no-lock --allow-env supabase/functions/_shared/cedolini-recover-url.test.ts
 ```
 
 Expected: FAIL on recovery tests (current function early-returns `drive_not_configured` / has no `options` / no `source`).
@@ -608,7 +608,7 @@ Note on `uploadCedolinoToDrive`: it still reads `DRIVE_FOLDER_ID` internally. Th
 - [ ] **Step 4: Run all recover tests — expect PASS**
 
 ```bash
-deno test supabase/functions/_shared/cedolini-recover-url.test.ts
+deno test --no-lock --allow-env supabase/functions/_shared/cedolini-recover-url.test.ts
 ```
 
 Expected: PASS.
@@ -679,7 +679,7 @@ In `cedolini-bulk-job/index.ts` `processRecoverItem`:
 ```bash
 deno check supabase/functions/cedolini-recover-url/index.ts
 deno check supabase/functions/cedolini-bulk-job/index.ts
-deno test supabase/functions/_shared/cedolini-recover-url.test.ts
+deno test --no-lock --allow-env supabase/functions/_shared/cedolini-recover-url.test.ts
 ```
 
 Expected: no errors; tests PASS.
