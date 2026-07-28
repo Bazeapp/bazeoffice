@@ -53,7 +53,9 @@ export function useAssunzioniBoardView({
     async (card: AssunzioniBoardCardData) => {
       selectedCardRequestRef.current = card.id
       setSelectedCardId(card.id)
-      setSelectedCard(null)
+      // Keep the list card as provisional detail so comment route context (and
+      // the messages pill) stay mounted while `assunzione_detail` loads.
+      setSelectedCard(card)
 
       try {
         const detail = await fetchAssunzioneDetail(card.id)

@@ -160,6 +160,13 @@ export function useCedoliniBulkJob(
     isDryRunSuccess,
   })
 
+  // After mark-ready/send, board stages move off "Cedolino da controllare".
+  // Refresh so Controlli eligibility (and the Board) catch up without a full reload.
+  React.useEffect(() => {
+    if (phase !== "completata" && phase !== "interrotta") return
+    void queryClient.invalidateQueries({ queryKey: ["payroll-board"] })
+  }, [phase, queryClient])
+
   return {
     phase,
     job: job ?? null,

@@ -2,6 +2,7 @@ import * as React from "react"
 
 import { SectionHeader } from "@/components/shared-next/section-header"
 import { SearchInput } from "@/components/ui/search-input"
+import { SEARCH_CHANGE_EVENT } from "@/lib/search-change"
 
 import { useCedoliniBoardSelection } from "../hooks/use-cedolini-board-selection"
 import { usePayrollBoard } from "../hooks/use-payroll-board"
@@ -10,20 +11,40 @@ import {
   createDefaultCedoliniFilters,
   filterCedoliniColumns,
   getCurrentMonthValue,
+  readCedoliniUrlState,
+  replaceCedoliniUrlState,
   toggleCedoliniFilter,
   type CedoliniFilterGroupKey,
   type CedoliniFilters,
+  type CedoliniMode,
 } from "../lib"
-import { CedoliniModeTabs, type CedoliniMode } from "./cedolini-mode-tabs"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  cedolinoCommentRow,
+  cedolinoDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
+import { useBoardEntityDeepLink } from "@/modules/notifiche/hooks"
+import { CedoliniModeTabs } from "./cedolini-mode-tabs"
 import { CedoliniControlliView } from "./cedolini-controlli-view"
 import { CedoliniPagamentiView } from "./cedolini-pagamenti-view"
 import { PayrollOverviewCedoliniBoard } from "./payroll-overview-cedolini-board"
 import { PayrollOverviewCedoliniFilterBar } from "./payroll-overview-cedolini-filter-bar"
 import { PayrollOverviewCedoliniMonthSwitcher } from "./payroll-overview-cedolini-month-switcher"
 
+function readCedoliniStateFromWindow(): { mode: CedoliniMode; month: string } {
+  if (typeof window === "undefined") {
+    return { mode: "board", month: getCurrentMonthValue() }
+  }
+  return readCedoliniUrlState(window.location.search, {
+    mode: "board",
+    month: getCurrentMonthValue(),
+  })
+}
+
 export function PayrollOverviewCedoliniView() {
-  const [selectedMonth, setSelectedMonth] = React.useState(getCurrentMonthValue)
-  const [mode, setMode] = React.useState<CedoliniMode>("board")
+  const initial = React.useMemo(() => readCedoliniStateFromWindow(), [])
+  const [selectedMonth, setSelectedMonth] = React.useState(initial.month)
+  const [mode, setMode] = React.useState<CedoliniMode>(initial.mode)
   const {
     loading,
     error,
@@ -44,6 +65,54 @@ export function PayrollOverviewCedoliniView() {
     enrichCardFromDetail,
     detailRefreshTick,
   })
+  const { openCard } = selection
+
+  useBoardEntityDeepLink({
+    entityType: "cedolino",
+    onOpen: (cedolinoId) => {
+      openCard(cedolinoId)
+      return true
+    },
+    retryKey: true,
+  })
+
+  const syncStateFromUrl = React.useEffectEvent(() => {
+    const next = readCedoliniStateFromWindow()
+    setSelectedMonth(next.month)
+    setMode(next.mode)
+  })
+
+  React.useEffect(() => {
+    const onUrlChange = () => {
+      syncStateFromUrl()
+    }
+    window.addEventListener("popstate", onUrlChange)
+    window.addEventListener(SEARCH_CHANGE_EVENT, onUrlChange)
+    return () => {
+      window.removeEventListener("popstate", onUrlChange)
+      window.removeEventListener(SEARCH_CHANGE_EVENT, onUrlChange)
+    }
+  }, [])
+
+  const persistUrlState = React.useCallback((nextMode: CedoliniMode, nextMonth: string) => {
+    replaceCedoliniUrlState({ mode: nextMode, month: nextMonth })
+  }, [])
+
+  const handleModeChange = React.useCallback(
+    (nextMode: CedoliniMode) => {
+      setMode(nextMode)
+      persistUrlState(nextMode, selectedMonth)
+    },
+    [persistUrlState, selectedMonth],
+  )
+
+  const handleMonthChange = React.useCallback(
+    (nextMonth: string) => {
+      setSelectedMonth(nextMonth)
+      persistUrlState(mode, nextMonth)
+    },
+    [mode, persistUrlState],
+  )
 
   const toggleFilter = React.useCallback((group: CedoliniFilterGroupKey, value: string) => {
     setFilters((current) => toggleCedoliniFilter(current, group, value))
@@ -69,6 +138,19 @@ export function PayrollOverviewCedoliniView() {
     [filteredColumns],
   )
 
+  const selectedCard = selection.selectedCard
+
+  useCommentRouteContext({
+    enabled: Boolean(selection.selectedCardId && selectedCard),
+    pageFocus:
+      selection.selectedCardId && selectedCard
+        ? { entityType: "cedolino", entityId: selection.selectedCardId }
+        : null,
+    row: selectedCard ? cedolinoCommentRow(selectedCard) : {},
+    sourceInterface: "cedolini",
+    displayNames: selectedCard ? cedolinoDisplayNames(selectedCard) : undefined,
+  })
+
   return (
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <SectionHeader>
@@ -77,9 +159,11 @@ export function PayrollOverviewCedoliniView() {
         >
           Cedolini
         </SectionHeader.Title>
+        <SectionHeader.Center>
+          <CedoliniModeTabs value={mode} onChange={handleModeChange} />
+        </SectionHeader.Center>
         <SectionHeader.Actions>
-          <CedoliniModeTabs value={mode} onChange={setMode} />
-          <PayrollOverviewCedoliniMonthSwitcher value={selectedMonth} onChange={setSelectedMonth} />
+          <PayrollOverviewCedoliniMonthSwitcher value={selectedMonth} onChange={handleMonthChange} />
         </SectionHeader.Actions>
         {mode === "board" ? (
           <SectionHeader.Toolbar>
@@ -113,12 +197,17 @@ export function PayrollOverviewCedoliniView() {
           setDropTargetColumnId={setDropTargetColumnId}
           onMoveCard={(recordId, targetStageId) => {
             void moveCard(recordId, targetStageId)
+            selection.patchSelectedCard(recordId, {
+              stato_mese_lavorativo: targetStageId,
+            })
           }}
           onPatchCard={(recordId, patch) => {
             void patchCard(recordId, patch)
+            selection.patchSelectedCard(recordId, patch)
           }}
           onPatchPresence={(recordId, patch) => {
             void patchPresence(recordId, patch)
+            selection.patchSelectedPresence(recordId, patch)
           }}
         />
       ) : mode === "controlli" ? (

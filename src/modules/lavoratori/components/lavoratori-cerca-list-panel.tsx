@@ -65,12 +65,12 @@ export function LavoratoriCercaListPanel({
   setPageIndex,
 }: LavoratoriCercaListPanelProps) {
   return (
-    <div className="flex min-h-0 flex-col gap-2" data-testid="lavoratori-list-panel">
+    <div className="flex h-full min-h-0 flex-col gap-2" data-testid="lavoratori-list-panel">
       <SideCardsPanel
         title="Lavoratori"
         headerClassName="hidden"
         contentClassName="space-y-3 px-5 pt-3 pb-3"
-        className="h-full gap-2"
+        className="min-h-0 flex-1 gap-2"
       >
         <DataTableToolbar
           table={table}

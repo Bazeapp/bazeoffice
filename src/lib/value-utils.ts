@@ -1,10 +1,14 @@
 import type { LookupValueRecord } from "@/types"
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+/**
+ * Canonical 8-4-4-4-12 hex UUID shape.
+ * Intentionally not RFC 4122-strict so seed/E2E ids (e.g. ...000a11) still match.
+ */
+export const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-export function isUuidValue(value: string) {
-  return UUID_RE.test(value)
+export function isUuidValue(value: unknown): value is string {
+  return typeof value === "string" && UUID_PATTERN.test(value)
 }
 
 /** Numeric timestamp for sorting; null/invalid values sort last. */

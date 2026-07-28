@@ -93,6 +93,9 @@ export type OperatorRole = (typeof OPERATOR_ROLES)[number]
 
 const E2E_PASSWORD = "password123"
 
+/** Prefix for comment bodies created in E2E specs — used for service-role cleanup. */
+export const E2E_COMMENTI_BODY_PREFIX = "E2E comment "
+
 export const OPERATORS: Record<
   OperatorRole,
   { email: string; password: string; storageStatePath: string }

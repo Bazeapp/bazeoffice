@@ -80,6 +80,14 @@ const AlertDialogContent = React.forwardRef<
 ));
 AlertDialogContent.displayName = "AlertDialogContent";
 
+const AlertDialogHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("flex flex-col gap-1", className)} {...props} />
+);
+AlertDialogHeader.displayName = "AlertDialogHeader";
+
 const AlertDialogTitle = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Title>
@@ -210,6 +218,7 @@ export {
   AlertDialog,
   AlertDialogTrigger,
   AlertDialogContent,
+  AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,

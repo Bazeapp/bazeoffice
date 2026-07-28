@@ -1,5 +1,6 @@
 import * as React from "react"
 
+import { enrichRapportoWithRicercaId } from "@/modules/rapporti/lib"
 import {
   countVariazioniBoardCards,
   filterVariazioniBoardColumns,
@@ -37,7 +38,9 @@ export function useVariazioniBoardView() {
     async (card: VariazioniBoardCardData) => {
       selectedCardRequestRef.current = card.id
       setSelectedCardId(card.id)
-      setSelectedFreshCard(null)
+      // Keep the list card as provisional detail so comment route context stays
+      // mounted while dettaglio + ricerca enrichment load.
+      setSelectedFreshCard(card)
 
       try {
         const [recordResponse, rapportoResponse] = await Promise.all([
@@ -55,11 +58,16 @@ export function useVariazioniBoardView() {
           return
         }
 
+        const enrichedRapporto = await enrichRapportoWithRicercaId(
+          (rapportoResponse.rows[0] as VariazioniBoardCardData["rapporto"]) ?? card.rapporto,
+        )
+
+        if (selectedCardRequestRef.current !== card.id) return
+
         const nextCard: VariazioniBoardCardData = {
           ...card,
           record: freshRecord as VariazioniBoardCardData["record"],
-          rapporto:
-            (rapportoResponse.rows[0] as VariazioniBoardCardData["rapporto"]) ?? card.rapporto,
+          rapporto: enrichedRapporto,
           variazioneDaApplicare:
             (freshRecord as VariazioniBoardCardData["record"]).variazione_da_applicare ??
             card.variazioneDaApplicare,

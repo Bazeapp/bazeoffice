@@ -7,7 +7,6 @@ import {
 } from "lucide-react"
 
 import { WorkerProfileHeader } from "@/modules/lavoratori/components/worker-profile-header"
-import { RecruiterFeedbackButton } from "@/modules/lavoratori/components/recruiter-feedback-sheet"
 import { SchedaColloquioPanel } from "./scheda-colloquio-panel"
 import {
   type RelatedSearchGroups,
@@ -85,7 +84,6 @@ export type RicercaWorkerPipelineOverlayProps = {
   selectedWorkerExperiences: EsperienzaLavoratoreRecord[]
   selectedWorkerDocuments: DocumentoLavoratoreRecord[]
   selectedWorkerReferences: ReferenzaLavoratoreRecord[]
-  operatorName: string
   dataRitornoPipelineValue: string
   documentNaspiValue: string
   documentIbanValue: string
@@ -177,7 +175,6 @@ export function RicercaWorkerPipelineOverlay({
   selectedWorkerExperiences,
   selectedWorkerDocuments,
   selectedWorkerReferences,
-  operatorName,
   dataRitornoPipelineValue,
   documentNaspiValue,
   documentIbanValue,
@@ -615,23 +612,6 @@ export function RicercaWorkerPipelineOverlay({
                     onDocumentUploadError={setSelectedWorkerError}
                   />
                 </div>
-              </div>
-            </div>
-          ) : null}
-          {selectedWorkerRow ? (
-            <div className="pointer-events-none absolute right-4 bottom-4 z-[60]">
-              <div className="pointer-events-auto">
-                <RecruiterFeedbackButton
-                  variant="fab"
-                  value={asString(selectedWorkerRow?.feedback_recruiter)}
-                  operatorName={operatorName}
-                  onSave={(next) =>
-                    patchSelectedWorkerField(
-                      "feedback_recruiter",
-                      next.trim() || null,
-                    )
-                  }
-                />
               </div>
             </div>
           ) : null}

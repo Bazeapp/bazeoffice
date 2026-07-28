@@ -2,6 +2,7 @@ import * as React from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { confirm } from "@/components/ui/confirmer"
 import { Input } from "@/components/ui/input"
 import { formatItalianDateOrNull } from "@/lib/format-utils"
 
@@ -65,8 +66,28 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
   }, [bulkPhase, pagamenti.refetch])
 
   const openReminderDialog = () => {
-    setReminderDialogOpen(true)
-    void bulkReminder.startDryRun(bulkIds, selectedMonth)
+    // Re-open an existing reminder-session dialog (in flight, failed dry run,
+    // completed, …) without starting a second dry run — same gate as Controlli's
+    // `openSendDialog`.
+    if (bulkReminder.phase !== "idle") {
+      setReminderDialogOpen(true)
+      return
+    }
+
+    void confirm({
+      title: "Promemoria di prova",
+      description:
+        "Verrà inviato solo il primo reminder di pagamento come test. L'invio degli altri non parte finché non confermi il risultato.",
+      cancelButtonTitle: "Annulla",
+      confirmButtonTitle: "Avvia promemoria di prova",
+      variant: "default",
+      disableCancelWhilePending: true,
+      action: async () => {
+        await bulkReminder.startDryRun(bulkIds, selectedMonth)
+      },
+    }).then((confirmed) => {
+      if (confirmed) setReminderDialogOpen(true)
+    })
   }
 
   return (

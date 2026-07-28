@@ -6,7 +6,10 @@ import {
   compareOre,
   comparePaga,
   evaluatePaymentUrlResult,
+  formatPaymentUrlReasonMessage,
+  formatPresenzeEventLabel,
   isBazePay,
+  resolveCedolinoWarningMessage,
   sumPresenzeOre,
   WARNING_CATEGORIES,
 } from "./cedolini-checks"
@@ -125,7 +128,7 @@ describe("isBazePay / evaluatePaymentUrlResult", () => {
     ).toBeNull()
   })
 
-  it("evaluatePaymentUrlResult: not ok -> Pagamento Stripe warning", () => {
+  it("evaluatePaymentUrlResult: not ok -> Pagamento Stripe warning with readable message", () => {
     const warning = evaluatePaymentUrlResult({
       ok: false,
       http_status: 404,
@@ -134,6 +137,72 @@ describe("isBazePay / evaluatePaymentUrlResult", () => {
     })
     expect(warning).not.toBeNull()
     expect(warning?.category).toBe(WARNING_CATEGORIES.PAGAMENTO_STRIPE)
+    expect(warning?.message).toBe("Link di pagamento non trovato (HTTP 404).")
+  })
+
+  it("evaluatePaymentUrlResult: missing_payment_link -> readable message", () => {
+    const warning = evaluatePaymentUrlResult({
+      ok: false,
+      http_status: null,
+      final_url: null,
+      reason: "missing_payment_link",
+    })
+    expect(warning?.message).toBe("Link di pagamento mancante.")
+  })
+})
+
+describe("formatPaymentUrlReasonMessage / formatPresenzeEventLabel", () => {
+  it("maps every known payment reason code to a readable Italian message", () => {
+    expect(formatPaymentUrlReasonMessage("missing_payment_link")).toBe("Link di pagamento mancante.")
+    expect(formatPaymentUrlReasonMessage("http_404")).toBe("Link di pagamento non trovato (HTTP 404).")
+    expect(formatPaymentUrlReasonMessage("http_410")).toBe(
+      "Link di pagamento non più disponibile (HTTP 410).",
+    )
+    expect(formatPaymentUrlReasonMessage("http_500")).toBe(
+      "Link di pagamento non raggiungibile (HTTP 500).",
+    )
+    expect(formatPaymentUrlReasonMessage("redirect_without_location_302")).toBe(
+      "Redirect senza destinazione (HTTP 302).",
+    )
+    expect(formatPaymentUrlReasonMessage("too_many_redirects")).toBe(
+      "Troppi redirect nel link di pagamento.",
+    )
+    expect(formatPaymentUrlReasonMessage("fetch_error:AbortError")).toBe(
+      "Verifica del link di pagamento scaduta per timeout.",
+    )
+    expect(formatPaymentUrlReasonMessage("fetch_error:DNS failed")).toBe(
+      "Errore di rete durante la verifica del link di pagamento (DNS failed).",
+    )
+    expect(formatPaymentUrlReasonMessage("expired")).toBe("Link di pagamento scaduto.")
+    expect(formatPaymentUrlReasonMessage("already_paid")).toBe("Pagamento già effettuato.")
+    expect(formatPaymentUrlReasonMessage(null)).toBe(
+      "Link di pagamento non valido o non raggiungibile.",
+    )
+  })
+
+  it("maps presenze event codes to Italian labels", () => {
+    expect(formatPresenzeEventLabel("overtime")).toBe("Straordinario")
+    expect(formatPresenzeEventLabel("unpaidLeave")).toBe("Permesso non retribuito")
+    expect(formatPresenzeEventLabel("vacation")).toBe("Ferie")
+    expect(formatPresenzeEventLabel("sickness")).toBe("Malattia")
+  })
+
+  it("resolveCedolinoWarningMessage rebuilds from details for legacy stored messages", () => {
+    expect(
+      resolveCedolinoWarningMessage({
+        category: WARNING_CATEGORIES.PAGAMENTO_STRIPE,
+        message: "Link di pagamento non valido: missing_payment_link.",
+        details: { reason: "missing_payment_link" },
+      }),
+    ).toBe("Link di pagamento mancante.")
+
+    expect(
+      resolveCedolinoWarningMessage({
+        category: WARNING_CATEGORIES.EVENTI_PRESENZE,
+        message: "Eventi presenza da verificare: overtime, sickness.",
+        details: { eventi: ["overtime", "sickness"] },
+      }),
+    ).toBe("Eventi presenza da verificare: Straordinario, Malattia.")
   })
 })
 

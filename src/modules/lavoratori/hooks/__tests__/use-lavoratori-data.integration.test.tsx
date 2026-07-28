@@ -74,9 +74,9 @@ describe("useLavoratoriData facade", () => {
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
+      expect(result.current.workers).toHaveLength(1)
     })
 
-    expect(result.current.workers).toHaveLength(1)
     expect(result.current.selectedWorkerId).toBe("worker-1")
     expect(result.current.filterFields.length).toBeGreaterThan(0)
     expect(result.current.pageCount).toBeGreaterThanOrEqual(1)

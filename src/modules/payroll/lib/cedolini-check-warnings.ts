@@ -186,3 +186,31 @@ export function getCheckRunProgressPercent(
   if (!run.total_count || run.total_count <= 0) return 0
   return Math.min(100, Math.round((run.checked_count / run.total_count) * 100))
 }
+
+// --- Analisi eligibility (mirrors cedolini-check-start) -----------------------
+
+/** Same stage filter the Edge Function uses when enqueueing a Controlli run. */
+const ANALISI_ELIGIBLE_STATO = "Cedolino da controllare"
+/** Same exclusion as `cedolini-check-start` (not the broader mark-ready list). */
+const ANALISI_EXCLUDED_CASO_PARTICOLARE = "Chiusura rapporto"
+
+/**
+ * Board cards Controlli can actually analyse right now. Matches
+ * `cedolini-check-start`: stage `Cedolino da controllare`, excluding
+ * `caso_particolare = Chiusura rapporto` (NULL/other values stay eligible).
+ * Used to disable "Avvia analisi" when a re-run would enqueue an empty job.
+ */
+export function getAnalisiEligibleMeseLavorativoIds(
+  columns: PayrollBoardColumnData[],
+): string[] {
+  const ids: string[] = []
+  for (const column of columns) {
+    if (column.id !== ANALISI_ELIGIBLE_STATO) continue
+    for (const card of column.cards) {
+      const caso = card.record?.caso_particolare
+      if (caso === ANALISI_EXCLUDED_CASO_PARTICOLARE) continue
+      ids.push(card.id)
+    }
+  }
+  return ids
+}

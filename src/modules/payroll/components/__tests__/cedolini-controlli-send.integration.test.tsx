@@ -7,9 +7,11 @@
  * exercises the dialog/button wiring; the dry-run/confirm/stop state
  * machine itself is covered by `cedolini-bulk-send.test.ts`.
  */
+import * as React from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, screen } from "@testing-library/react"
+import { fireEvent, screen, waitFor } from "@testing-library/react"
 
+import { Confirmer } from "@/components/ui/confirmer"
 import { renderWithProviders } from "@/test/test-utils"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "../../types"
 import type {
@@ -41,7 +43,23 @@ vi.mock("../../hooks/use-cedolini-recover-url", () => ({
   useCedoliniRecoverUrl: mockUseCedoliniRecoverUrl,
 }))
 
+import { CedoliniControlliSendDialog } from "../cedolini-controlli-send-dialog"
 import { CedoliniControlliView } from "../cedolini-controlli-view"
+
+function renderControlli(ui: React.ReactElement) {
+  return renderWithProviders(
+    <>
+      {ui}
+      <Confirmer />
+    </>,
+  )
+}
+
+/** Idle → confirmer “Invio di prova” → dry run. */
+async function clickInviaAndConfirmDryRun() {
+  fireEvent.click(screen.getByTestId("cedolini-controlli-invia"))
+  fireEvent.click(screen.getByRole("button", { name: "Avvia invio di prova" }))
+}
 
 function makeBoardCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCardData {
   return {
@@ -186,7 +204,7 @@ describe("CedoliniControlliView — bulk send + recupero URL (U5)", () => {
     expect(screen.getByTestId("cedolini-controlli-invia")).toHaveProperty("disabled", true)
   })
 
-  it("click su 'Invia cedolini' avvia il dry run con gli id Pronti eleggibili", () => {
+  it("click su 'Invia cedolini' avvia il dry run con gli id Pronti eleggibili", async () => {
     const columns = makeColumns([
       makeBoardCard({ id: "m-1", stage: "Cedolino da controllare" }),
       makeBoardCard({ id: "m-2", stage: "Cedolino da controllare" }),
@@ -199,17 +217,19 @@ describe("CedoliniControlliView — bulk send + recupero URL (U5)", () => {
     const bulkSend = mockBulkSend()
     mockRecoverUrl()
 
-    renderWithProviders(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
+    renderControlli(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
 
     const invia = screen.getByTestId("cedolini-controlli-invia")
     expect(invia).toHaveProperty("disabled", false)
-    fireEvent.click(invia)
+    await clickInviaAndConfirmDryRun()
 
-    expect(bulkSend.startDryRun).toHaveBeenCalledWith(["m-1", "m-2"], "2026-07")
+    await waitFor(() => {
+      expect(bulkSend.startDryRun).toHaveBeenCalledWith(["m-1", "m-2"], "2026-07")
+    })
     expect(screen.getByTestId("cedolini-controlli-send-dialog")).toBeTruthy()
   })
 
-  it("EDGE: esclude dagli id d'invio una card Pronta spostata via drag su un'altra colonna board (KTD/AE)", () => {
+  it("EDGE: esclude dagli id d'invio una card Pronta spostata via drag su un'altra colonna board (KTD/AE)", async () => {
     const columns = makeColumns([
       makeBoardCard({ id: "m-1", stage: "Cedolino da controllare" }),
       makeBoardCard({ id: "m-2", stage: "Inviato cedolino" }),
@@ -222,10 +242,12 @@ describe("CedoliniControlliView — bulk send + recupero URL (U5)", () => {
     const bulkSend = mockBulkSend()
     mockRecoverUrl()
 
-    renderWithProviders(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
-    fireEvent.click(screen.getByTestId("cedolini-controlli-invia"))
+    renderControlli(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
+    await clickInviaAndConfirmDryRun()
 
-    expect(bulkSend.startDryRun).toHaveBeenCalledWith(["m-1"], "2026-07")
+    await waitFor(() => {
+      expect(bulkSend.startDryRun).toHaveBeenCalledWith(["m-1"], "2026-07")
+    })
   })
 
   it("dry run fallito (AE2): mostra l'errore e NON offre la conferma di invio del resto", () => {
@@ -310,24 +332,129 @@ describe("CedoliniControlliView — bulk send + recupero URL (U5)", () => {
     expect(screen.getByTestId("cedolini-controlli-send-stop")).toHaveProperty("disabled", true)
   })
 
-  it("completato: mostra il riepilogo con i conteggi finali", () => {
-    const columns = makeColumns([makeBoardCard({ id: "m-1" })])
-    mockCheckRun({
-      run: makeRun({ total_count: 1, checked_count: 1 }),
-      results: [makeResult({ id: "res-1", mese_lavorativo_id: "m-1", status: "ok" })],
-    })
-    mockBulkSend({
+  it("completato: mostra il riepilogo con i conteggi finali nel dialog", () => {
+    const bulkSend = mockBulkSend({
       phase: "completata",
-      job: makeJob({ status: "completata", processed_count: 3, total_count: 3, success_count: 2, skipped_count: 1 }),
+      job: makeJob({
+        status: "completata",
+        processed_count: 3,
+        total_count: 3,
+        success_count: 2,
+        skipped_count: 1,
+      }),
     })
-    mockRecoverUrl()
 
-    renderWithProviders(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
-    fireEvent.click(screen.getByTestId("cedolini-controlli-invia"))
+    renderWithProviders(
+      <CedoliniControlliSendDialog
+        open
+        onOpenChange={() => {}}
+        eligibleCount={0}
+        state={bulkSend}
+      />,
+    )
 
     const summary = screen.getByTestId("cedolini-controlli-send-summary")
     expect(summary.textContent).toContain("2 inviati")
     expect(summary.textContent).toContain("1 saltati")
+  })
+
+  it("dopo invio completato: disabilita Invia, nasconde progresso analisi e mostra stato inviato", () => {
+    // Stale board still lists Pronti as "Cedolino da controllare" (pre-refetch) —
+    // the toolbar must still treat the completed send as terminal.
+    const columns = makeColumns([
+      makeBoardCard({ id: "m-1", stage: "Cedolino da controllare" }),
+      makeBoardCard({ id: "m-2", stage: "Cedolino da controllare" }),
+    ])
+    mockCheckRun({
+      run: makeRun({ total_count: 2, checked_count: 2 }),
+      results: [
+        makeResult({ id: "res-1", mese_lavorativo_id: "m-1", status: "ok" }),
+        makeResult({ id: "res-2", mese_lavorativo_id: "m-2", status: "ok" }),
+      ],
+    })
+    mockBulkSend({
+      phase: "completata",
+      job: makeJob({
+        status: "completata",
+        processed_count: 2,
+        total_count: 2,
+        success_count: 2,
+      }),
+    })
+    mockRecoverUrl()
+
+    renderWithProviders(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
+
+    expect(screen.getByTestId("cedolini-controlli-invia")).toHaveProperty("disabled", true)
+    expect(screen.queryByTestId("cedolini-controlli-progress")).toBeNull()
+    const sent = screen.getByTestId("cedolini-controlli-sent-status")
+    expect(sent.textContent).toMatch(/inviati/i)
+    expect(sent.textContent).toContain("2")
+  })
+
+  it("dopo invio: card a Pronto/Inviato escono da Pronti e appaiono in Inviati", () => {
+    const columns: PayrollBoardColumnData[] = [
+      {
+        id: "Cedolino da controllare",
+        label: "Cedolino da controllare",
+        color: "yellow",
+        cards: [makeBoardCard({ id: "m-1", nomeCompleto: "Rossi – Maria" })],
+      },
+      {
+        id: "Cedolino Pronto",
+        label: "Cedolino Pronto",
+        color: "green",
+        cards: [
+          makeBoardCard({
+            id: "m-2",
+            stage: "Cedolino Pronto",
+            nomeCompleto: "Bianchi – Luca",
+          }),
+        ],
+      },
+      {
+        id: "Inviato cedolino",
+        label: "Inviato cedolino",
+        color: "green",
+        cards: [
+          makeBoardCard({
+            id: "m-3",
+            stage: "Inviato cedolino",
+            nomeCompleto: "Verdi – Anna",
+          }),
+        ],
+      },
+    ]
+    mockCheckRun({
+      run: makeRun({ total_count: 3, checked_count: 3 }),
+      results: [
+        makeResult({ id: "res-1", mese_lavorativo_id: "m-1", status: "ok" }),
+        makeResult({ id: "res-2", mese_lavorativo_id: "m-2", status: "ok" }),
+        makeResult({ id: "res-3", mese_lavorativo_id: "m-3", status: "ok" }),
+      ],
+    })
+    mockBulkSend({
+      phase: "completata",
+      job: makeJob({
+        status: "completata",
+        processed_count: 2,
+        total_count: 2,
+        success_count: 2,
+      }),
+    })
+    mockRecoverUrl()
+
+    renderWithProviders(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
+
+    const inviati = screen.getByTestId("cedolini-controlli-inviati")
+    expect(inviati.textContent).toContain("Bianchi – Luca")
+    expect(inviati.textContent).toContain("Verdi – Anna")
+    expect(inviati.textContent).not.toContain("Rossi – Maria")
+
+    const pronti = screen.getByTestId("cedolini-controlli-pronti")
+    expect(pronti.textContent).toContain("Rossi – Maria")
+    expect(pronti.textContent).not.toContain("Bianchi – Luca")
+    expect(pronti.textContent).not.toContain("Verdi – Anna")
   })
 
   it("mostra il bottone di recupero URL in blocco solo sul gruppo 'Cedolino o PDF' e lo invoca con i suoi id", () => {

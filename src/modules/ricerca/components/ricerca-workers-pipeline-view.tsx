@@ -8,6 +8,11 @@ import { WorkerPipelineColumn } from "./worker-pipeline-column";
 import { RicercaWorkerPipelineOverlay } from "./ricerca-worker-pipeline-overlay";
 import { SectionHeader } from "@/components/shared-next/section-header";
 import { Button } from "@/components/ui/button";
+import { useCommentRouteContext } from "@/modules/commenti/hooks";
+import {
+  candidaturaCommentRow,
+  candidaturaDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers";
 import {
   Dialog,
   DialogContent,
@@ -111,6 +116,39 @@ export function RicercaWorkersPipelineView({
     recruiterLabelsById,
     onOpenRelatedSearch,
     onFocusSelectionChange,
+  });
+
+  const overlaySelection = overlayProps.selectedCard;
+  const isOverlayFocus = isWorkerOverlayOpen && Boolean(overlaySelection);
+
+  useCommentRouteContext({
+    enabled: isOverlayFocus,
+    pageFocus: isOverlayFocus
+      ? { entityType: "candidatura", entityId: overlaySelection!.id }
+      : null,
+    row: isOverlayFocus
+      ? candidaturaCommentRow({
+          selectionId: overlaySelection!.id,
+          processId,
+          famigliaId: card.famigliaId,
+          lavoratoreId: overlaySelection!.worker.id,
+          workerName: overlaySelection!.worker.nomeCompleto,
+          ricercaLabel: card.nomeFamiglia ?? card.numeroRicercaAttivata,
+          famigliaName: card.nomeFamiglia,
+        })
+      : {},
+    sourceInterface: "dettaglio_lavoratore_ricerca",
+    displayNames: isOverlayFocus
+      ? candidaturaDisplayNames({
+          selectionId: overlaySelection!.id,
+          processId,
+          famigliaId: card.famigliaId,
+          lavoratoreId: overlaySelection!.worker.id,
+          workerName: overlaySelection!.worker.nomeCompleto,
+          ricercaLabel: card.nomeFamiglia ?? card.numeroRicercaAttivata,
+          famigliaName: card.nomeFamiglia,
+        })
+      : undefined,
   });
 
   return (

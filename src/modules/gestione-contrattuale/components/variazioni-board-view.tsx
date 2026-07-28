@@ -1,4 +1,9 @@
 import { useVariazioniBoardView } from "../hooks/use-variazioni-board-view"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  variazioneCommentRow,
+  variazioneDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
 import { VariazioniBoardContent } from "./variazioni-board-content"
 import { VariazioniBoardHeader } from "./variazioni-board-header"
 import { VariazioniCreateDialog } from "./variazioni-create-dialog"
@@ -6,6 +11,17 @@ import { VariazioniDetailSheet } from "./variazioni-detail-sheet"
 
 export function VariazioniBoardView() {
   const board = useVariazioniBoardView()
+  const selectedCard = board.sheetProps.card
+
+  useCommentRouteContext({
+    enabled: board.sheetProps.open && Boolean(selectedCard),
+    pageFocus: selectedCard
+      ? { entityType: "variazione", entityId: selectedCard.id }
+      : null,
+    row: selectedCard ? variazioneCommentRow(selectedCard) : {},
+    sourceInterface: "variazioni",
+    displayNames: selectedCard ? variazioneDisplayNames(selectedCard) : undefined,
+  })
 
   return (
     <>

@@ -42,7 +42,7 @@ export function LavoratoriCercaDetailPanel(props: LavoratoriCercaDetailPanelProp
       />
       <WorkerDetailShell
         key={selectedWorkerRow?.id ?? "__empty__"}
-        className="scrollbar-visible"
+        className="scrollbar-visible h-full"
         sectionRef={detailScrollRef}
         tabs={workerSectionTabs}
         activeSection={activeWorkerSection}
