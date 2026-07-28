@@ -157,6 +157,7 @@ function baseRecoverUrlState(): UseCedoliniRecoverUrlState {
     recoverSingle: vi.fn(),
     recoveringSingleId: null,
     singleError: null,
+    recoveredIds: new Set(),
     recoverBulk: vi.fn(),
     bulkJob: null,
     isBulkRecovering: false,
@@ -520,6 +521,30 @@ describe("CedoliniControlliView — bulk send + recupero URL (U5)", () => {
     expect(screen.getByTestId("cedolini-controlli-recover-error").textContent).toContain(
       "Google Drive non configurato",
     )
+  })
+
+  it("dopo recupero riuscito mostra messaggio verde e nasconde Recupera URL", () => {
+    const columns = makeColumns([makeBoardCard({ id: "m-1" })])
+    mockCheckRun({
+      run: makeRun({ total_count: 1, checked_count: 1 }),
+      results: [
+        makeResult({
+          id: "res-1",
+          mese_lavorativo_id: "m-1",
+          status: "warning",
+          warnings: [{ category: "Cedolino o PDF", message: "cedolino_url mancante o vuoto." }],
+        }),
+      ],
+    })
+    mockBulkSend()
+    mockRecoverUrl({ recoveredIds: new Set(["m-1"]) })
+
+    renderWithProviders(<CedoliniControlliView selectedMonth="2026-07" columns={columns} />)
+
+    expect(screen.getByTestId("cedolini-controlli-recover-success-m-1").textContent).toContain(
+      "URL recuperato con successo",
+    )
+    expect(screen.queryByTestId("cedolini-controlli-recover-m-1")).toBeNull()
   })
 
   it("EDGE: recupero in blocco disabilitato mentre è in corso", () => {
