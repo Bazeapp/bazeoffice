@@ -493,7 +493,7 @@ export const E2E_ASSUNZIONI = {
     nonAssumeConBaze: {
       id: "00000000-0000-0000-0000-00000000d007",
       famigliaSearchText: "Famiglia Bianchi",
-      lavoratoreSearchText: "Lavoratore Bianchi",
+      lavoratoreSearchText: "Lavoratore Neri",
       statoAssunzione: "Non assume con Baze" as const,
     },
   },
@@ -677,6 +677,155 @@ export const E2E_CEDOLINI_VISIBLE_FIXTURE_IDS = [
 export function cedoliniStageTestId(stageLabel: string) {
   return stageLabel.replace(/\s+/g, "_")
 }
+
+/**
+ * Cedolini bulk Controlli/Pagamenti fixtures — seeded in
+ * baze-supabase/supabase/seed_e2e.sql (bulk section).
+ *
+ * Controlli warning coverage (data-driven buckets from `CEDOLINO_WARNING_CATEGORIES`):
+ *   (none / Pronti)       → f614 matching PDF+presenze+paga, no caso, no Stripe signal
+ *   Pagamento Stripe      → f636 + transazione f627 without link_pagamento
+ *   Ore non coerenti      → f615 + 20h presenze vs 24h PDF
+ *   Eventi presenze       → f616 + evento_day_1=overtime
+ *   Cedolino o PDF        → f617 + no attachment / no url
+ *   Paga oraria           → f635 + rapporto paga 12 vs PDF 9.5
+ *   Note/casi particolari → f637 + caso_particolare='si'
+ *   Altri                 → worker critical-error only (not seedable from row data)
+ */
+export const E2E_CEDOLINI_BULK = {
+  fixedMonth: E2E_CEDOLINI.fixedMonth,
+  monthLabel: E2E_CEDOLINI.monthLabel,
+  storagePdf24h: "baze-bucket/mesi_lavorati/e2e/cedpag-example.pdf",
+  storagePdfChiusura: "baze-bucket/mesi_lavorati/e2e/cedpag-chiusura-example.pdf",
+  warningCategories: {
+    pagamentoStripe: "Pagamento Stripe",
+    oreNonCoerenti: "Ore non coerenti",
+    eventiPresenze: "Eventi presenze",
+    cedolinoOPdf: "Cedolino o PDF",
+    pagaOraria: "Paga oraria",
+    noteCasiParticolari: "Note/casi particolari",
+  },
+  checkRun: {
+    id: "00000000-0000-0000-0000-00000000f630",
+    yearMonth: "2026-06",
+  },
+  checkResults: {
+    ok: "00000000-0000-0000-0000-00000000f631",
+    oreMismatch: "00000000-0000-0000-0000-00000000f632",
+    eventi: "00000000-0000-0000-0000-00000000f633",
+    pdfUrl: "00000000-0000-0000-0000-00000000f634",
+    pagaOraria: "00000000-0000-0000-0000-00000000f641",
+    pagamentoStripe: "00000000-0000-0000-0000-00000000f642",
+    noteCasiParticolari: "00000000-0000-0000-0000-00000000f643",
+  },
+  controlli: {
+    prontoCandidate: {
+      id: "00000000-0000-0000-0000-00000000f614",
+      rapportoId: "00000000-0000-0000-0000-00000000d004",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Neri",
+      stato: "Cedolino da controllare" as const,
+      expectedWarningCategories: [] as string[],
+    },
+    oreMismatch: {
+      id: "00000000-0000-0000-0000-00000000f615",
+      rapportoId: "00000000-0000-0000-0000-00000000d005",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Neri",
+      stato: "Cedolino da controllare" as const,
+      expectedWarningCategories: ["Ore non coerenti"],
+    },
+    eventiPresenze: {
+      id: "00000000-0000-0000-0000-00000000f616",
+      rapportoId: "00000000-0000-0000-0000-00000000d006",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      stato: "Cedolino da controllare" as const,
+      expectedWarningCategories: ["Eventi presenze"],
+    },
+    urlMissing: {
+      id: "00000000-0000-0000-0000-00000000f617",
+      rapportoId: "00000000-0000-0000-0000-00000000d008",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Neri",
+      stato: "Cedolino da controllare" as const,
+      expectedWarningCategories: ["Cedolino o PDF"],
+    },
+    pagaOraria: {
+      id: "00000000-0000-0000-0000-00000000f635",
+      rapportoId: "00000000-0000-0000-0000-00000000d012",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Rossi",
+      stato: "Cedolino da controllare" as const,
+      expectedWarningCategories: ["Paga oraria"],
+    },
+    pagamentoStripe: {
+      id: "00000000-0000-0000-0000-00000000f636",
+      rapportoId: "00000000-0000-0000-0000-00000000d013",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Neri",
+      stato: "Cedolino da controllare" as const,
+      expectedWarningCategories: ["Pagamento Stripe"],
+    },
+    noteCasiParticolari: {
+      id: "00000000-0000-0000-0000-00000000f637",
+      rapportoId: "00000000-0000-0000-0000-00000000d014",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      stato: "Cedolino da controllare" as const,
+      expectedWarningCategories: ["Note/casi particolari"],
+    },
+    chiusuraExcluded: {
+      id: "00000000-0000-0000-0000-00000000f618",
+      rapportoId: "00000000-0000-0000-0000-00000000d009",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Verdi",
+      stato: "Cedolino da controllare" as const,
+      casoParticolare: "Chiusura rapporto",
+    },
+  },
+  pagamenti: {
+    reminderDaFare: {
+      id: "00000000-0000-0000-0000-00000000f619",
+      transazioneId: "00000000-0000-0000-0000-00000000f628",
+      famigliaSearchText: "Famiglia Rossi",
+      lavoratoreSearchText: "Lavoratore Bianchi",
+      dataInvioFamiglia: "2026-06-10",
+      checkReminderInviato: false,
+    },
+    reminderFatto: {
+      id: "00000000-0000-0000-0000-00000000f620",
+      transazioneId: "00000000-0000-0000-0000-00000000f629",
+      famigliaSearchText: "Famiglia Bianchi",
+      lavoratoreSearchText: "Lavoratore Rossi",
+      dataInvioFamiglia: "2026-06-20",
+      checkReminderInviato: true,
+    },
+  },
+  analisiEligibleIds: [
+    "00000000-0000-0000-0000-00000000f614",
+    "00000000-0000-0000-0000-00000000f615",
+    "00000000-0000-0000-0000-00000000f616",
+    "00000000-0000-0000-0000-00000000f617",
+    "00000000-0000-0000-0000-00000000f635",
+    "00000000-0000-0000-0000-00000000f636",
+    "00000000-0000-0000-0000-00000000f637",
+  ] as const,
+} as const
+
+/** All data-driven Controlli warning categories (excludes catch-all "Altri"). */
+export const E2E_CEDOLINI_BULK_WARNING_CATEGORIES = Object.values(
+  E2E_CEDOLINI_BULK.warningCategories,
+) as readonly string[]
+
+export const E2E_CEDOLINI_BULK_CONTROLLI_FIXTURE_IDS = Object.values(
+  E2E_CEDOLINI_BULK.controlli,
+).map((fixture) => fixture.id)
+
+export const E2E_CEDOLINI_BULK_PAGAMENTI_FIXTURE_IDS = [
+  E2E_CEDOLINI_BULK.pagamenti.reminderDaFare.id,
+  E2E_CEDOLINI_BULK.pagamenti.reminderFatto.id,
+] as const
 
 /** Contributi INPS board fixtures — seeded in baze-supabase/supabase/seed_e2e_contributi_inps.sql */
 export const E2E_CONTRIBUTI_INPS = {

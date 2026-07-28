@@ -132,8 +132,15 @@ Copy patterns from:
 - `e2e/payroll/cedolini-filters.spec.ts` — Cedolini board search, metrics, columns, month navigation
 - `e2e/payroll/cedolini-moves.spec.ts` — Cedolini kanban moves and stato persistence
 - `e2e/payroll/cedolini-sheet.spec.ts` — Cedolini detail sheet
-- `e2e/support/cedolini.ts` — navigation, search, DnD, sheet helpers
+- `e2e/payroll/cedolini-modes.spec.ts` — Board / Controlli / Pagamenti tab shell + URL state
+- `e2e/payroll/cedolini-controlli-analysis.spec.ts` — Controlli pre-seeded results + live PDF worker
+- `e2e/payroll/cedolini-controlli-send.spec.ts` — Controlli bulk send dry-run / stop / idempotency
+- `e2e/payroll/cedolini-pagamenti-reminder.spec.ts` — Pagamenti date filter + reminder bulk
+- `e2e/payroll/cedolini-board-regression.spec.ts` — Board smoke after mode tab visits
+- `e2e/fixtures/cedolini/*.pdf` — real Giugno 2026 cedolino PDFs (uploaded by `seed-cedolini-storage.mjs`)
+- `e2e/support/cedolini.ts` — navigation, search, DnD, sheet, mode-tab helpers
 - `e2e/support/cedolini-mutations.ts` — service-role `mesi_lavorati.stato_mese_lavorativo` reset
+- `e2e/support/cedolini-bulk-mutations.ts` — check-run / bulk-job / reminder-flag reset for bulk specs
 - `e2e/payroll/contributi-inps-filters.spec.ts` — Contributi INPS board search, metrics, columns, quarter navigation
 - `e2e/payroll/contributi-inps-moves.spec.ts` — Contributi INPS kanban moves and stato persistence
 - `e2e/payroll/contributi-inps-sheet.spec.ts` — Contributi INPS detail sheet
