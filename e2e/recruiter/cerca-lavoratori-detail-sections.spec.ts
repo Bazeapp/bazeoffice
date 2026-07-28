@@ -2,7 +2,6 @@ import { expect, test, type Page } from "@playwright/test"
 
 import { E2E_LAVORATORI } from "../constants"
 import {
-  closeWorkerDetail,
   expectLavoratoreCardVisibility,
   gotoCercaLavoratori,
   openWorkerDetail,
@@ -14,7 +13,6 @@ import {
   workerDetailPanel,
   workerDetailTab,
 } from "../support/lavoratori"
-import { selectors } from "../support/selectors"
 import {
   readLavoratoreAddressField,
   readLavoratoreStringField,
@@ -33,11 +31,17 @@ const SECTION_EDIT_BUTTONS = [
   { tab: "Documenti e dati amministrativi", button: "Modifica documenti" },
 ] as const
 
+const TAB_SECTIONS: Array<{ tab: string; marker: string }> = [
+  { tab: "Residenza", marker: "Mobilita" },
+  { tab: "Calendario", marker: "Calendario disponibilita" },
+  { tab: "Ricerca", marker: "Ricerca Lavoro" },
+  { tab: "Esperienze", marker: "Esperienze e Referenze" },
+  { tab: "Competenze", marker: "Skill e Competenze" },
+  { tab: "Documenti e dati amministrativi", marker: "Documenti e dati amministrativi" },
+  { tab: "Ricerche", marker: "Ricerche coinvolte" },
+]
+
 async function reloadDetail(page: Page) {
-  const closeButton = page.locator(selectors.lavoratori.closeDetail)
-  if (await closeButton.isVisible()) {
-    await closeWorkerDetail(page)
-  }
   await gotoCercaLavoratori(page)
   await setSearchQuery(page, qualificatoMi.searchText)
   await expectLavoratoreCardVisibility(page, qualificatoMi.id, true)
@@ -47,129 +51,122 @@ async function reloadDetail(page: Page) {
 test.describe("cerca lavoratori: worker detail section editing", () => {
   test.describe.configure({ mode: "serial", timeout: 90_000 })
 
-  test.beforeEach(async ({ page }) => {
-    await gotoCercaLavoratori(page)
-    await expectLavoratoreCardVisibility(page, qualificatoMi.id, true)
-    await openWorkerDetail(page, qualificatoMi.id)
+  let lavoratoriPage: Page
+
+  test.beforeAll(async ({ browser }) => {
+    lavoratoriPage = await browser.newPage()
+  })
+
+  test.afterAll(async () => {
+    await lavoratoriPage.close()
+  })
+
+  test.beforeEach(async () => {
+    await gotoCercaLavoratori(lavoratoriPage)
+    await expectLavoratoreCardVisibility(lavoratoriPage, qualificatoMi.id, true)
+    await openWorkerDetail(lavoratoriPage, qualificatoMi.id)
   })
 
   test.afterEach(async () => {
     await resetCercaLavoratoriDetailFixture(qualificatoMi.id)
   })
 
-  test("each detail section exposes an edit affordance", async ({ page }) => {
+  test("section tabs scroll to related blocks and expose edit affordances", async () => {
     for (const { tab, button } of SECTION_EDIT_BUTTONS) {
       if (tab !== "Profilo") {
-        await scrollToWorkerDetailTab(page, tab)
+        await scrollToWorkerDetailTab(lavoratoriPage, tab)
       }
       await expect(
-        workerDetailPanel(page).getByRole("button", { name: button, exact: true }),
+        workerDetailPanel(lavoratoriPage).getByRole("button", {
+          name: button,
+          exact: true,
+        }),
       ).toBeVisible()
     }
-  })
 
-  test("section tabs scroll to related blocks", async ({ page }) => {
-    const tabSections: Array<{ tab: string; marker: string }> = [
-      { tab: "Residenza", marker: "Mobilita" },
-      { tab: "Calendario", marker: "Calendario disponibilita" },
-      { tab: "Ricerca", marker: "Ricerca Lavoro" },
-      { tab: "Esperienze", marker: "Esperienze e Referenze" },
-      { tab: "Competenze", marker: "Skill e Competenze" },
-      { tab: "Documenti e dati amministrativi", marker: "Documenti e dati amministrativi" },
-      { tab: "Ricerche", marker: "Ricerche coinvolte" },
-    ]
-
-    for (const { tab, marker } of tabSections) {
-      await workerDetailTab(page, tab).click()
-      await expect(workerDetailPanel(page).getByText(marker).first()).toBeVisible({
+    for (const { tab, marker } of TAB_SECTIONS) {
+      await workerDetailTab(lavoratoriPage, tab).click()
+      await expect(workerDetailPanel(lavoratoriPage).getByText(marker).first()).toBeVisible({
         timeout: 30_000,
       })
     }
   })
 
-  test("profilo section autosaves telefono", async ({ page }) => {
+  test("profilo section autosaves telefono and survives remount", async () => {
     const telefono = "+390211112222"
 
-    await openWorkerSectionEdit(page, "Modifica profilo")
+    await openWorkerSectionEdit(lavoratoriPage, "Modifica profilo")
     await expect(
-      workerDetailPanel(page).getByRole("button", { name: "Termina modifica profilo" }),
+      workerDetailPanel(lavoratoriPage).getByRole("button", {
+        name: "Termina modifica profilo",
+      }),
     ).toBeVisible()
-    const input = workerDetailPanel(page).locator('input[type="tel"]')
+    const input = workerDetailPanel(lavoratoriPage).locator('input[type="tel"]')
     await expect(input).toBeVisible()
-    const persist = waitForLavoratoreUpdateRecord(page)
+    const persist = waitForLavoratoreUpdateRecord(lavoratoriPage)
     await input.fill(telefono)
     await persist
 
-    await reloadDetail(page)
-    await openWorkerSectionEdit(page, "Modifica profilo")
-    await expect(workerDetailPanel(page).locator('input[type="tel"]')).toHaveValue(
-      telefono,
-    )
+    await reloadDetail(lavoratoriPage)
+    await openWorkerSectionEdit(lavoratoriPage, "Modifica profilo")
+    await expect(
+      workerDetailPanel(lavoratoriPage).locator('input[type="tel"]'),
+    ).toHaveValue(telefono)
     expect(await readLavoratoreStringField(qualificatoMi.id, "telefono")).toBe(telefono)
   })
 
-  test("residenza section autosaves citta", async ({ page }) => {
+  test("residenza section autosaves citta", async () => {
     const citta = "Brugherio"
 
-    await scrollToWorkerDetailTab(page, "Residenza")
-    await openWorkerSectionEdit(page, "Modifica indirizzo")
-    const input = workerDetailLabeledInput(page, "Comune")
+    await scrollToWorkerDetailTab(lavoratoriPage, "Residenza")
+    await openWorkerSectionEdit(lavoratoriPage, "Modifica indirizzo")
+    const input = workerDetailLabeledInput(lavoratoriPage, "Comune")
     await expect(input).toBeVisible()
-    const persist = waitForLavoratoreUpdateRecord(page)
+    const persist = waitForLavoratoreUpdateRecord(lavoratoriPage)
     await input.fill(citta)
     await persist
 
-    await reloadDetail(page)
-    await scrollToWorkerDetailTab(page, "Residenza")
     await expect
       .poll(async () => readLavoratoreAddressField(qualificatoMi.id, "citta"), {
         timeout: 30_000,
       })
       .toBe(citta)
-    await expect(workerDetailPanel(page).getByText(citta)).toBeVisible({
-      timeout: 30_000,
-    })
+    await expect(input).toHaveValue(citta)
   })
 
-  test("calendario section autosaves vincoli orari", async ({ page }) => {
+  test("calendario section autosaves vincoli orari", async () => {
     const vincoli = "E2E vincoli orari worker detail"
 
-    await scrollToWorkerDetailTab(page, "Calendario")
-    await openWorkerSectionEdit(page, "Modifica disponibilita")
-    const textarea = workerDetailPanel(page).getByPlaceholder("Inserisci vincoli orari")
+    await scrollToWorkerDetailTab(lavoratoriPage, "Calendario")
+    await openWorkerSectionEdit(lavoratoriPage, "Modifica disponibilita")
+    const textarea = workerDetailPanel(lavoratoriPage).getByPlaceholder(
+      "Inserisci vincoli orari",
+    )
     await expect(textarea).toBeVisible()
-    const persist = waitForLavoratoreUpdateRecord(page)
+    const persist = waitForLavoratoreUpdateRecord(lavoratoriPage)
     await textarea.fill(vincoli)
     await persist
 
-    await reloadDetail(page)
-    await scrollToWorkerDetailTab(page, "Calendario")
-    await expect(workerDetailPanel(page).getByText(vincoli, { exact: true })).toBeVisible()
     expect(
       await readLavoratoreStringField(qualificatoMi.id, "vincoli_orari_disponibilita"),
     ).toBe(vincoli)
+    await expect(textarea).toHaveValue(vincoli)
   })
 
-  test("ricerca section saves accetta paga 9 euro", async ({ page }) => {
-    await scrollToWorkerDetailTab(page, "Ricerca")
-    await openWorkerSectionEdit(page, "Modifica ricerca lavoro")
+  test("ricerca section saves accetta paga 9 euro", async () => {
+    await scrollToWorkerDetailTab(lavoratoriPage, "Ricerca")
+    await openWorkerSectionEdit(lavoratoriPage, "Modifica ricerca lavoro")
 
-    const pagaField = workerDetailPanel(page).locator("div.space-y-1").filter({
+    const pagaField = workerDetailPanel(lavoratoriPage).locator("div.space-y-1").filter({
       hasText: /paga di 9/i,
     })
     await expect(pagaField).toBeVisible({ timeout: 30_000 })
-    const persist = waitForLavoratoreUpdateRecord(page)
+    const persist = waitForLavoratoreUpdateRecord(lavoratoriPage)
     await pagaField.getByRole("radio", { name: "Accetta", exact: true }).click()
     await persist
 
-    await reloadDetail(page)
-    await scrollToWorkerDetailTab(page, "Ricerca")
-    await openWorkerSectionEdit(page, "Modifica ricerca lavoro")
-    const reloadedPagaField = workerDetailPanel(page).locator("div.space-y-1").filter({
-      hasText: /paga di 9/i,
-    })
     await expect(
-      reloadedPagaField.getByRole("radio", { name: "Accetta", exact: true }),
+      pagaField.getByRole("radio", { name: "Accetta", exact: true }),
     ).toBeChecked()
     expect(
       await readLavoratoreStringField(
@@ -179,36 +176,34 @@ test.describe("cerca lavoratori: worker detail section editing", () => {
     ).toBe("Accetta")
   })
 
-  test("esperienze section autosaves anni esperienza colf", async ({ page }) => {
-    await scrollToWorkerDetailTab(page, "Esperienze")
-    await openWorkerSectionEdit(page, "Modifica esperienze")
+  test("esperienze section autosaves anni esperienza colf", async () => {
+    await scrollToWorkerDetailTab(lavoratoriPage, "Esperienze")
+    await openWorkerSectionEdit(lavoratoriPage, "Modifica esperienze")
 
-    const input = workerDetailLabeledInput(page, "Anni esp. Colf")
+    const input = workerDetailLabeledInput(lavoratoriPage, "Anni esp. Colf")
     await expect(input).toBeVisible()
-    const persist = waitForLavoratoreUpdateRecord(page)
+    const persist = waitForLavoratoreUpdateRecord(lavoratoriPage)
     await input.fill("7")
     await persist
 
-    await reloadDetail(page)
-    await scrollToWorkerDetailTab(page, "Esperienze")
-    await expect(workerDetailPanel(page).getByText("7 anni", { exact: true })).toBeVisible()
     expect(await readLavoratoreStringField(qualificatoMi.id, "anni_esperienza_colf")).toBe(
       "7",
     )
+    await expect(input).toHaveValue("7")
   })
 
-  test("competenze section saves livello pulizie", async ({ page }) => {
-    await scrollToWorkerDetailTab(page, "Competenze")
-    await openWorkerSectionEdit(page, "Modifica skill e competenze")
+  test("competenze section saves livello pulizie", async () => {
+    await scrollToWorkerDetailTab(lavoratoriPage, "Competenze")
+    await openWorkerSectionEdit(lavoratoriPage, "Modifica skill e competenze")
 
-    const pulizieFieldset = workerDetailPanel(page).locator("fieldset").filter({
-      has: page.getByText("Pulizie", { exact: true }),
+    const pulizieFieldset = workerDetailPanel(lavoratoriPage).locator("fieldset").filter({
+      has: lavoratoriPage.getByText("Pulizie", { exact: true }),
     })
     const combobox = pulizieFieldset.getByRole("combobox").first()
     await expect(combobox).toBeVisible({ timeout: 30_000 })
-    const persist = waitForLavoratoreUpdateRecord(page)
+    const persist = waitForLavoratoreUpdateRecord(lavoratoriPage)
     await combobox.click()
-    const options = page.getByRole("option")
+    const options = lavoratoriPage.getByRole("option")
     let optionLabel = ""
     const optionCount = await options.count()
     for (let index = 0; index < optionCount; index += 1) {
@@ -226,23 +221,30 @@ test.describe("cerca lavoratori: worker detail section editing", () => {
         timeout: 30_000,
       })
       .toBe(optionLabel)
-    await expect(workerDetailPanel(page).getByText(optionLabel, { exact: true })).toBeVisible({
-      timeout: 30_000,
-    })
+    await expect(
+      workerDetailPanel(lavoratoriPage).getByText(optionLabel, { exact: true }),
+    ).toBeVisible({ timeout: 30_000 })
   })
 
-  test("documenti section saves stato verifica documenti", async ({ page }) => {
-    await scrollToWorkerDetailTab(page, "Documenti e dati amministrativi")
-    await openWorkerSectionEdit(page, "Modifica documenti")
+  test("documenti section saves stato verifica documenti", async () => {
+    await scrollToWorkerDetailTab(lavoratoriPage, "Documenti e dati amministrativi")
+    await openWorkerSectionEdit(lavoratoriPage, "Modifica documenti")
 
-    const combobox = workerDetailPanel(page)
+    const combobox = workerDetailPanel(lavoratoriPage)
       .locator("div.space-y-2")
-      .filter({ has: page.getByText("Check documenti verificati da Baze", { exact: true }) })
+      .filter({
+        has: lavoratoriPage.getByText("Check documenti verificati da Baze", {
+          exact: true,
+        }),
+      })
       .getByRole("combobox")
     await expect(combobox).toBeVisible({ timeout: 30_000 })
-    const persist = waitForLavoratoreUpdateRecord(page)
+    const persist = waitForLavoratoreUpdateRecord(lavoratoriPage)
     await combobox.click()
-    const option = page.getByRole("option").filter({ hasNotText: "Non indicato" }).first()
+    const option = lavoratoriPage
+      .getByRole("option")
+      .filter({ hasNotText: "Non indicato" })
+      .first()
     const optionLabel = (await option.textContent())?.trim() ?? ""
     await option.click()
     await persist
@@ -253,8 +255,8 @@ test.describe("cerca lavoratori: worker detail section editing", () => {
         { timeout: 30_000 },
       )
       .toBe(optionLabel)
-    await expect(workerDetailPanel(page).getByText(optionLabel, { exact: true })).toBeVisible({
-      timeout: 30_000,
-    })
+    await expect(
+      workerDetailPanel(lavoratoriPage).getByText(optionLabel, { exact: true }),
+    ).toBeVisible({ timeout: 30_000 })
   })
 })
