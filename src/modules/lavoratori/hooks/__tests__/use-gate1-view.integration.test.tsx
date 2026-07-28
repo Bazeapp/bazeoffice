@@ -208,6 +208,61 @@ describe("useGate1View — gateDraft resync", () => {
   })
 })
 
+describe("useGate1View — availability draft edit guard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("forces isEditingAvailability when availabilityEditMode is always", () => {
+    const setIsEditingAvailability = vi.fn()
+    const setIsEditingAvailabilityStatus = vi.fn()
+    mockUseSelectedWorkerEditor.mockImplementation(() =>
+      makeEditorReturn({
+        setIsEditingAvailability,
+        setIsEditingAvailabilityStatus,
+      }),
+    )
+    const initialRow = makeWorkerRow({ id: "w1" })
+    const setup = makeHookProps(initialRow, "w1")
+    mockUseLavoratoriData.mockImplementation(() => setup.lavoratoriData)
+
+    renderHookWithQueryClient(() =>
+      useGate1View({ ...setup.gateProps, availabilityEditMode: "always" }),
+    )
+
+    // Always-mode must NOT force draft isEditing — that blocks scheda enrich.
+    expect(setIsEditingAvailability).not.toHaveBeenCalledWith(true)
+    expect(setIsEditingAvailabilityStatus).not.toHaveBeenCalledWith(true)
+  })
+
+  it("syncs isEditingAvailability with the section toggle in toggle mode", () => {
+    const setIsEditingAvailability = vi.fn()
+    const setIsEditingAvailabilityStatus = vi.fn()
+    mockUseSelectedWorkerEditor.mockImplementation(() =>
+      makeEditorReturn({
+        setIsEditingAvailability,
+        setIsEditingAvailabilityStatus,
+      }),
+    )
+    const initialRow = makeWorkerRow({ id: "w1" })
+    const setup = makeHookProps(initialRow, "w1")
+    mockUseLavoratoriData.mockImplementation(() => setup.lavoratoriData)
+
+    const { result } = renderHookWithQueryClient(() =>
+      useGate1View({ ...setup.gateProps, availabilityEditMode: "toggle" }),
+    )
+
+    expect(setIsEditingAvailability).toHaveBeenCalledWith(false)
+
+    act(() => {
+      result.current.setIsEditingAvailabilityStep(true)
+    })
+
+    expect(setIsEditingAvailability).toHaveBeenCalledWith(true)
+    expect(setIsEditingAvailabilityStatus).toHaveBeenCalledWith(true)
+  })
+})
+
 describe("useGate1SectionNav — scroll section", () => {
   beforeEach(() => {
     vi.clearAllMocks()

@@ -45,6 +45,31 @@ describe("createGateFieldsOnSave", () => {
     )
   })
 
+  it("persists disponibilita_nel_giorno via patchSelectedWorkerField (not draft-only)", async () => {
+    const deps = makeDeps()
+    const onSave = createGateFieldsOnSave(deps)
+
+    await onSave({ disponibilita_nel_giorno: ["Mattina", "Pomeriggio"] })
+
+    expect(deps.setAvailabilityDraft).toHaveBeenCalled()
+    expect(deps.patchSelectedWorkerField).toHaveBeenCalledWith(
+      "disponibilita_nel_giorno",
+      ["Mattina", "Pomeriggio"],
+    )
+  })
+
+  it("clears disponibilita_nel_giorno with null when the selection is empty", async () => {
+    const deps = makeDeps()
+    const onSave = createGateFieldsOnSave(deps)
+
+    await onSave({ disponibilita_nel_giorno: [] })
+
+    expect(deps.patchSelectedWorkerField).toHaveBeenCalledWith(
+      "disponibilita_nel_giorno",
+      null,
+    )
+  })
+
   it("routes skill fields through patchSkillsField", async () => {
     const deps = makeDeps()
     const onSave = createGateFieldsOnSave(deps)

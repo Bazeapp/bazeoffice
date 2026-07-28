@@ -1,10 +1,8 @@
 import * as React from "react"
 
 import { SectionHeader } from "@/components/shared-next/section-header"
-import { StatisticsMetricCard } from "@/components/shared-next/statistics-metric-card"
 import { SearchInput } from "@/components/ui/search-input"
-import { Separator } from "@/components/ui/separator"
-import { cn } from "@/lib/utils"
+import { SEARCH_CHANGE_EVENT } from "@/lib/search-change"
 
 import { useCedoliniBoardSelection } from "../hooks/use-cedolini-board-selection"
 import { usePayrollBoard } from "../hooks/use-payroll-board"
@@ -13,27 +11,40 @@ import {
   createDefaultCedoliniFilters,
   filterCedoliniColumns,
   getCurrentMonthValue,
-  TERMINAL_STAGE_IDS,
+  readCedoliniUrlState,
+  replaceCedoliniUrlState,
   toggleCedoliniFilter,
   type CedoliniFilterGroupKey,
   type CedoliniFilters,
+  type CedoliniMode,
 } from "../lib"
-import { CedolinoDetailSheet } from "./payroll-overview-cedolino-detail-sheet"
 import { useCommentRouteContext } from "@/modules/commenti/hooks"
 import {
   cedolinoCommentRow,
   cedolinoDisplayNames,
 } from "@/modules/commenti/lib/comment-route-helpers"
 import { useBoardEntityDeepLink } from "@/modules/notifiche/hooks"
-import { PayrollOverviewBoardColumn } from "./payroll-overview-board-column"
-import {
-  PayrollOverviewBoardSkeletonColumn,
-} from "./payroll-overview-board-skeleton"
+import { CedoliniModeTabs } from "./cedolini-mode-tabs"
+import { CedoliniControlliView } from "./cedolini-controlli-view"
+import { CedoliniPagamentiView } from "./cedolini-pagamenti-view"
+import { PayrollOverviewCedoliniBoard } from "./payroll-overview-cedolini-board"
 import { PayrollOverviewCedoliniFilterBar } from "./payroll-overview-cedolini-filter-bar"
 import { PayrollOverviewCedoliniMonthSwitcher } from "./payroll-overview-cedolini-month-switcher"
 
+function readCedoliniStateFromWindow(): { mode: CedoliniMode; month: string } {
+  if (typeof window === "undefined") {
+    return { mode: "board", month: getCurrentMonthValue() }
+  }
+  return readCedoliniUrlState(window.location.search, {
+    mode: "board",
+    month: getCurrentMonthValue(),
+  })
+}
+
 export function PayrollOverviewCedoliniView() {
-  const [selectedMonth, setSelectedMonth] = React.useState(getCurrentMonthValue)
+  const initial = React.useMemo(() => readCedoliniStateFromWindow(), [])
+  const [selectedMonth, setSelectedMonth] = React.useState(initial.month)
+  const [mode, setMode] = React.useState<CedoliniMode>(initial.mode)
   const {
     loading,
     error,
@@ -64,6 +75,44 @@ export function PayrollOverviewCedoliniView() {
     },
     retryKey: true,
   })
+
+  const syncStateFromUrl = React.useEffectEvent(() => {
+    const next = readCedoliniStateFromWindow()
+    setSelectedMonth(next.month)
+    setMode(next.mode)
+  })
+
+  React.useEffect(() => {
+    const onUrlChange = () => {
+      syncStateFromUrl()
+    }
+    window.addEventListener("popstate", onUrlChange)
+    window.addEventListener(SEARCH_CHANGE_EVENT, onUrlChange)
+    return () => {
+      window.removeEventListener("popstate", onUrlChange)
+      window.removeEventListener(SEARCH_CHANGE_EVENT, onUrlChange)
+    }
+  }, [])
+
+  const persistUrlState = React.useCallback((nextMode: CedoliniMode, nextMonth: string) => {
+    replaceCedoliniUrlState({ mode: nextMode, month: nextMonth })
+  }, [])
+
+  const handleModeChange = React.useCallback(
+    (nextMode: CedoliniMode) => {
+      setMode(nextMode)
+      persistUrlState(nextMode, selectedMonth)
+    },
+    [persistUrlState, selectedMonth],
+  )
+
+  const handleMonthChange = React.useCallback(
+    (nextMonth: string) => {
+      setSelectedMonth(nextMonth)
+      persistUrlState(mode, nextMonth)
+    },
+    [mode, persistUrlState],
+  )
 
   const toggleFilter = React.useCallback((group: CedoliniFilterGroupKey, value: string) => {
     setFilters((current) => toggleCedoliniFilter(current, group, value))
@@ -110,115 +159,62 @@ export function PayrollOverviewCedoliniView() {
         >
           Cedolini
         </SectionHeader.Title>
+        <SectionHeader.Center>
+          <CedoliniModeTabs value={mode} onChange={handleModeChange} />
+        </SectionHeader.Center>
         <SectionHeader.Actions>
-          <PayrollOverviewCedoliniMonthSwitcher value={selectedMonth} onChange={setSelectedMonth} />
+          <PayrollOverviewCedoliniMonthSwitcher value={selectedMonth} onChange={handleMonthChange} />
         </SectionHeader.Actions>
-        <SectionHeader.Toolbar>
-          <SearchInput
-            className="md:max-w-sm"
-            data-testid="cedolini-search-input"
-            placeholder="Cerca per famiglia, lavoratore, email..."
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            onClear={() => setSearchValue("")}
-          />
-          <PayrollOverviewCedoliniFilterBar filters={filters} onToggle={toggleFilter} />
-        </SectionHeader.Toolbar>
+        {mode === "board" ? (
+          <SectionHeader.Toolbar>
+            <SearchInput
+              className="md:max-w-sm"
+              data-testid="cedolini-search-input"
+              placeholder="Cerca per famiglia, lavoratore, email..."
+              value={searchValue}
+              onChange={(event) => setSearchValue(event.target.value)}
+              onClear={() => setSearchValue("")}
+            />
+            <PayrollOverviewCedoliniFilterBar filters={filters} onToggle={toggleFilter} />
+          </SectionHeader.Toolbar>
+        ) : null}
       </SectionHeader>
 
-      <div className="px-4 pt-4">
-        <div className="flex w-full items-stretch gap-3">
-          {metricGroups.map((group, groupIndex) => (
-            <React.Fragment key={groupIndex}>
-              <div
-                className={cn(
-                  "grid flex-1 items-stretch gap-3",
-                  group.length === 2 && "grid-cols-2",
-                  group.length === 3 && "grid-cols-3",
-                )}
-              >
-                {group.map((metric) => (
-                  <div key={metric.title} className="min-w-0">
-                    <StatisticsMetricCard {...metric} density="compact" />
-                  </div>
-                ))}
-              </div>
-              {groupIndex < metricGroups.length - 1 ? (
-                <Separator orientation="vertical" className="mx-1 h-auto self-stretch" />
-              ) : null}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-
-      {error ? (
-        <div className="mx-4 mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          Errore caricamento payroll: {error}
-        </div>
-      ) : null}
-
-      <div className="scrollbar-visible min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pb-2 pt-4 [scrollbar-gutter:stable]">
-        <div className="flex h-full min-h-0 min-w-max gap-4">
-          {loading
-            ? Array.from({ length: 4 }).map((_, index) => (
-                <PayrollOverviewBoardSkeletonColumn key={index} />
-              ))
-            : filteredColumns.map((column) => (
-                <PayrollOverviewBoardColumn
-                  key={column.id}
-                  column={column}
-                  draggingRecordId={draggingRecordId}
-                  isDropTarget={dropTargetColumnId === column.id}
-                  onOpenCard={selection.openCard}
-                  onDragStartCard={setDraggingRecordId}
-                  onDragEndCard={() => {
-                    window.setTimeout(() => {
-                      setDraggingRecordId(null)
-                      setDropTargetColumnId(null)
-                    }, 0)
-                  }}
-                  onDragEnterColumn={setDropTargetColumnId}
-                  onDragOverColumn={setDropTargetColumnId}
-                  onDragLeaveColumn={(event: React.DragEvent<HTMLDivElement>) => {
-                    const nextTarget = event.relatedTarget
-                    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return
-                    setDropTargetColumnId((current) => (current === column.id ? null : current))
-                  }}
-                  onDropToColumn={(columnId: string, recordId: string | null) => {
-                    setDropTargetColumnId(null)
-                    setDraggingRecordId(null)
-                    if (!recordId) return
-                    if (TERMINAL_STAGE_IDS.has(columnId)) return
-                    void moveCard(recordId, columnId)
-                  }}
-                />
-              ))}
-        </div>
-      </div>
-
-      <CedolinoDetailSheet
-        key={selection.selectedCardId ?? "__empty__"}
-        card={selection.selectedCard}
-        columns={columns}
-        open={Boolean(selection.selectedCardId)}
-        onOpenChange={(open) => {
-          if (!open) selection.closeCard()
-        }}
-        onStageChange={(recordId, targetStageId) => {
-          void moveCard(recordId, targetStageId)
-          selection.patchSelectedCard(recordId, {
-            stato_mese_lavorativo: targetStageId,
-          })
-        }}
-        onPatchCard={(recordId, patch) => {
-          void patchCard(recordId, patch)
-          selection.patchSelectedCard(recordId, patch)
-        }}
-        onPatchPresence={(recordId, patch) => {
-          void patchPresence(recordId, patch)
-          selection.patchSelectedPresence(recordId, patch)
-        }}
-      />
+      {mode === "board" ? (
+        <PayrollOverviewCedoliniBoard
+          loading={loading}
+          error={error}
+          metricGroups={metricGroups}
+          filteredColumns={filteredColumns}
+          columns={columns}
+          selectedCardId={selection.selectedCardId}
+          selectedCard={selection.selectedCard}
+          onOpenCard={selection.openCard}
+          onCloseCard={selection.closeCard}
+          draggingRecordId={draggingRecordId}
+          setDraggingRecordId={setDraggingRecordId}
+          dropTargetColumnId={dropTargetColumnId}
+          setDropTargetColumnId={setDropTargetColumnId}
+          onMoveCard={(recordId, targetStageId) => {
+            void moveCard(recordId, targetStageId)
+            selection.patchSelectedCard(recordId, {
+              stato_mese_lavorativo: targetStageId,
+            })
+          }}
+          onPatchCard={(recordId, patch) => {
+            void patchCard(recordId, patch)
+            selection.patchSelectedCard(recordId, patch)
+          }}
+          onPatchPresence={(recordId, patch) => {
+            void patchPresence(recordId, patch)
+            selection.patchSelectedPresence(recordId, patch)
+          }}
+        />
+      ) : mode === "controlli" ? (
+        <CedoliniControlliView selectedMonth={selectedMonth} columns={columns} />
+      ) : (
+        <CedoliniPagamentiView selectedMonth={selectedMonth} columns={columns} />
+      )}
     </section>
   )
 }

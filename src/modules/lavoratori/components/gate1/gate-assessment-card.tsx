@@ -27,7 +27,7 @@ import {
   getTagClassName,
   normalizeLookupComparableToken,
   resolveLookupColor,
-} from "../../lib/lookup-utils";
+} from "@/lib/lookup-utils";
 import { GateInfoCard } from "./gate-info-card";
 import { EMPTY_SELECT_VALUE } from "./gate-field-primitives";
 import { useGate1WorkerEditor } from "./gate1-worker-context";

@@ -10,7 +10,7 @@ import {
   getLookupOptionLabel,
   getLookupSelectValue,
   normalizeLookupOptionValues,
-} from "./lookup-utils";
+} from "@/lib/lookup-utils";
 import type { GateDraft } from "./gate-draft";
 import type {
   WorkerAddressDraft,
@@ -385,6 +385,10 @@ export function createGateFieldsOnSave(
             ...current,
             disponibilita_nel_giorno: values,
           }));
+          await patchSelectedWorkerField(
+            "disponibilita_nel_giorno",
+            values.length > 0 ? values : null,
+          );
         } else if (key === "come_ti_sposti") {
           setAddressDraft((current) => ({
             ...current,

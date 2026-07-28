@@ -32,7 +32,7 @@ import {
   getLookupOptionLabel,
   normalizeLookupDbLabels,
   normalizeLookupOptionValues,
-} from "../lib/lookup-utils"
+} from "@/lib/lookup-utils"
 
 type LookupOption = {
   label: string

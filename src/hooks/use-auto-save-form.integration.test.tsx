@@ -41,6 +41,8 @@ vi.mock("sonner", () => ({
 
 import { z } from "zod"
 import { toast } from "sonner"
+import { Form } from "@/components/ui/form"
+import { FieldInput } from "@/components/forms/field-components"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 
 type Values = { a: string; b: string }
@@ -70,6 +72,46 @@ function Harness({
       <input aria-label="a" {...form.register("a")} />
       <input aria-label="b" {...form.register("b")} />
     </form>
+  )
+}
+
+/**
+ * Mirrors gate detail: one surviving useAutoSaveForm + FieldInput (DebouncedInput
+ * local draft) remounted via key=resetKey when the selected record changes.
+ */
+function GateFieldHarness({
+  defaults,
+  onSave,
+  resetKey,
+  fieldDebounceMs = 300,
+}: {
+  defaults: Values
+  onSave: (patch: Partial<Values>) => Promise<void> | void
+  resetKey: string
+  fieldDebounceMs?: number
+}) {
+  const form = useAutoSaveForm<Values>({
+    defaults,
+    onSave,
+    resetKey,
+    // Form-level coalescing off: FieldInput already debounces keystrokes.
+    debounceMs: 0,
+  })
+  return (
+    <Form {...form}>
+      <div key={resetKey}>
+        <FieldInput
+          name="a"
+          aria-label="a"
+          debounceMs={fieldDebounceMs}
+        />
+        <FieldInput
+          name="b"
+          aria-label="b"
+          debounceMs={fieldDebounceMs}
+        />
+      </div>
+    </Form>
   )
 }
 
@@ -216,6 +258,42 @@ describe("useAutoSaveForm — resync without clobber", () => {
     expect(onSaveA).not.toHaveBeenCalled()
     expect(onSaveB).not.toHaveBeenCalled()
     expect(input("a").value).toBe("from-b")
+  })
+
+  it("does not leak a FieldInput draft from record A onto record B after keyed remount", async () => {
+    // Gate views remount FieldInput via key=selectedWorkerId while the parent
+    // useAutoSaveForm survives. DebouncedInput flush-on-unmount must not push
+    // A's local draft into the shared form after onSave has rebound to B.
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    const { rerender } = render(
+      <GateFieldHarness
+        defaults={{ a: "alice@example.com", b: "x" }}
+        resetKey="worker-a"
+        onSave={onSave}
+        fieldDebounceMs={5_000}
+      />,
+    )
+
+    fireEvent.change(input("a"), {
+      target: { value: "alice@example.comX" },
+    })
+    expect(input("a").value).toBe("alice@example.comX")
+
+    rerender(
+      <GateFieldHarness
+        defaults={{ a: "bob@example.com", b: "y" }}
+        resetKey="worker-b"
+        onSave={onSave}
+        fieldDebounceMs={5_000}
+      />,
+    )
+
+    expect(input("a").value).toBe("bob@example.com")
+
+    // Past FieldInput debounce + autosave settle: A's draft must not save on B.
+    await new Promise((r) => setTimeout(r, 80))
+    expect(onSave).not.toHaveBeenCalledWith({ a: "alice@example.comX" })
+    expect(input("a").value).toBe("bob@example.com")
   })
 })
 

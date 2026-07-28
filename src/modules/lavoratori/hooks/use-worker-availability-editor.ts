@@ -44,6 +44,14 @@ export function useWorkerAvailabilityEditor({
   const [isEditingAvailability, setIsEditingAvailability] = React.useState(false)
   const [updatingAvailability, setUpdatingAvailability] = React.useState(false)
   const [updatingAvailabilityStatus, setUpdatingAvailabilityStatus] = React.useState(false)
+  // Always-edit boards (Gate 2) never flip isEditingAvailability; protect the
+  // draft from server resync only after the user actually edits the matrix so
+  // the initial list→scheda enrichment can still land.
+  const [availabilityDraftDirty, setAvailabilityDraftDirty] = React.useState(false)
+
+  React.useEffect(() => {
+    setAvailabilityDraftDirty(false)
+  }, [selectedWorkerId])
 
   const availabilityPayload = React.useMemo(
     () => parseAvailabilityPayload(selectedWorkerRow?.availability_final_json),
@@ -81,7 +89,7 @@ export function useWorkerAvailabilityEditor({
       selectedWorkerId,
       selectedWorkerRow,
       activePatchesRef,
-      isEditing: isEditingAvailability,
+      isEditing: isEditingAvailability || availabilityDraftDirty,
       setIsEditing: setIsEditingAvailability,
       buildDraft: (row) => buildAvailabilityDraft(row, availabilityPayload),
       resyncDeps: [availabilityPayload],
@@ -109,6 +117,7 @@ export function useWorkerAvailabilityEditor({
       const nextRow = asLavoratoreRecord(result.row)
       applyUpdatedWorkerRow(nextRow)
       await invokeWorkerAvailability(selectedWorkerId)
+      setAvailabilityDraftDirty(false)
       toast.success("Disponibilita lavoratore salvata")
     } catch (caughtError) {
       const message = formatEditorError("Errore salvando disponibilita", caughtError)
@@ -151,23 +160,22 @@ export function useWorkerAvailabilityEditor({
   )
 
   const handleAvailabilityMatrixChange = React.useCallback(
-    async (
+    (
       dayField: AvailabilityEditDayField,
       bandField: AvailabilityEditBandField,
       checked: boolean
     ) => {
       const key = getAvailabilityMatrixKey(dayField, bandField)
-      const nextMatrix = {
-        ...availabilityDraft.matrix,
-        [key]: checked,
-      }
-
+      setAvailabilityDraftDirty(true)
       setAvailabilityDraft((current) => ({
         ...current,
-        matrix: nextMatrix,
+        matrix: {
+          ...current.matrix,
+          [key]: checked,
+        },
       }))
     },
-    [availabilityDraft.matrix]
+    [setAvailabilityDraft]
   )
 
   return {

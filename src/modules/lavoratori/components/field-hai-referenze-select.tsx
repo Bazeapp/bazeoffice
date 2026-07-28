@@ -3,7 +3,7 @@ import { useController } from "react-hook-form"
 import {
   getLookupLabelForSave,
   getLookupSelectValue,
-} from "../lib/lookup-utils"
+} from "@/lib/lookup-utils"
 import {
   Select,
   SelectContent,

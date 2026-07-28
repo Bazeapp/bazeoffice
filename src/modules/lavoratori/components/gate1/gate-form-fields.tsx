@@ -10,7 +10,7 @@ import {
 import {
   getLookupSelectValue,
   resolveLookupSingleValueOptions,
-} from "../../lib/lookup-utils";
+} from "@/lib/lookup-utils";
 import {
   EMPTY_SELECT_VALUE,
   GateAllowedWorkField,

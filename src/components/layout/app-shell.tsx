@@ -26,6 +26,7 @@ import {
   routePatchFromCommentNavigation,
 } from "@/modules/notifiche/lib/entity-route-map"
 import type { Notifica } from "@/modules/notifiche/types"
+import { notifySearchChange } from "@/lib/search-change"
 
 type AppShellProps = {
   user: User
@@ -35,21 +36,44 @@ type AppShellProps = {
 function syncBrowserUrl(
   route: AppRoute,
   mode: "push" | "replace" = "push",
-  search: string = "",
+  options: { search?: string; clearSearch?: boolean } = {},
 ) {
   if (typeof window === "undefined") return
+  const { search, clearSearch = false } = options
   const targetPath = buildPathForRoute(route)
-  const targetUrl = `${targetPath}${search}`
-  const currentUrl = `${window.location.pathname}${window.location.search}`
 
-  if (currentUrl === targetUrl) return
+  // An explicit search string drives the full URL (path + search), e.g. to
+  // preserve or set a ?comment= deep-link across a pathname-only route sync.
+  if (search !== undefined) {
+    const targetUrl = `${targetPath}${search}`
+    const currentUrl = `${window.location.pathname}${window.location.search}`
 
-  if (mode === "replace") {
-    window.history.replaceState({}, "", targetUrl)
+    if (currentUrl === targetUrl) return
+
+    if (mode === "replace") {
+      window.history.replaceState({}, "", targetUrl)
+    } else {
+      window.history.pushState({}, "", targetUrl)
+    }
     return
   }
 
-  window.history.pushState({}, "", targetUrl)
+  // Otherwise operate on the pathname only, optionally clearing the search and
+  // notifying views that mirror it (e.g. the Cedolini URL state).
+  const currentPath = window.location.pathname
+  const hadSearch = window.location.search.length > 0
+
+  if (currentPath === targetPath && !(clearSearch && hadSearch)) return
+
+  if (mode === "replace") {
+    window.history.replaceState({}, "", targetPath)
+  } else {
+    window.history.pushState({}, "", targetPath)
+  }
+
+  if (clearSearch && hadSearch) {
+    notifySearchChange()
+  }
 }
 
 type AppShellMainProps = React.ComponentProps<typeof AppPageContent>
@@ -83,7 +107,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
 
   React.useEffect(() => {
     // Preserve ?comment= (and any other search) across pathname-only route sync.
-    syncBrowserUrl(route, "replace", window.location.search)
+    syncBrowserUrl(route, "replace", { search: window.location.search })
   }, [route])
 
   React.useEffect(() => {
@@ -315,7 +339,8 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     }
 
     setRoute(nextRoute)
-    syncBrowserUrl(nextRoute)
+    // Sidebar entry always lands on a clean URL (no mode/month search params).
+    syncBrowserUrl(nextRoute, "push", { clearSearch: true })
   }, [route.anagraficheTab])
 
   const handleOpenPayrollContributiInps = React.useCallback(() => {
@@ -390,7 +415,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
         const search = deepLink.includes("?")
           ? deepLink.slice(deepLink.indexOf("?"))
           : ""
-        syncBrowserUrl(nextRoute, "push", search)
+        syncBrowserUrl(nextRoute, "push", { search })
         if (isBoardEntityType(navigation.entityType) && navigation.entityId) {
           notifyBoardEntityDeepLink(navigation.entityType, navigation.entityId)
         }

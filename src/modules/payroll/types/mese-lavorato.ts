@@ -6,6 +6,7 @@ export type MeseLavoratoRecord = {
   cedolino: JsonObject | JsonObject[] | null
   cedolino_corretto: boolean | null
   cedolino_url: string | null
+  check_reminder_pagamento_inviato: boolean | null
   data_invio_famiglia: string | null
   data_ora_creazione: string | null
   importo_busta_estratto: number | null

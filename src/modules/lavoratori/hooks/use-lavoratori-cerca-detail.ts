@@ -29,7 +29,7 @@ import { sortSelectionGroupsByRank } from "../lib/stati-selezione"
 import {
   getTagClassName,
   resolveLookupColor,
-} from "../lib/lookup-utils"
+} from "@/lib/lookup-utils"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import { fetchLavoratoriByIds } from "../queries/fetch-lavoratori-by-ids"
 import { fetchSelezioniLookup } from "@/modules/ricerca/queries"
@@ -65,7 +65,7 @@ import type {
   NonQualificatoFormDraft,
   ReferenzaLavoratoreRecord,
 } from "../types"
-import type { LookupOption } from "../lib/lookup-utils"
+import type { LookupOption } from "@/lib/lookup-utils"
 import type { LavoratoriCercaDetailPanelProps } from "../components/lavoratori-cerca-detail-panel"
 
 type WorkerSectionTab = {
