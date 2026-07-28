@@ -14,6 +14,8 @@
     "audit:autosave:strict": "node scripts/audit-autosave-risk.mjs --strict",
     "script:wk-gen-cedolini": "npx --yes tsx scripts/wk-gen-cedolini.ts",
     "script:gen-pay-link": "npx --yes tsx scripts/gen-pay-link.ts",
+    "script:swap-emails": "bun scripts/swap-emails.ts",
+    "scripts/swap-emails": "bun scripts/swap-emails.ts",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "test:watch": "vitest",
