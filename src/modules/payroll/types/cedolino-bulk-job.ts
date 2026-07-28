@@ -102,7 +102,10 @@ export type RecoverCedolinoUrlErrorCode =
   | "cedolino_missing"
   | "download_failed"
   | "upload_failed"
+  | "storage_sign_failed"
   | "db_error"
+
+export type RecoverCedolinoUrlSource = "drive" | "storage_signed"
 
 export type RecoverCedolinoUrlRecheckOutcome = {
   applied: boolean
@@ -113,6 +116,7 @@ export type RecoverCedolinoUrlRecheckOutcome = {
 export type RecoverCedolinoUrlResponse = {
   recovered: boolean
   cedolino_url?: string
+  source?: RecoverCedolinoUrlSource
   error?: RecoverCedolinoUrlErrorCode | string
   message?: string
   recheck?: RecoverCedolinoUrlRecheckOutcome

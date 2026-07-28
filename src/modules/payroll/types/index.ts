@@ -61,6 +61,7 @@ export type {
   RecoverCedolinoUrlErrorCode,
   RecoverCedolinoUrlRecheckOutcome,
   RecoverCedolinoUrlResponse,
+  RecoverCedolinoUrlSource,
   StartCedoliniBulkJobResponse,
   StopCedoliniBulkJobResponse,
 } from "./cedolino-bulk-job"

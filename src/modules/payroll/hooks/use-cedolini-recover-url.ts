@@ -31,8 +31,9 @@ function isBulkJobTerminal(status: CedolinoBulkJobRecord["status"] | null | unde
 
 /**
  * Recovery `cedolino_url` (BAZ-98/99/100 U5, R6/AE7). Per-card recovery
- * calls the single `cedolini-recover-url` endpoint directly; bulk recovery
- * (the "Cedolino o PDF" group header action) runs it as a
+ * calls the single `cedolini-recover-url` endpoint directly (Drive share
+ * link when configured, otherwise a 30-day Storage signed URL); bulk
+ * recovery (the "Cedolino o PDF" group header action) runs it as a
  * `cedolino_bulk_jobs` (`kind: "recover_url"`) job so progress/count is
  * durable across refresh, same as bulk send.
  *
@@ -42,9 +43,11 @@ function isBulkJobTerminal(status: CedolinoBulkJobRecord["status"] | null | unde
  * and writes the new `cedolino_check_results` row — the FE only needs to
  * refetch).
  *
- * Bulk item failures (e.g. `drive_not_configured`) leave the job
- * `completata` with `error_count > 0` — start itself succeeds — so this
- * hook must surface them into `bulkError` after the job settles (AE7).
+ * Bulk item failures (e.g. `drive_not_configured`, `storage_sign_failed`)
+ * leave the job `completata` with `error_count > 0` — start itself
+ * succeeds — so this hook must surface them into `bulkError` after the job
+ * settles (AE7). `storage_sign_failed` messages flow through
+ * `details.message` via `formatCedoliniBulkRecoverError`.
  */
 export function useCedoliniRecoverUrl(selectedMonth: string): UseCedoliniRecoverUrlState {
   const queryClient = useQueryClient()
