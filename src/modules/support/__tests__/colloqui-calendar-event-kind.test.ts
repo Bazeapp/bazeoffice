@@ -48,6 +48,21 @@ describe("isSelectionCalendarProva", () => {
     ).toBe(true)
   })
 
+  it("detects lookup-key form prova_diretta after underscore normalization", () => {
+    expect(
+      isSelectionCalendarProva(
+        { stato_selezione: "Colloquio schedulato" },
+        process("prova_diretta"),
+      ),
+    ).toBe(true)
+  })
+
+  it("returns false when process is missing and stato is colloquio", () => {
+    expect(
+      isSelectionCalendarProva({ stato_selezione: "Colloquio schedulato" }, null),
+    ).toBe(false)
+  })
+
   it("detects prova schedulata from stato selezione", () => {
     expect(
       isSelectionCalendarProva({ stato_selezione: "Prova schedulata" }, process("Videochiamata")),
