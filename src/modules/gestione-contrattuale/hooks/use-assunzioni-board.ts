@@ -30,6 +30,12 @@ type UseAssunzioniBoardState = {
     updater: (card: AssunzioniBoardCardData) => AssunzioniBoardCardData
   ) => void
   deleteRapporto: (rapportoId: string) => Promise<void>
+  /**
+   * Bumped by useRealtimeBoardSync after a remote change passes echo guards.
+   * Open-sheet loaders must depend on this so selected detail re-fetches
+   * (cedolini Pattern B twin).
+   */
+  detailRefreshTick: number
 }
 
 export function useAssunzioniBoard(): UseAssunzioniBoardState {
@@ -200,9 +206,15 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
     [setBoardData, queryClient],
   )
 
+  const [detailRefreshTick, setDetailRefreshTick] = React.useState(0)
+  const bumpDetailRefreshTick = React.useCallback(() => {
+    setDetailRefreshTick((current) => current + 1)
+  }, [])
+
   useRealtimeBoardSync({
     tables: [...ASSUNZIONI_REALTIME_TABLES],
     reload: invalidateBoard,
+    reloadOpenDetail: bumpDetailRefreshTick,
   })
 
   const error =
@@ -220,5 +232,6 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
     moveCard,
     updateCard,
     deleteRapporto,
+    detailRefreshTick,
   }
 }

@@ -13,6 +13,11 @@ import {
   TIPO_LICENZIAMENTO_OPTIONS,
   type ChiusuraAttachmentSlot,
 } from "../lib/chiusure-board-constants"
+import {
+  EMPTY_CHIUSURA_TIPO_METADATA,
+  resolveChiusuraTipoDisplay,
+  type ChiusuraTipoMetadata,
+} from "../lib/chiusure-board"
 import type {
   ChiusureBoardCardData,
   ChiusureBoardColumnData,
@@ -34,6 +39,7 @@ export type UseChiusureDetailSheetParams = {
   columns: ChiusureBoardColumnData[]
   rapportoOptions: ChiusureRapportoOption[]
   tipoLicenziamentoOptions: TipoLicenziamentoOption[]
+  tipoMetadata?: ChiusuraTipoMetadata
   open: boolean
   onOpenChange: (open: boolean) => void
   onStatusChange: (recordId: string, targetStageId: string) => Promise<void>
@@ -74,6 +80,7 @@ export function useChiusureDetailSheet({
   columns,
   rapportoOptions,
   tipoLicenziamentoOptions,
+  tipoMetadata = EMPTY_CHIUSURA_TIPO_METADATA,
   open,
   onOpenChange,
   onStatusChange,
@@ -90,10 +97,15 @@ export function useChiusureDetailSheet({
   const [detailsError, setDetailsError] = React.useState<string | null>(null)
   const previousCardIdRef = React.useRef<string | null>(card?.id ?? null)
   const latestCardRef = React.useRef<ChiusureBoardCardData | null>(card)
+  const tipoMetadataRef = React.useRef(tipoMetadata)
 
   React.useEffect(() => {
     latestCardRef.current = card
   }, [card])
+
+  React.useEffect(() => {
+    tipoMetadataRef.current = tipoMetadata
+  }, [tipoMetadata])
 
   const applyCardChange = React.useCallback(
     (nextCard: ChiusureBoardCardData) => {
@@ -272,13 +284,12 @@ export function useChiusureDetailSheet({
       for (const [key, value] of Object.entries(patch)) {
         ;(out as Record<string, unknown>)[key] = (value as string) || null
       }
-      if ("tipo_licenziamento" in patch) {
+      if ("tipo_licenziamento" in patch || "tipo_decesso" in patch) {
+        const nextRecord = { ...currentCard.record, ...out }
         applyCardChange({
           ...currentCard,
-          record: {
-            ...currentCard.record,
-            tipo_licenziamento: (patch.tipo_licenziamento as string) || null,
-          },
+          record: nextRecord,
+          ...resolveChiusuraTipoDisplay(nextRecord, tipoMetadataRef.current),
         })
       }
       await onPatchChiusura(currentCard.id, out)

@@ -5,6 +5,7 @@ import {
   countChiusureBoardCards,
   filterChiusureBoardColumns,
   formatChiusuraBoardDate,
+  resolveChiusuraTipoDisplay,
 } from "../lib"
 import { fetchChiusureByIds } from "../queries/fetch-chiusure-by-ids"
 import type { ChiusureBoardCardData, ChiusureBoardDragHandlers } from "../types"
@@ -18,12 +19,14 @@ export function useChiusureBoardView() {
     columns,
     rapportoOptions,
     tipoLicenziamentoOptions,
+    tipoMetadata,
     createChiusura,
     linkRapporto,
     moveCard,
     updateCard,
     patchChiusura,
     deleteChiusura,
+    detailRefreshTick,
   } = useChiusureBoard()
 
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
@@ -31,8 +34,18 @@ export function useChiusureBoardView() {
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [selectedFreshCard, setSelectedFreshCard] = React.useState<ChiusureBoardCardData | null>(null)
   const selectedCardRequestRef = React.useRef<string | null>(null)
+  const selectedFreshCardRef = React.useRef<ChiusureBoardCardData | null>(null)
+  const tipoMetadataRef = React.useRef(tipoMetadata)
   const [searchValue, setSearchValue] = React.useState("")
   const [isAnnullamentoDialogOpen, setIsAnnullamentoDialogOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    selectedFreshCardRef.current = selectedFreshCard
+  }, [selectedFreshCard])
+
+  React.useEffect(() => {
+    tipoMetadataRef.current = tipoMetadata
+  }, [tipoMetadata])
 
   const filteredColumns = React.useMemo(
     () => filterChiusureBoardColumns(columns, searchValue),
@@ -44,56 +57,91 @@ export function useChiusureBoardView() {
     [filteredColumns],
   )
 
-  const handleSelectCard = React.useCallback(
-    async (card: ChiusureBoardCardData) => {
-      selectedCardRequestRef.current = card.id
-      setSelectedCardId(card.id)
-      // Keep the list card as provisional detail so comment route context stays
-      // mounted while dettaglio + ricerca enrichment load.
-      setSelectedFreshCard(card)
+  const selectedBoardCard = React.useMemo(
+    () =>
+      columns.flatMap((column) => column.cards).find((card) => card.id === selectedCardId) ?? null,
+    [columns, selectedCardId],
+  )
 
+  const handleSelectCard = React.useCallback((card: ChiusureBoardCardData) => {
+    selectedCardRequestRef.current = card.id
+    setSelectedCardId(card.id)
+    // Keep the list card as provisional detail so comment route context stays
+    // mounted while dettaglio + ricerca enrichment load.
+    setSelectedFreshCard(card)
+  }, [])
+
+  // Pattern B — re-fetch open sheet when selection opens or detailRefreshTick
+  // bumps after realtime. Board card object identity is intentionally omitted
+  // so ordinary board refreshes alone do not thrash the sheet.
+  React.useEffect(() => {
+    if (!selectedCardId) {
+      setSelectedFreshCard(null)
+      return
+    }
+
+    let isActive = true
+    const currentCardId = selectedCardId
+    const boardCard = selectedBoardCard
+    const provisional =
+      selectedFreshCardRef.current?.id === currentCardId
+        ? selectedFreshCardRef.current
+        : boardCard
+
+    if (boardCard) {
+      setSelectedFreshCard(boardCard)
+    }
+
+    async function loadSelectedCard() {
       try {
+        const rapportoId = boardCard?.rapporto?.id ?? provisional?.rapporto?.id ?? null
         const [recordResponse, rapportoResponse] = await Promise.all([
-          fetchChiusureByIds([card.id]),
-          card.rapporto?.id
-            ? fetchRapportiLavorativiByIds([card.rapporto.id])
+          fetchChiusureByIds([currentCardId]),
+          rapportoId
+            ? fetchRapportiLavorativiByIds([rapportoId])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
         ])
 
-        if (selectedCardRequestRef.current !== card.id) return
+        if (!isActive || selectedCardRequestRef.current !== currentCardId) return
 
-        const freshRecord = recordResponse.rows[0]
+        const freshRecord = recordResponse.rows[0] as ChiusureBoardCardData["record"] | undefined
+        const baseCard = boardCard ?? provisional
         if (!freshRecord) {
-          setSelectedFreshCard(card)
+          if (!boardCard && !provisional) setSelectedFreshCard(null)
           return
         }
+        if (!baseCard) return
 
         const enrichedRapporto = await enrichRapportoWithRicercaId(
-          (rapportoResponse.rows[0] as ChiusureBoardCardData["rapporto"]) ?? card.rapporto,
+          (rapportoResponse.rows[0] as ChiusureBoardCardData["rapporto"]) ?? baseCard.rapporto,
         )
 
-        if (selectedCardRequestRef.current !== card.id) return
+        if (!isActive || selectedCardRequestRef.current !== currentCardId) return
 
         const nextCard: ChiusureBoardCardData = {
-          ...card,
-          record: freshRecord as ChiusureBoardCardData["record"],
+          ...baseCard,
+          record: freshRecord,
           rapporto: enrichedRapporto,
-          motivazione:
-            (freshRecord as ChiusureBoardCardData["record"]).motivazione_cessazione_rapporto ??
-            card.motivazione,
-          dataFineRapporto: formatChiusuraBoardDate(
-            (freshRecord as ChiusureBoardCardData["record"]).data_fine_rapporto,
-          ),
+          motivazione: freshRecord.motivazione_cessazione_rapporto ?? baseCard.motivazione,
+          dataFineRapporto: formatChiusuraBoardDate(freshRecord.data_fine_rapporto),
+          ...resolveChiusuraTipoDisplay(freshRecord, tipoMetadataRef.current),
         }
 
         setSelectedFreshCard(nextCard)
-        updateCard(card.id, () => nextCard)
+        updateCard(currentCardId, () => nextCard)
       } catch (fetchError) {
+        if (!isActive) return
         console.error("Errore caricando dettaglio chiusura", fetchError)
       }
-    },
-    [updateCard],
-  )
+    }
+
+    void loadSelectedCard()
+
+    return () => {
+      isActive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boardCard snapshot read on id/tick only
+  }, [selectedCardId, selectedBoardCard?.id, detailRefreshTick, updateCard])
 
   const drag = React.useMemo<ChiusureBoardDragHandlers>(
     () => ({
@@ -128,6 +176,7 @@ export function useChiusureBoardView() {
       columns,
       rapportoOptions,
       tipoLicenziamentoOptions,
+      tipoMetadata,
       open: Boolean(selectedCardId),
       onStatusChange: moveCard,
       onLinkRapporto: linkRapporto,
@@ -155,6 +204,7 @@ export function useChiusureBoardView() {
       selectedCardId,
       selectedFreshCard,
       tipoLicenziamentoOptions,
+      tipoMetadata,
       updateCard,
     ],
   )

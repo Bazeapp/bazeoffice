@@ -12,8 +12,16 @@ import { fetchRapportiLavorativiByIds } from "@/modules/rapporti/queries"
 import { useVariazioniBoard } from "./use-variazioni-board"
 
 export function useVariazioniBoardView() {
-  const { loading, error, columns, rapportoOptions, createVariazione, moveCard, updateCard } =
-    useVariazioniBoard()
+  const {
+    loading,
+    error,
+    columns,
+    rapportoOptions,
+    createVariazione,
+    moveCard,
+    updateCard,
+    detailRefreshTick,
+  } = useVariazioniBoard()
 
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
@@ -21,8 +29,13 @@ export function useVariazioniBoardView() {
   const [selectedFreshCard, setSelectedFreshCard] =
     React.useState<VariazioniBoardCardData | null>(null)
   const selectedCardRequestRef = React.useRef<string | null>(null)
+  const selectedFreshCardRef = React.useRef<VariazioniBoardCardData | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    selectedFreshCardRef.current = selectedFreshCard
+  }, [selectedFreshCard])
 
   const filteredColumns = React.useMemo(
     () => filterVariazioniBoardColumns(columns, searchValue),
@@ -34,56 +47,90 @@ export function useVariazioniBoardView() {
     [filteredColumns],
   )
 
-  const handleSelectCard = React.useCallback(
-    async (card: VariazioniBoardCardData) => {
-      selectedCardRequestRef.current = card.id
-      setSelectedCardId(card.id)
-      // Keep the list card as provisional detail so comment route context stays
-      // mounted while dettaglio + ricerca enrichment load.
-      setSelectedFreshCard(card)
+  const selectedBoardCard = React.useMemo(
+    () =>
+      columns.flatMap((column) => column.cards).find((card) => card.id === selectedCardId) ?? null,
+    [columns, selectedCardId],
+  )
 
+  const handleSelectCard = React.useCallback((card: VariazioniBoardCardData) => {
+    selectedCardRequestRef.current = card.id
+    setSelectedCardId(card.id)
+    // Keep the list card as provisional detail so comment route context stays
+    // mounted while dettaglio + ricerca enrichment load.
+    setSelectedFreshCard(card)
+  }, [])
+
+  // Pattern B — re-fetch open sheet when selection opens or detailRefreshTick
+  // bumps after realtime.
+  React.useEffect(() => {
+    if (!selectedCardId) {
+      setSelectedFreshCard(null)
+      return
+    }
+
+    let isActive = true
+    const currentCardId = selectedCardId
+    const boardCard = selectedBoardCard
+    const provisional =
+      selectedFreshCardRef.current?.id === currentCardId
+        ? selectedFreshCardRef.current
+        : boardCard
+
+    if (boardCard) {
+      setSelectedFreshCard(boardCard)
+    }
+
+    async function loadSelectedCard() {
       try {
+        const rapportoId = boardCard?.rapporto?.id ?? provisional?.rapporto?.id ?? null
         const [recordResponse, rapportoResponse] = await Promise.all([
-          fetchVariazioniByIds([card.id]),
-          card.rapporto?.id
-            ? fetchRapportiLavorativiByIds([card.rapporto.id])
+          fetchVariazioniByIds([currentCardId]),
+          rapportoId
+            ? fetchRapportiLavorativiByIds([rapportoId])
             : Promise.resolve({ rows: [], total: 0, columns: [] }),
         ])
 
-        if (selectedCardRequestRef.current !== card.id) return
+        if (!isActive || selectedCardRequestRef.current !== currentCardId) return
 
-        const freshRecord = recordResponse.rows[0]
+        const freshRecord = recordResponse.rows[0] as VariazioniBoardCardData["record"] | undefined
+        const baseCard = boardCard ?? provisional
         if (!freshRecord) {
-          setSelectedFreshCard(card)
+          if (!boardCard && !provisional) setSelectedFreshCard(null)
           return
         }
+        if (!baseCard) return
 
         const enrichedRapporto = await enrichRapportoWithRicercaId(
-          (rapportoResponse.rows[0] as VariazioniBoardCardData["rapporto"]) ?? card.rapporto,
+          (rapportoResponse.rows[0] as VariazioniBoardCardData["rapporto"]) ?? baseCard.rapporto,
         )
 
-        if (selectedCardRequestRef.current !== card.id) return
+        if (!isActive || selectedCardRequestRef.current !== currentCardId) return
 
         const nextCard: VariazioniBoardCardData = {
-          ...card,
-          record: freshRecord as VariazioniBoardCardData["record"],
+          ...baseCard,
+          record: freshRecord,
           rapporto: enrichedRapporto,
           variazioneDaApplicare:
-            (freshRecord as VariazioniBoardCardData["record"]).variazione_da_applicare ??
-            card.variazioneDaApplicare,
-          dataVariazione: formatVariazioneBoardDate(
-            (freshRecord as VariazioniBoardCardData["record"]).data_variazione,
-          ),
+            freshRecord.variazione_da_applicare ?? baseCard.variazioneDaApplicare,
+          dataVariazione: formatVariazioneBoardDate(freshRecord.data_variazione),
         }
 
         setSelectedFreshCard(nextCard)
-        updateCard(card.id, () => nextCard)
+        updateCard(currentCardId, () => nextCard)
       } catch (fetchError) {
+        if (!isActive) return
         console.error("Errore caricando dettaglio variazione", fetchError)
       }
-    },
-    [updateCard],
-  )
+    }
+
+    void loadSelectedCard()
+
+    return () => {
+      isActive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boardCard snapshot read on id/tick only
+  }, [selectedCardId, selectedBoardCard?.id, detailRefreshTick, updateCard])
 
   const drag = React.useMemo<VariazioniBoardDragHandlers>(
     () => ({

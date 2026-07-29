@@ -38,6 +38,12 @@ type UseVariazioniBoardState = {
     recordId: string,
     updater: (card: VariazioniBoardCardData) => VariazioniBoardCardData
   ) => void
+  /**
+   * Bumped by useRealtimeBoardSync after a remote change passes echo guards.
+   * Open-sheet loaders must depend on this so selectedFreshCard re-fetches
+   * (cedolini Pattern B twin).
+   */
+  detailRefreshTick: number
 }
 
 export function useVariazioniBoard(): UseVariazioniBoardState {
@@ -134,9 +140,15 @@ export function useVariazioniBoard(): UseVariazioniBoardState {
     [createMutation],
   )
 
+  const [detailRefreshTick, setDetailRefreshTick] = React.useState(0)
+  const bumpDetailRefreshTick = React.useCallback(() => {
+    setDetailRefreshTick((current) => current + 1)
+  }, [])
+
   useRealtimeBoardSync({
     tables: [...VARIAZIONI_REALTIME_TABLES],
     reload: invalidateBoard,
+    reloadOpenDetail: bumpDetailRefreshTick,
   })
 
   const error =
@@ -156,5 +168,6 @@ export function useVariazioniBoard(): UseVariazioniBoardState {
     createVariazione,
     moveCard,
     updateCard,
+    detailRefreshTick,
   }
 }

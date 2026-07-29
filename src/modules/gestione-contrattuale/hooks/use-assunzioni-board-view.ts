@@ -30,6 +30,7 @@ export function useAssunzioniBoardView({
     moveCard,
     updateCard,
     deleteRapporto,
+    detailRefreshTick,
   } = useAssunzioniBoard()
 
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
@@ -37,7 +38,12 @@ export function useAssunzioniBoardView({
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [selectedCard, setSelectedCard] = React.useState<AssunzioniBoardCardData | null>(null)
   const selectedCardRequestRef = React.useRef<string | null>(null)
+  const selectedCardRef = React.useRef<AssunzioniBoardCardData | null>(null)
   const [searchValue, setSearchValue] = React.useState("")
+
+  React.useEffect(() => {
+    selectedCardRef.current = selectedCard
+  }, [selectedCard])
 
   const filteredColumns = React.useMemo(
     () => filterAssunzioniBoardColumns(columns, searchValue),
@@ -49,48 +55,79 @@ export function useAssunzioniBoardView({
     [filteredColumns],
   )
 
-  const handleSelectCard = React.useCallback(
-    async (card: AssunzioniBoardCardData) => {
-      selectedCardRequestRef.current = card.id
-      setSelectedCardId(card.id)
-      // Keep the list card as provisional detail so comment route context (and
-      // the messages pill) stay mounted while `assunzione_detail` loads.
-      setSelectedCard(card)
+  const selectedBoardCard = React.useMemo(
+    () =>
+      columns.flatMap((column) => column.cards).find((card) => card.id === selectedCardId) ?? null,
+    [columns, selectedCardId],
+  )
 
+  const handleSelectCard = React.useCallback((card: AssunzioniBoardCardData) => {
+    selectedCardRequestRef.current = card.id
+    setSelectedCardId(card.id)
+    // Keep the list card as provisional detail so comment route context (and
+    // the messages pill) stay mounted while `assunzione_detail` loads.
+    setSelectedCard(card)
+  }, [])
+
+  // Pattern B — re-fetch open sheet when selection opens or detailRefreshTick
+  // bumps after realtime. Deliberately do NOT depend on `columns` identity:
+  // optimistic updates would re-trigger fetch → updateCard → loop.
+  React.useEffect(() => {
+    if (!selectedCardId) {
+      setSelectedCard(null)
+      return
+    }
+
+    let isActive = true
+    const currentCardId = selectedCardId
+    const boardCard = selectedBoardCard
+    const provisional =
+      selectedCardRef.current?.id === currentCardId ? selectedCardRef.current : boardCard
+
+    if (boardCard) {
+      setSelectedCard(boardCard)
+    }
+
+    async function loadSelectedCard() {
       try {
-        const detail = await fetchAssunzioneDetail(card.id)
-        if (selectedCardRequestRef.current !== card.id) return
+        const detail = await fetchAssunzioneDetail(currentCardId)
+        if (!isActive || selectedCardRequestRef.current !== currentCardId) return
+
+        const baseCard = boardCard ?? provisional
         if (!detail) {
-          setSelectedCard(card)
+          if (baseCard) setSelectedCard(baseCard)
           return
         }
+        if (!baseCard) return
 
         const nextCard: AssunzioniBoardCardData = {
-          ...card,
-          rapporto: (detail.rapporto as AssunzioniBoardCardData["rapporto"]) ?? card.rapporto,
-          assunzione: (detail.assunzione as AssunzioniBoardCardData["assunzione"]) ?? card.assunzione,
+          ...baseCard,
+          rapporto: (detail.rapporto as AssunzioniBoardCardData["rapporto"]) ?? baseCard.rapporto,
+          assunzione:
+            (detail.assunzione as AssunzioniBoardCardData["assunzione"]) ?? baseCard.assunzione,
           lavoratoreAssunzione:
             (detail.lavoratoreAssunzione as AssunzioniBoardCardData["lavoratoreAssunzione"]) ??
-            card.lavoratoreAssunzione,
+            baseCard.lavoratoreAssunzione,
           richiestaAttivazione:
             (detail.richiestaAttivazione as AssunzioniBoardCardData["richiestaAttivazione"]) ??
-            card.richiestaAttivazione,
+            baseCard.richiestaAttivazione,
         }
 
         setSelectedCard(nextCard)
         updateCard(nextCard.id, () => nextCard)
       } catch (fetchError) {
+        if (!isActive) return
         console.error("Errore caricando dettaglio assunzione", fetchError)
       }
-    },
-    [updateCard],
-  )
+    }
 
-  // Detail is loaded once in handleSelectCard and kept fresh by optimistic
-  // updates via updateCard. We deliberately do NOT auto-refresh detail when
-  // `columns` changes identity: optimistic updates would re-trigger the
-  // fetch → updateCard → columns identity change → fetch loop and freeze
-  // the page (observed: 70s of cumulative main-thread blocking).
+    void loadSelectedCard()
+
+    return () => {
+      isActive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boardCard snapshot read on id/tick only
+  }, [selectedCardId, selectedBoardCard?.id, detailRefreshTick, updateCard])
 
   const autoSelectDoneRef = React.useRef<string | null>(null)
   const deferredKickedRef = React.useRef<string | null>(null)
