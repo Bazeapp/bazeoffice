@@ -177,7 +177,7 @@ export function useRapportiLavorativiData(
 
   const retryRapporti = React.useCallback(() => {
     setDetailError(null)
-    setDetailRetryToken((current) => current + 1)
+    setRealtimeTick((current) => current + 1)
     void refetch()
   }, [refetch])
 
