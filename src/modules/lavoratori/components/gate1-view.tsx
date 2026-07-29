@@ -79,7 +79,7 @@ function Gate1ViewLayout() {
         }
       >
         <Gate1ListPanel />
-        <div className="min-h-0">
+        <div className="h-full min-h-0 overflow-hidden">
           <Gate1DetailPanel />
         </div>
       </div>

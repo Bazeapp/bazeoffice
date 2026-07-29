@@ -290,6 +290,7 @@ export function Gate1DetailPanel() {
       />
       <WorkerDetailShell
         key={selectedWorkerId ?? "__empty__"}
+        className="scrollbar-visible h-full"
         sectionRef={detailScrollRef}
         tabs={gateTabs}
         activeSection={activeGateSection}
