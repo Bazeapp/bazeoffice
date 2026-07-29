@@ -20,10 +20,16 @@ export function ContributiInpsView() {
   const [period, setPeriod] = React.useState<ContributiPeriod>(getCurrentQuarterState)
   const [search, setSearch] = React.useState("")
   const [stageFilter, setStageFilter] = React.useState("all")
-  const { loading, error, stages, cards, activeRapportiCount, moveCard, patchCard } = useContributiInpsBoard(
-    period.year,
-    period.quarter,
-  )
+  const {
+    loading,
+    error,
+    stages,
+    cards,
+    activeRapportiCount,
+    moveCard,
+    patchCard,
+    detailRefreshTick,
+  } = useContributiInpsBoard(period.year, period.quarter)
   const { columns, stats, metricGroups } = useContributiInpsFilters({
     cards,
     stages,
@@ -31,7 +37,7 @@ export function ContributiInpsView() {
     search,
     stageFilter,
   })
-  const selection = useContributiInpsSelection(cards)
+  const selection = useContributiInpsSelection({ cards, detailRefreshTick })
   const { openCard } = selection
 
   useBoardEntityDeepLink({

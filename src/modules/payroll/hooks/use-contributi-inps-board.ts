@@ -30,6 +30,12 @@ type UseContributiInpsBoardState = {
   activeRapportiCount: number
   moveCard: (recordId: string, targetStageId: string) => Promise<void>
   patchCard: (recordId: string, patch: Partial<ContributoInpsRecord>) => Promise<void>
+  /**
+   * Bumped by useRealtimeBoardSync after a remote change passes echo guards.
+   * Selection/detail loaders must depend on this so the open sheet re-fetches
+   * (cedolini Pattern B twin).
+   */
+  detailRefreshTick: number
 }
 
 type BoardData = {
@@ -125,9 +131,15 @@ export function useContributiInpsBoard(
     [patchMutation],
   )
 
+  const [detailRefreshTick, setDetailRefreshTick] = React.useState(0)
+  const bumpDetailRefreshTick = React.useCallback(() => {
+    setDetailRefreshTick((current) => current + 1)
+  }, [])
+
   useRealtimeBoardSync({
     tables: CONTRIBUTI_REALTIME_TABLES,
     reload: invalidateBoard,
+    reloadOpenDetail: bumpDetailRefreshTick,
   })
 
   const error =
@@ -147,5 +159,6 @@ export function useContributiInpsBoard(
     activeRapportiCount,
     moveCard,
     patchCard,
+    detailRefreshTick,
   }
 }

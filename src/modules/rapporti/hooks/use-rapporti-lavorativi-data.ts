@@ -241,9 +241,14 @@ export function useRapportiLavorativiData(
     [queryClient, boardQueryKey],
   )
 
+  const bumpDetailRefreshTick = React.useCallback(() => {
+    setDetailRetryToken((current) => current + 1)
+  }, [])
+
   useRealtimeBoardSync({
     tables: RAPPORTI_REALTIME_TABLES,
     reload: invalidateBoard,
+    reloadOpenDetail: bumpDetailRefreshTick,
   })
 
   const createTicketForSelectedRapporto = React.useCallback(
@@ -599,19 +604,13 @@ export function useRapportiLavorativiData(
     return () => {
       isActive = false
     }
-    // Depend on `selectedRapporto?.id`, NOT on the object reference. The
-    // detail panel's onRapportoUpdated callback calls setSelectedRapporto
-    // with a merged copy of the saved row after every save — same id, new
-    // reference. If we depended on the reference, every save would re-fire
-    // this effect, which starts by nulling out famiglia/lavoratore and
-    // refetching them: while the refetch is in flight the title falls back
-    // to "Famiglia senza nome – Lavoratore non associato" and flashes the
-    // user. famiglia_id / lavoratore_id / fine_rapporto_lavorativo_id and
-    // the proper-name fields the body reads are stable for a given
-    // rapporto-id (they are not changed by the detail-panel patches), so
-    // pinning the dep to the id is correct.
+    // Depend on `selectedRapporto?.id` + `detailRetryToken`, NOT on the object
+    // reference. Local saves call setSelectedRapporto with a merged copy (same
+    // id, new reference) without bumping detailRetryToken — so they must not
+    // re-fire this effect (would flash title while related rows refetch).
+    // Realtime bumps detailRetryToken via reloadOpenDetail (Pattern B).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRapporto?.id])
+  }, [selectedRapporto?.id, detailRetryToken])
 
   return {
     rapporti,
