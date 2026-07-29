@@ -43,6 +43,7 @@ export function EditableReferenceCard({
   onPatch,
 }: EditableReferenceCardProps) {
   const form = useAutoSaveForm({
+    resetKey: reference.id,
     defaults: {
       referenza_verificata: reference.referenza_verificata ?? "",
       nome_datore: reference.nome_datore ?? "",
@@ -82,21 +83,36 @@ export function EditableReferenceCard({
                 <UserIcon className="size-3.5" />
                 Nome referenza
               </FieldLabel>
-              <FieldInput name="nome_datore" disabled={disabled} className="h-9 text-sm" />
+              <FieldInput
+                name="nome_datore"
+                disabled={disabled}
+                className="h-9 text-sm"
+                identity={reference.id}
+              />
             </div>
             <div className="space-y-2">
               <FieldLabel>
                 <UserIcon className="size-3.5" />
                 Cognome referenza
               </FieldLabel>
-              <FieldInput name="cognome_datore" disabled={disabled} className="h-9 text-sm" />
+              <FieldInput
+                name="cognome_datore"
+                disabled={disabled}
+                className="h-9 text-sm"
+                identity={reference.id}
+              />
             </div>
             <div className="space-y-2">
               <FieldLabel>
                 <PhoneIcon className="size-3.5" />
                 Numero referenza
               </FieldLabel>
-              <FieldInput name="telefono_datore" disabled={disabled} className="h-9 text-sm" />
+              <FieldInput
+                name="telefono_datore"
+                disabled={disabled}
+                className="h-9 text-sm"
+                identity={reference.id}
+              />
             </div>
           </div>
 
@@ -127,6 +143,7 @@ export function EditableReferenceCard({
                 <FieldTextarea
                   name="commento_esperienza"
                   className="min-h-24 w-full text-sm"
+                  identity={reference.id}
                 />
               </div>
             </div>
@@ -171,6 +188,7 @@ export function EditableExperienceCard({
   onReferenceCreate,
 }: EditableExperienceCardProps) {
   const form = useAutoSaveForm({
+    resetKey: experience.id,
     defaults: {
       tipo_lavoro: experience.tipo_lavoro ?? [],
       tipo_rapporto: experience.tipo_rapporto ?? "",
@@ -195,6 +213,7 @@ export function EditableExperienceCard({
             disabled={disabled}
             experienceTipoLavoroOptions={experienceTipoLavoroOptions}
             experienceTipoRapportoOptions={experienceTipoRapportoOptions}
+            fieldIdentity={experience.id}
           />
 
           <div className="space-y-3">

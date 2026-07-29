@@ -9,7 +9,7 @@
  * (real value, null, and column-absent) so the "Disponibilità colloqui"
  * field in the assignment detail can never regress to a silent blank.
  */
-import { waitFor } from "@testing-library/react"
+import { act, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderHookWithQueryClient } from "@/test/test-utils"
@@ -30,6 +30,7 @@ vi.mock("@/hooks/use-realtime-board-sync", () => ({
 import { fetchProcessiMatchingByStatoRes } from "../queries/fetch-processi-matching-by-stato-res"
 import { fetchFamiglieByIds } from "../queries/fetch-famiglie-by-ids"
 import { fetchLookupValues } from "@/lib/lookup-values"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
 import { useCrmAssegnazione } from "./use-crm-assegnazione"
 
 const family = { id: "f1", nome: "Rossi", cognome: "Mario" }
@@ -77,5 +78,42 @@ describe("useCrmAssegnazione — disponibilità colloqui mapping", () => {
 
     await waitFor(() => expect(result.current.cards).toHaveLength(1))
     expect(result.current.cards[0].disponibilitaColloquiInPresenza).toBe("-")
+  })
+})
+
+describe("useCrmAssegnazione — Pattern B reloadOpenDetail", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    seedRows(baseProcess)
+  })
+
+  it("wires reloadOpenDetail and bumps detailRefreshTick only when a sheet is open", async () => {
+    const { result } = renderHookWithQueryClient(() => useCrmAssegnazione())
+
+    await waitFor(() => expect(result.current.cards).toHaveLength(1))
+
+    expect(useRealtimeBoardSync).toHaveBeenCalled()
+    const syncOptions = vi.mocked(useRealtimeBoardSync).mock.calls.at(-1)?.[0]
+    expect(syncOptions?.reloadOpenDetail).toEqual(expect.any(Function))
+
+    expect(result.current.detailRefreshTick).toBe(0)
+
+    // No open sheet → tick stays 0 (reloadOpenDetail is a no-op).
+    await act(async () => {
+      syncOptions?.reloadOpenDetail?.()
+    })
+    expect(result.current.detailRefreshTick).toBe(0)
+
+    await act(async () => {
+      result.current.setOpenProcessId("p1")
+      syncOptions?.reloadOpenDetail?.()
+    })
+    expect(result.current.detailRefreshTick).toBe(1)
+
+    await act(async () => {
+      result.current.setOpenProcessId(null)
+      syncOptions?.reloadOpenDetail?.()
+    })
+    expect(result.current.detailRefreshTick).toBe(1)
   })
 })

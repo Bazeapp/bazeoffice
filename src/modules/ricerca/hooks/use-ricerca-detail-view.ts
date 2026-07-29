@@ -3,6 +3,8 @@ import * as React from "react"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { useProvincieOptions } from "@/hooks/use-provincie"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+import type { RealtimeRowEvent } from "@/hooks/use-realtime-rows"
 import type { LookupOptionsByField } from "@/modules/crm/types"
 import { normalizeLookupPatchLabels } from "@/modules/crm/lib"
 import { createRecord, updateRecord } from "@/lib/record-crud"
@@ -17,6 +19,10 @@ import {
   RICERCA_DETAIL_EDIT_DATE_KEYS,
   RICERCA_DETAIL_EDIT_FAMILY_KEYS,
 } from "../lib/ricerca-detail-view.constants"
+import {
+  RICERCA_DETAIL_REALTIME_TABLES,
+  shouldReloadRicercaOpenDetail,
+} from "../lib/ricerca-detail-realtime"
 import {
   applyAddressPatchToCard,
   applyFamilyPatchToCard,
@@ -68,10 +74,11 @@ export function useRicercaDetailView({
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [card, setCard] = React.useState<RicercaDetailCardData | null>(null);
-  // Incrementato dalla mappa quando il geocoding on-demand popola lat/lng:
-  // forza il reload della card cosi' che `indirizzoProvaLatitudine` arrivi
-  // valorizzato e il map view riceva `searchCoordinates`.
+  // Incrementato dalla mappa (geocode) e da Pattern B realtime per
+  // ri-caricare la card. `silentReloadRef` evita lo spinner sul refresh
+  // remoto / post-geocode (non riapre overlay né toast di loading).
   const [reloadVersion, setReloadVersion] = React.useState(0);
+  const silentReloadRef = React.useRef(false);
   const [lookupOptionsByField, setLookupOptionsByField] =
     React.useState<LookupOptionsByField>({});
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
@@ -175,10 +182,14 @@ export function useRicercaDetailView({
 
   React.useEffect(() => {
     let cancelled = false
+    const silent = silentReloadRef.current
+    silentReloadRef.current = false
 
     const loadDetail = async () => {
-      setLoading(true)
-      setError(null)
+      if (!silent) {
+        setLoading(true)
+        setError(null)
+      }
       try {
         const result = await loadRicercaDetailCard(currentProcessId)
         if (cancelled) return
@@ -186,6 +197,8 @@ export function useRicercaDetailView({
         setLookupOptionsByField(result.lookupOptionsByField)
       } catch (caughtError) {
         if (cancelled) return
+        // Silent realtime/geocode refresh keeps the current card on error.
+        if (silent) return
         setCard(null)
         setError(
           caughtError instanceof Error
@@ -193,7 +206,7 @@ export function useRicercaDetailView({
             : "Errore caricamento dettaglio ricerca",
         )
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled && !silent) setLoading(false)
       }
     }
 
@@ -203,6 +216,46 @@ export function useRicercaDetailView({
       cancelled = true
     }
   }, [currentProcessId, reloadVersion])
+
+  const reloadOpenDetailSilently = React.useCallback(() => {
+    if (!currentProcessId) return
+    silentReloadRef.current = true
+    setReloadVersion((current) => current + 1)
+  }, [currentProcessId])
+
+  const openProcessIdRef = React.useRef(currentProcessId)
+  const openFamigliaIdRef = React.useRef<string | null>(null)
+  const openIndirizzoIdRef = React.useRef<string | null>(null)
+
+  React.useEffect(() => {
+    openProcessIdRef.current = currentProcessId
+  }, [currentProcessId])
+
+  React.useEffect(() => {
+    const famigliaId = toStringValue(card?.famigliaId)
+    openFamigliaIdRef.current =
+      famigliaId && famigliaId !== "-" ? famigliaId : null
+    openIndirizzoIdRef.current = toStringValue(card?.indirizzoId)
+  }, [card?.famigliaId, card?.indirizzoId])
+
+  const shouldReloadOpenDetail = React.useCallback((event: RealtimeRowEvent) => {
+    return shouldReloadRicercaOpenDetail(event, {
+      processId: openProcessIdRef.current,
+      famigliaId: openFamigliaIdRef.current,
+      indirizzoId: openIndirizzoIdRef.current,
+    })
+  }, [])
+
+  // Pattern B — sidebar card fields (process/family/address). Pipeline board
+  // sync stays in useRicercaWorkersPipeline; this subscription only reloads
+  // the open detail card and never thrash-reloads a board list.
+  useRealtimeBoardSync({
+    tables: [...RICERCA_DETAIL_REALTIME_TABLES],
+    reload: () => {},
+    reloadOpenDetail: reloadOpenDetailSilently,
+    shouldReloadBoard: () => false,
+    shouldReloadOpenDetail,
+  })
 
   const updateProcessCard = React.useCallback(
     async (targetProcessId: string, patch: Record<string, unknown>) => {
@@ -632,7 +685,7 @@ export function useRicercaDetailView({
         processId: currentProcessId,
         card: resolvedCard,
         pipelineState,
-        onCoordinatesGeocoded: () => setReloadVersion((current) => current + 1),
+        onCoordinatesGeocoded: reloadOpenDetailSilently,
       },
     },
   }

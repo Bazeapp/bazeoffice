@@ -273,10 +273,13 @@ export function ExperienceReferencesFormBody({
   disabled,
   experienceTipoLavoroOptions,
   experienceTipoRapportoOptions,
+  fieldIdentity,
 }: {
   disabled: boolean
   experienceTipoLavoroOptions: LookupOption[]
   experienceTipoRapportoOptions: LookupOption[]
+  /** Row id for DebouncedInput/Textarea identity (anti clip on autosave/resync). */
+  fieldIdentity: string
 }) {
   const statoAttiva = Boolean(useWatch({ name: "stato_esperienza_attiva" }))
 
@@ -310,6 +313,7 @@ export function ExperienceReferencesFormBody({
               type="date"
               disabled={disabled}
               className="h-9 text-sm"
+              identity={fieldIdentity}
             />
           </div>
           <div className="space-y-2">
@@ -319,6 +323,7 @@ export function ExperienceReferencesFormBody({
               type="date"
               disabled={disabled || statoAttiva}
               className="h-9 text-sm"
+              identity={fieldIdentity}
             />
           </div>
           <div className="space-y-2">
@@ -339,6 +344,7 @@ export function ExperienceReferencesFormBody({
             name="descrizione"
             disabled={disabled}
             className="min-h-28 w-full text-sm"
+            identity={fieldIdentity}
           />
         </div>
         <div className="space-y-2">
@@ -347,6 +353,7 @@ export function ExperienceReferencesFormBody({
             name="descrizione_contesto_lavorativo"
             disabled={disabled}
             className="min-h-28 w-full text-sm"
+            identity={fieldIdentity}
           />
         </div>
       </div>
@@ -358,6 +365,7 @@ export function ExperienceReferencesFormBody({
             name="motivazione_fine_rapporto"
             disabled={disabled}
             className="min-h-24 w-full text-sm"
+            identity={fieldIdentity}
           />
         </div>
       ) : null}
