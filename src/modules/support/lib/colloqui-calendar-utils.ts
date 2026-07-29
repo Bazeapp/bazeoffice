@@ -3,9 +3,30 @@ import { normalizeLookupToken } from "@/lib/value-utils"
 import type { CalendarDateRange, ColloquioCalendarEvent } from "../types"
 
 export type CalendarStatusKey = "match" | "no-match" | "prova" | "colloquio" | "standby"
+export type CalendarEventKind = "colloquio" | "prova"
 
 function normalizeToken(value: unknown) {
   return normalizeLookupToken(String(value ?? "")).replaceAll("_", " ")
+}
+
+/**
+ * Selections reuse `data_ora_colloquio_famiglia_lavoratore` for both colloqui
+ * and prove. Prefer tipo incontro / stato selezione over the storage type.
+ */
+export function isSelectionCalendarProva(
+  selection: Record<string, unknown>,
+  process: { tipo_incontro_famiglia_lavoratore?: string | null } | null | undefined,
+): boolean {
+  const tipo = normalizeToken(process?.tipo_incontro_famiglia_lavoratore)
+  if (tipo.includes("prova")) return true
+  const stato = normalizeToken(selection.stato_selezione)
+  return stato.includes("prova")
+}
+
+export function getCalendarEventKind(event: ColloquioCalendarEvent): CalendarEventKind {
+  if (event.type === "prova") return "prova"
+  if (isSelectionCalendarProva(event.selection, event.process)) return "prova"
+  return "colloquio"
 }
 
 export function startOfLocalDay(date: Date) {
@@ -142,7 +163,13 @@ export function getCalendarEventStatusKey(event: ColloquioCalendarEvent): Calend
   const statusToken = getCalendarEventStatusToken(event)
   if (statusToken.includes("no match") || statusToken.includes("nomatch")) return "no-match"
   if (statusToken.includes("match")) return "match"
-  if (event.type === "prova" || statusToken.includes("prova")) return "prova"
+  if (
+    event.type === "prova" ||
+    statusToken.includes("prova") ||
+    (event.type === "colloquio" && isSelectionCalendarProva(event.selection, event.process))
+  ) {
+    return "prova"
+  }
   if (statusToken.includes("colloquio")) return "colloquio"
   return "standby"
 }
