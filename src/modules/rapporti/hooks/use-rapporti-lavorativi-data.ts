@@ -74,7 +74,7 @@ export function useRapportiLavorativiData(
   const queryClient = useQueryClient()
   const [pageIndex, setPageIndex] = React.useState(0)
   const [detailError, setDetailError] = React.useState<string | null>(null)
-  const [detailRetryToken, setDetailRetryToken] = React.useState(0)
+  const [realtimeTick, setRealtimeTick] = React.useState(0)
   const [searchValue, setSearchValue] = React.useState("")
   const [rapportoStatusFilter, setRapportoStatusFilter] =
     React.useState<RapportoStatusFilter>("all")
@@ -241,14 +241,14 @@ export function useRapportiLavorativiData(
     [queryClient, boardQueryKey],
   )
 
-  const bumpDetailRefreshTick = React.useCallback(() => {
-    setDetailRetryToken((current) => current + 1)
+  const bumpRealtimeTick = React.useCallback(() => {
+    setRealtimeTick((current) => current + 1)
   }, [])
 
   useRealtimeBoardSync({
     tables: RAPPORTI_REALTIME_TABLES,
     reload: invalidateBoard,
-    reloadOpenDetail: bumpDetailRefreshTick,
+    reloadOpenDetail: bumpRealtimeTick,
   })
 
   const createTicketForSelectedRapporto = React.useCallback(
@@ -284,6 +284,8 @@ export function useRapportiLavorativiData(
     if (!selectedRapportoId && rapporti.length > 0) {
       setSelectedRapportoId(rapporti[0].id)
     }
+  // Selection sync only — not a detail fetch (Pattern B lint N/A).
+  // eslint-disable-next-line no-restricted-syntax -- selected id sync, not open-detail reload
   }, [rapporti, selectedRapportoId])
 
   React.useEffect(() => {
@@ -401,12 +403,12 @@ export function useRapportiLavorativiData(
     return () => {
       isActive = false
     }
-    // Only re-fetch detail when the selected id changes or retry is triggered.
+    // Only re-fetch detail when the selected id changes or realtimeTick bumps.
     // Re-running on every board re-render (rapporti object identity change)
     // would be wasteful; the merged-detail patch inside this effect handles
     // board cache sync via setQueryData.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detailRetryToken, selectedRapportoId])
+  }, [realtimeTick, selectedRapportoId])
 
   React.useEffect(() => {
     let isActive = true
@@ -604,13 +606,13 @@ export function useRapportiLavorativiData(
     return () => {
       isActive = false
     }
-    // Depend on `selectedRapporto?.id` + `detailRetryToken`, NOT on the object
+    // Depend on `selectedRapporto?.id` + `realtimeTick`, NOT on the object
     // reference. Local saves call setSelectedRapporto with a merged copy (same
-    // id, new reference) without bumping detailRetryToken — so they must not
+    // id, new reference) without bumping realtimeTick — so they must not
     // re-fire this effect (would flash title while related rows refetch).
-    // Realtime bumps detailRetryToken via reloadOpenDetail (Pattern B).
+    // Realtime bumps realtimeTick via reloadOpenDetail (Pattern B).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRapporto?.id, detailRetryToken])
+  }, [selectedRapporto?.id, realtimeTick])
 
   return {
     rapporti,
