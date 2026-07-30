@@ -1,16 +1,18 @@
 import type * as React from "react";
 
+import type { AutoSaveOnSaveResult } from "@/hooks/use-auto-save-form-fields";
+import {
+  getLookupOptionLabel,
+  getLookupSelectValue,
+  normalizeLookupComparableToken,
+  normalizeLookupOptionValues,
+} from "@/lib/lookup-utils";
 import {
   asInputValue,
   asString,
   parseNumberValue,
   readArrayStrings,
 } from "./base-utils";
-import {
-  getLookupOptionLabel,
-  getLookupSelectValue,
-  normalizeLookupOptionValues,
-} from "@/lib/lookup-utils";
 import type { GateDraft } from "./gate-draft";
 import type {
   WorkerAddressDraft,
@@ -161,7 +163,14 @@ export function buildGateFieldsDefaults({
     referente_certificazione_id: asString(
       selectedWorkerRow?.referente_certificazione_id,
     ),
-    disponibilita: asString(selectedWorkerRow?.disponibilita),
+    // Same label representation as DisponibilitaSelect / onSave
+    // (getLookupLabelForSave). Raw DB keys would diverge after the first
+    // select interaction and leave the field permanently dirty, blocking
+    // realtime keepDirtyValues resync for the whole Disponibilita section.
+    disponibilita: toLookupFormLabel(
+      lookupOptionsByDomain.get("lavoratori.disponibilita") ?? [],
+      selectedWorkerRow?.disponibilita,
+    ),
     livello_italiano: asString(selectedWorkerRow?.livello_italiano),
     livello_inglese: toLookupFormLabel(
       lookupOptionsByDomain.get("lavoratori.livello_inglese") ?? [],
@@ -349,11 +358,24 @@ export type GateFieldsSaveDeps = {
       | "note",
     value: string | null,
   ) => Promise<void>;
+  /**
+   * Current form values — used to pair `disponibilita` + return date so Gate 1
+   * never persists "Non disponibile" without a return date (that shape is
+   * excluded by `gate1_lavoratori` and ejects the row for every peer).
+   */
+  getFormValues?: () => Pick<
+    GateFieldsFormDraft,
+    "disponibilita" | "data_ritorno_disponibilita"
+  >;
 };
+
+function isNonDisponibileStatus(value: string): boolean {
+  return normalizeLookupComparableToken(value) === "non disponibile";
+}
 
 export function createGateFieldsOnSave(
   deps: GateFieldsSaveDeps,
-): (patch: Partial<GateFieldsFormDraft>) => Promise<void> {
+): (patch: Partial<GateFieldsFormDraft>) => Promise<AutoSaveOnSaveResult> {
   const {
     setAvailabilityDraft,
     setAddressDraft,
@@ -368,9 +390,13 @@ export function createGateFieldsOnSave(
     patchDocumentField,
     commitAddressField,
     patchWorkerAddressField,
+    getFormValues,
   } = deps;
 
   return async (patch) => {
+    const skippedKeys: string[] = [];
+    const alsoCommitKeys: string[] = [];
+
     for (const [key, rawValue] of Object.entries(patch)) {
       if (
         key === "disponibilita_nel_giorno" ||
@@ -454,24 +480,64 @@ export function createGateFieldsOnSave(
             v ? Number(v) : null,
           );
           break;
-        case "data_ritorno_disponibilita":
+        case "data_ritorno_disponibilita": {
           setAvailabilityStatusDraft((current) => ({
             ...current,
             data_ritorno_disponibilita: v,
           }));
-          await patchWorkerAvailabilityStatus({
-            data_ritorno_disponibilita: v || null,
-          });
+          // If status is already "Non disponibile" locally (deferred save),
+          // persist both together so Gate 1 filter keeps the row for peers.
+          const pairedDisponibilita = String(
+            getFormValues?.().disponibilita ?? "",
+          ).trim();
+          if (isNonDisponibileStatus(pairedDisponibilita) && v) {
+            await patchWorkerAvailabilityStatus({
+              disponibilita: pairedDisponibilita,
+              data_ritorno_disponibilita: v,
+            });
+            alsoCommitKeys.push("disponibilita");
+          } else {
+            await patchWorkerAvailabilityStatus({
+              data_ritorno_disponibilita: v || null,
+            });
+          }
           break;
-        case "disponibilita":
+        }
+        case "disponibilita": {
           setAvailabilityStatusDraft((current) => ({
             ...current,
             disponibilita: v,
           }));
+          // Gate 1 RPC excludes "Non disponibile" without a return date within
+          // 14 days. Autosaving status alone ejects the worker from every peer
+          // list before the editor can set the date — defer until return date
+          // is present (flushed together from the date field branch above).
+          if (isNonDisponibileStatus(v)) {
+            const returnFromPatch = patch.data_ritorno_disponibilita;
+            const returnDate = String(
+              (typeof returnFromPatch === "string" ? returnFromPatch : null) ??
+                getFormValues?.().data_ritorno_disponibilita ??
+                "",
+            ).trim();
+            if (!returnDate) {
+              skippedKeys.push("disponibilita");
+              break;
+            }
+            // Same flush as the date branch when both keys land together.
+            if (typeof returnFromPatch === "string" && returnFromPatch.trim()) {
+              await patchWorkerAvailabilityStatus({
+                disponibilita: v || null,
+                data_ritorno_disponibilita: returnFromPatch.trim(),
+              });
+              alsoCommitKeys.push("data_ritorno_disponibilita");
+              break;
+            }
+          }
           await patchWorkerAvailabilityStatus({
             disponibilita: v || null,
           });
           break;
+        }
         case "descrizione_pubblica":
           await patchSelectedWorkerField("descrizione_pubblica", v || null);
           break;
@@ -727,5 +793,11 @@ export function createGateFieldsOnSave(
           break;
       }
     }
+
+    if (skippedKeys.length === 0 && alsoCommitKeys.length === 0) return undefined;
+    return {
+      ...(skippedKeys.length > 0 ? { skippedKeys } : {}),
+      ...(alsoCommitKeys.length > 0 ? { alsoCommitKeys } : {}),
+    };
   };
 }

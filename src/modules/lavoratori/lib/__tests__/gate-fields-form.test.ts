@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest"
 
-import { createGateFieldsOnSave } from "../gate-fields-form"
-import type { GateFieldsSaveDeps } from "../gate-fields-form"
+import {
+  buildGateFieldsDefaults,
+  createGateFieldsOnSave,
+  type GateFieldsSaveDeps,
+} from "../gate-fields-form"
+import { makeWorkerRow } from "../../components/__tests__/gate1-view-test-fixtures"
 
 function makeDraftSetter() {
   return vi.fn((updater: unknown) => {
@@ -29,6 +33,24 @@ function makeDeps(overrides: Partial<GateFieldsSaveDeps> = {}): GateFieldsSaveDe
     ...overrides,
   }
 }
+
+describe("buildGateFieldsDefaults — disponibilita", () => {
+  it("normalizes disponibilita to the lookup label (same as Select save)", () => {
+    const defaults = buildGateFieldsDefaults({
+      selectedWorkerRow: makeWorkerRow({ disponibilita: "disponibile" }),
+      selectedWorkerAddress: null,
+      lookupOptionsByDomain: new Map([
+        [
+          "lavoratori.disponibilita",
+          [{ label: "Disponibile", value: "disponibile" }],
+        ],
+      ]),
+      resolvedIban: "",
+    })
+
+    expect(defaults.disponibilita).toBe("Disponibile")
+  })
+})
 
 describe("createGateFieldsOnSave", () => {
   it("routes array job-search fields through patchSelectedWorkerField", async () => {
@@ -92,6 +114,56 @@ describe("createGateFieldsOnSave", () => {
     expect(deps.patchWorkerAvailabilityStatus).toHaveBeenCalledWith({
       disponibilita: "disponibile",
     })
+  })
+
+  it("defers Non disponibile until a return date is present (Gate 1 filter)", async () => {
+    const deps = makeDeps({
+      getFormValues: () => ({
+        disponibilita: "Non disponibile",
+        data_ritorno_disponibilita: "",
+      }),
+    })
+    const onSave = createGateFieldsOnSave(deps)
+
+    const result = await onSave({ disponibilita: "Non disponibile" })
+
+    expect(deps.patchWorkerAvailabilityStatus).not.toHaveBeenCalled()
+    expect(result).toEqual({ skippedKeys: ["disponibilita"] })
+  })
+
+  it("flushes Non disponibile together with the return date", async () => {
+    const deps = makeDeps({
+      getFormValues: () => ({
+        disponibilita: "Non disponibile",
+        data_ritorno_disponibilita: "2026-08-15",
+      }),
+    })
+    const onSave = createGateFieldsOnSave(deps)
+
+    const result = await onSave({ data_ritorno_disponibilita: "2026-08-15" })
+
+    expect(deps.patchWorkerAvailabilityStatus).toHaveBeenCalledWith({
+      disponibilita: "Non disponibile",
+      data_ritorno_disponibilita: "2026-08-15",
+    })
+    expect(result).toEqual({ alsoCommitKeys: ["disponibilita"] })
+  })
+
+  it("saves Non disponibile immediately when return date already exists", async () => {
+    const deps = makeDeps({
+      getFormValues: () => ({
+        disponibilita: "Non disponibile",
+        data_ritorno_disponibilita: "2026-08-01",
+      }),
+    })
+    const onSave = createGateFieldsOnSave(deps)
+
+    const result = await onSave({ disponibilita: "Non disponibile" })
+
+    expect(deps.patchWorkerAvailabilityStatus).toHaveBeenCalledWith({
+      disponibilita: "Non disponibile",
+    })
+    expect(result).toBeUndefined()
   })
 
   it("parses numeric experience fields before patching", async () => {

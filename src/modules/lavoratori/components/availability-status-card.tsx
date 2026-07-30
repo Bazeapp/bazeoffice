@@ -49,6 +49,9 @@ function DisponibilitaSelect({
           nextValue === EMPTY_SELECT_VALUE
             ? ""
             : getLookupLabelForSave(nextValue, options)
+        // Skip no-op echoes (options load / controlled remount) so the field
+        // does not go dirty and block peer realtime resync.
+        if (normalized === value) return
         field.onChange(normalized)
       }}
       disabled={disabled}

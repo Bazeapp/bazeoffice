@@ -43,6 +43,11 @@ export type AutoSaveOnSaveResult = void | {
    * `committedRef` for these, or a later defaults resync will wipe them.
    */
   skippedKeys?: string[];
+  /**
+   * Extra keys to mark committed after this save even if they were not in the
+   * patch (paired composites flushed together, e.g. disponibilita + return date).
+   */
+  alsoCommitKeys?: string[];
 };
 
 type UseAutoSaveFormFieldsOptions<T extends FieldValues> = {
@@ -168,14 +173,27 @@ export function useAutoSaveFormFields<T extends FieldValues>({
               ? result.skippedKeys.filter((key) => typeof key === "string")
               : [],
           );
+          const alsoCommit =
+            result &&
+            typeof result === "object" &&
+            Array.isArray(result.alsoCommitKeys)
+              ? result.alsoCommitKeys.filter((key) => typeof key === "string")
+              : [];
           const committedKeys = keys.filter((key) => !skipped.has(key));
           for (const key of committedKeys) {
             committedRef.current[key] = patch[key];
           }
+          const currentValues = form.getValues() as Record<string, unknown>;
+          const alsoCommitted: string[] = [];
+          for (const key of alsoCommit) {
+            if (skipped.has(key) || committedKeys.includes(key)) continue;
+            committedRef.current[key] = currentValues[key];
+            alsoCommitted.push(key);
+          }
           // Incomplete-only flush (e.g. date half of a slot): do NOT reset —
           // reset({ keepValues }) clears dirtyFlags, and the next defaults
           // resync then wipes the half via keepDirtyValues seeing a clean field.
-          if (committedKeys.length === 0) return;
+          if (committedKeys.length === 0 && alsoCommitted.length === 0) return;
 
           // Clear RHF dirty for committed fields. keepDirtyValues only protects
           // in-progress edits; if we leave fields dirty after save, later
@@ -183,7 +201,6 @@ export function useAutoSaveFormFields<T extends FieldValues>({
           // keepValues: update defaultValues without changing what's displayed.
           // Still-pending / skipped keys keep the last committed default so
           // they stay dirty after reset.
-          const currentValues = form.getValues() as Record<string, unknown>;
           const nextDefaults: Record<string, unknown> = { ...currentValues };
           for (const key of Object.keys(pendingRef.current)) {
             nextDefaults[key] = committedRef.current[key];
