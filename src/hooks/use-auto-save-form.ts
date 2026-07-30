@@ -9,7 +9,10 @@ import {
 } from "react-hook-form";
 import type { ZodType } from "zod";
 
-import { useAutoSaveFormFields } from "@/hooks/use-auto-save-form-fields";
+import {
+  useAutoSaveFormFields,
+  type AutoSaveOnSaveResult,
+} from "@/hooks/use-auto-save-form-fields";
 
 /**
  * FASE 5 BIS — hook unico per un pannello con autosave.
@@ -46,7 +49,7 @@ export function useAutoSaveForm<T extends FieldValues>({
 }: {
   /** Valori server correnti del record (ricostruiti ad ogni render). */
   defaults: T;
-  onSave: (patch: Partial<T>) => Promise<void> | void;
+  onSave: (patch: Partial<T>) => Promise<AutoSaveOnSaveResult> | AutoSaveOnSaveResult;
   /** Optional Zod schema — validates form values via react-hook-form resolver. */
   schema?: ZodType<T>;
   isPaused?: () => boolean;

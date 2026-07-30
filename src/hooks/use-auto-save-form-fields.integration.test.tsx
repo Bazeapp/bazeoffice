@@ -16,6 +16,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useForm } from "react-hook-form";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { useAutoSaveFormFields } from "@/hooks/use-auto-save-form-fields";
 
 vi.mock("sonner", () => ({
@@ -126,5 +127,53 @@ describe("useAutoSaveFormFields", () => {
       expect(onSave).toHaveBeenCalledTimes(1);
     });
     expect(onSave).toHaveBeenCalledWith({ nome: "Carla", email: "c@c.it" });
+  });
+
+  it("skippedKeys restano dirty: un reset defaults non li cancella", async () => {
+    // Mirrors scheda-colloquio slots: date half alone cannot persist yet.
+    // If autosave commits it anyway, the next defaults resync wipes it.
+    const onSave = vi.fn(async (patch: Partial<FormValues>) => {
+      if (patch.nome !== undefined) {
+        return { skippedKeys: ["nome"] };
+      }
+      return undefined;
+    });
+
+    function ResyncHarness({ defaults }: { defaults: FormValues }) {
+      const form = useAutoSaveForm<FormValues>({
+        defaults,
+        onSave,
+        debounceMs: 10,
+      });
+      return (
+        <form>
+          <input aria-label="nome" {...form.register("nome")} />
+          <input aria-label="email" {...form.register("email")} />
+        </form>
+      );
+    }
+
+    const { rerender } = render(
+      <ResyncHarness defaults={{ nome: "", email: "" }} />,
+    );
+
+    fireEvent.change(screen.getByLabelText("nome"), {
+      target: { value: "bozza-data" },
+    });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith({ nome: "bozza-data" });
+    });
+
+    rerender(
+      <ResyncHarness defaults={{ nome: "", email: "peer@x.it" }} />,
+    );
+
+    expect((screen.getByLabelText("nome") as HTMLInputElement).value).toBe(
+      "bozza-data",
+    );
+    expect((screen.getByLabelText("email") as HTMLInputElement).value).toBe(
+      "peer@x.it",
+    );
   });
 });

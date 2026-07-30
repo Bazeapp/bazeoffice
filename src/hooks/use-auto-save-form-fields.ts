@@ -1,5 +1,10 @@
 import * as React from "react";
-import type { FieldValues, UseFormReturn } from "react-hook-form";
+import type {
+  FieldValues,
+  Path,
+  PathValue,
+  UseFormReturn,
+} from "react-hook-form";
 import { toast } from "sonner";
 
 /**
@@ -30,10 +35,20 @@ import { toast } from "sonner";
  * via RHF; questo hook è agganciato una volta a livello di <Form> e pensa al save.
  */
 
+/** Optional result from `onSave` — skip committing keys that were intentionally not persisted. */
+export type AutoSaveOnSaveResult = void | {
+  /**
+   * Keys that must stay dirty / uncommitted (e.g. date half of a date+time
+   * slot waiting for its sibling). Autosave must not clear dirty or advance
+   * `committedRef` for these, or a later defaults resync will wipe them.
+   */
+  skippedKeys?: string[];
+};
+
 type UseAutoSaveFormFieldsOptions<T extends FieldValues> = {
   form: UseFormReturn<T>;
   /** Persiste la patch dei soli campi cambiati. Deve restituire una Promise. */
-  onSave: (patch: Partial<T>) => Promise<void> | void;
+  onSave: (patch: Partial<T>) => Promise<AutoSaveOnSaveResult> | AutoSaveOnSaveResult;
   /**
    * Se ritorna true il save viene rimandato (riprovato al prossimo tick).
    * Usato per la finestra echo realtime / "utente sta editando".
@@ -145,21 +160,48 @@ export function useAutoSaveFormFields<T extends FieldValues>({
       pendingRef.current = {};
 
       void Promise.resolve(onSaveRef.current(patch as Partial<T>))
-        .then(() => {
-          for (const key of keys) {
+        .then((result) => {
+          const skipped = new Set(
+            result &&
+              typeof result === "object" &&
+              Array.isArray(result.skippedKeys)
+              ? result.skippedKeys.filter((key) => typeof key === "string")
+              : [],
+          );
+          const committedKeys = keys.filter((key) => !skipped.has(key));
+          for (const key of committedKeys) {
             committedRef.current[key] = patch[key];
           }
+          // Incomplete-only flush (e.g. date half of a slot): do NOT reset —
+          // reset({ keepValues }) clears dirtyFlags, and the next defaults
+          // resync then wipes the half via keepDirtyValues seeing a clean field.
+          if (committedKeys.length === 0) return;
+
           // Clear RHF dirty for committed fields. keepDirtyValues only protects
           // in-progress edits; if we leave fields dirty after save, later
           // realtime resyncs silently skip them for the rest of the session.
           // keepValues: update defaultValues without changing what's displayed.
-          // Still-pending keys keep the last committed default so they stay dirty.
+          // Still-pending / skipped keys keep the last committed default so
+          // they stay dirty after reset.
           const currentValues = form.getValues() as Record<string, unknown>;
           const nextDefaults: Record<string, unknown> = { ...currentValues };
           for (const key of Object.keys(pendingRef.current)) {
             nextDefaults[key] = committedRef.current[key];
           }
+          for (const key of skipped) {
+            nextDefaults[key] = committedRef.current[key];
+          }
           form.reset(nextDefaults as T, { keepValues: true });
+          // reset clears dirtyFlags; re-mark skipped keys so peer resync cannot
+          // clobber incomplete composites still waiting on a sibling field.
+          for (const key of skipped) {
+            const path = key as Path<T>;
+            form.setValue(
+              path,
+              form.getValues(path) as PathValue<T, Path<T>>,
+              { shouldDirty: true },
+            );
+          }
         })
         .catch((error: unknown) => {
           const resolve = errorMessageRef.current ?? defaultErrorMessage;
