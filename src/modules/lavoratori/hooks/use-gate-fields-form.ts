@@ -32,6 +32,7 @@ export function useGateFieldsForm({
   setJobSearchDraft,
   setSkillsDraft,
   setAvailabilityStatusDraft,
+  availabilityStatusDraft,
   setDocumentsDraft,
   patchSelectedWorkerField,
   patchSkillsField,
@@ -40,13 +41,6 @@ export function useGateFieldsForm({
   commitAddressField,
   patchWorkerAddressField,
 }: UseGateFieldsFormParams) {
-  const formApiRef = React.useRef<{
-    getAvailabilityPair: () => Pick<
-      GateFieldsFormDraft,
-      "disponibilita" | "data_ritorno_disponibilita"
-    >;
-  } | null>(null);
-
   const onSave = React.useMemo(
     () =>
       createGateFieldsOnSave({
@@ -55,6 +49,7 @@ export function useGateFieldsForm({
         setJobSearchDraft,
         setSkillsDraft,
         setAvailabilityStatusDraft,
+        availabilityStatusDraft,
         setDocumentsDraft,
         setGateDraft,
         patchSelectedWorkerField,
@@ -63,11 +58,6 @@ export function useGateFieldsForm({
         patchDocumentField,
         commitAddressField,
         patchWorkerAddressField,
-        getFormValues: () =>
-          formApiRef.current?.getAvailabilityPair() ?? {
-            disponibilita: "",
-            data_ritorno_disponibilita: "",
-          },
       }),
     [
       setAvailabilityDraft,
@@ -75,6 +65,7 @@ export function useGateFieldsForm({
       setJobSearchDraft,
       setSkillsDraft,
       setAvailabilityStatusDraft,
+      availabilityStatusDraft,
       setDocumentsDraft,
       setGateDraft,
       patchSelectedWorkerField,
@@ -98,15 +89,6 @@ export function useGateFieldsForm({
     resetKey: selectedWorkerId,
     onSave,
   });
-
-  formApiRef.current = {
-    getAvailabilityPair: () => ({
-      disponibilita: String(gateFieldsForm.getValues("disponibilita") ?? ""),
-      data_ritorno_disponibilita: String(
-        gateFieldsForm.getValues("data_ritorno_disponibilita") ?? "",
-      ),
-    }),
-  };
 
   const anniColfCtrl = useController({
     name: "anni_esperienza_colf",

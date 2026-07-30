@@ -30,6 +30,10 @@ function makeDeps(overrides: Partial<GateFieldsSaveDeps> = {}): GateFieldsSaveDe
     patchDocumentField: vi.fn().mockResolvedValue(undefined),
     commitAddressField: vi.fn().mockResolvedValue(undefined),
     patchWorkerAddressField: vi.fn().mockResolvedValue(undefined),
+    availabilityStatusDraft: {
+      disponibilita: "",
+      data_ritorno_disponibilita: "",
+    },
     ...overrides,
   }
 }
@@ -118,10 +122,10 @@ describe("createGateFieldsOnSave", () => {
 
   it("defers Non disponibile until a return date is present (Gate 1 filter)", async () => {
     const deps = makeDeps({
-      getFormValues: () => ({
+      availabilityStatusDraft: {
         disponibilita: "Non disponibile",
         data_ritorno_disponibilita: "",
-      }),
+      },
     })
     const onSave = createGateFieldsOnSave(deps)
 
@@ -133,10 +137,10 @@ describe("createGateFieldsOnSave", () => {
 
   it("flushes Non disponibile together with the return date", async () => {
     const deps = makeDeps({
-      getFormValues: () => ({
+      availabilityStatusDraft: {
         disponibilita: "Non disponibile",
-        data_ritorno_disponibilita: "2026-08-15",
-      }),
+        data_ritorno_disponibilita: "",
+      },
     })
     const onSave = createGateFieldsOnSave(deps)
 
@@ -151,10 +155,10 @@ describe("createGateFieldsOnSave", () => {
 
   it("saves Non disponibile immediately when return date already exists", async () => {
     const deps = makeDeps({
-      getFormValues: () => ({
-        disponibilita: "Non disponibile",
+      availabilityStatusDraft: {
+        disponibilita: "Disponibile",
         data_ritorno_disponibilita: "2026-08-01",
-      }),
+      },
     })
     const onSave = createGateFieldsOnSave(deps)
 

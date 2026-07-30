@@ -40,6 +40,10 @@ function Harness({ row }: { row: LavoratoreRecord }) {
     setJobSearchDraft: noopSet,
     setSkillsDraft: noopSet,
     setAvailabilityStatusDraft: noopSet,
+    availabilityStatusDraft: {
+      disponibilita: "",
+      data_ritorno_disponibilita: "",
+    },
     setDocumentsDraft: noopSet,
     patchSelectedWorkerField: asyncNoop,
     patchSkillsField: asyncNoop,

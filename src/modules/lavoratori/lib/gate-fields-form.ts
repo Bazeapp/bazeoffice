@@ -359,14 +359,12 @@ export type GateFieldsSaveDeps = {
     value: string | null,
   ) => Promise<void>;
   /**
-   * Current form values — used to pair `disponibilita` + return date so Gate 1
-   * never persists "Non disponibile" without a return date (that shape is
-   * excluded by `gate1_lavoratori` and ejects the row for every peer).
+   * Latest availability status draft — used to pair `disponibilita` + return
+   * date so Gate 1 never persists "Non disponibile" without a return date
+   * (that shape is excluded by `gate1_lavoratori` and ejects the row for peers).
+   * Updated on each deferred/skipped status save before the date flush.
    */
-  getFormValues?: () => Pick<
-    GateFieldsFormDraft,
-    "disponibilita" | "data_ritorno_disponibilita"
-  >;
+  availabilityStatusDraft: WorkerAvailabilityStatusDraft;
 };
 
 function isNonDisponibileStatus(value: string): boolean {
@@ -390,7 +388,7 @@ export function createGateFieldsOnSave(
     patchDocumentField,
     commitAddressField,
     patchWorkerAddressField,
-    getFormValues,
+    availabilityStatusDraft,
   } = deps;
 
   return async (patch) => {
@@ -488,7 +486,7 @@ export function createGateFieldsOnSave(
           // If status is already "Non disponibile" locally (deferred save),
           // persist both together so Gate 1 filter keeps the row for peers.
           const pairedDisponibilita = String(
-            getFormValues?.().disponibilita ?? "",
+            availabilityStatusDraft.disponibilita ?? "",
           ).trim();
           if (isNonDisponibileStatus(pairedDisponibilita) && v) {
             await patchWorkerAvailabilityStatus({
@@ -516,7 +514,7 @@ export function createGateFieldsOnSave(
             const returnFromPatch = patch.data_ritorno_disponibilita;
             const returnDate = String(
               (typeof returnFromPatch === "string" ? returnFromPatch : null) ??
-                getFormValues?.().data_ritorno_disponibilita ??
+                availabilityStatusDraft.data_ritorno_disponibilita ??
                 "",
             ).trim();
             if (!returnDate) {
