@@ -3,7 +3,6 @@
  * Typing past debounce must persist the full string; row identity switch must
  * show the next row's committed value (not clipped prior draft).
  */
-import * as React from "react"
 import { fireEvent, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 

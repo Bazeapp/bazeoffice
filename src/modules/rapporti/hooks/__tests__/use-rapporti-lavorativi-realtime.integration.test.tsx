@@ -38,7 +38,10 @@ const {
 })
 
 vi.mock("@/hooks/use-realtime-board-sync", () => ({
-  useRealtimeBoardSync: (...args: unknown[]) => mockUseRealtimeBoardSync(...args),
+  useRealtimeBoardSync: (options: {
+    reload: () => void
+    reloadOpenDetail?: () => void
+  }) => mockUseRealtimeBoardSync(options),
 }))
 
 vi.mock("../../queries/fetch-rapporti-lavorativi-board", () => ({
