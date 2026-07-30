@@ -164,7 +164,7 @@ describe("AssegnazioneDetailSheet — edit-mode clean-field resync", () => {
     expect(dateInput("Data assegnazione").value).toBe("2026-03-20")
   })
 
-  it("applies peer statoRes when remote card changes (remote wins)", async () => {
+  it("keeps a dirty statoRes local value when remote card changes (keepDirtyValues)", async () => {
     const { rerender, onPatchCard } = setup(
       makeCard({ statoRes: "da_assegnare", statoResLabel: "Da assegnare" }),
       vi.fn(async () => {}),
@@ -181,6 +181,7 @@ describe("AssegnazioneDetailSheet — edit-mode clean-field resync", () => {
     })
     expect(statoCombobox()).toHaveTextContent("Fare ricerca")
 
+    // Huge debounce in production is 700ms — keep remote resync before save.
     rerender(
       <AssegnazioneDetailSheet
         open
@@ -196,7 +197,7 @@ describe("AssegnazioneDetailSheet — edit-mode clean-field resync", () => {
       />,
     )
 
-    expect(statoCombobox()).toHaveTextContent("Da assegnare")
+    expect(statoCombobox()).toHaveTextContent("Fare ricerca")
     expect(dateInput("Data assegnazione").value).toBe("2026-04-01")
   })
 

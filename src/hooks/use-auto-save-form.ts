@@ -17,11 +17,11 @@ import { useAutoSaveFormFields } from "@/hooks/use-auto-save-form-fields";
  * Impacchetta le 3 cose che ogni pannello dovrebbe fare (e che è facile fare
  * male se ripetute a mano):
  *  1. `useForm` con i valori server come defaults;
- *  2. **resync realtime (remote wins)**: `form.reset(defaults)` keyed sulla firma
- *     dei dati → i valori server sostituiscono anche i draft RHF dirty, così gli
- *     open sheet vedono gli aggiornamenti peer. I DebouncedInput/Textarea
- *     proteggono solo il buffer mid-keystroke (debounce pending). Al cambio
- *     `resetKey`: stesso hard reset (niente leak tra record).
+ *  2. **resync realtime senza clobber**: `form.reset(defaults, { keepDirtyValues })`
+ *     keyed sulla firma dei dati → i campi puliti si aggiornano sui peer/server
+ *     update; i dirty (edit in corso / optimistic pre-save) restano locali.
+ *     Dopo il save, dirty si azzera così i peer update successivi atterrano.
+ *     Al cambio `resetKey`: hard reset.
  *  3. `useAutoSaveFormFields` → persiste i cambi (debounce + toast + dirty-track).
  *
  * Il pezzo (2) è la parte delicata (è quella che storicamente clobberava gli
@@ -66,11 +66,17 @@ export function useAutoSaveForm<T extends FieldValues>({
       : undefined,
   });
 
-  // Resync sui cambi server. Remote wins (anche su campi dirty) così peer
-  // updates atterrano sull'open sheet. Keyed sulla firma dei valori.
+  // Resync sui cambi server mantenendo gli edit in corso. Keyed sulla firma
+  // dei valori così non resetta ad ogni render (defaults è un nuovo oggetto).
+  // Al cambio di resetKey: hard reset (selezione record diversa).
   const signature = JSON.stringify(defaults);
+  const prevResetKeyRef = React.useRef(resetKey);
   React.useEffect(() => {
-    form.reset(defaults as DefaultValues<T>);
+    const identityChanged = prevResetKeyRef.current !== resetKey;
+    prevResetKeyRef.current = resetKey;
+    form.reset(defaults as DefaultValues<T>, {
+      keepDirtyValues: !identityChanged,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature, resetKey]);
 

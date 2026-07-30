@@ -443,7 +443,7 @@ export function useRicercaDetailView({
   // Editable*). onSave instrada per chiave ai 3 target originali (processo,
   // famiglia, indirizzo) con le STESSE trasformazioni: ""→null per i testi,
   // data→null se vuota (il type=date dà già ISO), booleano grezzo per i check.
-  // Resync realtime: useAutoSaveForm remote-wins on defaults signature change.
+  // Resync realtime senza clobber: keepDirtyValues dentro useAutoSaveForm.
   const editForm = useAutoSaveForm({
     defaults: {
       // famiglia
