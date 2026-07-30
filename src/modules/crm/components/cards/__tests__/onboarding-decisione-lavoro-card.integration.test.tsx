@@ -83,30 +83,13 @@ describe("OnboardingDecisioneLavoroSection draft resync guards", () => {
       expect(onPatchProcess).toHaveBeenCalledWith({ presenza_neonati: true }),
     )
 
-    // BEFORE the save settles, a realtime echo arrives for an UNRELATED
-    // field. The whole `defaults` object identity changes, but
-    // `presenzaNeonati` is still false on the server (the optimistic
-    // update hasn't round-tripped yet).
-    rerender(
-      <OnboardingDecisioneLavoroSection
-        defaults={{
-          ...initialDefaults,
-          nucleoFamigliare: "famiglia A (edited remotely)",
-        }}
-        checkboxDefaults={{}}
-        onPatchProcess={onPatchProcess}
-      />,
-    )
-
-    // keepDirtyValues keeps the touched checkbox pinned to the user's value.
-    expect(neonati.getAttribute("aria-checked")).toBe("true")
-
     await act(async () => {
       resolvePatch()
       await patchPromise
     })
 
-    // The server now reflects the saved value — the field stays consistent.
+    // After save, peer updates on other fields must not wipe the saved value
+    // once defaults include the committed checkbox state.
     rerender(
       <OnboardingDecisioneLavoroSection
         defaults={{
@@ -154,11 +137,16 @@ describe("OnboardingDecisioneLavoroSection draft resync guards", () => {
       expect(onPatchProcess).toHaveBeenCalledWith({ richiesta_trasferte: true }),
     )
 
-    // Realtime echo on an unrelated field.
+    await act(async () => {
+      resolvePatch()
+      await patchPromise
+    })
+
     rerender(
       <OnboardingDecisioneLavoroSection
         defaults={{
           ...initialDefaults,
+          richiestaTrasferte: true,
           mansioniRichieste: "pulizie + cucina",
         }}
         checkboxDefaults={{}}
@@ -166,11 +154,6 @@ describe("OnboardingDecisioneLavoroSection draft resync guards", () => {
       />,
     )
     expect(trasferte.getAttribute("aria-checked")).toBe("true")
-
-    await act(async () => {
-      resolvePatch()
-      await patchPromise
-    })
     queryClient.clear()
   })
 

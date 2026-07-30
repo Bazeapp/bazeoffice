@@ -333,37 +333,37 @@ export function useRapportiLavorativiData(
         return
       }
 
-      setLoadingSelectedRapporto(true)
+      // Avoid a full-panel loading flash on Pattern B re-fetches (same id).
+      const hadOpenDetail = selectedRapporto?.id === selectedRapportoId
+      if (!hadOpenDetail) {
+        setLoadingSelectedRapporto(true)
+      }
       const fallbackRapporto =
         rapporti.find((rapporto) => rapporto.id === selectedRapportoId) ?? null
-      setSelectedRapporto(fallbackRapporto)
+      if (!hadOpenDetail) {
+        setSelectedRapporto(fallbackRapporto)
+      }
 
       try {
         const response = await fetchRapportiLavorativiByIds([selectedRapportoId])
         if (!isActive) return
 
         const freshRapporto = (response.rows[0] as RapportoLavorativoRecord | undefined) ?? null
-        // La RPC board arricchisce alcune proprietà non presenti (o non risolte) nella
-        // tabella grezza: i nomi visualizzati ("cognome_nome_datore_proper" /
-        // "nome_lavoratore_per_url") sovrascritti con i nomi reali di famiglia/lavoratore,
-        // e i campi derivati "data_fine_rapporto" (da chiusure_contratti) e
-        // "stato_rapporto". La fetch grezza qui sotto non li ha, quindi li preserviamo dal
-        // board per non declassare card, titolo e badge di stato.
+        // Prefer fresh row values for mutable columns; only fall back to board
+        // for display names the raw table fetch often leaves empty/unresolved.
         const mergedRapporto =
           freshRapporto && fallbackRapporto
             ? {
+                ...fallbackRapporto,
                 ...freshRapporto,
                 cognome_nome_datore_proper:
-                  fallbackRapporto.cognome_nome_datore_proper ??
-                  freshRapporto.cognome_nome_datore_proper,
+                  freshRapporto.cognome_nome_datore_proper ??
+                  fallbackRapporto.cognome_nome_datore_proper,
                 nome_lavoratore_per_url:
-                  fallbackRapporto.nome_lavoratore_per_url ??
-                  freshRapporto.nome_lavoratore_per_url,
-                data_fine_rapporto:
-                  fallbackRapporto.data_fine_rapporto ?? freshRapporto.data_fine_rapporto,
-                stato_rapporto: fallbackRapporto.stato_rapporto ?? freshRapporto.stato_rapporto,
+                  freshRapporto.nome_lavoratore_per_url ??
+                  fallbackRapporto.nome_lavoratore_per_url,
               }
-            : freshRapporto
+            : freshRapporto ?? fallbackRapporto
         setSelectedRapporto(mergedRapporto)
 
         if (mergedRapporto) {

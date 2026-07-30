@@ -35,6 +35,8 @@ import type {
 const PROVE_COLLOQUI_REALTIME_TABLES = [
   "selezioni_lavoratori",
   "processi_matching",
+  // Prove cards/sheet are backed by rapporti_lavorativi (not only selezioni).
+  "rapporti_lavorativi",
 ]
 
 type BoardData = {

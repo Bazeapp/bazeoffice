@@ -48,13 +48,6 @@ export function useDebouncedSave<T>(
   const committedValueRef = React.useRef(committedValue)
   const identityRef = React.useRef(identity)
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Once the user has typed in this field, never let an incoming committedValue
-  // overwrite the local draft. The previous gate (isDirty || savesInFlight > 0)
-  // had a window between debounce-fire and the next keystroke where the server
-  // value could replace what the user was about to keep typing, causing dropped
-  // characters / collapsed spaces.
-  const hasUserEditedRef = React.useRef(false)
-
   // Keep onSave ref current so the flush closure always calls the latest version
   React.useEffect(() => {
     onSaveRef.current = onSave
@@ -66,10 +59,13 @@ export function useDebouncedSave<T>(
     committedValueRef.current = committedValue
   })
 
-  // Sync committed value from server only when the user has never interacted
-  // with this field (initial mount + remote refresh of an untouched field).
+  // Sync committed value from server when the field is idle (no pending
+  // keystrokes). Do not gate on savesInFlight — that blocked peer/identity
+  // resync after a flush. Mid-debounce is covered by isDirty + timer.
   React.useEffect(() => {
-    if (hasUserEditedRef.current) return
+    if (isDirtyRef.current || timerRef.current !== null) {
+      return
+    }
     setDraft(committedValue)
     draftRef.current = committedValue
   }, [committedValue])
@@ -77,7 +73,6 @@ export function useDebouncedSave<T>(
   // When the bound record changes (e.g. the operator selects another worker),
   // flush any pending edit to the PREVIOUS record (via the keystroke-time
   // onSave) and reset the draft to the new record's value.
-   
   React.useEffect(() => {
     if (identityRef.current === identity) return
     identityRef.current = identity
@@ -97,7 +92,6 @@ export function useDebouncedSave<T>(
         })
     }
 
-    hasUserEditedRef.current = false
     setDraft(committedValueRef.current)
     draftRef.current = committedValueRef.current
   }, [identity])
@@ -130,7 +124,6 @@ export function useDebouncedSave<T>(
 
   const onChange = React.useCallback(
     (value: T) => {
-      hasUserEditedRef.current = true
       setDraft(value)
       draftRef.current = value
       // Bind the pending save to the record currently being edited so that a

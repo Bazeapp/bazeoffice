@@ -195,7 +195,7 @@ describe("useRicercaDetailView — Pattern B sidebar realtime", () => {
     expect(mockUseRicercaWorkersPipeline).toHaveBeenCalledWith("proc-1")
   })
 
-  it("keeps dirty sidebar fields while clean siblings take remote defaults", async () => {
+  it("applies peer sidebar defaults including previously dirty fields", async () => {
     const { result } = renderHookWithQueryClient(() =>
       useRicercaDetailView({
         processId: "proc-1",
@@ -232,8 +232,8 @@ describe("useRicercaDetailView — Pattern B sidebar realtime", () => {
     await waitFor(() => {
       expect(result.current.card?.telefono).toBe("remote-phone")
       expect(result.current.card?.email).toBe("remote@example.com")
-      // Dirty key protected by useAutoSaveForm keepDirtyValues.
-      expect(result.current.form.getValues("telefono")).toBe("local-dirty")
+      // Remote wins on dirty keys so open sidebar shows peer updates.
+      expect(result.current.form.getValues("telefono")).toBe("remote-phone")
       expect(result.current.form.getValues("email")).toBe("remote@example.com")
     })
   })

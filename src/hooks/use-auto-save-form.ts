@@ -17,11 +17,11 @@ import { useAutoSaveFormFields } from "@/hooks/use-auto-save-form-fields";
  * Impacchetta le 3 cose che ogni pannello dovrebbe fare (e che è facile fare
  * male se ripetute a mano):
  *  1. `useForm` con i valori server come defaults;
- *  2. **resync realtime senza clobber**: `form.reset(defaults, { keepDirtyValues })`
- *     keyed sulla firma dei dati → i campi puliti si aggiornano sui cambi server
- *     (anche realtime stesso record), quelli che l'utente sta editando NO;
- *     quando cambia `resetKey` (cambio record/selezione) fa invece un hard reset
- *     senza keepDirtyValues, così un edit del record A non vaga sul record B;
+ *  2. **resync realtime (remote wins)**: `form.reset(defaults)` keyed sulla firma
+ *     dei dati → i valori server sostituiscono anche i draft RHF dirty, così gli
+ *     open sheet vedono gli aggiornamenti peer. I DebouncedInput/Textarea
+ *     proteggono solo il buffer mid-keystroke (debounce pending). Al cambio
+ *     `resetKey`: stesso hard reset (niente leak tra record).
  *  3. `useAutoSaveFormFields` → persiste i cambi (debounce + toast + dirty-track).
  *
  * Il pezzo (2) è la parte delicata (è quella che storicamente clobberava gli
@@ -66,17 +66,11 @@ export function useAutoSaveForm<T extends FieldValues>({
       : undefined,
   });
 
-  // Resync sui cambi server mantenendo gli edit in corso. Keyed sulla firma
-  // dei valori così non resetta ad ogni render (defaults è un nuovo oggetto).
-  // Al cambio di resetKey: hard reset (selezione record diversa).
+  // Resync sui cambi server. Remote wins (anche su campi dirty) così peer
+  // updates atterrano sull'open sheet. Keyed sulla firma dei valori.
   const signature = JSON.stringify(defaults);
-  const prevResetKeyRef = React.useRef(resetKey);
   React.useEffect(() => {
-    const identityChanged = prevResetKeyRef.current !== resetKey;
-    prevResetKeyRef.current = resetKey;
-    form.reset(defaults as DefaultValues<T>, {
-      keepDirtyValues: !identityChanged,
-    });
+    form.reset(defaults as DefaultValues<T>);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature, resetKey]);
 

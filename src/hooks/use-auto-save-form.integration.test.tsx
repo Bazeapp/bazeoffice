@@ -132,23 +132,42 @@ describe("useAutoSaveForm — resync without clobber", () => {
     expect(input("a").value).toBe("9")
   })
 
-  it("KEEPS a field the user is editing when the server defaults change (keepDirtyValues)", () => {
-    // Huge debounce so the user's edit never auto-saves during the assertions —
-    // this test is about resync, not save.
+  it("applies peer defaults even when a registered field is locally dirty (remote wins)", () => {
     const { rerender } = render(
       <Harness defaults={{ a: "1", b: "2" }} onSave={vi.fn()} debounceMs={1_000_000} />,
     )
 
-    // User edits field a → a is now dirty.
     fireEvent.change(input("a"), { target: { value: "draft" } })
 
-    // Server pushes a change to the sibling field b (realtime resync).
     rerender(
-      <Harness defaults={{ a: "1", b: "99" }} onSave={vi.fn()} debounceMs={1_000_000} />,
+      <Harness defaults={{ a: "from-realtime", b: "99" }} onSave={vi.fn()} debounceMs={1_000_000} />,
     )
 
-    // The dirty field survives; the clean field updates. Red if keepDirtyValues
-    // is dropped (a would snap back to "1").
+    expect(input("a").value).toBe("from-realtime")
+    expect(input("b").value).toBe("99")
+  })
+
+  it("KEEPS a mid-keystroke FieldInput draft while debounce is pending", () => {
+    const { rerender } = render(
+      <GateFieldHarness
+        defaults={{ a: "1", b: "2" }}
+        resetKey="worker-a"
+        onSave={vi.fn()}
+        fieldDebounceMs={1_000_000}
+      />,
+    )
+
+    fireEvent.change(input("a"), { target: { value: "draft" } })
+
+    rerender(
+      <GateFieldHarness
+        defaults={{ a: "1", b: "99" }}
+        resetKey="worker-a"
+        onSave={vi.fn()}
+        fieldDebounceMs={1_000_000}
+      />,
+    )
+
     expect(input("a").value).toBe("draft")
     expect(input("b").value).toBe("99")
   })
@@ -180,7 +199,7 @@ describe("useAutoSaveForm — resync without clobber", () => {
     expect(input("b").value).toBe("from-b-2")
   })
 
-  it("still keeps dirty fields when resetKey is unchanged (realtime on same record)", () => {
+  it("applies peer realtime defaults on the same resetKey (remote wins)", () => {
     const { rerender } = render(
       <Harness
         defaults={{ a: "1", b: "2" }}
@@ -194,21 +213,18 @@ describe("useAutoSaveForm — resync without clobber", () => {
 
     rerender(
       <Harness
-        defaults={{ a: "1", b: "99" }}
+        defaults={{ a: "from-realtime", b: "99" }}
         resetKey="worker-a"
         onSave={vi.fn()}
         debounceMs={1_000_000}
       />,
     )
 
-    expect(input("a").value).toBe("draft")
+    expect(input("a").value).toBe("from-realtime")
     expect(input("b").value).toBe("99")
   })
 
   it("after autosave, a previously dirty field accepts later realtime defaults", async () => {
-    // keepDirtyValues must protect IN-PROGRESS edits only. After the save
-    // commits, RHF dirty must clear — otherwise every later server/realtime
-    // update for that field is silently ignored for the rest of the session.
     const onSave = vi.fn().mockResolvedValue(undefined)
     const { rerender } = render(
       <Harness defaults={{ a: "1", b: "2" }} onSave={onSave} debounceMs={10} />,
