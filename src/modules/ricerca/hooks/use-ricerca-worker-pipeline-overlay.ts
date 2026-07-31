@@ -62,6 +62,7 @@ export type UseRicercaWorkerPipelineOverlayParams = {
   recruiterLabelsById: Map<string, string>
   onOpenRelatedSearch?: (processId: string, selectionId: string) => void
   onFocusSelectionChange?: (selectionId: string | null) => void
+  onOpenLavoratoreCercaPage?: (workerId: string) => void
 }
 
 export function useRicercaWorkerPipelineOverlay({
@@ -74,6 +75,7 @@ export function useRicercaWorkerPipelineOverlay({
   recruiterLabelsById,
   onOpenRelatedSearch,
   onFocusSelectionChange,
+  onOpenLavoratoreCercaPage,
 }: UseRicercaWorkerPipelineOverlayParams) {
   const [selectedCard, setSelectedCard] =
     React.useState<RicercaWorkerSelectionCard | null>(null);
@@ -950,6 +952,7 @@ export function useRicercaWorkerPipelineOverlay({
     handleGenerateSelectionFeedback,
     handleGenerateWorkerSummary,
     handleOpenRelatedSearchCard,
+    onOpenLavoratoreCercaPage,
     upsertSelectedWorkerDocument,
     setSelectedWorkerError,
   }

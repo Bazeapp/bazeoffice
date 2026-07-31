@@ -12,6 +12,7 @@ import {
   type RelatedSearchGroups,
   WorkerPipelineSummaryCards,
 } from "./worker-pipeline-summary-cards"
+import { WorkerPipelineOpenFullPageLink } from "./worker-pipeline-open-full-page-link"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
   Select,
@@ -148,6 +149,7 @@ export type RicercaWorkerPipelineOverlayProps = {
   handleGenerateSelectionFeedback: () => Promise<string | null>
   handleGenerateWorkerSummary: () => Promise<void>
   handleOpenRelatedSearchCard: (nextProcessId: string, nextSelectionId: string) => void
+  onOpenLavoratoreCercaPage?: (workerId: string) => void
   upsertSelectedWorkerDocument: (row: DocumentoLavoratoreRecord) => void
   setSelectedWorkerError: Dispatch<SetStateAction<string | null>>
 }
@@ -230,6 +232,7 @@ export function RicercaWorkerPipelineOverlay({
   handleGenerateSelectionFeedback,
   handleGenerateWorkerSummary,
   handleOpenRelatedSearchCard,
+  onOpenLavoratoreCercaPage,
   upsertSelectedWorkerDocument,
   setSelectedWorkerError,
 }: RicercaWorkerPipelineOverlayProps) {
@@ -392,6 +395,16 @@ export function RicercaWorkerPipelineOverlay({
 
               <div className="scrollbar-visible min-w-0 overflow-y-auto border-t border-border xl:border-t-0">
                 <div className="space-y-6 p-4">
+                  {onOpenLavoratoreCercaPage ? (
+                    <WorkerPipelineOpenFullPageLink
+                      workerId={
+                        asString(selectedWorkerRow?.id) ||
+                        selectedCard?.worker.id ||
+                        null
+                      }
+                      onOpen={onOpenLavoratoreCercaPage}
+                    />
+                  ) : null}
                   <WorkerPipelineSummaryCards
                     key={selectedWorkerRow?.id ?? "__empty__"}
                     workerRow={selectedWorkerRow}
