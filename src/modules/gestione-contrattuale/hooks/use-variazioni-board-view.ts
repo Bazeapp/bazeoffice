@@ -21,6 +21,7 @@ export function useVariazioniBoardView() {
     moveCard,
     updateCard,
     detailRefreshTick,
+    setOpenDetailIdsForRealtime,
   } = useVariazioniBoard()
 
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
@@ -36,6 +37,17 @@ export function useVariazioniBoardView() {
   React.useEffect(() => {
     selectedFreshCardRef.current = selectedFreshCard
   }, [selectedFreshCard])
+
+  React.useEffect(() => {
+    setOpenDetailIdsForRealtime([
+      selectedCardId,
+      selectedFreshCard?.id,
+      selectedFreshCard?.rapporto?.id,
+      selectedFreshCard?.rapporto?.famiglia_id,
+      selectedFreshCard?.rapporto?.lavoratore_id,
+    ])
+    return () => setOpenDetailIdsForRealtime([])
+  }, [selectedCardId, selectedFreshCard, setOpenDetailIdsForRealtime])
 
   const filteredColumns = React.useMemo(
     () => filterVariazioniBoardColumns(columns, searchValue),

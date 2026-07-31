@@ -7,6 +7,8 @@ import { updateCardInList } from "@/lib/board-column-utils"
 import { formatItalianCurrencyLabelFromPatch } from "@/lib/format-utils"
 import { updateRecord } from "@/lib/record-crud"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+import type { RealtimeRowEvent } from "@/hooks/use-realtime-rows"
+import { eventMatchesOpenDetailIds } from "@/lib/realtime-open-detail"
 import type { ContributoInpsRecord } from "@/types"
 
 import {
@@ -36,6 +38,10 @@ type UseContributiInpsBoardState = {
    * (cedolini Pattern B twin).
    */
   detailRefreshTick: number
+  /** Register ids for the open sheet so unrelated CDC events skip detail reload. */
+  setOpenDetailIdsForRealtime: (
+    ids: ReadonlyArray<string | null | undefined>,
+  ) => void
 }
 
 type BoardData = {
@@ -136,10 +142,27 @@ export function useContributiInpsBoard(
     setDetailRefreshTick((current) => current + 1)
   }, [])
 
+  const openDetailIdsRef = React.useRef<ReadonlySet<string>>(new Set())
+  const setOpenDetailIdsForRealtime = React.useCallback(
+    (ids: ReadonlyArray<string | null | undefined>) => {
+      openDetailIdsRef.current = new Set(
+        ids.filter((id): id is string => typeof id === "string" && id.length > 0),
+      )
+    },
+    [],
+  )
+
+  const shouldReloadOpenDetail = React.useCallback(
+    (event: RealtimeRowEvent) =>
+      eventMatchesOpenDetailIds(event, openDetailIdsRef.current),
+    [],
+  )
+
   useRealtimeBoardSync({
     tables: CONTRIBUTI_REALTIME_TABLES,
     reload: invalidateBoard,
     reloadOpenDetail: bumpDetailRefreshTick,
+    shouldReloadOpenDetail,
   })
 
   const error =
@@ -160,5 +183,6 @@ export function useContributiInpsBoard(
     moveCard,
     patchCard,
     detailRefreshTick,
+    setOpenDetailIdsForRealtime,
   }
 }

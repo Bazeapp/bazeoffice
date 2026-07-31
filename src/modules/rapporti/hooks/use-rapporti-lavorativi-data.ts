@@ -22,6 +22,8 @@ import {
   mapRapportoBoardRow,
 } from "../lib/rapporti-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+import type { RealtimeRowEvent } from "@/hooks/use-realtime-rows"
+import { eventMatchesOpenDetailId } from "@/lib/realtime-open-detail"
 
 // The board lists rapporti; related tables are loaded only for the selected
 // detail and would cause excessive refetches if subscribed here. Detail-level
@@ -245,10 +247,24 @@ export function useRapportiLavorativiData(
     setRealtimeTick((current) => current + 1)
   }, [])
 
+  const selectedRapportoIdRef = React.useRef(selectedRapportoId)
+  React.useEffect(() => {
+    // Ref mirror only — does not fetch detail (Pattern B lives on the related-records effect).
+    selectedRapportoIdRef.current = selectedRapportoId
+    // eslint-disable-next-line no-restricted-syntax -- selectedXxxId without realtimeTick is intentional
+  }, [selectedRapportoId])
+
+  const shouldReloadOpenDetail = React.useCallback(
+    (event: RealtimeRowEvent) =>
+      eventMatchesOpenDetailId(event, selectedRapportoIdRef.current),
+    [],
+  )
+
   useRealtimeBoardSync({
     tables: RAPPORTI_REALTIME_TABLES,
     reload: invalidateBoard,
     reloadOpenDetail: bumpRealtimeTick,
+    shouldReloadOpenDetail,
   })
 
   const createTicketForSelectedRapporto = React.useCallback(

@@ -48,6 +48,20 @@ export function useDebouncedSave<T>(
   const committedValueRef = React.useRef(committedValue)
   const identityRef = React.useRef(identity)
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Peer/detail resync that arrived while a write was in flight. Applied once
+  // the field is idle again — never while dirty or mid-save (that window used
+  // to drop keystrokes / collapse spaces when committedValue overwrote the draft).
+  const queuedCommittedRef = React.useRef<{ value: T } | null>(null)
+
+  const applyQueuedCommitted = React.useCallback(() => {
+    if (isDirtyRef.current || savesInFlightRef.current > 0) return
+    const queued = queuedCommittedRef.current
+    if (!queued) return
+    queuedCommittedRef.current = null
+    setDraft(queued.value)
+    draftRef.current = queued.value
+  }, [])
+
   // Keep onSave ref current so the flush closure always calls the latest version
   React.useEffect(() => {
     onSaveRef.current = onSave
@@ -59,13 +73,18 @@ export function useDebouncedSave<T>(
     committedValueRef.current = committedValue
   })
 
-  // Sync committed value from server when the field is idle (no pending
-  // keystrokes). Do not gate on savesInFlight — that blocked peer/identity
-  // resync after a flush. Mid-debounce is covered by isDirty + timer.
+  // Sync committed value from server when the field is idle. Mid-keystroke is
+  // gated by isDirtyRef. Mid-write (debounce already fired, onSave unresolved)
+  // queues the value and applies it in .finally once the write settles.
   React.useEffect(() => {
-    if (isDirtyRef.current || timerRef.current !== null) {
+    if (isDirtyRef.current) {
       return
     }
+    if (savesInFlightRef.current > 0) {
+      queuedCommittedRef.current = { value: committedValue }
+      return
+    }
+    queuedCommittedRef.current = null
     setDraft(committedValue)
     draftRef.current = committedValue
   }, [committedValue])
@@ -76,6 +95,7 @@ export function useDebouncedSave<T>(
   React.useEffect(() => {
     if (identityRef.current === identity) return
     identityRef.current = identity
+    queuedCommittedRef.current = null
 
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current)
@@ -89,13 +109,13 @@ export function useDebouncedSave<T>(
         .finally(() => {
           savesInFlightRef.current--
           endPendingWrite()
+          applyQueuedCommitted()
         })
     }
 
     setDraft(committedValueRef.current)
     draftRef.current = committedValueRef.current
-  }, [identity])
-   
+  }, [identity, applyQueuedCommitted])
 
   // Flush pending save on unmount (sheet close).
   // The cleanup intentionally reads the refs at the time the component is
@@ -126,6 +146,8 @@ export function useDebouncedSave<T>(
     (value: T) => {
       setDraft(value)
       draftRef.current = value
+      // A new keystroke supersedes any queued peer resync.
+      queuedCommittedRef.current = null
       // Bind the pending save to the record currently being edited so that a
       // later flush (debounce fire or identity switch) targets THIS record.
       scheduledOnSaveRef.current = onSaveRef.current
@@ -148,10 +170,11 @@ export function useDebouncedSave<T>(
           .finally(() => {
             savesInFlightRef.current--
             endPendingWrite()
+            applyQueuedCommitted()
           })
       }, debounceMs)
     },
-    [debounceMs]
+    [debounceMs, applyQueuedCommitted]
   )
 
   return { value: draft, onChange }

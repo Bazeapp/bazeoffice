@@ -31,6 +31,7 @@ export function useAssunzioniBoardView({
     updateCard,
     deleteRapporto,
     detailRefreshTick,
+    setOpenDetailIdsForRealtime,
   } = useAssunzioniBoard()
 
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
@@ -44,6 +45,23 @@ export function useAssunzioniBoardView({
   React.useEffect(() => {
     selectedCardRef.current = selectedCard
   }, [selectedCard])
+
+  React.useEffect(() => {
+    // Assunzioni cards are keyed by rapporto id.
+    setOpenDetailIdsForRealtime([
+      selectedCardId,
+      selectedCard?.id,
+      selectedCard?.rapporto?.id,
+      selectedCard?.famigliaId,
+      selectedCard?.famiglia?.id,
+      selectedCard?.lavoratore?.id,
+    ])
+    return () => setOpenDetailIdsForRealtime([])
+  }, [
+    selectedCardId,
+    selectedCard,
+    setOpenDetailIdsForRealtime,
+  ])
 
   const filteredColumns = React.useMemo(
     () => filterAssunzioniBoardColumns(columns, searchValue),

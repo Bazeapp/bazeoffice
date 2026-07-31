@@ -4,11 +4,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { useCreateMutation, useMoveMutation } from "@/hooks/use-board-mutations"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+import type { RealtimeRowEvent } from "@/hooks/use-realtime-rows"
 import {
   applyOptimisticCardMove,
   createBoardCardGetter,
   updateCardInColumns,
 } from "@/lib/board-column-utils"
+import { eventMatchesOpenDetailIds } from "@/lib/realtime-open-detail"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 
 import {
@@ -44,6 +46,10 @@ type UseVariazioniBoardState = {
    * (cedolini Pattern B twin).
    */
   detailRefreshTick: number
+  /** Register ids for the open sheet so unrelated CDC events skip detail reload. */
+  setOpenDetailIdsForRealtime: (
+    ids: ReadonlyArray<string | null | undefined>,
+  ) => void
 }
 
 export function useVariazioniBoard(): UseVariazioniBoardState {
@@ -145,10 +151,27 @@ export function useVariazioniBoard(): UseVariazioniBoardState {
     setDetailRefreshTick((current) => current + 1)
   }, [])
 
+  const openDetailIdsRef = React.useRef<ReadonlySet<string>>(new Set())
+  const setOpenDetailIdsForRealtime = React.useCallback(
+    (ids: ReadonlyArray<string | null | undefined>) => {
+      openDetailIdsRef.current = new Set(
+        ids.filter((id): id is string => typeof id === "string" && id.length > 0),
+      )
+    },
+    [],
+  )
+
+  const shouldReloadOpenDetail = React.useCallback(
+    (event: RealtimeRowEvent) =>
+      eventMatchesOpenDetailIds(event, openDetailIdsRef.current),
+    [],
+  )
+
   useRealtimeBoardSync({
     tables: [...VARIAZIONI_REALTIME_TABLES],
     reload: invalidateBoard,
     reloadOpenDetail: bumpDetailRefreshTick,
+    shouldReloadOpenDetail,
   })
 
   const error =
@@ -169,5 +192,6 @@ export function useVariazioniBoard(): UseVariazioniBoardState {
     moveCard,
     updateCard,
     detailRefreshTick,
+    setOpenDetailIdsForRealtime,
   }
 }

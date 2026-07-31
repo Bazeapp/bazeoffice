@@ -111,4 +111,50 @@ describe("useRapportoDetailPanel — prop content sync", () => {
 
     expect(result.current.form.getValues("codice_datore_webcolf")).toBe("222")
   })
+
+  it("keeps a dirty field when the same-id rapporto prop changes", () => {
+    const { result, rerender } = renderHook(
+      ({ rapporto }: { rapporto: RapportoLavorativoRecord }) =>
+        useRapportoDetailPanel({
+          rapporto,
+          famiglia: null,
+          lavoratore: null,
+          processi: [],
+          contributi: [],
+          mesi: [],
+          mesiCalendario: [],
+          pagamenti: [],
+          transazioni: [],
+          presenze: [],
+          variazioni: [],
+          chiusure: [],
+          loadingRelated: false,
+          lookupColorsByDomain: new Map(),
+        }),
+      {
+        initialProps: {
+          rapporto: makeRapporto({ codice_datore_webcolf: 111 }),
+        },
+      },
+    )
+
+    act(() => {
+      result.current.form.setValue("codice_datore_webcolf", "draft-local", {
+        shouldDirty: true,
+      })
+    })
+    expect(result.current.form.getValues("codice_datore_webcolf")).toBe(
+      "draft-local",
+    )
+
+    act(() => {
+      rerender({
+        rapporto: makeRapporto({ codice_datore_webcolf: 222 }),
+      })
+    })
+
+    expect(result.current.form.getValues("codice_datore_webcolf")).toBe(
+      "draft-local",
+    )
+  })
 })

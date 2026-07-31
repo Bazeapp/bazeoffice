@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query"
 
 import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+import type { RealtimeRowEvent } from "@/hooks/use-realtime-rows"
+import { shouldReloadBoardForVisibleRow } from "@/lib/realtime-open-detail"
 import { normalizeLookupColors, normalizeLookupOptions } from "@/lib/lookup-utils"
 import { fetchAssunzioniNamesByRapportoIds } from "@/modules/gestione-contrattuale/queries"
 import { fetchLookupValues } from "@/lib/lookup-values"
@@ -143,9 +145,32 @@ export function useProveColloquiData(calendarRange?: CalendarDateRange) {
   )
   const reload = invalidateBoard
 
+  const visibleRapportoIdsRef = React.useRef<ReadonlySet<string>>(new Set())
+  React.useEffect(() => {
+    const ids = new Set<string>()
+    for (const card of data?.provaCards ?? []) {
+      if (card.id) ids.add(card.id)
+      if (card.rapporto?.id) ids.add(card.rapporto.id)
+    }
+    for (const event of data?.calendarEvents ?? []) {
+      if (event.type === "prova" && event.card?.id) {
+        ids.add(event.card.id)
+      }
+    }
+    visibleRapportoIdsRef.current = ids
+  }, [data?.provaCards, data?.calendarEvents])
+
+  const shouldReloadBoard = React.useCallback((event: RealtimeRowEvent) => {
+    return shouldReloadBoardForVisibleRow(event, {
+      table: "rapporti_lavorativi",
+      visibleIds: visibleRapportoIdsRef.current,
+    })
+  }, [])
+
   useRealtimeBoardSync({
     tables: PROVE_COLLOQUI_REALTIME_TABLES,
     reload: invalidateBoard,
+    shouldReloadBoard,
   })
 
   const patchRapporto = React.useCallback(async (rapportoId: string, patch: Partial<RapportoLavorativoRecord>) => {

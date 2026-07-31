@@ -27,6 +27,7 @@ export function useChiusureBoardView() {
     patchChiusura,
     deleteChiusura,
     detailRefreshTick,
+    setOpenDetailIdsForRealtime,
   } = useChiusureBoard()
 
   const [draggingRecordId, setDraggingRecordId] = React.useState<string | null>(null)
@@ -42,6 +43,17 @@ export function useChiusureBoardView() {
   React.useEffect(() => {
     selectedFreshCardRef.current = selectedFreshCard
   }, [selectedFreshCard])
+
+  React.useEffect(() => {
+    setOpenDetailIdsForRealtime([
+      selectedCardId,
+      selectedFreshCard?.id,
+      selectedFreshCard?.rapporto?.id,
+      selectedFreshCard?.rapporto?.famiglia_id,
+      selectedFreshCard?.rapporto?.lavoratore_id,
+    ])
+    return () => setOpenDetailIdsForRealtime([])
+  }, [selectedCardId, selectedFreshCard, setOpenDetailIdsForRealtime])
 
   React.useEffect(() => {
     tipoMetadataRef.current = tipoMetadata

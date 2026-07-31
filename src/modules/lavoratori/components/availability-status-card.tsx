@@ -89,6 +89,8 @@ export function AvailabilityStatusCard({
   const dataRitornoValue = typeof dataRitorno === "string" ? dataRitorno : ""
   const isReturnDateEnabled =
     normalizeLookupComparableToken(disponibilitaValue) === "non disponibile"
+  const needsReturnDate =
+    isEditing && isReturnDateEnabled && !dataRitornoValue.trim()
 
   return (
     <DetailSectionBlock
@@ -145,14 +147,28 @@ export function AvailabilityStatusCard({
         <div className={isEditing && !isReturnDateEnabled ? "space-y-1 opacity-50" : "space-y-1"}>
           <FieldLabel>
             Ritorno disponibilita
+            {needsReturnDate ? (
+              <span className="text-destructive ml-1 font-normal">*</span>
+            ) : null}
           </FieldLabel>
           {isEditing ? (
-            <div className="max-w-xs">
+            <div className="max-w-xs space-y-1">
               <FieldInput
                 name="data_ritorno_disponibilita"
                 type="date"
                 disabled={!isReturnDateEnabled}
+                aria-required={needsReturnDate || undefined}
+                data-testid="disponibilita-input-data-ritorno"
               />
+              {needsReturnDate ? (
+                <p
+                  className="text-muted-foreground text-xs"
+                  data-testid="disponibilita-hint-data-ritorno"
+                >
+                  Obbligatoria per salvare &quot;Non disponibile&quot;. Senza data
+                  lo stato resta in bozza e si perde al cambio lavoratore.
+                </p>
+              ) : null}
             </div>
           ) : (
             <p className="text-sm text-foreground">{dataRitornoValue || "-"}</p>

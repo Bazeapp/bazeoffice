@@ -3,7 +3,7 @@
  * is clean. A key↔label mismatch used to leave the field dirty forever so
  * keepDirtyValues blocked realtime resync.
  */
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { Form } from "@/components/ui/form"
@@ -15,6 +15,8 @@ import type { LavoratoreRecord } from "../../types/lavoratore"
 vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }))
+
+import { toast } from "sonner"
 
 const DISPONIBILITA_OPTIONS = [
   { label: "Disponibile", value: "disponibile" },
@@ -97,5 +99,62 @@ describe("useGateFieldsForm — disponibilita realtime resync", () => {
         "Non disponibile",
       )
     })
+  })
+
+  it("shows a return-date hint while Non disponibile is deferred without a date", async () => {
+    render(
+      <Harness row={makeWorkerRow({ id: "w1", disponibilita: "disponibile" })} />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId("disponibilita-value")).toHaveTextContent(
+        "Disponibile",
+      )
+    })
+
+    // Open the select and choose Non disponibile (RHF Select via trigger).
+    fireEvent.click(screen.getByRole("combobox"))
+    fireEvent.click(await screen.findByRole("option", { name: "Non disponibile" }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId("disponibilita-hint-data-ritorno")).toBeInTheDocument()
+    })
+    await waitFor(() => {
+      expect(toast.warning).toHaveBeenCalled()
+    })
+  })
+
+  it("discards a deferred Non disponibile selection on worker switch", async () => {
+    const { rerender } = render(
+      <Harness row={makeWorkerRow({ id: "w1", disponibilita: "disponibile" })} />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId("disponibilita-value")).toHaveTextContent(
+        "Disponibile",
+      )
+    })
+
+    fireEvent.click(screen.getByRole("combobox"))
+    fireEvent.click(await screen.findByRole("option", { name: "Non disponibile" }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId("disponibilita-value")).toHaveTextContent(
+        "Non disponibile",
+      )
+    })
+
+    rerender(
+      <Harness row={makeWorkerRow({ id: "w2", disponibilita: "disponibile" })} />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId("disponibilita-value")).toHaveTextContent(
+        "Disponibile",
+      )
+    })
+    expect(
+      screen.queryByTestId("disponibilita-hint-data-ritorno"),
+    ).not.toBeInTheDocument()
   })
 })

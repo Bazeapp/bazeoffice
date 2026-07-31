@@ -1,4 +1,5 @@
 import type * as React from "react";
+import { toast } from "sonner";
 
 import type { AutoSaveOnSaveResult } from "@/hooks/use-auto-save-form-fields";
 import {
@@ -373,7 +374,9 @@ function isNonDisponibileStatus(value: string): boolean {
 
 export function createGateFieldsOnSave(
   deps: GateFieldsSaveDeps,
-): (patch: Partial<GateFieldsFormDraft>) => Promise<AutoSaveOnSaveResult> {
+): (
+  patch: Partial<GateFieldsFormDraft>,
+) => Promise<AutoSaveOnSaveResult<GateFieldsFormDraft>> {
   const {
     setAvailabilityDraft,
     setAddressDraft,
@@ -392,8 +395,8 @@ export function createGateFieldsOnSave(
   } = deps;
 
   return async (patch) => {
-    const skippedKeys: string[] = [];
-    const alsoCommitKeys: string[] = [];
+    const skippedKeys: Array<keyof GateFieldsFormDraft & string> = [];
+    const alsoCommitKeys: Array<keyof GateFieldsFormDraft & string> = [];
 
     for (const [key, rawValue] of Object.entries(patch)) {
       if (
@@ -519,6 +522,9 @@ export function createGateFieldsOnSave(
             ).trim();
             if (!returnDate) {
               skippedKeys.push("disponibilita");
+              toast.warning(
+                "Imposta la data di ritorno per salvare lo stato Non disponibile",
+              );
               break;
             }
             // Same flush as the date branch when both keys land together.

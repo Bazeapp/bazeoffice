@@ -36,24 +36,26 @@ import { toast } from "sonner";
  */
 
 /** Optional result from `onSave` — skip committing keys that were intentionally not persisted. */
-export type AutoSaveOnSaveResult = void | {
+export type AutoSaveOnSaveResult<T extends FieldValues = FieldValues> = void | {
   /**
    * Keys that must stay dirty / uncommitted (e.g. date half of a date+time
    * slot waiting for its sibling). Autosave must not clear dirty or advance
    * `committedRef` for these, or a later defaults resync will wipe them.
    */
-  skippedKeys?: string[];
+  skippedKeys?: Array<Path<T>>;
   /**
    * Extra keys to mark committed after this save even if they were not in the
    * patch (paired composites flushed together, e.g. disponibilita + return date).
    */
-  alsoCommitKeys?: string[];
+  alsoCommitKeys?: Array<Path<T>>;
 };
 
 type UseAutoSaveFormFieldsOptions<T extends FieldValues> = {
   form: UseFormReturn<T>;
   /** Persiste la patch dei soli campi cambiati. Deve restituire una Promise. */
-  onSave: (patch: Partial<T>) => Promise<AutoSaveOnSaveResult> | AutoSaveOnSaveResult;
+  onSave: (
+    patch: Partial<T>,
+  ) => Promise<AutoSaveOnSaveResult<T>> | AutoSaveOnSaveResult<T>;
   /**
    * Se ritorna true il save viene rimandato (riprovato al prossimo tick).
    * Usato per la finestra echo realtime / "utente sta editando".
@@ -109,6 +111,10 @@ export function useAutoSaveFormFields<T extends FieldValues>({
   // Ultimo set di valori "salvati" (per dirty-tracking) e patch in attesa.
   const committedRef = React.useRef<Record<string, unknown>>({});
   const pendingRef = React.useRef<Record<string, unknown>>({});
+  // Keys deferred across flushes (e.g. "Non disponibile" waiting on a return
+  // date). Must survive a later successful save of a *different* field, or
+  // keepDirtyValues loses the deferred draft on the next realtime resync.
+  const skippedRef = React.useRef<Set<string>>(new Set());
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const initializedRef = React.useRef(false);
   const prevResetKeyRef = React.useRef(resetKey);
@@ -125,6 +131,7 @@ export function useAutoSaveFormFields<T extends FieldValues>({
       timerRef.current = null;
     }
     pendingRef.current = {};
+    skippedRef.current = new Set();
     committedRef.current = { ...form.getValues() };
   }, [form, resetKey]);
 
@@ -143,6 +150,7 @@ export function useAutoSaveFormFields<T extends FieldValues>({
       timerRef.current = null;
     }
     pendingRef.current = {};
+    skippedRef.current = new Set();
     committedRef.current = { ...form.getValues() };
   }, [form, resetKey]);
 
@@ -166,29 +174,37 @@ export function useAutoSaveFormFields<T extends FieldValues>({
 
       void Promise.resolve(onSaveRef.current(patch as Partial<T>))
         .then((result) => {
-          const skipped = new Set(
-            result &&
+          const skippedThisFlush = new Set(
+            (
+              result &&
               typeof result === "object" &&
               Array.isArray(result.skippedKeys)
-              ? result.skippedKeys.filter((key) => typeof key === "string")
-              : [],
+                ? result.skippedKeys
+                : []
+            ).map((key) => String(key)),
           );
-          const alsoCommit =
+          const alsoCommit = (
             result &&
             typeof result === "object" &&
             Array.isArray(result.alsoCommitKeys)
-              ? result.alsoCommitKeys.filter((key) => typeof key === "string")
-              : [];
-          const committedKeys = keys.filter((key) => !skipped.has(key));
+              ? result.alsoCommitKeys
+              : []
+          ).map((key) => String(key));
+          const committedKeys = keys.filter((key) => !skippedThisFlush.has(key));
           for (const key of committedKeys) {
             committedRef.current[key] = patch[key];
+            skippedRef.current.delete(key);
           }
           const currentValues = form.getValues() as Record<string, unknown>;
           const alsoCommitted: string[] = [];
           for (const key of alsoCommit) {
-            if (skipped.has(key) || committedKeys.includes(key)) continue;
+            if (skippedThisFlush.has(key) || committedKeys.includes(key)) continue;
             committedRef.current[key] = currentValues[key];
             alsoCommitted.push(key);
+            skippedRef.current.delete(key);
+          }
+          for (const key of skippedThisFlush) {
+            skippedRef.current.add(key);
           }
           // Incomplete-only flush (e.g. date half of a slot): do NOT reset —
           // reset({ keepValues }) clears dirtyFlags, and the next defaults
@@ -200,18 +216,19 @@ export function useAutoSaveFormFields<T extends FieldValues>({
           // realtime resyncs silently skip them for the rest of the session.
           // keepValues: update defaultValues without changing what's displayed.
           // Still-pending / skipped keys keep the last committed default so
-          // they stay dirty after reset.
+          // they stay dirty after reset — including keys skipped on an earlier
+          // flush that are still waiting on a sibling.
           const nextDefaults: Record<string, unknown> = { ...currentValues };
           for (const key of Object.keys(pendingRef.current)) {
             nextDefaults[key] = committedRef.current[key];
           }
-          for (const key of skipped) {
+          for (const key of skippedRef.current) {
             nextDefaults[key] = committedRef.current[key];
           }
           form.reset(nextDefaults as T, { keepValues: true });
           // reset clears dirtyFlags; re-mark skipped keys so peer resync cannot
           // clobber incomplete composites still waiting on a sibling field.
-          for (const key of skipped) {
+          for (const key of skippedRef.current) {
             const path = key as Path<T>;
             form.setValue(
               path,
@@ -249,6 +266,13 @@ export function useAutoSaveFormFields<T extends FieldValues>({
             nextCommitted[key] = committedRef.current[key];
           }
         }
+        // Keep deferred (skipped) keys at their last committed baseline so a
+        // reset/setValue echo cannot treat an unpersisted draft as committed.
+        for (const key of skippedRef.current) {
+          if (Object.prototype.hasOwnProperty.call(committedRef.current, key)) {
+            nextCommitted[key] = committedRef.current[key];
+          }
+        }
         committedRef.current = nextCommitted;
         if (pendingKeys.length > 0) {
           schedule();
@@ -259,6 +283,7 @@ export function useAutoSaveFormFields<T extends FieldValues>({
       // Dirty-tracking: ignora se invariato rispetto all'ultimo committato.
       if (valuesEqual(nextValue, committedRef.current[name])) {
         delete pendingRef.current[name];
+        skippedRef.current.delete(name);
         return;
       }
       pendingRef.current[name] = nextValue;

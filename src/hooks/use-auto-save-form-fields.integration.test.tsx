@@ -132,12 +132,16 @@ describe("useAutoSaveFormFields", () => {
   it("skippedKeys restano dirty: un reset defaults non li cancella", async () => {
     // Mirrors scheda-colloquio slots: date half alone cannot persist yet.
     // If autosave commits it anyway, the next defaults resync wipes it.
-    const onSave = vi.fn(async (patch: Partial<FormValues>) => {
-      if (patch.nome !== undefined) {
-        return { skippedKeys: ["nome"] };
-      }
-      return undefined;
-    });
+    const onSave = vi.fn(
+      async (
+        patch: Partial<FormValues>,
+      ): Promise<{ skippedKeys: Array<keyof FormValues> } | undefined> => {
+        if (patch.nome !== undefined) {
+          return { skippedKeys: ["nome"] };
+        }
+        return undefined;
+      },
+    );
 
     function ResyncHarness({ defaults }: { defaults: FormValues }) {
       const form = useAutoSaveForm<FormValues>({
@@ -174,6 +178,131 @@ describe("useAutoSaveFormFields", () => {
     );
     expect((screen.getByLabelText("email") as HTMLInputElement).value).toBe(
       "peer@x.it",
+    );
+  });
+
+  it("skippedKeys survive a later successful flush of a different field", async () => {
+    const onSave = vi.fn(
+      async (
+        patch: Partial<FormValues>,
+      ): Promise<{ skippedKeys: Array<keyof FormValues> } | undefined> => {
+        if (patch.nome !== undefined) {
+          return { skippedKeys: ["nome"] };
+        }
+        return undefined;
+      },
+    );
+
+    function ResyncHarness({ defaults }: { defaults: FormValues }) {
+      const form = useAutoSaveForm<FormValues>({
+        defaults,
+        onSave,
+        debounceMs: 10,
+      });
+      return (
+        <form>
+          <input aria-label="nome" {...form.register("nome")} />
+          <input aria-label="email" {...form.register("email")} />
+        </form>
+      );
+    }
+
+    const { rerender } = render(
+      <ResyncHarness defaults={{ nome: "", email: "" }} />,
+    );
+
+    fireEvent.change(screen.getByLabelText("nome"), {
+      target: { value: "bozza-deferred" },
+    });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith({ nome: "bozza-deferred" });
+    });
+
+    fireEvent.change(screen.getByLabelText("email"), {
+      target: { value: "saved@x.it" },
+    });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith({ email: "saved@x.it" });
+    });
+
+    // Peer resync after the unrelated field saved: deferred nome must stay.
+    rerender(
+      <ResyncHarness defaults={{ nome: "server-nome", email: "saved@x.it" }} />,
+    );
+
+    expect((screen.getByLabelText("nome") as HTMLInputElement).value).toBe(
+      "bozza-deferred",
+    );
+    expect((screen.getByLabelText("email") as HTMLInputElement).value).toBe(
+      "saved@x.it",
+    );
+  });
+
+  it("alsoCommitKeys clear dirty for paired keys not in the patch", async () => {
+    type SaveResult =
+      | { skippedKeys: Array<keyof FormValues> }
+      | { alsoCommitKeys: Array<keyof FormValues> }
+      | undefined;
+
+    const onSave = vi.fn(
+      async (patch: Partial<FormValues>): Promise<SaveResult> => {
+        if (patch.nome !== undefined && patch.email === undefined) {
+          return { skippedKeys: ["nome"] };
+        }
+        if (patch.email !== undefined) {
+          return { alsoCommitKeys: ["nome"] };
+        }
+        return undefined;
+      },
+    );
+
+    function ResyncHarness({ defaults }: { defaults: FormValues }) {
+      const form = useAutoSaveForm<FormValues>({
+        defaults,
+        onSave,
+        debounceMs: 10,
+      });
+      return (
+        <form>
+          <input aria-label="nome" {...form.register("nome")} />
+          <input aria-label="email" {...form.register("email")} />
+          <output data-testid="nome-dirty">
+            {form.getFieldState("nome").isDirty ? "dirty" : "clean"}
+          </output>
+        </form>
+      );
+    }
+
+    const { rerender } = render(
+      <ResyncHarness defaults={{ nome: "local-nome", email: "" }} />,
+    );
+
+    // Make nome dirty without persisting it, then save email which also-commits nome.
+    fireEvent.change(screen.getByLabelText("nome"), {
+      target: { value: "paired-nome" },
+    });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith({ nome: "paired-nome" });
+    });
+
+    fireEvent.change(screen.getByLabelText("email"), {
+      target: { value: "paired@x.it" },
+    });
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith({ email: "paired@x.it" });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("nome-dirty")).toHaveTextContent("clean");
+    });
+
+    rerender(
+      <ResyncHarness
+        defaults={{ nome: "peer-nome", email: "paired@x.it" }}
+      />,
+    );
+    expect((screen.getByLabelText("nome") as HTMLInputElement).value).toBe(
+      "peer-nome",
     );
   });
 });

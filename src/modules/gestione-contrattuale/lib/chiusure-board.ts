@@ -154,7 +154,7 @@ export function applyChiusuraPatchInColumns(
   columns: ChiusureBoardColumnData[],
   recordId: string,
   patch: Partial<ChiusuraContrattoRecord>,
-  tipoMetadata: ChiusuraTipoMetadata = EMPTY_CHIUSURA_TIPO_METADATA,
+  tipoMetadata: ChiusuraTipoMetadata,
 ): ChiusureBoardColumnData[] {
   const tipoFieldsChanged =
     "tipo_licenziamento" in patch || "tipo_decesso" in patch

@@ -33,6 +33,7 @@ vi.mock("../use-chiusure-board", () => ({
     patchChiusura: vi.fn(),
     deleteChiusura: vi.fn(),
     detailRefreshTick: boardState.detailRefreshTick,
+    setOpenDetailIdsForRealtime: vi.fn(),
   }),
 }))
 

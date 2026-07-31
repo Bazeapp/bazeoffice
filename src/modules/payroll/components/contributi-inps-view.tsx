@@ -29,6 +29,7 @@ export function ContributiInpsView() {
     moveCard,
     patchCard,
     detailRefreshTick,
+    setOpenDetailIdsForRealtime,
   } = useContributiInpsBoard(period.year, period.quarter)
   const { columns, stats, metricGroups } = useContributiInpsFilters({
     cards,
@@ -39,6 +40,21 @@ export function ContributiInpsView() {
   })
   const selection = useContributiInpsSelection({ cards, detailRefreshTick })
   const { openCard } = selection
+
+  React.useEffect(() => {
+    setOpenDetailIdsForRealtime([
+      selection.selectedCardId,
+      selection.selectedCard?.id,
+      selection.selectedCard?.rapporto?.id,
+      selection.selectedCard?.rapporto?.famiglia_id,
+      selection.selectedCard?.rapporto?.lavoratore_id,
+    ])
+    return () => setOpenDetailIdsForRealtime([])
+  }, [
+    selection.selectedCardId,
+    selection.selectedCard,
+    setOpenDetailIdsForRealtime,
+  ])
 
   useBoardEntityDeepLink({
     entityType: "contributi",
