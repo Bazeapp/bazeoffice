@@ -8,6 +8,7 @@ import {
   expectVisibleRicercaFixtureCount,
   gotoRicerca,
   processIdsWithRecruiter,
+  reloadRicercaKeepingFilter,
   setRecruiterFilter,
   setSearchQuery,
 } from "../support/ricerca"
@@ -58,6 +59,29 @@ test.describe("ricerca: toolbar filters", () => {
       ).toBeVisible({ timeout: 30_000 })
       await expect(page.locator(selectors.ricerca.filterRecruiter)).toContainText(
         E2E_RICERCA.operatori.recruiter.displayName,
+        { timeout: 30_000 },
+      )
+      await page.close()
+    })
+
+    test("persists recruiter filter across board reloads", async ({ browser }) => {
+      const page = await browser.newPage()
+      await page.addInitScript((storageKey: string) => {
+        window.localStorage.removeItem(storageKey)
+      }, "bazeoffice.ricercaBoard.recruiterFilter.v1")
+
+      await page.goto(selectors.routes.ricerca)
+      await expect(page.locator(selectors.ricerca.filterRecruiter)).toBeVisible({
+        timeout: 30_000,
+      })
+      await setRecruiterFilter(page, "all")
+      await expect(page.locator(selectors.ricerca.filterRecruiter)).toContainText(
+        "Tutti i recruiter",
+      )
+
+      await reloadRicercaKeepingFilter(page)
+      await expect(page.locator(selectors.ricerca.filterRecruiter)).toContainText(
+        "Tutti i recruiter",
         { timeout: 30_000 },
       )
       await page.close()

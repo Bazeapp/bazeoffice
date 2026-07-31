@@ -51,7 +51,7 @@ function buildRecruitersById(
 
 export function useRicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   const { loading, error, columns, moveCard, loadDeferredColumn } = useRicercaBoard()
-  const { session } = useAuthSession()
+  const { session, loading: authLoading } = useAuthSession()
   const authUserId = session?.user.id
   const { options: operatorOptions } = useOperatoriOptions({
     role: "recruiter",
@@ -71,11 +71,17 @@ export function useRicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [filterBootstrap] = React.useState(() => {
+    const stored = readStoredRecruiterFilter()
+    return {
+      value: stored ?? RICERCA_BOARD_RECRUITER_FILTER_ALL,
+      initialized: stored !== null,
+    }
+  })
   const [selectedOperatorId, setSelectedOperatorIdState] = React.useState(
-    () => readStoredRecruiterFilter() ?? RICERCA_BOARD_RECRUITER_FILTER_ALL,
+    filterBootstrap.value,
   )
-  const [hasStoredFilter] = React.useState(() => readStoredRecruiterFilter() !== null)
-  const filterInitializedRef = React.useRef(hasStoredFilter)
+  const filterInitializedRef = React.useRef(filterBootstrap.initialized)
 
   const setSelectedOperatorId = React.useCallback((value: string) => {
     setSelectedOperatorIdState(value)
@@ -100,15 +106,21 @@ export function useRicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
 
   React.useEffect(() => {
     if (operatorOptions.length === 0) return
+    // Wait for auth + operator-id lookup before any resolve that may fall back
+    // to the logged-in recruiter (first visit or stale persisted id).
+    if (authLoading) return
+    if (
+      authUserId &&
+      !currentOperatorIdQuery.isFetched &&
+      !currentOperatorIdQuery.isError
+    ) {
+      return
+    }
 
     const selectableOperatorIds = operatorOptions.map((operator) => operator.id)
     const currentOperatorId = currentOperatorIdQuery.data ?? null
-    const currentOperatorReady =
-      !authUserId || currentOperatorIdQuery.isFetched || currentOperatorIdQuery.isError
 
     if (!filterInitializedRef.current) {
-      if (!currentOperatorReady) return
-
       const resolved = resolveRecruiterFilter({
         stored: null,
         currentOperatorId,
@@ -127,6 +139,7 @@ export function useRicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
       setSelectedOperatorId(resolved)
     }
   }, [
+    authLoading,
     authUserId,
     currentOperatorIdQuery.data,
     currentOperatorIdQuery.isError,
