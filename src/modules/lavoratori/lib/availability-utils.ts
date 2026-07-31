@@ -192,40 +192,21 @@ export function buildAvailabilityMatrixDraft(
   return nextDraft
 }
 
-export function buildAvailabilityPatchFromMatrix(
-  matrix: AvailabilityMatrixDraft,
-  currentPayload: AvailabilityPayload | null
-) {
-  const weekly: AvailabilityWeekly = {
-    mon: [],
-    tue: [],
-    wed: [],
-    thu: [],
-    fri: [],
-    sat: [],
-    sun: [],
-  }
+/**
+ * Persists only the day/band boolean fields. The chart (`availability_final_json`)
+ * is owned by the `worker-availability` edge function (matrix ∪ vincoli − blocks)
+ * and must not be invented client-side.
+ */
+export function buildAvailabilityPatchFromMatrix(matrix: AvailabilityMatrixDraft) {
   const patch: Record<string, unknown> = {}
 
   for (const dayConfig of AVAILABILITY_EDIT_DAYS) {
     for (const bandConfig of AVAILABILITY_EDIT_BANDS) {
       const key = getAvailabilityMatrixKey(dayConfig.field, bandConfig.field)
-      const checked = matrix[key] === true
-      patch[getAvailabilityBooleanField(dayConfig.field, bandConfig.field)] = checked
-      if (checked) {
-        weekly[dayConfig.day].push({
-          from: bandConfig.from,
-          to: bandConfig.to,
-        })
-      }
+      patch[getAvailabilityBooleanField(dayConfig.field, bandConfig.field)] =
+        matrix[key] === true
     }
   }
-
-  patch.availability_final_json = JSON.stringify({
-    computed_at: new Date().toISOString(),
-    weekly,
-    sources: currentPayload?.sources ?? [],
-  } satisfies AvailabilityPayload)
 
   return patch
 }

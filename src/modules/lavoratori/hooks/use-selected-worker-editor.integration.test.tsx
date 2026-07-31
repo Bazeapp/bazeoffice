@@ -35,7 +35,37 @@ vi.mock("@/lib/record-crud", () => ({
 }))
 
 vi.mock("@/lib/availability-functions", () => ({
-  invokeWorkerAvailability: vi.fn().mockResolvedValue(undefined),
+  invokeWorkerAvailability: vi.fn().mockResolvedValue({
+    results: [
+      {
+        worker_id: "worker-1",
+        result: {
+          availability_final_json: {
+            computed_at: "2026-07-31T12:00:00.000Z",
+            weekly: { mon: [{ from: "09:30", to: "14:00" }] },
+          },
+        },
+      },
+    ],
+  }),
+  invokeAndReadWorkerAvailabilityFinalJson: vi.fn().mockResolvedValue(
+    JSON.stringify({
+      computed_at: "2026-07-31T12:00:00.000Z",
+      weekly: { mon: [{ from: "09:30", to: "14:00" }] },
+    })
+  ),
+  readComputedAvailabilityFinalJson: vi.fn(),
+}))
+
+vi.mock("../queries/fetch-lavoratore-scheda", () => ({
+  fetchLavoratoreScheda: vi.fn().mockResolvedValue({
+    worker: null,
+    indirizzi: [],
+    documenti: [],
+    esperienze: [],
+    referenze: [],
+    relatedSearches: [],
+  }),
 }))
 
 vi.mock("@/lib/stripe-connect-api", () => ({
@@ -44,7 +74,7 @@ vi.mock("@/lib/stripe-connect-api", () => ({
 
 import { toast } from "sonner"
 import { createRecord, deleteRecord, updateRecord } from "@/lib/record-crud"
-import { invokeWorkerAvailability } from "@/lib/availability-functions"
+import { invokeAndReadWorkerAvailabilityFinalJson } from "@/lib/availability-functions"
 import { createStripeConnectAccount } from "@/lib/stripe-connect-api"
 import { useSelectedWorkerEditor } from "../hooks/use-selected-worker-editor"
 
@@ -597,7 +627,7 @@ describe("useSelectedWorkerEditor — U6 write paths (errors + orchestration)", 
 
   it("B16: saveWorkerAvailability persists matrix boolean fields in the update patch", async () => {
     vi.mocked(updateRecord).mockClear()
-    vi.mocked(invokeWorkerAvailability).mockClear()
+    vi.mocked(invokeAndReadWorkerAvailabilityFinalJson).mockClear()
     vi.mocked(updateRecord).mockResolvedValueOnce({ row: makeRow() } as never)
 
     const { result } = render()
@@ -618,22 +648,27 @@ describe("useSelectedWorkerEditor — U6 write paths (errors + orchestration)", 
       await result.current.saveWorkerAvailability().catch(() => {})
     })
 
-    expect(updateRecord).toHaveBeenCalledWith(
-      "lavoratori",
-      "worker-1",
+    const patch = vi.mocked(updateRecord).mock.calls[0]?.[2]
+    expect(patch).toEqual(
       expect.objectContaining({
         disponibilita_lunedi_mattina: true,
         disponibilita_martedi_pomeriggio: true,
         disponibilita_lunedi_pomeriggio: false,
       })
     )
-    expect(invokeWorkerAvailability).toHaveBeenCalledWith("worker-1")
+    expect(patch).not.toHaveProperty("availability_final_json")
+    expect(invokeAndReadWorkerAvailabilityFinalJson).toHaveBeenCalledWith("worker-1")
   })
 
-  it("B16: saveWorkerAvailability success → updateRecord, applyUpdatedWorkerRow, invokeWorkerAvailability, toast.success", async () => {
+  it("B16: saveWorkerAvailability success → updateRecord, apply recomputed final JSON, toast.success", async () => {
     vi.mocked(updateRecord).mockClear()
-    vi.mocked(invokeWorkerAvailability).mockClear()
+    vi.mocked(invokeAndReadWorkerAvailabilityFinalJson).mockClear()
     vi.mocked(toast.success).mockClear()
+    const computedFinal = JSON.stringify({
+      computed_at: "2026-07-31T12:00:00.000Z",
+      weekly: { mon: [{ from: "09:30", to: "14:00" }] },
+    })
+    vi.mocked(invokeAndReadWorkerAvailabilityFinalJson).mockResolvedValueOnce(computedFinal)
     vi.mocked(updateRecord).mockResolvedValueOnce({ row: makeRow() } as never)
     const applyUpdatedWorkerRow = vi.fn()
 
@@ -644,14 +679,15 @@ describe("useSelectedWorkerEditor — U6 write paths (errors + orchestration)", 
     })
 
     expect(updateRecord).toHaveBeenCalledWith("lavoratori", "worker-1", expect.any(Object))
-    expect(applyUpdatedWorkerRow).toHaveBeenCalled()
-    // The side-effect edge-fn call is load-bearing — assert it explicitly.
-    expect(invokeWorkerAvailability).toHaveBeenCalledWith("worker-1")
+    expect(invokeAndReadWorkerAvailabilityFinalJson).toHaveBeenCalledWith("worker-1")
+    expect(applyUpdatedWorkerRow).toHaveBeenCalledWith(
+      expect.objectContaining({ availability_final_json: computedFinal })
+    )
     expect(toast.success).toHaveBeenCalledWith("Disponibilita lavoratore salvata")
   })
 
-  it("B16: saveWorkerAvailability failure → toast.error, no invokeWorkerAvailability, re-throws", async () => {
-    vi.mocked(invokeWorkerAvailability).mockClear()
+  it("B16: saveWorkerAvailability failure → toast.error, no recompute, re-throws", async () => {
+    vi.mocked(invokeAndReadWorkerAvailabilityFinalJson).mockClear()
     vi.mocked(toast.error).mockClear()
     vi.mocked(updateRecord).mockRejectedValueOnce(new Error("disponibilita KO"))
 
@@ -666,12 +702,12 @@ describe("useSelectedWorkerEditor — U6 write paths (errors + orchestration)", 
 
     expect(threw).toBe(true)
     expect(toast.error).toHaveBeenCalledWith("disponibilita KO")
-    expect(invokeWorkerAvailability).not.toHaveBeenCalled()
+    expect(invokeAndReadWorkerAvailabilityFinalJson).not.toHaveBeenCalled()
   })
 
-  it("B17: patchWorkerAvailabilityStatus success → updateRecord + invokeWorkerAvailability; failure → toast.error", async () => {
+  it("B17: patchWorkerAvailabilityStatus success → updateRecord + recompute; failure → toast.error", async () => {
     vi.mocked(updateRecord).mockClear()
-    vi.mocked(invokeWorkerAvailability).mockClear()
+    vi.mocked(invokeAndReadWorkerAvailabilityFinalJson).mockClear()
     vi.mocked(updateRecord).mockResolvedValueOnce({ row: makeRow() } as never)
 
     const { result } = render()
@@ -684,7 +720,7 @@ describe("useSelectedWorkerEditor — U6 write paths (errors + orchestration)", 
     expect(updateRecord).toHaveBeenCalledWith("lavoratori", "worker-1", {
       disponibilita: "non disponibile",
     })
-    expect(invokeWorkerAvailability).toHaveBeenCalledWith("worker-1")
+    expect(invokeAndReadWorkerAvailabilityFinalJson).toHaveBeenCalledWith("worker-1")
 
     vi.mocked(toast.error).mockClear()
     vi.mocked(updateRecord).mockRejectedValueOnce(new Error("stato KO"))
@@ -694,6 +730,35 @@ describe("useSelectedWorkerEditor — U6 write paths (errors + orchestration)", 
         .catch(() => {})
     })
     expect(toast.error).toHaveBeenCalledWith("stato KO")
+  })
+
+  it("vincoli_orari_disponibilita patch recomputes availability_final_json", async () => {
+    vi.mocked(updateRecord).mockClear()
+    vi.mocked(invokeAndReadWorkerAvailabilityFinalJson).mockClear()
+    const computedFinal = JSON.stringify({
+      weekly: { tue: [{ from: "10:00", to: "15:00" }] },
+    })
+    vi.mocked(invokeAndReadWorkerAvailabilityFinalJson).mockResolvedValueOnce(computedFinal)
+    vi.mocked(updateRecord).mockResolvedValueOnce({
+      row: makeRow({ vincoli_orari_disponibilita: "Disponibile 10-15" }),
+    } as never)
+    const applyUpdatedWorkerRow = vi.fn()
+
+    const { result } = render({ applyUpdatedWorkerRow })
+
+    await act(async () => {
+      await result.current
+        .patchSelectedWorkerField("vincoli_orari_disponibilita", "Disponibile 10-15")
+        .catch(() => {})
+    })
+
+    expect(updateRecord).toHaveBeenCalledWith("lavoratori", "worker-1", {
+      vincoli_orari_disponibilita: "Disponibile 10-15",
+    })
+    expect(invokeAndReadWorkerAvailabilityFinalJson).toHaveBeenCalledWith("worker-1")
+    expect(applyUpdatedWorkerRow).toHaveBeenCalledWith(
+      expect.objectContaining({ availability_final_json: computedFinal })
+    )
   })
 
   it("B15: a failed address patch surfaces toast.error (distinct catch / indirizzi table)", async () => {
