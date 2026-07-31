@@ -397,11 +397,7 @@ export function RicercaWorkerPipelineOverlay({
                 <div className="space-y-6 p-4">
                   {onOpenLavoratoreCercaPage ? (
                     <WorkerPipelineOpenFullPageLink
-                      workerId={
-                        asString(selectedWorkerRow?.id) ||
-                        selectedCard?.worker.id ||
-                        null
-                      }
+                      workerId={asString(selectedWorkerRow.id)}
                       onOpen={onOpenLavoratoreCercaPage}
                     />
                   ) : null}

@@ -1,6 +1,7 @@
 import { ExternalLinkIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { buildPathForRoute } from "@/routes/app-routes"
 
 type WorkerPipelineOpenFullPageLinkProps = {
   workerId: string | null | undefined
@@ -18,17 +19,36 @@ export function WorkerPipelineOpenFullPageLink({
   const resolvedId = workerId?.trim() || null
   if (!resolvedId) return null
 
+  const href = buildPathForRoute({
+    mainSection: "lavoratori_cerca",
+    anagraficheTab: "famiglie",
+    ricercaProcessId: null,
+    selectedWorkerId: resolvedId,
+  })
+
   return (
     <div className="flex justify-end">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        data-testid="ricerca-worker-open-full-page"
-        onClick={() => onOpen(resolvedId)}
-      >
-        <ExternalLinkIcon className="size-4" />
-        Apri scheda completa
+      <Button asChild variant="ghost" size="sm">
+        <a
+          href={href}
+          data-testid="ricerca-worker-open-full-page"
+          onClick={(event) => {
+            if (
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey ||
+              event.button !== 0
+            ) {
+              return
+            }
+            event.preventDefault()
+            onOpen(resolvedId)
+          }}
+        >
+          <ExternalLinkIcon className="size-4" aria-hidden />
+          Apri scheda completa
+        </a>
       </Button>
     </div>
   )

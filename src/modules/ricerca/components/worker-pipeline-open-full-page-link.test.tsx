@@ -8,13 +8,15 @@ import { renderWithProviders } from "@/test/test-utils"
 import { WorkerPipelineOpenFullPageLink } from "./worker-pipeline-open-full-page-link"
 
 describe("WorkerPipelineOpenFullPageLink", () => {
-  it("renders the link and opens the full worker page with the worker id", () => {
+  it("renders a real href and opens the full worker page with the worker id", () => {
     const onOpen = vi.fn()
     renderWithProviders(
       <WorkerPipelineOpenFullPageLink workerId="worker-42" onOpen={onOpen} />,
     )
 
-    fireEvent.click(screen.getByTestId("ricerca-worker-open-full-page"))
+    const link = screen.getByTestId("ricerca-worker-open-full-page")
+    expect(link).toHaveAttribute("href", expect.stringContaining("/cerca-lavoratori/worker-42"))
+    fireEvent.click(link)
     expect(onOpen).toHaveBeenCalledTimes(1)
     expect(onOpen).toHaveBeenCalledWith("worker-42")
   })
