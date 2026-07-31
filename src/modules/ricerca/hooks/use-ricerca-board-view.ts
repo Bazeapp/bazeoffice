@@ -1,10 +1,19 @@
 import * as React from "react"
+import { useQuery } from "@tanstack/react-query"
 
+import { useAuthSession } from "@/hooks/use-auth-session"
 import type { OperatoreOption } from "@/hooks/use-operatori-options"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { toAvatarRingClass } from "@/lib/utils"
+import { fetchCurrentOperatorId } from "@/modules/commenti/queries"
 
 import type { RicercaCardRecruiter } from "../components/ricerca-active-search-card"
+import {
+  RICERCA_BOARD_RECRUITER_FILTER_ALL,
+  readStoredRecruiterFilter,
+  resolveRecruiterFilter,
+  writeStoredRecruiterFilter,
+} from "../lib/ricerca-board-recruiter-filter"
 import {
   countRicercaBoardCards,
   filterRicercaBoardColumns,
@@ -42,9 +51,17 @@ function buildRecruitersById(
 
 export function useRicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   const { loading, error, columns, moveCard, loadDeferredColumn } = useRicercaBoard()
+  const { session } = useAuthSession()
+  const authUserId = session?.user.id
   const { options: operatorOptions } = useOperatoriOptions({
     role: "recruiter",
     activeOnly: true,
+  })
+  const currentOperatorIdQuery = useQuery({
+    queryKey: ["commenti", "current-operator-id", authUserId],
+    queryFn: fetchCurrentOperatorId,
+    enabled: Boolean(authUserId),
+    staleTime: 5 * 60 * 1000,
   })
 
   const recruitersById = React.useMemo(
@@ -54,7 +71,17 @@ export function useRicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   const [draggingProcessId, setDraggingProcessId] = React.useState<string | null>(null)
   const [dropTargetColumnId, setDropTargetColumnId] = React.useState<string | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [selectedOperatorId, setSelectedOperatorId] = React.useState("all")
+  const [selectedOperatorId, setSelectedOperatorIdState] = React.useState(
+    () => readStoredRecruiterFilter() ?? RICERCA_BOARD_RECRUITER_FILTER_ALL,
+  )
+  const [hasStoredFilter] = React.useState(() => readStoredRecruiterFilter() !== null)
+  const filterInitializedRef = React.useRef(hasStoredFilter)
+
+  const setSelectedOperatorId = React.useCallback((value: string) => {
+    setSelectedOperatorIdState(value)
+    writeStoredRecruiterFilter(value)
+    filterInitializedRef.current = true
+  }, [])
 
   const filteredColumns = React.useMemo(
     () =>
@@ -72,15 +99,42 @@ export function useRicercaBoardView({ onOpenDetail }: RicercaBoardViewProps) {
   )
 
   React.useEffect(() => {
-    if (selectedOperatorId === "all" || selectedOperatorId === "unassigned") return
+    if (operatorOptions.length === 0) return
 
-    const isSelectable = operatorOptions.some(
-      (operator) => operator.id === selectedOperatorId,
-    )
-    if (!isSelectable) {
-      setSelectedOperatorId("all")
+    const selectableOperatorIds = operatorOptions.map((operator) => operator.id)
+    const currentOperatorId = currentOperatorIdQuery.data ?? null
+    const currentOperatorReady =
+      !authUserId || currentOperatorIdQuery.isFetched || currentOperatorIdQuery.isError
+
+    if (!filterInitializedRef.current) {
+      if (!currentOperatorReady) return
+
+      const resolved = resolveRecruiterFilter({
+        stored: null,
+        currentOperatorId,
+        selectableOperatorIds,
+      })
+      setSelectedOperatorId(resolved)
+      return
     }
-  }, [operatorOptions, selectedOperatorId])
+
+    const resolved = resolveRecruiterFilter({
+      stored: selectedOperatorId,
+      currentOperatorId,
+      selectableOperatorIds,
+    })
+    if (resolved !== selectedOperatorId) {
+      setSelectedOperatorId(resolved)
+    }
+  }, [
+    authUserId,
+    currentOperatorIdQuery.data,
+    currentOperatorIdQuery.isError,
+    currentOperatorIdQuery.isFetched,
+    operatorOptions,
+    selectedOperatorId,
+    setSelectedOperatorId,
+  ])
 
   const handleDropToColumn = React.useCallback(
     (columnId: string, droppedProcessId: string | null) => {

@@ -62,6 +62,8 @@ export async function gotoRicerca(page: Page) {
   await expect(getColumn(page, E2E_RICERCA.stages.daAssegnare)).toBeVisible({
     timeout: BOARD_LOAD_TIMEOUT_MS,
   })
+  // Board defaults to the logged-in recruiter; reset so board-wide fixtures are visible.
+  await setRecruiterFilter(page, "all")
 }
 
 export async function reloadRicerca(page: Page) {
@@ -72,6 +74,7 @@ export async function reloadRicerca(page: Page) {
   await expect(getColumn(page, E2E_RICERCA.stages.daAssegnare)).toBeVisible({
     timeout: BOARD_LOAD_TIMEOUT_MS,
   })
+  await setRecruiterFilter(page, "all")
 }
 
 async function selectDropdownOption(page: Page, label: string) {
