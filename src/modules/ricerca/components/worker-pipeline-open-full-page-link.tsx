@@ -9,7 +9,7 @@ type WorkerPipelineOpenFullPageLinkProps = {
 }
 
 /**
- * BAZ-91 — link from the ricerca worker scheda (right column) to the full
+ * BAZ-91 — link from the ricerca worker scheda header to the full
  * Cerca Lavoratori page for that worker.
  */
 export function WorkerPipelineOpenFullPageLink({
@@ -27,29 +27,27 @@ export function WorkerPipelineOpenFullPageLink({
   })
 
   return (
-    <div className="flex justify-end">
-      <Button asChild variant="ghost" size="sm">
-        <a
-          href={href}
-          data-testid="ricerca-worker-open-full-page"
-          onClick={(event) => {
-            if (
-              event.metaKey ||
-              event.ctrlKey ||
-              event.shiftKey ||
-              event.altKey ||
-              event.button !== 0
-            ) {
-              return
-            }
-            event.preventDefault()
-            onOpen(resolvedId)
-          }}
-        >
-          <ExternalLinkIcon className="size-4" aria-hidden />
-          Apri scheda completa
-        </a>
-      </Button>
-    </div>
+    <Button asChild variant="ghost" size="sm">
+      <a
+        href={href}
+        data-testid="ricerca-worker-open-full-page"
+        onClick={(event) => {
+          if (
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey ||
+            event.button !== 0
+          ) {
+            return
+          }
+          event.preventDefault()
+          onOpen(resolvedId)
+        }}
+      >
+        <ExternalLinkIcon className="size-4" aria-hidden />
+        Apri scheda completa
+      </a>
+    </Button>
   )
 }

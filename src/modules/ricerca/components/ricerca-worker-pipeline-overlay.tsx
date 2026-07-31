@@ -263,14 +263,26 @@ export function RicercaWorkerPipelineOverlay({
                 {selectedWorker?.nomeCompleto ?? "Lavoratore"}
               </BreadcrumbItem>
             </Breadcrumb>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={onClose}
-            >
-              <XIcon />
-            </Button>
+            <div className="flex shrink-0 items-center gap-1">
+              {onOpenLavoratoreCercaPage ? (
+                <WorkerPipelineOpenFullPageLink
+                  workerId={
+                    asString(selectedWorkerRow?.id) ||
+                    selectedCard?.worker.id ||
+                    null
+                  }
+                  onOpen={onOpenLavoratoreCercaPage}
+                />
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={onClose}
+              >
+                <XIcon />
+              </Button>
+            </div>
           </div>
 
           {selectedWorkerError ? (
@@ -395,12 +407,6 @@ export function RicercaWorkerPipelineOverlay({
 
               <div className="scrollbar-visible min-w-0 overflow-y-auto border-t border-border xl:border-t-0">
                 <div className="space-y-6 p-4">
-                  {onOpenLavoratoreCercaPage ? (
-                    <WorkerPipelineOpenFullPageLink
-                      workerId={asString(selectedWorkerRow.id)}
-                      onOpen={onOpenLavoratoreCercaPage}
-                    />
-                  ) : null}
                   <WorkerPipelineSummaryCards
                     key={selectedWorkerRow?.id ?? "__empty__"}
                     workerRow={selectedWorkerRow}

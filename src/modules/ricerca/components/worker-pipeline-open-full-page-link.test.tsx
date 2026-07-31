@@ -1,5 +1,5 @@
 /**
- * BAZ-91 — link from the ricerca scheda right column to Cerca Lavoratori.
+ * BAZ-91 — link from the ricerca scheda header to Cerca Lavoratori.
  */
 import { describe, expect, it, vi } from "vitest"
 import { fireEvent, screen } from "@testing-library/react"
