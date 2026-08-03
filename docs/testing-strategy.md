@@ -271,6 +271,10 @@ file at a time.
 - **Sales Pipeline:** `e2e/sales/pipeline-*` specs; seed `seed_e2e_pipeline.sql`; sheet stato path is the
   persistence source of truth; native DnD is best-effort.
 - **Gate:** E2E is opt-in local only — not in lefthook or CI.
+- **Cedolini bulk (Controlli/Pagamenti):** `e2e/payroll/cedolini-{modes,controlli-analysis,controlli-send,pagamenti-reminder,board-regression}.spec.ts`;
+  seed block in `baze-supabase/supabase/seed_e2e.sql` (`E2E_CEDOLINI_BULK` in `e2e/constants.ts`); real PDF fixtures under
+  `e2e/fixtures/cedolini/` uploaded to Storage by `e2e/seed-cedolini-storage.mjs`; external Make/email stubbed at the Playwright layer
+  (`wk-reminder-pagamento` route mock). Plan: [`2026-07-28-001-test-cedolini-bulk-e2e-coverage-plan.md`](plans/2026-07-28-001-test-cedolini-bulk-e2e-coverage-plan.md).
 
 Runbook: [`e2e/README.md`](../e2e/README.md). Plans:
 [`2026-06-29-001-test-e2e-playwright-harness-plan.md`](plans/2026-06-29-001-test-e2e-playwright-harness-plan.md),

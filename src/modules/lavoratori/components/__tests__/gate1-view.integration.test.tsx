@@ -384,6 +384,20 @@ describe("Gate1View render", () => {
     expect(screen.getByRole("tab", { name: /Follow-up/i })).toBeTruthy()
   })
 
+  it("bounds the detail shell to the viewport so overflow can scroll", () => {
+    renderWithProviders(<Gate1View />)
+
+    const listPanel = screen.getByTestId("lavoratori-list-panel")
+    const detailColumn = listPanel.nextElementSibling
+    expect(detailColumn).toBeTruthy()
+    expect(detailColumn?.className).toMatch(/\bh-full\b/)
+    expect(detailColumn?.className).toMatch(/\boverflow-hidden\b/)
+
+    const detailShell = detailColumn?.querySelector("section")
+    expect(detailShell?.className).toMatch(/\bh-full\b/)
+    expect(detailShell?.className).toMatch(/\boverflow-y-auto\b/)
+  })
+
   it("passes updated gate1ProvinciaFilter to useLavoratoriData when provincia changes", async () => {
     renderWithProviders(<Gate1View />)
 

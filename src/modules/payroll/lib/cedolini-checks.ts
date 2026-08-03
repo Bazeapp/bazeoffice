@@ -334,31 +334,49 @@ function isCasoParticolareWarning(value: string | null | undefined): boolean {
   return ["si", "sì", "yes", "true", "caso particolare"].includes(token)
 }
 
-function evaluateCedolinoPdfCheck(input: ClassifyChecksInput): CedolinoWarning | null {
-  if (!input.hasCedolinoAttachment && !input.cedolinoUrl) {
-    return {
+/**
+ * PRD §6.5 — two independent checks, both category "Cedolino o PDF":
+ *   1. `cedolino_url` must be non-empty
+ *   2. PDF attachment must exist and be readable (extractable fields)
+ * Either failure may surface on its own; both may surface together.
+ */
+function evaluateCedolinoPdfChecks(input: ClassifyChecksInput): CedolinoWarning[] {
+  const warnings: CedolinoWarning[] = []
+
+  const cedolinoUrl = typeof input.cedolinoUrl === "string" ? input.cedolinoUrl.trim() : ""
+  if (!cedolinoUrl) {
+    warnings.push({
       category: WARNING_CATEGORIES.CEDOLINO_O_PDF,
-      message: "Nessun cedolino allegato e nessun cedolino_url disponibile.",
-    }
+      message: "cedolino_url mancante o vuoto.",
+    })
+  }
+
+  if (!input.hasCedolinoAttachment) {
+    warnings.push({
+      category: WARNING_CATEGORIES.CEDOLINO_O_PDF,
+      message: "Nessun cedolino allegato.",
+    })
+    return warnings
   }
 
   if (!input.pdfExtractOk) {
-    return {
+    warnings.push({
       category: WARNING_CATEGORIES.CEDOLINO_O_PDF,
       message: "PDF non leggibile: estrazione del testo non riuscita.",
-    }
+    })
+    return warnings
   }
 
   const fields = input.pdfFields
   if (!fields || fields.paga_oraria == null || fields.totale_ore == null) {
-    return {
+    warnings.push({
       category: WARNING_CATEGORIES.CEDOLINO_O_PDF,
       message: "Campi cedolino non estratti dal PDF (paga oraria o totale ore mancanti).",
       details: { pdf_fields: fields },
-    }
+    })
   }
 
-  return null
+  return warnings
 }
 
 /**
@@ -378,8 +396,7 @@ export function classifyCedolinoChecks(input: ClassifyChecksInput): ClassifyChec
   const warnings: CedolinoWarning[] = []
   const { totaleOre, eventiWarning } = sumPresenzeOre(input.presenze ?? {})
 
-  const pdfWarning = evaluateCedolinoPdfCheck(input)
-  if (pdfWarning) warnings.push(pdfWarning)
+  warnings.push(...evaluateCedolinoPdfChecks(input))
 
   const pagaWarning = comparePaga(input.pdfFields?.paga_oraria ?? null, input.rapportoPagaOraria)
   if (pagaWarning) warnings.push(pagaWarning)

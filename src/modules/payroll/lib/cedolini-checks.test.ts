@@ -254,12 +254,49 @@ describe("classifyCedolinoChecks", () => {
     expect(result.warnings.some((w) => w.category === WARNING_CATEGORIES.CEDOLINO_O_PDF)).toBe(true)
   })
 
-  it("no cedolino attachment and no cedolino_url -> Cedolino o PDF warning", () => {
-    const result = classifyCedolinoChecks(
-      baseInput({ hasCedolinoAttachment: false, cedolinoUrl: null }),
-    )
+  it("empty cedolino_url alone (PDF present) -> Cedolino o PDF warning (PRD §6.5)", () => {
+    const result = classifyCedolinoChecks(baseInput({ cedolinoUrl: null }))
+    expect(result.status).toBe("warning")
+    const pdfWarnings = result.warnings.filter((w) => w.category === WARNING_CATEGORIES.CEDOLINO_O_PDF)
+    expect(pdfWarnings).toHaveLength(1)
+    expect(pdfWarnings[0]?.message).toMatch(/cedolino_url/i)
+  })
+
+  it("whitespace-only cedolino_url -> Cedolino o PDF warning", () => {
+    const result = classifyCedolinoChecks(baseInput({ cedolinoUrl: "   " }))
     expect(result.status).toBe("warning")
     expect(result.warnings.some((w) => w.category === WARNING_CATEGORIES.CEDOLINO_O_PDF)).toBe(true)
+  })
+
+  it("no cedolino attachment alone (URL present) -> Cedolino o PDF warning", () => {
+    const result = classifyCedolinoChecks(
+      baseInput({
+        hasCedolinoAttachment: false,
+        cedolinoUrl: "https://example.com/cedolino.pdf",
+        pdfExtractOk: false,
+        pdfFields: null,
+      }),
+    )
+    expect(result.status).toBe("warning")
+    const pdfWarnings = result.warnings.filter((w) => w.category === WARNING_CATEGORIES.CEDOLINO_O_PDF)
+    expect(pdfWarnings).toHaveLength(1)
+    expect(pdfWarnings[0]?.message).toMatch(/allegato/i)
+  })
+
+  it("no attachment and empty cedolino_url -> two independent Cedolino o PDF warnings", () => {
+    const result = classifyCedolinoChecks(
+      baseInput({
+        hasCedolinoAttachment: false,
+        cedolinoUrl: null,
+        pdfExtractOk: false,
+        pdfFields: null,
+      }),
+    )
+    expect(result.status).toBe("warning")
+    const pdfWarnings = result.warnings.filter((w) => w.category === WARNING_CATEGORIES.CEDOLINO_O_PDF)
+    expect(pdfWarnings).toHaveLength(2)
+    expect(pdfWarnings.some((w) => /cedolino_url/i.test(w.message))).toBe(true)
+    expect(pdfWarnings.some((w) => /allegato/i.test(w.message))).toBe(true)
   })
 
   it("PDF extraction failed -> Cedolino o PDF warning", () => {

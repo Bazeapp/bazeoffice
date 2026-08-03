@@ -188,6 +188,74 @@ export async function dragCardToColumn(
   }
 }
 
+export async function switchToControlliTab(page: Page) {
+  await page.getByTestId("cedolini-mode-tab-controlli").click()
+  await expect(page.getByTestId("cedolini-controlli-avvia")).toBeVisible({
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+}
+
+export async function switchToPagamentiTab(page: Page) {
+  await page.getByTestId("cedolini-mode-tab-pagamenti").click()
+  await expect(page.getByTestId("cedolini-pagamenti-da-fare")).toBeVisible({
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+}
+
+export async function switchToBoardTab(page: Page) {
+  await page.getByTestId("cedolini-mode-tab-board").click()
+  await expect(page.locator(selectors.cedolini.searchInput)).toBeVisible({
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+}
+
+export async function gotoCedoliniControlli(page: Page) {
+  await gotoCedolini(page)
+  await switchToControlliTab(page)
+}
+
+export async function gotoCedoliniPagamenti(page: Page) {
+  await gotoCedolini(page)
+  await switchToPagamentiTab(page)
+}
+
+export async function gotoCedoliniWithMode(
+  page: Page,
+  mode: "board" | "controlli" | "pagamenti",
+  month = E2E_CEDOLINI.fixedMonth,
+) {
+  await page.goto(`${selectors.routes.cedolini}?mode=${mode}&month=${month}`)
+  await expect(page.locator(selectors.appSidebar)).toBeVisible({
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+  await expect(
+    page.getByRole("heading", { name: selectors.cedolini.heading }),
+  ).toBeVisible({ timeout: BOARD_LOAD_TIMEOUT_MS })
+
+  if (mode === "board") {
+    await ensureCedoliniFixtureMonth(page)
+    await expect(page.locator(selectors.cedolini.searchInput)).toBeVisible({
+      timeout: BOARD_LOAD_TIMEOUT_MS,
+    })
+    return
+  }
+
+  await expect(page.getByText(new RegExp(E2E_CEDOLINI.monthLabel, "i"))).toBeVisible({
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+
+  if (mode === "controlli") {
+    await expect(page.getByTestId("cedolini-controlli-avvia")).toBeVisible({
+      timeout: BOARD_LOAD_TIMEOUT_MS,
+    })
+    return
+  }
+
+  await expect(page.getByTestId("cedolini-pagamenti-da-fare")).toBeVisible({
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+}
+
 export async function expectCardInColumn(
   page: Page,
   cedolinoId: string,

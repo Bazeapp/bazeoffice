@@ -322,11 +322,16 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
                             card={card}
                             warningCategory={group.category}
                             onRecover={
-                              group.category === CEDOLINO_O_PDF_CATEGORY
+                              group.category === CEDOLINO_O_PDF_CATEGORY &&
+                              !recoverUrl.recoveredIds.has(card.meseLavorativoId)
                                 ? () => void recoverUrl.recoverSingle(card.meseLavorativoId)
                                 : undefined
                             }
                             isRecovering={recoverUrl.recoveringSingleId === card.meseLavorativoId}
+                            recoverSucceeded={
+                              group.category === CEDOLINO_O_PDF_CATEGORY &&
+                              recoverUrl.recoveredIds.has(card.meseLavorativoId)
+                            }
                           />
                         ))}
                       </div>
@@ -357,12 +362,14 @@ function CedolinoCheckCardItem({
   warningCategory,
   onRecover,
   isRecovering = false,
+  recoverSucceeded = false,
 }: {
   card: CedolinoCheckCard
   /** When set (Warning column), only messages for this group category are shown. */
   warningCategory?: CedolinoWarningCategory
   onRecover?: () => void
   isRecovering?: boolean
+  recoverSucceeded?: boolean
 }) {
   const visibleWarnings =
     warningCategory == null
@@ -393,6 +400,15 @@ function CedolinoCheckCardItem({
             </li>
           ))}
         </ul>
+      ) : null}
+      {recoverSucceeded ? (
+        <p
+          className="text-success mt-2 text-xs font-medium"
+          data-testid={`cedolini-controlli-recover-success-${card.meseLavorativoId}`}
+          role="status"
+        >
+          URL recuperato con successo.
+        </p>
       ) : null}
       {onRecover ? (
         <Button
