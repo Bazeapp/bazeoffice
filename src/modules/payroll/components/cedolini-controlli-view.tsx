@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckboxChip } from "@/components/ui/checkbox"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { confirm } from "@/components/ui/confirmer"
 
 import { useCedoliniBulkSend } from "../hooks/use-cedolini-bulk-send"
 import { useCedoliniCheckRun } from "../hooks/use-cedolini-check-run"
@@ -12,10 +13,13 @@ import {
   buildCedolinoCheckCards,
   createDefaultWarningCategoryFilter,
   filterWarningGroups,
+  getAnalisiEligibleMeseLavorativoIds,
   getCheckRunProgressPercent,
-  getProntiCards,
+  getInviatiCards,
   getSendEligibleMeseLavorativoIds,
+  getUnsentProntiCards,
   groupWarningsByCategory,
+  resolveCedolinoWarningMessage,
   toggleWarningCategoryFilter,
   WARNING_CATEGORIES,
   type CedolinoCheckCard,
@@ -44,10 +48,21 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
   const bulkSend = useCedoliniBulkSend()
   const recoverUrl = useCedoliniRecoverUrl(selectedMonth)
   const [sendDialogOpen, setSendDialogOpen] = React.useState(false)
+  /** Survives dialog close / hook idle so the toolbar keeps the post-send status. */
+  const [sendSummary, setSendSummary] = React.useState<{ successCount: number } | null>(null)
 
   const [categoryFilter, setCategoryFilter] = React.useState<Set<CedolinoWarningCategory>>(
     createDefaultWarningCategoryFilter,
   )
+
+  React.useEffect(() => {
+    setSendSummary(null)
+  }, [selectedMonth])
+
+  React.useEffect(() => {
+    if (bulkSend.phase !== "completata") return
+    setSendSummary({ successCount: bulkSend.job?.success_count ?? 0 })
+  }, [bulkSend.phase, bulkSend.job?.success_count])
 
   const toggleCategory = React.useCallback((category: CedolinoWarningCategory) => {
     setCategoryFilter((current) => toggleWarningCategoryFilter(current, category))
@@ -57,7 +72,8 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
     () => buildCedolinoCheckCards(results, columns),
     [results, columns],
   )
-  const pronti = React.useMemo(() => getProntiCards(cards), [cards])
+  const pronti = React.useMemo(() => getUnsentProntiCards(cards, columns), [cards, columns])
+  const inviati = React.useMemo(() => getInviatiCards(cards, columns), [cards, columns])
   const warningGroups = React.useMemo(() => groupWarningsByCategory(cards), [cards])
   const visibleWarningGroups = React.useMemo(
     () => filterWarningGroups(warningGroups, categoryFilter),
@@ -72,6 +88,11 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
     () => getSendEligibleMeseLavorativoIds(pronti, columns),
     [pronti, columns],
   )
+  const analisiEligibleIds = React.useMemo(
+    () => getAnalisiEligibleMeseLavorativoIds(columns),
+    [columns],
+  )
+  const hasAnalisiEligible = analisiEligibleIds.length > 0
 
   const cedolinoOPdfGroup = warningGroups.find((group) => group.category === CEDOLINO_O_PDF_CATEGORY)
   const cedolinoOPdfIds = React.useMemo(
@@ -81,10 +102,35 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
 
   const isRunning = run?.status === "in_corso"
   const progressPercent = run ? getCheckRunProgressPercent(run) : 0
+  const sendCompleted = sendSummary != null || bulkSend.phase === "completata"
+  const sendInFlight =
+    bulkSend.phase === "dry_running" ||
+    bulkSend.phase === "processing" ||
+    bulkSend.phase === "confirm_pending"
+  const sentCount = sendSummary?.successCount ?? bulkSend.job?.success_count ?? 0
 
   const openSendDialog = () => {
-    setSendDialogOpen(true)
-    void bulkSend.startDryRun(sendEligibleIds, selectedMonth)
+    // Re-open an existing send-session dialog (in flight, failed dry run,
+    // completed, …) without starting a second dry run.
+    if (bulkSend.phase !== "idle" || sendCompleted) {
+      setSendDialogOpen(true)
+      return
+    }
+
+    void confirm({
+      title: "Invio di prova",
+      description:
+        "Verrà inviato solo il primo cedolino come test. L'invio degli altri non parte finché non confermi il risultato.",
+      cancelButtonTitle: "Annulla",
+      confirmButtonTitle: "Avvia invio di prova",
+      variant: "default",
+      disableCancelWhilePending: true,
+      action: async () => {
+        await bulkSend.startDryRun(sendEligibleIds, selectedMonth)
+      },
+    }).then((confirmed) => {
+      if (confirmed) setSendDialogOpen(true)
+    })
   }
 
   return (
@@ -94,8 +140,13 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
           <Button
             type="button"
             data-testid="cedolini-controlli-avvia"
-            onClick={() => void startAnalysis()}
-            disabled={isStarting || isRunning}
+            onClick={() => {
+              // Clear a prior send so a new analysis can enable Invia again.
+              setSendSummary(null)
+              if (bulkSend.phase !== "idle") bulkSend.reset()
+              void startAnalysis()
+            }}
+            disabled={isStarting || isRunning || !hasAnalisiEligible}
           >
             {isRunning ? "Analisi in corso…" : "Avvia analisi"}
           </Button>
@@ -105,12 +156,26 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
             variant="secondary"
             data-testid="cedolini-controlli-invia"
             onClick={openSendDialog}
-            disabled={sendEligibleIds.length === 0}
+            disabled={
+              sendCompleted || (!sendInFlight && sendEligibleIds.length === 0)
+            }
           >
-            Invia cedolini{sendEligibleIds.length > 0 ? ` (${sendEligibleIds.length})` : ""}
+            {sendInFlight
+              ? "Invio in corso…"
+              : `Invia cedolini${sendEligibleIds.length > 0 ? ` (${sendEligibleIds.length})` : ""}`}
           </Button>
 
-          {run ? (
+          {sendCompleted ? (
+            <div
+              className="text-success flex items-center gap-2 text-sm font-medium"
+              data-testid="cedolini-controlli-sent-status"
+            >
+              <Badge variant="success" size="sm">
+                {sentCount} inviati
+              </Badge>
+              <span>Cedolini inviati</span>
+            </div>
+          ) : isRunning && run ? (
             <div
               className="text-muted-foreground flex items-center gap-2 text-sm"
               data-testid="cedolini-controlli-progress"
@@ -128,7 +193,14 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
           ) : null}
         </div>
 
-        {startMessage ? (
+        {!hasAnalisiEligible && !isRunning ? (
+          <span
+            className="text-muted-foreground text-sm"
+            data-testid="cedolini-controlli-no-eligible"
+          >
+            Nessun cedolino da controllare in board.
+          </span>
+        ) : startMessage ? (
           <span className="text-muted-foreground text-sm" data-testid="cedolini-controlli-message">
             {startMessage}
           </span>
@@ -149,22 +221,40 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
         ) : null}
 
         <div className="grid min-h-0 grid-cols-1 gap-6 lg:grid-cols-2">
-          <section aria-label="Pronti" data-testid="cedolini-controlli-pronti">
-            <h2 className="text-foreground-strong mb-2 flex items-center gap-2 text-sm font-semibold">
-              Pronti
-              <Badge variant="success" size="sm">
-                {pronti.length}
-              </Badge>
-            </h2>
-            <div className="flex flex-col gap-2">
-              {pronti.map((card) => (
-                <CedolinoCheckCardItem key={card.resultId} card={card} />
-              ))}
-              {!isLoading && run && pronti.length === 0 ? (
-                <p className="text-muted-foreground text-sm">Nessun cedolino pronto.</p>
-              ) : null}
-            </div>
-          </section>
+          <div className="flex min-h-0 flex-col gap-6">
+            {run && inviati.length > 0 ? (
+              <section aria-label="Inviati" data-testid="cedolini-controlli-inviati">
+                <h2 className="text-foreground-strong mb-2 flex items-center gap-2 text-sm font-semibold">
+                  Inviati
+                  <Badge variant="success" size="sm">
+                    {inviati.length}
+                  </Badge>
+                </h2>
+                <div className="flex flex-col gap-2">
+                  {inviati.map((card) => (
+                    <CedolinoCheckCardItem key={card.resultId} card={card} />
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            <section aria-label="Pronti" data-testid="cedolini-controlli-pronti">
+              <h2 className="text-foreground-strong mb-2 flex items-center gap-2 text-sm font-semibold">
+                Pronti
+                <Badge variant="info" size="sm">
+                  {pronti.length}
+                </Badge>
+              </h2>
+              <div className="flex flex-col gap-2">
+                {pronti.map((card) => (
+                  <CedolinoCheckCardItem key={card.resultId} card={card} />
+                ))}
+                {!isLoading && run && pronti.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">Nessun cedolino pronto.</p>
+                ) : null}
+              </div>
+            </section>
+          </div>
 
           <section aria-label="Warning" data-testid="cedolini-controlli-warning">
             <h2 className="text-foreground-strong mb-2 flex items-center gap-2 text-sm font-semibold">
@@ -232,11 +322,16 @@ export function CedoliniControlliView({ selectedMonth, columns }: CedoliniContro
                             card={card}
                             warningCategory={group.category}
                             onRecover={
-                              group.category === CEDOLINO_O_PDF_CATEGORY
+                              group.category === CEDOLINO_O_PDF_CATEGORY &&
+                              !recoverUrl.recoveredIds.has(card.meseLavorativoId)
                                 ? () => void recoverUrl.recoverSingle(card.meseLavorativoId)
                                 : undefined
                             }
                             isRecovering={recoverUrl.recoveringSingleId === card.meseLavorativoId}
+                            recoverSucceeded={
+                              group.category === CEDOLINO_O_PDF_CATEGORY &&
+                              recoverUrl.recoveredIds.has(card.meseLavorativoId)
+                            }
                           />
                         ))}
                       </div>
@@ -267,12 +362,14 @@ function CedolinoCheckCardItem({
   warningCategory,
   onRecover,
   isRecovering = false,
+  recoverSucceeded = false,
 }: {
   card: CedolinoCheckCard
   /** When set (Warning column), only messages for this group category are shown. */
   warningCategory?: CedolinoWarningCategory
   onRecover?: () => void
   isRecovering?: boolean
+  recoverSucceeded?: boolean
 }) {
   const visibleWarnings =
     warningCategory == null
@@ -298,9 +395,20 @@ function CedolinoCheckCardItem({
       {visibleWarnings.length > 0 ? (
         <ul className="text-warning mt-2 flex flex-col gap-1 text-xs">
           {visibleWarnings.map((warning, index) => (
-            <li key={`${warning.category}-${index}`}>{warning.message}</li>
+            <li key={`${warning.category}-${index}`}>
+              {resolveCedolinoWarningMessage(warning)}
+            </li>
           ))}
         </ul>
+      ) : null}
+      {recoverSucceeded ? (
+        <p
+          className="text-success mt-2 text-xs font-medium"
+          data-testid={`cedolini-controlli-recover-success-${card.meseLavorativoId}`}
+          role="status"
+        >
+          URL recuperato con successo.
+        </p>
       ) : null}
       {onRecover ? (
         <Button

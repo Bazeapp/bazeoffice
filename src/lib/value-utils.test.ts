@@ -18,8 +18,13 @@ describe("isUuidValue", () => {
     expect(isUuidValue("550e8400-e29b-41d4-a716-446655440000")).toBe(true)
   })
 
-  it("rejects empty and malformed values", () => {
+  it("accepts seed ids that are uuid-shaped but not RFC 4122", () => {
+    expect(isUuidValue("00000000-0000-0000-0000-000000000a11")).toBe(true)
+  })
+
+  it("rejects empty, non-string, and malformed values", () => {
     expect(isUuidValue("")).toBe(false)
+    expect(isUuidValue(null)).toBe(false)
     expect(isUuidValue("not-a-uuid")).toBe(false)
     expect(isUuidValue("550e8400-e29b-41d4-a716")).toBe(false)
   })

@@ -39,7 +39,7 @@ export function RecordDetailShell({
     <section
       ref={sectionRef}
       className={cn(
-        "relative min-h-0 overflow-y-auto pb-4",
+        "relative h-full min-h-0 overflow-y-auto pb-4",
         embedded
           ? "bg-transparent"
           : "rounded-xl border bg-surface-muted",

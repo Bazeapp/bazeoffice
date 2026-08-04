@@ -1,5 +1,6 @@
 import * as React from "react"
 
+import { enrichRapportoWithRicercaId } from "@/modules/rapporti/lib"
 import {
   countChiusureBoardCards,
   filterChiusureBoardColumns,
@@ -47,7 +48,9 @@ export function useChiusureBoardView() {
     async (card: ChiusureBoardCardData) => {
       selectedCardRequestRef.current = card.id
       setSelectedCardId(card.id)
-      setSelectedFreshCard(null)
+      // Keep the list card as provisional detail so comment route context stays
+      // mounted while dettaglio + ricerca enrichment load.
+      setSelectedFreshCard(card)
 
       try {
         const [recordResponse, rapportoResponse] = await Promise.all([
@@ -65,11 +68,16 @@ export function useChiusureBoardView() {
           return
         }
 
+        const enrichedRapporto = await enrichRapportoWithRicercaId(
+          (rapportoResponse.rows[0] as ChiusureBoardCardData["rapporto"]) ?? card.rapporto,
+        )
+
+        if (selectedCardRequestRef.current !== card.id) return
+
         const nextCard: ChiusureBoardCardData = {
           ...card,
           record: freshRecord as ChiusureBoardCardData["record"],
-          rapporto:
-            (rapportoResponse.rows[0] as ChiusureBoardCardData["rapporto"]) ?? card.rapporto,
+          rapporto: enrichedRapporto,
           motivazione:
             (freshRecord as ChiusureBoardCardData["record"]).motivazione_cessazione_rapporto ??
             card.motivazione,

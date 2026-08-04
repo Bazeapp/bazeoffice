@@ -14,10 +14,18 @@ import type { CedolinoBulkJobRecord } from "../types/cedolino-bulk-job"
 /** Polling cadence while a bulk recovery job is `in_corso` (KTD11). */
 const RECOVER_BULK_JOB_POLL_INTERVAL_MS = 2000
 
+/**
+ * Keep the card's green success state visible briefly before the check-run
+ * refetch can move it out of the Warning column.
+ */
+const RECOVER_SUCCESS_INVALIDATE_DELAY_MS = 2000
+
 export type UseCedoliniRecoverUrlState = {
   recoverSingle: (meseLavorativoId: string) => Promise<void>
   recoveringSingleId: string | null
   singleError: string | null
+  /** `mesi_lavorati.id` values that recovered successfully in this session. */
+  recoveredIds: ReadonlySet<string>
 
   recoverBulk: (meseLavorativoIds: string[], yearMonth?: string) => Promise<void>
   bulkJob: CedolinoBulkJobRecord | null
@@ -31,8 +39,9 @@ function isBulkJobTerminal(status: CedolinoBulkJobRecord["status"] | null | unde
 
 /**
  * Recovery `cedolino_url` (BAZ-98/99/100 U5, R6/AE7). Per-card recovery
- * calls the single `cedolini-recover-url` endpoint directly; bulk recovery
- * (the "Cedolino o PDF" group header action) runs it as a
+ * calls the single `cedolini-recover-url` endpoint directly (Drive share
+ * link when configured, otherwise a 30-day Storage signed URL); bulk
+ * recovery (the "Cedolino o PDF" group header action) runs it as a
  * `cedolino_bulk_jobs` (`kind: "recover_url"`) job so progress/count is
  * durable across refresh, same as bulk send.
  *
@@ -42,20 +51,24 @@ function isBulkJobTerminal(status: CedolinoBulkJobRecord["status"] | null | unde
  * and writes the new `cedolino_check_results` row — the FE only needs to
  * refetch).
  *
- * Bulk item failures (e.g. `drive_not_configured`) leave the job
- * `completata` with `error_count > 0` — start itself succeeds — so this
- * hook must surface them into `bulkError` after the job settles (AE7).
+ * Bulk item failures (e.g. `drive_not_configured`, `storage_sign_failed`)
+ * leave the job `completata` with `error_count > 0` — start itself
+ * succeeds — so this hook must surface them into `bulkError` after the job
+ * settles (AE7). `storage_sign_failed` messages flow through
+ * `details.message` via `formatCedoliniBulkRecoverError`.
  */
 export function useCedoliniRecoverUrl(selectedMonth: string): UseCedoliniRecoverUrlState {
   const queryClient = useQueryClient()
 
   const [recoveringSingleId, setRecoveringSingleId] = React.useState<string | null>(null)
   const [singleError, setSingleError] = React.useState<string | null>(null)
+  const [recoveredIds, setRecoveredIds] = React.useState<ReadonlySet<string>>(() => new Set())
 
   const [bulkJobId, setBulkJobId] = React.useState<string | null>(null)
   const [isStartingBulk, setIsStartingBulk] = React.useState(false)
   const [bulkError, setBulkError] = React.useState<string | null>(null)
   const handledTerminalJobIdRef = React.useRef<string | null>(null)
+  const invalidateDelayTimersRef = React.useRef<number[]>([])
 
   const bulkJobQueryKey = React.useMemo(
     () => ["cedolino-bulk-job", bulkJobId] as const,
@@ -75,6 +88,42 @@ export function useCedoliniRecoverUrl(selectedMonth: string): UseCedoliniRecover
     [queryClient, selectedMonth],
   )
 
+  const scheduleCheckRunInvalidate = React.useCallback(() => {
+    const timerId = window.setTimeout(() => {
+      invalidateDelayTimersRef.current = invalidateDelayTimersRef.current.filter((id) => id !== timerId)
+      void invalidateCheckRun()
+    }, RECOVER_SUCCESS_INVALIDATE_DELAY_MS)
+    invalidateDelayTimersRef.current.push(timerId)
+  }, [invalidateCheckRun])
+
+  const markRecovered = React.useCallback((meseLavorativoIds: string[]) => {
+    if (meseLavorativoIds.length === 0) return
+    setRecoveredIds((prev) => {
+      const next = new Set(prev)
+      for (const id of meseLavorativoIds) next.add(id)
+      return next
+    })
+  }, [])
+
+  React.useEffect(() => {
+    setRecoveredIds(new Set())
+    setSingleError(null)
+    setBulkError(null)
+    for (const timerId of invalidateDelayTimersRef.current) {
+      window.clearTimeout(timerId)
+    }
+    invalidateDelayTimersRef.current = []
+  }, [selectedMonth])
+
+  React.useEffect(() => {
+    return () => {
+      for (const timerId of invalidateDelayTimersRef.current) {
+        window.clearTimeout(timerId)
+      }
+      invalidateDelayTimersRef.current = []
+    }
+  }, [])
+
   const recoverSingle = React.useCallback(
     async (meseLavorativoId: string) => {
       if (recoveringSingleId) return
@@ -86,14 +135,15 @@ export function useCedoliniRecoverUrl(selectedMonth: string): UseCedoliniRecover
           setSingleError(result.message ?? "Recupero URL non riuscito.")
           return
         }
-        await invalidateCheckRun()
+        markRecovered([meseLavorativoId])
+        scheduleCheckRunInvalidate()
       } catch (err) {
         setSingleError(err instanceof Error ? err.message : "Errore recupero URL.")
       } finally {
         setRecoveringSingleId(null)
       }
     },
-    [recoveringSingleId, invalidateCheckRun],
+    [recoveringSingleId, markRecovered, scheduleCheckRunInvalidate],
   )
 
   const recoverBulk = React.useCallback(
@@ -130,39 +180,51 @@ export function useCedoliniRecoverUrl(selectedMonth: string): UseCedoliniRecover
     const totalCount = bulkJob.total_count
     const status = bulkJob.status
 
-    // Success path: mark handled synchronously so Strict Mode remounts don't
-    // re-invalidate. Failure path waits until `bulkError` is set — otherwise a
-    // cancelled in-flight fetch would leave the UI silent forever.
-    if (errorCount <= 0 && status !== "failed") {
-      handledTerminalJobIdRef.current = jobId
-      void invalidateCheckRun()
-      return
-    }
-
     let cancelled = false
     void (async () => {
-      void invalidateCheckRun()
       try {
         const items = await fetchCedoliniBulkJobItems(jobId)
         if (cancelled) return
-        setBulkError(formatCedoliniBulkRecoverError({ error_count: errorCount, total_count: totalCount }, items))
+
+        const succeededIds = items
+          .filter((item) => item.status === "success")
+          .map((item) => item.mese_lavorativo_id)
+        markRecovered(succeededIds)
+
+        if (errorCount <= 0 && status !== "failed") {
+          handledTerminalJobIdRef.current = jobId
+          scheduleCheckRunInvalidate()
+          return
+        }
+
+        setBulkError(
+          formatCedoliniBulkRecoverError({ error_count: errorCount, total_count: totalCount }, items),
+        )
         handledTerminalJobIdRef.current = jobId
+        scheduleCheckRunInvalidate()
       } catch {
         if (cancelled) return
+        if (errorCount <= 0 && status !== "failed") {
+          handledTerminalJobIdRef.current = jobId
+          scheduleCheckRunInvalidate()
+          return
+        }
         setBulkError(formatCedoliniBulkRecoverError({ error_count: errorCount, total_count: totalCount }, []))
         handledTerminalJobIdRef.current = jobId
+        scheduleCheckRunInvalidate()
       }
     })()
 
     return () => {
       cancelled = true
     }
-  }, [bulkJob, invalidateCheckRun])
+  }, [bulkJob, markRecovered, scheduleCheckRunInvalidate])
 
   return {
     recoverSingle,
     recoveringSingleId,
     singleError,
+    recoveredIds,
     recoverBulk,
     bulkJob: bulkJob ?? null,
     isBulkRecovering: isStartingBulk || bulkJobStatus === "in_corso",

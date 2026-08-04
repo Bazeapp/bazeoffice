@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
 
 import { E2E_CONTRIBUTI_INPS } from "../constants"
 import {
@@ -6,10 +6,8 @@ import {
   getColumn,
   gotoContributiInps,
   openCardSheet,
-  reloadContributiInps,
   waitForContributoInpsDetail,
 } from "../support/contributi-inps"
-import { resetContributiInpsFixture } from "../support/contributi-inps-mutations"
 import { selectors } from "../support/selectors"
 
 function expectedRelationshipTitle(
@@ -25,15 +23,20 @@ const { daRichiedere, pagopaRicevuto, inviatoAllaFamiglia } =
 test.describe("contributi-inps: detail sheet", () => {
   test.describe.configure({ mode: "serial", timeout: 60_000 })
 
-  test.afterEach(async ({ page }) => {
-    await resetContributiInpsFixture()
-    await reloadContributiInps(page)
+  let contributiPage: Page
+
+  test.beforeAll(async ({ browser }) => {
+    contributiPage = await browser.newPage()
+    await gotoContributiInps(contributiPage)
   })
 
-  test("opens with relationship title and primary sections, then closes", async ({ page }) => {
-    await gotoContributiInps(page)
-    const dialog = await openCardSheet(page, pagopaRicevuto.id)
-    await waitForContributoInpsDetail(page)
+  test.afterAll(async () => {
+    await contributiPage.close()
+  })
+
+  test("pagopa ricevuto sheet shows sections, fields, then closes", async () => {
+    const dialog = await openCardSheet(contributiPage, pagopaRicevuto.id)
+    await waitForContributoInpsDetail(contributiPage)
 
     await expect(
       dialog.getByRole("heading", {
@@ -43,80 +46,66 @@ test.describe("contributi-inps: detail sheet", () => {
         ),
       }),
     ).toBeVisible({ timeout: 30_000 })
-    await expect(dialog.getByText("Contributo INPS", { exact: true }).first()).toBeVisible()
-    await expect(dialog.getByText("Allegato", { exact: true })).toBeVisible()
-    await expect(dialog.getByText("Stato contributo", { exact: true })).toBeVisible()
-    await expect(dialog.getByText("Trimestre", { exact: true })).toBeVisible()
 
-    await closeCardSheet(page)
-    await expect(page.locator(selectors.contributiInps.sheetDialog)).toHaveCount(0)
+    for (const label of [
+      "Contributo INPS",
+      "Allegato",
+      "Stato contributo",
+      "Trimestre",
+      "Importo contributo INPS",
+      "Valore PagoPA",
+      "Data invio famiglia",
+      "Creato il",
+      "Importo attuale",
+      "PagoPA attuale",
+      "Allegato PagoPA",
+    ]) {
+      await expect(dialog.getByText(label, { exact: true }).first()).toBeVisible()
+    }
+
+    await closeCardSheet(contributiPage)
+    await expect(contributiPage.locator(selectors.contributiInps.sheetDialog)).toHaveCount(0)
   })
 
-  test("header shows quarter label and editable workflow stato", async ({ page }) => {
-    await gotoContributiInps(page)
-    const dialog = await openCardSheet(page, daRichiedere.id)
-    await waitForContributoInpsDetail(page)
+  test("da richiedere sheet shows header, rapporto summary and stato", async () => {
+    const dialog = await openCardSheet(contributiPage, daRichiedere.id)
+    await waitForContributoInpsDetail(contributiPage)
 
-    await expect(dialog.getByText(E2E_CONTRIBUTI_INPS.quarterLabel, { exact: true }).first()).toBeVisible()
+    await expect(
+      dialog.getByText(E2E_CONTRIBUTI_INPS.quarterLabel, { exact: true }).first(),
+    ).toBeVisible()
     await expect(dialog.getByRole("combobox").first()).toContainText(
       E2E_CONTRIBUTI_INPS.stages.daRichiedere,
     )
-  })
-
-  test("linked rapporto summary shows navigation and contract context", async ({ page }) => {
-    await gotoContributiInps(page)
-    const dialog = await openCardSheet(page, daRichiedere.id)
-    await waitForContributoInpsDetail(page)
-
     await expect(dialog.getByText("Rapporto collegato", { exact: true })).toBeVisible()
     await expect(dialog.getByRole("link", { name: "Vai al rapporto" })).toBeVisible()
     await expect(dialog.getByText("Tipo", { exact: true }).first()).toBeVisible()
     await expect(dialog.getByText("Ore sett.", { exact: true })).toBeVisible()
     await expect(dialog.getByText("Inizio", { exact: true })).toBeVisible()
+
+    await closeCardSheet(contributiPage)
   })
 
-  test("linked rapporto navigation opens rapporto detail page", async ({ page }) => {
-    await gotoContributiInps(page)
-    const dialog = await openCardSheet(page, daRichiedere.id)
-    await waitForContributoInpsDetail(page)
+  test("linked rapporto navigation opens rapporto detail page", async () => {
+    const dialog = await openCardSheet(contributiPage, daRichiedere.id)
+    await waitForContributoInpsDetail(contributiPage)
 
     await dialog.getByRole("link", { name: "Vai al rapporto" }).click()
-    await expect(page).toHaveURL(
+    await expect(contributiPage).toHaveURL(
       new RegExp(`/gestione-contrattuale/rapporti-lavorativi/${daRichiedere.rapportoId}`),
     )
-    await expect(page.getByRole("tab", { name: "Contratto", exact: true })).toBeVisible({
-      timeout: 30_000,
-    })
-  })
-
-  test("contributo section shows importo and editable fields", async ({ page }) => {
-    await gotoContributiInps(page)
-    const dialog = await openCardSheet(page, pagopaRicevuto.id)
-    await waitForContributoInpsDetail(page)
-
-    await expect(dialog.getByText("Importo contributo INPS", { exact: true })).toBeVisible()
-    await expect(dialog.getByText("Valore PagoPA", { exact: true })).toBeVisible()
-    await expect(dialog.getByText("Data invio famiglia", { exact: true })).toBeVisible()
-    await expect(dialog.getByText("Creato il", { exact: true })).toBeVisible()
-    await expect(dialog.getByText("Importo attuale", { exact: true })).toBeVisible()
-    await expect(dialog.getByText("PagoPA attuale", { exact: true })).toBeVisible()
-  })
-
-  test("allegato section renders upload slot", async ({ page }) => {
-    await gotoContributiInps(page)
-    const dialog = await openCardSheet(page, pagopaRicevuto.id)
-    await waitForContributoInpsDetail(page)
-
-    await expect(dialog.getByText("Allegato PagoPA", { exact: true })).toBeVisible()
-  })
-
-  test("switching cards remounts detail without stale heading", async ({ page }) => {
-    await gotoContributiInps(page)
-
-    await openCardSheet(page, daRichiedere.id)
-    await waitForContributoInpsDetail(page)
     await expect(
-      page.getByRole("heading", {
+      contributiPage.getByRole("tab", { name: "Contratto", exact: true }),
+    ).toBeVisible({ timeout: 30_000 })
+
+    await gotoContributiInps(contributiPage)
+  })
+
+  test("switching cards remounts detail without stale heading", async () => {
+    await openCardSheet(contributiPage, daRichiedere.id)
+    await waitForContributoInpsDetail(contributiPage)
+    await expect(
+      contributiPage.getByRole("heading", {
         name: expectedRelationshipTitle(
           daRichiedere.famigliaSearchText,
           daRichiedere.lavoratoreSearchText,
@@ -124,11 +113,11 @@ test.describe("contributi-inps: detail sheet", () => {
       }),
     ).toBeVisible({ timeout: 30_000 })
 
-    await closeCardSheet(page)
-    await openCardSheet(page, inviatoAllaFamiglia.id)
-    await waitForContributoInpsDetail(page)
+    await closeCardSheet(contributiPage)
+    await openCardSheet(contributiPage, inviatoAllaFamiglia.id)
+    await waitForContributoInpsDetail(contributiPage)
     await expect(
-      page.getByRole("heading", {
+      contributiPage.getByRole("heading", {
         name: expectedRelationshipTitle(
           inviatoAllaFamiglia.famigliaSearchText,
           inviatoAllaFamiglia.lavoratoreSearchText,
@@ -136,20 +125,19 @@ test.describe("contributi-inps: detail sheet", () => {
       }),
     ).toBeVisible({ timeout: 30_000 })
     await expect(
-      page.getByRole("heading", {
+      contributiPage.getByRole("heading", {
         name: expectedRelationshipTitle(
           daRichiedere.famigliaSearchText,
           daRichiedere.lavoratoreSearchText,
         ),
       }),
     ).toHaveCount(0)
+
+    await closeCardSheet(contributiPage)
   })
 
-  test("inviato alla famiglia fixture is reachable in the far-right populated column", async ({
-    page,
-  }) => {
-    await gotoContributiInps(page)
-    const column = getColumn(page, E2E_CONTRIBUTI_INPS.stages.inviatoAllaFamiglia)
+  test("inviato alla famiglia fixture is reachable in the far-right populated column", async () => {
+    const column = getColumn(contributiPage, E2E_CONTRIBUTI_INPS.stages.inviatoAllaFamiglia)
     await column.scrollIntoViewIfNeeded()
     await expect(
       column.locator(selectors.contributiInps.card(inviatoAllaFamiglia.id)),

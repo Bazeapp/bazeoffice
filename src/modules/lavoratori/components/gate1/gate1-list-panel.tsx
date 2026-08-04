@@ -164,6 +164,7 @@ export function Gate1ListPanel() {
                   type="button"
                   variant="ghost"
                   size="sm"
+                  data-testid="lavoratori-reset-gate-filters"
                   onClick={() => {
                     setGateProvinciaFilter("all");
                     setGateFollowupFilter("all");

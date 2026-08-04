@@ -1,4 +1,10 @@
 import { useAssunzioniBoardView } from "../hooks/use-assunzioni-board-view"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
+import {
+  assunzioneCommentRow,
+  assunzioneDisplayNames,
+  resolveAssunzioniBoardCommentPageFocus,
+} from "@/modules/commenti/lib/comment-route-helpers"
 import { AssunzioniBoardContent } from "./assunzioni-board-content"
 import { AssunzioniBoardHeader } from "./assunzioni-board-header"
 import { AssunzioniDetailSheet } from "./assunzioni-detail-sheet"
@@ -16,6 +22,19 @@ export function AssunzioniBoardView({
   initialSelectedRapportoId = null,
 }: AssunzioniBoardViewProps) {
   const board = useAssunzioniBoardView({ initialSelectedRapportoId })
+  const selectedCard = board.sheetProps.card
+  const pageFocus = resolveAssunzioniBoardCommentPageFocus(selectedCard)
+
+  // Always use assunzione helpers — they fall back to `card.processId` when
+  // `rapporto.processi_matching_id` is null (common on Assunzioni board rows).
+  // `rapportoCommentRow` only reads the FK and would drop RICERCA.
+  useCommentRouteContext({
+    enabled: board.sheetProps.open && Boolean(pageFocus),
+    pageFocus,
+    row: selectedCard ? assunzioneCommentRow(selectedCard) : {},
+    sourceInterface: "assunzioni",
+    displayNames: selectedCard ? assunzioneDisplayNames(selectedCard) : undefined,
+  })
 
   return (
     <section className="ui flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">

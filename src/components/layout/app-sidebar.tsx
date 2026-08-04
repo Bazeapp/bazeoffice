@@ -27,6 +27,8 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { NotificationSidebarTrigger } from "@/modules/notifiche/components";
+import type { Notifica } from "@/modules/notifiche/types";
 import type { User } from "@supabase/supabase-js";
 import {
   BriefcaseBusinessIcon,
@@ -267,6 +269,7 @@ type AppSidebarProps = {
   onOpenCustomerSupportCustomerTicket?: () => void;
   onOpenCustomerSupportPayrollTicket?: () => void;
   onOpenCustomerSupportRiattivazioni?: () => void;
+  onOpenNotifica?: (notifica: Notifica) => void;
 };
 
 function sidebarCategoryTestId(name: string) {
@@ -351,6 +354,7 @@ export function AppSidebar({
   onOpenCustomerSupportCustomerTicket,
   onOpenCustomerSupportPayrollTicket,
   onOpenCustomerSupportRiattivazioni,
+  onOpenNotifica,
 }: AppSidebarProps) {
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -686,6 +690,11 @@ export function AppSidebar({
 
       <SidebarFooter className="border-t border-border/60 bg-surface p-3">
         <SidebarMenu>
+          <NotificationSidebarTrigger
+            onOpenNotifica={(notifica) => {
+              onOpenNotifica?.(notifica);
+            }}
+          />
           <SidebarMenuItem>
             <SidebarMenuButton
               type="button"

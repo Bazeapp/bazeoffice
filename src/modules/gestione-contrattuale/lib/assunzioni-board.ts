@@ -39,6 +39,11 @@ export const RAPPORTO_FIELD_BINDINGS: readonly string[] = [
   "data_inizio_rapporto",
   "data_fine_rapporto",
   "data_assunzione",
+  "assunzione_datore_id",
+  "assunzione_lavoratore_id",
+  "famiglia_id",
+  "lavoratore_id",
+  "processi_matching_id",
 ]
 
 export const ASSUNZIONE_FIELD_BINDINGS: ReadonlyArray<keyof AssunzioneRecord & string> = [

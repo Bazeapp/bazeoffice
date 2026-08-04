@@ -165,7 +165,9 @@ export function CedoliniControlliSendDialog({
             <Button
               type="button"
               onClick={() => {
-                state.reset()
+                // Keep `completata` so the toolbar can show the sent status;
+                // only clear failed/interrupted/error so the operator can retry.
+                if (phase !== "completata") state.reset()
                 onOpenChange(false)
               }}
             >

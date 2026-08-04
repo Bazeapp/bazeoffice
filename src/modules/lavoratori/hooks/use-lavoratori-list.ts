@@ -82,7 +82,6 @@ export function useLavoratoriList({
     activeOnly: true,
   })
 
-  const [workers, setWorkers] = React.useState<LavoratoreListItem[]>([])
   const [workerRows, setWorkerRowsInternal] = React.useState<LavoratoreRecord[]>([])
   const workerRowsRef = React.useRef<LavoratoreRecord[]>([])
   const [relatedSelectionsByWorkerId, setRelatedSelectionsByWorkerId] = React.useState<
@@ -99,6 +98,19 @@ export function useLavoratoriList({
   const requestIdRef = React.useRef(0)
   const lastLoadedListQueryKeyRef = React.useRef<string | null>(null)
   const inFlightListQueryKeyRef = React.useRef<string | null>(null)
+
+  // Derive during render so `loading === false` and `workers` update in the
+  // same commit (avoids a frame where loading is done but workers is still []).
+  // Memoize so consumers that depend on `workers` identity (selection effects)
+  // do not re-run every parent render.
+  const workers = React.useMemo(
+    () =>
+      workerRows.map((row) => ({
+        ...buildWorkerListItem(row, lookupColorsByDomain, workerAddressesById),
+        otherActiveSelections: relatedSelectionsByWorkerId.get(row.id) ?? null,
+      })),
+    [lookupColorsByDomain, relatedSelectionsByWorkerId, workerAddressesById, workerRows]
+  )
 
   const recruiterLabelsById = React.useMemo(
     () => new Map(recruiterOptions.map((option) => [option.id, option.label])),
@@ -134,6 +146,8 @@ export function useLavoratoriList({
     },
     [setWorkerRows]
   )
+
+  const cercaGateFiltersDep = applyGate1BaseFilters ? null : cercaGateFilters
 
   React.useEffect(() => {
     async function load() {
@@ -246,7 +260,7 @@ export function useLavoratoriList({
           return
         }
 
-        const cercaRpcFilters = cercaGateFilters.rpcFilters
+        const cercaRpcFilters = cercaGateFiltersDep?.rpcFilters
         const board = await fetchLavoratoriBoard("cerca", {
           limit: pageSize,
           offset: pageIndex * pageSize,
@@ -289,7 +303,6 @@ export function useLavoratoriList({
               ? caughtError.message
               : "Errore nel caricamento lavoratori"
           )
-          setWorkers([])
           setWorkerRowsState([])
           setWorkerAddressesById(new Map())
           setRelatedSelectionsByWorkerId(new Map())
@@ -306,7 +319,9 @@ export function useLavoratoriList({
     void load()
   }, [
     applyGate1BaseFilters,
-    cercaGateFilters,
+    // Null on gate boards so comment-panel re-renders cannot retrigger the list
+    // effect via an unused cerca filter bundle identity change.
+    cercaGateFiltersDep,
     debouncedQuery,
     forcedWorkerStatus,
     gate1Filters,
@@ -359,20 +374,10 @@ export function useLavoratoriList({
     shouldReloadOpenDetail,
   })
 
-  React.useEffect(() => {
-    setWorkers(
-      workerRows.map((row) => ({
-        ...buildWorkerListItem(row, lookupColorsByDomain, workerAddressesById),
-        otherActiveSelections: relatedSelectionsByWorkerId.get(row.id) ?? null,
-      }))
-    )
-  }, [lookupColorsByDomain, relatedSelectionsByWorkerId, workerAddressesById, workerRows])
-
   return {
     workers,
     workerRows,
     setWorkerRows: setWorkerRowsState,
-    setWorkers,
     workerAddressesById,
     setWorkerAddressesById,
     workersTotal,

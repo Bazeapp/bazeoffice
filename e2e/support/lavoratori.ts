@@ -165,21 +165,53 @@ export async function setProvinciaFilter(page: Page, provinciaSigla: "all" | "MI
       : provinciaSigla === "MI"
         ? "Milano"
         : "Torino"
+  const boardResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/rest/v1/rpc/lavoratori_board") &&
+      response.request().method() === "POST" &&
+      response.ok(),
+    { timeout: BOARD_LOAD_TIMEOUT_MS },
+  )
   await listPanelSelect(page, "Provincia").click()
   await selectDropdownOption(page, label)
+  await boardResponse
+  await expect(page.getByText("Caricamento lavoratori...")).toHaveCount(0, {
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
 }
 
 export async function setFollowupFilter(page: Page, followup: "all" | string) {
   const label = followup === "all" ? "Tutti i follow-up" : followup
+  const boardResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/rest/v1/rpc/lavoratori_board") &&
+      response.request().method() === "POST" &&
+      response.ok(),
+    { timeout: BOARD_LOAD_TIMEOUT_MS },
+  )
   await listPanelSelect(page, "Follow-up").click()
   await selectDropdownOption(page, label)
+  await boardResponse
+  await expect(page.getByText("Caricamento lavoratori...")).toHaveCount(0, {
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
 }
 
 export async function resetGateListFilters(page: Page) {
-  const resetButton = page.locator(selectors.lavoratori.resetGateFilters)
-  if (await resetButton.isVisible()) {
-    await resetButton.click()
+  const resetButton = gateListPanel(page).locator(selectors.lavoratori.resetGateFilters)
+  if ((await resetButton.count()) === 0) {
+    return
   }
+  await expect(resetButton).toBeVisible({ timeout: BOARD_LOAD_TIMEOUT_MS })
+  await resetButton.click()
+  // Button unmounts only after provincia/follow-up state is back to "all".
+  await expect(resetButton).toHaveCount(0, { timeout: BOARD_LOAD_TIMEOUT_MS })
+  await expect(listPanelSelect(page, "Provincia")).toHaveText(/Tutte le province/i, {
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
+  await expect(page.getByText("Caricamento lavoratori...")).toHaveCount(0, {
+    timeout: BOARD_LOAD_TIMEOUT_MS,
+  })
 }
 
 function cercaAdvancedFiltersPanel(page: Page) {

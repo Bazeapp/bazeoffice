@@ -210,6 +210,9 @@ function main() {
 
 async function run() {
   const runtimeEnv = main()
+  console.log("\n→ cedolini PDF fixtures → Storage")
+  const { seedCedoliniStorage } = await import("./seed-cedolini-storage.mjs")
+  await seedCedoliniStorage(runtimeEnv)
   console.log("\n→ edge functions health check")
   await ensureEdgeFunctionsReady(runtimeEnv)
 }

@@ -132,8 +132,15 @@ Copy patterns from:
 - `e2e/payroll/cedolini-filters.spec.ts` — Cedolini board search, metrics, columns, month navigation
 - `e2e/payroll/cedolini-moves.spec.ts` — Cedolini kanban moves and stato persistence
 - `e2e/payroll/cedolini-sheet.spec.ts` — Cedolini detail sheet
-- `e2e/support/cedolini.ts` — navigation, search, DnD, sheet helpers
+- `e2e/payroll/cedolini-modes.spec.ts` — Board / Controlli / Pagamenti tab shell + URL state
+- `e2e/payroll/cedolini-controlli-analysis.spec.ts` — Controlli pre-seeded results + live PDF worker
+- `e2e/payroll/cedolini-controlli-send.spec.ts` — Controlli bulk send dry-run / stop / idempotency
+- `e2e/payroll/cedolini-pagamenti-reminder.spec.ts` — Pagamenti date filter + reminder bulk
+- `e2e/payroll/cedolini-board-regression.spec.ts` — Board smoke after mode tab visits
+- `e2e/fixtures/cedolini/*.pdf` — real Giugno 2026 cedolino PDFs (uploaded by `seed-cedolini-storage.mjs`)
+- `e2e/support/cedolini.ts` — navigation, search, DnD, sheet, mode-tab helpers
 - `e2e/support/cedolini-mutations.ts` — service-role `mesi_lavorati.stato_mese_lavorativo` reset
+- `e2e/support/cedolini-bulk-mutations.ts` — check-run / bulk-job / reminder-flag reset for bulk specs
 - `e2e/payroll/contributi-inps-filters.spec.ts` — Contributi INPS board search, metrics, columns, quarter navigation
 - `e2e/payroll/contributi-inps-moves.spec.ts` — Contributi INPS kanban moves and stato persistence
 - `e2e/payroll/contributi-inps-sheet.spec.ts` — Contributi INPS detail sheet
@@ -158,6 +165,33 @@ Copy patterns from:
 - `e2e/customer/riattivazioni-sheet.spec.ts` — Riattivazioni detail sheet and autosave
 - `e2e/support/riattivazioni.ts` — navigation, search, DnD, sheet helpers
 - `e2e/support/riattivazioni-mutations.ts` — service-role `chiusure_contratti.stato_riattivazione_famiglia` reset
+
+### Commenti (contextual comments)
+
+Helpers:
+
+- `e2e/support/commenti.ts` — open/expand panel, send comment, section helpers
+- `e2e/support/commenti-mutations.ts` — service-role seed/reply/cleanup (`E2E_COMMENTI_BODY_PREFIX`)
+
+Specs (by Playwright project):
+
+- `e2e/recruiter/commenti-panel.spec.ts` — shell, read/mark-read, sections, gate phase notes
+- `e2e/recruiter/commenti-propagation.spec.ts` — Gate → Ricerca, famiglia → ricerca
+- `e2e/recruiter/commenti-mentions.spec.ts` — @-mentions and send-error rollback
+- `e2e/recruiter/commenti-threads.spec.ts` — reply collapse and pagination
+- `e2e/recruiter/commenti-entities.spec.ts` — recruiter send smoke
+- `e2e/sales/commenti-entities.spec.ts` — CRM pipeline ricerca send
+- `e2e/customer/commenti-entities.spec.ts` — rapporto / assunzione send
+- `e2e/payroll/commenti-entities.spec.ts` — cedolino send
+
+Run only comment specs:
+
+```bash
+npx playwright test --project=recruiter commenti
+npx playwright test commenti
+```
+
+Cleanup uses body prefix `E2E comment ` — mutating specs call `resetCommentiFixture()` in `afterEach`.
 
 Add new role-specific specs under `e2e/<role>/`. Playwright picks them up automatically via
 `testMatch` in `playwright.config.ts` — no `test.skip` gating needed.

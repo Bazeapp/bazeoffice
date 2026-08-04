@@ -13,6 +13,17 @@ describe("parseEdgeFunctionErrorBody", () => {
     })
   })
 
+  it("estrae storage_sign_failed da un 400 strutturato", () => {
+    const error = new Error(
+      'Edge function \'cedolini-recover-url\' failed (400): {"recovered":false,"error":"storage_sign_failed","message":"createSignedUrl fallita: Object not found"}',
+    )
+    expect(parseEdgeFunctionErrorBody(error)).toEqual({
+      recovered: false,
+      error: "storage_sign_failed",
+      message: "createSignedUrl fallita: Object not found",
+    })
+  })
+
   it("EDGE: non un Error → null", () => {
     expect(parseEdgeFunctionErrorBody("boom")).toBeNull()
     expect(parseEdgeFunctionErrorBody(null)).toBeNull()
