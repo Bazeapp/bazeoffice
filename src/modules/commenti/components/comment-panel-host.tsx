@@ -1,6 +1,7 @@
 import * as React from "react"
 
 import { resolveAssunzioniBoardCommentStack } from "../lib/comment-route-helpers"
+import { subscribeOpenCommentPanel } from "../lib/open-comment-panel"
 import { resolveCommentStack } from "../lib/resolve-comment-stack"
 import { collectStackWatchedEntityRefs } from "../lib/stack-anchor-exclusions"
 import { useCommentContext } from "../hooks"
@@ -93,6 +94,12 @@ export function CommentPanelHost() {
       consumeCommentDeepLink(commentId)
     })
   }, [consumeCommentDeepLink])
+
+  React.useEffect(() => {
+    return subscribeOpenCommentPanel(() => {
+      setExpanded(true)
+    })
+  }, [])
 
   React.useEffect(() => () => clearHighlightTimer(), [clearHighlightTimer])
 

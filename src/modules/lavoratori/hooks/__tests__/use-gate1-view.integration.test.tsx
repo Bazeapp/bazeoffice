@@ -93,7 +93,7 @@ describe("useGate1View — gateDraft resync", () => {
       id: "w1",
       descrizione_pubblica: "Server descrizione",
       paga_oraria_richiesta: 9,
-      feedback_recruiter: "ok",
+      stato_lavoratore: "Qualificato",
       rating_atteggiamento: 3,
     })
     const setup = makeHookProps(initialRow, "w1")
@@ -117,7 +117,7 @@ describe("useGate1View — gateDraft resync", () => {
       id: "w1",
       descrizione_pubblica: "Server descrizione",
       paga_oraria_richiesta: 9,
-      feedback_recruiter: "feedback updated by colleague",
+      stato_lavoratore: "Idoneo",
       rating_atteggiamento: 5,
     })
     const echoedSetup = makeHookProps(echoedRow, "w1")
@@ -128,9 +128,7 @@ describe("useGate1View — gateDraft resync", () => {
       "User typed text in progress",
     )
     expect(result.current.gateDraft.pagaOrariaRichiesta).toBe("11.5")
-    expect(result.current.gateDraft.assessmentFeedback).toBe(
-      "feedback updated by colleague",
-    )
+    expect(result.current.gateDraft.assessmentStatus).toBe("Idoneo")
     expect(result.current.gateDraft.ratingAtteggiamento).toBe("5")
   })
 
@@ -139,7 +137,7 @@ describe("useGate1View — gateDraft resync", () => {
       id: "w1",
       descrizione_pubblica: "first worker text",
       paga_oraria_richiesta: 8,
-      feedback_recruiter: "",
+      stato_lavoratore: "Qualificato",
       rating_atteggiamento: null,
     })
     const firstSetup = makeHookProps(firstRow, "w1")
@@ -161,7 +159,7 @@ describe("useGate1View — gateDraft resync", () => {
       id: "w2",
       descrizione_pubblica: "second worker server text",
       paga_oraria_richiesta: 12,
-      feedback_recruiter: "feedback 2",
+      stato_lavoratore: "Idoneo",
       rating_atteggiamento: 4,
     })
     const secondSetup = makeHookProps(secondRow, "w2")
@@ -170,7 +168,7 @@ describe("useGate1View — gateDraft resync", () => {
 
     expect(result.current.gateDraft.descrizionePubblica).toBe("second worker server text")
     expect(result.current.gateDraft.pagaOrariaRichiesta).toBe("12")
-    expect(result.current.gateDraft.assessmentFeedback).toBe("feedback 2")
+    expect(result.current.gateDraft.assessmentStatus).toBe("Idoneo")
     expect(result.current.gateDraft.ratingAtteggiamento).toBe("4")
   })
 

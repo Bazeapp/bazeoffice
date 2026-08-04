@@ -1,12 +1,14 @@
 /**
  * U6 — GateAssessmentCard Field roll-out (form-backed display + imperative save).
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { useController } from "react-hook-form";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form";
 import { Form } from "@/components/ui/form";
+import { CommentContextProvider } from "@/modules/commenti/components";
+import { renderWithProviders } from "@/test/test-utils";
 import type { LavoratoreRecord } from "../../../types/lavoratore";
 import { Gate1WorkerProvider } from "../gate1-worker-context";
 import { GateAssessmentCard } from "../gate-assessment-card";
@@ -20,9 +22,20 @@ const mockPatchSelectedWorkerField = vi.fn().mockResolvedValue(undefined);
 const mockHandleNonIdoneoReasonsChange = vi.fn().mockResolvedValue(undefined);
 const mockRetain = vi.fn();
 
+vi.mock("@/modules/commenti/mutations", () => ({
+  createComment: vi.fn().mockResolvedValue({ id: "comment-1" }),
+}));
+
+vi.mock("@/hooks/use-operatori-options", () => ({
+  useOperatoriOptions: () => ({
+    options: [],
+    loading: false,
+    error: null,
+  }),
+}));
+
 const mockWorkerRow = {
   id: "worker-1",
-  feedback_recruiter: "nota esistente",
 } as LavoratoreRecord;
 
 function Harness({ onSave }: { onSave: (patch: Partial<FormValues>) => void }) {
@@ -36,31 +49,42 @@ function Harness({ onSave }: { onSave: (patch: Partial<FormValues>) => void }) {
   });
 
   return (
-    <Form {...form}>
-      <Gate1WorkerProvider
-        editor={{
-          patchSelectedWorkerField: mockPatchSelectedWorkerField,
-          handleNonIdoneoReasonsChange: mockHandleNonIdoneoReasonsChange,
-        } as never}
-        workerRow={mockWorkerRow}
-        retainSelectedWorkerAfterStatusChange={mockRetain}
-      >
-        <GateAssessmentCard
-          statusOptions={[
-            { label: "Qualificato", value: "qualificato" },
-            { label: "Idoneo", value: "idoneo" },
-          ]}
-          nonIdoneoReasonOptions={[]}
-          operatorName="Mario Rossi"
-          lookupColorsByDomain={new Map()}
-        />
-        <SimulateFieldChange
-          name="stato_lavoratore"
-          testId="set-stato"
-          value="Idoneo"
-        />
-      </Gate1WorkerProvider>
-    </Form>
+    <CommentContextProvider
+      value={{
+        pageFocus: { entityType: "lavoratore", entityId: "worker-1" },
+        row: { id: "worker-1" },
+        sourceInterface: "gate_1",
+        currentUserId: "op-1",
+        currentUserName: "Mario",
+        defaultCommentType: "phase_note",
+        phaseLabel: "gate_1",
+      }}
+    >
+      <Form {...form}>
+        <Gate1WorkerProvider
+          editor={{
+            patchSelectedWorkerField: mockPatchSelectedWorkerField,
+            handleNonIdoneoReasonsChange: mockHandleNonIdoneoReasonsChange,
+          } as never}
+          workerRow={mockWorkerRow}
+          retainSelectedWorkerAfterStatusChange={mockRetain}
+        >
+          <GateAssessmentCard
+            statusOptions={[
+              { label: "Qualificato", value: "qualificato" },
+              { label: "Idoneo", value: "idoneo" },
+            ]}
+            nonIdoneoReasonOptions={[]}
+            lookupColorsByDomain={new Map()}
+          />
+          <SimulateFieldChange
+            name="stato_lavoratore"
+            testId="set-stato"
+            value="Idoneo"
+          />
+        </Gate1WorkerProvider>
+      </Form>
+    </CommentContextProvider>
   );
 }
 
@@ -88,15 +112,15 @@ beforeEach(() => {
 describe("GateAssessmentCard — Field roll-out", () => {
   it("mostra lo stato corrente dal form", () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    render(<Harness onSave={onSave} />);
+    renderWithProviders(<Harness onSave={onSave} />);
 
     expect(screen.getByText("Qualificato")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Scrivi un nuovo appunto/)).toBeInTheDocument();
+    expect(screen.getByTestId("comments-composer-input")).toBeInTheDocument();
   });
 
   it("non autosalva stato_lavoratore tramite debounce (salvataggio imperativo)", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    render(<Harness onSave={onSave} />);
+    renderWithProviders(<Harness onSave={onSave} />);
 
     fireEvent.click(screen.getByTestId("set-stato"));
 

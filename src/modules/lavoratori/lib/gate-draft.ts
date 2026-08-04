@@ -20,7 +20,6 @@ export type GateDraft = {
   checkAccettaMultipliContratti: string;
   dataScadenzaNaspi: string;
   assessmentStatus: string;
-  assessmentFeedback: string;
 };
 
 export const EMPTY_GATE_DRAFT: GateDraft = {
@@ -39,7 +38,6 @@ export const EMPTY_GATE_DRAFT: GateDraft = {
   checkAccettaMultipliContratti: "",
   dataScadenzaNaspi: "",
   assessmentStatus: "",
-  assessmentFeedback: "",
 };
 
 export function buildGateDraftSnapshot(
@@ -73,7 +71,6 @@ export function buildGateDraftSnapshot(
     ),
     dataScadenzaNaspi: asString(selectedWorkerRow?.data_scadenza_naspi),
     assessmentStatus: asString(selectedWorkerRow?.stato_lavoratore),
-    assessmentFeedback: asString(selectedWorkerRow?.feedback_recruiter),
   };
 }
 

@@ -1,6 +1,5 @@
 import * as React from "react";
 
-import { useCurrentOperatorName } from "@/hooks/use-current-operator-name";
 import {
   GATE1_IN_PERSON_BOOKING_LINKS,
   includesBabysitterType,
@@ -135,7 +134,6 @@ export function useGate1View(props: GateViewProps) {
     availabilityReadOnlyRows,
     nonIdoneoReasonValues,
     blacklistChecked,
-    recruiterFeedbackEntries,
     isEditingHeader,
     setIsEditingHeader,
     isEditingAddress,
@@ -191,7 +189,6 @@ export function useGate1View(props: GateViewProps) {
     AVAILABILITY_HOUR_LABELS,
   } = gate1Editor;
 
-  const operatorName = useCurrentOperatorName();
   const { gateDraft, setGateDraft } = useGateDraft({
     selectedWorkerId,
     selectedWorkerRow,
@@ -315,7 +312,6 @@ export function useGate1View(props: GateViewProps) {
     lookupColorsByDomain,
     lookupOptionsByDomain,
     nonIdoneoReasonValues,
-    operatorName,
     pageCount,
     patchDocumentField,
     patchExperienceRecord,
@@ -327,7 +323,6 @@ export function useGate1View(props: GateViewProps) {
     photoEditMode,
     presentationEditMode,
     presentationPhotoSlots,
-    recruiterFeedbackEntries,
     resolvedIban,
     retainSelectedWorkerAfterStatusChange,
     saveCurrentView,
