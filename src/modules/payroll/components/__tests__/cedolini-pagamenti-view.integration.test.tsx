@@ -175,7 +175,7 @@ describe("CedoliniPagamentiView — reminder da fare/fatti + bulk (U6)", () => {
     expect(screen.getByTestId("cedolini-pagamenti-reminder-dialog")).toBeTruthy()
   })
 
-  it("BAZ-180: deselezionare una famiglia la esclude dal bulk; Seleziona tutti la ripristina", async () => {
+  it("BAZ-180: deselezionare una famiglia la sposta in Esclusi; Seleziona tutti la ripristina", async () => {
     mockPagamenti({ daFare: [makeCard({ id: "m-1" }), makeCard({ id: "m-2" })] })
     const bulkReminder = mockBulkReminder()
     renderPagamenti(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
@@ -187,6 +187,16 @@ describe("CedoliniPagamentiView — reminder da fare/fatti + bulk (U6)", () => {
     expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
       "Esclusi 1",
     )
+    expect(
+      screen.getByTestId("cedolini-pagamenti-esclusi").querySelector(
+        '[data-testid="cedolini-pagamenti-card-m-2"]',
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.getByTestId("cedolini-pagamenti-inclusi").querySelector(
+        '[data-testid="cedolini-pagamenti-card-m-2"]',
+      ),
+    ).toBeNull()
 
     await clickInviaAndConfirmDryRun()
     await waitFor(() => {
@@ -197,6 +207,11 @@ describe("CedoliniPagamentiView — reminder da fare/fatti + bulk (U6)", () => {
     expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
       "Inclusi 2 · Esclusi 0",
     )
+    expect(
+      screen.getByTestId("cedolini-pagamenti-inclusi").querySelector(
+        '[data-testid="cedolini-pagamenti-card-m-2"]',
+      ),
+    ).toBeTruthy()
   })
 
   it("BAZ-180: Deseleziona tutti svuota il bulk e disabilita Invia reminder", () => {

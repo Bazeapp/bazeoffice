@@ -2,9 +2,9 @@ import * as React from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { confirm } from "@/components/ui/confirmer"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { formatItalianDateOrNull } from "@/lib/format-utils"
 
 import { useCedoliniBulkReminder } from "../hooks/use-cedolini-bulk-reminder"
@@ -26,9 +26,9 @@ export type CedoliniPagamentiViewProps = {
  * Cedolini Pagamenti (BAZ-98/99/100 U6, R7/R8/AE6/OQ6; BAZ-180): Reminder da
  * fare / fatti for "Inviato cedolino" Baze Pay rows with a linked
  * transazione (abbonamenti and closure-month cedolini always excluded), a
- * date filter on `data_invio_famiglia` that gates visibility, per-family
- * include/exclude for the bulk send (select all / deselect all), and a
- * dry-run → confirm → sequential/stoppable bulk reminder.
+ * date filter on `data_invio_famiglia` that gates visibility, per-card
+ * include/exclude (two lists + switch) for the bulk send, and a dry-run →
+ * confirm → sequential/stoppable bulk reminder.
  */
 export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagamentiViewProps) {
   const pagamenti = useCedoliniPagamenti(columns)
@@ -56,12 +56,21 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
     return next.size === excludedIds.size ? excludedIds : next
   }, [excludedIds, visibleDaFare])
 
+  const includedDaFare = React.useMemo(
+    () => visibleDaFare.filter((card) => !activeExcludedIds.has(card.id)),
+    [visibleDaFare, activeExcludedIds],
+  )
+  const excludedDaFare = React.useMemo(
+    () => visibleDaFare.filter((card) => activeExcludedIds.has(card.id)),
+    [visibleDaFare, activeExcludedIds],
+  )
+
   // AE6 + BAZ-180: bulk ids = visible da-fare minus operator exclusions.
   const bulkIds = React.useMemo(
     () => getPagamentiReminderBulkIds(visibleDaFare, activeExcludedIds),
     [visibleDaFare, activeExcludedIds],
   )
-  const excludedCount = visibleDaFare.length - bulkIds.length
+  const excludedCount = excludedDaFare.length
 
   const dateBoundLabel = normalizedDateFilter ? formatItalianDateOrNull(normalizedDateFilter) : null
 
@@ -158,36 +167,6 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
 
           <Button
             type="button"
-            variant="outline"
-            size="sm"
-            data-testid="cedolini-pagamenti-select-all"
-            onClick={selectAllVisible}
-            disabled={!hasAnyStickyExclusions}
-          >
-            Seleziona tutti
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            data-testid="cedolini-pagamenti-deselect-all"
-            onClick={deselectAllVisible}
-            disabled={visibleDaFare.length === 0 || bulkIds.length === 0}
-          >
-            Deseleziona tutti
-          </Button>
-
-          {visibleDaFare.length > 0 ? (
-            <span
-              className="text-muted-foreground text-xs"
-              data-testid="cedolini-pagamenti-selection-summary"
-            >
-              Inclusi {bulkIds.length} · Esclusi {excludedCount}
-            </span>
-          ) : null}
-
-          <Button
-            type="button"
             data-testid="cedolini-pagamenti-reminder-invia"
             onClick={openReminderDialog}
             disabled={bulkIds.length === 0}
@@ -217,27 +196,92 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
                 {visibleDaFare.length}
               </Badge>
             </h2>
-            <p className="text-muted-foreground mb-2 text-xs">
-              Solo Baze Pay. Deseleziona le famiglie da escludere dall&apos;invio bulk.
-            </p>
-            <div className="flex flex-col gap-2">
-              {visibleDaFare.map((card) => (
-                <CedoliniPagamentiCardItem
-                  key={card.id}
-                  card={card}
-                  included={!activeExcludedIds.has(card.id)}
-                  onIncludedChange={(included) => setCardIncluded(card.id, included)}
-                  onSendReminder={() => void pagamenti.sendSingleReminder(card.id)}
-                  isSending={pagamenti.sendingSingleId === card.id}
-                />
-              ))}
-              {!pagamenti.isLoading && visibleDaFare.length === 0 ? (
-                <p className="text-muted-foreground text-sm">Nessun reminder da fare.</p>
-              ) : null}
-              {pagamenti.isLoading ? (
-                <p className="text-muted-foreground text-sm">Caricamento…</p>
-              ) : null}
+
+            {visibleDaFare.length > 0 ? (
+              <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  data-testid="cedolini-pagamenti-select-all"
+                  onClick={selectAllVisible}
+                  disabled={!hasAnyStickyExclusions}
+                >
+                  Seleziona tutti
+                </Button>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  data-testid="cedolini-pagamenti-deselect-all"
+                  onClick={deselectAllVisible}
+                  disabled={bulkIds.length === 0}
+                >
+                  Deseleziona tutti
+                </Button>
+                <span
+                  className="text-muted-foreground text-xs"
+                  data-testid="cedolini-pagamenti-selection-summary"
+                >
+                  Inclusi {bulkIds.length} · Esclusi {excludedCount}
+                </span>
+              </div>
+            ) : null}
+
+            <div className="flex flex-col gap-4">
+              <div data-testid="cedolini-pagamenti-inclusi">
+                <h3 className="text-foreground-strong mb-2 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
+                  Inclusi
+                  <Badge variant="secondary" size="sm">
+                    {includedDaFare.length}
+                  </Badge>
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {includedDaFare.map((card) => (
+                    <CedoliniPagamentiCardItem
+                      key={card.id}
+                      card={card}
+                      included
+                      onIncludedChange={(included) => setCardIncluded(card.id, included)}
+                      onSendReminder={() => void pagamenti.sendSingleReminder(card.id)}
+                      isSending={pagamenti.sendingSingleId === card.id}
+                    />
+                  ))}
+                  {!pagamenti.isLoading && includedDaFare.length === 0 && visibleDaFare.length > 0 ? (
+                    <p className="text-muted-foreground text-sm">Nessun cedolino incluso.</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div data-testid="cedolini-pagamenti-esclusi">
+                <h3 className="text-foreground-strong mb-2 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
+                  Esclusi
+                  <Badge variant="secondary" size="sm">
+                    {excludedDaFare.length}
+                  </Badge>
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {excludedDaFare.map((card) => (
+                    <CedoliniPagamentiCardItem
+                      key={card.id}
+                      card={card}
+                      included={false}
+                      onIncludedChange={(included) => setCardIncluded(card.id, included)}
+                    />
+                  ))}
+                  {!pagamenti.isLoading && excludedDaFare.length === 0 && visibleDaFare.length > 0 ? (
+                    <p className="text-muted-foreground text-sm">Nessun cedolino escluso.</p>
+                  ) : null}
+                </div>
+              </div>
             </div>
+
+            {!pagamenti.isLoading && visibleDaFare.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nessun reminder da fare.</p>
+            ) : null}
+            {pagamenti.isLoading ? (
+              <p className="text-muted-foreground text-sm">Caricamento…</p>
+            ) : null}
           </section>
 
           <section aria-label="Reminder fatti" data-testid="cedolini-pagamenti-fatti">
@@ -294,41 +338,48 @@ function CedoliniPagamentiCardItem({
       className="border-border bg-surface rounded-lg border p-3"
       data-testid={`cedolini-pagamenti-card-${card.id}`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-start gap-2">
-          {showSelection ? (
-            <Checkbox
-              checked={included}
-              onCheckedChange={(value) => onIncludedChange(value === true)}
-              data-testid={`cedolini-pagamenti-include-${card.id}`}
-              aria-label={`Includi ${card.nomeCompleto} nell'invio reminder`}
-              className="mt-0.5"
-            />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-foreground-strong text-sm font-medium">{card.nomeCompleto}</span>
+            {card.importoLabel ? (
+              <Badge variant="secondary" size="sm">
+                {card.importoLabel}
+              </Badge>
+            ) : null}
+          </div>
+          {card.dataInvioLabel ? (
+            <p className="text-muted-foreground mt-1 text-xs">Inviato il {card.dataInvioLabel}</p>
           ) : null}
-          <span className="text-foreground-strong text-sm font-medium">{card.nomeCompleto}</span>
+          {onSendReminder ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              data-testid={`cedolini-pagamenti-reminder-single-${card.id}`}
+              onClick={onSendReminder}
+              disabled={isSending}
+            >
+              {isSending ? "Invio…" : "Invia reminder"}
+            </Button>
+          ) : null}
         </div>
-        {card.importoLabel ? (
-          <Badge variant="secondary" size="sm">
-            {card.importoLabel}
-          </Badge>
+        {showSelection ? (
+          <Switch
+            checked={included}
+            onCheckedChange={(checked) => onIncludedChange(checked)}
+            data-testid={`cedolini-pagamenti-include-${card.id}`}
+            aria-label={
+              included
+                ? `Escludi ${card.nomeCompleto} dall'invio reminder`
+                : `Includi ${card.nomeCompleto} nell'invio reminder`
+            }
+            size="sm"
+            className="mt-0.5 shrink-0"
+          />
         ) : null}
       </div>
-      {card.dataInvioLabel ? (
-        <p className="text-muted-foreground mt-1 text-xs">Inviato il {card.dataInvioLabel}</p>
-      ) : null}
-      {onSendReminder ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="mt-2"
-          data-testid={`cedolini-pagamenti-reminder-single-${card.id}`}
-          onClick={onSendReminder}
-          disabled={isSending}
-        >
-          {isSending ? "Invio…" : "Invia reminder"}
-        </Button>
-      ) : null}
     </div>
   )
 }
