@@ -90,10 +90,8 @@ export function Gate1DetailPanel() {
     lookupColorsByDomain,
     lookupOptionsByDomain,
     nonIdoneoReasonValues,
-    operatorName,
     patchExperienceRecord,
     patchReferenceRecord,
-    patchSelectedWorkerField,
     photoEditMode,
     presentationEditMode,
     presentationPhotoSlots,
@@ -843,7 +841,6 @@ export function Gate1DetailPanel() {
                         key={selectedWorkerId}
                         statusOptions={statoLavoratoreOptions}
                         nonIdoneoReasonOptions={motivazioniNonIdoneoOptions}
-                        operatorName={operatorName}
                         lookupColorsByDomain={lookupColorsByDomain}
                       />
                     </GateStepSection>
@@ -851,18 +848,7 @@ export function Gate1DetailPanel() {
                 ) : null}
               </div>
             ) : null}
-            {selectedWorkerId ? (
-              <RecruiterFeedbackButton
-                value={asString(selectedWorkerRow?.feedback_recruiter)}
-                operatorName={operatorName}
-                onSave={(next) =>
-                  patchSelectedWorkerField(
-                    "feedback_recruiter",
-                    next.trim() || null,
-                  )
-                }
-              />
-            ) : null}
+            {selectedWorkerId ? <RecruiterFeedbackButton /> : null}
         </Form>
       </WorkerDetailShell>
     </>

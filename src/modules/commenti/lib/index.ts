@@ -13,6 +13,11 @@ export {
 } from "./consts"
 export { isEntityType, tableForEntityType } from "./entity-map"
 export { compareAncestorSections } from "./comments-section"
+export { invalidateCommentVisibility } from "./invalidate-comment-visibility"
+export {
+  requestOpenCommentPanel,
+  subscribeOpenCommentPanel,
+} from "./open-comment-panel"
 export { resolveCommentStack } from "./resolve-comment-stack"
 export { normalizeRoleTokens, resolveRolePill, rolePillLabelForToken } from "./role-pill"
 export { commentRowSchema, type CommentRow } from "./schemas"

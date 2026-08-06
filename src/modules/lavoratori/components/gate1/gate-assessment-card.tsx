@@ -2,7 +2,6 @@ import * as React from "react";
 import { NotebookPenIcon } from "lucide-react";
 import { useFormContext, useWatch } from "react-hook-form";
 
-import { RecruiterFeedbackPanel } from "../../components/recruiter-feedback-panel";
 import { asString } from "../../lib/base-utils";
 import {
   AlertDialog,
@@ -28,6 +27,7 @@ import {
   normalizeLookupComparableToken,
   resolveLookupColor,
 } from "@/lib/lookup-utils";
+import { GateAssessmentCommentComposer } from "./gate-assessment-comment-composer";
 import { GateInfoCard } from "./gate-info-card";
 import { EMPTY_SELECT_VALUE } from "./gate-field-primitives";
 import { useGate1WorkerEditor } from "./gate1-worker-context";
@@ -37,17 +37,15 @@ import { useGate1WorkerEditor } from "./gate1-worker-context";
  *
  * Field roll-out: stato/motivazione leggono da gateFieldsForm; il salvataggio
  * resta imperativo (dialog di conferma) e non passa dall'autosave debounced.
- * Feedback recruiter: append imperativo via patch dal context.
+ * Assessment notes post as phase_note comments on the lavoratore.
  */
 export const GateAssessmentCard = React.memo(function GateAssessmentCard({
   statusOptions,
   nonIdoneoReasonOptions,
-  operatorName,
   lookupColorsByDomain,
 }: {
   statusOptions: Array<{ label: string; value: string }>;
   nonIdoneoReasonOptions: Array<{ label: string; value: string }>;
-  operatorName: string;
   lookupColorsByDomain: Map<string, string>;
 }) {
   const { setValue } = useFormContext();
@@ -68,7 +66,6 @@ export const GateAssessmentCard = React.memo(function GateAssessmentCard({
     typeof statusValue === "string" ? statusValue : "";
   const resolvedNonIdoneoReason =
     typeof nonIdoneoReasonValue === "string" ? nonIdoneoReasonValue : "";
-  const feedbackRaw = asString(workerRow?.feedback_recruiter);
 
   const orderedStatusOptions = React.useMemo(() => {
     const desiredOrder = new Map([
@@ -163,15 +160,7 @@ export const GateAssessmentCard = React.memo(function GateAssessmentCard({
       </div>
 
       <div className="max-w-5xl">
-        <RecruiterFeedbackPanel
-          embedded
-          showHistory={false}
-          value={feedbackRaw}
-          operatorName={operatorName}
-          onSave={(next) =>
-            patchSelectedWorkerField("feedback_recruiter", next.trim() || null)
-          }
-        />
+        <GateAssessmentCommentComposer />
       </div>
 
       <div className="max-w-xs space-y-3">

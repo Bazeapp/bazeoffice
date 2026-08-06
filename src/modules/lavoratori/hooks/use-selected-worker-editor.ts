@@ -16,7 +16,6 @@ import {
   parseNumberValue,
   readArrayStrings,
 } from "../lib/base-utils"
-import { parseRecruiterFeedback } from "../lib/feedback-utils"
 import {
   getTagClassName,
   normalizeLookupToken,
@@ -89,10 +88,6 @@ export function useSelectedWorkerEditor({
   )
   const selectedWorkerIsNonQualificato = React.useMemo(
     () => normalizeWorkerStatus(selectedWorkerRow?.stato_lavoratore) === "non qualificato",
-    [selectedWorkerRow]
-  )
-  const recruiterFeedbackEntries = React.useMemo(
-    () => parseRecruiterFeedback(asString(selectedWorkerRow?.feedback_recruiter)),
     [selectedWorkerRow]
   )
   const disponibilitaBadgeClassName = React.useMemo(
@@ -376,7 +371,6 @@ export function useSelectedWorkerEditor({
     selectedWorkerIsNonIdoneo,
     selectedWorkerNonQualificatoIssues,
     selectedWorkerIsNonQualificato,
-    recruiterFeedbackEntries,
     availabilityPayload,
     disponibilitaBadgeClassName,
     availabilityReadOnlyRows,
