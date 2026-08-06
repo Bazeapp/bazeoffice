@@ -34,6 +34,7 @@ export {
 export {
   addDays,
   formatTime,
+  getCalendarEventKind,
   getCalendarEventStatusKey,
   getCalendarStatusRailClassName,
   getCalendarDateKey,
@@ -47,7 +48,9 @@ export {
   isOpenCalendarStatus,
   isPastDate,
   isSameDate,
+  isSelectionCalendarProva,
   startOfWeek,
   toDateRangeValue,
+  type CalendarEventKind,
   type CalendarStatusKey,
 } from "./colloqui-calendar-utils"

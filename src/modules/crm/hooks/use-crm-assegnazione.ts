@@ -20,6 +20,9 @@ type UseCrmAssegnazioneState = {
   loading: boolean
   error: string | null
   cards: AssegnazioneCardData[]
+  /** Bumps when realtime asks the open sheet to re-bind from board data. */
+  detailRefreshTick: number
+  setOpenProcessId: (processId: string | null) => void
   assignCardToDate: (
     processId: string,
     date: string | null
@@ -75,9 +78,23 @@ export function useCrmAssegnazione(): UseCrmAssegnazioneState {
     [patchCard],
   )
 
+  // Open sheet holds a selection snapshot; board invalidate usually replaces it
+  // via cards.find, but Pattern B still ticks so the view can force-sync the
+  // snapshot when realtime lands (same contract as pipeline reloadOpenDetail).
+  const openProcessIdRef = React.useRef<string | null>(null)
+  const setOpenProcessId = React.useCallback((processId: string | null) => {
+    openProcessIdRef.current = processId
+  }, [])
+  const [detailRefreshTick, setDetailRefreshTick] = React.useState(0)
+  const bumpDetailRefreshTick = React.useCallback(() => {
+    if (!openProcessIdRef.current) return
+    setDetailRefreshTick((current) => current + 1)
+  }, [])
+
   useRealtimeBoardSync({
     tables: ASSEGNAZIONE_REALTIME_TABLES,
     reload: invalidateBoard,
+    reloadOpenDetail: bumpDetailRefreshTick,
   })
 
   const error =
@@ -91,6 +108,8 @@ export function useCrmAssegnazione(): UseCrmAssegnazioneState {
     loading: isLoading,
     error,
     cards,
+    detailRefreshTick,
+    setOpenProcessId,
     assignCardToDate,
     patchCard,
   }

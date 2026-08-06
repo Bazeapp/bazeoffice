@@ -128,16 +128,45 @@ export function buildChiusuraTipoMetadata(rows: LookupValueRecord[]): ChiusuraTi
   return { labels, colors, tipoLicenziamentoOptions }
 }
 
+/**
+ * Resolve display badge fields from tipo_licenziamento / tipo_decesso using
+ * the same lookup maps as `mapChiusuraBoardCard`.
+ */
+export function resolveChiusuraTipoDisplay(
+  record: Pick<ChiusuraContrattoRecord, "tipo_licenziamento" | "tipo_decesso">,
+  tipoMetadata: ChiusuraTipoMetadata,
+): Pick<ChiusureBoardCardData, "tipoLabel" | "tipoColor"> {
+  const rawTipo = record.tipo_licenziamento ?? record.tipo_decesso ?? "-"
+  const normalizedTipo = normalizeComparableToken(rawTipo)
+  return {
+    tipoLabel: tipoMetadata.labels.get(normalizedTipo) ?? rawTipo,
+    tipoColor: tipoMetadata.colors.get(normalizedTipo) ?? null,
+  }
+}
+
+export const EMPTY_CHIUSURA_TIPO_METADATA: ChiusuraTipoMetadata = {
+  labels: new Map(),
+  colors: new Map(),
+  tipoLicenziamentoOptions: [],
+}
+
 export function applyChiusuraPatchInColumns(
   columns: ChiusureBoardColumnData[],
   recordId: string,
   patch: Partial<ChiusuraContrattoRecord>,
+  tipoMetadata: ChiusuraTipoMetadata,
 ): ChiusureBoardColumnData[] {
+  const tipoFieldsChanged =
+    "tipo_licenziamento" in patch || "tipo_decesso" in patch
+
   return columns.map((column) => ({
     ...column,
     cards: column.cards.map((card) => {
       if (card.id !== recordId) return card
       const nextRecord = { ...card.record, ...patch }
+      const tipoDisplay = tipoFieldsChanged
+        ? resolveChiusuraTipoDisplay(nextRecord, tipoMetadata)
+        : null
       return {
         ...card,
         record: nextRecord,
@@ -150,6 +179,7 @@ export function applyChiusuraPatchInColumns(
           "data_fine_rapporto" in patch
             ? formatItalianDate(nextRecord.data_fine_rapporto)
             : card.dataFineRapporto,
+        ...(tipoDisplay ?? {}),
       }
     }),
   }))
@@ -215,8 +245,7 @@ export function mapChiusuraBoardCard(
       : null) ||
     [record.nome, record.cognome].filter(Boolean).join(" ").trim() ||
     "Nominativo non disponibile"
-  const rawTipo = record.tipo_licenziamento ?? record.tipo_decesso ?? "-"
-  const normalizedTipo = normalizeComparableToken(rawTipo)
+  const tipoDisplay = resolveChiusuraTipoDisplay(record, tipoMetadata)
 
   return {
     id: record.id,
@@ -227,8 +256,8 @@ export function mapChiusuraBoardCard(
     email: record.email ?? "-",
     motivazione: record.motivazione_cessazione_rapporto,
     dataFineRapporto: formatItalianDate(record.data_fine_rapporto),
-    tipoLabel: tipoMetadata.labels.get(normalizedTipo) ?? rawTipo,
-    tipoColor: tipoMetadata.colors.get(normalizedTipo) ?? null,
+    tipoLabel: tipoDisplay.tipoLabel,
+    tipoColor: tipoDisplay.tipoColor,
     hasAssunzioneDatore: Boolean(rapporto?.assunzione_datore_id),
     hasAssunzioneLavoratore: Boolean(rapporto?.assunzione_lavoratore_id),
   }

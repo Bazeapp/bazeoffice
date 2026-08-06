@@ -178,7 +178,6 @@ export type LavoratoriCercaDetailPanelProps = {
   openRicercaDetailFromWorker: (processId: string) => void
   onOpenRicercaDetail?: (processId: string, options?: OpenRicercaDetailOptions) => void
   setIsAddSearchDialogOpen: React.Dispatch<React.SetStateAction<boolean>>
-  operatorName: string
   isAddSearchDialogOpen: boolean
   isSubmittingAddSearch: boolean
   searchProcessQuery: string

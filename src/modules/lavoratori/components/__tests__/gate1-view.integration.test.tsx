@@ -89,14 +89,14 @@ import { Gate1View } from "../gate1-view"
 type GateDraft = {
   descrizionePubblica: string
   pagaOrariaRichiesta: string
-  assessmentFeedback: string
+  assessmentStatus: string
   ratingAtteggiamento: string
 }
 
 type WorkerRow = {
   descrizione_pubblica?: string | null
   paga_oraria_richiesta?: string | null
-  feedback_recruiter?: string | null
+  stato_lavoratore?: string | null
   rating_atteggiamento?: string | null
 }
 
@@ -108,7 +108,7 @@ function buildSnapshot(row: WorkerRow | null): GateDraft {
   return {
     descrizionePubblica: asString(row?.descrizione_pubblica),
     pagaOrariaRichiesta: asString(row?.paga_oraria_richiesta),
-    assessmentFeedback: asString(row?.feedback_recruiter),
+    assessmentStatus: asString(row?.stato_lavoratore),
     ratingAtteggiamento: asString(row?.rating_atteggiamento),
   }
 }
@@ -132,7 +132,7 @@ function GateDraftHarness({
   const [gateDraft, setGateDraft] = React.useState<GateDraft>({
     descrizionePubblica: "",
     pagaOrariaRichiesta: "",
-    assessmentFeedback: "",
+    assessmentStatus: "",
     ratingAtteggiamento: "",
   })
   const lastSyncedGateDraftRef = React.useRef<GateDraft | null>(null)
@@ -184,7 +184,7 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
     let latestDraft: GateDraft = {
       descrizionePubblica: "",
       pagaOrariaRichiesta: "",
-      assessmentFeedback: "",
+      assessmentStatus: "",
       ratingAtteggiamento: "",
     }
     let setField: (key: keyof GateDraft, value: string) => void = () => {}
@@ -192,7 +192,7 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
     const initialRow: WorkerRow = {
       descrizione_pubblica: "Server descrizione",
       paga_oraria_richiesta: "9",
-      feedback_recruiter: "ok",
+      stato_lavoratore: "Qualificato",
       rating_atteggiamento: "3",
     }
 
@@ -222,7 +222,7 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
     const echoedRow: WorkerRow = {
       ...initialRow,
       // Same descrizione/paga as before (still "Server descrizione" / "9")…
-      feedback_recruiter: "feedback updated by colleague",
+      stato_lavoratore: "Idoneo",
       rating_atteggiamento: "5",
     }
     rerender(
@@ -242,7 +242,7 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
     expect(latestDraft.descrizionePubblica).toBe("User typed text in progress")
     expect(latestDraft.pagaOrariaRichiesta).toBe("11.5")
     // Fields the user did NOT touch DID resync from the new snapshot.
-    expect(latestDraft.assessmentFeedback).toBe("feedback updated by colleague")
+    expect(latestDraft.assessmentStatus).toBe("Idoneo")
     expect(latestDraft.ratingAtteggiamento).toBe("5")
   })
 
@@ -250,7 +250,7 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
     let latestDraft: GateDraft = {
       descrizionePubblica: "",
       pagaOrariaRichiesta: "",
-      assessmentFeedback: "",
+      assessmentStatus: "",
       ratingAtteggiamento: "",
     }
     let setField: (key: keyof GateDraft, value: string) => void = () => {}
@@ -258,7 +258,7 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
     const firstRow: WorkerRow = {
       descrizione_pubblica: "first worker text",
       paga_oraria_richiesta: "8",
-      feedback_recruiter: "",
+      stato_lavoratore: "Qualificato",
       rating_atteggiamento: "",
     }
 
@@ -285,7 +285,7 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
     const secondRow: WorkerRow = {
       descrizione_pubblica: "second worker server text",
       paga_oraria_richiesta: "12",
-      feedback_recruiter: "feedback 2",
+      stato_lavoratore: "Idoneo",
       rating_atteggiamento: "4",
     }
     rerender(
@@ -303,7 +303,7 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
 
     expect(latestDraft.descrizionePubblica).toBe("second worker server text")
     expect(latestDraft.pagaOrariaRichiesta).toBe("12")
-    expect(latestDraft.assessmentFeedback).toBe("feedback 2")
+    expect(latestDraft.assessmentStatus).toBe("Idoneo")
     expect(latestDraft.ratingAtteggiamento).toBe("4")
   })
 
@@ -311,14 +311,14 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
     let latestDraft: GateDraft = {
       descrizionePubblica: "",
       pagaOrariaRichiesta: "",
-      assessmentFeedback: "",
+      assessmentStatus: "",
       ratingAtteggiamento: "",
     }
 
     const firstRow: WorkerRow = {
       descrizione_pubblica: "v1",
       paga_oraria_richiesta: "9",
-      feedback_recruiter: "fb1",
+      stato_lavoratore: "Qualificato",
       rating_atteggiamento: "3",
     }
 
@@ -338,7 +338,7 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
     const echoedRow: WorkerRow = {
       descrizione_pubblica: "v2",
       paga_oraria_richiesta: "10",
-      feedback_recruiter: "fb2",
+      stato_lavoratore: "Idoneo",
       rating_atteggiamento: "5",
     }
     rerender(
@@ -355,7 +355,7 @@ describe("gate1-view gateDraft resync — realtime echo regression", () => {
     expect(latestDraft).toEqual({
       descrizionePubblica: "v2",
       pagaOrariaRichiesta: "10",
-      assessmentFeedback: "fb2",
+      assessmentStatus: "Idoneo",
       ratingAtteggiamento: "5",
     })
   })

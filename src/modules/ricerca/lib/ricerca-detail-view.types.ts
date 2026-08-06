@@ -57,6 +57,7 @@ export type RicercaDetailViewProps = {
   onBack: () => void
   onOpenRelatedRicerca?: (processId: string, selectionId: string) => void
   onFocusSelection?: (selectionId: string | null) => void
+  onOpenLavoratoreCercaPage?: (workerId: string) => void
 }
 
 export type RicercaDetailSectionEdit = {

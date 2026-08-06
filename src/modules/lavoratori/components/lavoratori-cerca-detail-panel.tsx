@@ -7,7 +7,6 @@ import { LavoratoriCercaDetailCards } from "./lavoratori-cerca-detail-cards"
 import { LavoratoriCercaDetailHeader } from "./lavoratori-cerca-detail-header"
 import { LavoratoriCercaDetailNonQualificato } from "./lavoratori-cerca-detail-non-qualificato"
 import { LavoratoriCercaDetailProcessi } from "./lavoratori-cerca-detail-processi"
-import { asString } from "../lib/base-utils"
 import { Button } from "@/components/ui/button"
 import type { LavoratoriCercaDetailPanelProps } from "./lavoratori-cerca-detail.types"
 
@@ -26,8 +25,6 @@ export function LavoratoriCercaDetailPanel(props: LavoratoriCercaDetailPanelProp
     selectedWorker,
     selectedWorkerRow,
     selectedWorkerIsNonQualificato,
-    patchSelectedWorkerField,
-    operatorName,
   } = props
 
   return (
@@ -73,13 +70,7 @@ export function LavoratoriCercaDetailPanel(props: LavoratoriCercaDetailPanelProp
             </div>
           </div>
         ) : null}
-        <RecruiterFeedbackButton
-          value={asString(selectedWorkerRow?.feedback_recruiter)}
-          operatorName={operatorName}
-          onSave={(next) =>
-            patchSelectedWorkerField("feedback_recruiter", next.trim() || null)
-          }
-        />
+        <RecruiterFeedbackButton />
       </WorkerDetailShell>
       <LavoratoriCercaDetailAddSearchDialog {...props} />
     </>

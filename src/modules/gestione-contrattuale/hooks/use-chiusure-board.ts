@@ -15,13 +15,17 @@ import {
 } from "@/lib/board-column-utils"
 import { createRecord, updateRecord } from "@/lib/record-crud"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+import type { RealtimeRowEvent } from "@/hooks/use-realtime-rows"
+import { eventMatchesOpenDetailIds } from "@/lib/realtime-open-detail"
 
 import {
   applyChiusuraPatchInColumns,
   CHIUSURE_BOARD_QUERY_KEY,
   CHIUSURE_REALTIME_TABLES,
+  EMPTY_CHIUSURA_TIPO_METADATA,
   fetchChiusureBoardData,
   LICENZIAMENTO_STAGE_ID,
+  type ChiusuraTipoMetadata,
   type ChiusureBoardData,
 } from "../lib"
 import type { ChiusureBoardCardData, ChiusureBoardColumnData } from "../types"
@@ -33,6 +37,7 @@ type UseChiusureBoardState = {
   columns: ChiusureBoardColumnData[]
   rapportoOptions: ChiusureBoardData["rapportoOptions"]
   tipoLicenziamentoOptions: ChiusureBoardData["tipoLicenziamentoOptions"]
+  tipoMetadata: ChiusuraTipoMetadata
   createChiusura: (input: {
     rapportoId: string
     tipo: "licenziamento" | "dimissione" | "annullamento"
@@ -56,6 +61,16 @@ type UseChiusureBoardState = {
     updater: (card: ChiusureBoardCardData) => ChiusureBoardCardData
   ) => void
   deleteChiusura: (recordId: string) => Promise<void>
+  /**
+   * Bumped by useRealtimeBoardSync after a remote change passes echo guards.
+   * Open-sheet loaders must depend on this so selectedFreshCard re-fetches
+   * (cedolini Pattern B twin).
+   */
+  detailRefreshTick: number
+  /** Register ids for the open sheet so unrelated CDC events skip detail reload. */
+  setOpenDetailIdsForRealtime: (
+    ids: ReadonlyArray<string | null | undefined>,
+  ) => void
 }
 
 function formatErrorMessage(error: unknown, fallback: string) {
@@ -92,6 +107,7 @@ export function useChiusureBoard(): UseChiusureBoardState {
     () => data?.tipoLicenziamentoOptions ?? [],
     [data?.tipoLicenziamentoOptions],
   )
+  const tipoMetadata = data?.tipoMetadata ?? EMPTY_CHIUSURA_TIPO_METADATA
 
   const { setBoardData, invalidateBoard } = useBoardQueryCache<ChiusureBoardData>(
     CHIUSURE_BOARD_QUERY_KEY,
@@ -157,7 +173,12 @@ export function useChiusureBoard(): UseChiusureBoardState {
       if (!previous) return previous
       return {
         ...previous,
-        columns: applyChiusuraPatchInColumns(previous.columns, recordId, patch),
+        columns: applyChiusuraPatchInColumns(
+          previous.columns,
+          recordId,
+          patch,
+          previous.tipoMetadata ?? EMPTY_CHIUSURA_TIPO_METADATA,
+        ),
       }
     },
   })
@@ -305,12 +326,37 @@ export function useChiusureBoard(): UseChiusureBoardState {
     [deleteMutation],
   )
 
+  const [detailRefreshTick, setDetailRefreshTick] = React.useState(0)
+  const bumpDetailRefreshTick = React.useCallback(() => {
+    setDetailRefreshTick((current) => current + 1)
+  }, [])
+
+  const openDetailIdsRef = React.useRef<ReadonlySet<string>>(new Set())
+  const setOpenDetailIdsForRealtime = React.useCallback(
+    (ids: ReadonlyArray<string | null | undefined>) => {
+      openDetailIdsRef.current = new Set(
+        ids.filter((id): id is string => typeof id === "string" && id.length > 0),
+      )
+    },
+    [],
+  )
+
+  const shouldReloadOpenDetail = React.useCallback(
+    (event: RealtimeRowEvent) =>
+      eventMatchesOpenDetailIds(event, openDetailIdsRef.current),
+    [],
+  )
+
   // Realtime → invalidate the query. React Query then refetches the board
   // and re-renders consumers. The orchestrator still debounces and defers
   // while local writes are pending so we don't clobber optimistic state.
+  // reloadOpenDetail bumps detailRefreshTick so the open sheet re-fetches
+  // (Pattern B — board invalidate alone does not refresh selectedFreshCard).
   useRealtimeBoardSync({
     tables: [...CHIUSURE_REALTIME_TABLES],
     reload: invalidateBoard,
+    reloadOpenDetail: bumpDetailRefreshTick,
+    shouldReloadOpenDetail,
   })
 
   const error =
@@ -323,11 +369,14 @@ export function useChiusureBoard(): UseChiusureBoardState {
     columns,
     rapportoOptions,
     tipoLicenziamentoOptions,
+    tipoMetadata,
     createChiusura,
     linkRapporto,
     moveCard,
     patchChiusura,
     updateCard,
     deleteChiusura,
+    detailRefreshTick,
+    setOpenDetailIdsForRealtime,
   }
 }

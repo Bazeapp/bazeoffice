@@ -20,10 +20,17 @@ export function ContributiInpsView() {
   const [period, setPeriod] = React.useState<ContributiPeriod>(getCurrentQuarterState)
   const [search, setSearch] = React.useState("")
   const [stageFilter, setStageFilter] = React.useState("all")
-  const { loading, error, stages, cards, activeRapportiCount, moveCard, patchCard } = useContributiInpsBoard(
-    period.year,
-    period.quarter,
-  )
+  const {
+    loading,
+    error,
+    stages,
+    cards,
+    activeRapportiCount,
+    moveCard,
+    patchCard,
+    detailRefreshTick,
+    setOpenDetailIdsForRealtime,
+  } = useContributiInpsBoard(period.year, period.quarter)
   const { columns, stats, metricGroups } = useContributiInpsFilters({
     cards,
     stages,
@@ -31,8 +38,23 @@ export function ContributiInpsView() {
     search,
     stageFilter,
   })
-  const selection = useContributiInpsSelection(cards)
+  const selection = useContributiInpsSelection({ cards, detailRefreshTick })
   const { openCard } = selection
+
+  React.useEffect(() => {
+    setOpenDetailIdsForRealtime([
+      selection.selectedCardId,
+      selection.selectedCard?.id,
+      selection.selectedCard?.rapporto?.id,
+      selection.selectedCard?.rapporto?.famiglia_id,
+      selection.selectedCard?.rapporto?.lavoratore_id,
+    ])
+    return () => setOpenDetailIdsForRealtime([])
+  }, [
+    selection.selectedCardId,
+    selection.selectedCard,
+    setOpenDetailIdsForRealtime,
+  ])
 
   useBoardEntityDeepLink({
     entityType: "contributi",

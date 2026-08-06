@@ -41,6 +41,7 @@ export function useProveColloquiProvaSheet({
   }, [rapporto])
 
   const form = useAutoSaveForm({
+    resetKey: rapporto?.id ?? null,
     defaults: {
       prova_stato_cs: rapporto?.prova_stato_cs ?? null,
       prova_priorita_famiglia: rapporto?.prova_priorita_famiglia ?? "",

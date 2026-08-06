@@ -171,7 +171,16 @@ export function formatDateForView(value: string | null | undefined) {
   return raw
 }
 
-export function buildSchedulingDraft(card: AssegnazioneCardData | null) {
+export type SchedulingFormValues = {
+  statoRes: AssegnazioneCardData["statoRes"]
+  recruiterId: string
+  deadlineMobile: string
+  dataAssegnazione: string
+}
+
+export function buildSchedulingDraft(
+  card: AssegnazioneCardData | null,
+): SchedulingFormValues {
   return {
     statoRes: card?.statoRes ?? "da_assegnare",
     recruiterId: card?.recruiterId ?? "",
@@ -179,6 +188,37 @@ export function buildSchedulingDraft(card: AssegnazioneCardData | null) {
       ? toIsoDateInput(card.deadlineMobile)
       : "",
     dataAssegnazione: card?.dataAssegnazione ?? "",
+  }
+}
+
+/** Coerce stato from recruiter + data assegnazione (same rules as the sheet save). */
+export function resolveSchedulingStatoRes(
+  values: SchedulingFormValues,
+): AssegnazioneCardData["statoRes"] {
+  let nextStatoRes = values.statoRes
+  if (
+    nextStatoRes === "da_assegnare" &&
+    values.recruiterId &&
+    values.dataAssegnazione
+  ) {
+    nextStatoRes = "fare_ricerca"
+  }
+  if (nextStatoRes === "fare_ricerca" && !values.dataAssegnazione) {
+    nextStatoRes = "da_assegnare"
+  }
+  return nextStatoRes
+}
+
+export function buildSchedulingSavePatch(
+  values: SchedulingFormValues,
+): Record<string, unknown> {
+  const nextStatoRes = resolveSchedulingStatoRes(values)
+  return {
+    stato_res: nextStatoRes === "fare_ricerca" ? "fare ricerca" : "da assegnare",
+    recruiter_ricerca_e_selezione_id: values.recruiterId || null,
+    data_assegnazione: values.dataAssegnazione || null,
+    deadline_mobile: values.deadlineMobile || null,
+    data_limite_invio_selezione: values.deadlineMobile || null,
   }
 }
 

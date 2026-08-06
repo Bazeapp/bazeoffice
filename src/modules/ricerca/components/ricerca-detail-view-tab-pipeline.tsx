@@ -9,6 +9,7 @@ type Props = {
   focusedSelectionId: string | null
   onOpenRelatedSearch: (processId: string, selectionId: string) => void
   onFocusSelection?: (selectionId: string | null) => void
+  onOpenLavoratoreCercaPage?: (workerId: string) => void
   onPatchProcess?: (
     targetProcessId: string,
     patch: Record<string, unknown>,
@@ -23,6 +24,7 @@ export function RicercaDetailViewTabPipeline({
   focusedSelectionId,
   onOpenRelatedSearch,
   onFocusSelection,
+  onOpenLavoratoreCercaPage,
   onPatchProcess,
   pipelineState,
   recruiterLabelsById,
@@ -40,6 +42,7 @@ export function RicercaDetailViewTabPipeline({
         focusSelectionId={focusedSelectionId}
         onOpenRelatedSearch={onOpenRelatedSearch}
         onFocusSelectionChange={onFocusSelection}
+        onOpenLavoratoreCercaPage={onOpenLavoratoreCercaPage}
         onPatchProcess={onPatchProcess}
         pipelineState={pipelineState}
         recruiterLabelsById={recruiterLabelsById}

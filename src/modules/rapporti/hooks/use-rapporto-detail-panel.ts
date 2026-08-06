@@ -117,16 +117,19 @@ export function useRapportoDetailPanel({
   const [rapportoState, setRapportoState] = React.useState<RapportoLavorativoRecord | null>(rapporto)
   const previousRapportoIdRef = React.useRef<string | null>(rapporto?.id ?? null)
 
+  // Always mirror the prop into local state so Pattern B refreshes (same id,
+  // new field values) land in the panel. Selection UI resets only on id change.
   React.useEffect(() => {
     const nextRapportoId = rapporto?.id ?? null
     const isDifferentRapporto = previousRapportoIdRef.current !== nextRapportoId
     previousRapportoIdRef.current = nextRapportoId
 
+    setRapportoState(rapporto)
+
     if (!isDifferentRapporto) {
       return
     }
 
-    setRapportoState(rapporto)
     setSelectedCedolinoId(null)
     setSelectedContributoId(null)
     setSelectedTicket(null)

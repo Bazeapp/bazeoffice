@@ -2,48 +2,63 @@ import * as React from "react"
 import { useController } from "react-hook-form"
 import { toast } from "sonner"
 
-import { type WorkerOtherSelectionSummaryItem } from "@/modules/lavoratori/components/lavoratore-card"
-import {
-  type RelatedSearchGroups,
-} from "../types"
-import { asString, getAgeFromBirthDate, getDefaultWorkerAvatar, normalizeDomesticRoleLabels, readArrayStrings, toAvatarImage, toWorkerStatusFlags } from "@/modules/lavoratori/lib"
-import { isBlacklistValue, normalizeLookupColors, normalizeLookupOptions, resolveLookupColor, type LookupOption } from "@/lib/lookup-utils"
-import {
-  extractGeneratedMessage,
-  buildFamilyAddressDisplayDraft,
-  mergeWorkerResidenceAddress,
-  normalizeToken,
-} from "../lib/worker-pipeline-view-utils"
-import { delay } from "@/lib/async-utils"
-import { uniqueNonEmptyStrings } from "@/lib/value-utils"
-import {
-  buildRelatedSearchGroups,
-  fetchRelatedSearchLookupMaps,
-  toWorkerOtherSelectionSummaryItems,
-} from "../lib/related-active-searches"
+import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
+import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+import type { RealtimeRowEvent } from "@/hooks/use-realtime-rows"
 import { invokeAiGenerationFunction } from "@/lib/ai-generation"
 import {
   getSelectionAvailabilityWorkerIds,
   invokeWorkerAvailabilityForIds,
 } from "@/lib/availability-functions"
-import type { RicercaWorkerSelectionCard } from "../types"
-import { useSelectedWorkerEditor } from "@/modules/lavoratori/hooks"
-import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
+import { delay } from "@/lib/async-utils"
+import {
+  isBlacklistValue,
+  normalizeLookupColors,
+  normalizeLookupOptions,
+  resolveLookupColor,
+  type LookupOption,
+} from "@/lib/lookup-utils"
 import { fetchLookupValues } from "@/lib/lookup-values"
 import { updateRecord } from "@/lib/record-crud"
+import { uniqueNonEmptyStrings } from "@/lib/value-utils"
+import { type WorkerOtherSelectionSummaryItem } from "@/modules/lavoratori/components/lavoratore-card"
+import { useSelectedWorkerEditor } from "@/modules/lavoratori/hooks"
+import {
+  asString,
+  getAgeFromBirthDate,
+  getDefaultWorkerAvatar,
+  LAVORATORI_REALTIME_TABLES,
+  normalizeDomesticRoleLabels,
+  readArrayStrings,
+  shouldReloadLavoratoriOpenDetail,
+  toAvatarImage,
+  toWorkerStatusFlags,
+} from "@/modules/lavoratori/lib"
 import { fetchLavoratoriByIds } from "@/modules/lavoratori/queries"
-import { fetchRicercaWorkerScheda } from "../queries/fetch-ricerca-worker-scheda"
-import { fetchSelezioniLookup } from "../queries/fetch-selezioni-lookup"
 import type {
   DocumentoLavoratoreRecord,
   EsperienzaLavoratoreRecord,
   LavoratoreRecord,
   ReferenzaLavoratoreRecord,
 } from "@/modules/lavoratori/types"
+import type { RicercaWorkerPipelineOverlayProps } from "../components/ricerca-worker-pipeline-overlay"
+import {
+  buildRelatedSearchGroups,
+  fetchRelatedSearchLookupMaps,
+  toWorkerOtherSelectionSummaryItems,
+} from "../lib/related-active-searches"
 import {
   fetchAllSelectionsForWorker,
 } from "../lib/worker-pipeline-view-data"
-import type { RicercaWorkerPipelineOverlayProps } from "../components/ricerca-worker-pipeline-overlay"
+import {
+  extractGeneratedMessage,
+  buildFamilyAddressDisplayDraft,
+  mergeWorkerResidenceAddress,
+  normalizeToken,
+} from "../lib/worker-pipeline-view-utils"
+import { fetchRicercaWorkerScheda } from "../queries/fetch-ricerca-worker-scheda"
+import { fetchSelezioniLookup } from "../queries/fetch-selezioni-lookup"
+import type { RicercaWorkerSelectionCard, RelatedSearchGroups } from "../types"
 
 export type PipelineDetailFormDraft = {
   data_ritorno_disponibilita: string
@@ -62,6 +77,7 @@ export type UseRicercaWorkerPipelineOverlayParams = {
   recruiterLabelsById: Map<string, string>
   onOpenRelatedSearch?: (processId: string, selectionId: string) => void
   onFocusSelectionChange?: (selectionId: string | null) => void
+  onOpenLavoratoreCercaPage?: (workerId: string) => void
 }
 
 export function useRicercaWorkerPipelineOverlay({
@@ -74,6 +90,7 @@ export function useRicercaWorkerPipelineOverlay({
   recruiterLabelsById,
   onOpenRelatedSearch,
   onFocusSelectionChange,
+  onOpenLavoratoreCercaPage,
 }: UseRicercaWorkerPipelineOverlayParams) {
   const [selectedCard, setSelectedCard] =
     React.useState<RicercaWorkerSelectionCard | null>(null);
@@ -130,6 +147,11 @@ export function useRicercaWorkerPipelineOverlay({
   const selectedWorkerLoadingToastIdRef = React.useRef<string | number | null>(
     null,
   );
+  /** `workerId:selectionId` whose scheda is on screen — realtime refreshes stay silent. */
+  const loadedSchedaKeyRef = React.useRef<string | null>(null);
+  const relatedLoadedWorkerIdRef = React.useRef<string | null>(null);
+  const openWorkerIdRef = React.useRef<string | null>(null);
+  const [schedaReloadVersion, setSchedaReloadVersion] = React.useState(0);
   const [relatedActiveSearches, setRelatedActiveSearches] =
     React.useState<RelatedSearchGroups>({ direct: [], other: [] });
   const [loadingRelatedActiveSearches, setLoadingRelatedActiveSearches] =
@@ -449,8 +471,37 @@ export function useRicercaWorkerPipelineOverlay({
   }, []);
 
   React.useEffect(() => {
+    openWorkerIdRef.current =
+      isWorkerOverlayOpen && selectedCard ? selectedCard.worker.id : null;
+  }, [isWorkerOverlayOpen, selectedCard]);
+
+  const reloadSelectedWorkerSchedaSilently = React.useCallback(() => {
+    if (!openWorkerIdRef.current) return;
+    setSchedaReloadVersion((current) => current + 1);
+  }, []);
+
+  const shouldReloadOpenWorkerDetail = React.useCallback(
+    (event: RealtimeRowEvent) =>
+      shouldReloadLavoratoriOpenDetail(event, openWorkerIdRef.current),
+    [],
+  );
+
+  // Pattern B — open worker overlay scheda (profile, address, experiences,
+  // documents, references, selection). Board kanban stays on
+  // useRicercaWorkersPipeline; BAZ-19 focus-restore must not re-fire.
+  useRealtimeBoardSync({
+    tables: [...LAVORATORI_REALTIME_TABLES],
+    reload: () => {},
+    reloadOpenDetail: reloadSelectedWorkerSchedaSilently,
+    shouldReloadBoard: () => false,
+    shouldReloadOpenDetail: shouldReloadOpenWorkerDetail,
+  });
+
+  React.useEffect(() => {
     if (!selectedCard || !isWorkerOverlayOpen) {
+      loadedSchedaKeyRef.current = null;
       setSelectedWorkerRow(null);
+      setSelectedWorkerAddress(null);
       setSelectedWorkerExperiences([]);
       setSelectedWorkerDocuments([]);
       setSelectedWorkerReferences([]);
@@ -466,13 +517,19 @@ export function useRicercaWorkerPipelineOverlay({
     let isCancelled = false;
     const workerId = selectedCard.worker.id;
     const selectionId = selectedCard.id;
+    const schedaKey = `${workerId}:${selectionId}`;
+    // Keep the open overlay mounted during realtime refresh: flipping loading
+    // re-shows "Caricamento profilo..." and can unmount section editors.
+    const silentRefresh = loadedSchedaKeyRef.current === schedaKey;
 
     async function loadWorkerRow() {
-      setSelectedWorkerLoading(true);
-      setLoadingSelectedWorkerExperiences(true);
-      setLoadingSelectedWorkerDocuments(true);
-      setLoadingSelectedWorkerReferences(true);
-      setSelectedWorkerError(null);
+      if (!silentRefresh) {
+        setSelectedWorkerLoading(true);
+        setLoadingSelectedWorkerExperiences(true);
+        setLoadingSelectedWorkerDocuments(true);
+        setLoadingSelectedWorkerReferences(true);
+        setSelectedWorkerError(null);
+      }
 
       try {
         const [scheda, lookupResult] = await Promise.all([
@@ -511,8 +568,10 @@ export function useRicercaWorkerPipelineOverlay({
         setSelectedWorkerReferences(
           scheda.referenze as typeof selectedWorkerReferences,
         );
+        loadedSchedaKeyRef.current = schedaKey;
       } catch (error) {
         if (isCancelled) return;
+        if (silentRefresh) return;
         const message = error instanceof Error ? error.message : String(error);
         setSelectedWorkerError(message || "Errore caricamento profilo");
         setSelectedWorkerRow(null);
@@ -521,7 +580,7 @@ export function useRicercaWorkerPipelineOverlay({
         setSelectedWorkerReferences([]);
         setSelectedSelectionRow(null);
       } finally {
-        if (!isCancelled) {
+        if (!isCancelled && !silentRefresh) {
           setSelectedWorkerLoading(false);
           setLoadingSelectedWorkerExperiences(false);
           setLoadingSelectedWorkerDocuments(false);
@@ -535,20 +594,26 @@ export function useRicercaWorkerPipelineOverlay({
     return () => {
       isCancelled = true;
     };
-  }, [selectedCard, isWorkerOverlayOpen]);
+  }, [selectedCard, isWorkerOverlayOpen, schedaReloadVersion]);
 
   React.useEffect(() => {
     if (!selectedWorkerId || !isWorkerOverlayOpen) {
-      setRelatedActiveSearches({ direct: [], other: [] });
-      setLoadingRelatedActiveSearches(false);
+      if (relatedLoadedWorkerIdRef.current != null) {
+        relatedLoadedWorkerIdRef.current = null;
+        setRelatedActiveSearches({ direct: [], other: [] });
+        setLoadingRelatedActiveSearches(false);
+      }
       return;
     }
 
     let isCancelled = false;
     const workerId = selectedWorkerId;
+    const silentRefresh = relatedLoadedWorkerIdRef.current === workerId;
 
     async function loadRelatedActiveSearches() {
-      setLoadingRelatedActiveSearches(true);
+      if (!silentRefresh) {
+        setLoadingRelatedActiveSearches(true);
+      }
 
       try {
         const workerSelections = await fetchAllSelectionsForWorker(workerId);
@@ -583,11 +648,13 @@ export function useRicercaWorkerPipelineOverlay({
             currentSelectionId: selectedCard?.id,
           }),
         );
+        relatedLoadedWorkerIdRef.current = workerId;
       } catch {
         if (isCancelled) return;
+        if (silentRefresh) return;
         setRelatedActiveSearches({ direct: [], other: [] });
       } finally {
-        if (!isCancelled) {
+        if (!isCancelled && !silentRefresh) {
           setLoadingRelatedActiveSearches(false);
         }
       }
@@ -602,6 +669,7 @@ export function useRicercaWorkerPipelineOverlay({
     isWorkerOverlayOpen,
     processId,
     recruiterLabelsById,
+    schedaReloadVersion,
     selectedCard?.id,
     selectedWorkerId,
   ]);
@@ -950,6 +1018,7 @@ export function useRicercaWorkerPipelineOverlay({
     handleGenerateSelectionFeedback,
     handleGenerateWorkerSummary,
     handleOpenRelatedSearchCard,
+    onOpenLavoratoreCercaPage,
     upsertSelectedWorkerDocument,
     setSelectedWorkerError,
   }

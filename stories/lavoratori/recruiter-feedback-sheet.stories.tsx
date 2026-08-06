@@ -1,35 +1,24 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { RecruiterFeedbackSheet } from "@/modules/lavoratori/components/recruiter-feedback-sheet";
+import { RecruiterFeedbackButton } from "@/modules/lavoratori/components/recruiter-feedback-sheet";
 
 const meta = {
-  title: "Lavoratori/RecruiterFeedbackSheet",
-  component: RecruiterFeedbackSheet,
+  title: "Lavoratori/RecruiterFeedbackButton",
+  component: RecruiterFeedbackButton,
   args: {
-    open: true,
-    entries: [
-      {
-        name: "Francesca",
-        date: "09/04/2026",
-        text: "Si presenta bene, disponibile per lavori part time su Milano.",
-      },
-      {
-        name: "Elisa",
-        date: "11/04/2026",
-        text: "Preferisce famiglie con orari stabili.",
-      },
-    ],
-    onOpenChange: () => undefined,
+    variant: "inline",
   },
   argTypes: {
-    open: { control: "boolean" },
-    entries: { control: "object" },
+    variant: {
+      control: "select",
+      options: ["floating", "fab", "inline"],
+    },
+    disabled: { control: "boolean" },
   },
-} satisfies Meta<typeof RecruiterFeedbackSheet>;
+} satisfies Meta<typeof RecruiterFeedbackButton>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
-

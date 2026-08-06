@@ -25,10 +25,13 @@ export {
 export {
   CHIUSURA_RAPPORTO_FIELD_BINDINGS,
   CHIUSURA_RECORD_FIELD_BINDINGS,
+  EMPTY_CHIUSURA_TIPO_METADATA,
   applyChiusuraPatchInColumns,
   buildChiusuraTipoMetadata,
   formatChiusuraBoardDate,
   mapChiusuraBoardCard,
+  resolveChiusuraTipoDisplay,
+  type ChiusuraTipoMetadata,
 } from "./chiusure-board"
 export {
   CHIUSURA_FORM_URLS,
