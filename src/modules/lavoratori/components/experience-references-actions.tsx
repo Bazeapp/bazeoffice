@@ -253,6 +253,7 @@ export function AddExperienceAction({
               disabled={disabled}
               experienceTipoLavoroOptions={experienceTipoLavoroOptions}
               experienceTipoRapportoOptions={experienceTipoRapportoOptions}
+              fieldIdentity={workerId ? `new-esperienza:${workerId}` : "new-esperienza"}
             />
             <ExperienceFormDataFineError />
 

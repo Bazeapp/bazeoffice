@@ -6,6 +6,7 @@ type RicercaDetailPageProps = {
   onBack: () => void
   onOpenRelatedRicerca?: (processId: string, selectionId: string) => void
   onFocusSelection?: (selectionId: string | null) => void
+  onOpenLavoratoreCercaPage?: (workerId: string) => void
 }
 
 export function RicercaDetailPage({
@@ -14,6 +15,7 @@ export function RicercaDetailPage({
   onBack,
   onOpenRelatedRicerca,
   onFocusSelection,
+  onOpenLavoratoreCercaPage,
 }: RicercaDetailPageProps) {
   return (
     <RicercaDetailView
@@ -22,6 +24,7 @@ export function RicercaDetailPage({
       onBack={onBack}
       onOpenRelatedRicerca={onOpenRelatedRicerca}
       onFocusSelection={onFocusSelection}
+      onOpenLavoratoreCercaPage={onOpenLavoratoreCercaPage}
     />
   )
 }

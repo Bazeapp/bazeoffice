@@ -2,7 +2,6 @@ export * from "./card-utils"
 export * from "./gate1-utils"
 export * from "./availability-utils"
 export * from "./base-utils"
-export * from "./feedback-utils"
 export * from "./involvement-utils"
 export * from "./stati-selezione"
 export * from "./status-utils"
@@ -12,3 +11,12 @@ export { formatEditorError } from "./worker-editor-utils"
 export type { PatchWorkerField } from "./worker-editor-patch-field"
 export { buildRelatedSelectionsMap } from "./worker-list-mapper"
 export * from "./experience-references"
+export {
+  resolveLavoratoriRealtimeWorkerId,
+  shouldReloadLavoratoriBoard,
+  shouldReloadLavoratoriOpenDetail,
+} from "./lavoratori-realtime"
+export {
+  LAVORATORI_BOARD_REALTIME_TABLE,
+  LAVORATORI_REALTIME_TABLES,
+} from "./list-constants"

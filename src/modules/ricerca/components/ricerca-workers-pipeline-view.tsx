@@ -46,6 +46,7 @@ type RicercaWorkersPipelineViewProps = {
   focusSelectionId?: string | null;
   onOpenRelatedSearch?: (processId: string, selectionId: string) => void;
   onFocusSelectionChange?: (selectionId: string | null) => void;
+  onOpenLavoratoreCercaPage?: (workerId: string) => void;
   onPatchProcess?: (
     processId: string,
     patch: Record<string, unknown>,
@@ -62,6 +63,7 @@ export function RicercaWorkersPipelineView({
   focusSelectionId = null,
   onOpenRelatedSearch,
   onFocusSelectionChange,
+  onOpenLavoratoreCercaPage,
   pipelineState,
   recruiterLabelsById,
   className,
@@ -116,6 +118,7 @@ export function RicercaWorkersPipelineView({
     recruiterLabelsById,
     onOpenRelatedSearch,
     onFocusSelectionChange,
+    onOpenLavoratoreCercaPage,
   });
 
   const overlaySelection = overlayProps.selectedCard;

@@ -14,6 +14,7 @@ import type { RapportoLavorativoRecord } from "@/types"
 import {
   buildChiusuraTipoMetadata,
   mapChiusuraBoardCard,
+  type ChiusuraTipoMetadata,
 } from "./chiusure-board"
 import { CHIUSURE_DEFAULT_STAGE_DEFINITIONS } from "./chiusure-board-constants"
 
@@ -32,6 +33,8 @@ export type ChiusureBoardData = {
   columns: ChiusureBoardColumnData[]
   rapportoOptions: Array<{ id: string; label: string; rapporto: RapportoLavorativoRecord }>
   tipoLicenziamentoOptions: TipoLicenziamentoOption[]
+  /** Lookup maps for tipo badge recompute on optimistic patches / Pattern B. */
+  tipoMetadata: ChiusuraTipoMetadata
 }
 
 export async function fetchChiusureBoardData({
@@ -97,5 +100,10 @@ export async function fetchChiusureBoardData({
     })
     .sort((left, right) => left.label.localeCompare(right.label, "it"))
 
-  return { columns, rapportoOptions, tipoLicenziamentoOptions: tipoMetadata.tipoLicenziamentoOptions }
+  return {
+    columns,
+    rapportoOptions,
+    tipoLicenziamentoOptions: tipoMetadata.tipoLicenziamentoOptions,
+    tipoMetadata,
+  }
 }

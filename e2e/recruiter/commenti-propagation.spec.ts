@@ -10,6 +10,7 @@ import {
   entitySectionId,
   expandCommentsSection,
   expectCommentBodyVisible,
+  openCommentsPanel,
   openRicercaPipelineWorker,
   sendComment,
 } from "../support/commenti"
@@ -60,6 +61,56 @@ test.describe("commenti: cross-surface propagation", () => {
 
     await gotoRicercaDetail(page, unassignedNuova.id)
     await expandCommentsSection(page, entitySectionId("famiglia", E2E_FAMIGLIA.id))
+    await expectCommentBodyVisible(page, body)
+  })
+
+  // BAZ-160: unselected ricerca must not aggregate pipeline worker comments into COLLEGATE.
+  test("lavoratore comment stays out of ricerca COLLEGATE until worker is selected", async ({
+    page,
+  }) => {
+    const body = `${E2E_COMMENTI_BODY_PREFIX}ricerca no pipeline aggregate ${Date.now()}`
+    await ensureWorkerSelezione(assignedToday.id, qualificatoMi.id)
+    await seedComment({
+      pageEntityType: "lavoratore",
+      pageEntityId: qualificatoMi.id,
+      anchorEntityType: "lavoratore",
+      anchorEntityId: qualificatoMi.id,
+      body,
+      sourceInterface: "cerca_lavoratore",
+    })
+
+    await gotoRicercaDetail(page, assignedToday.id)
+    await openCommentsPanel(page)
+    await expandCommentsSection(page, "descendants")
+    await expect(
+      page.locator('[data-testid="comments-body"]').filter({ hasText: body }),
+    ).toHaveCount(0)
+
+    await openRicercaPipelineWorker(page, qualificatoMi.displayName)
+    await expandCommentsSection(page, entitySectionId("lavoratore", qualificatoMi.id))
+    await expectCommentBodyVisible(page, body)
+  })
+
+  // BAZ-160: a candidatura comment is scoped 1:1 to this ricerca, so (unlike a
+  // worker-global lavoratore note) it MUST aggregate into COLLEGATE even with no
+  // worker selected.
+  test("candidatura comment aggregates into ricerca COLLEGATE without selecting the worker", async ({
+    page,
+  }) => {
+    const body = `${E2E_COMMENTI_BODY_PREFIX}ricerca candidatura aggregate ${Date.now()}`
+    const selectionId = await ensureWorkerSelezione(assignedToday.id, qualificatoMi.id)
+    await seedComment({
+      pageEntityType: "candidatura",
+      pageEntityId: selectionId,
+      anchorEntityType: "candidatura",
+      anchorEntityId: selectionId,
+      body,
+      sourceInterface: "dettaglio_lavoratore_ricerca",
+    })
+
+    await gotoRicercaDetail(page, assignedToday.id)
+    await openCommentsPanel(page)
+    await expandCommentsSection(page, "descendants")
     await expectCommentBodyVisible(page, body)
   })
 })

@@ -2,7 +2,7 @@ import * as React from "react"
 import { toast } from "sonner"
 
 import { useWorkerSectionDraft } from "@/hooks/use-worker-section-draft"
-import { invokeWorkerAvailability } from "@/lib/availability-functions"
+import { invokeAndReadWorkerAvailabilityFinalJson } from "@/lib/availability-functions"
 import { updateRecord } from "@/lib/record-crud"
 import {
   AVAILABILITY_DAY_LABELS,
@@ -24,6 +24,7 @@ import {
   buildAvailabilityStatusDraft,
 } from "../lib/worker-editor-draft-builders"
 import { formatEditorError } from "../lib/worker-editor-utils"
+import { fetchLavoratoreScheda } from "../queries/fetch-lavoratore-scheda"
 
 export type UseWorkerAvailabilityEditorParams = {
   selectedWorkerId: string | null
@@ -95,6 +96,34 @@ export function useWorkerAvailabilityEditor({
       resyncDeps: [availabilityPayload],
     })
 
+  const applyRowWithRecomputedAvailability = React.useCallback(
+    async (baseRow: LavoratoreRecord) => {
+      if (!selectedWorkerId) {
+        applyUpdatedWorkerRow(baseRow)
+        return
+      }
+
+      const computedFinal = await invokeAndReadWorkerAvailabilityFinalJson(selectedWorkerId)
+      if (computedFinal != null) {
+        applyUpdatedWorkerRow({
+          ...baseRow,
+          availability_final_json: computedFinal,
+        })
+        return
+      }
+
+      // Fallback when the edge response shape is unexpected: reload scheda.
+      const scheda = await fetchLavoratoreScheda(selectedWorkerId)
+      const row = asLavoratoreRecord(scheda.worker)
+      if (row?.id) {
+        applyUpdatedWorkerRow(row)
+        return
+      }
+      applyUpdatedWorkerRow(baseRow)
+    },
+    [applyUpdatedWorkerRow, selectedWorkerId]
+  )
+
   const saveWorkerAvailability = React.useCallback(async () => {
     if (!selectedWorkerId) return
 
@@ -107,7 +136,7 @@ export function useWorkerAvailabilityEditor({
           : null,
       vincoli_orari_disponibilita:
         availabilityDraft.vincoli_orari_disponibilita.trim() || null,
-      ...buildAvailabilityPatchFromMatrix(availabilityDraft.matrix, availabilityPayload),
+      ...buildAvailabilityPatchFromMatrix(availabilityDraft.matrix),
     } as Partial<LavoratoreRecord> & Record<string, unknown>
 
     setUpdatingAvailability(true)
@@ -115,8 +144,7 @@ export function useWorkerAvailabilityEditor({
     try {
       const result = await updateRecord("lavoratori", selectedWorkerId, patch)
       const nextRow = asLavoratoreRecord(result.row)
-      applyUpdatedWorkerRow(nextRow)
-      await invokeWorkerAvailability(selectedWorkerId)
+      await applyRowWithRecomputedAvailability(nextRow)
       setAvailabilityDraftDirty(false)
       toast.success("Disponibilita lavoratore salvata")
     } catch (caughtError) {
@@ -129,9 +157,8 @@ export function useWorkerAvailabilityEditor({
       setUpdatingAvailabilityStatus(false)
     }
   }, [
-    applyUpdatedWorkerRow,
+    applyRowWithRecomputedAvailability,
     availabilityDraft,
-    availabilityPayload,
     availabilityStatusDraft,
     selectedWorkerId,
     setError,
@@ -145,8 +172,7 @@ export function useWorkerAvailabilityEditor({
       try {
         const result = await updateRecord("lavoratori", selectedWorkerId, patch)
         const nextRow = asLavoratoreRecord(result.row)
-        applyUpdatedWorkerRow(nextRow)
-        await invokeWorkerAvailability(selectedWorkerId)
+        await applyRowWithRecomputedAvailability(nextRow)
       } catch (caughtError) {
         const message = formatEditorError("Errore salvando stato disponibilita", caughtError)
         setError(message)
@@ -156,7 +182,7 @@ export function useWorkerAvailabilityEditor({
         setUpdatingAvailabilityStatus(false)
       }
     },
-    [applyUpdatedWorkerRow, selectedWorkerId, setError]
+    [applyRowWithRecomputedAvailability, selectedWorkerId, setError]
   )
 
   const handleAvailabilityMatrixChange = React.useCallback(
@@ -194,5 +220,6 @@ export function useWorkerAvailabilityEditor({
     saveWorkerAvailability,
     patchWorkerAvailabilityStatus,
     handleAvailabilityMatrixChange,
+    applyRowWithRecomputedAvailability,
   }
 }

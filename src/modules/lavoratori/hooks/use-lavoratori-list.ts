@@ -8,6 +8,10 @@ import { clearReadCaches } from "@/lib/write-tracking"
 import type { LavoratoreListItem } from "../components/lavoratore-card"
 import { asLavoratoreRecord } from "../lib/base-utils"
 import { LAVORATORI_REALTIME_TABLES } from "../lib/list-constants"
+import {
+  shouldReloadLavoratoriBoard,
+  shouldReloadLavoratoriOpenDetail,
+} from "../lib/lavoratori-realtime"
 import type { GenericRow } from "../types"
 import {
   buildRelatedSelectionsMap,
@@ -351,19 +355,14 @@ export function useLavoratoriList({
   }, [selectedWorkerId])
 
   const shouldReloadBoard = React.useCallback((event: RealtimeRowEvent) => {
-    // Inserts/deletes can change membership and totals for the current filter.
-    if (event.eventType === "INSERT" || event.eventType === "DELETE") return true
-    const rowId = String(event.newRow?.id ?? event.oldRow?.id ?? "")
-    if (!rowId) return true
-    if (selectedWorkerIdRef.current === rowId) return true
-    return workerRowsRef.current.some((row) => row.id === rowId)
+    return shouldReloadLavoratoriBoard(event, {
+      selectedWorkerId: selectedWorkerIdRef.current,
+      visibleWorkerIds: workerRowsRef.current.map((row) => row.id),
+    })
   }, [])
 
   const shouldReloadOpenDetail = React.useCallback((event: RealtimeRowEvent) => {
-    const selectedId = selectedWorkerIdRef.current
-    if (!selectedId) return false
-    const rowId = String(event.newRow?.id ?? event.oldRow?.id ?? "")
-    return rowId === selectedId
+    return shouldReloadLavoratoriOpenDetail(event, selectedWorkerIdRef.current)
   }, [])
 
   useRealtimeBoardSync({

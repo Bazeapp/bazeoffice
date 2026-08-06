@@ -157,16 +157,20 @@ export function AppShell({ user, onLogout }: AppShellProps) {
     syncBrowserUrl(nextRoute)
   }, [route.anagraficheTab])
 
-  const handleOpenLavoratoriCerca = React.useCallback(() => {
-    const nextRoute: AppRoute = {
-      mainSection: "lavoratori_cerca",
-      anagraficheTab: route.anagraficheTab,
-      ricercaProcessId: null,
-    }
+  const handleOpenLavoratoriCerca = React.useCallback(
+    (workerId?: string | null) => {
+      const nextRoute: AppRoute = {
+        mainSection: "lavoratori_cerca",
+        anagraficheTab: route.anagraficheTab,
+        ricercaProcessId: null,
+        selectedWorkerId: workerId?.trim() || null,
+      }
 
-    setRoute(nextRoute)
-    syncBrowserUrl(nextRoute)
-  }, [route.anagraficheTab])
+      setRoute(nextRoute)
+      syncBrowserUrl(nextRoute)
+    },
+    [route.anagraficheTab],
+  )
 
   const handleOpenRicercaPipeline = React.useCallback(() => {
     const nextRoute: AppRoute = {
@@ -460,6 +464,9 @@ export function AppShell({ user, onLogout }: AppShellProps) {
             onBackFromRicercaDetail={handleBackFromRicercaDetail}
             onOpenRelatedRicerca={handleOpenRelatedRicerca}
             onFocusRicercaSelection={handleFocusRicercaSelection}
+            onOpenLavoratoreCercaPage={(workerId) =>
+              handleOpenLavoratoriCerca(workerId)
+            }
             onSelectRapporto={handleSelectRapporto}
           />
           <CommentPanelHost />

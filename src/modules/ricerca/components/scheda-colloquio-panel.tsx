@@ -436,6 +436,11 @@ export function SchedaColloquioPanel({
   const form = useAutoSaveForm({
     defaults: buildSchedaColloquioDefaults(selectionRow),
     onSave: async (patch) => {
+      // Incomplete date/time halves must stay dirty: if we "succeed" without
+      // persisting, autosave clears dirty and the next selectionRow resync
+      // (realtime / sibling patch) wipes the half — slots never save.
+      const skippedKeys: string[] = [];
+
       for (const [key, value] of Object.entries(patch)) {
         if (SCHEDA_COLLOQUIO_SLOT_FORM_KEYS.has(key)) {
           // Ricostruisce inizio/fine dello slot toccato dai valori correnti del
@@ -450,11 +455,16 @@ export function SchedaColloquioPanel({
           const time = String(
             form.getValues(slotOraKey(slotIndex, boundary)) ?? "",
           );
-          if (!date || !time) continue;
-          await onPatchField(
-            slotTimestampColumn(slotIndex, boundary),
-            romaDateTimeToUtcIso(date, time),
-          );
+          if (!date || !time) {
+            skippedKeys.push(key);
+            continue;
+          }
+          const timestamp = romaDateTimeToUtcIso(date, time);
+          if (!timestamp) {
+            skippedKeys.push(key);
+            continue;
+          }
+          await onPatchField(slotTimestampColumn(slotIndex, boundary), timestamp);
           continue;
         }
 
@@ -485,6 +495,8 @@ export function SchedaColloquioPanel({
         // Score: valore grezzo (nessuna trasformazione).
         await onPatchField(key, value);
       }
+
+      return skippedKeys.length > 0 ? { skippedKeys } : undefined;
     },
   });
 

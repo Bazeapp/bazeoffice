@@ -13,7 +13,6 @@ import {
 } from "lucide-react"
 
 import { useSelectedWorkerEditor } from "./use-selected-worker-editor"
-import { useCurrentOperatorName } from "@/hooks/use-current-operator-name"
 import { useOperatoriOptions } from "@/hooks/use-operatori-options"
 import { useProvincieOptions } from "@/hooks/use-provincie"
 import { useAutoSaveForm } from "@/hooks/use-auto-save-form"
@@ -614,8 +613,6 @@ export function useLavoratoriCercaDetail({
     applyUpdatedWorkerReference,
     appendCreatedWorkerReference,
   });
-
-  const operatorName = useCurrentOperatorName();
 
   // FASE 5 BIS — form autosave per i campi di dettaglio del lavoratore che
   // alimentano card presentazionali condivise (WorkerProfileHeader, esperienze,
@@ -1338,7 +1335,6 @@ export function useLavoratoriCercaDetail({
     openRicercaDetailFromWorker,
     onOpenRicercaDetail,
     setIsAddSearchDialogOpen,
-    operatorName,
     isAddSearchDialogOpen,
     isSubmittingAddSearch,
     searchProcessQuery,

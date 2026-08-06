@@ -10,18 +10,19 @@ import { cn } from "@/lib/utils"
 import {
   addDays,
   formatTime,
+  getCalendarEventKind,
   getCalendarEventStatusKey,
   getCalendarStatusRailClassName,
   getEventDate,
   isSameDate,
   startOfWeek,
   toDateRangeValue,
+  type CalendarEventKind,
   type CalendarStatusKey,
 } from "../lib"
 import {
   CALENDAR_KIND_OPTIONS,
   CALENDAR_STATUS_OPTIONS,
-  type CalendarEventKind,
 } from "../lib/prove-colloqui-view.constants"
 import type { CalendarDateRange, ColloquioCalendarEvent } from "../types"
 
@@ -41,12 +42,13 @@ function CalendarEventButton({
   compact?: boolean
   onClick: () => void
 }) {
-  const isColloquio = event.type === "colloquio"
-  const avatarUrl = isColloquio ? event.workerAvatarUrl : event.card.workerAvatarUrl
-  const workerLabel = isColloquio
+  const isSelectionEvent = event.type === "colloquio"
+  const kind = getCalendarEventKind(event)
+  const avatarUrl = isSelectionEvent ? event.workerAvatarUrl : event.card.workerAvatarUrl
+  const workerLabel = isSelectionEvent
     ? [event.lavoratore?.nome, event.lavoratore?.cognome].filter(Boolean).join(" ") || "Lavoratore"
     : event.card.lavoratoreLabel
-  const familyLabel = isColloquio
+  const familyLabel = isSelectionEvent
     ? [event.famiglia?.nome, event.famiglia?.cognome].filter(Boolean).join(" ") ||
       event.famiglia?.email ||
       "Famiglia"
@@ -73,9 +75,9 @@ function CalendarEventButton({
           variant="outline"
           className="border-border bg-muted/40 text-muted-foreground"
         >
-          {isColloquio ? "Colloquio" : "Prova"}
+          {kind === "colloquio" ? "Colloquio" : "Prova"}
         </Badge>
-        {isColloquio && timeLabel ? (
+        {!event.allDay && timeLabel ? (
           <>
             <span className="text-muted-foreground/60">•</span>
             <span className="shrink-0 text-2xs font-semibold tabular-nums text-muted-foreground">
@@ -130,13 +132,14 @@ export function ProveColloquiCalendar({
   const filteredEvents = React.useMemo(
     () =>
       events.filter((event) => {
-        if (!selectedKinds.has(event.type)) return false
+        const kind = getCalendarEventKind(event)
+        if (!selectedKinds.has(kind)) return false
         if (!selectedStatuses.has(getCalendarEventStatusKey(event))) return false
         return matchesSearchQuery(
           [
             event.title,
             event.status,
-            event.type,
+            kind,
             event.type === "colloquio" ? event.famiglia?.email : event.card.famiglia?.email,
             event.type === "colloquio" ? event.lavoratore?.email : event.card.lavoratore?.email,
           ],
@@ -260,7 +263,9 @@ export function ProveColloquiCalendar({
                   return date ? isSameDate(date, day) : false
                 })
                 .sort((left, right) => {
-                  if (left.type !== right.type) return left.type === "colloquio" ? -1 : 1
+                  const leftKind = getCalendarEventKind(left)
+                  const rightKind = getCalendarEventKind(right)
+                  if (leftKind !== rightKind) return leftKind === "colloquio" ? -1 : 1
                   const leftTime = getEventDate(left)?.getTime() ?? 0
                   const rightTime = getEventDate(right)?.getTime() ?? 0
                   return leftTime - rightTime

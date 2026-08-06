@@ -50,7 +50,11 @@ export function useSelectedLavoratoreDetail({
     React.useState(false)
   const [loadingSelectedWorkerReferences, setLoadingSelectedWorkerReferences] =
     React.useState(false)
-  const selectedWorkerAddressLoadAttemptsRef = React.useRef(new Set<string>())
+  /** Last address fetch scoped per worker + Pattern B tick. */
+  const selectedWorkerAddressFetchedTickRef = React.useRef<{
+    workerId: string
+    tick: number
+  } | null>(null)
   /** Worker id whose scheda is already on screen — background refreshes stay SWR. */
   const loadedSchedaWorkerIdRef = React.useRef<string | null>(null)
 
@@ -130,37 +134,68 @@ export function useSelectedLavoratoreDetail({
     [selectedWorkerId, workerAddressesById]
   )
 
-  // Address bootstrap only — not a detail refetch (Pattern B).
+  // Address bootstrap + Pattern B refresh on realtimeTick (same tick as scheda).
   React.useEffect(() => {
-    if (!selectedWorkerId || selectedWorkerAddress) return
-    if (selectedWorkerAddressLoadAttemptsRef.current.has(selectedWorkerId)) return
+    if (!selectedWorkerId) {
+      selectedWorkerAddressFetchedTickRef.current = null
+      return
+    }
+
+    const previous = selectedWorkerAddressFetchedTickRef.current
+    if (
+      previous?.workerId === selectedWorkerId &&
+      previous.tick === realtimeTick
+    ) {
+      return
+    }
+
+    const isRealtimeRefresh =
+      previous?.workerId === selectedWorkerId && previous.tick !== realtimeTick
+
+    // First paint: board may already have hydrated the address — skip fetch.
+    // Pattern B (tick advanced for this worker) always refetches.
+    if (!isRealtimeRefresh && selectedWorkerAddress) {
+      selectedWorkerAddressFetchedTickRef.current = {
+        workerId: selectedWorkerId,
+        tick: realtimeTick,
+      }
+      return
+    }
 
     let isCancelled = false
     const workerId = selectedWorkerId
-    selectedWorkerAddressLoadAttemptsRef.current.add(workerId)
-
-    async function loadSelectedWorkerAddress() {
-      const result = await fetchWorkerAddressesByIds([workerId])
-      if (isCancelled) return
-      const addresses = result.get(workerId)
-      if (!addresses || addresses.length === 0) return
-
-      setWorkerAddressesById((current) => {
-        const next = new Map(current)
-        next.set(workerId, addresses)
-        return next
-      })
+    selectedWorkerAddressFetchedTickRef.current = {
+      workerId,
+      tick: realtimeTick,
     }
 
-    void loadSelectedWorkerAddress().catch(() => {
-      if (!isCancelled) selectedWorkerAddressLoadAttemptsRef.current.delete(workerId)
-    })
+    void fetchWorkerAddressesByIds([workerId])
+      .then((result) => {
+        if (isCancelled) return
+        const addresses = result.get(workerId) ?? []
+        setWorkerAddressesById((current) => {
+          const next = new Map(current)
+          if (addresses.length === 0) {
+            if (isRealtimeRefresh) next.delete(workerId)
+            return next
+          }
+          next.set(workerId, addresses)
+          return next
+        })
+      })
+      .catch(() => {
+        if (!isCancelled) selectedWorkerAddressFetchedTickRef.current = null
+      })
 
     return () => {
       isCancelled = true
     }
-    // eslint-disable-next-line no-restricted-syntax -- one-shot address load, not scheda refresh
-  }, [selectedWorkerAddress, selectedWorkerId, setWorkerAddressesById])
+  }, [
+    realtimeTick,
+    selectedWorkerAddress,
+    selectedWorkerId,
+    setWorkerAddressesById,
+  ])
 
   const applyUpdatedWorkerRow = React.useCallback(
     (nextRow: LavoratoreRecord) => {

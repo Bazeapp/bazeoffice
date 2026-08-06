@@ -12,6 +12,7 @@ import {
   type RelatedSearchGroups,
   WorkerPipelineSummaryCards,
 } from "./worker-pipeline-summary-cards"
+import { WorkerPipelineOpenFullPageLink } from "./worker-pipeline-open-full-page-link"
 import { DetailSectionBlock } from "@/components/shared-next/detail-section-card"
 import {
   Select,
@@ -148,6 +149,7 @@ export type RicercaWorkerPipelineOverlayProps = {
   handleGenerateSelectionFeedback: () => Promise<string | null>
   handleGenerateWorkerSummary: () => Promise<void>
   handleOpenRelatedSearchCard: (nextProcessId: string, nextSelectionId: string) => void
+  onOpenLavoratoreCercaPage?: (workerId: string) => void
   upsertSelectedWorkerDocument: (row: DocumentoLavoratoreRecord) => void
   setSelectedWorkerError: Dispatch<SetStateAction<string | null>>
 }
@@ -230,6 +232,7 @@ export function RicercaWorkerPipelineOverlay({
   handleGenerateSelectionFeedback,
   handleGenerateWorkerSummary,
   handleOpenRelatedSearchCard,
+  onOpenLavoratoreCercaPage,
   upsertSelectedWorkerDocument,
   setSelectedWorkerError,
 }: RicercaWorkerPipelineOverlayProps) {
@@ -260,14 +263,26 @@ export function RicercaWorkerPipelineOverlay({
                 {selectedWorker?.nomeCompleto ?? "Lavoratore"}
               </BreadcrumbItem>
             </Breadcrumb>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={onClose}
-            >
-              <XIcon />
-            </Button>
+            <div className="flex shrink-0 items-center gap-1">
+              {onOpenLavoratoreCercaPage ? (
+                <WorkerPipelineOpenFullPageLink
+                  workerId={
+                    asString(selectedWorkerRow?.id) ||
+                    selectedCard?.worker.id ||
+                    null
+                  }
+                  onOpen={onOpenLavoratoreCercaPage}
+                />
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={onClose}
+              >
+                <XIcon />
+              </Button>
+            </div>
           </div>
 
           {selectedWorkerError ? (

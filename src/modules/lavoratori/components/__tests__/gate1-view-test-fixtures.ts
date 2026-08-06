@@ -93,7 +93,6 @@ export function makeEditorReturn(overrides: Record<string, unknown> = {}) {
     selectedWorkerIsNonIdoneo: false,
     selectedWorkerNonQualificatoIssues: [],
     selectedWorkerIsNonQualificato: false,
-    recruiterFeedbackEntries: [],
     availabilityPayload: null,
     disponibilitaBadgeClassName: "",
     availabilityReadOnlyRows: [],
