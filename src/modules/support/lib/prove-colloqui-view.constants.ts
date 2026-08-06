@@ -1,7 +1,7 @@
-import type { CalendarStatusKey } from "./colloqui-calendar-utils"
+import type { CalendarEventKind, CalendarStatusKey } from "./colloqui-calendar-utils"
 
 export type ProveColloquiViewTab = "prove" | "colloqui"
-export type CalendarEventKind = "colloquio" | "prova"
+export type { CalendarEventKind }
 export type TrialRecordingSlot =
   | "registrazione_chiamate_lavoratori"
   | "registrazione_chiamate_famiglia"

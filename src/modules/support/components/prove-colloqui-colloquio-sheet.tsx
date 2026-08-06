@@ -157,7 +157,7 @@ export function ProveColloquiColloquioSheet({
                   icon={<ClipboardListIcon className="size-4" />}
                   contentClassName="space-y-4"
                 >
-                  <DetailFieldControl label="prova_colloquio_res" className="max-w-sm">
+                  <DetailFieldControl label="Tipo incontro" className="max-w-sm">
                     <FieldColloquioEsitoSelect
                       name="tipo_incontro_famiglia_lavoratore"
                       options={tipoIncontroOptions}
