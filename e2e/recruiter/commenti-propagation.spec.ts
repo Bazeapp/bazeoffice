@@ -90,4 +90,27 @@ test.describe("commenti: cross-surface propagation", () => {
     await expandCommentsSection(page, entitySectionId("lavoratore", qualificatoMi.id))
     await expectCommentBodyVisible(page, body)
   })
+
+  // BAZ-160: a candidatura comment is scoped 1:1 to this ricerca, so (unlike a
+  // worker-global lavoratore note) it MUST aggregate into COLLEGATE even with no
+  // worker selected.
+  test("candidatura comment aggregates into ricerca COLLEGATE without selecting the worker", async ({
+    page,
+  }) => {
+    const body = `${E2E_COMMENTI_BODY_PREFIX}ricerca candidatura aggregate ${Date.now()}`
+    const selectionId = await ensureWorkerSelezione(assignedToday.id, qualificatoMi.id)
+    await seedComment({
+      pageEntityType: "candidatura",
+      pageEntityId: selectionId,
+      anchorEntityType: "candidatura",
+      anchorEntityId: selectionId,
+      body,
+      sourceInterface: "dettaglio_lavoratore_ricerca",
+    })
+
+    await gotoRicercaDetail(page, assignedToday.id)
+    await openCommentsPanel(page)
+    await expandCommentsSection(page, "descendants")
+    await expectCommentBodyVisible(page, body)
+  })
 })
