@@ -88,6 +88,7 @@ type AppPageContentProps = {
   onBackFromRicercaDetail: () => void
   onOpenRelatedRicerca: (processId: string, selectionId: string) => void
   onFocusRicercaSelection: (selectionId: string | null) => void
+  onOpenLavoratoreCercaPage: (workerId: string) => void
   onSelectRapporto: (rapportoId: string | null) => void
 }
 
@@ -98,6 +99,7 @@ export function AppPageContent({
   onBackFromRicercaDetail,
   onOpenRelatedRicerca,
   onFocusRicercaSelection,
+  onOpenLavoratoreCercaPage,
   onSelectRapporto,
 }: AppPageContentProps) {
   if (route.mainSection === "crm_pipeline_famiglie") {
@@ -116,6 +118,7 @@ export function AppPageContent({
         onBack={onBackFromRicercaDetail}
         onOpenRelatedRicerca={onOpenRelatedRicerca}
         onFocusSelection={onFocusRicercaSelection}
+        onOpenLavoratoreCercaPage={onOpenLavoratoreCercaPage}
       />
     ) : (
       <RicercaBoardPage onOpenDetail={onOpenRicercaDetail} />

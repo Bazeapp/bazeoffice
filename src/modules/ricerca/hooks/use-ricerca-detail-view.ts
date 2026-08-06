@@ -60,6 +60,7 @@ export function useRicercaDetailView({
   onBack,
   onOpenRelatedRicerca,
   onFocusSelection,
+  onOpenLavoratoreCercaPage,
 }: RicercaDetailViewProps) {
   const [currentProcessId, setCurrentProcessId] = React.useState(processId);
   const [focusedSelectionId, setFocusedSelectionId] = React.useState<
@@ -624,6 +625,7 @@ export function useRicercaDetailView({
         focusedSelectionId,
         onOpenRelatedSearch: handleOpenRelatedSearch,
         onFocusSelection,
+        onOpenLavoratoreCercaPage,
         onPatchProcess: updateProcessCard,
         pipelineState,
         recruiterLabelsById,
