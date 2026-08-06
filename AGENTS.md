@@ -73,8 +73,12 @@ The definition of done for any feature includes:
   `docs`, `style`, `refactor`, `perf`, `test`, `chore`.
 - **Never add AI co-author/attribution lines** to commits or PRs. No
   `Co-Authored-By: Claude...`, no "Generated with..." footers.
+- **Branch naming convention**: `<type>/<linear-code>-<feature-name>`. 
+  If no linear issue is provided omit the linear-code. Type should be either `feat`, `fix`,
+  `docs`, `style`, `refactor`, `perf`, `test`, `chore`.
 - **Small, single-concern PRs**: aim < 400 changed lines; don't mix features with
   refactors or fixes.
+- When opening a PR it should be against `dev` branch unless told otherwise.
 - PR title = conventional commit format. PR body answers **What / Why / How /
   Testing**, with screenshots for UI changes.
 - Commit only what you touched for the unit of work — no `git add .` sweeps that
