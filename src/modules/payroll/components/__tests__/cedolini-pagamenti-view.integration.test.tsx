@@ -60,7 +60,7 @@ function makeCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCa
     presenzeRegolari: null,
     rapporto: { id: "r-1" } as PayrollBoardCardData["rapporto"],
     mese: null,
-    richiestaAttivazione: null,
+    richiestaAttivazione: { id: "ra-1", fee_concordata: null },
     presenzeIrregolari: false,
     nomeCompleto: "Rossi – Maria",
     importoLabel: "€1.000",
@@ -163,12 +163,52 @@ describe("CedoliniPagamentiView — reminder da fare/fatti + bulk (U6)", () => {
     const bulkReminder = mockBulkReminder()
     renderPagamenti(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
 
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Inclusi 2",
+    )
+
     await clickInviaAndConfirmDryRun()
 
     await waitFor(() => {
       expect(bulkReminder.startDryRun).toHaveBeenCalledWith(["m-1", "m-2"], "2026-07")
     })
     expect(screen.getByTestId("cedolini-pagamenti-reminder-dialog")).toBeTruthy()
+  })
+
+  it("BAZ-180: deselezionare una famiglia la esclude dal bulk; Seleziona tutti la ripristina", async () => {
+    mockPagamenti({ daFare: [makeCard({ id: "m-1" }), makeCard({ id: "m-2" })] })
+    const bulkReminder = mockBulkReminder()
+    renderPagamenti(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
+
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-include-m-2"))
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Inclusi 1",
+    )
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Esclusi 1",
+    )
+
+    await clickInviaAndConfirmDryRun()
+    await waitFor(() => {
+      expect(bulkReminder.startDryRun).toHaveBeenCalledWith(["m-1"], "2026-07")
+    })
+
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-select-all"))
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Inclusi 2 · Esclusi 0",
+    )
+  })
+
+  it("BAZ-180: Deseleziona tutti svuota il bulk e disabilita Invia reminder", () => {
+    mockPagamenti({ daFare: [makeCard({ id: "m-1" }), makeCard({ id: "m-2" })] })
+    mockBulkReminder()
+    renderWithProviders(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
+
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-deselect-all"))
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Inclusi 0",
+    )
+    expect(screen.getByTestId("cedolini-pagamenti-reminder-invia")).toHaveProperty("disabled", true)
   })
 
   it("EDGE (AE6/OQ6): il filtro data riduce sia la lista visibile che gli id del bulk, escludendo i NULL", async () => {

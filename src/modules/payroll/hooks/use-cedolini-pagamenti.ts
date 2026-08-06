@@ -12,9 +12,9 @@ export function cedoliniPagamentiReminderFlagsQueryKey(candidateIds: string[]) {
 }
 
 export type UseCedoliniPagamentiState = {
-  /** "Inviato cedolino" + transazione, NOT yet reminded — before any date filter (R7). */
+  /** Eligible Baze Pay "Inviato cedolino" + transazione, NOT yet reminded (R7/BAZ-180). */
   daFare: PayrollBoardCardData[]
-  /** "Inviato cedolino" + transazione, `check_reminder_pagamento_inviato: true` (R7). */
+  /** Eligible Baze Pay rows with `check_reminder_pagamento_inviato: true` (R7/BAZ-180). */
   fatti: PayrollBoardCardData[]
   isLoading: boolean
   error: string | null
@@ -26,13 +26,12 @@ export type UseCedoliniPagamentiState = {
 }
 
 /**
- * Pagamenti data (BAZ-98/99/100 U6, R7): derives "Inviato cedolino" rows
- * with a linked `transazione` from the SAME board columns Controlli already
- * receives (`usePayrollBoard` via the parent view) — no extra board fetch —
- * then enriches just those candidate ids with
- * `check_reminder_pagamento_inviato` (not returned by the `cedolini_board`
- * RPC) via a dedicated lightweight fetch, and splits into Reminder da fare
- * / fatti.
+ * Pagamenti data (BAZ-98/99/100 U6, R7; BAZ-180): derives eligible
+ * "Inviato cedolino" Baze Pay rows with a linked `transazione` (abbonamenti
+ * and closure-month cedolini excluded) from the SAME board columns Controlli
+ * already receives — no extra board fetch — then enriches candidate ids with
+ * `check_reminder_pagamento_inviato` via a dedicated fetch, and splits into
+ * Reminder da fare / fatti.
  */
 export function useCedoliniPagamenti(columns: PayrollBoardColumnData[]): UseCedoliniPagamentiState {
   const queryClient = useQueryClient()

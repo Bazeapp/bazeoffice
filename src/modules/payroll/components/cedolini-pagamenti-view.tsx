@@ -2,6 +2,7 @@ import * as React from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { confirm } from "@/components/ui/confirmer"
 import { Input } from "@/components/ui/input"
 import { formatItalianDateOrNull } from "@/lib/format-utils"
@@ -11,6 +12,7 @@ import { useCedoliniPagamenti } from "../hooks/use-cedolini-pagamenti"
 import {
   filterPagamentiCardsByDate,
   getPagamentiReminderBulkIds,
+  togglePagamentiReminderExclusion,
 } from "../lib/cedolini-pagamenti-filters"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
 import { CedoliniPagamentiReminderDialog } from "./cedolini-pagamenti-reminder-dialog"
@@ -21,19 +23,20 @@ export type CedoliniPagamentiViewProps = {
 }
 
 /**
- * Cedolini Pagamenti (BAZ-98/99/100 U6, R7/R8/AE6/OQ6): Reminder da fare /
- * fatti columns for "Inviato cedolino" rows with a linked transazione, a
- * date filter on `data_invio_famiglia` that gates BOTH what's visible and
- * the bulk reminder ids (AE6), and a dry-run → confirm → sequential/
- * stoppable bulk reminder reusing the same `cedolino_bulk_jobs` machinery as
- * Controlli's bulk send (`useCedoliniBulkReminder`, U5's extracted
- * `useCedoliniBulkJob`).
+ * Cedolini Pagamenti (BAZ-98/99/100 U6, R7/R8/AE6/OQ6; BAZ-180): Reminder da
+ * fare / fatti for "Inviato cedolino" Baze Pay rows with a linked
+ * transazione (abbonamenti and closure-month cedolini always excluded), a
+ * date filter on `data_invio_famiglia` that gates visibility, per-family
+ * include/exclude for the bulk send (select all / deselect all), and a
+ * dry-run → confirm → sequential/stoppable bulk reminder.
  */
 export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagamentiViewProps) {
   const pagamenti = useCedoliniPagamenti(columns)
   const bulkReminder = useCedoliniBulkReminder()
   const [reminderDialogOpen, setReminderDialogOpen] = React.useState(false)
   const [dateFilter, setDateFilter] = React.useState("")
+  /** Operator deselections for the next bulk send (BAZ-180). Empty ⇒ all included. */
+  const [excludedIds, setExcludedIds] = React.useState<Set<string>>(() => new Set())
 
   const normalizedDateFilter = dateFilter.trim() || null
 
@@ -41,9 +44,24 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
     () => filterPagamentiCardsByDate(pagamenti.daFare, normalizedDateFilter),
     [pagamenti.daFare, normalizedDateFilter],
   )
-  // AE6: the bulk reminder ids are exactly what's visible in "da fare"
-  // AFTER the date filter — never the unfiltered set.
-  const bulkIds = React.useMemo(() => getPagamentiReminderBulkIds(visibleDaFare), [visibleDaFare])
+  // Drop exclusions that no longer appear in the visible da-fare set (date
+  // filter / refetch) so counts stay accurate without sticky ghosts.
+  const activeExcludedIds = React.useMemo(() => {
+    if (excludedIds.size === 0) return excludedIds
+    const visibleIdSet = new Set(visibleDaFare.map((card) => card.id))
+    const next = new Set<string>()
+    for (const id of excludedIds) {
+      if (visibleIdSet.has(id)) next.add(id)
+    }
+    return next.size === excludedIds.size ? excludedIds : next
+  }, [excludedIds, visibleDaFare])
+
+  // AE6 + BAZ-180: bulk ids = visible da-fare minus operator exclusions.
+  const bulkIds = React.useMemo(
+    () => getPagamentiReminderBulkIds(visibleDaFare, activeExcludedIds),
+    [visibleDaFare, activeExcludedIds],
+  )
+  const excludedCount = visibleDaFare.length - bulkIds.length
 
   const dateBoundLabel = normalizedDateFilter ? formatItalianDateOrNull(normalizedDateFilter) : null
 
@@ -90,6 +108,18 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
     })
   }
 
+  const selectAllVisible = () => {
+    setExcludedIds(new Set())
+  }
+
+  const deselectAllVisible = () => {
+    setExcludedIds(new Set(visibleDaFare.map((card) => card.id)))
+  }
+
+  const setCardIncluded = (meseLavorativoId: string, included: boolean) => {
+    setExcludedIds((previous) => togglePagamentiReminderExclusion(previous, meseLavorativoId, included))
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
@@ -114,6 +144,36 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
             >
               Rimuovi filtro
             </Button>
+          ) : null}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-testid="cedolini-pagamenti-select-all"
+            onClick={selectAllVisible}
+            disabled={visibleDaFare.length === 0 || excludedCount === 0}
+          >
+            Seleziona tutti
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-testid="cedolini-pagamenti-deselect-all"
+            onClick={deselectAllVisible}
+            disabled={visibleDaFare.length === 0 || bulkIds.length === 0}
+          >
+            Deseleziona tutti
+          </Button>
+
+          {visibleDaFare.length > 0 ? (
+            <span
+              className="text-muted-foreground text-xs"
+              data-testid="cedolini-pagamenti-selection-summary"
+            >
+              Inclusi {bulkIds.length} · Esclusi {excludedCount}
+            </span>
           ) : null}
 
           <Button
@@ -147,11 +207,16 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
                 {visibleDaFare.length}
               </Badge>
             </h2>
+            <p className="text-muted-foreground mb-2 text-xs">
+              Solo Baze Pay. Deseleziona le famiglie da escludere dall&apos;invio bulk.
+            </p>
             <div className="flex flex-col gap-2">
               {visibleDaFare.map((card) => (
                 <CedoliniPagamentiCardItem
                   key={card.id}
                   card={card}
+                  included={!activeExcludedIds.has(card.id)}
+                  onIncludedChange={(included) => setCardIncluded(card.id, included)}
                   onSendReminder={() => void pagamenti.sendSingleReminder(card.id)}
                   isSending={pagamenti.sendingSingleId === card.id}
                 />
@@ -201,20 +266,37 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
 
 function CedoliniPagamentiCardItem({
   card,
+  included,
+  onIncludedChange,
   onSendReminder,
   isSending = false,
 }: {
   card: PayrollBoardCardData
+  included?: boolean
+  onIncludedChange?: (included: boolean) => void
   onSendReminder?: () => void
   isSending?: boolean
 }) {
+  const showSelection = typeof included === "boolean" && onIncludedChange != null
+
   return (
     <div
       className="border-border bg-surface rounded-lg border p-3"
       data-testid={`cedolini-pagamenti-card-${card.id}`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-foreground-strong text-sm font-medium">{card.nomeCompleto}</span>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-start gap-2">
+          {showSelection ? (
+            <Checkbox
+              checked={included}
+              onCheckedChange={(value) => onIncludedChange(value === true)}
+              data-testid={`cedolini-pagamenti-include-${card.id}`}
+              aria-label={`Includi ${card.nomeCompleto} nell'invio reminder`}
+              className="mt-0.5"
+            />
+          ) : null}
+          <span className="text-foreground-strong text-sm font-medium">{card.nomeCompleto}</span>
+        </div>
         {card.importoLabel ? (
           <Badge variant="secondary" size="sm">
             {card.importoLabel}
