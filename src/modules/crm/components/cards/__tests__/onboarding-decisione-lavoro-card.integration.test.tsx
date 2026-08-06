@@ -10,18 +10,14 @@
  * FASE 5 BIS — the section now uses react-hook-form + `useAutoSaveForm`
  * (the form is the source of truth). The anti-clobber contract is enforced by
  * `form.reset(defaults, { keepDirtyValues: true })`: a field the user has
- * touched is never overwritten by an incoming `defaults.*` change. Two
- * behavioural differences vs the old per-field dirty-ref implementation:
- *   1. Saves are debounced/coalesced (fire on the next tick), so the
- *      `onPatchProcess` assertion is wrapped in `waitFor`.
- *   2. `keepDirtyValues` keeps a touched field pinned to the user's value
- *      until the panel REMOUNTS (record switch via `key=`); a later remote
- *      change to that same field while still mounted stays masked. This is the
- *      same trade-off accepted across the other FASE 5 BIS cards.
+ * touched is never overwritten by an incoming `defaults.*` change while dirty.
+ * After a successful autosave, RHF dirty is cleared via `keepValues` reset so
+ * a later remote change to that same field can land (R2) — keepDirtyValues
+ * protects in-progress edits only, not post-save fields.
  *
  * These tests verify the core contract: the optimistic value is applied
- * immediately, the save fires, and an unrelated realtime echo does NOT wipe
- * the in-progress edit.
+ * immediately, the save fires, an unrelated realtime echo does NOT wipe
+ * the in-progress edit, and after save a remote update to the same field lands.
  */
 import * as React from "react"
 import { act, fireEvent, waitFor } from "@testing-library/react"
@@ -175,6 +171,63 @@ describe("OnboardingDecisioneLavoroSection draft resync guards", () => {
       resolvePatch()
       await patchPromise
     })
+    queryClient.clear()
+  })
+
+  it("after autosave, a remote change to the same field updates the UI", async () => {
+    // Pins R2 for CRM pipeline cards: keepDirtyValues must not freeze a field
+    // forever after save. useAutoSaveFormFields clears dirty via keepValues.
+    // Model the production path: optimistic/server echo advances defaults to the
+    // saved value first (signature change), then a later peer update can land.
+    const onPatchProcess = vi.fn(async () => {})
+
+    const { getByRole, rerender, queryClient } = setup({
+      defaults: {
+        presenzaNeonati: false,
+        nucleoFamigliare: "famiglia A",
+      },
+      onPatchProcess,
+    })
+
+    const neonati = getByRole("checkbox", { name: "Sono presenti neonati" })
+    await act(async () => {
+      fireEvent.click(neonati)
+    })
+    expect(neonati.getAttribute("aria-checked")).toBe("true")
+    await waitFor(() =>
+      expect(onPatchProcess).toHaveBeenCalledWith({ presenza_neonati: true }),
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Optimistic / server echo of our own save.
+    rerender(
+      <OnboardingDecisioneLavoroSection
+        defaults={{
+          presenzaNeonati: true,
+          nucleoFamigliare: "famiglia A",
+        }}
+        checkboxDefaults={{}}
+        onPatchProcess={onPatchProcess}
+      />,
+    )
+    expect(neonati.getAttribute("aria-checked")).toBe("true")
+
+    // Later peer remote change — must apply because dirty was cleared after save.
+    rerender(
+      <OnboardingDecisioneLavoroSection
+        defaults={{
+          presenzaNeonati: false,
+          nucleoFamigliare: "famiglia A",
+        }}
+        checkboxDefaults={{}}
+        onPatchProcess={onPatchProcess}
+      />,
+    )
+
+    expect(neonati.getAttribute("aria-checked")).toBe("false")
     queryClient.clear()
   })
 })

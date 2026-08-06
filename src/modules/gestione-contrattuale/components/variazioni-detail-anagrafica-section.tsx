@@ -59,9 +59,16 @@ export function VariazioniDetailAnagraficaSection({
       setError(null)
       try {
         const response = await updateRecord(table, rowId, out)
+        // Merge only patched keys — the raw update-record row includes legacy
+        // columns (e.g. lavoratori.indirizzo_residenza_completo) that would
+        // overwrite board-computed / indirizzi-derived read-only fields.
+        const patchedKeys = new Set(Object.keys(out))
+        const filteredRow = Object.fromEntries(
+          Object.entries(response.row).filter(([key]) => patchedKeys.has(key)),
+        )
         onRowChange({
           ...(latestRowRef.current ?? row ?? {}),
-          ...response.row,
+          ...filteredRow,
         })
       } catch (caughtError) {
         setError(

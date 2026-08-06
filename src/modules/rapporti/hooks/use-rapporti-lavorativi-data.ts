@@ -22,6 +22,8 @@ import {
   mapRapportoBoardRow,
 } from "../lib/rapporti-board"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+import type { RealtimeRowEvent } from "@/hooks/use-realtime-rows"
+import { eventMatchesOpenDetailId } from "@/lib/realtime-open-detail"
 
 // The board lists rapporti; related tables are loaded only for the selected
 // detail and would cause excessive refetches if subscribed here. Detail-level
@@ -74,7 +76,7 @@ export function useRapportiLavorativiData(
   const queryClient = useQueryClient()
   const [pageIndex, setPageIndex] = React.useState(0)
   const [detailError, setDetailError] = React.useState<string | null>(null)
-  const [detailRetryToken, setDetailRetryToken] = React.useState(0)
+  const [realtimeTick, setRealtimeTick] = React.useState(0)
   const [searchValue, setSearchValue] = React.useState("")
   const [rapportoStatusFilter, setRapportoStatusFilter] =
     React.useState<RapportoStatusFilter>("all")
@@ -177,7 +179,7 @@ export function useRapportiLavorativiData(
 
   const retryRapporti = React.useCallback(() => {
     setDetailError(null)
-    setDetailRetryToken((current) => current + 1)
+    setRealtimeTick((current) => current + 1)
     void refetch()
   }, [refetch])
 
@@ -241,9 +243,28 @@ export function useRapportiLavorativiData(
     [queryClient, boardQueryKey],
   )
 
+  const bumpRealtimeTick = React.useCallback(() => {
+    setRealtimeTick((current) => current + 1)
+  }, [])
+
+  const selectedRapportoIdRef = React.useRef(selectedRapportoId)
+  React.useEffect(() => {
+    // Ref mirror only — does not fetch detail (Pattern B lives on the related-records effect).
+    selectedRapportoIdRef.current = selectedRapportoId
+    // eslint-disable-next-line no-restricted-syntax -- selectedXxxId without realtimeTick is intentional
+  }, [selectedRapportoId])
+
+  const shouldReloadOpenDetail = React.useCallback(
+    (event: RealtimeRowEvent) =>
+      eventMatchesOpenDetailId(event, selectedRapportoIdRef.current),
+    [],
+  )
+
   useRealtimeBoardSync({
     tables: RAPPORTI_REALTIME_TABLES,
     reload: invalidateBoard,
+    reloadOpenDetail: bumpRealtimeTick,
+    shouldReloadOpenDetail,
   })
 
   const createTicketForSelectedRapporto = React.useCallback(
@@ -279,6 +300,8 @@ export function useRapportiLavorativiData(
     if (!selectedRapportoId && rapporti.length > 0) {
       setSelectedRapportoId(rapporti[0].id)
     }
+  // Selection sync only — not a detail fetch (Pattern B lint N/A).
+  // eslint-disable-next-line no-restricted-syntax -- selected id sync, not open-detail reload
   }, [rapporti, selectedRapportoId])
 
   React.useEffect(() => {
@@ -326,37 +349,37 @@ export function useRapportiLavorativiData(
         return
       }
 
-      setLoadingSelectedRapporto(true)
+      // Avoid a full-panel loading flash on Pattern B re-fetches (same id).
+      const hadOpenDetail = selectedRapporto?.id === selectedRapportoId
+      if (!hadOpenDetail) {
+        setLoadingSelectedRapporto(true)
+      }
       const fallbackRapporto =
         rapporti.find((rapporto) => rapporto.id === selectedRapportoId) ?? null
-      setSelectedRapporto(fallbackRapporto)
+      if (!hadOpenDetail) {
+        setSelectedRapporto(fallbackRapporto)
+      }
 
       try {
         const response = await fetchRapportiLavorativiByIds([selectedRapportoId])
         if (!isActive) return
 
         const freshRapporto = (response.rows[0] as RapportoLavorativoRecord | undefined) ?? null
-        // La RPC board arricchisce alcune proprietà non presenti (o non risolte) nella
-        // tabella grezza: i nomi visualizzati ("cognome_nome_datore_proper" /
-        // "nome_lavoratore_per_url") sovrascritti con i nomi reali di famiglia/lavoratore,
-        // e i campi derivati "data_fine_rapporto" (da chiusure_contratti) e
-        // "stato_rapporto". La fetch grezza qui sotto non li ha, quindi li preserviamo dal
-        // board per non declassare card, titolo e badge di stato.
+        // Prefer fresh row values for mutable columns; only fall back to board
+        // for display names the raw table fetch often leaves empty/unresolved.
         const mergedRapporto =
           freshRapporto && fallbackRapporto
             ? {
+                ...fallbackRapporto,
                 ...freshRapporto,
                 cognome_nome_datore_proper:
-                  fallbackRapporto.cognome_nome_datore_proper ??
-                  freshRapporto.cognome_nome_datore_proper,
+                  freshRapporto.cognome_nome_datore_proper ??
+                  fallbackRapporto.cognome_nome_datore_proper,
                 nome_lavoratore_per_url:
-                  fallbackRapporto.nome_lavoratore_per_url ??
-                  freshRapporto.nome_lavoratore_per_url,
-                data_fine_rapporto:
-                  fallbackRapporto.data_fine_rapporto ?? freshRapporto.data_fine_rapporto,
-                stato_rapporto: fallbackRapporto.stato_rapporto ?? freshRapporto.stato_rapporto,
+                  freshRapporto.nome_lavoratore_per_url ??
+                  fallbackRapporto.nome_lavoratore_per_url,
               }
-            : freshRapporto
+            : freshRapporto ?? fallbackRapporto
         setSelectedRapporto(mergedRapporto)
 
         if (mergedRapporto) {
@@ -396,12 +419,12 @@ export function useRapportiLavorativiData(
     return () => {
       isActive = false
     }
-    // Only re-fetch detail when the selected id changes or retry is triggered.
+    // Only re-fetch detail when the selected id changes or realtimeTick bumps.
     // Re-running on every board re-render (rapporti object identity change)
     // would be wasteful; the merged-detail patch inside this effect handles
     // board cache sync via setQueryData.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detailRetryToken, selectedRapportoId])
+  }, [realtimeTick, selectedRapportoId])
 
   React.useEffect(() => {
     let isActive = true
@@ -599,19 +622,13 @@ export function useRapportiLavorativiData(
     return () => {
       isActive = false
     }
-    // Depend on `selectedRapporto?.id`, NOT on the object reference. The
-    // detail panel's onRapportoUpdated callback calls setSelectedRapporto
-    // with a merged copy of the saved row after every save — same id, new
-    // reference. If we depended on the reference, every save would re-fire
-    // this effect, which starts by nulling out famiglia/lavoratore and
-    // refetching them: while the refetch is in flight the title falls back
-    // to "Famiglia senza nome – Lavoratore non associato" and flashes the
-    // user. famiglia_id / lavoratore_id / fine_rapporto_lavorativo_id and
-    // the proper-name fields the body reads are stable for a given
-    // rapporto-id (they are not changed by the detail-panel patches), so
-    // pinning the dep to the id is correct.
+    // Depend on `selectedRapporto?.id` + `realtimeTick`, NOT on the object
+    // reference. Local saves call setSelectedRapporto with a merged copy (same
+    // id, new reference) without bumping realtimeTick — so they must not
+    // re-fire this effect (would flash title while related rows refetch).
+    // Realtime bumps realtimeTick via reloadOpenDetail (Pattern B).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRapporto?.id])
+  }, [selectedRapporto?.id, realtimeTick])
 
   return {
     rapporti,

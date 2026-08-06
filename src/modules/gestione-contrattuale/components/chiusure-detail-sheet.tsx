@@ -1,3 +1,4 @@
+import type { ChiusuraTipoMetadata } from "../lib/chiusure-board"
 import type {
   ChiusureBoardCardData,
   ChiusureBoardColumnData,
@@ -12,6 +13,7 @@ export function ChiusureDetailSheet({
   columns,
   rapportoOptions,
   tipoLicenziamentoOptions,
+  tipoMetadata,
   open,
   onOpenChange,
   onStatusChange,
@@ -24,6 +26,7 @@ export function ChiusureDetailSheet({
   columns: ChiusureBoardColumnData[]
   rapportoOptions: ChiusureRapportoOption[]
   tipoLicenziamentoOptions: TipoLicenziamentoOption[]
+  tipoMetadata?: ChiusuraTipoMetadata
   open: boolean
   onOpenChange: (open: boolean) => void
   onStatusChange: (recordId: string, targetStageId: string) => Promise<void>
@@ -40,6 +43,7 @@ export function ChiusureDetailSheet({
     columns,
     rapportoOptions,
     tipoLicenziamentoOptions,
+    tipoMetadata,
     open,
     onOpenChange,
     onStatusChange,

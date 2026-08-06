@@ -4,11 +4,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useBoardQueryCache } from "@/hooks/use-board-query-cache"
 import { useDeleteBoardRecordMutation, useMoveMutation } from "@/hooks/use-board-mutations"
 import { useRealtimeBoardSync } from "@/hooks/use-realtime-board-sync"
+import type { RealtimeRowEvent } from "@/hooks/use-realtime-rows"
 import {
   applyOptimisticCardMove,
   createBoardCardGetter,
   updateCardAndRehome,
 } from "@/lib/board-column-utils"
+import { eventMatchesOpenDetailIds } from "@/lib/realtime-open-detail"
 import { updateRecord } from "@/lib/record-crud"
 
 import { fetchAssunzioniBoardData } from "../lib/assunzioni-board-data"
@@ -30,6 +32,16 @@ type UseAssunzioniBoardState = {
     updater: (card: AssunzioniBoardCardData) => AssunzioniBoardCardData
   ) => void
   deleteRapporto: (rapportoId: string) => Promise<void>
+  /**
+   * Bumped by useRealtimeBoardSync after a remote change passes echo guards.
+   * Open-sheet loaders must depend on this so selected detail re-fetches
+   * (cedolini Pattern B twin).
+   */
+  detailRefreshTick: number
+  /** Register ids for the open sheet so unrelated CDC events skip detail reload. */
+  setOpenDetailIdsForRealtime: (
+    ids: ReadonlyArray<string | null | undefined>,
+  ) => void
 }
 
 export function useAssunzioniBoard(): UseAssunzioniBoardState {
@@ -200,9 +212,32 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
     [setBoardData, queryClient],
   )
 
+  const [detailRefreshTick, setDetailRefreshTick] = React.useState(0)
+  const bumpDetailRefreshTick = React.useCallback(() => {
+    setDetailRefreshTick((current) => current + 1)
+  }, [])
+
+  const openDetailIdsRef = React.useRef<ReadonlySet<string>>(new Set())
+  const setOpenDetailIdsForRealtime = React.useCallback(
+    (ids: ReadonlyArray<string | null | undefined>) => {
+      openDetailIdsRef.current = new Set(
+        ids.filter((id): id is string => typeof id === "string" && id.length > 0),
+      )
+    },
+    [],
+  )
+
+  const shouldReloadOpenDetail = React.useCallback(
+    (event: RealtimeRowEvent) =>
+      eventMatchesOpenDetailIds(event, openDetailIdsRef.current),
+    [],
+  )
+
   useRealtimeBoardSync({
     tables: [...ASSUNZIONI_REALTIME_TABLES],
     reload: invalidateBoard,
+    reloadOpenDetail: bumpDetailRefreshTick,
+    shouldReloadOpenDetail,
   })
 
   const error =
@@ -220,5 +255,7 @@ export function useAssunzioniBoard(): UseAssunzioniBoardState {
     moveCard,
     updateCard,
     deleteRapporto,
+    detailRefreshTick,
+    setOpenDetailIdsForRealtime,
   }
 }

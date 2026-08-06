@@ -92,6 +92,48 @@ describe("useDebouncedSave — error visibility (FASE 4 TER.3)", () => {
   })
 })
 
+describe("useDebouncedSave — in-flight committedValue resync", () => {
+  it("keeps the typed draft while onSave is unresolved, then applies the queued resync", async () => {
+    let resolveSave: (() => void) | null = null
+    const onSave = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve
+        }),
+    )
+
+    const { result, rerender } = renderHookWithQueryClient(
+      ({ committed }: { committed: string }) =>
+        useDebouncedSave<string>(committed, onSave, { debounceMs: 0 }),
+      { initialProps: { committed: "server-v1" } },
+    )
+
+    act(() => {
+      result.current.onChange("typed-draft")
+    })
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith("typed-draft")
+    })
+    expect(result.current.value).toBe("typed-draft")
+
+    // Peer/detail resync arrives while the write is still in flight.
+    act(() => {
+      rerender({ committed: "server-v2" })
+    })
+    expect(result.current.value).toBe("typed-draft")
+
+    await act(async () => {
+      resolveSave?.()
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(result.current.value).toBe("server-v2")
+    })
+  })
+})
+
 describe("useDebouncedSave — identity switch (gate feedback regression)", () => {
   it("flushes the pending edit to the PREVIOUS record and resets the draft when identity changes", async () => {
     // Each render binds onSave to the current identity, mirroring how the gate

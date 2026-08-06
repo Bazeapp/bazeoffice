@@ -201,7 +201,7 @@ export function useSelectedWorkerEditor({
     [patchWorkerField, selectedWorkerId]
   )
 
-  const patchSelectedWorkerField = React.useCallback(
+  const patchSelectedWorkerFieldBase = React.useCallback(
     async (field: keyof LavoratoreRecord, value: unknown) => {
       if (!selectedWorkerId) return
       await patchWorkerField(field, value, {
@@ -235,7 +235,7 @@ export function useSelectedWorkerEditor({
     selectedWorkerRow,
     selectedWorkerAddress,
     activePatchesRef,
-    patchSelectedWorkerField,
+    patchSelectedWorkerField: patchSelectedWorkerFieldBase,
     applyUpdatedWorkerAddress,
     setError,
     setPatchLoading,
@@ -257,6 +257,7 @@ export function useSelectedWorkerEditor({
     saveWorkerAvailability,
     patchWorkerAvailabilityStatus,
     handleAvailabilityMatrixChange,
+    applyRowWithRecomputedAvailability,
   } = useWorkerAvailabilityEditor({
     selectedWorkerId,
     selectedWorkerRow,
@@ -264,6 +265,40 @@ export function useSelectedWorkerEditor({
     applyUpdatedWorkerRow,
     setError,
   })
+
+  // Vincoli drive the edge-function calendar: patch + recompute + apply final JSON
+  // (tracked writes suppress the realtime echo, so we must apply locally).
+  const patchSelectedWorkerField = React.useCallback(
+    async (field: keyof LavoratoreRecord, value: unknown) => {
+      if (!selectedWorkerId) return
+      if (field !== "vincoli_orari_disponibilita") {
+        await patchSelectedWorkerFieldBase(field, value)
+        return
+      }
+
+      activePatchesRef.current++
+      try {
+        const result = await updateRecord("lavoratori", selectedWorkerId, {
+          vincoli_orari_disponibilita: value,
+        })
+        await applyRowWithRecomputedAvailability(asLavoratoreRecord(result.row))
+      } catch (caughtError) {
+        const message = formatEditorError("Errore aggiornando campo", caughtError)
+        setError(message)
+        toast.error(message)
+        throw caughtError
+      } finally {
+        activePatchesRef.current--
+      }
+    },
+    [
+      activePatchesRef,
+      applyRowWithRecomputedAvailability,
+      patchSelectedWorkerFieldBase,
+      selectedWorkerId,
+      setError,
+    ]
+  )
 
   const {
     isEditingJobSearch,

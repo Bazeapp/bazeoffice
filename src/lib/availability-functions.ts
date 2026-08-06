@@ -43,6 +43,39 @@ export function isHardBlockingSelection(selection: Record<string, unknown> | nul
   )
 }
 
+export type WorkerAvailabilityInvokeResponse = {
+  count?: number
+  results?: Array<{
+    worker_id?: string
+    result?: {
+      availability_final_json?: unknown
+    }
+    error?: string
+  }>
+}
+
+/**
+ * Pulls the recomputed `availability_final_json` out of a `worker-availability`
+ * response. Realtime echoes from that write are suppressed (tracked write), so
+ * callers must apply this into local state themselves.
+ */
+export function readComputedAvailabilityFinalJson(
+  response: unknown,
+  workerId: string
+): string | null {
+  if (!response || typeof response !== "object") return null
+  const results = (response as WorkerAvailabilityInvokeResponse).results
+  if (!Array.isArray(results) || results.length === 0) return null
+
+  const entry =
+    results.find((item) => item?.worker_id === workerId) ?? results[0]
+  if (!entry || typeof entry.error === "string") return null
+
+  const finalJson = entry.result?.availability_final_json
+  if (finalJson == null) return null
+  return typeof finalJson === "string" ? finalJson : JSON.stringify(finalJson)
+}
+
 export async function invokeWorkerAvailability(workerId: string | null | undefined) {
   const normalizedWorkerId = toId(workerId)
   if (!normalizedWorkerId) return null
@@ -51,9 +84,19 @@ export async function invokeWorkerAvailability(workerId: string | null | undefin
   // table written by `worker-availability`) is recognised as ours by the
   // echo-window suppression in `useRealtimeBoardSync` and does not trigger
   // a self-induced refetch cascade.
-  return runTrackedEdgeFunction("worker-availability", {
+  return runTrackedEdgeFunction<WorkerAvailabilityInvokeResponse>("worker-availability", {
     worker_id: normalizedWorkerId,
   })
+}
+
+/** Recompute calendar server-side and return the new final JSON string. */
+export async function invokeAndReadWorkerAvailabilityFinalJson(
+  workerId: string | null | undefined
+): Promise<string | null> {
+  const normalizedWorkerId = toId(workerId)
+  if (!normalizedWorkerId) return null
+  const response = await invokeWorkerAvailability(normalizedWorkerId)
+  return readComputedAvailabilityFinalJson(response, normalizedWorkerId)
 }
 
 export async function invokeWorkerAvailabilityForIds(

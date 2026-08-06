@@ -12,6 +12,7 @@ import { toast } from "sonner";
 
 import type { AssegnazioneCardData } from "../types";
 import { useCrmAssegnazione } from "../hooks/use-crm-assegnazione";
+import { useAssegnazioneOpenDetailSync } from "../hooks/use-assegnazione-open-detail-sync";
 import { useOperatoriOptions } from "@/hooks/use-operatori-options";
 import { useCommentRouteContext } from "@/modules/commenti/hooks";
 import {
@@ -54,7 +55,6 @@ import { AssegnazioneOperatorSelectOption } from "./assegnazione-operator-select
 import { AssegnazioneSearchCard } from "./assegnazione-search-card";
 
 const DRAG_POINTER_THRESHOLD = 6;
-
 type CrmAssegnazioneViewProps = {
   onOpenRicercaDetail?: (processId: string) => void;
 };
@@ -62,8 +62,15 @@ type CrmAssegnazioneViewProps = {
 export function CrmAssegnazioneView({
   onOpenRicercaDetail,
 }: CrmAssegnazioneViewProps = {}) {
-  const { loading, error, cards, assignCardToDate, patchCard } =
-    useCrmAssegnazione();
+  const {
+    loading,
+    error,
+    cards,
+    detailRefreshTick,
+    setOpenProcessId,
+    assignCardToDate,
+    patchCard,
+  } = useCrmAssegnazione();
   const { options: operatorOptions } = useOperatoriOptions({
     role: "recruiter",
     activeOnly: true,
@@ -280,10 +287,14 @@ export function CrmAssegnazioneView({
     cardPointerStateRef.current.delete(processId);
   }, []);
 
-  const selectedCardFromState = React.useMemo(
-    () => cards.find((card) => card.id === selectedCard?.id) ?? selectedCard,
-    [cards, selectedCard],
-  );
+  const selectedCardFromState = useAssegnazioneOpenDetailSync({
+    cards,
+    selectedCard,
+    setSelectedCard,
+    isSheetOpen,
+    detailRefreshTick,
+    setOpenProcessId,
+  });
 
   const commentRow = React.useMemo(
     () =>
@@ -773,7 +784,6 @@ export function CrmAssegnazioneView({
       </div>
 
       <AssegnazioneDetailSheet
-        // Remount on card switch so debounced inputs reset their local draft.
         key={selectedCardFromState?.id ?? "__empty__"}
         open={isSheetOpen}
         onOpenChange={setIsSheetOpen}

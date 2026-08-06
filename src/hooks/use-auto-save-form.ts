@@ -9,7 +9,10 @@ import {
 } from "react-hook-form";
 import type { ZodType } from "zod";
 
-import { useAutoSaveFormFields } from "@/hooks/use-auto-save-form-fields";
+import {
+  useAutoSaveFormFields,
+  type AutoSaveOnSaveResult,
+} from "@/hooks/use-auto-save-form-fields";
 
 /**
  * FASE 5 BIS — hook unico per un pannello con autosave.
@@ -18,10 +21,10 @@ import { useAutoSaveFormFields } from "@/hooks/use-auto-save-form-fields";
  * male se ripetute a mano):
  *  1. `useForm` con i valori server come defaults;
  *  2. **resync realtime senza clobber**: `form.reset(defaults, { keepDirtyValues })`
- *     keyed sulla firma dei dati → i campi puliti si aggiornano sui cambi server
- *     (anche realtime stesso record), quelli che l'utente sta editando NO;
- *     quando cambia `resetKey` (cambio record/selezione) fa invece un hard reset
- *     senza keepDirtyValues, così un edit del record A non vaga sul record B;
+ *     keyed sulla firma dei dati → i campi puliti si aggiornano sui peer/server
+ *     update; i dirty (edit in corso / optimistic pre-save) restano locali.
+ *     Dopo il save, dirty si azzera così i peer update successivi atterrano.
+ *     Al cambio `resetKey`: hard reset.
  *  3. `useAutoSaveFormFields` → persiste i cambi (debounce + toast + dirty-track).
  *
  * Il pezzo (2) è la parte delicata (è quella che storicamente clobberava gli
@@ -46,7 +49,9 @@ export function useAutoSaveForm<T extends FieldValues>({
 }: {
   /** Valori server correnti del record (ricostruiti ad ogni render). */
   defaults: T;
-  onSave: (patch: Partial<T>) => Promise<void> | void;
+  onSave: (
+    patch: Partial<T>,
+  ) => Promise<AutoSaveOnSaveResult<T>> | AutoSaveOnSaveResult<T>;
   /** Optional Zod schema — validates form values via react-hook-form resolver. */
   schema?: ZodType<T>;
   isPaused?: () => boolean;

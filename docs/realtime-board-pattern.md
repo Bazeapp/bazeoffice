@@ -19,9 +19,14 @@ Servono tutti e tre questi ingredienti contemporaneamente:
    uno stato React derivato dal board).
 
 Se uno dei tre manca, il board è sano. Esempi:
-- `use-chiusure-board`: niente detail loader separato → non vulnerabile.
 - `use-ricerca-workers-pipeline`: detail letto direttamente dai dati del
-  board, niente SELECT divergente → non vulnerabile.
+  board, niente SELECT divergente → non vulnerabile (kanban only).
+
+Open sheets with a separate `selectedFreshCard` / detail fetch (assunzioni,
+chiusure, variazioni, contributi INPS, ricerca detail sidebar, rapporti)
+**are** vulnerable until Pattern B (`reloadOpenDetail` / `detailRefreshTick`)
+is wired — Pattern A alone keeps board preview fields from vanishing but
+does not push remote changes into the open sheet.
 
 ## I due pattern di fix
 
@@ -73,6 +78,12 @@ Vedi `src/modules/lavoratori/hooks/use-lavoratori-data.ts` come riferimento:
 - `loadSelectedWorkerExtras` stesso pattern
 - `loadSelectedWorkerAddress` con
   `selectedWorkerAddressFetchedTickRef` per gate per-tick
+
+Altri riferimenti Pattern B (cedolini twin):
+- `use-payroll-board.ts` → `detailRefreshTick` via `reloadOpenDetail`
+- `use-contributi-inps-board.ts` / `use-contributi-inps-selection.ts`
+- `use-chiusure-board.ts` / `use-chiusure-board-view.ts` (e assunzioni/variazioni)
+- `use-ricerca-detail-view.ts` (sidebar process/family/address)
 
 ## Code review checklist
 

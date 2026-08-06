@@ -208,6 +208,7 @@ export function useGate1View(props: GateViewProps) {
     setJobSearchDraft,
     setSkillsDraft,
     setAvailabilityStatusDraft,
+    availabilityStatusDraft,
     setDocumentsDraft,
     patchSelectedWorkerField,
     patchSkillsField,

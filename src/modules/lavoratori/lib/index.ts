@@ -12,3 +12,12 @@ export { formatEditorError } from "./worker-editor-utils"
 export type { PatchWorkerField } from "./worker-editor-patch-field"
 export { buildRelatedSelectionsMap } from "./worker-list-mapper"
 export * from "./experience-references"
+export {
+  resolveLavoratoriRealtimeWorkerId,
+  shouldReloadLavoratoriBoard,
+  shouldReloadLavoratoriOpenDetail,
+} from "./lavoratori-realtime"
+export {
+  LAVORATORI_BOARD_REALTIME_TABLE,
+  LAVORATORI_REALTIME_TABLES,
+} from "./list-constants"

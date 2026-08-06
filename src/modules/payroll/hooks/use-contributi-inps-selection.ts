@@ -18,9 +18,15 @@ type UseContributiInpsSelectionResult = {
   ) => void
 }
 
-export function useContributiInpsSelection(
-  cards: ContributoInpsBoardCardData[],
-): UseContributiInpsSelectionResult {
+type UseContributiInpsSelectionInput = {
+  cards: ContributoInpsBoardCardData[]
+  detailRefreshTick?: number
+}
+
+export function useContributiInpsSelection({
+  cards,
+  detailRefreshTick = 0,
+}: UseContributiInpsSelectionInput): UseContributiInpsSelectionResult {
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [selectedCard, setSelectedCard] = React.useState<ContributoInpsBoardCardData | null>(null)
 
@@ -105,9 +111,11 @@ export function useContributiInpsSelection(
     return () => {
       isActive = false
     }
-    // Watching id only on purpose: avoid re-fetching detail on every board refresh.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCardFromCards?.id, selectedCardId])
+    // detailRefreshTick: Pattern B — re-fetch open sheet after realtime board sync
+    // (cedolini twin). Board card object identity is intentionally omitted so
+    // ordinary board refreshes alone do not thrash the sheet.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boardCard snapshot read on id/tick only
+  }, [selectedCardFromCards?.id, selectedCardId, detailRefreshTick])
 
   const openCard = React.useCallback((cardId: string) => {
     setSelectedCardId(cardId)

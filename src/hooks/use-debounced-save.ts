@@ -48,12 +48,19 @@ export function useDebouncedSave<T>(
   const committedValueRef = React.useRef(committedValue)
   const identityRef = React.useRef(identity)
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Once the user has typed in this field, never let an incoming committedValue
-  // overwrite the local draft. The previous gate (isDirty || savesInFlight > 0)
-  // had a window between debounce-fire and the next keystroke where the server
-  // value could replace what the user was about to keep typing, causing dropped
-  // characters / collapsed spaces.
-  const hasUserEditedRef = React.useRef(false)
+  // Peer/detail resync that arrived while a write was in flight. Applied once
+  // the field is idle again — never while dirty or mid-save (that window used
+  // to drop keystrokes / collapse spaces when committedValue overwrote the draft).
+  const queuedCommittedRef = React.useRef<{ value: T } | null>(null)
+
+  const applyQueuedCommitted = React.useCallback(() => {
+    if (isDirtyRef.current || savesInFlightRef.current > 0) return
+    const queued = queuedCommittedRef.current
+    if (!queued) return
+    queuedCommittedRef.current = null
+    setDraft(queued.value)
+    draftRef.current = queued.value
+  }, [])
 
   // Keep onSave ref current so the flush closure always calls the latest version
   React.useEffect(() => {
@@ -66,10 +73,18 @@ export function useDebouncedSave<T>(
     committedValueRef.current = committedValue
   })
 
-  // Sync committed value from server only when the user has never interacted
-  // with this field (initial mount + remote refresh of an untouched field).
+  // Sync committed value from server when the field is idle. Mid-keystroke is
+  // gated by isDirtyRef. Mid-write (debounce already fired, onSave unresolved)
+  // queues the value and applies it in .finally once the write settles.
   React.useEffect(() => {
-    if (hasUserEditedRef.current) return
+    if (isDirtyRef.current) {
+      return
+    }
+    if (savesInFlightRef.current > 0) {
+      queuedCommittedRef.current = { value: committedValue }
+      return
+    }
+    queuedCommittedRef.current = null
     setDraft(committedValue)
     draftRef.current = committedValue
   }, [committedValue])
@@ -77,10 +92,10 @@ export function useDebouncedSave<T>(
   // When the bound record changes (e.g. the operator selects another worker),
   // flush any pending edit to the PREVIOUS record (via the keystroke-time
   // onSave) and reset the draft to the new record's value.
-   
   React.useEffect(() => {
     if (identityRef.current === identity) return
     identityRef.current = identity
+    queuedCommittedRef.current = null
 
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current)
@@ -94,14 +109,13 @@ export function useDebouncedSave<T>(
         .finally(() => {
           savesInFlightRef.current--
           endPendingWrite()
+          applyQueuedCommitted()
         })
     }
 
-    hasUserEditedRef.current = false
     setDraft(committedValueRef.current)
     draftRef.current = committedValueRef.current
-  }, [identity])
-   
+  }, [identity, applyQueuedCommitted])
 
   // Flush pending save on unmount (sheet close).
   // The cleanup intentionally reads the refs at the time the component is
@@ -130,9 +144,10 @@ export function useDebouncedSave<T>(
 
   const onChange = React.useCallback(
     (value: T) => {
-      hasUserEditedRef.current = true
       setDraft(value)
       draftRef.current = value
+      // A new keystroke supersedes any queued peer resync.
+      queuedCommittedRef.current = null
       // Bind the pending save to the record currently being edited so that a
       // later flush (debounce fire or identity switch) targets THIS record.
       scheduledOnSaveRef.current = onSaveRef.current
@@ -155,10 +170,11 @@ export function useDebouncedSave<T>(
           .finally(() => {
             savesInFlightRef.current--
             endPendingWrite()
+            applyQueuedCommitted()
           })
       }, debounceMs)
     },
-    [debounceMs]
+    [debounceMs, applyQueuedCommitted]
   )
 
   return { value: draft, onChange }
