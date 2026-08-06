@@ -19,13 +19,6 @@ import {
 } from "lucide-react"
 
 import { ToolbarField } from "@/components/forms/toolbar-field"
-import { useCommentRouteContext } from "@/modules/commenti/hooks"
-import {
-  crmProcessoCommentRow,
-  crmProcessoDisplayNames,
-} from "@/modules/commenti/lib/comment-route-helpers"
-import { FamigliaProcessoDetailShell } from "./famiglia-processo-detail-shell"
-import { FamigliaProcessoCard } from "./famiglia-processo-card"
 import {
   KanbanColumnShell,
   KanbanColumnSkeleton,
@@ -52,11 +45,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
+import { matchesSearchQuery } from "@/lib/search-utils"
+import { cn } from "@/lib/utils"
+import { useCommentRouteContext } from "@/modules/commenti/hooks"
 import {
-  type CrmPipelineCardData,
-  type CrmPipelineColumnData,
-} from "../types"
+  crmProcessoCommentRow,
+  crmProcessoDisplayNames,
+} from "@/modules/commenti/lib/comment-route-helpers"
+import { useBoardEntityDeepLink } from "@/modules/notifiche/hooks"
+
+import { CrmPipelineSalesFilterSelect } from "./crm-pipeline-sales-filter-select"
+import { FamigliaProcessoCard } from "./famiglia-processo-card"
+import { FamigliaProcessoDetailShell } from "./famiglia-processo-detail-shell"
 import { useCrmPipelinePreview } from "../hooks/use-crm-pipeline-preview"
+import { useCrmPipelineSalesFilter } from "../hooks/use-crm-pipeline-sales-filter"
+import { CRM_PIPELINE_SALES_FILTER_ALL } from "../lib/crm-pipeline-sales-filter"
 import {
   CRM_PIPELINE_FILTERS_STORAGE_KEY,
   DATE_PRESETS,
@@ -71,10 +75,10 @@ import {
   type CrmPipelineToolbarFilters,
   type DatePresetValue,
 } from "../lib/crm-pipeline-toolbar-filters"
-import { useBoardEntityDeepLink } from "@/modules/notifiche/hooks"
-import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
-import { matchesSearchQuery } from "@/lib/search-utils"
-import { cn } from "@/lib/utils"
+import {
+  type CrmPipelineCardData,
+  type CrmPipelineColumnData,
+} from "../types"
 
 const DEFERRED_STAGE_IDS = new Set(["won_ricerca_attivata", "lost", "out_of_target"])
 const VISIBLE_CARD_BATCH_SIZE = 80
@@ -236,9 +240,20 @@ export function CrmPipelineFamiglieView() {
   const [appliedToolbarFilters, setAppliedToolbarFilters] =
     React.useState<CrmPipelineToolbarFilters>(() => readStoredToolbarFilters())
   const [datePreset, setDatePreset] = React.useState<DatePresetValue>("custom")
+  const {
+    selectedSalesFilter,
+    setSelectedSalesFilter,
+    selectedSalesOperator,
+    salesOperatorOptions,
+    salesServerFilter,
+    salesFilterActive,
+  } = useCrmPipelineSalesFilter()
   const serverFilters = React.useMemo(
-    () => buildServerFilters(appliedToolbarFilters),
-    [appliedToolbarFilters]
+    () => ({
+      ...buildServerFilters(appliedToolbarFilters),
+      ...salesServerFilter,
+    }),
+    [appliedToolbarFilters, salesServerFilter],
   )
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
   const [isDetailOpen, setIsDetailOpen] = React.useState(false)
@@ -269,7 +284,8 @@ export function CrmPipelineFamiglieView() {
   const tipoLavoroOptions = lookupOptionsByField.tipo_lavoro ?? []
   const filtersActive =
     hasActiveToolbarFilters(appliedToolbarFilters) ||
-    appliedSearchQuery.trim().length > 0
+    appliedSearchQuery.trim().length > 0 ||
+    salesFilterActive
   const hasPendingFilters =
     searchQuery !== appliedSearchQuery ||
     serializeToolbarFilters(toolbarFilters) !== serializeToolbarFilters(appliedToolbarFilters)
@@ -438,6 +454,14 @@ export function CrmPipelineFamiglieView() {
         >
           Sales Pipeline
         </SectionHeader.Title>
+        <SectionHeader.Actions>
+          <CrmPipelineSalesFilterSelect
+            selectedSalesFilter={selectedSalesFilter}
+            onSelectedSalesFilterChange={setSelectedSalesFilter}
+            salesOperatorOptions={salesOperatorOptions}
+            selectedSalesOperator={selectedSalesOperator}
+          />
+        </SectionHeader.Actions>
         <SectionHeader.Toolbar className="flex-nowrap items-end gap-2 overflow-x-auto">
           <ToolbarField label="Cerca" className="w-72 shrink-0">
             <SearchInput
@@ -609,6 +633,7 @@ export function CrmPipelineFamiglieView() {
                 setAppliedSearchQuery("")
                 setToolbarFilters(EMPTY_TOOLBAR_FILTERS)
                 setAppliedToolbarFilters(EMPTY_TOOLBAR_FILTERS)
+                setSelectedSalesFilter(CRM_PIPELINE_SALES_FILTER_ALL)
               }}
             >
               <XIcon className="size-3.5" />

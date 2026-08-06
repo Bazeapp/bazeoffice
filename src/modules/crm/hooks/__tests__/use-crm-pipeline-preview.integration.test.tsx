@@ -12,6 +12,8 @@ describe("serializeCrmPipelineFilters", () => {
       tipoLavoro: ["Badante", "Colf"],
       preventivoAccettato: true,
       chiamataPrenotata: false,
+      salesOperatorId: "op-sales",
+      salesUnassigned: null,
     }
 
     const key = serializeCrmPipelineFilters(filters)
@@ -24,6 +26,8 @@ describe("serializeCrmPipelineFilters", () => {
     expect(parsed.preventivoAccettato).toBe(true)
     expect(parsed.chiamataPrenotata).toBe(false)
     expect(parsed.tipoLavoro).toEqual(["Badante", "Colf"])
+    expect(parsed.salesOperatorId).toBe("op-sales")
+    expect(parsed.salesUnassigned).toBeNull()
   })
 
   it("round-trips equivalent filters regardless of tipoLavoro input order", () => {
@@ -87,5 +91,17 @@ describe("mapCardData hook integration", () => {
     expect(card.tipoRapportoBadge).toBe("Convivente")
     expect(card.dataLead).toMatch(/\d{2}\/\d{2}\/\d{4}/)
     expect(card.preventivoAcceptanceUrl).toContain("session_id=proc-42")
+    expect(card.salesOperatorId).toBeNull()
+  })
+
+  it("maps referente_ricerca_e_selezione_id as salesOperatorId", () => {
+    const card = mapCardData(
+      family,
+      { ...process, referente_ricerca_e_selezione_id: "op-sales-1" },
+      "hot_ingresso",
+      {},
+    )
+
+    expect(card.salesOperatorId).toBe("op-sales-1")
   })
 })

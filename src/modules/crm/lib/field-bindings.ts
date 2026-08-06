@@ -86,6 +86,7 @@ export const PROCESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCa
   ["numero_giorni_settimanali", "giorniSettimana"],
   ["numero_ricerca_attivata", "numeroRicercaAttivata"],
   ["frequenza_rapporto", "giorniSettimana"],
+  ["referente_ricerca_e_selezione_id", "salesOperatorId"],
 ]
 
 export const FAMILY_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [

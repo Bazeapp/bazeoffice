@@ -11,6 +11,8 @@ export async function fetchCrmPipelineFamiglieBoard(query: {
   tipoLavoro?: string[]
   preventivoAccettato?: boolean | null
   chiamataPrenotata?: boolean | null
+  salesOperatorId?: string | null
+  salesUnassigned?: boolean | null
 }) {
   const { data, error } = await supabase.rpc("crm_pipeline_famiglie_board", {
     p_limit: query.limit,
@@ -22,6 +24,8 @@ export async function fetchCrmPipelineFamiglieBoard(query: {
     p_tipo_lavoro_filter: query.tipoLavoro?.length ? query.tipoLavoro : null,
     p_preventivo_accettato: query.preventivoAccettato ?? null,
     p_chiamata_prenotata: query.chiamataPrenotata ?? null,
+    p_sales_operator_id: query.salesOperatorId ?? null,
+    p_sales_unassigned: query.salesUnassigned ?? null,
   })
 
 if (error) {

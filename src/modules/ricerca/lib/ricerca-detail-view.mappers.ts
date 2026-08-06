@@ -499,6 +499,9 @@ export async function loadRicercaDetailCard(processId: string): Promise<{
           testoAnnuncioWhatsapp: displayValue(
             processRow.testo_annuncio_whatsapp,
           ),
+          salesOperatorId: toStringValue(
+            processRow.referente_ricerca_e_selezione_id,
+          ),
   }
 
   return { card: mapped, lookupOptionsByField }
