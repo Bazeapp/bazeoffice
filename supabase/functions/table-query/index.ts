@@ -756,6 +756,7 @@ const ALLOWED_FIELDS: Record<SupportedTable, string[]> = {
     "preventivo_firmato",
     "recruiter_ricerca_e_selezione_id",
     "referente_ricerca_e_selezione_id",
+    "referente_sales_id",
     "richiesta_ferie",
     "richiesta_autonomia",
     "richiesta_discrezione",

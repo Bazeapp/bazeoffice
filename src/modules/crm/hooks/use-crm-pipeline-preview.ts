@@ -328,6 +328,9 @@ export function useCrmPipelinePreview(
           if ("orario_di_lavoro" in patch) {
             nextCard.orarioDiLavoro = displayValue(patch.orario_di_lavoro)
           }
+          if ("referente_sales_id" in patch) {
+            nextCard.salesOperatorId = toStringValue(patch.referente_sales_id)
+          }
           if ("stato_res" in normalizedPatch) {
             nextCard.statoRes = displayValue(normalizedPatch.stato_res)
           }

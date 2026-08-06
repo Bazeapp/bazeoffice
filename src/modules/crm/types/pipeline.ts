@@ -102,7 +102,7 @@ export type CrmPipelineCardData = {
   cucinareElaborato: boolean
   curaPiante: boolean
   testoAnnuncioWhatsapp: string
-  /** Assigned sales operator id (`referente_ricerca_e_selezione_id`). */
+  /** Assigned sales operator id (`referente_sales_id`). */
   salesOperatorId: string | null
 }
 
@@ -120,7 +120,7 @@ export type CrmPipelineFilters = {
   tipoLavoro?: string[]
   preventivoAccettato?: boolean | null
   chiamataPrenotata?: boolean | null
-  /** Assigned sales operator (`referente_ricerca_e_selezione_id`). */
+  /** Assigned sales operator (`referente_sales_id`). */
   salesOperatorId?: string | null
   /** When true, only processes with no assigned sales. */
   salesUnassigned?: boolean | null

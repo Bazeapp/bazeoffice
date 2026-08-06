@@ -183,7 +183,7 @@ export function mapCardData(
     cucinareElaborato: toBooleanValue(process.cucinare_elaborato) ?? false,
     curaPiante: toBooleanValue(process.cura_piante) ?? false,
     testoAnnuncioWhatsapp: displayValue(process.testo_annuncio_whatsapp),
-    salesOperatorId: toStringValue(process.referente_ricerca_e_selezione_id),
+    salesOperatorId: toStringValue(process.referente_sales_id),
   }
 
   if (previousCard) {

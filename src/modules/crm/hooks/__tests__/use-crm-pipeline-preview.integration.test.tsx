@@ -94,10 +94,10 @@ describe("mapCardData hook integration", () => {
     expect(card.salesOperatorId).toBeNull()
   })
 
-  it("maps referente_ricerca_e_selezione_id as salesOperatorId", () => {
+  it("maps referente_sales_id as salesOperatorId", () => {
     const card = mapCardData(
       family,
-      { ...process, referente_ricerca_e_selezione_id: "op-sales-1" },
+      { ...process, referente_sales_id: "op-sales-1" },
       "hot_ingresso",
       {},
     )
