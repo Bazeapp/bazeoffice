@@ -109,16 +109,26 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
   }
 
   const selectAllVisible = () => {
+    // Clear sticky exclusions too (including cards hidden by the date filter)
+    // so "Seleziona tutti" always restores a clean all-included state.
     setExcludedIds(new Set())
   }
 
   const deselectAllVisible = () => {
-    setExcludedIds(new Set(visibleDaFare.map((card) => card.id)))
+    // Merge into existing exclusions — do not replace — so cards temporarily
+    // hidden by the date filter stay deselected when the filter is cleared.
+    setExcludedIds((previous) => {
+      const next = new Set(previous)
+      for (const card of visibleDaFare) next.add(card.id)
+      return next
+    })
   }
 
   const setCardIncluded = (meseLavorativoId: string, included: boolean) => {
     setExcludedIds((previous) => togglePagamentiReminderExclusion(previous, meseLavorativoId, included))
   }
+
+  const hasAnyStickyExclusions = excludedIds.size > 0
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
@@ -152,7 +162,7 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
             size="sm"
             data-testid="cedolini-pagamenti-select-all"
             onClick={selectAllVisible}
-            disabled={visibleDaFare.length === 0 || excludedCount === 0}
+            disabled={!hasAnyStickyExclusions}
           >
             Seleziona tutti
           </Button>

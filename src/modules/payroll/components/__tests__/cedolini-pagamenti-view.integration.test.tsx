@@ -211,6 +211,58 @@ describe("CedoliniPagamentiView — reminder da fare/fatti + bulk (U6)", () => {
     expect(screen.getByTestId("cedolini-pagamenti-reminder-invia")).toHaveProperty("disabled", true)
   })
 
+  it("BAZ-180: esclusioni restano sticky quando il filtro data nasconde le card", async () => {
+    mockPagamenti({
+      daFare: [
+        makeCard({
+          id: "m-early",
+          record: {
+            ...makeCard().record,
+            data_invio_famiglia: "2026-07-01",
+          } as PayrollBoardCardData["record"],
+        }),
+        makeCard({
+          id: "m-late",
+          record: {
+            ...makeCard().record,
+            data_invio_famiglia: "2026-07-20",
+          } as PayrollBoardCardData["record"],
+        }),
+      ],
+    })
+    const bulkReminder = mockBulkReminder()
+    renderPagamenti(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
+
+    // Exclude the late card, then hide it with the date filter.
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-include-m-late"))
+    fireEvent.change(screen.getByTestId("cedolini-pagamenti-date-filter"), {
+      target: { value: "2026-07-15" },
+    })
+    expect(screen.queryByTestId("cedolini-pagamenti-card-m-late")).toBeNull()
+
+    // Deselecting the remaining visible card must not wipe the sticky exclusion.
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-deselect-all"))
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-date-filter-clear"))
+
+    expect(screen.getByTestId("cedolini-pagamenti-card-m-late")).toBeTruthy()
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Inclusi 0 · Esclusi 2",
+    )
+
+    // Select all clears sticky exclusions even if they were filter-hidden.
+    fireEvent.change(screen.getByTestId("cedolini-pagamenti-date-filter"), {
+      target: { value: "2026-07-15" },
+    })
+    expect(screen.getByTestId("cedolini-pagamenti-select-all")).toHaveProperty("disabled", false)
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-select-all"))
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-date-filter-clear"))
+
+    await clickInviaAndConfirmDryRun()
+    await waitFor(() => {
+      expect(bulkReminder.startDryRun).toHaveBeenCalledWith(["m-early", "m-late"], "2026-07")
+    })
+  })
+
   it("EDGE (AE6/OQ6): il filtro data riduce sia la lista visibile che gli id del bulk, escludendo i NULL", async () => {
     mockPagamenti({
       daFare: [
