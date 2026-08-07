@@ -220,7 +220,15 @@ describe("useCommentPanel", () => {
       PAGE_FOCUS.entityId,
       "count",
     ] as const
+    const ricercaDescendantsCountKey = [
+      "commenti",
+      PAGE_FOCUS.entityType,
+      PAGE_FOCUS.entityId,
+      "descendants-count",
+      `${candidaturaFocus.entityType}:${candidaturaFocus.entityId}|${lavoratoreRef.entityType}:${lavoratoreRef.entityId}|${PAGE_FOCUS.entityType}:${PAGE_FOCUS.entityId}`,
+    ] as const
     queryClient.setQueryData(ricercaCountKey, 3)
+    queryClient.setQueryData(ricercaDescendantsCountKey, 2)
 
     const { result } = renderHookWithQueryClient(
       () =>
@@ -245,6 +253,9 @@ describe("useCommentPanel", () => {
 
     await waitFor(() => {
       expect(queryClient.getQueryState(ricercaCountKey)?.isInvalidated).toBe(true)
+      expect(
+        queryClient.getQueryState(ricercaDescendantsCountKey)?.isInvalidated,
+      ).toBe(true)
     })
   })
 
