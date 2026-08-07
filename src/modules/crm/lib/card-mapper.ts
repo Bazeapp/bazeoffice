@@ -132,12 +132,8 @@ export function mapCardData(
     informazioniExtraRiservate: displayValue(process.informazioni_extra_riservate),
     etaMinima: displayValue(process.eta_minima),
     etaMassima: displayValue(process.eta_massima),
-    indirizzoProvincia: displayValue(
-      processAddress?.provincia_sigla ?? processAddress?.provincia,
-    ),
-    indirizzoProvinciaSigla: displayValue(
-      processAddress?.provincia_sigla ?? processAddress?.provincia,
-    ),
+    indirizzoProvincia: displayValue(processAddress?.provincia_sigla),
+    indirizzoProvinciaSigla: displayValue(processAddress?.provincia_sigla),
     indirizzoCap: displayValue(processAddress?.cap),
     indirizzoNote: displayValue(processAddress?.note),
     indirizzoId: toStringValue(processAddress?.id),
@@ -146,7 +142,6 @@ export function mapCardData(
     indirizzoCivico: displayValue(processAddress?.civico),
     indirizzoComune: displayValue(processAddress?.citta),
     indirizzoCitofono: displayValue(processAddress?.citofono),
-    srcEmbedMapsAnnucio: displayValue(process.src_embed_maps_annucio),
     deadlineMobile: formatItalianDate(process.deadline_mobile),
     disponibilitaColloquiInPresenza: displayValue(
       process.disponibilita_colloqui_in_presenza

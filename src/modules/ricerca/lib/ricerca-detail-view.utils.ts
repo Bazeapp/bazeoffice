@@ -1,4 +1,5 @@
 import type { LookupOptionsByField } from "@/modules/crm/types"
+import { formatIndirizzo } from "@/lib/format-indirizzo"
 import { STATI_RICERCA_CANONICI } from "./stati-ricerca"
 import {
   RICERCA_DETAIL_WEEKDAY_ALIASES,
@@ -125,22 +126,9 @@ export function isPlaceholderText(value: string) {
 export function buildAddressLine(address: Record<string, unknown> | null | undefined) {
   if (!address) return null;
 
-  const formatted = toStringValue(address.indirizzo_formattato);
-  if (formatted) return formatted;
-
-  return (
-    [
-      toStringValue(address.via),
-      toStringValue(address.civico),
-      toStringValue(address.citta),
-      toStringValue(address.cap),
-    ]
-      .filter(
-        (item): item is string =>
-          typeof item === "string" && !isPlaceholderText(item),
-      )
-      .join(", ") || null
-  );
+  const line = formatIndirizzo(address);
+  if (!line || isPlaceholderText(line)) return null;
+  return line;
 }
 
 export function selectedLookupOptionValue(

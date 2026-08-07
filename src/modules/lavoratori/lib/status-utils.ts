@@ -119,17 +119,15 @@ export function findNonQualificatoIssues(row: Record<string, unknown>) {
   }
 
   const provinciaSigla = asString(row.provincia_sigla)
-  const provincia = asString(row.provincia)
   const indirizzo = asString(row.indirizzo_residenza_completo)
   const inMilano =
     provinciaSigla.toUpperCase() === "MI" ||
-    normalizeToken(provincia).includes("milano") ||
     normalizeToken(indirizzo).includes("milano")
   if (!inMilano) {
     issues.push({
       id: "not-milano",
       title: "Non è a Milano",
-      detail: provinciaSigla || provincia || indirizzo || undefined,
+      detail: provinciaSigla || indirizzo || undefined,
     })
   }
 

@@ -438,7 +438,6 @@ function buildOnboardingDefaults(card: CrmPipelineCardData | null) {
     cap: toInputValue(card?.indirizzoCap),
     via: toInputValue(card?.indirizzoVia),
     note: toInputValue(card?.indirizzoNote),
-    src_embed_maps_annucio: toInputValue(card?.srcEmbedMapsAnnucio),
     deadline_mobile: toInputValue(card?.deadlineMobile),
     disponibilita_colloqui_in_presenza: toInputValue(
       card?.disponibilitaColloquiInPresenza,
@@ -736,8 +735,6 @@ export function OnboardingCard({
 
   if (readOnly) {
     const weekdayBadges = normalizeWeekdayList(card?.giornatePreferite);
-    const srcMapsValue = displayText(card?.srcEmbedMapsAnnucio);
-    const hasMapsUrl = srcMapsValue !== "-";
     const tipoIncontroLabel = lookupLabel(
       "tipo_incontro_famiglia_lavoratore",
       card?.tipoIncontroFamigliaLavoratore,
@@ -812,20 +809,6 @@ export function OnboardingCard({
             <DetailField label="Via" value={displayText(card?.indirizzoVia)} />
             <DetailField label="Quartiere" value={displayText(card?.indirizzoNote)} />
           </div>
-          <DetailFieldControl label="SRC Maps">
-            {hasMapsUrl ? (
-              <a
-                href={srcMapsValue}
-                target="_blank"
-                rel="noreferrer"
-                className="ui-type-value text-primary break-all underline underline-offset-2"
-              >
-                {srcMapsValue}
-              </a>
-            ) : (
-              <div className="ui-type-value">-</div>
-            )}
-          </DetailFieldControl>
           </DetailSectionBlock>
         </div>
         ) : null}
@@ -1098,14 +1081,6 @@ export function OnboardingCard({
               />
             </Field>
           </div>
-        <Field invalid={isRequiredMissing("srcEmbedMapsAnnucio")}>
-          <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
-          <FieldInput
-            name="src_embed_maps_annucio"
-            id="onboarding-src-maps-edit"
-            className={cn(isRequiredMissing("srcEmbedMapsAnnucio") && REQUIRED_FIELD_CLASS)}
-          />
-        </Field>
         </DetailSectionBlock>
       </div>
       ) : null}
@@ -1409,10 +1384,6 @@ export function OnboardingCard({
                   <FieldInput name="note" id="onboarding-quartiere" />
                   </Field>
               </div>
-            <Field>
-              <FieldLabel htmlFor="onboarding-src-maps-edit">SRC Maps URL</FieldLabel>
-              <FieldInput name="src_embed_maps_annucio" id="onboarding-src-maps-edit" />
-            </Field>
             </div>
 
         {showTempistiche ? (

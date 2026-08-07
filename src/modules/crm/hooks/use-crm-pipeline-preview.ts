@@ -500,9 +500,6 @@ export function useCrmPipelinePreview(
           if ("indirizzo_prova_note" in patch) {
             nextCard.indirizzoNote = displayValue(patch.indirizzo_prova_note)
           }
-          if ("src_embed_maps_annucio" in patch) {
-            nextCard.srcEmbedMapsAnnucio = displayValue(patch.src_embed_maps_annucio)
-          }
           if ("deadline_mobile" in patch) {
             nextCard.deadlineMobile = formatItalianDate(patch.deadline_mobile)
           }
@@ -633,9 +630,6 @@ export function useCrmPipelinePreview(
             const nextCard = { ...card }
             if (addressId) {
               nextCard.indirizzoId = addressId
-            }
-            if ("provincia" in patch) {
-              nextCard.indirizzoProvincia = displayValue(patch.provincia)
             }
             if ("provincia_sigla" in patch) {
               nextCard.indirizzoProvinciaSigla = displayValue(patch.provincia_sigla)
