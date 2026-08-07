@@ -1,16 +1,27 @@
 /**
  * Cedolini Pagamenti — pure eligibility/split/date-filter helpers for the
- * reminder bulk flow (BAZ-98/99/100 U6, R7/R8/AE6/OQ6; BAZ-180 selection).
+ * reminder bulk flow (BAZ-98/99/100 U6, R7/R8/AE6/OQ6; BAZ-180 selection;
+ * BAZ-179 history).
  *
  * No React/Supabase here: `useCedoliniPagamenti` (hook) and
  * `CedoliniPagamentiView` (UI) both derive from these pure functions so the
  * "Inviato cedolino + Baze Pay + transazione" eligibility, da fare/fatti
- * split, date-filter-binds-bulk-ids (AE6), and per-family bulk exclusions
- * are unit-testable in isolation.
+ * split, date-filter-binds-bulk-ids (AE6), per-family bulk exclusions, and
+ * reminder history labels are unit-testable in isolation.
  */
+import { formatItalianDateOrNull } from "@/lib/format-utils"
+
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
 import type { CedolinoBulkJobDryRunOutcome } from "../types/cedolino-bulk-job"
 import { isAbbonamentoCard, normalizeCaseFlag } from "./cedolini-filters"
+
+/** Minimal reminder-tracking row shape for history map building (BAZ-179). */
+export type PagamentiReminderTrackingRow = {
+  id: string
+  check_reminder_pagamento_inviato: boolean | null
+  count_reminder_pagamento_inviati: number | null
+  data_ultimo_reminder_pagamento: string | null
+}
 
 /** The one board stage Pagamenti (R7) looks at. */
 const INVIATO_CEDOLINO_STAGE = "Inviato cedolino"
@@ -47,6 +58,51 @@ export function getPagamentiCandidateCards(
     }
   }
   return cards
+}
+
+// --- Reminder history (BAZ-179) -----------------------------------------------
+
+export type PagamentiReminderHistory = {
+  count: number
+  lastSentAt: string | null
+}
+
+/**
+ * Builds `mese_lavorativo_id → { count, lastSentAt }` from the dedicated
+ * Pagamenti reminder-flag fetch. Missing / non-positive counts are omitted
+ * so the UI only shows history after at least one accepted send.
+ */
+export function buildPagamentiReminderHistoryMap(
+  rows: PagamentiReminderTrackingRow[],
+): Map<string, PagamentiReminderHistory> {
+  const map = new Map<string, PagamentiReminderHistory>()
+  for (const row of rows) {
+    const rawCount = row.count_reminder_pagamento_inviati
+    const count = typeof rawCount === "number" && Number.isFinite(rawCount) ? rawCount : 0
+    if (count <= 0 && row.check_reminder_pagamento_inviato !== true) continue
+    // Backfilled "fatti" rows may have count 0 until the migration lands;
+    // treat the boolean as at least one send so the UI still shows history.
+    const effectiveCount = count > 0 ? count : row.check_reminder_pagamento_inviato === true ? 1 : 0
+    if (effectiveCount <= 0) continue
+    map.set(row.id, {
+      count: effectiveCount,
+      lastSentAt: row.data_ultimo_reminder_pagamento ?? null,
+    })
+  }
+  return map
+}
+
+/**
+ * Compact Italian label for reminder history on a Pagamenti card.
+ * Examples: `1 reminder · ultimo 07/08/2026`, `2 reminder` (no last date).
+ */
+export function formatPagamentiReminderHistoryLabel(
+  history: PagamentiReminderHistory | null | undefined,
+): string | null {
+  if (!history || history.count <= 0) return null
+  const countLabel = history.count === 1 ? "1 reminder" : `${history.count} reminder`
+  const lastLabel = formatItalianDateOrNull(history.lastSentAt)
+  return lastLabel ? `${countLabel} · ultimo ${lastLabel}` : countLabel
 }
 
 // --- Reminder da fare / fatti split -------------------------------------------
@@ -154,8 +210,9 @@ export function togglePagamentiReminderExclusion(
  * `cedolini-bulk-job` edge function). Unlike `isSendDryRunSuccess` there is
  * no `details.updated` sub-field to check — `wk-reminder-pagamento`'s own
  * response shape is the source of truth and is NOT modified by this plan.
- * `"skipped"` (e.g. already-sent guard) / `"error"` fail the dry run so the
- * remainder never starts on a bad first pick, mirroring send's AE2.
+ * `"skipped"` / `"error"` fail the dry run so the remainder never starts on a
+ * bad first pick, mirroring send's AE2. (BAZ-179 removed the one-shot guard;
+ * `"skipped"` may still appear from a stale deployed function.)
  */
 export function isReminderDryRunSuccess(outcome: CedolinoBulkJobDryRunOutcome | null): boolean {
   if (!outcome) return false

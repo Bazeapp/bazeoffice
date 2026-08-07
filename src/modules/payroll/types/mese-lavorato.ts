@@ -7,6 +7,10 @@ export type MeseLavoratoRecord = {
   cedolino_corretto: boolean | null
   cedolino_url: string | null
   check_reminder_pagamento_inviato: boolean | null
+  /** Accepted reminder sends for this row (BAZ-179). */
+  count_reminder_pagamento_inviati: number | null
+  /** ISO timestamp of the last accepted reminder send (BAZ-179). */
+  data_ultimo_reminder_pagamento: string | null
   data_invio_famiglia: string | null
   data_ora_creazione: string | null
   importo_busta_estratto: number | null

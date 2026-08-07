@@ -11,8 +11,10 @@ import { useCedoliniBulkReminder } from "../hooks/use-cedolini-bulk-reminder"
 import { useCedoliniPagamenti } from "../hooks/use-cedolini-pagamenti"
 import {
   filterPagamentiCardsByDate,
+  formatPagamentiReminderHistoryLabel,
   getPagamentiReminderBulkIds,
   togglePagamentiReminderExclusion,
+  type PagamentiReminderHistory,
 } from "../lib/cedolini-pagamenti-filters"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
 import { CedoliniPagamentiReminderDialog } from "./cedolini-pagamenti-reminder-dialog"
@@ -23,12 +25,12 @@ export type CedoliniPagamentiViewProps = {
 }
 
 /**
- * Cedolini Pagamenti (BAZ-98/99/100 U6, R7/R8/AE6/OQ6; BAZ-180): Reminder da
- * fare / fatti for "Inviato cedolino" Baze Pay rows with a linked
+ * Cedolini Pagamenti (BAZ-98/99/100 U6, R7/R8/AE6/OQ6; BAZ-180; BAZ-179):
+ * Reminder da fare / fatti for "Inviato cedolino" Baze Pay rows with a linked
  * transazione (abbonamenti and closure-month cedolini always excluded), a
  * date filter on `data_invio_famiglia` that gates visibility, per-card
- * include/exclude (two lists + switch) for the bulk send, and a dry-run →
- * confirm → sequential/stoppable bulk reminder.
+ * include/exclude (two lists + switch) for the bulk send, dry-run → confirm
+ * → sequential/stoppable bulk reminder, plus re-send + history on fatti.
  */
 export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagamentiViewProps) {
   const pagamenti = useCedoliniPagamenti(columns)
@@ -245,6 +247,7 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
                       onIncludedChange={(included) => setCardIncluded(card.id, included)}
                       onSendReminder={() => void pagamenti.sendSingleReminder(card.id)}
                       isSending={pagamenti.sendingSingleId === card.id}
+                      reminderHistory={pagamenti.reminderHistoryById.get(card.id)}
                     />
                   ))}
                   {!pagamenti.isLoading && includedDaFare.length === 0 && visibleDaFare.length > 0 ? (
@@ -267,6 +270,7 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
                       card={card}
                       included={false}
                       onIncludedChange={(included) => setCardIncluded(card.id, included)}
+                      reminderHistory={pagamenti.reminderHistoryById.get(card.id)}
                     />
                   ))}
                   {!pagamenti.isLoading && excludedDaFare.length === 0 && visibleDaFare.length > 0 ? (
@@ -293,11 +297,19 @@ export function CedoliniPagamentiView({ selectedMonth, columns }: CedoliniPagame
             </h2>
             <p className="text-muted-foreground mb-2 text-xs">
               Risultano accettati dal sistema: non garantisce che email/WhatsApp siano stati
-              effettivamente recapitati.
+              effettivamente recapitati. Puoi inviare ulteriori reminder se la famiglia non ha
+              ancora pagato.
             </p>
             <div className="flex flex-col gap-2">
               {pagamenti.fatti.map((card) => (
-                <CedoliniPagamentiCardItem key={card.id} card={card} />
+                <CedoliniPagamentiCardItem
+                  key={card.id}
+                  card={card}
+                  onSendReminder={() => void pagamenti.sendSingleReminder(card.id)}
+                  isSending={pagamenti.sendingSingleId === card.id}
+                  reminderHistory={pagamenti.reminderHistoryById.get(card.id)}
+                  sendLabel="Reinvia reminder"
+                />
               ))}
               {!pagamenti.isLoading && pagamenti.fatti.length === 0 ? (
                 <p className="text-muted-foreground text-sm">Nessun reminder fatto.</p>
@@ -324,14 +336,19 @@ function CedoliniPagamentiCardItem({
   onIncludedChange,
   onSendReminder,
   isSending = false,
+  reminderHistory,
+  sendLabel = "Invia reminder",
 }: {
   card: PayrollBoardCardData
   included?: boolean
   onIncludedChange?: (included: boolean) => void
   onSendReminder?: () => void
   isSending?: boolean
+  reminderHistory?: PagamentiReminderHistory
+  sendLabel?: string
 }) {
   const showSelection = typeof included === "boolean" && onIncludedChange != null
+  const historyLabel = formatPagamentiReminderHistoryLabel(reminderHistory)
 
   return (
     <div
@@ -351,6 +368,14 @@ function CedoliniPagamentiCardItem({
           {card.dataInvioLabel ? (
             <p className="text-muted-foreground mt-1 text-xs">Inviato il {card.dataInvioLabel}</p>
           ) : null}
+          {historyLabel ? (
+            <p
+              className="text-muted-foreground mt-1 text-xs"
+              data-testid={`cedolini-pagamenti-reminder-history-${card.id}`}
+            >
+              {historyLabel}
+            </p>
+          ) : null}
           {onSendReminder ? (
             <Button
               type="button"
@@ -361,7 +386,7 @@ function CedoliniPagamentiCardItem({
               onClick={onSendReminder}
               disabled={isSending}
             >
-              {isSending ? "Invio…" : "Invia reminder"}
+              {isSending ? "Invio…" : sendLabel}
             </Button>
           ) : null}
         </div>

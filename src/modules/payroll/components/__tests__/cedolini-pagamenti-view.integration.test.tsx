@@ -73,6 +73,7 @@ function basePagamentiState(): UseCedoliniPagamentiState {
   return {
     daFare: [],
     fatti: [],
+    reminderHistoryById: new Map(),
     isLoading: false,
     error: null,
     refetch: vi.fn(),
@@ -323,12 +324,24 @@ describe("CedoliniPagamentiView — reminder da fare/fatti + bulk (U6)", () => {
     expect(pagamenti.sendSingleReminder).toHaveBeenCalledWith("m-1")
   })
 
-  it("EDGE: nessun pulsante di invio singolo sulle card 'fatti'", () => {
-    mockPagamenti({ fatti: [makeCard({ id: "m-1" })] })
+  it("BAZ-179: sulle card 'fatti' mostra storico e permette Reinvia reminder", () => {
+    const pagamenti = mockPagamenti({
+      fatti: [makeCard({ id: "m-1" })],
+      reminderHistoryById: new Map([
+        ["m-1", { count: 2, lastSentAt: "2026-08-07T10:00:00.000Z" }],
+      ]),
+    })
     mockBulkReminder()
     renderWithProviders(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
 
-    expect(screen.queryByTestId("cedolini-pagamenti-reminder-single-m-1")).toBeNull()
+    expect(screen.getByTestId("cedolini-pagamenti-reminder-history-m-1").textContent).toMatch(
+      /2 reminder · ultimo/,
+    )
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-reminder-single-m-1"))
+    expect(pagamenti.sendSingleReminder).toHaveBeenCalledWith("m-1")
+    expect(screen.getByTestId("cedolini-pagamenti-reminder-single-m-1").textContent).toContain(
+      "Reinvia reminder",
+    )
   })
 
   it("dry run fallito: mostra l'errore e NON offre la conferma di invio del resto", () => {
