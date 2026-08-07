@@ -48,6 +48,7 @@ import {
 import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { cn } from "@/lib/utils"
+import { toStringValue } from "@/lib/value-utils"
 import { useCommentRouteContext } from "@/modules/commenti/hooks"
 import {
   crmProcessoCommentRow,
@@ -61,6 +62,10 @@ import { FamigliaProcessoDetailShell } from "./famiglia-processo-detail-shell"
 import { useCrmPipelinePreview } from "../hooks/use-crm-pipeline-preview"
 import { useCrmPipelineSalesFilter } from "../hooks/use-crm-pipeline-sales-filter"
 import { CRM_PIPELINE_SALES_FILTER_ALL } from "../lib/crm-pipeline-sales-filter"
+import {
+  findCardInPipelineColumns,
+  resolveSelectedPipelineCard,
+} from "../lib/crm-pipeline-selected-card"
 import {
   CRM_PIPELINE_FILTERS_STORAGE_KEY,
   DATE_PRESETS,
@@ -256,6 +261,8 @@ export function CrmPipelineFamiglieView() {
     [appliedToolbarFilters, salesServerFilter],
   )
   const [selectedCardId, setSelectedCardId] = React.useState<string | null>(null)
+  const [retainedSelectedCard, setRetainedSelectedCard] =
+    React.useState<CrmPipelineCardData | null>(null)
   const [isDetailOpen, setIsDetailOpen] = React.useState(false)
   const {
     loading,
@@ -342,14 +349,30 @@ export function CrmPipelineFamiglieView() {
     [filteredColumns]
   )
 
-  const selectedCard = React.useMemo(() => {
-    if (!selectedCardId) return null
-    for (const column of columns) {
-      const matched = column.cards.find((card) => card.id === selectedCardId)
-      if (matched) return matched
+  const selectedCard = React.useMemo(
+    () =>
+      resolveSelectedPipelineCard(
+        selectedCardId,
+        columns,
+        retainedSelectedCard,
+      ),
+    [columns, retainedSelectedCard, selectedCardId],
+  )
+
+  React.useEffect(() => {
+    if (!selectedCardId) {
+      setRetainedSelectedCard(null)
+      return
     }
-    return null
+    const fromBoard = findCardInPipelineColumns(columns, selectedCardId)
+    if (fromBoard) setRetainedSelectedCard(fromBoard)
   }, [columns, selectedCardId])
+
+  const openCardDetail = React.useCallback((card: CrmPipelineCardData) => {
+    setSelectedCardId(card.id)
+    setRetainedSelectedCard(card)
+    setIsDetailOpen(true)
+  }, [])
 
   const commentRow = React.useMemo(
     () => (selectedCard ? crmProcessoCommentRow(selectedCard) : {}),
@@ -385,8 +408,7 @@ export function CrmPipelineFamiglieView() {
           (current) => current.famigliaId === famigliaId,
         )
         if (card) {
-          setSelectedCardId(card.id)
-          setIsDetailOpen(true)
+          openCardDetail(card)
           return true
         }
       }
@@ -407,7 +429,14 @@ export function CrmPipelineFamiglieView() {
 
       return true
     },
-    [columns, filtersActive, loadClosedStage, loadedClosedStageIds, loading],
+    [
+      columns,
+      filtersActive,
+      loadClosedStage,
+      loadedClosedStageIds,
+      loading,
+      openCardDetail,
+    ],
   )
 
   useBoardEntityDeepLink({
@@ -686,10 +715,7 @@ export function CrmPipelineFamiglieView() {
                         setDraggingProcessId(null)
                         setDropTargetColumnId(null)
                       }}
-                      onCardClick={(card) => {
-                        setSelectedCardId(card.id)
-                        setIsDetailOpen(true)
-                      }}
+                      onCardClick={openCardDetail}
                       isDeferred={
                         !filtersActive &&
                         DEFERRED_STAGE_IDS.has(column.id) &&
@@ -712,6 +738,7 @@ export function CrmPipelineFamiglieView() {
           setIsDetailOpen(open)
           if (!open) {
             setSelectedCardId(null)
+            setRetainedSelectedCard(null)
           }
         }}
         card={selectedCard}
@@ -719,6 +746,16 @@ export function CrmPipelineFamiglieView() {
         onChangeStatoSales={moveCard}
         onPatchProcess={async (processId, patch) => {
           await updateProcessCard(processId, patch)
+          if ("referente_sales_id" in patch) {
+            setRetainedSelectedCard((current) =>
+              current?.id === processId
+                ? {
+                    ...current,
+                    salesOperatorId: toStringValue(patch.referente_sales_id),
+                  }
+                : current,
+            )
+          }
         }}
         onPatchFamily={async (familyId, patch) => {
           await updateFamilyCard(familyId, patch)
