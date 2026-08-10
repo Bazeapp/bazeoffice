@@ -134,8 +134,10 @@ export {
   getPagamentiCandidateCards,
   getPagamentiReminderBulkIds,
   isDataInvioFamigliaWithinDateFilter,
+  isPagamentiReminderEligibleCard,
   isReminderDryRunSuccess,
   splitPagamentiCardsByReminderStatus,
+  togglePagamentiReminderExclusion,
   type PagamentiSplit,
 } from "./cedolini-pagamenti-filters"
 export {
