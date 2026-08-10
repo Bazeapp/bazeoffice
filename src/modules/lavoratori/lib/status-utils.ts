@@ -119,6 +119,9 @@ export function findNonQualificatoIssues(row: Record<string, unknown>) {
   }
 
   const provinciaSigla = asString(row.provincia_sigla)
+  // `lavoratori.provincia` is a denormalized worker-row field (not obsolete
+  // `indirizzi.provincia`). Keep it as fallback when Gate2/Cerca rows lack
+  // `provincia_sigla` from the Gate1 RPC join.
   const provincia = asString(row.provincia)
   const indirizzo = asString(row.indirizzo_residenza_completo)
   const inMilano =

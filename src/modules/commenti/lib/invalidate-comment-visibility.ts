@@ -1,5 +1,6 @@
 import type { Query, QueryClient } from "@tanstack/react-query"
 
+import { entityRefKey } from "./entity-ref"
 import { commentPageQueryPrefix } from "./query-keys"
 import type { EntityRef, EntityType } from "../types/entity"
 
@@ -115,14 +116,24 @@ export function shouldInvalidateCommentQueryForAnchor(
   return false
 }
 
+/** Invalidate current page, related stack page focuses, and other pages matching `anchor`. */
 export function invalidateCommentVisibility(
   queryClient: QueryClient,
   pageFocus: EntityRef,
   anchor: EntityRef,
+  relatedPageFocuses: EntityRef[] = [],
 ): void {
-  void queryClient.invalidateQueries({
-    queryKey: commentPageQueryPrefix(pageFocus),
-  })
+  const pagesByKey = new Map<string, EntityRef>()
+  pagesByKey.set(entityRefKey(pageFocus), pageFocus)
+  for (const related of relatedPageFocuses) {
+    pagesByKey.set(entityRefKey(related), related)
+  }
+
+  for (const page of pagesByKey.values()) {
+    void queryClient.invalidateQueries({
+      queryKey: commentPageQueryPrefix(page),
+    })
+  }
 
   void queryClient.invalidateQueries({
     predicate: (query: Query) =>

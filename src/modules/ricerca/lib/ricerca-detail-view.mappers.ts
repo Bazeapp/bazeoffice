@@ -179,11 +179,9 @@ export function applyAddressPatchToCard(
   if (addressId) {
     nextCard.indirizzoId = addressId;
   }
-  if ("provincia" in patch) {
-    nextCard.indirizzoProvincia = displayValue(patch.provincia);
-  }
   if ("provincia_sigla" in patch) {
     nextCard.indirizzoProvincia = displayValue(patch.provincia_sigla);
+    nextCard.indirizzoProvinciaSigla = displayValue(patch.provincia_sigla);
   }
   if ("cap" in patch) {
     nextCard.indirizzoCap = displayValue(patch.cap);
@@ -209,6 +207,11 @@ export function applyAddressPatchToCard(
       civico: "civico" in patch ? patch.civico : nextCard.indirizzoCivico,
       citta: "citta" in patch ? patch.citta : nextCard.indirizzoComune,
       cap: "cap" in patch ? patch.cap : nextCard.indirizzoCap,
+      provincia_sigla:
+        "provincia_sigla" in patch
+          ? patch.provincia_sigla
+          : nextCard.indirizzoProvinciaSigla,
+      citofono: "citofono" in patch ? patch.citofono : nextCard.indirizzoCitofono,
     }),
   );
   return nextCard;
@@ -358,12 +361,8 @@ export async function loadRicercaDetailCard(processId: string): Promise<{
           ),
           etaMinima: displayValue(processRow.eta_minima),
           etaMassima: displayValue(processRow.eta_massima),
-          indirizzoProvincia: displayValue(
-            processAddress?.provincia_sigla ?? processAddress?.provincia,
-          ),
-          indirizzoProvinciaSigla: displayValue(
-            processAddress?.provincia_sigla ?? processAddress?.provincia,
-          ),
+          indirizzoProvincia: displayValue(processAddress?.provincia_sigla),
+          indirizzoProvinciaSigla: displayValue(processAddress?.provincia_sigla),
           indirizzoCap: displayValue(processAddress?.cap),
           indirizzoNote: displayValue(processAddress?.note),
           indirizzoId: toStringValue(processAddress?.id),
@@ -380,7 +379,6 @@ export async function loadRicercaDetailCard(processId: string): Promise<{
           indirizzoProvaComune: displayValue(processRow.indirizzo_prova_comune),
           indirizzoProvaCitofono: displayValue(processRow.indirizzo_prova_citofono),
           geocode: displayValue(processRow.geocode),
-          srcEmbedMapsAnnucio: displayValue(processRow.src_embed_maps_annucio),
           indirizzoProvaLatitudine: ricercaCenter?.lat ?? null,
           indirizzoProvaLongitudine: ricercaCenter?.lng ?? null,
           deadlineMobile: formatItalianDate(processRow.deadline_mobile),
@@ -499,6 +497,7 @@ export async function loadRicercaDetailCard(processId: string): Promise<{
           testoAnnuncioWhatsapp: displayValue(
             processRow.testo_annuncio_whatsapp,
           ),
+          salesOperatorId: toStringValue(processRow.referente_sales_id),
   }
 
   return { card: mapped, lookupOptionsByField }

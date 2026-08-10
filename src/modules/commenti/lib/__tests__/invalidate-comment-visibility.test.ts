@@ -86,4 +86,47 @@ describe("invalidate-comment-visibility", () => {
 
     expect(queryClient.getQueryState(candidaturaSectionKey)?.isInvalidated).toBe(true)
   })
+
+  // BAZ-185: writing a comment from a worker overlay (pageFocus=candidatura)
+  // must refresh the parent ricerca panel caches so back/breadcrumb shows
+  // updated counts and COLLEGATE without a full page reload.
+  it("invalidates related ricerca page caches when given stack page focuses", () => {
+    const queryClient = new QueryClient()
+    const ricercaCountKey = [
+      "commenti",
+      RICERCA.entityType,
+      RICERCA.entityId,
+      "count",
+    ] as const
+    const ricercaDescendantsCountKey = [
+      "commenti",
+      RICERCA.entityType,
+      RICERCA.entityId,
+      "descendants-count",
+      `${CANDIDATURA.entityType}:${CANDIDATURA.entityId}|${LAVORATORE.entityType}:${LAVORATORE.entityId}|${RICERCA.entityType}:${RICERCA.entityId}`,
+    ] as const
+    const unrelatedRicercaCountKey = [
+      "commenti",
+      "ricerca",
+      "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      "count",
+    ] as const
+
+    queryClient.setQueryData(ricercaCountKey, 3)
+    queryClient.setQueryData(ricercaDescendantsCountKey, 2)
+    queryClient.setQueryData(unrelatedRicercaCountKey, 9)
+
+    invalidateCommentVisibility(queryClient, CANDIDATURA, LAVORATORE, [
+      LAVORATORE,
+      RICERCA,
+    ])
+
+    expect(queryClient.getQueryState(ricercaCountKey)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryState(ricercaDescendantsCountKey)?.isInvalidated).toBe(
+      true,
+    )
+    expect(queryClient.getQueryState(unrelatedRicercaCountKey)?.isInvalidated).toBe(
+      false,
+    )
+  })
 })

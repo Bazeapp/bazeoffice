@@ -20,7 +20,6 @@ function createCard(
     oreSettimana: "20",
     giorniSettimana: "5",
     giornatePreferite: "Lun-Ven",
-    srcEmbedMapsAnnucio: "https://maps.example.com",
     indirizzoProvincia: "MI",
     indirizzoCap: "20100",
     indirizzoVia: "Via Roma 1",
@@ -36,7 +35,7 @@ function createCard(
 
 describe("getMissingAnnouncementFields", () => {
   it("returns all required fields when card is null", () => {
-    expect(getMissingAnnouncementFields(null)).toHaveLength(14)
+    expect(getMissingAnnouncementFields(null)).toHaveLength(13)
   })
 
   it("returns empty list when all required fields are present", () => {

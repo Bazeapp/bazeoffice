@@ -93,7 +93,6 @@ function makeOnboardingCard(
     indirizzoCivico: "",
     indirizzoComune: "",
     indirizzoCitofono: "",
-    srcEmbedMapsAnnucio: "",
     deadlineMobile: "",
     disponibilitaColloquiInPresenza: "",
     tipoIncontroFamigliaLavoratore: "",
@@ -125,6 +124,7 @@ function makeOnboardingCard(
     cucinareElaborato: false,
     curaPiante: false,
     testoAnnuncioWhatsapp: "",
+    salesOperatorId: null,
     ...overrides,
   }
 }
@@ -140,7 +140,6 @@ describe("onboardingCardFormSchema", () => {
       cap: "",
       via: "",
       note: "",
-      src_embed_maps_annucio: "",
       deadline_mobile: "",
       disponibilita_colloqui_in_presenza: "",
       tipo_incontro_famiglia_lavoratore: "",

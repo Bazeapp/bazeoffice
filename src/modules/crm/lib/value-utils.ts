@@ -1,5 +1,6 @@
 import type { GenericRow } from "../types"
 import { PREVENTIVO_ACCEPTANCE_BASE_URL } from "./constants"
+import { formatIndirizzo } from "@/lib/format-indirizzo"
 import { toStringValue } from "@/lib/value-utils"
 
 export function asRowArray(input: unknown): GenericRow[] {
@@ -28,21 +29,7 @@ export function buildPreventivoAcceptanceUrl(sessionId: string | null) {
 }
 
 export function buildAddressLine(address: GenericRow | undefined) {
-  if (!address) return null
-
-  const formatted = toStringValue(address.indirizzo_formattato)
-  if (formatted) return formatted
-
-  return (
-    [
-      toStringValue(address.via),
-      toStringValue(address.civico),
-      toStringValue(address.citta),
-      toStringValue(address.cap),
-    ]
-      .filter((item): item is string => Boolean(item))
-      .join(", ") || null
-  )
+  return formatIndirizzo(address)
 }
 
 export function getFlexibleStringArrayValue(value: unknown): string[] {

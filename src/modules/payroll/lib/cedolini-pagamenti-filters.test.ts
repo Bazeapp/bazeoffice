@@ -3,12 +3,16 @@ import { describe, expect, it } from "vitest"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
 import type { CedolinoBulkJobDryRunOutcome } from "../types/cedolino-bulk-job"
 import {
+  buildPagamentiReminderHistoryMap,
   filterPagamentiCardsByDate,
+  formatPagamentiReminderHistoryLabel,
   getPagamentiCandidateCards,
   getPagamentiReminderBulkIds,
   isDataInvioFamigliaWithinDateFilter,
+  isPagamentiReminderEligibleCard,
   isReminderDryRunSuccess,
   splitPagamentiCardsByReminderStatus,
+  togglePagamentiReminderExclusion,
 } from "./cedolini-pagamenti-filters"
 
 function makeCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCardData {
@@ -21,8 +25,10 @@ function makeCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCa
       cedolino: null,
       cedolino_corretto: null,
       cedolino_url: null,
-      check_reminder_pagamento_inviato: null,
-      data_invio_famiglia: null,
+  check_reminder_pagamento_inviato: null,
+  count_reminder_pagamento_inviati: null,
+  data_ultimo_reminder_pagamento: null,
+  data_invio_famiglia: null,
       data_ora_creazione: null,
       importo_busta_estratto: null,
       importo_sconto_mese: null,
@@ -48,7 +54,8 @@ function makeCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCa
     presenzeRegolari: null,
     rapporto: null,
     mese: null,
-    richiestaAttivazione: null,
+    // Baze Pay by default — abbonamento ⇔ richiestaAttivazione == null (BAZ-180).
+    richiestaAttivazione: { id: "ra-1", fee_concordata: null },
     presenzeIrregolari: false,
     nomeCompleto: "Rossi – Maria",
     importoLabel: null,
@@ -70,8 +77,32 @@ function makeColumns(cards: PayrollBoardCardData[]): PayrollBoardColumnData[] {
   }))
 }
 
-describe("getPagamentiCandidateCards (R7)", () => {
-  it("include le card 'Inviato cedolino' con una transazione collegata", () => {
+describe("isPagamentiReminderEligibleCard (BAZ-180)", () => {
+  it("Baze Pay con transazione → eleggibile", () => {
+    expect(isPagamentiReminderEligibleCard(makeCard())).toBe(true)
+  })
+
+  it("esclude abbonamento (nessuna richiesta_attivazione) anche con transazione", () => {
+    expect(isPagamentiReminderEligibleCard(makeCard({ richiestaAttivazione: null }))).toBe(false)
+  })
+
+  it("esclude chiusura rapporto (caso_particolare)", () => {
+    expect(
+      isPagamentiReminderEligibleCard(
+        makeCard({
+          record: { ...makeCard().record, caso_particolare: "Chiusura rapporto" },
+        }),
+      ),
+    ).toBe(false)
+  })
+
+  it("esclude senza transazione", () => {
+    expect(isPagamentiReminderEligibleCard(makeCard({ transazione: null }))).toBe(false)
+  })
+})
+
+describe("getPagamentiCandidateCards (R7 + BAZ-180)", () => {
+  it("include le card 'Inviato cedolino' Baze Pay con una transazione collegata", () => {
     const columns = makeColumns([makeCard({ id: "m-1" })])
     expect(getPagamentiCandidateCards(columns).map((c) => c.id)).toEqual(["m-1"])
   })
@@ -84,6 +115,18 @@ describe("getPagamentiCandidateCards (R7)", () => {
   it("EDGE: esclude le card di altri stage anche con transazione", () => {
     const columns = makeColumns([makeCard({ id: "m-1", stage: "Cedolino Pronto" })])
     expect(getPagamentiCandidateCards(columns)).toEqual([])
+  })
+
+  it("BAZ-180: esclude abbonamenti e chiusure dal pool candidati", () => {
+    const columns = makeColumns([
+      makeCard({ id: "m-baze" }),
+      makeCard({ id: "m-abb", richiestaAttivazione: null }),
+      makeCard({
+        id: "m-chiusura",
+        record: { ...makeCard().record, caso_particolare: "Chiusura rapporto" },
+      }),
+    ])
+    expect(getPagamentiCandidateCards(columns).map((c) => c.id)).toEqual(["m-baze"])
   })
 })
 
@@ -156,14 +199,84 @@ describe("filterPagamentiCardsByDate (AE6/OQ6)", () => {
   })
 })
 
-describe("getPagamentiReminderBulkIds (AE6)", () => {
-  it("mappa le card visibili ai loro mese_lavorativo_id", () => {
+describe("getPagamentiReminderBulkIds (AE6 + BAZ-180 selection)", () => {
+  it("mappa le card visibili ai loro mese_lavorativo_id (tutte incluse di default)", () => {
     const cards = [makeCard({ id: "m-1" }), makeCard({ id: "m-2" })]
     expect(getPagamentiReminderBulkIds(cards)).toEqual(["m-1", "m-2"])
   })
 
+  it("rispetta le esclusioni manuali (famiglie deselezionate)", () => {
+    const cards = [makeCard({ id: "m-1" }), makeCard({ id: "m-2" }), makeCard({ id: "m-3" })]
+    expect(getPagamentiReminderBulkIds(cards, new Set(["m-2"]))).toEqual(["m-1", "m-3"])
+  })
+
   it("EDGE: nessuna card visibile → nessun id", () => {
     expect(getPagamentiReminderBulkIds([])).toEqual([])
+  })
+
+  it("EDGE: tutte escluse → nessun id", () => {
+    const cards = [makeCard({ id: "m-1" }), makeCard({ id: "m-2" })]
+    expect(getPagamentiReminderBulkIds(cards, new Set(["m-1", "m-2"]))).toEqual([])
+  })
+})
+
+describe("togglePagamentiReminderExclusion", () => {
+  it("deselezionare aggiunge l'id agli esclusi", () => {
+    expect(togglePagamentiReminderExclusion(new Set(), "m-1", false)).toEqual(new Set(["m-1"]))
+  })
+
+  it("riselezionare rimuove l'id dagli esclusi", () => {
+    expect(togglePagamentiReminderExclusion(new Set(["m-1", "m-2"]), "m-1", true)).toEqual(
+      new Set(["m-2"]),
+    )
+  })
+})
+
+describe("buildPagamentiReminderHistoryMap / formatPagamentiReminderHistoryLabel (BAZ-179)", () => {
+  it("mappa count + last send per id con almeno un invio", () => {
+    const map = buildPagamentiReminderHistoryMap([
+      {
+        id: "m-1",
+        check_reminder_pagamento_inviato: true,
+        count_reminder_pagamento_inviati: 2,
+        data_ultimo_reminder_pagamento: "2026-08-07T10:00:00.000Z",
+      },
+      {
+        id: "m-2",
+        check_reminder_pagamento_inviato: false,
+        count_reminder_pagamento_inviati: 0,
+        data_ultimo_reminder_pagamento: null,
+      },
+    ])
+    expect(map.get("m-1")).toEqual({
+      count: 2,
+      lastSentAt: "2026-08-07T10:00:00.000Z",
+    })
+    expect(map.has("m-2")).toBe(false)
+  })
+
+  it("EDGE: flag true con count 0 (pre-migration backfill) → count effettivo 1", () => {
+    const map = buildPagamentiReminderHistoryMap([
+      {
+        id: "m-1",
+        check_reminder_pagamento_inviato: true,
+        count_reminder_pagamento_inviati: 0,
+        data_ultimo_reminder_pagamento: null,
+      },
+    ])
+    expect(map.get("m-1")).toEqual({ count: 1, lastSentAt: null })
+  })
+
+  it("formatta etichetta con e senza data ultimo invio", () => {
+    expect(formatPagamentiReminderHistoryLabel({ count: 1, lastSentAt: null })).toBe("1 reminder")
+    expect(formatPagamentiReminderHistoryLabel({ count: 3, lastSentAt: null })).toBe("3 reminder")
+    expect(
+      formatPagamentiReminderHistoryLabel({
+        count: 2,
+        lastSentAt: "2026-08-07T10:00:00.000Z",
+      }),
+    ).toMatch(/^2 reminder · ultimo \d{2}\/\d{2}\/\d{4}$/)
+    expect(formatPagamentiReminderHistoryLabel(null)).toBeNull()
   })
 })
 

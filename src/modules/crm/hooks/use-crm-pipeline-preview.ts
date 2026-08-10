@@ -328,6 +328,9 @@ export function useCrmPipelinePreview(
           if ("orario_di_lavoro" in patch) {
             nextCard.orarioDiLavoro = displayValue(patch.orario_di_lavoro)
           }
+          if ("referente_sales_id" in patch) {
+            nextCard.salesOperatorId = toStringValue(patch.referente_sales_id)
+          }
           if ("stato_res" in normalizedPatch) {
             nextCard.statoRes = displayValue(normalizedPatch.stato_res)
           }
@@ -500,9 +503,6 @@ export function useCrmPipelinePreview(
           if ("indirizzo_prova_note" in patch) {
             nextCard.indirizzoNote = displayValue(patch.indirizzo_prova_note)
           }
-          if ("src_embed_maps_annucio" in patch) {
-            nextCard.srcEmbedMapsAnnucio = displayValue(patch.src_embed_maps_annucio)
-          }
           if ("deadline_mobile" in patch) {
             nextCard.deadlineMobile = formatItalianDate(patch.deadline_mobile)
           }
@@ -533,6 +533,12 @@ export function useCrmPipelinePreview(
 
       try {
         await updateRecord("processi_matching", processId, normalizedPatch)
+        // Sales filter membership / stage_counts live on the board query.
+        // Invalidate only for this discrete field so debounced text patches
+        // keep invalidateOnSettled:false semantics.
+        if ("referente_sales_id" in patch) {
+          void invalidateBoard()
+        }
       } catch (caughtError) {
         setBoardData((prev) => (prev ? { ...prev, columns: previousColumns } : prev))
         const message =
@@ -543,7 +549,7 @@ export function useCrmPipelinePreview(
         throw caughtError
       }
     },
-    [columns, lookupOptionsByField, setBoardData]
+    [columns, invalidateBoard, lookupOptionsByField, setBoardData]
   )
 
   const updateFamilyCard = React.useCallback(
@@ -633,9 +639,6 @@ export function useCrmPipelinePreview(
             const nextCard = { ...card }
             if (addressId) {
               nextCard.indirizzoId = addressId
-            }
-            if ("provincia" in patch) {
-              nextCard.indirizzoProvincia = displayValue(patch.provincia)
             }
             if ("provincia_sigla" in patch) {
               nextCard.indirizzoProvinciaSigla = displayValue(patch.provincia_sigla)

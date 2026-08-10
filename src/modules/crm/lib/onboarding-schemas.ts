@@ -13,7 +13,6 @@ export const onboardingCardFormSchema = z.object({
   cap: optionalString,
   via: optionalString,
   note: optionalString,
-  src_embed_maps_annucio: optionalString,
   deadline_mobile: optionalString,
   disponibilita_colloqui_in_presenza: optionalString,
   tipo_incontro_famiglia_lavoratore: optionalString,

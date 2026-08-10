@@ -134,6 +134,7 @@ export type ProcessoMatchingRecord = {
   rapporti_lavorativi: string | null
   recruiter_ricerca_e_selezione_id: string | null
   referente_ricerca_e_selezione_id: string | null
+  referente_sales_id: string | null
   richiesta_ferie: boolean | null
   richiesta_patente: boolean | null
   richiesta_trasferte: boolean | null
@@ -151,7 +152,6 @@ export type ProcessoMatchingRecord = {
   slug_short_job_outreach_whatsapp: string | null
   source_question: string | null
   source_url: string | null
-  src_embed_maps_annucio: string | null
   stato_assunzione: string | null
   stato_res: string | null
   stato_sales: string | null

@@ -60,7 +60,7 @@ function makeCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCa
     presenzeRegolari: null,
     rapporto: { id: "r-1" } as PayrollBoardCardData["rapporto"],
     mese: null,
-    richiestaAttivazione: null,
+    richiestaAttivazione: { id: "ra-1", fee_concordata: null },
     presenzeIrregolari: false,
     nomeCompleto: "Rossi – Maria",
     importoLabel: "€1.000",
@@ -73,6 +73,7 @@ function basePagamentiState(): UseCedoliniPagamentiState {
   return {
     daFare: [],
     fatti: [],
+    reminderHistoryById: new Map(),
     isLoading: false,
     error: null,
     refetch: vi.fn(),
@@ -163,12 +164,119 @@ describe("CedoliniPagamentiView — reminder da fare/fatti + bulk (U6)", () => {
     const bulkReminder = mockBulkReminder()
     renderPagamenti(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
 
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Inclusi 2",
+    )
+
     await clickInviaAndConfirmDryRun()
 
     await waitFor(() => {
       expect(bulkReminder.startDryRun).toHaveBeenCalledWith(["m-1", "m-2"], "2026-07")
     })
     expect(screen.getByTestId("cedolini-pagamenti-reminder-dialog")).toBeTruthy()
+  })
+
+  it("BAZ-180: deselezionare una famiglia la sposta in Esclusi; Seleziona tutti la ripristina", async () => {
+    mockPagamenti({ daFare: [makeCard({ id: "m-1" }), makeCard({ id: "m-2" })] })
+    const bulkReminder = mockBulkReminder()
+    renderPagamenti(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
+
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-include-m-2"))
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Inclusi 1",
+    )
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Esclusi 1",
+    )
+    expect(
+      screen.getByTestId("cedolini-pagamenti-esclusi").querySelector(
+        '[data-testid="cedolini-pagamenti-card-m-2"]',
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.getByTestId("cedolini-pagamenti-inclusi").querySelector(
+        '[data-testid="cedolini-pagamenti-card-m-2"]',
+      ),
+    ).toBeNull()
+
+    await clickInviaAndConfirmDryRun()
+    await waitFor(() => {
+      expect(bulkReminder.startDryRun).toHaveBeenCalledWith(["m-1"], "2026-07")
+    })
+
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-select-all"))
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Inclusi 2 · Esclusi 0",
+    )
+    expect(
+      screen.getByTestId("cedolini-pagamenti-inclusi").querySelector(
+        '[data-testid="cedolini-pagamenti-card-m-2"]',
+      ),
+    ).toBeTruthy()
+  })
+
+  it("BAZ-180: Deseleziona tutti svuota il bulk e disabilita Invia reminder", () => {
+    mockPagamenti({ daFare: [makeCard({ id: "m-1" }), makeCard({ id: "m-2" })] })
+    mockBulkReminder()
+    renderWithProviders(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
+
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-deselect-all"))
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Inclusi 0",
+    )
+    expect(screen.getByTestId("cedolini-pagamenti-reminder-invia")).toHaveProperty("disabled", true)
+  })
+
+  it("BAZ-180: esclusioni restano sticky quando il filtro data nasconde le card", async () => {
+    mockPagamenti({
+      daFare: [
+        makeCard({
+          id: "m-early",
+          record: {
+            ...makeCard().record,
+            data_invio_famiglia: "2026-07-01",
+          } as PayrollBoardCardData["record"],
+        }),
+        makeCard({
+          id: "m-late",
+          record: {
+            ...makeCard().record,
+            data_invio_famiglia: "2026-07-20",
+          } as PayrollBoardCardData["record"],
+        }),
+      ],
+    })
+    const bulkReminder = mockBulkReminder()
+    renderPagamenti(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
+
+    // Exclude the late card, then hide it with the date filter.
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-include-m-late"))
+    fireEvent.change(screen.getByTestId("cedolini-pagamenti-date-filter"), {
+      target: { value: "2026-07-15" },
+    })
+    expect(screen.queryByTestId("cedolini-pagamenti-card-m-late")).toBeNull()
+
+    // Deselecting the remaining visible card must not wipe the sticky exclusion.
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-deselect-all"))
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-date-filter-clear"))
+
+    expect(screen.getByTestId("cedolini-pagamenti-card-m-late")).toBeTruthy()
+    expect(screen.getByTestId("cedolini-pagamenti-selection-summary").textContent).toContain(
+      "Inclusi 0 · Esclusi 2",
+    )
+
+    // Select all clears sticky exclusions even if they were filter-hidden.
+    fireEvent.change(screen.getByTestId("cedolini-pagamenti-date-filter"), {
+      target: { value: "2026-07-15" },
+    })
+    expect(screen.getByTestId("cedolini-pagamenti-select-all")).toHaveProperty("disabled", false)
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-select-all"))
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-date-filter-clear"))
+
+    await clickInviaAndConfirmDryRun()
+    await waitFor(() => {
+      expect(bulkReminder.startDryRun).toHaveBeenCalledWith(["m-early", "m-late"], "2026-07")
+    })
   })
 
   it("EDGE (AE6/OQ6): il filtro data riduce sia la lista visibile che gli id del bulk, escludendo i NULL", async () => {
@@ -216,12 +324,24 @@ describe("CedoliniPagamentiView — reminder da fare/fatti + bulk (U6)", () => {
     expect(pagamenti.sendSingleReminder).toHaveBeenCalledWith("m-1")
   })
 
-  it("EDGE: nessun pulsante di invio singolo sulle card 'fatti'", () => {
-    mockPagamenti({ fatti: [makeCard({ id: "m-1" })] })
+  it("BAZ-179: sulle card 'fatti' mostra storico e permette Reinvia reminder", () => {
+    const pagamenti = mockPagamenti({
+      fatti: [makeCard({ id: "m-1" })],
+      reminderHistoryById: new Map([
+        ["m-1", { count: 2, lastSentAt: "2026-08-07T10:00:00.000Z" }],
+      ]),
+    })
     mockBulkReminder()
     renderWithProviders(<CedoliniPagamentiView selectedMonth="2026-07" columns={[]} />)
 
-    expect(screen.queryByTestId("cedolini-pagamenti-reminder-single-m-1")).toBeNull()
+    expect(screen.getByTestId("cedolini-pagamenti-reminder-history-m-1").textContent).toMatch(
+      /2 reminder · ultimo/,
+    )
+    fireEvent.click(screen.getByTestId("cedolini-pagamenti-reminder-single-m-1"))
+    expect(pagamenti.sendSingleReminder).toHaveBeenCalledWith("m-1")
+    expect(screen.getByTestId("cedolini-pagamenti-reminder-single-m-1").textContent).toContain(
+      "Reinvia reminder",
+    )
   })
 
   it("dry run fallito: mostra l'errore e NON offre la conferma di invio del resto", () => {

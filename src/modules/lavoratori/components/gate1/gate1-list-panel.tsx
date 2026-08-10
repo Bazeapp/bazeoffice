@@ -219,8 +219,7 @@ export function Gate1ListPanel() {
                             )?.provincia_sigla ??
                               (workerAddressesById?.get(worker.id) ?? [])[0]
                                 ?.provincia_sigla,
-                          ) ||
-                          asString(row?.provincia),
+                          ),
                         createdAt: asString(row?.creato_il),
                         followup: followupOption?.label ?? followupRaw,
                       }}
