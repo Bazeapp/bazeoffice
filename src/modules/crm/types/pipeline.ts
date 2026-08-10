@@ -69,7 +69,6 @@ export type CrmPipelineCardData = {
   indirizzoCivico: string
   indirizzoComune: string
   indirizzoCitofono: string
-  srcEmbedMapsAnnucio: string
   deadlineMobile: string
   disponibilitaColloquiInPresenza: string
   familyAvailabilityJson?: string | null

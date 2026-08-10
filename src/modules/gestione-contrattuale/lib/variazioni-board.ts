@@ -1,4 +1,5 @@
 import { preserveMissingFields } from "@/lib/board-column-utils"
+import { formatIndirizzo } from "@/lib/format-indirizzo"
 import { formatItalianDate, toStringValue } from "@/lib/value-utils"
 import { getRapportoTitle, personNameFromRow } from "@/modules/rapporti/lib"
 import type { RapportoAssunzioneNames } from "../types/gestione-rpc"
@@ -80,29 +81,12 @@ export const VARIAZIONE_RAPPORTO_FIELD_BINDINGS: ReadonlyArray<
 export { preserveMissingFields } from "@/lib/board-column-utils"
 
 function formatAddressLabel(address: GenericRow | null | undefined) {
-  if (!address) return null
-
-  const formatted = toStringValue(address.indirizzo_formattato)
-  if (formatted) return formatted
-
-  const street = [toStringValue(address.via), toStringValue(address.civico)]
-    .filter(Boolean)
-    .join(" ")
-    .trim()
-  const note = toStringValue(address.note)
-  const citta = toStringValue(address.citta)
-  const provincia = toStringValue(address.provincia)
-  const cap = toStringValue(address.cap)
-  const shortNote = note?.split("-")[0]?.trim() || null
-
-  return (
-    [street || shortNote, citta, provincia, cap]
-      .filter(
-        (value, index, values): value is string =>
-          Boolean(value) && values.indexOf(value) === index
-      )
-      .join(" • ") || null
-  )
+  return formatIndirizzo(address, {
+    style: "compact",
+    fallbackNote: true,
+    includeCitofono: false,
+    includePaese: false,
+  })
 }
 
 function getAddressCap(address: GenericRow | null | undefined) {

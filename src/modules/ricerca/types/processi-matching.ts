@@ -152,7 +152,6 @@ export type ProcessoMatchingRecord = {
   slug_short_job_outreach_whatsapp: string | null
   source_question: string | null
   source_url: string | null
-  src_embed_maps_annucio: string | null
   stato_assunzione: string | null
   stato_res: string | null
   stato_sales: string | null

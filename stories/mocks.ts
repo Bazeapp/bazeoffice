@@ -247,7 +247,6 @@ export const mockCrmCard: CrmPipelineCardData = {
   indirizzoCap: "20141",
   indirizzoNote: "Piano 14",
   indirizzoCompleto: "Via Roma 10, Milano",
-  srcEmbedMapsAnnucio: "",
   deadlineMobile: "30/04/2026",
   disponibilitaColloquiInPresenza: "Martedì e giovedì pomeriggio",
   familyAvailabilityJson: null,

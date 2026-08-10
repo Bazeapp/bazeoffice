@@ -81,7 +81,6 @@ function makePreviousCard(
     indirizzoCivico: "1",
     indirizzoComune: "PrevComune",
     indirizzoCitofono: "PrevCitofono",
-    srcEmbedMapsAnnucio: "PrevSrc",
     deadlineMobile: "04/04/2023",
     disponibilitaColloquiInPresenza: "PrevDispo",
     familyAvailabilityJson: "{\"prev\":true}",

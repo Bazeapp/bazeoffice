@@ -1,3 +1,4 @@
+import { formatIndirizzo } from "@/lib/format-indirizzo"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { asInputValue, asString } from "@/modules/lavoratori/lib"
 import type { LavoratoreRecord } from "@/modules/lavoratori/types"
@@ -72,25 +73,10 @@ export function getCardOperationalTiming(card: RicercaWorkerSelectionCard) {
 export function buildWorkerResidenceAddress(row: Record<string, unknown> | undefined) {
   if (!row) return null;
 
-  const formatted = asString(row.indirizzo_formattato);
-  const street = [asString(row.via), asString(row.civico)]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-  const locality = [asString(row.cap), asString(row.citta)]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-  const address =
-    formatted ||
-    [street, locality, asString(row.provincia), asString(row.paese)]
-      .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index)
-      .join(", ");
-
   return {
-    address: address || null,
+    address: formatIndirizzo(row),
     cap: asString(row.cap) || null,
-    province: asString(row.provincia) || null,
+    province: asString(row.provincia_sigla) || null,
   };
 }
 
