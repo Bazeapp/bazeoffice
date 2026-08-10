@@ -68,7 +68,6 @@ function makeCard(
     indirizzoCivico: "",
     indirizzoComune: "",
     indirizzoCitofono: "",
-    srcEmbedMapsAnnucio: "",
     deadlineMobile: "",
     disponibilitaColloquiInPresenza: "",
     tipoIncontroFamigliaLavoratore: "",
