@@ -154,7 +154,9 @@ export function useWorkerAddressEditor({
 
       const source = overrideValue ?? addressDraft[field]
       const nextValue = source.trim() || null
-      await applyAddressPatch({ [field]: nextValue })
+      // UI field is "provincia"; DB column is provincia_sigla (indirizzi.provincia is obsolete).
+      const dbField = field === "provincia" ? "provincia_sigla" : field
+      await applyAddressPatch({ [dbField]: nextValue })
     },
     [addressDraft, applyAddressPatch, patchSelectedWorkerField, selectedWorkerRow]
   )

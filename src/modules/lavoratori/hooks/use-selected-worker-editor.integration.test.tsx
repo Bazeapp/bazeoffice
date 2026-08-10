@@ -972,4 +972,39 @@ describe("useSelectedWorkerEditor — U7 commit no-op short-circuits + routing",
     })
     expect(updateRecord).toHaveBeenCalledWith("indirizzi", "addr-9", { via: "Via Nuova" })
   })
+
+  it("BAZ-181: commitAddressField persists provincia as indirizzi.provincia_sigla", async () => {
+    vi.mocked(updateRecord).mockResolvedValue({
+      row: { id: "addr-9", provincia_sigla: "MB" },
+    } as never)
+
+    const { result } = renderHookWithQueryClient(
+      (props: ReturnType<typeof makeProps>) => useSelectedWorkerEditor(props),
+      {
+        initialProps: {
+          ...makeProps(makeRow()),
+          selectedWorkerAddress: {
+            id: "addr-9",
+            via: "Via Vecchia",
+            provincia_sigla: "MI",
+          } as Record<string, unknown>,
+        },
+      },
+    )
+    act(() => result.current.setIsEditingAddress(true))
+    act(() => result.current.setAddressDraft((c) => ({ ...c, provincia: "MB" })))
+
+    await act(async () => {
+      await result.current.commitAddressField("provincia").catch(() => {})
+    })
+
+    expect(updateRecord).toHaveBeenCalledWith("indirizzi", "addr-9", {
+      provincia_sigla: "MB",
+    })
+    expect(updateRecord).not.toHaveBeenCalledWith(
+      "indirizzi",
+      "addr-9",
+      expect.objectContaining({ provincia: expect.anything() }),
+    )
+  })
 })

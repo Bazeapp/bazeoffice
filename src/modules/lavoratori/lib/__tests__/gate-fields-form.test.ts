@@ -192,6 +192,17 @@ describe("createGateFieldsOnSave", () => {
     expect(deps.commitAddressField).toHaveBeenCalledWith("via", "Via Roma")
   })
 
+  it("BAZ-181: routes provincia through patchWorkerAddressField (provincia_sigla path)", async () => {
+    const deps = makeDeps()
+    const onSave = createGateFieldsOnSave(deps)
+
+    await onSave({ provincia: "MB" })
+
+    expect(deps.setAddressDraft).toHaveBeenCalled()
+    expect(deps.patchWorkerAddressField).toHaveBeenCalledWith("provincia", "MB")
+    expect(deps.commitAddressField).not.toHaveBeenCalled()
+  })
+
   it("routes document fields through patchDocumentField", async () => {
     const deps = makeDeps()
     const onSave = createGateFieldsOnSave(deps)

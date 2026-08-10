@@ -1,5 +1,6 @@
 import type { LavoratoreListItem } from "@/modules/lavoratori/components/lavoratore-card"
 import { asString, getAgeFromBirthDate, getDefaultWorkerAvatar, normalizeDomesticRoleLabels, readArrayStrings, toAvatarImage, toWorkerStatusFlags } from "@/modules/lavoratori/lib"
+import { formatIndirizzo } from "@/lib/format-indirizzo"
 import { isBlacklistValue, resolveLookupColor } from "@/lib/lookup-utils"
 import { fetchRicercaWorkerRelatedSelectionSummaries } from "../queries/fetch-ricerca-worker-related-selection-summaries"
 import type { GenericRow } from "../types/workers-pipeline"
@@ -17,25 +18,7 @@ export function parseAddressCoordinates(address: GenericRow | undefined) {
 }
 
 export function formatAddressLabel(address: GenericRow | undefined) {
-  if (!address) return null
-
-  const formatted = toStringValue(address.indirizzo_formattato)
-  if (formatted) return formatted
-
-  const street = [toStringValue(address.via), toStringValue(address.civico)]
-    .filter(Boolean)
-    .join(" ")
-    .trim()
-  const note = toStringValue(address.note)
-  const citta = toStringValue(address.citta)
-  const cap = toStringValue(address.cap)
-  const shortNote = note?.split("-")[0]?.trim() || null
-
-  return (
-    [street || shortNote, citta, cap]
-      .filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index)
-      .join(" • ") || null
-  )
+  return formatIndirizzo(address, { style: "compact", fallbackNote: true, includeCitofono: false, includePaese: false })
 }
 
 export function resolveWorkerAddress(

@@ -4,6 +4,7 @@ import {
   attachmentPathToPublicUrl,
   normalizeAttachmentArray,
 } from "@/lib/attachments"
+import { formatIndirizzo } from "@/lib/format-indirizzo"
 import { hashString } from "@/lib/utils"
 
 const UPPERCASE_TOKENS = new Set(["id", "url", "utm", "seo", "wa", "inps", "uuid"])
@@ -211,17 +212,14 @@ export function formatWorkerLocationLabel(
 ) {
   const city =
     asString(address?.citta) ||
-    asString(address?.provincia)
+    asString(address?.provincia_sigla)
   const cap = asString(address?.cap)
   const label = [city, cap].filter(Boolean).join(" ").trim()
   return label || null
 }
 
 export function formatWorkerAddressLine(address?: Record<string, unknown> | null) {
-  if (!address) return ""
-  const formatted = asString(address.indirizzo_formattato)
-  if (formatted) return formatted
-  return [asString(address.via), asString(address.civico)].filter(Boolean).join(" ").trim()
+  return formatIndirizzo(address, { style: "street" }) ?? ""
 }
 
 export function getStripeAccountMissingRequirements({

@@ -2,7 +2,12 @@ import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { parseEdgeFunctionErrorBody } from "../lib/cedolini-edge-function-error"
-import { getPagamentiCandidateCards, splitPagamentiCardsByReminderStatus } from "../lib/cedolini-pagamenti-filters"
+import {
+  buildPagamentiReminderHistoryMap,
+  getPagamentiCandidateCards,
+  splitPagamentiCardsByReminderStatus,
+  type PagamentiReminderHistory,
+} from "../lib/cedolini-pagamenti-filters"
 import { fetchCedoliniPagamentiReminderFlags } from "../queries/fetch-cedolini-pagamenti"
 import { invokeReminderPagamento } from "../queries/invoke-reminder-pagamento"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
@@ -12,10 +17,12 @@ export function cedoliniPagamentiReminderFlagsQueryKey(candidateIds: string[]) {
 }
 
 export type UseCedoliniPagamentiState = {
-  /** "Inviato cedolino" + transazione, NOT yet reminded — before any date filter (R7). */
+  /** Eligible Baze Pay "Inviato cedolino" + transazione, NOT yet reminded (R7/BAZ-180). */
   daFare: PayrollBoardCardData[]
-  /** "Inviato cedolino" + transazione, `check_reminder_pagamento_inviato: true` (R7). */
+  /** Eligible Baze Pay rows with `check_reminder_pagamento_inviato: true` (R7/BAZ-180). */
   fatti: PayrollBoardCardData[]
+  /** Per-card reminder send history (count + last send) for BAZ-179. */
+  reminderHistoryById: Map<string, PagamentiReminderHistory>
   isLoading: boolean
   error: string | null
   /** Refreshes the reminder flags after a bulk job or a single send lands. */
@@ -26,13 +33,12 @@ export type UseCedoliniPagamentiState = {
 }
 
 /**
- * Pagamenti data (BAZ-98/99/100 U6, R7): derives "Inviato cedolino" rows
- * with a linked `transazione` from the SAME board columns Controlli already
- * receives (`usePayrollBoard` via the parent view) — no extra board fetch —
- * then enriches just those candidate ids with
- * `check_reminder_pagamento_inviato` (not returned by the `cedolini_board`
- * RPC) via a dedicated lightweight fetch, and splits into Reminder da fare
- * / fatti.
+ * Pagamenti data (BAZ-98/99/100 U6, R7; BAZ-180; BAZ-179): derives eligible
+ * "Inviato cedolino" Baze Pay rows with a linked `transazione` (abbonamenti
+ * and closure-month cedolini excluded) from the SAME board columns Controlli
+ * already receives — no extra board fetch — then enriches candidate ids with
+ * reminder flag + history via a dedicated fetch, and splits into Reminder da
+ * fare / fatti.
  */
 export function useCedoliniPagamenti(columns: PayrollBoardColumnData[]): UseCedoliniPagamentiState {
   const queryClient = useQueryClient()
@@ -64,6 +70,11 @@ export function useCedoliniPagamenti(columns: PayrollBoardColumnData[]): UseCedo
     }
     return map
   }, [reminderFlagRows])
+
+  const reminderHistoryById = React.useMemo(
+    () => buildPagamentiReminderHistoryMap(reminderFlagRows ?? []),
+    [reminderFlagRows],
+  )
 
   const { daFare, fatti } = React.useMemo(
     () => splitPagamentiCardsByReminderStatus(candidateCards, reminderFlags),
@@ -107,6 +118,7 @@ export function useCedoliniPagamenti(columns: PayrollBoardColumnData[]): UseCedo
   return {
     daFare,
     fatti,
+    reminderHistoryById,
     isLoading: candidateIds.length > 0 && isLoading,
     error: queryError instanceof Error ? queryError.message : null,
     refetch,

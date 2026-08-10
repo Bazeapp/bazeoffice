@@ -64,6 +64,24 @@ test.describe("cedolini: pagamenti reminders", () => {
     await expect(pagamentiPage.getByTestId("cedolini-pagamenti-reminder-invia")).toBeEnabled()
   })
 
+  test("BAZ-180: deselect all excludes families from bulk; select all restores", async () => {
+    await expect(
+      pagamentiPage.getByTestId(`cedolini-pagamenti-include-${reminderDaFare.id}`),
+    ).toBeVisible({ timeout: BOARD_LOAD_TIMEOUT_MS })
+    await expect(pagamentiPage.getByTestId("cedolini-pagamenti-selection-summary")).toContainText(
+      "Inclusi",
+    )
+
+    await pagamentiPage.getByTestId("cedolini-pagamenti-deselect-all").click()
+    await expect(pagamentiPage.getByTestId("cedolini-pagamenti-reminder-invia")).toBeDisabled()
+    await expect(pagamentiPage.getByTestId("cedolini-pagamenti-selection-summary")).toContainText(
+      "Inclusi 0",
+    )
+
+    await pagamentiPage.getByTestId("cedolini-pagamenti-select-all").click()
+    await expect(pagamentiPage.getByTestId("cedolini-pagamenti-reminder-invia")).toBeEnabled()
+  })
+
   test("AE6: inclusive date filter keeps bulk count aligned with visible da-fare cards", async () => {
     await pagamentiPage.getByTestId("cedolini-pagamenti-date-filter").fill(reminderDaFare.dataInvioFamiglia)
     await expect(

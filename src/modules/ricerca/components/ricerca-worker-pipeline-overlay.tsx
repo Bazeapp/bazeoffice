@@ -406,7 +406,7 @@ export function RicercaWorkerPipelineOverlay({
               </div>
 
               <div className="scrollbar-visible min-w-0 overflow-y-auto border-t border-border xl:border-t-0">
-                <div className="space-y-6 p-4">
+                <div className="space-y-6 pt-4 pb-20">
                   <WorkerPipelineSummaryCards
                     key={selectedWorkerRow?.id ?? "__empty__"}
                     workerRow={selectedWorkerRow}

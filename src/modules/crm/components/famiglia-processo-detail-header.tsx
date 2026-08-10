@@ -33,6 +33,7 @@ import { FamigliaProcessoDetailFieldHeaderLookupMultiSelect } from "./famiglia-p
 import { FamigliaProcessoDetailFieldHeaderRapportoSelect } from "./famiglia-processo-detail-field-header-rapporto-select"
 import { useFamigliaProcessoDetail } from "./famiglia-processo-detail-context"
 import { FamigliaProcessoDetailSectionNav } from "./famiglia-processo-detail-section-nav"
+import { FamigliaProcessoSalesSelect } from "./famiglia-processo-sales-select"
 
 export function FamigliaProcessoDetailHeader() {
   const { state, actions, meta } = useFamigliaProcessoDetail()
@@ -46,7 +47,8 @@ export function FamigliaProcessoDetailHeader() {
     isDuplicating,
     headerAction,
   } = state
-  const { onChangeStatoSales, toggleEdit, duplicateProcesso } = actions
+  const { onChangeStatoSales, onPatchProcess, toggleEdit, duplicateProcesso } =
+    actions
   const { lookupOptionsByField } = meta
 
   const stageOptions = lookupOptionsByField.stato_sales ?? []
@@ -123,6 +125,15 @@ export function FamigliaProcessoDetailHeader() {
                 ))}
               </SelectContent>
             </Select>
+
+            {card?.id ? (
+              <FamigliaProcessoSalesSelect
+                processId={card.id}
+                salesOperatorId={card.salesOperatorId}
+                disabled={!canEditStatoLead}
+                onPatchProcess={onPatchProcess}
+              />
+            ) : null}
 
             <FamigliaProcessoDetailFieldHeaderInline
               name="nomeFamiglia"

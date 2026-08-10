@@ -44,7 +44,6 @@ export const PROCESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCa
   ["informazioni_extra_riservate", "informazioniExtraRiservate"],
   ["eta_minima", "etaMinima"],
   ["eta_massima", "etaMassima"],
-  ["src_embed_maps_annucio", "srcEmbedMapsAnnucio"],
   ["deadline_mobile", "deadlineMobile"],
   ["disponibilita_colloqui_in_presenza", "disponibilitaColloquiInPresenza"],
   ["family_availability_json", "familyAvailabilityJson"],
@@ -86,6 +85,7 @@ export const PROCESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCa
   ["numero_giorni_settimanali", "giorniSettimana"],
   ["numero_ricerca_attivata", "numeroRicercaAttivata"],
   ["frequenza_rapporto", "giorniSettimana"],
+  ["referente_sales_id", "salesOperatorId"],
 ]
 
 export const FAMILY_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
@@ -98,8 +98,8 @@ export const FAMILY_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCar
 ]
 
 export const ADDRESS_FIELD_BINDINGS: Array<readonly [string, keyof CrmPipelineCardData]> = [
-  ["provincia", "indirizzoProvincia"],
   ["provincia_sigla", "indirizzoProvinciaSigla"],
+  ["provincia_sigla", "indirizzoProvincia"],
   ["cap", "indirizzoCap"],
   ["note", "indirizzoNote"],
   ["via", "indirizzoVia"],
