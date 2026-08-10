@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest"
 import type { PayrollBoardCardData, PayrollBoardColumnData } from "../types"
 import type { CedolinoBulkJobDryRunOutcome } from "../types/cedolino-bulk-job"
 import {
+  buildPagamentiReminderHistoryMap,
   filterPagamentiCardsByDate,
+  formatPagamentiReminderHistoryLabel,
   getPagamentiCandidateCards,
   getPagamentiReminderBulkIds,
   isDataInvioFamigliaWithinDateFilter,
@@ -23,8 +25,10 @@ function makeCard(overrides: Partial<PayrollBoardCardData> = {}): PayrollBoardCa
       cedolino: null,
       cedolino_corretto: null,
       cedolino_url: null,
-      check_reminder_pagamento_inviato: null,
-      data_invio_famiglia: null,
+  check_reminder_pagamento_inviato: null,
+  count_reminder_pagamento_inviati: null,
+  data_ultimo_reminder_pagamento: null,
+  data_invio_famiglia: null,
       data_ora_creazione: null,
       importo_busta_estratto: null,
       importo_sconto_mese: null,
@@ -225,6 +229,54 @@ describe("togglePagamentiReminderExclusion", () => {
     expect(togglePagamentiReminderExclusion(new Set(["m-1", "m-2"]), "m-1", true)).toEqual(
       new Set(["m-2"]),
     )
+  })
+})
+
+describe("buildPagamentiReminderHistoryMap / formatPagamentiReminderHistoryLabel (BAZ-179)", () => {
+  it("mappa count + last send per id con almeno un invio", () => {
+    const map = buildPagamentiReminderHistoryMap([
+      {
+        id: "m-1",
+        check_reminder_pagamento_inviato: true,
+        count_reminder_pagamento_inviati: 2,
+        data_ultimo_reminder_pagamento: "2026-08-07T10:00:00.000Z",
+      },
+      {
+        id: "m-2",
+        check_reminder_pagamento_inviato: false,
+        count_reminder_pagamento_inviati: 0,
+        data_ultimo_reminder_pagamento: null,
+      },
+    ])
+    expect(map.get("m-1")).toEqual({
+      count: 2,
+      lastSentAt: "2026-08-07T10:00:00.000Z",
+    })
+    expect(map.has("m-2")).toBe(false)
+  })
+
+  it("EDGE: flag true con count 0 (pre-migration backfill) → count effettivo 1", () => {
+    const map = buildPagamentiReminderHistoryMap([
+      {
+        id: "m-1",
+        check_reminder_pagamento_inviato: true,
+        count_reminder_pagamento_inviati: 0,
+        data_ultimo_reminder_pagamento: null,
+      },
+    ])
+    expect(map.get("m-1")).toEqual({ count: 1, lastSentAt: null })
+  })
+
+  it("formatta etichetta con e senza data ultimo invio", () => {
+    expect(formatPagamentiReminderHistoryLabel({ count: 1, lastSentAt: null })).toBe("1 reminder")
+    expect(formatPagamentiReminderHistoryLabel({ count: 3, lastSentAt: null })).toBe("3 reminder")
+    expect(
+      formatPagamentiReminderHistoryLabel({
+        count: 2,
+        lastSentAt: "2026-08-07T10:00:00.000Z",
+      }),
+    ).toMatch(/^2 reminder · ultimo \d{2}\/\d{2}\/\d{4}$/)
+    expect(formatPagamentiReminderHistoryLabel(null)).toBeNull()
   })
 })
 
