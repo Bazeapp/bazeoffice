@@ -172,16 +172,38 @@ export function useCommentPanel(options: UseCommentPanelOptions) {
 
   const watchedEntityRefs = options.watchedEntityRefs
 
+  const relatedPageFocuses = React.useMemo(
+    () =>
+      pageFocus
+        ? watchedEntityRefs.filter(
+            (ref) =>
+              ref.entityType !== pageFocus.entityType ||
+              ref.entityId !== pageFocus.entityId,
+          )
+        : [],
+    [pageFocus, watchedEntityRefs],
+  )
+
   const invalidatePageQueries = React.useCallback(
     (anchor?: EntityRef | null) => {
       if (!pageFocus) return
       if (anchor) {
-        invalidateCommentVisibility(queryClient, pageFocus, anchor)
+        invalidateCommentVisibility(
+          queryClient,
+          pageFocus,
+          anchor,
+          relatedPageFocuses,
+        )
         return
       }
-      invalidateCommentVisibility(queryClient, pageFocus, pageFocus)
+      invalidateCommentVisibility(
+        queryClient,
+        pageFocus,
+        pageFocus,
+        relatedPageFocuses,
+      )
     },
-    [pageFocus, queryClient],
+    [pageFocus, queryClient, relatedPageFocuses],
   )
 
   const invalidateNotificheQueries = React.useCallback(() => {

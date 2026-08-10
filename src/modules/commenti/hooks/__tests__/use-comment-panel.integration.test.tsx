@@ -1,4 +1,5 @@
 import { waitFor } from "@testing-library/react"
+import { QueryClient } from "@tanstack/react-query"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderHookWithQueryClient } from "@/test/test-utils"
@@ -195,6 +196,66 @@ describe("useCommentPanel", () => {
       pageEntityId: ricercaSection.entityId,
       sectionEntityType: ricercaSection.entityType,
       sectionEntityId: ricercaSection.entityId,
+    })
+  })
+
+  it("invalidates parent ricerca caches after create from candidatura focus (BAZ-185)", async () => {
+    const candidaturaFocus = {
+      entityType: "candidatura" as const,
+      entityId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    }
+    const lavoratoreRef = {
+      entityType: "lavoratore" as const,
+      entityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    }
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Infinity },
+        mutations: { retry: false },
+      },
+    })
+    const ricercaCountKey = [
+      "commenti",
+      PAGE_FOCUS.entityType,
+      PAGE_FOCUS.entityId,
+      "count",
+    ] as const
+    const ricercaDescendantsCountKey = [
+      "commenti",
+      PAGE_FOCUS.entityType,
+      PAGE_FOCUS.entityId,
+      "descendants-count",
+      `${candidaturaFocus.entityType}:${candidaturaFocus.entityId}|${lavoratoreRef.entityType}:${lavoratoreRef.entityId}|${PAGE_FOCUS.entityType}:${PAGE_FOCUS.entityId}`,
+    ] as const
+    queryClient.setQueryData(ricercaCountKey, 3)
+    queryClient.setQueryData(ricercaDescendantsCountKey, 2)
+
+    const { result } = renderHookWithQueryClient(
+      () =>
+        useCommentPanel({
+          pageFocus: candidaturaFocus,
+          expanded: true,
+          watchedEntityRefs: [candidaturaFocus, lavoratoreRef, PAGE_FOCUS],
+          activeSectionKind: "ancestor",
+          activeSectionRef: lavoratoreRef,
+          excludeAnchors: [candidaturaFocus, lavoratoreRef, PAGE_FOCUS],
+          targetEntityRef: lavoratoreRef,
+          currentUserId: CURRENT_USER_ID,
+        }),
+      { client: queryClient },
+    )
+
+    await waitFor(() => {
+      expect(result.current.sectionComments).toHaveLength(1)
+    })
+
+    await result.current.submitComment("Nuovo commento")
+
+    await waitFor(() => {
+      expect(queryClient.getQueryState(ricercaCountKey)?.isInvalidated).toBe(true)
+      expect(
+        queryClient.getQueryState(ricercaDescendantsCountKey)?.isInvalidated,
+      ).toBe(true)
     })
   })
 
