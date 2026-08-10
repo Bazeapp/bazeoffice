@@ -37,7 +37,6 @@ function ResidenzaSection({
   addressMobilityAnchor,
   setIsEditingAddress,
   setAddressDraft,
-  patchWorkerAddressField,
   commitAddressField,
   patchSelectedWorkerField,
 }: LavoratoriCercaDetailCardsProps) {
@@ -57,14 +56,8 @@ function ResidenzaSection({
         selectedMobility={readArrayStrings(selectedWorkerRow?.come_ti_sposti)}
         mobilityAnchor={addressMobilityAnchor}
         onToggleEdit={() => setIsEditingAddress((current) => !current)}
-        onFieldChange={(field, value) => {
-          setAddressDraft((current) => ({ ...current, [field]: value }))
-          if (field === "provincia") {
-            void patchWorkerAddressField("provincia", value || null)
-          }
-        }}
         onFieldCommit={(field, value) => {
-          if (field !== "provincia") void commitAddressField(field, value)
+          void commitAddressField(field, value)
         }}
         onMobilityChange={(values) => {
           setAddressDraft((current) => ({

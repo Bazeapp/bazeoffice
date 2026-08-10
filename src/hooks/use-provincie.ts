@@ -16,22 +16,12 @@ export function useProvincie() {
   })
 }
 
+/**
+ * Options for provincia selects/filters: value = sigla (what we persist /
+ * send to RPCs), label = nome esteso (what the user reads).
+ * BAZ-181 / BAZ-37: never show the sigla as the option label.
+ */
 export function useProvincieOptions(): LookupOption[] {
-  const { data } = useProvincie()
-  return React.useMemo<LookupOption[]>(
-    () =>
-      (data ?? []).map((row) => ({
-        value: row.sigla,
-        label: row.sigla,
-      })),
-    [data],
-  )
-}
-
-// BAZ-37: come useProvincieOptions ma con l'etichetta = NOME esteso della provincia
-// (il value resta la sigla, che è ciò che il filtro invia). Usata nel catalogo filtri
-// di /cerca-lavoratori così l'utente vede "Milano" invece di "MI".
-export function useProvincieNameOptions(): LookupOption[] {
   const { data } = useProvincie()
   return React.useMemo<LookupOption[]>(
     () =>
@@ -41,4 +31,9 @@ export function useProvincieNameOptions(): LookupOption[] {
       })),
     [data],
   )
+}
+
+/** @deprecated Prefer useProvincieOptions — same value/label contract. */
+export function useProvincieNameOptions(): LookupOption[] {
+  return useProvincieOptions()
 }
