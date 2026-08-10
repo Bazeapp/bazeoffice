@@ -103,7 +103,9 @@ function hasActiveServerFilters(searchQuery: string, filters: CrmPipelineFilters
     Boolean(filters.createdTo) ||
     Boolean(filters.tipoLavoro?.length) ||
     filters.preventivoAccettato !== null ||
-    filters.chiamataPrenotata !== null
+    filters.chiamataPrenotata !== null ||
+    Boolean(filters.salesOperatorId) ||
+    filters.salesUnassigned === true
   )
 }
 
@@ -122,6 +124,8 @@ async function fetchBoardRecordsWithRpc(
     tipoLavoro: filters.tipoLavoro,
     preventivoAccettato: filters.preventivoAccettato,
     chiamataPrenotata: filters.chiamataPrenotata,
+    salesOperatorId: filters.salesOperatorId,
+    salesUnassigned: filters.salesUnassigned,
   })
 
   return {
@@ -231,5 +235,7 @@ export function serializeCrmPipelineFilters(filters: CrmPipelineFilters) {
     tipoLavoro: [...(filters.tipoLavoro ?? [])].sort(),
     preventivoAccettato: filters.preventivoAccettato ?? null,
     chiamataPrenotata: filters.chiamataPrenotata ?? null,
+    salesOperatorId: filters.salesOperatorId ?? null,
+    salesUnassigned: filters.salesUnassigned ?? null,
   })
 }

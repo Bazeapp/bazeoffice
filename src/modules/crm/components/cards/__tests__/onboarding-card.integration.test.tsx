@@ -125,6 +125,7 @@ function makeOnboardingCard(
     cucinareElaborato: false,
     curaPiante: false,
     testoAnnuncioWhatsapp: "",
+    salesOperatorId: null,
     ...overrides,
   }
 }

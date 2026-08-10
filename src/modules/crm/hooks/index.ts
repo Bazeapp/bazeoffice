@@ -1,4 +1,5 @@
 export { useCrmPipelinePreview } from "./use-crm-pipeline-preview"
+export { useCrmPipelineSalesFilter } from "./use-crm-pipeline-sales-filter"
 export { useCrmAssegnazione } from "./use-crm-assegnazione"
 export { useFamigliaProcessoDuplicate } from "./use-famiglia-processo-duplicate"
 export { useFamigliaProcessoEditMode } from "./use-famiglia-processo-edit-mode"

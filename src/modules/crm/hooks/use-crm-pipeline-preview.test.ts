@@ -114,6 +114,7 @@ function makePreviousCard(
     cucinareElaborato: true,
     curaPiante: true,
     testoAnnuncioWhatsapp: "PrevTesto",
+    salesOperatorId: "op-sales",
     ...overrides,
   }
 }

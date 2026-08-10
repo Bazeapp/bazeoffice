@@ -328,6 +328,9 @@ export function useCrmPipelinePreview(
           if ("orario_di_lavoro" in patch) {
             nextCard.orarioDiLavoro = displayValue(patch.orario_di_lavoro)
           }
+          if ("referente_sales_id" in patch) {
+            nextCard.salesOperatorId = toStringValue(patch.referente_sales_id)
+          }
           if ("stato_res" in normalizedPatch) {
             nextCard.statoRes = displayValue(normalizedPatch.stato_res)
           }
@@ -533,6 +536,12 @@ export function useCrmPipelinePreview(
 
       try {
         await updateRecord("processi_matching", processId, normalizedPatch)
+        // Sales filter membership / stage_counts live on the board query.
+        // Invalidate only for this discrete field so debounced text patches
+        // keep invalidateOnSettled:false semantics.
+        if ("referente_sales_id" in patch) {
+          void invalidateBoard()
+        }
       } catch (caughtError) {
         setBoardData((prev) => (prev ? { ...prev, columns: previousColumns } : prev))
         const message =
@@ -543,7 +552,7 @@ export function useCrmPipelinePreview(
         throw caughtError
       }
     },
-    [columns, lookupOptionsByField, setBoardData]
+    [columns, invalidateBoard, lookupOptionsByField, setBoardData]
   )
 
   const updateFamilyCard = React.useCallback(
