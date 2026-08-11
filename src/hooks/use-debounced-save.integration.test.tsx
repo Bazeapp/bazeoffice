@@ -14,7 +14,7 @@
  *   3. The cleanup still runs (endPendingWrite) regardless of outcome.
  */
 import { act } from "react"
-import { waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderHookWithQueryClient } from "@/test/test-utils"
@@ -31,6 +31,7 @@ vi.mock("@/lib/write-tracking", () => ({
 import { toast } from "sonner"
 import { endPendingWrite } from "@/lib/write-tracking"
 import { useDebouncedSave } from "@/hooks/use-debounced-save"
+import { DebouncedTextarea } from "@/components/ui/debounced-input"
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -172,5 +173,69 @@ describe("useDebouncedSave — identity switch (gate feedback regression)", () =
 
     // The draft no longer shows A's text: it resets to B's committed value.
     expect(result.current.value).toBe("commento di B")
+  })
+})
+
+describe("useDebouncedSave — focus-aware resync (BAZ-187)", () => {
+  // Renders the real DebouncedTextarea so the hook is driven through its DOM
+  // consumer: we exercise focus/blur and assert cursor-preservation as "the
+  // value under the caret is not replaced". A committedValue that changes while
+  // the field is focused used to call setDraft(committedValue), which swaps the
+  // textarea value under the cursor and jumps the caret to the end (BAZ-187).
+  //
+  // TRAP 1 (false-greens doc): drive a real element with fireEvent.change, never
+  // form.setValue. Real timers + waitFor (TRAP 5): the debounce is 0ms here, so
+  // waitFor(onSave called) is enough to know the save settled and the field went
+  // clean while staying focused — the exact window the guard must cover.
+  function Harness({
+    committed,
+    onSave,
+  }: {
+    committed: string
+    onSave: (value: string) => Promise<void>
+  }) {
+    return (
+      <DebouncedTextarea
+        aria-label="nota"
+        committedValue={committed}
+        onSave={onSave}
+        debounceMs={0}
+      />
+    )
+  }
+
+  it("does NOT overwrite a FOCUSED field on a committedValue resync; applies it on blur", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    const { rerender } = render(<Harness committed="server-v1" onSave={onSave} />)
+    const textarea = screen.getByLabelText("nota") as HTMLTextAreaElement
+
+    textarea.focus()
+    fireEvent.focus(textarea)
+    fireEvent.change(textarea, { target: { value: "sto scrivendo" } })
+
+    // debounce(0) fires and the save settles → the field is CLEAN but still focused.
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith("sto scrivendo"))
+
+    // A realtime echo changes the committed value while the caret is in the field.
+    rerender(<Harness committed="server-v2" onSave={onSave} />)
+
+    // BUG (pre-fix): the focused draft is clobbered to "server-v2" and the caret
+    // jumps. Expected: the in-focus draft survives untouched.
+    expect(textarea.value).toBe("sto scrivendo")
+
+    // On blur the deferred committed value lands.
+    fireEvent.blur(textarea)
+    await waitFor(() => expect(textarea.value).toBe("server-v2"))
+  })
+
+  it("still applies a committedValue resync immediately when the field is NOT focused", () => {
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    const { rerender } = render(<Harness committed="server-v1" onSave={onSave} />)
+    const textarea = screen.getByLabelText("nota") as HTMLTextAreaElement
+
+    // No focus: a peer update must land right away — unchanged behavior for the
+    // ~133 fields on this hook, and the guard against the fix over-reaching.
+    rerender(<Harness committed="server-v2" onSave={onSave} />)
+    expect(textarea.value).toBe("server-v2")
   })
 })

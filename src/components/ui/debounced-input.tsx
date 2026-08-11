@@ -11,9 +11,23 @@ type DebouncedInputProps = Omit<React.ComponentProps<typeof Input>, "value" | "o
   identity?: unknown
 }
 
-export function DebouncedInput({ committedValue, onSave, debounceMs, identity, ...props }: DebouncedInputProps) {
-  const { value, onChange } = useDebouncedSave(committedValue, onSave, { debounceMs, identity })
-  return <Input {...props} value={value} onChange={(e) => onChange(e.target.value)} />
+export function DebouncedInput({ committedValue, onSave, debounceMs, identity, onFocus, onBlur, ...props }: DebouncedInputProps) {
+  const { value, onChange, onFocus: onFocusDraft, onBlur: onBlurDraft } = useDebouncedSave(committedValue, onSave, { debounceMs, identity })
+  return (
+    <Input
+      {...props}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={(e) => {
+        onFocusDraft()
+        onFocus?.(e)
+      }}
+      onBlur={(e) => {
+        onBlurDraft()
+        onBlur?.(e)
+      }}
+    />
+  )
 }
 
 type DebouncedTextareaProps = Omit<React.ComponentProps<typeof Textarea>, "value" | "onChange" | "defaultValue"> & {
@@ -24,7 +38,21 @@ type DebouncedTextareaProps = Omit<React.ComponentProps<typeof Textarea>, "value
   identity?: unknown
 }
 
-export function DebouncedTextarea({ committedValue, onSave, debounceMs, identity, ...props }: DebouncedTextareaProps) {
-  const { value, onChange } = useDebouncedSave(committedValue, onSave, { debounceMs, identity })
-  return <Textarea {...props} value={value} onChange={(e) => onChange(e.target.value)} />
+export function DebouncedTextarea({ committedValue, onSave, debounceMs, identity, onFocus, onBlur, ...props }: DebouncedTextareaProps) {
+  const { value, onChange, onFocus: onFocusDraft, onBlur: onBlurDraft } = useDebouncedSave(committedValue, onSave, { debounceMs, identity })
+  return (
+    <Textarea
+      {...props}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onFocus={(e) => {
+        onFocusDraft()
+        onFocus?.(e)
+      }}
+      onBlur={(e) => {
+        onBlurDraft()
+        onBlur?.(e)
+      }}
+    />
+  )
 }
