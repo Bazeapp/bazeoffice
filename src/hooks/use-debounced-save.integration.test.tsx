@@ -238,4 +238,47 @@ describe("useDebouncedSave — focus-aware resync (BAZ-187)", () => {
     rerender(<Harness committed="server-v2" onSave={onSave} />)
     expect(textarea.value).toBe("server-v2")
   })
+
+  it("does not apply a resync that settles while still focused (applyQueuedCommitted focus guard)", async () => {
+    // Covers the SECOND focus guard — the one in applyQueuedCommitted (not the
+    // sync effect): focus, type (dirty), let the debounce fire so a save is
+    // in-flight, deliver a committedValue resync while the save is unresolved
+    // (queued via the savesInFlight branch), then let the save settle WHILE the
+    // field is still focused. Its .finally calls applyQueuedCommitted with
+    // isDirty=false and savesInFlight=0 — only the isFocusedRef term stops it
+    // from setDraft-ing the queued value under the caret. Mutation-verify:
+    // removing isFocusedRef from applyQueuedCommitted reds this test.
+    let resolveSave: (() => void) | null = null
+    const onSave = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve
+        }),
+    )
+    const { rerender } = render(<Harness committed="server-v1" onSave={onSave} />)
+    const textarea = screen.getByLabelText("nota") as HTMLTextAreaElement
+
+    textarea.focus()
+    fireEvent.focus(textarea)
+    fireEvent.change(textarea, { target: { value: "sto scrivendo" } })
+
+    // Save is now in flight (unresolved), field clean + still focused.
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith("sto scrivendo"))
+
+    // Resync arrives while the save is in flight → queued.
+    rerender(<Harness committed="server-v2" onSave={onSave} />)
+    expect(textarea.value).toBe("sto scrivendo")
+
+    // Save settles WHILE STILL FOCUSED → applyQueuedCommitted runs but must
+    // early-return on isFocusedRef, not clobber the caret.
+    await act(async () => {
+      resolveSave?.()
+      await Promise.resolve()
+    })
+    expect(textarea.value).toBe("sto scrivendo")
+
+    // Blur drains the queue.
+    fireEvent.blur(textarea)
+    await waitFor(() => expect(textarea.value).toBe("server-v2"))
+  })
 })

@@ -64,6 +64,12 @@ describe("SchedaColloquioPanel — realtime resync does not clobber a focused fi
 
     // Let the 300ms debounce fire so the field is CLEAN but still focused —
     // the exact window keepDirtyValues can't cover (RHF sees it clean).
+    // Timing coupling (must stay true or this becomes a keepDirtyValues false
+    // green): waitFor(onPatchField called) also guarantees the autosave chain
+    // has flushed — onPatchField resolves → panel onSave resolves →
+    // useAutoSaveFormFields runs form.reset({ keepValues: true }), clearing the
+    // RHF dirty flag. Only then is the field genuinely clean at the rerender
+    // below, so the focus guard (not keepDirtyValues) is what preserves it.
     await waitFor(() =>
       expect(onPatchField).toHaveBeenCalledWith(
         "intervista_giorni_lavoro",
