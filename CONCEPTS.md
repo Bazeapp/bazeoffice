@@ -87,6 +87,9 @@ The merge-preserving remedy for the Realtime bug class, used when the board and 
 The trigger-based remedy for the Realtime bug class, used when the detail lives in separate state rather than the shared cache: each silent realtime reload bumps a counter that the detail-loading effect depends on, so the open detail re-fetches whenever a remote change arrives. Chosen over Pattern A precisely when board and detail do not share one cache.
 *Avoid:* realtimeTick-trigger pattern
 
+### Two-layer draft clobber
+A variant of the Realtime bug class specific to fields that keep their own debounced draft on top of react-hook-form (a `DebouncedInput`/`DebouncedTextarea` inside a FASE 5 BIS form). For the debounce window after each keystroke — and in the moment just after a save clears the dirty flag — the typed text lives only in the component's local draft while react-hook-form still holds the old value, so the form sees the field as clean. Keep-dirty protection, which only shields dirty fields, therefore does not cover it, and a realtime resync overwrites the value under the caret, jumping the cursor. The remedy is a focus-layer guard: while the element is focused the incoming server value is queued rather than applied, and flushed on blur — cursor preservation guarded where the caret lives, not at the form layer.
+
 ## Stabilization refactor (FASE 5)
 
 Named phases from `docs/realtime-bug-class-plan.md`, in scope for the large-file split program (`docs/brainstorms/2026-07-06-large-file-split-requirements.md`).

@@ -25,6 +25,8 @@ export function useDebouncedSave<T>(
 ): {
   value: T
   onChange: (value: T) => void
+  onFocus: () => void
+  onBlur: () => void
 } {
   const debounceMs = options?.debounceMs ?? DEFAULT_DEBOUNCE_MS
   // Optional identity of the record this field is bound to (e.g. the selected
@@ -38,6 +40,10 @@ export function useDebouncedSave<T>(
   const [draft, setDraft] = React.useState<T>(committedValue)
 
   const isDirtyRef = React.useRef(false)
+  // True while the input is focused (caret inside it). A committedValue resync
+  // arriving while focused is queued and applied on blur — never applied under
+  // the caret, which would swap the value and jump the cursor (BAZ-187).
+  const isFocusedRef = React.useRef(false)
   const savesInFlightRef = React.useRef(0)
   const draftRef = React.useRef<T>(committedValue)
   const onSaveRef = React.useRef(onSave)
@@ -54,7 +60,8 @@ export function useDebouncedSave<T>(
   const queuedCommittedRef = React.useRef<{ value: T } | null>(null)
 
   const applyQueuedCommitted = React.useCallback(() => {
-    if (isDirtyRef.current || savesInFlightRef.current > 0) return
+    if (isDirtyRef.current || savesInFlightRef.current > 0 || isFocusedRef.current)
+      return
     const queued = queuedCommittedRef.current
     if (!queued) return
     queuedCommittedRef.current = null
@@ -80,7 +87,9 @@ export function useDebouncedSave<T>(
     if (isDirtyRef.current) {
       return
     }
-    if (savesInFlightRef.current > 0) {
+    if (savesInFlightRef.current > 0 || isFocusedRef.current) {
+      // Mid-save OR focused: never overwrite the draft now. Queue it and apply
+      // it once the write settles / the field blurs (applyQueuedCommitted).
       queuedCommittedRef.current = { value: committedValue }
       return
     }
@@ -177,5 +186,17 @@ export function useDebouncedSave<T>(
     [debounceMs, applyQueuedCommitted]
   )
 
-  return { value: draft, onChange }
+  // Cursor-preservation (BAZ-187). While focused, the committedValue sync effect
+  // queues resyncs instead of applying them; blur flushes the queued value. Wired
+  // by DebouncedInput/DebouncedTextarea to the element's focus/blur.
+  const onFocus = React.useCallback(() => {
+    isFocusedRef.current = true
+  }, [])
+
+  const onBlur = React.useCallback(() => {
+    isFocusedRef.current = false
+    applyQueuedCommitted()
+  }, [applyQueuedCommitted])
+
+  return { value: draft, onChange, onFocus, onBlur }
 }
