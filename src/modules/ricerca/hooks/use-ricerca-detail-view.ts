@@ -23,6 +23,7 @@ import {
   RICERCA_DETAIL_REALTIME_TABLES,
   shouldReloadRicercaOpenDetail,
 } from "../lib/ricerca-detail-realtime"
+import { resolveFamilyContactFieldError } from "../lib/ricerca-family-contact"
 import {
   applyAddressPatchToCard,
   applyFamilyPatchToCard,
@@ -74,6 +75,12 @@ export function useRicercaDetailView({
   >(selectionId ?? null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  // BAZ-192 — errori inline per-campo dei contatti famiglia (telefono/email).
+  // Stato caller-local (NON `formState.errors`): sopravvive ai `form.reset`
+  // dell'engine autosave, che azzererebbero un `setError` di RHF.
+  const [familyFieldErrors, setFamilyFieldErrors] = React.useState<
+    Partial<Record<"telefono" | "email", string>>
+  >({});
   const [card, setCard] = React.useState<RicercaDetailCardData | null>(null);
   // Incrementato dalla mappa (geocode) e da Pattern B realtime per
   // ri-caricare la card. `silentReloadRef` evita lo spinner sul refresh
@@ -118,6 +125,9 @@ export function useRicercaDetailView({
   React.useEffect(() => {
     setCurrentProcessId(processId)
     setEditingSections(new Set())
+    // BAZ-192 — cambio ricerca (flusso BAZ-19 in place, senza remount): non
+    // trascinare un errore inline telefono/email della ricerca precedente.
+    setFamilyFieldErrors({})
   }, [processId])
 
   React.useEffect(() => {
@@ -276,14 +286,14 @@ export function useRicercaDetailView({
       try {
         await updateRecord("processi_matching", targetProcessId, normalizedPatch);
       } catch (caughtError) {
+        // BAZ-192 — non distruttivo: ripristina l'ottimistico ma NON accendere
+        // il banner di vista condiviso col load; surface non distruttivo = toast.
         if (targetProcessId === currentProcessId) {
           setCard(previousCard);
         }
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore aggiornando ricerca",
-        );
+        // id stabile: fallimenti ripetuti mentre si digita coalescono in un
+        // solo toast invece di impilarsi (BAZ-192 review).
+        toast.error("Errore salvando la ricerca", { id: "ricerca-detail-save-error" });
         throw caughtError;
       }
     },
@@ -302,12 +312,9 @@ export function useRicercaDetailView({
       try {
         await updateRecord("famiglie", familyId, patch);
       } catch (caughtError) {
+        // BAZ-192 — ripristina l'ottimistico e rilancia; NIENTE banner di vista
+        // né toast: l'errore inline per-campo lo mette `onSave` (skippedKeys).
         setCard(previousCard);
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore aggiornando famiglia",
-        );
         throw caughtError;
       }
     },
@@ -365,12 +372,11 @@ export function useRicercaDetailView({
           );
         }
       } catch (caughtError) {
+        // BAZ-192 — non distruttivo: ripristina l'ottimistico, toast (non banner).
         setCard(previousCard);
-        setError(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Errore aggiornando indirizzo",
-        );
+        toast.error("Errore salvando il luogo di lavoro", {
+          id: "ricerca-detail-save-error",
+        });
         throw caughtError;
       }
     },
@@ -413,19 +419,6 @@ export function useRicercaDetailView({
       setIsSavingOrari(false);
     }
   }, [currentProcessId, orariDraft, saveProcessPatch, toggleEditingSection]);
-
-  const saveFamilyPatch = React.useCallback(
-    async (_section: string, patch: Record<string, unknown>) => {
-      const familyId = toStringValue(card?.famigliaId);
-      if (!familyId || familyId === "-") return;
-      try {
-        await updateFamilyCard(familyId, patch);
-      } catch {
-        // Error state is already surfaced by updateFamilyCard.
-      }
-    },
-    [card?.famigliaId, updateFamilyCard],
-  );
 
   const saveAddressPatch = React.useCallback(
     async (_section: string, patch: Record<string, unknown>) => {
@@ -501,9 +494,27 @@ export function useRicercaDetailView({
       const familyPatch: Record<string, unknown> = {};
       const addressPatch: Record<string, unknown> = {};
       const processPatch: Record<string, unknown> = {};
+      // BAZ-192 — key da NON committare (restano dirty via keepDirtyValues):
+      // gli intermedi invalidi di telefono/email e ogni campo il cui save fallisce.
+      const skippedKeys: string[] = [];
+      const nextFamilyErrors: Partial<Record<"telefono" | "email", string>> = {};
+      const clearedFamilyKeys: Array<"telefono" | "email"> = [];
+      let touchedFamily = false;
+
       for (const [key, value] of Object.entries(patch)) {
         if (RICERCA_DETAIL_EDIT_FAMILY_KEYS.has(key)) {
-          familyPatch[key] = (value as string).trim() || null;
+          touchedFamily = true;
+          const familyKey = key as "telefono" | "email";
+          const raw = (value as string).trim();
+          // Mirror esatto del gate backend: non inviare un intermedio invalido.
+          const fieldError = resolveFamilyContactFieldError(familyKey, raw);
+          if (fieldError) {
+            skippedKeys.push(key);
+            nextFamilyErrors[familyKey] = fieldError;
+            continue;
+          }
+          clearedFamilyKeys.push(familyKey);
+          familyPatch[key] = raw || null;
         } else if (RICERCA_DETAIL_EDIT_ADDRESS_KEYS.has(key)) {
           addressPatch[key] = (value as string).trim() || null;
         } else if (RICERCA_DETAIL_EDIT_DATE_KEYS.has(key)) {
@@ -514,17 +525,75 @@ export function useRicercaDetailView({
           processPatch[key] = (value as string).trim() || null;
         }
       }
-      if (Object.keys(familyPatch).length > 0) {
-        await saveFamilyPatch("form", familyPatch);
+
+      // Family: invia solo i valori validi; su 400 (drift server) tieni il campo
+      // dirty + errore inline invece di rollback distruttivo.
+      const familyId = toStringValue(card.famigliaId);
+      if (Object.keys(familyPatch).length > 0 && familyId && familyId !== "-") {
+        try {
+          await updateFamilyCard(familyId, familyPatch);
+        } catch {
+          for (const key of Object.keys(familyPatch)) {
+            skippedKeys.push(key);
+            nextFamilyErrors[key as "telefono" | "email"] =
+              "Impossibile salvare, riprova";
+          }
+        }
       }
-      if (Object.keys(addressPatch).length > 0) {
-        await saveAddressPatch("form", addressPatch);
+
+      if (touchedFamily) {
+        setFamilyFieldErrors((prev) => {
+          const next = { ...prev };
+          for (const clearedKey of clearedFamilyKeys) delete next[clearedKey];
+          for (const [errKey, message] of Object.entries(nextFamilyErrors)) {
+            next[errKey as "telefono" | "email"] = message;
+          }
+          return next;
+        });
       }
-      if (Object.keys(processPatch).length > 0) {
-        await saveProcessPatch("form", processPatch);
+
+      if (Object.keys(addressPatch).length > 0 && currentProcessId) {
+        try {
+          await updateAddressCard(currentProcessId, addressPatch);
+        } catch {
+          for (const key of Object.keys(addressPatch)) skippedKeys.push(key);
+        }
       }
+      if (Object.keys(processPatch).length > 0 && currentProcessId) {
+        try {
+          await updateProcessCard(currentProcessId, processPatch);
+        } catch {
+          for (const key of Object.keys(processPatch)) skippedKeys.push(key);
+        }
+      }
+
+      return skippedKeys.length > 0
+        ? { skippedKeys: skippedKeys as Array<keyof typeof patch> }
+        : undefined;
     },
   });
+
+  // BAZ-192 — l'errore inline telefono/email è client-derivato: appena il campo
+  // torna valido, pulisci subito l'errore. Copre il caso "revert al valore
+  // committato" (uguale all'ultimo salvato), che NON fa scattare un flush
+  // autosave (guardia valuesEqual) e quindi non passerebbe da `onSave`: senza
+  // questo, un campo tornato valido resterebbe con l'errore rosso appiccicato.
+  // `onSave` resta responsabile di SETTARE l'errore (intermedio invalido o 400
+  // server); qui garantiamo solo che non resti stale.
+  React.useEffect(() => {
+    const subscription = editForm.watch((values, { name }) => {
+      if (name !== "telefono" && name !== "email") return;
+      const raw = String((values as Record<string, unknown>)[name] ?? "").trim();
+      if (resolveFamilyContactFieldError(name, raw)) return;
+      setFamilyFieldErrors((prev) => {
+        if (prev[name] === undefined) return prev;
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [editForm]);
 
   const resolvedCard = React.useMemo<RicercaDetailCardData | null>(() => {
     return card;
@@ -604,6 +673,7 @@ export function useRicercaDetailView({
     summary: {
       card: resolvedCard,
       sectionEdit: buildSectionEdit("header", editingSections, toggleEditingSection),
+      familyFieldErrors,
       isNoMatchState,
       statoRicercaOptions,
       selectedStatoRicercaValue,
