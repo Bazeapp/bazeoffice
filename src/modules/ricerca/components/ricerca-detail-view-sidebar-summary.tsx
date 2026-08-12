@@ -32,6 +32,7 @@ import {
 export type RicercaDetailSidebarSummaryProps = {
   card: RicercaDetailCardData
   sectionEdit: RicercaDetailSectionEdit
+  familyFieldErrors?: Partial<Record<"telefono" | "email", string>>
   isNoMatchState: boolean
   statoRicercaOptions: LookupOption[]
   selectedStatoRicercaValue: string
@@ -55,6 +56,7 @@ export type RicercaDetailSidebarSummaryProps = {
 export function RicercaDetailViewSidebarSummary({
   card,
   sectionEdit,
+  familyFieldErrors,
   isNoMatchState,
   statoRicercaOptions,
   selectedStatoRicercaValue,
@@ -258,12 +260,14 @@ export function RicercaDetailViewSidebarSummary({
               name="telefono"
               value={card.telefono}
               editing
+              error={familyFieldErrors?.telefono}
             />
             <RicercaDetailEditableTextField
               label="Email"
               name="email"
               value={card.email}
               editing
+              error={familyFieldErrors?.email}
             />
           </div>
           <RicercaDetailEditableDateField
