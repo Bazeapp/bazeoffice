@@ -6,7 +6,7 @@ import {
   FieldCheckbox,
 } from "@/components/forms/field-components"
 import { Button } from "@/components/ui/button"
-import { Field, FieldLabel } from "@/components/ui/field"
+import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 
 import { editableValue } from "../lib/ricerca-detail-view.utils"
 import type { RicercaDetailSectionEdit } from "../lib/ricerca-detail-view.types"
@@ -54,6 +54,7 @@ export function RicercaDetailEditableTextField({
   editing,
   multiline = false,
   labelClassName,
+  error,
 }: {
   label: string;
   name: string;
@@ -61,6 +62,12 @@ export function RicercaDetailEditableTextField({
   editing: boolean;
   multiline?: boolean;
   labelClassName?: string;
+  /**
+   * BAZ-192 — messaggio d'errore inline (non distruttivo) per un campo con
+   * validazione (telefono/email famiglia). Opt-in: i campi che non lo passano
+   * restano invariati. Reso via `FieldError` (self-gated su `Field invalid`).
+   */
+  error?: string | null;
 }) {
   if (!editing) {
     return (
@@ -74,7 +81,7 @@ export function RicercaDetailEditableTextField({
   }
 
   return (
-    <Field>
+    <Field invalid={Boolean(error)}>
       <FieldLabel variant="eyebrow" className={labelClassName}>
         {label}
       </FieldLabel>
@@ -88,6 +95,7 @@ export function RicercaDetailEditableTextField({
           }}
         />
       )}
+      <FieldError>{error}</FieldError>
     </Field>
   );
 }

@@ -7,7 +7,7 @@ import {
   isValidFamilyPhoneValue,
   normalizeFamilyPhoneValue,
   splitReferenteName,
-} from "./family-contact-validation"
+} from "@/lib/family-contact-validation"
 
 export type FamigliaProcessoHeaderFormValues = {
   nomeFamiglia: string
