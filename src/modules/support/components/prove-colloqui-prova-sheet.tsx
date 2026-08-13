@@ -221,11 +221,12 @@ export function ProveColloquiProvaSheet({
                     <DetailField label="Nome Datore" value={card.famigliaLabel} />
                     <DetailField label="Email Lavoratore" value={lavoratore?.email ?? "-"} />
                     <DetailField label="Nome Lavoratore" value={card.lavoratoreLabel} />
+                    <DetailField label="Telefono famiglia" value={famiglia?.telefono ?? "-"} />
+                    <DetailField label="Telefono lavoratore" value={lavoratore?.telefono ?? "-"} />
                     <DetailField
                       label="Data Inizio Rapporto"
                       value={formatProvaDate(rapporto.data_inizio_rapporto)}
                     />
-                    <DetailField label="Telefono famiglia" value={famiglia?.telefono ?? "-"} />
                   </div>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
                     {distribution.map((item) => (
