@@ -19,14 +19,13 @@ const { avviarePratica, inviataRichiestaDati } = E2E_ASSUNZIONI.rapporti
 const CONTESTO_PRATICA_FIELDS = [
   "Stato assunzione",
   "Tipologia contratto",
-  "Tipo rapporto",
   "Data di assunzione",
   "ID rapporto INPS",
   "Cod. Rapporto WebColf",
+  "Cod. Lavoratore WebColf",
   "Fee concordata",
   "URL origine",
   "Sconto applicato",
-  "Cod. Lavoratore WebColf",
 ] as const
 
 const DATORE_SECTIONS = [
@@ -67,7 +66,8 @@ test.describe("assunzioni: detail sheet section coverage", () => {
         new RegExp(`${avviarePratica.famigliaSearchText}.*${avviarePratica.lavoratoreSearchText}`),
       ).first(),
     ).toBeVisible()
-    await expect(dialog.getByText("Tipo", { exact: true }).first()).toBeVisible()
+    // "Tipo" (tipo_rapporto) rimosso dalla card: campo deprecato.
+    await expect(dialog.getByText("Tipo", { exact: true })).toHaveCount(0)
     await expect(dialog.getByText("Ore sett.", { exact: true }).first()).toBeVisible()
     await expect(dialog.getByText("Inizio", { exact: true }).first()).toBeVisible()
   })

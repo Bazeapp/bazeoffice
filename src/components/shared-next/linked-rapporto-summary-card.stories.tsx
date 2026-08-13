@@ -8,7 +8,6 @@ const baseRapporto: RapportoLavorativoRecord = {
   nome_lavoratore_per_url: "Aria Bocelli",
   stato_rapporto: "Attivo",
   stato_servizio: "Attivo",
-  tipo_rapporto: "Tempo determinato",
   ore_a_settimana: 40,
   data_inizio_rapporto: "2025-09-01",
 } as RapportoLavorativoRecord;
@@ -27,7 +26,6 @@ const meta = {
     title: { control: "text" },
     level: { control: "text" },
     status: { control: "text" },
-    type: { control: "text" },
     hoursPerWeek: { control: "text" },
     startDate: { control: "text" },
   },
@@ -36,7 +34,6 @@ const meta = {
     rapporto: baseRapporto,
     level: "Senior",
     status: "Attivo",
-    type: "Tempo determinato",
     hoursPerWeek: 40,
     startDate: "2025-09-01",
   },

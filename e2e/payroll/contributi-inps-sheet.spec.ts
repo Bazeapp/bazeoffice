@@ -79,7 +79,8 @@ test.describe("contributi-inps: detail sheet", () => {
     )
     await expect(dialog.getByText("Rapporto collegato", { exact: true })).toBeVisible()
     await expect(dialog.getByRole("link", { name: "Vai al rapporto" })).toBeVisible()
-    await expect(dialog.getByText("Tipo", { exact: true }).first()).toBeVisible()
+    // "Tipo" (tipo_rapporto) rimosso dalla card: campo deprecato.
+    await expect(dialog.getByText("Tipo", { exact: true })).toHaveCount(0)
     await expect(dialog.getByText("Ore sett.", { exact: true })).toBeVisible()
     await expect(dialog.getByText("Inizio", { exact: true })).toBeVisible()
 

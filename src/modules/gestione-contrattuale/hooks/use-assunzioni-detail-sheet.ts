@@ -52,7 +52,6 @@ export function useAssunzioniDetailSheet({
 }: UseAssunzioniDetailSheetParams) {
   const [target, setTarget] = React.useState<DetailTarget>("datore")
   const [statoAssunzioneOptions, setStatoAssunzioneOptions] = React.useState<LookupOption[]>([])
-  const [tipoRapportoOptions, setTipoRapportoOptions] = React.useState<LookupOption[]>([])
   const [offertaOptions, setOffertaOptions] = React.useState<LookupOption[]>(SCONTO_APPLICATO_OPTIONS)
   const [workerDocuments, setWorkerDocuments] = React.useState<DocumentoLavoratoreRecord[]>([])
   const [assunzioneCandidates, setAssunzioneCandidates] =
@@ -303,14 +302,6 @@ export function useAssunzioniDetailSheet({
             card?.stage ?? null
           )
         )
-        setTipoRapportoOptions(
-          buildLookupOptions(
-            response.rows,
-            "rapporti_lavorativi",
-            "tipo_rapporto",
-            card?.tipoRapporto ?? null
-          )
-        )
         const nextOffertaOptions = buildLookupOptions(
           response.rows,
           "processi_matching",
@@ -322,9 +313,6 @@ export function useAssunzioniDetailSheet({
         if (!isActive) return
         setStatoAssunzioneOptions(
           card?.stage ? [{ value: card.stage, label: card.stage }] : []
-        )
-        setTipoRapportoOptions(
-          card?.tipoRapporto ? [{ value: card.tipoRapporto, label: card.tipoRapporto }] : []
         )
         setOffertaOptions(SCONTO_APPLICATO_OPTIONS)
       }
@@ -409,14 +397,13 @@ export function useAssunzioniDetailSheet({
   // i 5 DebouncedInput committedValue + practiceDraft/setPracticeDraft + il
   // resync effect). onSave instrada per chiave a 3 target con le trasformazioni
   // originali: stato/tipo/data/id/codici → saveRapportoPatch (lookup label per
-  // stato_assunzione/tipo_rapporto, toNullableNumber per i codici), offerta →
+  // stato_assunzione, toNullableNumber per i codici), offerta →
   // saveProcessPatch, fee_concordata → updateRecord("richieste_attivazione")
   // con la stessa validazione (guard se manca id, skip se non numerico).
   const richiestaAttivazioneId = card?.richiestaAttivazione?.id
   const practiceForm = useAutoSaveForm({
     defaults: {
       stato_assunzione: card?.stage ?? "",
-      tipo_rapporto: card?.tipoRapporto ?? "",
       tipo_contratto: isValidTipoContratto(card?.rapporto?.tipo_contratto)
         ? (card?.rapporto?.tipo_contratto ?? "")
         : "",
@@ -966,7 +953,6 @@ export function useAssunzioniDetailSheet({
     target,
     setTarget,
     statoAssunzioneOptions,
-    tipoRapportoOptions,
     currentOffertaOptions,
     practiceError,
     uploadingAttachment,

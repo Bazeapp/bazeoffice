@@ -9,7 +9,6 @@ const rapporto = {
   nome_lavoratore_per_url: "Noelia Alfaro",
   stato_servizio: "Attivo",
   stato_rapporto: "Attivo",
-  tipo_rapporto: "Part time",
   ore_a_settimana: 20,
   data_inizio_rapporto: "2026-04-24",
 } as RapportoLavorativoRecord;
@@ -22,7 +21,6 @@ const meta = {
     rapporto: { control: "object" },
     level: { control: "text" },
     status: { control: "text" },
-    type: { control: "text" },
     hoursPerWeek: { control: "text" },
     startDate: { control: "text" },
   },
@@ -31,7 +29,6 @@ const meta = {
     rapporto,
     level: "Livello B",
     status: "Attivo",
-    type: "Part time",
     hoursPerWeek: "20",
     startDate: "2026-04-24",
   },

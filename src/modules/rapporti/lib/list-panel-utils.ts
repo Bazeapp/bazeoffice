@@ -9,7 +9,6 @@ export type RapportiListItem = {
   stato_assunzione: string | null
   stato_riattivazione: string | null
   tipo_contratto: string | null
-  tipo_rapporto: string | null
   ore_a_settimana: number | null
   data_inizio_rapporto: string | null
   distribuzione_ore_settimana: string | null

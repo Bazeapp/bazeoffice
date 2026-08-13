@@ -14,7 +14,6 @@ type LinkedRapportoSummaryCardProps = {
   rapporto: RapportoLavorativoRecord | null
   level?: string | null
   status?: string | null
-  type?: string | null
   hoursPerWeek?: number | string | null
   startDate?: string | null
   className?: string
@@ -65,7 +64,6 @@ export function LinkedRapportoSummaryCard({
   rapporto,
   level,
   status,
-  type,
   hoursPerWeek,
   startDate,
   className,
@@ -73,7 +71,6 @@ export function LinkedRapportoSummaryCard({
 }: LinkedRapportoSummaryCardProps) {
   const resolvedLevel = toTextValue(level)
   const resolvedStatus = toTextValue(status) ?? toTextValue(rapporto?.stato_servizio) ?? toTextValue(rapporto?.stato_rapporto)
-  const resolvedType = toTextValue(type) ?? toTextValue(rapporto?.tipo_rapporto) ?? "-"
   const resolvedHours = toTextValue(hoursPerWeek) ?? toTextValue(rapporto?.ore_a_settimana) ?? "-"
   const resolvedStartDate = formatStartDate(startDate ?? rapporto?.data_inizio_rapporto)
   const statusBadgeClassName = getLookupBadgeSoftClassName(getStatusColor(resolvedStatus))
@@ -131,9 +128,8 @@ export function LinkedRapportoSummaryCard({
             </Badge>
           ) : null}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {resolvedLevel ? <DetailField label="Livello" value={resolvedLevel} /> : null}
-          <DetailField label="Tipo" value={resolvedType} />
           <DetailField label="Ore sett." value={resolvedHours} />
           <DetailField label="Inizio" value={resolvedStartDate} />
         </div>
