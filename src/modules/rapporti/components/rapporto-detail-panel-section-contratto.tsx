@@ -8,7 +8,6 @@ import {
 import { FieldInput } from "@/components/forms/field-components"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { formatItalianCurrency } from "@/lib/format-utils"
 import type { RapportoLavorativoRecord } from "@/types"
@@ -59,33 +58,11 @@ export function RapportoDetailPanelSectionContratto({
         <div className="space-y-4">
           {isEditing ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <DetailFieldControl label="Stato assunzione">
+                <Input value={rapportoView.stato_assunzione ?? ""} readOnly />
+              </DetailFieldControl>
               <DetailFieldControl label="Tipo contratto">
                 <Input value={rapportoView.tipo_contratto ?? ""} readOnly />
-              </DetailFieldControl>
-              <DetailFieldControl label="Tipo rapporto">
-                <Select value={rapportoView.tipo_rapporto || "__empty__"} disabled>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona tipo rapporto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__empty__">Non impostato</SelectItem>
-                    <SelectItem value="Lavoro ad ore">Lavoro ad ore</SelectItem>
-                    <SelectItem value="Part time">Part time</SelectItem>
-                    <SelectItem value="Convivente">Convivente</SelectItem>
-                    <SelectItem value="Non convivente full-time">Non convivente full-time</SelectItem>
-                    {rapportoView.tipo_rapporto &&
-                    ![
-                      "Lavoro ad ore",
-                      "Part time",
-                      "Convivente",
-                      "Non convivente full-time",
-                    ].includes(rapportoView.tipo_rapporto) ? (
-                      <SelectItem value={rapportoView.tipo_rapporto}>
-                        {rapportoView.tipo_rapporto}
-                      </SelectItem>
-                    ) : null}
-                  </SelectContent>
-                </Select>
               </DetailFieldControl>
               <DetailFieldControl label="Data inizio">
                 <Input
@@ -95,21 +72,13 @@ export function RapportoDetailPanelSectionContratto({
                 />
               </DetailFieldControl>
               <DetailField label="Durata" value={getDurationLabel(rapportoView.data_inizio_rapporto)} />
-              <DetailFieldControl label="Stato assunzione">
-                <Input value={rapportoView.stato_assunzione ?? ""} readOnly />
-              </DetailFieldControl>
-              <DetailFieldControl label="Relazione lavorativa">
-                <Input value={rapportoView.relazione_lavorativa ?? ""} readOnly />
-              </DetailFieldControl>
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <DetailField label="Stato assunzione" value={rapportoView.stato_assunzione ?? "-"} />
               <DetailField label="Tipo contratto" value={rapportoView.tipo_contratto ?? "-"} />
-              <DetailField label="Tipo rapporto" value={rapportoView.tipo_rapporto ?? "-"} />
               <DetailField label="Data inizio" value={startDateLabel} />
               <DetailField label="Durata" value={getDurationLabel(rapportoView.data_inizio_rapporto)} />
-              <DetailField label="Stato assunzione" value={rapportoView.stato_assunzione ?? "-"} />
-              <DetailField label="Relazione lavorativa" value={rapportoView.relazione_lavorativa ?? "-"} />
             </div>
           )}
         </div>
