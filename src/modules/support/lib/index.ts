@@ -39,6 +39,9 @@ export {
   getCalendarStatusRailClassName,
   getCalendarDateKey,
   getCalendarEventTone,
+  getCheckinDaysLabel,
+  getCheckinDaysRemaining,
+  getCheckinUrgency,
   getEventDate,
   getTrialDayLabel,
   getTrialElapsedDays,
@@ -53,4 +56,5 @@ export {
   toDateRangeValue,
   type CalendarEventKind,
   type CalendarStatusKey,
+  type CheckinUrgency,
 } from "./colloqui-calendar-utils"
