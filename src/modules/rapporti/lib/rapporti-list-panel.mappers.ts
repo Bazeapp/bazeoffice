@@ -82,7 +82,6 @@ export function mapRapportiToListItems(
       stato_assunzione: rapporto.stato_assunzione,
       stato_riattivazione: rapporto.stato_riattivazione,
       tipo_contratto: rapporto.tipo_contratto,
-      tipo_rapporto: rapporto.tipo_rapporto,
       ore_a_settimana: rapporto.ore_a_settimana,
       data_inizio_rapporto: rapporto.data_inizio_rapporto,
       distribuzione_ore_settimana: rapporto.distribuzione_ore_settimana,
@@ -97,7 +96,6 @@ export function buildRapportiListFilterFields(
 ): FilterField[] {
   const uniqueAssunzioni = uniqueSortedValues(rapporti.map((rapporto) => rapporto.stato_assunzione))
   const uniqueTipiContratto = uniqueSortedValues(rapporti.map((rapporto) => rapporto.tipo_contratto))
-  const uniqueTipiRapporto = uniqueSortedValues(rapporti.map((rapporto) => rapporto.tipo_rapporto))
 
   return [
     {
@@ -129,12 +127,6 @@ export function buildRapportiListFilterFields(
       value: "tipo_contratto",
       type: "enum",
       options: uniqueTipiContratto.map((value) => ({ label: value, value })),
-    },
-    {
-      label: "Tipo rapporto",
-      value: "tipo_rapporto",
-      type: "enum",
-      options: uniqueTipiRapporto.map((value) => ({ label: value, value })),
     },
   ]
 }

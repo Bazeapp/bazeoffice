@@ -46,10 +46,6 @@ export function VariazioniDetailRapportoSection({
               <FieldInput name="ore_a_settimana" type="number" step="0.5" />
             </label>
             <label className="space-y-2">
-              <span className="ui-type-label">Tipo rapporto</span>
-              <FieldInput name="tipo_rapporto" />
-            </label>
-            <label className="space-y-2">
               <span className="ui-type-label">Tipo contratto</span>
               <VariazioniFieldTipoContratto name="tipo_contratto" />
             </label>
@@ -76,10 +72,6 @@ export function VariazioniDetailRapportoSection({
             <p>
               <span className="text-muted-foreground">Ore settimanali:</span>{" "}
               <span className="font-medium text-foreground">{card.rapporto?.ore_a_settimana}</span>
-            </p>
-            <p>
-              <span className="text-muted-foreground">Tipo rapporto:</span>{" "}
-              <span className="font-medium text-foreground">{card.rapporto?.tipo_rapporto}</span>
             </p>
             <p>
               <span className="text-muted-foreground">Tipo contratto:</span>{" "}

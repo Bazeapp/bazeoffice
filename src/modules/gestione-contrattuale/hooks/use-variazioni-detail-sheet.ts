@@ -134,7 +134,6 @@ export function useVariazioniDetailSheet({
         card?.rapporto?.ore_a_settimana != null
           ? String(card.rapporto.ore_a_settimana)
           : "",
-      tipo_rapporto: card?.rapporto?.tipo_rapporto ?? "",
       tipo_contratto: card?.rapporto?.tipo_contratto ?? "",
       distribuzione_ore_settimana: card?.rapporto?.distribuzione_ore_settimana ?? "",
     },

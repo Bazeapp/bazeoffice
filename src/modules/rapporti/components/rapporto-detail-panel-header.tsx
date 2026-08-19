@@ -34,11 +34,6 @@ export function RapportoDetailPanelHeader({
             {rapportoView.stato_servizio}
           </Badge>
         ) : null}
-        {rapportoView.tipo_rapporto ? (
-          <Badge variant="outline" className="h-6 rounded-full px-2.5 text-2xs font-medium">
-            {rapportoView.tipo_rapporto}
-          </Badge>
-        ) : null}
         {rapportoView.tipo_contratto ? (
           <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-2xs font-medium">
             {rapportoView.tipo_contratto}

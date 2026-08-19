@@ -12,7 +12,6 @@ export const RAPPORTI_LIST_PANEL_GROUP_OPTIONS = [
   { label: "Stato assunzione", value: "stato_assunzione" },
   { label: "Stato riattivazione", value: "stato_riattivazione" },
   { label: "Tipo contratto", value: "tipo_contratto" },
-  { label: "Tipo rapporto", value: "tipo_rapporto" },
 ] as const
 
 export const RAPPORTI_LIST_PANEL_TABLE_COLUMNS: ColumnDef<RapportiListItem>[] = [
@@ -23,7 +22,6 @@ export const RAPPORTI_LIST_PANEL_TABLE_COLUMNS: ColumnDef<RapportiListItem>[] = 
   { accessorKey: "stato_assunzione", header: "Stato assunzione" },
   { accessorKey: "stato_riattivazione", header: "Stato riattivazione" },
   { accessorKey: "tipo_contratto", header: "Tipo contratto" },
-  { accessorKey: "tipo_rapporto", header: "Tipo rapporto" },
   { accessorKey: "ore_a_settimana", header: "Ore" },
   { accessorKey: "data_inizio_rapporto", header: "Data inizio" },
 ]

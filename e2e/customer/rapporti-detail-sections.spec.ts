@@ -73,7 +73,13 @@ test.describe("rapporti lavorativi: detail section coverage", () => {
       }),
     ).toBeVisible()
     await expect(page.getByText("Tipo contratto", { exact: true }).first()).toBeVisible()
-    await expect(page.getByText("Tipo rapporto", { exact: true }).first()).toBeVisible()
+    await expect(
+      rapportoDetailPanel(page).getByText("Stato assunzione", { exact: true }).first(),
+    ).toBeVisible()
+    // Campi deprecati rimossi dalla sezione.
+    await expect(
+      rapportoDetailPanel(page).getByText("Relazione lavorativa", { exact: true }),
+    ).toHaveCount(0)
     await expect(page.getByText("Distribuzione ore settimanali", { exact: true })).toBeVisible()
     await expect(page.getByText(`${attivo.oreSettimanali}h/sett`).first()).toBeVisible()
   })

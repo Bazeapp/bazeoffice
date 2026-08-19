@@ -59,7 +59,8 @@ test.describe("assunzioni: detail sheet", () => {
     await expect(dialog.getByText("Contesto pratica", { exact: true })).toBeVisible()
     await expect(dialog.getByText("Stato assunzione", { exact: true }).first()).toBeVisible()
     await expect(dialog.getByText("Tipologia contratto", { exact: true }).first()).toBeVisible()
-    await expect(dialog.getByText("Tipo rapporto", { exact: true }).first()).toBeVisible()
+    // Campo deprecato rimosso dalla sezione.
+    await expect(dialog.getByText("Tipo rapporto", { exact: true })).toHaveCount(0)
     await expect(dialog.getByRole("combobox").first()).toBeVisible()
   })
 

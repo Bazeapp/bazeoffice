@@ -40,7 +40,6 @@ export function AssunzioniDetailSheetContent({ vm }: { vm: SheetViewModel }) {
     target,
     setTarget,
     statoAssunzioneOptions,
-    tipoRapportoOptions,
     currentOffertaOptions,
     practiceError,
     uploadingAttachment,
@@ -93,10 +92,6 @@ export function AssunzioniDetailSheetContent({ vm }: { vm: SheetViewModel }) {
                     <CalendarDaysIcon className="size-4" />
                     {card ? formatDate(card.rapporto?.data_inizio_rapporto) : "-"}
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <BriefcaseBusinessIcon className="size-4" />
-                    {card?.tipoRapporto ?? "-"}
-                  </span>
                 </div>
               </div>
               {card?.rapporto?.id && onDeleteRapporto ? (
@@ -127,7 +122,6 @@ export function AssunzioniDetailSheetContent({ vm }: { vm: SheetViewModel }) {
               <LinkedRapportoSummaryCard
                 title={`${card.nomeFamiglia} – ${card.nomeLavoratore}`}
                 rapporto={card.rapporto}
-                type={card.rapporto?.tipo_rapporto ?? card.tipoRapporto}
               />
 
               <DetailSectionBlock
@@ -150,13 +144,6 @@ export function AssunzioniDetailSheetContent({ vm }: { vm: SheetViewModel }) {
                       options={TIPO_CONTRATTO_OPTIONS}
                     />
                   </EditableField>
-                  <EditableField label="Tipo rapporto">
-                    <FieldLookupSelect
-                      name="tipo_rapporto"
-                      options={tipoRapportoOptions}
-                      placeholder="Seleziona tipo rapporto"
-                    />
-                  </EditableField>
                   <EditableField label="Data di assunzione">
                     <FieldInput name="data_inizio_rapporto" type="date" />
                   </EditableField>
@@ -165,6 +152,9 @@ export function AssunzioniDetailSheetContent({ vm }: { vm: SheetViewModel }) {
                   </EditableField>
                   <EditableField label="Cod. Rapporto WebColf">
                     <FieldInput name="codice_datore_webcolf" type="number" />
+                  </EditableField>
+                  <EditableField label="Cod. Lavoratore WebColf">
+                    <FieldInput name="codice_dipendente_webcolf" type="number" />
                   </EditableField>
                   <EditableField label="Fee concordata">
                     <FieldInput
@@ -198,9 +188,6 @@ export function AssunzioniDetailSheetContent({ vm }: { vm: SheetViewModel }) {
                       placeholder="Seleziona sconto"
                       disabled={!card.process?.id}
                     />
-                  </EditableField>
-                  <EditableField label="Cod. Lavoratore WebColf">
-                    <FieldInput name="codice_dipendente_webcolf" type="number" />
                   </EditableField>
                 </div>
                 {practiceError ? (
