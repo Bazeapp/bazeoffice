@@ -50,6 +50,38 @@ export function getTrialDayLabel(days: number | null) {
   return `D${days}`
 }
 
+/** Giorni che mancano al check-in: 0 = oggi, negativo = check-in già scaduto. */
+export function getCheckinDaysRemaining(checkinValue: string | null | undefined) {
+  if (!checkinValue) return null
+  const checkin = new Date(checkinValue)
+  if (Number.isNaN(checkin.getTime())) return null
+  const checkinDay = startOfLocalDay(checkin)
+  const today = startOfLocalDay(new Date())
+  return Math.round((checkinDay.getTime() - today.getTime()) / 86_400_000)
+}
+
+export type CheckinUrgency = "overdue" | "urgent" | "soon" | "normal"
+
+/** Rosso a 3 giorni o meno (scaduti inclusi), giallo entro 7, neutro oltre. */
+export function getCheckinUrgency(daysRemaining: number | null): CheckinUrgency {
+  if (daysRemaining === null) return "normal"
+  if (daysRemaining < 0) return "overdue"
+  if (daysRemaining <= 3) return "urgent"
+  if (daysRemaining <= 7) return "soon"
+  return "normal"
+}
+
+export function getCheckinDaysLabel(daysRemaining: number | null) {
+  if (daysRemaining === null) return "Data check-in non disponibile"
+  if (daysRemaining < 0) {
+    const late = Math.abs(daysRemaining)
+    return `in ritardo di ${late} ${late === 1 ? "giorno" : "giorni"}`
+  }
+  if (daysRemaining === 0) return "oggi"
+  if (daysRemaining === 1) return "domani"
+  return `tra ${daysRemaining} giorni`
+}
+
 export function toDateRangeValue(date: Date) {
   const year = date.getUTCFullYear()
   const month = String(date.getUTCMonth() + 1).padStart(2, "0")

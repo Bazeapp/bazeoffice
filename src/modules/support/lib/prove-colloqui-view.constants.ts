@@ -6,6 +6,9 @@ export type TrialRecordingSlot =
   | "registrazione_chiamate_lavoratori"
   | "registrazione_chiamate_famiglia"
 
+/** Lookup `rapporti_lavorativi.prova_stato_cs`: colonna che mostra la data di check-in sulle card. */
+export const PROVA_CHECKIN_STATUS_LABEL = "Check-in programmato"
+
 export const DAY_LABELS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]
 export const DISTRIBUTION_DAY_LABELS = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]
 

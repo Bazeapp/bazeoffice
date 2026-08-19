@@ -16,6 +16,7 @@ import {
   hasDateOnly,
   toDateRangeValue,
 } from "./colloqui-calendar-utils"
+import { PROVA_CHECKIN_STATUS_LABEL } from "./prove-colloqui-view.constants"
 import type { ColloquioCalendarEvent, LookupOption, ProvaCardData, ProvaColumnData } from "../types"
 
 export const TRIAL_STATUS_DOMAIN = "rapporti_lavorativi.prova_stato_cs"
@@ -55,6 +56,14 @@ function getProveColloquioWorkerLabel(
 
 export function normalizeProveColloquiStatusToken(value: unknown) {
   return normalizeComparableToken(String(value ?? ""))
+}
+
+export function isProvaCheckinColumn(column: Pick<ProvaColumnData, "id" | "label">) {
+  const checkinToken = normalizeProveColloquiStatusToken(PROVA_CHECKIN_STATUS_LABEL)
+  return (
+    normalizeProveColloquiStatusToken(column.id) === checkinToken ||
+    normalizeProveColloquiStatusToken(column.label) === checkinToken
+  )
 }
 
 export function getDefaultProveColloquiCalendarRange() {

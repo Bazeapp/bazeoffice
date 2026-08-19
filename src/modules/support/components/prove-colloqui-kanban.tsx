@@ -1,16 +1,31 @@
 import * as React from "react"
-import { CalendarIcon, PhoneCallIcon, PhoneIcon } from "lucide-react"
+import { AlarmClockIcon, CalendarIcon, PhoneCallIcon, PhoneIcon } from "lucide-react"
 
 import { LavoratoreCard } from "@/modules/lavoratori/components/lavoratore-card"
 import { KanbanColumnShell, KanbanColumnSkeleton } from "@/components/shared-next/kanban"
 import { matchesSearchQuery } from "@/lib/search-utils"
 import { getKanbanColumnVisual } from "@/lib/kanban-column-utils"
-import { getTrialElapsedDays } from "../lib"
+import { cn } from "@/lib/utils"
+import {
+  getCheckinDaysLabel,
+  getCheckinDaysRemaining,
+  getCheckinUrgency,
+  getTrialElapsedDays,
+  type CheckinUrgency,
+} from "../lib"
+import { isProvaCheckinColumn } from "../lib/prove-colloqui-data.utils"
 import {
   buildProvaWorkerCardItem,
   formatProvaDate,
 } from "../lib/prove-colloqui-view.utils"
 import type { ProvaCardData, ProvaColumnData } from "../types"
+
+const CHECKIN_URGENCY_CLASS: Record<CheckinUrgency, string> = {
+  overdue: "font-medium text-red-600",
+  urgent: "font-medium text-red-600",
+  soon: "font-medium text-amber-600",
+  normal: "",
+}
 
 export type ProveColloquiKanbanProps = {
   columns: ProvaColumnData[]
@@ -21,9 +36,11 @@ export type ProveColloquiKanbanProps = {
 
 function ProvaCard({
   card,
+  showCheckinDate,
   onClick,
 }: {
   card: ProvaCardData
+  showCheckinDate: boolean
   onClick: () => void
 }) {
   const elapsedDays = getTrialElapsedDays(card.rapporto.data_inizio_rapporto)
@@ -31,6 +48,10 @@ function ProvaCard({
     elapsedDays === null
       ? "-"
       : `${elapsedDays} ${elapsedDays === 1 ? "giorno" : "giorni"}`
+  const checkinDate = card.rapporto.prova_data_checkin
+  const checkinDaysRemaining = getCheckinDaysRemaining(checkinDate)
+  // Senza data di check-in la card resta sulla data di inizio rapporto.
+  const useCheckin = showCheckinDate && checkinDaysRemaining !== null
   const worker = React.useMemo(() => buildProvaWorkerCardItem(card), [card])
 
   return (
@@ -46,12 +67,27 @@ function ProvaCard({
         <>
           <div className="border-t" />
           <div className="space-y-1.5 text-2xs text-muted-foreground">
-            <p className="flex min-w-0 items-center gap-1.5">
-              <CalendarIcon className="size-3.5 shrink-0" />
-              <span className="truncate">{formatProvaDate(card.rapporto.data_inizio_rapporto)}</span>
-              <span className="shrink-0 text-muted-foreground/60">•</span>
-              <span className="shrink-0">{elapsedDaysLabel}</span>
-            </p>
+            {useCheckin ? (
+              <p
+                className={cn(
+                  "flex min-w-0 items-center gap-1.5",
+                  CHECKIN_URGENCY_CLASS[getCheckinUrgency(checkinDaysRemaining)],
+                )}
+                data-testid="prova-card-checkin"
+              >
+                <AlarmClockIcon className="size-3.5 shrink-0" />
+                <span className="truncate">{formatProvaDate(checkinDate)}</span>
+                <span className="shrink-0 opacity-60">•</span>
+                <span className="shrink-0">{getCheckinDaysLabel(checkinDaysRemaining)}</span>
+              </p>
+            ) : (
+              <p className="flex min-w-0 items-center gap-1.5">
+                <CalendarIcon className="size-3.5 shrink-0" />
+                <span className="truncate">{formatProvaDate(card.rapporto.data_inizio_rapporto)}</span>
+                <span className="shrink-0 text-muted-foreground/60">•</span>
+                <span className="shrink-0">{elapsedDaysLabel}</span>
+              </p>
+            )}
             <p className="flex min-w-0 items-center gap-1.5">
               <PhoneIcon className="size-3.5 shrink-0" />
               <span className="truncate">
@@ -126,7 +162,12 @@ export function ProveColloquiKanban({
                 testId={`kanban-column-${column.label.replace(/\s+/g, "_").replace(/—/g, "-")}`}
               >
                 {column.cards.map((card) => (
-                  <ProvaCard key={card.id} card={card} onClick={() => onCardClick(card)} />
+                  <ProvaCard
+                    key={card.id}
+                    card={card}
+                    showCheckinDate={isProvaCheckinColumn(column)}
+                    onClick={() => onCardClick(card)}
+                  />
                 ))}
               </KanbanColumnShell>
             ))}
