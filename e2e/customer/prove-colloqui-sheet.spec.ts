@@ -66,6 +66,8 @@ test.describe("prove-colloqui: prova detail sheet", () => {
     await expect(dialog.getByText("Stato Pratica Assunzione", { exact: true })).toBeVisible()
     await expect(dialog.getByText("Ore Settimanali", { exact: true })).toBeVisible()
     await expect(dialog.getByText("Data Inizio Rapporto", { exact: true })).toBeVisible()
+    await expect(dialog.getByText("Telefono famiglia", { exact: true })).toBeVisible()
+    await expect(dialog.getByText("Telefono lavoratore", { exact: true })).toBeVisible()
     await expect(dialog.getByRole("link", { name: "Vai al rapporto" })).toBeVisible()
   })
 
